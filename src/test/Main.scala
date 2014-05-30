@@ -3,7 +3,7 @@ package test
 object Main extends App {
 	   
 	   //val root = new CompFun(new Reduce(null), Map(Map(null),new Context()))
-	   val root = new CompFun(new Reduce(null), Map(Map(null)).updateContext(new Context()))
+	   val root = new CompFun(new Reduce(NullFun), Map(Map(NullFun))).updateContext(new Context())
 	       
 
 	   println(Pattern.randomDescent(root, 10))

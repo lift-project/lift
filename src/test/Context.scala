@@ -9,7 +9,7 @@ class Context() {
   }
   
   var mapDepth : Int = 0
-    
+     
   def incMapDepth() : Context = {new Context(this.mapDepth+1)}	
   
   /*override def toString(): String = {

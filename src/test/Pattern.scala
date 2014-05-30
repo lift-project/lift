@@ -6,9 +6,9 @@ import scala.util.Random
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.LinkedList
 
-abstract class Pattern(ctx : Context) extends Fun(ctx)
+abstract class Pattern() extends Fun()
 
-abstract class FPattern(f: Fun, ctx: Context) extends Pattern(ctx) {
+abstract class FPattern(f: Fun) extends Pattern() {
   def fun = f
 }
 object FPattern {
@@ -16,27 +16,22 @@ object FPattern {
 }
 
 
-abstract class AbstractMap(f:Fun, ctx:Context) extends FPattern(f, ctx) {
-   /*f match {
-    case p : Pattern => p.context.incMapDepth
-    case _ =>
-  }*/  
-}
+abstract class AbstractMap(f:Fun) extends FPattern(f)
 object AbstractMap {
 	def unapply(am: AbstractMap): Option[(Fun, Context)] = Some((am.fun, am.context))
 }
 
 
-case class Map(f:Fun, ctx:Context=null) extends AbstractMap(f, ctx) 
-case class MapSeq(f: Fun, ctx:Context=null) extends AbstractMap(f,ctx)
-case class Reduce(f: Fun, ctx:Context=null) extends FPattern(f,ctx)
-case class ReduceSeq(f: Fun, ctx:Context=null) extends FPattern(f,ctx)
-case class PartRed(f: Fun, ctx:Context=null) extends FPattern(f,ctx)
+case class Map(f:Fun) extends AbstractMap(f) 
+case class MapSeq(f: Fun) extends AbstractMap(f)
+case class Reduce(f: Fun) extends FPattern(f)
+case class ReduceSeq(f: Fun) extends FPattern(f)
+case class PartRed(f: Fun) extends FPattern(f)
 
-case class oJoin(ctx:Context=null) extends Pattern(ctx)
-case class iJoin(ctx:Context=null) extends Pattern(ctx)
-case class oSplit(ctx:Context=null) extends Pattern(ctx)
-case class iSplit(ctx:Context=null) extends Pattern(ctx)
+case class oJoin() extends Pattern()
+case class iJoin() extends Pattern()
+case class oSplit() extends Pattern()
+case class iSplit() extends Pattern()
 
 object Pattern {
   
@@ -56,13 +51,13 @@ object Pattern {
   }
 
   private def derivsWithOneRule(fp: FPattern): Seq[Fun] = {
-    outerDerivations(fp) ::: innerDerivations(fp.asInstanceOf[FPattern])
+    outerDerivations(fp) ::: innerDerivations(fp)
   }
   
   private def derivsWithOneRule(cf: CompFun): Seq[Fun] = {
 
-    val optionsList = cf.getFuns().map(f => derivsWithOneRule(f))
-    Utils.listPossiblities(cf.getFuns(), optionsList).map(funs => new CompFun(funs: _*))
+    val optionsList = cf.funs.map(f => derivsWithOneRule(f))
+    Utils.listPossiblities(cf.funs, optionsList).map(funs => new CompFun(funs: _*))
     
     /*val pairs = cf.getFuns().zip(cf.getFuns.tail)
       val pairDerivs = pairs.map({case (x, y) => pairDeriv(x,y)})      
@@ -84,7 +79,7 @@ object Pattern {
   
   
   
-  def oneRandomDeriv(f: Fun): Fun = {
+  /*def oneRandomDeriv(f: Fun): Fun = {
     if (f.isInstanceOf[CompFun]) {
       val cf = f.asInstanceOf[CompFun];
 
@@ -153,30 +148,43 @@ object Pattern {
     outerDerivs(rnd)
     }
   }
-
+*/
   def innerDerivations(fpat: FPattern): List[Fun] = {
     fpat.fun match {
       case _ : Pattern => outerDerivations(fpat.fun).map((f) =>
-        fpat.getClass().getConstructor(classOf[Fun],classOf[Context]).newInstance(f,fpat.context))
+        fpat.getClass().getConstructor(classOf[Fun]).newInstance(f).setContext(fpat.context))
       case _ => List()
     }    
   }
 
   def outerDerivations(f: Fun): List[Fun] = {
+    
+    val maxMapDepth = 3
+    //assert(f.context != null)
+    
     f match {
 
-      case Map(f,ctx) => List(          
-        MapSeq(f,ctx),
-        new CompFun(oJoin(), Map(Map(f)), oSplit()).updateContext(ctx))
+      case Map(inF) => {
+        var result = List[Fun]()
+        result = result :+ MapSeq(inF).setContext(f.context)
+        if (f.context.mapDepth < maxMapDepth)
+          result = result :+ new CompFun(oJoin(), Map(Map(inF)), oSplit()).updateContext(f.context)
+        result
+      }
+      
+      case MapSeq(_) => List()
 
-      case MapSeq(f,_) => List()
+      case Reduce(inF) => {
+        var result = List[Fun]()
+        if (f.context.mapDepth < maxMapDepth)
+        	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit()).updateContext(f.context)
+        result = result :+ ReduceSeq(inF).setContext(f.context)
+        result
+      }
+      
 
-      case Reduce(f,ctx) => List(
-        new CompFun(Reduce(f), oJoin(), Map(PartRed(f)), oSplit()).updateContext(ctx),
-        ReduceSeq(f,ctx))
-
-      case ReduceSeq(f,_) => List()
-      case PartRed(f,_) => List()
+      case ReduceSeq(_) => List()
+      case PartRed(_) => List()
       
       case _ => List()
     }
@@ -185,7 +193,7 @@ object Pattern {
   /*
    * Simplification and fusion rules.
    */
-  def pairDeriv(f1: Fun, f2: Fun): List[Fun] = {
+  /*def pairDeriv(f1: Fun, f2: Fun): List[Fun] = {
     f1 match {
 
       case Map(f,ctx1) => {
@@ -211,7 +219,7 @@ object Pattern {
 
       case _ => List()      
     }
-  }
+  }*/
 
   /*def explore(p: Pattern) {
     var derivs = derivations(p)
@@ -223,7 +231,7 @@ object Pattern {
 
   }*/
 
-  def explore(f: Fun, width: Int, maxDepth: Int) {
+ /* def explore(f: Fun, width: Int, maxDepth: Int) {
     var seenHashes = new HashSet[Int]();
     explore(f, width, maxDepth, seenHashes);
   }
@@ -246,7 +254,7 @@ object Pattern {
    
    newFuns.map((fun) => println(fun))
    newFuns.map((fun) => explore(fun, width, maxDepth-1, seenHashes))    
-  }
+  }*/
 }
 
   
