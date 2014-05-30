@@ -28,7 +28,8 @@ case class MapGlb(f: Fun) extends AbstractMap(f)
 case class MapWrg(f: Fun) extends AbstractMap(f)
 case class MapLcl(f: Fun) extends AbstractMap(f)
 
-abstract class AbstractReduce(f: Fun) extends FPattern(f) {
+abstract class AbstractReduce(f:Fun) extends FPattern(f)
+object AbstractReduce {
 	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.fun)
 }
 case class Reduce(f: Fun) extends AbstractReduce(f)
