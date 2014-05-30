@@ -24,6 +24,10 @@ object AbstractMap {
 
 case class Map(f:Fun) extends AbstractMap(f) 
 case class MapSeq(f: Fun) extends AbstractMap(f)
+case class MapGlb(f: Fun) extends AbstractMap(f)
+case class MapWrg(f: Fun) extends AbstractMap(f)
+case class MapLcl(f: Fun) extends AbstractMap(f)
+
 case class Reduce(f: Fun) extends FPattern(f)
 case class ReduceSeq(f: Fun) extends FPattern(f)
 case class PartRed(f: Fun) extends FPattern(f)
@@ -37,26 +41,29 @@ object Pattern {
   
   def unapply(p: Pattern) : Option[Context] = Some(p.context)
     
-  def randomDescent(f: Fun, maxDepth : Int) : Fun = {
+  def randomDescent(f: Fun, maxDepth : Int, c: Constraints = new Constraints()) : Fun = {
+        
+    if (maxDepth < 0)
+      c.onlyTerminal = true;
     
-    val derivs = derivsWithOneRule(f);
+    val derivs = derivsWithOneRule(f,c);
     if (derivs.isEmpty)
       return f;
     val randomDeriv = derivs(Random.nextInt(derivs.length))
-    randomDescent(randomDeriv, maxDepth -1)
+    randomDescent(randomDeriv, maxDepth -1, c)
   }
   
   def evalPerf(f: Fun): Float = {
     0f
   }
 
-  private def derivsWithOneRule(fp: FPattern): Seq[Fun] = {
-    outerDerivations(fp) ::: innerDerivations(fp)
+  private def derivsWithOneRule(fp: FPattern, c: Constraints): Seq[Fun] = {
+    outerDerivations(fp,c) ::: innerDerivations(fp,c)
   }
   
-  private def derivsWithOneRule(cf: CompFun): Seq[Fun] = {
+  private def derivsWithOneRule(cf: CompFun, c: Constraints): Seq[Fun] = {
 
-    val optionsList = cf.funs.map(f => derivsWithOneRule(f))
+    val optionsList = cf.funs.map(f => derivsWithOneRule(f,c))
     Utils.listPossiblities(cf.funs, optionsList).map(funs => new CompFun(funs: _*))
     
     /*val pairs = cf.getFuns().zip(cf.getFuns.tail)
@@ -69,11 +76,11 @@ object Pattern {
   /*
    * Return a list of all possible derivations using only one rule
    */
-  def derivsWithOneRule(f: Fun): Seq[Fun] =  {
+  def derivsWithOneRule(f: Fun, c: Constraints): Seq[Fun] =  {
     f match {
-    	case cf: CompFun => derivsWithOneRule(cf)
-    	case fp: FPattern => derivsWithOneRule(fp)
-    	case p: Pattern => outerDerivations(p)
+    	case cf: CompFun => derivsWithOneRule(cf,c)
+    	case fp: FPattern => derivsWithOneRule(fp,c)
+    	case p: Pattern => outerDerivations(p,c)
     }       
   }
   
@@ -149,44 +156,47 @@ object Pattern {
     }
   }
 */
-  def innerDerivations(fpat: FPattern): List[Fun] = {
+  def innerDerivations(fpat: FPattern, c: Constraints): List[Fun] = {
     fpat.fun match {
-      case _ : Pattern => outerDerivations(fpat.fun).map((f) =>
+      case _ : Pattern => outerDerivations(fpat.fun, c).map((f) =>
         fpat.getClass().getConstructor(classOf[Fun]).newInstance(f).setContext(fpat.context))
       case _ => List()
     }    
   }
 
-  def outerDerivations(f: Fun): List[Fun] = {
+  def outerDerivations(f: Fun, c: Constraints): List[Fun] = {
     
-    val maxMapDepth = 3
     //assert(f.context != null)
     
     f match {
 
       case Map(inF) => {
         var result = List[Fun]()
-        result = result :+ MapSeq(inF).setContext(f.context)
-        if (f.context.mapDepth < maxMapDepth)
+        if (f.context.inMapGlb || f.context.inMapLcl)
+        	result = result :+ MapSeq(inF).setContext(f.context)
+        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
           result = result :+ new CompFun(oJoin(), Map(Map(inF)), oSplit()).updateContext(f.context)
+        if (!f.context.inMapGlb && !f.context.inMapWrg) {
+          result = result :+ MapGlb(inF).updateContext(f.context)
+          result = result :+ MapWrg(inF).updateContext(f.context)
+        }
+        if (f.context.inMapWrg && !f.context.inMapGlb && !f.context.inMapLcl) {
+          result = result :+ MapLcl(inF).updateContext(f.context)    
+        }
         result
-      }
+      }     
       
-      case MapSeq(_) => List()
-
       case Reduce(inF) => {
         var result = List[Fun]()
-        if (f.context.mapDepth < maxMapDepth)
+        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
         	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit()).updateContext(f.context)
         result = result :+ ReduceSeq(inF).setContext(f.context)
         result
       }
       
-
-      case ReduceSeq(_) => List()
-      case PartRed(_) => List()
+      case PartRed(_) => List() // TODO
       
-      case _ => List()
+      case _ => List() // all the terminals end up here
     }
   }
 

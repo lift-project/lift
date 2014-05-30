@@ -9,8 +9,14 @@ abstract class Fun() {
   def updateContext(ctx: Context): Fun = {
     if (ctx != null) {
       this.context = ctx;
-      this match {
-        case AbstractMap(f, _) => f.updateContext(ctx.incMapDepth)
+      this match {   
+        
+        case Map(f)    => f.updateContext(ctx.incMapDepth)
+        case MapSeq(f) => f.updateContext(ctx.incMapDepth)
+        case MapGlb(f) => f.updateContext(ctx.incMapDepth.setInMapGlb)
+        case MapWrg(f) => f.updateContext(ctx.incMapDepth.setInMapWrg)
+        case MapLcl(f) => f.updateContext(ctx.incMapDepth.setInMapLcl)
+                        
         case FPattern(f, _) => f.updateContext(ctx.copy)
         case cf: CompFun => cf.funs.map(inF => inF.updateContext(ctx.copy))
         case _ => 
