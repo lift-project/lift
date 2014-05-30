@@ -3,9 +3,18 @@ package test
 abstract class Fun() {
   var context : Context = null;  
 
+  var inT: Type = UndefType;
+  var ouT: Type = UndefType;
+  
+  
   /*
    * Update the context recursively
    */
+  def updateContext(): Fun = updateContext(this.context)
+    
+  /*
+   * Update the context recursively
+   */  
   def updateContext(ctx: Context): Fun = {
     if (ctx != null) {
       this.context = ctx;
@@ -15,8 +24,8 @@ abstract class Fun() {
         case MapSeq(f) => f.updateContext(ctx.incMapDepth)
         case MapGlb(f) => f.updateContext(ctx.incMapDepth.setInMapGlb)
         case MapWrg(f) => f.updateContext(ctx.incMapDepth.setInMapWrg)
-        case MapLcl(f) => f.updateContext(ctx.incMapDepth.setInMapLcl)
-                        
+        case MapLcl(f) => f.updateContext(ctx.incMapDepth.setInMapLcl)       
+        
         case FPattern(f, _) => f.updateContext(ctx.copy)
         case cf: CompFun => cf.funs.map(inF => inF.updateContext(ctx.copy))
         case _ => 
@@ -30,6 +39,8 @@ abstract class Fun() {
       this.context = ctx
     this
   }
+  
+
 }
 
 

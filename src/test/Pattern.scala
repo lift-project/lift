@@ -18,7 +18,7 @@ object FPattern {
 
 abstract class AbstractMap(f:Fun) extends FPattern(f)
 object AbstractMap {
-	def unapply(am: AbstractMap): Option[(Fun, Context)] = Some((am.fun, am.context))
+	def unapply(am: AbstractMap): Option[Fun] = Some(am.fun)
 }
 
 
@@ -28,8 +28,12 @@ case class MapGlb(f: Fun) extends AbstractMap(f)
 case class MapWrg(f: Fun) extends AbstractMap(f)
 case class MapLcl(f: Fun) extends AbstractMap(f)
 
-case class Reduce(f: Fun) extends FPattern(f)
-case class ReduceSeq(f: Fun) extends FPattern(f)
+abstract class AbstractReduce(f: Fun) extends FPattern(f) {
+	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.fun)
+}
+case class Reduce(f: Fun) extends AbstractReduce(f)
+case class ReduceSeq(f: Fun) extends AbstractReduce(f)
+
 case class PartRed(f: Fun) extends FPattern(f)
 
 case class oJoin() extends Pattern()
@@ -41,15 +45,29 @@ object Pattern {
   
   def unapply(p: Pattern) : Option[Context] = Some(p.context)
     
-  def randomDescent(f: Fun, maxDepth : Int, c: Constraints = new Constraints()) : Fun = {
-        
-    if (maxDepth < 0)
-      c.onlyTerminal = true;
+  def randomDescent(f: Fun, maxDepth : Int, constraints: Constraints = new Constraints(3, false)) : Fun = {
     
-    val derivs = derivsWithOneRule(f,c);
+    var c = constraints
+    
+    // setup the context
+    if (f.context == null)
+      f.updateContext(new Context())
+    else
+      f.updateContext()
+    
+    if (maxDepth < 0)
+      c = c.setOnlyTerminal
+    
+    val derivs = Rules.derivsWithOneRule(f,c);
     if (derivs.isEmpty)
       return f;
-    val randomDeriv = derivs(Random.nextInt(derivs.length))
+    
+    // select one derivation at random
+    val rnd = Random.nextInt(derivs.length)
+    //println(rnd+"/"+derivs.length)
+    val randomDeriv = derivs(rnd)
+    
+    
     randomDescent(randomDeriv, maxDepth -1, c)
   }
   
@@ -57,32 +75,7 @@ object Pattern {
     0f
   }
 
-  private def derivsWithOneRule(fp: FPattern, c: Constraints): Seq[Fun] = {
-    outerDerivations(fp,c) ::: innerDerivations(fp,c)
-  }
-  
-  private def derivsWithOneRule(cf: CompFun, c: Constraints): Seq[Fun] = {
 
-    val optionsList = cf.funs.map(f => derivsWithOneRule(f,c))
-    Utils.listPossiblities(cf.funs, optionsList).map(funs => new CompFun(funs: _*))
-    
-    /*val pairs = cf.getFuns().zip(cf.getFuns.tail)
-      val pairDerivs = pairs.map({case (x, y) => pairDeriv(x,y)})      
-      val numPairDerivs = pairDerivs.foldLeft(0)((num,l) => num+l.length)*/
-  }
-   
-    
-    
-  /*
-   * Return a list of all possible derivations using only one rule
-   */
-  def derivsWithOneRule(f: Fun, c: Constraints): Seq[Fun] =  {
-    f match {
-    	case cf: CompFun => derivsWithOneRule(cf,c)
-    	case fp: FPattern => derivsWithOneRule(fp,c)
-    	case p: Pattern => outerDerivations(p,c)
-    }       
-  }
   
   
   
@@ -156,80 +149,8 @@ object Pattern {
     }
   }
 */
-  def innerDerivations(fpat: FPattern, c: Constraints): List[Fun] = {
-    fpat.fun match {
-      case _ : Pattern => outerDerivations(fpat.fun, c).map((f) =>
-        fpat.getClass().getConstructor(classOf[Fun]).newInstance(f).setContext(fpat.context))
-      case _ => List()
-    }    
-  }
+ 
 
-  def outerDerivations(f: Fun, c: Constraints): List[Fun] = {
-    
-    //assert(f.context != null)
-    
-    f match {
-
-      case Map(inF) => {
-        var result = List[Fun]()
-        if (f.context.inMapGlb || f.context.inMapLcl)
-        	result = result :+ MapSeq(inF).setContext(f.context)
-        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
-          result = result :+ new CompFun(oJoin(), Map(Map(inF)), oSplit()).updateContext(f.context)
-        if (!f.context.inMapGlb && !f.context.inMapWrg) {
-          result = result :+ MapGlb(inF).updateContext(f.context)
-          result = result :+ MapWrg(inF).updateContext(f.context)
-        }
-        if (f.context.inMapWrg && !f.context.inMapGlb && !f.context.inMapLcl) {
-          result = result :+ MapLcl(inF).updateContext(f.context)    
-        }
-        result
-      }     
-      
-      case Reduce(inF) => {
-        var result = List[Fun]()
-        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
-        	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit()).updateContext(f.context)
-        result = result :+ ReduceSeq(inF).setContext(f.context)
-        result
-      }
-      
-      case PartRed(_) => List() // TODO
-      
-      case _ => List() // all the terminals end up here
-    }
-  }
-
-  /*
-   * Simplification and fusion rules.
-   */
-  /*def pairDeriv(f1: Fun, f2: Fun): List[Fun] = {
-    f1 match {
-
-      case Map(f,ctx1) => {
-        f2 match {
-          case Map(g,ctx2) => List(Map(new CompFun(f, g),ctx1)) // TODO: merge context ctx1 and ctx2
-          case _ => List()
-        }
-      }
-
-      case oSplit(_) => {
-        f2 match {
-          case oJoin(_) => List(new NullFun())
-          case _ => List()
-        }
-      }
-
-      case iSplit(_) => {
-        f2 match {
-          case iJoin(_) => List(new NullFun())
-          case _ => List()
-        }
-      }
-
-      case _ => List()      
-    }
-  }*/
 
   /*def explore(p: Pattern) {
     var derivs = derivations(p)
