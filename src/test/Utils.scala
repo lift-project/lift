@@ -2,6 +2,8 @@ package test
 
 import org.junit.Test
 import org.junit.Assert._
+import scala.util.Random
+
 
 class Utils() {
 
@@ -32,5 +34,33 @@ object Utils {
 	      (prefix,results)	      
 	    } )._2	  
 	}
+
+  def randomDescent(f: Fun, inputType: Type, maxDepth: Int, constraints: Constraints = new Constraints(3, false)): Fun = {
+
+    var c = constraints
+
+    // setup the context
+    if (f.context == null)
+      Context.updateContext(f, new Context())
+    else
+      Context.updateContext(f)
+
+    // setup the types
+    Type.check(f, inputType)
+      
+    if (maxDepth < 0)
+      c = c.setOnlyTerminal
+
+    val derivs = Rules.derivsWithOneRule(f, c);
+    if (derivs.isEmpty)
+      return f;
+
+    // select one derivation at random
+    val rnd = Random.nextInt(derivs.length)
+    //println(rnd+"/"+derivs.length)
+    val randomDeriv = derivs(rnd)
+
+    randomDescent(randomDeriv, inputType, maxDepth - 1, c)
+  }
   
 }

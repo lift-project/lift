@@ -1,38 +1,12 @@
 package test
 
-abstract class Fun() {
+
+
+sealed abstract class Fun() {
   var context : Context = null;  
 
   var inT: Type = UndefType;
   var ouT: Type = UndefType;
-  
-  
-  /*
-   * Update the context recursively
-   */
-  def updateContext(): Fun = updateContext(this.context)
-    
-  /*
-   * Update the context recursively
-   */  
-  def updateContext(ctx: Context): Fun = {
-    if (ctx != null) {
-      this.context = ctx;
-      this match {   
-        
-        case Map(f)    => f.updateContext(ctx.incMapDepth)
-        case MapSeq(f) => f.updateContext(ctx.incMapDepth)
-        case MapGlb(f) => f.updateContext(ctx.incMapDepth.setInMapGlb)
-        case MapWrg(f) => f.updateContext(ctx.incMapDepth.setInMapWrg)
-        case MapLcl(f) => f.updateContext(ctx.incMapDepth.setInMapLcl)       
-        
-        case FPattern(f, _) => f.updateContext(ctx.copy)
-        case cf: CompFun => cf.funs.map(inF => inF.updateContext(ctx.copy))
-        case _ => 
-      }
-    }
-    this
-  }
   
   def setContext(ctx: Context): Fun = {
     if (ctx != null)
@@ -40,11 +14,14 @@ abstract class Fun() {
     this
   }
   
+  //override def toString() = {
+  //  "["+super.toString
+  //}
 
 }
 
 
-object NullFun extends Fun {
+case object NullFun extends Fun {
   override def toString() = "null"
 }
 
@@ -67,3 +44,48 @@ case class CompFun(funs: Fun*) extends Fun {
     funs.hashCode()
   }
 }
+
+
+
+abstract class Pattern() extends Fun()
+
+object Pattern {
+  
+  def unapply(p: Pattern) : Option[Context] = Some(p.context)     
+  
+  /*def evalPerf(f: Fun): Float = {
+    0f
+  }*/
+}
+
+
+abstract class FPattern(f: Fun) extends Pattern() {
+  def fun = f
+}
+object FPattern {
+  def unapply(fp: FPattern): Option[(Fun,Context)] = Some(fp.fun,fp.context)
+}
+
+abstract class AbstractMap(f:Fun) extends FPattern(f)
+object AbstractMap {
+	def unapply(am: AbstractMap): Option[Fun] = Some(am.fun)
+}
+case class Map(f:Fun) extends AbstractMap(f) 
+case class MapSeq(f: Fun) extends AbstractMap(f)
+case class MapGlb(f: Fun) extends AbstractMap(f)
+case class MapWrg(f: Fun) extends AbstractMap(f)
+case class MapLcl(f: Fun) extends AbstractMap(f)
+
+abstract class AbstractReduce(f:Fun) extends FPattern(f)
+object AbstractReduce {
+	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.fun)
+}
+case class Reduce(f: Fun) extends AbstractReduce(f)
+case class ReduceSeq(f: Fun) extends AbstractReduce(f)
+
+case class PartRed(f: Fun) extends FPattern(f)
+
+case class oJoin() extends Pattern()
+case class iJoin() extends Pattern()
+case class oSplit(val chunkSize: Expr) extends Pattern()
+case class iSplit(val chunkSize: Expr) extends Pattern()

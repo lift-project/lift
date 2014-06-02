@@ -4,9 +4,9 @@ import scala.util.Random
 
 object Main extends App {
 	   
-	   //val root = new CompFun(new Reduce(null), Map(Map(null),new Context()))
+	   //val root = new CompFun(new Reduce(null), Map(Map(null)))
 	   //val root = new CompFun(new Reduce(NullFun), Map(Map(NullFun))).updateContext(new Context())
-	   val root = new Reduce(NullFun)
+	   val root = Reduce(NullFun)
 	   //val root =  MapWrg(new CompFun(Map(NullFun))).updateContext(new Context)
  
 	   
@@ -17,8 +17,14 @@ object Main extends App {
 	   //val c = new Constraints()
 	   //c.onlyTerminal = true;
 
-	   for (i <- 1 to 100)
-		   println(Pattern.randomDescent(root, 10))
+	   val inputType: Type = new ArrayType(new PrimitiveType(),Cst(10))
+	   
+	   for (i <- 1 to 100) {
+	     val e = Utils.randomDescent(root, inputType, 10)
+	     println(e)
+	     //Type.check(e, inputType)
+	     println(Printer.toStringWithType(e))
+	   }
 	   
 	   //println(Pattern.derivsWithOneRule(root))
 	   //Pattern.explore(root, 20, 5)

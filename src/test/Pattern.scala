@@ -1,80 +1,12 @@
 package test
 
-import test.Fun
-import test.CompFun
-import scala.util.Random
-import scala.collection.mutable.HashSet
-import scala.collection.mutable.LinkedList
-
-abstract class Pattern() extends Fun()
-
-abstract class FPattern(f: Fun) extends Pattern() {
-  def fun = f
-}
-object FPattern {
-  def unapply(fp: FPattern): Option[(Fun,Context)] = Some(fp.fun,fp.context)
-}
+//import scala.collection.mutable.HashSet
+//import scala.collection.mutable.LinkedList
 
 
-abstract class AbstractMap(f:Fun) extends FPattern(f)
-object AbstractMap {
-	def unapply(am: AbstractMap): Option[Fun] = Some(am.fun)
-}
 
 
-case class Map(f:Fun) extends AbstractMap(f) 
-case class MapSeq(f: Fun) extends AbstractMap(f)
-case class MapGlb(f: Fun) extends AbstractMap(f)
-case class MapWrg(f: Fun) extends AbstractMap(f)
-case class MapLcl(f: Fun) extends AbstractMap(f)
 
-abstract class AbstractReduce(f:Fun) extends FPattern(f)
-object AbstractReduce {
-	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.fun)
-}
-case class Reduce(f: Fun) extends AbstractReduce(f)
-case class ReduceSeq(f: Fun) extends AbstractReduce(f)
-
-case class PartRed(f: Fun) extends FPattern(f)
-
-case class oJoin() extends Pattern()
-case class iJoin() extends Pattern()
-case class oSplit() extends Pattern()
-case class iSplit() extends Pattern()
-
-object Pattern {
-  
-  def unapply(p: Pattern) : Option[Context] = Some(p.context)
-    
-  def randomDescent(f: Fun, maxDepth : Int, constraints: Constraints = new Constraints(3, false)) : Fun = {
-    
-    var c = constraints
-    
-    // setup the context
-    if (f.context == null)
-      f.updateContext(new Context())
-    else
-      f.updateContext()
-    
-    if (maxDepth < 0)
-      c = c.setOnlyTerminal
-    
-    val derivs = Rules.derivsWithOneRule(f,c);
-    if (derivs.isEmpty)
-      return f;
-    
-    // select one derivation at random
-    val rnd = Random.nextInt(derivs.length)
-    //println(rnd+"/"+derivs.length)
-    val randomDeriv = derivs(rnd)
-    
-    
-    randomDescent(randomDeriv, maxDepth -1, c)
-  }
-  
-  def evalPerf(f: Fun): Float = {
-    0f
-  }
 
 
   
@@ -187,6 +119,5 @@ object Pattern {
    newFuns.map((fun) => println(fun))
    newFuns.map((fun) => explore(fun, width, maxDepth-1, seenHashes))    
   }*/
-}
 
   

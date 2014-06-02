@@ -38,3 +38,31 @@ class Context extends Cloneable {
   
   def copy() = this.clone().asInstanceOf[Context]
 }
+
+object Context {
+   /*
+   * Update the context recursively
+   */
+  def updateContext(f: Fun): Unit = updateContext(f, f.context)
+    
+  /*
+   * Update the context recursively
+   */  
+  def updateContext(f: Fun, ctx: Context): Unit = {
+    if (ctx != null) {
+      f.context = ctx;
+      f match {   
+        
+        case Map(inF)    => updateContext(inF, ctx.incMapDepth)
+        case MapSeq(inF) => updateContext(inF, ctx.incMapDepth)
+        case MapGlb(inF) => updateContext(inF, ctx.incMapDepth.setInMapGlb)
+        case MapWrg(inF) => updateContext(inF, ctx.incMapDepth.setInMapWrg)
+        case MapLcl(inF) => updateContext(inF, ctx.incMapDepth.setInMapLcl)       
+        
+        case FPattern(inF, _) => updateContext(inF, ctx.copy)
+        case cf: CompFun => cf.funs.map(inF => updateContext(inF, ctx.copy))
+        case _ => 
+      }
+    }    
+  }
+}

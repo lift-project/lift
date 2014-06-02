@@ -26,7 +26,7 @@ object Rules {
     	case cf: CompFun => derivsWithOneRule(cf,c)
     	case fp: FPattern => derivsWithOneRule(fp,c)
     	case p: Pattern => outerDerivations(p,c)
-    	case _ => List()
+    	case NullFun => List()
     }       
   }
   
@@ -41,6 +41,13 @@ object Rules {
     }   */ 
   }
 
+ def validOSplitRange(t: Type) = {
+   t match {
+     case ArrayType(_,len) => RangeMul(Cst(1), len, Cst(2))
+     case _ => RangeUnkown // Error
+   } 
+ }
+   
   /*
    * The context of the functions within the returned list might be invalid
    */
@@ -67,8 +74,8 @@ object Rules {
         }
         
         // split-join
-        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
-          result = result :+ new CompFun(oJoin(), Map(Map(inF)), oSplit())//.updateContext(f.context)
+        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)          
+          result = result :+ new CompFun(oJoin(), Map(Map(inF)), oSplit(Var(validOSplitRange(f.inT))))//.updateContext(f.context)        
         
         result
       }     
@@ -76,7 +83,7 @@ object Rules {
       case Reduce(inF) => {
         var result = List[Fun]()
         if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
-        	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit())//.updateContext(f.context)
+        	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit(Var(validOSplitRange(f.inT))))//.updateContext(f.context)
         result = result :+ ReduceSeq(inF)//.setContext(f.context)
         result
       }
