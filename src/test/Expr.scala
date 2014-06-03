@@ -1,39 +1,17 @@
 package test
 
+import scala.collection.immutable.HashMap
+
 sealed abstract class Expr {
   def simplify() = this
   def /(that: Expr) = new Div(this, that)
   def *(that: Expr) = new Mul(this, that)
-  def +(that: Expr) = new Add(this, that)
+  def +(that: Expr) : Expr = new Add(this, that)
   def -(that: Expr) = new Sub(this, that)  
   def ^(that: Expr) = new Pow(this, that)  
 }
 
 object Expr {
- /* def simplify(e: Expr) : Expr = {
-    e match {
-    	case Add(Cst(0),r) => simplify(r)
-    	case Add(l,Cst(0)) => simplify(l)
-    	case Add(l,r)      => Add(simplify(l), simplify(r))
-    	case Sub(l,Cst(0)) => simplify(l)   
-    	case Sub(l,r)      => Sub(simplify(l), simplify(r))
-    	case Mul(Cst(0),r) => Cst(0)
-    	case Mul(l,Cst(0)) => Cst(0)
-    	case Mul(Cst(1),r) => simplify(r)
-    	case Mul(l,Cst(1)) => simplify(l)
-    	case Mul(l,r)      => Mul(simplify(l), simplify(r))
-    	case Div(l,Cst(1)) => l  
-    	case Div(l,r)      => Div(simplify(l), simplify(r))
-    	
-    	case Mul(Mul(a,b),c) => Terms(Set(a,b,c))
-    	case Mul(a, Mul(b,c)) => Terms(Set(a,b,c))
-    	case Mul(Terms(terms1),Terms(terms2)) => Terms(terms1++terms2)
-    	case Mul(a,Terms(terms)) => Terms(terms+a)
-    	case Mul(Terms(terms),a) => Terms(terms+a)
-
-    	case _ => e
-    }
-  }*/
   
   def simplify(e: Expr) : Expr = {
     e match {
@@ -45,38 +23,94 @@ object Expr {
     
     	case Add(Cst(0),r) => simplify(r)
     	case Add(l,Cst(0)) => simplify(l)
-    	case Add(Add(a,b),c) => Adds(Set(simplify(a),simplify(b),simplify(c)))
-    	case Add(a, Add(b,c)) => Adds(Set(simplify(a),simplify(b),simplify(c)))
-    	case Add(Adds(terms1),Adds(terms2)) => Adds(terms1++terms2)
-    	case Add(a,Adds(terms)) => Adds(terms+simplify(a))
-    	case Add(Adds(terms),a) => Adds(terms+simplify(a))    	
-    	case Add(l,r)      => Add(simplify(l), simplify(r))    	
+
+    	case Add(a1:Adds, a2:Adds) => a1+a2
+    	case Add(a,adds:Adds) => adds+simplify(a)
+    	case Add(adds:Adds,a) => adds+simplify(a)
+    	case Add(l,r)      => new Adds()+simplify(l)+simplify(r)   	
     	
     	case Mul(Cst(0),r) => Cst(0)
     	case Mul(l,Cst(0)) => Cst(0)
     	case Mul(Cst(1),r) => simplify(r)
     	case Mul(l,Cst(1)) => simplify(l)
-    	case Mul(Mul(a,b),c) => Muls(Set(simplify(a),simplify(b),simplify(c)))
-    	case Mul(a, Mul(b,c)) => Muls(Set(simplify(a),simplify(b),simplify(c)))
-    	case Mul(Muls(terms1),Muls(terms2)) => Muls(terms1++terms2)
-    	case Mul(a,Muls(terms)) => Muls(terms+simplify(a))
-    	case Mul(Muls(terms),a) => Muls(terms+simplify(a))
-    	case Mul(l,r)      => Mul(simplify(l), simplify(r))
+
+    	case Mul(a1:Muls, a2:Muls) => a1+a2
+    	case Mul(a,muls:Muls)      => muls+simplify(a)
+    	case Mul(muls:Muls,a)      => muls+simplify(a)
+    	case Mul(l,r)              => new Muls()+simplify(l)+simplify(r) 
+
     	
-    	case Pow(l,Cst(1)) => simplify(l)
-    	case Pow(Cst(0),r) => simplify(r)
-    	case Pow(l,r)      => Pow(simplify(l),simplify(r))
-    	
-    	case Muls(_) => e
-    	case Adds(_) => e
+    	case Pow(b,Cst(1)) => simplify(b)
+    	case Pow(Cst(0),e) => simplify(e)
+    	case Pow(b,e)      => Pow(simplify(b),simplify(e))   	    	
 
     	case _ => e
     }
   }
 }
 
-private case class Muls(terms: Set[Expr]) extends Expr
-private case class Adds(terms: Set[Expr]) extends Expr
+private case class Muls(val terms: HashMap[Expr,Int]) extends Expr {
+  def this() = this(new HashMap)
+
+  override def toString() = {
+    terms.map(keyval =>
+      if (keyval._2 == 1)
+        keyval._1.toString
+      else
+        keyval._1.toString + "^" + keyval._2).reduce((s1, s2) => s1 + "*" + s2)
+  }  
+  
+  override def +(t: Expr) : Expr = {
+   val reverse = t match {
+      case Pow(reverse,Cst(-1)) => reverse
+      case _ => Pow(t, Cst(-1))
+    }
+
+    val cnt = terms.get(reverse)
+    if (!cnt.isEmpty)
+      if (cnt.get == 1)
+        return Muls(terms - reverse)
+      else
+        return Muls(terms + (reverse -> (cnt.get - 1)))
+        
+	Muls(terms+(t->(terms.getOrElse(t, 0)+1)))
+  }
+  def +(that: Muls) {
+    new NotImplementedError() 
+  }
+}
+private case class Adds(val terms: HashMap[Expr,Int]) extends Expr {
+  def this() = this(new HashMap)
+  
+  override def toString() = {
+    terms.map(keyval =>
+      if (keyval._2 == 1)
+        keyval._1.toString
+      else
+        keyval._1.toString + "*" + keyval._2).reduce((s1, s2) => s1 + "+" + s2)
+  }  
+    
+  
+  override def +(t: Expr) : Expr = {
+   val reverse = t match {
+      case Mul(reverse,Cst(-1)) => reverse
+      case Mul(Cst(-1),reverse) => reverse
+      case _ => Mul(Cst(-1), t)
+    }
+
+    val cnt = terms.get(reverse)
+    if (!cnt.isEmpty)
+      if (cnt.get == 1)
+        return Adds(terms - reverse)
+      else
+        return Adds(terms + (reverse -> (cnt.get - 1)))
+        
+	Adds(terms+(t->(terms.getOrElse(t, 0)+1)))
+  }
+  def +(that: Adds) {
+    new NotImplementedError() 
+  }
+}
 
 // undefined
 case object ? extends Expr
@@ -85,7 +119,7 @@ case object ? extends Expr
 
 case class Cst(val cst: Int) extends Expr {override def toString() = cst.toString}
 
-case class Var private(id: String, range : Range) extends Expr {
+case class Var private(val id: String, val range : Range) extends Expr {
   
   override def toString() = id
   
