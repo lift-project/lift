@@ -47,7 +47,7 @@ object Utils {
 
     // setup the types
     Type.check(f, inputType)
-      
+          
     if (maxDepth < 0)
       c = c.setOnlyTerminal
 

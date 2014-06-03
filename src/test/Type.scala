@@ -14,7 +14,7 @@ case class ArrayType(val elemT: Type, val len: Expr) extends Type
 object UndefType extends Type {override def toString() = "UndefType"}
 
 object Type {
-
+  
   def getElemT(t: Type): Type = {
     t match {
       case at: ArrayType => at.elemT

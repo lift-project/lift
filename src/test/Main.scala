@@ -18,12 +18,17 @@ object Main extends App {
 	   //c.onlyTerminal = true;
 
 	   val inputType: Type = new ArrayType(new PrimitiveType(),Cst(10))
-	   
+	   	   	   
 	   for (i <- 1 to 100) {
 	     val e = Utils.randomDescent(root, inputType, 10)
 	     println(e)
+
 	     //Type.check(e, inputType)
 	     println(Printer.toStringWithType(e))
+	     val vars = Var.getVars(e)
+         println(vars)
+         Var.setVarsAtRandom(vars)
+
 	   }
 	   
 	   //println(Pattern.derivsWithOneRule(root))

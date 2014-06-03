@@ -20,6 +20,19 @@ sealed abstract class Fun() {
 
 }
 
+object Fun {
+  
+  def visit[T](z:T)(f: Fun, visitfn: (Fun,T) => T): T = {
+    val result = visitfn(f,z)
+    f match {
+      case FPattern(inF, _) => visit(result)(inF, visitfn)
+      case cf: CompFun => cf.funs.foldRight(result)((inF,x)=>visit(x)(inF, visitfn))      
+      case _ => result
+    }
+  }
+  
+}
+
 
 case object NullFun extends Fun {
   override def toString() = "null"
