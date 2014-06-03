@@ -20,6 +20,11 @@ class TestExpr {
     println(result)
     
     assertEquals(Cst(17),result)
-  }
+    
+    val e2 = (c0/v+c1/v)*v*(c10+c2)+(c10/c2)
+    val result2 = Expr.simplify(e)
+    println(result2)
+    
+    }
   
 }

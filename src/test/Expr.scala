@@ -20,7 +20,7 @@ object Expr {
   
 
   
-  def simplify(e: Expr) : Expr = {
+  def simplify(e: Expr) : Expr = {    
     
      val simpExpr = e match {           
        case Mul(l,r) => Mul(simplify(l),simplify(r))
@@ -52,7 +52,7 @@ object Expr {
     // the simplified sum/prod might create a Pow
     simpProdSumExpr match {
       case Pow(Cst(0),Cst(0)) => simpProdSumExpr // illegal
-      case Pow(b: Cst,e: Cst) => Cst(math.pow(b.cst ,e.cst).toInt)
+      //case Pow(b: Cst,e: Cst) => Cst(math.pow(b.cst ,e.cst).toInt) // cannot do this here, otherwise imprecision will appear
       case Pow(Cst(0), e) => Cst(0)
       case Pow(Cst(1), e) => Cst(1)
       case Pow(b, Cst(0)) => Cst(1)
@@ -82,11 +82,16 @@ private case class Prod(val terms: HashMap[Expr,Int]) extends Expr {
     val cstTerms = terms.filterKeys({
       e => e match {
         case _:Cst => true
+        case Pow(Cst(_),Cst(_)) => true
         case _ => false
         }})
-    val cstI = cstTerms.foldLeft(1)((acc,t) => t match {case (Cst(c),i) => acc*math.pow(c,i).toInt})
-    val cstExpr = Cst(cstI)
-    if (cstI == 0) // result is 0, nothing else to do
+    val cstD = cstTerms.foldLeft(1.0)((acc,t) => t match {
+      case (Cst(c),i) => acc*math.pow(c,i)
+      case (Pow(Cst(b),Cst(e)),i) => acc*math.pow(b, e*i)
+      })
+    // TODO: check cstD is an integer number 
+    val cstExpr = Cst(cstD.toInt)
+    if (cstExpr.cst == 0) // result is 0, nothing else to do
       return cstExpr        
     result = (terms--cstTerms.keySet)+(cstExpr->1)
     
@@ -139,8 +144,12 @@ private case class Sum(val terms: HashMap[Expr,Int]) extends Expr {
         case _:Cst => true
         case _ => false
         }})
-    val cstI = cstTerms.foldLeft(0)((acc,t) => t match {case (Cst(c),i) => acc+math.pow(c,i).toInt})
-    val cstExpr = Cst(cstI)  
+    val cstD = cstTerms.foldLeft(0.0)((acc,t) => t match {
+      case (Cst(c),i) => acc+math.pow(c,i)
+      case (Pow(Cst(b),Cst(e)),i) => acc+math.pow(b, e*i)
+      })
+    // TODO: check cstD is an integer number 
+    val cstExpr = Cst(cstD.toInt)
     result = (terms--cstTerms.keySet)+(cstExpr->1)
     
     // if we only have one results, return it
@@ -204,13 +213,19 @@ object Var {
       // create a map of variable substitution
       substitions = newVars.map(v => v.range match {
         case RangeAdd(Cst(start), Cst(stop), Cst(step)) => Some((v, Cst(Random.nextInt((stop - start) / step + 1) * step + start)))
-        case RangeMul(Cst(start), Cst(stop), Cst(mul)) => Some((v, Cst(start * mul ^ Random.nextInt((math.log(stop / start) / math.log(mul) + 1).toInt))))
+        case RangeMul(Cst(start), Cst(stop), Cst(mul)) => Some((v,
+            if ((math.log(stop / start) / math.log(mul) + 1).toInt < 1) {
+              println("err!" + (math.log(stop / start) / math.log(mul) + 1).toInt);
+              Cst(0)
+            } else
+            	Cst(start * math.pow(mul,Random.nextInt((math.log(stop / start) / math.log(mul) + 1).toInt)).toInt)))
         case _ => None
       }).foldRight(HashMap[Var, Cst]())((opt, map) => if (opt.isDefined) { changed = true; map + opt.get } else map)
 
       println(substitions)          
       
       // remove from the set of variables the ones which have a substitution
+      // TODO: not working
       newVars = newVars -- substitions.keySet
 
       // apply the substitutions in the range of each variable
