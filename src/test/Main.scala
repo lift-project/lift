@@ -20,14 +20,24 @@ object Main extends App {
 	   val inputType: Type = new ArrayType(new PrimitiveType(),Cst(10))
 	   	   	   
 	   for (i <- 1 to 100) {
-	     val e = Utils.randomDescent(root, inputType, 10)
-	     println(e)
+	     println("----------------------------")
+	     val f = Utils.randomDescent(root, inputType, 10)
+	     println(f)
 
 	     //Type.check(e, inputType)
-	     println(Printer.toStringWithType(e))
-	     val vars = Var.getVars(e)
-         println(vars)
-         Var.setVarsAtRandom(vars)
+	     println(Printer.toStringWithType(f))
+	     val vars = Var.getVars(f)
+         val substs = Var.setVarsAtRandom(vars)
+         println(substs)
+
+         println(f)
+         val newF = Fun.visitExpr(f, e => Var.substitute(e, substs))         
+         println(newF)	           
+         
+         Type.check(newF, inputType)
+         println(Printer.toStringWithType(newF))
+                  
+         //println(Var.substitute(e, substs))
 
 	   }
 	   

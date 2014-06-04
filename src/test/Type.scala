@@ -1,5 +1,11 @@
 package test
 
+case class TypeException(msg: String) extends Exception(msg) {
+  def this() = this("")
+  def this(found: Type, expected: String) = this(found + " found but " + expected + " expected")
+}
+
+
 sealed abstract class Type
 
 case class PrimitiveType() extends Type
@@ -15,10 +21,32 @@ object UndefType extends Type {override def toString() = "UndefType"}
 
 object Type {
   
+  def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    
+    t match {
+      case at: ArrayType => {
+        pre(at.len) 
+        visitExpr(at.elemT, pre, post)
+        post(at.len)
+      }
+      case tt: TupleType => tt.elemsT.map(et => visitExpr(et,pre,post))              
+      case _ => //throw new NotImplementedError()
+    }
+  }  
+  
+  def visit(t: Type, pre: (Type) => (Unit), post: (Type) => (Unit)) : Unit = {
+    pre(t)
+    t match {
+      case at: ArrayType => visit(at.elemT, pre, post)
+      case tt: TupleType => tt.elemsT.map(et => visit(et,pre,post))
+      case _ => throw new NotImplementedError()
+    }
+    post(t)
+  }  
+  
   def getElemT(t: Type): Type = {
     t match {
       case at: ArrayType => at.elemT
-      case _ => UndefType // Error!!!
+      case _ => throw new TypeException(t, "ArrayType")
     }
   }
 
@@ -28,7 +56,7 @@ object Type {
         case _:ArrayType => new ArrayType(iJoin(at1),at0.len)
         case _ => new ArrayType(at1.elemT, at0.len*at1.len)
       }
-      case _ => UndefType
+      case _ => throw new TypeException(at0.elemT , "ArrayType")
     }
   }
   
@@ -70,24 +98,24 @@ object Type {
       case _:oJoin => inT match {
         case at0: ArrayType => at0.elemT match {
           case at1: ArrayType => new ArrayType(at1.elemT, at0.len * at1.len)
-          case _=> UndefType
+          case _=>  throw new TypeException(at0.elemT, "ArrayType")
         }
-        case _ => UndefType
+        case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
       case _:iJoin  => inT match {               
         case at: ArrayType => iJoin(at)
-        case _ => UndefType  
+        case _ =>  throw new TypeException(inT, "ArrayType")
       }
             
       case oSplit(cs) => inT match {
         case at: ArrayType => new ArrayType(new ArrayType(at.elemT,cs), at.len / cs)
-        case _ => UndefType
+        case _ =>  throw new TypeException(inT, "ArrayType")
       }
                           
       case iSplit(cs) => inT match {
         case at: ArrayType => iSplit(at, cs)
-        case _ => UndefType  
+        case _ =>  throw new TypeException(inT, "ArrayType")
       }
 
       case NullFun => inT // TODO: change this

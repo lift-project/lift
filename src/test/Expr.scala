@@ -1,7 +1,6 @@
 package test
 
 
-
 import scala.collection.immutable.HashMap
 import scala.collection.immutable.HashSet
 import scala.collection.immutable.Set
@@ -190,6 +189,16 @@ case class Cst(val cst: Int) extends Expr {override def toString() = cst.toStrin
 
 case class Var private(val id: String, var range : Range) extends Expr {
   
+  override def equals(that: Any) = that match {
+    case v: Var => this.id == v.id
+    case _ => false
+  }
+ 
+  override def hashCode() = {
+    val hash = 5
+    hash * 79 + id.hashCode() 
+  }
+    
   override def toString() = id
   
 }
@@ -211,33 +220,43 @@ object Var {
       changed = false
       
       // create a map of variable substitution
-      substitions = newVars.map(v => v.range match {
+      val newSubsts = newVars.foldLeft(HashMap[Var, Cst]())((map,v) => v.range match {
+        case RangeAdd(Cst(start), Cst(stop), Cst(step)) => map+ (v -> Cst(Random.nextInt((stop - start) / step + 1) * step + start))
+        case RangeMul(Cst(start), Cst(stop), Cst(mul))  => map+ (v -> Cst(start * math.pow(mul,Random.nextInt((math.log(stop / start) / math.log(mul) + 1).toInt)).toInt))
+        case _ => map
+      })
+      
+      if (newSubsts.nonEmpty)
+        changed = true
+      substitions = substitions ++ newSubsts
+      
+      
+      /*substitions = newVars.map(v => v.range match {
         case RangeAdd(Cst(start), Cst(stop), Cst(step)) => Some((v, Cst(Random.nextInt((stop - start) / step + 1) * step + start)))
         case RangeMul(Cst(start), Cst(stop), Cst(mul)) => Some((v,
-            if ((math.log(stop / start) / math.log(mul) + 1).toInt < 1) {
-              println("err!" + (math.log(stop / start) / math.log(mul) + 1).toInt);
-              Cst(0)
-            } else
+            //if ((math.log(stop / start) / math.log(mul) + 1).toInt < 1) {
+            //  println("err!" + (math.log(stop / start) / math.log(mul) + 1).toInt);
+            //  Cst(0)
+            //} else
             	Cst(start * math.pow(mul,Random.nextInt((math.log(stop / start) / math.log(mul) + 1).toInt)).toInt)))
         case _ => None
-      }).foldRight(HashMap[Var, Cst]())((opt, map) => if (opt.isDefined) { changed = true; map + opt.get } else map)
+      }).foldRight(HashMap[Var, Cst]())((opt, map) => if (opt.isDefined) { changed = true; map + opt.get } else map)*/
 
-      println(substitions)          
+      //println(substitions)          
       
-      // remove from the set of variables the ones which have a substitution
-      // TODO: not working
-      newVars = newVars -- substitions.keySet
+      // remove from the set of variables the ones which have a substitution   
+      newVars = newVars-- newSubsts.keySet
 
       // apply the substitutions in the range of each variable
       newVars.map(v => {
         v.range match {
           case RangeAdd(start, stop, step) => v.range = RangeAdd(
-            Expr.simplify(substitute(start, substitions)),
-            Expr.simplify(substitute(stop, substitions)),
-            Expr.simplify(substitute(step, substitions)))
+            Expr.simplify(substitute(start, newSubsts)),
+            Expr.simplify(substitute(stop, newSubsts)),
+            Expr.simplify(substitute(step, newSubsts)))
           case RangeMul(start, stop, step) => v.range = RangeMul(
-            Expr.simplify(substitute(start, substitions)),
-            Expr.simplify(substitute(stop, substitions)),
+            Expr.simplify(substitute(start, newSubsts)),
+            Expr.simplify(substitute(stop, newSubsts)),
             Expr.simplify(substitute(step, substitions)))
           case _ =>
         }
