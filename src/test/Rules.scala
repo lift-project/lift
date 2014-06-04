@@ -1,14 +1,35 @@
 package test
 
-object Rules {
-	
-  private def derivsWithOneRule(fp: FPattern, c: Constraints): Seq[Fun] = {
-    outerDerivations(fp,c) ++ Rules.innerDerivations(fp,c)
+import scala.collection.Seq
+
+/*class Derivations(val f: Fun, val c: Constraints) {
+  
+  private def vfn(f: Fun, s: Seq[Seq[Fun]]): Seq[Seq[Fun]] = {
+      val outDerivs = Rules.outerDerivations(f, c)
+      s :+ outDerivs
+    }
+  private val derivs = Fun.visit(Seq(Seq[Fun]()))(f, vfn)
+    
+  def getAll() : Seq[Fun] {
+    listPossiblities[T](oriList : Seq[T], optionsList : Seq[Seq[T]]) : Seq[Seq[T]]
   }
   
-  private def derivsWithOneRule(cf: CompFun, c: Constraints): Seq[Fun] = {
+  def getRandom() : Fun {
+    
+  }
+  
+}*/
 
-    val optionsList = cf.funs.map(f => derivsWithOneRule(f,c))
+object Rules {
+   
+  
+  /*private def derivsWithOneRule(fp: FPattern, c: Constraints): Seq[Fun] = {
+    outerDerivations(fp,c) ++ Rules.innerDerivations(fp,c)
+  }*/
+  
+  private def derivsWithOneRule(cf: CompFun, c: Constraints, level: Int): Seq[Fun] = {
+
+    val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
     Utils.listPossiblities(cf.funs, optionsList).map(funs => new CompFun(funs: _*))
     
     /*val pairs = cf.getFuns().zip(cf.getFuns.tail)
@@ -21,18 +42,18 @@ object Rules {
   /*
    * Return a list of all possible derivations using only one rule
    */
-  def derivsWithOneRule(f: Fun, c: Constraints): Seq[Fun] =  {
-    f match {
-    	case cf: CompFun => derivsWithOneRule(cf,c)
-    	case fp: FPattern => derivsWithOneRule(fp,c)
-    	case p: Pattern => outerDerivations(p,c)
-    	case NullFun => List()
-    }       
+  def derivsWithOneRule(f: Fun, c: Constraints, level: Int): Seq[Fun] =  {
+      f match {
+        case cf: CompFun if (level==0) => derivsWithOneRule(cf, c, level)
+        case fp: FPattern if (level>0) => innerDerivations(fp,c,level-1)//derivsWithOneRule(fp,c,level-1)
+        case p: Pattern if (level==0)  => outerDerivations(p, c)
+        case NullFun => List()
+      }     
   }
   
-   def innerDerivations(fpat: FPattern, c: Constraints): Seq[Fun] = {
-     derivsWithOneRule(fpat.fun, c).map((f) =>
-        fpat.getClass().getConstructor(classOf[Fun]).newInstance(f))//.setContext(fpat.context))
+  private def innerDerivations(fpat: FPattern, c: Constraints, level: Int): Seq[Fun] = {
+     derivsWithOneRule(fpat.fun, c,level).map((f) =>
+        fpat.getClass().getConstructor(classOf[Fun]).newInstance(f))
         
     /*fpat.fun match {
       case _ : Fun => derivsWithOneRule(fpat.fun, c).map((f) =>
@@ -41,18 +62,22 @@ object Rules {
     }   */ 
   }
 
- def validOSplitRange(t: Type) = {
+ private def validOSplitRange(t: Type) = {
    t match {
      case ArrayType(_,len) => RangeMul(Cst(1), len, Cst(2))
      case _ => RangeUnkown // Error
    } 
  }
    
-  /*
-   * The context of the functions within the returned list might be invalid
-   */
+ 
+ /*private def hasMap(f: Fun) = {
+   Fun.visit(false)(f, (inF, result) => inF match {
+     case Map(_) => true
+     case _ => result
+   })
+ } */
+
   def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {
-            
     f match {
 
       case Map(inF) => {
@@ -60,22 +85,23 @@ object Rules {
         
         // sequential
         if (f.context.inMapGlb || f.context.inMapLcl)
-        	result = result :+ MapSeq(inF)//.setContext(f.context)
+        	result = result :+ MapSeq(inF)
         	
         // global, workgroup
         if (f.context.mapDepth == 0 && !f.context.inMapGlb && !f.context.inMapWrg) {
-          result = result :+ MapGlb(inF)//.updateContext(f.context)
-          result = result :+ MapWrg(inF)//.updateContext(f.context)
+          result = result :+ MapGlb(inF)  
+          //if (hasMap(inF))
+          result = result :+ MapWrg(inF)
         }
         
         // local
         if (f.context.mapDepth == 1 && f.context.inMapWrg && !f.context.inMapGlb && !f.context.inMapLcl) {
-          result = result :+ MapLcl(inF)//.updateContext(f.context)    
+          result = result :+ MapLcl(inF) 
         }
         
         // split-join
-        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)          
-          result = result :+ new CompFun(oJoin(), Map(Map(inF)), oSplit(Var(validOSplitRange(f.inT))))//.updateContext(f.context)        
+        if (f.context.mapDepth+1 < c.maxMapDepth && !c.onlyTerminal)          
+          result = result :+ new CompFun(oJoin(), Map(Map(inF)), oSplit(Var(validOSplitRange(f.inT))))
         
         result
       }     
@@ -83,8 +109,8 @@ object Rules {
       case Reduce(inF) => {
         var result = List[Fun]()
         if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
-        	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit(Var(validOSplitRange(f.inT))))//.updateContext(f.context)
-        result = result :+ ReduceSeq(inF)//.setContext(f.context)
+        	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit(Var(validOSplitRange(f.inT))))
+        result = result :+ ReduceSeq(inF)
         result
       }
       

@@ -141,6 +141,7 @@ private case class Sum(val terms: HashMap[Expr,Int]) extends Expr {
     val cstTerms = terms.filterKeys({
       e => e match {
         case _:Cst => true
+        case Pow(Cst(_),Cst(_)) => true        
         case _ => false
         }})
     val cstD = cstTerms.foldLeft(0.0)((acc,t) => t match {

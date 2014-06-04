@@ -37,7 +37,7 @@ object Fun {
   def visitExpr(f: Fun, exprF: (Expr) => (Expr)) : Fun = {   
     visit(f, inF => inF match {
       case oSplit(e) => oSplit(exprF(e))
-      case iSplit(e) => iSplit(exprF(e))
+      case asVector(e) => asVector(exprF(e))
       case _ => inF
     }, inF => inF)
   }  
@@ -149,6 +149,7 @@ case class ReduceSeq(f: Fun) extends AbstractReduce(f)
 case class PartRed(f: Fun) extends FPattern(f)
 
 case class oJoin() extends Pattern()
-case class iJoin() extends Pattern()
 case class oSplit(val chunkSize: Expr) extends Pattern()
-case class iSplit(val chunkSize: Expr) extends Pattern()
+
+case class asScalar() extends Pattern()
+case class asVector(val len: Expr) extends Pattern()

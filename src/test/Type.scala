@@ -8,7 +8,8 @@ case class TypeException(msg: String) extends Exception(msg) {
 
 sealed abstract class Type
 
-case class PrimitiveType() extends Type
+case class ScalarType() extends Type
+case class VectorType(val pt: ScalarType, val len: Expr) extends Type
 
 case class TupleType(val elemsT: Type*) extends Type
 
@@ -21,7 +22,8 @@ object UndefType extends Type {override def toString() = "UndefType"}
 
 object Type {
   
-  def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    
+  
+  /*def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    
     t match {
       case at: ArrayType => {
         pre(at.len) 
@@ -31,12 +33,13 @@ object Type {
       case tt: TupleType => tt.elemsT.map(et => visitExpr(et,pre,post))              
       case _ => //throw new NotImplementedError()
     }
-  }  
+  } */ 
   
   def visit(t: Type, pre: (Type) => (Unit), post: (Type) => (Unit)) : Unit = {
     pre(t)
     t match {
       case at: ArrayType => visit(at.elemT, pre, post)
+      case vt: VectorType => visit(vt.pt, pre, post)      
       case tt: TupleType => tt.elemsT.map(et => visit(et,pre,post))
       case _ => throw new NotImplementedError()
     }
@@ -46,24 +49,24 @@ object Type {
   def getElemT(t: Type): Type = {
     t match {
       case at: ArrayType => at.elemT
+      case vt: VectorType => vt.pt
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
 
-  private def iJoin(at0: ArrayType): Type = {
+  private def asScalar(at0: ArrayType): Type = {
     at0.elemT match {
-      case at1:ArrayType => at1.elemT match {
-        case _:ArrayType => new ArrayType(iJoin(at1),at0.len)
-        case _ => new ArrayType(at1.elemT, at0.len*at1.len)
-      }
-      case _ => throw new TypeException(at0.elemT , "ArrayType")
+      case vt:VectorType => new ArrayType(new ScalarType(),at0.len*vt.len)
+      case at:ArrayType =>  new ArrayType(asScalar(at),at0.len)
+      case _ => throw new TypeException(at0.elemT , "ArrayType or VectorType")
     }
   }
   
-  private def iSplit(at0: ArrayType, chunkSize: Expr): Type = {
-    at0.elemT match {
-      case at1:ArrayType => new ArrayType(iSplit(at1,chunkSize), at0.len)
-      case _ => new ArrayType(new ArrayType(at0.elemT,chunkSize), at0.len/chunkSize)
+  private def asVector(at0: ArrayType, len: Expr): Type = {
+    at0.elemT match {      
+      case pt:ScalarType => new ArrayType(new VectorType(pt,len), at0.len/len)
+      case at1:ArrayType => new ArrayType(asVector(at1,len), at0.len)
+      case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
     }
   }
   
@@ -103,18 +106,18 @@ object Type {
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
-      case _:iJoin  => inT match {               
-        case at: ArrayType => iJoin(at)
-        case _ =>  throw new TypeException(inT, "ArrayType")
-      }
-            
       case oSplit(cs) => inT match {
         case at: ArrayType => new ArrayType(new ArrayType(at.elemT,cs), at.len / cs)
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
+      
+      case _:asScalar  => inT match {     
+        case at: ArrayType => asScalar(at)
+        case _ =>  throw new TypeException(inT, "ArrayType")
+      }          
                           
-      case iSplit(cs) => inT match {
-        case at: ArrayType => iSplit(at, cs)
+      case asVector(len) => inT match {
+        case at: ArrayType => asVector(at, len)
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
 

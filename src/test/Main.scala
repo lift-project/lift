@@ -17,25 +17,25 @@ object Main extends App {
 	   //val c = new Constraints()
 	   //c.onlyTerminal = true;
 
-	   val inputType: Type = new ArrayType(new PrimitiveType(),Cst(10))
+	   val inputType: Type = new ArrayType(new ScalarType(),Cst(10))
 	   	   	   
 	   for (i <- 1 to 100) {
 	     println("----------------------------")
 	     val f = Utils.randomDescent(root, inputType, 10)
-	     println(f)
+	     //println(f)
 
 	     //Type.check(e, inputType)
-	     println(Printer.toStringWithType(f))
+	     //println(Printer.toStringWithType(f))
 	     val vars = Var.getVars(f)
          val substs = Var.setVarsAtRandom(vars)
          println(substs)
 
-         println(f)
+         //println(f)
          val newF = Fun.visitExpr(f, e => Var.substitute(e, substs))         
          println(newF)	           
          
          Type.check(newF, inputType)
-         println(Printer.toStringWithType(newF))
+         //println(Printer.toStringWithType(newF))
                   
          //println(Var.substitute(e, substs))
 

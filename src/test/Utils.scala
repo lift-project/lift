@@ -35,10 +35,11 @@ object Utils {
 	    } )._2	  
 	}
 
-  def randomDescent(f: Fun, inputType: Type, maxDepth: Int, constraints: Constraints = new Constraints(3, false)): Fun = {
+  def randomDescent(f: Fun, inputType: Type, maxDepth: Int,
+      constraints: Constraints = new Constraints(3, false)): Fun = {
 
-    var c = constraints
-
+    var c = constraints    
+    
     // setup the context
     if (f.context == null)
       Context.updateContext(f, new Context())
@@ -51,7 +52,7 @@ object Utils {
     if (maxDepth < 0)
       c = c.setOnlyTerminal
 
-    val derivs = Rules.derivsWithOneRule(f, c);
+    val derivs = Rules.derivsWithOneRule(f, c, 2);
     if (derivs.isEmpty)
       return f;
 
