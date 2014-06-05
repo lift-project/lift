@@ -27,7 +27,7 @@ object Rules {
     outerDerivations(fp,c) ++ Rules.innerDerivations(fp,c)
   }*/
   
-  private def derivsWithOneRule(cf: CompFun, c: Constraints, level: Int): Seq[Fun] = {
+  private def composedDerivations(cf: CompFun, c: Constraints, level: Int): Seq[Fun] = {
 
     val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
     Utils.listPossiblities(cf.funs, optionsList).map(funs => new CompFun(funs: _*))
@@ -37,47 +37,34 @@ object Rules {
       val numPairDerivs = pairDerivs.foldLeft(0)((num,l) => num+l.length)*/
   }
    
+   private def innerDerivations(fpat: FPattern, c: Constraints, level: Int): Seq[Fun] = {
+     derivsWithOneRule(fpat.fun, c,level).map((f) => fpat.getClass().getConstructor(classOf[Fun]).newInstance(f))        
+  }
     
     
   /*
-   * Return a list of all possible derivations using only one rule
+   * Return a list of all possible derivations using only one rule at a given level
    */
   def derivsWithOneRule(f: Fun, c: Constraints, level: Int): Seq[Fun] =  {
       f match {
-        case cf: CompFun if (level==0) => derivsWithOneRule(cf, c, level)
-        case fp: FPattern if (level>0) => innerDerivations(fp,c,level-1)//derivsWithOneRule(fp,c,level-1)
+        case cf: CompFun => composedDerivations(cf, c, level)
+        case fp: FPattern if (level==0) => outerDerivations(fp,c)
+        case fp: FPattern if (level>0) => innerDerivations(fp,c,level-1)
         case p: Pattern if (level==0)  => outerDerivations(p, c)
-        case NullFun => List()
+        case _ => List()
       }     
-  }
-  
-  private def innerDerivations(fpat: FPattern, c: Constraints, level: Int): Seq[Fun] = {
-     derivsWithOneRule(fpat.fun, c,level).map((f) =>
-        fpat.getClass().getConstructor(classOf[Fun]).newInstance(f))
-        
-    /*fpat.fun match {
-      case _ : Fun => derivsWithOneRule(fpat.fun, c).map((f) =>
-        fpat.getClass().getConstructor(classOf[Fun]).newInstance(f))//.setContext(fpat.context))
-      case _ => List()
-    }   */ 
-  }
+  } 
 
- private def validOSplitRange(t: Type) = {
-   t match {
-     case ArrayType(_,len) => RangeMul(Cst(1), len, Cst(2))
-     case _ => RangeUnkown // Error
-   } 
- }
-   
+
+  private def validOSplitRange(t: Type) = {
+    t match {
+      case ArrayType(_, len) => RangeMul(Cst(1), len, Cst(2))
+      case _ => RangeUnkown // Error
+    }
+  }
  
- /*private def hasMap(f: Fun) = {
-   Fun.visit(false)(f, (inF, result) => inF match {
-     case Map(_) => true
-     case _ => result
-   })
- } */
 
-  def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {
+  private def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {
     f match {
 
       case Map(inF) => {
@@ -90,7 +77,6 @@ object Rules {
         // global, workgroup
         if (f.context.mapDepth == 0 && !f.context.inMapGlb && !f.context.inMapWrg) {
           result = result :+ MapGlb(inF)  
-          //if (hasMap(inF))
           result = result :+ MapWrg(inF)
         }
         

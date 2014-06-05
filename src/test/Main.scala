@@ -6,9 +6,6 @@ object Main extends App {
 	   
 	   //val root = new CompFun(new Reduce(null), Map(Map(null)))
 	   //val root = new CompFun(new Reduce(NullFun), Map(Map(NullFun))).updateContext(new Context())
-	   val root = Reduce(NullFun)
-	   //val root =  MapWrg(new CompFun(Map(NullFun))).updateContext(new Context)
- 
 	   
 	   //val root = new Map(Map(NullFun)).updateContext(new Context())
 
@@ -17,9 +14,23 @@ object Main extends App {
 	   //val c = new Constraints()
 	   //c.onlyTerminal = true;
 
+  
+  	   val root = Reduce(NullFun)
 	   val inputType: Type = new ArrayType(new ScalarType(),Cst(10))
+  
+  	   //val root =  MapWrg(new CompFun(Map(NullFun),Map(NullFun)))
+	   //val inputType: Type = new ArrayType(new ArrayType(new ScalarType, Cst(20)),Cst(10))
+
 	   	   	   
-	   for (i <- 1 to 100) {
+	   //println(Fun.maxDepth(root))	   
+	   
+	   println(root)
+	   println("--------------------")
+	   
+	    val results = Exploration.bfs(root, inputType, 2)
+	    results.map(r => println(r))
+	   
+	   for (i <- 101 to 100) {
 	     println("----------------------------")
 	     val f = Utils.randomDescent(root, inputType, 10)
 	     //println(f)

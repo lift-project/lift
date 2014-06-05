@@ -16,11 +16,29 @@ sealed abstract class Fun() {
   
   //override def toString() = {
   //  "["+super.toString
-  //}
+  //}   
 
 }
 
 object Fun {
+
+  def maxDepth(f: Fun) = {
+    var depth = 0
+    var maxDepth = 0
+    visit(f,
+      (inF: Fun) => inF match {
+        case FPattern(_) => {
+          depth = depth + 1          
+          if (depth > maxDepth) maxDepth = depth
+        }
+        case _ =>
+      },
+      (inF: Fun) => inF match {
+        case FPattern(_) => depth = depth - 1
+        case _ =>
+      })
+    maxDepth
+  }
   
   def visit[T](z:T)(f: Fun, vfn: (Fun,T) => T): T = {
     val result = vfn(f,z)
