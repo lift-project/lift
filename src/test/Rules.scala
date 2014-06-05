@@ -64,7 +64,7 @@ object Rules {
   }
  
 
-  private def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {
+  def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {
     f match {
 
       case Map(inF) => {

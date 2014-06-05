@@ -27,8 +27,20 @@ object Main extends App {
 	   println(root)
 	   println("--------------------")
 	   
-	    val results = Exploration.bfs(root, inputType, 2)
-	    results.map(r => println(r))
+	   //val root2 = new CompFun(oJoin(), oJoin())
+	   //println(Fun.replaceRef(root2, root2.funs(1), asScalar()))
+
+
+	   
+	   //println("root == Reduce(NullFun)  : "+(root == Reduce(NullFun)))
+	   //println("root.eq(Reduce(NullFun)) : "+(root.eq(Reduce(NullFun))))
+	   //println("root.eq(root) : " + (root.eq(root)))
+	   ///println("Reduce(NullFun).eq(Reduce(NullFun)) : " + (Reduce(NullFun).eq(Reduce(NullFun))))
+	   
+	   println(Exploration.searchBest(root, root, inputType))
+
+	    //val results = Exploration.bfs(root, inputType, 0)
+	    //results.map(r => println(r))
 	   
 	   for (i <- 101 to 100) {
 	     println("----------------------------")

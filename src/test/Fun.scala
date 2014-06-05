@@ -22,22 +22,10 @@ sealed abstract class Fun() {
 
 object Fun {
 
-  def maxDepth(f: Fun) = {
-    var depth = 0
-    var maxDepth = 0
+  def replaceRef(f: Fun, oriF: Fun, newF: Fun) : Fun = {
     visit(f,
-      (inF: Fun) => inF match {
-        case FPattern(_) => {
-          depth = depth + 1          
-          if (depth > maxDepth) maxDepth = depth
-        }
-        case _ =>
-      },
-      (inF: Fun) => inF match {
-        case FPattern(_) => depth = depth - 1
-        case _ =>
-      })
-    maxDepth
+      (inF: Fun) => if (inF.eq(oriF)) newF else inF,
+      (inF: Fun) => inF)       
   }
   
   def visit[T](z:T)(f: Fun, vfn: (Fun,T) => T): T = {
