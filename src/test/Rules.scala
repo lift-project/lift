@@ -65,6 +65,10 @@ object Rules {
  
 
   def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {
+    
+    if (!c.canDerive(f))
+      return List()
+    
     f match {
 
       case Map(inF) => {

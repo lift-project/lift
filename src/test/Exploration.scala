@@ -1,10 +1,42 @@
 package test
 
+import scala.util.Random
+
 object Exploration {
 
-  def eval(f: Fun) : Double = {    
+  def evalPerf(f: Fun) : Double = {
+    val perf = Random.nextDouble
+    println(perf+" : "+f)
+    perf
+  }
+  
+  def bestChoice(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints) : Fun = {    
     // TODO: a few random descent to evaluate performance
-    0.0
+    
+    if (c.randomOnly == true) {
+    	val constraints : Constraints = new Constraints(c.maxMapDepth, c.onlyTerminal, true)
+    	return choices(Random.nextInt(choices.length))
+    }
+    //zipWithIndex.minBy({case(d,i) => d})(Ordering[Double])._2
+    
+    // generate a few random top level function with the oriF in place
+    val newConstraints : Constraints = new Constraints(c.maxMapDepth, true, true)
+    newConstraints.fixedFuns = newConstraints.fixedFuns + oriF
+    var perfMap = scala.collection.mutable.Map[Fun, List[Double]]()
+    for (i <- 1 to 10) {
+    	val rndFun = searchBest(topF, topF, topF.inT, newConstraints)
+    	choices.map(choice => {
+    	  val perf = evalPerf(Fun.replaceRef(rndFun, oriF, choice))
+    	  perfMap.update(choice, perfMap.getOrElse(choice, List[Double]()) :+ perf)
+    	})    	
+    }
+    val medians = perfMap.map({case (key, vals) => {
+      val sortedVals = vals.sorted
+      val median = sortedVals(sortedVals.length/2)
+      (key,median)
+    }})
+    
+    medians.reduce((x,y) => if (x._2 < y._2) x else y)._1    
   }
   
   def searchBest(topF: Fun, f: Fun, inputType: Type, c: Constraints = new Constraints(3, false)) : Fun = {
@@ -23,14 +55,18 @@ object Exploration {
       }
       case p : Pattern => {
         val choices = Rules.outerDerivations(p, c)
-        val minIdx = choices.map(choice => {
-          val updatedFun = Fun.replaceRef(topF, f, choice)
-          eval(updatedFun)
-          }).zipWithIndex.minBy({case(d,i) => d})(Ordering[Double])._2
-        choices(minIdx)
+        //        val minIdx = choices.map(choice => {
+        //          val updatedFun = Fun.replaceRef(topF, f, choice)
+        //          eval(updatedFun)
+        //          }).zipWithIndex.minBy({case(d,i) => d})(Ordering[Double])._2
+        if (choices.isEmpty)
+          p
+        else
+          bestChoice(topF, f, choices, c)         
       }
       case _ => f
     }
+    // TODO: repeat the horizontal expansion
 
     Type.check(bestH, inputType)
     Context.updateContext(bestH, new Context())
