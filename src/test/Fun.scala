@@ -104,13 +104,13 @@ case class CompFun(funs: Fun*) extends Fun {
   override def equals(o: Any) = {
     if (o.isInstanceOf[CompFun]) {
       var cf = o.asInstanceOf[CompFun];
-      funs.seq.equals(cf.funs )
+      funs.seq.equals(cf.funs)
     } else
-      false
+      false    
   }
   
   override def hashCode() = {
-    funs.hashCode()
+    funs.foldRight(3*79)((f,hash) => hash*f.hashCode())    
   }
 }
 

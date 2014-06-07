@@ -37,7 +37,9 @@ object Main extends App {
 	   //println("root.eq(root) : " + (root.eq(root)))
 	   ///println("Reduce(NullFun).eq(Reduce(NullFun)) : " + (Reduce(NullFun).eq(Reduce(NullFun))))
 	   
-	   println(Exploration.searchBest(root, root, inputType))
+	   Type.check(root, inputType)
+	   Context.updateContext(root, new Context())
+	   println(Exploration.search(root, root))
 
 	    //val results = Exploration.bfs(root, inputType, 0)
 	    //results.map(r => println(r))
