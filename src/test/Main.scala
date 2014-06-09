@@ -1,7 +1,8 @@
 package test
 
 import scala.util.Random
-
+import test.Reduce
+/*
 object Main extends App {
 	   
 	   //val root = new CompFun(new Reduce(null), Map(Map(null)))
@@ -83,3 +84,4 @@ object Main extends App {
 	   println(s.distinct)*/
 
 }
+*/

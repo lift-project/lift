@@ -1,24 +1,31 @@
 package generators
 
 import test._
+import test.ReduceSeq
 
 object OpenCLGenerator {
-  
-  
   
   def generate(f: Fun) : String = {
     assert(f.inT != UndefType)
     assert(f.ouT != UndefType)
     
-    f match {
-      case FPattern(inF,_) => generate(inF) + (f match {
-        case m : Map => ""
-        case _ => ""
-      })
-      //case m : Map => "get global id..."
-      case _ => ""
+    val str = f match {
+      case cf: CompFun => cf.funs.foldRight("")((inF, str) => str + generate(inF))
+      // maps
+      case m: MapWrg => MapWgrGenerator.generate(m)
+      case m: MapLcl => "MapLcl(" + generate(m.f) + ")"
+      // reduce
+      case r: ReduceSeq => "ReduceSeq(" + generate(r.f) + ")"
+      // user functions
+      case NullFun => "userFunc"
+      // utilities
+      case _: oSplit => ""
+      case _: oJoin => ""
+      case _ => "__" + f.toString() + "__"
     }
     
+    // "kernel void KERNEL(...) {\n" + str + "}\n"
+    str
   }
 
 }
