@@ -17,8 +17,8 @@ object Main extends App {
 	   //val userFun = UserFun("func", "float func(float x, float y) { return x+y; })")
 	   
   	   val root = Reduce(NullFun)
-  	   val varN = Var("N")
-	   val inputType: Type = ArrayType(ScalarType(),varN)
+  	   //val varN = Var("N")
+	   val inputType: Type = ArrayType(ScalarType(),Cst(0))
   
   	   //val root =  MapWrg(new CompFun(Map(NullFun),Map(NullFun)))
 	   //val inputType: Type = new ArrayType(new ArrayType(new ScalarType, Cst(20)),Cst(10))
@@ -41,7 +41,7 @@ object Main extends App {
 	   
 	   Type.check(root, inputType)
 	   Context.updateContext(root, new Context())
-	   println(Exploration.search(root, root))
+	   println(Exploration.search(root))
 
 	    //val results = Exploration.bfs(root, inputType, 0)
 	    //results.map(r => println(r))

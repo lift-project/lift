@@ -6,7 +6,7 @@ object Exploration {
   
   val verbose = true
 
-  def evalPerf(f: Fun, c: Constraints) : Double = {
+  private def evalPerf(f: Fun, c: Constraints) : Double = {
     
     if (verbose) {
       println("------------------------------------------------------")
@@ -18,7 +18,7 @@ object Exploration {
     var perfs = List[Double]()
     val seen = scala.collection.mutable.Set[Fun]()
     for (i <- 1 to 10) {      
-      val rndFun = search(f, f, new Constraints(c.maxMapDepth, true, true))
+      val rndFun = search(f, new Constraints(c.maxMapDepth, true, true))
 
       if (!seen.contains(rndFun)) {
         seen += rndFun
@@ -39,7 +39,7 @@ object Exploration {
     //Random.nextDouble
   }
   
-  def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints) : Fun = {    
+  private def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints) : Fun = {    
         
     if (c.randomOnly == true)
     	return choices(Random.nextInt(choices.length))  
@@ -77,9 +77,8 @@ object Exploration {
     medians.reduce((x,y) => if (x._2 < y._2) x else y)._1    
   }
       
-  def search(topF: Fun, f: Fun, c: Constraints = new Constraints(3, false)) : Fun = {
-      
-    assert (f.inT    != UndefType)
+  private def search(topF: Fun, f: Fun, c:Constraints) : Fun = {
+	assert (f.inT    != UndefType)
     assert (topF.inT != UndefType)
     assert (f.context != null)
     assert (topF.context != null)    
@@ -95,19 +94,18 @@ object Exploration {
       }
       case p: Pattern => {
         val choices = Rules.outerDerivations(p, c)
-        val bestPattern = if (choices.isEmpty) p else choose(topF, f, choices, c)
+        if (choices.isEmpty)
+          p // no other choice
+        else {
+          val bestChoice = choose(topF, f, choices, c)
+          Type.check(bestChoice, f.inT)
+          Context.updateContext(bestChoice, f.context)          
           
-        // TODO: depending on what is returned, we have to search it again (PartRed -> Reduce -> ReduceSeq for instance)
-        
-        bestPattern match {
-          case _ : CompFun => {
-            // if we derived a composed function, look again for the best horizontally
-            Type.check(bestPattern, p.inT)
-            Context.updateContext(bestPattern, f.context)
-            search(topF, bestPattern, c)            
-          }
-          case _ => bestPattern
-          }
+          val newFun = Fun.replaceRef(topF, f, bestChoice)
+          Type.check(newFun, topF.inT)
+          Context.updateContext(newFun, topF.context)
+          search(newFun, c)          
+        }
       }
       case _ => f
     } 
@@ -121,8 +119,15 @@ object Exploration {
       case _ => bestH        
     }
     
-    bestV
+    bestV    
+  }
+  
+  def search(f: Fun, c: Constraints = new Constraints(3, false)) : Fun = {
+      
+    assert (f.inT    != UndefType)
+    assert (f.context != null)
 
+    search(f,f,c)   
   }
   
   /*

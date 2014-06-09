@@ -89,7 +89,6 @@ object Fun {
    
 }
 
-
 case object NullFun extends Fun {
   override def toString() = "null"
 }
