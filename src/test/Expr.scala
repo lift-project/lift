@@ -212,8 +212,7 @@ object Var {
   }
   
   def apply(name: String) : Var = {
-    cnt += 1;
-    Var("v"+cnt, RangeUnkown)
+    Var(name, RangeUnkown)
   }
   
   def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {

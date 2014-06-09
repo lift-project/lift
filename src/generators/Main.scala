@@ -17,7 +17,7 @@ object Main extends App {
   
   //val varN = Var("N")
   val varN = Cst(1048576)
-  val inputType: Type = ArrayType(ScalarType(/*"int"*/), varN)   
+  val inputType: Type = ArrayType(ScalarType(/*"int"*/), varN)
 	   
   println("HighLevel expr: " + highLevel)
   println("--------------------")

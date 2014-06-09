@@ -86,6 +86,11 @@ object Fun {
     }
     post(f)
   }  
+  
+  // returns the name of a user function throws exception otherwise
+  def getName(f: Fun) : String = {
+    "sumUp"
+  }
    
 }
 

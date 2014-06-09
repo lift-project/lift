@@ -1,12 +1,32 @@
 package test
 
+import scala.collection.mutable.ArrayBuffer
+
 case class TypeException(msg: String) extends Exception(msg) {
   def this() = this("")
   def this(found: Type, expected: String) = this(found + " found but " + expected + " expected")
 }
 
 
-sealed abstract class Type
+sealed abstract class Type {
+  
+  def sizes(array: Array[Expr] = Array.empty[Expr]) : Array[Expr] = {
+    this match {
+      case ArrayType(elemT, len) => elemT.sizes(array :+ len)
+      case TupleType(_) => throw new IllegalArgumentException // Tuple is tricky here ...
+      case VectorType(_, _) => throw new IllegalArgumentException // TODO: Think about what to do with vector types
+      case _ => array
+    }
+  }
+  
+  def extractArrayType() : (Type, Expr) = {
+    this match {
+      case ArrayType(elemT, len) => (elemT, len)
+      case _ => throw new ClassCastException
+    }
+  }
+  
+}
 
 case class ScalarType() extends Type
 case class VectorType(val pt: ScalarType, val len: Expr) extends Type
@@ -21,7 +41,6 @@ case class ArrayType(val elemT: Type, val len: Expr) extends Type
 object UndefType extends Type {override def toString() = "UndefType"}
 
 object Type {
-  
   
   /*def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    
     t match {
