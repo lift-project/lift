@@ -14,9 +14,11 @@ object Main extends App {
 	   //val c = new Constraints()
 	   //c.onlyTerminal = true;
 
-  
+	   //val userFun = UserFun("func", "float func(float x, float y) { return x+y; })")
+	   
   	   val root = Reduce(NullFun)
-	   val inputType: Type = new ArrayType(new ScalarType(),Cst(10))
+  	   val varN = Var("N")
+	   val inputType: Type = ArrayType(ScalarType(),varN)
   
   	   //val root =  MapWrg(new CompFun(Map(NullFun),Map(NullFun)))
 	   //val inputType: Type = new ArrayType(new ArrayType(new ScalarType, Cst(20)),Cst(10))
