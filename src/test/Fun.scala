@@ -64,10 +64,10 @@ object Fun {
       case MapWrg(f) => MapWrg(visit(f,pre,post))
       case MapLcl(f) => MapLcl(visit(f,pre,post))
       
-      case Reduce(f)    => Reduce(visit(f,pre,post))
-      case ReduceSeq(f) => ReduceSeq(visit(f,pre,post))
+      case Reduce(f, id)    => Reduce(visit(f,pre,post), id)
+      case ReduceSeq(f, id) => ReduceSeq(visit(f,pre,post), id)
 
-      case PartRed(f) => PartRed(visit(f,pre,post))
+      case PartRed(f, id) => PartRed(visit(f,pre,post), id)
       
       case _ => newF
     }
@@ -85,11 +85,6 @@ object Fun {
       case _ =>
     }
     post(f)
-  }  
-  
-  // returns the name of a user function throws exception otherwise
-  def getName(f: Fun) : String = {
-    "sumUp"
   }
    
 }
@@ -154,13 +149,15 @@ abstract class AbstractReduce(f:Fun) extends FPattern(f)
 object AbstractReduce {
 	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.fun)
 }
-case class Reduce(f: Fun) extends AbstractReduce(f)
-case class ReduceSeq(f: Fun) extends AbstractReduce(f)
+case class Reduce(f: Fun, id: Expr) extends AbstractReduce(f)
+case class ReduceSeq(f: Fun, id: Expr) extends AbstractReduce(f)
 
-case class PartRed(f: Fun) extends FPattern(f)
+case class PartRed(f: Fun, id: Expr) extends FPattern(f)
 
 case class oJoin() extends Pattern()
 case class oSplit(val chunkSize: Expr) extends Pattern()
 
 case class asScalar() extends Pattern()
 case class asVector(val len: Expr) extends Pattern()
+
+case class UserFun(name: String, body: String) extends Fun()

@@ -96,15 +96,15 @@ object Rules {
         result
       }     
       
-      case Reduce(inF) => {
+      case Reduce(inF, id) => {
         var result = List[Fun]()
         if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
-        	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit(Var(validOSplitRange(f.inT))))
-        result = result :+ ReduceSeq(inF)
+        	result = result :+ new CompFun(Reduce(inF, id), oJoin(), Map(PartRed(inF, id)), oSplit(Var(validOSplitRange(f.inT))))
+        result = result :+ ReduceSeq(inF, id)
         result
       }
       
-      case PartRed(inF) => List(Reduce(inF)) // TODO
+      case PartRed(inF, id) => List(Reduce(inF, id)) // TODO
       
       case _ => List() // all the terminals end up here
     }

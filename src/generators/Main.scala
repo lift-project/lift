@@ -1,18 +1,16 @@
 package generators
 
 import test._
-import test.CompFun
 
 object Main extends App {
   //val id = UserFunc("int id(int x) { return xy; }")
   val id = NullFun
-  //val sumUp = UserFunc("int sumUp(int x, int y) { return x+y; }")
-  val sumUp = NullFun
+  val sumUp = UserFun("sumUp", "int sumUp(int x, int y) { return x+y; }")
   
-  val highLevel = Reduce(sumUp)
+  val highLevel = Reduce(sumUp, Cst(0))
   
   val lowLevel = CompFun(oJoin(), oJoin(),
-		  					MapWrg(MapLcl(ReduceSeq(sumUp))),
+		  					MapWrg(MapLcl(ReduceSeq(sumUp, Cst(0)))),
 		  				 oSplit(Cst(128)), oSplit(Cst(2048)))
   
   //val varN = Var("N")

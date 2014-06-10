@@ -11,8 +11,15 @@ object OpenCLGenerator {
   
   type AccessFunction = generators.AccessFunction
   
+  object Kernel {
+	  val prefix = new StringBuilder
+  }
+  
   def generateKernel(f: Fun) : String = {
-    generate(f, Array.empty[AccessFunction])
+    // generate the body of the kernel
+    val body = generate(f, Array.empty[AccessFunction])
+    
+    Kernel.prefix + "\n" + "kernel void KERNEL () {\n" + body + "}\n"
   }
   
   def generate(f: Fun, accessFunctions: Array[AccessFunction]) : String = {
@@ -27,7 +34,10 @@ object OpenCLGenerator {
       // reduce
       case r: ReduceSeq => ReduceSeqGenerator.generate(r, accessFunctions)
       // user functions
-      case NullFun => "userFunc"
+      case u : UserFun => {
+        Kernel.prefix.append(u.body + "\n")
+        u.name // return the name
+        }
       // utilities
       case _: oSplit => ""
       case _: oJoin => ""

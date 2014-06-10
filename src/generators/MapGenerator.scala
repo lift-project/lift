@@ -4,17 +4,16 @@ import test._
 
 object MapGenerator {
   
-  def generate(m: AbstractMap, f: Fun, indexVar: Expr, init: Expr, update: Expr, accessFunctions: Array[generators.AccessFunction]) : String = {
-	val (elemT, len) = m.inT.extractArrayType()
-	val cond = len
-	
+  def generate(m: AbstractMap, f: Fun, indexVar: Expr, range: RangeAdd, accessFunctions: Array[generators.AccessFunction]) : String = {
+    val elemT = Type.getElemT(m.inT)
+    
 	// multiply all lengths with the indexVariable ...
-    val expr = elemT.length().foldLeft(indexVar)( _ * _ )
+    val expr = Type.length(elemT).foldLeft(indexVar)( _ * _ )
     val accessFun = (index: Expr) => { expr + index }
     
     val body = OpenCLGenerator.generate(f, accessFunctions :+ accessFun) + "\n"
     
-    LoopGenerator.generate(indexVar, init, cond, update, body)
+    LoopGenerator.generate(indexVar, range, body)
   }
 	
 }
@@ -22,11 +21,11 @@ object MapGenerator {
 object MapWgrGenerator {
   
   def generate(m: MapWrg, accessFunctions: Array[generators.AccessFunction]) : String = {
-    val indexVar = Var("g_id")
-    val init = Var("get_group_id(0)")
-    val update = Var("get_num_groups(0)") // macro!?
+    val len = Type.getLength(m.inT)
+    val range = RangeAdd(Var("get_group_id(0)"), len, Var("get_num_groups(0)"))
+    val indexVar = Var("g_id") // range
       
-    MapGenerator.generate(m, m.f, indexVar, init, update, accessFunctions) +
+    MapGenerator.generate(m, m.f, indexVar, range, accessFunctions) +
     "return;\n"
   }
 
@@ -34,12 +33,12 @@ object MapWgrGenerator {
 
 object MapLclGenerator {
   
-  def generate(m: MapLcl, accessFunctions: Array[generators.AccessFunction]) : String = {   
-    val indexVar = Var("l_id")
-    val init = Var("get_local_id(0)")
-    val update = Var("get_local_size(0)") // macro!?
+  def generate(m: MapLcl, accessFunctions: Array[generators.AccessFunction]) : String = {
+    val len = Type.getLength(m.inT)
+    val range = RangeAdd(Var("get_local_id(0)"), len, Var("get_local_size(0)"))
+    val indexVar = Var("l_id") // range
       
-    MapGenerator.generate(m, m.f, indexVar, init, update, accessFunctions) +
+    MapGenerator.generate(m, m.f, indexVar, range, accessFunctions) +
     generateBarrier
   }
   
