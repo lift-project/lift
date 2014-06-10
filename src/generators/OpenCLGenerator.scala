@@ -3,19 +3,29 @@ package generators
 import test._
 import test.ReduceSeq
 
+package object generators {
+  type AccessFunction = (Expr) => Expr
+}
+
 object OpenCLGenerator {
   
-  def generate(f: Fun) : String = {
+  type AccessFunction = generators.AccessFunction
+  
+  def generateKernel(f: Fun) : String = {
+    generate(f, Array.empty[AccessFunction])
+  }
+  
+  def generate(f: Fun, accessFunctions: Array[AccessFunction]) : String = {
     assert(f.inT != UndefType)
     assert(f.ouT != UndefType)
     
-    val str = f match {
-      case cf: CompFun => cf.funs.foldRight("")((inF, str) => str + generate(inF))
+    f match {
+      case cf: CompFun => cf.funs.foldRight("")((inF, str) => str + generate(inF, accessFunctions))
       // maps
-      case m: MapWrg => MapWgrGenerator.generate(m)
-      case m: MapLcl => MapLclGenerator.generate(m)
+      case m: MapWrg => MapWgrGenerator.generate(m, accessFunctions)
+      case m: MapLcl => MapLclGenerator.generate(m, accessFunctions)
       // reduce
-      case r: ReduceSeq => ReduceSeqGenerator.generate(r)
+      case r: ReduceSeq => ReduceSeqGenerator.generate(r, accessFunctions)
       // user functions
       case NullFun => "userFunc"
       // utilities
@@ -23,29 +33,6 @@ object OpenCLGenerator {
       case _: oJoin => ""
       case _ => "__" + f.toString() + "__"
     }
-    
-    // "kernel void KERNEL(...) {\n" + str + "}\n"
-    str
-  }
-  
-  type AccessFunction = (String) => String
-  
-  private var accessFunctions = new scala.collection.mutable.Stack[(AccessFunction)]
-  
-  def foldNewToOld(z: String)(op: (String, AccessFunction) => String) : String = {
-    accessFunctions.foldLeft(z)(op)
-  }
-  
-  def foldOldToNew(z: String)(op: (String, AccessFunction) => String) : String = {
-    accessFunctions.foldRight(z)( (accessFunc, str) => op(str, accessFunc))
-  }
-  
-  def pushAccessFunction(func: AccessFunction): Unit = {
-    accessFunctions.push(func)
-  }
-  
-  def popAccessFunction(): Unit = {
-    accessFunctions.pop()
   }
 
 }

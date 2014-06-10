@@ -10,9 +10,9 @@ case class TypeException(msg: String) extends Exception(msg) {
 
 sealed abstract class Type {
   
-  def sizes(array: Array[Expr] = Array.empty[Expr]) : Array[Expr] = {
+  def length(array: Array[Expr] = Array.empty[Expr]) : Array[Expr] = {
     this match {
-      case ArrayType(elemT, len) => elemT.sizes(array :+ len)
+      case ArrayType(elemT, len) => elemT.length(array :+ len)
       case TupleType(_) => throw new IllegalArgumentException // Tuple is tricky here ...
       case VectorType(_, _) => throw new IllegalArgumentException // TODO: Think about what to do with vector types
       case _ => array

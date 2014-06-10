@@ -25,7 +25,7 @@ object Main extends App {
   println("--------------------")
 
   Type.check(lowLevel, inputType)
-  val code = OpenCLGenerator.generate(lowLevel)
+  val code = OpenCLGenerator.generateKernel(lowLevel)
   println("Code:")
   println("--------------------")
   println(code)

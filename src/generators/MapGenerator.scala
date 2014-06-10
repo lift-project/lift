@@ -4,17 +4,15 @@ import test._
 
 object MapGenerator {
   
-  def generate(m: AbstractMap, f: Fun, indexVar: String, init: String, update: String) : String = {
+  def generate(m: AbstractMap, f: Fun, indexVar: Expr, init: Expr, update: Expr, accessFunctions: Array[generators.AccessFunction]) : String = {
 	val (elemT, len) = m.inT.extractArrayType()
 	val cond = len
 	
-	// multiply all the sizes with the indexVariable ...
-    val expr = elemT.sizes().foldLeft[Expr](Var(indexVar))( _ * _ )
-    OpenCLGenerator.pushAccessFunction((index: String) => { expr + " + " + index })
+	// multiply all lengths with the indexVariable ...
+    val expr = elemT.length().foldLeft(indexVar)( _ * _ )
+    val accessFun = (index: Expr) => { expr + index }
     
-    val body = OpenCLGenerator.generate(f) + "\n"
-    
-    OpenCLGenerator.popAccessFunction()
+    val body = OpenCLGenerator.generate(f, accessFunctions :+ accessFun) + "\n"
     
     LoopGenerator.generate(indexVar, init, cond, update, body)
   }
@@ -23,12 +21,12 @@ object MapGenerator {
 
 object MapWgrGenerator {
   
-  def generate(m: MapWrg) : String = {
-    val indexVar = "g_id"
-    val init = "get_group_id(0)"
-    val update = "get_num_groups(0)" // macro!?
+  def generate(m: MapWrg, accessFunctions: Array[generators.AccessFunction]) : String = {
+    val indexVar = Var("g_id")
+    val init = Var("get_group_id(0)")
+    val update = Var("get_num_groups(0)") // macro!?
       
-    MapGenerator.generate(m, m.f, indexVar, init, update) +
+    MapGenerator.generate(m, m.f, indexVar, init, update, accessFunctions) +
     "return;\n"
   }
 
@@ -36,12 +34,12 @@ object MapWgrGenerator {
 
 object MapLclGenerator {
   
-  def generate(m: MapLcl) : String = {   
-    val indexVar = "l_id"
-    val init = "get_local_id(0)"
-    val update = "get_local_size(0)" // macro!?
+  def generate(m: MapLcl, accessFunctions: Array[generators.AccessFunction]) : String = {   
+    val indexVar = Var("l_id")
+    val init = Var("get_local_id(0)")
+    val update = Var("get_local_size(0)") // macro!?
       
-    MapGenerator.generate(m, m.f, indexVar, init, update) +
+    MapGenerator.generate(m, m.f, indexVar, init, update, accessFunctions) +
     generateBarrier
   }
   
@@ -51,18 +49,3 @@ object MapLclGenerator {
   }
   
 }
-
-
-/*
-  // necessary???
-  def ifndefDefine(name: String, value: String) : String = {
-    "#ifndef " + name + "\n" +
-    "#define " + name + " (" + value + ")\n" +
-    "#endif\n"
-  }
-
-  // necessary???
-  def undef(name: String) : String = {
-    "#undef " + name + "\n"
-  }
-*/
