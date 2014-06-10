@@ -64,10 +64,7 @@ object Rules {
   }
  
 
-  def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {
-    
-    if (!c.canDerive(f))
-      return List()
+  def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {   
     
     f match {
 
@@ -104,7 +101,9 @@ object Rules {
         result
       }
       
-      case PartRed(inF) => List(Reduce(inF)) // TODO
+      case PartRed(inF) => {
+        List(Reduce(inF)) // TODO
+      }
       
       case _ => List() // all the terminals end up here
     }

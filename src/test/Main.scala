@@ -39,6 +39,21 @@ object Main extends App {
 	   //println("root.eq(root) : " + (root.eq(root)))
 	   ///println("Reduce(NullFun).eq(Reduce(NullFun)) : " + (Reduce(NullFun).eq(Reduce(NullFun))))
 	   
+	   val nu = NullFun
+	   val cf1 = Reduce(nu)
+	   val cf2 = Reduce(nu) 
+	   val cf3 = cf2
+	   var s = Set[Fun]()
+	   s = s + cf1
+	   s = s + cf2
+	   println(cf1.eq(cf2))
+  	   println(cf1 == cf2)
+  	   
+  	   println(cf3.eq(cf2))
+  	   println(cf3 == cf2)
+  	   
+	   
+	   
 	   Type.check(root, inputType)
 	   Context.updateContext(root, new Context())
 	   println(Exploration.search(root))

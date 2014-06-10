@@ -17,13 +17,14 @@ object Exploration {
     
     var perfs = List[Double]()
     val seen = scala.collection.mutable.Set[Fun]()
-    for (i <- 1 to 10) {      
-      val rndFun = search(f, new Constraints(c.maxMapDepth, true, true))
+    for (i <- 0 to 0) {      
+      val rndFun = f//search(f, new Constraints(c.maxMapDepth, true, true))
 
       if (!seen.contains(rndFun)) {
         seen += rndFun
         val perf = Random.nextDouble
-        println(perf + " : " + rndFun)
+        if (verbose) 
+        	println(perf + " : " + rndFun)
         perfs = perfs :+ perf
       }
     }
@@ -41,6 +42,9 @@ object Exploration {
   
   private def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints) : Fun = {    
         
+    if (choices.length == 1)
+      return choices(0)
+    
     if (c.randomOnly == true)
     	return choices(Random.nextInt(choices.length))  
     
@@ -51,9 +55,9 @@ object Exploration {
     val seen = scala.collection.mutable.Set[Fun]()
     
     // generate a few random top level function with the oriF in place
-    for (i <- 1 to 10) {
-      
-      val rndFun = search(topF, topF, rndTerFixed)
+    for (i <- 0 to 0) {
+      //println("---------------- "+i)
+      val rndFun = search(topF, rndTerFixed)
       
       if (!seen.contains(rndFun)) {
         seen += rndFun
@@ -83,43 +87,52 @@ object Exploration {
     assert (f.context != null)
     assert (topF.context != null)    
 
-    // first horizontally
-    var bestH = f match {
+    val best = f match {
+	  
       case cf: CompFun => {
-        val newFuns = cf.funs.map(inF => search(topF, inF, c))
+        val newFuns = cf.funs.map(inF =>
+          search(topF, inF, c))
         if (newFuns.length == 1)
           return newFuns(0)
         else
           CompFun(newFuns: _*)
       }
+      
       case p: Pattern => {
-        val choices = Rules.outerDerivations(p, c)
-        if (choices.isEmpty)
-          p // no other choice
+        
+        if (!c.canDerive(f))
+    	   return p
+      
+        var choices = Rules.outerDerivations(p, c)
+        if (p.isGenerable())
+          choices = choices :+ p
+        assert (choices.length > 0, "p="+p)
+        
+        val bestChoice = choose(topF, f, choices, c)
+        Type.check(bestChoice, f.inT)
+        Context.updateContext(bestChoice, f.context)    
+        
+        if (bestChoice == p) {
+          assert(p.isGenerable)
+          p match {
+            case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.fun, c))
+            case _ => p
+          }  
+        } 
         else {
-          val bestChoice = choose(topF, f, choices, c)
-          Type.check(bestChoice, f.inT)
-          Context.updateContext(bestChoice, f.context)          
-          
-          val newFun = Fun.replaceRef(topF, f, bestChoice)
-          Type.check(newFun, topF.inT)
-          Context.updateContext(newFun, topF.context)
-          search(newFun, c)          
+          val newTopF = Fun.replaceRef(topF, f, bestChoice)
+          Type.check(newTopF, topF.inT)
+          Context.updateContext(newTopF, topF.context)
+          search(newTopF, c)    
         }
       }
       case _ => f
     } 
   
-    Type.check(bestH, f.inT)
-    Context.updateContext(bestH, f.context)
-    
-    // then vertically
-    val bestV = bestH match {
-      case fp :FPattern if c.canDerive(fp)=> fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.fun, c))      
-      case _ => bestH        
-    }
-    
-    bestV    
+    Type.check(best, f.inT)
+    Context.updateContext(best, f.context)
+        
+    best  
   }
   
   def search(f: Fun, c: Constraints = new Constraints(3, false)) : Fun = {
