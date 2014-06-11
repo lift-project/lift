@@ -1,6 +1,7 @@
-package test
+package exploration
 
 import scala.collection.Seq
+import ir._
 
 /*class Derivations(val f: Fun, val c: Constraints) {
   
@@ -64,10 +65,7 @@ object Rules {
   }
  
 
-  def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {
-    
-    if (!c.canDerive(f))
-      return List()
+  def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {   
     
     f match {
 
@@ -104,7 +102,9 @@ object Rules {
         result
       }
       
-      case PartRed(inF, id) => List(Reduce(inF, id)) // TODO
+      case PartRed(inF, id) => {
+        List(Reduce(inF, id)) // TODO
+      }
       
       case _ => List() // all the terminals end up here
     }

@@ -1,4 +1,6 @@
-package test
+package exploration
+
+import ir.Fun
 
 class Constraints(val maxMapDepth: Int, val onlyTerminal: Boolean, val randomOnly: Boolean = false) {
   

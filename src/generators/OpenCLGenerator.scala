@@ -1,7 +1,6 @@
 package generators
 
-import test._
-import test.ReduceSeq
+import ir._
 
 package object generators {
   type AccessFunction = (Expr) => Expr

@@ -1,12 +1,19 @@
-package test
+package exploration
 
 import scala.util.Random
+import ir.CompFun
+import ir.Context
+import ir.FPattern
+import ir.Fun
+import ir.Pattern
+import ir.Type
+import ir.UndefType
 
 object Exploration {
   
   val verbose = true
 
-  def evalPerf(f: Fun, c: Constraints) : Double = {
+  private def evalPerf(f: Fun, c: Constraints) : Double = {
     
     if (verbose) {
       println("------------------------------------------------------")
@@ -17,13 +24,14 @@ object Exploration {
     
     var perfs = List[Double]()
     val seen = scala.collection.mutable.Set[Fun]()
-    for (i <- 1 to 10) {      
-      val rndFun = search(f, f, new Constraints(c.maxMapDepth, true, true))
+    for (i <- 0 to 0) {      
+      val rndFun = search(f, new Constraints(c.maxMapDepth, true, true))
 
       if (!seen.contains(rndFun)) {
         seen += rndFun
         val perf = Random.nextDouble
-        println(perf + " : " + rndFun)
+        if (verbose) 
+        	println(perf + " : " + rndFun)
         perfs = perfs :+ perf
       }
     }
@@ -39,8 +47,11 @@ object Exploration {
     //Random.nextDouble
   }
   
-  def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints) : Fun = {    
+  private def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints) : Fun = {    
         
+    if (choices.length == 1)
+      return choices(0)
+    
     if (c.randomOnly == true)
     	return choices(Random.nextInt(choices.length))  
     
@@ -51,9 +62,9 @@ object Exploration {
     val seen = scala.collection.mutable.Set[Fun]()
     
     // generate a few random top level function with the oriF in place
-    for (i <- 1 to 10) {
-      
-      val rndFun = search(topF, topF, rndTerFixed)
+    for (i <- 0 to 3) {
+      //println("---------------- "+i)
+      val rndFun = search(topF, rndTerFixed)
       
       if (!seen.contains(rndFun)) {
         seen += rndFun
@@ -77,52 +88,66 @@ object Exploration {
     medians.reduce((x,y) => if (x._2 < y._2) x else y)._1    
   }
       
-  def search(topF: Fun, f: Fun, c: Constraints = new Constraints(3, false)) : Fun = {
-      
-    assert (f.inT    != UndefType)
+  private def search(topF: Fun, f: Fun, c:Constraints) : Fun = {
+	assert (f.inT    != UndefType)
     assert (topF.inT != UndefType)
     assert (f.context != null)
     assert (topF.context != null)    
 
-    // first horizontally
-    var bestH = f match {
+    val best = f match {
+	  
       case cf: CompFun => {
-        val newFuns = cf.funs.map(inF => search(topF, inF, c))
+        val newFuns = cf.funs.map(inF =>
+          search(topF, inF, c))
         if (newFuns.length == 1)
           return newFuns(0)
         else
           CompFun(newFuns: _*)
       }
+      
       case p: Pattern => {
-        val choices = Rules.outerDerivations(p, c)
-        val bestPattern = if (choices.isEmpty) p else choose(topF, f, choices, c)
-          
-        // TODO: depending on what is returned, we have to search it again (PartRed -> Reduce -> ReduceSeq for instance)
         
-        bestPattern match {
-          case _ : CompFun => {
-            // if we derived a composed function, look again for the best horizontally
-            Type.check(bestPattern, p.inT)
-            Context.updateContext(bestPattern, f.context)
-            search(topF, bestPattern, c)            
-          }
-          case _ => bestPattern
-          }
+        if (!c.canDerive(f))
+    	   return p
+      
+        var choices = Rules.outerDerivations(p, c)
+        if (p.isGenerable())
+          choices = choices :+ p
+        assert (choices.length > 0, "p="+p)
+        
+        val bestChoice = choose(topF, f, choices, c)
+        Type.check(bestChoice, f.inT)
+        Context.updateContext(bestChoice, f.context)    
+        
+        if (bestChoice == p) {
+          assert(p.isGenerable)
+          p match {
+            case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.fun, c))
+            case _ => p
+          }  
+        } 
+        else {
+          val newTopF = Fun.replaceRef(topF, f, bestChoice)
+          Type.check(newTopF, topF.inT)
+          Context.updateContext(newTopF, topF.context)
+          search(newTopF, bestChoice, c)    
+        }
       }
       case _ => f
     } 
   
-    Type.check(bestH, f.inT)
-    Context.updateContext(bestH, f.context)
-    
-    // then vertically
-    val bestV = bestH match {
-      case fp :FPattern if c.canDerive(fp)=> fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.fun, c))      
-      case _ => bestH        
-    }
-    
-    bestV
+    Type.check(best, f.inT)
+    Context.updateContext(best, f.context)
+        
+    best  
+  }
+  
+  def search(f: Fun, c: Constraints = new Constraints(3, false)) : Fun = {
+      
+    assert (f.inT    != UndefType)
+    assert (f.context != null)
 
+    search(f,f,c)   
   }
   
   /*

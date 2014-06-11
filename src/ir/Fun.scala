@@ -1,4 +1,4 @@
-package test
+package ir
 
 
 
@@ -7,7 +7,7 @@ sealed abstract class Fun() {
 
   var inT: Type = UndefType;
   var ouT: Type = UndefType;
-  
+    
   def setContext(ctx: Context): Fun = {
     if (ctx != null)
       this.context = ctx
@@ -94,8 +94,8 @@ case object NullFun extends Fun {
   override def toString() = "null"
 }
 
-case class CompFun(funs: Fun*) extends Fun {  
-  
+case class CompFun(val funs: Fun*) extends Fun {
+    
   //def getFuns() = funs
   
   override def toString(): String = {
@@ -116,7 +116,9 @@ case class CompFun(funs: Fun*) extends Fun {
 
 
 
-abstract class Pattern() extends Fun()
+abstract class Pattern() extends Fun() {
+    def isGenerable() : Boolean
+}
 
 object Pattern {
   
@@ -139,25 +141,46 @@ abstract class AbstractMap(f:Fun) extends FPattern(f)
 object AbstractMap {
 	def unapply(am: AbstractMap): Option[Fun] = Some(am.fun)
 }
-case class Map(f:Fun) extends AbstractMap(f) 
-case class MapSeq(f: Fun) extends AbstractMap(f)
-case class MapGlb(f: Fun) extends AbstractMap(f)
-case class MapWrg(f: Fun) extends AbstractMap(f)
-case class MapLcl(f: Fun) extends AbstractMap(f)
+case class Map(f:Fun) extends AbstractMap(f)  {
+  def isGenerable() = false
+}
+
+abstract class GenerableMap(f:Fun) extends  AbstractMap(f) {
+    def isGenerable() = true
+}
+
+case class MapSeq(f: Fun) extends GenerableMap(f)
+case class MapGlb(f: Fun) extends GenerableMap(f)
+case class MapWrg(f: Fun) extends GenerableMap(f)
+case class MapLcl(f: Fun) extends GenerableMap(f)
 
 abstract class AbstractReduce(f:Fun) extends FPattern(f)
 object AbstractReduce {
 	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.fun)
 }
-case class Reduce(f: Fun, id: Expr) extends AbstractReduce(f)
-case class ReduceSeq(f: Fun, id: Expr) extends AbstractReduce(f)
+case class Reduce(f: Fun, id: Expr) extends AbstractReduce(f) {
+    def isGenerable() = false
+}
+case class ReduceSeq(f: Fun, id: Expr) extends AbstractReduce(f) {
+      def isGenerable() = true
+}
 
-case class PartRed(f: Fun, id: Expr) extends FPattern(f)
+case class PartRed(f: Fun, id: Expr) extends FPattern(f) {
+      def isGenerable() = false
+}
 
-case class oJoin() extends Pattern()
-case class oSplit(val chunkSize: Expr) extends Pattern()
+case class oJoin() extends Pattern() {
+   def isGenerable() = true
+}
+case class oSplit(val chunkSize: Expr) extends Pattern() {
+   def isGenerable() = true
+}
 
-case class asScalar() extends Pattern()
-case class asVector(val len: Expr) extends Pattern()
+case class asScalar() extends Pattern() {
+   def isGenerable() = true
+}
+case class asVector(val len: Expr) extends Pattern() {
+   def isGenerable() = true
+}
 
 case class UserFun(name: String, body: String) extends Fun()

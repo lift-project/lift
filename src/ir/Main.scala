@@ -1,7 +1,8 @@
-package test
+package ir
 
 import scala.util.Random
-import test.Reduce
+import exploration.Exploration
+
 /*
 object Main extends App {
 	   
@@ -18,8 +19,8 @@ object Main extends App {
 	   //val userFun = UserFun("func", "float func(float x, float y) { return x+y; })")
 	   
   	   val root = Reduce(NullFun)
-  	   val varN = Var("N")
-	   val inputType: Type = ArrayType(ScalarType(),varN)
+  	   //val varN = Var("N")
+	   val inputType: Type = ArrayType(ScalarType(),Cst(0))
   
   	   //val root =  MapWrg(new CompFun(Map(NullFun),Map(NullFun)))
 	   //val inputType: Type = new ArrayType(new ArrayType(new ScalarType, Cst(20)),Cst(10))
@@ -40,9 +41,24 @@ object Main extends App {
 	   //println("root.eq(root) : " + (root.eq(root)))
 	   ///println("Reduce(NullFun).eq(Reduce(NullFun)) : " + (Reduce(NullFun).eq(Reduce(NullFun))))
 	   
+//	   val nu = NullFun
+//	   val cf1 = Reduce(nu)
+//	   val cf2 = Reduce(nu) 
+//	   val cf3 = cf2
+//	   var s = Set[Fun]()
+//	   s = s + cf1
+//	   s = s + cf2
+//	   println(cf1.eq(cf2))
+//  	   println(cf1 == cf2)
+//  	   
+//  	   println(cf3.eq(cf2))
+//  	   println(cf3 == cf2)
+  	   
+	   
+	   
 	   Type.check(root, inputType)
 	   Context.updateContext(root, new Context())
-	   println(Exploration.search(root, root))
+	   println(Exploration.search(root))
 
 	    //val results = Exploration.bfs(root, inputType, 0)
 	    //results.map(r => println(r))
