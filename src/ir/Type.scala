@@ -144,7 +144,7 @@ object Type {
       // TODO: actual check the types
       case uf : UserFun => uf.expectedOutT
       
-      case in : Input => in.expectedOutT
+      case input : Input => input.expectedOutT
 
       case NullFun => inT // TODO: change this
       

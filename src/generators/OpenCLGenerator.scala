@@ -80,7 +80,7 @@ object OpenCLGenerator {
      val typeName = r.f.ouT
      
      // input
-     val inputVarName = "input" // has to be passed down here ...
+     val inputVarName = r.f.inMemory.variable
      // apply index function one after the other following the FIFO order ...
      val generateInputAccess = (i : Expr) => {
          inputVarName + "[" +
@@ -88,7 +88,7 @@ object OpenCLGenerator {
          "]" }
        
      // output
-     val outputVarName = "output" // has to be allocated ...
+     val outputVarName = r.f.outMemory.variable
      val outputAccessFun = (index: Expr) => { index / len } // add access function for the output
      // apply index function one after the other following the LIFO order ...
      val generateOutputAccess = (i : Expr ) => {
@@ -128,9 +128,9 @@ object OpenCLGenerator {
     indexVar + " += " + range.step + ") {\n" + body + "}\n";
   }
   
-    private def generateBarrier() : String = {
-     // TODO: decide between local and global memory based on type information
+  private def generateBarrier() : String = {
+    // TODO: decide between local and global memory based on type information
     "barrier(CLK_LOCAL_MEM_FENCE && CLK_GLOBAL_MEM_FENCE)"
   }
-    
+  
 }

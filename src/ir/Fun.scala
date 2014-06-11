@@ -7,6 +7,8 @@ sealed abstract class Fun () {
 
   var inT: Type = UndefType;
   var ouT: Type = UndefType;
+  var inMemory : Memory = NullMemory
+  var outMemory : Memory = NullMemory
     
   def setContext(ctx: Context): Fun = {
     if (ctx != null)
