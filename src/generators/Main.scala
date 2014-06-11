@@ -1,7 +1,7 @@
 package generators
 
 import ir._
-/*
+
 object Main extends App {
   //val id = UserFunc("int id(int x) { return xy; }")
   val id = NullFun
@@ -58,4 +58,4 @@ object Main extends App {
   
   println("end")
 }
-*/
+
