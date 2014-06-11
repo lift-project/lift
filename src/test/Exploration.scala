@@ -4,7 +4,7 @@ import scala.util.Random
 
 object Exploration {
   
-  val verbose = true
+  val verbose = false
 
   private def evalPerf(f: Fun, c: Constraints) : Double = {
     
@@ -123,7 +123,7 @@ object Exploration {
           val newTopF = Fun.replaceRef(topF, f, bestChoice)
           Type.check(newTopF, topF.inT)
           Context.updateContext(newTopF, topF.context)
-          search(newTopF, c)    
+          search(newTopF, bestChoice, c)    
         }
       }
       case _ => f
