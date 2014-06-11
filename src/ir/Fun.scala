@@ -1,8 +1,8 @@
 package ir
 
+import opencl.ir._
 
-
-sealed abstract class Fun () {
+abstract class Fun () {
   var context : Context = null;  
 
   var inT: Type = UndefType;
@@ -28,10 +28,6 @@ sealed abstract class Fun () {
     val allFuns = thisFuns ++ thatFuns
     new CompFun(allFuns:_*)    
   }
-  
-  //override def toString() = {
-  //  "["+super.toString
-  //}   
 
 }
 
@@ -110,8 +106,6 @@ case object NullFun extends Fun {
 }
 
 case class CompFun(val funs: Fun*) extends Fun {
-    
-  //def getFuns() = funs
   
   override def toString(): String = {
     /*"CompFun(" +*/ funs.map((f) => f.toString()).reduce((s1, s2) => s1 + " o " + s2) /*+ ")"*/
@@ -129,7 +123,8 @@ case class CompFun(val funs: Fun*) extends Fun {
   }
 }
 
-
+// Here are just the algorithmic patterns
+// For opencl specific patterns see the opencl.ir package
 
 abstract class Pattern() extends Fun() {
     def isGenerable() : Boolean
@@ -138,16 +133,13 @@ abstract class Pattern() extends Fun() {
 object Pattern {
   
   def unapply(p: Pattern) : Option[Context] = Some(p.context)     
-  
-  /*def evalPerf(f: Fun): Float = {
-    0f
-  }*/
-}
 
+}
 
 abstract class FPattern(f: Fun) extends Pattern() {
   def fun = f
 }
+
 object FPattern {
   def unapply(fp: FPattern): Option[(Fun,Context)] = Some(fp.fun,fp.context)
 }
@@ -168,11 +160,6 @@ abstract class GenerableMap(f:Fun) extends  AbstractMap(f) {
     def isGenerable() = true
 }
 
-case class MapSeq(f: Fun) extends GenerableMap(f)
-case class MapGlb(f: Fun) extends GenerableMap(f)
-case class MapWrg(f: Fun) extends GenerableMap(f)
-case class MapLcl(f: Fun) extends GenerableMap(f)
-
 abstract class AbstractReduce(f:Fun) extends FPattern(f)
 object AbstractReduce {
 	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.fun)
@@ -182,14 +169,6 @@ case class Reduce(f: Fun) extends AbstractReduce(f) {
 }
 object Reduce {
   def apply(f: Fun, input: Fun) = new Reduce(f) o input
-}
-
-case class ReduceSeq(f: Fun) extends AbstractReduce(f) {
-      def isGenerable() = true
-}
-
-case class ReduceHost(f: Fun) extends AbstractReduce(f) {
-      def isGenerable() = true
 }
 
 case class PartRed(f: Fun) extends FPattern(f) {

@@ -1,4 +1,4 @@
-package generators
+package opencl.ir
 
 import ir._
 

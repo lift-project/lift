@@ -13,6 +13,8 @@ sealed abstract class Type
 case class ScalarType(val name: String) extends Type {
   override def toString = name // TODO: move this somehow into an OpenCL specific part ...
 }
+
+// TODO: Is the VectorType OpenCL specific? If yes -> move to opencl.ir package
 case class VectorType(val scalarT: ScalarType, val len: Expr) extends Type
 
 case class TupleType(val elemsT: Type*) extends Type

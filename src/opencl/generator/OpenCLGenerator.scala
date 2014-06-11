@@ -1,17 +1,23 @@
-package generators
+package opencl.generator
 
+import generator.Generator
 import ir._
+import opencl.ir._
 
-object OpenCLGenerator {
+object OpenCLGenerator extends Generator {
   
-  def generateKernel(f: Fun) : String = {
+  def generate(f: Fun) : String = {
+    generateKernel(f)
+  }
+  
+  private type AccessFunction = (Expr) => Expr
+  
+  private def generateKernel(f: Fun) : String = {
     // generate the body of the kernel
     val body = generate(f, Array.empty[AccessFunction])
     
     Kernel.prefix + "\n" + "kernel void KERNEL () {\n" + body + "}\n"
   }
-  
-  private type AccessFunction = (Expr) => Expr
   
   private object Kernel {
 	  val prefix = new StringBuilder
@@ -32,6 +38,7 @@ object OpenCLGenerator {
       // utilities
       case _: Split => ""
       case _: Join => ""
+      case _: Input => ""
       case _ => "__" + f.toString() + "__"
     }
   }

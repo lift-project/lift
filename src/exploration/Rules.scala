@@ -2,6 +2,7 @@ package exploration
 
 import scala.collection.Seq
 import ir._
+import opencl.ir._
 
 /*class Derivations(val f: Fun, val c: Constraints) {
   

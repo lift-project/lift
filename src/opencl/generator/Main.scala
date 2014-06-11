@@ -1,6 +1,7 @@
-package generators
+package opencl.generator
 
 import ir._
+import opencl.ir._
 
 object Main extends App {
   //val id = UserFunc("int id(int x) { return xy; }")
@@ -23,7 +24,7 @@ object Main extends App {
   println("--------------------")
 
   Type.check(expr, UndefType)
-  val code = OpenCLGenerator.generateKernel(expr)
+  val code = OpenCLGenerator.generate(expr)
   println("Code:")
   println("--------------------")
   println(code)
