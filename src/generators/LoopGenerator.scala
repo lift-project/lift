@@ -1,7 +1,6 @@
 package generators
 
-import test.Expr
-import test.RangeAdd
+import ir._
 
 object LoopGenerator {
     

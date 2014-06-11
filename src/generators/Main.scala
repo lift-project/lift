@@ -1,6 +1,6 @@
 package generators
 
-import test._
+import ir._
 
 object Main extends App {
   //val id = UserFunc("int id(int x) { return xy; }")
