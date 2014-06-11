@@ -10,9 +10,7 @@ case class TypeException(msg: String) extends Exception(msg) {
 
 sealed abstract class Type
 
-case class ScalarType(val name: String) extends Type {
-  override def toString = name // TODO: move this somehow into an OpenCL specific part ...
-}
+case class ScalarType(val name: String, val size: Expr) extends Type
 
 // TODO: Is the VectorType OpenCL specific? If yes -> move to opencl.ir package
 case class VectorType(val scalarT: ScalarType, val len: Expr) extends Type
@@ -65,6 +63,18 @@ object Type {
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
+  
+  def getSizeInBytes(t: Type) : Expr = {
+    Expr.simplify(
+      t match {
+        case st: ScalarType => st.size
+        case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
+        case at: ArrayType => at.len * getSizeInBytes(at.elemT)
+        case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
+        case _ => throw new TypeException(t, "??")
+      }
+    )
+  }
 
   private def asScalar(at0: ArrayType): Type = {
     at0.elemT match {
@@ -90,6 +100,8 @@ object Type {
       case _ => array
     }
   }
+  
+  def check(f: Fun) : Type = { check(f, UndefType) }
   
   def check(f: Fun, inT: Type): Type = {
 
@@ -143,8 +155,11 @@ object Type {
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
-      // TODO: actual check the types
-      case uf : UserFun => uf.expectedOutT
+      case uf : UserFun => if (inT != uf.expectedInT) {
+        throw new TypeException(inT, "UserFun does not macht " + uf.expectedInT )
+      } else {
+        uf.expectedOutT
+      }
       
       case input : Input => input.expectedOutT
 

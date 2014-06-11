@@ -6,7 +6,7 @@ import opencl.ir._
 object Main extends App {
   //val id = UserFunc("int id(int x) { return xy; }")
   val id = NullFun
-  val sumUp = UserFun("sumUp", "int sumUp(int x, int y) { return x+y; }", ScalarType("int"), ScalarType("int"))
+  val sumUp = UserFun("sumUp", "int sumUp(int x, int y) { return x+y; }", TupleType(Int, Int), Int)
   
   val highLevel = Reduce(sumUp)
   
@@ -14,7 +14,7 @@ object Main extends App {
   
   val input = Var("x")
   val varN = Cst(1048576)
-  val inputType: Type = ArrayType(ScalarType("int"), varN)
+  val inputType: Type = ArrayType(Int, varN)
   
   val expr = (lowLevel o Input(input, inputType))
 	   
@@ -23,7 +23,11 @@ object Main extends App {
   println("LowLevel expr: " + expr)
   println("--------------------")
 
-  Type.check(expr, UndefType)
+  Type.check(expr)
+  OpenCLMemory.allocate(expr)//, OpenCLMemory(input, varNInBytes, GlobalMemory))
+  
+  println( Fun.visit("")(expr, (f,s) => { s + f + " " + f.inMemory +  "\n"}) )
+  
   val code = OpenCLGenerator.generate(expr)
   println("Code:")
   println("--------------------")

@@ -19,7 +19,7 @@ object Main extends App {
 	     
   	   val root = Reduce(NullFun)
   	   //val varN = Var("N")
-	   val inputType: Type = ArrayType(ScalarType("int"),Cst(0))
+	   val inputType: Type = ArrayType(ScalarType("int", Cst(4)),Cst(0))
   
   	   //val root =  MapWrg(new CompFun(Map(NullFun),Map(NullFun)))
 	   //val inputType: Type = new ArrayType(new ArrayType(new ScalarType, Cst(20)),Cst(10))

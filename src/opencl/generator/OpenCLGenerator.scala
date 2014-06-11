@@ -3,6 +3,7 @@ package opencl.generator
 import generator.Generator
 import ir._
 import opencl.ir._
+import scala.collection.mutable.ArrayBuffer
 
 object OpenCLGenerator extends Generator {
   
@@ -16,11 +17,14 @@ object OpenCLGenerator extends Generator {
     // generate the body of the kernel
     val body = generate(f, Array.empty[AccessFunction])
     
-    Kernel.prefix + "\n" + "kernel void KERNEL () {\n" + body + "}\n"
+    val parameterString = Kernel.parameters.reduce( _ + ", \n" + _)
+    
+    Kernel.prefix + "\n" + "kernel void KERNEL (" + parameterString +") {\n" + body + "}\n"
   }
   
   private object Kernel {
 	  val prefix = new StringBuilder
+	  var parameters = new ArrayBuffer[String]
   }
   
   private def generate(f: Fun, accessFunctions: Array[AccessFunction]) : String = {
@@ -38,7 +42,7 @@ object OpenCLGenerator extends Generator {
       // utilities
       case _: Split => ""
       case _: Join => ""
-      case _: Input => ""
+      case i: Input => generateInput(i)
       case _ => "__" + f.toString() + "__"
     }
   }
@@ -84,10 +88,10 @@ object OpenCLGenerator extends Generator {
      val len = Type.getLength(r.inT)
      
      val fName = generate(r.f, accessFunctions) // kind of expecting a name here ...
-     val typeName = r.f.ouT
+     val typeName = print(r.f.ouT)
      
      // input
-     val inputVarName = r.f.inMemory.variable
+     val inputVarName = r.inMemory.variable
      // apply index function one after the other following the FIFO order ...
      val generateInputAccess = (i : Expr) => {
          inputVarName + "[" +
@@ -95,11 +99,11 @@ object OpenCLGenerator extends Generator {
          "]" }
        
      // output
-     val outputVarName = r.f.outMemory.variable
+     val outputVar = r.outMemory.variable
      val outputAccessFun = (index: Expr) => { index / len } // add access function for the output
      // apply index function one after the other following the LIFO order ...
      val generateOutputAccess = (i : Expr ) => {
-    	 outputVarName + "[" +
+    	 outputVar + "[" +
     	   (accessFunctions :+ outputAccessFun).foldLeft[Expr](i)((index, accessFun) => { accessFun(index) }) +
          "]" }
      
@@ -125,6 +129,12 @@ object OpenCLGenerator extends Generator {
     uF.name // return the name
   }
   
+  // === Inut ===
+  private def generateInput(input: Input) : String = {
+    Kernel.parameters.append(printAsParameterDecl(input))
+    ""
+  }
+  
 
   // === Utilities ===
   
@@ -136,8 +146,26 @@ object OpenCLGenerator extends Generator {
   }
   
   private def generateBarrier() : String = {
-    // TODO: decide between local and global memory based on type information
+    // TODO: decide between local and global memory based on address space information
     "barrier(CLK_LOCAL_MEM_FENCE && CLK_GLOBAL_MEM_FENCE)"
+  }
+  
+  // === printing methods ===
+  private def printAsParameterDecl(input: Input) : String = {
+    val t = input.expectedOutT 
+    t match {
+      case TupleType(_) => throw new Exception // TODO: handle this ..., create multiple variables
+      case _ => "global " + print(t) + " " + input.variable.name
+    }
+  }
+  
+  private def print(t: Type) : String = {
+    t match {
+      case ArrayType(elemT, _) => print(elemT) + "*"
+      case VectorType(elemT, len) => print(elemT) + len
+      case ScalarType(name, _) => name
+      case TupleType(_) => throw new Exception // don't know how to print a tuple in opencl ...
+    }
   }
   
 }

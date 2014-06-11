@@ -188,19 +188,19 @@ case object ? extends Expr
 
 case class Cst(val cst: Int) extends Expr {override def toString() = cst.toString}
 
-case class Var private(val id: String, var range : Range) extends Expr {
+case class Var private(val name: String, var range : Range) extends Expr {
   
   override def equals(that: Any) = that match {
-    case v: Var => this.id == v.id
+    case v: Var => this.name == v.name
     case _ => false
   }
  
   override def hashCode() = {
     val hash = 5
-    hash * 79 + id.hashCode() 
+    hash * 79 + name.hashCode() 
   }
     
-  override def toString() = id
+  override def toString() = name
   
 }
   
