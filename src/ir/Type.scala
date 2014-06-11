@@ -1,4 +1,4 @@
-package test
+package ir
 
 case class TypeException(msg: String) extends Exception(msg) {
   def this() = this("")

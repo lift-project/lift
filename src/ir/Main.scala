@@ -1,6 +1,7 @@
-package test
+package ir
 
 import scala.util.Random
+import exploration.Exploration
 
 object Main extends App {
 	   

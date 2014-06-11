@@ -1,6 +1,6 @@
 package generators
 
-import test._
+import ir._
 
 object OpenCLGenerator {
   

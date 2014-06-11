@@ -1,8 +1,10 @@
-package test
+package ir
 
 import org.junit.Test
 import org.junit.Assert._
 import scala.util.Random
+import exploration.Constraints
+import exploration.Rules
 
 
 class Utils() {

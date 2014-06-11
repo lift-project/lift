@@ -1,6 +1,6 @@
 package junit
 
-import test._
+import ir._
 import org.junit.Assert._
 import org.junit.Test
 

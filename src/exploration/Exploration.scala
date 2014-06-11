@@ -1,10 +1,17 @@
-package test
+package exploration
 
 import scala.util.Random
+import ir.CompFun
+import ir.Context
+import ir.FPattern
+import ir.Fun
+import ir.Pattern
+import ir.Type
+import ir.UndefType
 
 object Exploration {
   
-  val verbose = false
+  val verbose = true
 
   private def evalPerf(f: Fun, c: Constraints) : Double = {
     
@@ -18,7 +25,7 @@ object Exploration {
     var perfs = List[Double]()
     val seen = scala.collection.mutable.Set[Fun]()
     for (i <- 0 to 0) {      
-      val rndFun = f//search(f, new Constraints(c.maxMapDepth, true, true))
+      val rndFun = search(f, new Constraints(c.maxMapDepth, true, true))
 
       if (!seen.contains(rndFun)) {
         seen += rndFun
@@ -55,7 +62,7 @@ object Exploration {
     val seen = scala.collection.mutable.Set[Fun]()
     
     // generate a few random top level function with the oriF in place
-    for (i <- 0 to 0) {
+    for (i <- 0 to 3) {
       //println("---------------- "+i)
       val rndFun = search(topF, rndTerFixed)
       
