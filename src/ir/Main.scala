@@ -17,7 +17,7 @@ object Main extends App {
 
 	   //val userFun = UserFun("func", "float func(float x, float y) { return x+y; })")
 	   
-  	   val root = Reduce(NullFun)
+  	   val root = Reduce(NullFun, Cst(0))
   	   //val varN = Var("N")
 	   val inputType: Type = ArrayType(ScalarType(),Cst(0))
   

@@ -1,5 +1,7 @@
 package ir
 
+import scala.collection.mutable.ArrayBuffer
+
 case class TypeException(msg: String) extends Exception(msg) {
   def this() = this("")
   def this(found: Type, expected: String) = this(found + " found but " + expected + " expected")
@@ -21,7 +23,6 @@ case class ArrayType(val elemT: Type, val len: Expr) extends Type
 object UndefType extends Type {override def toString() = "UndefType"}
 
 object Type {
-  
   
   /*def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    
     t match {
@@ -53,6 +54,13 @@ object Type {
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
+  
+  def getLength(t: Type) : Expr = {
+    t match {
+      case at: ArrayType => at.len
+      case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
 
   private def asScalar(at0: ArrayType): Type = {
     at0.elemT match {
@@ -67,6 +75,15 @@ object Type {
       case pt:ScalarType => new ArrayType(new VectorType(pt,len), at0.len/len)
       case at1:ArrayType => new ArrayType(asVector(at1,len), at0.len)
       case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
+    }
+  }
+  
+  def length(t: Type, array: Array[Expr] = Array.empty[Expr]) : Array[Expr] = {
+    t match {
+      case ArrayType(elemT, len) => Type.length(elemT, array :+ len)
+      case TupleType(_) => throw new TypeException(t, "ArrayType")
+      case VectorType(_, _) => throw new TypeException(t, "ArrayType") // TODO: Think about what to do with vector types
+      case _ => array
     }
   }
   
@@ -89,7 +106,8 @@ object Type {
         ArrayType(elemT, new Cst(1))
       }
       
-      case PartRed(inF) => {
+      case PartRed(inF, id) => {
+        // TODO: check id !? 
         new ArrayType(getElemT(inT),?)
       }
       
@@ -120,6 +138,8 @@ object Type {
         case at: ArrayType => asVector(at, len)
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
+      
+      case UserFun(_,_) => inT // TODO: change this
 
       case NullFun => inT // TODO: change this
       
