@@ -29,10 +29,7 @@ object OpenCLGenerator {
       // reduce
       case r: ReduceSeq => generateReduceSeq(r, accessFunctions)
       // user functions
-      case u : UserFun => {
-        Kernel.prefix.append(u.body + "\n")
-        u.name // return the name
-        }
+      case u : UserFun => generateUserFun(u)
       // utilities
       case _: oSplit => ""
       case _: oJoin => ""
@@ -81,31 +78,38 @@ object OpenCLGenerator {
      
      val fName = generate(r.f, accessFunctions) // kind of expecting a name here ...
      val typeName = "int" // r.f.inT (binary func...)
-     val inputVarName = "input" // has to be passed down here ...
-     val outputVarName = "output" // has to be allocated ...
      
-     val init = typeName + " acc = " /*+ r.id*/ + ";\n" // TODO: fix reduction
-     val loop = generateReductionLoop(fName, len, inputVarName, accessFunctions)
-      	
+     // input
+     val inputVarName = "input" // has to be passed down here ...
+     // apply index function one after the other following the FIFO order ...
+     val generateInputAccess = (i : Expr) => { inputVarName + "[" + accessFunctions.foldRight[Expr](i)((accessFun, index) => { accessFun(index) }) + "]" }
+       
+     // output
+     val outputVarName = "output" // has to be allocated ...
      val outputAccessFun = (index: Expr) => { index / len } // add access function for the output
      // apply index function one after the other following the LIFO order ...
-     val outputAccess = (accessFunctions :+ outputAccessFun).foldLeft[Expr](Cst(0))((index, accessFun) => { accessFun(index) })
+     val generateOutputAccess = (i : Expr ) => { outputVarName + "[" +  (accessFunctions :+ outputAccessFun).foldLeft[Expr](i)((index, accessFun) => { accessFun(index) }) + "]" }
+     
+     // genetate: int acc = input[0]
+     val init = typeName + " acc = " + generateInputAccess(Cst(0)) + ";\n"
+     
+     // generate loop from 1 .. length
+     val range = RangeAdd(Cst(1), len, Cst(1))
+     val indexVar = Var("i") // range
+     val body = "  acc = " + fName + "(acc, " + generateInputAccess(indexVar) + ");\n"
+     val loop = generateLoop(indexVar, range, body)
     
-     val writeBack = outputVarName + "[" + outputAccess + "] = acc;\n"
+     // generate output[0] = acc
+     val writeBack = generateOutputAccess(Cst(0)) + " = acc;\n"
      
      "{ /* reduce_seq */\n" + init + loop + writeBack + "} /* reduce_seq */"
   }
-   
-  private def generateReductionLoop(fName: String, len: Expr, inputVarName: String, accessFunctions: Array[AccessFunction]) : String = {
-    val range = RangeAdd(Cst(0), len, Cst(1))
-    val indexVar = Var("i") // range
-    
-    // apply index function one after the other following the FIFO order ...
-    val inputAccess = accessFunctions.foldRight[Expr](indexVar)((accessFun, index) => { accessFun(index) })
-    
-    val body = "  acc = " + fName + "(acc, " + inputVarName + "[" + inputAccess + "]);\n"
-    
-    generateLoop(indexVar, range, body)
+  
+  // === UserFun ===
+  
+  private def generateUserFun(uF: UserFun) : String = {
+    Kernel.prefix.append(uF.body + "\n")
+    uF.name // return the name
   }
   
 
