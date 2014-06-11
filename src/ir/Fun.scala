@@ -186,6 +186,10 @@ case class ReduceSeq(f: Fun) extends AbstractReduce(f) {
       def isGenerable() = true
 }
 
+case class ReduceHost(f: Fun) extends AbstractReduce(f) {
+      def isGenerable() = true
+}
+
 case class PartRed(f: Fun) extends FPattern(f) {
       def isGenerable() = false
 }

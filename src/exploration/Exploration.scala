@@ -114,6 +114,7 @@ object Exploration {
         if (p.isGenerable())
           choices = choices :+ p
         assert (choices.length > 0, "p="+p)
+        // TODO: in case we don't have a choice, throw an exception since it is not possible to derive this expression
         
         val bestChoice = choose(topF, f, choices, c)
         Type.check(bestChoice, f.inT)

@@ -96,14 +96,23 @@ object Rules {
       
       case Reduce(inF) => {
         var result = List[Fun]()
-        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
-        	result = result :+ new CompFun(Reduce(inF), oJoin(), Map(PartRed(inF)), oSplit(Var(validOSplitRange(f.inT))))
-        result = result :+ ReduceSeq(inF)
+        if (!c.onlyTerminal)
+        	result = result :+ (Reduce(inF) o PartRed(inF))
+        	
+        if (f.context.inMapGlb || f.context.inMapLcl)        	
+        	result = result :+ ReduceSeq(inF)
+        else if (! f.context.inMapGlb && ! f.context.inMapLcl)  
+          result = result :+ ReduceHost(inF)
+        	
         result
       }
       
       case PartRed(inF) => {
-        List(Reduce(inF)) // TODO
+        var result = List[Fun]()
+        result = result :+ Reduce(inF)
+        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
+          result = result :+ (oJoin() o Map(PartRed(inF)) o oSplit(Var(validOSplitRange(f.inT))))
+        result
       }
       
       case _ => List() // all the terminals end up here
