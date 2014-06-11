@@ -93,7 +93,7 @@ object Type {
 
     // set the output type
     f.ouT = f match {
-            
+                  
       case AbstractMap(inF) => {
         val elemT = getElemT(inT)
         check(inF, elemT)
@@ -106,7 +106,7 @@ object Type {
         ArrayType(elemT, new Cst(1))
       }
       
-      case PartRed(inF, id) => {
+      case PartRed(inF) => {
         // TODO: check id !? 
         new ArrayType(getElemT(inT),?)
       }
@@ -139,7 +139,7 @@ object Type {
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
-      case UserFun(_,_) => inT // TODO: change this
+      case uf : UserFun => inT // TODO: change this
 
       case NullFun => inT // TODO: change this
       

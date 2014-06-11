@@ -84,7 +84,7 @@ object OpenCLGenerator {
      val inputVarName = "input" // has to be passed down here ...
      val outputVarName = "output" // has to be allocated ...
      
-     val init = typeName + " acc = " + r.id + ";\n" 
+     val init = typeName + " acc = " /*+ r.id*/ + ";\n" // TODO: fix reduction
      val loop = generateReductionLoop(fName, len, inputVarName, accessFunctions)
       	
      val outputAccessFun = (index: Expr) => { index / len } // add access function for the output

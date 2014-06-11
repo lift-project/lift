@@ -16,8 +16,8 @@ object Main extends App {
 	   //c.onlyTerminal = true;
 
 	   //val userFun = UserFun("func", "float func(float x, float y) { return x+y; })")
-	   
-  	   val root = Reduce(NullFun, Cst(0))
+	     
+  	   val root = Reduce(NullFun)
   	   //val varN = Var("N")
 	   val inputType: Type = ArrayType(ScalarType(),Cst(0))
   
