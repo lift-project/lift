@@ -3,16 +3,18 @@ package exploration
 import ir.Fun
 
 class Constraints(val maxMapDepth: Int, val onlyTerminal: Boolean, val randomOnly: Boolean = false) {
+
+  class Wrap[T <: AnyRef](val value: T) {
+    override def hashCode() = value.hashCode
+    override def equals(a: Any) = a match {
+      case ref: Wrap[_] => ref.value eq value
+      case _ => false
+    }
+  }
   
   def setOnlyTerminal() : Constraints = new Constraints(maxMapDepth, onlyTerminal)
-  var fixedFuns : Set[Fun] = Set() // set of functions that shouldn't be derived
   
-  /*var horDeriv = 0 // horizontal derivations
-  def incHorDeriv = {
-    val c = new Constraints(maxMapDepth, onlyTerminal, randomOnly)
-    c.horDeriv += 1
-    c
-  }*/
-  
-  def canDerive(f: Fun) = !fixedFuns.contains(f)
+  private val fixedFuns : scala.collection.mutable.Set[Wrap[Fun]] = new scala.collection.mutable.HashSet() // set of functions that shouldn't be derived  
+  def addFixedFun(f: Fun) = {fixedFuns += new Wrap(f)}
+  def canDerive(f: Fun) = !fixedFuns.contains(new Wrap(f))
 }
