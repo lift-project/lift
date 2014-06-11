@@ -18,7 +18,6 @@ object OpenCLGenerator {
   }
   
   private def generate(f: Fun, accessFunctions: Array[AccessFunction]) : String = {
-    assert(f.inT != UndefType)
     assert(f.ouT != UndefType)
     
     f match {
@@ -31,15 +30,16 @@ object OpenCLGenerator {
       // user functions
       case u : UserFun => generateUserFun(u)
       // utilities
-      case _: oSplit => ""
-      case _: oJoin => ""
+      case _: Split => ""
+      case _: Join => ""
       case _ => "__" + f.toString() + "__"
     }
   }
   
   // === Maps ===
   // generic Map
-  private def generateMap(m: AbstractMap, f: Fun, indexVar: Expr, range: RangeAdd, accessFunctions: Array[AccessFunction]) : String = {
+  private def generateMap(m: AbstractMap, f: Fun, indexVar: Expr, range: RangeAdd,
+                          accessFunctions: Array[AccessFunction]) : String = {
     val elemT = Type.getElemT(m.inT)
     
 	// multiply all lengths with the indexVariable ...
@@ -77,18 +77,24 @@ object OpenCLGenerator {
      val len = Type.getLength(r.inT)
      
      val fName = generate(r.f, accessFunctions) // kind of expecting a name here ...
-     val typeName = "int" // r.f.inT (binary func...)
+     val typeName = r.f.ouT
      
      // input
      val inputVarName = "input" // has to be passed down here ...
      // apply index function one after the other following the FIFO order ...
-     val generateInputAccess = (i : Expr) => { inputVarName + "[" + accessFunctions.foldRight[Expr](i)((accessFun, index) => { accessFun(index) }) + "]" }
+     val generateInputAccess = (i : Expr) => {
+         inputVarName + "[" +
+           accessFunctions.foldRight[Expr](i)((accessFun, index) => { accessFun(index) }) +
+         "]" }
        
      // output
      val outputVarName = "output" // has to be allocated ...
      val outputAccessFun = (index: Expr) => { index / len } // add access function for the output
      // apply index function one after the other following the LIFO order ...
-     val generateOutputAccess = (i : Expr ) => { outputVarName + "[" +  (accessFunctions :+ outputAccessFun).foldLeft[Expr](i)((index, accessFun) => { accessFun(index) }) + "]" }
+     val generateOutputAccess = (i : Expr ) => {
+    	 outputVarName + "[" +
+    	   (accessFunctions :+ outputAccessFun).foldLeft[Expr](i)((index, accessFun) => { accessFun(index) }) +
+         "]" }
      
      // genetate: int acc = input[0]
      val init = typeName + " acc = " + generateInputAccess(Cst(0)) + ";\n"

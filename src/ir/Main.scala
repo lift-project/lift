@@ -10,7 +10,7 @@ object Main extends App {
 	   
 	   //val root = new Map(Map(NullFun)).updateContext(new Context())
 
-	   //val root = new CompFun(ReduceSeq(NullFun), oJoin(), MapWrg(MapLcl(Map(NullFun))), oSplit()).updateContext(new Context())
+	   //val root = new CompFun(ReduceSeq(NullFun), Join(), MapWrg(MapLcl(Map(NullFun))), Split()).updateContext(new Context())
 	   
 	   //val c = new Constraints()
 	   //c.onlyTerminal = true;
@@ -19,7 +19,7 @@ object Main extends App {
 	     
   	   val root = Reduce(NullFun)
   	   //val varN = Var("N")
-	   val inputType: Type = ArrayType(ScalarType(),Cst(0))
+	   val inputType: Type = ArrayType(ScalarType("int"),Cst(0))
   
   	   //val root =  MapWrg(new CompFun(Map(NullFun),Map(NullFun)))
 	   //val inputType: Type = new ArrayType(new ArrayType(new ScalarType, Cst(20)),Cst(10))

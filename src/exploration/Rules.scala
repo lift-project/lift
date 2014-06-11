@@ -89,7 +89,7 @@ object Rules {
         
         // split-join
         if (f.context.mapDepth+1 < c.maxMapDepth && !c.onlyTerminal)          
-          result = result :+ new CompFun(oJoin(), Map(Map(inF)), oSplit(Var(validOSplitRange(f.inT))))
+          result = result :+ new CompFun(Join(), Map(Map(inF)), Split(Var(validOSplitRange(f.inT))))
         
         result
       }     
@@ -111,7 +111,7 @@ object Rules {
         var result = List[Fun]()
         result = result :+ Reduce(inF)
         if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
-          result = result :+ (oJoin() o Map(PartRed(inF)) o oSplit(Var(validOSplitRange(f.inT))))
+          result = result :+ (Join() o Map(PartRed(inF)) o Split(Var(validOSplitRange(f.inT))))
         result
       }
       

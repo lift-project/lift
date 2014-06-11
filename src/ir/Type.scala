@@ -10,8 +10,10 @@ case class TypeException(msg: String) extends Exception(msg) {
 
 sealed abstract class Type
 
-case class ScalarType() extends Type
-case class VectorType(val pt: ScalarType, val len: Expr) extends Type
+case class ScalarType(val name: String) extends Type {
+  override def toString = name // TODO: move this somehow into an OpenCL specific part ...
+}
+case class VectorType(val scalarT: ScalarType, val len: Expr) extends Type
 
 case class TupleType(val elemsT: Type*) extends Type
 
@@ -40,7 +42,7 @@ object Type {
     pre(t)
     t match {
       case at: ArrayType => visit(at.elemT, pre, post)
-      case vt: VectorType => visit(vt.pt, pre, post)      
+      case vt: VectorType => visit(vt.scalarT, pre, post)      
       case tt: TupleType => tt.elemsT.map(et => visit(et,pre,post))
       case _ => throw new NotImplementedError()
     }
@@ -50,7 +52,7 @@ object Type {
   def getElemT(t: Type): Type = {
     t match {
       case at: ArrayType => at.elemT
-      case vt: VectorType => vt.pt
+      case vt: VectorType => vt.scalarT
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
@@ -64,7 +66,7 @@ object Type {
 
   private def asScalar(at0: ArrayType): Type = {
     at0.elemT match {
-      case vt:VectorType => new ArrayType(new ScalarType(),at0.len*vt.len)
+      case vt:VectorType => new ArrayType(vt.scalarT,at0.len*vt.len)
       case at:ArrayType =>  new ArrayType(asScalar(at),at0.len)
       case _ => throw new TypeException(at0.elemT , "ArrayType or VectorType")
     }
@@ -116,7 +118,7 @@ object Type {
         cf.funs.foldRight(inT)((f, inputT) => check(f, inputT))        
       }
 
-      case _:oJoin => inT match {
+      case _:Join => inT match {
         case at0: ArrayType => at0.elemT match {
           case at1: ArrayType => new ArrayType(at1.elemT, at0.len * at1.len)
           case _=>  throw new TypeException(at0.elemT, "ArrayType")
@@ -124,7 +126,7 @@ object Type {
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
-      case oSplit(cs) => inT match {
+      case Split(cs) => inT match {
         case at: ArrayType => new ArrayType(new ArrayType(at.elemT,cs), at.len / cs)
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
@@ -139,7 +141,10 @@ object Type {
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
-      case uf : UserFun => inT // TODO: change this
+      // TODO: actual check the types
+      case uf : UserFun => uf.expectedOutT
+      
+      case in : Input => in.expectedOutT
 
       case NullFun => inT // TODO: change this
       

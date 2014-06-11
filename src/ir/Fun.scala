@@ -55,7 +55,7 @@ object Fun {
    */
   def visitExpr(f: Fun, exprF: (Expr) => (Expr)) : Fun = {   
     visit(f, inF => inF match {
-      case oSplit(e) => oSplit(exprF(e))
+      case Split(e) => Split(exprF(e))
       case asVector(e) => asVector(exprF(e))
       case _ => inF
     }, inF => inF)
@@ -194,10 +194,10 @@ case class PartRed(f: Fun) extends FPattern(f) {
       def isGenerable() = false
 }
 
-case class oJoin() extends Pattern() {
+case class Join() extends Pattern() {
    def isGenerable() = true
 }
-case class oSplit(val chunkSize: Expr) extends Pattern() {
+case class Split(val chunkSize: Expr) extends Pattern() {
    def isGenerable() = true
 }
 
@@ -208,4 +208,6 @@ case class asVector(val len: Expr) extends Pattern() {
    def isGenerable() = true
 }
 
-case class UserFun(name: String, body: String) extends Fun()
+case class UserFun(val name: String, val body: String, val expectedInT: Type, val expectedOutT: Type) extends Fun()
+
+case class Input(val variable: Var, val expectedOutT: Type) extends Fun()
