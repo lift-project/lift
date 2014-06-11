@@ -9,6 +9,10 @@ import ir.Pattern
 import ir.Type
 import ir.UndefType
 
+case class UngenerableException(msg: String) extends Exception(msg) {
+  def this(f: Fun) = this("impossible to generate "+f)
+}
+
 object Exploration {
   
   val verbose = true
@@ -97,8 +101,10 @@ object Exploration {
     val best = f match {
 	  
       case cf: CompFun => {
-        val newFuns = cf.funs.map(inF =>
+        val newFuns = {
+          cf.funs.map(inF =>
           search(topF, inF, c))
+        }
         if (newFuns.length == 1)
           return newFuns(0)
         else
@@ -113,7 +119,10 @@ object Exploration {
         var choices = Rules.outerDerivations(p, c)
         if (p.isGenerable())
           choices = choices :+ p
-        assert (choices.length > 0, "p="+p)
+         
+        if (choices.length == 0)
+          throw new UngenerableException(p)
+        //assert (choices.length > 0, "p="+p)
         // TODO: in case we don't have a choice, throw an exception since it is not possible to derive this expression
         
         val bestChoice = choose(topF, f, choices, c)

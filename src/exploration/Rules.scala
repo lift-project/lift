@@ -88,7 +88,7 @@ object Rules {
         }
         
         // split-join
-        if (f.context.mapDepth+1 < c.maxMapDepth && !c.onlyTerminal)          
+        if (f.context.mapDepth+1 < c.maxMapDepth && !c.converge)          
           result = result :+ new CompFun(Join(), Map(Map(inF)), Split(Var(validOSplitRange(f.inT))))
         
         result
@@ -96,12 +96,12 @@ object Rules {
       
       case Reduce(inF) => {
         var result = List[Fun]()
-        if (!c.onlyTerminal)
+        if (!c.converge)
         	result = result :+ (Reduce(inF) o PartRed(inF))
         	
         if (f.context.inMapGlb || f.context.inMapLcl)        	
         	result = result :+ ReduceSeq(inF)
-        else if (! f.context.inMapGlb && ! f.context.inMapLcl)  
+        else if (!f.context.inMapGlb && !f.context.inMapLcl && !f.context.inMapWrg)  
           result = result :+ ReduceHost(inF)
         	
         result
@@ -110,7 +110,7 @@ object Rules {
       case PartRed(inF) => {
         var result = List[Fun]()
         result = result :+ Reduce(inF)
-        if (f.context.mapDepth < c.maxMapDepth && !c.onlyTerminal)
+        if (f.context.mapDepth < c.maxMapDepth && !c.converge)
           result = result :+ (Join() o Map(PartRed(inF)) o Split(Var(validOSplitRange(f.inT))))
         result
       }
