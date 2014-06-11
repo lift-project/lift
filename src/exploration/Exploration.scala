@@ -56,7 +56,7 @@ object Exploration {
     	return choices(Random.nextInt(choices.length))  
     
     val rndTerFixed : Constraints = new Constraints(c.maxMapDepth, true, true)
-    rndTerFixed.fixedFuns = rndTerFixed.fixedFuns + oriF
+    rndTerFixed.addFixedFun(oriF)
     
     val perfMap = scala.collection.mutable.Map[Fun, List[Double]]()
     val seen = scala.collection.mutable.Set[Fun]()
