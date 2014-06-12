@@ -71,6 +71,10 @@ object Fun {
 
       case cf: CompFun => CompFun(cf.funs.map(inF => visit(inF, pre, post)):_*)
       
+      // TODO: remove all this and replace with FPattern
+      // TODO: implement missing cases
+      // TODO: use this visit method to implement deepCopy (or maybe not)
+      
       case Map(f)    => Map(visit(f,pre,post))
       case MapSeq(f) => MapSeq(visit(f,pre,post))
       case MapGlb(f) => MapGlb(visit(f,pre,post))
