@@ -11,26 +11,25 @@ case class OpenCLMemory(variable: Var, size: Expr, addressSpace: OpenCLAddressSp
 
 object OpenCLMemory {
   
-  def allocate(f: Fun) : Memory = {
-    allocate(f, NullMemory)
+  def allocate(f: Fun) : Unit = {
+    val memory = allocate(f, Array.empty[Memory])
+    println("TO ALLOCATE:")
+    memory.foreach(println)
+    println("DONE")
   }
   
-  def allocate(f: Fun, inMemory: Memory): Memory = {
+  def allocate(f: Fun, memory: Array[Memory]): Array[Memory] = {
 
-    f.inMemory  = inMemory // set the input memory
-
-    // set the output type
-    f.outMemory = f match {
+    f.memory = f match {
       
       case cf: CompFun => {
-        cf.funs.last.inMemory = inMemory
-        cf.funs.foldRight(inMemory)((f, inM) => allocate(f, inM))        
+        cf.funs.foldRight(memory)((f, inM) => allocate(f, inM))        
       }
       
       // inputs (parameters) are always allocated in global memory in OpenCL
       case in : Input => {
         val size = Type.getSizeInBytes(in.ouT)
-        OpenCLMemory(in.variable, size, GlobalMemory)
+        memory :+ OpenCLMemory(in.variable, size, GlobalMemory)
       }
       
       // unsure about this ...
@@ -38,7 +37,7 @@ object OpenCLMemory {
       // RedSeq or Map (which one) ...
       case rf : ReduceSeq => {
         val size = Type.getSizeInBytes(rf.ouT)
-        OpenCLMemory(Var("NEW_RED"), size, GlobalMemory)
+        memory :+ OpenCLMemory(Var("NEW_RED"), size, GlobalMemory)
       }
       
       case m : AbstractMap => {
@@ -52,10 +51,12 @@ object OpenCLMemory {
         val accessFun = (index: Expr) => { expr + index }
         */
         
-        val mem = allocate(m.f, inMemory)
+        val mems = allocate(m.f, memory)
         val len = Type.getLength(m.ouT)
-        val size = mem.size
-        OpenCLMemory(Var("NEW_MAP"), Expr.simplify(size * len), GlobalMemory)
+        mems.map( (mem) => {
+          val size = mem.size
+          OpenCLMemory(mem.variable, Expr.simplify(size * len), GlobalMemory)
+        })
       }
       
       /*
@@ -76,9 +77,9 @@ object OpenCLMemory {
       }
       */
 
-      case _ => inMemory
+      case _ => memory
     }
-    f.outMemory
+    f.memory
   }
   
 }

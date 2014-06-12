@@ -91,7 +91,7 @@ object OpenCLGenerator extends Generator {
      val typeName = print(r.f.ouT)
      
      // input
-     val inputVarName = r.inMemory.variable
+     val inputVarName = r.memory.head.variable
      // apply index function one after the other following the FIFO order ...
      val generateInputAccess = (i : Expr) => {
          inputVarName + "[" +
@@ -99,7 +99,7 @@ object OpenCLGenerator extends Generator {
          "]" }
        
      // output
-     val outputVar = r.outMemory.variable
+     val outputVar = r.memory.last.variable
      val outputAccessFun = (index: Expr) => { index / len } // add access function for the output
      // apply index function one after the other following the LIFO order ...
      val generateOutputAccess = (i : Expr ) => {

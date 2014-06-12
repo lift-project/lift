@@ -7,8 +7,7 @@ abstract class Fun () {
 
   var inT: Type = UndefType;
   var ouT: Type = UndefType;
-  var inMemory : Memory = NullMemory
-  var outMemory : Memory = NullMemory
+  var memory : Array[Memory] = Array.empty[Memory]
     
   def copy(): Fun
   

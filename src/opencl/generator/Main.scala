@@ -26,7 +26,13 @@ object Main extends App {
   Type.check(expr)
   OpenCLMemory.allocate(expr)//, OpenCLMemory(input, varNInBytes, GlobalMemory))
   
-  println( Fun.visit("")(expr, (f,s) => { s + f + " " + f.inMemory +  "\n"}) )
+  /*println( Fun.visit("")(expr, (f,s) => { s + f + " " + {
+    if (f.memory.isEmpty) {
+      "NULL"
+    } else {
+      f.memory.last
+    }
+    } +  "\n"}) )*/
   
   val code = OpenCLGenerator.generate(expr)
   println("Code:")
