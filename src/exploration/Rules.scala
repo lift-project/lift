@@ -40,7 +40,7 @@ object Rules {
   }
    
    private def innerDerivations(fpat: FPattern, c: Constraints, level: Int): Seq[Fun] = {
-     derivsWithOneRule(fpat.fun, c,level).map((f) => fpat.getClass().getConstructor(classOf[Fun]).newInstance(f))        
+     derivsWithOneRule(fpat.f, c,level).map((f) => fpat.getClass().getConstructor(classOf[Fun]).newInstance(f))        
   }
     
     

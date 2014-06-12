@@ -52,7 +52,7 @@ object OpenCLMemory {
         val accessFun = (index: Expr) => { expr + index }
         */
         
-        val mem = allocate(m.fun, inMemory)
+        val mem = allocate(m.f, inMemory)
         val len = Type.getLength(m.ouT)
         val size = mem.size
         OpenCLMemory(Var("NEW_MAP"), Expr.simplify(size * len), GlobalMemory)

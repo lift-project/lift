@@ -10,6 +10,8 @@ abstract class Fun () {
   var inMemory : Memory = NullMemory
   var outMemory : Memory = NullMemory
     
+  def copy(): Fun
+  
   def setContext(ctx: Context): Fun = {
     if (ctx != null)
       this.context = ctx
@@ -42,7 +44,7 @@ object Fun {
   def visit[T](z:T)(f: Fun, vfn: (Fun,T) => T): T = {
     val result = vfn(f,z)
     f match {
-      case FPattern(inF, _) => visit(result)(inF, vfn)
+      case fp: FPattern => visit(result)(fp.f, vfn)
       case cf: CompFun => cf.funs.foldRight(result)((inF,x)=>visit(x)(inF, vfn))      
       case _ => result
     }
@@ -65,7 +67,7 @@ object Fun {
    def visit(f: Fun, pre: (Fun) => (Fun), post: (Fun) => (Fun)) : Fun = {
     var newF = pre(f)
     newF = newF match {
-      case NullFun => f
+      case NullFun => NullFun
 
       case cf: CompFun => CompFun(cf.funs.map(inF => visit(inF, pre, post)):_*)
       
@@ -91,7 +93,7 @@ object Fun {
   def visit(f: Fun, pre: (Fun) => (Unit), post: (Fun) => (Unit)): Unit = {
     pre(f)
     f match {
-      case FPattern(inF, _) => visit(inF, pre, post)
+      case fp: FPattern => visit(fp.f, pre, post)
       case cf: CompFun => cf.funs.reverseMap(inF => visit(inF, pre, post))
       case _ =>
     }
@@ -103,6 +105,7 @@ object Fun {
 
 case object NullFun extends Fun {
   override def toString() = "null"
+  override def copy() = NullFun
 }
 
 case class CompFun(val funs: Fun*) extends Fun {
@@ -121,6 +124,8 @@ case class CompFun(val funs: Fun*) extends Fun {
   override def hashCode() = {
     funs.foldRight(3*79)((f,hash) => hash*f.hashCode())    
   }
+  
+  override def copy() = new CompFun(funs.map(f => f.copy()):_*)
 }
 
 // Here are just the algorithmic patterns
@@ -136,17 +141,22 @@ object Pattern {
 
 }
 
-abstract class FPattern(f: Fun) extends Pattern() {
-  def fun = f
+trait FPattern extends Pattern {
+  def f: Fun
+  def copy() : Fun = this.getClass().getConstructor(classOf[Fun]).newInstance(f.copy()) 
+}
+
+/*abstract class FPattern(val f: Fun) extends Pattern() {
+  override def copy() = this.getClass().getConstructor(classOf[Fun]).newInstance(f.copy()) 
 }
 
 object FPattern {
-  def unapply(fp: FPattern): Option[(Fun,Context)] = Some(fp.fun,fp.context)
-}
+  def unapply(fp: FPattern): Option[(Fun,Context)] = Some(fp.f,fp.context)   
+}*/
 
-abstract class AbstractMap(f:Fun) extends FPattern(f)
+abstract class AbstractMap(f:Fun) extends FPattern
 object AbstractMap {
-	def unapply(am: AbstractMap): Option[Fun] = Some(am.fun)
+	def unapply(am: AbstractMap): Option[Fun] = Some(am.f)
 }
 
 case class Map(f:Fun) extends AbstractMap(f)  {
@@ -160,35 +170,43 @@ abstract class GenerableMap(f:Fun) extends  AbstractMap(f) {
     def isGenerable() = true
 }
 
-abstract class AbstractReduce(f:Fun) extends FPattern(f)
+abstract class AbstractReduce(f:Fun) extends FPattern
 object AbstractReduce {
-	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.fun)
+	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.f)
 }
 case class Reduce(f: Fun) extends AbstractReduce(f) {
-    def isGenerable() = false
+    def isGenerable() = false    
 }
 object Reduce {
   def apply(f: Fun, input: Fun) = new Reduce(f) o input
 }
 
-case class PartRed(f: Fun) extends FPattern(f) {
+case class PartRed(f: Fun) extends FPattern {
       def isGenerable() = false
 }
 
 case class Join() extends Pattern() {
    def isGenerable() = true
+   override def copy() = Join()    
 }
 case class Split(val chunkSize: Expr) extends Pattern() {
    def isGenerable() = true
+   override def copy() = Split(chunkSize)  
 }
 
 case class asScalar() extends Pattern() {
    def isGenerable() = true
+   override def copy() = asScalar() 
 }
 case class asVector(val len: Expr) extends Pattern() {
    def isGenerable() = true
+   override def copy() = asVector(len)    
 }
 
-case class UserFun(val name: String, val body: String, val expectedInT: Type, val expectedOutT: Type) extends Fun()
+case class UserFun(val name: String, val body: String, val expectedInT: Type, val expectedOutT: Type) extends Fun() {
+    override def copy() = UserFun(name, body, expectedInT, expectedOutT)    
+}
 
-case class Input(val variable: Var, val expectedOutT: Type) extends Fun()
+case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
+  override def copy() = Input(variable, expectedOutT)    
+}

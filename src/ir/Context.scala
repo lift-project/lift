@@ -60,7 +60,7 @@ object Context {
         case MapWrg(inF) => updateContext(inF, ctx.incMapDepth.setInMapWrg)
         case MapLcl(inF) => updateContext(inF, ctx.incMapDepth.setInMapLcl)       
         
-        case FPattern(inF, _) => updateContext(inF, ctx.copy)
+        case fp: FPattern => updateContext(fp.f, ctx.copy)
         case cf: CompFun => cf.funs.map(inF => updateContext(inF, ctx.copy))
         case _ => 
       }
