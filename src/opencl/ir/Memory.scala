@@ -2,42 +2,56 @@ package opencl.ir
 
 import ir._
 
-abstract class OpenCLAddressSpace
-object LocalMemory extends OpenCLAddressSpace
-object GlobalMemory extends OpenCLAddressSpace
 
-case class OpenCLMemory(variable: Var, size: Expr, addressSpace: OpenCLAddressSpace,
-                        accessFunctions: Array[(Expr) => Expr] = Array.empty[(Expr) => Expr]) extends Memory
+//MapWgr declar 
+//	MapLcl
+//		ReduceSeq
+
+abstract class OpenCLAddressSpace
+
+object LocalMemory extends OpenCLAddressSpace {
+  override def toString() =  "local"
+}
+
+object GlobalMemory extends OpenCLAddressSpace {
+  override def toString() =  "global"
+}
+
+case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCLAddressSpace) extends Memory
 
 object OpenCLMemory {
   
-  def allocate(f: Fun) : Unit = {
-    val memory = allocate(f, Array.empty[Memory])
-    println("TO ALLOCATE:")
-    memory.foreach(println)
-    println("DONE")
+  def asOpenCLMemory(m : Memory) : OpenCLMemory = {
+    m match {
+      case oclm : OpenCLMemory => oclm
+      case _ => throw new IllegalArgumentException
+    }
+  }
+  
+  def allocate(f: Fun) : Array[Memory] = {
+    allocate(f, Array.empty[Memory])
   }
   
   def allocate(f: Fun, memory: Array[Memory]): Array[Memory] = {
+    // TODO: get rid of the stupid cast!
+    //val currentAddressSpace = memory.last.asInstanceOf[OpenCLMemory].addressSpace
 
     f.memory = f match {
       
       case cf: CompFun => {
-        cf.funs.foldRight(memory)((f, inM) => allocate(f, inM))        
+        cf.funs.foldRight(memory)((f, mem) => allocate(f, mem))        
       }
       
       // inputs (parameters) are always allocated in global memory in OpenCL
       case in : Input => {
         val size = Type.getSizeInBytes(in.ouT)
-        memory :+ OpenCLMemory(in.variable, size, GlobalMemory)
+        memory :+ OpenCLMemory(in.variable, size, in.ouT, GlobalMemory)
       }
       
-      // unsure about this ...
-      // how is going to "do" the allocate?
-      // RedSeq or Map (which one) ...
+      // the sequential implementations add
       case rf : ReduceSeq => {
         val size = Type.getSizeInBytes(rf.ouT)
-        memory :+ OpenCLMemory(Var("NEW_RED"), size, GlobalMemory)
+        memory :+ OpenCLMemory(Var(), size, rf.ouT, GlobalMemory)
       }
       
       case m : AbstractMap => {
@@ -55,7 +69,7 @@ object OpenCLMemory {
         val len = Type.getLength(m.ouT)
         mems.map( (mem) => {
           val size = mem.size
-          OpenCLMemory(mem.variable, Expr.simplify(size * len), GlobalMemory)
+          OpenCLMemory(mem.variable, Expr.simplify(size * len), mem.t, GlobalMemory)
         })
       }
       

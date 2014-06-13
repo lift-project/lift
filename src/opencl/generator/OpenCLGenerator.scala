@@ -11,13 +11,22 @@ object OpenCLGenerator extends Generator {
     generateKernel(f)
   }
   
+  def allocateMemory(f: Fun) : Unit = {
+    val memory = OpenCLMemory.allocate(f)
+    memory.foreach( (mem) => {
+      val oclmem = OpenCLMemory.asOpenCLMemory(mem)
+      Kernel.parameters.append(printAsParameterDecl(oclmem))
+      } )
+  }
+  
   private type AccessFunction = (Expr) => Expr
   
   private def generateKernel(f: Fun) : String = {
     // generate the body of the kernel
     val body = generate(f, Array.empty[AccessFunction])
     
-    val parameterString = Kernel.parameters.reduce( _ + ", \n" + _)
+    assert(!Kernel.parameters.isEmpty)
+    val parameterString = Kernel.parameters.reduce( _ + ", " + _)
     
     Kernel.prefix + "\n" + "kernel void KERNEL (" + parameterString +") {\n" + body + "}\n"
   }
@@ -49,26 +58,26 @@ object OpenCLGenerator extends Generator {
   
   // === Maps ===
   // generic Map
-  private def generateMap(m: AbstractMap, f: Fun, indexVar: Expr, range: RangeAdd,
+  private def generateMap(m: AbstractMap, f: Fun, loopVar: Expr, range: RangeAdd,
                           accessFunctions: Array[AccessFunction]) : String = {
     val elemT = Type.getElemT(m.inT)
     
 	// multiply all lengths with the indexVariable ...
-    val expr = Type.length(elemT).foldLeft(indexVar)( _ * _ )
-    val accessFun = (index: Expr) => { expr + index }
+    val sizes = Type.length(elemT).foldLeft(loopVar)( _ * _ )
+    val accessFun = (index: Expr) => { sizes + index }
     
     val body = generate(f, accessFunctions :+ accessFun) + "\n"
     
-    generateLoop(indexVar, range, body)
+    generateLoop(loopVar, range, body)
   }
   
   // MapWrg
   private def generateMapWrg(m: MapWrg, accessFunctions: Array[AccessFunction]) : String = {
     val len = Type.getLength(m.inT)
     val range = RangeAdd(Var("get_group_id(0)"), len, Var("get_num_groups(0)"))
-    val indexVar = Var("g_id") // range
+    val loopVar = Var("g_id") // range
       
-    generateMap(m, m.f, indexVar, range, accessFunctions) +
+    generateMap(m, m.f, loopVar, range, accessFunctions) +
     "return;\n"
   }
   
@@ -76,9 +85,9 @@ object OpenCLGenerator extends Generator {
   private def generateMapLcl(m: MapLcl, accessFunctions: Array[AccessFunction]) : String = {
     val len = Type.getLength(m.inT)
     val range = RangeAdd(Var("get_local_id(0)"), len, Var("get_local_size(0)"))
-    val indexVar = Var("l_id") // range
+    val loopVar = Var("l_id") // range
       
-    generateMap(m, m.f, indexVar, range, accessFunctions) +
+    generateMap(m, m.f, loopVar, range, accessFunctions) +
     generateBarrier
   }
   
@@ -131,7 +140,7 @@ object OpenCLGenerator extends Generator {
   
   // === Inut ===
   private def generateInput(input: Input) : String = {
-    Kernel.parameters.append(printAsParameterDecl(input))
+    // Kernel.parameters.append(printAsParameterDecl(input))
     ""
   }
   
@@ -157,6 +166,10 @@ object OpenCLGenerator extends Generator {
       case TupleType(_) => throw new Exception // TODO: handle this ..., create multiple variables
       case _ => "global " + print(t) + " " + input.variable.name
     }
+  }
+  
+  private def printAsParameterDecl(mem: OpenCLMemory) : String = {
+    mem.addressSpace + " " + print(mem.t) + " " + mem.variable.name
   }
   
   private def print(t: Type) : String = {

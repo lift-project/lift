@@ -218,7 +218,8 @@ case class Var private(val name: String, var range : Range) extends Expr {
   
 object Var {
   var cnt: Int = -1
-  def apply(range : Range) : Var = {
+  
+  def apply(range : Range = RangeUnkown) : Var = {
     cnt += 1;
     Var("v"+cnt, range)
   }
