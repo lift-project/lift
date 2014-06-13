@@ -6,7 +6,10 @@ import scala.collection.immutable.HashSet
 import scala.collection.immutable.Set
 import scala.util.Random
 
+class NotEvaluableException(msg: String) extends Exception(msg)
+
 sealed abstract class Expr {
+  def eval() : Double
   def simplify() = this
   def *(that: Expr) = new Mul(this, that)
   def /(that: Expr) = new Mul(this, Pow(that, Cst(-1)))
@@ -15,9 +18,7 @@ sealed abstract class Expr {
   def ^(that: Expr) = new Pow(this, that)  
 }
 
-object Expr {
-  
-
+object Expr {  
   
   def simplify(e: Expr) : Expr = {    
     
@@ -65,6 +66,8 @@ object Expr {
 private case class Prod(val terms: HashMap[Expr,Int]) extends Expr {
   def this() = this(new HashMap)
 
+  def eval() : Double = terms.foldLeft(1.0)((result,pair) => result * math.pow(pair._1.eval(),pair._2))		  
+  
   override def toString() = {
     "("+terms.map(keyval =>
       if (keyval._2 == 1)
@@ -124,6 +127,8 @@ private case class Prod(val terms: HashMap[Expr,Int]) extends Expr {
 private case class Sum(val terms: HashMap[Expr,Int]) extends Expr {
   def this() = this(new HashMap)
   
+  def eval() : Double = terms.foldLeft(0.0)((result,pair) => result + math.pow(pair._1.eval(),pair._2))		  
+  
   override def toString() = {
     "("+
     terms.map(keyval =>
@@ -182,13 +187,20 @@ private case class Sum(val terms: HashMap[Expr,Int]) extends Expr {
 }
 
 // undefined
-case object ? extends Expr
+case object ? extends Expr {
+	def eval() = throw new NotEvaluableException("?")
+}
 
 
 
-case class Cst(val cst: Int) extends Expr {override def toString() = cst.toString}
+case class Cst(val cst: Int) extends Expr {
+  def eval() = cst
+  override def toString() = cst.toString
+}
 
 case class Var private(val name: String, var range : Range) extends Expr {
+  
+  def eval() = throw new NotEvaluableException(name)
   
   override def equals(that: Any) = that match {
     case v: Var => this.name == v.name
@@ -315,7 +327,13 @@ abstract class BinOp(val l: Expr, val r: Expr, val op: String) extends Expr {
   override def toString() = {"("+l+op+r+")"}
 }
 
-case class Mul(override val l: Expr, override val r: Expr) extends BinOp(l,r,"*")
-case class Add(override val l: Expr, override val r: Expr) extends BinOp(l,r,"+")
-case class Pow(override val l: Expr, override val r: Expr) extends BinOp(l,r,"^")
+case class Mul(override val l: Expr, override val r: Expr) extends BinOp(l,r,"*") {
+  	def eval() = l.eval * r.eval
+}
+case class Add(override val l: Expr, override val r: Expr) extends BinOp(l,r,"+") {
+    	def eval() = l.eval + r.eval
+}
+case class Pow(override val l: Expr, override val r: Expr) extends BinOp(l,r,"^") {
+    	def eval() = math.pow(l.eval,r.eval)
+}
 
