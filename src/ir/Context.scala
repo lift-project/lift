@@ -8,6 +8,7 @@ class Context extends Cloneable {
   var inMapGlb = false;
   var inMapWrg = false
   var inMapLcl = false
+  var inSeq = false
        
   def incMapDepth() : Context = {
     val c = this.copy()
@@ -32,7 +33,14 @@ class Context extends Cloneable {
     c.inMapLcl = true
     c
   }
-  
+
+  def setInSeq() : Context = {
+    val c = this.copy()
+    c.inSeq = true
+    c
+  }
+
+
   /*override def toString(): String = {
     "Contex[mapDepth="+mapDepth+"]"
   }*/
@@ -55,11 +63,12 @@ object Context {
       f match {   
         
         case Map(inF)    => updateContext(inF, ctx.incMapDepth)
-        case MapSeq(inF) => updateContext(inF, ctx.incMapDepth)
+        case MapSeq(inF) => updateContext(inF, ctx.incMapDepth.setInSeq())
         case MapGlb(inF) => updateContext(inF, ctx.incMapDepth.setInMapGlb)
         case MapWrg(inF) => updateContext(inF, ctx.incMapDepth.setInMapWrg)
-        case MapLcl(inF) => updateContext(inF, ctx.incMapDepth.setInMapLcl)       
-        
+        case MapLcl(inF) => updateContext(inF, ctx.incMapDepth.setInMapLcl)
+        case ReduceSeq(inF) => updateContext(inF, ctx.setInSeq())
+
         case fp: FPattern => updateContext(fp.f, ctx.copy)
         case cf: CompFun => cf.funs.map(inF => updateContext(inF, ctx.copy))
         case _ => 

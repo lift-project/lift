@@ -74,7 +74,7 @@ object Rules {
         var result = List[Fun]()
         
         // sequential
-        if (f.context.inMapGlb || f.context.inMapLcl)
+        if (!f.context.inSeq && (f.context.inMapGlb || f.context.inMapLcl))
         	result = result :+ MapSeq(inF)
         	
         // global, workgroup
@@ -100,7 +100,7 @@ object Rules {
         if (!c.converge)
         	result = result :+ (Reduce(inF) o PartRed(inF))
         	
-        if (f.context.inMapGlb || f.context.inMapLcl)        	
+        if (/*!f.context.inSeq &&*/ (f.context.inMapGlb || f.context.inMapLcl))
         	result = result :+ ReduceSeq(inF)
         else if (!f.context.inMapGlb && !f.context.inMapLcl && !f.context.inMapWrg)  
           result = result :+ ReduceHost(inF)

@@ -15,7 +15,7 @@ case class UngenerableException(msg: String) extends Exception(msg) {
 
 object Exploration {
   
-  val verbose = true
+  val verbose = false
 
   private def evalPerf(f: Fun, c: Constraints) : Double = {
     
@@ -56,7 +56,7 @@ object Exploration {
     if (choices.length == 1)
       return choices(0)
     
-    if (c.randomOnly == true)
+    if (c.randomOnly)
     	return choices(Random.nextInt(choices.length))  
     	
     if (verbose) {
@@ -103,16 +103,40 @@ object Exploration {
       result || f.eq(inF)
     })      
   }
-  
+
+  private def searchPattern(topF: Fun, p: Pattern, choices: Seq[Fun], c:Constraints, depth:Int) : Fun = {
+
+    val bestChoice = choose(topF, p, choices, c, depth)
+    Type.check(bestChoice, p.inT)
+    Context.updateContext(bestChoice, p.context)
+
+    try {
+      if (bestChoice == p) {
+        assert(p.isGenerable)
+        p match {
+          case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.f, c, depth + 1))
+          case _ => p
+        }
+      }
+      else {
+        val newTopF = Fun.replaceRef(topF, p, bestChoice)
+        Type.check(newTopF, topF.inT)
+        Context.updateContext(newTopF, topF.context)
+        search(newTopF, bestChoice, c, depth + 1)
+      }
+    } catch  {
+      case ue: UngenerableException => searchPattern(topF, p, choices.filterNot(c => c.eq(bestChoice)), c, depth) // redo the search with by removing the choice leading to ungenerable code
+    }
+  }
+
   private def search(topF: Fun, f: Fun, c:Constraints, depth:Int) : Fun = {
     
 	assert (f.inT    != UndefType)
     assert (topF.inT != UndefType)
     assert (f.context != null)
     assert (topF.context != null)    
-    
-    if (!isInside(topF, f))
-        println("nooo")
+
+    // TODO: remove this assertion as it is costly
     assert (isInside(topF, f))
 
      if (verbose)
@@ -141,29 +165,10 @@ object Exploration {
           choices = choices :+ p
          
         if (choices.length == 0)
-          throw new UngenerableException(p)
-        //assert (choices.length > 0, "p="+p)
-        // TODO: in case we don't have a choice, throw an exception since it is not possible to derive this expression
-        
-        val bestChoice = choose(topF, f, choices, c, depth)
-        Type.check(bestChoice, f.inT)
-        Context.updateContext(bestChoice, f.context)    
-        
-        if (bestChoice == p) {
-          assert(p.isGenerable)
-          p match {
-            case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.f, c, depth+1))
-            case _ => p
-          }  
-        } 
-        else {
-          println("replace: "+topF+" "+f+" "+bestChoice)
-          val newTopF = Fun.replaceRef(topF, f, bestChoice)
-          println("replaced: "+newTopF)
-          Type.check(newTopF, topF.inT)
-          Context.updateContext(newTopF, topF.context)
-          search(newTopF, bestChoice, c, depth+1)    
-        }
+          throw new UngenerableException("topF= "+topF+" f = "+f)
+
+        searchPattern(topF, p, choices, c, depth)
+
       }
       case _ => f
     } 

@@ -35,9 +35,16 @@ abstract class Fun () {
 object Fun {
 
   def replaceRef(f: Fun, oriF: Fun, newF: Fun) : Fun = {
-    visit(f,
-      (inF: Fun) => if (inF.eq(oriF)) newF else inF,
-      (inF: Fun) => inF)       
+
+    if (f.eq(oriF))
+      return newF
+
+    f match {
+      case NullFun => NullFun
+      case cf: CompFun => CompFun(cf.funs.map(inF => replaceRef(inF, oriF, newF)):_*)
+      case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(replaceRef(fp.f,oriF,newF))
+      case _ => f.copy()
+    }
   }
   
   def visit[T](z:T)(f: Fun, vfn: (Fun,T) => T): T = {
@@ -53,11 +60,11 @@ object Fun {
    * Visit the expression of function f (recursively) and rebuild along the way
    */
   def visitExpr(f: Fun, exprF: (Expr) => (Expr)) : Fun = {   
-    visit(f, inF => inF match {
+    visit(f, (inF:Fun) => inF match {
       case Split(e) => Split(exprF(e))
       case asVector(e) => asVector(exprF(e))
       case _ => inF
-    }, inF => inF)
+    }, (inF:Fun) => inF)
   }  
   
   /*
@@ -69,10 +76,6 @@ object Fun {
       case NullFun => NullFun
 
       case cf: CompFun => CompFun(cf.funs.map(inF => visit(inF, pre, post)):_*)
-      
-      // TODO: remove all this and replace with FPattern
-      // TODO: implement missing cases
-      // TODO: use this visit method to implement deepCopy (or maybe not)
       
       case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(visit(fp.f,pre,post)) 
       
