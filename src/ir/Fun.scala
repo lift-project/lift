@@ -74,19 +74,13 @@ object Fun {
       // TODO: implement missing cases
       // TODO: use this visit method to implement deepCopy (or maybe not)
       
-      case Map(inF)    => Map(visit(inF,pre,post))
-      case MapSeq(inF) => MapSeq(visit(inF,pre,post))
-      case MapGlb(inF) => MapGlb(visit(inF,pre,post))
-      case MapWrg(inF) => MapWrg(visit(inF,pre,post))
-      case MapLcl(inF) => MapLcl(visit(inF,pre,post))
+      case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(visit(fp.f,pre,post)) 
       
-      case Reduce(inF)    => Reduce(visit(inF,pre,post))
-      case ReduceSeq(inF) => ReduceSeq(visit(inF,pre,post))
-
-      case PartRed(inF) => PartRed(visit(inF,pre,post))
-      
-      case _ => newF
+      case _ => newF.copy() 
     }
+    
+    assert (newF == NullFun || !newF.eq(f),"newF= "+newF+" f= "+f)
+    
     post(newF)
   }
 

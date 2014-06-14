@@ -51,7 +51,7 @@ object Exploration {
     //Random.nextDouble
   }
   
-  private def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints) : Fun = {    
+  private def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints, depth:Int) : Fun = {    
         
     if (choices.length == 1)
       return choices(0)
@@ -73,7 +73,7 @@ object Exploration {
     // generate a few random top level function with the oriF in place
     for (i <- 0 to 3) {
       //println("---------------- "+i)
-      val rndFun = search(topF, rndTerFixed)
+      val rndFun = search(topF, rndTerFixed, depth+1)
       
       if (!seen.contains(rndFun)) {
         seen += rndFun
@@ -96,12 +96,24 @@ object Exploration {
     
     medians.reduce((x,y) => if (x._2 < y._2) x else y)._1    
   }
-      
-  private def search(topF: Fun, f: Fun, c:Constraints) : Fun = {
+    
+  // returns true if function f appears inside topF (using .eq for comparison)
+  private def isInside(topF: Fun, f:Fun) = {
+    Fun.visit(false)(topF, (inF,result) => {
+      result || f.eq(inF)
+    })      
+  }
+  
+  private def search(topF: Fun, f: Fun, c:Constraints, depth:Int) : Fun = {
+    
 	assert (f.inT    != UndefType)
     assert (topF.inT != UndefType)
     assert (f.context != null)
     assert (topF.context != null)    
+    
+    if (!isInside(topF, f))
+        println("nooo")
+    assert (isInside(topF, f))
 
      if (verbose)
         println("search topF="+topF+" f="+f+" "+c.converge+" "+c.randomOnly+" "+c.fixedFuns)
@@ -114,7 +126,7 @@ object Exploration {
       case cf: CompFun => {
         val newFuns = {
           cf.funs.map(inF =>
-          search(topF, inF, c))
+          search(topF, inF, c, depth+1))
         }
         if (newFuns.length == 1)
           return newFuns(0)
@@ -133,14 +145,14 @@ object Exploration {
         //assert (choices.length > 0, "p="+p)
         // TODO: in case we don't have a choice, throw an exception since it is not possible to derive this expression
         
-        val bestChoice = choose(topF, f, choices, c)
+        val bestChoice = choose(topF, f, choices, c, depth)
         Type.check(bestChoice, f.inT)
         Context.updateContext(bestChoice, f.context)    
         
         if (bestChoice == p) {
           assert(p.isGenerable)
           p match {
-            case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.f, c))
+            case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.f, c, depth+1))
             case _ => p
           }  
         } 
@@ -150,7 +162,7 @@ object Exploration {
           println("replaced: "+newTopF)
           Type.check(newTopF, topF.inT)
           Context.updateContext(newTopF, topF.context)
-          search(newTopF, bestChoice, c)    
+          search(newTopF, bestChoice, c, depth+1)    
         }
       }
       case _ => f
@@ -162,6 +174,6 @@ object Exploration {
     best  
   }
   
-  def search(f: Fun, c: Constraints = new Constraints(3, false)) : Fun = search(f,f,c)  
+  def search(f: Fun, c: Constraints = new Constraints(3, false), depth:Int=0) : Fun = search(f,f,c,depth)  
   
 }
