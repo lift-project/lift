@@ -74,16 +74,16 @@ object Fun {
       // TODO: implement missing cases
       // TODO: use this visit method to implement deepCopy (or maybe not)
       
-      case Map(f)    => Map(visit(f,pre,post))
-      case MapSeq(f) => MapSeq(visit(f,pre,post))
-      case MapGlb(f) => MapGlb(visit(f,pre,post))
-      case MapWrg(f) => MapWrg(visit(f,pre,post))
-      case MapLcl(f) => MapLcl(visit(f,pre,post))
+      case Map(inF)    => Map(visit(inF,pre,post))
+      case MapSeq(inF) => MapSeq(visit(inF,pre,post))
+      case MapGlb(inF) => MapGlb(visit(inF,pre,post))
+      case MapWrg(inF) => MapWrg(visit(inF,pre,post))
+      case MapLcl(inF) => MapLcl(visit(inF,pre,post))
       
-      case Reduce(f)    => Reduce(visit(f,pre,post))
-      case ReduceSeq(f) => ReduceSeq(visit(f,pre,post))
+      case Reduce(inF)    => Reduce(visit(inF,pre,post))
+      case ReduceSeq(inF) => ReduceSeq(visit(inF,pre,post))
 
-      case PartRed(f) => PartRed(visit(f,pre,post))
+      case PartRed(inF) => PartRed(visit(inF,pre,post))
       
       case _ => newF
     }

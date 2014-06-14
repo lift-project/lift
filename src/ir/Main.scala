@@ -27,6 +27,12 @@ object Main extends App {
 	   	   	   
 	   //println(Fun.maxDepth(root))	   
 	   
+	   val r = Reduce(NullFun)
+	   val rr = r o PartRed(NullFun)
+  	   println(rr)
+  	   println(Fun.replaceRef(rr, r, Reduce(NullFun) o PartRed(NullFun)))
+  	   	
+	   
 	   println(root)
 	   println("--------------------")
 	   

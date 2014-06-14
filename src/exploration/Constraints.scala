@@ -14,7 +14,7 @@ class Constraints(val maxMapDepth: Int, val converge: Boolean, val randomOnly: B
   
   def setOnlyTerminal() : Constraints = new Constraints(maxMapDepth, converge)
   
-  private val fixedFuns : scala.collection.mutable.Set[Wrap[Fun]] = new scala.collection.mutable.HashSet() // set of functions that shouldn't be derived  
+  val fixedFuns : scala.collection.mutable.Set[Wrap[Fun]] = new scala.collection.mutable.HashSet() // set of functions that shouldn't be derived  
   def addFixedFun(f: Fun) = {fixedFuns += new Wrap(f)}
   def canDerive(f: Fun) = !fixedFuns.contains(new Wrap(f))
 }

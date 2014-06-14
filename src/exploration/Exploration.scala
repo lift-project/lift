@@ -29,7 +29,7 @@ object Exploration {
     var perfs = List[Double]()
     val seen = scala.collection.mutable.Set[Fun]()
     for (i <- 0 to 0) {      
-      val rndFun = search(f, new Constraints(c.maxMapDepth, true, true))
+      val rndFun = f//search(f, new Constraints(c.maxMapDepth, true, true))
 
       if (!seen.contains(rndFun)) {
         seen += rndFun
@@ -58,6 +58,11 @@ object Exploration {
     
     if (c.randomOnly == true)
     	return choices(Random.nextInt(choices.length))  
+    	
+    if (verbose) {
+      println("######################################")
+      println("Choosing options for "+oriF+" (topF="+topF+", options="+choices+")")
+    }    	
     
     val rndTerFixed : Constraints = new Constraints(c.maxMapDepth, true, true)
     rndTerFixed.addFixedFun(oriF)
@@ -98,6 +103,12 @@ object Exploration {
     assert (f.context != null)
     assert (topF.context != null)    
 
+     if (verbose)
+        println("search topF="+topF+" f="+f+" "+c.converge+" "+c.randomOnly+" "+c.fixedFuns)
+    
+    if (!c.canDerive(f))
+      return f
+    
     val best = f match {
 	  
       case cf: CompFun => {
@@ -111,10 +122,7 @@ object Exploration {
           CompFun(newFuns: _*)
       }
       
-      case p: Pattern => {
-        
-        if (!c.canDerive(f))
-    	   return p
+      case p: Pattern => {        
       
         var choices = Rules.outerDerivations(p, c)
         if (p.isGenerable())
@@ -137,7 +145,9 @@ object Exploration {
           }  
         } 
         else {
+          println("replace: "+topF+" "+f+" "+bestChoice)
           val newTopF = Fun.replaceRef(topF, f, bestChoice)
+          println("replaced: "+newTopF)
           Type.check(newTopF, topF.inT)
           Context.updateContext(newTopF, topF.context)
           search(newTopF, bestChoice, c)    
