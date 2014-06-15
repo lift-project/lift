@@ -36,6 +36,8 @@ object Fun {
 
   def replaceRef(f: Fun, oriF: Fun, newF: Fun) : Fun = {
 
+    //println("f: "+f+" oriF: "+oriF+" newF: "+newF)
+
     if (f.eq(oriF))
       return newF
 
@@ -43,7 +45,7 @@ object Fun {
       case NullFun => NullFun
       case cf: CompFun => CompFun(cf.funs.map(inF => replaceRef(inF, oriF, newF)):_*)
       case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(replaceRef(fp.f,oriF,newF))
-      case _ => f.copy()
+      case _ => f//f.copy()
     }
   }
   

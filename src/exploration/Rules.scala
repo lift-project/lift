@@ -75,22 +75,22 @@ object Rules {
         
         // sequential
         if (!f.context.inSeq && (f.context.inMapGlb || f.context.inMapLcl))
-        	result = result :+ MapSeq(inF)
+        	result = result :+ MapSeq(inF.copy())
         	
         // global, workgroup
         if (f.context.mapDepth == 0 && !f.context.inMapGlb && !f.context.inMapWrg) {
-          result = result :+ MapGlb(inF)  
-          result = result :+ MapWrg(inF)
+          result = result :+ MapGlb(inF.copy())
+          result = result :+ MapWrg(inF.copy())
         }
         
         // local
         if (f.context.mapDepth == 1 && f.context.inMapWrg && !f.context.inMapGlb && !f.context.inMapLcl) {
-          result = result :+ MapLcl(inF) 
+          result = result :+ MapLcl(inF.copy())
         }
         
         // split-join
         if (f.context.mapDepth+1 < c.maxMapDepth && !c.converge)          
-          result = result :+ new CompFun(Join(), Map(Map(inF)), Split(Var(validOSplitRange(f.inT))))
+          result = result :+ new CompFun(Join(), Map(Map(inF.copy())), Split(Var(validOSplitRange(f.inT))))
         
         result
       }     
@@ -98,21 +98,21 @@ object Rules {
       case Reduce(inF) => {
         var result = List[Fun]()
         if (!c.converge)
-        	result = result :+ (Reduce(inF) o PartRed(inF))
+        	result = result :+ (Reduce(inF.copy()) o PartRed(inF.copy()))
         	
         if (/*!f.context.inSeq &&*/ (f.context.inMapGlb || f.context.inMapLcl))
-        	result = result :+ ReduceSeq(inF)
+        	result = result :+ ReduceSeq(inF.copy())
         else if (!f.context.inMapGlb && !f.context.inMapLcl && !f.context.inMapWrg)  
-          result = result :+ ReduceHost(inF)
+          result = result :+ ReduceHost(inF.copy())
         	
         result
       }
       
       case PartRed(inF) => {
         var result = List[Fun]()
-        result = result :+ Reduce(inF)
+        result = result :+ Reduce(inF.copy())
         if (f.context.mapDepth < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(PartRed(inF)) o Split(Var(validOSplitRange(f.inT))))
+          result = result :+ (Join() o Map(PartRed(inF.copy())) o Split(Var(validOSplitRange(f.inT))))
         result
       }
       

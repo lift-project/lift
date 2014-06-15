@@ -28,8 +28,8 @@ object Exploration {
     
     var perfs = List[Double]()
     val seen = scala.collection.mutable.Set[Fun]()
-    for (i <- 0 to 0) {      
-      val rndFun = f//search(f, new Constraints(c.maxMapDepth, true, true))
+    for (i <- 0 to 0) {
+      val rndFun = search(f, new Constraints(c.maxMapDepth, true, true))
 
       if (!seen.contains(rndFun)) {
         seen += rndFun
@@ -52,7 +52,13 @@ object Exploration {
   }
   
   private def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints, depth:Int) : Fun = {    
-        
+
+    assert(choices.length > 0)
+
+    // //TODO: remove this!
+    //return choices(Random.nextInt(choices.length))
+
+
     if (choices.length == 1)
       return choices(0)
     
@@ -73,7 +79,8 @@ object Exploration {
     // generate a few random top level function with the oriF in place
     for (i <- 0 to 3) {
       //println("---------------- "+i)
-      val rndFun = search(topF, rndTerFixed, depth+1)
+
+      val rndFun = search(topF, rndTerFixed, depth + 1)
       
       if (!seen.contains(rndFun)) {
         seen += rndFun
@@ -82,19 +89,34 @@ object Exploration {
           val f = Fun.replaceRef(rndFun, oriF, choice)
           Type.check(f, topF.inT)
           Context.updateContext(f, topF.context)
-          val perf = evalPerf(f, c)
-          perfMap.update(choice, perfMap.getOrElse(choice, List[Double]()) :+ perf)
+          try{
+            val perf = evalPerf(f, c)
+            perfMap.update(choice, perfMap.getOrElse(choice, List[Double]()) :+ perf)
+          } catch {
+            case _:UngenerableException => {
+              // we cannot generate code for this choice, ignore it
+              Double.MaxValue
+            }
+          }
         })
       }        
     }
-    
+
+    assert (perfMap.nonEmpty)
+
     val medians = perfMap.map({case (key, vals) => {
       val sortedVals = vals.sorted
       val median = sortedVals(sortedVals.length/2)
       (key,median)
     }})
     
-    medians.reduce((x,y) => if (x._2 < y._2) x else y)._1    
+    val bestMedian = medians.reduce((x,y) => if (x._2 < y._2) x else y)._1
+    if (bestMedian == Double.MaxValue) {
+      // in case none of the options lead to generable code
+      throw new UngenerableException("choose: "+topF)
+    }
+
+    bestMedian
   }
     
   // returns true if function f appears inside topF (using .eq for comparison)
@@ -106,32 +128,46 @@ object Exploration {
 
   private def searchPattern(topF: Fun, p: Pattern, choices: Seq[Fun], c:Constraints, depth:Int) : Fun = {
 
+    assert (choices.length > 0)
+
     val bestChoice = choose(topF, p, choices, c, depth)
     Type.check(bestChoice, p.inT)
     Context.updateContext(bestChoice, p.context)
+
+    val newTopF = Fun.replaceRef(topF, p, bestChoice)
+    Type.check(newTopF, topF.inT)
+    Context.updateContext(newTopF, topF.context)
 
     try {
       if (bestChoice == p) {
         assert(p.isGenerable)
         p match {
-          case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(topF, fp.f, c, depth + 1))
-          case _ => p
+          // ready to go inside pattern p (if possible)
+          case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(newTopF, fp.f, c, depth + 1))
+          case _ => p // ok we are done with pattern p
         }
       }
       else {
-        val newTopF = Fun.replaceRef(topF, p, bestChoice)
-        Type.check(newTopF, topF.inT)
-        Context.updateContext(newTopF, topF.context)
+        // pattern p is not generable, this means we need to transform it further
         search(newTopF, bestChoice, c, depth + 1)
       }
     } catch  {
-      case ue: UngenerableException => searchPattern(topF, p, choices.filterNot(c => c.eq(bestChoice)), c, depth) // redo the search with by removing the choice leading to ungenerable code
+      case ue: UngenerableException => {
+        if (choices.length == 1) {
+          //throw ue // no other choice available, bail out
+          throw ue
+        }
+        // redo the search by removing the choice leading to ungenerable code
+
+        println("caught  UngenerableException "+depth+" "+p+" "+choices)
+        searchPattern(topF, p, choices.filterNot(c => c.eq(bestChoice)), c, depth)
+      }
     }
   }
 
   private def search(topF: Fun, f: Fun, c:Constraints, depth:Int) : Fun = {
     
-	assert (f.inT    != UndefType)
+	  assert (f.inT    != UndefType)
     assert (topF.inT != UndefType)
     assert (f.context != null)
     assert (topF.context != null)    
