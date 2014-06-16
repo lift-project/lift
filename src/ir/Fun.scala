@@ -8,7 +8,12 @@ abstract class Fun () {
   var inT: Type = UndefType;
   var ouT: Type = UndefType;
   var memory : Array[Memory] = Array.empty[Memory]
-    
+
+  /*
+   * Is this immediate function generable? (without looking inside)
+   */
+  def isGenerable() : Boolean
+
   def copy(): Fun
   
   def setContext(ctx: Context): Fun = {
@@ -106,12 +111,16 @@ object Fun {
 
 
 case object NullFun extends Fun {
+  override def isGenerable() = true
+
   override def toString() = "null"
   override def copy() = NullFun
 }
 
 case class CompFun(val funs: Fun*) extends Fun {
-  
+
+  override def isGenerable() = true
+
   override def toString(): String = {
     /*"CompFun(" +*/ funs.map((f) => f.toString()).reduce((s1, s2) => s1 + " o " + s2) /*+ ")"*/
   }
@@ -133,10 +142,7 @@ case class CompFun(val funs: Fun*) extends Fun {
 // Here are just the algorithmic patterns
 // For opencl specific patterns see the opencl.ir package
 
-abstract class Pattern() extends Fun() {
-    def isGenerable() : Boolean
-}
-
+abstract class Pattern() extends Fun()
 object Pattern {
   
   def unapply(p: Pattern) : Option[Context] = Some(p.context)     
@@ -206,9 +212,11 @@ case class asVector(val len: Expr) extends Pattern() {
 }
 
 case class UserFun(val name: String, val body: String, val expectedInT: Type, val expectedOutT: Type) extends Fun() {
-    override def copy() = UserFun(name, body, expectedInT, expectedOutT)    
+  override def isGenerable() = true
+  override def copy() = UserFun(name, body, expectedInT, expectedOutT)
 }
 
 case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
+  override def isGenerable() = true
   override def copy() = Input(variable, expectedOutT)    
 }

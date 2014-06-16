@@ -33,7 +33,7 @@ object Exploration {
 
       if (!seen.contains(rndFun)) {
         seen += rndFun
-        val perf = Random.nextDouble
+        val perf = Random.nextDouble()
         if (verbose) 
         	println(perf + " : " + rndFun)
         perfs = perfs :+ perf
@@ -51,7 +51,7 @@ object Exploration {
     //Random.nextDouble
   }
   
-  private def choose(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints, depth:Int) : Fun = {    
+  private def chooseMedianFastest(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints, depth:Int) : Fun = {
 
     assert(choices.length > 0)
 
@@ -62,8 +62,7 @@ object Exploration {
     if (choices.length == 1)
       return choices(0)
     
-    if (c.randomOnly)
-    	return choices(Random.nextInt(choices.length))  
+
     	
     if (verbose) {
       println("######################################")
@@ -93,10 +92,7 @@ object Exploration {
             val perf = evalPerf(f, c)
             perfMap.update(choice, perfMap.getOrElse(choice, List[Double]()) :+ perf)
           } catch {
-            case _:UngenerableException => {
-              // we cannot generate code for this choice, ignore it
-              Double.MaxValue
-            }
+            case _:UngenerableException =>  // we cannot generate code for this choice, ignore it
           }
         })
       }        
@@ -111,7 +107,7 @@ object Exploration {
     }})
     
     val bestMedian = medians.reduce((x,y) => if (x._2 < y._2) x else y)._1
-    if (bestMedian == Double.MaxValue) {
+    if (medians.isEmpty) {
       // in case none of the options lead to generable code
       throw new UngenerableException("choose: "+topF)
     }
@@ -126,46 +122,25 @@ object Exploration {
     })      
   }
 
-  private def searchPattern(topF: Fun, p: Pattern, choices: Seq[Fun], c:Constraints, depth:Int) : Fun = {
+  private def choose(topF: Fun, p: Pattern, choices: Seq[Fun], c:Constraints, depth:Int) : Fun = {
 
     assert (choices.length > 0)
 
-    val bestChoice = choose(topF, p, choices, c, depth)
-    Type.check(bestChoice, p.inT)
-    Context.updateContext(bestChoice, p.context)
+    val choice =
+      if (c.randomOnly)
+        choices(Random.nextInt(choices.length))
+      else
+        chooseMedianFastest(topF, p, choices, c, depth)
 
-    val newTopF = Fun.replaceRef(topF, p, bestChoice)
-    Type.check(newTopF, topF.inT)
-    Context.updateContext(newTopF, topF.context)
+    assert (choices.contains(choice))
 
-    try {
-      if (bestChoice == p) {
-        assert(p.isGenerable)
-        p match {
-          // ready to go inside pattern p (if possible)
-          case fp: FPattern => fp.getClass().getConstructor(classOf[Fun]).newInstance(search(newTopF, fp.f, c, depth + 1))
-          case _ => p // ok we are done with pattern p
-        }
-      }
-      else {
-        // pattern p is not generable, this means we need to transform it further
-        search(newTopF, bestChoice, c, depth + 1)
-      }
-    } catch  {
-      case ue: UngenerableException => {
-        if (choices.length == 1) {
-          //throw ue // no other choice available, bail out
-          throw ue
-        }
-        // redo the search by removing the choice leading to ungenerable code
+    Type.check(choice, p.inT)
+    Context.updateContext(choice, p.context)
 
-        println("caught  UngenerableException "+depth+" "+p+" "+choices)
-        searchPattern(topF, p, choices.filterNot(c => c.eq(bestChoice)), c, depth)
-      }
-    }
+    choice
   }
 
-  private def search(topF: Fun, f: Fun, c:Constraints, depth:Int) : Fun = {
+  private def derive(topF: Fun, f: Fun, c:Constraints, depth:Int) : Fun = {
     
 	  assert (f.inT    != UndefType)
     assert (topF.inT != UndefType)
@@ -173,26 +148,15 @@ object Exploration {
     assert (topF.context != null)    
 
     // TODO: remove this assertion as it is costly
-    assert (isInside(topF, f))
+    //assert (isInside(topF, f))
 
      if (verbose)
-        println("search topF="+topF+" f="+f+" "+c.converge+" "+c.randomOnly+" "+c.fixedFuns)
+        println("derive topF="+topF+" f="+f+" "+c.converge+" "+c.randomOnly+" "+c.fixedFuns)
     
     if (!c.canDerive(f))
       return f
     
-    val best = f match {
-	  
-      case cf: CompFun => {
-        val newFuns = {
-          cf.funs.map(inF =>
-          search(topF, inF, c, depth+1))
-        }
-        if (newFuns.length == 1)
-          return newFuns(0)
-        else
-          CompFun(newFuns: _*)
-      }
+    val bestChoice = f match {
       
       case p: Pattern => {        
       
@@ -203,18 +167,45 @@ object Exploration {
         if (choices.length == 0)
           throw new UngenerableException("topF= "+topF+" f = "+f)
 
-        searchPattern(topF, p, choices, c, depth)
+        val choice = choose(topF, p, choices, c, depth)
 
+        Type.check(choice, f.inT)
+        Context.updateContext(choice, f.context)
+
+        if (choice != f) {
+          // try to derive the newly found best
+          val newTopF = Fun.replaceRef(topF, f, choice)
+          Type.check(newTopF, topF.inT)
+          Context.updateContext(newTopF, topF.context)
+
+          derive(newTopF, choice, c, depth+1)
+        } else
+          f
       }
+
       case _ => f
     } 
-  
-    Type.check(best, f.inT)
-    Context.updateContext(best, f.context)
-        
-    best  
+
+    val newTopF = Fun.replaceRef(topF, f, bestChoice)
+    Type.check(newTopF, topF.inT)
+    Context.updateContext(newTopF, topF.context)
+
+    // now try to go inside
+    assert(bestChoice.isGenerable())
+    bestChoice match {
+      case fp: FPattern => fp.getClass.getConstructor(classOf[Fun]).newInstance(derive(newTopF, fp.f, c, depth + 1))
+      case cf: CompFun => {
+        val newFuns = cf.funs.map(inF => derive(newTopF, inF, c, depth+1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
+        if (newFuns.length == 1)
+          derive(newTopF, newFuns(0), c, depth + 1)
+        else
+          CompFun(newFuns: _*)
+      }
+      case _ => bestChoice
+    }
+
   }
   
-  def search(f: Fun, c: Constraints = new Constraints(3, false), depth:Int=0) : Fun = search(f,f,c,depth)  
+  def search(f: Fun, c: Constraints = new Constraints(3, false), depth:Int=0) : Fun = derive(f,f,c,depth)
   
 }

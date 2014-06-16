@@ -102,7 +102,8 @@ object Rules {
         	
         if (/*!f.context.inSeq &&*/ (f.context.inMapGlb || f.context.inMapLcl))
         	result = result :+ ReduceSeq(inF.copy())
-        else if (!f.context.inMapGlb && !f.context.inMapLcl && !f.context.inMapWrg)  
+
+        if (!f.context.inMapGlb && !f.context.inMapLcl && !f.context.inMapWrg)
           result = result :+ ReduceHost(inF.copy())
         	
         result
