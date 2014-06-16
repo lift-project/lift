@@ -2,10 +2,13 @@ package opencl.ir
 
 import ir._
 
+case class MapGlb(f: Fun) extends GenerableMap(f)
+
 case class MapWrg(f: Fun) extends GenerableMap(f)
 case class MapLcl(f: Fun) extends GenerableMap(f)
 
-case class MapGlb(f: Fun) extends GenerableMap(f)
+case class MapWarp(f: Fun) extends GenerableMap(f)
+case class MapLane(f: Fun) extends GenerableMap(f)
 
 case class MapSeq(f: Fun) extends GenerableMap(f)
 
@@ -15,6 +18,21 @@ case class ReduceSeq(f: Fun) extends AbstractReduce(f) {
 
 case class ReduceHost(f: Fun) extends AbstractReduce(f) {
       def isGenerable() = true
+}
+
+case class toGlobal(f: Fun) extends FPattern {
+  def isGenerable() = true
+  override def copy() = toGlobal(f)
+}
+
+case class toLocal(f: Fun) extends FPattern {
+  def isGenerable() = true
+  override def copy() = toLocal(f)
+}
+
+case class ReorderStride() extends Pattern {
+  def isGenerable() = true
+  override def copy() = ReorderStride()
 }
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part

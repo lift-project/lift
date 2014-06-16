@@ -162,32 +162,39 @@ object Expr {
           throw new NotEvaluableException(result.toString)
 
       result*/
-
   }
 
   def simplify(e: Expr): Expr = {
 
-        // recurse inside first
-        var result = e match {
-          case Pow(base, exp) => Pow(simplify(base), simplify(exp))
-          case Prod(terms) => Prod(terms.map(t => simplify(t)))
-          case Sum(terms) => Sum(terms.map(t => simplify(t)))
-          case _ => e
-        }
+    // recurse inside first
+    var result = e match {
+      case Pow(base, exp) => Pow(simplify(base), simplify(exp))
+      case Prod(terms) => Prod(terms.map(t => simplify(t)))
+      case Sum(terms) => Sum(terms.map(t => simplify(t)))
+      case _ => e
+    }
 
-        result = result match {
-          case p: Pow => simplifyPow(p)
-          case p: Prod => simplifyProd(p)
-          case s: Sum => simplifySum(s)
-          case _ => result
-        }
+    result = result match {
+      case p: Pow => simplifyPow(p)
+      case p: Prod => simplifyProd(p)
+      case s: Sum => simplifySum(s)
+      case _ => result
+    }
 
-        result
-      }
+    result
   }
 
+  def toInt(e: Expr): Int = {
+    Expr.simplify(e) match {
+      case Cst(i) => i
+      case _ => throw new NotEvaluableException(e.toString)
+    }
+  }
+
+}
+
 case object ? extends Expr
-case class Cst(c: Int) extends Expr
+case class Cst(c: Int) extends Expr { override  def toString() = c.toString }
 case class Pow(b: Expr, e: Expr) extends Expr
 case class Prod(terms: List[Expr]) extends Expr
 case class Sum(terms: List[Expr]) extends Expr

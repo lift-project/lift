@@ -1,5 +1,8 @@
 package ir
 
+// hm ...
+import opencl.ir._
+
 import scala.collection.mutable.ArrayBuffer
 
 case class TypeException(msg: String) extends Exception(msg) {
@@ -10,14 +13,20 @@ case class TypeException(msg: String) extends Exception(msg) {
 
 sealed abstract class Type
 
-case class ScalarType(val name: String, val size: Expr) extends Type
+case class ScalarType(val name: String, val size: Expr) extends Type {
+  override def toString() = name
+}
 
 // TODO: Is the VectorType OpenCL specific? If yes -> move to opencl.ir package
 case class VectorType(val scalarT: ScalarType, val len: Expr) extends Type
 
-case class TupleType(val elemsT: Type*) extends Type
+case class TupleType(val elemsT: Type*) extends Type {
+  override def toString() = "(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
+}
 
-case class ArrayType(val elemT: Type, val len: Expr) extends Type
+case class ArrayType(val elemT: Type, val len: Expr) extends Type {
+  override def toString() = elemT + "[" + len + "]"
+}
 
 //case class UnboundArrayType(et: Type, te: TypeExpr) extends ArrayType(et)
 //case class BoundArrayType(et: Type, n: Int) extends ArrayType(et)
@@ -60,6 +69,7 @@ object Type {
   def getLength(t: Type) : Expr = {
     t match {
       case at: ArrayType => at.len
+      case st: ScalarType => Cst(1)
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
@@ -112,8 +122,7 @@ object Type {
                   
       case AbstractMap(inF) => {
         val elemT = getElemT(inT)
-        check(inF, elemT)
-        inT
+        ArrayType(check(inF, elemT), getLength(inT))
       }
       
       case AbstractReduce(inF) => {
@@ -163,6 +172,36 @@ object Type {
       
       case input : Input => input.expectedOutT
 
+      case tL:toLocal => check(tL.f, inT)
+
+      case tG:toGlobal => check(tG.f, inT)
+
+      case i : Iterate => inT match {
+        case at: ArrayType => {
+
+          check(i.f, inT)
+
+          val inN = getLength(i.f.inT)
+          val outN = getLength(i.f.ouT)
+
+          // compute i.n times a over b (b is the reduction factor of one iteration, a is the input length)
+          var a = inN
+          var b = inN / outN
+          for (index <- 1 to Expr.toInt(i.n)) {
+            a = Expr.simplify(a / b)
+          }
+
+          new ArrayType(getElemT(inT), a)
+        }
+        case _ => throw new TypeException(inT, "ArrayType")
+      }
+
+      case _: ReorderStride => inT
+
+      case vec: Vectorize => check(vec.f, inT) // Type.vectorize(vec.n, inT)
+
+      // Type.vectorize(vec.n, inT)
+
       case NullFun => inT // TODO: change this
       
       // TODO: continue
@@ -176,4 +215,16 @@ object Type {
 
     f.ouT
   }
+
+  /*
+  def vectorize(n: Expr, t: Type): Type = {
+    t match {
+      case sT: ScalarType => new VectorType(sT, n)
+      case tT: TupleType => new TupleType( tT.elemsT.map( vectorize(n, _) ):_* )
+      case aT: ArrayType => asVector(aT, n)
+      case _ => throw new TypeException(t, "anything else")
+    }
+  }
+  */
+
 }

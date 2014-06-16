@@ -211,6 +211,15 @@ case class asVector(val len: Expr) extends Pattern() {
    override def copy() = asVector(len)    
 }
 
+case class Vectorize(n: Expr, f: Fun) extends FPattern {
+  def isGenerable() = true
+  override def copy() = Vectorize(n, f)
+}
+
+object Vectorize {
+  def apply(n: Expr): ((Fun) => Vectorize) = { (f: Fun) => Vectorize(n, f) }
+}
+
 case class UserFun(val name: String, val body: String, val expectedInT: Type, val expectedOutT: Type) extends Fun() {
   override def isGenerable() = true
   override def copy() = UserFun(name, body, expectedInT, expectedOutT)
@@ -219,4 +228,22 @@ case class UserFun(val name: String, val body: String, val expectedInT: Type, va
 case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
   override def isGenerable() = true
   override def copy() = Input(variable, expectedOutT)    
+}
+
+case class Iterate(n: Expr, f: Fun) extends FPattern() {
+  override def isGenerable() = true
+  override def copy() = Iterate(n, f)
+}
+
+object Iterate {
+  def apply(n: Expr): ((Fun) => Iterate)  = (f: Fun) => Iterate(n ,f)
+}
+
+case class Zip(f1: Fun, f2: Fun) extends Fun() {
+  override def isGenerable() = true
+  override def copy() = Zip(f1, f2)
+}
+
+object Zip {
+  def apply(f1: Fun): ((Fun) => Zip) = (f2: Fun) => Zip(f1, f2)
 }

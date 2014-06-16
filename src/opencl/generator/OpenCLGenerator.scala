@@ -6,6 +6,18 @@ import opencl.ir._
 import scala.collection.mutable.ArrayBuffer
 
 object OpenCLGenerator extends Generator {
+
+  def compile(f: Fun) : String = {
+    // pass 1
+    Type.check(f)
+
+    //Fun.visit(f, (f: Fun) => { println(f.ouT + " <- " + f.inT + " | " + f) }, (f: Fun) => {})
+
+    // pass 2
+    allocateMemory(f)
+    // pass 3
+    generate(f)
+  }
   
   def generate(f: Fun) : String = {
     generateKernel(f)
