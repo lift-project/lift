@@ -16,7 +16,7 @@ class TestExpr {
       val v = Var(new RangeMul(c0,c2,c10))
       val e = (c0+c1)*(c10+c2)+(c10/c2)
       
-    assertEquals(e.eval, Expr.simplify(e).eval)
+    assertEquals(e.eval(), Expr.simplify(e).eval())
     
     println(e.eval())
     val result = Expr.simplify(e)

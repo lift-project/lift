@@ -100,7 +100,7 @@ object Rules {
         if (!c.converge)
         	result = result :+ (Reduce(inF.copy()) o PartRed(inF.copy()))
         	
-        if (/*!f.context.inSeq &&*/ (f.context.inMapGlb || f.context.inMapLcl))
+        if (!f.context.inSeq && (f.context.inMapGlb || f.context.inMapLcl))
         	result = result :+ ReduceSeq(inF.copy())
 
         if (!f.context.inMapGlb && !f.context.inMapLcl && !f.context.inMapWrg)
