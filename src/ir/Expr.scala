@@ -8,6 +8,7 @@ import scala.util.Random
 
 class NotEvaluableException(msg: String) extends Exception(msg)
 
+
 sealed abstract class Expr {
   def eval() : Double
   def simplify() = this
