@@ -62,49 +62,135 @@ object Expr {
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
   }
 
-  def simplify(e: Expr): Expr = {
+  private def simplifyPow(pow: Pow): Expr = {
+    pow match {
+      case Pow(Cst(0), Cst(0)) => throw new NotEvaluableException(pow.toString)
+      case Pow(base, Cst(0)) => Cst(1)
+      case Pow(base, Cst(1)) => base
+      case Pow(Cst(0), _) => Cst(0)
+      case Pow(Cst(1), _) => Cst(1)
+      case Pow(Prod(terms), exp) => simplifyProd(Prod(terms.map(t => simplifyPow(Pow(t, exp)))))
+      case Pow(_,_) => pow
+    }
+  }
 
-    val result = e match {
-      case Pow(base,exp) => Pow(simplify(base),simplify(exp))
-      case Prod(terms) => Prod(terms.map(t => simplify(t)))
-      case Sum(terms)  => Sum(terms.map(t => simplify(t)))
-      case _ => e
+  private def simplifySum(sum: Sum): Expr = sum match {
+    case Sum(terms) => {
+
+      if (terms.length == 1)
+        return terms(0)
+
+      var cst : Double = 0
+      var result : Expr = Sum(List())
+      terms.map(t => t match {
+        case Cst(c) => cst = cst+c
+        case _ => result = result + t
+      })
+
+      if (cst != 0)
+        if (cst.isValidInt)
+          if (result == Sum(List()))
+            result = Cst(cst.toInt)
+          else
+            result = Cst(cst.toInt) + result // constants always first
+        else
+          throw new NotEvaluableException(result.toString)
+
+      result
+    }
+  }
+
+  private def simplifyProd(prod: Prod): Expr = prod match {
+
+    case Prod(terms) => {
+
+      if (terms.length == 1)
+        return terms(0)
+
+      var cst : Double = 1
+      var sums = Set[Sum]()
+      var result : Expr = Prod(List())
+
+      terms.map(t => t match {
+        case Cst(c) => cst = cst*c
+        case Pow(Cst(b),Cst(e)) => cst = cst * scala.math.pow(b,e)
+        case s: Sum => sums = sums+s
+        case _ => result = result * t
+      })
+
+      // constant folding
+      if (cst != 1)
+        if (cst.isValidInt)
+          if (result == Prod(List()))
+            result = Cst(cst.toInt)
+          else
+            result = Cst(cst.toInt) * result // constants always first
+        else
+          throw new NotEvaluableException(result.toString)
+
+      // distributivity
+      if (!sums.isEmpty) {
+        if (result != Prod(List()))
+          sums = sums + Sum(List(result))
+        result = simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
+      }
+      result
     }
 
-    /*result = result match {
-      case Prod(terms) =>
-      case Sum(terms) =>
-      case _ => result
-    }*/
+    /*case Prod(terms) => {
+      val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
+        e match {
+          case Pow(b, e) => map + (b -> simplifySum(map.getOrElse(b, Cst(0)) + e))
+          case _ => map + (e -> simplifySum(map.getOrElse(e, Cst(0)) + Cst(1)))
+        }
+      })
+      var cst: Double = 0
+      var result: Expr = Prod(List())
+      baseExpMap.map({ case (base, exp) => {
+        val t = simplifyPow(Pow(base, exp))
+        t match {
+          case Cst(c) => cst = cst * c
+          case _ => result = result * t
+        }
+      }
+      })
 
-    result
+      if (cst != 0)
+        if (cst.isValidInt)
+          result = Cst(cst.toInt) * result // constants always first
+        else
+          throw new NotEvaluableException(result.toString)
 
-    /*// the simplified sum/prod might create a Pow
-    simpProdSumExpr match {
-      case Pow(Cst(0),Cst(0)) => simpProdSumExpr // illegal
-      //case Pow(b: Cst,e: Cst) => Cst(math.pow(b.cst ,e.cst).toInt) // cannot do this here, otherwise imprecision will appear
-      case Pow(Cst(0), e) => Cst(0)
-      case Pow(Cst(1), e) => Cst(1)
-      case Pow(b, Cst(0)) => Cst(1)
-      case Pow(b, Cst(1)) => b
-      case _ => simpProdSumExpr
-    }*/
+      result*/
 
   }
-}
+
+  def simplify(e: Expr): Expr = {
+
+        // recurse inside first
+        var result = e match {
+          case Pow(base, exp) => Pow(simplify(base), simplify(exp))
+          case Prod(terms) => Prod(terms.map(t => simplify(t)))
+          case Sum(terms) => Sum(terms.map(t => simplify(t)))
+          case _ => e
+        }
+
+        result = result match {
+          case p: Pow => simplifyPow(p)
+          case p: Prod => simplifyProd(p)
+          case s: Sum => simplifySum(s)
+          case _ => result
+        }
+
+        result
+      }
+  }
 
 case object ? extends Expr
 case class Cst(c: Int) extends Expr
-
 case class Pow(b: Expr, e: Expr) extends Expr
-
-case class Prod(terms: List[Expr]) extends Expr {
-
-}
-
-case class Sum(terms: List[Expr]) extends Expr {
-
-}
+case class Prod(terms: List[Expr]) extends Expr
+case class Sum(terms: List[Expr]) extends Expr
 
 
 
@@ -214,327 +300,3 @@ object Var {
     }
   }
 }
-
-
-/*
-
-object Expr {  
-  
-  def simplify(e: Expr) : Expr = {    
-    
-     val simpExpr = e match {           
-       case Mul(l,r) => Mul(simplify(l),simplify(r))
-       case Add(l,r) => Add(simplify(l),simplify(r))
-       case Pow(b,e) => Pow(simplify(b),simplify(e))
-       case Prod(terms) => Prod(terms.map({case (e,i) => (simplify(e)->i)})) 
-       case Sum(terms)  => Sum(terms.map({case (e,i) => (simplify(e)->i)})) 
-       case _ => e
-     }
-
-     val prodSumExpr = simpExpr match {
-      case Mul(l: Prod, r: Prod) => l + r
-      case Mul(l: Prod, r) => l + r
-      case Mul(l, r: Prod) => l + r
-      case Mul(l, r) => new Prod()+l+r
-      case Add(l: Sum, r: Sum) => l + r
-      case Add(l: Sum, r) => l + r
-      case Add(l, r: Sum) => l + r
-      case Add(l, r) => new Sum()+l+r
-      case _ => simpExpr
-    }
-     
-    val simpProdSumExpr = prodSumExpr match {
-      case p : Prod => p.simplify
-      case s : Sum  => s.simplify
-      case _ => prodSumExpr
-    }
-    
-    // the simplified sum/prod might create a Pow
-    simpProdSumExpr match {
-      case Pow(Cst(0),Cst(0)) => simpProdSumExpr // illegal
-      //case Pow(b: Cst,e: Cst) => Cst(math.pow(b.cst ,e.cst).toInt) // cannot do this here, otherwise imprecision will appear
-      case Pow(Cst(0), e) => Cst(0)
-      case Pow(Cst(1), e) => Cst(1)
-      case Pow(b, Cst(0)) => Cst(1)
-      case Pow(b, Cst(1)) => b
-      case _ => simpProdSumExpr
-    }
-  }
-  
-}
-
-private case class Prod(val terms: HashMap[Expr,Int]) extends Expr {
-  def this() = this(new HashMap)
-
-  def eval() : Double = terms.foldLeft(1.0)((result,pair) => result * math.pow(pair._1.eval(),pair._2))		  
-  
-  override def toString() = {
-    "("+terms.map(keyval =>
-      if (keyval._2 == 1)
-        keyval._1.toString
-      else
-        keyval._1.toString + "^" + keyval._2).reduce((s1, s2) => s1 + "*" + s2)+")"
-  }  
-  
-  override def simplify() : Expr = {
-    
-    var result = terms//.map({case (e,i) => (Expr.simplify(e),i)})
-        
-    // simplify all constant terms into one
-    val cstTerms = terms.filterKeys({
-      e => e match {
-        case _:Cst => true
-        case Pow(Cst(_),Cst(_)) => true
-        case _ => false
-        }})
-    val cstD = cstTerms.foldLeft(1.0)((acc,t) => t match {
-      case (Cst(c),i) => acc*math.pow(c,i)
-      case (Pow(Cst(b),Cst(e)),i) => acc*math.pow(b, e*i)
-      })
-    // TODO: check cstD is an integer number 
-    val cstExpr = Cst(cstD.toInt)
-    if (cstExpr.cst == 0) // result is 0, nothing else to do
-      return cstExpr        
-    result = (terms--cstTerms.keySet)+(cstExpr->1)
-    
-    // if we only have one results, return it
-    if (result.size == 1) {
-      val t = result.last
-      return t._1^Cst(t._2)
-    }
-    this      
-  }
-  
-  override def +(t: Expr) : Expr = {
-   val reverse = t match {
-      case Pow(reverse,Cst(-1)) => reverse
-      case _ => Pow(t, Cst(-1))
-    }
-
-    val cnt = terms.get(reverse)
-    if (!cnt.isEmpty)
-      if (cnt.get == 1)
-        return Prod(terms - reverse)
-      else
-        return Prod(terms + (reverse -> (cnt.get - 1)))
-        
-	Prod(terms+(t->(terms.getOrElse(t, 0)+1)))
-  }
-  def +(that: Prod) : Prod = {
-    throw new NotImplementedError() 
-  }
-}
-private case class Sum(val terms: HashMap[Expr,Int]) extends Expr {
-  def this() = this(new HashMap)
-  
-  def eval() : Double = terms.foldLeft(0.0)((result,pair) => result + math.pow(pair._1.eval(),pair._2))		  
-  
-  override def toString() = {
-    "("+
-    terms.map(keyval =>
-      if (keyval._2 == 1)
-        keyval._1.toString
-      else
-        keyval._1.toString + "*" + keyval._2).reduce((s1, s2) => s1 + "+" + s2) +")"
-  }  
-    
-  override def simplify() : Expr = {
-    
-    var result = terms//.map({case (e,i) => (Expr.simplify(e),i)})
-        
-    // simplify all constant terms into one
-    val cstTerms = terms.filterKeys({
-      e => e match {
-        case _:Cst => true
-        case Pow(Cst(_),Cst(_)) => true        
-        case _ => false
-        }})
-    val cstD = cstTerms.foldLeft(0.0)((acc,t) => t match {
-      case (Cst(c),i) => acc+math.pow(c,i)
-      case (Pow(Cst(b),Cst(e)),i) => acc+math.pow(b, e*i)
-      })
-    // TODO: check cstD is an integer number 
-    val cstExpr = Cst(cstD.toInt)
-    result = (terms--cstTerms.keySet)+(cstExpr->1)
-    
-    // if we only have one results, return it
-    if (result.size == 1) {
-      val t = result.last
-      return t._1^Cst(t._2)
-    }
-    this      
-  }
-  
-  override def +(t: Expr) : Expr = {
-   val reverse = t match {
-      case Mul(reverse,Cst(-1)) => reverse
-      case Mul(Cst(-1),reverse) => reverse
-      case _ => Mul(Cst(-1), t)
-    }
-
-    val cnt = terms.get(reverse)
-    if (!cnt.isEmpty)
-      if (cnt.get == 1)
-        return Sum(terms - reverse)
-      else
-        return Sum(terms + (reverse -> (cnt.get - 1)))
-        
-	Sum(terms+(t->(terms.getOrElse(t, 0)+1)))
-  }
-  def +(that: Sum) : Sum = {
-    throw new NotImplementedError() 
-  }
-}
-
-// undefined
-case object ? extends Expr {
-	def eval() = throw new NotEvaluableException("?")
-}
-
-
-
-case class Cst(val cst: Int) extends Expr {
-  def eval() = cst
-  override def toString() = cst.toString
-}
-
-case class Var private(val name: String, var range : Range) extends Expr {
-  
-  def eval() = throw new NotEvaluableException(name)
-  
-  override def equals(that: Any) = that match {
-    case v: Var => this.name == v.name
-    case _ => false
-  }
- 
-  override def hashCode() = {
-    val hash = 5
-    hash * 79 + name.hashCode() 
-  }
-    
-  override def toString() = name
-  
-}
-  
-object Var {
-  var cnt: Int = -1
-  
-  def apply(range : Range = RangeUnkown) : Var = {
-    cnt += 1;
-    Var("v"+cnt, range)
-  }
-  
-  def apply(name: String) : Var = {
-    Var(name, RangeUnkown)
-  }
-  
-  def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {
-    
-    var changed = false
-    var substitions = new HashMap[Var, Cst]()
-    var newVars : Set[Var] = vars
-
-    do {      
-      changed = false
-      
-      // create a map of variable substitution
-      val newSubsts = newVars.foldLeft(HashMap[Var, Cst]())((map,v) => v.range match {
-        case RangeAdd(Cst(start), Cst(stop), Cst(step)) => map+ (v -> Cst(Random.nextInt((stop - start) / step + 1) * step + start))
-        case RangeMul(Cst(start), Cst(stop), Cst(mul))  => map+ (v -> Cst(start * math.pow(mul,Random.nextInt((math.log(stop / start) / math.log(mul) + 1).toInt)).toInt))
-        case _ => map
-      })
-      
-      if (newSubsts.nonEmpty)
-        changed = true
-      substitions = substitions ++ newSubsts
-      
-      
-      /*substitions = newVars.map(v => v.range match {
-        case RangeAdd(Cst(start), Cst(stop), Cst(step)) => Some((v, Cst(Random.nextInt((stop - start) / step + 1) * step + start)))
-        case RangeMul(Cst(start), Cst(stop), Cst(mul)) => Some((v,
-            //if ((math.log(stop / start) / math.log(mul) + 1).toInt < 1) {
-            //  println("err!" + (math.log(stop / start) / math.log(mul) + 1).toInt);
-            //  Cst(0)
-            //} else
-            	Cst(start * math.pow(mul,Random.nextInt((math.log(stop / start) / math.log(mul) + 1).toInt)).toInt)))
-        case _ => None
-      }).foldRight(HashMap[Var, Cst]())((opt, map) => if (opt.isDefined) { changed = true; map + opt.get } else map)*/
-
-      //println(substitions)          
-      
-      // remove from the set of variables the ones which have a substitution   
-      newVars = newVars-- newSubsts.keySet
-
-      // apply the substitutions in the range of each variable
-      newVars.map(v => {
-        v.range match {
-          case RangeAdd(start, stop, step) => v.range = RangeAdd(
-            Expr.simplify(substitute(start, newSubsts)),
-            Expr.simplify(substitute(stop, newSubsts)),
-            Expr.simplify(substitute(step, newSubsts)))
-          case RangeMul(start, stop, step) => v.range = RangeMul(
-            Expr.simplify(substitute(start, newSubsts)),
-            Expr.simplify(substitute(stop, newSubsts)),
-            Expr.simplify(substitute(step, substitions)))
-          case _ =>
-        }
-        v
-      })
-      
-
-      
-    } while (changed)
-    
-    substitions
-  }
-  
-  def substitute(e: Expr, substitutions: scala.collection.immutable.Map[Var, Cst]) : Expr = {    
-    val newExpr = e match {
-      case Mul(l,r) => Mul(substitute(l,substitutions),substitute(r,substitutions))
-      case Add(l,r) => Add(substitute(l,substitutions),substitute(r,substitutions))
-      case Pow(l,r) => Pow(substitute(l,substitutions),substitute(r,substitutions))
-      case adds: Sum => Sum(adds.terms.map({case (expr, pow) => (substitute(expr, substitutions),pow) }))
-      case muls: Prod => Prod(muls.terms.map({case (expr, pow) => (substitute(expr, substitutions),pow) }))
-      case v: Var => substitutions.getOrElse(v, v)      
-      case _ => e
-    }
-    Expr.simplify(newExpr)
-  }
-  
-  def getVars(f: Fun) : Set[Var] = {
-    Fun.visit(HashSet[Var]())(f, ((inF,set) => set++getVars(inF.inT)))
-  }
-  
-  def getVars(t: Type) : Set[Var] = {
-    t match {
-      case at: ArrayType => getVars(at.elemT) ++ getVars(at.len) 
-      case tt: TupleType => tt.elemsT.foldLeft(new HashSet[Var]())((set,inT) => set ++ getVars(inT))
-      case _ => HashSet()
-    }    
-  }
-  
-  def getVars(e: Expr) : Set[Var] = {
-    e match {
-      case bo: BinOp => getVars(bo.l) ++ getVars(bo.r)
-      case adds: Sum => adds.terms.keySet.foldLeft(new HashSet[Var]())((set,expr) => set ++ getVars(expr))
-      case muls: Prod => muls.terms.keySet.foldLeft(new HashSet[Var]())((set,expr) => set ++ getVars(expr)) 
-      case v: Var => HashSet(v)
-      case _ => HashSet()
-    }
-  }
-}
-
-abstract class BinOp(val l: Expr, val r: Expr, val op: String) extends Expr {
-  override def toString() = {"("+l+op+r+")"}
-}
-
-case class Mul(override val l: Expr, override val r: Expr) extends BinOp(l,r,"*") {
-  	def eval() = l.eval * r.eval
-}
-case class Add(override val l: Expr, override val r: Expr) extends BinOp(l,r,"+") {
-    	def eval() = l.eval + r.eval
-}
-case class Pow(override val l: Expr, override val r: Expr) extends BinOp(l,r,"^") {
-    	def eval() = math.pow(l.eval,r.eval)
-}
-*/
