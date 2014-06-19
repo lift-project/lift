@@ -48,10 +48,10 @@ class TestReduce {
     ) o Split(8) o tmp
 
     val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    //println(firstKernelCode)
+    println(firstKernelCode)
 
     val secondKernelCode = OpenCLGenerator.compile(secondKernel)
-    //println(secondKernelCode)
+    println(secondKernelCode)
 
   }
 

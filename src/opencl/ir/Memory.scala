@@ -46,12 +46,18 @@ object OpenCLMemory {
         memory :+ OpenCLMemory(in.variable, size, in.ouT, GlobalMemory)
       }
       
-      // the sequential implementations allocates a new memory object
-      case rf : ReduceSeq => {
-        val size = Type.getSizeInBytes(rf.ouT)
-        memory :+ OpenCLMemory(Var(RangeUnkown), size, rf.ouT, GlobalMemory)
+      // the sequential implementations allocate new memory objects
+      case r : ReduceSeq => {
+        val size = Type.getSizeInBytes(r.ouT)
+        memory :+ OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, r.ouT, GlobalMemory)
       }
-      
+
+      case m : MapSeq => {
+        val size = Type.getSizeInBytes(m.ouT)
+        memory :+ OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, m.ouT, GlobalMemory)
+      }
+
+      // The other map implementations multiply the sizes
       case m : AbstractMap => {
         val len = Type.getLength(m.ouT)
 

@@ -73,5 +73,9 @@ class TestExpr {
 
     
     }
+
+  @Test def OneByOne() {
+    assertEquals(Cst(1), Expr.simplify(Cst(1) / Cst(1)))
+  }
   
 }

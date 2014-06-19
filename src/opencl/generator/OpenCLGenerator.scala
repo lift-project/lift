@@ -8,7 +8,7 @@ import scala.collection.mutable.ArrayBuffer
 class NotPrintableExpression(msg: String) extends Exception(msg)
 
 object Debug {
-  def apply() = { false }
+  def apply() = { true }
 }
 
 object OpenCLGenerator extends Generator {
@@ -92,13 +92,18 @@ object OpenCLGenerator extends Generator {
       // maps
       case m: MapWrg => generateMapWrg(m, accessFunctions)
       case m: MapLcl => generateMapLcl(m, accessFunctions)
+      case m: MapSeq => generateMapSeq(m, accessFunctions)
       // reduce
       case r: ReduceSeq => generateReduceSeq(r, accessFunctions)
+      // iterate
+      case i: Iterate => generateIterate(i, accessFunctions)
       // user functions
       case u : UserFun => generateUserFun(u)
       // utilities
       case _: Split => ""
       case _: Join => ""
+      case f: toGlobal => generate(f.f, accessFunctions)
+      case f: toLocal => generate(f.f, accessFunctions)
       case _: Input => ""
       case _ => "__" + f.toString() + "__"
     }
@@ -184,6 +189,11 @@ object OpenCLGenerator extends Generator {
      val writeBack = access(outputVar, outputAccessFun +: accessFunctions, Cst(0)) =:= acc
      
      "{ /* reduce_seq */\n" + init + loop + writeBack + "} /* reduce_seq */"
+  }
+
+  // === Iterate ===
+  private def generateIterate(i: Iterate, accessFunctions: Array[AccessFunction]) : String = {
+    "ITERATE"
   }
   
   // === UserFun ===

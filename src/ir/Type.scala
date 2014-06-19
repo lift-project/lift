@@ -143,14 +143,14 @@ object Type {
 
       case _:Join => inT match {
         case at0: ArrayType => at0.elemT match {
-          case at1: ArrayType => new ArrayType(at1.elemT, at0.len * at1.len)
+          case at1: ArrayType => ArrayType(at1.elemT, at0.len * at1.len)
           case _=>  throw new TypeException(at0.elemT, "ArrayType")
         }
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
       case Split(cs) => inT match {
-        case at: ArrayType => new ArrayType(new ArrayType(at.elemT,cs), at.len / cs)
+        case at: ArrayType => ArrayType(ArrayType(at.elemT,cs), at.len / cs)
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       

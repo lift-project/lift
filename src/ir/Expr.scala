@@ -65,6 +65,7 @@ object Expr {
   }
 
   private def simplifyPow(pow: Pow): Expr = {
+
     pow match {
       case Pow(Cst(0), Cst(0)) => throw new NotEvaluableException(pow.toString)
       case Pow(Cst(b), Cst(e)) => {
@@ -109,110 +110,112 @@ object Expr {
     }
   }
 
-  private def simplifyProd(prod: Prod): Expr = prod match {
+  private def simplifyProd(prod: Prod): Expr = {
+    prod match {
 
-    case Prod(terms) => {
+      case Prod(terms) => {
 
-      if (terms.length == 1)
-        return terms(0)
+        if (terms.length == 1)
+          return terms(0)
 
-      /*val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
-        e match {
-          case Pow(b, e) => map + (b -> simplifySum(map.getOrElse(b, Cst(0)) + e))
-          case _ => map + (e -> simplifySum(map.getOrElse(e, Cst(0)) + Cst(1)))
+        /*val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
+          e match {
+            case Pow(b, e) => map + (b -> simplifySum(map.getOrElse(b, Cst(0)) + e))
+            case _ => map + (e -> simplifySum(map.getOrElse(e, Cst(0)) + Cst(1)))
+          }
+        })*/
+
+
+        var csts = List[Expr]()
+        var sums = List[Sum]()
+        var others = List[Expr]()
+        var zero = false
+
+        terms.foreach(t => t match {
+          case Cst(0) => zero = true
+          //case Cst(1) => // nothing to do // this is wrong and simplifies (1 * 1) to ()
+          case c: Cst => csts = csts :+ c
+          case Pow(Cst(_),Cst(_)) => csts = csts :+ t
+          case s: Sum => sums = sums :+ s
+          case _ => others = others :+ t
+        })
+
+        if (zero)
+          return Cst(0)
+
+        var prod: Prod = Prod(List())
+
+        // constant folding
+        if (csts.nonEmpty) {
+          val prodCst = csts.map(cst => cst match {
+            case Pow(Cst(b),Cst(e)) => math.pow(b,e)
+            case Cst(c) => c.toDouble
+          }).reduce((x,y) => x*y)
+
+          if (prodCst.isValidInt)
+            prod = prod * Cst(prodCst.toInt)
+          else
+            prod = prod * Prod(csts)
         }
-      })*/
+
+        prod = prod * Prod(others)
+
+        var result : Expr =
+          if (prod.terms.length == 1)
+            prod.terms(0)
+          else
+            prod
 
 
-      var csts = List[Expr]()
-      var sums = List[Sum]()
-      var others = List[Expr]()
-      var zero = false
-
-      terms.foreach(t => t match {
-        case Cst(0) => zero = true
-        case Cst(1) => // nothing to do
-        case c: Cst => csts = csts :+ c
-        case Pow(Cst(_),Cst(_)) => csts = csts :+ t
-        case s: Sum => sums = sums :+ s
-        case _ => others = others :+ t
-      })
-
-      if (zero)
-        return Cst(0)
-
-      var prod: Prod = Prod(List())
-
-      // constant folding
-      if (csts.nonEmpty) {
-        val prodCst = csts.map(cst => cst match {
-          case Pow(Cst(b),Cst(e)) => math.pow(b,e)
-          case Cst(c) => c.toDouble
-        }).reduce((x,y) => x*y)
-
-        if (prodCst.isValidInt)
-          prod = prod * Cst(prodCst.toInt)
-        else
-          prod = prod * Prod(csts)
-      }
-
-      prod = prod * Prod(others)
-
-      var result : Expr =
-        if (prod.terms.length == 1)
-          prod.terms(0)
-        else
-          prod
-
-
-      // distributivity
-      if (!sums.isEmpty) {
-        if (result != Prod(List()))
-          sums = sums :+ Sum(List(result))
-        result = simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
-      }
-
-
-      // commutativity: reorder elements, because with integer sematics e.g.: 1/M * N != N * 1/M
-      result match {
-        case Prod(terms) => {
-          // parition into all the pows and the rest ...
-          val (pows, rest) = terms.partition( (e:Expr) => e match {
-            case p: Pow => true
-            case _ => false
-          })
-          // ... put the rest first and then the pows
-          return Prod(rest ++ pows)
+        // distributivity
+        if (!sums.isEmpty) {
+          if (result != Prod(List()))
+            sums = sums :+ Sum(List(result))
+          result = simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
         }
-        case _ => result
+
+
+        // commutativity: reorder elements, because with integer sematics e.g.: 1/M * N != N * 1/M
+        result match {
+          case Prod(terms) => {
+            // parition into all the pows and the rest ...
+            val (pows, rest) = terms.partition( (e:Expr) => e match {
+              case p: Pow => true
+              case _ => false
+            })
+            // ... put the rest first and then the pows
+            return Prod(rest ++ pows)
+          }
+          case _ => result
+        }
       }
+
+      /*case Prod(terms) => {
+        val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
+          e match {
+            case Pow(b, e) => map + (b -> simplifySum(map.getOrElse(b, Cst(0)) + e))
+            case _ => map + (e -> simplifySum(map.getOrElse(e, Cst(0)) + Cst(1)))
+          }
+        })
+        var cst: Double = 0
+        var result: Expr = Prod(List())
+        baseExpMap.map({ case (base, exp) => {
+          val t = simplifyPow(Pow(base, exp))
+          t match {
+            case Cst(c) => cst = cst * c
+            case _ => result = result * t
+          }
+        }
+        })
+
+        if (cst != 0)
+          if (cst.isValidInt)
+            result = Cst(cst.toInt) * result // constants always first
+          else
+            throw new NotEvaluableException(result.toString)
+
+        result*/
     }
-
-    /*case Prod(terms) => {
-      val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
-        e match {
-          case Pow(b, e) => map + (b -> simplifySum(map.getOrElse(b, Cst(0)) + e))
-          case _ => map + (e -> simplifySum(map.getOrElse(e, Cst(0)) + Cst(1)))
-        }
-      })
-      var cst: Double = 0
-      var result: Expr = Prod(List())
-      baseExpMap.map({ case (base, exp) => {
-        val t = simplifyPow(Pow(base, exp))
-        t match {
-          case Cst(c) => cst = cst * c
-          case _ => result = result * t
-        }
-      }
-      })
-
-      if (cst != 0)
-        if (cst.isValidInt)
-          result = Cst(cst.toInt) * result // constants always first
-        else
-          throw new NotEvaluableException(result.toString)
-
-      result*/
   }
 
   def simplify(e: Expr): Expr = {
@@ -253,7 +256,10 @@ case class Pow(b: Expr, e: Expr) extends Expr {
   }
 }
 case class Prod(terms: List[Expr]) extends Expr {
-  override def toString(): String = "("+terms.map((t) => t.toString()).reduce((s1, s2) => s1 + "*" + s2)+")"
+  override def toString(): String = {
+    val m = if (terms.nonEmpty) { terms.map((t) => t.toString()).reduce((s1, s2) => s1 + "*" + s2) } else {""}
+    "(" + m +")"
+  }
 }
 case class Sum(terms: List[Expr]) extends Expr {
   override def toString(): String = "("+terms.map((t) => t.toString()).reduce((s1, s2) => s1 + "+" + s2)+")"
