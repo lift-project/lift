@@ -129,7 +129,7 @@ object Expr {
       var others = List[Expr]()
       var zero = false
 
-      terms.map(t => t match {
+      terms.foreach(t => t match {
         case Cst(0) => zero = true
         case Cst(1) => // nothing to do
         case c: Cst => csts = csts :+ c
@@ -172,7 +172,20 @@ object Expr {
         result = simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
       }
 
-      result
+
+      // commutativity: reorder elements, because with integer sematics e.g.: 1/M * N != N * 1/M
+      result match {
+        case Prod(terms) => {
+          // parition into all the pows and the rest ...
+          val (pows, rest) = terms.partition( (e:Expr) => e match {
+            case p: Pow => true
+            case _ => false
+          })
+          // ... put the rest first and then the pows
+          return Prod(rest ++ pows)
+        }
+        case _ => result
+      }
     }
 
     /*case Prod(terms) => {
