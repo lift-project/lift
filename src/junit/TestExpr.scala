@@ -3,11 +3,50 @@ package junit
 import ir._
 import org.junit.Assert._
 import org.junit.Test
+import scala.util.Random
+
 
 
 class TestExpr {
 
+  private val rnd = new Random(0)
+
+  private def rndPositive() : Int = {
+    val r = rnd.nextInt(5)
+    if (r == 0)
+      r+1
+    else if (r < 0)
+      -r
+    else
+      r
+  }
+
+  private def rndExpr(maxDepth: Int, depth: Int=0) : Expr = {
+
+    if (depth > maxDepth)
+      return Cst(rndPositive())
+
+    Random.nextInt(3) match {
+      case 0 => rndExpr(maxDepth, depth+1) * rndExpr(maxDepth, depth+1)
+      case 1 => rndExpr(maxDepth, depth+1) + rndExpr(maxDepth, depth+1)
+      case 2 => rndExpr(maxDepth, depth+1) / rndExpr(maxDepth, depth+1)
+    }
+  }
+
+  def testRandom() {
+    val re = rndExpr(3)
+    println(re)
+    println(Expr.simplify(re))
+
+    val ori = re.evalDbl()
+    val sim = Expr.simplify(re).evalDbl()
+    assert(math.abs((ori-sim)) <= 1/1000000, ori+" != "+sim)
+
+  }
+
     @Test def testSimplifcation() {
+
+      testRandom()
 
       val c0 = Cst(0)
       val c1 = Cst(1)
@@ -15,18 +54,23 @@ class TestExpr {
       val c10 = Cst(10)
       val v = Var(new RangeMul(c0,c2,c10))
       val e = (c0+c1)*(c10+c2)+(c10/c2)
-      
+
+      Expr.simplify(e).eval()
+
     assertEquals(e.eval(), Expr.simplify(e).eval())
     
-    println(e.eval())
+    //println(e.eval())
     val result = Expr.simplify(e)
-    println(result.eval())
+    //println(result.eval())
     
     assertEquals(Cst(17),result)
     
     val e2 = (c0/v+c1/v)*v*(c10+c2)+(c10/c2)
     val result2 = Expr.simplify(e)
-    println(result2)
+    //println(result2)
+
+
+
     
     }
   

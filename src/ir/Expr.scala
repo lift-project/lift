@@ -20,6 +20,8 @@ sealed abstract class Expr {
       throw new NotEvaluableException("Cannot evaluate to int: "+dblResult)
   }
 
+  def evalDbl(): Double = Expr.evalDouble(this)
+
   //def simplify() = this
 
   def *(that: Expr): Prod = {
@@ -47,7 +49,7 @@ sealed abstract class Expr {
   }
 
   def /(that: Expr) = this * Pow(that, Cst(-1))
-  def -(that: Expr) = this + (that * Cst(-1))
+  //def -(that: Expr) = this + (that * Cst(-1))
 
 }
 
@@ -65,6 +67,13 @@ object Expr {
   private def simplifyPow(pow: Pow): Expr = {
     pow match {
       case Pow(Cst(0), Cst(0)) => throw new NotEvaluableException(pow.toString)
+      case Pow(Cst(b), Cst(e)) => {
+        val powDbl = scala.math.pow(b,e)
+        if (powDbl.isValidInt)
+          Cst(powDbl.toInt)
+        else
+          pow
+      }
       case Pow(base, Cst(0)) => Cst(1)
       case Pow(base, Cst(1)) => base
       case Pow(Cst(0), _) => Cst(0)
@@ -94,7 +103,7 @@ object Expr {
           else
             result = Cst(cst.toInt) + result // constants always first
         else
-          throw new NotEvaluableException(result.toString)
+          throw new NotEvaluableException(cst.toString)
 
       result
     }
@@ -107,33 +116,62 @@ object Expr {
       if (terms.length == 1)
         return terms(0)
 
-      var cst : Double = 1
-      var sums = Set[Sum]()
-      var result : Expr = Prod(List())
+      /*val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
+        e match {
+          case Pow(b, e) => map + (b -> simplifySum(map.getOrElse(b, Cst(0)) + e))
+          case _ => map + (e -> simplifySum(map.getOrElse(e, Cst(0)) + Cst(1)))
+        }
+      })*/
+
+
+      var csts = List[Expr]()
+      var sums = List[Sum]()
+      var others = List[Expr]()
+      var zero = false
 
       terms.map(t => t match {
-        case Cst(c) => cst = cst*c
-        case Pow(Cst(b),Cst(e)) => cst = cst * scala.math.pow(b,e)
-        case s: Sum => sums = sums+s
-        case _ => result = result * t
+        case Cst(0) => zero = true
+        case Cst(1) => // nothing to do
+        case c: Cst => csts = csts :+ c
+        case Pow(Cst(_),Cst(_)) => csts = csts :+ t
+        case s: Sum => sums = sums :+ s
+        case _ => others = others :+ t
       })
 
+      if (zero)
+        return Cst(0)
+
+      var prod: Prod = Prod(List())
+
       // constant folding
-      if (cst != 1)
-        if (cst.isValidInt)
-          if (result == Prod(List()))
-            result = Cst(cst.toInt)
-          else
-            result = Cst(cst.toInt) * result // constants always first
+      if (csts.nonEmpty) {
+        val prodCst = csts.map(cst => cst match {
+          case Pow(Cst(b),Cst(e)) => math.pow(b,e)
+          case Cst(c) => c.toDouble
+        }).reduce((x,y) => x*y)
+
+        if (prodCst.isValidInt)
+          prod = prod * Cst(prodCst.toInt)
         else
-          throw new NotEvaluableException(result.toString)
+          prod = prod * Prod(csts)
+      }
+
+      prod = prod * Prod(others)
+
+      var result : Expr =
+        if (prod.terms.length == 1)
+          prod.terms(0)
+        else
+          prod
+
 
       // distributivity
       if (!sums.isEmpty) {
         if (result != Prod(List()))
-          sums = sums + Sum(List(result))
+          sums = sums :+ Sum(List(result))
         result = simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
       }
+
       result
     }
 
@@ -195,9 +233,18 @@ object Expr {
 
 case object ? extends Expr
 case class Cst(c: Int) extends Expr { override  def toString() = c.toString }
-case class Pow(b: Expr, e: Expr) extends Expr
-case class Prod(terms: List[Expr]) extends Expr
-case class Sum(terms: List[Expr]) extends Expr
+case class Pow(b: Expr, e: Expr) extends Expr {
+  override def toString(): String = e match {
+    case Cst(-1) => "1/("+b+")"
+    case _ => super.toString()
+  }
+}
+case class Prod(terms: List[Expr]) extends Expr {
+  override def toString(): String = "("+terms.map((t) => t.toString()).reduce((s1, s2) => s1 + "*" + s2)+")"
+}
+case class Sum(terms: List[Expr]) extends Expr {
+  override def toString(): String = "("+terms.map((t) => t.toString()).reduce((s1, s2) => s1 + "+" + s2)+")"
+}
 
 
 
