@@ -5,16 +5,33 @@ import ir._
 import opencl.ir._
 import scala.collection.mutable.ArrayBuffer
 
+class NotPrintableExpression(msg: String) extends Exception(msg)
+
 object OpenCLGenerator extends Generator {
 
   def compile(f: Fun) : String = {
     // pass 1
     Type.check(f)
 
-    //Fun.visit(f, (f: Fun) => { println(f.ouT + " <- " + f.inT + " | " + f) }, (f: Fun) => {})
+    val debug = false
+
+    if (debug) {
+      Fun.visit(f, (f: Fun) => {
+        println(f.ouT + " <- " + f.inT + " | " + f)
+      }, (f: Fun) => {})
+    }
 
     // pass 2
     allocateMemory(f)
+
+    if (debug) {
+      Fun.visit(f, (f: Fun) => {
+        if (f.memory.nonEmpty) {
+          println(f.memory.last + " <- " + f.memory.head + " | " + f)
+        }
+      }, (f: Fun) => {})
+    }
+
     // pass 3
     generate(f)
   }
@@ -24,11 +41,7 @@ object OpenCLGenerator extends Generator {
   }
   
   def allocateMemory(f: Fun) : Unit = {
-    val memory = OpenCLMemory.allocate(f)
-    memory.foreach( (mem) => {
-      val oclmem = OpenCLMemory.asOpenCLMemory(mem)
-      Kernel.parameters.append(printAsParameterDecl(oclmem))
-      } )
+    Kernel.memory = OpenCLMemory.allocate(f)
   }
   
   private type AccessFunction = (Expr) => Expr
@@ -36,16 +49,18 @@ object OpenCLGenerator extends Generator {
   private def generateKernel(f: Fun) : String = {
     // generate the body of the kernel
     val body = generate(f, Array.empty[AccessFunction])
-    
-    assert(!Kernel.parameters.isEmpty)
-    val parameterString = Kernel.parameters.reduce( _ + ", " + _)
-    
-    Kernel.prefix + "\n" + "kernel void KERNEL (" + parameterString +") {\n" + body + "}\n"
+
+    var parameterString = Kernel.memory.map( (m) => {
+      // if m.size == Var => generate additional parameter for the size
+      printAsParameterDecl(OpenCLMemory.asOpenCLMemory(m))
+    }).reduce(_ + ", " + _)
+
+    Kernel.prefix + "\n" + "kernel void KERNEL(" + parameterString +") {\n" + body + "}\n"
   }
   
   private object Kernel {
 	  val prefix = new StringBuilder
-	  var parameters = new ArrayBuffer[String]
+    var memory = new Array[Memory](0)
   }
   
   private def generate(f: Fun, accessFunctions: Array[AccessFunction]) : String = {
@@ -201,6 +216,24 @@ object OpenCLGenerator extends Generator {
       case TupleType(_) => throw new Exception // don't know how to print a tuple in opencl ...
     }
   }
+
+  private def print(e: Expr) : String = {
+    // Expr.simplify(e)
+    e // for debug purposes
+     match {
+      case Cst(c) => c.toString
+      case Pow(b, ex) => "pow(" + print(b) + ", " + print(ex) + ")"
+      case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: Expr) => {
+        s + (e match {
+          case Pow(b, Cst(-1)) => " / (" + print(b) + ")"
+          case _ => " * " + print(e)
+        })
+      } ).drop(4) /* drop "1 * " */ + ")"
+      case Sum(es) => "(" + es.map(print).reduce( _ + " + " + _  ) + ")"
+      case Var(n, _) => n
+      case ? => throw new NotPrintableExpression("?")
+    }
+  }
   
   // helper functions generating the actual OpenCL code
   private implicit class Operators(v: Any) {
@@ -217,7 +250,7 @@ object OpenCLGenerator extends Generator {
   }
   
   private def access(variable : Var, accessFunctions :Array[AccessFunction], index : Expr) : String = {
-    variable + "[" + accessFunctions.foldRight[Expr](index)((aF, i) => { aF(i) }) + "]"
+    variable + "[" + print(accessFunctions.foldRight[Expr](index)((aF, i) => { aF(i) })) + "]"
   }
   
 }

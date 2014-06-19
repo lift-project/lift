@@ -31,10 +31,8 @@ object OpenCLMemory {
   def allocate(f: Fun) : Array[Memory] = {
     allocate(f, Array.empty[Memory])
   }
-  
+
   def allocate(f: Fun, memory: Array[Memory]): Array[Memory] = {
-    // TODO: get rid of the stupid cast!
-    //val currentAddressSpace = memory.last.asInstanceOf[OpenCLMemory].addressSpace
 
     f.memory = f match {
       
@@ -48,48 +46,24 @@ object OpenCLMemory {
         memory :+ OpenCLMemory(in.variable, size, in.ouT, GlobalMemory)
       }
       
-      // the sequential implementations add
+      // the sequential implementations allocates a new memory object
       case rf : ReduceSeq => {
         val size = Type.getSizeInBytes(rf.ouT)
         memory :+ OpenCLMemory(Var(), size, rf.ouT, GlobalMemory)
       }
       
       case m : AbstractMap => {
-        /*
-        // prepare the access fun
-        val elemT = Type.getElemT(m.inT)
-    
-	    // multiply all lengths with the indexVariable ...
-        // indexVar == g_id or l_id How to deal with that ????
-        val expr = Type.length(elemT).foldLeft(indexVar)( _ * _ )
-        val accessFun = (index: Expr) => { expr + index }
-        */
-        
-        val mems = allocate(m.f, memory)
         val len = Type.getLength(m.ouT)
-        mems.map( (mem) => {
+
+        // get the newly allocated mem objects
+        val mems = allocate(m.f, memory).drop(memory.length)
+
+        // multiply each of the newly allocated mem objects with the length for this map
+        memory ++ mems.map( (mem) => {
           val size = mem.size
           OpenCLMemory(mem.variable, Expr.simplify(size * len), mem.t, GlobalMemory)
         })
       }
-      
-      /*
-      case AbstractReduce(inF) => {
-        val elemT = getElemT(inT)
-        check(inF, TupleType(elemT, elemT)) // TODO change this probably
-        ArrayType(elemT, new Cst(1))
-      }
-      
-      case _:asScalar  => inT match {     
-        case at: ArrayType => asScalar(at)
-        case _ =>  throw new TypeException(inT, "ArrayType")
-      }          
-                          
-      case asVector(len) => inT match {
-        case at: ArrayType => asVector(at, len)
-        case _ =>  throw new TypeException(inT, "ArrayType")
-      }
-      */
 
       case _ => memory
     }

@@ -18,11 +18,15 @@ class TestReduce {
 
   @Test def SIMPLE_REDUCE() {
 
-    val kernel = Join() o Join() o MapWrg(
+    val kernel1 = Join() o MapWrg(
+      Join() o MapLcl(ReduceSeq(sumUp)) o Split(Cst(2048))
+    ) o Split(Cst(262144)) o input
+
+    val kernel2 = Join() o Join() o  MapWrg(
       MapLcl(ReduceSeq(sumUp))
     ) o Split(Cst(128)) o Split(Cst(2048)) o input
 
-    val kernelCode = OpenCLGenerator.compile(kernel)
+    val kernelCode = OpenCLGenerator.compile(kernel2)
     println(kernelCode)
 
   }
