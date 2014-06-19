@@ -13,7 +13,7 @@ class TestReduce {
 
   val id = UserFun("id", "int id(int x) { return x; }", Int, Int)
 
-  val N = Cst(1048576) // Var("N")
+  val N = Var("N")
   val input = Input(Var("x"), ArrayType(Int, N))
 
   @Test def SIMPLE_REDUCE() {

@@ -7,15 +7,20 @@ import scala.collection.mutable.ArrayBuffer
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 
+object Debug {
+  def apply() = { false }
+}
+
 object OpenCLGenerator extends Generator {
 
   def compile(f: Fun) : String = {
     // pass 1
     Type.check(f)
 
-    val debug = false
+    //val debug = false
 
-    if (debug) {
+    if (Debug()) {
+      println("Types:")
       Fun.visit(f, (f: Fun) => {
         println(f.ouT + " <- " + f.inT + " | " + f)
       }, (f: Fun) => {})
@@ -24,7 +29,8 @@ object OpenCLGenerator extends Generator {
     // pass 2
     allocateMemory(f)
 
-    if (debug) {
+    if (Debug()) {
+      println("Memory:")
       Fun.visit(f, (f: Fun) => {
         if (f.memory.nonEmpty) {
           println(f.memory.last + " <- " + f.memory.head + " | " + f)
@@ -35,32 +41,47 @@ object OpenCLGenerator extends Generator {
     // pass 3
     generate(f)
   }
+
+  def generate(f: Fun) : String =  {
+    generate(f, 128)
+  }
   
-  def generate(f: Fun) : String = {
-    generateKernel(f)
+  def generate(f: Fun, workGroupSize: Int) : String = {
+    generateKernel(f, workGroupSize)
   }
   
   def allocateMemory(f: Fun) : Unit = {
     Kernel.memory = OpenCLMemory.allocate(f)
   }
-  
+
   private type AccessFunction = (Expr) => Expr
   
-  private def generateKernel(f: Fun) : String = {
+  private def generateKernel(f: Fun, workGroupSize: Int) : String = {
+    Kernel.workGroupSize = workGroupSize
+
     // generate the body of the kernel
     val body = generate(f, Array.empty[AccessFunction])
 
-    var parameterString = Kernel.memory.map( (m) => {
-      // if m.size == Var => generate additional parameter for the size
+    // generate string from the parameters
+    val parameterString = Kernel.memory.map( m =>
       printAsParameterDecl(OpenCLMemory.asOpenCLMemory(m))
-    }).reduce(_ + ", " + _)
+    ).reduce(separateByComma)
 
-    Kernel.prefix + "\n" + "kernel void KERNEL(" + parameterString +") {\n" + body + "}\n"
+    // array of all unique vars
+    val vars = Kernel.memory.map( m => Var.getVars(m.size) ).filter(_.nonEmpty).flatten.distinct
+
+    // generate string for the sizes
+    val sizesString = vars.map( (v) => { "int " + v.name }).reduce(separateByComma)
+
+    val separator = if (sizesString.nonEmpty) { ", " } else { "" }
+
+    Kernel.prefix + "\n" + "kernel void KERNEL(" + parameterString + separator + sizesString + ") {\n" + body + "}\n"
   }
   
   private object Kernel {
 	  val prefix = new StringBuilder
     var memory = new Array[Memory](0)
+    var workGroupSize = 128
   }
   
   private def generate(f: Fun, accessFunctions: Array[AccessFunction]) : String = {
@@ -85,13 +106,13 @@ object OpenCLGenerator extends Generator {
   
   // === Maps ===
   // generic Map
-  private def generateMap(m: AbstractMap, f: Fun, loopVar: Expr, range: RangeAdd,
+  private def generateMap(m: AbstractMap, f: Fun, loopVar: Var, range: RangeAdd,
                           accessFunctions: Array[AccessFunction]) : String = {
     val elemT = Type.getElemT(m.inT)
     
-	// multiply all lengths with the indexVariable ...
-    val sizes = Type.length(elemT).foldLeft(loopVar)( _ * _ )
-    val accessFun = (index: Expr) => { sizes + index }
+	  // multiply all lengths with the indexVariable ...
+    val length = Type.length(elemT).foldLeft[Expr](loopVar)( _ * _ )
+    val accessFun = (index: Expr) => { length + index }
     
     val body = generate(f, accessFunctions :+ accessFun) + "\n"
     
@@ -100,9 +121,11 @@ object OpenCLGenerator extends Generator {
   
   // MapWrg
   private def generateMapWrg(m: MapWrg, accessFunctions: Array[AccessFunction]) : String = {
-    val len = Type.getLength(m.inT)
-    val range = RangeAdd(Var("get_group_id(0)"), len, Var("get_num_groups(0)"))
-    val loopVar = Var("g_id") // range
+    val length = Type.getLength(m.inT)
+    val range = RangeAdd(Var("get_group_id(0)", ContinousRange(Cst(0), ?)),
+                         length,
+                         Var("get_num_groups(0)", ContinousRange(Cst(0), ?)))
+    val loopVar = Var("g_id", range)
       
     generateMap(m, m.f, loopVar, range, accessFunctions) +
     "return;\n"
@@ -110,9 +133,11 @@ object OpenCLGenerator extends Generator {
   
   // MapLcl
   private def generateMapLcl(m: MapLcl, accessFunctions: Array[AccessFunction]) : String = {
-    val len = Type.getLength(m.inT)
-    val range = RangeAdd(Var("get_local_id(0)"), len, Var("get_local_size(0)"))
-    val loopVar = Var("l_id") // range
+    val length = Type.getLength(m.inT)
+    val wgSize = Cst(Kernel.workGroupSize) // Var("get_local_size(0)")
+    val range = RangeAdd(Var("get_local_id(0)", ContinousRange(Cst(0), wgSize)),
+                         length, wgSize)
+    val loopVar = Var("l_id", range)
       
     generateMap(m, m.f, loopVar, range, accessFunctions) +
     generateBarrier(m.memory.last)
@@ -121,14 +146,14 @@ object OpenCLGenerator extends Generator {
   // MapSeq
   private def generateMapSeq(m: MapSeq, accessFunctions: Array[AccessFunction]) : String = {
     val fun = generate(m.f, accessFunctions)
-    val len = Type.getLength(m.inT)
+    val length = Type.getLength(m.inT)
     
     val inputVar = m.memory.head.variable
     val outputVar = m.memory.last.variable
     
-    val range = RangeAdd(Cst(0), len, Cst(1))
-    val indexVar = Var("i") // , range)
-    								
+    val range = ContinousRange(Cst(0), length)
+    val indexVar = Var("i", range)
+
     val body = access(outputVar, accessFunctions, indexVar) =:= apply(fun, access(inputVar, accessFunctions, indexVar))
     								
     val loop = generateLoop(indexVar, range, body)
@@ -151,7 +176,7 @@ object OpenCLGenerator extends Generator {
      
      // 2. generate loop from 1 .. length
      val range = RangeAdd(Cst(1), len, Cst(1))
-     val indexVar = Var("i") // , range)
+     val indexVar = Var("i", range)
      val body = "  " + acc =:= apply(fun, acc, access(inputVar, accessFunctions, indexVar)) 
      val loop = generateLoop(indexVar, range, body)
     
@@ -171,11 +196,40 @@ object OpenCLGenerator extends Generator {
 
   // === Utilities ===
   
-  private def generateLoop(indexVar: Expr, range: RangeAdd, body: String) : String = {
-    // TODO: Do "analysis" range and don't create loop if not necessary ...
-    
-    "for (int " + indexVar + " = " + range.start + "; " + indexVar + " < " + range.stop + "; " +
-    indexVar + " += " + range.step + ") {\n" + body + "}\n";
+  private def generateLoop(indexVar: Var, range: RangeAdd, body: String) : String = {
+    val init = Expr.simplify(range.start)
+    val cond = Expr.simplify(range.stop)
+    val update = Expr.simplify(range.step)
+
+    // eval expression. if sucessfull return true and the value, otherwise return false
+    def evalExpr = (e: Expr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
+
+    // try to directly evaluate
+    val (initIsEvaluated, initEvaluated) = evalExpr(init)
+    val (condIsEvaluated, condEvaluated) = evalExpr(cond)
+    val (updateIsEvaluated, updateEvaluated) = evalExpr(update)
+
+    // if all three can be evaluated ...
+    if (initIsEvaluated && condIsEvaluated && updateIsEvaluated) {
+      // .. and the condition is less or equal than init + update then exactly one iteration is necessary
+      if (condEvaluated <= ( initEvaluated + updateEvaluated ) ) {
+        return "{\nint " + indexVar + " = " + init + ";\n" + body + "}\n"
+      }
+    }
+
+    // if condition and update can be evaluated ...
+    if (condIsEvaluated && updateIsEvaluated) {
+      // ... and the condition is less than the update then at most one iteration is necessary
+      if (condEvaluated <= updateEvaluated) {
+        return "{\nint " + indexVar + " = " + init + ";\n" +
+               "if (" + indexVar + " < (" + cond + ")) {\n" + body + "}\n}\n"
+      }
+    }
+
+    // as the default print of the default loop
+    "for (int " + indexVar + " = " + init  + "; " +
+      indexVar + " < " + cond  + "; " +
+      indexVar + " += " + update + ") {\n" + body + "}\n";
   }
   
   private def generateBarrier(mem : Memory) : String = {
@@ -207,6 +261,10 @@ object OpenCLGenerator extends Generator {
   private def printAsParameterDecl(mem: OpenCLMemory) : String = {
     mem.addressSpace + " " + print(mem.t) + " " + mem.variable.name
   }
+
+  private def separateByComma(lhs: Any, rhs: Any) = {
+    lhs + ", " + rhs
+  }
   
   private def print(t: Type) : String = {
     t match {
@@ -218,9 +276,8 @@ object OpenCLGenerator extends Generator {
   }
 
   private def print(e: Expr) : String = {
-    // Expr.simplify(e)
-    e // for debug purposes
-     match {
+    val me = if(Debug()) { e } else { Expr.simplify(e) }
+    me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "pow(" + print(b) + ", " + print(ex) + ")"
       case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: Expr) => {
@@ -235,9 +292,11 @@ object OpenCLGenerator extends Generator {
     }
   }
   
-  // helper functions generating the actual OpenCL code
+  // helper functions to generate the actual OpenCL code
   private implicit class Operators(v: Any) {
+    // generate assignment
     def =:=(rhs: Any) : String = { this + " = " + rhs + ";\n" }
+
     override def toString() : String = v.toString
   }
   

@@ -49,7 +49,7 @@ object OpenCLMemory {
       // the sequential implementations allocates a new memory object
       case rf : ReduceSeq => {
         val size = Type.getSizeInBytes(rf.ouT)
-        memory :+ OpenCLMemory(Var(), size, rf.ouT, GlobalMemory)
+        memory :+ OpenCLMemory(Var(RangeUnkown), size, rf.ouT, GlobalMemory)
       }
       
       case m : AbstractMap => {

@@ -247,8 +247,7 @@ case class Sum(terms: List[Expr]) extends Expr {
 }
 
 
-
-case class Var private(name: String, var range : Range) extends Expr {
+case class Var(name: String, var range : Range = RangeUnkown) extends Expr {
 
   override def equals(that: Any) = that match {
     case v: Var => this.name == v.name
@@ -267,13 +266,9 @@ case class Var private(name: String, var range : Range) extends Expr {
 object Var {
   var cnt: Int = -1
 
-  def apply(range : Range = RangeUnkown) : Var = {
+  def apply(range : Range) : Var = {
     cnt += 1
     Var("v"+cnt, range)
-  }
-
-  def apply(name: String) : Var = {
-    Var(name, RangeUnkown)
   }
 
   def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {
