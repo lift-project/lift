@@ -17,7 +17,9 @@ object GlobalMemory extends OpenCLAddressSpace {
   override def toString() =  "global"
 }
 
-case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCLAddressSpace) extends Memory
+case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCLAddressSpace) extends Memory {
+  override def toString() = "(" + variable + ", " + Expr.simplify(size) + ", " + t + ", " + addressSpace + ")"
+}
 
 object OpenCLMemory {
   
@@ -37,7 +39,12 @@ object OpenCLMemory {
     f.memory = f match {
       
       case cf: CompFun => {
-        cf.funs.foldRight(memory)((f, mem) => allocate(f, mem))        
+        // only pass the output of the previous one as input to the next
+        cf.funs.foldRight(memory)((f, mem) => {
+          val (init, last) =  if (mem.nonEmpty) { (mem.init, mem.takeRight(1)) }
+                              else { (Array.empty[Memory], Array.empty[Memory]) }
+          init ++ allocate(f, last)
+        })
       }
       
       // inputs (parameters) are always allocated in global memory in OpenCL
@@ -49,12 +56,14 @@ object OpenCLMemory {
       // the sequential implementations allocate new memory objects
       case r : ReduceSeq => {
         val size = Type.getSizeInBytes(r.ouT)
-        memory :+ OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, r.ouT, GlobalMemory)
+        val addressSpace = asOpenCLMemory(memory.head).addressSpace
+        memory :+ OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, r.ouT, addressSpace)
       }
 
       case m : MapSeq => {
         val size = Type.getSizeInBytes(m.ouT)
-        memory :+ OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, m.ouT, GlobalMemory)
+        val addressSpace = asOpenCLMemory(memory.head).addressSpace
+        memory :+ OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, m.ouT, addressSpace)
       }
 
       // The other map implementations multiply the sizes
@@ -66,9 +75,30 @@ object OpenCLMemory {
 
         // multiply each of the newly allocated mem objects with the length for this map
         memory ++ mems.map( (mem) => {
+          val addressSpace = asOpenCLMemory(mem).addressSpace
           val size = mem.size
-          OpenCLMemory(mem.variable, Expr.simplify(size * len), mem.t, GlobalMemory)
+          OpenCLMemory(mem.variable, Expr.simplify(size * len), mem.t, addressSpace)
         })
+      }
+
+      case i : Iterate => {
+        allocate(i.f, memory)
+      }
+
+      case tL : toLocal => {
+        val mems = allocate(tL.f, memory)
+        // get the newest allocated mem object
+        val last = asOpenCLMemory(mems.last)
+        // change the AddressSpace of the last mem object
+        mems.init :+ OpenCLMemory(last.variable, last.size, last.t, LocalMemory)
+      }
+
+      case tG : toGlobal => {
+        val mems = allocate(tG.f, memory)
+        // get the newest allocated mem object
+        val last = asOpenCLMemory(mems.last)
+        // change the AddressSpace of the last mem object
+        mems.init :+ OpenCLMemory(last.variable, last.size, last.t, GlobalMemory)
       }
 
       case _ => memory

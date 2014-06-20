@@ -17,8 +17,6 @@ object OpenCLGenerator extends Generator {
     // pass 1
     Type.check(f)
 
-    //val debug = false
-
     if (Debug()) {
       println("Types:")
       Fun.visit(f, (f: Fun) => {
@@ -119,7 +117,7 @@ object OpenCLGenerator extends Generator {
     val length = Type.length(elemT).foldLeft[Expr](loopVar)( _ * _ )
     val accessFun = (index: Expr) => { length + index }
     
-    val body = generate(f, accessFunctions :+ accessFun) + "\n"
+    val body = generate(f, accessFunctions :+ accessFun)
     
     generateLoop(loopVar, range, body)
   }
@@ -145,7 +143,7 @@ object OpenCLGenerator extends Generator {
     val loopVar = Var("l_id", range)
       
     generateMap(m, m.f, loopVar, range, accessFunctions) +
-    generateBarrier(m.memory.last)
+    generateBarrier(m.memory.last) + "\n"
   }
   
   // MapSeq
@@ -163,7 +161,7 @@ object OpenCLGenerator extends Generator {
     								
     val loop = generateLoop(indexVar, range, body)
     
-    "{ /* map_seq */\n" + loop + "} /* map_seq */"
+    "{ /* map_seq */\n" + loop + "} /* map_seq */\n"
   }
   
   // === Reduce ===
@@ -188,7 +186,7 @@ object OpenCLGenerator extends Generator {
      // 3. generate output[0] = acc
      val writeBack = access(outputVar, outputAccessFun +: accessFunctions, Cst(0)) =:= acc
      
-     "{ /* reduce_seq */\n" + init + loop + writeBack + "} /* reduce_seq */"
+     "{ /* reduce_seq */\n" + init + loop + writeBack + "} /* reduce_seq */\n"
   }
 
   // === Iterate ===
