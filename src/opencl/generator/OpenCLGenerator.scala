@@ -191,6 +191,52 @@ object OpenCLGenerator extends Generator {
 
   // === Iterate ===
   private def generateIterate(i: Iterate, accessFunctions: Array[AccessFunction]) : String = {
+    val body = generate(i.f, accessFunctions)
+
+    /*
+    val length = Type.getLength(m.inT)
+
+    val inputVar = m.memory.head.variable
+    val outputVar = m.memory.last.variable
+
+    val range = ContinousRange(Cst(0), length)
+    val indexVar = Var("i", range)
+
+    val body = access(outputVar, accessFunctions, indexVar) =:= apply(fun, access(inputVar, accessFunctions, indexVar))
+
+    val loop = generateLoop(indexVar, range, body)
+
+    "{ /* map_seq */\n" + loop + "} /* map_seq */\n"
+
+    {
+    int l0_size = 128 * 1;
+    #pragma unroll 1
+    for (int i = 0; i < 7; i += 1) {
+      #ifndef L_SIZE
+      #define L_SIZE (l0_size / 2)
+      #endif
+      {
+      int l_id = get_local_id(0);
+      if (l_id < (L_SIZE)) {
+        { /* reduce_seq */
+        int acc = 0;
+        for (int i = 0; i < 2; i += 1) {
+          acc = sumUp(acc, l0[((l_id * 2 * 1) + i)]);
+        }
+        l1[((l_id * 2 * 1 / (2)) + 0)] = acc;
+        } /* red_seq end */
+      }
+      }
+      #undef L_SIZE
+      barrier(CLK_LOCAL_MEM_FENCE);
+      l0_size = l0_size/(2);
+      local int* tmp = l0;
+      l0 = l1;
+      l1 = tmp;
+    }
+    }
+    */
+
     "ITERATE"
   }
   
@@ -317,6 +363,7 @@ object OpenCLGenerator extends Generator {
   }
   
   private def access(variable : Var, accessFunctions :Array[AccessFunction], index : Expr) : String = {
+    // TODO: if variable is in local memory do not apply last level of the accessfunctions
     variable + "[" + print(accessFunctions.foldRight[Expr](index)((aF, i) => { aF(i) })) + "]"
   }
   
