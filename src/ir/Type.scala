@@ -214,6 +214,7 @@ object Type {
       //case _ => UndefType
     }
 
+    
     inferredOuT = inferredOuT match {
       case ArrayType(et, len) => ArrayType(et, Expr.simplify(len))
       case _ => inferredOuT
