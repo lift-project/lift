@@ -15,7 +15,7 @@ case class UngenerableException(msg: String) extends Exception(msg) {
 
 object Exploration {
   
-  val verbose = false
+  val verbose = true
 
   private def evalPerf(f: Fun, c: Constraints) : Double = {
     
