@@ -113,12 +113,13 @@ object Type {
   
   def check(f: Fun) : Type = { check(f, UndefType) }
   
-  def check(f: Fun, inT: Type): Type = {
+  def check(f: Fun, inT: Type, setType: Boolean = true): Type = {
 
-    f.inT = inT // set the input type
+    if (setType)
+      f.inT = inT // set the input type
 
-    // set the output type
-    f.ouT = f match {
+    // type inference
+    var inferredOuT = f match {
                   
       case AbstractMap(inF) => {
         val elemT = getElemT(inT)
@@ -181,6 +182,11 @@ object Type {
 
           check(i.f, inT)
 
+          // check that the output type can be used as an input
+          check(i.f, i.f.ouT, false)
+
+          // TODO: CD to implement logic to automatically infer the return type in the general case (not only for reduction)
+
           val inN = getLength(i.f.inT)
           val outN = getLength(i.f.ouT)
 
@@ -207,13 +213,16 @@ object Type {
       // TODO: continue
       //case _ => UndefType
     }
-    
-    f.ouT = f.ouT match {
+
+    inferredOuT = inferredOuT match {
       case ArrayType(et, len) => ArrayType(et, Expr.simplify(len))
-      case _ => f.ouT
+      case _ => inferredOuT
     }
 
-    f.ouT
+    if (setType)
+      f.ouT = inferredOuT
+
+    inferredOuT
   }
 
   /*
