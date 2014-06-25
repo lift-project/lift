@@ -5,6 +5,8 @@ import opencl.generator._
 import opencl.ir._
 import ir._
 
+import opencl.executor._
+
 class TestReduce {
 
   implicit def IntToCst(cst: Int) : Cst = new Cst(cst) // try to get this away from here ...
@@ -29,6 +31,17 @@ class TestReduce {
     val kernelCode = OpenCLGenerator.compile(kernel2)
     println(kernelCode)
 
+    val inputSize = 4194304
+    val inputData = GlobalArg.createInput(Array.fill(inputSize)(5.0f))
+    val outputData = GlobalArg.createOutput(inputSize * 4)
+
+    val args = Array(inputData, outputData, ValueArg.create(inputSize))
+
+    Executor.execute(kernelCode, 128, inputSize, args)
+
+    println(outputData.at(50))
+
+    args.foreach(_.dispose) // free c++ memory
   }
 
   @Test def NVIDIA_A() {
