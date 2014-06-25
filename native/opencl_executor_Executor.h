@@ -15,6 +15,22 @@ extern "C" {
 JNIEXPORT void JNICALL Java_opencl_executor_Executor_execute
   (JNIEnv *, jclass, jstring, jstring, jint, jint, jobjectArray);
 
+/*
+ * Class:     opencl_executor_Executor
+ * Method:    initNative
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_opencl_executor_Executor_initNative
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     opencl_executor_Executor
+ * Method:    shutdown
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_opencl_executor_Executor_shutdown
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif

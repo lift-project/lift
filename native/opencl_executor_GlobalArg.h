@@ -12,8 +12,16 @@ extern "C" {
  * Method:    createInput
  * Signature: ([F)Lopencl/executor/GlobalArg;
  */
-JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput
+JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3F
   (JNIEnv *, jclass, jfloatArray);
+
+/*
+ * Class:     opencl_executor_GlobalArg
+ * Method:    createInput
+ * Signature: ([I)Lopencl/executor/GlobalArg;
+ */
+JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3I
+  (JNIEnv *, jclass, jintArray);
 
 /*
  * Class:     opencl_executor_GlobalArg
@@ -30,6 +38,22 @@ JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createOutput
  */
 JNIEXPORT jfloat JNICALL Java_opencl_executor_GlobalArg_at
   (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     opencl_executor_GlobalArg
+ * Method:    asFloatArray
+ * Signature: ()[F
+ */
+JNIEXPORT jfloatArray JNICALL Java_opencl_executor_GlobalArg_asFloatArray
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     opencl_executor_GlobalArg
+ * Method:    asIntArray
+ * Signature: ()[I
+ */
+JNIEXPORT jintArray JNICALL Java_opencl_executor_GlobalArg_asIntArray
+  (JNIEnv *, jobject);
 
 #ifdef __cplusplus
 }
