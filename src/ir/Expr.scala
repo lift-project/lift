@@ -22,7 +22,6 @@ sealed abstract class Expr {
 
   def evalDbl(): Double = Expr.evalDouble(this)
 
-  //def simplify() = this
 
   def *(that: Expr): Prod = {
     val thisExprs = this match {
@@ -56,9 +55,24 @@ sealed abstract class Expr {
 
 object Expr {
 
+  implicit def IntToCst(i: Int) = Cst(i)
+
+  def visit(e: Expr, f: (Expr) => Unit) : Unit = {
+    f(e)
+    e match {
+      case Pow(base, exp) => {
+        visit(base, f)
+        visit(exp, f)
+      }
+      case Sum(terms) => terms.foreach(t => visit(t, f))
+      case Prod(terms) => terms.foreach(t => visit(t, f))
+    }
+  }
+
+
   private def evalDouble(e: Expr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ? => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | ? | TypeVar(_) => throw new NotEvaluableException(e.toString)
     case Pow(base,exp) => scala.math.pow(evalDouble(base),evalDouble(exp))
     case Sum(terms) => terms.foldLeft(0.0)((result,expr) => result+evalDouble(expr))
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
@@ -190,6 +204,8 @@ object Expr {
         }
       }
 
+      // TODO: implement simplifcation of Var
+
       /*case Prod(terms) => {
         val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
           e match {
@@ -265,6 +281,17 @@ case class Sum(terms: List[Expr]) extends Expr {
   override def toString(): String = "("+terms.map((t) => t.toString()).reduce((s1, s2) => s1 + "+" + s2)+")"
 }
 
+
+// a special variable that should only be used for defining function type
+case class TypeVar private(id: Int) extends Expr
+
+object TypeVar {
+  var cnt: Int = -1
+  def apply() = {
+    cnt = cnt+1
+    new TypeVar(cnt)
+  }
+}
 
 case class Var(name: String, var range : Range = RangeUnkown) extends Expr {
 
