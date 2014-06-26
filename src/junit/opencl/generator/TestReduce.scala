@@ -5,16 +5,20 @@ import opencl.generator._
 import opencl.ir._
 import ir._
 
+import opencl.executor._
+
 class TestReduce {
+
+  Executor.loadLibrary();
 
   implicit def IntToCst(cst: Int) : Cst = new Cst(cst) // try to get this away from here ...
 
-  val sumUp = UserFun("sumUp", "int sumUp(int x, int y) { return x+y; }", TupleType(Int, Int), Int)
+  val sumUp = UserFun("sumUp", "float sumUp(float x, float y) { return x+y; }", TupleType(Float, Float), Float)
 
-  val id = UserFun("id", "int id(int x) { return x; }", Int, Int)
+  val id = UserFun("id", "float id(float x) { return x; }", Float, Float)
 
   val N = Var("N")
-  val input = Input(Var("x"), ArrayType(Int, N))
+  val input = Input(Var("x"), ArrayType(Float, N))
 
   @Test def SIMPLE_REDUCE() {
 
@@ -29,6 +33,19 @@ class TestReduce {
     val kernelCode = OpenCLGenerator.compile(kernel2)
     println(kernelCode)
 
+    val inputSize = 4194304
+    val inputData = global.input(Array.fill(inputSize)(1.0f))
+    val outputData = global.output(inputSize / 2048 * 4)
+
+    val args = Array(inputData, outputData, value(inputSize))
+
+    Executor.execute(kernelCode, 128, inputSize, args)
+
+    val outputArray = outputData.asFloatArray()
+
+    println( "Final finished result: " + outputArray.reduce( _ + _) )
+
+    args.foreach(_.dispose) // free c++ memory (important!)
   }
 
   @Test def NVIDIA_A() {

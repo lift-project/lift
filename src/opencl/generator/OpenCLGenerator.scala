@@ -295,12 +295,12 @@ object OpenCLGenerator extends Generator {
   
   private def generateBarrier(mem : OpenCLMemory) : String = {
     if (mem.addressSpace == GlobalMemory) {
-      return "barrier(CLK_GLOBAL_MEM_FENCE)"
+      return "barrier(CLK_GLOBAL_MEM_FENCE);"
     }
     if (mem.addressSpace == LocalMemory) {
-      return "barrier(CLK_LOCAL_MEM_FENCE)"
+      return "barrier(CLK_LOCAL_MEM_FENCE);"
     }
-    "barrier(CLK_LOCAL_MEM_FENCE && CLK_GLOBAL_MEM_FENCE)"
+    "barrier(CLK_LOCAL_MEM_FENCE && CLK_GLOBAL_MEM_FENCE);"
   }
   
   // === printing methods ===
