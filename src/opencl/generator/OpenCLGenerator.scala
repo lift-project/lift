@@ -251,9 +251,9 @@ object OpenCLGenerator extends Generator {
   // === Utilities ===
   
   private def generateLoop(indexVar: Var, range: RangeAdd, body: String) : String = {
-    val init = Expr.simplify(range.start)
-    val cond = Expr.simplify(range.stop)
-    val update = Expr.simplify(range.step)
+    val init = ExprSimplifier.simplify(range.start)
+    val cond = ExprSimplifier.simplify(range.stop)
+    val update = ExprSimplifier.simplify(range.step)
 
     // eval expression. if sucessfull return true and the value, otherwise return false
     def evalExpr = (e: Expr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
@@ -330,7 +330,7 @@ object OpenCLGenerator extends Generator {
   }
 
   private def print(e: Expr) : String = {
-    val me = if(Debug()) { e } else { Expr.simplify(e) }
+    val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "pow(" + print(b) + ", " + print(ex) + ")"
