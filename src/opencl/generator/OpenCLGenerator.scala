@@ -136,7 +136,7 @@ object OpenCLGenerator extends Generator {
     
 	  // multiply all lengths with the indexVariable ...
     val length = Type.length(elemT).foldLeft[Expr](loopVar)( _ * _ )
-    val accessFun = AccessFunction((index: Expr) => { length + index }, currentScope)
+    val accessFun = AccessFunction((index: Expr) => { ExprSimplifier.simplify(length + index) }, currentScope)
     
     val body = generate(f, accessFunctions :+ accessFun, currentScope)
     
