@@ -28,7 +28,7 @@ case class TupleType(val elemsT: Type*) extends Type {
 }
 
 case class ArrayType(val elemT: Type, val len: Expr) extends Type {
-  override def toString = elemT + "[" + len + "]"
+  override def toString = "Arr(" +elemT+","+len+ ")"
 }
 
 //case class UnboundArrayType(et: Type, te: TypeExpr) extends ArrayType(et)
@@ -143,7 +143,7 @@ object Type {
     result.toMap
   }
 
-  // Throw an exception if the types does not match
+  // Throw an exception if the two types do not match
   def reify(t1: Type, t2: Type): immutable.Map[TypeVar, Expr] = {
     val result = mutable.Map[TypeVar, Expr]()
     (t1, t2) match {
@@ -200,6 +200,10 @@ object Type {
 
           inLen match {
             case tv: TypeVar => {
+
+              // recognises output independent of tv
+              if (!Expr.contains(outLen, tv))
+               return ouT
 
               // recognises a*tv
               val a = ExprSimplifier.simplify(outLen / tv)

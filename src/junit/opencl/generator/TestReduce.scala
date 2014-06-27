@@ -170,8 +170,9 @@ class TestReduce {
   @Test def NVIDIA_DERIVED() {
 
     val firstKernel = Join() o Join() o MapWrg(
-      toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp))) o ReduceSeq(sumUp)) o ReorderStride()
+      toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp)) o ReduceSeq(sumUp))) o ReorderStride()
     ) o Split(128) o Split(2048) o input
+
 
     val tmp = Input(Var("tmp"), ArrayType(Float, N / 2048))
 
