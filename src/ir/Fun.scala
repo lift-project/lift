@@ -231,12 +231,17 @@ case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
 }
 
 case class Iterate(n: Expr, f: Fun) extends FPattern() {
+  var factor: Expr = Cst(0)
   override def isGenerable() = true
   override def copy() = Iterate(n, f)
 }
 
 object Iterate {
   def apply(n: Expr): ((Fun) => Iterate)  = (f: Fun) => Iterate(n ,f)
+
+  def varName(): String = {
+    "iterSize"
+  }
 }
 
 case class Zip(f1: Fun, f2: Fun) extends Fun() {

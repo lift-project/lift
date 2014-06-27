@@ -1,6 +1,9 @@
 package ir
 
-sealed abstract class Range
+sealed abstract class Range {
+  // default impl
+  def *(e: Expr): Range = this
+}
 
 class RangeUnkownException(msg: String) extends Exception(msg)
 
@@ -22,8 +25,16 @@ object Range {
   }
 }
 
-case class RangeAdd(val start: Expr, val stop: Expr, step: Expr) extends Range
-case class RangeMul(val start: Expr, val stop: Expr, mul: Expr) extends Range
+case class RangeAdd(val start: Expr, val stop: Expr, step: Expr) extends Range {
+  override def *(e: Expr): Range = {
+    RangeAdd(Expr.simplify(start * e), Expr.simplify(stop * e), step)
+  }
+}
+case class RangeMul(val start: Expr, val stop: Expr, mul: Expr) extends Range {
+  override def *(e: Expr): Range = {
+    RangeMul(Expr.simplify(start * e), Expr.simplify(stop * e), mul)
+  }
+}
 
 object ContinousRange {
   def apply(start: Expr, stop: Expr) = {

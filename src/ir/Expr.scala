@@ -245,6 +245,13 @@ object Expr {
     }
   }
 
+  def asCst(e: Expr) = {
+    Expr.simplify(e) match {
+      case c:Cst => c
+      case _ => throw new IllegalArgumentException
+    }
+  }
+
 }
 
 case object ? extends Expr
@@ -279,6 +286,12 @@ case class Var(name: String, var range : Range = RangeUnkown) extends Expr {
   }
 
   override def toString = name
+
+  def updateRange(func: (Range) => Range): Unit = {
+    if (range != RangeUnkown) {
+      range = func(range)
+    }
+  }
 
 }
 

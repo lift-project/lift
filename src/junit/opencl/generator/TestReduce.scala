@@ -1,15 +1,27 @@
 package junit.opencl.generator
 
-import org.junit.Test
+import org.junit._
+import org.junit.Assert._
 import opencl.generator._
 import opencl.ir._
 import ir._
 
 import opencl.executor._
 
-class TestReduce {
+object TestReduce {
+  @BeforeClass def before() {
+    Executor.loadLibrary()
+    println("Initialize the executor")
+    Executor.init()
+  }
 
-  Executor.loadLibrary();
+  @AfterClass def after() {
+    println("Shutdown the executor")
+    Executor.shutdown()
+  }
+}
+
+class TestReduce {
 
   implicit def IntToCst(cst: Int) : Cst = new Cst(cst) // try to get this away from here ...
 
@@ -20,32 +32,38 @@ class TestReduce {
   val N = Var("N")
   val input = Input(Var("x"), ArrayType(Float, N))
 
-  @Test def SIMPLE_REDUCE() {
+  @Test def SIMPLE_REDUCE_FIRST() {
 
-    val kernel1 = Join() o MapWrg(
-      Join() o MapLcl(ReduceSeq(sumUp)) o Split(Cst(2048))
-    ) o Split(Cst(262144)) o input
+    val kernel = Join() o MapWrg(
+      Join() o MapLcl(ReduceSeq(sumUp)) o Split(2048)
+    ) o Split(262144) o input
 
-    val kernel2 = Join() o Join() o  MapWrg(
-      MapLcl(ReduceSeq(sumUp))
-    ) o Split(Cst(128)) o Split(Cst(2048)) o input
-
-    val kernelCode = OpenCLGenerator.compile(kernel2)
+    val kernelCode = OpenCLGenerator.compile(kernel)
     println(kernelCode)
 
-    val inputSize = 4194304
-    val inputData = global.input(Array.fill(inputSize)(1.0f))
-    val outputData = global.output(inputSize / 2048 * 4)
+    val outputArray = testSimplePartialReduction(kernelCode, 4194304)
 
-    val args = Array(inputData, outputData, value(inputSize))
+    val finalResult = outputArray.reduce( _ + _)
 
-    Executor.execute(kernelCode, 128, inputSize, args)
+    println( "Final finished result: " +  finalResult)
 
-    val outputArray = outputData.asFloatArray()
+  }
 
-    println( "Final finished result: " + outputArray.reduce( _ + _) )
+  @Test def SIMPLE_REDUCE_SECOND() {
 
-    args.foreach(_.dispose) // free c++ memory (important!)
+    val kernel = Join() o Join() o  MapWrg(
+      MapLcl(ReduceSeq(sumUp))
+    ) o Split(128) o Split(2048) o input
+
+    val kernelCode = OpenCLGenerator.compile(kernel)
+    println(kernelCode)
+
+    val outputArray = testSimplePartialReduction(kernelCode, 4194304)
+
+    val finalResult = outputArray.reduce( _ + _)
+
+    println( "Final finished result: " +  finalResult)
+
   }
 
   @Test def NVIDIA_A() {
@@ -56,16 +74,19 @@ class TestReduce {
       Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
     ) o Split(128) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 128))
+    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
+    println("Kernel code:")
+    println(firstKernelCode)
+
+
+
+    val tmp = Input(Var("tmp"), ArrayType(Float, N / 128))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
       Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
       Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
     ) o Split(8) o tmp
-
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    println(firstKernelCode)
 
     //val secondKernelCode = OpenCLGenerator.compile(secondKernel)
     //println(secondKernelCode)
@@ -93,7 +114,7 @@ class TestReduce {
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o ReorderStride() o Split(2048)
     ) o Split(262144) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 262144))
+    val tmp = Input(Var("tmp"), ArrayType(Float, N / 262144))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -114,7 +135,7 @@ class TestReduce {
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o ReorderStride() o Split(2048)
     ) o Split(262144) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 262144))
+    val tmp = Input(Var("tmp"), ArrayType(Float, N / 262144))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -135,7 +156,7 @@ class TestReduce {
       Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp)))) o Split(2)
     ) o asVector(4) o Split(2048) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 512))
+    val tmp = Input(Var("tmp"), ArrayType(Float, N / 512))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -154,7 +175,7 @@ class TestReduce {
       toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp))) o ReduceSeq(sumUp)) o ReorderStride()
     ) o Split(128) o Split(2048) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 2048))
+    val tmp = Input(Var("tmp"), ArrayType(Float, N / 2048))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -173,7 +194,7 @@ class TestReduce {
       MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp)) o ReorderStride())
     ) o Split(128) o asVector(2) o Split(4096) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 2048))
+    val tmp = Input(Var("tmp"), ArrayType(Float, N / 2048))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -194,7 +215,7 @@ class TestReduce {
       ) o Split(1) o asVector(4) o Split(32768)
     ) o Split(32768) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 8192))
+    val tmp = Input(Var("tmp"), ArrayType(Float, N / 8192))
 
     val secondKernel = Join() o MapWrg(
       Join() o MapLcl(
@@ -215,7 +236,7 @@ class TestReduce {
       ) o asVector(4) o Split(32768)
     ) o Split(32768) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 8192))
+    val tmp = Input(Var("tmp"), ArrayType(Float, N / 8192))
 
     val secondKernel = Join() o MapWrg(
       Join() o MapLcl(
@@ -226,6 +247,27 @@ class TestReduce {
     val firstKernelCode = OpenCLGenerator.compile(firstKernel)
     val secondKernelCode = OpenCLGenerator.compile(secondKernel)
 
+  }
+
+
+  private def testSimplePartialReduction(kernelCode: String, inputSize: Int) : Array[Float] = {
+    val inputArray = Array.fill(inputSize)(1.0f)
+    val inputData = global.input(inputArray)
+    val outputData = global.output[Float](inputSize / 2048)
+
+    val args = Array(inputData, outputData, value(inputSize))
+
+    Executor.execute(kernelCode, 128, inputSize, args)
+
+    val outputArray = outputData.asFloatArray()
+
+    val finalResult = outputArray.reduce( _ + _)
+
+    assertEquals(inputArray.reduce( _ + _ ), finalResult, 0.0f)
+
+    args.foreach(_.dispose) // free c++ memory (important!)
+
+    outputArray
   }
 
 }

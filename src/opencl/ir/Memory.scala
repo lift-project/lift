@@ -2,11 +2,6 @@ package opencl.ir
 
 import ir._
 
-
-//MapWgr declar 
-//	MapLcl
-//		ReduceSeq
-
 abstract class OpenCLAddressSpace
 
 object LocalMemory extends OpenCLAddressSpace {
@@ -78,43 +73,66 @@ object OpenCLMemory {
         // keep inputMem untouched &
         // multiply each of the newly allocated mem objects with the length for this map
         Array(inputMem) ++ mems.map( (mem) => {
-          val addressSpace = asOpenCLMemory(mem).addressSpace
-          val size = mem.size
-          OpenCLMemory(mem.variable, Expr.simplify(size * len), mem.t, addressSpace)
+          multiplyLength(m, asOpenCLMemory(mem), len)
         })
       }
 
       case i : Iterate => {
         // get the newly allocated mem objects without the inputMem
-        val mems = allocate(i.f, inputMem).drop(1)
-
-        // iterate does double buffering ...
-        // ... doublicate last mem object
-        val last = mems.last
-
-        Array(inputMem) ++ mems :+ last
+        Array(inputMem) ++ allocate(i.f, inputMem).drop(1)
       }
 
       case tL : toLocal => {
         val mems = allocate(tL.f, inputMem)
-        // get the newest allocated mem object
-        val last = asOpenCLMemory(mems.last)
-        // change the AddressSpace of the last mem object
-        mems.init :+ OpenCLMemory(last.variable, last.size, last.t, LocalMemory)
+        // get the newest allocated mem object (the current "output")
+        val oldOutput = asOpenCLMemory(mems.last)
+        val newOutput = OpenCLMemory(oldOutput.variable, oldOutput.size, oldOutput.t, LocalMemory)
+        // change the AddressSpace of the output and update it in the nested function
+        updateOutput(tL.f, newOutput)
+        mems.init :+ newOutput
       }
 
       case tG : toGlobal => {
         val mems = allocate(tG.f, inputMem)
-        // get the newest allocated mem object
-        val last = asOpenCLMemory(mems.last)
-        // change the AddressSpace of the last mem object
-        mems.init :+ OpenCLMemory(last.variable, last.size, last.t, GlobalMemory)
+        // get the newest allocated mem object (the current "output")
+        val oldOutput = asOpenCLMemory(mems.last)
+        val newOutput = OpenCLMemory(oldOutput.variable, oldOutput.size, oldOutput.t, GlobalMemory)
+        // change the AddressSpace of the output and update it in the nested function
+        updateOutput(tG.f, newOutput)
+        mems.init :+ newOutput
       }
 
       case _ => Array(inputMem)
     }
 
     f.memory
+  }
+
+  // update the last memory object recursively in nested Funs
+  def updateOutput(f: Fun, output: Memory) : Unit = {
+    if (f.memory.nonEmpty) {
+      f.memory = f.memory.init :+ output
+
+      f match {
+        case fp: FPattern => {
+          updateOutput(fp.f, output)
+        }
+        case _ => ;
+      }
+    }
+  }
+
+  def multiplyLength(m: AbstractMap, mem: OpenCLMemory, len: Expr): Memory = {
+    val addressSpace = mem.addressSpace
+    // check combination of map and the address space ...
+    (m, addressSpace) match {
+      case (_:MapWrg, LocalMemory) => mem // .. do nothing for local memory when inside the map wrg ...
+      // ... but multiply by default
+      case _ => {
+        mem.variable.updateRange( (r) => { r * len })
+        OpenCLMemory(mem.variable, Expr.simplify(mem.size * len), mem.t, addressSpace)
+      }
+    }
   }
   
 }
