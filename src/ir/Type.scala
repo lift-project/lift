@@ -87,6 +87,14 @@ object Type {
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
+
+  def changeLength(t: Type, length: Expr): Type = {
+    t match {
+      case at: ArrayType => ArrayType(at.elemT, length)
+      case st: ScalarType => ScalarType(st.name, length)
+      case t: Type => t
+    }
+  }
   
   def getSizeInBytes(t: Type) : Expr = {
     ExprSimplifier.simplify(
@@ -227,12 +235,11 @@ object Type {
                   
       case AbstractMap(inF) =>
         val elemT = getElemT(inT)
-        ArrayType(check(inF, elemT), getLength(inT))
-
+        ArrayType(check(inF, elemT, setType), getLength(inT))      
       
       case AbstractReduce(inF) =>
         val elemT = getElemT(inT)
-        check(inF, TupleType(elemT, elemT)) // TODO change this probably
+        check(inF, TupleType(elemT, elemT), setType) // TODO change this probably
         ArrayType(elemT, new Cst(1))
 
       
@@ -242,7 +249,7 @@ object Type {
       
       case cf: CompFun =>
         cf.funs.last.inT = inT
-        cf.funs.foldRight(inT)((f, inputT) => check(f, inputT))
+        cf.funs.foldRight(inT)((f, inputT) => check(f, inputT, setType))      
 
       case _:Join => inT match {
         case at0: ArrayType => at0.elemT match {
@@ -274,9 +281,9 @@ object Type {
       
       case input : Input => input.expectedOutT
 
-      case tL:toLocal => check(tL.f, inT)
+      case tL:toLocal => check(tL.f, inT, setType)
 
-      case tG:toGlobal => check(tG.f, inT)
+      case tG:toGlobal => check(tG.f, inT, setType)
 
       case i : Iterate => inT match {
         case at: ArrayType => {
@@ -358,7 +365,7 @@ object Type {
 
       case _: ReorderStride => inT
 
-      case vec: Vectorize => check(vec.f, inT) // Type.vectorize(vec.n, inT)
+      case vec: Vectorize => check(vec.f, inT, setType) // Type.vectorize(vec.n, inT)
 
       // Type.vectorize(vec.n, inT)
 
