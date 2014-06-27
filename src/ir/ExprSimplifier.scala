@@ -21,8 +21,17 @@ object ExprSimplifier {
         val powDbl = scala.math.pow(b,e)
         if (powDbl.isValidInt)
           Cst(powDbl.toInt)
-        else
-          pow
+        else {
+          if (e < 0) {
+            // x>0, y>0, pow(x,-y) = pow(pow(x,y), -1)
+            val powDbl = scala.math.pow(b,-e)
+            if (powDbl.isValidInt)
+              Pow(powDbl.toInt, -1)
+            else
+              pow
+          } else
+            pow
+        }
       }
       case Pow(base, Cst(0)) => Cst(1)
       case Pow(base, Cst(1)) => base
