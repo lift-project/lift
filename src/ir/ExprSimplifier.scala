@@ -4,7 +4,7 @@ package ir
 object ExprSimplifier {
 
   private def primeFactors(n: Int, i: Int =2) : List[Int] = {
-    if (i == n)
+    if (i >= n)
       return List(n)
 
     if (n % i == 0)
@@ -97,15 +97,26 @@ object ExprSimplifier {
 
   private def prodPowSimplification(prod: Prod) : Prod = {
 
-    // TODO: decompose constants into prime factors
-
-
     val powMap = scala.collection.mutable.Map[Expr, Sum]()
 
-    prod.terms.foreach(t => t match {
-      case Pow(b,e) => powMap += (b-> (powMap.getOrElse(b, Sum(List(0))) + e)) // explicit exponent (e)
-      case _ => powMap += (t-> (powMap.getOrElse(t, Sum(List(0))) + 1))        // implicit exponent (1)
-    })
+    prod.terms.foreach(term => {
+
+      val (base:Expr,exp:Expr) = term match {
+        case Pow(b, e) => (b,e)
+        case _ =>  (term,Cst(1)) // implicit exponent (1)
+      }
+
+      base match {
+        case Cst(c) => {
+          // fractions simplification
+          val factors = primeFactors(c)
+          factors.foreach(factor => powMap += Cst(factor) -> (powMap.getOrElse(factor, Sum(List(0))) + exp))
+        }
+        case _ => powMap += base -> (powMap.getOrElse(base, Sum(List(0))) + exp)
+      }
+
+    }
+  )
 
     Prod(powMap.map({case (e, s) => simplifyPow(Pow(e,simplifySum(s)))}).toList)
   }
