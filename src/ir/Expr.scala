@@ -121,7 +121,7 @@ case class Cst(c: Int) extends Expr { override  def toString = c.toString }
 case class Pow(b: Expr, e: Expr) extends Expr {
   override def toString : String = e match {
     case Cst(-1) => "1/("+b+")"
-    case _ => super.toString
+    case _ => "pow("+b+","+e+")"
   }
 }
 case class Prod(terms: List[Expr]) extends Expr {

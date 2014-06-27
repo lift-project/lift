@@ -3,6 +3,16 @@ package ir
 
 object ExprSimplifier {
 
+  private def primeFactors(n: Int, i: Int =2) : List[Int] = {
+    if (i == n)
+      return List(n)
+
+    if (n % i == 0)
+      i :: primeFactors(n/i, i)
+    else
+      primeFactors(n, i+1)
+  }
+
   private def simplifyPow(pow: Pow): Expr = {
 
     pow match {
@@ -19,6 +29,7 @@ object ExprSimplifier {
       case Pow(Cst(0), _) => Cst(0)
       case Pow(Cst(1), _) => Cst(1)
       case Pow(Prod(terms), exp) => simplifyProd(Prod(terms.map(t => simplifyPow(Pow(t, exp)))))
+      case Pow(Pow(b,e1),e2) => simplifyPow(Pow(b,simplifyProd(e1*e2)))
       case Pow(_,_) => pow
     }
   }
@@ -26,27 +37,102 @@ object ExprSimplifier {
   private def simplifySum(sum: Sum): Expr = sum match {
     case Sum(terms) => {
 
-      if (terms.length == 1)
-        return terms(0)
+      var resultSum = sum
 
-      var cst : Double = 0
-      var result : Expr = Sum(List())
-      terms.map(t => t match {
-        case Cst(c) => cst = cst+c
-        case _ => result = result + t
-      })
+      // constant folding
+      resultSum = sumCstFolding(resultSum)
 
-      if (cst != 0)
-        if (cst.isValidInt)
-          if (result == Sum(List()))
-            result = Cst(cst.toInt)
-          else
-            result = Cst(cst.toInt) + result // constants always first
-        else
-          throw new NotEvaluableException(cst.toString)
+      if (resultSum.terms.length == 1)
+        return resultSum.terms(0)
 
-      result
+      resultSum
     }
+  }
+
+  // constant folding
+  private def sumCstFolding(sum: Sum) : Sum = {
+
+    var sumCsts = Sum(List())
+    var sumRest = Sum(List())
+
+    sum.terms.foreach(t => t match {
+      case c: Cst => sumCsts = sumCsts + c
+      case Pow(Cst(_),Cst(_)) => sumCsts = sumCsts + t
+      case _ => sumRest = sumRest + t
+    })
+
+    val sumCstsEval = sumCsts.evalDbl()
+
+    if (sumCstsEval.isValidInt)
+      if (sumCstsEval == 0.0 && sumRest.terms.length > 0)
+        sumRest // remove sum with 0 if we have something else
+      else
+        sumRest + sumCstsEval.toInt
+    else
+      sumRest + sumCsts
+  }
+
+  // constant folding
+  private def prodCstFolding(prod: Prod) : Prod = {
+
+    var prodCsts = Prod(List())
+    var prodRest = Prod(List())
+
+    prod.terms.foreach(t => t match {
+      case c: Cst => prodCsts = prodCsts * c
+      case Pow(Cst(_),Cst(_)) => prodCsts = prodCsts * t
+      case _ => prodRest = prodRest * t
+    })
+
+    val prodCstsEval = prodCsts.evalDbl()
+
+    if (prodCstsEval.isValidInt)
+      if (prodCstsEval == 1.0 && prodRest.terms.length > 0)
+        prodRest // remove prod with 1 if we have something else
+      else
+        prodRest * prodCstsEval.toInt
+    else
+      prodRest * prodCsts
+  }
+
+  private def prodPowSimplification(prod: Prod) : Prod = {
+
+    // TODO: decompose constants into prime factors
+
+
+    val powMap = scala.collection.mutable.Map[Expr, Sum]()
+
+    prod.terms.foreach(t => t match {
+      case Pow(b,e) => powMap += (b-> (powMap.getOrElse(b, Sum(List(0))) + e)) // explicit exponent (e)
+      case _ => powMap += (t-> (powMap.getOrElse(t, Sum(List(0))) + 1))        // implicit exponent (1)
+    })
+
+    Prod(powMap.map({case (e, s) => simplifyPow(Pow(e,simplifySum(s)))}).toList)
+  }
+
+  private def reorderProd(prod: Prod) : Prod = {
+    // partition into all the pows and the rest ...
+    val (pows, rest) = prod.terms.partition( {
+      case p: Pow => true
+      case _ => false
+    })
+    // ... put the rest first and then the pows
+    Prod(rest ++ pows)
+  }
+
+  private def distribute(prod: Prod) : Expr = {
+
+    var sums = List[Sum]()
+    var prodRest = Prod(List())
+
+    prod.terms.foreach(t => t match {
+      case s: Sum => sums = sums :+ s
+      case _ => prodRest = prodRest * t
+    })
+
+    sums = sums :+ Sum(List(prodRest))
+
+    simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
   }
 
   private def simplifyProd(prod: Prod): Expr = {
@@ -54,123 +140,26 @@ object ExprSimplifier {
 
       case Prod(terms) => {
 
-        if (terms.length == 1)
-          return terms(0)
+        var resultProd = prod
 
-        /*val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
-          e match {
-            case Pow(b, e) => map + (b -> simplifySum(map.getOrElse(b, Cst(0)) + e))
-            case _ => map + (e -> simplifySum(map.getOrElse(e, Cst(0)) + Cst(1)))
-          }
-        })*/
+        // power simplification
+        resultProd = prodPowSimplification(resultProd)
 
+        // constant folding (important that this happens after power simplification since the previous phase could create more constants)
+        resultProd = prodCstFolding(resultProd)
 
-        var csts = List[Expr]()
-        var sums = List[Sum]()
-        var vars = List[Expr]() // Var or TypeVar
-        var others = List[Expr]()
-        var zero = false
+        if (resultProd.terms.length == 1)
+          return resultProd.terms(0)
 
-        terms.foreach(t => t match {
-          case Cst(0) => zero = true
-          //case Cst(1) => // nothing to do // this is wrong and simplifies (1 * 1) to ()
-          case c: Cst => csts = csts :+ c
-          case Pow(Cst(_),Cst(_)) => csts = csts :+ t
-          case s: Sum => sums = sums :+ s
-          case Var(_,_)|TypeVar(_)|Pow(Var(_,_),_)|Pow(TypeVar(_),_) => vars = vars :+ t
-          case _ => others = others :+ t
-        })
-
-        if (zero)
-          return Cst(0)
-
-        var prod: Prod = Prod(List())
-
-        // constant folding
-        if (csts.nonEmpty) {
-          val prodCst = csts.map( {
-            case Pow(Cst(b),Cst(e)) => math.pow(b,e)
-            case Cst(c) => c.toDouble
-          }).reduce((x,y) => x*y)
-
-          if (prodCst.isValidInt)
-            prod = prod * Cst(prodCst.toInt)
-          else
-            prod = prod * Prod(csts)
-        }
-
-        prod = prod * Prod(others)
-
-        // variable simplification
-        val varExpMap = scala.collection.mutable.Map[Expr, Sum]()
-        vars.foreach(v => v match {
-          case Var(_,_)|TypeVar(_) => varExpMap += (v-> (varExpMap.getOrElse(v, Sum(List(0))) + 1))
-          case Pow(b:Var,e) => varExpMap += (v-> (varExpMap.getOrElse(b, Sum(List(0))) + e))
-          case Pow(b:TypeVar,e) => varExpMap += (v-> (varExpMap.getOrElse(b, Sum(List(0))) + e))
-        })
-
-        // TODO: bug here, need to simplify further without entering into infinite recursion
-        //var result = simplifyProd( prod * Prod(varExpMap.map({case (e, s) => simplifyPow(Pow(e,simplifySum(s)))}).toList))
-        var result : Expr = prod * Prod(varExpMap.map({case (e, s) => simplifyPow(Pow(e,simplifySum(s)))}).toList)
-
-        //result = prod * Prod(vars)
-
+        // commutativity: reorder elements, because with integer semantics e.g.: 1/M * N != N * 1/M
+        resultProd = reorderProd(resultProd)
 
         // distributivity
-        if (sums.nonEmpty) {
-          if (result != Prod(List()))
-            sums = sums :+ Sum(List(result))
-          result = simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
-        }
+        val result = distribute(resultProd)
 
-
-        // commutativity: reorder elements, because with integer sematics e.g.: 1/M * N != N * 1/M
-        result = result match {
-          case Prod(terms) => {
-            // parition into all the pows and the rest ...
-            val (pows, rest) = terms.partition( {
-              case p: Pow => true
-              case _ => false
-            })
-            // ... put the rest first and then the pows
-            Prod(rest ++ pows)
-          }
-          case _ => result
-        }
 
         result
       }
-
-
-
-
-      // TODO: implement simplifcation of Var
-
-      /*case Prod(terms) => {
-        val baseExpMap = terms.foldLeft(new HashMap[Expr, Expr]())((map, e) => {
-          e match {
-            case Pow(b, e) => map + (b -> simplifySum(map.getOrElse(b, Cst(0)) + e))
-            case _ => map + (e -> simplifySum(map.getOrElse(e, Cst(0)) + Cst(1)))
-          }
-        })
-        var cst: Double = 0
-        var result: Expr = Prod(List())
-        baseExpMap.map({ case (base, exp) => {
-          val t = simplifyPow(Pow(base, exp))
-          t match {
-            case Cst(c) => cst = cst * c
-            case _ => result = result * t
-          }
-        }
-        })
-
-        if (cst != 0)
-          if (cst.isValidInt)
-            result = Cst(cst.toInt) * result // constants always first
-          else
-            throw new NotEvaluableException(result.toString)
-
-        result*/
     }
   }
 
