@@ -80,7 +80,7 @@ object Main extends App {
          println(substs)
 
          //println(f)
-         val newF = Fun.visitExpr(f, e => Var.substitute(e, substs))         
+         val newF = Fun.visitExpr(f, e => Expr.substitute(e, substs.toMap))
          println(newF)	           
          
          Type.check(newF, inputType)

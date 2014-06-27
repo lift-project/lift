@@ -23,8 +23,6 @@ object TestReduce {
 
 class TestReduce {
 
-  implicit def IntToCst(cst: Int) : Cst = new Cst(cst) // try to get this away from here ...
-
   val sumUp = UserFun("sumUp", "float sumUp(float x, float y) { return x+y; }", TupleType(Float, Float), Float)
 
   val id = UserFun("id", "float id(float x) { return x; }", Float, Float)

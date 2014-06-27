@@ -27,12 +27,12 @@ object Range {
 
 case class RangeAdd(val start: Expr, val stop: Expr, step: Expr) extends Range {
   override def *(e: Expr): Range = {
-    RangeAdd(Expr.simplify(start * e), Expr.simplify(stop * e), step)
+    RangeAdd(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), step)
   }
 }
 case class RangeMul(val start: Expr, val stop: Expr, mul: Expr) extends Range {
   override def *(e: Expr): Range = {
-    RangeMul(Expr.simplify(start * e), Expr.simplify(stop * e), mul)
+    RangeMul(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), mul)
   }
 }
 

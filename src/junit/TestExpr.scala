@@ -36,11 +36,11 @@ class TestExpr {
   def testRandom() {
     val re = rndExpr(3)
     println(re)
-    println(Expr.simplify(re))
+    println(ExprSimplifier.simplify(re))
 
     val ori = re.evalDbl()
-    val sim = Expr.simplify(re).evalDbl()
-    assert(math.abs((ori-sim)) <= 1/1000000, ori+" != "+sim)
+    val sim = ExprSimplifier.simplify(re).evalDbl()
+    assert(math.abs((ori-sim)) <= 1.0/1000000.0, ori+" != "+sim)
 
   }
 
@@ -55,18 +55,18 @@ class TestExpr {
       val v = Var(new RangeMul(c0,c2,c10))
       val e = (c0+c1)*(c10+c2)+(c10/c2)
 
-      Expr.simplify(e).eval()
+      ExprSimplifier.simplify(e).eval()
 
-    assertEquals(e.eval(), Expr.simplify(e).eval())
+    assertEquals(e.eval(), ExprSimplifier.simplify(e).eval())
     
     //println(e.eval())
-    val result = Expr.simplify(e)
+    val result = ExprSimplifier.simplify(e)
     //println(result.eval())
     
     assertEquals(Cst(17),result)
     
     val e2 = (c0/v+c1/v)*v*(c10+c2)+(c10/c2)
-    val result2 = Expr.simplify(e)
+    val result2 = ExprSimplifier.simplify(e)
     //println(result2)
 
 
@@ -75,7 +75,7 @@ class TestExpr {
     }
 
   @Test def OneByOne() {
-    assertEquals(Cst(1), Expr.simplify(Cst(1) / Cst(1)))
+    assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) / Cst(1)))
   }
   
 }

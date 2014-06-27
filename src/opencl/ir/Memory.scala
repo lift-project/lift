@@ -15,7 +15,7 @@ object GlobalMemory extends OpenCLAddressSpace {
 object UndefAddressSpace extends OpenCLAddressSpace
 
 case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCLAddressSpace) extends Memory {
-  override def toString() = "(" + variable + ", " + Expr.simplify(size) + ", " + t + ", " + addressSpace + ")"
+  override def toString() = "(" + variable + ", " + ExprSimplifier.simplify(size) + ", " + t + ", " + addressSpace + ")"
 }
 
 object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(0), UndefType, UndefAddressSpace)
@@ -130,7 +130,7 @@ object OpenCLMemory {
       // ... but multiply by default
       case _ => {
         mem.variable.updateRange( (r) => { r * len })
-        OpenCLMemory(mem.variable, Expr.simplify(mem.size * len), mem.t, addressSpace)
+        OpenCLMemory(mem.variable, ExprSimplifier.simplify(mem.size * len), mem.t, addressSpace)
       }
     }
   }
