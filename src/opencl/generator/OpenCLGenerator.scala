@@ -214,15 +214,18 @@ object OpenCLGenerator extends Generator {
   // === Iterate ===
   private def generateIterate(i: Iterate, accessFunctions: Array[AccessFunction]) : String = {
 
-    val length = Type.getLength(i.inT)
-    val iterSize = Var(Iterate.varName, ContinousRange(Cst(0), length))
-    val init = privateVar(iterSize, Int, length)
+    // use the type var as the var holding the iterating size
+    val tmp = TypeVar.getTypeVars(i.f.inT).head
+    val init = privateVar(tmp, Int, Type.getLength(i.inT))
 
     val inputMem = i.memory.head
     val outputMem = i.memory.last
 
+    val innerInputLength = Type.getLength(i.f.inT)
+    val innerOutputLength = Type.getLength(i.f.ouT)
+
     val iterateBody = generate(i.f, accessFunctions, "iterate")
-    val step = iterSize =:= (iterSize + "/" + i.factor)
+    val step = tmp =:= ExprSimplifier.simplify(tmp * innerOutputLength / innerInputLength)
     val swap = generateSwap(inputMem, outputMem)
 
     val body = iterateBody + step + swap
@@ -353,11 +356,11 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
   
-  private def privateVar(variable: Var, t: Type, init: Any) : String = {
+  private def privateVar(variable: Any, t: Type, init: Any) : String = {
     print(t) + " " + variable =:= init
   }
 
-  private def privateVar(variable: Var, t: Type, addressSpace: OpenCLAddressSpace, init: Any): String = {
+  private def privateVar(variable: Any, t: Type, addressSpace: OpenCLAddressSpace, init: Any): String = {
     addressSpace + " " + print(t) + " " + variable =:= init
   }
   
