@@ -231,9 +231,6 @@ case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
 }
 
 case class Iterate(n: Expr, f: Fun) extends FPattern() {
-  @deprecated("This field is not being updated in the type checker, get rid of it!")
-  var factor: Expr = Cst(0)
-
   override def isGenerable() = true
   override def copy() = Iterate(n, f)
 }
