@@ -76,6 +76,23 @@ class TestReduce {
     println("Kernel code:")
     println(firstKernelCode)
 
+    val inputSize = 128
+    val inputArray = Array.fill(inputSize)(1.0f)
+    val local0 = local(512)
+    val local1 = local(256)
+    val inputData = global.input(inputArray)
+    val outputData = global.output[Float](inputSize)
+
+    val args = Array(inputData, local0, local1, outputData, value(inputSize))
+
+    Executor.execute(firstKernelCode, 128, inputSize, args)
+
+    val outputArray = outputData.asFloatArray()
+
+    println("outputArray(0): " + outputArray(0))
+
+    args.foreach(_.dispose) // free c++ memory (important!)
+
 
 
     val tmp = Input(Var("tmp"), ArrayType(Float, N / 128))
