@@ -217,7 +217,9 @@ object Type {
           }
         }
 
-        new ArrayType(closedFormIterate(inAT.elemT, outAT.elemT, n),closedFormLen)
+        new ArrayType(closedFormIterate(inAT.elemT, outAT.elemT, n),
+                      Cst(128) * // TODO: fixme! The original input size (128 for NVIDIA_A) is somehow missing here ...
+                      closedFormLen)
 
       }
       case (inTT:TupleType, outTT:TupleType) =>

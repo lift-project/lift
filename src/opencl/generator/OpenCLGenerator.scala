@@ -53,8 +53,6 @@ object OpenCLGenerator extends Generator {
     Kernel.memory = OpenCLMemory.allocate(f)
   }
 
-  //private type AccessFunction = (Expr) => Expr
-
   private class AccessFunction(val f: (Expr) => Expr, val scope: String) {
     def apply(e: Expr): Expr = f(e)
   }
@@ -62,13 +60,21 @@ object OpenCLGenerator extends Generator {
   private object AccessFunction {
     def apply(f: (Expr) => Expr, scope: String) = new AccessFunction(f, scope)
   }
+
+  private class MapAccessFunction(val loopVar: Var, val chunkSize: Expr, val mapName: String)
+    extends AccessFunction( (i:Expr) => (loopVar * chunkSize) + i, mapName )
+
+  private object MapAccessFunction {
+    def apply(loopVar: Var, initialChunkSize: Expr, mapName: String) =
+      new MapAccessFunction(loopVar, initialChunkSize, mapName)
+  }
   
   private def generateKernel(f: Fun, workGroupSize: Int) : String = {
     Kernel.prefix.clear()
     Kernel.workGroupSize = workGroupSize
 
     // generate the body of the kernel
-    val body = generate(f, Array.empty[AccessFunction], "Kernel")
+    val body = generate(f, Array.empty[AccessFunction], Array.empty[AccessFunction])
 
     // generate string from the parameters
     val parameterString = Kernel.memory.map( m =>
@@ -103,26 +109,26 @@ object OpenCLGenerator extends Generator {
     var workGroupSize = 128
   }
   
-  private def generate(f: Fun, accessFunctions: Array[AccessFunction], currentScope: String) : String = {
+  private def generate(f: Fun, inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) : String = {
     assert(f.ouT != UndefType)
     
     f match {
-      case cf: CompFun => cf.funs.foldRight("")((inF, str) => str + generate(inF, accessFunctions, currentScope))
+      case cf: CompFun => cf.funs.foldRight("")((inF, str) => str + generate(inF, inputAccess, outputAccess))
       // maps
-      case m: MapWrg => generateMapWrg(m, accessFunctions)
-      case m: MapLcl => generateMapLcl(m, accessFunctions)
-      case m: MapSeq => generateMapSeq(m, accessFunctions)
+      case m: MapWrg => generateMapWrg(m, inputAccess, outputAccess)
+      case m: MapLcl => generateMapLcl(m, inputAccess, outputAccess)
+      case m: MapSeq => generateMapSeq(m, inputAccess, outputAccess)
       // reduce
-      case r: ReduceSeq => generateReduceSeq(r, accessFunctions)
+      case r: ReduceSeq => generateReduceSeq(r, inputAccess, outputAccess)
       // iterate
-      case i: Iterate => generateIterate(i, accessFunctions)
+      case i: Iterate => generateIterate(i, inputAccess, outputAccess)
       // user functions
       case u : UserFun => generateUserFun(u)
       // utilities
       case _: Split => ""
       case _: Join => ""
-      case f: toGlobal => generate(f.f, accessFunctions, currentScope)
-      case f: toLocal => generate(f.f, accessFunctions, currentScope)
+      case f: toGlobal => generate(f.f, inputAccess, outputAccess)
+      case f: toLocal => generate(f.f, inputAccess, outputAccess)
       case _: Input => ""
       case _ => "__" + f.toString() + "__"
     }
@@ -131,45 +137,49 @@ object OpenCLGenerator extends Generator {
   // === Maps ===
   // generic Map
   private def generateMap(m: AbstractMap, f: Fun, loopVar: Var, range: RangeAdd,
-                          accessFunctions: Array[AccessFunction], currentScope: String) : String = {
-    val elemT = Type.getElemT(m.inT)
+                          inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction],
+                          mapName: String) : String = {
+    val inChunkSize = Type.length(Type.getElemT(m.inT)).reduce[Expr]( _ * _ )
+    val inAccessFun = MapAccessFunction(loopVar, inChunkSize, mapName)
+
+    val outChunkSize = Type.length(Type.getElemT(m.ouT)).reduce[Expr]( _ * _ )
+    val outAccessFun = MapAccessFunction(loopVar, outChunkSize, mapName)
     
-	  // multiply all lengths with the indexVariable ...
-    val length = Type.length(elemT).foldLeft[Expr](loopVar)( _ * _ )
-    val accessFun = AccessFunction((index: Expr) => { ExprSimplifier.simplify(length + index) }, currentScope)
-    
-    val body = generate(f, accessFunctions :+ accessFun, currentScope)
+    val body = generate(f, inputAccess :+ inAccessFun, outputAccess :+ outAccessFun)
     
     generateLoop(loopVar, range, body)
   }
   
   // MapWrg
-  private def generateMapWrg(m: MapWrg, accessFunctions: Array[AccessFunction]) : String = {
+  private def generateMapWrg(m: MapWrg,
+                             inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) : String = {
     val length = Type.getLength(m.inT)
     val range = RangeAdd(Var("get_group_id(0)", ContinousRange(Cst(0), ?)),
                          length,
                          Var("get_num_groups(0)", ContinousRange(Cst(0), ?)))
     val loopVar = Var("g_id", range)
       
-    generateMap(m, m.f, loopVar, range, accessFunctions, "MapWrg") +
+    generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapWrg") +
     "return;\n"
   }
   
   // MapLcl
-  private def generateMapLcl(m: MapLcl, accessFunctions: Array[AccessFunction]) : String = {
+  private def generateMapLcl(m: MapLcl,
+                             inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) : String = {
     val length = Type.getLength(m.inT)
     val wgSize = Cst(Kernel.workGroupSize) // Var("get_local_size(0)")
     val range = RangeAdd(Var("get_local_id(0)", ContinousRange(Cst(0), wgSize)),
                          length, wgSize)
     val loopVar = Var("l_id", range)
       
-    generateMap(m, m.f, loopVar, range, accessFunctions, "MapLcl") +
+    generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapLcl") +
     generateBarrier(m.memory.last) + "\n"
   }
   
   // MapSeq
-  private def generateMapSeq(m: MapSeq, accessFunctions: Array[AccessFunction]) : String = {
-    val fun = generate(m.f, accessFunctions, "MapSeq")
+  private def generateMapSeq(m: MapSeq,
+                             inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) : String = {
+    val fun = generate(m.f, inputAccess, outputAccess)
     val length = Type.getLength(m.inT)
     
     val inputMem = m.memory.head
@@ -178,8 +188,8 @@ object OpenCLGenerator extends Generator {
     val range = ContinousRange(Cst(0), length)
     val indexVar = Var("i", range)
 
-    val body = access(outputMem, accessFunctions, indexVar) =:=
-                apply(fun, access(inputMem, accessFunctions, indexVar))
+    val body = access(outputMem, outputAccess, indexVar) =:=
+                apply(fun, access(inputMem, inputAccess, indexVar))
     								
     val loop = generateLoop(indexVar, range, body)
     
@@ -187,32 +197,33 @@ object OpenCLGenerator extends Generator {
   }
   
   // === Reduce ===
-  private def generateReduceSeq(r: ReduceSeq, accessFunctions: Array[AccessFunction]) : String = {
-     val fun = generate(r.f, accessFunctions, "ReduceSeq") // kind of expecting a name here ...
+  private def generateReduceSeq(r: ReduceSeq,
+                                inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) : String = {
+     val fun = generate(r.f, inputAccess, outputAccess) // kind of expecting a name here ...
      val len = Type.getLength(r.inT)
      
      val inputMem = r.memory.head
      val outputMem = r.memory.last
-     val outputAccessFun = AccessFunction((index: Expr) => { index / len }, "ReduceSeq") // access function for the output
      
      // 1. genetate: int acc = input[0]
      val acc = Var("acc")
-     val init = privateVar(acc, r.f.ouT, access(inputMem, accessFunctions, Cst(0)))
+     val init = privateVar(acc, r.f.ouT, access(inputMem, inputAccess, Cst(0)))
      
      // 2. generate loop from 1 .. length
      val range = RangeAdd(Cst(1), len, Cst(1))
      val indexVar = Var("i", range)
-     val body = "  " + acc =:= apply(fun, acc, access(inputMem, accessFunctions, indexVar))
+     val body = "  " + acc =:= apply(fun, acc, access(inputMem, inputAccess, indexVar))
      val loop = generateLoop(indexVar, range, body)
     
      // 3. generate output[0] = acc
-     val writeBack = access(outputMem, outputAccessFun +: accessFunctions, Cst(0)) =:= acc
+     val writeBack = access(outputMem, outputAccess, Cst(0)) =:= acc
      
      "{ /* reduce_seq */\n" + init + loop + writeBack + "} /* reduce_seq */\n"
   }
 
   // === Iterate ===
-  private def generateIterate(i: Iterate, accessFunctions: Array[AccessFunction]) : String = {
+  private def generateIterate(i: Iterate,
+                              inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) : String = {
 
     // use the type var as the var holding the iterating size
     val tmp = TypeVar.getTypeVars(i.f.inT).head
@@ -224,7 +235,7 @@ object OpenCLGenerator extends Generator {
     val innerInputLength = Type.getLength(i.f.inT)
     val innerOutputLength = Type.getLength(i.f.ouT)
 
-    val iterateBody = generate(i.f, accessFunctions, "iterate")
+    val iterateBody = generate(i.f, inputAccess, outputAccess)
     val step = tmp =:= ExprSimplifier.simplify(tmp * innerOutputLength / innerInputLength)
     val swap = generateSwap(inputMem, outputMem)
 
