@@ -72,16 +72,24 @@ class TestReduce {
       Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
     ) o Split(128) o input
 
+    /*
+    val firstKernel = Join() o MapWrg(
+      Join() o (MapLcl(MapSeq(id))) o Split(1) o
+        Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) o
+        Join() o (MapLcl(MapSeq(id))) o Split(1)
+    ) o Split(128) o input
+    */
+
     val firstKernelCode = OpenCLGenerator.compile(firstKernel)
     println("Kernel code:")
     println(firstKernelCode)
 
-    val inputSize = 128
+    val inputSize = 4194304
     val inputArray = Array.fill(inputSize)(1.0f)
     val local0 = local(512)
     val local1 = local(256)
     val inputData = global.input(inputArray)
-    val outputData = global.output[Float](inputSize)
+    val outputData = global.output[Float](inputSize / 128)
 
     val args = Array(inputData, local0, local1, outputData, value(inputSize))
 
@@ -90,6 +98,9 @@ class TestReduce {
     val outputArray = outputData.asFloatArray()
 
     println("outputArray(0): " + outputArray(0))
+    println("outputArray(1): " + outputArray(1))
+
+    println("sum: ", outputArray.reduce(_ + _))
 
     args.foreach(_.dispose) // free c++ memory (important!)
 
