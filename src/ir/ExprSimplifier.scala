@@ -73,7 +73,7 @@ object ExprSimplifier {
     val sumCstsEval = sumCsts.evalDbl()
 
     if (sumCstsEval.isValidInt)
-      if (sumCstsEval == 0.0 && sumRest.terms.length > 0)
+      if (sumCstsEval.toInt == 0 && sumRest.terms.length > 0)
         sumRest // remove sum with 0 if we have something else
       else
         sumRest + sumCstsEval.toInt
@@ -96,7 +96,7 @@ object ExprSimplifier {
     val prodCstsEval = prodCsts.evalDbl()
 
     if (prodCstsEval.isValidInt)
-      if (prodCstsEval == 1.0 && prodRest.terms.length > 0)
+      if (prodCstsEval.toInt == 1 && prodRest.terms.length > 0)
         prodRest // remove prod with 1 if we have something else
       else
         prodRest * prodCstsEval.toInt

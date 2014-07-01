@@ -205,11 +205,11 @@ object Type {
               if (!Expr.contains(outLen, tv))
                return ouT
 
-              // recognises a*tv
+              // recognises outLen*tv
               val a = ExprSimplifier.simplify(outLen / tv)
               if (!Expr.contains(a, tv)) {
-                // we have a*tv where tv is not present inside a
-                Pow(a, n)
+                // we have outLen*tv where tv is not present inside outLen
+                Pow(a, n)*tv
               }
               else throw new TypeException("Cannot infer closed form for iterate return type (only support x*a). inT = " + inT + " ouT = " + ouT)
             }
@@ -217,9 +217,7 @@ object Type {
           }
         }
 
-        new ArrayType(closedFormIterate(inAT.elemT, outAT.elemT, n),
-                      Cst(128) * // TODO: fixme! The original input size (128 for NVIDIA_A) is somehow missing here ...
-                      closedFormLen)
+        new ArrayType(closedFormIterate(inAT.elemT, outAT.elemT, n), closedFormLen)
 
       }
       case (inTT:TupleType, outTT:TupleType) =>
@@ -294,16 +292,10 @@ object Type {
       case i : Iterate => inT match {
         case at: ArrayType => {
 
-          // TODO: do not assign the type of i.f (or make somehow independent on the iteration count)
-          // check that the input type of iterate can be used as an input for f
-          // val ouT1 = check(i.f, inT, false)
-
-          // check that the output type of f can be used as an input for f
-          // val ouT2 = check(i.f, i.f.ouT, false)
 
           // substitute all the expression in the input type with type variables
           val tvMap = scala.collection.mutable.HashMap[TypeVar, Expr]()
-          val inputTypeWithTypeVar = visitRebuild(at, t => t, t =>
+          var inputTypeWithTypeVar = visitRebuild(at, t => t, t =>
             t match {
               case at: ArrayType => {
                 val tv = TypeVar()
@@ -332,39 +324,27 @@ object Type {
           )
 
           // put back the expression when the type variable is not present
-          tvMap --= outputTvSet
-          outputTypeWithTypeVar = substitute(outputTypeWithTypeVar, tvMap.toMap)
+          val fixedTvMap = tvMap -- outputTvSet
+          inputTypeWithTypeVar = substitute(inputTypeWithTypeVar, fixedTvMap.toMap)
 
-          outputTypeWithTypeVar = visitRebuild(outputTypeWithTypeVar, t => t, t =>
+          // assign the type for f
+          check(i.f, inputTypeWithTypeVar)
+
+
+
+          val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n)
+          substitute(closedFormOutputType, tvMap.toMap)
+
+
+          /*outputTypeWithTypeVar = visitRebuild(outputTypeWithTypeVar, t => t, t =>
             t match {
               case at: ArrayType => new ArrayType(at.elemT, Expr.substitute(at.len, tvMap.toMap))
               case vt: VectorType => new VectorType(vt.scalarT, Expr.substitute(vt.len, tvMap.toMap))
               case _ => t
             }
-          )
+          )*/
 
-          // assign the type for f
-          check(i.f, inputTypeWithTypeVar)
 
-          //if (isSubtype(inputTypeWithTypeVar, outputTypeWithTypeVar)) {
-            closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n)
-          //} else
-          //  // TODO: implement support for shape change when the number of iteration is a constant
-          //  throw new TypeException("Cannot deal with function inside iterate that change the shape of the type (function = "+i.f+")")
-
-          // TODO: CD to implement logic to automatically infer the return type in the general case (not only for reduction)
-
-          /*val inN = getLength(i.f.inT)
-          val outN = getLength(i.f.ouT)
-
-          // compute i.n times a over b (b is the reduction factor of one iteration, a is the input length)
-          var a = inN
-          var b = inN / outN
-          for (index <- 1 to Expr.toInt(i.n)) {
-            a = ExprSimplifier.simplify(a / b)
-          }
-
-          new ArrayType(getElemT(inT), a)*/
         }
         case _ => throw new TypeException(inT, "ArrayType")
       }
