@@ -36,6 +36,8 @@ case class ArrayType(val elemT: Type, val len: Expr) extends Type {
 
 object UndefType extends Type {override def toString = "UndefType"}
 
+object NoType extends Type {override def toString = "NoType"}
+
 object Type {
   
   /*def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    

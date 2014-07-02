@@ -226,6 +226,7 @@ case class UserFun(val name: String, val body: String, val expectedInT: Type, va
 }
 
 case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
+  this.inT = NoType
   override def isGenerable() = true
   override def copy() = Input(variable, expectedOutT)    
 }

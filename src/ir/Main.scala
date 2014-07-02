@@ -1,5 +1,7 @@
 package ir
 
+import opencl.ir.Float
+
 import scala.util.Random
 import exploration.Exploration
 
@@ -58,12 +60,15 @@ object Main extends App {
 //  	   
 //  	   println(cf3.eq(cf2))
 //  	   println(cf3 == cf2)
-  	   
-	   
-	   
-	   Type.check(root, inputType)
-	   Context.updateContext(root, new Context())
-	   println(Exploration.search(root))
+
+
+  val sumUp = UserFun("sumUp", "float sumUp(float x, float y) { return x+y; }", TupleType(Float, Float), Float)
+  val input = Input(Var("x"), ArrayType(Float, Var("N")))
+  val reduceFun = Reduce(sumUp) o input
+  Type.check(reduceFun, NoType)
+
+  Context.updateContext(reduceFun, new Context())
+  println(Exploration.search(reduceFun))
 
 	    //val results = Exploration.bfs(root, inputType, 0)
 	    //results.map(r => println(r))

@@ -1,5 +1,7 @@
 package exploration
 
+import opencl.generator.OpenCLGenerator
+
 import scala.util.Random
 import ir.CompFun
 import ir.Context
@@ -24,7 +26,7 @@ object Exploration {
       println("Evaluating performance of "+f)
     }
     
-    assert (f.inT != UndefType)      
+    assert (f.inT != UndefType)
     
     var perfs = List[Double]()
     val seen = scala.collection.mutable.Set[Fun]()
@@ -33,6 +35,14 @@ object Exploration {
 
       if (!seen.contains(rndFun)) {
         seen += rndFun
+
+        // generate code for the function
+        println("Generating code for "+rndFun)
+        val kernelCode = OpenCLGenerator.compile(rndFun)
+        println("Kernel code:")
+        println(kernelCode)
+
+
         val perf = Random.nextDouble()
         if (verbose) 
         	println(perf + " : " + rndFun)

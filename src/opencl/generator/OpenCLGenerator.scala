@@ -79,7 +79,7 @@ object OpenCLGenerator extends Generator {
   private def generateKernel(f: Fun, workGroupSize: Int) : String = {
 
 
-    Kernel.prefix.clear()
+    Kernel.userFunCode.clear()
     Kernel.workGroupSize = workGroupSize
 
     // generate the body of the kernel
@@ -108,12 +108,12 @@ object OpenCLGenerator extends Generator {
 
     val separator = if (constantsString.nonEmpty) { ", " } else { "" }
 
-    Kernel.prefix.values.reduce( _ + "\n" + _ ) + "\n\n" +
+    Kernel.userFunCode.values.fold("")(_ + "\n" + _) + //.reduce( _ + "\n" + _ ) + "\n\n" +
       "kernel void KERNEL(" + parameterString + separator + constantsString + ") {\n" + body + "}\n"
   }
   
   private object Kernel {
-	  val prefix = HashMap.empty[String, String]
+	  val userFunCode = HashMap.empty[String, String]
     var memory = Array.empty[Memory]
     var workGroupSize = 128
   }
@@ -267,7 +267,7 @@ object OpenCLGenerator extends Generator {
   // === UserFun ===
   
   private def generateUserFun(uF: UserFun) : String = {
-    Kernel.prefix(uF.name) = uF.body
+    Kernel.userFunCode(uF.name) = uF.body
     uF.name // return the name
   }
   
