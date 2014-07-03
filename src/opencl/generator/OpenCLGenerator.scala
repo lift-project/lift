@@ -15,6 +15,7 @@ object Debug {
 object OpenCLGenerator extends Generator {
 
   def compile(f: Fun) : String = {
+
     // pass 1
     Type.check(f)
 
@@ -108,7 +109,7 @@ object OpenCLGenerator extends Generator {
 
     val separator = if (constantsString.nonEmpty) { ", " } else { "" }
 
-    Kernel.userFunCode.values.fold("")(_ + "\n" + _) + //.reduce( _ + "\n" + _ ) + "\n\n" +
+    Kernel.userFunCode.values.fold("")(_ + "\n" + _) + "\n\n" +
       "kernel void KERNEL(" + parameterString + separator + constantsString + ") {\n" + body + "}\n"
   }
   
@@ -129,6 +130,7 @@ object OpenCLGenerator extends Generator {
       case m: MapSeq => generateMapSeq(m, inputAccess, outputAccess)
       // reduce
       case r: ReduceSeq => generateReduceSeq(r, inputAccess, outputAccess)
+      case r: ReduceHost => generateReduceSeq(r, inputAccess, outputAccess)
       // iterate
       case i: Iterate => generateIterate(i, inputAccess, outputAccess)
       // user functions
@@ -210,7 +212,7 @@ object OpenCLGenerator extends Generator {
   }
   
   // === Reduce ===
-  private def generateReduceSeq(r: ReduceSeq,
+  private def generateReduceSeq(r: AbstractReduce,
                                 inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) : String = {
      val fun = generate(r.f, inputAccess, outputAccess) // kind of expecting a name here ...
      val len = Type.getLength(r.inT)

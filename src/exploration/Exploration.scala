@@ -1,6 +1,7 @@
 package exploration
 
 import opencl.generator.OpenCLGenerator
+import generator.Dispatcher
 
 import scala.util.Random
 import ir.CompFun
@@ -36,12 +37,12 @@ object Exploration {
       if (!seen.contains(rndFun)) {
         seen += rndFun
 
-        // generate code for the function
-        println("Generating code for "+rndFun)
-        val kernelCode = OpenCLGenerator.compile(rndFun)
-        println("Kernel code:")
-        println(kernelCode)
+        Type.check(rndFun, f.inT)
+        Context.updateContext(rndFun, f.context)
 
+        // generate code for the function
+        println("OpenCL kernels generation for "+rndFun)
+        Dispatcher.generateOpenCLKernels(rndFun)
 
         val perf = Random.nextDouble()
         if (verbose) 
@@ -93,7 +94,7 @@ object Exploration {
       
       if (!seen.contains(rndFun)) {
         seen += rndFun
-        
+
         choices.map(choice => {          
           val f = Fun.replaceRef(rndFun, oriF, choice)
           Type.check(f, topF.inT)
