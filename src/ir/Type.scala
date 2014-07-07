@@ -229,7 +229,7 @@ object Type {
     }
   }
   
-  def check(f: Fun) : Type = { check(f, UndefType) }
+  //def check(f: Fun) : Type = { check(f, UndefType) }
   
   def check(f: Fun, inT: Type, setType: Boolean = true): Type = {
 

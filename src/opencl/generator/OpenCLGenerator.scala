@@ -14,10 +14,13 @@ object Debug {
 
 object OpenCLGenerator extends Generator {
 
+  // compiler a type-checked function into an OpenCL kernel
   def compile(f: Fun) : String = {
 
+    assert (f.inT != UndefType)
+
     // pass 1
-    Type.check(f)
+    //Type.check(f)
 
     if (Debug()) {
       println("Types:")

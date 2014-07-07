@@ -42,7 +42,7 @@ object Exploration {
 
         // generate code for the function
         println("OpenCL kernels generation for "+rndFun)
-        Dispatcher.generateOpenCLKernels(rndFun)
+        Dispatcher.execute(rndFun, Array.fill(16384)(1.0f))
 
         val perf = Random.nextDouble()
         if (verbose) 

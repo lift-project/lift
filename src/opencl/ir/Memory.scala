@@ -32,6 +32,26 @@ object OpenCLMemory {
 
   def allocate(f: Fun, inputMem: Memory = NullMemory): Array[Memory] = {
 
+    // TODO (CD) re-design this function
+
+    /*// fix the input memory
+    val inputMem = f match {
+      case in : Input => {
+        assert(oriInputMem == NullMemory)
+        val size = Type.getSizeInBytes(in.ouT)
+        // inputs (parameters) are always allocated in global memory in OpenCL
+        OpenCLMemory(in.variable, size, in.ouT, GlobalMemory)
+      }
+      case _ => {
+        if (oriInputMem != NullMemory)
+          oriInputMem
+        else {
+          val size = Type.getSizeInBytes(f.inT)
+          OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, f.inT, GlobalMemory)
+        }
+      }
+    }*/
+
     f.memory = f match {
       
       case cf: CompFun => {
@@ -43,7 +63,6 @@ object OpenCLMemory {
         })
       }
       
-      // inputs (parameters) are always allocated in global memory in OpenCL
       case in : Input => {
         assert(inputMem == NullMemory)
         val size = Type.getSizeInBytes(in.ouT)
@@ -51,16 +70,10 @@ object OpenCLMemory {
       }
       
       // the sequential implementations allocate new memory objects
-      case r : ReduceSeq => {
-        val size = Type.getSizeInBytes(r.ouT)
+      case MapSeq(_) | ReduceSeq(_) | ReduceHost(_) => {
+        val size = Type.getSizeInBytes(f.ouT)
         val addressSpace = asOpenCLMemory(inputMem).addressSpace
-        Array(inputMem, OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, r.ouT, addressSpace))
-      }
-
-      case m : MapSeq => {
-        val size = Type.getSizeInBytes(m.ouT)
-        val addressSpace = asOpenCLMemory(inputMem).addressSpace
-        Array(inputMem, OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, m.ouT, addressSpace))
+        Array(inputMem, OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, f.ouT, addressSpace))
       }
 
       // The other map implementations multiply the sizes

@@ -24,7 +24,7 @@ object Main extends App {
   println("--------------------")
 
   // pass 1
-  Type.check(expr)
+  Type.check(expr, NoType)
   // pass 2
   OpenCLGenerator.allocateMemory(expr)
   // pass 3

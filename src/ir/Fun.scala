@@ -3,10 +3,10 @@ package ir
 import opencl.ir._
 
 abstract class Fun () {
-  var context : Context = null;  
+  var context : Context = null
 
-  var inT: Type = UndefType;
-  var ouT: Type = UndefType;
+  var inT: Type = UndefType
+  var ouT: Type = UndefType
   var memory : Array[Memory] = Array.empty[Memory]
 
   /*
