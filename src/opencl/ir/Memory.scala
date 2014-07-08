@@ -63,7 +63,7 @@ object OpenCLMemory {
           if (outputMem == NullMemory)
             OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, f.ouT, asOpenCLMemory(inputMem).addressSpace) // same address space as the input
           else
-            outputMem
+            outputMem // TODO: create a view of the memory or sub-memory
         f match {
           case fp: FPattern => alloc(fp.f, outMem)
           case _ =>
