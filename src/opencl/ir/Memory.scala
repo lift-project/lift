@@ -55,7 +55,7 @@ object OpenCLMemory {
         OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, in.ouT, GlobalMemory) // global address space for all inputs
 
       case i : Iterate => {
-        
+
       }
 
       case _ =>
