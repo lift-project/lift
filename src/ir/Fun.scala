@@ -7,6 +7,7 @@ abstract class Fun () {
 
   var inT: Type = UndefType
   var ouT: Type = UndefType
+
   var memory : Array[Memory] = Array.empty[Memory]
 
   /*

@@ -1,6 +1,7 @@
 package opencl.ir
 
 import ir._
+import opencl.ir.toLocal
 
 abstract class OpenCLAddressSpace
 
@@ -18,6 +19,7 @@ case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCL
   override def toString() = "(" + variable + ", " + ExprSimplifier.simplify(size) + ", " + t + ", " + addressSpace + ")"
 }
 
+
 object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(0), UndefType, UndefAddressSpace)
 
 object OpenCLMemory {
@@ -30,27 +32,54 @@ object OpenCLMemory {
     }
   }
 
+  private def alloc(f: Fun, inputMem : Memory = NullMemory, outputMem : Memory = NullMemory) : Memory = {
+
+    val size = Type.getSizeInBytes(f.ouT)
+
+    val outMem = f match {
+
+      case cf: CompFun => cf.funs.foldRight(inputMem)((f,mem) => alloc(f, mem, NullMemory))
+
+      case tl: toLocal => {
+        val localMem = OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, f.ouT, LocalMemory)
+        alloc(tl.f, inputMem, localMem)
+        localMem
+      }
+      case tg: toLocal => {
+        val globalMem = OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, f.ouT, GlobalMemory)
+        alloc(tg.f, inputMem, globalMem)
+        globalMem
+      }
+
+      case in: Input =>
+        OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, in.ouT, GlobalMemory) // global address space for all inputs
+
+      case i : Iterate => {
+
+      }
+
+      case _ =>
+        val outMem =
+          if (outputMem == NullMemory)
+            OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, f.ouT, asOpenCLMemory(inputMem).addressSpace) // same address space as the input
+          else
+            outputMem
+        f match {
+          case fp: FPattern => alloc(fp.f, outMem)
+          case _ =>
+        }
+        outMem
+    }
+
+    assert (outMem != NullMemory)
+
+    outMem
+  }
+
+
+/*
   def allocate(f: Fun, inputMem: Memory = NullMemory): Array[Memory] = {
 
-    // TODO (CD) re-design this function
-
-    /*// fix the input memory
-    val inputMem = f match {
-      case in : Input => {
-        assert(oriInputMem == NullMemory)
-        val size = Type.getSizeInBytes(in.ouT)
-        // inputs (parameters) are always allocated in global memory in OpenCL
-        OpenCLMemory(in.variable, size, in.ouT, GlobalMemory)
-      }
-      case _ => {
-        if (oriInputMem != NullMemory)
-          oriInputMem
-        else {
-          val size = Type.getSizeInBytes(f.inT)
-          OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, f.inT, GlobalMemory)
-        }
-      }
-    }*/
 
     f.memory = f match {
       
@@ -146,6 +175,6 @@ object OpenCLMemory {
         OpenCLMemory(mem.variable, ExprSimplifier.simplify(mem.size * len), mem.t, addressSpace)
       }
     }
-  }
+  }*/
   
 }
