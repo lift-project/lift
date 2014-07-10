@@ -1,5 +1,7 @@
 package opencl.ir
 
+import scala.collection.mutable
+
 import ir._
 import opencl.ir.toLocal
 
@@ -19,6 +21,77 @@ case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCL
   override def toString() = "(" + variable + ", " + ExprSimplifier.simplify(size) + ", " + t + ", " + addressSpace + ")"
 }
 
+class OpenCLSubMemory(parent: OpenCLMemory, size: Expr, t: Type, accessFun: (Expr) => Expr) extends OpenCLMemory(parent.variable, size, t, parent.addressSpace)
+
+// Allocate memory globally
+class GlobalAllocator {
+  val mems = mutable.Set[OpenCLMemory]()
+
+  def alloc(f: Fun, numGlb: Expr = 1, numLcl: Expr = 0, inputMem : OpenCLMemory = OpenCLNullMemory, outputMem : OpenCLMemory = OpenCLNullMemory) : OpenCLMemory = {
+
+    // allocate input memory if needed (should only be for top-level function)
+    val inMem =
+      if (inputMem == OpenCLNullMemory) {
+        f match {
+          case i: Input => OpenCLNullMemory
+          case _ => OpenCLMemory(Var(ContinousRange(Cst(0), Type.getSizeInBytes(f.inT))), Type.getSizeInBytes(f.inT), f.inT, GlobalMemory)
+        }
+
+     }
+     else
+      inputMem
+
+
+    val glbOutSize = Type.getSizeInBytes(f.ouT)*numGlb
+    val lclOutSize = Type.getSizeInBytes(f.ouT)*numLcl
+
+    // allocate output memory if force to
+    val outMem = f match {
+
+      case Input =>
+        assert(outputMem == OpenCLNullMemory)
+        OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory)
+
+      case tg: toGlobal if (outputMem.addressSpace != GlobalMemory) =>
+        OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory)
+      case tl: toLocal if (outputMem.addressSpace != LocalMemory) =>
+        OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, f.ouT, LocalMemory)
+
+      case _ => outputMem
+
+    }
+
+    // recursive call
+    val len = Type.getLength(f.ouT)
+    f match {
+
+      case m: MapGlb | MapWrg => alloc(m.f, numGlb*len, numLcl, inMem, outMem)
+      case m: MapLcl | MapWarp | MapLane => alloc(m.f, numGlb*len, numLcl*len, inMem, outMem)
+
+      case cf: CompFun => outMem // TODO cf.funs.foldRight(inputMem)((f,mem) => alloc(f, mem, NullMemory))
+
+      case i : Iterate => outMem // TODO
+
+      case fp: FPattern => alloc(fp.f, numGlb, numLcl, inMem, outMem)
+
+      case _ => if (outMem == OpenCLNullMemory) {
+        inMem.addressSpace match {
+          case GlobalMemory => OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory)
+          case LocalMemory => OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, f.ouT, LocalMemory)
+        }
+        else
+          outMem
+      }
+
+
+
+
+    }
+
+
+  }
+
+}
 
 object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(0), UndefType, UndefAddressSpace)
 
@@ -52,18 +125,21 @@ object OpenCLMemory {
       }
 
       case in: Input =>
+        assert (inputMem == NullMemory)
         OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, in.ouT, GlobalMemory) // global address space for all inputs
 
       case i : Iterate => {
 
       }
 
+      // TODO: create a view of the memory or sub-memory in case of Reorder
+
       case _ =>
         val outMem =
           if (outputMem == NullMemory)
             OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, f.ouT, asOpenCLMemory(inputMem).addressSpace) // same address space as the input
           else
-            outputMem // TODO: create a view of the memory or sub-memory
+            outputMem
         f match {
           case fp: FPattern => alloc(fp.f, outMem)
           case _ =>
