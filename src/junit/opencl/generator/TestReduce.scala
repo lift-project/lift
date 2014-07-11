@@ -37,7 +37,7 @@ class TestReduce {
     ) o Split(262144) o input
 
     Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.compile(kernel)
+    val kernelCode = OpenCLGenerator.generate(kernel)
     println(kernelCode)
 
     val outputArray = testSimplePartialReduction(kernelCode, 4194304)
@@ -55,7 +55,7 @@ class TestReduce {
     ) o Split(128) o Split(2048) o input
 
     Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.compile(kernel)
+    val kernelCode = OpenCLGenerator.generate(kernel)
     println(kernelCode)
 
     val outputArray = testSimplePartialReduction(kernelCode, 4194304)
@@ -84,7 +84,7 @@ class TestReduce {
 
     Type.check(firstKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
     println("Kernel code:")
     println(firstKernelCode)
 
@@ -134,7 +134,7 @@ class TestReduce {
     ) o Split(256) o input
 
     Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.compile(kernel)
+    val kernelCode = OpenCLGenerator.generate(kernel)
 
   }
 
@@ -158,8 +158,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -182,8 +182,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -206,8 +206,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -229,8 +229,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -251,8 +251,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -275,8 +275,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -299,8 +299,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 

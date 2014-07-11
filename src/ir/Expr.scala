@@ -7,7 +7,7 @@ import scala.util.Random
 class NotEvaluableException(msg: String) extends Exception(msg)
 
 
-sealed abstract class Expr {
+abstract class Expr {
 
   def eval(): Int = {
     val dblResult = Expr.evalDouble(this)
@@ -46,6 +46,11 @@ sealed abstract class Expr {
 
   def /(that: Expr) = this * Pow(that, Cst(-1))
   //def -(that: Expr) = this + (that * Cst(-1))
+
+  def max = {
+    // check for any variable maximum values and set it to the max
+
+  }
 
 }
 
@@ -144,7 +149,7 @@ case class Sum(terms: List[Expr]) extends Expr {
 
 // a special variable that should only be used for defining function type
 case class TypeVar private(id: Int) extends Expr {
-  override def toString() = "t" + id
+  override def toString = "t" + id
 }
 
 object TypeVar {

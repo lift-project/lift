@@ -61,7 +61,7 @@ object Dispatcher {
         val args = Array(inputData, outputData, value(inputLen))
 
         println("Generating code for " + f)
-        val kernelCode = OpenCLGenerator.compile(f)
+        val kernelCode = OpenCLGenerator.generate(f)
         println("Kernel code:")
 
         Executor.execute(kernelCode, 128, inputLen, args)

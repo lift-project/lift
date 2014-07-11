@@ -15,6 +15,10 @@ object GlobalMemory extends OpenCLAddressSpace {
 object UndefAddressSpace extends OpenCLAddressSpace
 
 case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCLAddressSpace) extends Memory {
+
+  if (TypeVar.getTypeVars(size).nonEmpty)
+    throw new IllegalArgumentException
+
   override def toString = "(" + variable + ", " + ExprSimplifier.simplify(size) + ", " + t + ", " + addressSpace + ")"
 }
 
@@ -43,7 +47,8 @@ object OpenCLMemory {
   def fixInput(f: Fun, inputMem : OpenCLMemory) : OpenCLMemory = {
     if (inputMem == OpenCLNullMemory) {
       f match {
-        case i: Input => OpenCLNullMemory
+        case _: Input => OpenCLNullMemory
+        case _: CompFun => OpenCLNullMemory
         case _ => OpenCLMemory(Var(ContinousRange(Cst(0), Type.getSizeInBytes(f.inT))), Type.getSizeInBytes(f.inT), f.inT, GlobalMemory)
       }
     }
@@ -65,7 +70,7 @@ object OpenCLMemory {
 
     // fix in the input memory if needed
     val inMem = fixInput(f, argInMem)
-    assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input])
+    assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input] || f.isInstanceOf[CompFun])
 
     val glbOutSize = Type.getSizeInBytes(f.ouT) * numGlb
     val lclOutSize = Type.getSizeInBytes(f.ouT) * numLcl
@@ -73,12 +78,12 @@ object OpenCLMemory {
     val len = Type.getLength(f.ouT)
     val result : Array[Memory] = f match {
 
-      case Input(_) =>
+      case Input(_,_) =>
         assert(outputMem == OpenCLNullMemory)
         Array(OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory))
 
-      case m: MapGlb | MapWrg => alloc(m.f, numGlb * len, numLcl, inMem, outputMem)
-      case m: MapLcl | MapWarp | MapLane => alloc(m.f, numGlb * len, numLcl * len, inMem, outputMem)
+      case MapGlb(_) | MapWrg(_) => alloc(f.asInstanceOf[AbstractMap].f, numGlb * len, numLcl, inMem, outputMem)
+      case MapLcl(_) | MapWarp(_) | MapLane(_) => alloc(f.asInstanceOf[AbstractMap].f, numGlb * len, numLcl * len, inMem, outputMem)
 
       case tg: toGlobal if outputMem == OpenCLNullMemory || outputMem.addressSpace != GlobalMemory =>
         val mem = OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory)
@@ -103,9 +108,15 @@ object OpenCLMemory {
       case fp: FPattern => alloc(fp.f, numGlb, numLcl, inMem, outputMem)
 
       // some function do not create anything, TODO: add toVector, ToScalar, reorder,...
-      case Split | Join => Array(inMem)
+      case Split(_) | Join() => Array(inMem)
 
-      case _ => Array(inMem) :+ allocOutput(glbOutSize, lclOutSize, inMem, f.ouT)
+      case _ =>
+        Array(inMem) ++ {
+          if (outputMem == OpenCLNullMemory)
+          Array[Memory](allocOutput(glbOutSize, lclOutSize, inMem, f.ouT))
+        else
+          Array[Memory]()
+        }
     }
 
     f.memory = result
