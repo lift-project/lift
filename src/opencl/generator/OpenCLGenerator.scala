@@ -54,7 +54,7 @@ object OpenCLGenerator extends Generator {
   }
   
   def allocateMemory(f: Fun) : Unit = {
-    Kernel.memory = OpenCLMemory.allocate(f)
+    Kernel.memory = OpenCLMemory.alloc(f)
   }
 
   private class AccessFunction(val f: (Expr) => Expr, val scope: String) {
