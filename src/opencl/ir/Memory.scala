@@ -33,7 +33,19 @@ class GlobalAllocator {
 object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(0), UndefType, UndefAddressSpace)
 
 object OpenCLMemory {
-  
+
+  def getSizeInBytes(t: Type) : Expr = {
+    ExprSimplifier.simplify(
+      t match {
+        case st: ScalarType => st.size
+        case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
+        case at: ArrayType => at.len * getSizeInBytes(at.elemT)
+        case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
+        case _ => throw new TypeException(t, "??")
+      }
+    )
+  }
+
   def asOpenCLMemory(m : Memory) : OpenCLMemory = {
     m match {
       case oclm : OpenCLMemory => oclm
@@ -96,13 +108,29 @@ object OpenCLMemory {
       case cf: CompFun =>
         var allAllocs = Array[Memory]()
         cf.funs.foldRight(Array[Memory](inMem))((f,mem) => {
-          val innerFAllocs = alloc(f, numGlb, numLcl, asOpenCLMemory(mem(0)), asOpenCLMemory(mem.last))
+          val innerFAllocs = alloc(f, numGlb, numLcl, asOpenCLMemory(mem(0)),
+            if (mem.length > 1)
+              asOpenCLMemory(mem.last)
+            else
+              OpenCLNullMemory)
           allAllocs = (allAllocs++innerFAllocs).distinct
           innerFAllocs
         })
 
       case i: Iterate =>
-        val outMem = allocOutput(glbOutSize, lclOutSize, inMem, f.ouT)
+
+        val inSize = getSizeInBytes(i.inT)
+        val outSize = getSizeInBytes(i.ouT)
+        val diff = ExprSimplifier.simplify(inSize - outSize)
+        val largestSize =  diff match {
+          case Cst(c) => if (c < 0) outSize else inSize
+          case _ => throw new IllegalArgumentException // maybe bug in expression simplifier??
+        }
+
+        // create two buffers that will be swapped during execution
+        val buffer1 = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, UndefType, inMem.addressSpace)
+        val buffer2 = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, UndefType, inMem.addressSpace)
+
         alloc(i.f, numGlb, numLcl, inMem, outMem)
 
       case fp: FPattern => alloc(fp.f, numGlb, numLcl, inMem, outputMem)
@@ -119,9 +147,12 @@ object OpenCLMemory {
         }
     }
 
+    if (inMem != OpenCLNullMemory)
+      f.memory = (Array(inMem) ++ result).distinct
+    else
     f.memory = result
 
-    result
+    f.memory
 
   }
 

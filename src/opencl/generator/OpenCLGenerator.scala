@@ -197,7 +197,7 @@ object OpenCLGenerator extends Generator {
     val loopVar = Var("g_id", range)
       
     generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapWrg")
-    println("return;")
+    oclPrinter.println("return;")
   }
   
   // MapLcl

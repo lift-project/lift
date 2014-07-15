@@ -97,7 +97,8 @@ object Type {
       case t: Type => t
     }
   }
-  
+
+  @deprecated("use method from OpenCLMemory object")
   def getSizeInBytes(t: Type) : Expr = {
     ExprSimplifier.simplify(
       t match {

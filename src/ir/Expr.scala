@@ -45,7 +45,7 @@ abstract class Expr {
   }
 
   def /(that: Expr) = this * Pow(that, Cst(-1))
-  //def -(that: Expr) = this + (that * Cst(-1))
+  def -(that: Expr) = this + (that * Cst(-1))
 
   def max = {
     // check for any variable maximum values and set it to the max
