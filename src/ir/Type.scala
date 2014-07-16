@@ -179,7 +179,7 @@ object Type {
     }
   }*/
 
-  private def closedFormIterate(inT: Type, ouT: Type, n: Expr) : Type = {
+  private def closedFormIterate(inT: Type, ouT: Type, n: Expr, tvMap : scala.collection.mutable.HashMap[TypeVar, Expr]) : Type = {
     (inT,ouT) match {
       case (inAT : ArrayType, outAT : ArrayType) => {
 
@@ -199,6 +199,12 @@ object Type {
               // recognises outLen*tv
               val a = ExprSimplifier.simplify(outLen / tv)
               if (!Expr.contains(a, tv)) {
+
+                // fix the range for tv
+                val max = Expr.max(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n)*tvMap.get(tv).get))
+                val min = Expr.min(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n)*tvMap.get(tv).get))
+                tv.range = ContinousRange(min,max)
+
                 // we have outLen*tv where tv is not present inside outLen
                 Pow(a, n)*tv
               }
@@ -208,11 +214,11 @@ object Type {
           }
         }
 
-        new ArrayType(closedFormIterate(inAT.elemT, outAT.elemT, n), closedFormLen)
+        new ArrayType(closedFormIterate(inAT.elemT, outAT.elemT, n, tvMap), closedFormLen)
 
       }
       case (inTT:TupleType, outTT:TupleType) =>
-        new TupleType(inTT.elemsT.zip(outTT.elemsT).map({case (tIn,tOut) => closedFormIterate(tIn,tOut,n)} ) :_*)
+        new TupleType(inTT.elemsT.zip(outTT.elemsT).map({case (tIn,tOut) => closedFormIterate(tIn,tOut,n, tvMap)} ) :_*)
 
       case _ => if (inT == ouT) ouT else throw new TypeException("Cannot infer closed form for iterate return type. inT = "+inT+" ouT = "+ouT)
     }
@@ -323,7 +329,7 @@ object Type {
 
 
 
-          val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n)
+          val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n, tvMap)
           substitute(closedFormOutputType, tvMap.toMap)
 
 

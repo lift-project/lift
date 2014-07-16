@@ -93,6 +93,7 @@ class OpenCLPrinter {
       case VectorType(elemT, len) => toOpenCL(elemT) + toOpenCL(len)
       case ScalarType(name, _) => name
       case TupleType(_) => throw new Exception // don't know how to print a tuple in opencl ...
+      case UndefType => "void"
     }
   }
 

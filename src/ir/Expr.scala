@@ -55,10 +55,26 @@ object Expr {
 
   implicit def IntToCst(i: Int) = Cst(i)
 
+  def max(e1: Expr, e2: Expr) : Expr = {
+    val diff = ExprSimplifier.simplify(e1 - e2)
+    diff match {
+      case Cst(c) => if (c < 0) e2 else e1
+      case _ => throw new NotEvaluableException("Cannot determine max")
+    }
+  }
+
+  def min(e1: Expr, e2: Expr) : Expr = {
+    val diff = ExprSimplifier.simplify(e1 - e2)
+    diff match {
+      case Cst(c) => if (c < 0) e1 else e2
+      case _ => throw new NotEvaluableException("Cannot determine min")
+    }
+  }
+
   def max(e: Expr) : Expr = {
     e match {
       case _:Cst => e
-      case Var(_, range) => max(range.max)
+      case Var(_, range) => if (range.max != ?) max(range.max) else e
       case Sum(sums) => Sum(sums.map(t => max(t)))
 
       // TODO: check if the product is positive or negative
@@ -73,7 +89,7 @@ object Expr {
   def min(e: Expr) : Expr = {
     e match {
       case _:Cst => e
-      case Var(_, range) => min(range.min)
+      case Var(_, range) => if (range.min != ?) min(range.min) else e
       case Sum(sums) => Sum(sums.map(t => min(t)))
 
       // TODO: check if the product is positive or negative

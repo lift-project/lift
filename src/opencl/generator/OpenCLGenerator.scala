@@ -311,7 +311,7 @@ object OpenCLGenerator extends Generator {
 
   private def generateSwap(first: Memory, second: Memory) {
 
-    assert(first.t == second.t)
+    //assert(first.t == second.t)
 
     val addrsSpace = OpenCLMemory.asOpenCLMemory(first).addressSpace
     val tmp = Var("tmp")
