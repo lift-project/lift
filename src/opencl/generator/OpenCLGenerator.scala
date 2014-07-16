@@ -378,7 +378,7 @@ object OpenCLGenerator extends Generator {
         })
         oclPrinter.toOpenCL(oclMem.variable) + "[" + oclPrinter.toOpenCL(localAccessFunctions.foldRight[Expr](index)((aF, i) => { aF(i) })) + "]"
 
-      case _ => "ERROR" // TODO: throw exeception
+      case _ => throw new NotImplementedError()
     }
   }
 

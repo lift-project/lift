@@ -87,10 +87,12 @@ class OpenCLPrinter {
     lhs + ", " + rhs
   }
 
-  def toOpenCL(t: Type) : String = {
+  def toOpenCL(t: Type, seenArray: Boolean = false) : String = {
     t match {
-      case ArrayType(elemT, _) => toOpenCL(elemT) + "*"
-      case VectorType(elemT, len) => toOpenCL(elemT) + toOpenCL(len)
+      case ArrayType(elemT, _) =>
+        val s = toOpenCL(elemT, true)
+        if (!seenArray) s + "*" else s
+      case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)
       case ScalarType(name, _) => name
       case TupleType(_) => throw new Exception // don't know how to print a tuple in opencl ...
       case UndefType => "void"

@@ -17,6 +17,9 @@ object UndefAddressSpace extends OpenCLAddressSpace
 
 case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCLAddressSpace) extends Memory {
 
+  if (!t.isInstanceOf[ArrayType])
+    throw new IllegalArgumentException
+
   if (TypeVar.getTypeVars(size).nonEmpty)
     throw new IllegalArgumentException
 
@@ -31,7 +34,7 @@ class GlobalAllocator {
 
 }
 
-object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(0), UndefType, UndefAddressSpace)
+object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(0), ArrayType(UndefType,?), UndefAddressSpace)
 
 object OpenCLMemory {
 
@@ -128,7 +131,7 @@ object OpenCLMemory {
         val largestSize = Expr.max(inSize, outSize)
 
         // create a swap buffer
-        it.swapBuffer = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, UndefType, inMem.addressSpace)
+        it.swapBuffer = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, ArrayType(UndefType,?), inMem.addressSpace)
 
         alloc(it.f, numGlb, numLcl, inMem)
 
@@ -139,7 +142,11 @@ object OpenCLMemory {
 
       case _ =>
         if (outputMem == OpenCLNullMemory)
-          allocOutput(maxGlbOutSize, maxLclOutSize, inMem, f.ouT)
+          f.ouT match {
+            case ScalarType(_,_) | VectorType(_,_) => outputMem // create memory in private memory?
+            case _ => allocOutput(maxGlbOutSize, maxLclOutSize, inMem, f.ouT)
+          }
+
         else
           outputMem
     }
@@ -153,10 +160,10 @@ object OpenCLMemory {
 
   def getAllocatedMemory(f: Fun) : Array[OpenCLMemory] = {
     val result = Fun.visit(Array[OpenCLMemory]())(f, (f,arr) => f match {
-      case it : Iterate => Array(OpenCLMemory.asOpenCLMemory(f.inM), OpenCLMemory.asOpenCLMemory(f.outM), OpenCLMemory.asOpenCLMemory(it.swapBuffer))
-      case _ => Array(OpenCLMemory.asOpenCLMemory(f.inM), OpenCLMemory.asOpenCLMemory(f.outM))
+      case it : Iterate => arr :+ OpenCLMemory.asOpenCLMemory(f.inM) :+ OpenCLMemory.asOpenCLMemory(f.outM) :+ OpenCLMemory.asOpenCLMemory(it.swapBuffer)
+      case _ => arr :+ OpenCLMemory.asOpenCLMemory(f.inM) :+ OpenCLMemory.asOpenCLMemory(f.outM)
     })
-    result.distinct
+    result.filter(_ != OpenCLNullMemory).distinct
   }
   
 }
