@@ -44,11 +44,7 @@ object OpenCLGenerator extends Generator {
 
     if (Debug()) {
       println("Memory:")
-      Fun.visit(f, (f: Fun) => {
-        if (f.memory.nonEmpty) {
-          println(f.memory.last + " <- " + f.memory.head + " | " + f)
-        }
-      }, (f: Fun) => {})
+      OpenCLMemory.getAllocatedMemory(f).map(m => println(m))
     }
 
     oclPrinter = new OpenCLPrinter
@@ -78,7 +74,8 @@ object OpenCLGenerator extends Generator {
 
 
   def allocateMemory(f: Fun) : Unit = {
-    Kernel.memory = OpenCLMemory.alloc(f)
+    OpenCLMemory.alloc(f)
+    Kernel.memory = OpenCLMemory.getAllocatedMemory(f)
   }
 
   private class AccessFunction(val f: (Expr) => Expr, val scope: String) {
@@ -139,7 +136,7 @@ object OpenCLGenerator extends Generator {
   }
   
   private object Kernel {
-    var memory = Array.empty[Memory]
+    var memory = Array.empty[OpenCLMemory]
     var workGroupSize = 128
   }
   
@@ -210,7 +207,7 @@ object OpenCLGenerator extends Generator {
     val loopVar = Var("l_id", range)
       
     generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapLcl")
-    oclPrinter.generateBarrier(m.memory.last)
+    oclPrinter.generateBarrier(m.outM)
   }
   
   // MapSeq
@@ -218,8 +215,8 @@ object OpenCLGenerator extends Generator {
                              inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     val length = Type.getLength(m.inT)
     
-    val inputMem = m.memory.head
-    val outputMem = m.memory.last
+    val inputMem = m.inM
+    val outputMem = m.outM
 
     val range = ContinousRange(Cst(0), length)
     val indexVar = Var("i", range)
@@ -243,8 +240,8 @@ object OpenCLGenerator extends Generator {
                                 inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
 
      val len = Type.getLength(r.inT)
-     val inputMem = r.memory.head
-     val outputMem = r.memory.last
+     val inputMem = r.inM
+     val outputMem = r.outM
 
 
      oclPrinter.openCB()
@@ -278,8 +275,8 @@ object OpenCLGenerator extends Generator {
   private def generateIterate(i: Iterate,
                               inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
 
-    val inputMem = i.memory.head
-    val outputMem = i.memory.last
+    val inputMem = i.inM
+    val outputMem = i.outM
 
     val innerInputLength = Type.getLength(i.f.inT)
     val innerOutputLength = Type.getLength(i.f.ouT)
@@ -303,11 +300,11 @@ object OpenCLGenerator extends Generator {
       // tmp = tmp * outputLen / inputLen
       oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = "+ oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength)) + ";")
 
-      generateSwap(inputMem, outputMem)
+      generateSwap(i.swapBuffer, outputMem)
     } )
 
     // make sure the output variable actually holds the computed data
-    oclPrinter.println(oclPrinter.toOpenCL(outputMem.variable)+" = "+oclPrinter.toOpenCL(inputMem.variable) + ";")
+    oclPrinter.println(oclPrinter.toOpenCL(outputMem.variable)+" = "+oclPrinter.toOpenCL(i.swapBuffer.variable) + ";")
     oclPrinter.closeCB()
   }
 

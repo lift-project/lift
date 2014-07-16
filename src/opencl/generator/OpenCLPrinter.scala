@@ -109,8 +109,8 @@ class OpenCLPrinter {
       } ).drop(4) /* drop "1 * " */ + ")"
       case Sum(es) => "(" + es.map(toOpenCL).reduce( _ + " + " + _  ) + ")"
       case of: OclFunction => of.toOCLString
+      case tv : TypeVar => "t_"+tv.id
       case Var(n, _) => "v_"+n
-      case TypeVar(id) => "t_"+id
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }

@@ -173,7 +173,7 @@ case class Sum(terms: List[Expr]) extends Expr {
 
 
 // a special variable that should only be used for defining function type
-class TypeVar private(id: Int, range : Range) extends Var("tv_"+id, range) {
+class TypeVar private(val id: Int, range : Range) extends Var("tv_"+id, range) {
   override def toString = "t" + id
 }
 
@@ -183,7 +183,6 @@ object TypeVar {
     cnt = cnt+1
     new TypeVar(cnt, range)
   }
-
 
   def getTypeVars(f: Fun) : Set[TypeVar] = {
     Fun.visit(immutable.HashSet[TypeVar]())(f, (inF, set) => set ++ getTypeVars(inF.inT))
