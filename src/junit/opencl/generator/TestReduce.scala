@@ -92,10 +92,11 @@ class TestReduce {
     val inputArray = Array.fill(inputSize)(1.0f)
     val local0 = local(512)
     val local1 = local(256)
+    val local2 = local(256)
     val inputData = global.input(inputArray)
     val outputData = global.output[Float](inputSize / 128)
 
-    val args = Array(inputData, local0, local1, outputData, value(inputSize))
+    val args = Array(inputData, outputData, local0, local1, local2, value(inputSize))
 
     Executor.execute(firstKernelCode, 128, inputSize, args)
 

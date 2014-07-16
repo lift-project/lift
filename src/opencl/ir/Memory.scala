@@ -131,7 +131,7 @@ object OpenCLMemory {
         val largestSize = Expr.max(inSize, outSize)
 
         // create a swap buffer
-        it.swapBuffer = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, ArrayType(UndefType,?), inMem.addressSpace)
+        it.swapBuffer = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, ArrayType(it.inT,?), inMem.addressSpace)
 
         alloc(it.f, numGlb, numLcl, inMem)
 
@@ -143,7 +143,8 @@ object OpenCLMemory {
       case _ =>
         if (outputMem == OpenCLNullMemory)
           f.ouT match {
-            case ScalarType(_,_) | VectorType(_,_) => outputMem // create memory in private memory?
+            // TODO: could maybe allocated in private memory (need to change slightly the allocator and add toPrivate)
+            case ScalarType(_,_) | VectorType(_,_) => allocOutput(maxGlbOutSize, maxLclOutSize, inMem, ArrayType(f.ouT, ?))
             case _ => allocOutput(maxGlbOutSize, maxLclOutSize, inMem, f.ouT)
           }
 
@@ -151,6 +152,7 @@ object OpenCLMemory {
           outputMem
     }
 
+    assert (result != OpenCLNullMemory)
     f.outM = result
 
     result
