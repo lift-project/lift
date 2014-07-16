@@ -107,7 +107,7 @@ object OpenCLGenerator extends Generator {
     Kernel.workGroupSize = workGroupSize
 
     oclPrinter.print("kernel void KERNEL(")
-    oclPrinter.printAsParameterDecl(Kernel.memory.distinct.map(m => OpenCLMemory.asOpenCLMemory(m)))
+    oclPrinter.printAsParameterDecl(Kernel.memory.map(m => OpenCLMemory.asOpenCLMemory(m)))
 
     // array of all unique vars (like N, iterSize, etc. )
     val allVars = Kernel.memory.map( m => Var.getVars(m.size) ).filter(_.nonEmpty).flatten.distinct
@@ -135,7 +135,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.closeCB()
   }
   
-  private object Kernel {
+  object Kernel {
     var memory = Array.empty[OpenCLMemory]
     var workGroupSize = 128
   }

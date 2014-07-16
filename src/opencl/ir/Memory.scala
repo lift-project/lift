@@ -1,5 +1,7 @@
 package opencl.ir
 
+import scala.collection.mutable
+
 import ir._
 import ir.Fun
 
@@ -165,7 +167,19 @@ object OpenCLMemory {
       case it : Iterate => arr :+ OpenCLMemory.asOpenCLMemory(f.inM) :+ OpenCLMemory.asOpenCLMemory(f.outM) :+ OpenCLMemory.asOpenCLMemory(it.swapBuffer)
       case _ => arr :+ OpenCLMemory.asOpenCLMemory(f.inM) :+ OpenCLMemory.asOpenCLMemory(f.outM)
     })
-    result.filter(_ != OpenCLNullMemory).distinct
+
+    val seen = mutable.HashSet[OpenCLMemory]()
+    result.
+
+      // remove null memory and duplicates while preserving the order
+      foldLeft(Array[OpenCLMemory]())((arr, m) =>
+      if (seen.contains(m) || m == OpenCLNullMemory)
+        arr
+       else {
+        seen += m
+        arr :+ m
+      })
+
   }
   
 }

@@ -66,6 +66,39 @@ class TestReduce {
 
   }
 
+  @Test def REDUCE_HOST() {
+
+    val kernel = ReduceHost(sumUp) o input
+
+    Type.check(kernel, NoType)
+
+    val kernelCode = OpenCLGenerator.generate(kernel)
+    println("Kernel code:")
+    println(kernelCode)
+
+    val mems = OpenCLGenerator.Kernel.memory
+
+    val inputSize = 4194304
+    val inputArray = Array.fill(inputSize)(1.0f)
+
+    val inputData = global.input(inputArray)
+    val outputData = global.output[Float](1)
+
+    val args = Array(inputData, outputData, value(inputSize))
+
+    Executor.execute(kernelCode, 1, inputSize, args)
+
+    val outputArray = outputData.asFloatArray()
+
+    println("outputArray(0): " + outputArray(0))
+    println("outputArray(1): " + outputArray(1))
+
+    println("sum: ", outputArray.reduce(_ + _))
+
+    args.foreach(_.dispose) // free c++ memory (important!)
+  }
+
+
   @Test def NVIDIA_A() {
 
     val firstKernel = Join() o MapWrg(
