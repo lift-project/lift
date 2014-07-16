@@ -34,7 +34,11 @@ object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(0), UndefType, Und
 
 object OpenCLMemory {
 
-  def getSizeInBytes(t: Type) : Expr = {
+  def getMaxSizeInBytes(t: Type) : Expr = {
+    Expr.max(getSizeInBytes(t))
+  }
+
+  private def getSizeInBytes(t: Type) : Expr = {
     ExprSimplifier.simplify(
       t match {
         case st: ScalarType => st.size
@@ -49,7 +53,7 @@ object OpenCLMemory {
   def asOpenCLMemory(m : Memory) : OpenCLMemory = {
     m match {
       case oclm : OpenCLMemory => oclm
-      case NullMemory => OpenCLNullMemory
+      case UnallocatedMemory => OpenCLNullMemory
       case _ => throw new IllegalArgumentException
     }
   }
@@ -61,7 +65,7 @@ object OpenCLMemory {
       f match {
         case _: Input => OpenCLNullMemory
         case _: CompFun => OpenCLNullMemory
-        case _ => OpenCLMemory(Var(ContinousRange(Cst(0), Type.getSizeInBytes(f.inT))), Type.getSizeInBytes(f.inT), f.inT, GlobalMemory)
+        case _ => OpenCLMemory(Var(ContinousRange(Cst(0), getMaxSizeInBytes(f.inT))), getMaxSizeInBytes(f.inT), f.inT, GlobalMemory)
       }
     }
     else
@@ -78,81 +82,74 @@ object OpenCLMemory {
     }
   }
 
-  def alloc(f: Fun, numGlb: Expr = 1, numLcl: Expr = 0, argInMem : OpenCLMemory = OpenCLNullMemory, outputMem : OpenCLMemory = OpenCLNullMemory) : Array[Memory] = {
+  def alloc(f: Fun, numGlb: Expr = 1, numLcl: Expr = 0, argInMem : OpenCLMemory = OpenCLNullMemory, outputMem : OpenCLMemory = OpenCLNullMemory) : OpenCLMemory = {
 
     // fix in the input memory if needed
     val inMem = fixInput(f, argInMem)
     assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input] || f.isInstanceOf[CompFun])
+    f.inM = inMem
 
-    val glbOutSize = Type.getSizeInBytes(f.ouT) * numGlb
-    val lclOutSize = Type.getSizeInBytes(f.ouT) * numLcl
+    val glbOutSize = getMaxSizeInBytes(f.ouT) * numGlb
+    val lclOutSize = getMaxSizeInBytes(f.ouT) * numLcl
 
     val len = Type.getLength(f.ouT)
-    val result : Array[Memory] = f match {
+    val result : OpenCLMemory = f match {
 
       case Input(_,_) =>
         assert(outputMem == OpenCLNullMemory)
-        Array(OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory))
+        OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory)
 
       case MapGlb(_) | MapWrg(_) => alloc(f.asInstanceOf[AbstractMap].f, numGlb * len, numLcl, inMem, outputMem)
       case MapLcl(_) | MapWarp(_) | MapLane(_) => alloc(f.asInstanceOf[AbstractMap].f, numGlb * len, numLcl * len, inMem, outputMem)
 
-      case tg: toGlobal if outputMem == OpenCLNullMemory || outputMem.addressSpace != GlobalMemory =>
-        val mem = OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory)
+      case tg: toGlobal =>
+        val mem =
+          if (outputMem == OpenCLNullMemory || outputMem.addressSpace != GlobalMemory)
+            OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, f.ouT, GlobalMemory)
+        else
+            outputMem
         alloc(tg.f, numGlb, numLcl, inMem, mem)
 
-      case tl: toLocal if outputMem == OpenCLNullMemory || outputMem.addressSpace != LocalMemory =>
-        val mem = OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, f.ouT, LocalMemory)
+      case tl: toLocal =>
+        val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != LocalMemory)
+          OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, f.ouT, LocalMemory)
+        else
+          outputMem
         alloc(tl.f, numGlb, numLcl, inMem, mem)
 
       case cf: CompFun =>
-        var allAllocs = Array[Memory]()
-        cf.funs.foldRight(Array[Memory](inMem))((f,mem) => {
-          val innerFAllocs = alloc(f, numGlb, numLcl, asOpenCLMemory(mem(0)),
-            if (mem.length > 1)
-              asOpenCLMemory(mem.last)
-            else
-              OpenCLNullMemory)
-          allAllocs = (allAllocs++innerFAllocs).distinct
-          innerFAllocs
-        })
+        cf.funs.foldRight(inMem)((f,mem) => alloc(f, numGlb, numLcl, mem))
 
-      case i: Iterate =>
+      case it: Iterate =>
 
-        val inSize = getSizeInBytes(i.inT)
-        val outSize = getSizeInBytes(i.ouT)
+        val inSize = getMaxSizeInBytes(it.inT)
+        val outSize = getMaxSizeInBytes(it.ouT)
         val diff = ExprSimplifier.simplify(inSize - outSize)
         val largestSize =  diff match {
           case Cst(c) => if (c < 0) outSize else inSize
           case _ => throw new IllegalArgumentException // maybe bug in expression simplifier??
         }
 
-        // create two buffers that will be swapped during execution
-        val buffer1 = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, UndefType, inMem.addressSpace)
-        val buffer2 = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, UndefType, inMem.addressSpace)
+        // create a swap buffer
+        it.swapBuffer = OpenCLMemory(Var(ContinousRange(Cst(0), largestSize)), largestSize, UndefType, inMem.addressSpace)
 
-        alloc(i.f, numGlb, numLcl, inMem, outMem)
+        alloc(it.f, numGlb, numLcl, inMem)
 
       case fp: FPattern => alloc(fp.f, numGlb, numLcl, inMem, outputMem)
 
       // some function do not create anything, TODO: add toVector, ToScalar, reorder,...
-      case Split(_) | Join() => Array(inMem)
+      case Split(_) | Join() => inMem
 
       case _ =>
-        Array(inMem) ++ {
-          if (outputMem == OpenCLNullMemory)
-          Array[Memory](allocOutput(glbOutSize, lclOutSize, inMem, f.ouT))
+        if (outputMem == OpenCLNullMemory)
+          allocOutput(glbOutSize, lclOutSize, inMem, f.ouT)
         else
-          Array[Memory]()
-        }
+          outputMem
     }
 
-    if (inMem != OpenCLNullMemory)
-      f.memory = (Array(inMem) ++ result).distinct
-    else
-    f.memory = result
+    f.outM = result
 
-    f.memory
+    result
 
   }
 

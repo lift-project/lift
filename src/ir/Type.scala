@@ -98,18 +98,6 @@ object Type {
     }
   }
 
-  @deprecated("use method from OpenCLMemory object")
-  def getSizeInBytes(t: Type) : Expr = {
-    ExprSimplifier.simplify(
-      t match {
-        case st: ScalarType => st.size
-        case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
-        case at: ArrayType => at.len * getSizeInBytes(at.elemT)
-        case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
-        case _ => throw new TypeException(t, "??")
-      }
-    )
-  }
 
   private def asScalar(at0: ArrayType): Type = {
     at0.elemT match {

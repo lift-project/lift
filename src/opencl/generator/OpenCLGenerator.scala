@@ -117,7 +117,7 @@ object OpenCLGenerator extends Generator {
     // partition into iteration variables and all others variables
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
-    val varMap = iterateVars.map( v => (v, Expr.asCst(Range.getMax(v.range))) ).toMap
+    val varMap = iterateVars.map( v => (v, Expr.asCst(v.range.max)) ).toMap
 
     Kernel.memory.map( mem => {
       val m = OpenCLMemory.asOpenCLMemory(mem)

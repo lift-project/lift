@@ -47,11 +47,6 @@ abstract class Expr {
   def /(that: Expr) = this * Pow(that, Cst(-1))
   def -(that: Expr) = this + (that * Cst(-1))
 
-  def max = {
-    // check for any variable maximum values and set it to the max
-
-  }
-
 }
 
 
@@ -59,6 +54,36 @@ abstract class Expr {
 object Expr {
 
   implicit def IntToCst(i: Int) = Cst(i)
+
+  def max(e: Expr) : Expr = {
+    e match {
+      case _:Cst => e
+      case Var(_, range) => max(range.max)
+      case Sum(sums) => Sum(sums.map(t => max(t)))
+
+      // TODO: check if the product is positive or negative
+      case Prod(prods) => Prod(prods.map(t => max(t)))
+
+      case Pow(b, Cst(c)) => if (c>=0) Pow(max(b), Cst(c)) else Pow(min(b), Cst(c))
+
+      case _ => throw new NotEvaluableException("Cannot determine max value")
+    }
+  }
+
+  def min(e: Expr) : Expr = {
+    e match {
+      case _:Cst => e
+      case Var(_, range) => min(range.min)
+      case Sum(sums) => Sum(sums.map(t => min(t)))
+
+      // TODO: check if the product is positive or negative
+      case Prod(prods) => Prod(prods.map(t => min(t)))
+
+      case Pow(b, Cst(c)) => if (c>=0) Pow(min(b), Cst(c)) else Pow(max(b), Cst(c))
+
+      case _ => throw new NotEvaluableException("Cannot determine min value")
+    }
+  }
 
   def getTypeVars(expr: Expr) : Set[TypeVar] = {
     val typeVars = scala.collection.mutable.HashSet[TypeVar]()
@@ -104,7 +129,7 @@ object Expr {
 
   private def evalDouble(e: Expr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ? | TypeVar(_) => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | ? => throw new NotEvaluableException(e.toString)
     case Pow(base,exp) => scala.math.pow(evalDouble(base),evalDouble(exp))
     case Sum(terms) => terms.foldLeft(0.0)((result,expr) => result+evalDouble(expr))
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
@@ -148,16 +173,17 @@ case class Sum(terms: List[Expr]) extends Expr {
 
 
 // a special variable that should only be used for defining function type
-case class TypeVar private(id: Int) extends Expr {
+class TypeVar private(id: Int, range : Range) extends Var("tv_"+id, range) {
   override def toString = "t" + id
 }
 
 object TypeVar {
   var cnt: Int = -1
-  def apply() = {
+  def apply(range : Range = RangeUnkown) = {
     cnt = cnt+1
-    new TypeVar(cnt)
+    new TypeVar(cnt, range)
   }
+
 
   def getTypeVars(f: Fun) : Set[TypeVar] = {
     Fun.visit(immutable.HashSet[TypeVar]())(f, (inF, set) => set ++ getTypeVars(inF.inT))
