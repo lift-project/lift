@@ -189,15 +189,15 @@ case class Sum(terms: List[Expr]) extends Expr {
 
 
 // a special variable that should only be used for defining function type
-class TypeVar private(val id: Int, range : Range) extends Var("tv_"+id, range) {
+class TypeVar private(range : Range) extends Var("", range) {
   override def toString = "t" + id
 }
 
 object TypeVar {
-  var cnt: Int = -1
+  //var cnt: Int = -1
   def apply(range : Range = RangeUnkown) = {
-    cnt = cnt+1
-    new TypeVar(cnt, range)
+    //cnt = cnt+1
+    new TypeVar(/*cnt, */range)
   }
 
   def getTypeVars(f: Fun) : Set[TypeVar] = {
@@ -225,14 +225,17 @@ object TypeVar {
 
 case class Var(name: String, var range : Range = RangeUnkown) extends Expr {
 
+  Var.cnt += 1
+  val id: Int = Var.cnt
+
   override def equals(that: Any) = that match {
-    case v: Var => this.name == v.name
+    case v: Var => this.id == v.id
     case _ => false
   }
 
   override def hashCode() = {
     val hash = 5
-    hash * 79 + name.hashCode()
+    hash * 79 + id;
   }
 
   override def toString = name
@@ -248,10 +251,8 @@ case class Var(name: String, var range : Range = RangeUnkown) extends Expr {
 object Var {
   var cnt: Int = -1
 
-  def apply(range : Range) : Var = {
-    cnt += 1
-    Var("v"+cnt, range)
-  }
+  def apply(range : Range) : Var = new Var("",range)
+
 
   def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {
 

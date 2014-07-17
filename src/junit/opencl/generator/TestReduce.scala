@@ -151,7 +151,7 @@ class TestReduce {
 
     val outputArray = outputData.asFloatArray()
 
-    val gold = outputArray.grouped(128).map(a => a.reduce(_ + _)).toArray
+    val gold = inputArray.grouped(128).map(a => a.reduce(_ + _)).toArray
 
     println("outputArray(0) = "+outputArray(0))
     println("gold(0) = "+gold(0))
@@ -160,9 +160,6 @@ class TestReduce {
 
 
     args.foreach(_.dispose) // free c++ memory (important!)
-
-
-
 
 
 
@@ -177,8 +174,8 @@ class TestReduce {
 
     Type.check(secondKernel, NoType)
 
-    //val secondKernelCode = OpenCLGenerator.compile(secondKernel)
-    //println(secondKernelCode)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+    println(secondKernelCode)
 
   }
 
@@ -367,7 +364,10 @@ class TestReduce {
     val inputData = global.input(inputArray)
     val outputData = global.output[Float](inputSize / 2048)
 
-    val args = Array(inputData, outputData, value(inputSize))
+    val mems = OpenCLGenerator.Kernel.memory
+
+
+    val args = Array( outputData, inputData, value(inputSize))
 
     Executor.execute(kernelCode, 128, inputSize, args)
 

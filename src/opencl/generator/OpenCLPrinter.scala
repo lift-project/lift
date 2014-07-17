@@ -90,7 +90,7 @@ class OpenCLPrinter {
   def toOpenCL(t: Type, seenArray: Boolean = false) : String = {
     t match {
       case ArrayType(elemT, _) =>
-        val s = toOpenCL(elemT, true)
+        val s = toOpenCL(elemT, seenArray=true)
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)
       case ScalarType(name, _) => name
@@ -112,8 +112,8 @@ class OpenCLPrinter {
       } ).drop(4) /* drop "1 * " */ + ")"
       case Sum(es) => "(" + es.map(toOpenCL).reduce( _ + " + " + _  ) + ")"
       case of: OclFunction => of.toOCLString
-      case tv : TypeVar => "t_"+tv.id
-      case Var(n, _) => "v_"+n
+      case tv : TypeVar => "tv_"+tv.id
+      case v: Var => "v_"+v.name+"_"+v.id
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }

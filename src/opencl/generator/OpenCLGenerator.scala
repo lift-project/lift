@@ -285,8 +285,14 @@ object OpenCLGenerator extends Generator {
 
     oclPrinter.openCB()
 
-    // use the type var as the var holding the iterating size
-    val curOutLen = TypeVar.getTypeVars(i.f.inT).head
+    // use the type var as the var holding the iterating size if it exists
+    if (TypeVar.getTypeVars(i.f.inT).size > 1)
+      throw new NotImplementedError()
+    val curOutLen =
+      if (TypeVar.getTypeVars(i.f.inT).isEmpty)
+        Var("curOutLen")
+      else
+        TypeVar.getTypeVars(i.f.inT).head
     oclPrinter.printVarDecl(opencl.ir.Int, curOutLen, oclPrinter.toOpenCL(Type.getLength(i.inT)))
     oclPrinter.println(";")
 
