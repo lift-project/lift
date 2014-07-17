@@ -78,22 +78,26 @@ class TestReduce {
 
     val mems = OpenCLGenerator.Kernel.memory
 
-    val inputSize = 4194304
+    val inputSize = 16
     val inputArray = Array.fill(inputSize)(1.0f)
 
     val inputData = global.input(inputArray)
     val outputData = global.output[Float](1)
 
-    val args = Array(inputData, outputData, value(inputSize))
+    val memArgs = new Array[KernelArg](2)
+
+    memArgs.update(mems.indexOf(input.outM), inputData)
+    memArgs.update(mems.indexOf(kernel.outM), outputData)
+
+    val args = memArgs :+ value(inputSize)
 
     Executor.execute(kernelCode, 1, inputSize, args)
 
     val outputArray = outputData.asFloatArray()
 
-    println("outputArray(0): " + outputArray(0))
-    println("outputArray(1): " + outputArray(1))
-
-    println("sum: ", outputArray.reduce(_ + _))
+    println("outputArray(0) = "+outputArray(0))
+    println("gold = "+outputArray.reduce(_ + _))
+    assertEquals(outputArray(0),outputArray.reduce(_ + _),0.1)
 
     args.foreach(_.dispose) // free c++ memory (important!)
   }
@@ -121,15 +125,27 @@ class TestReduce {
     println("Kernel code:")
     println(firstKernelCode)
 
+
     val inputSize = 4194304
     val inputArray = Array.fill(inputSize)(1.0f)
-    val local0 = local(512)
+    /*val local0 = local(512)
     val local1 = local(256)
-    val local2 = local(256)
+    val local2 = local(256)*/
     val inputData = global.input(inputArray)
     val outputData = global.output[Float](inputSize / 128)
 
-    val args = Array(inputData, outputData, local0, local1, local2, value(inputSize))
+    val mems = OpenCLGenerator.Kernel.memory
+
+    val memArgs = mems.map(m => {
+      if (m == input.outM) inputData
+      else if (m == firstKernel.outM) outputData
+      else m.addressSpace match {
+        case LocalMemory => local(m.size.eval())
+        //case GlobalMemory => // should not happen
+      }
+    })
+
+    val args = memArgs :+ value(inputSize)
 
     Executor.execute(firstKernelCode, 128, inputSize, args)
 
@@ -140,7 +156,17 @@ class TestReduce {
 
     println("sum: ", outputArray.reduce(_ + _))
 
+    println("outputArray(0) = "+outputArray(0))
+    println("gold = "+outputArray.reduce(_ + _))
+
+    assertEquals(outputArray(0),outputArray.reduce(_ + _),0.1)
+
+
     args.foreach(_.dispose) // free c++ memory (important!)
+
+
+
+
 
 
 
