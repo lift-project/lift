@@ -3,37 +3,26 @@ package ir
 sealed abstract class Range {
   // default impl
   def *(e: Expr): Range = this
+  def min : Expr = ?
+  def max : Expr = ?
 }
 
 class RangeUnkownException(msg: String) extends Exception(msg)
 
-object Range {
-  def getMin(r: Range) = {
-    r match {
-      case RangeAdd(s, _, _) => s
-      case RangeMul(s, _, _) => s
-      case RangeUnkown => throw new RangeUnkownException("")
-    }
-  }
-
-  def getMax(r: Range) = {
-    r match {
-      case RangeAdd(_, s, _) => s
-      case RangeMul(_, s, _) => s
-      case RangeUnkown => throw new RangeUnkownException("")
-    }
-  }
-}
 
 case class RangeAdd(val start: Expr, val stop: Expr, step: Expr) extends Range {
   override def *(e: Expr): Range = {
     RangeAdd(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), step)
   }
+  override def min = start
+  override def max = stop
 }
 case class RangeMul(val start: Expr, val stop: Expr, mul: Expr) extends Range {
   override def *(e: Expr): Range = {
     RangeMul(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), mul)
   }
+  override def min = start
+  override def max = stop
 }
 
 object ContinousRange {

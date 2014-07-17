@@ -6,7 +6,7 @@ abstract class Memory {
   def t : Type
 }
 
-object NullMemory extends Memory {
+object UnallocatedMemory extends Memory {
   val variable = Var("NULL")
   val size = Cst(0)
   val t = UndefType

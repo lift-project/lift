@@ -37,7 +37,7 @@ class TestReduce {
     ) o Split(262144) o input
 
     Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.compile(kernel)
+    val kernelCode = OpenCLGenerator.generate(kernel)
     println(kernelCode)
 
     val outputArray = testSimplePartialReduction(kernelCode, 4194304)
@@ -55,7 +55,7 @@ class TestReduce {
     ) o Split(128) o Split(2048) o input
 
     Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.compile(kernel)
+    val kernelCode = OpenCLGenerator.generate(kernel)
     println(kernelCode)
 
     val outputArray = testSimplePartialReduction(kernelCode, 4194304)
@@ -65,6 +65,43 @@ class TestReduce {
     println( "Final finished result: " +  finalResult)
 
   }
+
+  @Test def REDUCE_HOST() {
+
+    val kernel = ReduceHost(sumUp) o input
+
+    Type.check(kernel, NoType)
+
+    val kernelCode = OpenCLGenerator.generate(kernel)
+    println("Kernel code:")
+    println(kernelCode)
+
+    val mems = OpenCLGenerator.Kernel.memory
+
+    val inputSize = 16
+    val inputArray = Array.fill(inputSize)(1.0f)
+
+    val inputData = global.input(inputArray)
+    val outputData = global.output[Float](1)
+
+    val memArgs = new Array[KernelArg](2)
+
+    memArgs.update(mems.indexOf(input.outM), inputData)
+    memArgs.update(mems.indexOf(kernel.outM), outputData)
+
+    val args = memArgs :+ value(inputSize)
+
+    Executor.execute(kernelCode, 1, inputSize, args)
+
+    val outputArray = outputData.asFloatArray()
+
+    println("outputArray(0) = "+outputArray(0))
+    println("gold = "+outputArray.reduce(_ + _))
+    assertEquals(outputArray(0),outputArray.reduce(_ + _),0.1)
+
+    args.foreach(_.dispose) // free c++ memory (important!)
+  }
+
 
   @Test def NVIDIA_A() {
 
@@ -84,29 +121,46 @@ class TestReduce {
 
     Type.check(firstKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
     println("Kernel code:")
     println(firstKernelCode)
 
+
     val inputSize = 4194304
     val inputArray = Array.fill(inputSize)(1.0f)
-    val local0 = local(512)
+    /*val local0 = local(512)
     val local1 = local(256)
+    val local2 = local(256)*/
     val inputData = global.input(inputArray)
     val outputData = global.output[Float](inputSize / 128)
 
-    val args = Array(inputData, local0, local1, outputData, value(inputSize))
+    val mems = OpenCLGenerator.Kernel.memory
+
+    val memArgs = mems.map(m => {
+      if (m == input.outM) inputData
+      else if (m == firstKernel.outM) outputData
+      else m.addressSpace match {
+        case LocalMemory => local(m.size.eval())
+        //case GlobalMemory => // should not happen
+      }
+    })
+
+    val args = memArgs :+ value(inputSize)
 
     Executor.execute(firstKernelCode, 128, inputSize, args)
 
     val outputArray = outputData.asFloatArray()
 
-    println("outputArray(0): " + outputArray(0))
-    println("outputArray(1): " + outputArray(1))
+    val gold = inputArray.grouped(128).map(a => a.reduce(_ + _)).toArray
 
-    println("sum: ", outputArray.reduce(_ + _))
+    println("outputArray(0) = "+outputArray(0))
+    println("gold(0) = "+gold(0))
+
+    gold.zip(outputArray).map(p => assertEquals(p._1,p._2,0.1))
+
 
     args.foreach(_.dispose) // free c++ memory (important!)
+
 
 
 
@@ -120,8 +174,8 @@ class TestReduce {
 
     Type.check(secondKernel, NoType)
 
-    //val secondKernelCode = OpenCLGenerator.compile(secondKernel)
-    //println(secondKernelCode)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+    println(secondKernelCode)
 
   }
 
@@ -134,7 +188,7 @@ class TestReduce {
     ) o Split(256) o input
 
     Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.compile(kernel)
+    val kernelCode = OpenCLGenerator.generate(kernel)
 
   }
 
@@ -158,8 +212,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -182,8 +236,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -206,8 +260,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -229,8 +283,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -251,8 +305,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -275,8 +329,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -299,8 +353,8 @@ class TestReduce {
     Type.check(firstKernel, NoType)
     Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.compile(firstKernel)
-    val secondKernelCode = OpenCLGenerator.compile(secondKernel)
+    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
+    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
 
   }
 
@@ -310,7 +364,10 @@ class TestReduce {
     val inputData = global.input(inputArray)
     val outputData = global.output[Float](inputSize / 2048)
 
-    val args = Array(inputData, outputData, value(inputSize))
+    val mems = OpenCLGenerator.Kernel.memory
+
+
+    val args = Array( outputData, inputData, value(inputSize))
 
     Executor.execute(kernelCode, 128, inputSize, args)
 

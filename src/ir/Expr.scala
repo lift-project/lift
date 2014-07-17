@@ -7,7 +7,7 @@ import scala.util.Random
 class NotEvaluableException(msg: String) extends Exception(msg)
 
 
-sealed abstract class Expr {
+abstract class Expr {
 
   def eval(): Int = {
     val dblResult = Expr.evalDouble(this)
@@ -45,7 +45,7 @@ sealed abstract class Expr {
   }
 
   def /(that: Expr) = this * Pow(that, Cst(-1))
-  //def -(that: Expr) = this + (that * Cst(-1))
+  def -(that: Expr) = this + (that * Cst(-1))
 
 }
 
@@ -54,6 +54,52 @@ sealed abstract class Expr {
 object Expr {
 
   implicit def IntToCst(i: Int) = Cst(i)
+
+  def max(e1: Expr, e2: Expr) : Expr = {
+    val diff = ExprSimplifier.simplify(e1 - e2)
+    diff match {
+      case Cst(c) => if (c < 0) e2 else e1
+      case _ => throw new NotEvaluableException("Cannot determine max")
+    }
+  }
+
+  def min(e1: Expr, e2: Expr) : Expr = {
+    val diff = ExprSimplifier.simplify(e1 - e2)
+    diff match {
+      case Cst(c) => if (c < 0) e1 else e2
+      case _ => throw new NotEvaluableException("Cannot determine min")
+    }
+  }
+
+  def max(e: Expr) : Expr = {
+    e match {
+      case _:Cst => e
+      case Var(_, range) => if (range.max != ?) max(range.max) else e
+      case Sum(sums) => Sum(sums.map(t => max(t)))
+
+      // TODO: check if the product is positive or negative
+      case Prod(prods) => Prod(prods.map(t => max(t)))
+
+      case Pow(b, Cst(c)) => if (c>=0) Pow(max(b), Cst(c)) else Pow(min(b), Cst(c))
+
+      case _ => throw new NotEvaluableException("Cannot determine max value")
+    }
+  }
+
+  def min(e: Expr) : Expr = {
+    e match {
+      case _:Cst => e
+      case Var(_, range) => if (range.min != ?) min(range.min) else e
+      case Sum(sums) => Sum(sums.map(t => min(t)))
+
+      // TODO: check if the product is positive or negative
+      case Prod(prods) => Prod(prods.map(t => min(t)))
+
+      case Pow(b, Cst(c)) => if (c>=0) Pow(min(b), Cst(c)) else Pow(max(b), Cst(c))
+
+      case _ => throw new NotEvaluableException("Cannot determine min value")
+    }
+  }
 
   def getTypeVars(expr: Expr) : Set[TypeVar] = {
     val typeVars = scala.collection.mutable.HashSet[TypeVar]()
@@ -99,7 +145,7 @@ object Expr {
 
   private def evalDouble(e: Expr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ? | TypeVar(_) => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | ? => throw new NotEvaluableException(e.toString)
     case Pow(base,exp) => scala.math.pow(evalDouble(base),evalDouble(exp))
     case Sum(terms) => terms.foldLeft(0.0)((result,expr) => result+evalDouble(expr))
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
@@ -143,15 +189,15 @@ case class Sum(terms: List[Expr]) extends Expr {
 
 
 // a special variable that should only be used for defining function type
-case class TypeVar private(id: Int) extends Expr {
-  override def toString() = "t" + id
+class TypeVar private(range : Range) extends Var("", range) {
+  override def toString = "t" + id
 }
 
 object TypeVar {
-  var cnt: Int = -1
-  def apply() = {
-    cnt = cnt+1
-    new TypeVar(cnt)
+  //var cnt: Int = -1
+  def apply(range : Range = RangeUnkown) = {
+    //cnt = cnt+1
+    new TypeVar(/*cnt, */range)
   }
 
   def getTypeVars(f: Fun) : Set[TypeVar] = {
@@ -179,14 +225,17 @@ object TypeVar {
 
 case class Var(name: String, var range : Range = RangeUnkown) extends Expr {
 
+  Var.cnt += 1
+  val id: Int = Var.cnt
+
   override def equals(that: Any) = that match {
-    case v: Var => this.name == v.name
+    case v: Var => this.id == v.id
     case _ => false
   }
 
   override def hashCode() = {
     val hash = 5
-    hash * 79 + name.hashCode()
+    hash * 79 + id;
   }
 
   override def toString = name
@@ -202,10 +251,8 @@ case class Var(name: String, var range : Range = RangeUnkown) extends Expr {
 object Var {
   var cnt: Int = -1
 
-  def apply(range : Range) : Var = {
-    cnt += 1
-    Var("v"+cnt, range)
-  }
+  def apply(range : Range) : Var = new Var("",range)
+
 
   def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {
 

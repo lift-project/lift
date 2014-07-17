@@ -8,7 +8,8 @@ abstract class Fun () {
   var inT: Type = UndefType
   var ouT: Type = UndefType
 
-  var memory : Array[Memory] = Array.empty[Memory]
+  var inM: Memory = UnallocatedMemory
+  var outM: Memory = UnallocatedMemory
 
   /*
    * Is this immediate function generable? (without looking inside)
@@ -235,6 +236,7 @@ case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
 case class Iterate(n: Expr, f: Fun) extends FPattern() {
   override def isGenerable() = true
   override def copy() = Iterate(n, f)
+  var swapBuffer: Memory = UnallocatedMemory
 }
 
 object Iterate {
