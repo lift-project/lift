@@ -1,8 +1,8 @@
 package generator
 
-import opencl.executor.{Executor, value, global}
+import opencl.executor.{local, Executor, value, global}
 import opencl.generator.OpenCLGenerator
-import opencl.ir.{MapWrg, MapGlb, ReduceHost}
+import opencl.ir._
 import org.junit.{AfterClass, BeforeClass}
 
 import ir._
@@ -55,18 +55,43 @@ object Dispatcher {
           }
         }
 
-        val inputData = global.input(inputArray)
-        val outputData = global.output[Float](outputLen)
-
-        val args = Array(inputData, outputData, value(inputLen))
-
         println("Generating code for " + f)
         val kernelCode = OpenCLGenerator.generate(f)
         println("Kernel code:")
+        println(kernelCode)
 
-        Executor.execute(kernelCode, 128, inputLen, args)
+        val inputData = global.input(inputArray)
+        val outputData = global.output[Float](outputLen)
 
-        outputData.asFloatArray()
+        val mems = OpenCLGenerator.Kernel.memory
+
+        val memArgs = mems.map(m => {
+          if (m == f.inM) inputData
+          else if (m == f.outM) outputData
+          else m.addressSpace match {
+            case LocalMemory => local(m.size.eval())
+            case GlobalMemory =>  throw new NotImplementedError()
+          }
+        })
+
+        val allVars = OpenCLGenerator.Kernel.memory.map( m => Var.getVars(m.size) ).filter(_.nonEmpty).flatten.distinct
+        val args =
+          if (allVars.length == 0)
+            memArgs
+          else if (allVars.length == 1)
+            memArgs :+ value(inputLen)
+          else
+            throw new NotImplementedError()
+
+
+
+        f match {
+          case _: ReduceHost => Executor.execute(kernelCode, 1, inputLen, args)  // single-threaded execution
+          case _ => Executor.execute(kernelCode, 128, inputLen, args)
+        }
+
+        val result = outputData.asFloatArray()
+        result
       }
 
       case cf : CompFun => {

@@ -122,9 +122,12 @@ object OpenCLGenerator extends Generator {
     })
 
     // generate string for the constants (N, ...)
-    val constantsString = vars.map( (v) => { "int " + oclPrinter.toOpenCL(v) }).reduce(oclPrinter.separateByComma)
-    if (constantsString.nonEmpty)
-        oclPrinter.print(", " + constantsString)
+    if (vars.nonEmpty) {
+      val constantsString = vars.map((v) => {
+        "int " + oclPrinter.toOpenCL(v)
+      }).reduce(oclPrinter.separateByComma)
+      oclPrinter.print(", " + constantsString)
+    }
 
     oclPrinter.print(")")
 

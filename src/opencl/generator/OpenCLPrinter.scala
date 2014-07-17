@@ -151,21 +151,29 @@ class OpenCLPrinter {
     val (condIsEvaluated, condEvaluated) = evalExpr(cond)
     val (updateIsEvaluated, updateEvaluated) = evalExpr(update)
 
-    // if all three can be evaluated ...
-    if (initIsEvaluated && condIsEvaluated && updateIsEvaluated)
-      // .. and the condition is less or equal than init + update then exactly one iteration is necessary
-      if (condEvaluated <= ( initEvaluated + updateEvaluated )) {
+    // TODO evaluate symbolically with a comparison operator (add support for <,<=,==,>=,> in Expr)
+
+    if (initIsEvaluated && condIsEvaluated) {
+      if (condEvaluated <= initEvaluated)
+        // nothing to do
+        return
+    }
+
+    if (initIsEvaluated && condIsEvaluated && updateIsEvaluated) {
+      assert (condEvaluated > initEvaluated)
+      if (condEvaluated <= (initEvaluated + updateEvaluated)) {
+        // exactly one iteration
         openCB()
         println("int " + toOpenCL(indexVar) + " = " + toOpenCL(init) + ";")
         printBody()
         closeCB()
         return
       }
+    }
 
-    // if condition and update can be evaluated ...
     if (condIsEvaluated && updateIsEvaluated)
-      // ... and the condition is less than the update then at most one iteration is necessary
       if (condEvaluated <= updateEvaluated) {
+        // one or less iteration
         openCB()
         println("int " + toOpenCL(indexVar) + " = " + toOpenCL(init) + ";")
         print("if (" + toOpenCL(indexVar) + " < (" + toOpenCL(cond) + ")) ")
