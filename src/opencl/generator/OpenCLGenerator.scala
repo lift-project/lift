@@ -78,7 +78,7 @@ object OpenCLGenerator extends Generator {
     Kernel.memory = OpenCLMemory.getAllocatedMemory(f)
   }
 
-  private class AccessFunction(val f: (Expr) => Expr, val scope: String) {
+  private class AccessFunction(/*val ptr: Var, */val f: (Expr) => Expr, val scope: String) {
     def apply(e: Expr): Expr = f(e)
   }
 
@@ -86,8 +86,7 @@ object OpenCLGenerator extends Generator {
     def apply(f: (Expr) => Expr, scope: String) = new AccessFunction(f, scope)
   }
 
-  private class MapAccessFunction(val loopVar: Var, var chunkSize: Expr, val mapName: String)
-    extends AccessFunction( (i:Expr) => (loopVar * chunkSize) + i, mapName )
+  private class MapAccessFunction(val loopVar: Var, var chunkSize: Expr, val mapName: String) extends AccessFunction( (i:Expr) => (loopVar * chunkSize) + i, mapName )
 
   private object MapAccessFunction {
     def apply(loopVar: Var, initialChunkSize: Expr, mapName: String) =
@@ -275,8 +274,11 @@ object OpenCLGenerator extends Generator {
   private def generateIterate(i: Iterate,
                               inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
 
-    val inputMem = i.inM
-    val outputMem = i.outM
+    val inputMem = OpenCLMemory.asOpenCLMemory(i.inM)
+    val outputMem = OpenCLMemory.asOpenCLMemory(i.outM)
+    val swapMem = OpenCLMemory.asOpenCLMemory(i.swapBuffer)
+
+    assert (inputMem.addressSpace == outputMem.addressSpace)
 
     val innerInputLength = Type.getLength(i.f.inT)
     val innerOutputLength = Type.getLength(i.f.ouT)
@@ -291,25 +293,66 @@ object OpenCLGenerator extends Generator {
     val range = ContinousRange(Cst(0), i.n)
     val indexVar = Var("i", range)
 
+    // create new temporary input and output pointers
+    val tin = Var("tin")
+    val tout = Var("tout")
+
+    val tinVStr = oclPrinter.toOpenCL(tin)
+    val toutVStr = oclPrinter.toOpenCL(tout)
+    val inVStr = oclPrinter.toOpenCL(inputMem.variable)
+    val outVStr = oclPrinter.toOpenCL(outputMem.variable)
+    val swapVStr = oclPrinter.toOpenCL(swapMem.variable)
+
+    // ADDRSPC TYPE tin = in;
+    oclPrinter.println(outputMem.addressSpace + " " + oclPrinter.toOpenCL(outputMem.t) + " " + tinVStr + " = " + inVStr+";")
+
+    // ADDRSPC TYPE tin = (odd ? out : swap);
+    oclPrinter.print(outputMem.addressSpace + " " + oclPrinter.toOpenCL(outputMem.t) + " " + toutVStr + " = ")
+    oclPrinter.print("("+oclPrinter.toOpenCL(range.stop)+" & 1 != 0 ) ? ")
+    oclPrinter.print(outVStr + " : " + swapVStr)
+    oclPrinter.println(" ;")
+
+
+
 
     oclPrinter.println("#pragma unroll 1")
     oclPrinter.generateLoop(indexVar, range, () => {
-      // body
+
+      // modify the pointers to the memory before generating the body
+      val oldInV = inputMem.variable
+      val oldOutV = outputMem.variable
+      inputMem.variable = tin
+      outputMem.variable = tout
+
+      // generate the body
       generate(i.f, inputAccess, outputAccess)
+
+      // restore the pointers to memory
+      inputMem.variable = oldInV
+      outputMem.variable = oldOutV
+
 
       // tmp = tmp * outputLen / inputLen
       oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = "+ oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength)) + ";")
 
-      generateSwap(i.swapBuffer, outputMem)
+      // tin = (tout == swap) ? swap : out
+      oclPrinter.println(tinVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ swapVStr +":"+ outVStr+";")
+      // tout = (tout == swap) ? out : swap
+      oclPrinter.println(toutVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ outVStr +":"+ swapVStr+";")
+
+
+      //generateSwap(i.swapBuffer, outputMem)
     } )
 
-    // make sure the output variable actually holds the computed data
-    oclPrinter.println(oclPrinter.toOpenCL(outputMem.variable)+" = "+oclPrinter.toOpenCL(i.swapBuffer.variable) + ";")
+    //// make sure the output variable actually holds the computed data
+    //oclPrinter.println(oclPrinter.toOpenCL(outputMem.variable)+" = "+oclPrinter.toOpenCL(i.swapBuffer.variable) + ";")
     oclPrinter.closeCB()
+
+
   }
 
 
-  private def generateSwap(first: Memory, second: Memory) {
+ /* private def generateSwap(first: Memory, second: Memory) {
 
     //assert(first.t == second.t)
 
@@ -322,7 +365,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.println(oclPrinter.toOpenCL(first.variable) + " = " + oclPrinter.toOpenCL(second.variable)+";")
     // second = tmp;
     oclPrinter.println(oclPrinter.toOpenCL(second.variable) + " = " + oclPrinter.toOpenCL(tmp)+";")
-  }
+  }*/
 
 
 

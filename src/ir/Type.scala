@@ -327,21 +327,8 @@ object Type {
           // assign the type for f
           check(i.f, inputTypeWithTypeVar)
 
-
-
           val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n, tvMap)
           substitute(closedFormOutputType, tvMap.toMap)
-
-
-          /*outputTypeWithTypeVar = visitRebuild(outputTypeWithTypeVar, t => t, t =>
-            t match {
-              case at: ArrayType => new ArrayType(at.elemT, Expr.substitute(at.len, tvMap.toMap))
-              case vt: VectorType => new VectorType(vt.scalarT, Expr.substitute(vt.len, tvMap.toMap))
-              case _ => t
-            }
-          )*/
-
-
         }
         case _ => throw new TypeException(inT, "ArrayType")
       }

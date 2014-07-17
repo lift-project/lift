@@ -151,15 +151,12 @@ class TestReduce {
 
     val outputArray = outputData.asFloatArray()
 
-    println("outputArray(0): " + outputArray(0))
-    println("outputArray(1): " + outputArray(1))
-
-    println("sum: ", outputArray.reduce(_ + _))
+    val gold = outputArray.grouped(128).map(a => a.reduce(_ + _)).toArray
 
     println("outputArray(0) = "+outputArray(0))
-    println("gold = "+outputArray.reduce(_ + _))
+    println("gold(0) = "+gold(0))
 
-    assertEquals(outputArray(0),outputArray.reduce(_ + _),0.1)
+    gold.zip(outputArray).map(p => assertEquals(p._1,p._2,0.1))
 
 
     args.foreach(_.dispose) // free c++ memory (important!)

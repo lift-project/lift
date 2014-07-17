@@ -17,11 +17,22 @@ object GlobalMemory extends OpenCLAddressSpace {
 
 object UndefAddressSpace extends OpenCLAddressSpace
 
-case class OpenCLMemory(variable: Var, size: Expr, t: Type, addressSpace: OpenCLAddressSpace) extends Memory {
+case class OpenCLMemory(var variable: Var, size: Expr, t: Type, addressSpace: OpenCLAddressSpace) extends Memory {
 
+  // need to have an array
   if (!t.isInstanceOf[ArrayType])
     throw new IllegalArgumentException
 
+  // size cannot be 0 unless it is the null memory
+  try {
+    if (size.eval() == 0)
+      throw new IllegalArgumentException
+  } catch {
+    case _ : NotEvaluableException => // nothing to do
+    case e: Exception => throw e
+  }
+
+  // noe type variable allowed in the size
   if (TypeVar.getTypeVars(size).nonEmpty)
     throw new IllegalArgumentException
 
@@ -36,7 +47,7 @@ class GlobalAllocator {
 
 }
 
-object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(0), ArrayType(UndefType,?), UndefAddressSpace)
+object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(-1), ArrayType(UndefType,?), UndefAddressSpace)
 
 object OpenCLMemory {
 
@@ -88,7 +99,7 @@ object OpenCLMemory {
     }
   }
 
-  def alloc(f: Fun, numGlb: Expr = 1, numLcl: Expr = 0, argInMem : OpenCLMemory = OpenCLNullMemory, outputMem : OpenCLMemory = OpenCLNullMemory) : OpenCLMemory = {
+  def alloc(f: Fun, numGlb: Expr = 1, numLcl: Expr = 1, argInMem : OpenCLMemory = OpenCLNullMemory, outputMem : OpenCLMemory = OpenCLNullMemory) : OpenCLMemory = {
 
     // fix in the input memory if needed
     val inMem = fixInput(f, argInMem)
