@@ -10,17 +10,17 @@ extern "C" {
 /*
  * Class:     opencl_executor_Executor
  * Method:    execute
- * Signature: (Ljava/lang/String;Ljava/lang/String;II[Lopencl/executor/KernelArg;)V
+ * Signature: (Ljava/lang/String;Ljava/lang/String;II[Lopencl/executor/KernelArg;)D
  */
-JNIEXPORT void JNICALL Java_opencl_executor_Executor_execute
+JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_execute
   (JNIEnv *, jclass, jstring, jstring, jint, jint, jobjectArray);
 
 /*
  * Class:     opencl_executor_Executor
- * Method:    initNative
+ * Method:    init
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_opencl_executor_Executor_initNative
+JNIEXPORT void JNICALL Java_opencl_executor_Executor_init
   (JNIEnv *, jclass);
 
 /*

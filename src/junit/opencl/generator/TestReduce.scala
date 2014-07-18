@@ -147,7 +147,7 @@ class TestReduce {
 
     val args = memArgs :+ value(inputSize)
 
-    Executor.execute(firstKernelCode, 128, inputSize, args)
+    val runtime = Executor.execute(firstKernelCode, 128, inputSize, args)
 
     val outputArray = outputData.asFloatArray()
 
@@ -155,6 +155,7 @@ class TestReduce {
 
     println("outputArray(0) = "+outputArray(0))
     println("gold(0) = "+gold(0))
+    println("runtime: " + runtime)
 
     gold.zip(outputArray).map(p => assertEquals(p._1,p._2,0.1))
 

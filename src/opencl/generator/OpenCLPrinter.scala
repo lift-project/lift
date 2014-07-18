@@ -129,11 +129,12 @@ class OpenCLPrinter {
   def generateBarrier(mem : OpenCLMemory) {
     if (mem.addressSpace == GlobalMemory) {
       println("barrier(CLK_GLOBAL_MEM_FENCE);")
-    }
+    } else
     if (mem.addressSpace == LocalMemory) {
       println("barrier(CLK_LOCAL_MEM_FENCE);")
+    } else {
+      println("barrier(CLK_LOCAL_MEM_FENCE && CLK_GLOBAL_MEM_FENCE);")
     }
-    println("barrier(CLK_LOCAL_MEM_FENCE && CLK_GLOBAL_MEM_FENCE);")
   }
 
 
