@@ -20,8 +20,13 @@ object Exploration {
   
   val verbose = true
 
+  private def median(l: List[Double]) : Double = {
+    val s = l.sorted
+    s(l.length/2)
+  }
+
   private def evalPerf(f: Fun, c: Constraints) : Double = {
-    
+
     if (verbose) {
       println("------------------------------------------------------")
       println("Evaluating performance of "+f)
@@ -41,23 +46,28 @@ object Exploration {
         Context.updateContext(rndFun, f.context)
 
         // generate code for the function
-        println("OpenCL kernels generation for "+rndFun)
-        Dispatcher.execute(rndFun, Array.fill(16384)(1.0f))
+        println("Running "+rndFun)
 
-        val perf = Random.nextDouble()
-        if (verbose) 
-        	println(perf + " : " + rndFun)
-        perfs = perfs :+ perf
+        var runs = List[Double]()
+        for (run <- 1 to 10) {
+          val result = Dispatcher.execute(rndFun, Array.fill(16384)(1.0f))
+          val perf = result._1
+          runs = runs :+ perf
+          println(perf)
+        }
+        val medRun = Exploration.median(runs)
+        perfs = perfs :+ medRun
+        println("median = " + medRun)
+
+        //val perf = Random.nextDouble()
+        //perfs = perfs :+ perf
       }
     }
     
     if (perfs.isEmpty)
-      return Double.MaxValue  
-      
-    val sortedPerfs = perfs.sorted
-    val median = sortedPerfs(sortedPerfs.length/2)
-    
-    median
+      return Double.MaxValue
+
+    Exploration.median(perfs)
     
     //Random.nextDouble
   }
