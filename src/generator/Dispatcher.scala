@@ -1,5 +1,6 @@
 package generator
 
+import Function.tupled
 import opencl.executor.{local, Executor, value, global}
 import opencl.generator.OpenCLGenerator
 import opencl.ir._
@@ -41,10 +42,12 @@ object Dispatcher {
     val inputData = global.input(inputArray)
     val outputData = global.output[Float](outputLen)
 
-    val mems = OpenCLGenerator.Kernel.memory
+    val params = OpenCLGenerator.Kernel.memory
 
-    val memArgs = mems.map(m => {
-      if (m == f.inM) inputData
+    val memArgs = params.map( mem => {
+      val m = mem.mem
+
+      if      (m == f.inM)  inputData
       else if (m == f.outM) outputData
       else m.addressSpace match {
         case LocalMemory => local(m.size.eval())
@@ -52,7 +55,9 @@ object Dispatcher {
       }
     })
 
-    val allVars = OpenCLGenerator.Kernel.memory.map( m => Var.getVars(m.size) ).filter(_.nonEmpty).flatten.distinct
+    val allVars = OpenCLGenerator.Kernel.memory.map(
+      mem => Var.getVars(mem.mem.size) ).filter(_.nonEmpty).flatten.distinct
+
     val args =
       if (allVars.length == 0)
         memArgs

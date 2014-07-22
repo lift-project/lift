@@ -2,6 +2,11 @@ package opencl.executor;
 
 public class Executor {
 
+    /** Execute the given kernel source code with the given global and local size and arguments.
+      * Returns the runtime in milliseconds.
+      *
+      * @return The runtime of the kernel in milliseconds.
+      */
     public static double execute(String kernelCode, int localSize, int globalSize, KernelArg[] args)
     {
         return execute(kernelCode, "KERNEL", localSize, globalSize, args);

@@ -1,7 +1,8 @@
 package opencl.generator
 
+import Function.tupled
 import ir._
-import opencl.ir.{LocalMemory, GlobalMemory, OpenCLMemory}
+import opencl.ir.{TypedOpenCLMemory, LocalMemory, GlobalMemory, OpenCLMemory}
 
 
 class OpenCLPrinter {
@@ -14,11 +15,11 @@ class OpenCLPrinter {
   def code = sb.toString()
 
   def indent() {
-    tab += 1
+    tab += 2
   }
 
   def undent() {
-    tab -= 1
+    tab -= 2
   }
 
   def openCB() = {
@@ -68,19 +69,19 @@ class OpenCLPrinter {
     })
   }
 
-  private def toParameterDecl(mem: OpenCLMemory) : String = {
-    mem.addressSpace + " " + toOpenCL(mem.t) + " " + toOpenCL(mem.variable)
+  private def toParameterDecl(mem: TypedOpenCLMemory) : String = {
+    mem.mem.addressSpace + " " + toOpenCL(mem.t) + " " + toOpenCL(mem.mem.variable)
   }
 
-  def printAsParameterDecl(mems: Array[OpenCLMemory]) {
-    print(mems.map(m => toParameterDecl(OpenCLMemory.asOpenCLMemory(m))
-    ).reduce(separateByComma))
+  def printAsParameterDecl(mems: Array[TypedOpenCLMemory]) {
+    print(mems.map( mem => toParameterDecl(mem) ).reduce(separateByComma))
   }
 
   def generateFunCall(f: UserFun, args: String*) {
-    print(f.name)
+    print(f.name+"(")
     if (args.length > 0)
-      print("("+args.reduceLeft((result, a) => result + "," + a)+")")
+      print(args.reduceLeft((result, a) => result + "," + a))
+    print(")")
   }
 
   def separateByComma(lhs: Any, rhs: Any) = {
@@ -187,9 +188,9 @@ class OpenCLPrinter {
 
 
     // as the default print of the default loop
-    println ("for (int " + toOpenCL(indexVar) + " = " + toOpenCL(init)  + "; " +
+    print ("for (int " + toOpenCL(indexVar) + " = " + toOpenCL(init)  + "; " +
       toOpenCL(indexVar) + " < " + toOpenCL(cond)  + "; " +
-      toOpenCL(indexVar) + " += " + toOpenCL(update) + ")")
+      toOpenCL(indexVar) + " += " + toOpenCL(update) + ") ")
     openCB()
     printBody()
     closeCB()
