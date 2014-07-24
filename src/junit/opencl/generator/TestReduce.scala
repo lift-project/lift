@@ -30,21 +30,27 @@ class TestReduce {
   val N = Var("N")
   val input = Input(Var("x"), ArrayType(Float, N))
 
+  val M = Var("M")
+  val tmp = Input(Var("tmp"), ArrayType(Float, M))
+
+
   @Test def SIMPLE_REDUCE_FIRST() {
 
     val kernel = Join() o MapWrg(
       Join() o MapLcl(ReduceSeq(sumUp)) o Split(2048)
     ) o Split(262144) o input
 
-    Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.generate(kernel)
+    val inputSize = 4194304
+    val outputSize = inputSize / 2048
 
-    val outputArray = testSimplePartialReduction(kernelCode, 4194304)
+    val (output, runtime) = execute(kernel, Array.fill(inputSize)(1.0f), outputSize)
 
-    val finalResult = outputArray.reduce( _ + _)
+    assertEquals(output.size, outputSize)
+    assertEquals(output.reduce(_ + _), inputSize, 0.0)
+    output.map( assertEquals(_, 2048, 0.0) )
 
-    println( "Final finished result: " +  finalResult)
-
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
   }
 
   @Test def SIMPLE_REDUCE_SECOND() {
@@ -53,54 +59,33 @@ class TestReduce {
       MapLcl(ReduceSeq(sumUp))
     ) o Split(128) o Split(2048) o input
 
-    Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.generate(kernel)
+    val inputSize = 4194304
+    val outputSize = inputSize / 2048
 
-    val outputArray = testSimplePartialReduction(kernelCode, 4194304)
+    val (output, runtime) = execute(kernel, Array.fill(inputSize)(1.0f), outputSize)
 
-    val finalResult = outputArray.reduce( _ + _)
+    assertEquals(output.size, outputSize)
+    assertEquals(output.reduce(_ + _), inputSize, 0.0)
+    output.map( assertEquals(_, 2048, 0.0) )
 
-    println("Final finished result: " +  finalResult)
-
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
   }
 
   @Test def REDUCE_HOST() {
 
     val kernel = ReduceHost(sumUp) o input
 
-    Type.check(kernel, NoType)
+    val inputSize = 128
+    val outputSize = 1
 
-    val kernelCode = OpenCLGenerator.generate(kernel)
-    if (Debug()) {
-      println("Kernel code:")
-      println(kernelCode)
-    }
+    val (output, runtime) = execute(kernel, Array.fill(inputSize)(1.0f), outputSize, 1)
 
-    val mems = OpenCLGenerator.Kernel.memory.map( mem => mem.mem )
+    assertEquals(output.size, outputSize)
+    assertEquals(output.reduce(_ + _), inputSize, 0.0)
 
-    val inputSize = 16
-    val inputArray = Array.fill(inputSize)(1.0f)
-
-    val inputData = global.input(inputArray)
-    val outputData = global.output[Float](1)
-
-    val memArgs = new Array[KernelArg](2)
-
-    memArgs.update(mems.indexOf(input.outM), inputData)
-    memArgs.update(mems.indexOf(kernel.outM), outputData)
-
-    val args = memArgs :+ value(inputSize)
-
-    Executor.execute(kernelCode, 1, inputSize, args)
-
-    val outputArray = outputData.asFloatArray()
-
-    println("outputArray(0) = " + outputArray(0))
-    println("gold = " + outputArray.reduce(_ + _))
-
-    assertEquals(outputArray(0), outputArray.reduce(_ + _), 0.1)
-
-    args.foreach(_.dispose) // free c++ memory (important!)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
   }
 
 
@@ -112,93 +97,45 @@ class TestReduce {
       Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
     ) o Split(128) o input
 
-    Type.check(firstKernel, NoType)
+    val inputSize = 1024
 
-    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
-    println("Kernel code:")
-    println(firstKernelCode)
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize / 128
 
-    val firstOutput = {
-      val inputSize = 1024
-      val inputArray = Array.fill(inputSize)(1.0f)
-      val inputData = global.input(inputArray)
-      val outputData = global.output[Float](inputSize / 128)
+      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
 
-      val memArgs = OpenCLGenerator.Kernel.memory.map(mem => {
-        val m = mem.mem
-        if (m == input.outM) inputData
-        else if (m == firstKernel.outM) outputData
-        else m.addressSpace match {
-          case LocalMemory => local(m.size.eval())
-          //case GlobalMemory => // should not happen
-        }
-      })
+      assertEquals(output.size, outputSize)
+      assertEquals(output.reduce(_ + _), inputSize, 0.0)
 
-      val args = memArgs :+ value(inputSize)
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
 
-      val runtime = Executor.execute(firstKernelCode, 128, inputSize, args)
-
-      val outputArray = outputData.asFloatArray()
-
-      args.foreach(_.dispose) // free c++ memory (important!)
-
-      val gold = inputArray.grouped(128).map(a => a.reduce(_ + _)).toArray
-
-      println("outputArray(0) = " + outputArray(0))
-      println("gold(0) = " + gold(0))
-      println("runtime: " + runtime)
-
-      (gold zip outputArray).map(p => assertEquals(p._1, p._2, 0.1))
-
-      outputArray
+      (output, runtime)
     }
-
-    val tmp = Input(Var("tmp"), ArrayType(Float, Var("M")))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-      Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
-      Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
+        Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
+        Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
     ) o Split(8) o tmp
 
-    Type.check(secondKernel, NoType)
+    val (secondOutput, secondRuntime) = {
+      val tmpSize = firstOutput.size
+      val outputSize = tmpSize / 8
 
-    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
-    println("Second kernel code:")
-    println(secondKernelCode)
+      val (output, runtime) = execute(secondKernel, firstOutput, outputSize, 8)
 
-    val secondOutput = {
-      val inputSize = firstOutput.size
-      val inputData = global.input(firstOutput)
-      val outputData = global.output[Float](inputSize / 8)
+      assertEquals(output.size, outputSize)
+      assertEquals(output.reduce(_ + _), inputSize, 0.0)
 
-      val memArgs = OpenCLGenerator.Kernel.memory.map(mem => {
-        val m = mem.mem
-        if (m == tmp.outM) inputData
-        else if (m == secondKernel.outM) outputData
-        else m.addressSpace match {
-          case LocalMemory => local(m.size.eval())
-          //case GlobalMemory => // should not happen
-        }
-      })
+      println("second output(0) = " + output(0))
+      println("second runtime = " + runtime)
 
-      val args = memArgs :+ value(inputSize)
-
-      val runtime = Executor.execute(secondKernelCode, 8, inputSize, args)
-
-      val outputArray = outputData.asFloatArray()
-
-      val gold = 1024
-
-      println("outputArray(0) = " + outputArray(0))
-      println("runtime: " + runtime)
-
-      assertEquals(gold, outputArray(0), 0.1)
-
-      args.foreach(_.dispose) // free c++ memory (important!)
+      (output, runtime)
     }
 
   }
+
 
   @Test def NVIDIA_B() {
 
@@ -208,9 +145,13 @@ class TestReduce {
       Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
     ) o Split(256) o input
 
-    Type.check(kernel, NoType)
-    val kernelCode = OpenCLGenerator.generate(kernel)
+    val inputSize = 1024
+    val outputSize = inputSize / 256
 
+    val (output, runtime) = execute(kernel, Array.fill(inputSize)(1.0f), outputSize)
+
+    println("outputArray(0) = " + output(0))
+    println("Runtime = " + runtime)
   }
 
   @Test def NVIDIA_C() {
@@ -222,43 +163,88 @@ class TestReduce {
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o ReorderStride() o Split(2048)
     ) o Split(262144) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Float, N / 262144))
+    val inputSize = 4194304
+
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize / 262144
+
+      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+
+      assertEquals(output.size, outputSize)
+      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
+
+      (output, runtime)
+    }
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(5)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
+        Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
-    ) o Split(64) o tmp
+    ) o Split(16) o tmp
 
-    Type.check(firstKernel, NoType)
-    Type.check(secondKernel, NoType)
+    val (secondOutput, secondRuntime) = {
+      val tmpSize = firstOutput.size
+      val outputSize = 1
 
-    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
-    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+      val (output, runtime) = execute(secondKernel, firstOutput, outputSize)
+
+      assertEquals(output.size, outputSize)
+      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+
+      println("second output(0) = " + output(0))
+      println("second runtime = " + runtime)
+
+      (output, runtime)
+    }
 
   }
 
   @Test def NVIDIA_C_NO_WARPS() {
 
     val firstKernel = Join() o MapWrg(
-      Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+        Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
         Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o ReorderStride() o Split(2048)
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o /*ReorderStride() o*/ Split(2048)
     ) o Split(262144) o input
-
-    val tmp = Input(Var("tmp"), ArrayType(Float, N / 262144))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(5)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
+        Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
-    ) o Split(64) o tmp
+    ) o Split(16) o tmp
 
-    Type.check(firstKernel, NoType)
-    Type.check(secondKernel, NoType)
+    val inputSize = 4194304
 
-    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
-    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize / 262144
+
+      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+
+      assertEquals(output.size, outputSize)
+      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
+
+      (output, runtime)
+    }
+
+    val (secondOutput, secondRuntime) = {
+      val outputSize = 1
+
+      val (output, runtime) = execute(secondKernel, firstOutput, 1, 16)
+
+      assertEquals(outputSize, output.size)
+      assertEquals(inputSize, output.reduce(_ + _), 0.0)
+
+      println("second output(0) = " + output(0))
+      println("second runtime = " + runtime)
+
+      (output, runtime)
+    }
 
   }
 
@@ -270,42 +256,83 @@ class TestReduce {
       Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp)))) o Split(2)
     ) o asVector(4) o Split(2048) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Float, N / 512))
-
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(5)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
+        Iterate(8)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
-    ) o Split(64) o tmp
+    ) o Split(512) o tmp
 
-    Type.check(firstKernel, NoType)
-    Type.check(secondKernel, NoType)
+    val inputSize = 4194304
 
-    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
-    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize / 8192
+
+      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+
+      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
+
+      (output, runtime)
+    }
+
+    val (secondOutput, secondRuntime) = {
+      val outputSize = 1
+
+      val (output, runtime) = execute(secondKernel, firstOutput, 1, 16)
+
+      assertEquals(inputSize, output.reduce(_ + _), 0.0)
+
+      println("second output(0) = " + output(0))
+      println("second runtime = " + runtime)
+
+      (output, runtime)
+    }
 
   }
 
   @Test def NVIDIA_DERIVED() {
 
     val firstKernel = Join() o Join() o MapWrg(
-      toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp)) o ReduceSeq(sumUp))) o ReorderStride()
+      MapLcl(ReduceSeq(sumUp)) //o ReduceStride()
+      //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp)) o ReduceSeq(sumUp))) o ReorderStride()
     ) o Split(128) o Split(2048) o input
 
 
-    val tmp = Input(Var("tmp"), ArrayType(Float, N / 2048))
-
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(128)
-    ) o Split(8192) o tmp
+        Iterate(10)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
+    ) o Split(2048) o tmp
 
-    Type.check(firstKernel, NoType)
-    Type.check(secondKernel, NoType)
+    val inputSize = 4194304
 
-    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
-    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize / 2048
+
+      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+
+      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
+
+      (output, runtime)
+    }
+
+    val (secondOutput, secondRuntime) = {
+      val outputSize = 1
+
+      val (output, runtime) = execute(secondKernel, firstOutput, 1)
+
+      assertEquals(inputSize, output.reduce(_ + _), 0.0)
+
+      println("second output(0) = " + output(0))
+      println("second runtime = " + runtime)
+
+      (output, runtime)
+    }
 
   }
 
@@ -379,27 +406,36 @@ class TestReduce {
 
   }
 
+  private def execute(kernel: CompFun, inputArray: Array[Float], outputSize: Int, wgSize: Int = 128) = {
+    Type.check(kernel, NoType)
 
-  private def testSimplePartialReduction(kernelCode: String, inputSize: Int) : Array[Float] = {
-    val inputArray = Array.fill(inputSize)(1.0f)
+    val kernelCode = OpenCLGenerator.generate(kernel)
+    println("Kernel code:")
+    println(kernelCode)
+
+    val inputSize = inputArray.size
     val inputData = global.input(inputArray)
-    val outputData = global.output[Float](inputSize / 2048)
+    val outputData = global.output[Float](outputSize)
 
-    val mems = OpenCLGenerator.Kernel.memory.map( mem => mem.mem )
+    val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
+      val m = mem.mem
+      if (m == kernel.funs.last.outM) inputData // this assumes that the last fun of the kernel is the input
+      else if (m == kernel.outM) outputData
+      else m.addressSpace match {
+        case LocalMemory => local(m.size.eval())
+        case GlobalMemory => global(m.size.eval())
+      }
+    })
 
-    val args = Array( outputData, inputData, value(inputSize))
+    val args = memArgs :+ value(inputSize)
 
-    Executor.execute(kernelCode, 128, inputSize, args)
+    val runtime = Executor.execute(kernelCode, wgSize, inputSize, args)
 
     val outputArray = outputData.asFloatArray()
 
-    val finalResult = outputArray.reduce( _ + _)
+    args.foreach(_.dispose)
 
-    assertEquals(inputArray.reduce( _ + _ ), finalResult, 0.0f)
-
-    args.foreach(_.dispose) // free c++ memory (important!)
-
-    outputArray
+    (outputArray, runtime)
   }
 
 }

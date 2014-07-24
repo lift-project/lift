@@ -18,6 +18,8 @@ object global {
       }
     }
   }
+
+  def apply(size: Int) = GlobalArg.createOutput(size)
 }
 
 object local {
