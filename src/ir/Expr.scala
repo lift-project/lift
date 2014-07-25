@@ -47,6 +47,8 @@ abstract class Expr {
   def /(that: Expr) = this * Pow(that, Cst(-1))
   def -(that: Expr) = this + (that * Cst(-1))
 
+  def %(that: Expr) = Mod(this, that)
+
 }
 
 
@@ -185,6 +187,10 @@ case class Prod(terms: List[Expr]) extends Expr {
 }
 case class Sum(terms: List[Expr]) extends Expr {
   override def toString: String = "("+terms.map((t) => t.toString).reduce((s1, s2) => s1 + "+" + s2)+")"
+}
+
+case class Mod(dividend: Expr, divisor: Expr) extends Expr {
+  override def toString: String = "(" + dividend + " % " + divisor + ")"
 }
 
 

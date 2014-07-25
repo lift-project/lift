@@ -79,10 +79,12 @@ class TestReduce {
     val inputSize = 128
     val outputSize = 1
 
-    val (output, runtime) = execute(kernel, Array.fill(inputSize)(1.0f), outputSize, 1)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
+
+    val (output, runtime) = execute(kernel, inputData, outputSize, 1)
 
     assertEquals(output.size, outputSize)
-    assertEquals(output.reduce(_ + _), inputSize, 0.0)
+    assertEquals(output.reduce(_ + _), inputData.reduce(_ + _), 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -207,7 +209,7 @@ class TestReduce {
     val firstKernel = Join() o MapWrg(
         Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
         Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o /*ReorderStride() o*/ Split(2048)
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o ReorderStride() o Split(2048)
     ) o Split(262144) o input
 
     val secondKernel = Join() o MapWrg(
@@ -217,14 +219,15 @@ class TestReduce {
     ) o Split(16) o tmp
 
     val inputSize = 4194304
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
       val outputSize = inputSize / 262144
 
-      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+      val (output, runtime) = execute(firstKernel, inputData, outputSize)
 
       assertEquals(output.size, outputSize)
-      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+      assertEquals(output.reduce(_ + _), inputData.reduce(_ + _), 0.1)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -238,7 +241,7 @@ class TestReduce {
       val (output, runtime) = execute(secondKernel, firstOutput, 1, 16)
 
       assertEquals(outputSize, output.size)
-      assertEquals(inputSize, output.reduce(_ + _), 0.0)
+      assertEquals(output.reduce(_ + _), inputData.reduce(_ + _), 0.1)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)

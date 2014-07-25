@@ -82,6 +82,8 @@ object OpenCLGenerator extends Generator {
 
   private object AccessFunction {
     def apply(f: (Expr) => Expr, scope: String) = new AccessFunction(f, scope)
+
+    def id(scope: String) = new AccessFunction( (e:Expr) => e, scope)
   }
 
   private class MapAccessFunction(val loopVar: Var, var chunkSize: Expr, val mapName: String)
@@ -149,7 +151,24 @@ object OpenCLGenerator extends Generator {
     assert(f.ouT != UndefType)
     
     f match {
-      case cf: CompFun => cf.funs.reverseMap(inF => generate(inF, inputAccess, outputAccess))
+      // sequential composition of functions. Allow to pass access functions horizontally.
+      // TODO: maybe generalize this ... (output access function, multiple access functions, pass other information ...)
+      // go from right to left, as the data flows ...
+      case cf: CompFun => cf.funs.foldRight[Option[AccessFunction]](None)(
+        (innerF: Fun, af: Option[AccessFunction]) => innerF match {
+          // pass newly created access function to the next function in line
+          case r : ReorderStride => Some(createReorderStrideAccessFunction(r, inputAccess.last.scope))
+
+          case _ => {
+            if (af.isDefined) {
+              generate(innerF, inputAccess :+ af.get, outputAccess)
+            } else {
+              generate(innerF, inputAccess, outputAccess)
+            }
+            None // af is consumed and not passed to the next function in line
+          }
+        })
+      // case cf: CompFun => cf.funs.reverseMap(inF => generate(inF, inputAccess, outputAccess))
       // maps
       case m: MapWrg => generateMapWrg(m, inputAccess, outputAccess)
       case m: MapLcl => generateMapLcl(m, inputAccess, outputAccess)
@@ -159,13 +178,15 @@ object OpenCLGenerator extends Generator {
       case r: ReduceHost => generateReduceSeq(r, inputAccess, outputAccess)
       // iterate
       case i: Iterate => generateIterate(i, inputAccess, outputAccess)
+      // reorder
+      //case r : ReorderStride => generateReorderStride(r, inputAccess, outputAccess)
       // user functions
       case u : UserFun => oclPrinter.generateFunCall(u)
       // utilities
-      case _: Split =>
-      case _: Join =>
       case f: toGlobal => generate(f.f, inputAccess, outputAccess)
       case f: toLocal => generate(f.f, inputAccess, outputAccess)
+      case _: Split =>
+      case _: Join =>
       case _: Input =>
       case _ => oclPrinter.print("__" + f.toString + "__")
     }
@@ -280,7 +301,7 @@ object OpenCLGenerator extends Generator {
 
   // === Iterate ===
   private def generateIterate(i: Iterate,
-                              inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
+                              inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) = {
 
     val inputMem = OpenCLMemory.asOpenCLMemory(i.inM)
     val outputMem = OpenCLMemory.asOpenCLMemory(i.outM)
@@ -322,7 +343,7 @@ object OpenCLGenerator extends Generator {
 
     // ADDRSPC TYPE tin = (odd ? out : swap);
     oclPrinter.print(outputMem.addressSpace + " " + oclPrinter.toOpenCL(i.ouT) + " " + toutVStr + " = ")
-    oclPrinter.print("("+oclPrinter.toOpenCL(range.stop)+" & 1 != 0 ) ? ")
+    oclPrinter.print("( ("+oclPrinter.toOpenCL(range.stop)+" & 1) != 0 ) ? ")
     oclPrinter.print(outVStr + " : " + swapVStr)
     oclPrinter.println(" ;")
 
@@ -356,6 +377,12 @@ object OpenCLGenerator extends Generator {
     oclPrinter.closeCB()
   }
 
+  // === ReorderStride ===
+  private def createReorderStrideAccessFunction(r: ReorderStride, scope: String) = {
+    val s = Type.getLength(r.inT)
+    val n = Type.getLength(Type.getElemT(r.inT))
+    AccessFunction( (i:Expr) => { i / n + s * (i % n) } , scope)
+  }
 
   // === Utilities ===
 

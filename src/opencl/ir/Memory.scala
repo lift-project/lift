@@ -216,7 +216,7 @@ object OpenCLMemory {
 
       // ... some function do not allocate anything => return the input memory
       // TODO: add toVector, ToScalar, reorder,...
-      case Split(_) | Join() => inMem
+      case Split(_) | Join() | ReorderStride() => inMem
 
       // ... for all remaining functions (e.g. MapSeq and RedSeq) allocate new memory if output is not yet set
       case _ =>
