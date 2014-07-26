@@ -86,6 +86,10 @@ object Type {
     t match {
       case at: ArrayType => at.len
       case st: ScalarType => Cst(1)
+/*
+      case vt: VectorType => Cst(1)
+      case tt: TupleType => Cst(1)
+*/
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
@@ -119,7 +123,8 @@ object Type {
     t match {
       case ArrayType(elemT, len) => Type.length(elemT, array :+ len)
       case TupleType(_) => throw new TypeException(t, "ArrayType")
-      case VectorType(_, _) => throw new TypeException(t, "ArrayType") // TODO: Think about what to do with vector types
+      case VectorType(_, len) => //array :+ len
+        throw new TypeException(t, "ArrayType") // TODO: Think about what to do with vector types
       case _ => array
     }
   }
@@ -335,9 +340,8 @@ object Type {
 
       case _: ReorderStride => inT
 
-      case vec: Vectorize => check(vec.f, inT, setType) // Type.vectorize(vec.n, inT)
-
-      // Type.vectorize(vec.n, inT)
+      case vec: Vectorize => check(vec.f, inT, setType)
+        // check(vectorize(vec.f, vec.n), inT, setType)
 
       case NullFun => inT // TODO: change this
       
@@ -355,17 +359,23 @@ object Type {
       f.ouT = inferredOuT
 
     inferredOuT
+
   }
 
-  /*
-  def vectorize(n: Expr, t: Type): Type = {
+  def vectorize(t: Type, n: Expr): Type = {
     t match {
       case sT: ScalarType => new VectorType(sT, n)
-      case tT: TupleType => new TupleType( tT.elemsT.map( vectorize(n, _) ):_* )
+      case tT: TupleType => new TupleType( tT.elemsT.map( vectorize(_, n) ):_* )
       case aT: ArrayType => asVector(aT, n)
       case _ => throw new TypeException(t, "anything else")
     }
   }
-  */
+/*
+  def vectorize(f: Fun, n: Expr): Fun = {
+    f match {
+      case uf: UserFun => UserFun.vectorize(uf, n)
+    }
+  }
+*/
 
 }

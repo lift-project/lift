@@ -222,9 +222,21 @@ object Vectorize {
   def apply(n: Expr): ((Fun) => Vectorize) = { (f: Fun) => Vectorize(n, f) }
 }
 
-case class UserFun(val name: String, val body: String, val expectedInT: Type, val expectedOutT: Type) extends Fun() {
+case class UserFun(val name: String, val paramNames: Array[String], val body: String,
+                   val expectedInT: Type, val expectedOutT: Type) extends Fun() {
   override def isGenerable() = true
-  override def copy() = UserFun(name, body, expectedInT, expectedOutT)
+  override def copy() = UserFun(name, paramNames, body, expectedInT, expectedOutT)
+}
+
+object UserFun {
+  def vectorize(uf: UserFun, n: Expr): UserFun = {
+    val name = uf.name + n
+    val expectedInT = Type.vectorize(uf.expectedInT, n)
+    val expectedOutT = Type.vectorize(uf.expectedOutT, n)
+
+    // create new user fun
+    UserFun(name, uf.paramNames, uf.body, expectedInT, expectedOutT)
+  }
 }
 
 case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {

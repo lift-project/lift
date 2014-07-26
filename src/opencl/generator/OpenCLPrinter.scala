@@ -77,6 +77,14 @@ class OpenCLPrinter {
     print(mems.map( mem => toParameterDecl(mem) ).reduce(separateByComma))
   }
 
+  def generateFunCall(f: Fun, args: String*) {
+    f match {
+      case uf: UserFun => generateFunCall(uf, args:_*)
+      //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
+      case _ => throw new NotImplementedError()
+    }
+  }
+
   def generateFunCall(f: UserFun, args: String*) {
     print(f.name+"(")
     if (args.length > 0)
@@ -119,6 +127,28 @@ class OpenCLPrinter {
       case v: Var => "v_"+v.name+"_"+v.id
       case _ => throw new NotPrintableExpression(me.toString)
     }
+  }
+
+  def toOpenCL(uf: UserFun) : String = {
+    // "sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float
+    // (val name: String, val paramNames: Array[String], val body: String, val expectedInT: Type, val expectedOutT: Type)
+    //uf.paramNames
+    val params = uf.expectedInT match {
+      case st: ScalarType => {
+        assert(uf.paramNames.size == 1)
+        Array(toOpenCL(st) + " " + uf.paramNames.head)
+      }
+      case vt: VectorType => {
+        assert(uf.paramNames.size == 1)
+        Array(toOpenCL(vt) + " " + uf.paramNames.head)
+      }
+      case tt: TupleType => {
+        assert(uf.paramNames.size == tt.elemsT.size)
+        (tt.elemsT zip uf.paramNames).map( { case (t,n) => toOpenCL(t) + " " + n } ).toArray
+      }
+      case _ => throw new NotPrintableExpression(uf.toString)
+    }
+    toOpenCL(uf.expectedOutT) + " " + uf.name + "(" + params.reduce(separateByComma) + ")" + uf.body
   }
 
 

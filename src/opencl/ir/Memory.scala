@@ -210,7 +210,15 @@ object OpenCLMemory {
         // recurs to allocate memory for the function(s) inside
         alloc(it.f, numGlb, numLcl, inMem)
       }
-
+/*
+      // .. for vectorize allocate new memory for the nested user function
+      case vf: Vectorize => {
+        if (outputMem == OpenCLNullMemory)
+          allocMemory(maxGlbOutSize, maxLclOutSize, inMem.addressSpace, ArrayType(f.ouT, ?))
+        else
+          outputMem
+      }
+*/
       // .. for any pattern with a function nested inside recurs
       case fp: FPattern => alloc(fp.f, numGlb, numLcl, inMem, outputMem)
 

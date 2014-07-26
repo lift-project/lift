@@ -62,11 +62,12 @@ object OpenCLGenerator extends Generator {
   /** Traversals f and print all user functions using oclPrinter */
   def generateUserFunction(f: Fun) {
     val userFuns = Fun.visit(Set[UserFun]())(f, (f,set) => f match {
-      case uf :UserFun => set + uf
+      case uf: UserFun => set + uf
+      //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
       case _ => set
     })
     userFuns.foreach(uf => {
-      oclPrinter.print(uf.body)
+      oclPrinter.print(oclPrinter.toOpenCL(uf))
       oclPrinter.println()
     })
   }
@@ -262,7 +263,6 @@ object OpenCLGenerator extends Generator {
     val loopVar = Var("lane_id", range)
 
     generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapLane")
-    oclPrinter.generateBarrier(m.outM)
   }
   
   // MapSeq
@@ -280,10 +280,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateLoop(indexVar, range, () => {
       // output[i] = f(input[i])
       oclPrinter.print(access(outputMem, outputAccess, indexVar) + " = ")
-      m.f match {
-        case uf : UserFun => oclPrinter.generateFunCall(uf, access(inputMem, inputAccess, indexVar))
-        case _ => throw new NotImplementedError()
-      }
+      oclPrinter.generateFunCall(m.f, access(inputMem, inputAccess, indexVar))
       oclPrinter.println(";")
     })
     oclPrinter.commln("map_seq")
@@ -313,12 +310,7 @@ object OpenCLGenerator extends Generator {
      oclPrinter.generateLoop(indexVar, range, () => {
        // 3. generate acc = fun(acc, input[i])
        oclPrinter.print(oclPrinter.toOpenCL(acc) + " = ")
-       r.f match {
-         case uf : UserFun =>
-           oclPrinter.generateFunCall(uf, oclPrinter.toOpenCL(acc), access(inputMem, inputAccess, indexVar))
-
-         case _ => throw new NotImplementedError()
-       }
+       oclPrinter.generateFunCall(r.f, oclPrinter.toOpenCL(acc), access(inputMem, inputAccess, indexVar))
        oclPrinter.println(";")
      })
 

@@ -23,9 +23,9 @@ object TestReduce {
 
 class TestReduce {
 
-  val sumUp = UserFun("sumUp", "float sumUp(float x, float y) { return x+y; }", TupleType(Float, Float), Float)
+  val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
 
-  val id = UserFun("id", "float id(float x) { return x; }", Float, Float)
+  val id = UserFun("id", Array("x"), "{ return x; }", Float, Float)
 
   val N = Var("N")
   val input = Input(Var("x"), ArrayType(Float, N))
@@ -172,8 +172,7 @@ class TestReduce {
     ) o Split(16) o tmp
 
     val inputSize = 4194304
-    //val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
       val outputSize = inputSize / 262144
@@ -220,6 +219,7 @@ class TestReduce {
 
     val inputSize = 4194304
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    //val inputData = Array.fill(inputSize)(1.0f)
 
     val (firstOutput, firstRuntime) = {
       val outputSize = inputSize / 262144
@@ -296,7 +296,7 @@ class TestReduce {
   @Test def NVIDIA_DERIVED() {
 
     val firstKernel = Join() o Join() o MapWrg(
-      MapLcl(ReduceSeq(sumUp)) //o ReduceStride()
+      MapLcl(ReduceSeq(sumUp)) o ReorderStride()
       //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp)) o ReduceSeq(sumUp))) o ReorderStride()
     ) o Split(128) o Split(2048) o input
 
@@ -343,7 +343,7 @@ class TestReduce {
       MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp)) o ReorderStride())
     ) o Split(128) o asVector(2) o Split(4096) o input
 
-    val tmp = Input(Var("tmp"), ArrayType(Float, N / 2048))
+    val tmp = Input(Var("tmp"), ArrayType(Float, M))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -351,11 +351,22 @@ class TestReduce {
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(128)
     ) o Split(8192) o tmp
 
-    Type.check(firstKernel, NoType)
-    Type.check(secondKernel, NoType)
 
-    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
-    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+    val inputSize = 4194304
+
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize
+
+      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+
+      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+
+      println("otuput size = " + output.size)
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
+
+      (output, runtime)
+    }
 
   }
 

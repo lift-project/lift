@@ -6,7 +6,7 @@ import opencl.ir._
 object Main extends App {
   //val id = UserFunc("int id(int x) { return xy; }")
   val id = NullFun
-  val sumUp = UserFun("sumUp", "int sumUp(int x, int y) { return x+y; }", TupleType(Int, Int), Int)
+  val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Int, Int), Int)
   
   val highLevel = Reduce(sumUp)
   

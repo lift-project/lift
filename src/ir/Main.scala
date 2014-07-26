@@ -62,7 +62,7 @@ object Main extends App {
 //  	   println(cf3 == cf2)
 
 
-  val sumUp = UserFun("sumUp", "float sumUp(float x, float y) { return x+y; }", TupleType(Float, Float), Float)
+  val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
   val input = Input(Var("x"), ArrayType(Float, Var("N")))
   val reduceFun = Reduce(sumUp) o input
   Type.check(reduceFun, NoType)

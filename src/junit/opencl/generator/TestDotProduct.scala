@@ -8,14 +8,14 @@ class TestDotProduct {
 
   implicit def IntToCst(cst: Int): Cst = new Cst(cst) // try to get this away from here ...
 
-  val id = UserFun("id", "int id(int x) { return x; }", Int, Int)
+  val id = UserFun("id", Array("x"), "{ return x; }", Int, Int)
 
-  val sumUp = UserFun("sumUp", "int sumUp(int x, int y) { return x+y; }", TupleType(Int, Int), Int)
+  val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Int, Int), Int)
 
-  val mult = UserFun("mult", "int mult(int l, int r) { return l * r; }", TupleType(Int, Int), Int)
+  val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", TupleType(Int, Int), Int)
 
-  val multAndSumUp = UserFun("multAndSumUp",
-                             "int multAndSumUp(int acc, int l, int r) { return acc + (l * r); }",
+  val multAndSumUp = UserFun("multAndSumUp", Array("acc", "l", "r"),
+                             "{ return acc + (l * r); }",
                              TupleType(Int, TupleType(Int, Int)), Int)
 
   val N = Cst(1048576)
