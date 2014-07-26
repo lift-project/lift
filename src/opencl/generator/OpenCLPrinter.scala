@@ -113,6 +113,7 @@ class OpenCLPrinter {
       } ).drop(4) /* drop "1 * " */ + ")"
       case Sum(es) => "(" + es.map(toOpenCL).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toOpenCL(a) + " % " + toOpenCL(n) + ")"
+      case And(lhs, rhs) => "(" + toOpenCL(lhs) + " & " + toOpenCL(rhs) + ")"
       case of: OclFunction => of.toOCLString
       case tv : TypeVar => "tv_"+tv.id
       case v: Var => "v_"+v.name+"_"+v.id

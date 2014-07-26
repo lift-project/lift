@@ -49,6 +49,8 @@ abstract class Expr {
 
   def %(that: Expr) = Mod(this, that)
 
+  def &(that: Expr) = And(this, that)
+
 }
 
 
@@ -193,6 +195,9 @@ case class Mod(dividend: Expr, divisor: Expr) extends Expr {
   override def toString: String = "(" + dividend + " % " + divisor + ")"
 }
 
+case class And(lhs: Expr, rhs: Expr) extends Expr {
+  override def toString: String = "(" + lhs + " & " + rhs + ")"
+}
 
 // a special variable that should only be used for defining function type
 class TypeVar private(range : Range) extends Var("", range) {

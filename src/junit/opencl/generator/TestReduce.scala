@@ -165,36 +165,36 @@ class TestReduce {
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o ReorderStride() o Split(2048)
     ) o Split(262144) o input
 
-    val inputSize = 4194304
-
-    val (firstOutput, firstRuntime) = {
-      val outputSize = inputSize / 262144
-
-      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
-
-      assertEquals(output.size, outputSize)
-      assertEquals(output.reduce(_ + _), inputSize, 0.0)
-
-      println("first output(0) = " + output(0))
-      println("first runtime = " + runtime)
-
-      (output, runtime)
-    }
-
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
         Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
         Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
     ) o Split(16) o tmp
 
+    val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inputData = Array.fill(inputSize)(1.0f)
+
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize / 262144
+
+      val (output, runtime) = execute(firstKernel, inputData, outputSize)
+
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+
+      (output, runtime)
+    }
+
     val (secondOutput, secondRuntime) = {
       val tmpSize = firstOutput.size
       val outputSize = 1
 
-      val (output, runtime) = execute(secondKernel, firstOutput, outputSize)
+      val (output, runtime) = execute(secondKernel, firstOutput, outputSize, 16)
 
-      assertEquals(output.size, outputSize)
-      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -226,7 +226,6 @@ class TestReduce {
 
       val (output, runtime) = execute(firstKernel, inputData, outputSize)
 
-      assertEquals(output.size, outputSize)
       assertEquals(output.reduce(_ + _), inputData.reduce(_ + _), 0.1)
 
       println("first output(0) = " + output(0))
@@ -240,7 +239,6 @@ class TestReduce {
 
       val (output, runtime) = execute(secondKernel, firstOutput, 1, 16)
 
-      assertEquals(outputSize, output.size)
       assertEquals(output.reduce(_ + _), inputData.reduce(_ + _), 0.1)
 
       println("second output(0) = " + output(0))

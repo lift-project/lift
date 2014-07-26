@@ -172,6 +172,8 @@ object OpenCLGenerator extends Generator {
       // maps
       case m: MapWrg => generateMapWrg(m, inputAccess, outputAccess)
       case m: MapLcl => generateMapLcl(m, inputAccess, outputAccess)
+      case m: MapWarp => generateMapWarp(m, inputAccess, outputAccess)
+      case m: MapLane => generateMapLane(m, inputAccess, outputAccess)
       case m: MapSeq => generateMapSeq(m, inputAccess, outputAccess)
       // reduce
       case r: ReduceSeq => generateReduceSeq(r, inputAccess, outputAccess)
@@ -233,6 +235,33 @@ object OpenCLGenerator extends Generator {
     val loopVar = Var("l_id", range)
       
     generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapLcl")
+    oclPrinter.generateBarrier(m.outM)
+  }
+
+  // MapWarp
+  private def generateMapWarp(m: MapWarp,
+                              inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
+    val length = Type.getLength(m.inT)
+    val warpSize = Cst(32)
+    val wgSize = Cst(Kernel.workGroupSize)
+
+    val range = RangeAdd(new get_local_id(0) / warpSize, length, wgSize / warpSize)
+    val loopVar = Var("warp_id", range)
+
+    generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapWarp")
+    oclPrinter.generateBarrier(m.outM)
+  }
+
+  // MapLane
+  private def generateMapLane(m: MapLane,
+                              inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
+    val length = Type.getLength(m.inT)
+    val warpSize = Cst(32)
+
+    val range = RangeAdd(new get_local_id(0) & (warpSize - Cst(1)), length, warpSize)
+    val loopVar = Var("lane_id", range)
+
+    generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapLane")
     oclPrinter.generateBarrier(m.outM)
   }
   
