@@ -86,11 +86,16 @@ object Type {
     t match {
       case at: ArrayType => at.len
       case st: ScalarType => Cst(1)
-/*
       case vt: VectorType => Cst(1)
       case tt: TupleType => Cst(1)
-*/
       case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
+
+  def getVectorSize(t: Type): Expr = {
+    t match {
+      case vt: VectorType => vt.len
+      case _ => Cst(1)
     }
   }
 
@@ -101,7 +106,6 @@ object Type {
       case t: Type => t
     }
   }
-
 
   private def asScalar(at0: ArrayType): Type = {
     at0.elemT match {
@@ -123,8 +127,8 @@ object Type {
     t match {
       case ArrayType(elemT, len) => Type.length(elemT, array :+ len)
       case TupleType(_) => throw new TypeException(t, "ArrayType")
-      case VectorType(_, len) => //array :+ len
-        throw new TypeException(t, "ArrayType") // TODO: Think about what to do with vector types
+      case VectorType(_, len) => array :+ len
+        //throw new TypeException(t, "ArrayType") // TODO: Think about what to do with vector types
       case _ => array
     }
   }
@@ -304,11 +308,13 @@ object Type {
                 tvMap += tv -> at.len
                 new ArrayType(at.elemT, tv)
               }
+              /*
               case vt: VectorType => {
                 val tv = TypeVar()
                 tvMap += tv -> vt.len
                 new VectorType(vt.scalarT, tv)
               }
+              */
               case _ => t
             }
           )
@@ -367,7 +373,16 @@ object Type {
       case sT: ScalarType => new VectorType(sT, n)
       case tT: TupleType => new TupleType( tT.elemsT.map( vectorize(_, n) ):_* )
       case aT: ArrayType => asVector(aT, n)
-      case _ => throw new TypeException(t, "anything else")
+      case _ => t // throw new TypeException(t, "anything else")
+    }
+  }
+
+  def devectorize(t: Type): Type = {
+    t match {
+      case vt: VectorType => vt.scalarT
+      case tt: TupleType => TupleType( tt.elemsT.map( devectorize(_) ):_* )
+      case at: ArrayType => ArrayType(devectorize(at.elemT), at.len)
+      case _ => t
     }
   }
 /*

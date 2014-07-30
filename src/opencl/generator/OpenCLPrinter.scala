@@ -70,7 +70,7 @@ class OpenCLPrinter {
   }
 
   private def toParameterDecl(mem: TypedOpenCLMemory) : String = {
-    mem.mem.addressSpace + " " + toOpenCL(mem.t) + " " + toOpenCL(mem.mem.variable)
+    mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
   }
 
   def printAsParameterDecl(mems: Array[TypedOpenCLMemory]) {

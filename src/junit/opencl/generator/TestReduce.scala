@@ -41,13 +41,13 @@ class TestReduce {
     ) o Split(262144) o input
 
     val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val outputSize = inputSize / 2048
 
-    val (output, runtime) = execute(kernel, Array.fill(inputSize)(1.0f), outputSize)
+    val (output, runtime) = execute(kernel, inputData, outputSize)
 
-    assertEquals(output.size, outputSize)
-    assertEquals(output.reduce(_ + _), inputSize, 0.0)
-    output.map( assertEquals(_, 2048, 0.0) )
+    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -60,13 +60,13 @@ class TestReduce {
     ) o Split(128) o Split(2048) o input
 
     val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val outputSize = inputSize / 2048
 
-    val (output, runtime) = execute(kernel, Array.fill(inputSize)(1.0f), outputSize)
+    val (output, runtime) = execute(kernel, inputData, outputSize)
 
-    assertEquals(output.size, outputSize)
-    assertEquals(output.reduce(_ + _), inputSize, 0.0)
-    output.map( assertEquals(_, 2048, 0.0) )
+    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -77,14 +77,13 @@ class TestReduce {
     val kernel = ReduceHost(sumUp) o input
 
     val inputSize = 128
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val outputSize = 1
-
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (output, runtime) = execute(kernel, inputData, outputSize, 1)
 
-    assertEquals(output.size, outputSize)
-    assertEquals(output.reduce(_ + _), inputData.reduce(_ + _), 0.0)
+    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -100,14 +99,15 @@ class TestReduce {
     ) o Split(128) o input
 
     val inputSize = 1024
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
       val outputSize = inputSize / 128
 
-      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+      val (output, runtime) = execute(firstKernel, inputData, outputSize)
 
-      assertEquals(output.size, outputSize)
-      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -127,8 +127,7 @@ class TestReduce {
 
       val (output, runtime) = execute(secondKernel, firstOutput, outputSize, 8)
 
-      assertEquals(output.size, outputSize)
-      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -148,9 +147,13 @@ class TestReduce {
     ) o Split(256) o input
 
     val inputSize = 1024
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val outputSize = inputSize / 256
 
-    val (output, runtime) = execute(kernel, Array.fill(inputSize)(1.0f), outputSize)
+    val (output, runtime) = execute(kernel, inputData, outputSize)
+
+    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
     println("outputArray(0) = " + output(0))
     println("Runtime = " + runtime)
@@ -172,6 +175,7 @@ class TestReduce {
     ) o Split(16) o tmp
 
     val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
@@ -179,10 +183,10 @@ class TestReduce {
 
       val (output, runtime) = execute(firstKernel, inputData, outputSize)
 
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
-
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
 
       (output, runtime)
     }
@@ -218,15 +222,15 @@ class TestReduce {
     ) o Split(16) o tmp
 
     val inputSize = 4194304
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
       val outputSize = inputSize / 262144
 
       val (output, runtime) = execute(firstKernel, inputData, outputSize)
 
-      assertEquals(output.reduce(_ + _), inputData.reduce(_ + _), 0.1)
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -239,7 +243,7 @@ class TestReduce {
 
       val (output, runtime) = execute(secondKernel, firstOutput, 1, 16)
 
-      assertEquals(output.reduce(_ + _), inputData.reduce(_ + _), 0.1)
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -251,29 +255,41 @@ class TestReduce {
 
   @Test def AMD_A() {
 
+    val sumUp4 = UserFun("sumUp4", Array("x", "y"), "{ return x+y; }", TupleType(VectorType(Float, 4), VectorType(Float, 4)), VectorType(Float, 4))
+
+    val id4 = UserFun("id4", Array("x"), "{ return x; }", VectorType(Float, 4), VectorType(Float, 4))
+/*
     val firstKernel = Join() o asScalar() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
       Iterate(8)(Join() o MapLcl(ReduceSeq(Vectorize(4)(sumUp))) o Split(2)) o
       Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp)))) o Split(2)
     ) o asVector(4) o Split(2048) o input
+*/
+    val firstKernel = Join() o asScalar() o MapWrg(
+      Join() o toGlobal(MapLcl(MapSeq(id4))) o Split(1) o
+      Iterate(8)(Join() o MapLcl(ReduceSeq(sumUp4)) o Split(2)) o
+      Join() o toLocal(MapLcl(ReduceSeq(sumUp4))) o Split(2)
+    ) o asVector(4) o Split(2048) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
         Iterate(8)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
-    ) o Split(512) o tmp
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(32)
+    ) o Split(8192) o tmp
 
     val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
-      val outputSize = inputSize / 8192
+      val outputSize = inputSize / 512
 
-      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
-
-      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+      val (output, runtime) = execute(firstKernel, inputData, outputSize)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
 
       (output, runtime)
     }
@@ -281,9 +297,9 @@ class TestReduce {
     val (secondOutput, secondRuntime) = {
       val outputSize = 1
 
-      val (output, runtime) = execute(secondKernel, firstOutput, 1, 16)
+      val (output, runtime) = execute(secondKernel, firstOutput, 1)
 
-      assertEquals(inputSize, output.reduce(_ + _), 0.0)
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -308,13 +324,15 @@ class TestReduce {
     ) o Split(2048) o tmp
 
     val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
       val outputSize = inputSize / 2048
 
-      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+      val (output, runtime) = execute(firstKernel, inputData, outputSize)
 
-      assertEquals(output.reduce(_ + _), inputSize, 0.0)
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -327,7 +345,7 @@ class TestReduce {
 
       val (output, runtime) = execute(secondKernel, firstOutput, 1)
 
-      assertEquals(inputSize, output.reduce(_ + _), 0.0)
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -339,31 +357,47 @@ class TestReduce {
 
   @Test def AMD_DERIVED() {
 
-    val firstKernel = Join() o asScalar() o Join() o MapWrg(
-      MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp)) o ReorderStride())
-    ) o Split(128) o asVector(2) o Split(4096) o input
+    val sumUp2 = UserFun("sumUp2", Array("x", "y"), "{ return x+y; }", TupleType(VectorType(Float, 2), VectorType(Float, 2)), VectorType(Float, 2))
 
-    val tmp = Input(Var("tmp"), ArrayType(Float, M))
+    val id2 = UserFun("id2", Array("x"), "{ return x; }", VectorType(Float, 2), VectorType(Float, 2))
+
+    val firstKernel = Join() o asScalar() o Join() o MapWrg(
+      MapLcl(/*MapSeq(id2) o*/ ReduceSeq(sumUp2) o ReorderStride())
+    ) o Split(128) o asVector(2) o Split(4096) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(128)
-    ) o Split(8192) o tmp
-
+        Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(16)
+    ) o Split(2048) o Input(Var("tmp"), ArrayType(Float, M))
 
     val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
-      val outputSize = inputSize
+      val outputSize = inputSize / 2048
 
-      val (output, runtime) = execute(firstKernel, Array.fill(inputSize)(1.0f), outputSize)
+      val (output, runtime) = execute(firstKernel, inputData, outputSize)
 
-      assertEquals(output.reduce(_ + _), inputSize, 0.0)
-
-      println("otuput size = " + output.size)
+      println("output size = " + output.size)
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+
+      (output, runtime)
+    }
+
+    val (secondOutput, secondRuntime) = {
+      val outputSize = 1
+
+      val (output, runtime) = execute(secondKernel, firstOutput, 1)
+
+      println("second output(0) = " + output(0))
+      println("second runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
       (output, runtime)
     }
@@ -372,49 +406,101 @@ class TestReduce {
 
   @Test def INTEL_DERIVED() {
 
+    val sumUp4 = UserFun("sumUp4", Array("x", "y"), "{ return x+y; }", TupleType(VectorType(Float, 4), VectorType(Float, 4)), VectorType(Float, 4))
+
+    val id4 = UserFun("id4", Array("x"), "{ return x; }", VectorType(Float, 4), VectorType(Float, 4))
+
     val firstKernel = Join() o MapWrg(
       Join() o asScalar() o Join() o MapWarp(
-        MapLane(MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(sumUp)))
+        MapLane(/*MapSeq(id4) o*/ ReduceSeq(sumUp4))
       ) o Split(1) o asVector(4) o Split(32768)
     ) o Split(32768) o input
-
-    val tmp = Input(Var("tmp"), ArrayType(Float, N / 8192))
 
     val secondKernel = Join() o MapWrg(
       Join() o MapLcl(
         ReduceSeq(sumUp)
-      ) o Split(2048)
-    ) o Split(2048) o tmp
+      ) o Split(512)
+    ) o Split(512) o tmp
 
-    Type.check(firstKernel, NoType)
-    Type.check(secondKernel, NoType)
+    val inputSize = 4194304
+    val inputData = Array.fill(inputSize)(1.0f)
+    //val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
-    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize / 8192
+
+      val (output, runtime) = execute(firstKernel, inputData, outputSize)
+
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+
+      (output, runtime)
+    }
+
+    val (secondOutput, secondRuntime) = {
+      val outputSize = 1
+
+      val (output, runtime) = execute(secondKernel, firstOutput, outputSize)
+
+      println("second output(0) = " + output(0))
+      println("second runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+
+      (output, runtime)
+    }
 
   }
 
   @Test def INTEL_DERIVED_NO_WARP() {
 
+    val sumUp4 = UserFun("sumUp4", Array("x", "y"), "{ return x+y; }", TupleType(VectorType(Float, 4), VectorType(Float, 4)), VectorType(Float, 4))
+
+    val id4 = UserFun("id4", Array("x"), "{ return x; }", VectorType(Float, 4), VectorType(Float, 4))
+
     val firstKernel = Join() o MapWrg(
       Join() o asScalar() o MapLcl(
-        MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(sumUp))
+        /*MapSeq(id4) o*/ ReduceSeq(sumUp4)
       ) o asVector(4) o Split(32768)
     ) o Split(32768) o input
-
-    val tmp = Input(Var("tmp"), ArrayType(Float, N / 8192))
 
     val secondKernel = Join() o MapWrg(
       Join() o MapLcl(
         ReduceSeq(sumUp)
-      ) o Split(2048)
-    ) o Split(2048) o tmp
+      ) o Split(512)
+    ) o Split(512) o tmp
 
-    Type.check(firstKernel, NoType)
-    Type.check(secondKernel, NoType)
+    val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val firstKernelCode = OpenCLGenerator.generate(firstKernel)
-    val secondKernelCode = OpenCLGenerator.generate(secondKernel)
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize / 8192
+
+      val (output, runtime) = execute(firstKernel, inputData, outputSize)
+
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+
+      (output, runtime)
+    }
+
+    val (secondOutput, secondRuntime) = {
+      val outputSize = 1
+
+      val (output, runtime) = execute(secondKernel, firstOutput, outputSize)
+
+      println("second output(0) = " + output(0))
+      println("second runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+
+      (output, runtime)
+    }
 
   }
 
@@ -431,11 +517,12 @@ class TestReduce {
 
     val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
       val m = mem.mem
+      //println("m.size = " + m.size)
       if (m == kernel.funs.last.outM) inputData // this assumes that the last fun of the kernel is the input
       else if (m == kernel.outM) outputData
       else m.addressSpace match {
         case LocalMemory => local(m.size.eval())
-        case GlobalMemory => global(m.size.eval())
+        case GlobalMemory => global(inputSize)//global(m.size.eval())
       }
     })
 
