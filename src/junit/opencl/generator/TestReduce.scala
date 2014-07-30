@@ -255,20 +255,10 @@ class TestReduce {
 
   @Test def AMD_A() {
 
-    val sumUp4 = UserFun("sumUp4", Array("x", "y"), "{ return x+y; }", TupleType(VectorType(Float, 4), VectorType(Float, 4)), VectorType(Float, 4))
-
-    val id4 = UserFun("id4", Array("x"), "{ return x; }", VectorType(Float, 4), VectorType(Float, 4))
-/*
     val firstKernel = Join() o asScalar() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
       Iterate(8)(Join() o MapLcl(ReduceSeq(Vectorize(4)(sumUp))) o Split(2)) o
       Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp)))) o Split(2)
-    ) o asVector(4) o Split(2048) o input
-*/
-    val firstKernel = Join() o asScalar() o MapWrg(
-      Join() o toGlobal(MapLcl(MapSeq(id4))) o Split(1) o
-      Iterate(8)(Join() o MapLcl(ReduceSeq(sumUp4)) o Split(2)) o
-      Join() o toLocal(MapLcl(ReduceSeq(sumUp4))) o Split(2)
     ) o asVector(4) o Split(2048) o input
 
     val secondKernel = Join() o MapWrg(
@@ -357,12 +347,8 @@ class TestReduce {
 
   @Test def AMD_DERIVED() {
 
-    val sumUp2 = UserFun("sumUp2", Array("x", "y"), "{ return x+y; }", TupleType(VectorType(Float, 2), VectorType(Float, 2)), VectorType(Float, 2))
-
-    val id2 = UserFun("id2", Array("x"), "{ return x; }", VectorType(Float, 2), VectorType(Float, 2))
-
     val firstKernel = Join() o asScalar() o Join() o MapWrg(
-      MapLcl(/*MapSeq(id2) o*/ ReduceSeq(sumUp2) o ReorderStride())
+      MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp)) o ReorderStride())
     ) o Split(128) o asVector(2) o Split(4096) o input
 
     val secondKernel = Join() o MapWrg(
@@ -406,13 +392,9 @@ class TestReduce {
 
   @Test def INTEL_DERIVED() {
 
-    val sumUp4 = UserFun("sumUp4", Array("x", "y"), "{ return x+y; }", TupleType(VectorType(Float, 4), VectorType(Float, 4)), VectorType(Float, 4))
-
-    val id4 = UserFun("id4", Array("x"), "{ return x; }", VectorType(Float, 4), VectorType(Float, 4))
-
     val firstKernel = Join() o MapWrg(
       Join() o asScalar() o Join() o MapWarp(
-        MapLane(/*MapSeq(id4) o*/ ReduceSeq(sumUp4))
+        MapLane(/*MapSeq(Vectorize(4)(id)) o*/ ReduceSeq(Vectorize(4)(sumUp)))
       ) o Split(1) o asVector(4) o Split(32768)
     ) o Split(32768) o input
 
@@ -456,13 +438,9 @@ class TestReduce {
 
   @Test def INTEL_DERIVED_NO_WARP() {
 
-    val sumUp4 = UserFun("sumUp4", Array("x", "y"), "{ return x+y; }", TupleType(VectorType(Float, 4), VectorType(Float, 4)), VectorType(Float, 4))
-
-    val id4 = UserFun("id4", Array("x"), "{ return x; }", VectorType(Float, 4), VectorType(Float, 4))
-
     val firstKernel = Join() o MapWrg(
       Join() o asScalar() o MapLcl(
-        /*MapSeq(id4) o*/ ReduceSeq(sumUp4)
+        /*MapSeq(Vectorize(4)(id)) o*/ ReduceSeq(Vectorize(4)(sumUp))
       ) o asVector(4) o Split(32768)
     ) o Split(32768) o input
 
@@ -496,6 +474,32 @@ class TestReduce {
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
+
+      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+
+      (output, runtime)
+    }
+
+  }
+
+  @Test def SEQ_TEST() {
+
+    val kernel = Join() o MapWrg(
+      Join() o MapLcl(MapSeq(id) o ReduceSeq(sumUp)) o Split(1024)
+    ) o Split(1024) o input
+
+    val inputSize = 4194304
+    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val (output, runtime) = {
+      val outputSize = inputSize / 1024
+
+      val (output, runtime) = execute(kernel, inputData, outputSize)
+
+      println("output size = " + output.size)
+      println("first output(0) = " + output(0))
+      println("first runtime = " + runtime)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 

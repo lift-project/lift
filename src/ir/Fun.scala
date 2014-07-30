@@ -213,13 +213,18 @@ case class asVector(val len: Expr) extends Pattern() {
    override def copy() = asVector(len)    
 }
 
+/*
+// TODO: disuss if this should be a Fun again (if so, this has to be replaced in the very first pass before type checking)
 case class Vectorize(n: Expr, f: Fun) extends FPattern {
   def isGenerable() = true
   override def copy() = Vectorize(n, f)
 }
+*/
 
 object Vectorize {
-  def apply(n: Expr): ((Fun) => Vectorize) = { (f: Fun) => Vectorize(n, f) }
+  def apply(n: Expr): ((UserFun) => UserFun) = {
+    (f: UserFun) => UserFun.vectorize(f, n)
+  }
 }
 
 case class UserFun(val name: String, val paramNames: Array[String], val body: String,

@@ -346,7 +346,7 @@ object Type {
 
       case _: ReorderStride => inT
 
-      case vec: Vectorize => check(vec.f, inT, setType)
+      //case vec: Vectorize => check(vec.f, inT, setType)
         // check(vectorize(vec.f, vec.n), inT, setType)
 
       case NullFun => inT // TODO: change this

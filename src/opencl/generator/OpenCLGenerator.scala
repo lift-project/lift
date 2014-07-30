@@ -18,7 +18,7 @@ class get_num_groups(param: Int) extends OclFunction("get_num_groups", param)
 
 
 object Debug {
-  def apply() = { false }
+  def apply() = { true }
 }
 
 object OpenCLGenerator extends Generator {
@@ -33,7 +33,7 @@ object OpenCLGenerator extends Generator {
     if (Debug()) {
       println("Types:")
       Fun.visit(f, (f: Fun) => {
-        println(f.ouT + " <- " + f.inT + " | " + f)
+        println(f.ouT + " <- " + f.inT + "\n\t\t | " + f)
       }, (f: Fun) => {})
     }
 
@@ -147,13 +147,27 @@ object OpenCLGenerator extends Generator {
     var memory = Array.empty[TypedOpenCLMemory]
     var workGroupSize = 128
   }
+
+  /*
+  private def updateInputAccessFunction(oldInputAccess: Array[AccessFunction], t: Type): Array[AccessFunction] = {
+    val lens = Type.length(t)
+    if (lens.isEmpty) {
+      oldInputAccess
+    } else {
+      val inChunkSize = lens.reduce[Expr](_ * _)
+      updateMapAccessFunction(oldInputAccess, inChunkSize)
+    }
+  }
+  */
   
   private def generate(f: Fun, inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(f.ouT != UndefType)
+
+    //val inputAccess = updateInputAccessFunction(oldInputAccess, f.inT)
     
     f match {
       // sequential composition of functions. Allow to pass access functions horizontally.
-      // TODO: maybe generalize this ... (output access function, multiple access functions, pass other information ...)
+      // TODO: maybe generalize this (output access function, multiple access functions, pass other information ...)
       // go from right to left, as the data flows ...
       case cf: CompFun => cf.funs.foldRight[Option[AccessFunction]](None)(
         (innerF: Fun, af: Option[AccessFunction]) => innerF match {
@@ -281,11 +295,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.commln("map_seq")
     oclPrinter.generateLoop(indexVar, range, () => {
       // output[i] = f(input[i])
-      //if (m.ouT != m.f.ouT) {
-      //  oclPrinter.print(cast(m.f.ouT, access(outputMem, outputAccess, indexVar)) + " = ")
-      //} else {
-        oclPrinter.print(access(outputMem, m.f.ouT, outputAccess, indexVar) + " = ")
-      //}
+      oclPrinter.print(access(outputMem, m.f.ouT, outputAccess, indexVar) + " = ")
       oclPrinter.generateFunCall(m.f, access(inputMem, m.f.inT, inputAccess, indexVar))
       oclPrinter.println(";")
     })
@@ -323,11 +333,7 @@ object OpenCLGenerator extends Generator {
      })
 
      // 4. generate output[0] = acc
-    //if (r.ouT != r.f.ouT) {
-    //  oclPrinter.println(cast(r.f.ouT, access(outputMem, outputAccess, Cst(0))) =:= oclPrinter.toOpenCL(acc))
-    //} else {
-      oclPrinter.println(access(outputMem, r.f.ouT, outputAccess, Cst(0)) =:= oclPrinter.toOpenCL(acc))
-    //}
+     oclPrinter.println(access(outputMem, r.f.ouT, outputAccess, Cst(0)) =:= oclPrinter.toOpenCL(acc))
      oclPrinter.commln("reduce_seq")
      oclPrinter.closeCB()
   }
