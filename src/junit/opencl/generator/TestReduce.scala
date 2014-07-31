@@ -301,6 +301,7 @@ class TestReduce {
 
   @Test def NVIDIA_DERIVED() {
 
+    // the original derived one does not generate correct code ...
     val firstKernel = Join() o Join() o MapWrg(
       MapLcl(ReduceSeq(sumUp)) o ReorderStride()
       //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp)) o ReduceSeq(sumUp))) o ReorderStride()
@@ -394,7 +395,7 @@ class TestReduce {
 
     val firstKernel = Join() o MapWrg(
       Join() o asScalar() o Join() o MapWarp(
-        MapLane(/*MapSeq(Vectorize(4)(id)) o*/ ReduceSeq(Vectorize(4)(sumUp)))
+        MapLane(MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(sumUp)))
       ) o Split(1) o asVector(4) o Split(32768)
     ) o Split(32768) o input
 
@@ -440,7 +441,7 @@ class TestReduce {
 
     val firstKernel = Join() o MapWrg(
       Join() o asScalar() o MapLcl(
-        /*MapSeq(Vectorize(4)(id)) o*/ ReduceSeq(Vectorize(4)(sumUp))
+        MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(sumUp))
       ) o asVector(4) o Split(32768)
     ) o Split(32768) o input
 
@@ -484,9 +485,25 @@ class TestReduce {
 
   @Test def SEQ_TEST() {
 
+    /*
+     // this is working fine
+    val kernel = Join() o MapWrg(
+      Join() o MapLcl(MapSeq(id)) o MapLcl(ReduceSeq(sumUp)) o Split(1024)
+    ) o Split(1024) o input
+    */
+
+    /* // triggers wrong allocation ...
+    val kernel = Join() o MapWrg(
+      Join() o MapLcl(MapSeq(id)) o Split(1024)
+    ) o Split(1024) o input
+    */
+
+
+    // triggers generation of wrong code (the indices are broken)
     val kernel = Join() o MapWrg(
       Join() o MapLcl(MapSeq(id) o ReduceSeq(sumUp)) o Split(1024)
     ) o Split(1024) o input
+
 
     val inputSize = 4194304
     //val inputData = Array.fill(inputSize)(1.0f)

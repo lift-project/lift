@@ -18,7 +18,7 @@ class get_num_groups(param: Int) extends OclFunction("get_num_groups", param)
 
 
 object Debug {
-  def apply() = { true }
+  def apply() = { false }
 }
 
 object OpenCLGenerator extends Generator {
@@ -33,7 +33,7 @@ object OpenCLGenerator extends Generator {
     if (Debug()) {
       println("Types:")
       Fun.visit(f, (f: Fun) => {
-        println(f.ouT + " <- " + f.inT + "\n\t\t | " + f)
+        println(f + "\n    " + f.ouT + " <- " + f.inT + "\n")
       }, (f: Fun) => {})
     }
 
@@ -87,12 +87,16 @@ object OpenCLGenerator extends Generator {
     def id(scope: String) = new AccessFunction( (e:Expr) => e, scope)
   }
 
-  private class MapAccessFunction(val loopVar: Var, var chunkSize: Expr, val mapName: String)
+  private class MapAccessFunction(val loopVar: Var, val chunkSize: Expr, val mapName: String)
     extends AccessFunction( (i:Expr) => (loopVar * chunkSize) + i, mapName )
 
   private object MapAccessFunction {
     def apply(loopVar: Var, initialChunkSize: Expr, mapName: String) =
       new MapAccessFunction(loopVar, initialChunkSize, mapName)
+
+    def multWithChunkSize(ma: MapAccessFunction, chunkSize: Expr): MapAccessFunction = {
+      MapAccessFunction(ma.loopVar, ma.chunkSize * chunkSize, ma.mapName)
+    }
 
     def asMapAccessFunction(a: AccessFunction): MapAccessFunction = {
       a match {
@@ -147,18 +151,6 @@ object OpenCLGenerator extends Generator {
     var memory = Array.empty[TypedOpenCLMemory]
     var workGroupSize = 128
   }
-
-  /*
-  private def updateInputAccessFunction(oldInputAccess: Array[AccessFunction], t: Type): Array[AccessFunction] = {
-    val lens = Type.length(t)
-    if (lens.isEmpty) {
-      oldInputAccess
-    } else {
-      val inChunkSize = lens.reduce[Expr](_ * _)
-      updateMapAccessFunction(oldInputAccess, inChunkSize)
-    }
-  }
-  */
   
   private def generate(f: Fun, inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(f.ouT != UndefType)
@@ -216,19 +208,14 @@ object OpenCLGenerator extends Generator {
   private def generateMap(m: AbstractMap, f: Fun, loopVar: Var, range: RangeAdd,
                           inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction],
                           mapName: String) {
-    // input
-    val inChunkSize = Type.length(m.inT).reduce[Expr]( _ * _ )
-    val inInnerChunkSize = Type.length(Type.getElemT(m.inT)).reduce[Expr]( _ * _ )
-    val inAccessFun = MapAccessFunction(loopVar, inInnerChunkSize, mapName)
-    val updatedInputAccess = updateMapAccessFunction(inputAccess, inChunkSize) :+ inAccessFun
+    val inAccessFun = MapAccessFunction(loopVar, Cst(1), mapName)
+    val updatedInputAccess = updateAccessFunction(inputAccess, Type.length(m.inT).head) :+ inAccessFun
 
     // output
-    val outChunkSize = Type.length(m.ouT).reduce[Expr]( _ * _ )
-    val outInnerChunkSize = Type.length(Type.getElemT(m.ouT)).reduce[Expr]( _ * _ )
-    val outAccessFun = MapAccessFunction(loopVar, outInnerChunkSize, mapName)
-    val updatedOutputAccess = updateMapAccessFunction(outputAccess, outChunkSize) :+ outAccessFun
+    val outAccessFun = MapAccessFunction(loopVar, Cst(1), mapName)
+    val updatedOutputAccess = updateAccessFunction(outputAccess, Type.length(m.ouT).head) :+ outAccessFun
 
-    oclPrinter.generateLoop(loopVar, range, () => generate(f, updatedInputAccess, updatedOutputAccess))
+    oclPrinter.generateLoop(loopVar, range, () => generate(m.f, updatedInputAccess, updatedOutputAccess))
   }
   
   // MapWrg
@@ -237,7 +224,7 @@ object OpenCLGenerator extends Generator {
     val length = Type.getLength(m.inT)
     val range = RangeAdd(new get_group_id(0), length, new get_num_groups(0))
     val loopVar = Var("g_id", range)
-      
+
     generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapWrg")
     oclPrinter.println("return;")
   }
@@ -248,9 +235,9 @@ object OpenCLGenerator extends Generator {
     val length = Type.getLength(m.inT)
     val wgSize = Cst(Kernel.workGroupSize)
     val range = RangeAdd(new get_local_id(0),
-                         length, wgSize)
+      length, wgSize)
     val loopVar = Var("l_id", range)
-      
+
     generateMap(m, m.f, loopVar, range, inputAccess, outputAccess, "MapLcl")
     oclPrinter.generateBarrier(m.outM)
   }
@@ -292,11 +279,21 @@ object OpenCLGenerator extends Generator {
     val range = ContinousRange(Cst(0), length)
     val indexVar = Var("i", range)
 
+    // input
+    val inChunkSizes = Type.length(m.inT).reduce(_ * _) // this includes the vector size
+    val inAccessFun = MapAccessFunction(indexVar, inChunkSizes, "MapSeq")
+    val updatedInputAccess = updateAccessFunction(inputAccess, inChunkSizes) :+ inAccessFun
+
+    // output
+    val outChunkSizes = Type.length(m.ouT).reduce(_ * _)  // this includes the vector size
+    val outAccessFun = MapAccessFunction(indexVar, outChunkSizes, "MapSeq")
+    val updatedOutputAccess = updateAccessFunction(outputAccess, outChunkSizes) :+ outAccessFun
+
     oclPrinter.commln("map_seq")
     oclPrinter.generateLoop(indexVar, range, () => {
       // output[i] = f(input[i])
-      oclPrinter.print(access(outputMem, m.f.ouT, outputAccess, indexVar) + " = ")
-      oclPrinter.generateFunCall(m.f, access(inputMem, m.f.inT, inputAccess, indexVar))
+      oclPrinter.print(access(outputMem, m.f.ouT, updatedOutputAccess, indexVar) + " = ")
+      oclPrinter.generateFunCall(m.f, access(inputMem, m.f.inT, updatedInputAccess, indexVar))
       oclPrinter.println(";")
     })
     oclPrinter.commln("map_seq")
@@ -311,6 +308,13 @@ object OpenCLGenerator extends Generator {
      val inputMem = r.inM
      val outputMem = r.outM
 
+     // input
+     val inChunkSizes = Type.length(r.inT).reduce(_ * _) // this includes the vector size
+     val updatedInputAccess = updateAccessFunction(inputAccess, inChunkSizes)
+
+     // output
+     val outChunkSizes = Type.length(r.ouT).reduce(_ * _)  // this includes the vector size
+     val updatedOutputAccess = updateAccessFunction(outputAccess, outChunkSizes)
 
      oclPrinter.openCB()
      oclPrinter.commln("reduce_seq")
@@ -318,7 +322,7 @@ object OpenCLGenerator extends Generator {
      // 1. generate: int acc = input[0]
      val acc = Var("acc")
      val accType = Type.getElemT(r.inT) // TODO: Doesn't this restrict us to reductions with the same type (T,T) -> T?
-     oclPrinter.printVarDecl(accType, acc, access(inputMem, accType, inputAccess, 0))
+     oclPrinter.printVarDecl(accType, acc, access(inputMem, accType, updatedInputAccess, 0))
      oclPrinter.println(";")
 
      // 2. generate loop from 1 .. length
@@ -328,12 +332,12 @@ object OpenCLGenerator extends Generator {
        // 3. generate acc = fun(acc, input[i])
        oclPrinter.print(oclPrinter.toOpenCL(acc) + " = ")
        val t = r.f.inT match { case tt: TupleType => tt.elemsT(1) } // type of the second argument
-       oclPrinter.generateFunCall(r.f, oclPrinter.toOpenCL(acc), access(inputMem, t, inputAccess, indexVar))
+       oclPrinter.generateFunCall(r.f, oclPrinter.toOpenCL(acc), access(inputMem, t, updatedInputAccess, indexVar))
        oclPrinter.println(";")
      })
 
      // 4. generate output[0] = acc
-     oclPrinter.println(access(outputMem, r.f.ouT, outputAccess, Cst(0)) =:= oclPrinter.toOpenCL(acc))
+     oclPrinter.println(access(outputMem, r.f.ouT, updatedOutputAccess, Cst(0)) =:= oclPrinter.toOpenCL(acc))
      oclPrinter.commln("reduce_seq")
      oclPrinter.closeCB()
   }
@@ -429,17 +433,11 @@ object OpenCLGenerator extends Generator {
 
   // === Utilities ===
 
-  private def updateMapAccessFunction(accessFunction: Array[AccessFunction], chunkSize: Expr): Array[AccessFunction] = {
-    val i = accessFunction.lastIndexWhere(
-      _ match {
-        case _:MapAccessFunction => true
-        case _ => false
-    })
-    if (i == -1) return accessFunction
-
-    val aOld = MapAccessFunction.asMapAccessFunction(accessFunction(i))
-    val aNew = MapAccessFunction(aOld.loopVar, chunkSize, aOld.mapName)
-    accessFunction.updated(i,aNew)
+  private def updateAccessFunction(access: Array[AccessFunction], chunkSize: Expr) = {
+    access.map( af => af match {
+      case ma: MapAccessFunction => MapAccessFunction.multWithChunkSize(ma, chunkSize)
+      case af: AccessFunction => af
+    } )
   }
   
   // helper functions to generate the actual OpenCL code
@@ -457,12 +455,6 @@ object OpenCLGenerator extends Generator {
   private def privateVar(variable: Any, t: Type, init: Any) : String = {
     print(t) + " " + variable =:= init
   }
-
-  /*
-  private def cast(t: Type, access: Any): String = {
-    "*((" + oclPrinter.toOpenCL(t) + "*)&" + access + ")"
-  }
-  */
   
   private def access(memory: Memory, t: Type, accessFunctions: Array[AccessFunction], index: Expr): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)

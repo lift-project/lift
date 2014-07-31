@@ -231,6 +231,8 @@ case class UserFun(val name: String, val paramNames: Array[String], val body: St
                    val expectedInT: Type, val expectedOutT: Type) extends Fun() {
   override def isGenerable() = true
   override def copy() = UserFun(name, paramNames, body, expectedInT, expectedOutT)
+
+  override def toString() = "UserFun("+ name + ")" // for debug purposes
 }
 
 object UserFun {
