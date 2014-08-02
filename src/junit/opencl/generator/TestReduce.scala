@@ -555,7 +555,7 @@ class TestReduce {
       else if (m == kernel.outM) outputData
       else m.addressSpace match {
         case LocalMemory => local(m.size.eval())
-        case GlobalMemory => global(inputSize)//global(m.size.eval())
+        case GlobalMemory => global(inputSize * 4)//global(m.size.eval()) // * sizeof(type) == 4 for float and int
       }
     })
 

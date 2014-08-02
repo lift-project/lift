@@ -47,6 +47,13 @@ case class OpenCLMemory(var variable: Var, size: Expr, addressSpace: OpenCLAddre
 class OpenCLSubMemory(parent: OpenCLMemory, size: Expr, accessFun: (Expr) => Expr)
   extends OpenCLMemory(parent.variable, size, parent.addressSpace)
 
+class OpenCLMemoryCollection(val subMemories: Array[OpenCLMemory])
+  extends OpenCLMemory(Var("Tuple"), subMemories.map(_.size).reduce(_+_), subMemories.head.addressSpace) // TODO: think about address space ...
+
+object OpenCLMemoryCollection {
+  def apply(subMemories: OpenCLMemory*) = new OpenCLMemoryCollection(Array(subMemories:_*))
+}
+
 // Allocate memory globally
 class GlobalAllocator {
 
@@ -97,6 +104,7 @@ object OpenCLMemory {
     if (inputMem == OpenCLNullMemory) {
       f match {
         case _: Input => OpenCLNullMemory
+        case _: Zip => OpenCLNullMemory
         case _: CompFun => OpenCLNullMemory
         case _ => OpenCLMemory(Var(ContinousRange(Cst(0), getMaxSizeInBytes(f.inT))), getMaxSizeInBytes(f.inT),
                                GlobalMemory)
@@ -148,7 +156,7 @@ object OpenCLMemory {
 
     // determine the input memory of f
     val inMem = fixInput(f, argInMem)
-    assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input] || f.isInstanceOf[CompFun])
+    assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input] || f.isInstanceOf[Zip] || f.isInstanceOf[CompFun])
     f.inM = inMem
 
     // size in bytes necessary to hold the result of f in global and local memory
@@ -165,6 +173,10 @@ object OpenCLMemory {
       case Input(_, _) =>
         assert(outputMem == OpenCLNullMemory)
         allocGlobalMemory(maxGlbOutSize, f.ouT)
+
+      case z: Zip =>
+        OpenCLMemoryCollection(alloc(z.f1, numGlb, numLcl, inMem), alloc(z.f2, numGlb, numLcl, inMem))
+        //Array(z.f1, z.f2).foldRight(inMem)((f, mem) => alloc(f, numGlb, numLcl, mem))
 
       // ... for MapGlbl or MapWrg recurs with the same input memory, but update the global factor
       case MapGlb(_) | MapWrg(_) =>
@@ -278,6 +290,8 @@ object TypedOpenCLMemory {
                           TypedOpenCLMemory(f.outM, f.ouT) :+
                           TypedOpenCLMemory(it.swapBuffer, ArrayType(it.inT, ?))
 
+      case z: Zip => arr ++ getAllocatedMemory(z.f1) ++ getAllocatedMemory(z.f2)
+
       // exclude the user functions (they don't allocate memory and don't work on array types)
       case _: UserFun => arr
 
@@ -289,7 +303,7 @@ object TypedOpenCLMemory {
     // remove null memory and duplicates while preserving the original order
     result.foldLeft(Array[TypedOpenCLMemory]())( (arr, mem) => {
       val m = mem.mem
-      if (seen.contains(m) || m == OpenCLNullMemory)
+      if (seen.contains(m) || m == OpenCLNullMemory || m.isInstanceOf[OpenCLMemoryCollection])
         arr
       else {
         seen += m

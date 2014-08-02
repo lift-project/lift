@@ -2,7 +2,7 @@ package opencl.generator
 
 import Function.tupled
 import ir._
-import opencl.ir.{TypedOpenCLMemory, LocalMemory, GlobalMemory, OpenCLMemory}
+import opencl.ir._
 
 
 class OpenCLPrinter {
@@ -70,6 +70,7 @@ class OpenCLPrinter {
   }
 
   private def toParameterDecl(mem: TypedOpenCLMemory) : String = {
+    //val coll = mem.mem.asInstanceOf[OpenCLMemoryCollection]
     mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
   }
 
@@ -103,7 +104,9 @@ class OpenCLPrinter {
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)
       case ScalarType(name, _) => name
-      case TupleType(_) => throw new Exception // don't know how to print a tuple in opencl ...
+      case tt: TupleType =>
+        "(" + tt.elemsT.map(toOpenCL(_)).reduce( _ + ", " + _ ) + ")"
+        //throw new Exception // don't know how to print a tuple in opencl ...
       case UndefType => "void"
     }
   }

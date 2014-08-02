@@ -24,7 +24,7 @@ case class ScalarType(val name: String, val size: Expr) extends Type {
 case class VectorType(val scalarT: ScalarType, val len: Expr) extends Type
 
 case class TupleType(val elemsT: Type*) extends Type {
-  override def toString = "(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
+  override def toString = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 }
 
 case class ArrayType(val elemT: Type, val len: Expr) extends Type {
@@ -259,7 +259,24 @@ object Type {
       
       case cf: CompFun =>
         cf.funs.last.inT = inT
-        cf.funs.foldRight(inT)((f, inputT) => check(f, inputT, setType))      
+        cf.funs.foldRight(inT)((f, inputT) => check(f, inputT, setType))
+
+      case z : Zip => // zip ignores the inT (as input does ...)
+        val t1 = check(z.f1, NoType, setType)
+        val at1 = t1 match {
+          case at: ArrayType => at
+          case _ => throw new TypeException(t1, "ArrayType")
+        }
+        val t2 = check(z.f2, NoType, setType)
+        val at2 = t2 match {
+          case at: ArrayType => at
+          case _ => throw new TypeException(t2, "ArrayType")
+        }
+        if (at1.len != at2.len) {
+          throw TypeException("sizes do not match")
+        }
+        ArrayType(TupleType(at1.elemT, at2.elemT), at1.len)
+
 
       case _:Join => inT match {
         case at0: ArrayType => at0.elemT match {
