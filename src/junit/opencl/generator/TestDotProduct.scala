@@ -22,9 +22,9 @@ object TestDotProduct {
 
 class TestDotProduct {
 
-  val id = UserFun("id", Array("x"), "{ return x; }", Float, Float)
+  val id = UserFun("id", "x", "{ return x; }", Float, Float)
 
-  val abs = UserFun("abs", Array("x"), "{ return x >= 0 ? x : -x; }", Float, Float)
+  val abs = UserFun("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
   val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
 
@@ -32,13 +32,13 @@ class TestDotProduct {
 
   val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
 
-  val multAndSumUp = UserFun("multAndSumUp", Array("acc", "l", "r"),
+  val multAndSumUp = UserFun("multAndSumUp", Array("acc", Array("l", "r")),
     "{ return acc + (l * r); }",
     TupleType(Float, TupleType(Float, Float)), Float)
 
   val doubleItAndSumUp = UserFun("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }", TupleType(Float, Float), Float)
 
-  val sqrtIt = UserFun("sqrtIt", Array("x"), "{ return sqrt(x); }", Float, Float)
+  val sqrtIt = UserFun("sqrtIt", "x", "{ return sqrt(x); }", Float, Float)
 
   val N = Var("N")
   val M = Var("M")
@@ -99,7 +99,7 @@ class TestDotProduct {
 
   @Test def VECTOR_NEG_SIMPLE() {
 
-    val neg = UserFun("neg", Array("x"), "{ return -x; }", Float, Float)
+    val neg = UserFun("neg", "x", "{ return -x; }", Float, Float)
 
     val kernel = Join() o MapWrg(
       Join() o MapLcl(MapSeq(neg)) o Split(4)
@@ -124,7 +124,7 @@ class TestDotProduct {
   @Test def DOT_PRODUCT_SIMPLE() {
 
     val kernel = Join() o MapWrg(
-      Join() o MapLcl(ReduceSeq(sumUp) o MapSeq(mult)) o Split(4)
+      Join() o MapLcl(ReduceSeq(sumUp, 0.0f) o MapSeq(mult)) o Split(4)
     ) o Split(1024) o Zip(left, right)
 
     val inputSize = 1024
@@ -146,14 +146,14 @@ class TestDotProduct {
   @Test def DOT_PRODUCT_CPU() {
 
     val firstKernel = Join() o Join() o MapWrg(
-      toGlobal(MapLcl(ReduceSeq(multAndSumUp)))
+      toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f)))
     ) o Split(128) o Split(2048) o Zip(left, right)
 
     val secondKernel = Join() o MapWrg(
-      Join() o MapLcl(ReduceSeq(sumUp)) o Split(8192)
+      Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(8192)
     ) o Split(8192) o tmp
 
-    val inputSize = 1024
+    val inputSize = 262144
     //val leftInputData = Array.fill(inputSize)(1.0f)
     //val rightInputData = Array.fill(inputSize)(1.0f)
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -189,16 +189,46 @@ class TestDotProduct {
   @Test def DOT_PRODUCT() {
 
     val firstKernel = Join() o Join() o MapWrg(
-      toGlobal(MapLcl(ReduceSeq(multAndSumUp))) o ReorderStride()
+      toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride()
     ) o Split(128) o Split(2048) o Zip(left, right)
-
-    val tmp = Input(Var("tmp"), ArrayType(Int, N / 2048))
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(128)
+        Iterate(6)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
     ) o Split(8192) o tmp
+
+    val inputSize = 262144
+    //val leftInputData = Array.fill(inputSize)(1.0f)
+    //val rightInputData = Array.fill(inputSize)(1.0f)
+    val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val (firstOutput, firstRuntime) = {
+      val outputSize = inputSize
+
+      val (output, runtime) = executeDotProd(firstKernel, leftInputData, rightInputData, outputSize)
+
+      println("output(0) = " + output(0))
+      println("runtime = " + runtime)
+
+      assertEquals(dotProd(leftInputData, rightInputData), output.reduce(_ + _), 0.0)
+
+      (output, runtime)
+    }
+
+    val (secondOutput, secondRuntime) = {
+      val outputSize = inputSize
+
+      val (output, runtime) = execute(secondKernel, firstOutput, outputSize)
+
+      println("output(0) = " + output(0))
+      println("runtime = " + runtime)
+
+      assertEquals(dotProd(leftInputData, rightInputData), output.reduce(_ + _), 0.0)
+
+      (output, runtime)
+    }
 
   }
 
@@ -276,7 +306,7 @@ class TestDotProduct {
 
     /*
     val firstKernel = Join() o MapWrg(
-      MapLcl( ReduceSeq(sumUp) o MapSeq(mult) o Zip(fixedSizeVector) )
+      MapLcl( ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o Zip(fixedSizeVector) )
     ) o Split(128) o fixedSizeMatrix
     */
 
@@ -290,7 +320,7 @@ class TestDotProduct {
     /*
     val firstKernel = MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-      Iterate(10)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
+      Iterate(10)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
       Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o Zip(fixedSizeVector)
     ) o fixedSizeMatrix
     */
@@ -303,7 +333,7 @@ class TestDotProduct {
 
     /*
     val firstKernel = Join() o MapWrg(
-      MapLcl(ReduceSeq(sumUp) o MapSeq(mult) o Zip(vector))
+      MapLcl(ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o Zip(vector))
     ) o Split(128) o matrix
     */
 
@@ -316,7 +346,7 @@ class TestDotProduct {
     /*
     val firstKernel = MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-      Iterate(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
+      Iterate(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
       Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o Zip(vector)
     ) o matrix
     */
@@ -329,7 +359,7 @@ class TestDotProduct {
 
     /*
     val firstKernel = MapWrg(
-      Join() o MapLcl(MapSeq(Bind(mult, alpha)) o ReduceSeq(multAndSumUp)) o Split(4096) o Zip(vector)
+      Join() o MapLcl(MapSeq(Bind(mult, alpha)) o ReduceSeq(multAndSumUp, 0.0f)) o Split(4096) o Zip(vector)
     ) o matrix
     */
 
@@ -351,7 +381,7 @@ class TestDotProduct {
         Join() o toGlobal(MapLcl(MapSeq(Bind2(multAndSumUp, beta)))) o Split(1) o
         Zip(
           Join() o MapLcl(MapSeq(Bind(mult, alpha))) o Split(1) o
-            Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp))) o Split(4096) o Zip(vectorX, t.get(0)),
+            Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o Split(4096) o Zip(vectorX, t.get(0)),
           t.get(1) )
       )
     ) o Zip(matrix, vectorY)
@@ -364,7 +394,7 @@ class TestDotProduct {
     /*
     val firstKernel = MapWrg(
       Join() o MapLcl(MapSeq(add)) o Split(1) o
-      Zip( Join() o MapLcl(ReduceSeq(multAndSumUp)) o Split(4096) o Zip(vectorX, t.get(0)) , t.get(1) )
+      Zip( Join() o MapLcl(ReduceSeq(multAndSumUp, 0.0f)) o Split(4096) o Zip(vectorX, t.get(0)) , t.get(1) )
     ) o Zip(matrix, vectorY)
     */
 
@@ -374,8 +404,8 @@ class TestDotProduct {
 
     /*
     val firstKernel = MapWrg(
-      Join() o toGlobal(MapLcl(ReduceSeq(sumUp))) o Split(128) o
-      Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp))) o ReorderStride() o Split(32) o Zip(vector)
+      Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128) o
+      Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride() o Split(32) o Zip(vector)
     ) o matrix
     */
 
@@ -384,13 +414,13 @@ class TestDotProduct {
   @Test def VECTOR_NORM() {
 
     val firstKernel = Join() o Join() o MapWrg(
-      toGlobal(MapLcl(ReduceSeq(doubleItAndSumUp))) o ReorderStride()
+      toGlobal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o ReorderStride()
     ) o Split(128) o Split(2048) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
-      Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
-      Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(128)
+      Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+      Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
     ) o Split(8192) o input
 
   }
@@ -513,11 +543,11 @@ class TestDotProduct {
   }
 
   private def asum(x: Input): Fun = {
-    Reduce(sumUp) o Map(abs) o input
+    Reduce(sumUp, 0.0f) o Map(abs) o input
   }
 
   private def dot(x: Input): Fun = {
-    Reduce(sumUp) o Map(mult) o Zip(x)
+    Reduce(sumUp, 0.0f) o Map(mult) o Zip(x)
   }
 
   private def dot(x: Input, y: Input): Fun = {
@@ -538,7 +568,7 @@ class TestDotProduct {
   private def MD(particles: Input, neighArray: Input): Fun = {
     val calculateForce = UserFun("calculateForce", Array("s"), "{ return s; }", Float, Float)
 
-    Map(Reduce(calculateForce)) o Zip(particles, neighArray)
+    Map(Reduce(calculateForce, 0)) o Zip(particles, neighArray)
   }
   */
 

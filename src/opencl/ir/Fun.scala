@@ -12,11 +12,11 @@ case class MapLane(f: Fun) extends GenerableMap(f)
 
 case class MapSeq(f: Fun) extends GenerableMap(f)
 
-case class ReduceSeq(f: Fun) extends AbstractReduce(f) {
+case class ReduceSeq(f: Fun, override val init: Value) extends AbstractReduce(f, init) {
       def isGenerable() = true
 }
 
-case class ReduceHost(f: Fun) extends AbstractReduce(f) {
+case class ReduceHost(f: Fun, override val init: Value) extends AbstractReduce(f, init) {
       def isGenerable() = true
 }
 

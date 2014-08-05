@@ -247,15 +247,18 @@ object Type {
         val elemT = getElemT(inT)
         ArrayType(check(inF, elemT, setType), getLength(inT))      
       
-      case AbstractReduce(inF) =>
+      case AbstractReduce(inF, initValue) =>
         val elemT = getElemT(inT)
-        check(inF, TupleType(elemT, elemT), setType) // TODO change this probably
-        ArrayType(elemT, new Cst(1))
+        val initT = initValue.expectedOutT
+        check(inF, TupleType(initT, elemT), setType)
+        ArrayType(initT, new Cst(1))
 
       
-      case PartRed(inF) =>
-        // TODO: check id !? 
-        new ArrayType(getElemT(inT),?)
+      case PartRed(inF, initValue) =>
+        val elemT = getElemT(inT)
+        val initT = initValue.expectedOutT
+        check(inF, TupleType(initT, elemT), setType)
+        ArrayType(initT,?)
       
       case cf: CompFun =>
         cf.funs.last.inT = inT

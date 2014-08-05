@@ -132,26 +132,23 @@ class OpenCLPrinter {
     }
   }
 
+  def toOpenCL(param: (Type, Any)): String = {
+    param match {
+      case (st: ScalarType, name: String) => toOpenCL(st) + " " + name
+      case (vt: VectorType, name: String) => toOpenCL(vt) + " " + name
+      case (tt: TupleType, names: Array[Any]) => {
+        assert(tt.elemsT.length == names.length)
+        (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).reduce(separateByComma)
+      }
+      case _ => throw new NotPrintableExpression( param.toString )
+    }
+  }
+
   def toOpenCL(uf: UserFun) : String = {
     // "sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float
     // (val name: String, val paramNames: Array[String], val body: String, val expectedInT: Type, val expectedOutT: Type)
-    //uf.paramNames
-    val params = uf.expectedInT match {
-      case st: ScalarType => {
-        assert(uf.paramNames.size == 1)
-        Array(toOpenCL(st) + " " + uf.paramNames.head)
-      }
-      case vt: VectorType => {
-        assert(uf.paramNames.size == 1)
-        Array(toOpenCL(vt) + " " + uf.paramNames.head)
-      }
-      case tt: TupleType => {
-        assert(uf.paramNames.size == tt.elemsT.size)
-        (tt.elemsT zip uf.paramNames).map( { case (t,n) => toOpenCL(t) + " " + n } ).toArray
-      }
-      case _ => throw new NotPrintableExpression(uf.toString)
-    }
-    toOpenCL(uf.expectedOutT) + " " + uf.name + "(" + params.reduce(separateByComma) + ")" + uf.body
+    val params = toOpenCL( (uf.expectedInT, uf.paramNames) )
+    toOpenCL(uf.expectedOutT) + " " + uf.name + "(" + params + ")" + uf.body
   }
 
 

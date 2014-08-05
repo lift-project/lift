@@ -124,7 +124,7 @@ case class CompFun(val funs: Fun*) extends Fun {
   override def isGenerable() = true
 
   override def toString(): String = {
-    /*"CompFun(" +*/ funs.map((f) => f.toString()).reduce((s1, s2) => s1 + " o " + s2) /*+ ")"*/
+    funs.map((f) => f.toString()).reduce((s1, s2) => s1 + " o " + s2)
   }
   override def equals(o: Any) = {
     if (o.isInstanceOf[CompFun]) {
@@ -156,14 +156,6 @@ trait FPattern extends Pattern {
   def copy() : Fun = this.getClass().getConstructor(classOf[Fun]).newInstance(f.copy()) 
 }
 
-/*abstract class FPattern(val f: Fun) extends Pattern() {
-  override def copy() = this.getClass().getConstructor(classOf[Fun]).newInstance(f.copy()) 
-}
-
-object FPattern {
-  def unapply(fp: FPattern): Option[(Fun,Context)] = Some(fp.f,fp.context)   
-}*/
-
 abstract class AbstractMap(f:Fun) extends FPattern
 object AbstractMap {
 	def unapply(am: AbstractMap): Option[Fun] = Some(am.f)
@@ -180,18 +172,15 @@ abstract class GenerableMap(f:Fun) extends  AbstractMap(f) {
     def isGenerable() = true
 }
 
-abstract class AbstractReduce(f:Fun) extends FPattern
+abstract class AbstractReduce(f:Fun, val init: Value) extends FPattern
 object AbstractReduce {
-	def unapply(ar: AbstractReduce): Option[Fun] = Some(ar.f)
+	def unapply(ar: AbstractReduce): Option[(Fun, Value)] = Some(ar.f, ar.init)
 }
-case class Reduce(f: Fun) extends AbstractReduce(f) {
+case class Reduce(f: Fun, override val init: Value) extends AbstractReduce(f, init) {
     def isGenerable() = false    
 }
-object Reduce {
-  def apply(f: Fun, input: Fun) = new Reduce(f) o input
-}
 
-case class PartRed(f: Fun) extends FPattern {
+case class PartRed(f: Fun, init: Value) extends FPattern {
       def isGenerable() = false
 }
 
@@ -222,12 +211,22 @@ case class Vectorize(n: Expr, f: Fun) extends FPattern {
 */
 
 object Vectorize {
-  def apply(n: Expr): ((UserFun) => UserFun) = {
-    (f: UserFun) => UserFun.vectorize(f, n)
+  class Helper(n: Expr) {
+    def apply(uf: UserFun): UserFun = {
+      UserFun.vectorize(uf, n)
+    }
+
+    def apply(v: Value): Value = {
+      Value.vectorize(v, n)
+    }
+  }
+
+  def apply(n: Expr): Helper = {
+    new Helper(n)
   }
 }
 
-case class UserFun(val name: String, val paramNames: Array[String], val body: String,
+case class UserFun(val name: String, val paramNames: Any, val body: String,
                    val expectedInT: Type, val expectedOutT: Type) extends Fun() {
   override def isGenerable() = true
   override def copy() = UserFun(name, paramNames, body, expectedInT, expectedOutT)
@@ -250,6 +249,22 @@ case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
   this.inT = NoType
   override def isGenerable() = true
   override def copy() = Input(variable, expectedOutT)    
+}
+
+case class Value(value: String, expectedOutT: Type) extends Fun() {
+  this.inT = NoType
+  override def isGenerable() = true
+  override def copy() = Value(value, expectedOutT)
+}
+
+object Value {
+  implicit def IntToValue(i: Int) = Value(i.toString, opencl.ir.Int)
+
+  implicit def FloatToValue(f: Float) = Value(f.toString + "f", opencl.ir.Float)
+
+  def vectorize(v: Value, n: Expr): Value = {
+    Value(v.value, Type.vectorize(v.expectedOutT, n))
+  }
 }
 
 case class Iterate(n: Expr, f: Fun) extends FPattern() {

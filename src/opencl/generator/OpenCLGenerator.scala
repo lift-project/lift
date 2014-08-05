@@ -303,14 +303,14 @@ object OpenCLGenerator extends Generator {
      oclPrinter.openCB()
      oclPrinter.commln("reduce_seq")
 
-     // 1. generate: int acc = input[0]
+     // 1. generate: int acc = 0
      val acc = Var("acc")
-     val accType = Type.getElemT(r.inT) // TODO: Doesn't this restrict us to reductions with the same type (T,T) -> T?
-     oclPrinter.printVarDecl(accType, acc, access(r.inM, accType, updatedInputAccess, 0))
+     val accType = r.init.expectedOutT
+     oclPrinter.printVarDecl(accType, acc, r.init.value)
      oclPrinter.println(";")
 
-     // 2. generate loop from 1 .. length
-     val range = RangeAdd(Cst(1), Type.getLength(r.inT), Cst(1))
+     // 2. generate loop from 0 .. length
+     val range = RangeAdd(Cst(0), Type.getLength(r.inT), Cst(1))
      val loopVar = Var("i", range)
      oclPrinter.generateLoop(loopVar, range, () => {
        // 3. generate acc = fun(acc, input[i])

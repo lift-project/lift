@@ -25,7 +25,7 @@ class TestReduce {
 
   val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
 
-  val id = UserFun("id", Array("x"), "{ return x; }", Float, Float)
+  val id = UserFun("id", "x", "{ return x; }", Float, Float)
 
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", TupleType(Float, Float), Float)
 
@@ -39,7 +39,7 @@ class TestReduce {
   @Test def SIMPLE_REDUCE_FIRST() {
 
     val kernel = Join() o MapWrg(
-      Join() o MapLcl(ReduceSeq(sumUp)) o Split(2048)
+      Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2048)
     ) o Split(262144) o input
 
     val inputSize = 4194304
@@ -58,7 +58,7 @@ class TestReduce {
   @Test def SIMPLE_REDUCE_SECOND() {
 
     val kernel = Join() o Join() o  MapWrg(
-      MapLcl(ReduceSeq(sumUp))
+      MapLcl(ReduceSeq(sumUp, 0.0f))
     ) o Split(128) o Split(2048) o input
 
     val inputSize = 4194304
@@ -76,7 +76,7 @@ class TestReduce {
 
   @Test def REDUCE_HOST() {
 
-    val kernel = ReduceHost(sumUp) o input
+    val kernel = ReduceHost(sumUp, 0.0f) o input
 
     val inputSize = 128
     //val inputData = Array.fill(inputSize)(1.0f)
@@ -96,14 +96,14 @@ class TestReduce {
 
     val firstKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-      Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
+      Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
       Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
     ) o Split(128) o input
 
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
+        Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
         Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
     ) o Split(8) o tmp
 
@@ -148,8 +148,8 @@ class TestReduce {
 
     val kernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-      Iterate(7)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
-      Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
+      Iterate(7)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+      Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
     ) o Split(256) o input
 
     // for an input size of 16777216 the kernel has to executed 3 times to perform a full reduction
@@ -171,15 +171,15 @@ class TestReduce {
 
     val firstKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Join() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(sumUp)) o Split(2) ) ) o Split(32) o
-        Iterate(2)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o ReorderStride() o Split(2048)
+        Join() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(sumUp, 0.0f)) o Split(2) ) ) o Split(32) o
+        Iterate(2)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o ReorderStride() o Split(2048)
     ) o Split(262144) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
+        Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
     ) o Split(64) o tmp
 
     val inputSize = 16777216
@@ -219,14 +219,14 @@ class TestReduce {
 
     val firstKernel = Join() o MapWrg(
         Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o ReorderStride() o Split(2048)
+        Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o ReorderStride() o Split(2048)
     ) o Split(262144) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(2)
+        Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
     ) o Split(64) o tmp
 
     val inputSize = 16777216
@@ -265,13 +265,13 @@ class TestReduce {
 
     val firstKernel = Join() o asScalar() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
-      Iterate(8)( Join() o MapLcl(ReduceSeq(Vectorize(4)(sumUp))) o Split(2) ) o
-      Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp)))) o Split(2)
+      Iterate(8)( Join() o MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f))) o Split(2) ) o
+      Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f)))) o Split(2)
     ) o asVector(4) o Split(2048) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
+        Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
         Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
     ) o Split(64) o tmp
 
@@ -315,15 +315,15 @@ class TestReduce {
 
     // the original derived one does not generate correct code ...
     val firstKernel = Join() o Join() o MapWrg(
-      MapLcl(ReduceSeq(sumUp)) o ReorderStride()
-      //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp)) o ReduceSeq(sumUp))) o ReorderStride()
+      MapLcl(ReduceSeq(sumUp, 0.0f)) o ReorderStride()
+      //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o ReduceSeq(sumUp, 0.0f))) o ReorderStride()
     ) o Split(128) o Split(2048) o input
 
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(128)
+        Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
     ) o Split(8192) o tmp
 
     val inputSize = 16777216
@@ -361,13 +361,13 @@ class TestReduce {
   @Test def AMD_DERIVED() {
 
     val firstKernel = Join() o asScalar() o Join() o MapWrg(
-      MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp)) o ReorderStride())
+      MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp), Vectorize(2)(0.0f)) o ReorderStride())
     ) o Split(128) o asVector(2) o Split(4096) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp)) o Split(2) ) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp))) o Split(128)
+        Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
     ) o Split(8192) o tmp
 
     val inputSize = 16777216
@@ -407,13 +407,13 @@ class TestReduce {
 
     val firstKernel = Join() o MapWrg(
       Join() o asScalar() o Join() o MapWarp(
-        MapLane(MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp)))
+        MapLane(MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f)))
       ) o Split(1) o asVector(4) o Split(32768)
     ) o Split(32768) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o MapLcl(
-        ReduceSeq(sumUp)
+        ReduceSeq(sumUp, 0.0f)
       ) o Split(2048)
     ) o Split(2048) o tmp
 
@@ -453,13 +453,13 @@ class TestReduce {
 
     val firstKernel = Join() o MapWrg(
       Join() o asScalar() o MapLcl(
-        MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp))
+        MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f))
       ) o asVector(4) o Split(32768)
     ) o Split(32768) o input
 
     val secondKernel = Join() o MapWrg(
       Join() o MapLcl(
-        ReduceSeq(sumUp)
+        ReduceSeq(sumUp, 0.0f)
       ) o Split(2048)
     ) o Split(2048) o tmp
 
@@ -500,7 +500,7 @@ class TestReduce {
     /*
      // this is working fine
     val kernel = Join() o MapWrg(
-      Join() o MapLcl(MapSeq(id)) o MapLcl(ReduceSeq(sumUp)) o Split(1024)
+      Join() o MapLcl(MapSeq(id)) o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(1024)
     ) o Split(1024) o input
     */
 
@@ -513,7 +513,7 @@ class TestReduce {
 
     // triggers generation of wrong code (the indices are broken)
     val kernel = Join() o MapWrg(
-      Join() o MapLcl(MapSeq(id) o ReduceSeq(sumUp)) o Split(1024)
+      Join() o MapLcl(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o Split(1024)
     ) o Split(1024) o input
 
 
