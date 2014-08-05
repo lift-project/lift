@@ -105,9 +105,8 @@ object OpenCLMemory {
       f match {
         case _: Input => OpenCLNullMemory
         case _: Zip => OpenCLNullMemory
-        case _: CompFun => OpenCLNullMemory
-        case _ => OpenCLMemory(Var(ContinousRange(Cst(0), getMaxSizeInBytes(f.inT))), getMaxSizeInBytes(f.inT),
-                               GlobalMemory)
+        case _ if f.inT == NoType => OpenCLNullMemory
+        case _ => OpenCLMemory(Var(ContinousRange(Cst(0), getMaxSizeInBytes(f.inT))), getMaxSizeInBytes(f.inT), GlobalMemory)
       }
     }
     else
@@ -156,7 +155,7 @@ object OpenCLMemory {
 
     // determine the input memory of f
     val inMem = fixInput(f, argInMem)
-    assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input] || f.isInstanceOf[Zip] || f.isInstanceOf[CompFun])
+    assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input] || f.isInstanceOf[Zip] || f.inT == NoType)
     f.inM = inMem
 
     // size in bytes necessary to hold the result of f in global and local memory
