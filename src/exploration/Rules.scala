@@ -95,25 +95,25 @@ object Rules {
         result
       }     
       
-      case Reduce(inF) => {
+      case Reduce(inF,init) => {
         var result = List[Fun]()
         if (!c.converge)
-        	result = result :+ (Reduce(inF.copy()) o PartRed(inF.copy()))
+        	result = result :+ (Reduce(inF.copy(),init.copy()) o PartRed(inF.copy(),init.copy()))
         	
         if (!f.context.inSeq && (f.context.inMapGlb || f.context.inMapLcl))
-        	result = result :+ ReduceSeq(inF.copy())
+        	result = result :+ ReduceSeq(inF.copy(),init.copy())
 
         if (!f.context.inMapGlb && !f.context.inMapLcl && !f.context.inMapWrg)
-          result = result :+ ReduceHost(inF.copy())
+          result = result :+ ReduceHost(inF.copy(),init.copy())
         	
         result
       }
       
-      case PartRed(inF) => {
+      case PartRed(inF,init) => {
         var result = List[Fun]()
-        result = result :+ Reduce(inF.copy())
+        result = result :+ Reduce(inF.copy(),init.copy())
         if (f.context.mapDepth < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(PartRed(inF.copy())) o Split(Var(validOSplitRange(f.inT))))
+          result = result :+ (Join() o Map(PartRed(inF.copy(),init.copy())) o Split(Var(validOSplitRange(f.inT))))
         result
       }
       

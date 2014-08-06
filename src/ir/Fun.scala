@@ -5,9 +5,11 @@ import opencl.ir._
 abstract class Fun () {
   var context : Context = null
 
+  // type information
   var inT: Type = UndefType
   var ouT: Type = UndefType
 
+  // memory information
   var inM: Memory = UnallocatedMemory
   var outM: Memory = UnallocatedMemory
 
@@ -139,6 +141,16 @@ case class CompFun(val funs: Fun*) extends Fun {
   }
   
   override def copy() = new CompFun(funs.map(f => f.copy()):_*)
+
+  // flatten all the composed functions
+  def flatten : List[Fun] = {
+    this.funs.foldLeft(List[Fun]())((l, f) => {
+      f match {
+        case cf: CompFun => l ++ cf.flatten
+        case _ => l :+ f
+      }
+    })
+  }
 }
 
 // Here are just the algorithmic patterns

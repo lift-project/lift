@@ -11,6 +11,16 @@ object Dispatcher {
 
   Executor.loadLibrary()
 
+  class ProfilingInfo
+
+  /*def execute(f: Fun, inputs: Any*) : (ProfilingInfo, Any) = {
+    Executor.init()
+    val result = execute1(f, inputs)
+    Executor.shutdown()
+
+    result
+  }*/
+
   def execute(f:Fun, inputArray: Array[Float]) : (Double,Array[Float]) = {
 
     Executor.init()
@@ -26,12 +36,15 @@ object Dispatcher {
     val outputLen = f.inT match {
       case at: ArrayType => {
         val newInputType = new ArrayType(at.elemT, inputLen)
-        Type.check(f, newInputType, false) match {
+        val t = Type.check(f, newInputType, false)
+        t match {
           case at: ArrayType => at.len match {
             case Cst(c) => c
           }
+          case _ => throw new TypeException(t,"ArrayType")
         }
       }
+      case _ => throw new TypeException(f.inT,"ArrayType")
     }
 
     println("Generating code for " + f)
@@ -70,7 +83,7 @@ object Dispatcher {
 
     val time = f match {
       case _: ReduceHost => Executor.execute(kernelCode, 1, inputLen, args)  // single-threaded execution
-      case _ => Executor.execute(kernelCode, 128, inputLen, args)
+      case _ => Executor.execute(kernelCode, scala.math.min(128,inputLen), inputLen, args)
     }
 
     val result = outputData.asFloatArray()
@@ -79,25 +92,12 @@ object Dispatcher {
 
 
 
- private def isolateReduceHost(cf: CompFun) : List[Fun] = {
+ private def isolateForExecution(cf: CompFun) : List[Fun] = {
 
-    // TODO: must also isolate mapGlb and map Wrkg !
-    // problem if we have reduceHost o join o mapGlobal o split o join o mapGlobal o split   for instance!!!
-
-    // flatten all the composed functions
-    def flatten(cf: CompFun) : List[Fun] = {
-      cf.funs.foldLeft(List[Fun]())((l, f) => {
-        f match {
-          case cf: CompFun => l ++ flatten(cf)
-          case _ => l :+ f
-        }
-      })
-    }
-
-    flatten(cf).foldRight(List(List[Fun]()))((f,ll) => {
+    cf.flatten.foldRight(List(List[Fun]()))((f,ll) => {
       f match {
-        case ReduceHost(_) | MapGlb(_) | MapWrg(_) => List(List(), List(f)) ++ ll
-        case _ => List(List(f) ++ ll.head) ++ ll.tail
+        case ReduceHost(_,_) | MapGlb(_) | MapWrg(_) => List() :: (f::ll.head) :: ll.tail //List(List(), List(f)) ++ ll
+        case _ => (f::ll.head) :: ll.tail //List(List(f) ++ ll.head) ++ ll.tail
       }
     }).filter(_.nonEmpty).map(lf => {
       // create new composed function
@@ -126,7 +126,7 @@ object Dispatcher {
 
       case cf : CompFun => {
 
-        val newCompFun = isolateReduceHost(cf)
+        val newCompFun = isolateForExecution(cf)
 
         newCompFun.foldRight((0.0d, inputArray))((f,result) => {
           val newRes = f match {
@@ -147,5 +147,28 @@ object Dispatcher {
 
     }
   }
+
+  /* private def execute1(f: Fun, inputs: Seq[Any]) : (ProfilingInfo, Any) = {
+
+    f match {
+
+      case cf : CompFun => {
+
+        val newCompFun = isolateForExecution(cf)
+
+        newCompFun.foldRight((0.0d, inputArray))((f,result) => {
+          val newRes = f match {
+            case CompFun(Input(_,_)) => (0.0d,inputArray)
+            case _ => executeOpenCL(f, result._2)
+          }
+          (newRes._1 + result._1, newRes._2)
+        }
+        )
+      }
+
+      case _ => executeOpenCL(f, inputArray)
+
+    }
+  }*/
 
 }
