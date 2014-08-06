@@ -168,6 +168,26 @@ trait FPattern extends Pattern {
   def copy() : Fun = this.getClass().getConstructor(classOf[Fun]).newInstance(f.copy()) 
 }
 
+case class Lambda(val params: Array[Param], f: Fun) extends FPattern {
+  def isGenerable() = true
+  override def copy() = new Lambda(params, f)
+}
+
+object Lambda {
+  def apply(f: (Param) => Fun) = {
+    val params = Array(Param(Var(""), UndefType))
+    new Lambda(params, f(params(0)))
+  }
+
+  // TODO: Think if multiple parameters are really necessary
+  /*
+  def apply(f: (Param, Param) => Fun) = {
+    val params = Array(Param(Var(""), UndefType), Param(Var(""), UndefType))
+    new Lambda(params, f(params(0), params(1)))
+  }
+  */
+}
+
 abstract class AbstractMap(f:Fun) extends FPattern
 object AbstractMap {
 	def unapply(am: AbstractMap): Option[Fun] = Some(am.f)
@@ -257,10 +277,16 @@ object UserFun {
   }
 }
 
-case class Input(val variable: Var, val expectedOutT: Type) extends Fun() {
+case class Input(val variable: Var, var expectedOutT: Type) extends Fun() {
   this.inT = NoType
   override def isGenerable() = true
   override def copy() = Input(variable, expectedOutT)    
+}
+
+case class Param(val variable: Var, var expectedOutT: Type) extends Fun() {
+  this.inT = NoType
+  override def isGenerable() = true
+  override def copy() = Input(variable, expectedOutT)
 }
 
 case class Value(value: String, expectedOutT: Type) extends Fun() {

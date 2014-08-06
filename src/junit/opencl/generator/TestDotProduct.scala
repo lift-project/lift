@@ -73,22 +73,20 @@ class TestDotProduct {
 
   @Test def VECTOR_ADD_SIMPLE() {
 
-    val kernel = Join() o MapWrg(
-      Join() o MapLcl(MapSeq(add)) o Split(4)
-    ) o Split(1024) o Zip(left, right)
-
     val inputSize = 1024
-    //val leftInputData = Array.fill(inputSize)(1.0f)
-    //val rightInputData = Array.fill(inputSize)(1.0f)
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val gold = (leftInputData, rightInputData).zipped.map(_+_)
 
-    val outputSize = inputSize
+    val (output, runtime) = opencl.executor.Execute( leftInputData, rightInputData,
+      (left, right) => {
 
-    val (output, runtime) = executeDotProd(kernel, leftInputData, rightInputData, outputSize)
+        Join() o MapWrg(
+          Join() o MapLcl(MapSeq(add)) o Split(4)
+        ) o Split(1024) o Zip(left, right)
 
+    } )
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -99,20 +97,19 @@ class TestDotProduct {
 
   @Test def VECTOR_NEG_SIMPLE() {
 
-    val neg = UserFun("neg", "x", "{ return -x; }", Float, Float)
-
-    val kernel = Join() o MapWrg(
-      Join() o MapLcl(MapSeq(neg)) o Split(4)
-    ) o Split(1024) o input
-
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-
     val gold = inputArray.map(-_)
 
-    val outputSize = inputSize
+    val neg = UserFun("neg", "x", "{ return -x; }", Float, Float)
 
-    val (output, runtime) = execute(kernel, inputArray, outputSize)
+    val (output, runtime) = opencl.executor.Execute( inputArray, (in) => {
+
+      Join() o MapWrg(
+        Lambda( (x) =>  Join() o MapLcl(MapSeq(neg)) o Split(4) o x )
+      ) o Split(1024) o in
+
+    } )
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -123,19 +120,19 @@ class TestDotProduct {
 
   @Test def DOT_PRODUCT_SIMPLE() {
 
-    val kernel = Join() o MapWrg(
-      Join() o MapLcl(ReduceSeq(sumUp, 0.0f) o MapSeq(mult)) o Split(4)
-    ) o Split(1024) o Zip(left, right)
-
     val inputSize = 1024
     //val leftInputData = Array.fill(inputSize)(1.0f)
     //val rightInputData = Array.fill(inputSize)(1.0f)
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val outputSize = inputSize
+    val (output, runtime) = opencl.executor.Execute( leftInputData, rightInputData, (left, right) => {
 
-    val (output, runtime) = executeDotProd(kernel, leftInputData, rightInputData, outputSize)
+      Join() o MapWrg(
+        Lambda( (x) => Join() o MapLcl(Lambda( (x) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o x)) o Split(4) o x )
+      ) o Split(1024) o Zip(left, right)
+
+    } )
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -145,14 +142,6 @@ class TestDotProduct {
 
   @Test def DOT_PRODUCT_CPU() {
 
-    val firstKernel = Join() o Join() o MapWrg(
-      toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f)))
-    ) o Split(128) o Split(2048) o Zip(left, right)
-
-    val secondKernel = Join() o MapWrg(
-      Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(8192)
-    ) o Split(8192) o tmp
-
     val inputSize = 262144
     //val leftInputData = Array.fill(inputSize)(1.0f)
     //val rightInputData = Array.fill(inputSize)(1.0f)
@@ -160,10 +149,15 @@ class TestDotProduct {
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
-      val outputSize = inputSize
+      val (output, runtime) = opencl.executor.Execute( leftInputData, rightInputData, (left, right) => {
 
-      val (output, runtime) = executeDotProd(firstKernel, leftInputData, rightInputData, outputSize)
+        Join() o Join() o MapWrg(
+          toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f)))
+        ) o Split(128) o Split(2048) o Zip(left, right)
 
+      } )
+
+      println("output.size = " + output.size)
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
 
@@ -173,9 +167,13 @@ class TestDotProduct {
     }
 
     val (secondOutput, secondRuntime) = {
-      val outputSize = inputSize
+      val (output, runtime) = opencl.executor.Execute( firstOutput, (in) => {
 
-      val (output, runtime) = execute(secondKernel, firstOutput, outputSize)
+        Join() o MapWrg(
+          Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(128)
+        ) o Split(128) o in
+
+      } )
 
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
@@ -188,16 +186,6 @@ class TestDotProduct {
 
   @Test def DOT_PRODUCT() {
 
-    val firstKernel = Join() o Join() o MapWrg(
-      toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride()
-    ) o Split(128) o Split(2048) o Zip(left, right)
-
-    val secondKernel = Join() o MapWrg(
-      Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
-    ) o Split(8192) o tmp
-
     val inputSize = 262144
     //val leftInputData = Array.fill(inputSize)(1.0f)
     //val rightInputData = Array.fill(inputSize)(1.0f)
@@ -207,8 +195,15 @@ class TestDotProduct {
     val (firstOutput, firstRuntime) = {
       val outputSize = inputSize
 
-      val (output, runtime) = executeDotProd(firstKernel, leftInputData, rightInputData, outputSize)
+      val (output, runtime) = opencl.executor.Execute( leftInputData, rightInputData, (left, right) => {
 
+        Join() o Join() o MapWrg(
+          toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride()
+        ) o Split(128) o Split(2048) o Zip(left, right)
+
+      } )
+
+      println("output.size = " + output.size)
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
 
@@ -218,9 +213,15 @@ class TestDotProduct {
     }
 
     val (secondOutput, secondRuntime) = {
-      val outputSize = inputSize
+      val (output, runtime) = opencl.executor.Execute( firstOutput, (in) => {
 
-      val (output, runtime) = execute(secondKernel, firstOutput, outputSize)
+        Join() o MapWrg(
+          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(6)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
+            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
+        ) o Split(128) o in
+
+      } )
 
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
@@ -232,6 +233,7 @@ class TestDotProduct {
 
   }
 
+  /*
   private def executeDotProd(kernel: CompFun, leftInputArray: Array[Float], rightInputArray: Array[Float],
                              outputSize: Int, wgSize: Int = 128) = {
     Type.check(kernel, NoType)
@@ -299,21 +301,31 @@ class TestDotProduct {
 
     (outputArray, runtime)
   }
-
-  /*
+*/
 
   @Test def MATRIX_VECTOR_FIXED_SIZE() {
 
-    /*
     val firstKernel = Join() o MapWrg(
-      MapLcl( ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o Zip(fixedSizeVector) )
+      MapLcl( Lambda( (x) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o Zip(fixedSizeVector, x) ) )
     ) o Split(128) o fixedSizeMatrix
+
+    Type.check(firstKernel, NoType)
+    // TODO: continue here ...
+    /*
+    val (output, runtime) = opencl.executor.Execute( leftInputData, rightInputData, (left, right) => {
+
+      Join() o Join() o MapWrg(
+        toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride()
+      ) o Split(128) o Split(2048) o Zip(left, right)
+
+    } )
     */
 
     // tested with size == 1024
 
   }
 
+  /*
 
   @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY() {
 

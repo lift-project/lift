@@ -198,11 +198,13 @@ object OpenCLGenerator extends Generator {
       // utilities
       case f: toGlobal => generate(f.f, inputAccess, outputAccess)
       case f: toLocal => generate(f.f, inputAccess, outputAccess)
+      case l: Lambda => generate(l.f, inputAccess, outputAccess)
       case _: asVector =>
       case _: asScalar =>
       case _: Split =>
       case _: Join =>
       case _: Input =>
+      case _: Param =>
       case _: Zip =>
       case _ => oclPrinter.print("__" + f.toString + "__")
     }

@@ -264,6 +264,15 @@ object Type {
         cf.funs.last.inT = inT
         cf.funs.foldRight(inT)((f, inputT) => check(f, inputT, setType))
 
+      case l: Lambda =>
+        inT match {
+          case tt: TupleType =>
+            assert(tt.elemsT.length == l.params.length)
+            (l.params,tt.elemsT).zipped.map( (p,t) => p.expectedOutT = t )
+          case _ => l.params(0).expectedOutT = inT
+        }
+        check(l.f, inT, setType)
+
       case z : Zip => // zip ignores the inT (as input does ...)
         val t1 = check(z.f1, NoType, setType)
         val at1 = t1 match {
@@ -276,7 +285,8 @@ object Type {
           case _ => throw new TypeException(t2, "ArrayType")
         }
         if (at1.len != at2.len) {
-          throw TypeException("sizes do not match")
+          println("Warning: can not statically proof that sizes (" + at1 + " and " + at2 + ") match!")
+          // throw TypeException("sizes do not match")
         }
         ArrayType(TupleType(at1.elemT, at2.elemT), at1.len)
 
@@ -310,6 +320,7 @@ object Type {
       }
       
       case input : Input => input.expectedOutT
+      case param : Param => param.expectedOutT
 
       case tL:toLocal => check(tL.f, inT, setType)
 
