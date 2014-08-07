@@ -35,16 +35,21 @@ class TestReduce {
     val inputSize = 4194304
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output, runtime) = opencl.executor.Execute( fun ((in) => {
+    val l = fun ((in) => {
       Join() o MapWrg(
         Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2048)
       ) o Split(262144) o in
-    } ), inputData )
+    } )
+
+    Type.check(l.body, NoType)
+/*
+    val (output, runtime) = opencl.executor.Execute( l , inputData )
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
+    */
   }
 
   /*

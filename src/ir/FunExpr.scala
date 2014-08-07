@@ -18,7 +18,14 @@ sealed class FunExpr(val f : FunDef, val args : FunExpr*) {
       this.context = ctx
     this
   }
-  
+
+  def copy: FunExpr = {
+    //val c = new FunExpr(this.f, this.args:_*)
+    //c.context = this.context
+    //c.inT = this.inT
+    //c.ouT = this.ouT
+    this.clone().asInstanceOf[FunExpr]
+  }
 
 
 }
@@ -68,9 +75,9 @@ object FunExpr {
    * Visit the expression of function f (recursively) and rebuild along the way
    */
   def visitExpr(f: FunExpr, exprF: (Expr) => (Expr)) : FunExpr = {
-    visit(f, (inF:FunExpr) => inF match {
-      case Split(e) => Split(exprF(e))
-      case asVector(e) => asVector(exprF(e))
+    visit(f, (inF:FunExpr) => inF.f match {
+      case Split(e) => Split(exprF(e))(inF.args:_*)
+      case asVector(e) => asVector(exprF(e))(inF.args:_*)
       case _ => inF
     }, (inF:FunExpr) => inF)
   }
@@ -80,16 +87,11 @@ object FunExpr {
    */
    def visit(f: FunExpr, pre: (FunExpr) => (FunExpr), post: (FunExpr) => (FunExpr)) : FunExpr = {
     var newF = pre(f)
-    newF = newF match {
-
-      case cf: CompFunDef => CompFunDef(cf.funs.map(inF => visit(inF, pre, post)):_*)
-      
-      case fp: FPattern => fp.getClass().getConstructor(classOf[FunExpr]).newInstance(visit(fp.f,pre,post))
-      
-      case _ => newF.copy() 
+    newF = newF.f match {
+      case cf: CompFunDef => CompFunDef(cf.funs.map(inF => visit(inF.body, pre, post).f).map(Lambda.FunDefToLambda(_)):_*)(newF.args:_*)
+      case fp: FPattern => fp.getClass().getConstructor(classOf[FunExpr]).newInstance(visit(fp.f.body,pre,post))(newF.args:_*)
+      case _ => newF.copy
     }
-    
-
     post(newF)
   }
 
@@ -98,9 +100,9 @@ object FunExpr {
    */
   def visit(f: FunExpr, pre: (FunExpr) => (Unit), post: (FunExpr) => (Unit)): Unit = {
     pre(f)
-    f match {
-      case fp: FPattern => visit(fp.f, pre, post)
-      case cf: CompFunDef => cf.funs.reverseMap(inF => visit(inF, pre, post))
+    f.f match {
+      case fp: FPattern => visit(fp.f.body, pre, post)
+      case cf: CompFunDef => cf.funs.reverseMap(inF => visit(inF.body, pre, post))
       case _ =>
     }
     post(f)

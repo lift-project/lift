@@ -1,10 +1,10 @@
 package ir
 
-// hm ...
+import ir._
 import opencl.ir._
 import scala.collection.mutable
 import scala.collection.immutable
-import scala.collection.mutable.ArrayBuffer
+
 
 case class TypeException(msg: String) extends Exception(msg) {
   def this() = this("")
@@ -241,46 +241,46 @@ object Type {
       f.inT = inT // set the input type
 
     // type inference
-    var inferredOuT = f match {
+    var inferredOuT = f.f match {
                   
-      case AbstractMap(inF) =>
+      case am : AbstractMap =>
         val elemT = getElemT(inT)
-        ArrayType(check(inF, elemT, setType), getLength(inT))      
+        ArrayType(check(am.f.body, elemT, setType), getLength(inT))
       
-      case AbstractReduce(inF, initValue) =>
+      case ar : AbstractReduce =>
         val elemT = getElemT(inT)
-        val initT = initValue.expectedOutT
-        check(inF, TupleType(initT, elemT), setType)
+        val initT = ar.init.outT
+        check(ar.f.body, TupleType(initT, elemT), setType)
         ArrayType(initT, new Cst(1))
 
       
       case PartRed(inF, initValue) =>
         val elemT = getElemT(inT)
-        val initT = initValue.expectedOutT
-        check(inF, TupleType(initT, elemT), setType)
+        val initT = initValue.outT
+        check(inF.body, TupleType(initT, elemT), setType)
         ArrayType(initT,?)
       
       case cf: CompFunDef =>
-        cf.funs.last.inT = inT
-        cf.funs.foldRight(inT)((f, inputT) => check(f, inputT, setType))
+        cf.funs.last.body.inT = inT
+        cf.funs.foldRight(inT)((f, inputT) => check(f.body, inputT, setType))
 
-      case l: FunDef =>
+      case l: Lambda =>
         inT match {
           case NoType =>
           case tt: TupleType =>
             assert(tt.elemsT.length == l.params.length)
-            (l.params,tt.elemsT).zipped.map( (p,t) => p.expectedOutT = t )
-          case _ => l.params(0).expectedOutT = inT
+            (l.params,tt.elemsT).zipped.map( (p,t) => p.outT = t )
+          case _ => l.params(0).outT = inT
         }
         check(l.body, inT, setType)
 
       case z : Zip => // zip ignores the inT (as input does ...)
-        val t1 = check(z.f1, NoType, setType)
+        val t1 = check(z.params(0), NoType, setType)
         val at1 = t1 match {
           case at: ArrayType => at
           case _ => throw new TypeException(t1, "ArrayType")
         }
-        val t2 = check(z.f2, NoType, setType)
+        val t2 = check(z.params(1), NoType, setType)
         val at2 = t2 match {
           case at: ArrayType => at
           case _ => throw new TypeException(t2, "ArrayType")
@@ -315,17 +315,14 @@ object Type {
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
-      case uf : UserFunExpr => {
-        val substitutions = reify(uf.funDef.expectedInT, inT)
-        substitute(uf.funDef.expectedOutT, substitutions.toMap)
+      case uf : UserFunDef => {
+        val substitutions = reify(uf.inT, inT)
+        substitute(uf.outT, substitutions.toMap)
       }
-      
-      case input : Input => input.expectedOutT
-      case param : Param => param.expectedOutT
 
-      case tL:toLocal => check(tL.f, inT, setType)
+      case tL:toLocal => check(tL.f.body, inT, setType)
 
-      case tG:toGlobal => check(tG.f, inT, setType)
+      case tG:toGlobal => check(tG.f.body, inT, setType)
 
       case i : Iterate => inT match {
         case at: ArrayType => {
@@ -352,7 +349,7 @@ object Type {
           )
 
           // type checking
-          var outputTypeWithTypeVar = check(i.f, inputTypeWithTypeVar, false)
+          var outputTypeWithTypeVar = check(i.f.body, inputTypeWithTypeVar, false)
 
           // find all the type variable in the output type
           val outputTvSet = scala.collection.mutable.HashSet[TypeVar]()
@@ -368,7 +365,7 @@ object Type {
           inputTypeWithTypeVar = substitute(inputTypeWithTypeVar, fixedTvMap.toMap)
 
           // assign the type for f
-          check(i.f, inputTypeWithTypeVar)
+          check(i.f.body, inputTypeWithTypeVar)
 
           val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n, tvMap)
           substitute(closedFormOutputType, tvMap.toMap)
@@ -381,8 +378,6 @@ object Type {
       //case vec: Vectorize => check(vec.f, inT, setType)
         // check(vectorize(vec.f, vec.n), inT, setType)
 
-      case NullFunExpr => inT // TODO: change this
-      
       // TODO: continue
       //case _ => UndefType
     }
