@@ -233,7 +233,8 @@ object OpenCLMemory {
       }
 */
       // .. for any pattern with a function nested inside recurs
-      case fp: FPattern => alloc(fp.f, numGlb, numLcl, inMem, outputMem)
+      case fp: FPattern =>
+        alloc(fp.f, numGlb, numLcl, inMem, outputMem)
 
       // ... some function do not allocate anything => return the input memory
       case Split(_) | Join() | ReorderStride() | asVector(_) | asScalar() | Param(_,_) /*| Vectorize(_,_)*/ => inMem
@@ -293,7 +294,7 @@ object TypedOpenCLMemory {
       case z: Zip => arr ++ getAllocatedMemory(z.f1) ++ getAllocatedMemory(z.f2)
 
       // exclude the user functions (they don't allocate memory and don't work on array types)
-      case _: UserFun => arr
+      case _: UserFunDef => arr
 
       case _ => arr :+ TypedOpenCLMemory(f.inM, f.inT) :+ TypedOpenCLMemory(f.outM, f.ouT)
 

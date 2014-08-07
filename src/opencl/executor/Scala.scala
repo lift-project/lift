@@ -74,6 +74,7 @@ object Execute {
   // =====================
 
   def apply(first: Array[Float], f: (Input) => CompFun) = {
+
     val inputSize = first.size
     val N = Var("N")
     val valueMap = scala.collection.immutable.Map[Expr, Expr](N -> inputSize)

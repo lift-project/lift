@@ -87,7 +87,7 @@ class OpenCLPrinter {
   }
 
   def generateFunCall(f: UserFun, args: String*) {
-    print(f.name+"(")
+    print(f.funDef.name+"(")
     if (args.length > 0)
       print(args.reduceLeft((result, a) => result + "," + a))
     print(")")
@@ -144,7 +144,7 @@ class OpenCLPrinter {
     }
   }
 
-  def toOpenCL(uf: UserFun) : String = {
+  def toOpenCL(uf: UserFunDef) : String = {
     // "sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float
     // (val name: String, val paramNames: Array[String], val body: String, val expectedInT: Type, val expectedOutT: Type)
     val params = toOpenCL( (uf.expectedInT, uf.paramNames) )

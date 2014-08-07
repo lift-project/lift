@@ -316,8 +316,8 @@ object Type {
       }
       
       case uf : UserFun => {
-        val substitutions = reify(uf.expectedInT, inT)
-        substitute(uf.expectedOutT, substitutions.toMap)
+        val substitutions = reify(uf.funDef.expectedInT, inT)
+        substitute(uf.funDef.expectedOutT, substitutions.toMap)
       }
       
       case input : Input => input.expectedOutT

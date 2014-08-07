@@ -65,8 +65,8 @@ object OpenCLGenerator extends Generator {
 
   /** Traversals f and print all user functions using oclPrinter */
   def generateUserFunction(f: Fun) {
-    val userFuns = Fun.visit(Set[UserFun]())(f, (f,set) => f match {
-      case uf: UserFun => set + uf
+    val userFuns = Fun.visit(Set[UserFunDef]())(f, (f,set) => f match {
+      case uf: UserFun => set + uf.funDef
       //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
       case _ => set
     })
@@ -194,7 +194,7 @@ object OpenCLGenerator extends Generator {
       // reorder
       //case r : ReorderStride => generateReorderStride(r, inputAccess, outputAccess)
       // user functions
-      case u : UserFun => oclPrinter.generateFunCall(u)
+      case u : UserFunDef => oclPrinter.generateFunCall(u)
       // utilities
       case f: toGlobal => generate(f.f, inputAccess, outputAccess)
       case f: toLocal => generate(f.f, inputAccess, outputAccess)

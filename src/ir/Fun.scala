@@ -43,6 +43,8 @@ abstract class Fun () {
 
 object Fun {
 
+  implicit def UserFunDefToUserFun(funDef: UserFunDef) = new UserFun(funDef)
+
   def replaceRef(f: Fun, oriF: Fun, newF: Fun) : Fun = {
 
     //println("f: "+f+" oriF: "+oriF+" newF: "+newF)
@@ -265,22 +267,26 @@ object Vectorize {
   }
 }
 
-case class UserFun(val name: String, val paramNames: Any, val body: String,
-                   val expectedInT: Type, val expectedOutT: Type) extends Fun() {
-  override def isGenerable() = true
-  override def copy() = UserFun(name, paramNames, body, expectedInT, expectedOutT)
+
+case class UserFunDef(val name: String, val paramNames: Any, val body: String,
+                      val expectedInT: Type, val expectedOutT: Type) {
 
   override def toString() = "UserFun("+ name + ")" // for debug purposes
 }
 
+case class UserFun(val funDef: UserFunDef) extends Fun() {
+  override def isGenerable() = true
+  override def copy() = UserFun(funDef)
+}
+
 object UserFun {
   def vectorize(uf: UserFun, n: Expr): UserFun = {
-    val name = uf.name + n
-    val expectedInT = Type.vectorize(uf.expectedInT, n)
-    val expectedOutT = Type.vectorize(uf.expectedOutT, n)
+    val name = uf.funDef.name + n
+    val expectedInT = Type.vectorize(uf.funDef.expectedInT, n)
+    val expectedOutT = Type.vectorize(uf.funDef.expectedOutT, n)
 
     // create new user fun
-    UserFun(name, uf.paramNames, uf.body, expectedInT, expectedOutT)
+    UserFun(UserFunDef(name, uf.funDef.paramNames, uf.funDef.body, expectedInT, expectedOutT))
   }
 }
 

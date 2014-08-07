@@ -22,23 +22,23 @@ object TestDotProduct {
 
 class TestDotProduct {
 
-  val id = UserFun("id", "x", "{ return x; }", Float, Float)
+  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
-  val abs = UserFun("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
+  val abs = UserFunDef("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
-  val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
 
-  val add = UserFun("add", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
 
-  val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
+  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
 
-  val multAndSumUp = UserFun("multAndSumUp", Array("acc", Array("l", "r")),
+  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", Array("l", "r")),
     "{ return acc + (l * r); }",
     TupleType(Float, TupleType(Float, Float)), Float)
 
-  val doubleItAndSumUp = UserFun("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }", TupleType(Float, Float), Float)
+  val doubleItAndSumUp = UserFunDef("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }", TupleType(Float, Float), Float)
 
-  val sqrtIt = UserFun("sqrtIt", "x", "{ return sqrt(x); }", Float, Float)
+  val sqrtIt = UserFunDef("sqrtIt", "x", "{ return sqrt(x); }", Float, Float)
 
   val N = Var("N")
   val M = Var("M")
@@ -110,7 +110,7 @@ class TestDotProduct {
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_)
 
-    val neg = UserFun("neg", "x", "{ return -x; }", Float, Float)
+    val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
 
     val negFun = Lambda(ArrayType(Float, Var("N")), (input) =>
 

@@ -23,11 +23,11 @@ object TestReduce {
 
 class TestReduce {
 
-  val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
 
-  val id = UserFun("id", "x", "{ return x; }", Float, Float)
+  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
-  val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", TupleType(Float, Float), Float)
+  val absAndSumUp = UserFunDef("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", TupleType(Float, Float), Float)
 
 
   @Test def SIMPLE_REDUCE_FIRST() {
@@ -66,6 +66,7 @@ class TestReduce {
   }
 
   @Test def REDUCE_HOST() {
+
 
     val inputSize = 128
     //val inputData = Array.fill(inputSize)(1.0f)
@@ -213,15 +214,17 @@ class TestReduce {
 
     val (firstOutput, firstRuntime) = {
 
-      val (output, runtime) = opencl.executor.Execute( inputData, (in) => {
-
+      val f = Lambda(
+        ArrayType(Float, Var("N")),
+        (in) =>
         Join() o MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o ReorderStride() o Split(2048)
         ) o Split(262144) o in
+      )
 
-      })
+      val (output, runtime) = Execute(f, inputData)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
