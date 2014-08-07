@@ -8,15 +8,15 @@ import scala.reflect.ClassTag
 
 object Compile {
   def apply(f: Lambda) = {
-    Type.check(f, NoType)
+    Type.check(f.body, NoType)
 
     // allocate the params and set the corresponding type
     f.params.map( (p) => {
-      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.expectedOutT))
-      p.inT = p.expectedOutT
+      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+      p.inT = p.outT
     })
 
-    val kernelCode = OpenCLGenerator.generate(f)
+    val kernelCode = OpenCLGenerator.generate(f.body)
     println("Kernel code:")
     println(kernelCode)
 
@@ -34,16 +34,16 @@ object Execute {
   }
 
   def apply(code: String, f: Lambda, values: Array[Float]*) : (Array[Float], Double) = {
-    val valueMap = (    f.params.map( (p) => Type.getLength(p.expectedOutT))
+    val valueMap = (    f.params.map( (p) => Type.getLength(p.outT))
       zip values.map( (a) => Cst(a.size)) ).toMap[Expr, Expr]
 
     // allocate the params and set the corresponding type
     f.params.map( (p) => {
-      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.expectedOutT))
-      p.inT = p.expectedOutT
+      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+      p.inT = p.outT
     })
 
-    val outputSize = Expr.substitute(Type.getLength(f.ouT), valueMap).eval()
+    val outputSize = Expr.substitute(Type.getLength(f.body.ouT), valueMap).eval()
 
     val inputs = values.map( global.input(_) )
     val outputData = global.output[Float](outputSize)
@@ -52,7 +52,7 @@ object Execute {
       val m = mem.mem
       val i = f.params.indexWhere( m == _.outM )
       if (i != -1) inputs(i)
-      else if (m == f.outM) outputData
+      else if (m == f.body.outM) outputData
       else m.addressSpace match {
         case LocalMemory => local(Expr.substitute(m.size, valueMap).eval() * 4) // TODO: check on this ...
         case GlobalMemory => global(Expr.substitute(m.size, valueMap).eval() * 4)
@@ -72,8 +72,8 @@ object Execute {
   }
 
   // =====================
-
-  def apply(first: Array[Float], f: (Input) => CompFun) = {
+/*
+  def apply(first: Array[Float], f: (Input) => CompFunDef) = {
 
     val inputSize = first.size
     val N = Var("N")
@@ -115,7 +115,7 @@ object Execute {
     (outputArray, runtime)
   }
 
-  def apply(first: Array[Float], second: Array[Float], f: (Input, Input) => Fun) = {
+  def apply(first: Array[Float], second: Array[Float], f: (Input, Input) => FunExpr) = {
     val N = Var("N")
     val M = Var("M")
     val valueMap = scala.collection.immutable.Map[Expr, Expr](N -> first.size, M -> second.size)
@@ -155,7 +155,7 @@ object Execute {
     args.foreach(_.dispose)
 
     (outputArray, runtime)
-  }
+  }*/
 }
 
 

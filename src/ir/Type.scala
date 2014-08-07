@@ -235,7 +235,7 @@ object Type {
   
   //def check(f: Fun) : Type = { check(f, UndefType) }
   
-  def check(f: Fun, inT: Type, setType: Boolean = true): Type = {
+  def check(f: FunExpr, inT: Type, setType: Boolean = true): Type = {
 
     if (setType)
       f.inT = inT // set the input type
@@ -260,11 +260,11 @@ object Type {
         check(inF, TupleType(initT, elemT), setType)
         ArrayType(initT,?)
       
-      case cf: CompFun =>
+      case cf: CompFunDef =>
         cf.funs.last.inT = inT
         cf.funs.foldRight(inT)((f, inputT) => check(f, inputT, setType))
 
-      case l: Lambda =>
+      case l: FunDef =>
         inT match {
           case NoType =>
           case tt: TupleType =>
@@ -272,7 +272,7 @@ object Type {
             (l.params,tt.elemsT).zipped.map( (p,t) => p.expectedOutT = t )
           case _ => l.params(0).expectedOutT = inT
         }
-        check(l.f, inT, setType)
+        check(l.body, inT, setType)
 
       case z : Zip => // zip ignores the inT (as input does ...)
         val t1 = check(z.f1, NoType, setType)
@@ -315,7 +315,7 @@ object Type {
         case _ =>  throw new TypeException(inT, "ArrayType")
       }
       
-      case uf : UserFun => {
+      case uf : UserFunExpr => {
         val substitutions = reify(uf.funDef.expectedInT, inT)
         substitute(uf.funDef.expectedOutT, substitutions.toMap)
       }
@@ -381,7 +381,7 @@ object Type {
       //case vec: Vectorize => check(vec.f, inT, setType)
         // check(vectorize(vec.f, vec.n), inT, setType)
 
-      case NullFun => inT // TODO: change this
+      case NullFunExpr => inT // TODO: change this
       
       // TODO: continue
       //case _ => UndefType

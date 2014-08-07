@@ -35,11 +35,11 @@ class TestReduce {
     val inputSize = 4194304
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output, runtime) = opencl.executor.Execute( inputData, (in) => {
+    val (output, runtime) = opencl.executor.Execute( fun ((in) => {
       Join() o MapWrg(
         Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2048)
       ) o Split(262144) o in
-    } )
+    } ), inputData )
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -47,6 +47,7 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
+  /*
   @Test def SIMPLE_REDUCE_SECOND() {
 
     val inputSize = 4194304
@@ -214,7 +215,7 @@ class TestReduce {
 
     val (firstOutput, firstRuntime) = {
 
-      val f = Lambda(
+      val f = fun(
         ArrayType(Float, Var("N")),
         (in) =>
         Join() o MapWrg(
@@ -492,6 +493,7 @@ class TestReduce {
     }
 
   }
+  */
   /*
     @Test def SEQ_TEST() {
 

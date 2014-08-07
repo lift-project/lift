@@ -21,7 +21,7 @@ object Dispatcher {
     result
   }*/
 
-  def execute(f:Fun, inputArray: Array[Float]) : (Double,Array[Float]) = {
+  def execute(f:FunExpr, inputArray: Array[Float]) : (Double,Array[Float]) = {
 
     Executor.init()
     val result = execute1(f, inputArray)
@@ -30,7 +30,7 @@ object Dispatcher {
     result
   }
 
-  private def executeOpenCL(f: Fun, inputArray: Array[Float]) : (Double,Array[Float]) = {
+  private def executeOpenCL(f: FunExpr, inputArray: Array[Float]) : (Double,Array[Float]) = {
 
     val inputLen = inputArray.length
     val outputLen = f.inT match {
@@ -92,16 +92,16 @@ object Dispatcher {
 
 
 
- private def isolateForExecution(cf: CompFun) : List[Fun] = {
+ private def isolateForExecution(cf: CompFunDef) : List[FunExpr] = {
 
-    cf.flatten.foldRight(List(List[Fun]()))((f,ll) => {
+    cf.flatten.foldRight(List(List[FunExpr]()))((f,ll) => {
       f match {
         case ReduceHost(_,_) | MapGlb(_) | MapWrg(_) => List() :: (f::ll.head) :: ll.tail //List(List(), List(f)) ++ ll
         case _ => (f::ll.head) :: ll.tail //List(List(f) ++ ll.head) ++ ll.tail
       }
     }).filter(_.nonEmpty).map(lf => {
       // create new composed function
-      val cf = CompFun(lf: _*)
+      val cf = CompFunDef(lf: _*)
 
       // patch the type
       val inT = lf.last.inT
@@ -120,17 +120,17 @@ object Dispatcher {
 
   }
 
-  private def execute1(f:Fun, inputArray: Array[Float]) : (Double,Array[Float]) = {
+  private def execute1(f:FunExpr, inputArray: Array[Float]) : (Double,Array[Float]) = {
 
     f match {
 
-      case cf : CompFun => {
+      case cf : CompFunDef => {
 
         val newCompFun = isolateForExecution(cf)
 
         newCompFun.foldRight((0.0d, inputArray))((f,result) => {
           val newRes = f match {
-            case CompFun(Input(_,_)) => (0.0d,inputArray)
+            case CompFunDef(Input(_,_)) => (0.0d,inputArray)
             case _ => executeOpenCL(f, result._2)
           }
           (newRes._1 + result._1, newRes._2)

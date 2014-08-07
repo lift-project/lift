@@ -78,15 +78,15 @@ class OpenCLPrinter {
     print(mems.map( mem => toParameterDecl(mem) ).reduce(separateByComma))
   }
 
-  def generateFunCall(f: Fun, args: String*) {
+  def generateFunCall(f: FunExpr, args: String*) {
     f match {
-      case uf: UserFun => generateFunCall(uf, args:_*)
+      case uf: UserFunExpr => generateFunCall(uf, args:_*)
       //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
       case _ => throw new NotImplementedError()
     }
   }
 
-  def generateFunCall(f: UserFun, args: String*) {
+  def generateFunCall(f: UserFunExpr, args: String*) {
     print(f.funDef.name+"(")
     if (args.length > 0)
       print(args.reduceLeft((result, a) => result + "," + a))
@@ -147,8 +147,8 @@ class OpenCLPrinter {
   def toOpenCL(uf: UserFunDef) : String = {
     // "sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float
     // (val name: String, val paramNames: Array[String], val body: String, val expectedInT: Type, val expectedOutT: Type)
-    val params = toOpenCL( (uf.expectedInT, uf.paramNames) )
-    toOpenCL(uf.expectedOutT) + " " + uf.name + "(" + params + ")" + uf.body
+    val params = toOpenCL( (uf.inT, uf.paramNames) )
+    toOpenCL(uf.outT) + " " + uf.name + "(" + params + ")" + uf.body
   }
 
 

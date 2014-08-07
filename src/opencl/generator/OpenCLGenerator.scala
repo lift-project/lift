@@ -30,15 +30,15 @@ object OpenCLGenerator extends Generator {
   var oclPrinter: OpenCLPrinter = null
 
   // compiler a type-checked function into an OpenCL kernel
-  def generate(f: Fun) : String = {
+  def generate(f: FunExpr) : String = {
 
     assert (f.inT != UndefType)
 
     if (Debug()) {
       println("Types:")
-      Fun.visit(f, (f: Fun) => {
+      FunExpr.visit(f, (f: FunExpr) => {
         println(f + "\n    " + f.ouT + " <- " + f.inT + "\n")
-      }, (f: Fun) => {})
+      }, (f: FunExpr) => {})
     }
 
     // pass 1
@@ -64,9 +64,9 @@ object OpenCLGenerator extends Generator {
   }
 
   /** Traversals f and print all user functions using oclPrinter */
-  def generateUserFunction(f: Fun) {
-    val userFuns = Fun.visit(Set[UserFunDef]())(f, (f,set) => f match {
-      case uf: UserFun => set + uf.funDef
+  def generateUserFunction(f: FunExpr) {
+    val userFuns = FunExpr.visit(Set[UserFunDef]())(f, (f,set) => f match {
+      case uf: UserFunExpr => set + uf.funDef
       //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
       case _ => set
     })
@@ -76,7 +76,7 @@ object OpenCLGenerator extends Generator {
     })
   }
 
-  def allocateMemory(f: Fun) : Unit = {
+  def allocateMemory(f: FunExpr) : Unit = {
     OpenCLMemory.alloc(f)
     Kernel.memory = TypedOpenCLMemory.getAllocatedMemory(f)
   }
@@ -111,7 +111,7 @@ object OpenCLGenerator extends Generator {
   }
 
 
-  private def generateKernel(f: Fun, workGroupSize: Int = 128) {
+  private def generateKernel(f: FunExpr, workGroupSize: Int = 128) {
 
     Kernel.workGroupSize = workGroupSize
 
@@ -156,7 +156,7 @@ object OpenCLGenerator extends Generator {
     var workGroupSize = 128
   }
   
-  private def generate(f: Fun, inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
+  private def generate(f: FunExpr, inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(f.ouT != UndefType)
 
     //val inputAccess = updateInputAccessFunction(oldInputAccess, f.inT)
@@ -165,8 +165,8 @@ object OpenCLGenerator extends Generator {
       // sequential composition of functions. Allow to pass access functions horizontally.
       // TODO: maybe generalize this (output access function, multiple access functions, pass other information ...)
       // go from right to left, as the data flows ...
-      case cf: CompFun => cf.funs.foldRight[Option[AccessFunction]](None)(
-        (innerF: Fun, af: Option[AccessFunction]) => innerF match {
+      case cf: CompFunDef => cf.funs.foldRight[Option[AccessFunction]](None)(
+        (innerF: FunExpr, af: Option[AccessFunction]) => innerF match {
           // pass newly created access function to the next function in line
           case r : ReorderStride => Some(createReorderStrideAccessFunction(r, inputAccess.last.scope))
 
@@ -198,7 +198,7 @@ object OpenCLGenerator extends Generator {
       // utilities
       case f: toGlobal => generate(f.f, inputAccess, outputAccess)
       case f: toLocal => generate(f.f, inputAccess, outputAccess)
-      case l: Lambda => generate(l.f, inputAccess, outputAccess)
+      case l: FunDef => generate(l.body, inputAccess, outputAccess)
       case _: asVector =>
       case _: asScalar =>
       case _: Split =>
@@ -212,7 +212,7 @@ object OpenCLGenerator extends Generator {
   
   // === Maps ===
   // generic Map
-  private def generateMap(m: AbstractMap, f: Fun, loopVar: Var, range: RangeAdd,
+  private def generateMap(m: AbstractMap, f: FunExpr, loopVar: Var, range: RangeAdd,
                           inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction],
                           mapName: String) {
     val inAccessFun = MapAccessFunction(loopVar, Cst(1), mapName)

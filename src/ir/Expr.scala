@@ -211,8 +211,8 @@ object TypeVar {
     new TypeVar(/*cnt, */range)
   }
 
-  def getTypeVars(f: Fun) : Set[TypeVar] = {
-    Fun.visit(immutable.HashSet[TypeVar]())(f, (inF, set) => set ++ getTypeVars(inF.inT))
+  def getTypeVars(f: FunExpr) : Set[TypeVar] = {
+    FunExpr.visit(immutable.HashSet[TypeVar]())(f, (inF, set) => set ++ getTypeVars(inF.inT))
   }
 
   def getTypeVars(t: Type) : Set[TypeVar] = {
@@ -311,8 +311,8 @@ object Var {
     substitions
   }
 
-  def getVars(f: Fun) : Set[Var] = {
-    Fun.visit(immutable.HashSet[Var]())(f, (inF, set) => set ++ getVars(inF.inT))
+  def getVars(f: FunExpr) : Set[Var] = {
+    FunExpr.visit(immutable.HashSet[Var]())(f, (inF, set) => set ++ getVars(inF.inT))
   }
 
   def getVars(t: Type) : Set[Var] = {

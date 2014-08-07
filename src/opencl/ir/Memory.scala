@@ -3,7 +3,7 @@ package opencl.ir
 import scala.collection.mutable
 
 import ir._
-import ir.Fun
+import ir.FunExpr
 
 /** represents OpenCL address spaces either: local or global; UndefAddressSpace should be used in case of errors */
 abstract class OpenCLAddressSpace
@@ -100,7 +100,7 @@ object OpenCLMemory {
     * @return The OpenCLMemory object to be used as input for f.
     *         This is either inputMem or a fresh allocated memory object.
     */
-  def fixInput(f: Fun, inputMem: OpenCLMemory): OpenCLMemory = {
+  def fixInput(f: FunExpr, inputMem: OpenCLMemory): OpenCLMemory = {
     if (inputMem == OpenCLNullMemory) {
       f match {
         case _: Input => OpenCLNullMemory
@@ -149,7 +149,7 @@ object OpenCLMemory {
     * @param outputMem The OpenCLMemory object to be used as output by f. Can be NULL then memory will be allocated.
     * @return The OpenCLMemory used as output by f
     */
-  def alloc(f: Fun, numGlb: Expr = 1, numLcl: Expr = 1,
+  def alloc(f: FunExpr, numGlb: Expr = 1, numLcl: Expr = 1,
             argInMem: OpenCLMemory = OpenCLNullMemory, outputMem: OpenCLMemory = OpenCLNullMemory): OpenCLMemory = {
 
     if (f.inM == UnallocatedMemory) {
@@ -206,7 +206,7 @@ object OpenCLMemory {
         alloc(tl.f, numGlb, numLcl, inMem, mem)
 
       // ... for CompFun allocate from right to left (as the data flows)
-      case cf: CompFun =>
+      case cf: CompFunDef =>
         cf.funs.foldRight(inMem)((f, mem) => alloc(f, numGlb, numLcl, mem))
 
       // ... for Iterate ...
@@ -281,10 +281,10 @@ object TypedOpenCLMemory {
     * @param f Function for witch the allocated memory objects should be gathered.
     * @return All memory objects which have been allocated for f.
     */
-  def getAllocatedMemory(f: Fun): Array[TypedOpenCLMemory] = {
+  def getAllocatedMemory(f: FunExpr): Array[TypedOpenCLMemory] = {
 
     // recursively visit all functions and collect input and output (and swap buffer for the iterate)
-    val result = Fun.visit(Array[TypedOpenCLMemory]())(f, (f, arr) => f match {
+    val result = FunExpr.visit(Array[TypedOpenCLMemory]())(f, (f, arr) => f match {
 
       case it: Iterate => arr :+
                           TypedOpenCLMemory(f.inM, f.inT) :+

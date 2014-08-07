@@ -4,16 +4,10 @@ import opencl.generator.OpenCLGenerator
 import generator.Dispatcher
 
 import scala.util.Random
-import ir.CompFun
-import ir.Context
-import ir.FPattern
-import ir.Fun
-import ir.Pattern
-import ir.Type
-import ir.UndefType
+import ir._
 
 case class UngenerableException(msg: String) extends Exception(msg) {
-  def this(f: Fun) = this("impossible to generate "+f)
+  def this(f: FunExpr) = this("impossible to generate "+f)
 }
 
 object Exploration {
@@ -25,7 +19,7 @@ object Exploration {
     s(l.length/2)
   }
 
-  private def evalPerf(f: Fun, c: Constraints) : Double = {
+  private def evalPerf(f: FunExpr, c: Constraints) : Double = {
 
     if (verbose) {
       println("------------------------------------------------------")
@@ -35,7 +29,7 @@ object Exploration {
     assert (f.inT != UndefType)
     
     var perfs = List[Double]()
-    val seen = scala.collection.mutable.Set[Fun]()
+    val seen = scala.collection.mutable.Set[FunExpr]()
     for (i <- 0 to 0) {
       val rndFun = search(f, new Constraints(c.maxMapDepth, true, true))
 
@@ -72,7 +66,7 @@ object Exploration {
     //Random.nextDouble
   }
   
-  private def chooseMedianFastest(topF: Fun, oriF: Fun, choices: Seq[Fun], c: Constraints, depth:Int) : Fun = {
+  private def chooseMedianFastest(topF: FunExpr, oriF: FunExpr, choices: Seq[FunExpr], c: Constraints, depth:Int) : FunExpr = {
 
     assert(choices.length > 0)
 
@@ -93,8 +87,8 @@ object Exploration {
     val rndTerFixed : Constraints = new Constraints(c.maxMapDepth, true, true)
     rndTerFixed.addFixedFun(oriF)
     
-    val perfMap = scala.collection.mutable.Map[Fun, List[Double]]()
-    val seen = scala.collection.mutable.Set[Fun]()
+    val perfMap = scala.collection.mutable.Map[FunExpr, List[Double]]()
+    val seen = scala.collection.mutable.Set[FunExpr]()
     
     // generate a few random top level function with the oriF in place
     for (i <- 0 to 3) {
@@ -106,7 +100,7 @@ object Exploration {
         seen += rndFun
 
         choices.map(choice => {          
-          val f = Fun.replaceRef(rndFun, oriF, choice)
+          val f = FunExpr.replaceRef(rndFun, oriF, choice)
           Type.check(f, topF.inT)
           Context.updateContext(f, topF.context)
           try{
@@ -137,13 +131,13 @@ object Exploration {
   }
     
   // returns true if function f appears inside topF (using .eq for comparison)
-  private def isInside(topF: Fun, f:Fun) = {
-    Fun.visit(false)(topF, (inF,result) => {
+  private def isInside(topF: FunExpr, f:FunExpr) = {
+    FunExpr.visit(false)(topF, (inF,result) => {
       result || f.eq(inF)
     })      
   }
 
-  private def choose(topF: Fun, p: Pattern, choices: Seq[Fun], c:Constraints, depth:Int) : Fun = {
+  private def choose(topF: FunExpr, p: Pattern, choices: Seq[FunExpr], c:Constraints, depth:Int) : FunExpr = {
 
     assert (choices.length > 0)
 
@@ -161,7 +155,7 @@ object Exploration {
     choice
   }
 
-  private def derive(topF: Fun, f: Fun, c:Constraints, depth:Int) : Fun = {
+  private def derive(topF: FunExpr, f: FunExpr, c:Constraints, depth:Int) : FunExpr = {
     
 	  assert (f.inT    != UndefType)
     assert (topF.inT != UndefType)
@@ -195,7 +189,7 @@ object Exploration {
 
         if (choice != f) {
           // try to derive the newly found best
-          val newTopF = Fun.replaceRef(topF, f, choice)
+          val newTopF = FunExpr.replaceRef(topF, f, choice)
           Type.check(newTopF, topF.inT)
           Context.updateContext(newTopF, topF.context)
 
@@ -207,26 +201,26 @@ object Exploration {
       case _ => f
     } 
 
-    val newTopF = Fun.replaceRef(topF, f, bestChoice)
+    val newTopF = FunExpr.replaceRef(topF, f, bestChoice)
     Type.check(newTopF, topF.inT)
     Context.updateContext(newTopF, topF.context)
 
     // now try to go inside
     assert(bestChoice.isGenerable())
     bestChoice match {
-      case fp: FPattern => fp.getClass.getConstructor(classOf[Fun]).newInstance(derive(newTopF, fp.f, c, depth + 1))
-      case cf: CompFun => {
+      case fp: FPattern => fp.getClass.getConstructor(classOf[FunExpr]).newInstance(derive(newTopF, fp.f, c, depth + 1))
+      case cf: CompFunDef => {
         val newFuns = cf.funs.map(inF => derive(newTopF, inF, c, depth+1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
         if (newFuns.length == 1)
           derive(newTopF, newFuns(0), c, depth + 1)
         else
-          CompFun(newFuns: _*)
+          CompFunDef(newFuns: _*)
       }
       case _ => bestChoice
     }
 
   }
   
-  def search(f: Fun, c: Constraints = new Constraints(3, false), depth:Int=0) : Fun = derive(f,f,c,depth)
-  
+  def search(f: FunDef, inputs: Seq[Any], c: Constraints = new Constraints(3, false), depth:Int=0) : FunExpr = derive(f,f,c,depth)
+
 }

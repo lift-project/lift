@@ -2,37 +2,29 @@ package opencl.ir
 
 import ir._
 
-case class MapGlb(f: Fun) extends GenerableMap(f)
+case class MapGlb(f: Lambda) extends GenerableMap(f)
 
-case class MapWrg(f: Fun) extends GenerableMap(f)
-case class MapLcl(f: Fun) extends GenerableMap(f)
+case class MapWrg(f: Lambda) extends GenerableMap(f)
+case class MapLcl(f: Lambda) extends GenerableMap(f)
 
-case class MapWarp(f: Fun) extends GenerableMap(f)
-case class MapLane(f: Fun) extends GenerableMap(f)
+case class MapWarp(f: Lambda) extends GenerableMap(f)
+case class MapLane(f: Lambda) extends GenerableMap(f)
 
-case class MapSeq(f: Fun) extends GenerableMap(f)
+case class MapSeq(f: Lambda) extends GenerableMap(f)
 
-case class ReduceSeq(f: Fun, override val init: Value) extends AbstractReduce(f, init) {
-      def isGenerable() = true
+case class ReduceSeq(f: Lambda, override val init: Value) extends AbstractReduce(f, init) with Generable
+case class ReduceHost(f: Lambda, override val init: Value) extends AbstractReduce(f, init) with Generable
+
+case class toGlobal(f: Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern  with Generable {
+  //override def copy() = toGlobal(f)
 }
 
-case class ReduceHost(f: Fun, override val init: Value) extends AbstractReduce(f, init) {
-      def isGenerable() = true
+case class toLocal(f: Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern  with Generable {
+  //override def copy() = toLocal(f)
 }
 
-case class toGlobal(f: Fun) extends FPattern {
-  def isGenerable() = true
-  override def copy() = toGlobal(f)
-}
-
-case class toLocal(f: Fun) extends FPattern {
-  def isGenerable() = true
-  override def copy() = toLocal(f)
-}
-
-case class ReorderStride() extends Pattern {
-  def isGenerable() = true
-  override def copy() = ReorderStride()
+case class ReorderStride() extends Pattern(Array[Param](Param(UndefType)))  with Generable {
+  //override def copy() = ReorderStride()
 }
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part

@@ -52,12 +52,12 @@ object Context {
    /*
    * Update the context recursively
    */
-  def updateContext(f: Fun): Unit = updateContext(f, f.context)
+  def updateContext(f: FunExpr): Unit = updateContext(f, f.context)
     
   /*
    * Update the context recursively
    */  
-  def updateContext(f: Fun, ctx: Context): Unit = {
+  def updateContext(f: FunExpr, ctx: Context): Unit = {
     if (ctx != null) {
       f.context = ctx;
       f match {   
@@ -70,7 +70,7 @@ object Context {
         case ReduceSeq(inF,_) => updateContext(inF, ctx.setInSeq())
 
         case fp: FPattern => updateContext(fp.f, ctx.copy)
-        case cf: CompFun => cf.funs.map(inF => updateContext(inF, ctx.copy))
+        case cf: CompFunDef => cf.funs.map(inF => updateContext(inF, ctx.copy))
         case _ => 
       }
     }    

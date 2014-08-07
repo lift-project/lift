@@ -1,10 +1,9 @@
 package ir
 
-import opencl.ir.Float
+import opencl.ir._
 
-import scala.util.Random
 import exploration.Exploration
-/*
+
 object Main extends App {
 	   
 	   //val root = new CompFun(new Reduce(null), Map(Map(null)))
@@ -19,9 +18,9 @@ object Main extends App {
 
 	   //val userFun = UserFun("func", "float func(float x, float y) { return x+y; })")
 	     
-  	   val root = Reduce(NullFun)
+  	 //val root = Reduce(NullFun,0.0f)
   	   //val varN = Var("N")
-	   val inputType: Type = ArrayType(ScalarType("int", Cst(4)),Cst(0))
+	   //val inputType: Type = ArrayType(ScalarType("float", Cst(4)),Cst(0))
   
   	   //val root =  MapWrg(new CompFun(Map(NullFun),Map(NullFun)))
 	   //val inputType: Type = new ArrayType(new ArrayType(new ScalarType, Cst(20)),Cst(10))
@@ -29,14 +28,14 @@ object Main extends App {
 	   	   	   
 	   //println(Fun.maxDepth(root))	   
 	   
-	   val r = Reduce(NullFun)
-	   val rr = r o PartRed(NullFun)
-  	   println(rr)
-  	   println(Fun.replaceRef(rr, r, Reduce(NullFun) o PartRed(NullFun)))
+	   //val r = Reduce(NullFun)
+	   //val rr = r o PartRed(NullFun)
+  	 //  println(rr)
+  	 //  println(Fun.replaceRef(rr, r, Reduce(NullFun) o PartRed(NullFun)))
   	   	
 	   
-	   println(root)
-	   println("--------------------")
+	   //println(root)
+	   //println("--------------------")
 	   
 	   //val root2 = new CompFun(oJoin(), oJoin())
 	   //println(Fun.replaceRef(root2, root2.funs(1), asScalar()))
@@ -62,9 +61,15 @@ object Main extends App {
 //  	   println(cf3 == cf2)
 
 
-  val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
   val input = Input(Var("x"), ArrayType(Float, Var("N")))
-  val reduceFun = Reduce(sumUp) o input
+  //val reduceFun = Reduce(sumUp,0.0f) o input
+
+  val reduceFun = FunDef(
+    ArrayType(Float, Var("N")),
+    (input) => Reduce(sumUp,0.0f) o input
+  )
+
   Type.check(reduceFun, NoType)
 
   Context.updateContext(reduceFun, new Context())
@@ -73,7 +78,7 @@ object Main extends App {
 	    //val results = Exploration.bfs(root, inputType, 0)
 	    //results.map(r => println(r))
 	   
-	   for (i <- 101 to 100) {
+	   /*for (i <- 101 to 100) {
 	     println("----------------------------")
 	     val f = Utils.randomDescent(root, inputType, 10)
 	     //println(f)
@@ -93,7 +98,7 @@ object Main extends App {
                   
          //println(Var.substitute(e, substs))
 
-	   }
+	   }*/
 	   
 	   //println(Pattern.derivsWithOneRule(root))
 	   //Pattern.explore(root, 20, 5)
@@ -110,4 +115,4 @@ object Main extends App {
 	   println(s.distinct)*/
 
 }
-*/
+

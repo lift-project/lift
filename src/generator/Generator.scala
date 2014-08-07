@@ -1,7 +1,7 @@
 package generator
 
-import ir.Fun
+import ir.FunExpr
 
 abstract class Generator {
-  def generate(f: Fun) : String
+  def generate(f: FunExpr) : String
 }

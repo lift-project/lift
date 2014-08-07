@@ -1,6 +1,6 @@
 package exploration
 
-import ir.Fun
+import ir.FunExpr
 
 class Constraints(val maxMapDepth: Int, val converge: Boolean, val randomOnly: Boolean = false) {
 
@@ -14,7 +14,7 @@ class Constraints(val maxMapDepth: Int, val converge: Boolean, val randomOnly: B
   
   def setOnlyTerminal() : Constraints = new Constraints(maxMapDepth, converge)
   
-  val fixedFuns : scala.collection.mutable.Set[Wrap[Fun]] = new scala.collection.mutable.HashSet() // set of functions that shouldn't be derived  
-  def addFixedFun(f: Fun) = {fixedFuns += new Wrap(f)}
-  def canDerive(f: Fun) = !fixedFuns.contains(new Wrap(f))
+  val fixedFuns : scala.collection.mutable.Set[Wrap[FunExpr]] = new scala.collection.mutable.HashSet() // set of functions that shouldn't be derived
+  def addFixedFun(f: FunExpr) = {fixedFuns += new Wrap(f)}
+  def canDerive(f: FunExpr) = !fixedFuns.contains(new Wrap(f))
 }

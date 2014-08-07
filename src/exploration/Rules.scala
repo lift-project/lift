@@ -29,27 +29,27 @@ object Rules {
     outerDerivations(fp,c) ++ Rules.innerDerivations(fp,c)
   }*/
   
-  private def composedDerivations(cf: CompFun, c: Constraints, level: Int): Seq[Fun] = {
+  private def composedDerivations(cf: CompFunDef, c: Constraints, level: Int): Seq[FunExpr] = {
 
     val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
-    Utils.listPossiblities(cf.funs, optionsList).map(funs => new CompFun(funs: _*))
+    Utils.listPossiblities(cf.funs, optionsList).map(funs => new CompFunDef(funs: _*))
     
     /*val pairs = cf.getFuns().zip(cf.getFuns.tail)
       val pairDerivs = pairs.map({case (x, y) => pairDeriv(x,y)})      
       val numPairDerivs = pairDerivs.foldLeft(0)((num,l) => num+l.length)*/
   }
    
-   private def innerDerivations(fpat: FPattern, c: Constraints, level: Int): Seq[Fun] = {
-     derivsWithOneRule(fpat.f, c,level).map((f) => fpat.getClass().getConstructor(classOf[Fun]).newInstance(f))        
+   private def innerDerivations(fpat: FPattern, c: Constraints, level: Int): Seq[FunExpr] = {
+     derivsWithOneRule(fpat.f, c,level).map((f) => fpat.getClass().getConstructor(classOf[FunExpr]).newInstance(f))
   }
     
     
   /*
    * Return a list of all possible derivations using only one rule at a given level
    */
-  def derivsWithOneRule(f: Fun, c: Constraints, level: Int): Seq[Fun] =  {
+  def derivsWithOneRule(f: FunExpr, c: Constraints, level: Int): Seq[FunExpr] =  {
       f match {
-        case cf: CompFun => composedDerivations(cf, c, level)
+        case cf: CompFunDef => composedDerivations(cf, c, level)
         case fp: FPattern if (level==0) => outerDerivations(fp,c)
         case fp: FPattern if (level>0) => innerDerivations(fp,c,level-1)
         case p: Pattern if (level==0)  => outerDerivations(p, c)
@@ -66,12 +66,12 @@ object Rules {
   }
  
 
-  def outerDerivations(f: Fun, c: Constraints): Seq[Fun] = {   
+  def outerDerivations(f: FunExpr, c: Constraints): Seq[FunExpr] = {
     
     f match {
 
       case Map(inF) => {
-        var result = List[Fun]()
+        var result = List[FunExpr]()
         
         // sequential
         if (!f.context.inSeq && (f.context.inMapGlb || f.context.inMapLcl))
@@ -90,13 +90,13 @@ object Rules {
         
         // split-join
         if (f.context.mapDepth+1 < c.maxMapDepth && !c.converge)          
-          result = result :+ new CompFun(Join(), Map(Map(inF.copy())), Split(Var(validOSplitRange(f.inT))))
+          result = result :+ new CompFunDef(Join(), Map(Map(inF.copy())), Split(Var(validOSplitRange(f.inT))))
         
         result
       }     
       
       case Reduce(inF,init) => {
-        var result = List[Fun]()
+        var result = List[FunExpr]()
         if (!c.converge)
         	result = result :+ (Reduce(inF.copy(),init.copy()) o PartRed(inF.copy(),init.copy()))
         	
@@ -110,7 +110,7 @@ object Rules {
       }
       
       case PartRed(inF,init) => {
-        var result = List[Fun]()
+        var result = List[FunExpr]()
         result = result :+ Reduce(inF.copy(),init.copy())
         if (f.context.mapDepth < c.maxMapDepth && !c.converge)
           result = result :+ (Join() o Map(PartRed(inF.copy(),init.copy())) o Split(Var(validOSplitRange(f.inT))))

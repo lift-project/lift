@@ -40,8 +40,8 @@ object Utils {
 
 	  
 	
-  def randomDescent(f: Fun, inputType: Type, maxDepth: Int,
-      constraints: Constraints = new Constraints(3, false)): Fun = {
+  def randomDescent(f: FunExpr, inputType: Type, maxDepth: Int,
+      constraints: Constraints = new Constraints(3, false)): FunExpr = {
 
     var c = constraints    
     
