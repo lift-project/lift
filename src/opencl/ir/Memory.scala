@@ -118,26 +118,25 @@ object OpenCLMemory {
     * @param glbOutSize Size in bytes to allocate in global memory
     * @param lclOutSize Size in bytes to allocate in local memory
     * @param addressSpace Address space for allocation
-    * @param outputType Type used for the memory allocation (TODO: remove this ...)
     * @return The newly allocated memory object
     */
   def allocMemory(glbOutSize: Expr, lclOutSize: Expr,
-                  addressSpace: OpenCLAddressSpace, outputType: Type): OpenCLMemory = {
+                  addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     assert(addressSpace != UndefAddressSpace)
 
     addressSpace match {
-      case GlobalMemory => allocGlobalMemory(glbOutSize, outputType)
-      case LocalMemory => allocLocalMemory(lclOutSize, outputType)
+      case GlobalMemory => allocGlobalMemory(glbOutSize)
+      case LocalMemory => allocLocalMemory(lclOutSize)
     }
   }
 
   //** Return newly allocated global memory */
-  def allocGlobalMemory(glbOutSize: Expr, outputType: Type): OpenCLMemory = {
+  def allocGlobalMemory(glbOutSize: Expr): OpenCLMemory = {
     OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
   }
 
   //** Return newly allocated local memory */
-  def allocLocalMemory(lclOutSize: Expr, outputType: Type): OpenCLMemory = {
+  def allocLocalMemory(lclOutSize: Expr): OpenCLMemory = {
     OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
   }
 
@@ -153,10 +152,13 @@ object OpenCLMemory {
   def alloc(f: Fun, numGlb: Expr = 1, numLcl: Expr = 1,
             argInMem: OpenCLMemory = OpenCLNullMemory, outputMem: OpenCLMemory = OpenCLNullMemory): OpenCLMemory = {
 
-    // determine the input memory of f
-    val inMem = fixInput(f, argInMem)
-    assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input] || f.isInstanceOf[Zip] || f.inT == NoType)
-    f.inM = inMem
+    if (f.inM == UnallocatedMemory) {
+      // determine the input memory of f
+      val inMem = fixInput(f, argInMem)
+      assert(inMem != OpenCLNullMemory || f.isInstanceOf[Input] || f.isInstanceOf[Zip] || f.inT == NoType)
+      f.inM = inMem
+    }
+    val inMem = OpenCLMemory.asOpenCLMemory(f.inM)
 
     // size in bytes necessary to hold the result of f in global and local memory
     val maxGlbOutSize = getMaxSizeInBytes(f.ouT) * numGlb
@@ -171,7 +173,7 @@ object OpenCLMemory {
       // ... for Input always allocate a new global memory
       case Input(_, _) =>
         assert(outputMem == OpenCLNullMemory)
-        allocGlobalMemory(maxGlbOutSize, f.ouT)
+        allocGlobalMemory(maxGlbOutSize)
 
       case z: Zip =>
         OpenCLMemoryCollection(alloc(z.f1, numGlb, numLcl, inMem), alloc(z.f2, numGlb, numLcl, inMem))
@@ -188,7 +190,7 @@ object OpenCLMemory {
       // ... for toGlobal allocate 'mem' in global if output is not yet set or not in global memory ...
       case tg: toGlobal =>
         val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != GlobalMemory)
-            allocGlobalMemory(maxGlbOutSize, f.ouT)
+            allocGlobalMemory(maxGlbOutSize)
           else
             outputMem
         // ... recurs with fresh allocated 'mem' set as output
@@ -197,7 +199,7 @@ object OpenCLMemory {
       // ... for toLocal allocate 'mem' in local memory if output is not yet set or not in local memory ...
       case tl: toLocal =>
         val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != LocalMemory)
-          allocLocalMemory(maxLclOutSize, f.ouT)
+          allocLocalMemory(maxLclOutSize)
         else
           outputMem
         // ... recurs with fresh allocated 'mem' set as output
@@ -216,7 +218,7 @@ object OpenCLMemory {
         val largestSize = Expr.max(inSize, outSize)
 
         // create a swap buffer
-        it.swapBuffer = allocMemory(largestSize, largestSize, inMem.addressSpace, ArrayType(it.inT, ?))
+        it.swapBuffer = allocMemory(largestSize, largestSize, inMem.addressSpace)
 
         // recurs to allocate memory for the function(s) inside
         alloc(it.f, numGlb, numLcl, inMem)
@@ -243,10 +245,10 @@ object OpenCLMemory {
 
             // TODO: could maybe allocated in private memory (need to change slightly the allocator and add toPrivate)
             case ScalarType(_, _) | VectorType(_, _) =>
-              allocMemory(maxGlbOutSize, maxLclOutSize, inMem.addressSpace, ArrayType(f.ouT, ?))
+              allocMemory(maxGlbOutSize, maxLclOutSize, inMem.addressSpace)
 
             case _ =>
-              allocMemory(maxGlbOutSize, maxLclOutSize, inMem.addressSpace, f.ouT)
+              allocMemory(maxGlbOutSize, maxLclOutSize, inMem.addressSpace)
           }
         else
           outputMem

@@ -266,6 +266,7 @@ object Type {
 
       case l: Lambda =>
         inT match {
+          case NoType =>
           case tt: TupleType =>
             assert(tt.elemsT.length == l.params.length)
             (l.params,tt.elemsT).zipped.map( (p,t) => p.expectedOutT = t )

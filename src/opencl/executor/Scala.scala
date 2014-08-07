@@ -2,12 +2,76 @@ package opencl.executor
 
 import ir._
 import opencl.generator.OpenCLGenerator
-import opencl.ir.{GlobalMemory, LocalMemory, Float}
+import opencl.ir.{OpenCLMemory, GlobalMemory, LocalMemory, Float}
 
 import scala.reflect.ClassTag
 
+object Compile {
+  def apply(f: Lambda) = {
+    Type.check(f, NoType)
+
+    // allocate the params and set the corresponding type
+    f.params.map( (p) => {
+      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.expectedOutT))
+      p.inT = p.expectedOutT
+    })
+
+    val kernelCode = OpenCLGenerator.generate(f)
+    println("Kernel code:")
+    println(kernelCode)
+
+    kernelCode
+  }
+}
+
 object Execute {
   var wgSize = 128
+
+
+  def apply(f: Lambda, values: Array[Float]*) : (Array[Float], Double) = {
+    val code = Compile(f)
+    Execute(code, f, values:_*)
+  }
+
+  def apply(code: String, f: Lambda, values: Array[Float]*) : (Array[Float], Double) = {
+    val valueMap = (    f.params.map( (p) => Type.getLength(p.expectedOutT))
+      zip values.map( (a) => Cst(a.size)) ).toMap[Expr, Expr]
+
+    // allocate the params and set the corresponding type
+    f.params.map( (p) => {
+      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.expectedOutT))
+      p.inT = p.expectedOutT
+    })
+
+    val outputSize = Expr.substitute(Type.getLength(f.ouT), valueMap).eval()
+
+    val inputs = values.map( global.input(_) )
+    val outputData = global.output[Float](outputSize)
+
+    val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
+      val m = mem.mem
+      val i = f.params.indexWhere( m == _.outM )
+      if (i != -1) inputs(i)
+      else if (m == f.outM) outputData
+      else m.addressSpace match {
+        case LocalMemory => local(Expr.substitute(m.size, valueMap).eval() * 4) // TODO: check on this ...
+        case GlobalMemory => global(Expr.substitute(m.size, valueMap).eval() * 4)
+      }
+    })
+
+    val args = memArgs ++ values.map( (a) =>  value(a.size) )
+
+    // TODO: think about global size
+    val runtime = Executor.execute(code, wgSize, values(0).size, args)
+
+    val output = outputData.asFloatArray()
+
+    args.foreach(_.dispose)
+
+    (output, runtime)
+  }
+
+  // =====================
 
   def apply(first: Array[Float], f: (Input) => CompFun) = {
     val inputSize = first.size
@@ -50,7 +114,7 @@ object Execute {
     (outputArray, runtime)
   }
 
-  def apply(first: Array[Float], second: Array[Float], f: (Input, Input) => Fun, wgSize: Int = 128) = {
+  def apply(first: Array[Float], second: Array[Float], f: (Input, Input) => Fun) = {
     val N = Var("N")
     val M = Var("M")
     val valueMap = scala.collection.immutable.Map[Expr, Expr](N -> first.size, M -> second.size)

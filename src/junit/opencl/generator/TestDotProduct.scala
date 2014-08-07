@@ -1,6 +1,6 @@
 package junit.opencl.generator
 
-import opencl.executor.{Executor, value, local, global}
+import opencl.executor._
 import opencl.generator.OpenCLGenerator
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -79,14 +79,23 @@ class TestDotProduct {
 
     val gold = (leftInputData, rightInputData).zipped.map(_+_)
 
-    val (output, runtime) = opencl.executor.Execute( leftInputData, rightInputData,
-      (left, right) => {
+    val addFun = Lambda(
+      ArrayType(Float, Var("N")),
+      ArrayType(Float, Var("N")),
+      (left, right) =>
 
-        Join() o MapWrg(
-          Join() o MapLcl(MapSeq(add)) o Split(4)
-        ) o Split(1024) o Zip(left, right)
+      Join() o MapWrg(
+        Join() o MapLcl(MapSeq(add)) o Split(4)
+      ) o Split(1024) o Zip(left, right)
 
-    } )
+    )
+
+    // 1. option:
+    //val (output, runtime) = Execute(addFun, leftInputData, rightInputData)
+
+    // 2.option
+    val code = Compile(addFun)
+    val (output, runtime) = Execute(code, addFun, leftInputData, rightInputData)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -103,13 +112,15 @@ class TestDotProduct {
 
     val neg = UserFun("neg", "x", "{ return -x; }", Float, Float)
 
-    val (output, runtime) = opencl.executor.Execute( inputArray, (in) => {
+    val negFun = Lambda(ArrayType(Float, Var("N")), (input) =>
 
       Join() o MapWrg(
-        Lambda( (x) =>  Join() o MapLcl(MapSeq(neg)) o Split(4) o x )
-      ) o Split(1024) o in
+        Join() o MapLcl(MapSeq(neg)) o Split(4)
+      ) o Split(1024) o input
 
-    } )
+    )
+
+    val (output, runtime) = Execute(negFun, inputArray)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 

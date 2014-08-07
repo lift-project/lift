@@ -179,13 +179,20 @@ object Lambda {
     new Lambda(params, f(params(0)))
   }
 
-  // TODO: Think if multiple parameters are really necessary
-  /*
-  def apply(f: (Param, Param) => Fun) = {
-    val params = Array(Param(Var(""), UndefType), Param(Var(""), UndefType))
+  def apply(t: Type, f: (Param) => Fun) = {
+    val params = Array(Param(Var(""), t))
+    new Lambda(params, f(params(0)))
+  }
+
+  def apply(t1: Type, t2: Type, f: (Param, Param) => Fun) = {
+    val params = Array(Param(Var(""), t1), Param(Var(""), t2))
     new Lambda(params, f(params(0), params(1)))
   }
-  */
+
+  /*def apply(ts: Array[Type], f: (Param*) => Fun) = {
+    val params = ts.map(Param(Var(""), _))
+    new Lambda(params, f(params:_*))
+  }*/
 }
 
 abstract class AbstractMap(f:Fun) extends FPattern

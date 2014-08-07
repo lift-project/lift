@@ -67,7 +67,7 @@ object Context {
         case MapGlb(inF) => updateContext(inF, ctx.incMapDepth.setInMapGlb)
         case MapWrg(inF) => updateContext(inF, ctx.incMapDepth.setInMapWrg)
         case MapLcl(inF) => updateContext(inF, ctx.incMapDepth.setInMapLcl)
-        case ReduceSeq(inF) => updateContext(inF, ctx.setInSeq())
+        case ReduceSeq(inF,_) => updateContext(inF, ctx.setInSeq())
 
         case fp: FPattern => updateContext(fp.f, ctx.copy)
         case cf: CompFun => cf.funs.map(inF => updateContext(inF, ctx.copy))
