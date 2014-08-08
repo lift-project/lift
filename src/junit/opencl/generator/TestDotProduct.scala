@@ -334,7 +334,7 @@ class TestDotProduct {
     (output, runtime)
 
   }
-
+/*
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
 
     /*
@@ -370,7 +370,7 @@ class TestDotProduct {
     (output, runtime)
 
   }
-
+*/
   /*
     @Test def MATRIX_VECTOR_FUSED() {
 
