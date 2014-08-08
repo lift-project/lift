@@ -93,14 +93,14 @@ object Expr {
     expr match {
       case call: FunCall =>
         // visit args first
-        call.args.foldRight(result)( (arg,x) => visit(x)(arg, visitFun) )
+        val newResult = call.args.foldRight(result)( (arg,x) => visit(x)(arg, visitFun) )
 
         // do the rest ...
         call.f match {
-          case fp: FPattern => visit(result)(fp.f.body, visitFun)
-          case cf: CompFunDef => cf.funs.foldRight(result)((inF,x)=>visit(x)(inF.body, visitFun))
-          case l: Lambda => visit(result)(l.body, visitFun)
-          case _ => result
+          case fp: FPattern => visit(newResult)(fp.f.body, visitFun)
+          case cf: CompFunDef => cf.funs.foldRight(newResult)((inF,x)=>visit(x)(inF.body, visitFun))
+          case l: Lambda => visit(newResult)(l.body, visitFun)
+          case _ => newResult
         }
       case _ => result
     }

@@ -253,6 +253,7 @@ case class Zip() extends FunDecl(Array[Param](Param(UndefType),Param(UndefType))
 
 object Zip {
   def apply(args : Expr*) : FunCall = {
+    assert(args.length == 2)
     Zip()(args:_*)
   }
 }

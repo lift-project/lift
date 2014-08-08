@@ -197,17 +197,10 @@ object OpenCLMemory {
         // determine the output memory based on the type of f ...
         call.f match {
 
-          /*
-        // ... for Input always allocate a new global memory
-        case Input(_, _) =>
-          assert(outputMem == OpenCLNullMemory)
-          allocGlobalMemory(maxGlbOutSize)
-        */
-
           case z: Zip =>
             if (inMs.length != 2) throw new NumberOfArgumentsException
-            //OpenCLMemoryCollection(alloc(z.f1, numGlb, numLcl, inMem), alloc(z.f2, numGlb, numLcl, inMem))
-            OpenCLMemoryCollection(inMs(0), inMs(1))
+            call.inM = OpenCLMemoryCollection(inMs(0), inMs(1))
+            OpenCLMemory.asOpenCLMemory(call.inM) // input == output
 
 
           // ... for MapGlbl or MapWrg recurs with the same input memory, but update the global factor
@@ -327,24 +320,25 @@ object TypedOpenCLMemory {
     // recursively visit all functions and collect input and output (and swap buffer for the iterate)
     val result = Expr.visit(Array[TypedOpenCLMemory]())(expr, (exp, arr) =>
       exp match {
-        case call: FunCall => call.f match {
-          case it: Iterate =>
-          val fIter = call.asInstanceOf[IterateCall]
-          arr :+
-          TypedOpenCLMemory(fIter.inM, fIter.inT) :+
-          TypedOpenCLMemory(fIter.outM, fIter.outT) :+
-          TypedOpenCLMemory(fIter.swapBuffer, ArrayType(fIter.inT, ?))
-
-          case z: Zip =>
-            arr ++ getAllocatedMemory(z.params(0)) ++ getAllocatedMemory(z.params(1))
+        case call: FunCall =>
+          call.f match {
+            case it: Iterate =>
+            val fIter = call.asInstanceOf[IterateCall]
+            arr :+
+            TypedOpenCLMemory(fIter.inM, fIter.inT) :+
+            TypedOpenCLMemory(fIter.outM, fIter.outT) :+
+            TypedOpenCLMemory(fIter.swapBuffer, ArrayType(fIter.inT, ?))
 
             // exclude the user functions (they don't allocate memory and don't work on array types)
-          case _: UserFunDef => arr
+            case _: UserFunDef => arr
 
-          case _ => arr :+ TypedOpenCLMemory(call.inM, call.inT) :+ TypedOpenCLMemory(call.outM, call.outT)
+            case z: Zip =>
+              arr ++ call.args.map( e => TypedOpenCLMemory(e.inM, e.inT) )
 
-        }
-        case p: Param => arr :+ TypedOpenCLMemory(p.outM, p.outT)
+            case _ => arr :+ TypedOpenCLMemory(call.inM, call.inT) :+ TypedOpenCLMemory(call.outM, call.outT)
+
+          }
+        case p: Param => arr :+ TypedOpenCLMemory(p.inM, p.inT)
         case v: Value => arr
       })
 
@@ -352,9 +346,9 @@ object TypedOpenCLMemory {
     // remove null memory and duplicates while preserving the original order
     result.foldLeft(Array[TypedOpenCLMemory]())( (arr, mem) => {
       val m = mem.mem
-      if (seen.contains(m) || m == OpenCLNullMemory || m.isInstanceOf[OpenCLMemoryCollection])
+      if (seen.contains(m) || m == OpenCLNullMemory || m.isInstanceOf[OpenCLMemoryCollection]) {
         arr
-      else {
+      } else {
         seen += m
         arr :+ mem
       }

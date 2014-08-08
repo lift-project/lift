@@ -303,6 +303,10 @@ object Type {
 
           case z: Zip =>
             if (inTs.length != 2) throw new NumberOfArgumentsException
+
+            if (setType)
+              call.inT = TupleType(inTs(0), inTs(1))
+
             val at1 = inTs(0) match {
               case at: ArrayType => at
               case _ => throw new TypeException(inTs(0), "ArrayType")
