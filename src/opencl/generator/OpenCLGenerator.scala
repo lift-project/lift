@@ -8,7 +8,7 @@ class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
 
 // hacky class to store function name
-case class OclFunction(name: String, param: Int) extends Expr {def toOCLString = name+"("+param+")"}
+case class OclFunction(name: String, param: Int) extends ArithExpr {def toOCLString = name+"("+param+")"}
 
 class get_global_id(param: Int) extends OclFunction("get_global_id", param)
 class get_local_id(param: Int) extends OclFunction("get_local_id", param)
@@ -29,30 +29,36 @@ object OpenCLGenerator extends Generator {
   var oclPrinter: OpenCLPrinter = null
 
   // compiler a type-checked function into an OpenCL kernel
-  def generate(f: FunExpr) : String = {
+  def generate(f: Lambda) : String = {
 
-    assert (f.inT != UndefType)
+    assert (f.body.inT != UndefType)
 
     if (Debug()) {
       println("Types:")
-      FunExpr.visit(f, (f: FunExpr) => {
+      Expr.visit(f.body, (f: Expr) => {
         println(f + "\n    " + f.outT + " <- " + f.inT + "\n")
-      }, (f: FunExpr) => {})
+      }, (f: Expr) => {})
     }
 
+    // allocate the params and set the corresponding type
+    f.params.map( (p) => {
+      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+      p.inT = p.outT
+    })
+
     // pass 1
-    allocateMemory(f)
+    allocateMemory(f.body)
 
     if (Debug()) {
       println("Memory:")
-      TypedOpenCLMemory.getAllocatedMemory(f).map(m => println(m.toString))
+      TypedOpenCLMemory.getAllocatedMemory(f.body).map(m => println(m.toString))
       println("")
     }
 
     oclPrinter = new OpenCLPrinter
 
     // pass 2: find and generate user functions
-    generateUserFunction(f)
+    generateUserFunction(f.body)
 
     oclPrinter.println()
 
@@ -64,41 +70,44 @@ object OpenCLGenerator extends Generator {
   }
 
   /** Traversals f and print all user functions using oclPrinter */
-  def generateUserFunction(f: FunExpr) {
-    val userFuns = FunExpr.visit(Set[UserFunDef]())(f, (f,set) => f.f match {
-      case uf: UserFunDef => set + uf
-      //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
-      case _ => set
-    })
+  def generateUserFunction(expr: Expr) {
+    val userFuns = Expr.visit(Set[UserFunDef]())(expr, (expr,set) =>
+      expr match {
+        case call: FunExpr => call.f match {
+          case uf: UserFunDef => set + uf
+          //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
+          case _ => set
+        }
+      })
     userFuns.foreach(uf => {
       oclPrinter.print(oclPrinter.toOpenCL(uf))
       oclPrinter.println()
     })
   }
 
-  def allocateMemory(f: FunExpr) : Unit = {
+  def allocateMemory(f: Expr) : Unit = {
     OpenCLMemory.alloc(f)
     Kernel.memory = TypedOpenCLMemory.getAllocatedMemory(f)
   }
 
-  private class AccessFunction(val f: (Expr) => Expr, val scope: String) {
-    def apply(e: Expr): Expr = f(e)
+  private class AccessFunction(val f: (ArithExpr) => ArithExpr, val scope: String) {
+    def apply(e: ArithExpr): ArithExpr = f(e)
   }
 
   private object AccessFunction {
-    def apply(f: (Expr) => Expr, scope: String) = new AccessFunction(f, scope)
+    def apply(f: (ArithExpr) => ArithExpr, scope: String) = new AccessFunction(f, scope)
 
-    def id(scope: String) = new AccessFunction( (e:Expr) => e, scope)
+    def id(scope: String) = new AccessFunction( (e:ArithExpr) => e, scope)
   }
 
-  private class MapAccessFunction(val loopVar: Var, val chunkSize: Expr, val mapName: String)
-    extends AccessFunction( (i:Expr) => (loopVar * chunkSize) + i, mapName )
+  private class MapAccessFunction(val loopVar: Var, val chunkSize: ArithExpr, val mapName: String)
+    extends AccessFunction( (i:ArithExpr) => (loopVar * chunkSize) + i, mapName )
 
   private object MapAccessFunction {
-    def apply(loopVar: Var, initialChunkSize: Expr, mapName: String) =
+    def apply(loopVar: Var, initialChunkSize: ArithExpr, mapName: String) =
       new MapAccessFunction(loopVar, initialChunkSize, mapName)
 
-    def multWithChunkSize(ma: MapAccessFunction, chunkSize: Expr): MapAccessFunction = {
+    def multWithChunkSize(ma: MapAccessFunction, chunkSize: ArithExpr): MapAccessFunction = {
       MapAccessFunction(ma.loopVar, ma.chunkSize * chunkSize, ma.mapName)
     }
 
@@ -111,7 +120,8 @@ object OpenCLGenerator extends Generator {
   }
 
 
-  private def generateKernel(f: FunExpr, workGroupSize: Int = 128) {
+  private def generateKernel(f: Lambda, workGroupSize: Int = 128) {
+    val expr = f.body
 
     Kernel.workGroupSize = workGroupSize
 
@@ -136,18 +146,18 @@ object OpenCLGenerator extends Generator {
     oclPrinter.print(") ")
 
     // print out allocated memory sizes
-    val varMap = iterateVars.map( v => (v, Expr.asCst(v.range.max)) ).toMap
+    val varMap = iterateVars.map( v => (v, ArithExpr.asCst(v.range.max)) ).toMap
     Kernel.memory.map( mem => {
       val m = mem.mem
       if (Debug()) {
-        println("Allocate " + Expr.substitute(m.size, varMap.toMap) + " bytes for variable " + m.variable + " in " +
+        println("Allocate " + ArithExpr.substitute(m.size, varMap.toMap) + " bytes for variable " + m.variable + " in " +
           m.addressSpace + " memory")
       }
     })
 
     // generate the body of the kernel
     oclPrinter.openCB()
-    generate(f, Array.empty[AccessFunction], Array.empty[AccessFunction])
+    generate(expr, Array.empty[AccessFunction], Array.empty[AccessFunction])
     oclPrinter.closeCB()
   }
   
@@ -156,56 +166,57 @@ object OpenCLGenerator extends Generator {
     var workGroupSize = 128
   }
   
-  private def generate(f: FunExpr, inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
-    assert(f.outT != UndefType)
+  private def generate(expr: Expr, inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
+    assert(expr.outT != UndefType)
 
     //val inputAccess = updateInputAccessFunction(oldInputAccess, f.inT)
-    
-    f.f match {
-      // sequential composition of functions. Allow to pass access functions horizontally.
-      // TODO: maybe generalize this (output access function, multiple access functions, pass other information ...)
-      // go from right to left, as the data flows ...
-      case cf: CompFunDef => cf.funs.foldRight[Option[AccessFunction]](None)(
-        (lambda: Lambda, af: Option[AccessFunction]) => lambda.body.f match {
-          // pass newly created access function to the next function in line
-          case r : ReorderStride => Some(createReorderStrideAccessFunction(r, lambda.body, inputAccess.last.scope))
+    expr match {
+      case call: FunExpr => call.f match {
+        // sequential composition of functions. Allow to pass access functions horizontally.
+        // TODO: maybe generalize this (output access function, multiple access functions, pass other information ...)
+        // go from right to left, as the data flows ...
+        case cf: CompFunDef => cf.funs.foldRight[Option[AccessFunction]](None)(
+          (lambda: Lambda, af: Option[AccessFunction]) => lambda.body match {
+            case call: FunExpr => call.f match {
+              // pass newly created access function to the next function in line
+              case r : ReorderStride => Some(createReorderStrideAccessFunction(r, call, inputAccess.last.scope))
 
-          case _ =>
-            if (af.isDefined) {
-              generate(lambda.body, inputAccess :+ af.get, outputAccess)
-            } else {
-              generate(lambda.body, inputAccess, outputAccess)
+              case _ =>
+                if (af.isDefined) {
+                  generate(lambda.body, inputAccess :+ af.get, outputAccess)
+                } else {
+                  generate(lambda.body, inputAccess, outputAccess)
+                }
+                None // af is consumed and not passed to the next function in line
             }
-            None // af is consumed and not passed to the next function in line
-        })
-      // case cf: CompFun => cf.funs.reverseMap(inF => generate(inF, inputAccess, outputAccess))
-      // maps
-      case m: MapWrg => generateMapWrgCall(m, f, inputAccess, outputAccess)
-      case m: MapLcl => generateMapLclCall(m, f, inputAccess, outputAccess)
-      case m: MapWarp => generateMapWarpCall(m, f, inputAccess, outputAccess)
-      case m: MapLane => generateMapLaneCall(m, f, inputAccess, outputAccess)
-      case m: MapSeq => generateMapSeqCall(m, f, inputAccess, outputAccess)
-      // reduce
-      case r: ReduceSeq => generateReduceSeqCall(r, f, inputAccess, outputAccess)
-      case r: ReduceHost => generateReduceSeqCall(r, f, inputAccess, outputAccess)
-      // iterate
-      case i: Iterate => generateIterateCall(i, f.asInstanceOf[IterateExpr], inputAccess, outputAccess)
-      // reorder
-      //case r : ReorderStride => generateReorderStride(r, inputAccess, outputAccess)
-      // user functions
-      case u : UserFunDef => oclPrinter.generateFunCall(u)
-      // utilities
-      case f: toGlobal => generate(f.f.body, inputAccess, outputAccess)
-      case f: toLocal => generate(f.f.body, inputAccess, outputAccess)
-      case l: Lambda => generate(l.body, inputAccess, outputAccess)
-      case _: asVector =>
-      case _: asScalar =>
-      case _: Split =>
-      case _: Join =>
-      //case _: Input =>
-      //case _: Param =>
-      case _: Zip =>
-      case _ => oclPrinter.print("__" + f.toString + "__")
+          })
+        // case cf: CompFun => cf.funs.reverseMap(inF => generate(inF, inputAccess, outputAccess))
+        // maps
+        case m: MapWrg => generateMapWrgCall(m, call, inputAccess, outputAccess)
+        case m: MapLcl => generateMapLclCall(m, call, inputAccess, outputAccess)
+        case m: MapWarp => generateMapWarpCall(m, call, inputAccess, outputAccess)
+        case m: MapLane => generateMapLaneCall(m, call, inputAccess, outputAccess)
+        case m: MapSeq => generateMapSeqCall(m, call, inputAccess, outputAccess)
+        // reduce
+        case r: ReduceSeq => generateReduceSeqCall(r, call, inputAccess, outputAccess)
+        case r: ReduceHost => generateReduceSeqCall(r, call, inputAccess, outputAccess)
+        // iterate
+        case i: Iterate => generateIterateCall(i, call.asInstanceOf[IterateExpr], inputAccess, outputAccess)
+        // reorder
+        //case r : ReorderStride => generateReorderStride(r, inputAccess, outputAccess)
+        // user functions
+        case u : UserFunDef => oclPrinter.generateFunCall(u)
+        // utilities
+        case f: toGlobal => generate(f.f.body, inputAccess, outputAccess)
+        case f: toLocal => generate(f.f.body, inputAccess, outputAccess)
+        case l: Lambda => generate(l.body, inputAccess, outputAccess)
+        case _: asVector =>
+        case _: asScalar =>
+        case _: Split =>
+        case _: Join =>
+        case _: Zip =>
+        case _ => oclPrinter.print("__" + call.toString + "__")
+      }
     }
   }
 
@@ -424,17 +435,17 @@ object OpenCLGenerator extends Generator {
   }
 
   // === ReorderStride ===
-  private def createReorderStrideAccessFunction(r: ReorderStride, c: FunExpr, scope: String) = {
-    assert(c.f == r)
+  private def createReorderStrideAccessFunction(r: ReorderStride, call: FunExpr, scope: String) = {
+    assert (call.f == r)
 
-    val s = Type.getLength(c.inT)
-    val n = Type.getLength(Type.getElemT(c.inT))
-    AccessFunction( (i:Expr) => { i / n + s * (i % n) } , scope)
+    val s = Type.getLength(call.inT)
+    val n = Type.getLength(Type.getElemT(call.inT))
+    AccessFunction( (i:ArithExpr) => { i / n + s * (i % n) } , scope)
   }
 
   // === Utilities ===
 
-  private def updateAccessFunction(access: Array[AccessFunction], chunkSize: Expr) = {
+  private def updateAccessFunction(access: Array[AccessFunction], chunkSize: ArithExpr) = {
     access.map( {
       case ma: MapAccessFunction => MapAccessFunction.multWithChunkSize(ma, chunkSize)
       case af: AccessFunction => af
@@ -459,7 +470,7 @@ object OpenCLGenerator extends Generator {
   }
   */
   
-  private def access(memory: Memory, t: Type, accessFunctions: Array[AccessFunction], index: Expr): String = {
+  private def access(memory: Memory, t: Type, accessFunctions: Array[AccessFunction], index: ArithExpr): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)
 
     oclMem match {
@@ -476,7 +487,7 @@ object OpenCLGenerator extends Generator {
           case GlobalMemory =>
             "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(accessFunctions.foldRight[Expr](index * Type.getVectorSize(t))((aF, i) => {
+              "[" + oclPrinter.toOpenCL(accessFunctions.foldRight[ArithExpr](index * Type.getVectorSize(t))((aF, i) => {
               aF(i)
             })) + "])"
 
@@ -487,7 +498,7 @@ object OpenCLGenerator extends Generator {
             })
             "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(localAccessFunctions.foldRight[Expr](index * Type.getVectorSize(t))((aF, i) => {
+              "[" + oclPrinter.toOpenCL(localAccessFunctions.foldRight[ArithExpr](index * Type.getVectorSize(t))((aF, i) => {
               aF(i)
             })) + "])"
 

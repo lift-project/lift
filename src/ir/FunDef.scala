@@ -15,12 +15,12 @@ abstract class FunDef(val params: Array[Param], val isGenerable : Boolean = fals
     CompFunDef(allFuns:_*)
   }
 
-  def o(that: FunExpr) : FunExpr = {
+  def o(that: Expr) : FunExpr = {
     apply(that)
   }
 
 
-  def apply(args : FunExpr*) : FunExpr = {
+  def apply(args : Expr*) : FunExpr = {
     assert (args.length == params.length)
     new FunExpr(this, args:_*)
   }
@@ -36,20 +36,22 @@ object FunDef {
 
     val newF = pre(f)
 
-    val newBodyFunDef = newF.callee match {
-      case l : Lambda => new Lambda(l.params,visit(l, pre, post)(l.body.args:_*))
-      case cfd : CompFunDef => new CompFunDef(cfd.params,cfd.funs.map(f => visit(f, pre, post)) :_*)
-      case fp: FPattern => fp.getClass.getConstructor(classOf[FunExpr]).newInstance(visit(fp.f, pre, post)(fp.f.body.args:_*))
-      case _ => newF.callee
+    val newBodyFunDef : Expr = newF.body match {
+      case call: FunExpr => call.f match {
+        case l : Lambda => new Lambda( l.params, visit(l, pre, post)(call.args:_*) ).body
+        case cfd : CompFunDef => ( new CompFunDef(cfd.params, cfd.funs.map(f => visit(f, pre, post)):_*) )(call.args:_*)
+        case fp: FPattern => fp.getClass.getConstructor(classOf[Lambda]).newInstance(visit(fp.f, pre, post))(call.args:_*)
+        case _ => newF.body
+      }
+      case _ => newF.body
     }
-    post(new Lambda(f.params, newBodyFunDef(f.body.args:_*)))
+
+    post(new Lambda(f.params, newBodyFunDef))
   }
 }
 
-class Lambda(override val params: Array[Param], val body: FunExpr) extends FunDef(params, true) {
+class Lambda(override val params: Array[Param], val body: Expr) extends FunDef(params, true) {
   override def toString = "Lambda(" + params.map(_.toString).reduce(_ + ", " + _) + "){ " + body.toString + " }"
-
-  def callee = body.f
 }
 
 object Lambda {
@@ -60,22 +62,22 @@ object Lambda {
 }
 
 object fun {
-  def apply(f: (Param) => FunExpr) = {
+  def apply(f: (Param) => Expr) = {
     val params = Array(Param(UndefType))
     new Lambda(params, f(params(0)))
   }
 
-  def apply(f: (Param, Param) => FunExpr) = {
+  def apply(f: (Param, Param) => Expr) = {
     val params = Array(Param(UndefType), Param(UndefType))
     new Lambda(params, f(params(0), params(1)))
   }
 
-  def apply(t: Type, f: (Param) => FunExpr) = {
+  def apply(t: Type, f: (Param) => Expr) = {
     val params = Array(Param(t))
     new Lambda(params, f(params(0)))
   }
 
-  def apply(t1: Type, t2: Type, f: (Param, Param) => FunExpr) = {
+  def apply(t1: Type, t2: Type, f: (Param, Param) => Expr) = {
     val params = Array(Param(t1), Param(t2))
     new Lambda(params, f(params(0), params(1)))
   }
@@ -115,10 +117,13 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
 
   // flatten all the composed functions
   def flatten : List[Lambda] = {
-    this.funs.foldLeft(List[Lambda]())((l, f) => {
-      f.body.f match {
-        case cf: CompFunDef => l ++ cf.flatten
-        case _ => l :+ f
+    this.funs.foldLeft(List[Lambda]())((ll, f) => {
+      f.body match {
+        case call: FunExpr => call.f match {
+            case cf: CompFunDef => ll ++ cf.flatten
+            case _ => ll :+ f
+          }
+        case _ => ll :+ f
       }
     })
   }
@@ -161,14 +166,14 @@ case class PartRed(f: Lambda, init: Value) extends Pattern(Array[Param](Param(Un
 case class Join() extends Pattern(Array[Param](Param(UndefType)), true) {
   //override def copy() = Join()
 }
-case class Split(chunkSize: Expr) extends Pattern(Array[Param](Param(UndefType)), true) {
+case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType)), true) {
   //override def copy() = Split(chunkSize)
 }
 
 case class asScalar() extends Pattern(Array[Param](Param(UndefType)), true) {
   //override def copy() = asScalar()
 }
-case class asVector(len: Expr) extends Pattern(Array[Param](Param(UndefType)), true) {
+case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType)), true) {
   //override def copy() = asVector(len)
 }
 
@@ -181,7 +186,7 @@ case class Vectorize(n: Expr, f: Fun) extends FPattern {
 */
 
 object Vectorize {
-  class Helper(n: Expr) {
+  class Helper(n: ArithExpr) {
     def apply(uf: UserFunDef): UserFunDef = {
       UserFunDef.vectorize(uf, n)
     }
@@ -191,7 +196,7 @@ object Vectorize {
     }
   }
 
-  def apply(n: Expr): Helper = {
+  def apply(n: ArithExpr): Helper = {
     new Helper(n)
   }
 }
@@ -211,7 +216,7 @@ case class UserFunExpr(val funDef: UserFunDef) extends FunExpr() {
 */
 
 object UserFunDef {
-  def vectorize(uf: UserFunDef, n: Expr): UserFunDef = {
+  def vectorize(uf: UserFunDef, n: ArithExpr): UserFunDef = {
     val name = uf.name + n
     val expectedInT = Type.vectorize(uf.inT, n)
     val expectedOutT = Type.vectorize(uf.outT, n)
@@ -222,20 +227,20 @@ object UserFunDef {
 }
 
 
-case class Iterate(n: Expr, f: Lambda) extends Pattern(Array[Param](Param(UndefType)), true) with FPattern {
+case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(Array[Param](Param(UndefType)), true) with FPattern {
 
-  override def apply(args: FunExpr*) : IterateExpr = {
+  override def apply(args: Expr*) : IterateExpr = {
     assert(args.length == 1)
     new IterateExpr(this, args(0))
   }
 
-  override def o(that: FunExpr) : IterateExpr = {
+  override def o(that: Expr) : IterateExpr = {
     apply(that)
   }
 }
 
 object Iterate {
-  def apply(n: Expr): ((Lambda) => Iterate)  = (f: Lambda) => Iterate(n ,f)
+  def apply(n: ArithExpr): ((Lambda) => Iterate)  = (f: Lambda) => Iterate(n ,f)
 
   def varName(): String = {
     "iterSize"
@@ -247,7 +252,7 @@ case class Zip() extends FunDef(Array[Param](Param(UndefType),Param(UndefType)),
 }
 
 object Zip {
-  def apply(args : FunExpr*) : FunExpr = {
+  def apply(args : Expr*) : FunExpr = {
     Zip()(args:_*)
   }
 }

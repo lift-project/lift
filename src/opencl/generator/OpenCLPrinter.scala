@@ -78,10 +78,13 @@ class OpenCLPrinter {
     print(mems.map( mem => toParameterDecl(mem) ).reduce(separateByComma))
   }
 
-  def generateFunCall(f: FunExpr, args: String*) {
-    f.f match {
-      case uf: UserFunDef => generateFunCall(uf, args:_*)
-      //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
+  def generateFunCall(expr: Expr, args: String*) {
+    expr match {
+      case call: FunExpr => call.f match {
+        case uf: UserFunDef => generateFunCall(uf, args:_*)
+        //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
+        case _ => throw new NotImplementedError()
+      }
       case _ => throw new NotImplementedError()
     }
   }
@@ -111,12 +114,12 @@ class OpenCLPrinter {
     }
   }
 
-  def toOpenCL(e: Expr) : String = {
+  def toOpenCL(e: ArithExpr) : String = {
     val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "pow(" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
-      case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: Expr) => {
+      case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
         s + (e match {
           case Pow(b, Cst(-1)) => " / (" + toOpenCL(b) + ")"
           case _ => " * " + toOpenCL(e)
@@ -178,7 +181,7 @@ class OpenCLPrinter {
     val update = ExprSimplifier.simplify(range.step)
 
     // eval expression. if sucessfull return true and the value, otherwise return false
-    def evalExpr = (e: Expr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
+    def evalExpr = (e: ArithExpr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
 
     // try to directly evaluate
     val (initIsEvaluated, initEvaluated) = evalExpr(init)

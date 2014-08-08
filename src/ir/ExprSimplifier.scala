@@ -13,7 +13,7 @@ object ExprSimplifier {
       primeFactors(n, i+1)
   }
 
-  private def simplifyPow(pow: Pow): Expr = {
+  private def simplifyPow(pow: Pow): ArithExpr = {
 
     pow match {
       case Pow(Cst(0), Cst(0)) => throw new NotEvaluableException(pow.toString())
@@ -43,7 +43,7 @@ object ExprSimplifier {
     }
   }
 
-  private def simplifySum(sum: Sum): Expr = sum match {
+  private def simplifySum(sum: Sum): ArithExpr = sum match {
     case Sum(terms) => {
 
       var resultSum = sum
@@ -106,11 +106,11 @@ object ExprSimplifier {
 
   private def prodPowSimplification(prod: Prod) : Prod = {
 
-    val powMap = scala.collection.mutable.Map[Expr, Sum]()
+    val powMap = scala.collection.mutable.Map[ArithExpr, Sum]()
 
     prod.terms.foreach(term => {
 
-      val (base:Expr,exp:Expr) = term match {
+      val (base:ArithExpr,exp:ArithExpr) = term match {
         case Pow(b, e) => (b,e)
         case _ =>  (term,Cst(1)) // implicit exponent (1)
       }
@@ -140,7 +140,7 @@ object ExprSimplifier {
     Prod(rest ++ pows)
   }
 
-  private def distribute(prod: Prod) : Expr = {
+  private def distribute(prod: Prod) : ArithExpr = {
 
     var sums = List[Sum]()
     var prodRest = Prod(List())
@@ -155,7 +155,7 @@ object ExprSimplifier {
     simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
   }
 
-  private def simplifyProd(prod: Prod): Expr = {
+  private def simplifyProd(prod: Prod): ArithExpr = {
     prod match {
 
       case Prod(terms) => {
@@ -183,7 +183,7 @@ object ExprSimplifier {
     }
   }
 
-  def simplify(e: Expr): Expr = {
+  def simplify(e: ArithExpr): ArithExpr = {
 
     // recurse inside first
     var result = e match {

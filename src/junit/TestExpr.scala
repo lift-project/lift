@@ -21,7 +21,7 @@ class TestExpr {
       r
   }
 
-  private def rndExpr(maxDepth: Int, depth: Int=0) : Expr = {
+  private def rndExpr(maxDepth: Int, depth: Int=0) : ArithExpr = {
 
     if (depth > maxDepth)
       return Cst(rndPositive())

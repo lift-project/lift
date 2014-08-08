@@ -169,8 +169,12 @@ object Exploration {
     
     if (!c.canDerive(f))
       return f
+
+    val call = f.body match {
+      case  call: FunExpr => call
+    }
     
-    val bestChoice = f.callee match {
+    val bestChoice = call.f match {
       
       case p: Pattern =>
       
@@ -206,7 +210,12 @@ object Exploration {
 
     // now try to go inside
     assert(bestChoice.isGenerable)
-    bestChoice.callee match {
+
+    val bestChoiceCall = bestChoice.body match {
+      case  call: FunExpr => call
+    }
+
+    bestChoiceCall.f match {
       case fp: FPattern => fp.getClass.getConstructor(classOf[FunExpr]).newInstance(derive(newTopF, fp.f, inputs, c, depth + 1))
       case cf: CompFunDef =>
         val newFuns = cf.funs.map(inF => derive(newTopF, inF, inputs, c, depth+1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)

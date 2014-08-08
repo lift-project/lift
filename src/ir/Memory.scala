@@ -2,7 +2,7 @@ package ir
 
 abstract class Memory {  
   def variable : Var
-  def size : Expr
+  def size : ArithExpr
 }
 
 object UnallocatedMemory extends Memory {

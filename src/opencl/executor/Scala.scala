@@ -10,13 +10,7 @@ object Compile {
   def apply(f: Lambda) = {
     Type.check(f.body, NoType)
 
-    // allocate the params and set the corresponding type
-    f.params.map( (p) => {
-      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
-      p.inT = p.outT
-    })
-
-    val kernelCode = OpenCLGenerator.generate(f.body)
+    val kernelCode = OpenCLGenerator.generate(f)
     println("Kernel code:")
     println(kernelCode)
 
@@ -35,9 +29,9 @@ object Execute {
 
   def apply(code: String, f: Lambda, values: Array[Float]*) : (Array[Float], Double) = {
     val valueMap = (    f.params.map( (p) => Type.getLength(p.outT))
-      zip values.map( (a) => Cst(a.size)) ).toMap[Expr, Expr]
+      zip values.map( (a) => Cst(a.size)) ).toMap[ArithExpr, ArithExpr]
 
-    val outputSize = Expr.substitute(Type.getLength(f.body.outT), valueMap).eval()
+    val outputSize = ArithExpr.substitute(Type.getLength(f.body.outT), valueMap).eval()
 
     val inputs = values.map( global.input(_) )
     val outputData = global.output[Float](outputSize)
@@ -48,8 +42,8 @@ object Execute {
       if (i != -1) inputs(i)
       else if (m == f.body.outM) outputData
       else m.addressSpace match {
-        case LocalMemory => local(Expr.substitute(m.size, valueMap).eval() * 4) // TODO: check on this ...
-       case GlobalMemory => global(Expr.substitute(m.size, valueMap).eval() * 4)
+        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval() * 4) // TODO: check on this ...
+       case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval() * 4)
       }
     })
 

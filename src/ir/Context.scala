@@ -52,26 +52,29 @@ object Context {
    /*
    * Update the context recursively
    */
-  def updateContext(f: FunExpr): Unit = updateContext(f, f.context)
+  def updateContext(expr: Expr): Unit = updateContext(expr, expr.context)
     
   /*
    * Update the context recursively
    */  
-  def updateContext(f: FunExpr, ctx: Context): Unit = {
+  def updateContext(expr: Expr, ctx: Context): Unit = {
     if (ctx != null) {
-      f.context = ctx
-      f.f match {
-        
-        case Map(inF)    => updateContext(inF.body, ctx.incMapDepth)
-        case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth.setInSeq())
-        case MapGlb(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapGlb)
-        case MapWrg(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapWrg)
-        case MapLcl(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapLcl)
-        case ReduceSeq(inF,_) => updateContext(inF.body, ctx.setInSeq()) // TODO: include initValue in the Context??
+      expr.context = ctx
+      expr match {
+        case call: FunExpr => call.f match {
 
-        case fp: FPattern => updateContext(fp.f.body, ctx.copy)
-        case cf: CompFunDef => cf.funs.map(inF => updateContext(inF.body, ctx.copy))
-        case _ => 
+          case Map(inF)    => updateContext(inF.body, ctx.incMapDepth)
+          case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth.setInSeq())
+          case MapGlb(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapGlb)
+          case MapWrg(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapWrg)
+          case MapLcl(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapLcl)
+          case ReduceSeq(inF,_) => updateContext(inF.body, ctx.setInSeq()) // TODO: include initValue in the Context??
+
+          case fp: FPattern => updateContext(fp.f.body, ctx.copy)
+          case cf: CompFunDef => cf.funs.map(inF => updateContext(inF.body, ctx.copy))
+          case _ =>
+        }
+        case _ =>
       }
     }    
   }

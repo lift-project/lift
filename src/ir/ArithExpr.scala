@@ -7,20 +7,20 @@ import scala.util.Random
 class NotEvaluableException(msg: String) extends Exception(msg)
 
 
-abstract class Expr {
+abstract class ArithExpr {
 
   def eval(): Int = {
-    val dblResult = Expr.evalDouble(this)
+    val dblResult = ArithExpr.evalDouble(this)
     if (dblResult.isValidInt)
       dblResult.toInt
     else
       throw new NotEvaluableException("Cannot evaluate to int: "+dblResult)
   }
 
-  def evalDbl(): Double = Expr.evalDouble(this)
+  def evalDbl(): Double = ArithExpr.evalDouble(this)
 
 
-  def *(that: Expr): Prod = {
+  def *(that: ArithExpr): Prod = {
     val thisExprs = this match {
       case p:Prod => p.terms
       case _ => List(this)
@@ -32,7 +32,7 @@ abstract class Expr {
     Prod(thisExprs++thatExprs)
   }
 
-  def +(that: Expr): Sum = {
+  def +(that: ArithExpr): Sum = {
     val thisExprs = this match {
       case s:Sum => s.terms
       case _ => List(this)
@@ -44,22 +44,22 @@ abstract class Expr {
     Sum(thisExprs++thatExprs)
   }
 
-  def /(that: Expr) = this * Pow(that, Cst(-1))
-  def -(that: Expr) = this + (that * Cst(-1))
+  def /(that: ArithExpr) = this * Pow(that, Cst(-1))
+  def -(that: ArithExpr) = this + (that * Cst(-1))
 
-  def %(that: Expr) = Mod(this, that)
+  def %(that: ArithExpr) = Mod(this, that)
 
-  def &(that: Expr) = And(this, that)
+  def &(that: ArithExpr) = And(this, that)
 
 }
 
 
 
-object Expr {
+object ArithExpr {
 
   implicit def IntToCst(i: Int) = Cst(i)
 
-  def max(e1: Expr, e2: Expr) : Expr = {
+  def max(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
     val diff = ExprSimplifier.simplify(e1 - e2)
     diff match {
       case Cst(c) => if (c < 0) e2 else e1
@@ -67,7 +67,7 @@ object Expr {
     }
   }
 
-  def min(e1: Expr, e2: Expr) : Expr = {
+  def min(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
     val diff = ExprSimplifier.simplify(e1 - e2)
     diff match {
       case Cst(c) => if (c < 0) e1 else e2
@@ -75,7 +75,7 @@ object Expr {
     }
   }
 
-  def max(e: Expr) : Expr = {
+  def max(e: ArithExpr) : ArithExpr = {
     e match {
       case _:Cst => e
       case Var(_, range) => if (range.max != ?) max(range.max) else e
@@ -90,7 +90,7 @@ object Expr {
     }
   }
 
-  def min(e: Expr) : Expr = {
+  def min(e: ArithExpr) : ArithExpr = {
     e match {
       case _:Cst => e
       case Var(_, range) => if (range.min != ?) min(range.min) else e
@@ -105,7 +105,7 @@ object Expr {
     }
   }
 
-  def getTypeVars(expr: Expr) : Set[TypeVar] = {
+  def getTypeVars(expr: ArithExpr) : Set[TypeVar] = {
     val typeVars = scala.collection.mutable.HashSet[TypeVar]()
     visit(expr, {
       case tv: TypeVar => typeVars += tv
@@ -114,13 +114,13 @@ object Expr {
     typeVars.toSet
   }
 
-  def contains(expr: Expr, elem: Expr) : Boolean = {
+  def contains(expr: ArithExpr, elem: ArithExpr) : Boolean = {
     var seen = false
     visit(expr, e => if (e==elem) seen=true)
     seen
   }
 
-  def visit(e: Expr, f: (Expr) => Unit) : Unit = {
+  def visit(e: ArithExpr, f: (ArithExpr) => Unit) : Unit = {
     f(e)
     e match {
       case Pow(base, exp) =>
@@ -132,7 +132,7 @@ object Expr {
     }
   }
 
-  def substitute(e: Expr, substitutions: scala.collection.immutable.Map[Expr,Expr]) : Expr = {
+  def substitute(e: ArithExpr, substitutions: scala.collection.immutable.Map[ArithExpr,ArithExpr]) : ArithExpr = {
 
     var newExpr = substitutions.getOrElse(e, e)
 
@@ -147,7 +147,7 @@ object Expr {
   }
 
 
-  private def evalDouble(e: Expr) : Double = e match {
+  private def evalDouble(e: ArithExpr) : Double = e match {
     case Cst(c) => c
     case Var(_,_) | ? => throw new NotEvaluableException(e.toString)
     case Pow(base,exp) => scala.math.pow(evalDouble(base),evalDouble(exp))
@@ -157,14 +157,14 @@ object Expr {
 
 
 
-  def toInt(e: Expr): Int = {
+  def toInt(e: ArithExpr): Int = {
     ExprSimplifier.simplify(e) match {
       case Cst(i) => i
       case _ => throw new NotEvaluableException(e.toString)
     }
   }
 
-  def asCst(e: Expr) = {
+  def asCst(e: ArithExpr) = {
     ExprSimplifier.simplify(e) match {
       case c:Cst => c
       case _ => throw new IllegalArgumentException
@@ -173,29 +173,29 @@ object Expr {
 
 }
 
-case object ? extends Expr
-case class Cst(c: Int) extends Expr { override  def toString = c.toString }
-case class Pow(b: Expr, e: Expr) extends Expr {
+case object ? extends ArithExpr
+case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
+case class Pow(b: ArithExpr, e: ArithExpr) extends ArithExpr {
   override def toString : String = e match {
     case Cst(-1) => "1/("+b+")"
     case _ => "pow("+b+","+e+")"
   }
 }
-case class Prod(terms: List[Expr]) extends Expr {
+case class Prod(terms: List[ArithExpr]) extends ArithExpr {
   override def toString : String = {
     val m = if (terms.nonEmpty) { terms.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) } else {""}
     "(" + m +")"
   }
 }
-case class Sum(terms: List[Expr]) extends Expr {
+case class Sum(terms: List[ArithExpr]) extends ArithExpr {
   override def toString: String = "("+terms.map((t) => t.toString).reduce((s1, s2) => s1 + "+" + s2)+")"
 }
 
-case class Mod(dividend: Expr, divisor: Expr) extends Expr {
+case class Mod(dividend: ArithExpr, divisor: ArithExpr) extends ArithExpr {
   override def toString: String = "(" + dividend + " % " + divisor + ")"
 }
 
-case class And(lhs: Expr, rhs: Expr) extends Expr {
+case class And(lhs: ArithExpr, rhs: ArithExpr) extends ArithExpr {
   override def toString: String = "(" + lhs + " & " + rhs + ")"
 }
 
@@ -211,8 +211,8 @@ object TypeVar {
     new TypeVar(/*cnt, */range)
   }
 
-  def getTypeVars(f: FunExpr) : Set[TypeVar] = {
-    FunExpr.visit(immutable.HashSet[TypeVar]())(f, (inF, set) => set ++ getTypeVars(inF.inT))
+  def getTypeVars(expr: Expr) : Set[TypeVar] = {
+    Expr.visit(immutable.HashSet[TypeVar]())(expr, (inExpr, set) => set ++ getTypeVars(inExpr.inT))
   }
 
   def getTypeVars(t: Type) : Set[TypeVar] = {
@@ -224,7 +224,7 @@ object TypeVar {
     }
   }
 
-  def getTypeVars(e: Expr) : Set[TypeVar] = {
+  def getTypeVars(e: ArithExpr) : Set[TypeVar] = {
     e match {
       case adds: Sum => adds.terms.foldLeft(new immutable.HashSet[TypeVar]())((set,expr) => set ++ getTypeVars(expr))
       case muls: Prod => muls.terms.foldLeft(new immutable.HashSet[TypeVar]())((set,expr) => set ++ getTypeVars(expr))
@@ -234,7 +234,7 @@ object TypeVar {
   }
 }
 
-case class Var(name: String, var range : Range = RangeUnkown) extends Expr {
+case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr {
 
   Var.cnt += 1
   val id: Int = Var.cnt
@@ -292,13 +292,13 @@ object Var {
       newVars.map(v => {
         v.range match {
           case RangeAdd(start, stop, step) => v.range = RangeAdd(
-            ExprSimplifier.simplify(Expr.substitute(start, newSubsts.toMap)),
-            ExprSimplifier.simplify(Expr.substitute(stop, newSubsts.toMap)),
-            ExprSimplifier.simplify(Expr.substitute(step, newSubsts.toMap)))
+            ExprSimplifier.simplify(ArithExpr.substitute(start, newSubsts.toMap)),
+            ExprSimplifier.simplify(ArithExpr.substitute(stop, newSubsts.toMap)),
+            ExprSimplifier.simplify(ArithExpr.substitute(step, newSubsts.toMap)))
           case RangeMul(start, stop, step) => v.range = RangeMul(
-            ExprSimplifier.simplify(Expr.substitute(start, newSubsts.toMap)),
-            ExprSimplifier.simplify(Expr.substitute(stop, newSubsts.toMap)),
-            ExprSimplifier.simplify(Expr.substitute(step, substitions.toMap)))
+            ExprSimplifier.simplify(ArithExpr.substitute(start, newSubsts.toMap)),
+            ExprSimplifier.simplify(ArithExpr.substitute(stop, newSubsts.toMap)),
+            ExprSimplifier.simplify(ArithExpr.substitute(step, substitions.toMap)))
           case _ =>
         }
         v
@@ -311,8 +311,8 @@ object Var {
     substitions
   }
 
-  def getVars(f: FunExpr) : Set[Var] = {
-    FunExpr.visit(immutable.HashSet[Var]())(f, (inF, set) => set ++ getVars(inF.inT))
+  def getVars(expr: Expr) : Set[Var] = {
+    Expr.visit(immutable.HashSet[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.inT))
   }
 
   def getVars(t: Type) : Set[Var] = {
@@ -324,7 +324,7 @@ object Var {
     }
   }
 
-  def getVars(e: Expr) : Set[Var] = {
+  def getVars(e: ArithExpr) : Set[Var] = {
     e match {
       case adds: Sum => adds.terms.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
       case muls: Prod => muls.terms.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
