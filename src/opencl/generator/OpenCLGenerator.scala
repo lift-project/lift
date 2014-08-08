@@ -73,7 +73,7 @@ object OpenCLGenerator extends Generator {
   def generateUserFunction(expr: Expr) {
     val userFuns = Expr.visit(Set[UserFunDef]())(expr, (expr,set) =>
       expr match {
-        case call: FunExpr => call.f match {
+        case call: FunCall => call.f match {
           case uf: UserFunDef => set + uf
           //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
           case _ => set
@@ -171,13 +171,13 @@ object OpenCLGenerator extends Generator {
 
     //val inputAccess = updateInputAccessFunction(oldInputAccess, f.inT)
     expr match {
-      case call: FunExpr => call.f match {
+      case call: FunCall => call.f match {
         // sequential composition of functions. Allow to pass access functions horizontally.
         // TODO: maybe generalize this (output access function, multiple access functions, pass other information ...)
         // go from right to left, as the data flows ...
         case cf: CompFunDef => cf.funs.foldRight[Option[AccessFunction]](None)(
           (lambda: Lambda, af: Option[AccessFunction]) => lambda.body match {
-            case call: FunExpr => call.f match {
+            case call: FunCall => call.f match {
               // pass newly created access function to the next function in line
               case r : ReorderStride => Some(createReorderStrideAccessFunction(r, call, inputAccess.last.scope))
 
@@ -201,7 +201,7 @@ object OpenCLGenerator extends Generator {
         case r: ReduceSeq => generateReduceSeqCall(r, call, inputAccess, outputAccess)
         case r: ReduceHost => generateReduceSeqCall(r, call, inputAccess, outputAccess)
         // iterate
-        case i: Iterate => generateIterateCall(i, call.asInstanceOf[IterateExpr], inputAccess, outputAccess)
+        case i: Iterate => generateIterateCall(i, call.asInstanceOf[IterateCall], inputAccess, outputAccess)
         // reorder
         //case r : ReorderStride => generateReorderStride(r, inputAccess, outputAccess)
         // user functions
@@ -222,7 +222,7 @@ object OpenCLGenerator extends Generator {
 
   // === Maps ===
   // generic Map
-  private def generateMap(m: AbstractMap, c: FunExpr, loopVar: Var, range: RangeAdd,
+  private def generateMap(m: AbstractMap, c: FunCall, loopVar: Var, range: RangeAdd,
                           inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction],
                           mapName: String) {
     val inAccessFun = MapAccessFunction(loopVar, Cst(1), mapName)
@@ -236,7 +236,7 @@ object OpenCLGenerator extends Generator {
   }
   
   // MapWrg
-  private def generateMapWrgCall(m: MapWrg, c: FunExpr,
+  private def generateMapWrgCall(m: MapWrg, c: FunCall,
                                  inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(c.f == m)
 
@@ -248,7 +248,7 @@ object OpenCLGenerator extends Generator {
   }
   
   // MapLcl
-  private def generateMapLclCall(m: MapLcl, c: FunExpr,
+  private def generateMapLclCall(m: MapLcl, c: FunCall,
                                  inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(c.f == m)
 
@@ -260,7 +260,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // MapWarp
-  private def generateMapWarpCall(m: MapWarp, c: FunExpr,
+  private def generateMapWarpCall(m: MapWarp, c: FunCall,
                                   inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(c.f == m)
 
@@ -274,7 +274,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // MapLane
-  private def generateMapLaneCall(m: MapLane, c: FunExpr,
+  private def generateMapLaneCall(m: MapLane, c: FunCall,
                                   inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(c.f == m)
 
@@ -285,7 +285,7 @@ object OpenCLGenerator extends Generator {
   }
   
   // MapSeq
-  private def generateMapSeqCall(m: MapSeq, c: FunExpr,
+  private def generateMapSeqCall(m: MapSeq, c: FunCall,
                              inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(c.f == m)
 
@@ -312,7 +312,7 @@ object OpenCLGenerator extends Generator {
   }
   
   // === Reduce ===
-  private def generateReduceSeqCall(r: AbstractReduce, c: FunExpr,
+  private def generateReduceSeqCall(r: AbstractReduce, c: FunCall,
                                 inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(c.f == r)
 
@@ -351,7 +351,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // === Iterate ===
-  private def generateIterateCall(i: Iterate, c: IterateExpr,
+  private def generateIterateCall(i: Iterate, c: IterateCall,
                                   inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) = {
 
     assert(c.f == i)
@@ -435,7 +435,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // === ReorderStride ===
-  private def createReorderStrideAccessFunction(r: ReorderStride, call: FunExpr, scope: String) = {
+  private def createReorderStrideAccessFunction(r: ReorderStride, call: FunCall, scope: String) = {
     assert (call.f == r)
 
     val s = Type.getLength(call.inT)

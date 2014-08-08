@@ -1,6 +1,6 @@
 package ir
 
-abstract class FunDef(val params: Array[Param], val isGenerable : Boolean = false) {
+abstract class FunDecl(val params: Array[Param], val isGenerable : Boolean = false) {
 
   def o(that: Lambda) : CompFunDef = {
     val thisFuns = this match {
@@ -15,19 +15,19 @@ abstract class FunDef(val params: Array[Param], val isGenerable : Boolean = fals
     CompFunDef(allFuns:_*)
   }
 
-  def o(that: Expr) : FunExpr = {
+  def o(that: Expr) : FunCall = {
     apply(that)
   }
 
 
-  def apply(args : Expr*) : FunExpr = {
+  def apply(args : Expr*) : FunCall = {
     assert (args.length == params.length)
-    new FunExpr(this, args:_*)
+    new FunCall(this, args:_*)
   }
 
 }
 
-object FunDef {
+object FunDecl {
 
   def replace(f: Lambda, oldF: Lambda, newF: Lambda) : Lambda =
     visit (f, (l) => if (l.eq(oldF)) newF else oldF, (l) => l)
@@ -37,7 +37,7 @@ object FunDef {
     val newF = pre(f)
 
     val newBodyFunDef : Expr = newF.body match {
-      case call: FunExpr => call.f match {
+      case call: FunCall => call.f match {
         case l : Lambda => new Lambda( l.params, visit(l, pre, post)(call.args:_*) ).body
         case cfd : CompFunDef => ( new CompFunDef(cfd.params, cfd.funs.map(f => visit(f, pre, post)):_*) )(call.args:_*)
         case fp: FPattern => fp.getClass.getConstructor(classOf[Lambda]).newInstance(visit(fp.f, pre, post))(call.args:_*)
@@ -50,12 +50,12 @@ object FunDef {
   }
 }
 
-class Lambda(override val params: Array[Param], val body: Expr) extends FunDef(params, true) {
+class Lambda(override val params: Array[Param], val body: Expr) extends FunDecl(params, true) {
   override def toString = "Lambda(" + params.map(_.toString).reduce(_ + ", " + _) + "){ " + body.toString + " }"
 }
 
 object Lambda {
-  implicit def FunDefToLambda(f: FunDef) = {
+  implicit def FunDefToLambda(f: FunDecl) = {
     new Lambda(f.params, f(f.params:_*))
   }
 
@@ -95,7 +95,7 @@ object CompFunDef {
 
 }
 
-case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends FunDef(params, true) {
+case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends FunDecl(params, true) {
 
 
   override def toString: String = {
@@ -119,7 +119,7 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
   def flatten : List[Lambda] = {
     this.funs.foldLeft(List[Lambda]())((ll, f) => {
       f.body match {
-        case call: FunExpr => call.f match {
+        case call: FunCall => call.f match {
             case cf: CompFunDef => ll ++ cf.flatten
             case _ => ll :+ f
           }
@@ -132,7 +132,7 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
 // Here are just the algorithmic patterns
 // For opencl specific patterns see the opencl.ir package
 
-abstract class Pattern(override val params: Array[Param], override val isGenerable: Boolean = false) extends FunDef(params, isGenerable)
+abstract class Pattern(override val params: Array[Param], override val isGenerable: Boolean = false) extends FunDecl(params, isGenerable)
 /*object Pattern {
   def unapply(p: Pattern) : Option[Context] = Some(p.context)
 }*/
@@ -203,7 +203,7 @@ object Vectorize {
 
 
 case class UserFunDef(name: String, paramNames: Any, body: String,
-                      inT: Type, outT: Type) extends FunDef(Array[Param](Param(inT)), true) {
+                      inT: Type, outT: Type) extends FunDecl(Array[Param](Param(inT)), true) {
 
   override def toString = "UserFun("+ name + ")" // for debug purposes
 }
@@ -229,12 +229,12 @@ object UserFunDef {
 
 case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(Array[Param](Param(UndefType)), true) with FPattern {
 
-  override def apply(args: Expr*) : IterateExpr = {
+  override def apply(args: Expr*) : IterateCall = {
     assert(args.length == 1)
-    new IterateExpr(this, args(0))
+    new IterateCall(this, args(0))
   }
 
-  override def o(that: Expr) : IterateExpr = {
+  override def o(that: Expr) : IterateCall = {
     apply(that)
   }
 }
@@ -247,12 +247,12 @@ object Iterate {
   }
 }
 
-case class Zip() extends FunDef(Array[Param](Param(UndefType),Param(UndefType)), true) {
+case class Zip() extends FunDecl(Array[Param](Param(UndefType),Param(UndefType)), true) {
   //override def copy() = Zip(f1, f2)
 }
 
 object Zip {
-  def apply(args : Expr*) : FunExpr = {
+  def apply(args : Expr*) : FunCall = {
     Zip()(args:_*)
   }
 }

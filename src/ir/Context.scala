@@ -61,7 +61,7 @@ object Context {
     if (ctx != null) {
       expr.context = ctx
       expr match {
-        case call: FunExpr => call.f match {
+        case call: FunCall => call.f match {
 
           case Map(inF)    => updateContext(inF.body, ctx.incMapDepth)
           case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth.setInSeq())

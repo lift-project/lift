@@ -3,7 +3,7 @@ package opencl.ir
 import scala.collection.mutable
 
 import ir._
-import ir.FunExpr
+import ir.FunCall
 
 /** represents OpenCL address spaces either: local or global; UndefAddressSpace should be used in case of errors */
 abstract class OpenCLAddressSpace
@@ -169,7 +169,7 @@ object OpenCLMemory {
         // .. and return the output memory
         OpenCLMemory.asOpenCLMemory(expr.outM)
 
-      case call: FunExpr =>
+      case call: FunCall =>
 
         val inMs = if (call.args.nonEmpty) {
           // allocate arguments and get the output memories from there
@@ -251,7 +251,7 @@ object OpenCLMemory {
           // ... for Iterate ...
           case it: Iterate =>
             if (inMs.length != 1) throw new NumberOfArgumentsException
-            val fIter = call.asInstanceOf[IterateExpr]
+            val fIter = call.asInstanceOf[IterateCall]
 
             // get sizes in bytes necessary to hold the input and output of the function inside the iterate
             val inSize = getMaxSizeInBytes(fIter.inT)
@@ -327,9 +327,9 @@ object TypedOpenCLMemory {
     // recursively visit all functions and collect input and output (and swap buffer for the iterate)
     val result = Expr.visit(Array[TypedOpenCLMemory]())(expr, (exp, arr) =>
       exp match {
-        case call: FunExpr => call.f match {
+        case call: FunCall => call.f match {
           case it: Iterate =>
-          val fIter = call.asInstanceOf[IterateExpr]
+          val fIter = call.asInstanceOf[IterateCall]
           arr :+
           TypedOpenCLMemory(fIter.inM, fIter.inT) :+
           TypedOpenCLMemory(fIter.outM, fIter.outT) :+

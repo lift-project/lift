@@ -250,7 +250,7 @@ object Type {
         // ... PANIC!
         else throw new TypeException(inputT, "some type")
 
-      case call: FunExpr => {
+      case call: FunCall => {
 
         // this is a generic function call, so there must be a corresponding FunDef
         assert(call.f != null)

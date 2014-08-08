@@ -21,10 +21,10 @@ abstract class Expr {
   def copy : Expr
 }
 
-sealed class FunExpr(val f : FunDef, val args : Expr*) extends Expr {
+sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr {
 
   assert( if (f.isInstanceOf[Iterate]) {
-    this.isInstanceOf[IterateExpr]
+    this.isInstanceOf[IterateCall]
   } else {
     true
   } )
@@ -36,12 +36,12 @@ sealed class FunExpr(val f : FunDef, val args : Expr*) extends Expr {
     fS + "(" + argS + ")"
   }
 
-  override def copy: FunExpr = {
+  override def copy: FunCall = {
     //val c = new FunExpr(this.f, this.args:_*)
     //c.context = this.context
     //c.inT = this.inT
     //c.ouT = this.ouT
-    this.clone().asInstanceOf[FunExpr]
+    this.clone().asInstanceOf[FunCall]
   }
 
 }
@@ -80,7 +80,7 @@ object Value {
   }
 }
 
-case class IterateExpr(override val f: Iterate, arg: Expr) extends FunExpr(f, arg) {
+case class IterateCall(override val f: Iterate, arg: Expr) extends FunCall(f, arg) {
   var swapBuffer: Memory = UnallocatedMemory
 }
 
@@ -91,7 +91,7 @@ object Expr {
   def visit[T](z:T)(expr: Expr, visitFun: (Expr,T) => T): T = {
     val result = visitFun(expr,z)
     expr match {
-      case call: FunExpr => call.f match {
+      case call: FunCall => call.f match {
         case fp: FPattern => visit(result)(fp.f.body, visitFun)
         case cf: CompFunDef => cf.funs.foldRight(result)((inF,x)=>visit(x)(inF.body, visitFun))
         case _ => result
@@ -105,7 +105,7 @@ object Expr {
   def visitArithExpr(expr: Expr, exprF: (ArithExpr) => (ArithExpr)) : Expr = {
     visit(expr,
           (inExpr: Expr) => inExpr match {
-            case call: FunExpr => call.f match {
+            case call: FunCall => call.f match {
                 case Split(e) => Split(exprF(e))(call.args:_*)
                 case asVector(e) => asVector(exprF(e))(call.args:_*)
                 case _ => inExpr
@@ -120,7 +120,7 @@ object Expr {
    def visit(expr: Expr, pre: (Expr) => (Expr), post: (Expr) => (Expr)) : Expr = {
     var newExpr = pre(expr)
     newExpr = newExpr match {
-      case call: FunExpr => call.f match {
+      case call: FunCall => call.f match {
         case cf: CompFunDef => CompFunDef(cf.funs.map(inF => new Lambda(inF.params, visit(inF.body, pre, post)) ):_*)(call.args:_*)
         case fp: FPattern => fp.getClass().getConstructor(classOf[Expr]).newInstance(visit(fp.f.body,pre,post))(call.args:_*)
         case _ => newExpr.copy
@@ -135,7 +135,7 @@ object Expr {
   def visit(expr: Expr, pre: (Expr) => (Unit), post: (Expr) => (Unit)): Unit = {
     pre(expr)
     expr match {
-      case call: FunExpr => call.f match {
+      case call: FunCall => call.f match {
           case fp: FPattern => visit(fp.f.body, pre, post)
           case cf: CompFunDef => cf.funs.reverseMap(inF => visit(inF.body, pre, post))
           case _ =>

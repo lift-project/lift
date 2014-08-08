@@ -6,7 +6,7 @@ import scala.util.Random
 import ir._
 
 case class UngenerableException(msg: String) extends Exception(msg) {
-  def this(f: FunExpr) = this("impossible to generate "+f)
+  def this(f: FunCall) = this("impossible to generate "+f)
 }
 
 object Exploration {
@@ -99,7 +99,7 @@ object Exploration {
         seen += rndFun
 
         choices.map(choice => {          
-          val f = FunDef.replace(rndFun, oriF, choice)
+          val f = FunDecl.replace(rndFun, oriF, choice)
           Type.check(f.body, topF.body.inT)
           Context.updateContext(f.body, topF.body.context)
           try{
@@ -171,7 +171,7 @@ object Exploration {
       return f
 
     val call = f.body match {
-      case  call: FunExpr => call
+      case  call: FunCall => call
     }
     
     val bestChoice = call.f match {
@@ -192,7 +192,7 @@ object Exploration {
 
         if (choice != f) {
           // try to derive the newly found best
-          val newTopF = FunDef.replace(topF, f, choice)
+          val newTopF = FunDecl.replace(topF, f, choice)
           Type.check(newTopF.body, topF.body.inT)
           Context.updateContext(newTopF.body, topF.body.context)
 
@@ -204,7 +204,7 @@ object Exploration {
       case _ => f
     } 
 
-    val newTopF = FunDef.replace(topF, f, bestChoice)
+    val newTopF = FunDecl.replace(topF, f, bestChoice)
     Type.check(newTopF.body, topF.body.inT)
     Context.updateContext(newTopF.body, topF.body.context)
 
@@ -212,11 +212,11 @@ object Exploration {
     assert(bestChoice.isGenerable)
 
     val bestChoiceCall = bestChoice.body match {
-      case  call: FunExpr => call
+      case  call: FunCall => call
     }
 
     bestChoiceCall.f match {
-      case fp: FPattern => fp.getClass.getConstructor(classOf[FunExpr]).newInstance(derive(newTopF, fp.f, inputs, c, depth + 1))
+      case fp: FPattern => fp.getClass.getConstructor(classOf[FunCall]).newInstance(derive(newTopF, fp.f, inputs, c, depth + 1))
       case cf: CompFunDef =>
         val newFuns = cf.funs.map(inF => derive(newTopF, inF, inputs, c, depth+1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
         if (newFuns.length == 1)

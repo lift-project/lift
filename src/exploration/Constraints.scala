@@ -1,6 +1,6 @@
 package exploration
 
-import ir.{Lambda, FunExpr}
+import ir.{Lambda, FunCall}
 
 class Constraints(val maxMapDepth: Int, val converge: Boolean, val randomOnly: Boolean = false) {
 

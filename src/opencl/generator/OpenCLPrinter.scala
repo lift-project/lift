@@ -80,7 +80,7 @@ class OpenCLPrinter {
 
   def generateFunCall(expr: Expr, args: String*) {
     expr match {
-      case call: FunExpr => call.f match {
+      case call: FunCall => call.f match {
         case uf: UserFunDef => generateFunCall(uf, args:_*)
         //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
         case _ => throw new NotImplementedError()

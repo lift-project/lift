@@ -12,7 +12,7 @@ object Rules {
 
   private def composedDerivations(l: Lambda, c: Constraints, level: Int): Seq[Lambda] = {
     l.body match {
-      case call: FunExpr => call.f match {
+      case call: FunCall => call.f match {
         case cf: CompFunDef =>
           val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
           Utils.listPossiblities(cf.funs, optionsList).map(funs => new Lambda(cf.params,(new CompFunDef(cf.params,funs: _*))(call.args:_*)))
@@ -22,7 +22,7 @@ object Rules {
    
    private def innerDerivations(l: Lambda, c: Constraints, level: Int): Seq[Lambda] = {
      l.body match {
-       case call: FunExpr => call.f match {
+       case call: FunCall => call.f match {
          case fpat: FPattern =>
            val newCalleeList = derivsWithOneRule(fpat.f, c, level).map((f) => fpat.getClass.getConstructor(classOf[Lambda]).newInstance(f))
            newCalleeList.map(c => new Lambda(fpat.f.params, c(call.args: _*)))
@@ -36,7 +36,7 @@ object Rules {
    */
   def derivsWithOneRule(l: Lambda, c: Constraints, level: Int): Seq[Lambda] =  {
       l.body match {
-        case call: FunExpr => call.f match {
+        case call: FunCall => call.f match {
             case cf: CompFunDef => composedDerivations(cf, c, level)
             case fp: FPattern if level==0 => outerDerivations(fp,c)
             case fp: FPattern if level>0 => innerDerivations(fp,c,level-1)
@@ -59,13 +59,13 @@ object Rules {
   def outerDerivations(l: Lambda, c: Constraints): Seq[Lambda] = {
 
     val call = l.body match {
-      case  call: FunExpr => call
+      case  call: FunCall => call
     }
 
     val newCalleeList = call.f match {
 
       case Map(inF) =>
-        var result = List[FunDef]()
+        var result = List[FunDecl]()
 
         // sequential
         if (!l.body.context.inSeq && (l.body.context.inMapGlb || l.body.context.inMapLcl))
@@ -89,7 +89,7 @@ object Rules {
         result
 
       case Reduce(inF,init) =>
-        var result = List[FunDef]()
+        var result = List[FunDecl]()
         if (!c.converge)
           result = result :+ (Reduce(inF,init) o PartRed(inF,init))
 
@@ -102,13 +102,13 @@ object Rules {
         result
 
       case PartRed(inF,init) =>
-        var result = List[FunDef]()
+        var result = List[FunDecl]()
         result = result :+ Reduce(inF,init)
         if (l.body.context.mapDepth < c.maxMapDepth && !c.converge)
           result = result :+ (Join() o Map(PartRed(inF,init)) o Split(Var(validOSplitRange(l.body.inT))))
         result
 
-      case _ => List[FunDef]() // all the terminals end up here
+      case _ => List[FunDecl]() // all the terminals end up here
 
     }
 
