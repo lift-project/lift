@@ -255,13 +255,14 @@ object Type {
         // check arguments and get the output types from there
         f.args.map(check(_, inputT, setType))
       } else {
-        Seq(NoType)
+        Seq(inputT)
       }
 
-      // a shortcut to the inferred type pf the first argument
+      // a shortcut to the inferred type of the first argument
       val inT = inTs(0)
 
       if (setType)
+        // TODO: Should this really just be the first Type ???
         f.inT = inT // set the input type
 
       // type inference

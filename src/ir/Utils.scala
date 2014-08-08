@@ -1,5 +1,5 @@
 package ir
-
+/*
 import org.junit.Test
 import org.junit.Assert._
 import scala.util.Random
@@ -70,3 +70,4 @@ object Utils {
   }
 
 }
+*/

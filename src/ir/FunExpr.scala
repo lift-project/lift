@@ -67,6 +67,10 @@ object Value {
   }
 }
 
+case class IterateExpr(override val f: Iterate, arg: FunExpr) extends FunExpr(f, arg) {
+  var swapBuffer: Memory = UnallocatedMemory
+}
+
 
 object FunExpr {
 

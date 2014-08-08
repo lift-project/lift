@@ -40,6 +40,7 @@ class TestReduce {
         Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2048)
       ) o Split(262144) o in
     } )
+    /*
     val check = (l: Lambda) => {
 
       Type.check(l.body, NoType)
@@ -50,15 +51,14 @@ class TestReduce {
       }, (f: FunExpr) => {})
     }
 
-    check(l)
-/*
+    opencl.executor.Compile(l)
+    */
     val (output, runtime) = opencl.executor.Execute( l , inputData )
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
-    */
   }
 
   /*

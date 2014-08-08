@@ -3,7 +3,7 @@ package exploration
 import scala.collection.Seq
 import ir._
 import opencl.ir._
-
+/*
 /*class Derivations(val f: Fun, val c: Constraints) {
   
   private def vfn(f: Fun, s: Seq[Seq[Fun]]): Seq[Seq[Fun]] = {
@@ -155,3 +155,4 @@ object Rules {
   }*/
 
 }
+*/

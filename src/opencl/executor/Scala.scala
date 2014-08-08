@@ -39,7 +39,7 @@ object Execute {
 
     // allocate the params and set the corresponding type
     f.params.map( (p) => {
-      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+      p.outM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
       p.inT = p.outT
     })
 

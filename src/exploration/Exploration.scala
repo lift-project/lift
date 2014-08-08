@@ -1,5 +1,5 @@
 package exploration
-
+/*
 import opencl.generator.OpenCLGenerator
 import generator.Dispatcher
 
@@ -89,7 +89,7 @@ object Exploration {
     
     val perfMap = scala.collection.mutable.Map[FunExpr, List[Double]]()
     val seen = scala.collection.mutable.Set[FunExpr]()
-    
+
     // generate a few random top level function with the oriF in place
     for (i <- 0 to 3) {
       //println("---------------- "+i)
@@ -224,3 +224,4 @@ object Exploration {
   def search(f: FunDef, inputs: Seq[Any], c: Constraints = new Constraints(3, false), depth:Int=0) : FunExpr = derive(f,f,c,depth)
 
 }
+*/

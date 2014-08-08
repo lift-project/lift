@@ -79,11 +79,10 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
   }
 
   override def equals(o: Any) = {
-    if (o.isInstanceOf[CompFunDef]) {
-      var cf = o.asInstanceOf[CompFunDef]
-      funs.seq.equals(cf.funs)
-    } else
-      false
+    o match {
+      case cf: CompFunDef => funs.seq.equals(cf.funs)
+      case _ => false
+    }
   }
 
   override def hashCode() = {
@@ -179,7 +178,7 @@ object Vectorize {
 case class UserFunDef(name: String, paramNames: Any, body: String,
                       inT: Type, outT: Type) extends FunDef(Array[Param](Param(inT)), true) {
 
-  override def toString() = "UserFun("+ name + ")" // for debug purposes
+  override def toString = "UserFun("+ name + ")" // for debug purposes
 }
 
 /*
@@ -205,6 +204,10 @@ case class Iterate(n: Expr, f: Lambda) extends Pattern(Array[Param](Param(UndefT
   //override def copy() = Iterate(n, f)
   // TODO: move this to the expression
   //var swapBuffer: Memory = UnallocatedMemory
+
+  def apply(arg : FunExpr) : FunExpr = {
+    new IterateExpr(this, arg)
+  }
 }
 
 object Iterate {

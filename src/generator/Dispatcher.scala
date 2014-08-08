@@ -1,5 +1,5 @@
 package generator
-
+/*
 import Function.tupled
 import opencl.executor.{local, Executor, value, global}
 import opencl.generator.OpenCLGenerator
@@ -172,3 +172,4 @@ object Dispatcher {
   }*/
 
 }
+*/
