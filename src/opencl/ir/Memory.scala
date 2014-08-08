@@ -335,7 +335,8 @@ object TypedOpenCLMemory {
           TypedOpenCLMemory(fIter.outM, fIter.outT) :+
           TypedOpenCLMemory(fIter.swapBuffer, ArrayType(fIter.inT, ?))
 
-          case z: Zip => arr ++ getAllocatedMemory(z.params(0)) ++ getAllocatedMemory(z.params(1))
+          case z: Zip =>
+            arr ++ getAllocatedMemory(z.params(0)) ++ getAllocatedMemory(z.params(1))
 
             // exclude the user functions (they don't allocate memory and don't work on array types)
           case _: UserFunDef => arr
@@ -343,6 +344,8 @@ object TypedOpenCLMemory {
           case _ => arr :+ TypedOpenCLMemory(call.inM, call.inT) :+ TypedOpenCLMemory(call.outM, call.outT)
 
         }
+        case p: Param => arr :+ TypedOpenCLMemory(p.outM, p.outT)
+        case v: Value => arr
       })
 
     val seen = mutable.HashSet[OpenCLMemory]()

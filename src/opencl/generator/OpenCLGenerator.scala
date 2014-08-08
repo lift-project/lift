@@ -74,10 +74,11 @@ object OpenCLGenerator extends Generator {
     val userFuns = Expr.visit(Set[UserFunDef]())(expr, (expr,set) =>
       expr match {
         case call: FunCall => call.f match {
-          case uf: UserFunDef => set + uf
-          //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
-          case _ => set
-        }
+            case uf: UserFunDef => set + uf
+            //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
+            case _ => set
+          }
+        case _ => set
       })
     userFuns.foreach(uf => {
       oclPrinter.print(oclPrinter.toOpenCL(uf))
