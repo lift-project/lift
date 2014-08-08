@@ -50,7 +50,9 @@ object Execute {
     val args = memArgs ++ values.map( (a) =>  value(a.size) )
 
     // TODO: think about global size
-    val runtime = Executor.execute(code, wgSize, values(0).size, args)
+    val globalSize = values.reduce( (l,r) => if (l.size > r.size) l else r ).size
+
+    val runtime = Executor.execute(code, wgSize, globalSize, args)
 
     val output = outputData.asFloatArray()
 
