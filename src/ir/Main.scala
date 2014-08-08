@@ -1,5 +1,5 @@
 package ir
-/*
+
 import opencl.ir._
 
 import exploration.Exploration
@@ -62,18 +62,20 @@ object Main extends App {
 
 
   val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
-  val input = Input(Var("x"), ArrayType(Float, Var("N")))
+  //val input = Param(Var("x"), ArrayType(Float, Var("N")))
   //val reduceFun = Reduce(sumUp,0.0f) o input
 
-  val reduceFun = FunDef(
+  val reduceFun = fun(
     ArrayType(Float, Var("N")),
     (input) => Reduce(sumUp,0.0f) o input
   )
 
-  Type.check(reduceFun, NoType)
+  val inputData = Array.fill(1024)(util.Random.nextInt(2).toFloat)
 
-  Context.updateContext(reduceFun, new Context())
-  println(Exploration.search(reduceFun))
+  Type.check(reduceFun.body, NoType)
+
+  Context.updateContext(reduceFun.body, new Context())
+  println(Exploration.search(reduceFun, Seq(inputData)))
 
 	    //val results = Exploration.bfs(root, inputType, 0)
 	    //results.map(r => println(r))
@@ -115,5 +117,5 @@ object Main extends App {
 	   println(s.distinct)*/
 
 }
-*/
+
 

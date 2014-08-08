@@ -24,7 +24,10 @@ object Rules {
      l.body match {
        case call: FunCall => call.f match {
          case fpat: FPattern =>
-           val newCalleeList = derivsWithOneRule(fpat.f, c, level).map((f) => fpat.getClass.getConstructor(classOf[Lambda]).newInstance(f))
+           val newCalleeList = derivsWithOneRule(fpat.f, c, level).map((f) => call.f match {
+             case ar: AbstractPartRed => ar.getClass.getConstructor(classOf[Lambda],classOf[Value]).newInstance(f, ar.init)
+             case fpat: FPattern => fpat.getClass.getConstructor(classOf[Lambda]).newInstance(f)
+           } )
            newCalleeList.map(c => new Lambda(fpat.f.params, c(call.args: _*)))
        }
      }
@@ -38,9 +41,9 @@ object Rules {
       l.body match {
         case call: FunCall => call.f match {
             case cf: CompFunDef => composedDerivations(cf, c, level)
-            case fp: FPattern if level==0 => outerDerivations(fp,c)
+            case fp: FPattern if level==0 => derivePatFunCall(call,c).map(c => new Lambda(l.params, c))
             case fp: FPattern if level>0 => innerDerivations(fp,c,level-1)
-            case p: Pattern if level==0  => outerDerivations(p, c)
+            case p: Pattern if level==0  => derivePatFunCall(call, c).map(c => new Lambda(l.params, c))
             case _ => List()
           }
         case _ => List()
@@ -56,11 +59,7 @@ object Rules {
   }
  
 
-  def outerDerivations(l: Lambda, c: Constraints): Seq[Lambda] = {
-
-    val call = l.body match {
-      case  call: FunCall => call
-    }
+  def derivePatFunCall(call: FunCall, c: Constraints): Seq[FunCall] = {
 
     val newCalleeList = call.f match {
 
@@ -68,23 +67,23 @@ object Rules {
         var result = List[FunDecl]()
 
         // sequential
-        if (!l.body.context.inSeq && (l.body.context.inMapGlb || l.body.context.inMapLcl))
+        if (!call.context.inSeq && (call.context.inMapGlb || call.context.inMapLcl))
           result = result :+ MapSeq(inF)
 
         // global, workgroup
-        if (l.body.context.mapDepth == 0 && !l.body.context.inMapGlb && !l.body.context.inMapWrg) {
+        if (call.context.mapDepth == 0 && !call.context.inMapGlb && !call.context.inMapWrg) {
           result = result :+ MapGlb(inF)
           result = result :+ MapWrg(inF)
         }
 
         // local
-        if (l.body.context.mapDepth == 1 && l.body.context.inMapWrg && !l.body.context.inMapGlb && !l.body.context.inMapLcl) {
+        if (call.context.mapDepth == 1 && call.context.inMapWrg && !call.context.inMapGlb && !call.context.inMapLcl) {
           result = result :+ MapLcl(inF)
         }
 
         // split-join
-        if (l.body.context.mapDepth+1 < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(Map(inF)) o Split(Var(validOSplitRange(l.body.inT))))
+        if (call.context.mapDepth+1 < c.maxMapDepth && !c.converge)
+          result = result :+ (Join() o Map(Map(inF)) o Split(Var(validOSplitRange(call.inT))))
 
         result
 
@@ -93,10 +92,10 @@ object Rules {
         if (!c.converge)
           result = result :+ (Reduce(inF,init) o PartRed(inF,init))
 
-        if (!l.body.context.inSeq && (l.body.context.inMapGlb || l.body.context.inMapLcl))
+        if (!call.context.inSeq && (call.context.inMapGlb || call.context.inMapLcl))
           result = result :+ ReduceSeq(inF,init)
 
-        if (!l.body.context.inMapGlb && !l.body.context.inMapLcl && !l.body.context.inMapWrg)
+        if (!call.context.inMapGlb && !call.context.inMapLcl && !call.context.inMapWrg)
           result = result :+ ReduceHost(inF,init)
 
         result
@@ -104,15 +103,15 @@ object Rules {
       case PartRed(inF,init) =>
         var result = List[FunDecl]()
         result = result :+ Reduce(inF,init)
-        if (l.body.context.mapDepth < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(PartRed(inF,init)) o Split(Var(validOSplitRange(l.body.inT))))
+        if (call.context.mapDepth < c.maxMapDepth && !c.converge)
+          result = result :+ (Join() o Map(PartRed(inF,init)) o Split(Var(validOSplitRange(call.inT))))
         result
 
       case _ => List[FunDecl]() // all the terminals end up here
 
     }
 
-    newCalleeList.map(fd => new Lambda(l.params, fd(call.args:_*)))
+    newCalleeList.map(fd => new FunCall(fd,call.args:_*))
   }
   
   

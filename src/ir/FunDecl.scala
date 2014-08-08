@@ -29,8 +29,10 @@ abstract class FunDecl(val params: Array[Param], val isGenerable : Boolean = fal
 
 object FunDecl {
 
-  def replace(f: Lambda, oldF: Lambda, newF: Lambda) : Lambda =
-    visit (f, (l) => if (l.eq(oldF)) newF else oldF, (l) => l)
+  def replace(l: Lambda, oldE: Expr, newE: Expr) : Lambda =
+    visit (l, (l:Lambda) => {
+      if (l.body.eq(oldE)) new Lambda(l.params, newE) else l
+    }, (l:Lambda) => l)
 
   def visit(f: Lambda, pre: (Lambda) => (Lambda), post: (Lambda) => (Lambda)) : Lambda = {
 
@@ -40,10 +42,11 @@ object FunDecl {
       case call: FunCall => call.f match {
         case l : Lambda => new Lambda( l.params, visit(l, pre, post)(call.args:_*) ).body
         case cfd : CompFunDef => ( new CompFunDef(cfd.params, cfd.funs.map(f => visit(f, pre, post)):_*) )(call.args:_*)
+        case ar: AbstractPartRed => ar.getClass.getConstructor(classOf[Lambda],classOf[Value]).newInstance(visit(ar.f, pre, post),ar.init)(call.args:_*)
         case fp: FPattern => fp.getClass.getConstructor(classOf[Lambda]).newInstance(visit(fp.f, pre, post))(call.args:_*)
-        case _ => newF.body
+        case _ => newF.body.copy
       }
-      case _ => newF.body
+      case _ => newF.body.copy
     }
 
     post(new Lambda(f.params, newBodyFunDef))
@@ -58,7 +61,6 @@ object Lambda {
   implicit def FunDefToLambda(f: FunDecl) = {
     new Lambda(f.params, f(f.params:_*))
   }
-
 }
 
 object fun {
@@ -156,12 +158,15 @@ case class Map(f:Lambda) extends AbstractMap(f)
 
 abstract class GenerableMap(f:Lambda) extends AbstractMap(f, true)
 
-abstract class AbstractReduce(f:Lambda, val init: Value, override val isGenerable: Boolean = false)
+abstract class AbstractPartRed(f:Lambda, val init: Value, override val isGenerable: Boolean = false)
   extends Pattern(Array[Param](Param(UndefType)), isGenerable) with FPattern
+
+abstract class AbstractReduce(f:Lambda, override val init: Value, override val isGenerable: Boolean = false)
+  extends AbstractPartRed(f, init, isGenerable)
 
 case class Reduce(f: Lambda, override val init: Value) extends AbstractReduce(f, init)
 
-case class PartRed(f: Lambda, init: Value) extends Pattern(Array[Param](Param(UndefType))) with FPattern
+case class PartRed(f: Lambda, override val init: Value) extends AbstractPartRed(f,init) with FPattern
 
 case class Join() extends Pattern(Array[Param](Param(UndefType)), true) {
   //override def copy() = Join()

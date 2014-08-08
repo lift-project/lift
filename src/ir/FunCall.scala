@@ -21,7 +21,7 @@ abstract class Expr {
   def copy : Expr
 }
 
-sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr {
+sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Cloneable {
 
   assert( if (f.isInstanceOf[Iterate]) {
     this.isInstanceOf[IterateCall]
@@ -87,6 +87,9 @@ case class IterateCall(override val f: Iterate, arg: Expr) extends FunCall(f, ar
 
 object Expr {
 
+  def replace(e: Expr, oldE: Expr, newE: Expr) : Expr =
+    visit (e, (e:Expr) => if (e.eq(oldE)) newE else oldE, (e:Expr) => e)
+
   
   def visit[T](z:T)(expr: Expr, visitFun: (Expr,T) => T): T = {
     val result = visitFun(expr,z)
@@ -133,7 +136,8 @@ object Expr {
         val newArgs = call.args.map( (arg) => visit(arg, pre, post) )
         call.f match {
           case cf: CompFunDef => CompFunDef(cf.funs.map(inF => new Lambda(inF.params, visit(inF.body, pre, post)) ):_*)(newArgs:_*)
-          case fp: FPattern => fp.getClass().getConstructor(classOf[Expr]).newInstance(visit(fp.f.body,pre,post))(newArgs:_*)
+          case ar: AbstractPartRed => ar.getClass.getConstructor(classOf[Lambda],classOf[Value]).newInstance(visit(ar.f.body, pre, post),ar.init)(newArgs:_*)
+          case fp: FPattern => fp.getClass.getConstructor(classOf[Expr]).newInstance(visit(fp.f.body,pre,post))(newArgs:_*)
           case _ => newExpr.copy
         }
       case _ => newExpr.copy

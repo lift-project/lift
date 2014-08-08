@@ -65,7 +65,7 @@ object Exploration {
     //Random.nextDouble
   }
   
-  private def chooseMedianFastest(topF: Lambda, oriF: Lambda, choices: Seq[Lambda], inputs: Seq[Any], c: Constraints, depth:Int) : Lambda = {
+  private def chooseMedianFastest(topF: Lambda, oriF: FunCall, choices: Seq[FunCall], inputs: Seq[Any], c: Constraints, depth:Int) : FunCall = {
 
     assert(choices.length > 0)
 
@@ -84,9 +84,9 @@ object Exploration {
     }    	
     
     val rndTerFixed : Constraints = new Constraints(c.maxMapDepth, true, true)
-    rndTerFixed.addFixedFun(oriF)
+    rndTerFixed.addFixedFunCall(oriF)
     
-    val perfMap = scala.collection.mutable.Map[Lambda, List[Double]]()
+    val perfMap = scala.collection.mutable.Map[FunCall, List[Double]]()
     val seen = scala.collection.mutable.Set[Lambda]()
     
     // generate a few random top level function with the oriF in place
@@ -136,99 +136,111 @@ object Exploration {
     })      
   }*/
 
-  private def choose(topF: Lambda, p: Lambda, choices: Seq[Lambda], inputs: Seq[Any], c:Constraints, depth:Int) : Lambda = {
+  private def choose(topF: Lambda, f: FunCall, choices: Seq[FunCall], inputs: Seq[Any], c:Constraints, depth:Int) : FunCall = {
 
     assert (choices.length > 0)
 
-    val choice =
+    val choice : FunCall =
       if (c.randomOnly)
         choices(Random.nextInt(choices.length))
       else
-        chooseMedianFastest(topF, p, choices, inputs, c, depth)
+        chooseMedianFastest(topF, f, choices, inputs, c, depth)
 
     assert (choices.contains(choice))
 
-    Type.check(choice.body, p.body.inT)
-    Context.updateContext(choice.body, p.body.context)
+    Type.check(choice, NoType)
+    Context.updateContext(choice, f.context)
 
     choice
   }
 
-  private def derive(topF: Lambda, f: Lambda, inputs: Seq[Any], c:Constraints, depth:Int) : Lambda = {
-    
+  private def derive(topF: Lambda, e:Expr, inputs: Seq[Any], c:Constraints, depth:Int) : Expr = {
+   e match {
+      case call : FunCall => deriveFunCall(topF, call, inputs, c, depth)
+      case _ => e
+    }
+  }
+
+  private def deriveFunCall(topF: Lambda, call: FunCall, inputs: Seq[Any], c:Constraints, depth:Int) : Expr = {
+
 	  //assert (f.inT    != UndefType)
     //assert (topF.inT != UndefType)
-    assert (f.body.context != null)
+    assert (call.context != null)
     assert (topF.body.context != null)
 
     // TODO: remove this assertion as it is costly
     //assert (isInside(topF, f))
 
      if (verbose)
-        println("derive topF="+topF+" f="+f+" "+c.converge+" "+c.randomOnly+" "+c.fixedFuns)
+        println("derive topF="+topF+" call="+call+" "+c.converge+" "+c.randomOnly+" "+c.fixedFuns)
     
-    if (!c.canDerive(f))
-      return f
+    if (!c.canDerive(call))
+      return call
 
-    val call = f.body match {
-      case  call: FunCall => call
-    }
     
     val bestChoice = call.f match {
       
       case p: Pattern =>
       
-        var choices = Rules.outerDerivations(p, c)
+        var choices = Rules.derivePatFunCall(call, c)
         if (p.isGenerable)
-          choices = choices :+ f
+          choices = choices :+ call
          
         if (choices.length == 0)
-          throw new UngenerableException("topF= "+topF+" f = "+f)
+          throw new UngenerableException("topF= "+topF+" call = "+call)
 
-        val choice = choose(topF, p, choices, inputs, c, depth)
+        val choice = choose(topF, call, choices, inputs, c, depth)
 
-        Type.check(choice.body, f.body.inT)
-        Context.updateContext(choice.body, f.body.context)
+        Type.check(choice, NoType)
+        Context.updateContext(choice, call.context)
 
-        if (choice != f) {
+        if (choice != call) {
           // try to derive the newly found best
-          val newTopF = FunDecl.replace(topF, f, choice)
+          val newTopF = FunDecl.replace(topF, call, choice)
           Type.check(newTopF.body, topF.body.inT)
           Context.updateContext(newTopF.body, topF.body.context)
 
-          derive(newTopF, choice, inputs, c, depth+1)
+          deriveFunCall(newTopF, choice, inputs, c, depth+1)
         } else
-          f
+          call
 
 
-      case _ => f
+      case _ => call
     } 
 
-    val newTopF = FunDecl.replace(topF, f, bestChoice)
+    val newTopF = FunDecl.replace(topF, call, bestChoice)
     Type.check(newTopF.body, topF.body.inT)
     Context.updateContext(newTopF.body, topF.body.context)
 
-    // now try to go inside
-    assert(bestChoice.isGenerable)
+    bestChoice match {
+      case call: FunCall =>
 
-    val bestChoiceCall = bestChoice.body match {
-      case  call: FunCall => call
-    }
+        assert(call.f.isGenerable)
 
-    bestChoiceCall.f match {
-      case fp: FPattern => fp.getClass.getConstructor(classOf[FunCall]).newInstance(derive(newTopF, fp.f, inputs, c, depth + 1))
-      case cf: CompFunDef =>
-        val newFuns = cf.funs.map(inF => derive(newTopF, inF, inputs, c, depth+1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
-        if (newFuns.length == 1)
-          derive(newTopF, newFuns(0), inputs, c, depth + 1)
-        else
-          CompFunDef(newFuns: _*)
+        // now try to go inside
+        call.f match {
+          case fp: FPattern => deriveFunCall(newTopF, call, inputs, c, depth + 1)
+          case cf: CompFunDef =>
+            val newFuns = cf.funs.map(inF => derive(newTopF, inF.body, inputs, c, depth + 1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
+            if (newFuns.length == 1)
+              derive(newTopF, newFuns(0), inputs, c, depth + 1)
+            else {
+              val newLambdas = newFuns.zip(cf.funs).map({ case (e,l) => new Lambda(l.params,e) })
+              (new CompFunDef(cf.params, newLambdas: _*))(call.args: _*)
+            }
+
+
+          case _ => bestChoice
+        }
+
 
       case _ => bestChoice
     }
 
+
   }
   
-  def search(f: Lambda, inputs: Seq[Any], c: Constraints = new Constraints(3, false), depth:Int=0) : Lambda = derive(f,f,inputs,c,depth)
+  def search(f: Lambda, inputs: Seq[Any], c: Constraints = new Constraints(3, false), depth:Int=0) : Lambda =
+    new Lambda(f.params,derive(f,f.body,inputs,c,depth))
 
 }
