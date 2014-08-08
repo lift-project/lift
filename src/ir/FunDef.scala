@@ -201,12 +201,14 @@ object UserFunDef {
 
 
 case class Iterate(n: Expr, f: Lambda) extends Pattern(Array[Param](Param(UndefType)), true) with FPattern {
-  //override def copy() = Iterate(n, f)
-  // TODO: move this to the expression
-  //var swapBuffer: Memory = UnallocatedMemory
 
-  def apply(arg : FunExpr) : FunExpr = {
-    new IterateExpr(this, arg)
+  override def apply(args: FunExpr*) : IterateExpr = {
+    assert(args.length == 1)
+    new IterateExpr(this, args(0))
+  }
+
+  override def o(that: FunExpr) : IterateExpr = {
+    apply(that)
   }
 }
 

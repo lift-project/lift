@@ -2,6 +2,13 @@ package ir
 
 
 sealed class FunExpr(val f : FunDef, val args : FunExpr*) {
+
+  assert( if (f.isInstanceOf[Iterate]) {
+    this.isInstanceOf[IterateExpr]
+  } else {
+    true
+  } )
+
   var context : Context = null
 
   // type information

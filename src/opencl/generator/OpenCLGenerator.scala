@@ -45,7 +45,8 @@ object OpenCLGenerator extends Generator {
 
     if (Debug()) {
       println("Memory:")
-      TypedOpenCLMemory.getAllocatedMemory(f).map(m => println(m))
+      TypedOpenCLMemory.getAllocatedMemory(f).map(m => println(m.toString))
+      println("")
     }
 
     oclPrinter = new OpenCLPrinter
@@ -167,7 +168,7 @@ object OpenCLGenerator extends Generator {
       case cf: CompFunDef => cf.funs.foldRight[Option[AccessFunction]](None)(
         (lambda: Lambda, af: Option[AccessFunction]) => lambda.body.f match {
           // pass newly created access function to the next function in line
-          case r : ReorderStride => Some(createReorderStrideAccessFunction(r, f, inputAccess.last.scope))
+          case r : ReorderStride => Some(createReorderStrideAccessFunction(r, lambda.body, inputAccess.last.scope))
 
           case _ =>
             if (af.isDefined) {

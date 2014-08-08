@@ -246,7 +246,7 @@ object Type {
       // ... the provided (inferred) input type, or ...
       else if (inputT != NoType)  inputT
       // ... PANIC!
-      else throw new IllegalArgumentException("PANIC!")
+      else throw new TypeException(inputT, "some type")
     } else {
       // this is a generic function call, so there must be a corresponding FunDef
       assert(f.f != null)
