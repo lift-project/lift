@@ -1,5 +1,5 @@
 package ir
-
+/*
 import opencl.ir._
 
 import exploration.Exploration
@@ -115,4 +115,5 @@ object Main extends App {
 	   println(s.distinct)*/
 
 }
+*/
 

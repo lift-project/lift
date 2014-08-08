@@ -60,7 +60,7 @@ class OpenCLPrinter {
   def printVarDecl(t: Type, v: TypeVar, init: String) {
     print(toOpenCL(t)+" "+toOpenCL(v)+" = "+init)
   }
-
+/*
   def printAsParameterDecl(input: Input) {
     val t = input.expectedOutT
     print(t match {
@@ -68,7 +68,7 @@ class OpenCLPrinter {
       case _ => "global " + toOpenCL(t) + " " + toOpenCL(input.variable)
     })
   }
-
+*/
   private def toParameterDecl(mem: TypedOpenCLMemory) : String = {
     //val coll = mem.mem.asInstanceOf[OpenCLMemoryCollection]
     mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
@@ -79,15 +79,15 @@ class OpenCLPrinter {
   }
 
   def generateFunCall(f: FunExpr, args: String*) {
-    f match {
-      case uf: UserFunExpr => generateFunCall(uf, args:_*)
+    f.f match {
+      case uf: UserFunDef => generateFunCall(uf, args:_*)
       //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
       case _ => throw new NotImplementedError()
     }
   }
 
-  def generateFunCall(f: UserFunExpr, args: String*) {
-    print(f.funDef.name+"(")
+  def generateFunCall(f: UserFunDef, args: String*) {
+    print(f.name+"(")
     if (args.length > 0)
       print(args.reduceLeft((result, a) => result + "," + a))
     print(")")

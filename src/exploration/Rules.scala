@@ -24,7 +24,7 @@ import opencl.ir._
 
 object Rules {
    
-  
+
   /*private def derivsWithOneRule(fp: FPattern, c: Constraints): Seq[Fun] = {
     outerDerivations(fp,c) ++ Rules.innerDerivations(fp,c)
   }*/
@@ -153,5 +153,5 @@ object Rules {
       case _ => List()      
     }
   }*/
-  
+
 }

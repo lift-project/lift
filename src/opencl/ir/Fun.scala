@@ -12,20 +12,20 @@ case class MapLane(f: Lambda) extends GenerableMap(f)
 
 case class MapSeq(f: Lambda) extends GenerableMap(f)
 
-case class ReduceSeq(f: Lambda, override val init: Value) extends AbstractReduce(f, init) with Generable
-case class ReduceHost(f: Lambda, override val init: Value) extends AbstractReduce(f, init) with Generable
+case class ReduceSeq(f: Lambda, override val init: Value) extends AbstractReduce(f, init, true)
+case class ReduceHost(f: Lambda, override val init: Value) extends AbstractReduce(f, init, true)
 
-case class toGlobal(f: Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern  with Generable {
+case class toGlobal(f: Lambda) extends Pattern(Array[Param](Param(UndefType)), true) with FPattern
   //override def copy() = toGlobal(f)
-}
 
-case class toLocal(f: Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern  with Generable {
+
+case class toLocal(f: Lambda) extends Pattern(Array[Param](Param(UndefType)), true) with FPattern
   //override def copy() = toLocal(f)
-}
 
-case class ReorderStride() extends Pattern(Array[Param](Param(UndefType)))  with Generable {
+
+case class ReorderStride() extends Pattern(Array[Param](Param(UndefType)), true)
   //override def copy() = ReorderStride()
-}
+
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*

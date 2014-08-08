@@ -6,7 +6,7 @@ sealed class FunExpr(val f : FunDef, val args : FunExpr*) {
 
   // type information
   var inT: Type = UndefType
-  var ouT: Type = UndefType
+  var outT: Type = UndefType
 
   // memory information
   var inM: Memory = UnallocatedMemory
@@ -27,13 +27,37 @@ sealed class FunExpr(val f : FunDef, val args : FunExpr*) {
     this.clone().asInstanceOf[FunExpr]
   }
 
+  override def toString = {
+    val fS = if (f == null) { "null" } else { f.toString }
+    val argS = if (args.length > 0) args.map(_.toString).reduce(_ + ", " + _) else ""
+
+    fS + "(" + argS + ")"
+  }
+
 
 }
 
-case class Param(var outT: Type) extends FunExpr(null)
-case class Value(value: String, outT: Type) extends FunExpr(null)
+case class Param() extends FunExpr(null) {
+  override def toString = "PARAM"
+}
+
+object Param {
+  def apply(outT: Type): Param = {
+    val p = Param()
+    p.outT =outT
+    p
+  }
+}
+
+case class Value(value: String) extends FunExpr(null)
 
 object Value {
+  def apply(value: String, outT: Type): Value = {
+    val v = Value(value)
+    v.outT = outT
+    v
+  }
+
   implicit def IntToValue(i: Int) = Value(i.toString, opencl.ir.Int)
 
   implicit def FloatToValue(f: Float) = Value(f.toString + "f", opencl.ir.Float)

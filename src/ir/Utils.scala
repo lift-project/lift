@@ -38,8 +38,8 @@ object Utils {
 	}
 
 
-	  
-	
+
+
   def randomDescent(f: FunExpr, inputType: Type, maxDepth: Int,
       constraints: Constraints = new Constraints(3, false)): FunExpr = {
 
@@ -68,5 +68,5 @@ object Utils {
 
     randomDescent(randomDeriv, inputType, maxDepth - 1, c)
   }
-  
+
 }

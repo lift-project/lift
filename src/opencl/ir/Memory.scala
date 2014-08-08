@@ -102,8 +102,8 @@ object OpenCLMemory {
     */
   def fixInput(f: FunExpr, inputMem: OpenCLMemory): OpenCLMemory = {
     if (inputMem == OpenCLNullMemory) {
-      f match {
-        case _: Input => OpenCLNullMemory
+      f.f match {
+        //case _: Input => OpenCLNullMemory
         case _: Zip => OpenCLNullMemory
         case _ if f.inT == NoType => OpenCLNullMemory
         case _ => OpenCLMemory(Var(ContinousRange(Cst(0), getMaxSizeInBytes(f.inT))), getMaxSizeInBytes(f.inT), GlobalMemory)
@@ -170,10 +170,12 @@ object OpenCLMemory {
     // determine the output memory based on the type of f ...
     val result: OpenCLMemory = f match {
 
+      /*
       // ... for Input always allocate a new global memory
       case Input(_, _) =>
         assert(outputMem == OpenCLNullMemory)
         allocGlobalMemory(maxGlbOutSize)
+      */
 
       case z: Zip =>
         OpenCLMemoryCollection(alloc(z.f1, numGlb, numLcl, inMem), alloc(z.f2, numGlb, numLcl, inMem))

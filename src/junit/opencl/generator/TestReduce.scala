@@ -35,13 +35,22 @@ class TestReduce {
     val inputSize = 4194304
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun ((in) => {
+    val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
         Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2048)
       ) o Split(262144) o in
     } )
+    val check = (l: Lambda) => {
 
-    Type.check(l.body, NoType)
+      Type.check(l.body, NoType)
+
+      println("Types:")
+      FunExpr.visit(l.body, (f: FunExpr) => {
+        println(f + "\n    " + f.outT + " <- " + f.inT + "\n")
+      }, (f: FunExpr) => {})
+    }
+
+    check(l)
 /*
     val (output, runtime) = opencl.executor.Execute( l , inputData )
 

@@ -43,7 +43,7 @@ object Execute {
       p.inT = p.outT
     })
 
-    val outputSize = Expr.substitute(Type.getLength(f.body.ouT), valueMap).eval()
+    val outputSize = Expr.substitute(Type.getLength(f.body.outT), valueMap).eval()
 
     val inputs = values.map( global.input(_) )
     val outputData = global.output[Float](outputSize)

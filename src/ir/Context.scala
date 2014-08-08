@@ -5,7 +5,7 @@ import opencl.ir._
 class Context extends Cloneable {
   
   var mapDepth : Int = 0
-  var inMapGlb = false;
+  var inMapGlb = false
   var inMapWrg = false
   var inMapLcl = false
   var inSeq = false
@@ -59,18 +59,18 @@ object Context {
    */  
   def updateContext(f: FunExpr, ctx: Context): Unit = {
     if (ctx != null) {
-      f.context = ctx;
-      f match {   
+      f.context = ctx
+      f.f match {
         
-        case Map(inF)    => updateContext(inF, ctx.incMapDepth)
-        case MapSeq(inF) => updateContext(inF, ctx.incMapDepth.setInSeq())
-        case MapGlb(inF) => updateContext(inF, ctx.incMapDepth.setInMapGlb)
-        case MapWrg(inF) => updateContext(inF, ctx.incMapDepth.setInMapWrg)
-        case MapLcl(inF) => updateContext(inF, ctx.incMapDepth.setInMapLcl)
-        case ReduceSeq(inF,_) => updateContext(inF, ctx.setInSeq())
+        case Map(inF)    => updateContext(inF.body, ctx.incMapDepth)
+        case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth.setInSeq())
+        case MapGlb(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapGlb)
+        case MapWrg(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapWrg)
+        case MapLcl(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapLcl)
+        case ReduceSeq(inF,_) => updateContext(inF.body, ctx.setInSeq()) // TODO: include initValue in the Context??
 
-        case fp: FPattern => updateContext(fp.f, ctx.copy)
-        case cf: CompFunDef => cf.funs.map(inF => updateContext(inF, ctx.copy))
+        case fp: FPattern => updateContext(fp.f.body, ctx.copy)
+        case cf: CompFunDef => cf.funs.map(inF => updateContext(inF.body, ctx.copy))
         case _ => 
       }
     }    

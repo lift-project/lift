@@ -1,5 +1,5 @@
 package ir
-
+/*
 object Printer {
   
   def toStringWithType(f: FunExpr) : String = {
@@ -11,3 +11,4 @@ object Printer {
   }
   
 }
+*/

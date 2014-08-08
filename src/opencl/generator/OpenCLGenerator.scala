@@ -37,7 +37,7 @@ object OpenCLGenerator extends Generator {
     if (Debug()) {
       println("Types:")
       FunExpr.visit(f, (f: FunExpr) => {
-        println(f + "\n    " + f.ouT + " <- " + f.inT + "\n")
+        println(f + "\n    " + f.outT + " <- " + f.inT + "\n")
       }, (f: FunExpr) => {})
     }
 
@@ -65,8 +65,8 @@ object OpenCLGenerator extends Generator {
 
   /** Traversals f and print all user functions using oclPrinter */
   def generateUserFunction(f: FunExpr) {
-    val userFuns = FunExpr.visit(Set[UserFunDef]())(f, (f,set) => f match {
-      case uf: UserFunExpr => set + uf.funDef
+    val userFuns = FunExpr.visit(Set[UserFunDef]())(f, (f,set) => f.f match {
+      case uf: UserFunDef => set + uf
       //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
       case _ => set
     })
@@ -209,7 +209,7 @@ object OpenCLGenerator extends Generator {
       case _ => oclPrinter.print("__" + f.toString + "__")
     }
   }
-  
+
   // === Maps ===
   // generic Map
   private def generateMap(m: AbstractMap, f: FunExpr, loopVar: Var, range: RangeAdd,
