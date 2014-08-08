@@ -1,60 +1,44 @@
 package exploration
 
+
 import scala.collection.Seq
 import ir._
 import opencl.ir._
-/*
-/*class Derivations(val f: Fun, val c: Constraints) {
-  
-  private def vfn(f: Fun, s: Seq[Seq[Fun]]): Seq[Seq[Fun]] = {
-      val outDerivs = Rules.outerDerivations(f, c)
-      s :+ outDerivs
-    }
-  private val derivs = Fun.visit(Seq(Seq[Fun]()))(f, vfn)
-    
-  def getAll() : Seq[Fun] {
-    listPossiblities[T](oriList : Seq[T], optionsList : Seq[Seq[T]]) : Seq[Seq[T]]
-  }
-  
-  def getRandom() : Fun {
-    
-  }
-  
-}*/
+
+
 
 object Rules {
    
 
-  /*private def derivsWithOneRule(fp: FPattern, c: Constraints): Seq[Fun] = {
-    outerDerivations(fp,c) ++ Rules.innerDerivations(fp,c)
-  }*/
-  
-  private def composedDerivations(cf: CompFunDef, c: Constraints, level: Int): Seq[FunExpr] = {
-
-    val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
-    Utils.listPossiblities(cf.funs, optionsList).map(funs => new CompFunDef(funs: _*))
-    
-    /*val pairs = cf.getFuns().zip(cf.getFuns.tail)
-      val pairDerivs = pairs.map({case (x, y) => pairDeriv(x,y)})      
-      val numPairDerivs = pairDerivs.foldLeft(0)((num,l) => num+l.length)*/
+  private def composedDerivations(l: Lambda, c: Constraints, level: Int): Seq[Lambda] = {
+    l.callee match {
+      case cf: CompFunDef =>
+        val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
+        Utils.listPossiblities(cf.funs, optionsList).map(funs => new Lambda(cf.params,(new CompFunDef(cf.params,funs: _*))(l.body.args:_*)))
+    }
   }
    
-   private def innerDerivations(fpat: FPattern, c: Constraints, level: Int): Seq[FunExpr] = {
-     derivsWithOneRule(fpat.f, c,level).map((f) => fpat.getClass().getConstructor(classOf[FunExpr]).newInstance(f))
-  }
+   private def innerDerivations(fpat: Lambda, c: Constraints, level: Int): Seq[Lambda] = {
+     fpat match {
+       case fpat : FPattern =>
+         val newCalleeList = derivsWithOneRule(fpat.f, c,level).map((f) => fpat.getClass.getConstructor(classOf[Lambda]).newInstance(f))
+         newCalleeList.map(c => new Lambda(fpat.f.params, c(fpat.f.body.args:_*)))
+     }
+   }
     
     
   /*
    * Return a list of all possible derivations using only one rule at a given level
    */
-  def derivsWithOneRule(f: FunExpr, c: Constraints, level: Int): Seq[FunExpr] =  {
-      f match {
+  def derivsWithOneRule(f: Lambda, c: Constraints, level: Int): Seq[Lambda] =  {
+      f.callee match {
         case cf: CompFunDef => composedDerivations(cf, c, level)
-        case fp: FPattern if (level==0) => outerDerivations(fp,c)
-        case fp: FPattern if (level>0) => innerDerivations(fp,c,level-1)
-        case p: Pattern if (level==0)  => outerDerivations(p, c)
+        case fp: FPattern if level==0 => outerDerivations(fp,c)
+        case fp: FPattern if level>0 => innerDerivations(fp,c,level-1)
+        case p: Pattern if level==0  => outerDerivations(p, c)
         case _ => List()
-      }     
+      }
+
   } 
 
 
@@ -66,59 +50,58 @@ object Rules {
   }
  
 
-  def outerDerivations(f: FunExpr, c: Constraints): Seq[FunExpr] = {
-    
-    f match {
+  def outerDerivations(f: Lambda, c: Constraints): Seq[Lambda] = {
 
-      case Map(inF) => {
-        var result = List[FunExpr]()
+    val newCalleeList = f.callee match {
+
+      case Map(inF) =>
+        var result = List[FunDef]()
         
         // sequential
-        if (!f.context.inSeq && (f.context.inMapGlb || f.context.inMapLcl))
+        if (!f.body.context.inSeq && (f.body.context.inMapGlb || f.body.context.inMapLcl))
         	result = result :+ MapSeq(inF)
         	
         // global, workgroup
-        if (f.context.mapDepth == 0 && !f.context.inMapGlb && !f.context.inMapWrg) {
+        if (f.body.context.mapDepth == 0 && !f.body.context.inMapGlb && !f.body.context.inMapWrg) {
           result = result :+ MapGlb(inF)
           result = result :+ MapWrg(inF)
         }
         
         // local
-        if (f.context.mapDepth == 1 && f.context.inMapWrg && !f.context.inMapGlb && !f.context.inMapLcl) {
+        if (f.body.context.mapDepth == 1 && f.body.context.inMapWrg && !f.body.context.inMapGlb && !f.body.context.inMapLcl) {
           result = result :+ MapLcl(inF)
         }
         
         // split-join
-        if (f.context.mapDepth+1 < c.maxMapDepth && !c.converge)          
-          result = result :+ new CompFunDef(Join(), Map(Map(inF)), Split(Var(validOSplitRange(f.inT))))
+        if (f.body.context.mapDepth+1 < c.maxMapDepth && !c.converge)
+          result = result :+ (Join() o Map(Map(inF)) o Split(Var(validOSplitRange(f.body.inT))))
         
         result
-      }     
       
-      case Reduce(inF,init) => {
-        var result = List[FunExpr]()
+      case Reduce(inF,init) =>
+        var result = List[FunDef]()
         if (!c.converge)
         	result = result :+ (Reduce(inF,init) o PartRed(inF,init))
         	
-        if (!f.context.inSeq && (f.context.inMapGlb || f.context.inMapLcl))
+        if (!f.body.context.inSeq && (f.body.context.inMapGlb || f.body.context.inMapLcl))
         	result = result :+ ReduceSeq(inF,init)
 
-        if (!f.context.inMapGlb && !f.context.inMapLcl && !f.context.inMapWrg)
+        if (!f.body.context.inMapGlb && !f.body.context.inMapLcl && !f.body.context.inMapWrg)
           result = result :+ ReduceHost(inF,init)
         	
         result
-      }
       
-      case PartRed(inF,init) => {
-        var result = List[FunExpr]()
+      case PartRed(inF,init) =>
+        var result = List[FunDef]()
         result = result :+ Reduce(inF,init)
-        if (f.context.mapDepth < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(PartRed(inF,init)) o Split(Var(validOSplitRange(f.inT))))
+        if (f.body.context.mapDepth < c.maxMapDepth && !c.converge)
+          result = result :+ (Join() o Map(PartRed(inF,init)) o Split(Var(validOSplitRange(f.body.inT))))
         result
-      }
-      
-      case _ => List() // all the terminals end up here
+
+      case _ => List[FunDef]() // all the terminals end up here
     }
+
+    newCalleeList.map(fd => new Lambda(f.params, fd(f.body.args:_*)))
   }
   
   
@@ -155,4 +138,3 @@ object Rules {
   }*/
 
 }
-*/

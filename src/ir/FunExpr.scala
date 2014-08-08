@@ -81,21 +81,6 @@ case class IterateExpr(override val f: Iterate, arg: FunExpr) extends FunExpr(f,
 
 object FunExpr {
 
-  def replaceRef(f: FunExpr, oriF: FunExpr, newF: FunExpr) : FunExpr = {
-
-    //println("f: "+f+" oriF: "+oriF+" newF: "+newF)
-
-    if (f.eq(oriF))
-      return newF
-
-    new FunExpr(f.f, f.args.map(arg => replaceRef(arg, oriF, newF)) :_*)
-
-    /*f.f match {
-      case cf: CompFunDef => CompFunDef(cf.funs.zip(f.args)map(inF => replaceRef(inF, oriF, newF)):_*)(f.args)
-      case fp: FPattern => fp.getClass().getConstructor(classOf[FunExpr]).newInstance(replaceRef(fp.f,oriF,newF))
-      case _ => f//f.copy()
-    }*/
-  }
   
   def visit[T](z:T)(f: FunExpr, vfn: (FunExpr,T) => T): T = {
     val result = vfn(f,z)

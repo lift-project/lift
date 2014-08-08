@@ -27,14 +27,36 @@ abstract class FunDef(val params: Array[Param], val isGenerable : Boolean = fals
 
 }
 
+object FunDef {
+
+  def replace(f: Lambda, oldF: Lambda, newF: Lambda) : Lambda =
+    visit (f, (l) => if (l.eq(oldF)) newF else oldF, (l) => l)
+
+  def visit(f: Lambda, pre: (Lambda) => (Lambda), post: (Lambda) => (Lambda)) : Lambda = {
+
+    val newF = pre(f)
+
+    val newBodyFunDef = newF.callee match {
+      case l : Lambda => new Lambda(l.params,visit(l, pre, post)(l.body.args:_*))
+      case cfd : CompFunDef => new CompFunDef(cfd.params,cfd.funs.map(f => visit(f, pre, post)) :_*)
+      case fp: FPattern => fp.getClass.getConstructor(classOf[FunExpr]).newInstance(visit(fp.f, pre, post)(fp.f.body.args:_*))
+      case _ => newF.callee
+    }
+    post(new Lambda(f.params, newBodyFunDef(f.body.args:_*)))
+  }
+}
+
 class Lambda(override val params: Array[Param], val body: FunExpr) extends FunDef(params, true) {
   override def toString = "Lambda(" + params.map(_.toString).reduce(_ + ", " + _) + "){ " + body.toString + " }"
+
+  def callee = body.f
 }
 
 object Lambda {
   implicit def FunDefToLambda(f: FunDef) = {
     new Lambda(f.params, f(f.params:_*))
   }
+
 }
 
 object fun {
@@ -80,7 +102,7 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
 
   override def equals(o: Any) = {
     o match {
-      case cf: CompFunDef => funs.seq.equals(cf.funs)
+      case cf : CompFunDef => funs.seq.equals(cf.funs)
       case _ => false
     }
   }

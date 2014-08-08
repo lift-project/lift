@@ -236,7 +236,8 @@ object Type {
   }
   
   //def check(f: Fun) : Type = { check(f, UndefType) }
-  
+
+
   def check(f: FunExpr, inputT: Type, setType: Boolean = true): Type = {
 
     // if this is a parameter or value set the output type to ...
