@@ -12,18 +12,18 @@ case class MapLane(f: Lambda) extends GenerableMap(f)
 
 case class MapSeq(f: Lambda) extends GenerableMap(f)
 
-case class ReduceSeq(f: Lambda, override val init: Value) extends AbstractReduce(f, init, true)
-case class ReduceHost(f: Lambda, override val init: Value) extends AbstractReduce(f, init, true)
+case class ReduceSeq(f: Lambda, override val init: Value) extends AbstractReduce(f, init) with isGenerable
+case class ReduceHost(f: Lambda, override val init: Value) extends AbstractReduce(f, init) with isGenerable
 
-case class toGlobal(f: Lambda) extends Pattern(Array[Param](Param(UndefType)), true) with FPattern
+case class toGlobal(f: Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
   //override def copy() = toGlobal(f)
 
 
-case class toLocal(f: Lambda) extends Pattern(Array[Param](Param(UndefType)), true) with FPattern
+case class toLocal(f: Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
   //override def copy() = toLocal(f)
 
 
-case class ReorderStride() extends Pattern(Array[Param](Param(UndefType)), true)
+case class ReorderStride() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
   //override def copy() = ReorderStride()
 
 
