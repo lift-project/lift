@@ -181,7 +181,6 @@ object OpenCLGenerator extends Generator {
     expr match {
       case call: FunCall => call.f match {
         // sequential composition of functions. Allow to pass access functions horizontally.
-        // TODO: maybe generalize this (output access function, multiple access functions, pass other information ...)
         // go from right to left, as the data flows ...
         case cf: CompFunDef => cf.funs.foldRight[Option[AccessFunction]](None)(
           (lambda: Lambda, af: Option[AccessFunction]) => lambda.body match {
@@ -210,8 +209,6 @@ object OpenCLGenerator extends Generator {
         case r: ReduceHost => generateReduceSeqCall(r, call, inputAccess, outputAccess)
         // iterate
         case i: Iterate => generateIterateCall(i, call.asInstanceOf[IterateCall], inputAccess, outputAccess)
-        // reorder
-        //case r : ReorderStride => generateReorderStride(r, inputAccess, outputAccess)
         // user functions
         case u : UserFunDef =>generateUserFunCall(u, call, inputAccess, outputAccess)
         // utilities

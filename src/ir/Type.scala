@@ -227,14 +227,14 @@ object Type {
     inferredOuT
   }
 
-  def checkParam(param: Param, inputT: Type): Type = {
+  private def checkParam(param: Param, inputT: Type): Type = {
     // The order is important, as a set outT should always be picked over any inferred inputT!
     if (param.outT != UndefType) param.outT
     else if (inputT != NoType) inputT
     else throw new TypeException(inputT, "some type")
   }
 
-  def checkFunCall(call: FunCall, inputT: Type, setType: Boolean): Type = {
+  private def checkFunCall(call: FunCall, inputT: Type, setType: Boolean): Type = {
     assert(call.f != null)
 
     val inT = inferInputType(call, inputT, setType)
@@ -259,7 +259,7 @@ object Type {
     }
   }
 
-  def inferInputType(call: FunCall, inputT: Type, setType: Boolean): Type = {
+  private def inferInputType(call: FunCall, inputT: Type, setType: Boolean): Type = {
     val inTs = if (call.args.nonEmpty) {
       // check arguments and get the output types from there
       inputT match {
@@ -277,7 +277,7 @@ object Type {
     if (inTs.length == 1) inTs(0) else TupleType(inTs:_*)
   }
 
-  def checkMap(am: AbstractMap, inT: Type, setType: Boolean): Type = {
+  private def checkMap(am: AbstractMap, inT: Type, setType: Boolean): Type = {
     inT match {
       case at: ArrayType =>
         val elemT = getElemT(inT)
@@ -286,7 +286,7 @@ object Type {
     }
   }
 
-  def checkReduce(ar: AbstractPartRed, inT: Type, setType: Boolean): Type = {
+  private def checkReduce(ar: AbstractPartRed, inT: Type, setType: Boolean): Type = {
     inT match {
       case tt: TupleType =>
         if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
@@ -298,7 +298,7 @@ object Type {
     }
   }
 
-  def checkCompFunDef(cf: CompFunDef, inT: Type, setType: Boolean): Type = {
+  private def checkCompFunDef(cf: CompFunDef, inT: Type, setType: Boolean): Type = {
     inT match {
       case at: ArrayType =>
         // combine the parameter of the first function to call with the type inferred from the argument
@@ -308,7 +308,7 @@ object Type {
     }
   }
 
-  def checkZip(z: Zip, inT: Type, setType: Boolean): Type = {
+  private def checkZip(z: Zip, inT: Type, setType: Boolean): Type = {
     inT match {
       case tt: TupleType =>
         if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
@@ -330,7 +330,7 @@ object Type {
     }
   }
 
-  def checkJoin(inT: Type): Type = {
+  private def checkJoin(inT: Type): Type = {
     inT match {
       case at0: ArrayType => at0.elemT match {
         case at1: ArrayType => ArrayType(at1.elemT, at0.len * at1.len)
@@ -340,33 +340,33 @@ object Type {
     }
   }
 
-  def checkSplit(n: ArithExpr, inT: Type): Type = {
+  private def checkSplit(n: ArithExpr, inT: Type): Type = {
     inT match {
       case at: ArrayType => ArrayType(ArrayType(at.elemT, n), at.len / n)
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
 
-  def checkAsScalar(inT: Type): Type = {
+  private def checkAsScalar(inT: Type): Type = {
     inT match {
       case at: ArrayType => asScalar(at)
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
 
-  def checkAsVector(n: ArithExpr, inT: Type): Type = {
+  private def checkAsVector(n: ArithExpr, inT: Type): Type = {
     inT match {
       case at: ArrayType => asVector(at, n)
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
 
-  def checkUserFunDef(uf: UserFunDef, inT: Type): Type = {
+  private def checkUserFunDef(uf: UserFunDef, inT: Type): Type = {
     val substitutions = reify(uf.inT, inT)
     substitute(uf.outT, substitutions.toMap)
   }
 
-  def checkIterate(i: Iterate, inT: Type): Type = {
+  private def checkIterate(i: Iterate, inT: Type): Type = {
     inT match {
       case at: ArrayType =>
         // substitute all the expression in the input type with type variables
