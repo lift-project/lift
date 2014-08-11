@@ -23,7 +23,7 @@ abstract class FunDecl(val params: Array[Param]) {
 
 
   def apply(args : Expr*) : FunCall = {
-    assert (args.length == params.length)
+    assert (args.length <= params.length)
     new FunCall(this, args:_*)
   }
 
@@ -164,13 +164,21 @@ case class Map(f:Lambda) extends AbstractMap(f)
 
 abstract class GenerableMap(f:Lambda) extends AbstractMap(f) with isGenerable
 
-abstract class AbstractPartRed(f:Lambda, val init: Value) extends Pattern(Array[Param](Param(UndefType))) with FPattern
+abstract class AbstractPartRed(f:Lambda) extends Pattern(Array[Param](Param(UndefType), Param(UndefType))) with FPattern {
+  def init: Value = params(0) match { case v: Value => v}
+}
 
-abstract class AbstractReduce(f:Lambda, override val init: Value) extends AbstractPartRed(f, init)
+abstract class AbstractReduce(f:Lambda) extends AbstractPartRed(f)
 
-case class Reduce(f: Lambda, override val init: Value) extends AbstractReduce(f, init)
+case class Reduce(f: Lambda) extends AbstractReduce(f)
+object Reduce {
+  def apply(f: Lambda, init: Value): Lambda = fun((x) => Reduce(f)(init, x))
+}
 
-case class PartRed(f: Lambda, override val init: Value) extends AbstractPartRed(f,init) with FPattern
+case class PartRed(f: Lambda) extends AbstractPartRed(f) with FPattern
+object PartRed {
+  def apply(f: Lambda, init: Value): Lambda = fun((x) => PartRed(f)(init, x))
+}
 
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Join()
@@ -212,7 +220,11 @@ object Vectorize {
 
 
 case class UserFunDef(name: String, paramNames: Any, body: String,
-                      inT: Type, outT: Type) extends FunDecl(Array[Param](Param(inT))) with isGenerable {
+                      inT: Type, outT: Type)
+  extends FunDecl( inT match {
+      case tt: TupleType => tt.elemsT.map(Param(_)).toArray
+      case t: Type => Array(Param(t))
+    } ) with isGenerable {
 
   override def toString = "UserFun("+ name + ")" // for debug purposes
 }

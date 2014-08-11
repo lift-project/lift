@@ -12,8 +12,15 @@ case class MapLane(f: Lambda) extends GenerableMap(f)
 
 case class MapSeq(f: Lambda) extends GenerableMap(f)
 
-case class ReduceSeq(f: Lambda, override val init: Value) extends AbstractReduce(f, init) with isGenerable
-case class ReduceHost(f: Lambda, override val init: Value) extends AbstractReduce(f, init) with isGenerable
+case class ReduceSeq(f: Lambda) extends AbstractReduce(f) with isGenerable
+object ReduceSeq {
+  def apply(f: Lambda, init: Value): Lambda = fun((x) => ReduceSeq(f)(init, x))
+}
+
+case class ReduceHost(f: Lambda) extends AbstractReduce(f) with isGenerable
+object ReduceHost {
+  def apply(f: Lambda, init: Value): Lambda = fun((x) => ReduceHost(f)(init, x))
+}
 
 case class toGlobal(f: Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
   //override def copy() = toGlobal(f)

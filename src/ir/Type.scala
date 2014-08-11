@@ -242,7 +242,8 @@ object Type {
 
     var inferredOuT = expr match {
       // if this is a parameter or value set the output type to ...
-      case Param() | Value(_) =>
+      case _: Param =>
+        // (the following order is important!)
         // ... the output of the parameter if it is set, or ...
         if (expr.outT != UndefType) expr.outT
         // ... the provided (inferred) input type, or ...
@@ -257,20 +258,28 @@ object Type {
 
         val inTs = if (call.args.nonEmpty) {
           // check arguments and get the output types from there
-          call.args.map(check(_, inputT, setType))
+          inputT match {
+            // unpack tuple
+            case tt: TupleType =>
+              (call.args zip tt.elemsT).map( {
+                case (a,t) => check(a, t, setType)
+              } )
+            case t: Type => call.args.map(check(_, t, setType))
+          }
         } else {
           Seq(inputT)
         }
 
-        // a shortcut to the inferred type of the first argument
-        val inT = inTs(0)
+        val inT = if (inTs.length == 1) inTs(0) else TupleType(inTs:_*)
 
         if (setType)
-        // TODO: Should this really just be the first Type ???
           call.inT = inT // set the input type
 
         // type inference
         call.f match {
+
+          case l: Lambda =>
+            check(l.body, inT, setType)
 
           case am: AbstractMap =>
             if (inTs.length != 1) throw new NumberOfArgumentsException
@@ -278,19 +287,20 @@ object Type {
             ArrayType(check(am.f.body, elemT, setType), getLength(inT))
 
           case ar: AbstractReduce =>
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            val elemT = getElemT(inT)
-            val initT = ar.init.outT
+            if (inTs.length != 2) throw new NumberOfArgumentsException
+            val elemT = getElemT(inTs(1))
+            val initT = inTs(0)
             check(ar.f.body, TupleType(initT, elemT), setType)
             ArrayType(initT, new Cst(1))
 
-
+          /*
           case PartRed(inF, initValue) =>
             if (inTs.length != 1) throw new NumberOfArgumentsException
             val elemT = getElemT(inT)
             val initT = initValue.outT
             check(inF.body, TupleType(initT, elemT), setType)
             ArrayType(initT, ?)
+            */
 
           case cf: CompFunDef =>
             // combine the parameters of the first function to call with the types infered from the arguments
@@ -303,9 +313,6 @@ object Type {
 
           case z: Zip =>
             if (inTs.length != 2) throw new NumberOfArgumentsException
-
-            if (setType)
-              call.inT = TupleType(inTs(0), inTs(1))
 
             val at1 = inTs(0) match {
               case at: ArrayType => at
@@ -354,6 +361,7 @@ object Type {
             }
 
           case uf: UserFunDef =>
+            println("uf.inT " + uf.inT + "; inT " + inT)
             val substitutions = reify(uf.inT, inT)
             substitute(uf.outT, substitutions.toMap)
 

@@ -87,24 +87,24 @@ object Rules {
 
         result
 
-      case Reduce(inF,init) =>
+      case Reduce(inF) =>
         var result = List[FunDecl]()
         if (!c.converge)
-          result = result :+ (Reduce(inF,init) o PartRed(inF,init))
+          result = result :+ (Reduce(inF) o PartRed(inF))
 
         if (!call.context.inSeq && (call.context.inMapGlb || call.context.inMapLcl))
-          result = result :+ ReduceSeq(inF,init)
+          result = result :+ ReduceSeq(inF)
 
         if (!call.context.inMapGlb && !call.context.inMapLcl && !call.context.inMapWrg)
-          result = result :+ ReduceHost(inF,init)
+          result = result :+ ReduceHost(inF)
 
         result
 
-      case PartRed(inF,init) =>
+      case PartRed(inF) =>
         var result = List[FunDecl]()
-        result = result :+ Reduce(inF,init)
+        result = result :+ Reduce(inF)
         if (call.context.mapDepth < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(PartRed(inF,init)) o Split(Var(validOSplitRange(call.inT))))
+          result = result :+ (Join() o Map(PartRed(inF)) o Split(Var(validOSplitRange(call.inT))))
         result
 
       case _ => List[FunDecl]() // all the terminals end up here

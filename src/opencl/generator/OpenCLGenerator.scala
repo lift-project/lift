@@ -51,6 +51,13 @@ object OpenCLGenerator extends Generator {
 
     if (Debug()) {
       println("Memory:")
+      Expr.visit(f.body, (f: Expr) => {
+        println(f + "\n    " + f.outM.toString + " <- " + f.inM.toString + "\n")
+      }, (f: Expr) => {})
+    }
+
+    if (Debug()) {
+      println("Allocated Memory:")
       TypedOpenCLMemory.getAllocatedMemory(f.body).map(m => println(m.toString))
       println("")
     }
@@ -206,7 +213,7 @@ object OpenCLGenerator extends Generator {
         // reorder
         //case r : ReorderStride => generateReorderStride(r, inputAccess, outputAccess)
         // user functions
-        case u : UserFunDef => oclPrinter.generateFunCall(u)
+        case u : UserFunDef =>generateUserFunCall(u, call, inputAccess, outputAccess)
         // utilities
         case f: toGlobal => generate(f.f.body, inputAccess, outputAccess)
         case f: toLocal => generate(f.f.body, inputAccess, outputAccess)
@@ -303,9 +310,13 @@ object OpenCLGenerator extends Generator {
 
     oclPrinter.commln("map_seq")
     oclPrinter.generateLoop(loopVar, range, () => {
+      val innermostAccess = AccessFunction( (_) => loopVar * Type.getVectorSize(m.f.body.inT), "MapSeq")
+
       // output[i] = f(input[i])
-      oclPrinter.print(access(c.outM, m.f.body.outT, updatedOutputAccess, loopVar) + " = ")
-      oclPrinter.generateFunCall(m.f.body, access(c.inM, m.f.body.inT, updatedInputAccess, loopVar))
+      oclPrinter.print(access(c.outM, m.f.body.outT, updatedOutputAccess :+ innermostAccess) + " = ")
+
+      generate(m.f.body, updatedInputAccess :+ innermostAccess, updatedOutputAccess)
+
       oclPrinter.println(";")
     })
     oclPrinter.commln("map_seq")
@@ -314,39 +325,49 @@ object OpenCLGenerator extends Generator {
   
   // === Reduce ===
   private def generateReduceSeqCall(r: AbstractReduce, c: FunCall,
-                                inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
+                                    inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
     assert(c.f == r)
 
-     // input
-     val inChunkSizes = Type.length(c.inT).reduce(_ * _) // this includes the vector size
-     val updatedInputAccess = updateAccessFunction(inputAccess, inChunkSizes)
+    val initT = c.inT match { case tt: TupleType => tt.elemsT(0) }
+    val inT = c.inT match { case tt: TupleType => tt.elemsT(1) }
 
-     // output
-     val outChunkSizes = Type.length(c.outT).reduce(_ * _)  // this includes the vector size
-     val updatedOutputAccess = updateAccessFunction(outputAccess, outChunkSizes)
+    // input
+    val inChunkSizes = Type.length(inT).reduce(_ * _) // this includes the vector size
+    val updatedInputAccess = updateAccessFunction(inputAccess, inChunkSizes)
 
-     oclPrinter.openCB()
-     oclPrinter.commln("reduce_seq")
+    // output
+    val outChunkSizes = Type.length(c.outT).reduce(_ * _)  // this includes the vector size
+    val updatedOutputAccess = updateAccessFunction(outputAccess, outChunkSizes)
 
-     // 1. generate: int acc = 0
-     val acc = Var("acc")
-     val accType = r.init.outT
-     oclPrinter.printVarDecl(accType, acc, r.init.value)
-     oclPrinter.println(";")
+    oclPrinter.openCB()
+    oclPrinter.commln("reduce_seq")
 
-     // 2. generate loop from 0 .. length
-     val range = RangeAdd(Cst(0), Type.getLength(c.inT), Cst(1))
-     val loopVar = Var("i", range)
-     oclPrinter.generateLoop(loopVar, range, () => {
-       // 3. generate acc = fun(acc, input[i])
-       oclPrinter.print(oclPrinter.toOpenCL(acc) + " = ")
-       val t = r.f.body.inT match { case tt: TupleType => tt.elemsT(1) } // type of the second argument
-       oclPrinter.generateFunCall(r.f.body, oclPrinter.toOpenCL(acc), access(c.inM, t, updatedInputAccess, loopVar))
-       oclPrinter.println(";")
-     })
+    // 1. generate: int acc = 0
+    val accVar = c.inM match { case coll: OpenCLMemoryCollection => coll.subMemories(0).variable }
+    val accType = initT //r.init.outT
+    val accValue = c.args(0) match { case v: Value => v.value }
+    oclPrinter.printVarDecl(accType, accVar, accValue)
+    oclPrinter.println(";")
+
+    // 2. generate loop from 0 .. length
+    val range = RangeAdd(Cst(0), Type.getLength(inT), Cst(1))
+    val loopVar = Var("i", range)
+    oclPrinter.generateLoop(loopVar, range, () => {
+      // 3. generate acc = fun(acc, input[i])
+      oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
+
+      val t = r.f.body.inT match { case tt: TupleType => tt.elemsT(1) } // type of the second argument
+      val innermostInputAccess = AccessFunction( (_) => loopVar * Type.getVectorSize(t), "ReduceSeq")
+
+      generate(r.f.body, updatedInputAccess :+ innermostInputAccess, updatedOutputAccess)
+
+      // oclPrinter.generateFunCall(r.f.body, oclPrinter.toOpenCL(acc), access(c.inM, t, updatedInputAccess, loopVar))
+
+      oclPrinter.println(";")
+    })
 
      // 4. generate output[0] = acc
-     oclPrinter.println(access(c.outM, r.f.body.outT, updatedOutputAccess, Cst(0)) =:= oclPrinter.toOpenCL(acc))
+     oclPrinter.println(access(c.outM, r.f.body.outT, updatedOutputAccess) =:= oclPrinter.toOpenCL(accVar))
      oclPrinter.commln("reduce_seq")
      oclPrinter.closeCB()
   }
@@ -435,6 +456,13 @@ object OpenCLGenerator extends Generator {
     oclPrinter.closeCB()
   }
 
+  private def generateUserFunCall(u: UserFunDef, call: FunCall,
+                                  inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) = {
+    assert(call.f == u)
+
+    oclPrinter.generateFunCall(call, access(call.inM, call.inT, inputAccess))
+  }
+
   // === ReorderStride ===
   private def createReorderStrideAccessFunction(r: ReorderStride, call: FunCall, scope: String) = {
     assert (call.f == r)
@@ -465,30 +493,26 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
 
-  /*
-  private def privateVar(variable: Any, t: Type, init: Any) : String = {
-    print(t) + " " + variable =:= init
-  }
-  */
-  
-  private def access(memory: Memory, t: Type, accessFunctions: Array[AccessFunction], index: ArithExpr): String = {
+  private def access(memory: Memory, t: Type, accessFunctions: Array[AccessFunction]): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)
+
+    println( "mem is coll? " + oclMem.isInstanceOf[OpenCLMemoryCollection] + "; t " + t )
 
     oclMem match {
       case coll: OpenCLMemoryCollection =>
-        assert(t.isInstanceOf[TupleType])
-        val tt = t.asInstanceOf[TupleType]
+        t match {
+          case tt: TupleType =>
+            assert(tt.elemsT.length == coll.subMemories.length)
 
-        assert(tt.elemsT.length == coll.subMemories.length)
-
-        (coll.subMemories zip tt.elemsT).map( { case (m, ty) => access(m, ty, accessFunctions, index) } ).reduce(_ + ", " + _)
+            (coll.subMemories zip tt.elemsT).map( { case (m, ty) => access(m, ty, accessFunctions) } ).reduce(_ + ", " + _)
+        }
 
       case _ =>
         oclMem.addressSpace match {
           case GlobalMemory =>
             "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(accessFunctions.foldRight[ArithExpr](index * Type.getVectorSize(t))((aF, i) => {
+              "[" + oclPrinter.toOpenCL(accessFunctions.foldRight[ArithExpr](Cst(0))((aF, i) => {
               aF(i)
             })) + "])"
 
@@ -499,9 +523,12 @@ object OpenCLGenerator extends Generator {
             })
             "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(localAccessFunctions.foldRight[ArithExpr](index * Type.getVectorSize(t))((aF, i) => {
+              "[" + oclPrinter.toOpenCL(localAccessFunctions.foldRight[ArithExpr](Cst(0))((aF, i) => {
               aF(i)
             })) + "])"
+
+          case PrivateMemory =>
+            oclPrinter.toOpenCL(oclMem.variable)
 
           case _ => throw new NotImplementedError()
         }

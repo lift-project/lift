@@ -130,6 +130,37 @@ class TestDotProduct {
     println("runtime = " + runtime)
 
   }
+/*
+  @Test def VECTOR_SCAL() {
+
+    val inputSize = 1024
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inputArray.map(-_)
+
+    val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Int), Float)
+
+    val scalFun = fun( ArrayType(Float, Var("N")), Int, (input, alpha) =>
+
+      Join() o MapWrg(
+        Join() o MapLcl(MapSeq(
+          fun( (x) => fun( (y) => mult(y, alpha) )(x) )
+          //fun( (x) => mult(x, alpha) )
+        )) o Split(4)
+      ) o Split(1024) o input
+
+    )
+
+    Compile(scalFun)
+    /*
+    val (output, runtime) = Execute(scalFun, inputArray, 2.0f)
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+    */
+  }
+  */
 
   @Test def DOT_PRODUCT_SIMPLE() {
 
@@ -253,6 +284,7 @@ class TestDotProduct {
     )
   }
 
+  /*
   @Test def MATRIX_VECTOR_FIXED_SIZE() {
 
     val inputSize = 1024
@@ -334,6 +366,8 @@ class TestDotProduct {
     (output, runtime)
 
   }
+  */
+
 /*
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
 

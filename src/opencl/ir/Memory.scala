@@ -16,6 +16,10 @@ object GlobalMemory extends OpenCLAddressSpace {
   override def toString = "global"
 }
 
+object PrivateMemory extends OpenCLAddressSpace {
+  override def toString = "private"
+}
+
 object UndefAddressSpace extends OpenCLAddressSpace
 
 /** Represents memory in OpenCL as a raw collection of bytes allocated in an OpenCL address space.
@@ -41,17 +45,25 @@ case class OpenCLMemory(var variable: Var, size: ArithExpr, addressSpace: OpenCL
     throw new IllegalArgumentException
 
   /** Debug output */
-  override def toString = "(" + variable + ", " + ExprSimplifier.simplify(size) + ", " + addressSpace + ")"
+  override def toString(): String = {
+    if (this.isInstanceOf[OpenCLMemoryCollection]) {
+      val coll = this.asInstanceOf[OpenCLMemoryCollection]
+      "coll(" + coll.subMemories.map(_.toString).reduce(_ + ", " + _) + " | " + coll.addressSpace + ")"
+    } else {
+      "size: " + size + "; addressspace: " + addressSpace
+    }
+  }
 }
 
 class OpenCLSubMemory(parent: OpenCLMemory, size: ArithExpr, accessFun: (ArithExpr) => ArithExpr)
   extends OpenCLMemory(parent.variable, size, parent.addressSpace)
 
-class OpenCLMemoryCollection(val subMemories: Array[OpenCLMemory])
-  extends OpenCLMemory(Var("Tuple"), subMemories.map(_.size).reduce(_+_), subMemories.head.addressSpace) // TODO: think about address space ...
+class OpenCLMemoryCollection(val subMemories: Array[OpenCLMemory], override val addressSpace: OpenCLAddressSpace)
+  extends OpenCLMemory(Var("Tuple"), subMemories.map(_.size).reduce(_+_), addressSpace)
 
 object OpenCLMemoryCollection {
-  def apply(subMemories: OpenCLMemory*) = new OpenCLMemoryCollection(Array(subMemories:_*))
+  def apply(addressSpace : OpenCLAddressSpace, subMemories: OpenCLMemory*) =
+    new OpenCLMemoryCollection(Array(subMemories:_*), addressSpace)
 }
 
 // Allocate memory globally
@@ -142,6 +154,10 @@ object OpenCLMemory {
     OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
   }
 
+  def allocPrivateMemory(size: ArithExpr): OpenCLMemory = {
+    OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, PrivateMemory)
+  }
+
   /** Allocate OpenCLMemory objects for a given Fun f
     *
     * @param expr The expression for which memory should be allocated
@@ -155,37 +171,67 @@ object OpenCLMemory {
             inputMem: OpenCLMemory = OpenCLNullMemory, outputMem: OpenCLMemory = OpenCLNullMemory): OpenCLMemory = {
 
     val result = expr match {
-      // if this is a parameter or value set the output type to ...
-      case Param() | Value(_) =>
-        // ... the output of the parameter if it is set, or ...
+
+      case v: Value =>
         if (expr.inM != UnallocatedMemory) {
-          // ... set the input to the output (so reuse the given input) ...
+          expr.outM = expr.inM
+        } else {
+          // never use the input mem, always allocate private memory for the value
+          expr.outM = allocPrivateMemory(getSizeInBytes(expr.outT))
+        }
+
+        OpenCLMemory.asOpenCLMemory(expr.outM)
+
+      case p: Param =>
+        if (expr.inM != UnallocatedMemory) {
           expr.outM = expr.inM
         } else if (inputMem != OpenCLNullMemory) {
-          // ... use the provided given input memory
           expr.outM = inputMem
         } else throw new IllegalArgumentException("PANIC!")
 
-        // .. and return the output memory
         OpenCLMemory.asOpenCLMemory(expr.outM)
 
       case call: FunCall =>
 
-        val inMs = if (call.args.nonEmpty) {
-          // allocate arguments and get the output memories from there
-          call.args.map(alloc(_, numGlb, numLcl, inputMem))
-        } else {
-          Seq(inputMem)
+        // determine the input memory of f based on the input arguments
+        val inM: OpenCLMemory = call.f match {
+
+          case r: AbstractPartRed =>
+            if (call.args.length != 2) throw new NumberOfArgumentsException
+            val initM = alloc(call.args(0), numGlb, numLcl, OpenCLNullMemory)
+            val inputM = alloc(call.args(1), numGlb, numLcl, inputMem)
+            OpenCLMemoryCollection(inputM.addressSpace, initM, inputM)
+
+          case _ =>
+            if (call.args.isEmpty)
+              inputMem
+            else if (call.args.length == 1)
+              alloc(call.args(0), numGlb, numLcl, inputMem)
+            else { // more than one argument. expect input memory to be a collection of memory
+              val inMs = inputMem match {
+                case coll: OpenCLMemoryCollection =>
+                  assert(call.args.length == coll.subMemories.length)
+                  (call.args zip coll.subMemories).map({
+                    case (a, m) => alloc(a, numGlb, numLcl, m)
+                  })
+                case OpenCLNullMemory => call.args.map(alloc(_, numGlb, numLcl, OpenCLNullMemory))
+              }
+
+              val noPrivateMem = inMs.filterNot(_.addressSpace == PrivateMemory)
+              assert(noPrivateMem.nonEmpty)
+              val addressSpace =
+                if (noPrivateMem.forall(m => m.addressSpace == noPrivateMem(0).addressSpace)) noPrivateMem(0).addressSpace
+                else UndefAddressSpace
+              OpenCLMemoryCollection(addressSpace, inMs: _*)
+            }
         }
 
-        // determine the input memory of f
         if (call.inM == UnallocatedMemory) {
-          assert(inMs.forall(_ != OpenCLNullMemory) || call.isInstanceOf[Zip] || call.inT == NoType)
-          call.inM = inMs(0) // TODO: Should this really just be the first Memory ???
+          call.inM = inM
         }
 
-        // a shortcut to the output memory of the first argument
         val inMem = OpenCLMemory.asOpenCLMemory(call.inM)
+
 
         // size in bytes necessary to hold the result of f in global and local memory
         val maxGlbOutSize = getMaxSizeInBytes(call.outT) * numGlb
@@ -198,24 +244,21 @@ object OpenCLMemory {
         call.f match {
 
           case z: Zip =>
-            if (inMs.length != 2) throw new NumberOfArgumentsException
-            call.inM = OpenCLMemoryCollection(inMs(0), inMs(1))
-            OpenCLMemory.asOpenCLMemory(call.inM) // input == output
+            inMem // input == output
 
+          case r: AbstractPartRed =>
+            alloc(r.f.body, numGlb, numLcl, inMem, outputMem)
 
           // ... for MapGlbl or MapWrg recurs with the same input memory, but update the global factor
           case MapGlb(_) | MapWrg(_) =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             alloc(call.f.asInstanceOf[AbstractMap].f.body, numGlb * maxLen, numLcl, inMem, outputMem)
 
           // ... for MapLcl or MapWarp recurs with the same input memory, but update the global and local factor
           case MapLcl(_) | MapWarp(_) | MapLane(_) =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             alloc(call.f.asInstanceOf[AbstractMap].f.body, numGlb * maxLen, numLcl * maxLen, inMem, outputMem)
 
           // ... for toGlobal allocate 'mem' in global if output is not yet set or not in global memory ...
           case tg: toGlobal =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != GlobalMemory)
               allocGlobalMemory(maxGlbOutSize)
             else
@@ -225,7 +268,6 @@ object OpenCLMemory {
 
           // ... for toLocal allocate 'mem' in local memory if output is not yet set or not in local memory ...
           case tl: toLocal =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != LocalMemory)
               allocLocalMemory(maxLclOutSize)
             else
@@ -235,7 +277,6 @@ object OpenCLMemory {
 
           // ... for CompFun allocate from right to left (as the data flows)
           case cf: CompFunDef =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             // combine the parameter of the first function to call with the type inferred from the argument
             cf.funs.last.params(0).inM = inMem
 
@@ -243,7 +284,6 @@ object OpenCLMemory {
 
           // ... for Iterate ...
           case it: Iterate =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             val fIter = call.asInstanceOf[IterateCall]
 
             // get sizes in bytes necessary to hold the input and output of the function inside the iterate
@@ -260,17 +300,17 @@ object OpenCLMemory {
 
           // .. for any pattern with a function nested inside recurs
           case fp: FPattern =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             alloc(fp.f.body, numGlb, numLcl, inMem, outputMem)
+
+          case l: Lambda =>
+            alloc(l.body, numGlb, numLcl, inMem, outputMem)
 
           // ... some function do not allocate anything => return the input memory
           case Split(_) | Join() | ReorderStride() | asVector(_) | asScalar() /*| Vectorize(_,_)*/ =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             inMem
 
           // ... for all remaining functions (e.g. MapSeq and RedSeq) allocate new memory if output is not yet set
           case _ =>
-            if (inMs.length != 1) throw new NumberOfArgumentsException
             if (outputMem == OpenCLNullMemory)
               call.outT match {
 

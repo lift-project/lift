@@ -68,7 +68,7 @@ object Context {
           case MapGlb(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapGlb)
           case MapWrg(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapWrg)
           case MapLcl(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapLcl)
-          case ReduceSeq(inF,_) => updateContext(inF.body, ctx.setInSeq()) // TODO: include initValue in the Context??
+          case ReduceSeq(inF) => updateContext(inF.body, ctx.setInSeq())
 
           case fp: FPattern => updateContext(fp.f.body, ctx.copy)
           case cf: CompFunDef => cf.funs.map(inF => updateContext(inF.body, ctx.copy))

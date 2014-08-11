@@ -44,15 +44,27 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
     this.clone().asInstanceOf[FunCall]
   }
 
+  def apply(args : Expr*) : FunCall = {
+    val oldArgs = this.args
+    val newArgs = oldArgs ++ args
+    assert (newArgs.length <= f.params.length)
+
+    new FunCall(f, newArgs:_*)
+  }
+
 }
 
-case class Param() extends Expr {
+class Param() extends Expr {
+  outT = UndefType
+
   override def toString = "PARAM"
 
   override def copy: Param =  this.clone().asInstanceOf[Param]
 }
 
 object Param {
+  def apply(): Param = new Param
+
   def apply(outT: Type): Param = {
     val p = Param()
     p.outT =outT
@@ -60,7 +72,7 @@ object Param {
   }
 }
 
-case class Value(value: String) extends Expr {
+case class Value(value: String) extends Param {
   override def copy: Value =  this.clone().asInstanceOf[Value]
 }
 
@@ -70,10 +82,6 @@ object Value {
     v.outT = outT
     v
   }
-
-  implicit def IntToValue(i: Int) = Value(i.toString, opencl.ir.Int)
-
-  implicit def FloatToValue(f: Float) = Value(f.toString + "f", opencl.ir.Float)
 
   def vectorize(v: Value, n: ArithExpr): Value = {
     Value(v.value, Type.vectorize(v.outT, n))
@@ -86,6 +94,10 @@ case class IterateCall(override val f: Iterate, arg: Expr) extends FunCall(f, ar
 
 
 object Expr {
+
+  implicit def IntToValue(i: Int) = Value(i.toString, opencl.ir.Int)
+
+  implicit def FloatToValue(f: Float) = Value(f.toString + "f", opencl.ir.Float)
 
   def replace(e: Expr, oldE: Expr, newE: Expr) : Expr =
     visit (e, (e:Expr) => if (e.eq(oldE)) newE else oldE, (e:Expr) => e)
@@ -156,6 +168,7 @@ object Expr {
 
         call.f match {
           case fp: FPattern => visit(fp.f.body, pre, post)
+          case l: Lambda => visit(l.body, pre, post)
           case cf: CompFunDef => cf.funs.reverseMap(inF => visit(inF.body, pre, post))
           case _ =>
         }
