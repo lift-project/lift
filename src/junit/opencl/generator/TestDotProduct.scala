@@ -130,7 +130,7 @@ class TestDotProduct {
     println("runtime = " + runtime)
 
   }
-/*
+
   @Test def VECTOR_SCAL() {
 
     val inputSize = 1024
@@ -160,7 +160,7 @@ class TestDotProduct {
     println("runtime = " + runtime)
     */
   }
-  */
+
 
   @Test def DOT_PRODUCT_SIMPLE() {
 

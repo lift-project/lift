@@ -1,6 +1,5 @@
 package ir
 
-import ir._
 import opencl.ir._
 import scala.collection.mutable
 import scala.collection.immutable
@@ -160,37 +159,12 @@ object Type {
   }
 
   def substitute(t: Type, substitutions: immutable.Map[ArithExpr,ArithExpr]) : Type = {
-    Type.visitRebuild(t, t1 => t1, t1 =>
-      t1 match {
+    Type.visitRebuild(t, t1 => t1, {
         case ArrayType(et,len) => new ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
         case VectorType(st,len) => new VectorType(st, ArithExpr.substitute(len, substitutions.toMap))
-        case _ => t1
-      }
-
-    )
+        case t: Type => t
+      })
   }
-
- /* def isSubtype(top: Type, sub: Type) : Boolean = {
-    (top,sub) match {
-      case (tat : ArrayType, sat : ArrayType) => {
-        val tatLen = ExprSimplifier.simplify(tat.len)
-        val satlen = ExprSimplifier.simplify(sat.len)
-        val lenIsSubtype = tatLen match {
-          case TypeVar(_) => true
-          case _ => (tatLen == satlen)
-        }
-        if (!lenIsSubtype)
-          false
-        else
-          isSubtype(tat.elemT,sat.elemT)
-      }
-      case (ttt:TupleType, stt:TupleType) =>
-        val pairs = ttt.elemsT.zip(stt.elemsT)
-        pairs.foldLeft(true)((result,pair) => if (!isSubtype(pair._1,pair._2)) return false else true)
-
-      case _ => top == sub
-    }
-  }*/
 
   private def closedFormIterate(inT: Type, ouT: Type, n: ArithExpr, tvMap : scala.collection.mutable.HashMap[TypeVar, ArithExpr]) : Type = {
     (inT,ouT) match {
@@ -234,198 +208,12 @@ object Type {
       case _ => if (inT == ouT) ouT else throw new TypeException("Cannot infer closed form for iterate return type. inT = "+inT+" ouT = "+ouT)
     }
   }
-  
-  //def check(f: Fun) : Type = { check(f, UndefType) }
-
 
   def check(expr: Expr, inputT: Type, setType: Boolean = true): Type = {
 
     var inferredOuT = expr match {
-      // if this is a parameter or value set the output type to ...
-      case _: Param =>
-        // (the following order is important!)
-        // ... the output of the parameter if it is set, or ...
-        if (expr.outT != UndefType) expr.outT
-        // ... the provided (inferred) input type, or ...
-        else if (inputT != NoType) inputT
-        // ... PANIC!
-        else throw new TypeException(inputT, "some type")
-
-      case call: FunCall => {
-
-        // this is a generic function call, so there must be a corresponding FunDef
-        assert(call.f != null)
-
-        val inTs = if (call.args.nonEmpty) {
-          // check arguments and get the output types from there
-          inputT match {
-            // unpack tuple
-            case tt: TupleType =>
-              (call.args zip tt.elemsT).map( {
-                case (a,t) => check(a, t, setType)
-              } )
-            case t: Type => call.args.map(check(_, t, setType))
-          }
-        } else {
-          Seq(inputT)
-        }
-
-        val inT = if (inTs.length == 1) inTs(0) else TupleType(inTs:_*)
-
-        if (setType)
-          call.inT = inT // set the input type
-
-        // type inference
-        call.f match {
-
-          case l: Lambda =>
-            check(l.body, inT, setType)
-
-          case am: AbstractMap =>
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            val elemT = getElemT(inT)
-            ArrayType(check(am.f.body, elemT, setType), getLength(inT))
-
-          case ar: AbstractReduce =>
-            if (inTs.length != 2) throw new NumberOfArgumentsException
-            val elemT = getElemT(inTs(1))
-            val initT = inTs(0)
-            check(ar.f.body, TupleType(initT, elemT), setType)
-            ArrayType(initT, new Cst(1))
-
-          /*
-          case PartRed(inF, initValue) =>
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            val elemT = getElemT(inT)
-            val initT = initValue.outT
-            check(inF.body, TupleType(initT, elemT), setType)
-            ArrayType(initT, ?)
-            */
-
-          case cf: CompFunDef =>
-            // combine the parameters of the first function to call with the types infered from the arguments
-            // (cf.funs.last.params, inTs).zipped.map( _.outT = _ )
-
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            // combine the parameter of the first function to call with the type inferred from the argument
-            cf.funs.last.params(0).outT = inT
-            cf.funs.foldRight(inT)((f, inputT) => check(f.body, inputT, setType))
-
-          case z: Zip =>
-            if (inTs.length != 2) throw new NumberOfArgumentsException
-
-            val at1 = inTs(0) match {
-              case at: ArrayType => at
-              case _ => throw new TypeException(inTs(0), "ArrayType")
-            }
-            val at2 = inTs(1) match {
-              case at: ArrayType => at
-              case _ => throw new TypeException(inTs(1), "ArrayType")
-            }
-            if (at1.len != at2.len) {
-              println("Warning: can not statically proof that sizes (" + at1 + " and " + at2 + ") match!")
-              // throw TypeException("sizes do not match")
-            }
-            ArrayType(TupleType(at1.elemT, at2.elemT), at1.len)
-
-
-          case _: Join =>
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            inT match {
-              case at0: ArrayType => at0.elemT match {
-                case at1: ArrayType => ArrayType(at1.elemT, at0.len * at1.len)
-                case _ => throw new TypeException(at0.elemT, "ArrayType")
-              }
-              case _ => throw new TypeException(inT, "ArrayType")
-            }
-
-          case Split(cs) =>
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            inT match {
-              case at: ArrayType => ArrayType(ArrayType(at.elemT, cs), at.len / cs)
-              case _ => throw new TypeException(inT, "ArrayType")
-            }
-
-          case _: asScalar =>
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            inT match {
-              case at: ArrayType => asScalar(at)
-              case _ => throw new TypeException(inT, "ArrayType")
-            }
-
-          case asVector(len) =>
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            inT match {
-              case at: ArrayType => asVector(at, len)
-              case _ => throw new TypeException(inT, "ArrayType")
-            }
-
-          case uf: UserFunDef =>
-            println("uf.inT " + uf.inT + "; inT " + inT)
-            val substitutions = reify(uf.inT, inT)
-            substitute(uf.outT, substitutions.toMap)
-
-          case tL: toLocal => check(tL.f.body, inT, setType)
-
-          case tG: toGlobal => check(tG.f.body, inT, setType)
-
-          case i: Iterate =>
-            if (inTs.length != 1) throw new NumberOfArgumentsException
-            inT match {
-              case at: ArrayType => {
-
-
-                // substitute all the expression in the input type with type variables
-                val tvMap = scala.collection.mutable.HashMap[TypeVar, ArithExpr]()
-                var inputTypeWithTypeVar = visitRebuild(at, t => t, t =>
-                  t match {
-                    case at: ArrayType => {
-                      val tv = TypeVar()
-                      tvMap += tv -> at.len
-                      new ArrayType(at.elemT, tv)
-                    }
-                    /*
-                  case vt: VectorType => {
-                    val tv = TypeVar()
-                    tvMap += tv -> vt.len
-                    new VectorType(vt.scalarT, tv)
-                  }
-                  */
-                    case _ => t
-                  }
-                )
-
-                // type checking
-                val outputTypeWithTypeVar = check(i.f.body, inputTypeWithTypeVar, setType = false)
-
-                // find all the type variable in the output type
-                val outputTvSet = scala.collection.mutable.HashSet[TypeVar]()
-                visit(outputTypeWithTypeVar, t => {}, {
-                  case at: ArrayType => outputTvSet ++= ArithExpr.getTypeVars(at.len)
-                  case vt: VectorType => outputTvSet ++= ArithExpr.getTypeVars(vt.len)
-                  case _ =>
-                }
-                )
-
-                // put back the expression when the type variable is not present
-                val fixedTvMap = tvMap -- outputTvSet
-                inputTypeWithTypeVar = substitute(inputTypeWithTypeVar, fixedTvMap.toMap)
-
-                // assign the type for f
-                check(i.f.body, inputTypeWithTypeVar)
-
-                val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n, tvMap)
-                substitute(closedFormOutputType, tvMap.toMap)
-              }
-              case _ => throw new TypeException(inT, "ArrayType")
-            }
-
-          case _: ReorderStride => inT
-
-          //case vec: Vectorize => check(vec.f, inT, setType)
-          // check(vectorize(vec.f, vec.n), inT, setType)
-        }
-      }
+      case param: Param => checkParam(param, inputT)
+      case call: FunCall => checkFunCall(call, inputT, setType)
     }
 
     inferredOuT = inferredOuT match {
@@ -437,6 +225,188 @@ object Type {
       expr.outT = inferredOuT
 
     inferredOuT
+  }
+
+  def checkParam(param: Param, inputT: Type): Type = {
+    // The order is important, as a set outT should always be picked over any inferred inputT!
+    if (param.outT != UndefType) param.outT
+    else if (inputT != NoType) inputT
+    else throw new TypeException(inputT, "some type")
+  }
+
+  def checkFunCall(call: FunCall, inputT: Type, setType: Boolean): Type = {
+    assert(call.f != null)
+
+    val inT = inferInputType(call, inputT, setType)
+    if (setType)
+      call.inT = inT
+
+    call.f match {
+      case l: Lambda =>           check(l.body, inT, setType)
+      case am: AbstractMap =>     checkMap(am, inT, setType)
+      case ar: AbstractPartRed => checkReduce(ar, inT, setType)
+      case cf: CompFunDef =>      checkCompFunDef(cf, inT, setType)
+      case z: Zip =>              checkZip(z, inT, setType)
+      case Split(n) =>            checkSplit(n, inT)
+      case _: Join =>             checkJoin(inT)
+      case _: asScalar  =>        checkAsScalar(inT)
+      case asVector(n) =>         checkAsVector(n, inT)
+      case uf: UserFunDef =>      checkUserFunDef(uf, inT)
+      case tL: toLocal =>         check(tL.f.body, inT, setType)
+      case tG: toGlobal =>        check(tG.f.body, inT, setType)
+      case i: Iterate =>          checkIterate(i, inT)
+      case _: ReorderStride =>    inT
+    }
+  }
+
+  def inferInputType(call: FunCall, inputT: Type, setType: Boolean): Type = {
+    val inTs = if (call.args.nonEmpty) {
+      // check arguments and get the output types from there
+      inputT match {
+        // unpack tuple
+        case tt: TupleType =>
+          (call.args zip tt.elemsT).map( {
+            case (a,t) => check(a, t, setType)
+          } )
+        case t: Type => call.args.map(check(_, t, setType))
+      }
+    } else {
+      Seq(inputT)
+    }
+
+    if (inTs.length == 1) inTs(0) else TupleType(inTs:_*)
+  }
+
+  def checkMap(am: AbstractMap, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case at: ArrayType =>
+        val elemT = getElemT(inT)
+        ArrayType(check(am.f.body, elemT, setType), getLength(inT))
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  def checkReduce(ar: AbstractPartRed, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case tt: TupleType =>
+        if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
+        val elemT = getElemT(tt.elemsT(1))
+        val initT = tt.elemsT(0)
+        check(ar.f.body, TupleType(initT, elemT), setType)
+        ArrayType(initT, new Cst(1))
+      case _ => throw new TypeException(inT, "TupleType")
+    }
+  }
+
+  def checkCompFunDef(cf: CompFunDef, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case at: ArrayType =>
+        // combine the parameter of the first function to call with the type inferred from the argument
+        cf.funs.last.params(0).outT = inT
+        cf.funs.foldRight(inT)((f, inputT) => check(f.body, inputT, setType))
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  def checkZip(z: Zip, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case tt: TupleType =>
+        if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
+
+        val at1 = tt.elemsT(0) match {
+          case at: ArrayType => at
+          case _ => throw new TypeException(tt.elemsT(0), "ArrayType")
+        }
+        val at2 = tt.elemsT(1) match {
+          case at: ArrayType => at
+          case _ => throw new TypeException(tt.elemsT(1), "ArrayType")
+        }
+        if (at1.len != at2.len) {
+          println("Warning: can not statically proof that sizes (" + at1 + " and " + at2 + ") match!")
+          // throw TypeException("sizes do not match")
+        }
+        ArrayType(TupleType(at1.elemT, at2.elemT), at1.len)
+      case _ => throw new TypeException(inT, "TupleType")
+    }
+  }
+
+  def checkJoin(inT: Type): Type = {
+    inT match {
+      case at0: ArrayType => at0.elemT match {
+        case at1: ArrayType => ArrayType(at1.elemT, at0.len * at1.len)
+        case _ => throw new TypeException(at0.elemT, "ArrayType")
+      }
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  def checkSplit(n: ArithExpr, inT: Type): Type = {
+    inT match {
+      case at: ArrayType => ArrayType(ArrayType(at.elemT, n), at.len / n)
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  def checkAsScalar(inT: Type): Type = {
+    inT match {
+      case at: ArrayType => asScalar(at)
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  def checkAsVector(n: ArithExpr, inT: Type): Type = {
+    inT match {
+      case at: ArrayType => asVector(at, n)
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  def checkUserFunDef(uf: UserFunDef, inT: Type): Type = {
+    val substitutions = reify(uf.inT, inT)
+    substitute(uf.outT, substitutions.toMap)
+  }
+
+  def checkIterate(i: Iterate, inT: Type): Type = {
+    inT match {
+      case at: ArrayType =>
+        // substitute all the expression in the input type with type variables
+        val tvMap = scala.collection.mutable.HashMap[TypeVar, ArithExpr]()
+        var inputTypeWithTypeVar = visitRebuild(at, t => t, {
+            case at: ArrayType =>
+              val tv = TypeVar()
+              tvMap += tv -> at.len
+              new ArrayType(at.elemT, tv)
+            /*
+            case vt: VectorType =>
+              val tv = TypeVar()
+              tvMap += tv -> vt.len
+              new VectorType(vt.scalarT, tv)
+            */
+            case t: Type => t
+          })
+
+        val outputTypeWithTypeVar = check(i.f.body, inputTypeWithTypeVar, setType = false)
+
+        // find all the type variable in the output type
+        val outputTvSet = scala.collection.mutable.HashSet[TypeVar]()
+        visit(outputTypeWithTypeVar, t => {}, {
+          case at: ArrayType => outputTvSet ++= ArithExpr.getTypeVars(at.len)
+          case vt: VectorType => outputTvSet ++= ArithExpr.getTypeVars(vt.len)
+          case _ =>
+        })
+
+        // put back the expression when the type variable is not present
+        val fixedTvMap = tvMap -- outputTvSet
+        inputTypeWithTypeVar = substitute(inputTypeWithTypeVar, fixedTvMap.toMap)
+
+        // assign the type for f
+        check(i.f.body, inputTypeWithTypeVar)
+
+        val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n, tvMap)
+        substitute(closedFormOutputType, tvMap.toMap)
+
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
   }
 
   def vectorize(t: Type, n: ArithExpr): Type = {
@@ -456,12 +426,5 @@ object Type {
       case _ => t
     }
   }
-/*
-  def vectorize(f: Fun, n: Expr): Fun = {
-    f match {
-      case uf: UserFun => UserFun.vectorize(uf, n)
-    }
-  }
-*/
 
 }
