@@ -37,7 +37,7 @@ class TestReduce {
 
     val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
-        Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2048)
+        Join() o MapLcl(ReduceSeq(sumUp, 0.0f) /*o MapSeq(id)*/) o Split(2048)
       ) o Split(262144) o in
     } )
 

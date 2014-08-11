@@ -1,5 +1,7 @@
 package ir
 
+import opencl.ir._
+
 abstract class Expr {
   var context : Context = null
 
@@ -10,6 +12,10 @@ abstract class Expr {
   // memory information
   var inM: Memory = UnallocatedMemory
   var outM: Memory = UnallocatedMemory
+
+  // memory access information
+  var inAccess: Array[AccessFunction] = Array()
+  var outAccess: Array[AccessFunction] = Array()
 
 
   def setContext(ctx: Context): Expr = {
@@ -92,6 +98,9 @@ case class IterateCall(override val f: Iterate, arg: Expr) extends FunCall(f, ar
   var swapBuffer: Memory = UnallocatedMemory
 }
 
+case class MapCall(name: String, loopVar: Var, override val f: AbstractMap, arg: Expr) extends FunCall(f, arg)
+
+case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, arg0: Expr, arg1: Expr) extends FunCall(f, arg0, arg1)
 
 object Expr {
 

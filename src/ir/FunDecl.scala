@@ -159,7 +159,16 @@ abstract class AbstractMap(f:Lambda) extends Pattern(Array[Param](Param(UndefTyp
   def unapply(am: AbstractMap): Option[FunExpr] = Some(am.f)
 }*/
 
-case class Map(f:Lambda) extends AbstractMap(f)
+case class Map(f:Lambda) extends AbstractMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("Map", Var(""), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
 
 
 abstract class GenerableMap(f:Lambda) extends AbstractMap(f) with isGenerable
@@ -170,12 +179,30 @@ abstract class AbstractPartRed(f:Lambda) extends Pattern(Array[Param](Param(Unde
 
 abstract class AbstractReduce(f:Lambda) extends AbstractPartRed(f)
 
-case class Reduce(f: Lambda) extends AbstractReduce(f)
+case class Reduce(f: Lambda) extends AbstractReduce(f) {
+  override def apply(args: Expr*) : ReduceCall = {
+    assert(args.length == 2)
+    new ReduceCall(Var("i"), this, args(0), args(1))
+  }
+
+  override def o(that: Expr) : ReduceCall = {
+    apply(that)
+  }
+}
 object Reduce {
   def apply(f: Lambda, init: Value): Lambda = fun((x) => Reduce(f)(init, x))
 }
 
-case class PartRed(f: Lambda) extends AbstractPartRed(f) with FPattern
+case class PartRed(f: Lambda) extends AbstractPartRed(f) with FPattern {
+  override def apply(args: Expr*) : ReduceCall = {
+    assert(args.length == 2)
+    new ReduceCall(Var("i"), this, args(0), args(1))
+  }
+
+  override def o(that: Expr) : ReduceCall = {
+    apply(that)
+  }
+}
 object PartRed {
   def apply(f: Lambda, init: Value): Lambda = fun((x) => PartRed(f)(init, x))
 }

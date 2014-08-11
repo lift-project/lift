@@ -2,22 +2,95 @@ package opencl.ir
 
 import ir._
 
-case class MapGlb(f: Lambda) extends GenerableMap(f)
+case class MapGlb(f: Lambda) extends GenerableMap(f){
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapGlbl", Var("gl_id"), this, args(0))
+  }
 
-case class MapWrg(f: Lambda) extends GenerableMap(f)
-case class MapLcl(f: Lambda) extends GenerableMap(f)
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
 
-case class MapWarp(f: Lambda) extends GenerableMap(f)
-case class MapLane(f: Lambda) extends GenerableMap(f)
+case class MapWrg(f: Lambda) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapWrg", Var("g_id"), this, args(0))
+  }
 
-case class MapSeq(f: Lambda) extends GenerableMap(f)
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+case class MapLcl(f: Lambda) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapLcl", Var("l_id"), this, args(0))
+  }
 
-case class ReduceSeq(f: Lambda) extends AbstractReduce(f) with isGenerable
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+
+case class MapWarp(f: Lambda) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapWarp", Var("warp_id"), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+case class MapLane(f: Lambda) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapLane", Var("lane_id"), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+
+case class MapSeq(f: Lambda) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapSeq", Var("i"), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+
+case class ReduceSeq(f: Lambda) extends AbstractReduce(f) with isGenerable {
+  override def apply(args: Expr*) : ReduceCall = {
+    assert(args.length == 2)
+    new ReduceCall(Var("i"), this, args(0), args(1))
+  }
+
+  override def o(that: Expr) : ReduceCall = {
+    apply(that)
+  }
+}
+
 object ReduceSeq {
   def apply(f: Lambda, init: Value): Lambda = fun((x) => ReduceSeq(f)(init, x))
 }
 
-case class ReduceHost(f: Lambda) extends AbstractReduce(f) with isGenerable
+case class ReduceHost(f: Lambda) extends AbstractReduce(f) with isGenerable  {
+  override def apply(args: Expr*) : ReduceCall = {
+    assert(args.length == 2)
+    new ReduceCall(Var("i"), this, args(0), args(1))
+  }
+
+  override def o(that: Expr) : ReduceCall = {
+    apply(that)
+  }
+}
 object ReduceHost {
   def apply(f: Lambda, init: Value): Lambda = fun((x) => ReduceHost(f)(init, x))
 }

@@ -45,7 +45,7 @@ case class OpenCLMemory(var variable: Var, size: ArithExpr, addressSpace: OpenCL
     throw new IllegalArgumentException
 
   /** Debug output */
-  override def toString(): String = {
+  override def toString: String = {
     this match {
       case coll: OpenCLMemoryCollection =>
         "coll(" + coll.subMemories.map(_.toString).reduce(_ + ", " + _) + " | " + coll.addressSpace + ")"

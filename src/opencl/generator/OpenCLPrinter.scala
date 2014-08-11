@@ -178,6 +178,7 @@ class OpenCLPrinter {
 
 
   def generateLoop(indexVar: Var, range: RangeAdd, printBody: (() => Unit)) {
+    indexVar.range = range
 
     val init = ExprSimplifier.simplify(range.start)
     val cond = ExprSimplifier.simplify(range.stop)
