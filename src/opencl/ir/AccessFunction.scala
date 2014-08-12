@@ -193,10 +193,16 @@ object AccessFunction {
 
 
   private def updateAccessFunction(access: AccessFunctions, chunkSize: ArithExpr): AccessFunctions = {
-    access.afs.map( {
-      case ma: MapAccessFunction => MapAccessFunction.multWithChunkSize(ma, chunkSize)
-      case af: AccessFunction => af
-    } )
+    access match {
+      case coll: AccessFunctionsCollection =>
+        new AccessFunctionsCollection( coll.elems.map( updateAccessFunction(_, chunkSize) ):_* )
+
+      case _ =>
+        access.afs.map( {
+          case ma: MapAccessFunction => MapAccessFunction.multWithChunkSize(ma, chunkSize)
+          case af: AccessFunction => af
+        } )
+    }
   }
 
   private def removeReorderAccessFunctions(access: AccessFunctions): AccessFunctions = {

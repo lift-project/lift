@@ -141,13 +141,11 @@ class TestDotProduct {
     val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
 
     val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
-
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(
-          fun( (x) => fun( (y) => mult(y, alpha) )(x) )
+        fun( (x) => mult(alpha, x) )
         )) o Split(4)
       ) o Split(1024) o input
-
     )
 
     val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha)
@@ -581,43 +579,44 @@ class TestDotProduct {
 
     */
 
-  /*
-  private def scal(alpha: Input): Fun = {
-    Map(Bind(mult, alpha))
+  @Test def stuff() {
+    val scal = fun(Float, ArrayType(Float, Var("N")),
+                   (alpha, input) => {
+                      Map(fun((x) => mult(x, alpha))) o input })
+
+    val asum = fun(ArrayType(Float, Var("N")),
+                   (input) => { Reduce(sumUp, 0.0f) o Map(abs) o input })
+
+    val dot = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")),
+                  (x,y) => { Reduce(sumUp, 0.0f) o Map(mult) o Zip(x,y) })
+
+    val vecAdd = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")), (x,y) => { Map(add) o Zip(x,y) })
+
+    val gemv = fun(ArrayType(ArrayType(Float, Var("M")), Var("N")),
+                   ArrayType(Float, Var("N")),
+                   ArrayType(Float, Var("M")),
+                   Float, Float,
+                   (A, x, y, alpha, beta) => {
+      val scalledY = scal(beta, y)
+      val AtimesX = Map(fun( row => scal(alpha) o dot(x, row) ), A)
+      vecAdd(AtimesX, scalledY)
+    })
+
+    /*
+    private def BlackScholes(s: Input): Fun =
+    {
+      val BSModel = UserFun("BSmodel", Array("s"), "{ return s; }", Float, Float)
+
+      Map(BSModel, s)
+    }
+
+    private def MD(particles: Input, neighArray: Input): Fun =
+    {
+      val calculateForce = UserFun("calculateForce", Array("s"), "{ return s; }", Float, Float)
+
+      Map(Reduce(calculateForce, 0)) o Zip(particles, neighArray)
+    }
+    */
   }
-
-  private def scal(alpha: Input, x: Input): Fun = {
-    scal(alpha) o x
-  }
-
-  private def asum(x: Input): Fun = {
-    Reduce(sumUp, 0.0f) o Map(abs) o input
-  }
-
-  private def dot(x: Input): Fun = {
-    Reduce(sumUp, 0.0f) o Map(mult) o Zip(x)
-  }
-
-  private def dot(x: Input, y: Input): Fun = {
-    dot(x) o y
-  }
-
-  private def gemv(A: Input, x: Input, y: Input, alpha: Input, beta: Input): Fun = {
-    Map(add) o Zip( Map( scal(alpha) o dot(x), A ),
-                    scal(beta, y) )
-  }
-
-  private def BlackScholes(s: Input): Fun = {
-    val BSModel = UserFun("BSmodel", Array("s"), "{ return s; }", Float, Float)
-
-    Map(BSModel, s)
-  }
-
-  private def MD(particles: Input, neighArray: Input): Fun = {
-    val calculateForce = UserFun("calculateForce", Array("s"), "{ return s; }", Float, Float)
-
-    Map(Reduce(calculateForce, 0)) o Zip(particles, neighArray)
-  }
-  */
 
 }

@@ -69,28 +69,123 @@ object Lambda {
   }
 }
 
-object fun {
-  def apply(f: (Param) => Expr): Lambda = {
-    val params = Array(Param(UndefType))
-    new Lambda(params, f(params(0)))
-  }
-
-  def apply(f: (Param, Param) => Expr): Lambda = {
-    val params = Array(Param(UndefType), Param(UndefType))
-    new Lambda(params, f(params(0), params(1)))
-  }
-
-  def apply(t: Type, f: (Param) => Expr): Lambda = {
-    val params = Array(Param(t))
-    new Lambda(params, f(params(0)))
-  }
-
-  def apply(t1: Type, t2: Type, f: (Param, Param) => Expr): Lambda = {
-    val params = Array(Param(t1), Param(t2))
-    new Lambda(params, f(params(0), params(1)))
-  }
-
+class Lambda1(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 1)
 }
+
+class Lambda2(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 2)
+
+  def apply(arg: Expr): Lambda1 = {
+    fun( tmp => super.apply(arg)(tmp) )
+  }
+}
+
+class Lambda3(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 3)
+
+  def apply(arg0: Expr, arg1: Expr): Lambda1 = {
+    fun( tmp => super.apply(arg0, arg1)(tmp) )
+  }
+
+  def apply(arg: Expr): Lambda2 = {
+    fun( (tmp0, tmp1) => super.apply(arg)(tmp0, tmp1) )
+  }
+}
+
+class Lambda4(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 4)
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda1 = {
+    fun( tmp => super.apply(arg0, arg1, arg2)(tmp) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr): Lambda2 = {
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1)(tmp0, tmp1) )
+  }
+
+  def apply(arg: Expr): Lambda3 = {
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg)(tmp0, tmp1, tmp2) )
+  }
+}
+
+class Lambda5(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 5)
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda1 = {
+    fun( tmp => super.apply(arg0, arg1, arg2, arg3)(tmp) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda2 = {
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2)(tmp0, tmp1) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr): Lambda3 = {
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1)(tmp0, tmp1, tmp2) )
+  }
+
+  def apply(arg: Expr): Lambda4 = {
+    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg)(tmp0, tmp1, tmp2, tmp3) )
+  }
+}
+
+object fun {
+  def apply(f: (Param) => Expr): Lambda1 = {
+    val params = Array(Param(UndefType))
+    new Lambda1(params, f(params(0)))
+  }
+
+  def apply(f: (Param, Param) => Expr): Lambda2 = {
+    val params = Array(Param(UndefType), Param(UndefType))
+    new Lambda2(params, f(params(0), params(1)))
+  }
+
+  def apply(f: (Param, Param, Param) => Expr): Lambda3 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda3(params, f(params(0), params(1), params(2)))
+  }
+
+  def apply(f: (Param, Param, Param, Param) => Expr): Lambda4 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda4(params, f(params(0), params(1), params(2), params(3)))
+  }
+
+  def apply(f: (Param, Param, Param, Param, Param) => Expr): Lambda5 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda5(params, f(params(0), params(1), params(2), params(3), params(4)))
+  }
+
+  def apply(t: Type, f: (Param) => Expr): Lambda1 = {
+    val params = Array(Param(t))
+    new Lambda1(params, f(params(0)))
+  }
+
+  def apply(t1: Type, t2: Type, f: (Param, Param) => Expr): Lambda2 = {
+    val params = Array(Param(t1), Param(t2))
+    new Lambda2(params, f(params(0), params(1)))
+  }
+
+  def apply(t1: Type, t2: Type, t3: Type, f: (Param, Param, Param) => Expr): Lambda3 = {
+    val params = Array(Param(t1), Param(t2), Param(t3))
+    new Lambda3(params, f(params(0), params(1), params(2)))
+  }
+
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, f: (Param, Param, Param, Param) => Expr): Lambda4 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4))
+    new Lambda4(params, f(params(0), params(1), params(2), params(3)))
+  }
+
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, f: (Param, Param, Param, Param, Param) => Expr): Lambda5 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5))
+    new Lambda5(params, f(params(0), params(1), params(2), params(3), params(4)))
+  }
+}
+
+/*
+object innerFun {
+  def apply(f: (Param) => Expr) = fun( (x) => { fun( f )(x) } )
+}
+*/
 
 
 
@@ -160,14 +255,18 @@ abstract class AbstractMap(f:Lambda) extends Pattern(Array[Param](Param(UndefTyp
 }*/
 
 case class Map(f:Lambda) extends AbstractMap(f) {
-  override def apply(args: Expr*) : MapCall = {
+  override def apply(args: Expr*): MapCall = {
     assert(args.length == 1)
     new MapCall("Map", Var(""), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def o(that: Expr): MapCall = {
     apply(that)
   }
+}
+
+object Map {
+  def apply(f: Lambda, expr: Expr): MapCall = Map(f)(expr)
 }
 
 
