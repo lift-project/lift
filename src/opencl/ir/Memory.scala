@@ -16,6 +16,7 @@ object GlobalMemory extends OpenCLAddressSpace {
   override def toString = "global"
 }
 
+// TODO: This currently is used only for scalar values!!!
 object PrivateMemory extends OpenCLAddressSpace {
   override def toString = "private"
 }
@@ -29,7 +30,7 @@ object UndefAddressSpace extends OpenCLAddressSpace
   * @param size The size of the memory as numbers bytes
   * @param addressSpace The address space where the memory has been allocated
   */
-case class OpenCLMemory(var variable: Var, size: ArithExpr, addressSpace: OpenCLAddressSpace) extends Memory {
+class OpenCLMemory(var variable: Var, val size: ArithExpr, val addressSpace: OpenCLAddressSpace) extends Memory {
 
   // size cannot be 0 unless it is the null memory
   try {
@@ -75,6 +76,10 @@ object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(-1), UndefAddressS
 
 
 object OpenCLMemory {
+
+  def apply(variable: Var, size: ArithExpr, addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    new OpenCLMemory(variable, size, addressSpace)
+  }
 
   def getMaxSizeInBytes(t: Type): ArithExpr = {
     ArithExpr.max(getSizeInBytes(t))

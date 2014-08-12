@@ -70,22 +70,22 @@ object Lambda {
 }
 
 object fun {
-  def apply(f: (Param) => Expr) = {
+  def apply(f: (Param) => Expr): Lambda = {
     val params = Array(Param(UndefType))
     new Lambda(params, f(params(0)))
   }
 
-  def apply(f: (Param, Param) => Expr) = {
+  def apply(f: (Param, Param) => Expr): Lambda = {
     val params = Array(Param(UndefType), Param(UndefType))
     new Lambda(params, f(params(0), params(1)))
   }
 
-  def apply(t: Type, f: (Param) => Expr) = {
+  def apply(t: Type, f: (Param) => Expr): Lambda = {
     val params = Array(Param(t))
     new Lambda(params, f(params(0)))
   }
 
-  def apply(t1: Type, t2: Type, f: (Param, Param) => Expr) = {
+  def apply(t1: Type, t2: Type, f: (Param, Param) => Expr): Lambda = {
     val params = Array(Param(t1), Param(t2))
     new Lambda(params, f(params(0), params(1)))
   }

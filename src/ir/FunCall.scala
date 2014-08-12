@@ -14,8 +14,8 @@ abstract class Expr {
   var outM: Memory = UnallocatedMemory
 
   // memory access information
-  var inAccess: Array[AccessFunction] = Array()
-  var outAccess: Array[AccessFunction] = Array()
+  var inAccess: AccessFunctions = EmptyAccessFuntions
+  var outAccess: AccessFunctions = EmptyAccessFuntions
 
 
   def setContext(ctx: Context): Expr = {
@@ -78,11 +78,17 @@ object Param {
   }
 }
 
-case class Value(value: String) extends Param {
+case class Value(var value: String) extends Param {
   override def copy: Value =  this.clone().asInstanceOf[Value]
 }
 
 object Value {
+  def apply(outT: Type): Value = {
+    val v = Value("")
+    v.outT = outT
+    v
+  }
+
   def apply(value: String, outT: Type): Value = {
     val v = Value(value)
     v.outT = outT

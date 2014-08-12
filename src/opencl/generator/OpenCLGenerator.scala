@@ -17,7 +17,7 @@ class get_num_groups(param: Int) extends OclFunction("get_num_groups", param)
 
 
 object Debug {
-  def apply() = { true }
+  def apply() = { false }
 }
 
 object OpenCL{
@@ -42,7 +42,12 @@ object OpenCLGenerator extends Generator {
 
     // allocate the params and set the corresponding type
     f.params.map((p) => {
-      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+      p.outT match {
+        case _: ScalarType =>
+          p.inM = OpenCLMemory.allocPrivateMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+        case _ =>
+          p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+      }
       p.inT = p.outT
     })
 
@@ -63,13 +68,6 @@ object OpenCLGenerator extends Generator {
     }
 
     AccessFunction.addAccessFunctions(f.body)
-
-    if (Debug()) {
-      println("AccessFunctions:")
-      Expr.visit(f.body, (f: Expr) => {
-        println(f + "\n    " + f.inAccess.nonEmpty)
-      }, (f: Expr) => {})
-    }
 
     oclPrinter = new OpenCLPrinter
 
@@ -247,7 +245,7 @@ object OpenCLGenerator extends Generator {
   private def generateReduceSeqCall(call: ReduceCall) {
 
     val initT = call.inT match { case tt: TupleType => tt.elemsT(0) }
-    val inT = call.inT match { case tt: TupleType => tt.elemsT(1) }
+    val inT   = call.inT match { case tt: TupleType => tt.elemsT(1) }
 
     oclPrinter.openCB()
     oclPrinter.commln("reduce_seq")
@@ -377,7 +375,7 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
 
-  private def access(memory: Memory, t: Type, accessFunctions: Array[AccessFunction]): String = {
+  private def access(memory: Memory, t: Type, accessFunctions: AccessFunctions): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)
 
     oclMem match {
@@ -386,33 +384,47 @@ object OpenCLGenerator extends Generator {
           case tt: TupleType =>
             assert(tt.elemsT.length == coll.subMemories.length)
 
-            (coll.subMemories zip tt.elemsT).map( { case (m, ty) => access(m, ty, accessFunctions) } ).reduce(_ + ", " + _)
+            accessFunctions match {
+              case collAf: AccessFunctionsCollection =>
+                assert(collAf.elems.length == coll.subMemories.length)
+                ((coll.subMemories zip tt.elemsT) zip collAf.elems).map({
+                    case ((m, ty), af) => access(m, ty, af)
+                  } ).reduce(_ + ", " + _)
+
+              case af: AccessFunctions =>
+                (coll.subMemories zip tt.elemsT).map({
+                  case (m, ty) => access(m, ty, af)
+                } ).reduce(_ + ", " + _)
+            }
         }
 
       case _ =>
-        oclMem.addressSpace match {
-          case GlobalMemory =>
-            "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
-              oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(accessFunctions.foldRight[ArithExpr](Cst(0))((aF, i) => {
-              aF(i)
-            })) + "])"
+        t match {
+          case _ =>
+            oclMem.addressSpace match {
+              case GlobalMemory =>
+                "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
+                  oclPrinter.toOpenCL(oclMem.variable) +
+                  "[" + oclPrinter.toOpenCL(accessFunctions.afs.foldRight[ArithExpr](Cst(0))((aF, i) => {
+                  aF(i)
+                })) + "])"
 
-          case LocalMemory =>
-            // access function from the kernel or MapWrg scope should not affect local
-            val localAccessFunctions = accessFunctions.filter((a) => {
-              (a.scope != "MapWrg") && (a.scope != "Kernel")
-            })
-            "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
-              oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(localAccessFunctions.foldRight[ArithExpr](Cst(0))((aF, i) => {
-              aF(i)
-            })) + "])"
+              case LocalMemory =>
+                // access function from the kernel or MapWrg scope should not affect local
+                val localAccessFunctions = accessFunctions.afs.filter((a) => {
+                  (a.scope != "MapWrg") && (a.scope != "Kernel")
+                })
+                "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
+                  oclPrinter.toOpenCL(oclMem.variable) +
+                  "[" + oclPrinter.toOpenCL(localAccessFunctions.foldRight[ArithExpr](Cst(0))((aF, i) => {
+                  aF(i)
+                })) + "])"
 
-          case PrivateMemory =>
-            oclPrinter.toOpenCL(oclMem.variable)
+              case PrivateMemory =>
+                oclPrinter.toOpenCL(oclMem.variable)
 
-          case _ => throw new NotImplementedError()
+              case _ => throw new NotImplementedError()
+            }
         }
     }
   }

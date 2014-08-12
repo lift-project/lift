@@ -97,7 +97,7 @@ class TestDotProduct {
 
     // 2.option
     val code = Compile(addFun)
-    val (output, runtime) = Execute(code, addFun, leftInputData, rightInputData)
+    val (output, runtime) = Execute(inputSize)(code, addFun, leftInputData, rightInputData)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -122,7 +122,7 @@ class TestDotProduct {
 
     )
 
-    val (output, runtime) = Execute(negFun, inputArray)
+    val (output, runtime) = Execute(inputArray.length)(negFun, inputArray)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -135,30 +135,27 @@ class TestDotProduct {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val gold = inputArray.map(-_)
+    val alpha = 2.5f
+    val gold = inputArray.map(_ * alpha)
 
-    val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Int), Float)
+    val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
 
-    val scalFun = fun( ArrayType(Float, Var("N")), Int, (input, alpha) =>
+    val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
 
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(
           fun( (x) => fun( (y) => mult(y, alpha) )(x) )
-          //fun( (x) => mult(x, alpha) )
         )) o Split(4)
       ) o Split(1024) o input
 
     )
 
-    Compile(scalFun)
-    /*
-    val (output, runtime) = Execute(scalFun, inputArray, 2.0f)
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
-    */
   }
 
 
@@ -170,8 +167,8 @@ class TestDotProduct {
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output, runtime) = Execute(fun (ArrayType(Float, Var("N")),
-                                         ArrayType(Float, Var("N")), (left, right) => {
+    val (output, runtime) = Execute(inputSize)(fun (ArrayType(Float, Var("N")),
+                                                    ArrayType(Float, Var("N")), (left, right) => {
 
       Join() o MapWrg(
         fun( (x) => Join() o MapLcl(fun( (x) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o x)) o Split(4) o x )
@@ -194,8 +191,8 @@ class TestDotProduct {
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
-      val (output, runtime) = Execute( fun (ArrayType(Float, Var("N")),
-                                            ArrayType(Float, Var("N")),(left, right) => {
+      val (output, runtime) = Execute(inputSize)( fun (ArrayType(Float, Var("N")),
+                                                       ArrayType(Float, Var("N")),(left, right) => {
 
         Join() o Join() o MapWrg(
           toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f)))
@@ -213,7 +210,7 @@ class TestDotProduct {
     }
 
     val (secondOutput, secondRuntime) = {
-      val (output, runtime) = opencl.executor.Execute( fun (ArrayType(Float, Var("N")),(in) => {
+      val (output, runtime) = opencl.executor.Execute(firstOutput.length)( fun (ArrayType(Float, Var("N")),(in) => {
 
         Join() o MapWrg(
           Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(128)
@@ -239,8 +236,8 @@ class TestDotProduct {
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, firstRuntime) = {
-      val (output, runtime) = opencl.executor.Execute( fun(ArrayType(Float, Var("N")),
-                                                           ArrayType(Float, Var("N")), (left, right) => {
+      val (output, runtime) = opencl.executor.Execute(inputSize)( fun(ArrayType(Float, Var("N")),
+                                                                      ArrayType(Float, Var("N")), (left, right) => {
 
         Join() o Join() o MapWrg(
           toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride()
@@ -258,7 +255,7 @@ class TestDotProduct {
     }
 
     val (secondOutput, secondRuntime) = {
-      val (output, runtime) = opencl.executor.Execute( fun (ArrayType(Float, Var("N")), (in) => {
+      val (output, runtime) = opencl.executor.Execute(firstOutput.length)( fun (ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o

@@ -19,21 +19,39 @@ object Compile {
 }
 
 object Execute {
-  var wgSize = 128
-
-  def apply(f: Lambda, values: Array[Float]*) : (Array[Float], Double) = {
-    assert( f.params.forall( _.outT != UndefType ), "Types of the params have to be set!" )
-    val code = Compile(f)
-    Execute(code, f, values:_*)
+  def apply(globalSize: Int): Execute = {
+    apply(128, globalSize)
   }
 
-  def apply(code: String, f: Lambda, values: Array[Float]*) : (Array[Float], Double) = {
-    val valueMap = (    f.params.map( (p) => Type.getLength(p.outT))
-      zip values.map( (a) => Cst(a.size)) ).toMap[ArithExpr, ArithExpr]
+  def apply(localSize: Int, globalSize: Int): Execute = {
+    new Execute(localSize, globalSize)
+  }
+}
+
+class Execute(val localSize: Int, val globalSize: Int) {
+  def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
+    assert( f.params.forall( _.outT != UndefType ), "Types of the params have to be set!" )
+    val code = Compile(f)
+    apply(code, f, values:_*)
+  }
+
+  def apply(code: String, f: Lambda, values: Any*) : (Array[Float], Double) = {
+    val valueMap =
+      (f.params.map( (p) => Type.getLength(p.outT))
+        zip values.map({
+            case a: Array[_] => Cst(a.size)
+            case any: Any => Cst(1)
+          })
+      ).toMap[ArithExpr, ArithExpr]
 
     val outputSize = ArithExpr.substitute(Type.getLength(f.body.outT), valueMap).eval()
 
-    val inputs = values.map( global.input(_) )
+    val inputs = values.map({
+      case af: Array[Float] => global.input(af)
+      case ai: Array[Int] => global.input(ai)
+      case f: Float => value(f)
+      case i: Int => value(i)
+    })
     val outputData = global.output[Float](outputSize)
 
     val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
@@ -47,12 +65,12 @@ object Execute {
       }
     })
 
-    val args = memArgs ++ values.map( (a) =>  value(a.size) )
 
-    // TODO: think about global size
-    val globalSize = values.reduce( (l,r) => if (l.size > r.size) l else r ).size
 
-    val runtime = Executor.execute(code, wgSize, globalSize, args)
+    val l = values.filter(_.isInstanceOf[Array[_]]).asInstanceOf[Seq[Array[_]]].map( (a) => value(a.size))
+    val args: Array[KernelArg] = memArgs ++ l
+
+    val runtime = Executor.execute(code, localSize, globalSize , args)
 
     val output = outputData.asFloatArray()
 
