@@ -39,6 +39,9 @@ object ExprSimplifier {
       case Pow(Cst(1), _) => Cst(1)
       case Pow(Prod(terms), exp) => simplifyProd(Prod(terms.map(t => simplifyPow(Pow(t, exp)))))
       case Pow(Pow(b,e1),e2) => simplifyPow(Pow(b,simplifyProd(e1*e2)))
+
+      case Pow(Cst(b1), Prod(List(Log(Cst(b2), expr), term))) if b1 == b2 => simplifyPow(Pow(expr, term))
+
       case Pow(_,_) => pow
     }
   }

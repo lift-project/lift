@@ -181,6 +181,10 @@ case class Pow(b: ArithExpr, e: ArithExpr) extends ArithExpr {
     case _ => "pow("+b+","+e+")"
   }
 }
+case class Log(b: ArithExpr, x: ArithExpr) extends ArithExpr {
+  override def toString: String = "log"+b+"("+x+")"
+}
+
 case class Prod(terms: List[ArithExpr]) extends ArithExpr {
   override def toString : String = {
     val m = if (terms.nonEmpty) { terms.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) } else {""}
