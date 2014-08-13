@@ -36,21 +36,25 @@ class Execute(val localSize: Int, val globalSize: Int) {
   }
 
   def apply(code: String, f: Lambda, values: Any*) : (Array[Float], Double) = {
-    val valueMap =
-      (f.params.map( (p) => Type.getLength(p.outT))
-        zip values.map({
-            case a: Array[_] => Cst(a.size)
-            case any: Any => Cst(1)
-          })
-      ).toMap[ArithExpr, ArithExpr]
+
+    val vars = f.params.map((p) => Type.getLengths(p.outT).filter(_.isInstanceOf[Var])).flatten// just take the variable
+    val sizes = values.map({
+        case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size))
+        case a: Array[_] => Seq(Cst(a.size))
+        case any: Any => Seq(Cst(1))
+      }).flatten[ArithExpr]
+    val valueMap = (vars zip sizes).toMap[ArithExpr, ArithExpr]
 
     val outputSize = ArithExpr.substitute(Type.getLength(f.body.outT), valueMap).eval()
 
     val inputs = values.map({
-      case af: Array[Float] => global.input(af)
-      case ai: Array[Int] => global.input(ai)
       case f: Float => value(f)
+      case af: Array[Float] => global.input(af)
+      case aaf: Array[Array[Float]] => global.input(aaf.flatten)
+
       case i: Int => value(i)
+      case ai: Array[Int] => global.input(ai)
+      case aai: Array[Array[Int]] => global.input(aai.flatten)
     })
     val outputData = global.output[Float](outputSize)
 

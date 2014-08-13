@@ -137,8 +137,8 @@ object OpenCLGenerator extends Generator {
     Kernel.memory.map(mem => {
       val m = mem.mem
       if (Debug()) {
-        println("Allocate " + ArithExpr.substitute(m.size, varMap.toMap) + " bytes for variable " + m.variable + " in " +
-          m.addressSpace + " memory")
+        println("Allocated " + ArithExpr.substitute(m.size, varMap.toMap) + " bytes for variable " +
+          oclPrinter.toOpenCL(m.variable) + " in " + m.addressSpace + " memory")
       }
     })
 

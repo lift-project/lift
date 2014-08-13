@@ -124,13 +124,11 @@ object OpenCLMemory {
 
   //** Return newly allocated global memory */
   def allocGlobalMemory(glbOutSize: ArithExpr): OpenCLMemory = {
-    println("allocGlobalMemory: " + glbOutSize)
     OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
   }
 
   //** Return newly allocated local memory */
   def allocLocalMemory(lclOutSize: ArithExpr): OpenCLMemory = {
-    println("allocLocalMemory: " + lclOutSize)
     OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
   }
 
@@ -189,14 +187,9 @@ object OpenCLMemory {
     // determine the input memory of f based on the input arguments
     val inMem = determineInputMemory(call, numGlb, numLcl, inputMem)
 
-    println("alloc call: " + call)
-
     // size in bytes necessary to hold the result of f in global and local memory
     val maxGlbOutSize = getMaxSizeInBytes(call.outT) * numGlb
     val maxLclOutSize = getMaxSizeInBytes(call.outT) * numLcl
-
-    println("  maxGlbOutSize: "+ maxGlbOutSize)
-    println("  maxLclOutSize: "+ maxLclOutSize)
 
     // maximum length of the output array
     val maxLen = ArithExpr.max(Type.getLength(call.outT))

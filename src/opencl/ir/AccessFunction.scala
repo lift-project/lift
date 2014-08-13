@@ -12,7 +12,6 @@ object IdAccessFunction extends AccessFunction((e: ArithExpr) => e, "") {
 
 class AccessFunctions(val afs: Array[AccessFunction]) {
   def :+(af: AccessFunction): AccessFunctions = {
-    println("AccessFunctions :+ ")
     new AccessFunctions(this.afs :+ af)
   }
 
@@ -23,7 +22,6 @@ class AccessFunctions(val afs: Array[AccessFunction]) {
 
 class AccessFunctionsCollection(val indexOfDataFlow: Int, val elems: AccessFunctions*) extends AccessFunctions(Array()) {
   override def :+(af: AccessFunction): AccessFunctionsCollection = {
-    println("AccessFunctionsCollection :+ ")
     AccessFunctionsCollection( elems.map(_ :+ af):_* )
   }
 
@@ -103,20 +101,10 @@ object AccessFunction {
   private def addAccessFunctionsFunCall(call: FunCall, inputAccess: AccessFunctions): AccessFunctions = {
     assert(call.inM != UnallocatedMemory && call.outM != UnallocatedMemory)
 
-    /*
-    println("call: " + call)
-    inputAccess match {
-      case coll: AccessFunctionsCollection =>
-        println("\tafs: " + coll.elems.map(_.toString).reduce(_ + ", " + _))
-      case af: AccessFunctions =>
-        println("\taf: " + af.toString)
-    }
-    */
-
     // determine the input access of f based on the input arguments
     val inAccess = determineInputAccessFun(call, inputAccess)
 
-    val out = call match {
+    call match {
       case call: MapCall => call.f match {
         case m: MapSeq => addAccessFunctionsMapSeq(call, inAccess)
         case m: AbstractMap => addAccessFunctionsMap(call, inAccess)
@@ -149,24 +137,6 @@ object AccessFunction {
             inAccess
         }
     }
-    /*
-    println("after call: " + call)
-    println(" in: ")
-    call.inAccess match {
-      case coll: AccessFunctionsCollection =>
-        println("\tafs: " + coll.elems.map(_.toString).reduce(_ + ", " + _))
-      case af: AccessFunctions =>
-        println("\taf: " + af.toString)
-    }
-    println(" out: ")
-    call.outAccess match {
-      case coll: AccessFunctionsCollection =>
-        println("\tafs: " + coll.elems.map(_.toString).reduce(_ + ", " + _))
-      case af: AccessFunctions =>
-        println("\taf: " + af.toString)
-    }
-    */
-    out
   }
 
   private def addAccessFunctions(expr: Expr, inputAccess: AccessFunctions): AccessFunctions = {

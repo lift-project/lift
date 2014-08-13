@@ -95,6 +95,13 @@ object Type {
     }
   }
 
+  def getLengths(t: Type): Seq[ArithExpr] = {
+    t match {
+      case at: ArrayType => Seq(at.len) ++ getLengths(at.elemT)
+      case _ => Seq(getLength(t))
+    }
+  }
+
   def getVectorSize(t: Type): ArithExpr = {
     t match {
       case vt: VectorType => vt.len
