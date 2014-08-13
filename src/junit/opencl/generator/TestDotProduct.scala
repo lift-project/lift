@@ -156,6 +156,33 @@ class TestDotProduct {
     println("runtime = " + runtime)
   }
 
+  @Test def VECTOR_SCAL_REDUCE() {
+
+    val inputSize = 1024
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val alpha = 2.5f
+    val gold = inputArray.map(_ * alpha).reduce(_+_)
+
+    val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
+
+    val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+      Join() o MapWrg(
+        Join() o MapLcl(ReduceSeq(sumUp, 0.0f) o MapSeq(
+          fun( (x) => mult(alpha, x) )
+        )) o Split(4)
+      ) o Split(1024) o input
+    )
+
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha)
+
+    assertEquals(gold,output.reduce(_+_),0.0)
+    //(gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
 
   @Test def DOT_PRODUCT_SIMPLE() {
 
@@ -279,77 +306,71 @@ class TestDotProduct {
     )
   }
 
-  /*
+/*
   @Test def MATRIX_VECTOR_FIXED_SIZE() {
 
     val inputSize = 1024
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
     val vector = Array.fill(inputSize)(2.0f)
 
-    val (output, runtime) = Execute( fun(ArrayType(ArrayType(Float, 1024), 1024),
-                                         ArrayType(Float, 1024),
-                                         (matrix, vector) => {
-      Join() o MapWrg(
-        MapLcl( ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o fun( (r) => Zip(vector, r) ) )
-      ) o Split(128) o matrix
-
-    }), matrix.flatten[Float], vector )
-
-    println("output.size = " + output.size)
-    println("output(0) = " + output(0))
-    println("fist != 2048 = " + output.indexWhere( _ != 2048.0f))
-    println("runtime = " + runtime)
-
-    (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-  }
-
-
-
-  @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY() {
-
-    val inputSize = 1024
-    val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
-    val vector = Array.fill(inputSize)(2.0f)
-
-    val (output, runtime) = Execute( fun(ArrayType(ArrayType(Float, 1024), 1024),
-      ArrayType(Float, 1024),
-      (matrix, vector) => {
-        MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-          Iterate(10)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-          Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o fun( (r) => Zip(vector, r) )
-        ) o matrix
-
-      }), matrix.flatten[Float], vector )
-
-    println("output.size = " + output.size)
-    println("output(0) = " + output(0))
-    println("fist != 2048 = " + output.indexWhere( _ != 2048.0f))
-    println("runtime = " + runtime)
-
-    (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
-  }
-
-
-  @Test def MATRIX_VECTOR() {
-
-    val inputSize = 4096
-    val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
-    val vector = Array.fill(inputSize)(2.0f)
-
-    val (output, runtime) = Execute( fun(ArrayType(ArrayType(Float, 1024), 1024),
+    val f = fun(ArrayType(ArrayType(Float, 1024), 1024),
       ArrayType(Float, 1024),
       (matrix, vector) => {
         Join() o MapWrg(
           MapLcl( ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o fun( (r) => Zip(vector, r) ) )
         ) o Split(128) o matrix
 
-      }), matrix.flatten[Float], vector )
+      })
+
+    Compile(f)
+
+    val code = "float mult(float l, float r){ return l * r; }\n" +
+      "float sumUp(float x, float y){ return x+y; }\n" +
+      "\n" +
+      "kernel void KERNEL(global float* v__7, global float* v__16, global float* v__8, global float* v__12) {\n" +
+      "  for (int v_g_id_6 = get_group_id(0); v_g_id_6 < 8; v_g_id_6 += get_num_groups(0)) {\n" +
+      "    {\n" +
+      "      int v_l_id_5 = get_local_id(0);\n" +
+      "      if (v_l_id_5 < (128)) {\n" +
+      "        /* map_seq */\n" +
+      "        for (int v_i_4 = 0; v_i_4 < 1024; v_i_4 += 1) {\n" +
+      "          *((global float*)&v__12[((v_g_id_6 * 131072) + (v_l_id_5 * 1024) + v_i_4)]) = " +
+      "               mult(*((global float*)&v__8[((v_l_id_5 * 1024) + v_i_4)])," +
+      "                    *((global float*)&v__7[((v_g_id_6 * 131072) + (v_l_id_5 * 1024) + v_i_4)]));\n" +
+      "        }\n" +
+      "        /* map_seq */\n" +
+      "        {\n" +
+      "          /* reduce_seq */\n" +
+      "          float v__13 = 0.0f;\n" +
+      "          for (int v_i_3 = 0; v_i_3 < 1024; v_i_3 += 1) {\n" +
+      "            v__13 = sumUp(v__13, *((global float*)&v__12[((v_g_id_6 * 131072) + (v_l_id_5 * 1024) + v_i_3)]));\n" +
+      "          }\n" +
+      "          *((global float*)&v__16[((v_g_id_6 * 128) + v_l_id_5)]) = v__13;\n" +
+      "\n" +
+      "          /* reduce_seq */\n" +
+      "        }\n" +
+      "      }\n" +
+      "    }\n" +
+      "    barrier(CLK_GLOBAL_MEM_FENCE);\n" +
+      "  }\n" +
+      "  return;\n" +
+      "}"
+
+    val newCode = "float mult(float l, float r){ return l * r; }\n" +
+      "float sumUp(float x, float y){ return x+y; }\n" +
+      "\n" +
+      "kernel void KERNEL(global float* v__7, global float* v__16, global float* v__8, global float* v__12) {\n" +
+      "  for (int v_g_id_6 = get_group_id(0); v_g_id_6 < 8; v_g_id_6 += get_num_groups(0)) {\n" +
+      "    {\n" +
+      "      int v_l_id_5 = get_local_id(0);\n" +
+      "      if (v_l_id_5 < (128)) {\n" +
+      "        /* map_seq */\n" +
+      "        for (int v_i_4 = 0; v_i_4 < 1024; v_i_4 += 1) {\n" +
+      "          *((global float*)&v__12[(v_i_4 * 1)]) = mult(*((global float*)&v__8[(v_i_4 * 1)]), *((global float*)&v__7[(v_i_4 * 1)]));\n        }\n        /* map_seq */\n        {\n          /* reduce_seq */\n          float v__13 = 0.0f;\n          for (int v_i_3 = 0; v_i_3 < 1024; v_i_3 += 1) {\n            v__13 = sumUp(v__13, *((global float*)&v__12[(v_i_3 * 1)]));\n          }\n          *((global float*)&v__16[0]) = v__13;\n\n          /* reduce_seq */\n        }\n      }\n    }\n    barrier(CLK_GLOBAL_MEM_FENCE);\n  }\n  return;\n}"
+
+    /*
+    val (output, runtime) = Execute(inputSize * inputSize)(code, f
+                                     , matrix.flatten[Float], vector )
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
@@ -359,9 +380,66 @@ class TestDotProduct {
     (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
 
     (output, runtime)
-
+    */
   }
-  */
+*/
+
+/*
+      @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY() {
+
+        val inputSize = 1024
+        val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
+        val vector = Array.fill(inputSize)(2.0f)
+
+        val (output, runtime) = Execute( fun(ArrayType(ArrayType(Float, 1024), 1024),
+          ArrayType(Float, 1024),
+          (matrix, vector) => {
+            MapWrg(
+              Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+              Iterate(10)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+              Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o fun( (r) => Zip(vector, r) )
+            ) o matrix
+
+          }), matrix.flatten[Float], vector )
+
+        println("output.size = " + output.size)
+        println("output(0) = " + output(0))
+        println("fist != 2048 = " + output.indexWhere( _ != 2048.0f))
+        println("runtime = " + runtime)
+
+        (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
+
+        (output, runtime)
+
+      }
+
+
+      @Test def MATRIX_VECTOR() {
+
+        val inputSize = 4096
+        val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
+        val vector = Array.fill(inputSize)(2.0f)
+
+        val (output, runtime) = Execute( fun(ArrayType(ArrayType(Float, 1024), 1024),
+          ArrayType(Float, 1024),
+          (matrix, vector) => {
+            Join() o MapWrg(
+              MapLcl( ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o fun( (r) => Zip(vector, r) ) )
+            ) o Split(128) o matrix
+
+          }), matrix.flatten[Float], vector )
+
+        println("output.size = " + output.size)
+        println("output(0) = " + output(0))
+        println("fist != 2048 = " + output.indexWhere( _ != 2048.0f))
+        println("runtime = " + runtime)
+
+        (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
+
+        (output, runtime)
+
+      }
+      */
 
 /*
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {

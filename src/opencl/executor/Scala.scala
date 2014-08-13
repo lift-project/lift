@@ -65,10 +65,10 @@ class Execute(val localSize: Int, val globalSize: Int) {
       }
     })
 
-
-
     val l = values.filter(_.isInstanceOf[Array[_]]).asInstanceOf[Seq[Array[_]]].map( (a) => value(a.size))
     val args: Array[KernelArg] = memArgs ++ l
+
+    println("args.length " + args.length)
 
     val runtime = Executor.execute(code, localSize, globalSize , args)
 

@@ -17,7 +17,7 @@ class get_num_groups(param: Int) extends OclFunction("get_num_groups", param)
 
 
 object Debug {
-  def apply() = { false }
+  def apply() = { true }
 }
 
 object OpenCL{
@@ -48,6 +48,7 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
       }
+      p.inAccess = IdAccessFunctions
       p.inT = p.outT
     })
 
@@ -392,7 +393,7 @@ object OpenCLGenerator extends Generator {
                   } ).reduce(_ + ", " + _)
 
               case af: AccessFunctions =>
-                // println("JUST ONE ACCESS FUNCTION FOR MULTIPLE MEMORY") // TODO: find out why this is necessary
+                println("JUST ONE ACCESS FUNCTION FOR MULTIPLE MEMORY") // TODO: find out why this is necessary
                 (coll.subMemories zip tt.elemsT).map({
                   case (m, ty) => access(m, ty, af)
                 } ).reduce(_ + ", " + _)
