@@ -41,7 +41,7 @@ class TestReduce {
       ) o Split(262144) o in
     } )
 
-    val (output, runtime) = Execute(inputData.length)( l, inputData )
+    val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -60,7 +60,7 @@ class TestReduce {
       Join() o Join() o  MapWrg(
         MapLcl(ReduceSeq(sumUp, 0.0f))
       ) o Split(128) o Split(2048) o in
-    }), inputData)
+    }), inputData, inputData.length)
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -78,7 +78,7 @@ class TestReduce {
 
     val (output, runtime) = opencl.executor.Execute(1, inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
       ReduceHost(sumUp, 0.0f) o in
-    }), inputData)
+    }), inputData, inputData.length)
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -103,7 +103,7 @@ class TestReduce {
             Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
         ) o Split(128) o in
-      }), inputData)
+      }), inputData, inputData.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -120,7 +120,7 @@ class TestReduce {
             Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
             Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
         ) o Split(8) o in
-      }), firstOutput)
+      }), firstOutput, firstOutput.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -146,7 +146,7 @@ class TestReduce {
           Iterate(7)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
           Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
       ) o Split(256) o in
-    }), inputData)
+    }), inputData, inputData.length)
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -170,7 +170,7 @@ class TestReduce {
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o ReorderStride() o Split(2048)
         ) o Split(262144) o in
 
-      }), inputData)
+      }), inputData, inputData.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
 
@@ -189,7 +189,7 @@ class TestReduce {
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
         ) o Split(64) o in
 
-      }), firstOutput)
+      }), firstOutput, firstOutput.length)
 
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
@@ -220,7 +220,7 @@ class TestReduce {
         ) o Split(262144) o in
       )
 
-      val (output, runtime) = Execute(inputData.length)(f, inputData)
+      val (output, runtime) = Execute(inputData.length)(f, inputData, inputData.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -239,7 +239,7 @@ class TestReduce {
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
         ) o Split(64) o in
 
-      }), firstOutput)
+      }), firstOutput, firstOutput.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -269,7 +269,7 @@ class TestReduce {
             Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f)))) o Split(2)
         ) o asVector(4) o Split(2048) o in
 
-      }), inputData)
+      }), inputData, inputData.length)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -288,7 +288,7 @@ class TestReduce {
             Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
         ) o Split(64) o in
 
-      }), firstOutput)
+      }), firstOutput, firstOutput.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -315,7 +315,7 @@ class TestReduce {
           //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o ReduceSeq(sumUp, 0.0f))) o ReorderStride()
         ) o Split(128) o Split(2048) o in
 
-      }), inputData)
+      }), inputData, inputData.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -334,7 +334,7 @@ class TestReduce {
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
         ) o Split(8192) o in
 
-      }), firstOutput)
+      }), firstOutput, firstOutput.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
 
@@ -359,7 +359,7 @@ class TestReduce {
           MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp), Vectorize(2)(0.0f)) o ReorderStride())
         ) o Split(128) o asVector(2) o Split(4096) o in
 
-      }), inputData)
+      }), inputData, inputData.length)
 
       println("output size = " + output.size)
       println("first output(0) = " + output(0))
@@ -379,7 +379,7 @@ class TestReduce {
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
         ) o Split(8192) o in
 
-      }), firstOutput)
+      }), firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -406,7 +406,7 @@ class TestReduce {
           ) o Split(1) o asVector(4) o Split(32768)
         ) o Split(32768) o in
 
-      }), inputData)
+      }), inputData, inputData.length)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -426,7 +426,7 @@ class TestReduce {
           ) o Split(2048)
         ) o Split(2048) o in
 
-      }), firstOutput)
+      }), firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -453,7 +453,7 @@ class TestReduce {
           ) o asVector(4) o Split(32768)
         ) o Split(32768) o in
 
-      }), inputData)
+      }), inputData, inputData.length)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -473,7 +473,7 @@ class TestReduce {
           ) o Split(2048)
         ) o Split(2048) o in
 
-      }), firstOutput)
+      }), firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)

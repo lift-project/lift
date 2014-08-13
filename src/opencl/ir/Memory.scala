@@ -124,11 +124,13 @@ object OpenCLMemory {
 
   //** Return newly allocated global memory */
   def allocGlobalMemory(glbOutSize: ArithExpr): OpenCLMemory = {
+    println("allocGlobalMemory: " + glbOutSize)
     OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
   }
 
   //** Return newly allocated local memory */
   def allocLocalMemory(lclOutSize: ArithExpr): OpenCLMemory = {
+    println("allocLocalMemory: " + lclOutSize)
     OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
   }
 
@@ -187,9 +189,14 @@ object OpenCLMemory {
     // determine the input memory of f based on the input arguments
     val inMem = determineInputMemory(call, numGlb, numLcl, inputMem)
 
+    println("alloc call: " + call)
+
     // size in bytes necessary to hold the result of f in global and local memory
     val maxGlbOutSize = getMaxSizeInBytes(call.outT) * numGlb
     val maxLclOutSize = getMaxSizeInBytes(call.outT) * numLcl
+
+    println("  maxGlbOutSize: "+ maxGlbOutSize)
+    println("  maxLclOutSize: "+ maxLclOutSize)
 
     // maximum length of the output array
     val maxLen = ArithExpr.max(Type.getLength(call.outT))
@@ -198,8 +205,8 @@ object OpenCLMemory {
     call.f match {
 
       case MapGlb(_) |MapWrg(_)=> allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
-      case MapLcl(_) | MapWarp(_)
-           | MapLane(_) =>        allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
+      case MapLcl(_) | MapWarp(_)| MapLane(_) | MapSeq(_)
+                               => allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
 
       case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, inMem, outputMem, maxGlbOutSize)
       case tl: toLocal =>         allocToLocal(tl,    numGlb, numLcl, inMem, outputMem, maxLclOutSize)
@@ -209,13 +216,12 @@ object OpenCLMemory {
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
 
       case l: Lambda =>           alloc(l.body,     numGlb, numLcl, inMem, outputMem)
-      case fp: FPattern =>        alloc(fp.f.body,  numGlb, numLcl, inMem, outputMem)
+
       case r: AbstractPartRed =>  alloc(r.f.body,   numGlb, numLcl, inMem, outputMem)
 
       case Zip() | Split(_) | Join() | ReorderStride() | asVector(_) | asScalar()  =>
         inMem
-      // ... for all remaining functions (e.g. MapSeq and RedSeq) allocate new memory if output is not yet set
-      case _ =>
+      case uf: UserFunDef =>
         allocDefault(maxGlbOutSize, maxLclOutSize, outputMem, call.outT, inMem.addressSpace)
 
     }

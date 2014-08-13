@@ -12,6 +12,7 @@ object IdAccessFunction extends AccessFunction((e: ArithExpr) => e, "") {
 
 class AccessFunctions(val afs: Array[AccessFunction]) {
   def :+(af: AccessFunction): AccessFunctions = {
+    println("AccessFunctions :+ ")
     new AccessFunctions(this.afs :+ af)
   }
 
@@ -20,7 +21,26 @@ class AccessFunctions(val afs: Array[AccessFunction]) {
   }
 }
 
-class AccessFunctionsCollection(val elems: AccessFunctions*) extends AccessFunctions(Array())
+class AccessFunctionsCollection(val indexOfDataFlow: Int, val elems: AccessFunctions*) extends AccessFunctions(Array()) {
+  override def :+(af: AccessFunction): AccessFunctionsCollection = {
+    println("AccessFunctionsCollection :+ ")
+    AccessFunctionsCollection( elems.map(_ :+ af):_* )
+  }
+
+  override def ++(that: AccessFunctions): AccessFunctionsCollection = {
+    AccessFunctionsCollection( elems.map( _ ++ that ):_* )
+  }
+}
+
+object AccessFunctionsCollection {
+  def apply(indexOfDataFlow: Int, elems: AccessFunctions*): AccessFunctionsCollection = {
+    new AccessFunctionsCollection(indexOfDataFlow, elems:_* )
+  }
+
+  def apply(elems: AccessFunctions*): AccessFunctionsCollection = {
+    apply(0, elems:_*)
+  }
+}
 
 object AccessFunctions {
   implicit def ArrayToAccessFunctions(afs: Array[AccessFunction]) = new AccessFunctions(afs)
@@ -47,7 +67,7 @@ object AccessFunction {
         if (call.args.length != 2) throw new NumberOfArgumentsException
         val initA  = addAccessFunctions(call.args(0), EmptyAccessFuntions)
         val inputA = addAccessFunctions(call.args(1), inputAccess)
-        new AccessFunctionsCollection(initA, inputA)
+        AccessFunctionsCollection(initA, inputA)
 
       case _ =>
         if (call.args.isEmpty)
@@ -55,18 +75,26 @@ object AccessFunction {
         else if (call.args.length == 1)
           addAccessFunctions(call.args(0), inputAccess)
         else { //more than one argument
-          val inAs = inputAccess match {
+          inputAccess match {
             // if the input is a collection unpack it
             case coll: AccessFunctionsCollection =>
               assert(call.args.length == coll.elems.length)
-              (call.args zip coll.elems).map({
+              val inAs = (call.args zip coll.elems).map({
                 case (e, af) => addAccessFunctions(e, af)
               })
 
-            case af: AccessFunctions => call.args.map(addAccessFunctions(_, inputAccess))
-          }
+              AccessFunctionsCollection(inAs:_*)
 
-          new AccessFunctionsCollection(inAs:_*)
+            case EmptyAccessFuntions =>
+              val inAs = call.args.map(addAccessFunctions(_, EmptyAccessFuntions))
+              AccessFunctionsCollection(inAs:_*)
+
+            case af: AccessFunctions =>
+              val inAs = call.args.map(addAccessFunctions(_, inputAccess))
+              assert(inAs.count(_ == inputAccess) == 1) // input access should only be used once!
+
+              AccessFunctionsCollection(inAs.indexOf(inputAccess), inAs:_*)
+          }
         }
 
     }
@@ -75,6 +103,7 @@ object AccessFunction {
   private def addAccessFunctionsFunCall(call: FunCall, inputAccess: AccessFunctions): AccessFunctions = {
     assert(call.inM != UnallocatedMemory && call.outM != UnallocatedMemory)
 
+    /*
     println("call: " + call)
     inputAccess match {
       case coll: AccessFunctionsCollection =>
@@ -82,6 +111,7 @@ object AccessFunction {
       case af: AccessFunctions =>
         println("\taf: " + af.toString)
     }
+    */
 
     // determine the input access of f based on the input arguments
     val inAccess = determineInputAccessFun(call, inputAccess)
@@ -119,7 +149,7 @@ object AccessFunction {
             inAccess
         }
     }
-
+    /*
     println("after call: " + call)
     println(" in: ")
     call.inAccess match {
@@ -135,7 +165,7 @@ object AccessFunction {
       case af: AccessFunctions =>
         println("\taf: " + af.toString)
     }
-
+    */
     out
   }
 
@@ -159,14 +189,20 @@ object AccessFunction {
     val inAccessFun = MapAccessFunction(call.loopVar, Cst(1), call.name)
     call.inAccess = updateAccessFunction(inputAccess, Type.length(call.inT).head) :+ inAccessFun
 
+
+    val outputAccess = inputAccess match {
+      case coll: AccessFunctionsCollection => coll.elems(coll.indexOfDataFlow)
+      case af: AccessFunctions => af
+    }
+
     // output
     val outAccessFun = MapAccessFunction(call.loopVar, Cst(1), call.name)
-    call.outAccess = updateAccessFunction(inputAccess, Type.length(call.outT).head) :+ outAccessFun
+    call.outAccess = updateAccessFunction(outputAccess, Type.length(call.outT).head) :+ outAccessFun
 
     // recurse
     addAccessFunctions(call.f.f.body, call.inAccess)
 
-    inputAccess
+    outputAccess
   }
 
   private def addAccessFunctionsMapSeq(call: MapCall, inputAccess: AccessFunctions): AccessFunctions = {
@@ -178,14 +214,19 @@ object AccessFunction {
     val inChunkSizes = Type.length(call.inT).reduce(_ * _) // this includes the vector size
     call.inAccess = updateAccessFunction(inputAccess, inChunkSizes) :+ innermostAccess
 
+    val outputAccess = inputAccess match {
+      case coll: AccessFunctionsCollection => coll.elems(coll.indexOfDataFlow)
+      case af: AccessFunctions => af
+    }
+
     // output
     val outChunkSizes = Type.length(call.outT).reduce(_ * _)  // this includes the vector size
-    call.outAccess = updateAccessFunction(removeReorderAccessFunctions(inputAccess), outChunkSizes) :+ innermostAccess
+    call.outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes) :+ innermostAccess
 
     // recurse
     addAccessFunctions(call.f.f.body, call.inAccess)
 
-    removeReorderAccessFunctions(inputAccess)
+    removeReorderAccessFunctions(outputAccess)
   }
 
   private def addAccessFunctionsReduce(call: ReduceCall, inputAccess: AccessFunctions): AccessFunctions = {
@@ -200,18 +241,39 @@ object AccessFunction {
 
     // input
     val inChunkSizes = Type.length(inT).reduce(_ * _) // this includes the vector size
-    call.inAccess = new AccessFunctionsCollection(initA, updateAccessFunction(inA, inChunkSizes) :+ innermostAccess)
+    call.inAccess = AccessFunctionsCollection(initA, updateAccessFunction(inA, inChunkSizes) :+ innermostAccess)
+
+    val outputAccess = inA match {
+      case coll: AccessFunctionsCollection => coll.elems(coll.indexOfDataFlow)
+      case af: AccessFunctions => af
+    }
 
     // output
     val outChunkSizes = Type.length(call.outT).reduce(_ * _)  // this includes the vector size
-    call.outAccess = updateAccessFunction(removeReorderAccessFunctions(inA), outChunkSizes)
+    call.outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes)
 
     // recurse
     addAccessFunctions(call.f.f.body, call.inAccess)
 
-    removeReorderAccessFunctions(inA)
+    removeReorderAccessFunctions(outputAccess)
   }
 
+  private def getLatestScope(af: AccessFunctions): String = {
+    af match {
+      case coll: AccessFunctionsCollection =>
+        val scopes = coll.elems.map(getLatestScope)
+        val uniqueScopes = scopes.distinct
+        if (uniqueScopes.length == 1)
+          uniqueScopes.head
+        else
+          ""
+      case af: AccessFunctions =>
+        if (af.afs.nonEmpty)
+          af.afs.last.scope
+        else
+          ""
+    }
+  }
 
   private def addAccessFunctionsReorderStride(call: FunCall, inputAccess: AccessFunctions): AccessFunctions = {
     call.inAccess = inputAccess
@@ -219,14 +281,16 @@ object AccessFunction {
     val s = Type.getLength(call.inT)
     val n = Type.getLength(Type.getElemT(call.inT))
 
-    inputAccess.afs :+ AccessFunction( (i:ArithExpr) => { i / n + s * (i % n) } , inputAccess.afs.last.scope)
+    val scope = getLatestScope(inputAccess)
+
+    inputAccess :+ AccessFunction( (i:ArithExpr) => { i / n + s * (i % n) } , scope)
   }
 
 
   private def updateAccessFunction(access: AccessFunctions, chunkSize: ArithExpr): AccessFunctions = {
     access match {
       case coll: AccessFunctionsCollection =>
-        new AccessFunctionsCollection( coll.elems.map( updateAccessFunction(_, chunkSize) ):_* )
+        AccessFunctionsCollection( coll.elems.map( updateAccessFunction(_, chunkSize) ):_* )
 
       case _ =>
         access.afs.map( {
@@ -239,7 +303,7 @@ object AccessFunction {
   private def removeReorderAccessFunctions(access: AccessFunctions): AccessFunctions = {
     access match {
       case coll: AccessFunctionsCollection =>
-        new AccessFunctionsCollection( coll.elems.map( removeReorderAccessFunctions ):_* )
+        AccessFunctionsCollection( coll.elems.map( removeReorderAccessFunctions ):_* )
       case _ =>
         access.afs.filter({
           case ma: MapAccessFunction => true // just take MapAcess

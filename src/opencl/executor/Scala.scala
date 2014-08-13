@@ -60,17 +60,16 @@ class Execute(val localSize: Int, val globalSize: Int) {
       if (i != -1) inputs(i)
       else if (m == f.body.outM) outputData
       else m.addressSpace match {
-        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval() * 4) // TODO: check on this ...
-       case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval() * 4)
+        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval())
+        case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval())
       }
     })
 
-    val l = values.filter(_.isInstanceOf[Array[_]]).asInstanceOf[Seq[Array[_]]].map( (a) => value(a.size))
-    val args: Array[KernelArg] = memArgs ++ l
+    val args: Array[KernelArg] = (memArgs ++ inputs).distinct.toArray
 
     println("args.length " + args.length)
 
-    val runtime = Executor.execute(code, localSize, globalSize , args)
+    val runtime = Executor.execute(code, localSize, globalSize, args)
 
     val output = outputData.asFloatArray()
 

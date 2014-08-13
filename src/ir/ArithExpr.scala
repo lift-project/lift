@@ -14,7 +14,7 @@ abstract class ArithExpr {
     if (dblResult.isValidInt)
       dblResult.toInt
     else
-      throw new NotEvaluableException("Cannot evaluate to int: "+dblResult)
+      throw new NotEvaluableException("Cannot evaluate " + this + " to int: "+ dblResult)
   }
 
   def evalDbl(): Double = ArithExpr.evalDouble(this)
