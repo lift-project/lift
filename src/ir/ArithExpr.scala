@@ -60,48 +60,47 @@ object ArithExpr {
   implicit def IntToCst(i: Int) = Cst(i)
 
   def max(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
-    val diff = ExprSimplifier.simplify(e1 - e2)
-    diff match {
-      case Cst(c) => if (c < 0) e2 else e1
-      case _ => throw new NotEvaluableException("Cannot determine max")
-    }
+    minmax(e1, e2)._2
   }
 
   def min(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
+    minmax(e1, e2)._1
+  }
+
+  def minmax(e1: ArithExpr, e2: ArithExpr): (ArithExpr, ArithExpr) = {
     val diff = ExprSimplifier.simplify(e1 - e2)
     diff match {
-      case Cst(c) => if (c < 0) e1 else e2
-      case _ => throw new NotEvaluableException("Cannot determine min")
+      case Cst(c) => if (c < 0) (e1, e2) /* e1 is smaller than e2 */ else (e2, e1) /* e2 is smaller than e1*/
+      case _ =>
+        (e1, e2) match {
+          case (v: Var, Cst(c)) => v.range.min match {
+            case Cst(min) => if (min >= c) (e2, v) else throw new NotEvaluableException("Cannot determine max")
+          }
+          case _ =>
+            throw new NotEvaluableException("Cannot determine max")
+        }
     }
   }
 
-  def max(e: ArithExpr) : ArithExpr = {
+  def max(e: ArithExpr) : ArithExpr = minmax(e)._2
+
+  def min(e: ArithExpr) : ArithExpr = minmax(e)._1
+
+  def minmax(e: ArithExpr): (ArithExpr, ArithExpr) = {
     e match {
-      case _:Cst => e
-      case Var(_, range) => if (range.max != ?) max(range.max) else e
-      case Sum(sums) => Sum(sums.map(t => max(t)))
+      case _: Cst => (e, e)
+      case Var(_, range) => ( if (range.min != ?) min(range.min) else e,
+                              if (range.max != ?) max(range.max) else e )
+
+      case Sum(sums) => ( Sum(sums.map(min)), Sum(sums.map(max)) )
 
       // TODO: check if the product is positive or negative
-      case Prod(prods) => Prod(prods.map(t => max(t)))
+      case Prod (prods) => ( Prod(prods.map(min)), Prod(prods.map(max)) )
 
-      case Pow(b, Cst(c)) => if (c>=0) Pow(max(b), Cst(c)) else Pow(min(b), Cst(c))
+      case Pow(b, Cst(c)) => ( if (c>=0) Pow(min(b), Cst(c)) else Pow(max(b), Cst(c)),
+                               if (c>=0) Pow(max(b), Cst(c)) else Pow(min(b), Cst(c)) )
 
-      case _ => throw new NotEvaluableException("Cannot determine max value")
-    }
-  }
-
-  def min(e: ArithExpr) : ArithExpr = {
-    e match {
-      case _:Cst => e
-      case Var(_, range) => if (range.min != ?) min(range.min) else e
-      case Sum(sums) => Sum(sums.map(t => min(t)))
-
-      // TODO: check if the product is positive or negative
-      case Prod(prods) => Prod(prods.map(t => min(t)))
-
-      case Pow(b, Cst(c)) => if (c>=0) Pow(min(b), Cst(c)) else Pow(max(b), Cst(c))
-
-      case _ => throw new NotEvaluableException("Cannot determine min value")
+      case _ =>  throw new NotEvaluableException("Cannot determine min/max values")
     }
   }
 
@@ -174,6 +173,7 @@ object ArithExpr {
 }
 
 case object ? extends ArithExpr
+
 case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
 case class Pow(b: ArithExpr, e: ArithExpr) extends ArithExpr {
   override def toString : String = e match {
@@ -335,5 +335,11 @@ object Var {
       case v: Var => immutable.HashSet(v)
       case _ => immutable.HashSet()
     }
+  }
+}
+
+object SizeVar {
+  def apply(name: String): Var = {
+    Var(name, StartFromRange(Cst(1)))
   }
 }

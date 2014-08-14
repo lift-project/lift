@@ -9,15 +9,31 @@ sealed abstract class Range {
 
 class RangeUnkownException(msg: String) extends Exception(msg)
 
+case class StartFromRange(start: ArithExpr) extends Range {
+  override def *(e: ArithExpr): Range = {
+    StartFromRange(ExprSimplifier.simplify(start * e))
+  }
+  override def min = start
+  override def max = ?
+}
 
-case class RangeAdd(val start: ArithExpr, val stop: ArithExpr, step: ArithExpr) extends Range {
+case class GoesToRange(end: ArithExpr) extends Range {
+  override def *(e: ArithExpr): Range = {
+    StartFromRange(ExprSimplifier.simplify(end * e))
+  }
+  override def min = ?
+  override def max = end
+}
+
+case class RangeAdd(start: ArithExpr, stop: ArithExpr, step: ArithExpr) extends Range {
   override def *(e: ArithExpr): Range = {
     RangeAdd(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), step)
   }
   override def min = start
   override def max = stop
 }
-case class RangeMul(val start: ArithExpr, val stop: ArithExpr, mul: ArithExpr) extends Range {
+
+case class RangeMul(start: ArithExpr, stop: ArithExpr, mul: ArithExpr) extends Range {
   override def *(e: ArithExpr): Range = {
     RangeMul(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), mul)
   }

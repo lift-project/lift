@@ -391,14 +391,16 @@ class TestDotProduct {
 
   }
 
+  /*
+  TODO: continue here
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
 
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
     val vector = Array.fill(inputSize)(2.0f)
 
-    val N = Cst(inputSize)//Var("N")
-    val M = Cst(inputSize)//Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
     val f = fun(
       ArrayType(ArrayType(Float, N), M),
       ArrayType(Float, N),
@@ -408,10 +410,9 @@ class TestDotProduct {
           Iterate(Log(2, N))(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
           Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o fun( (r) => Zip(vector, r) )
         ) o matrix
-
       })
 
-    val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector)//, inputSize, inputSize)
+    val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector, inputSize, inputSize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
@@ -422,7 +423,7 @@ class TestDotProduct {
     (output, runtime)
 
   }
-
+*/
   /*
     @Test def MATRIX_VECTOR_FUSED() {
 

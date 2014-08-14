@@ -122,7 +122,7 @@ class OpenCLPrinter {
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "pow(" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
-      case Log(b, x) => "(int)log"+b+"((float)"+x+")"
+      case Log(b, x) => "(int)log"+b+"((float)"+toOpenCL(x)+")"
       case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
         s + (e match {
           case Pow(b, Cst(-1)) => " / (" + toOpenCL(b) + ")"

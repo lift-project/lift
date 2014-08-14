@@ -193,8 +193,8 @@ object Type {
               if (!ArithExpr.contains(a, tv)) {
 
                 // fix the range for tv
-                val max = ArithExpr.max(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n)*tvMap.get(tv).get))
-                val min = ArithExpr.min(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n)*tvMap.get(tv).get))
+                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n-1)*tvMap.get(tv).get))
+                // TODO: deal with growing output size
                 tv.range = ContinousRange(min,max)
 
                 // we have outLen*tv where tv is not present inside outLen
