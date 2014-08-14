@@ -72,7 +72,7 @@ object Main extends App {
 
   val inputData = Array.fill(1024)(util.Random.nextInt(2).toFloat)
 
-  Type.check(reduceFun.body, NoType)
+  Type.check(reduceFun.body)
 
   Context.updateContext(reduceFun.body, new Context())
   println(Exploration.search(reduceFun, Seq(inputData)))

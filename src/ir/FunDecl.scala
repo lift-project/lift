@@ -347,6 +347,7 @@ object Vectorize {
 
 case class UserFunDef(name: String, paramNames: Any, body: String,
                       inT: Type, outT: Type)
+// TODO: rethink this ...
   extends FunDecl( inT match {
       case tt: TupleType => tt.elemsT.map(Param(_)).toArray
       case t: Type => Array(Param(t))

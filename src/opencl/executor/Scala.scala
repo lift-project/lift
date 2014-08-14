@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
 
 object Compile {
   def apply(f: Lambda) = {
-    Type.check(f.body, NoType)
+    Type.check(f.body)
 
     val kernelCode = OpenCLGenerator.generate(f)
     println("Kernel code:")
@@ -45,7 +45,7 @@ class Execute(val localSize: Int, val globalSize: Int) {
       }).flatten[ArithExpr]
     val valueMap = (vars zip sizes).toMap[ArithExpr, ArithExpr]
 
-    val outputSize = ArithExpr.substitute(Type.getLength(f.body.outT), valueMap).eval()
+    val outputSize = ArithExpr.substitute(Type.getLengths(f.body.outT).reduce(_*_), valueMap).eval()
 
     val inputs = values.map({
       case f: Float => value(f)

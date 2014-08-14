@@ -220,11 +220,45 @@ object Type {
     }
   }
 
-  def check(expr: Expr, inputT: Type, setType: Boolean = true): Type = {
+
+  private def isEqual(l: Type, r: Type): Boolean = {
+    (l, r) match {
+      case (lst: ScalarType, rst: ScalarType) => lst.size == rst.size && lst.name == rst.name
+      case (ltt: TupleType, rtt: TupleType) => isEqual(ltt, rtt)
+      case (lat: ArrayType, rat: ArrayType) => isEqual(lat, rat)
+      case _ => false
+    }
+  }
+
+  private def isEqual(l: TupleType, r: TupleType): Boolean = {
+    if (l.elemsT.length != r.elemsT.length) return false
+
+    (l.elemsT zip r.elemsT).forall({ case (l,r) => isEqual(l, r) })
+  }
+
+  private def isEqual(l: ArrayType, r: ArrayType): Boolean = {
+    if (l.len != r.len) return false
+
+    isEqual(l.elemT, r.elemT)
+  }
+
+
+  private def getTypeAtIndex(t: Type, index: Int): Type = {
+    t match {
+      case tt: TupleType =>
+        assert(index < tt.elemsT.length)
+        tt.elemsT(index)
+      case at: ArrayType =>
+        ArrayType(getTypeAtIndex(at.elemT, index), at.len)
+      case _ => t
+    }
+  }
+
+  def check(expr: Expr, setType: Boolean = true): Type = {
 
     var inferredOuT = expr match {
-      case param: Param => checkParam(param, inputT)
-      case call: FunCall => checkFunCall(call, inputT, setType)
+      case param: Param => checkParam(param)
+      case call: FunCall => checkFunCall(call, setType)
     }
 
     inferredOuT = inferredOuT match {
@@ -238,22 +272,22 @@ object Type {
     inferredOuT
   }
 
-  private def checkParam(param: Param, inputT: Type): Type = {
-    // The order is important, as a set outT should always be picked over any inferred inputT!
-    if (param.outT != UndefType) param.outT
-    else if (inputT != NoType) inputT
-    else throw new TypeException(inputT, "some type")
+  private def checkParam(param: Param): Type = {
+    param match {
+      case pr: ParamReference => getTypeAtIndex(pr.p.outT, pr.i)
+      case p: Param => p.outT
+    }
   }
 
-  private def checkFunCall(call: FunCall, inputT: Type, setType: Boolean): Type = {
+  private def checkFunCall(call: FunCall, setType: Boolean): Type = {
     assert(call.f != null)
 
-    val inT = inferInputType(call, inputT, setType)
+    val inT = getInTFromArgs(call, setType)
     if (setType)
       call.inT = inT
 
     call.f match {
-      case l: Lambda =>           check(l.body, inT, setType)
+      case l: Lambda =>           checkLambda(l, call, inT, setType)
       case am: AbstractMap =>     checkMap(am, inT, setType)
       case ar: AbstractPartRed => checkReduce(ar, inT, setType)
       case cf: CompFunDef =>      checkCompFunDef(cf, inT, setType)
@@ -263,36 +297,43 @@ object Type {
       case _: asScalar  =>        checkAsScalar(inT)
       case asVector(n) =>         checkAsVector(n, inT)
       case uf: UserFunDef =>      checkUserFunDef(uf, inT)
-      case tL: toLocal =>         check(tL.f.body, inT, setType)
-      case tG: toGlobal =>        check(tG.f.body, inT, setType)
+      case tL: toLocal =>         checkToLocal(tL, inT, setType)
+      case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
       case _: ReorderStride =>    inT
     }
   }
 
-  private def inferInputType(call: FunCall, inputT: Type, setType: Boolean): Type = {
-    val inTs = if (call.args.nonEmpty) {
-      // check arguments and get the output types from there
-      inputT match {
-        // unpack tuple
-        case tt: TupleType =>
-          (call.args zip tt.elemsT).map( {
-            case (a,t) => check(a, t, setType)
-          } )
-        case t: Type => call.args.map(check(_, t, setType))
-      }
+  private def getInTFromArgs(call: FunCall, setType: Boolean): Type = {
+    if (call.args.isEmpty) {
+      NoType
+    } else if (call.args.length == 1) {
+      check(call.args(0), setType)
     } else {
-      Seq(inputT)
+      TupleType( call.args.map(check(_, setType)):_* )
     }
+  }
 
-    if (inTs.length == 1) inTs(0) else TupleType(inTs:_*)
+  private def checkLambda(l: Lambda, call: FunCall, inT: Type, setType: Boolean): Type = {
+    assert(call.args.nonEmpty)
+    if (call.args.length == 1) {
+      if (l.params.length != 1) throw new NumberOfArgumentsException
+      l.params(0).outT = inT
+    } else {
+      val tt = inT match { case tt: TupleType => tt }
+      if (l.params.length == tt.elemsT.length) throw new NumberOfArgumentsException
+
+      (l.params zip tt.elemsT).map({case (p,t) => p.outT = t })
+    }
+    check(l.body, setType)
   }
 
   private def checkMap(am: AbstractMap, inT: Type, setType: Boolean): Type = {
     inT match {
       case at: ArrayType =>
-        val elemT = getElemT(inT)
-        ArrayType(check(am.f.body, elemT, setType), getLength(inT))
+        if (am.f.params.length != 1) throw new NumberOfArgumentsException
+        am.f.params(0).outT = getElemT(inT)
+        ArrayType(check(am.f.body, setType), getLength(inT))
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
@@ -303,7 +344,10 @@ object Type {
         if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
         val elemT = getElemT(tt.elemsT(1))
         val initT = tt.elemsT(0)
-        check(ar.f.body, TupleType(initT, elemT), setType)
+        if (ar.f.params.length != 2) throw new NumberOfArgumentsException
+        ar.f.params(0).outT = initT
+        ar.f.params(1).outT = elemT
+        check(ar.f.body, setType)
         ArrayType(initT, new Cst(1))
       case _ => throw new TypeException(inT, "TupleType")
     }
@@ -313,8 +357,13 @@ object Type {
     inT match {
       case at: ArrayType =>
         // combine the parameter of the first function to call with the type inferred from the argument
+        if (cf.funs.last.params.length != 1) throw new NumberOfArgumentsException
         cf.funs.last.params(0).outT = inT
-        cf.funs.foldRight(inT)((f, inputT) => check(f.body, inputT, setType))
+        cf.funs.foldRight(inT)((f, inputT) => {
+          if (f.params.length != 1) throw new NumberOfArgumentsException
+          f.params(0).outT = inputT
+          check(f.body, setType)
+        })
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
@@ -377,6 +426,18 @@ object Type {
     substitute(uf.outT, substitutions.toMap)
   }
 
+  private def checkToLocal(tL: toLocal, inT: Type, setType: Boolean): Type = {
+    if (tL.f.params.length != 1) throw new NumberOfArgumentsException
+    tL.f.params(0).outT = inT
+    check(tL.f.body, setType)
+  }
+
+  private def checkToGlobal(tG: toGlobal, inT: Type, setType: Boolean): Type = {
+    if (tG.f.params.length != 1) throw new NumberOfArgumentsException
+    tG.f.params(0).outT = inT
+    check(tG.f.body, setType)
+  }
+
   private def checkIterate(i: Iterate, inT: Type): Type = {
     inT match {
       case at: ArrayType =>
@@ -396,7 +457,9 @@ object Type {
             case t: Type => t
           })
 
-        val outputTypeWithTypeVar = check(i.f.body, inputTypeWithTypeVar, setType = false)
+        if (i.f.params.length != 1) throw new NumberOfArgumentsException
+        i.f.params(0).outT = inputTypeWithTypeVar
+        val outputTypeWithTypeVar = check(i.f.body, setType = false)
 
         // find all the type variable in the output type
         val outputTvSet = scala.collection.mutable.HashSet[TypeVar]()
@@ -411,7 +474,7 @@ object Type {
         inputTypeWithTypeVar = substitute(inputTypeWithTypeVar, fixedTvMap.toMap)
 
         // assign the type for f
-        check(i.f.body, inputTypeWithTypeVar)
+        check(i.f.body, setType = true)
 
         val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n, tvMap)
         substitute(closedFormOutputType, tvMap.toMap)
