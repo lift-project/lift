@@ -77,5 +77,11 @@ class TestExpr {
   @Test def OneByOne() {
     assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) / Cst(1)))
   }
+
+  @Test def powSimplify(): Unit = {
+    val N = Var("N")
+    val expr = Pow( 1*1*Pow(2, -1), Log(2, N) + (1  * -1) ) * N
+    assertEquals(Cst(2), ExprSimplifier.simplify(expr))
+  }
   
 }

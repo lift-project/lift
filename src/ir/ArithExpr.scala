@@ -177,7 +177,7 @@ case object ? extends ArithExpr
 case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
 case class Pow(b: ArithExpr, e: ArithExpr) extends ArithExpr {
   override def toString : String = e match {
-    case Cst(-1) => "1/("+b+")"
+    //case Cst(-1) => "1/("+b+")"
     case _ => "pow("+b+","+e+")"
   }
 }

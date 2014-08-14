@@ -13,8 +13,7 @@ object ExprSimplifier {
       primeFactors(n, i+1)
   }
 
-  private def simplifyPow(pow: Pow): ArithExpr = {
-
+  private def simplifyPowCst(pow: Pow): ArithExpr = {
     pow match {
       case Pow(Cst(0), Cst(0)) => throw new NotEvaluableException(pow.toString())
       case Pow(Cst(b), Cst(e)) => {
@@ -37,13 +36,33 @@ object ExprSimplifier {
       case Pow(base, Cst(1)) => base
       case Pow(Cst(0), _) => Cst(0)
       case Pow(Cst(1), _) => Cst(1)
+
+      // x^(m+n) => x^m * x^n
+      case Pow(base, Sum(terms)) => simplifyProd(Prod(terms.map(t => simplifyPow(Pow(base, t)))))
+
+      // (x*y)^(n) => x^n * y^n
       case Pow(Prod(terms), exp) => simplifyProd(Prod(terms.map(t => simplifyPow(Pow(t, exp)))))
-      case Pow(Pow(b,e1),e2) => simplifyPow(Pow(b,simplifyProd(e1*e2)))
 
-      case Pow(Cst(b1), Prod(List(Log(Cst(b2), expr), term))) if b1 == b2 => simplifyPow(Pow(expr, term))
+      case Pow(b1, Prod(List(Log(b2, expr), term))) if b1 == b2 => simplifyPow(Pow(expr, term))
 
+      case _ => pow
+    }
+  }
+
+  private def powIntoNormalForm(pow: Pow): Pow = {
+    pow match {
+      // transforming pow into normal form:
+      // (x^e1)^e2 => x^(e1*e2)
+      case Pow(Pow(b, e1), e2) => powIntoNormalForm(Pow(simplify(b), simplifyProd(e1 * e2)))
       case Pow(_,_) => pow
     }
+  }
+
+  private def simplifyPow(pow: Pow): ArithExpr = {
+
+    val resultPow = powIntoNormalForm(pow)
+
+    simplifyPowCst(resultPow)
   }
 
   private def simplifySum(sum: Sum): ArithExpr = sum match {

@@ -392,7 +392,6 @@ class TestDotProduct {
   }
 
   /*
-  TODO: continue here
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
 
     val inputSize = 4096
@@ -423,7 +422,8 @@ class TestDotProduct {
     (output, runtime)
 
   }
-*/
+  */
+
   /*
     @Test def MATRIX_VECTOR_FUSED() {
 
