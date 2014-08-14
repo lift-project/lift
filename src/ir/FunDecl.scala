@@ -73,11 +73,29 @@ class Lambda1(override val params: Array[Param], override val body: Expr) extend
   assert(params.length == 1)
 }
 
+object Lambda1 {
+  implicit def FunDefToLambda(f: FunDecl) = {
+    assert(f.params.nonEmpty)
+    if (f.params.length == 1) {
+      new Lambda1(f.params, f(f.params(0)))
+    } else {
+      fun( x => f( f.params.zipWithIndex.map({ case (_,i) => Get(x, i) }):_* ) )
+    }
+  }
+}
+
 class Lambda2(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 2)
 
   def apply(arg: Expr): Lambda1 = {
     fun( tmp => super.apply(arg)(tmp) )
+  }
+}
+
+object Lambda2 {
+  implicit def FunDefToLambda(f: FunDecl) = {
+    assert(f.params.length == 2)
+    new Lambda2(f.params, f(f.params(0), f.params(1)))
   }
 }
 
@@ -249,12 +267,12 @@ trait FPattern {
 
 
 
-abstract class AbstractMap(f:Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern
+abstract class AbstractMap(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
 /*object AbstractMap {
   def unapply(am: AbstractMap): Option[FunExpr] = Some(am.f)
 }*/
 
-case class Map(f:Lambda) extends AbstractMap(f) {
+case class Map(f:Lambda1) extends AbstractMap(f) {
   override def apply(args: Expr*): MapCall = {
     assert(args.length == 1)
     new MapCall("Map", Var(""), this, args(0))
@@ -266,19 +284,19 @@ case class Map(f:Lambda) extends AbstractMap(f) {
 }
 
 object Map {
-  def apply(f: Lambda, expr: Expr): MapCall = Map(f)(expr)
+  def apply(f: Lambda1, expr: Expr): MapCall = Map(f)(expr)
 }
 
 
-abstract class GenerableMap(f:Lambda) extends AbstractMap(f) with isGenerable
+abstract class GenerableMap(f:Lambda1) extends AbstractMap(f) with isGenerable
 
-abstract class AbstractPartRed(f:Lambda) extends Pattern(Array[Param](Param(UndefType), Param(UndefType))) with FPattern {
+abstract class AbstractPartRed(f:Lambda2) extends Pattern(Array[Param](Param(UndefType), Param(UndefType))) with FPattern {
   def init: Value = params(0) match { case v: Value => v}
 }
 
-abstract class AbstractReduce(f:Lambda) extends AbstractPartRed(f)
+abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
 
-case class Reduce(f: Lambda) extends AbstractReduce(f) {
+case class Reduce(f: Lambda2) extends AbstractReduce(f) {
   override def apply(args: Expr*) : ReduceCall = {
     assert(args.length == 2)
     new ReduceCall(Var("i"), this, args(0), args(1))
@@ -289,10 +307,10 @@ case class Reduce(f: Lambda) extends AbstractReduce(f) {
   }
 }
 object Reduce {
-  def apply(f: Lambda, init: Value): Lambda = fun((x) => Reduce(f)(init, x))
+  def apply(f: Lambda2, init: Value): Lambda = fun((x) => Reduce(f)(init, x))
 }
 
-case class PartRed(f: Lambda) extends AbstractPartRed(f) with FPattern {
+case class PartRed(f: Lambda2) extends AbstractPartRed(f) with FPattern {
   override def apply(args: Expr*) : ReduceCall = {
     assert(args.length == 2)
     new ReduceCall(Var("i"), this, args(0), args(1))
@@ -303,7 +321,7 @@ case class PartRed(f: Lambda) extends AbstractPartRed(f) with FPattern {
   }
 }
 object PartRed {
-  def apply(f: Lambda, init: Value): Lambda = fun((x) => PartRed(f)(init, x))
+  def apply(f: Lambda2, init: Value): Lambda = fun((x) => PartRed(f)(init, x))
 }
 
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
@@ -347,7 +365,6 @@ object Vectorize {
 
 case class UserFunDef(name: String, paramNames: Any, body: String,
                       inT: Type, outT: Type)
-// TODO: rethink this ...
   extends FunDecl( inT match {
       case tt: TupleType => tt.elemsT.map(Param(_)).toArray
       case t: Type => Array(Param(t))
@@ -375,7 +392,7 @@ object UserFunDef {
 }
 
 
-case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
+case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
 
   override def apply(args: Expr*) : IterateCall = {
     assert(args.length == 1)
@@ -388,7 +405,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(Array[Param](Param(U
 }
 
 object Iterate {
-  def apply(n: ArithExpr): ((Lambda) => Iterate)  = (f: Lambda) => Iterate(n ,f)
+  def apply(n: ArithExpr): ((Lambda1) => Iterate)  = (f: Lambda1) => Iterate(n ,f)
 
   def varName(): String = {
     "iterSize"

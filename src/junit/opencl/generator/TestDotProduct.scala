@@ -89,7 +89,7 @@ class TestDotProduct {
       (left, right) =>
 
       Join() o MapWrg(
-        Join() o MapLcl(MapSeq(fun(x => add(x)))) o Split(4)
+        Join() o MapLcl(MapSeq(add)) o Split(4)
       ) o Split(1024) o Zip(left, right)
 
     )
@@ -141,7 +141,7 @@ class TestDotProduct {
     val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(
-        fun( (x) => mult(alpha, x) )
+        fun( x => mult(alpha, x) )
         )) o Split(4)
       ) o Split(1024) o input
     )
@@ -166,7 +166,7 @@ class TestDotProduct {
     val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
       Join() o MapWrg(
         Join() o MapLcl(ReduceSeq(sumUp, 0.0f) o MapSeq(
-          fun( (x) => mult(alpha, x) )
+          fun( x => mult(alpha, x) )
         )) o Split(4)
       ) o Split(1024) o input
     )
@@ -194,7 +194,7 @@ class TestDotProduct {
                                                     ArrayType(Float, Var("N")), (left, right) => {
 
       Join() o MapWrg(
-        fun( (x) => Join() o MapLcl(fun( (x) => ReduceSeq(sumUp, 0.0f) o MapSeq(fun(x => mult(x))) o x)) o Split(4) o x )
+        fun( x => Join() o MapLcl(fun( x => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o x)) o Split(4) o x )
       ) o Split(1024) o Zip(left, right)
 
     }), leftInputData, rightInputData, leftInputData.size, rightInputData.size )
@@ -317,7 +317,7 @@ class TestDotProduct {
       ArrayType(Float, 1024),
       (matrix, vector) => {
         Join() o MapWrg(
-          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(fun(x => mult(x))) o Zip(vector, r) ) )
+          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o Zip(vector, r) ) )
         ) o Split(128) o matrix
       })
 
@@ -345,7 +345,7 @@ class TestDotProduct {
         MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(10)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(MapSeq(fun(x => mult(x))))) o Split(1) o fun( (r) => Zip(vector, r) )
+            Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o fun( (r) => Zip(vector, r) )
         ) o matrix
 
       })
@@ -374,7 +374,7 @@ class TestDotProduct {
       ArrayType(Float, Var("N2")),
       (matrix, vector) => {
         Join() o MapWrg(
-          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(fun(x => mult(x))) o Zip(vector, r) ) )
+          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o Zip(vector, r) ) )
         ) o Split(128) o matrix
       })
 
@@ -695,6 +695,7 @@ class TestDotProduct {
       val AtimesX = Map(fun( row => scal(alpha) o dot(x, row) ), A)
       vecAdd(AtimesX, scalledY)
     })
+
 
     /*
     private def BlackScholes(s: Input): Fun =
