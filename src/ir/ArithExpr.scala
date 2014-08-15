@@ -7,7 +7,7 @@ import scala.util.Random
 class NotEvaluableException(msg: String) extends Exception(msg)
 
 
-abstract class ArithExpr {
+abstract sealed class ArithExpr {
 
   def eval(): Int = {
     val dblResult = ArithExpr.evalDouble(this)
@@ -22,11 +22,11 @@ abstract class ArithExpr {
 
   def *(that: ArithExpr): Prod = {
     val thisExprs = this match {
-      case p:Prod => p.terms
+      case p:Prod => p.factors
       case _ => List(this)
     }
     val thatExprs = that match {
-      case p:Prod => p.terms
+      case p:Prod => p.factors
       case _ => List(that)
     }
     Prod(thisExprs++thatExprs)
@@ -138,7 +138,7 @@ object ArithExpr {
     newExpr = newExpr match {
       case Pow(l,r) => Pow(substitute(l,substitutions),substitute(r,substitutions))
       case adds: Sum => Sum(adds.terms.map(t => substitute(t, substitutions)))
-      case muls: Prod => Prod(muls.terms.map(t => substitute(t, substitutions)))
+      case muls: Prod => Prod(muls.factors.map(t => substitute(t, substitutions)))
       case _ => newExpr
     }
 
@@ -148,8 +148,15 @@ object ArithExpr {
 
   private def evalDouble(e: ArithExpr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ? => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | ArithExprFunction() | ? => throw new NotEvaluableException(e.toString)
+
     case Pow(base,exp) => scala.math.pow(evalDouble(base),evalDouble(exp))
+    case Log(b,x) => scala.math.log(evalDouble(x)) / scala.math.log(evalDouble(b))
+
+    case Mod(dividend, divisor) => dividend.eval % divisor.eval
+
+    case And(l,r) => l.eval & r.eval
+
     case Sum(terms) => terms.foldLeft(0.0)((result,expr) => result+evalDouble(expr))
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
   }
@@ -185,14 +192,17 @@ case class Log(b: ArithExpr, x: ArithExpr) extends ArithExpr {
   override def toString: String = "log"+b+"("+x+")"
 }
 
-case class Prod(terms: List[ArithExpr]) extends ArithExpr {
+case class Prod(factors: List[ArithExpr]) extends ArithExpr {
   override def toString : String = {
-    val m = if (terms.nonEmpty) { terms.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) } else {""}
+    val m = if (factors.nonEmpty) factors.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) else {""}
     "(" + m +")"
   }
 }
 case class Sum(terms: List[ArithExpr]) extends ArithExpr {
-  override def toString: String = "("+terms.map((t) => t.toString).reduce((s1, s2) => s1 + "+" + s2)+")"
+  override def toString: String = {
+    val m = if (terms.nonEmpty) terms.map((t) => t.toString).reduce((s1, s2) => s1 + "+" + s2) else {""}
+    "(" + m +")"
+  }
 }
 
 case class Mod(dividend: ArithExpr, divisor: ArithExpr) extends ArithExpr {
@@ -202,6 +212,8 @@ case class Mod(dividend: ArithExpr, divisor: ArithExpr) extends ArithExpr {
 case class And(lhs: ArithExpr, rhs: ArithExpr) extends ArithExpr {
   override def toString: String = "(" + lhs + " & " + rhs + ")"
 }
+
+case class ArithExprFunction() extends ArithExpr
 
 // a special variable that should only be used for defining function type
 class TypeVar private(range : Range) extends Var("", range) {
@@ -231,7 +243,7 @@ object TypeVar {
   def getTypeVars(e: ArithExpr) : Set[TypeVar] = {
     e match {
       case adds: Sum => adds.terms.foldLeft(new immutable.HashSet[TypeVar]())((set,expr) => set ++ getTypeVars(expr))
-      case muls: Prod => muls.terms.foldLeft(new immutable.HashSet[TypeVar]())((set,expr) => set ++ getTypeVars(expr))
+      case muls: Prod => muls.factors.foldLeft(new immutable.HashSet[TypeVar]())((set,expr) => set ++ getTypeVars(expr))
       case v: TypeVar => immutable.HashSet(v)
       case _ => immutable.HashSet()
     }
@@ -250,7 +262,7 @@ case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr 
 
   override def hashCode() = {
     val hash = 5
-    hash * 79 + id;
+    hash * 79 + id
   }
 
   override def toString = name
@@ -331,7 +343,7 @@ object Var {
   def getVars(e: ArithExpr) : Set[Var] = {
     e match {
       case adds: Sum => adds.terms.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
-      case muls: Prod => muls.terms.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
+      case muls: Prod => muls.factors.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
       case v: Var => immutable.HashSet(v)
       case _ => immutable.HashSet()
     }

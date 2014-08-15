@@ -33,14 +33,20 @@ class TestExpr {
     }
   }
 
-  def testRandom() {
-    val re = rndExpr(3)
-    println(re)
-    println(ExprSimplifier.simplify(re))
+  @Test def testRandom() {
 
-    val ori = re.evalDbl()
-    val sim = ExprSimplifier.simplify(re).evalDbl()
-    assert(math.abs((ori-sim)) <= 1.0/1000000.0, ori+" != "+sim)
+    for (a <- 1 to 10) {
+      val re = rndExpr(3)
+      println("random expression = "+re)
+
+      val oriEval = re.evalDbl()
+      val sim = ExprSimplifier.simplify(re)
+      println("simplified expression = "+sim)
+
+      val simEval = sim.evalDbl()
+      assert(math.abs(oriEval-simEval) <= 1.0/1000000.0, oriEval+" != "+simEval)
+    }
+
 
   }
 
@@ -52,7 +58,7 @@ class TestExpr {
       val c1 = Cst(1)
       val c2 = Cst(2)
       val c10 = Cst(10)
-      val v = Var(new RangeMul(c0,c2,c10))
+      //val v = Var(new RangeMul(c0,c2,c10))
       val e = (c0+c1)*(c10+c2)+(c10/c2)
 
       ExprSimplifier.simplify(e).eval()
@@ -65,8 +71,8 @@ class TestExpr {
     
     assertEquals(Cst(17),result)
     
-    val e2 = (c0/v+c1/v)*v*(c10+c2)+(c10/c2)
-    val result2 = ExprSimplifier.simplify(e)
+    //val e2 = (c0/v+c1/v)*v*(c10+c2)+(c10/c2)
+    //val result2 = ExprSimplifier.simplify(e)
     //println(result2)
 
 

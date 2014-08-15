@@ -8,7 +8,7 @@ class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
 
 // hacky class to store function name
-case class OclFunction(name: String, param: Int) extends ArithExpr {def toOCLString = name+"("+param+")"}
+class OclFunction(name: String, param: Int) extends ArithExprFunction {def toOCLString = name+"("+param+")"}
 
 class get_global_id(param: Int) extends OclFunction("get_global_id", param)
 class get_local_id(param: Int) extends OclFunction("get_local_id", param)

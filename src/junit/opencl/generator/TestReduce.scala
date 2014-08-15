@@ -172,7 +172,7 @@ class TestReduce {
 
       }), inputData, inputData.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+      assertEquals("Note that this benchmark is only valid on device with a warp_size of 32!",inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
