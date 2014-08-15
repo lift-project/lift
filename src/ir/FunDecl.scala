@@ -23,7 +23,7 @@ abstract class FunDecl(val params: Array[Param]) {
 
 
   def apply(args : Expr*) : FunCall = {
-    assert (args.length <= params.length)
+    assert (args.length == params.length)
     new FunCall(this, args:_*)
   }
 
@@ -88,7 +88,7 @@ class Lambda2(override val params: Array[Param], override val body: Expr) extend
   assert(params.length == 2)
 
   def apply(arg: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg)(tmp) )
+    fun( tmp => super.apply(arg, tmp) )
   }
 }
 
@@ -103,11 +103,11 @@ class Lambda3(override val params: Array[Param], override val body: Expr) extend
   assert(params.length == 3)
 
   def apply(arg0: Expr, arg1: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1)(tmp) )
+    fun( tmp => super.apply(arg0, arg1, tmp) )
   }
 
   def apply(arg: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg)(tmp0, tmp1) )
+    fun( (tmp0, tmp1) => super.apply(arg, tmp0, tmp1) )
   }
 }
 
@@ -115,15 +115,15 @@ class Lambda4(override val params: Array[Param], override val body: Expr) extend
   assert(params.length == 4)
 
   def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, arg2)(tmp) )
+    fun( tmp => super.apply(arg0, arg1, arg2, tmp) )
   }
 
   def apply(arg0: Expr, arg1: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1)(tmp0, tmp1) )
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1, tmp0, tmp1) )
   }
 
   def apply(arg: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg)(tmp0, tmp1, tmp2) )
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg, tmp0, tmp1, tmp2) )
   }
 }
 
@@ -131,19 +131,19 @@ class Lambda5(override val params: Array[Param], override val body: Expr) extend
   assert(params.length == 5)
 
   def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, arg2, arg3)(tmp) )
+    fun( tmp => super.apply(arg0, arg1, arg2, arg3, tmp) )
   }
 
   def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2)(tmp0, tmp1) )
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, tmp0, tmp1) )
   }
 
   def apply(arg0: Expr, arg1: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1)(tmp0, tmp1, tmp2) )
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, tmp0, tmp1, tmp2) )
   }
 
   def apply(arg: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg)(tmp0, tmp1, tmp2, tmp3) )
+    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg, tmp0, tmp1, tmp2, tmp3) )
   }
 }
 
@@ -198,13 +198,6 @@ object fun {
     new Lambda5(params, f(params(0), params(1), params(2), params(3), params(4)))
   }
 }
-
-/*
-object innerFun {
-  def apply(f: (Param) => Expr) = fun( (x) => { fun( f )(x) } )
-}
-*/
-
 
 
 

@@ -243,7 +243,7 @@ object Type {
   }
 
 
-  private def getTypeAtIndex(t: Type, index: Int): Type = {
+  def getTypeAtIndex(t: Type, index: Int): Type = {
     t match {
       case tt: TupleType =>
         assert(index < tt.elemsT.length)
@@ -321,7 +321,7 @@ object Type {
       l.params(0).outT = inT
     } else {
       val tt = inT match { case tt: TupleType => tt }
-      if (l.params.length == tt.elemsT.length) throw new NumberOfArgumentsException
+      if (l.params.length != tt.elemsT.length) throw new NumberOfArgumentsException
 
       (l.params zip tt.elemsT).map({case (p,t) => p.outT = t })
     }
@@ -342,8 +342,8 @@ object Type {
     inT match {
       case tt: TupleType =>
         if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
-        val elemT = getElemT(tt.elemsT(1))
         val initT = tt.elemsT(0)
+        val elemT = getElemT(tt.elemsT(1))
         if (ar.f.params.length != 2) throw new NumberOfArgumentsException
         ar.f.params(0).outT = initT
         ar.f.params(1).outT = elemT

@@ -90,7 +90,7 @@ class TestDotProduct {
 
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(add)) o Split(4)
-      ) o Split(1024) o Zip(left, right)
+      ) o Split(1024) o Zip(left, right) // TODO: allow one sided reorder
 
     )
 
@@ -433,7 +433,7 @@ class TestDotProduct {
   @Test def MATRIX_VECTOR_FUSED() {
 
     val inputSize = 4096
-    val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
+    val matrix = Array.tabulate(inputSize, inputSize)((r,c) => (((r*3 + c*2) % 10) + 1) * 0.1f)
     val vector = Array.fill(inputSize)(2.0f)
     val alpha = 2.5f
 

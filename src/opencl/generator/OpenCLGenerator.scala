@@ -44,16 +44,16 @@ object OpenCLGenerator extends Generator {
     f.params.map((p) => {
       p.outT match {
         case _: ScalarType =>
-          p.inM = OpenCLMemory.allocPrivateMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+          p.outM = OpenCLMemory.allocPrivateMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
         case _ =>
-          p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
+          p.outM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.outT))
       }
       p.inAccess = IdAccessFunctions
       p.inT = p.outT
     })
 
     // pass 1
-    allocateMemory(f.body)
+    allocateMemory(f)
 
     if (Debug()) {
       println("Memory:")
@@ -64,7 +64,7 @@ object OpenCLGenerator extends Generator {
 
     if (Debug()) {
       println("Allocated Memory:")
-      TypedOpenCLMemory.getAllocatedMemory(f.body).map(m => println(m.toString))
+      TypedOpenCLMemory.getAllocatedMemory(f.body, f.params).map(m => println(m.toString))
       println("")
     }
 
@@ -101,9 +101,9 @@ object OpenCLGenerator extends Generator {
     })
   }
 
-  def allocateMemory(f: Expr): Unit = {
-    OpenCLMemory.alloc(f)
-    Kernel.memory = TypedOpenCLMemory.getAllocatedMemory(f)
+  def allocateMemory(f: Lambda): Unit = {
+    OpenCLMemory.alloc(f.body)
+    Kernel.memory = TypedOpenCLMemory.getAllocatedMemory(f.body, f.params)
   }
 
 

@@ -2,7 +2,7 @@ package opencl.executor
 
 import ir._
 import opencl.generator.OpenCLGenerator
-import opencl.ir.{OpenCLMemory, GlobalMemory, LocalMemory, Float}
+import opencl.ir._
 
 import scala.reflect.ClassTag
 
