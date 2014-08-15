@@ -192,10 +192,6 @@ object Type {
               val a = ExprSimplifier.simplify(outLen / tv)
               if (!ArithExpr.contains(a, tv)) {
 
-                val term = Pow(a, n-1)*tvMap.get(tv).get
-                val simplTerm = ExprSimplifier.simplify(Pow(a, n-1)*tvMap.get(tv).get)
-                val simplTerm2 = ExprSimplifier.simplify(simplTerm)
-
                 // fix the range for tv
                 val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n-1)*tvMap.get(tv).get))
                 // TODO: deal with growing output size
