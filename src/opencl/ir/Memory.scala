@@ -385,14 +385,11 @@ object OpenCLMemory {
                            outputMem: OpenCLMemory, outT: Type, inputMem: OpenCLMemory): OpenCLMemory = {
     val addressSpace =
       if (!inputMem.isInstanceOf[OpenCLMemoryCollection]) {
-        println("inputMem: " + inputMem)
         inputMem.addressSpace
       } else {
         val coll = inputMem match { case coll: OpenCLMemoryCollection => coll }
         coll.findCommonAddressSpace()
       }
-
-    println("addressSpace: " + addressSpace)
 
     if (outputMem == OpenCLNullMemory)
       outT match {

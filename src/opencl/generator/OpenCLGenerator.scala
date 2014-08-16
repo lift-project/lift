@@ -391,12 +391,13 @@ object OpenCLGenerator extends Generator {
                 ((coll.subMemories zip tt.elemsT) zip collAf.elems).map({
                     case ((m, ty), af) => access(m, ty, af)
                   } ).reduce(_ + ", " + _)
-
+/*
               case af: AccessFunctions =>
                 println("JUST ONE ACCESS FUNCTION FOR MULTIPLE MEMORY") // TODO: find out why this is necessary
                 (coll.subMemories zip tt.elemsT).map({
                   case (m, ty) => access(m, ty, af)
                 } ).reduce(_ + ", " + _)
+*/
             }
         }
 

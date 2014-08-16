@@ -42,32 +42,6 @@ class TestDotProduct {
 
   val N = Var("N")
   val M = Var("M")
-  /*
-  val input = Input(Var("x"), ArrayType(Float, N))
-  val tmp = Input(Var("x"), ArrayType(Float, N))
-  val left = Input(Var("left"), ArrayType(Float, N))
-  val right = Input(Var("right"), ArrayType(Float, N))
-
-  val Svec = Input(Var("S"), ArrayType(Float, N))
-  val Xvec = Input(Var("X"), ArrayType(Float, N))
-  val Tvec = Input(Var("T"), ArrayType(Float, N))
-  val Rvec = Input(Var("R"), ArrayType(Float, N))
-  val Vvec = Input(Var("V"), ArrayType(Float, N))
-
-  val t = Input(Var("t"), TupleType(ArrayType(Float, N), ArrayType(Float, N)))
-
-  val alpha = Input(Var("alhpa"), Float)
-  val beta = Input(Var("beta"), Float)
-
-  val matrix = Input(Var("matrix"), ArrayType(ArrayType(Float, N), M))
-  val vector = Input(Var("vector"), ArrayType(Float, N))
-
-  val vectorY = Input(Var("vectorY"), ArrayType(Float, M))
-  val vectorX = Input(Var("vectorX"), ArrayType(Float, N))
-
-  val fixedSizeMatrix = Input(Var("matrix"), ArrayType(ArrayType(Float, 1024), 1024))
-  val fixedSizeVector = Input(Var("vector"), ArrayType(Float, 1024))
-  */
 
   private def dotProd(left: Array[Float], right: Array[Float]): Float = {
     (left,right).zipped.map(_*_).reduce(_+_)
@@ -90,7 +64,7 @@ class TestDotProduct {
 
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(add)) o Split(4)
-      ) o Split(1024) o Zip(left, right) // TODO: allow one sided reorder
+      ) o Split(1024) o Zip(ReorderStride() o left, right)
 
     )
 
