@@ -67,17 +67,60 @@ object ArithExpr {
     minmax(e1, e2)._1
   }
 
+  def minmax(v: Var, c: Cst): (ArithExpr, ArithExpr) = {
+    val m1 = v.range.min match { case Cst(min) => if (min >= c.c) Some((c, v)) else None }
+    if (m1.isDefined) return m1.get
+
+    val m2 = v.range.max match { case Cst(max) => if (max <= c.c) Some((v, c)) else None }
+    if (m2.isDefined) return m2.get
+
+    throw new NotEvaluableException("Cannot determine min/max of " + v + " and " + c)
+  }
+
+  def minmax(p: Prod, c: Cst): (ArithExpr, ArithExpr) = {
+    val lb = lowerBound(p)
+    if (lb.isDefined && lb.get >= c.c) return (c, p)
+
+    val ub = upperBound(p)
+    if (ub.isDefined && ub.get <= c.c) return (p, c)
+
+    throw new NotEvaluableException("Cannot determine min/max of " + p + " and " + c)
+  }
+
+  private def upperBound(p: Prod): Option[Int] = {
+    Some(Prod(p.factors.map({
+      case v: Var => v.range.max match {
+        case max: Cst => max
+        case _ => return None
+      }
+      case c: Cst => c
+    })).eval())
+  }
+
+  private def lowerBound(p: Prod): Option[Int] = {
+    Some(Prod(p.factors.map({
+      case v: Var => v.range.min match {
+        case min: Cst => min
+        case _ => return None
+      }
+      case c: Cst => c
+    })).eval())
+  }
+
   def minmax(e1: ArithExpr, e2: ArithExpr): (ArithExpr, ArithExpr) = {
     val diff = ExprSimplifier.simplify(e1 - e2)
     diff match {
       case Cst(c) => if (c < 0) (e1, e2) /* e1 is smaller than e2 */ else (e2, e1) /* e2 is smaller than e1*/
       case _ =>
         (e1, e2) match {
-          case (v: Var, Cst(c)) => v.range.min match {
-            case Cst(min) => if (min >= c) (e2, v) else throw new NotEvaluableException("Cannot determine max")
-          }
+          case (v: Var, c: Cst) => minmax(v, c)
+          case (c: Cst, v: Var) => val m = minmax(v, c); (m._2, m._1)
+
+          case (p: Prod, c: Cst) => minmax(p, c)
+          case (c: Cst, p: Prod) => val m = minmax(p, c); (m._2, m._1)
+
           case _ =>
-            throw new NotEvaluableException("Cannot determine max")
+            throw new NotEvaluableException("Cannot determine min/max of " + e1 + " and " + e2)
         }
     }
   }

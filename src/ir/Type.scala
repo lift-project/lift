@@ -193,7 +193,8 @@ object Type {
               if (!ArithExpr.contains(a, tv)) {
 
                 // fix the range for tv
-                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n-1)*tvMap.get(tv).get))
+                // TODO: Pow(a, n) or Pow(a, n-1)???
+                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n)*tvMap.get(tv).get))
                 // TODO: deal with growing output size
                 tv.range = ContinousRange(min,max)
 
