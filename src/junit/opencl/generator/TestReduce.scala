@@ -2,7 +2,6 @@ package junit.opencl.generator
 
 import org.junit._
 import org.junit.Assert._
-import opencl.generator._
 import opencl.ir._
 import ir._
 
@@ -96,7 +95,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
         Join() o MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -113,7 +112,7 @@ class TestReduce {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
       val (output, runtime) = Execute(8, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
         Join() o MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -160,7 +159,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -180,7 +179,7 @@ class TestReduce {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -208,7 +207,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
 
       val f = fun(
         ArrayType(Float, Var("N")),
@@ -230,7 +229,7 @@ class TestReduce {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -259,7 +258,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
 
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
@@ -279,7 +278,7 @@ class TestReduce {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -306,7 +305,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
       val (output, runtime) = opencl.executor.Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         // the original derived one does not generate correct code ...
@@ -325,7 +324,7 @@ class TestReduce {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
       val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -352,7 +351,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o asScalar() o Join() o MapWrg(
@@ -370,7 +369,7 @@ class TestReduce {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
       val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -397,7 +396,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -416,7 +415,7 @@ class TestReduce {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
 
       val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
@@ -444,7 +443,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -463,8 +462,7 @@ class TestReduce {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
-
+    {
       val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(

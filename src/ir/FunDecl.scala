@@ -355,9 +355,9 @@ object Vectorize {
   }
 }
 
-
 case class UserFunDef(name: String, paramNames: Any, body: String,
                       inT: Type, outT: Type)
+//  extends FunDecl(UserFunDef.toParams(inT)) with isGenerable {
   extends FunDecl( inT match {
       case tt: TupleType => tt.elemsT.map(Param(_)).toArray
       case t: Type => Array(Param(t))
@@ -381,6 +381,13 @@ object UserFunDef {
 
     // create new user fun
     UserFunDef(name, uf.paramNames, uf.body, expectedInT, expectedOutT)
+  }
+
+  private def toParams(t: Type): Array[Param] = {
+    t match {
+      case tt: TupleType => tt.elemsT.map(toParams(_)).flatten.toArray
+      case t: Type => Array(Param(t))
+    }
   }
 }
 

@@ -1,7 +1,6 @@
 package junit.opencl.generator
 
 import opencl.executor._
-import opencl.generator.OpenCLGenerator
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 import opencl.ir._
@@ -188,7 +187,7 @@ class TestDotProduct {
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
       val (output, runtime) = Execute(inputSize)( fun (ArrayType(Float, Var("N")),
                                                        ArrayType(Float, Var("N")),(left, right) => {
 
@@ -207,7 +206,7 @@ class TestDotProduct {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
       val (output, runtime) = opencl.executor.Execute(firstOutput.length)( fun (ArrayType(Float, Var("N")),(in) => {
 
         Join() o MapWrg(
@@ -233,7 +232,7 @@ class TestDotProduct {
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (firstOutput, firstRuntime) = {
+    val (firstOutput, _) = {
       val (output, runtime) = opencl.executor.Execute(inputSize)( fun(ArrayType(Float, Var("N")),
                                                                       ArrayType(Float, Var("N")), (left, right) => {
 
@@ -252,7 +251,7 @@ class TestDotProduct {
       (output, runtime)
     }
 
-    val (secondOutput, secondRuntime) = {
+    {
       val (output, runtime) = opencl.executor.Execute(firstOutput.length)( fun (ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
@@ -277,6 +276,22 @@ class TestDotProduct {
     matrix.map(
       (row) => (row,vector).zipped.map(_ * _).reduce(_ + _)
     )
+  }
+
+  def matrixVector(matrix: Array[Array[Float]], vector: Array[Float], alpha: Float): Array[Float] = {
+    matrix.map(
+      (row) => (row,vector).zipped.map(_ * _).reduce(_ + _) * alpha
+    )
+  }
+
+  def matrixVector(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float], alpha: Float, beta: Float): Array[Float] = {
+    val tmp = matrix.map(
+      (row) => (row,vectorX).zipped.map(_ * _).reduce(_ + _) * alpha
+    )
+
+    val scaledY = vectorY.map(_ * beta)
+
+    (tmp, scaledY).zipped.map(_ + _)
   }
 
 
@@ -396,187 +411,217 @@ class TestDotProduct {
 
   }
 
-  /*
-    @Test def MATRIX_VECTOR_FUSED() {
 
-      /*
-      val firstKernel = MapWrg(
-        Join() o MapLcl(MapSeq(Bind(mult, alpha)) o ReduceSeq(multAndSumUp, 0.0f)) o Split(4096) o Zip(vector)
-      ) o matrix
-      */
-
-      /*
-      val secondKernel = Join() o Join() o MapWrg(
-        MapLcl(MapSeq(Bind(multAndSumUp, beta)))
-      ) o Split(128) o Split(32) o Zip(vector, tmp)
-      */
-
-      // tested with size == 4096
+  @Test def MATRIX_VECTOR_FUSED() {
 
     val inputSize = 4096
-    val matrix = Array.tabulate(inputSize, inputSize)((r,c) => (((r*3 + c*2) % 10) + 1) * 0.1f)
-    val vector = Array.fill(inputSize)(2.0f)
+    val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
+    val vectorX = Array.fill(inputSize)(2.0f)
+    val vectorY = Array.fill(inputSize)(1.0f)
     val alpha = 2.5f
+    val beta = 1.5f
 
-    @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL() {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val f1 = fun(
+      ArrayType(ArrayType(Float, N), M),
+      ArrayType(Float, N),
+      Float,
+      (matrix, vectorX, alpha) => {
+        MapWrg(
+          Join() o MapLcl(
+            MapSeq(fun( x => mult(alpha, x) )) o ReduceSeq(multAndSumUp, 0.0f)
+          ) o Split(4096) o fun( (r) => Zip(vectorX, r) )
+        ) o matrix
+      })
 
+    val (firstOutput, firstRuntime) = Execute(inputSize * inputSize)(f1, matrix, vectorX, alpha, inputSize, inputSize)
+
+    println("output.size = " + firstOutput.size)
+    println("output(0) = " + firstOutput(0))
+    println("runtime = " + firstRuntime)
+
+    (matrixVector(matrix, vectorX, alpha), firstOutput).zipped.map(assertEquals(_,_,0.0))
+
+    val multAndSumUp3 = UserFunDef("multAndSumUp", Array("acc", "l", "r"),
+      "{ return acc + (l * r); }",
+      TupleType(Float, Float, Float), Float)
+
+    val f2 = fun(
+      ArrayType(Float, M),
+      ArrayType(Float, M),
+      Float,
+      (tmp, vectorY, beta) => {
+        Join() o Join() o MapWrg(
+          MapLcl(MapSeq(fun( x => multAndSumUp3(Get(x, 0), Get(x, 1), beta) )))
+        ) o Split(128) o Split(32) o Zip(tmp, vectorY)
+      })
+
+    val (output, _) = Execute(inputSize)(f2, firstOutput, vectorY, beta, inputSize)
+
+    (matrixVector(matrix, vectorX, vectorY, alpha, beta), output).zipped.map(assertEquals(_,_,0.0))
+
+  }
       /*
-      val firstKernel = MapWrg(
-        Lambda(t)( // ??
-          Join() o toGlobal(MapLcl(MapSeq(Bind2(multAndSumUp, beta)))) o Split(1) o
-          Zip(
-            Join() o MapLcl(MapSeq(Bind(mult, alpha))) o Split(1) o
-              Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o Split(4096) o Zip(vectorX, t.get(0)),
-            t.get(1) )
-        )
-      ) o Zip(matrix, vectorY)
-      */
+          @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL() {
 
-    }
+            /*
+            val firstKernel = MapWrg(
+              Lambda(t)( // ??
+                Join() o toGlobal(MapLcl(MapSeq(Bind2(multAndSumUp, beta)))) o Split(1) o
+                Zip(
+                  Join() o MapLcl(MapSeq(Bind(mult, alpha))) o Split(1) o
+                    Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o Split(4096) o Zip(vectorX, t.get(0)),
+                  t.get(1) )
+              )
+            ) o Zip(matrix, vectorY)
+            */
 
-    @Test def FULL_MATRIX_VECTOR_FUSED() {
+          }
 
-      /*
-      val firstKernel = MapWrg(
-        Join() o MapLcl(MapSeq(add)) o Split(1) o
-        Zip( Join() o MapLcl(ReduceSeq(multAndSumUp, 0.0f)) o Split(4096) o Zip(vectorX, t.get(0)) , t.get(1) )
-      ) o Zip(matrix, vectorY)
-      */
+          @Test def FULL_MATRIX_VECTOR_FUSED() {
 
-    }
+            /*
+            val firstKernel = MapWrg(
+              Join() o MapLcl(MapSeq(add)) o Split(1) o
+              Zip( Join() o MapLcl(ReduceSeq(multAndSumUp, 0.0f)) o Split(4096) o Zip(vectorX, t.get(0)) , t.get(1) )
+            ) o Zip(matrix, vectorY)
+            */
 
-    @Test def MATRIX_VECTOR_LOCAL_MEMORY_FUSED() {
+          }
 
-      /*
-      val firstKernel = MapWrg(
-        Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128) o
-        Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride() o Split(32) o Zip(vector)
-      ) o matrix
-      */
+          @Test def MATRIX_VECTOR_LOCAL_MEMORY_FUSED() {
 
-    }
+            /*
+            val firstKernel = MapWrg(
+              Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128) o
+              Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride() o Split(32) o Zip(vector)
+            ) o matrix
+            */
 
-    @Test def VECTOR_NORM() {
+          }
 
-      val firstKernel = Join() o Join() o MapWrg(
-        toGlobal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o ReorderStride()
-      ) o Split(128) o Split(2048) o input
+          @Test def VECTOR_NORM() {
 
-      val secondKernel = Join() o MapWrg(
-        Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
-        Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-        Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
-      ) o Split(8192) o input
+            val firstKernel = Join() o Join() o MapWrg(
+              toGlobal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o ReorderStride()
+            ) o Split(128) o Split(2048) o input
 
-    }
+            val secondKernel = Join() o MapWrg(
+              Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
+              Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+              Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
+            ) o Split(8192) o input
 
-    @Test def BLACK_SCHOLES_NVIDIA_VERSION() {
+          }
 
-      val pricesType = UserType("typedef struct { float call; float put; } prices;")
+          @Test def BLACK_SCHOLES_NVIDIA_VERSION() {
 
-      val cnd =
-        UserFun("CND", Array("d"),
-            "{ const float A1       =  0.319381530f;\n" +
-              "const float A2       = -0.356563782f;\n  " +
-              "const float A3       =  1.781477937f;\n  " +
-              "const float A4       = -1.821255978f;\n  " +
-              "const float A5       =  1.330274429f;\n  " +
-              "const float RSQRT2PI =  0.39894228040143267793994605993438f;\n\n  " +
-              "float K = 1.0f / (1.0f + 0.2316419f * fabs(d));\n\n  " +
-              "float cnd = RSQRT2PI * exp(-0.5f * d * d)\n" +
-              "            * (K * (A1 + K * (A2 + K * (A3 + K * (A4 + K * A5)))));\n  \n  " +
-              "if (d > 0) cnd = 1.0f - cnd;\n\n  " +
-              "return cnd; }", Float, Float)
+            val pricesType = UserType("typedef struct { float call; float put; } prices;")
 
-      val blackScholesComp =
-        UserFun("blackScholesComp", Array("S", "X", "T", "R", "V"),
-            "{ float sqrtT = sqrt(T);\n  " +
-              "float    d1 = (log(S / X) + (R + 0.5f * V * V) * T) / (V * sqrtT);\n  " +
-              "float    d2 = d1 - V * sqrtT;\n  " +
-              "float CNDD1 = CND(d1);\n  " +
-              "float CNDD2 = CND(d2);\n\n  " +
-              "float expRT = exp(- R * T);\n  " +
-              "prices p;\n  " +
-              "p.call = (S * CNDD1 - X * expRT * CNDD2);\n  " +
-              "p.put  = (X * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1));\n  " +
-              "return p; }", TupleType(Float, Float, Float, Float, Float), pricesType)
+            val cnd =
+              UserFun("CND", Array("d"),
+                  "{ const float A1       =  0.319381530f;\n" +
+                    "const float A2       = -0.356563782f;\n  " +
+                    "const float A3       =  1.781477937f;\n  " +
+                    "const float A4       = -1.821255978f;\n  " +
+                    "const float A5       =  1.330274429f;\n  " +
+                    "const float RSQRT2PI =  0.39894228040143267793994605993438f;\n\n  " +
+                    "float K = 1.0f / (1.0f + 0.2316419f * fabs(d));\n\n  " +
+                    "float cnd = RSQRT2PI * exp(-0.5f * d * d)\n" +
+                    "            * (K * (A1 + K * (A2 + K * (A3 + K * (A4 + K * A5)))));\n  \n  " +
+                    "if (d > 0) cnd = 1.0f - cnd;\n\n  " +
+                    "return cnd; }", Float, Float)
 
-      val firstKernel = Join() o Join() o MapWrg(
-        MapLcl(MapSeq(blackScholesComp))
-      ) o Split(8192) o Split(1) o Zip(Svec, Xvec, Tvec, Rvec, Vvec)
+            val blackScholesComp =
+              UserFun("blackScholesComp", Array("S", "X", "T", "R", "V"),
+                  "{ float sqrtT = sqrt(T);\n  " +
+                    "float    d1 = (log(S / X) + (R + 0.5f * V * V) * T) / (V * sqrtT);\n  " +
+                    "float    d2 = d1 - V * sqrtT;\n  " +
+                    "float CNDD1 = CND(d1);\n  " +
+                    "float CNDD2 = CND(d2);\n\n  " +
+                    "float expRT = exp(- R * T);\n  " +
+                    "prices p;\n  " +
+                    "p.call = (S * CNDD1 - X * expRT * CNDD2);\n  " +
+                    "p.put  = (X * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1));\n  " +
+                    "return p; }", TupleType(Float, Float, Float, Float, Float), pricesType)
 
-    }
+            val firstKernel = Join() o Join() o MapWrg(
+              MapLcl(MapSeq(blackScholesComp))
+            ) o Split(8192) o Split(1) o Zip(Svec, Xvec, Tvec, Rvec, Vvec)
 
-    @Test def BLACK_SCHOLES_AMD_VERSION() {
+          }
 
-      val pricesType = UserType("typedef struct { float call; float put; } prices;")
+          @Test def BLACK_SCHOLES_AMD_VERSION() {
 
-      val blackScholesComp =
-        UserFun("blackScholesComp", Array("inRand"),
-                  "{\n" +
-                  "  #define S_LOWER_LIMIT 10.0f\n" +
-                  "  #define S_UPPER_LIMIT 100.0f\n" +
-                  "  #define K_LOWER_LIMIT 10.0f\n" +
-                  "  #define K_UPPER_LIMIT 100.0f\n" +
-                  "  #define T_LOWER_LIMIT 1.0f\n" +
-                  "  #define T_UPPER_LIMIT 10.0f\n" +
-                  "  #define R_LOWER_LIMIT 0.01f\n" +
-                  "  #define R_UPPER_LIMIT 0.05f\n" +
-                  "  #define SIGMA_LOWER_LIMIT 0.01f\n" +
-                  "  #define SIGMA_UPPER_LIMIT 0.10f\n" +
-                  "  \n" +
-                  "  float d1, d2;\n" +
-                  "  float phiD1, phiD2;\n" +
-                  "  float sigmaSqrtT;\n" +
-                  "  float KexpMinusRT;\n" +
-                  "  prices p;\n" +
-                  "  \n" +
-                  "  float two = (float)2.0f;\n" +
-                  "  float S = S_LOWER_LIMIT * inRand + S_UPPER_LIMIT * (1.0f - inRand);\n" +
-                  "  float K = K_LOWER_LIMIT * inRand + K_UPPER_LIMIT * (1.0f - inRand);\n" +
-                  "  float T = T_LOWER_LIMIT * inRand + T_UPPER_LIMIT * (1.0f - inRand);\n" +
-                  "  float R = R_LOWER_LIMIT * inRand + R_UPPER_LIMIT * (1.0f - inRand);\n" +
-                  "  float sigmaVal = SIGMA_LOWER_LIMIT * inRand + SIGMA_UPPER_LIMIT * (1.0f - inRand);\n" +
-                  "  \n" +
-                  "  sigmaSqrtT = sigmaVal * sqrt(T);\n" +
-                  "  \n" +
-                  "  d1 = (log(S/K) + (R + sigmaVal * sigmaVal / two)* T)/ sigmaSqrtT;\n" +
-                  "  d2 = d1 - sigmaSqrtT;\n" +
-                  "  \n" +
-                  "  KexpMinusRT = K * exp(-R * T);\n" +
-                  "  phi(d1, &phiD1);\n" +
-                  "  phi(d2, &phiD2);\n" +
-                  "  p.call = S * phiD1 - KexpMinusRT * phiD2;\n" +
-                  "  \n" +
-                  "  phi(-d1, &phiD1);\n" +
-                  "  phi(-d2, &phiD2);\n" +
-                  "  p.put  = KexpMinusRT * phiD2 - S * phiD1;\n" +
-                  "  return p;\n" +
-                  "}", Float, pricesType)
+            val pricesType = UserType("typedef struct { float call; float put; } prices;")
 
-      val firstKernel = Join() o Join() o MapWrg(
-        MapLcl(MapSeq(blackScholesComp))
-      ) o Split(256) o Split(1) o input
+            val blackScholesComp =
+              UserFun("blackScholesComp", Array("inRand"),
+                        "{\n" +
+                        "  #define S_LOWER_LIMIT 10.0f\n" +
+                        "  #define S_UPPER_LIMIT 100.0f\n" +
+                        "  #define K_LOWER_LIMIT 10.0f\n" +
+                        "  #define K_UPPER_LIMIT 100.0f\n" +
+                        "  #define T_LOWER_LIMIT 1.0f\n" +
+                        "  #define T_UPPER_LIMIT 10.0f\n" +
+                        "  #define R_LOWER_LIMIT 0.01f\n" +
+                        "  #define R_UPPER_LIMIT 0.05f\n" +
+                        "  #define SIGMA_LOWER_LIMIT 0.01f\n" +
+                        "  #define SIGMA_UPPER_LIMIT 0.10f\n" +
+                        "  \n" +
+                        "  float d1, d2;\n" +
+                        "  float phiD1, phiD2;\n" +
+                        "  float sigmaSqrtT;\n" +
+                        "  float KexpMinusRT;\n" +
+                        "  prices p;\n" +
+                        "  \n" +
+                        "  float two = (float)2.0f;\n" +
+                        "  float S = S_LOWER_LIMIT * inRand + S_UPPER_LIMIT * (1.0f - inRand);\n" +
+                        "  float K = K_LOWER_LIMIT * inRand + K_UPPER_LIMIT * (1.0f - inRand);\n" +
+                        "  float T = T_LOWER_LIMIT * inRand + T_UPPER_LIMIT * (1.0f - inRand);\n" +
+                        "  float R = R_LOWER_LIMIT * inRand + R_UPPER_LIMIT * (1.0f - inRand);\n" +
+                        "  float sigmaVal = SIGMA_LOWER_LIMIT * inRand + SIGMA_UPPER_LIMIT * (1.0f - inRand);\n" +
+                        "  \n" +
+                        "  sigmaSqrtT = sigmaVal * sqrt(T);\n" +
+                        "  \n" +
+                        "  d1 = (log(S/K) + (R + sigmaVal * sigmaVal / two)* T)/ sigmaSqrtT;\n" +
+                        "  d2 = d1 - sigmaSqrtT;\n" +
+                        "  \n" +
+                        "  KexpMinusRT = K * exp(-R * T);\n" +
+                        "  phi(d1, &phiD1);\n" +
+                        "  phi(d2, &phiD2);\n" +
+                        "  p.call = S * phiD1 - KexpMinusRT * phiD2;\n" +
+                        "  \n" +
+                        "  phi(-d1, &phiD1);\n" +
+                        "  phi(-d2, &phiD2);\n" +
+                        "  p.put  = KexpMinusRT * phiD2 - S * phiD1;\n" +
+                        "  return p;\n" +
+                        "}", Float, pricesType)
 
-    }
+            val firstKernel = Join() o Join() o MapWrg(
+              MapLcl(MapSeq(blackScholesComp))
+            ) o Split(256) o Split(1) o input
 
-    @Test def SCAL_AMD() {
+          }
 
-      /*
-      val firstKernel = Join() o Join() o MapWrg(
-        MapLcl(MapSeq(Bind(mult, alpha)))
-      ) o Split(128) o Split(1) o input
-      */
+          @Test def SCAL_AMD() {
 
-    }
+            /*
+            val firstKernel = Join() o Join() o MapWrg(
+              MapLcl(MapSeq(Bind(mult, alpha)))
+            ) o Split(128) o Split(1) o input
+            */
 
-    @Test def MD() {
+          }
 
-      //val firstKernel = ...???
+          @Test def MD() {
 
-    }
+            //val firstKernel = ...???
 
-    */
+          }
+
+          */
 
   @Test def stuff() {
     val scal = fun(Float, ArrayType(Float, Var("N")),
@@ -600,6 +645,8 @@ class TestDotProduct {
       val AtimesX = Map(fun( row => scal(alpha) o dot(x, row) ), A)
       vecAdd(AtimesX, scalledY)
     })
+
+    (asum, gemv)
 
     /*
     private def BlackScholes(s: Input): Fun =
