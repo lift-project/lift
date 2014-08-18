@@ -19,7 +19,7 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  def apply() = { true }
+  def apply() = { false }
 }
 
 object OpenCL{
@@ -198,16 +198,8 @@ object OpenCLGenerator extends Generator {
   
   // MapWrg
   private def generateMapWrgCall(call: MapCall): Unit = {
-    val range = RangeAdd(new get_group_id(0), Type.getLength(call.inT), new get_num_groups(0))
-
-    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
-    oclPrinter.println("return;")
-  }
-
-  // MapGlb
-  private def generateMapGlbCall(call: MapCall): Unit = {
-    val m = call.f.asInstanceOf[MapGlb]
-    val range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.inT), new get_global_size(m.dim))
+    val m = call.f.asInstanceOf[MapWrg]
+    val range = RangeAdd(new get_group_id(m.dim), Type.getLength(call.inT), new get_num_groups(m.dim))
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
@@ -216,13 +208,31 @@ object OpenCLGenerator extends Generator {
       oclPrinter.println("return;")
     }
   }
+
+  // MapGlb
+  private def generateMapGlbCall(call: MapCall): Unit = {
+    val m = call.f.asInstanceOf[MapGlb]
+    val range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.inT), new get_global_size(m.dim))
+
+    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+    // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
+    // TODO: Rethink and then redesign this!
+    if (m.dim == 0) {
+      oclPrinter.println("return;")
+    }
+  }
   
   // MapLcl
   private def generateMapLclCall(call: MapCall) {
-    val range = RangeAdd(new get_local_id(0), Type.getLength(call.inT), Cst(Kernel.workGroupSize))
+    val m = call.f.asInstanceOf[MapLcl]
+    val range = RangeAdd(new get_local_id(m.dim), Type.getLength(call.inT), new get_local_size(m.dim))//Cst(Kernel.workGroupSize))
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
-    oclPrinter.generateBarrier(call.outM)
+    // TODO: This assumes, that the MapLcl(0) is always the outermost and there is no need for synchronization inside.
+    // TODO: Rethink and then redesign this!
+    if (m.dim == 0) {
+      oclPrinter.generateBarrier(call.outM)
+    }
   }
 
   // MapWarp

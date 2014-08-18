@@ -147,16 +147,14 @@ class TestMatrixMatrix {
     val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        MapGlb(0)(
-          fun( Arow => MapGlb(1)(
-            fun( Bcol =>
-              ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
-            )
-          ) o B )
-        ) o A
+        MapGlb(0)(fun( Arow =>
+          MapGlb(1)(fun( Bcol =>
+            ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
+          )) o B
+        )) o A
       })
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
@@ -172,5 +170,55 @@ class TestMatrixMatrix {
     (output, runtime)
 
   }
+
+  /*
+  @Test def MATRIX_MATRIX_2D_TESTS() {
+
+    val Msize = 512
+    val Ksize = 512
+    val Nsize = 512
+    //val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    //val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => 2.0f)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val r = 2 // number of rows a single workgroup computes
+    val c = 3 // number of columns a single workgroup computes
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      (A, B) => {
+        Join() o MapWrg(0)(fun( Arows =>
+          Join() o MapWrg(1)(fun( Bcols =>
+
+              MapLcl(0)(fun( Arow =>
+                MapLcl(1)(fun( Bcol =>
+                  ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
+                )) o Bcols
+              )) o Arows
+
+            )) o Split(c) o B
+        )) o Split(r) o A
+      })
+
+    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    (output, runtime)
+
+  }
+  */
 
 }

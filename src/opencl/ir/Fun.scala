@@ -14,13 +14,12 @@ case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
 }
 
 object MapGlb {
-  // 0 is default
-  def apply(f: Lambda1) = new MapGlb(0, f)
+  def apply(f: Lambda1) = new MapGlb(0, f) // 0 is default
 
   def apply(dim: Int) = (f: Lambda) => new MapGlb(dim, f)
 }
 
-case class MapWrg(f: Lambda1) extends GenerableMap(f) {
+case class MapWrg(dim: Int, f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
     new MapCall("MapWrg", Var("wg_id"), this, args(0))
@@ -30,7 +29,14 @@ case class MapWrg(f: Lambda1) extends GenerableMap(f) {
     apply(that)
   }
 }
-case class MapLcl(f: Lambda1) extends GenerableMap(f) {
+
+object MapWrg {
+  def apply(f: Lambda1) = new MapWrg(0, f) // 0 is default
+
+  def apply(dim: Int) = (f: Lambda1) => new MapWrg(dim, f)
+}
+
+case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
     new MapCall("MapLcl", Var("l_id"), this, args(0))
@@ -39,6 +45,12 @@ case class MapLcl(f: Lambda1) extends GenerableMap(f) {
   override def o(that: Expr) : MapCall = {
     apply(that)
   }
+}
+
+object MapLcl {
+  def apply(f: Lambda1) = new MapLcl(0, f) // o is default
+
+  def apply(dim: Int) = (f: Lambda1) => new MapLcl(dim, f)
 }
 
 case class MapWarp(f: Lambda1) extends GenerableMap(f) {

@@ -228,8 +228,9 @@ object OpenCLMemory {
 
       case l: Lambda =>           allocLambda(l, call, numGlb, numLcl, inMem, outputMem)
 
-      case MapGlb(_, _) |MapWrg(_)=> allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
-      case MapLcl(_) | MapWarp(_)| MapLane(_) | MapSeq(_)
+      case MapGlb(_, _) |MapWrg(_,_)
+                               => allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
+      case MapLcl(_,_) | MapWarp(_)| MapLane(_) | MapSeq(_)
                                => allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
 
       case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, inMem, outputMem)
