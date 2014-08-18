@@ -571,22 +571,34 @@ class TestDotProduct {
 
   }
 
+  @Test def VECTOR_NORM() {
+
+    val inputSize = 1024
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = scala.math.sqrt(inputArray.map(x => x*x).reduce(_ + _)).toFloat
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      (input) =>
+
+      Join() o MapWrg(
+        Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
+        Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+        Join() o toLocal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride()
+      ) o Split(1024) o input
+
+    )
+
+    val (output, runtime) = Execute(inputSize)(f, inputArray, inputSize)
+
+    assertEquals(gold, output(0), 0.0)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   /*
 
-
-            @Test def VECTOR_NORM() {
-
-              val firstKernel = Join() o Join() o MapWrg(
-                toGlobal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o ReorderStride()
-              ) o Split(128) o Split(2048) o input
-
-              val secondKernel = Join() o MapWrg(
-                Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
-                Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-                Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
-              ) o Split(8192) o input
-
-            }
 
             @Test def BLACK_SCHOLES_NVIDIA_VERSION() {
 
