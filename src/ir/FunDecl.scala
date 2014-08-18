@@ -366,13 +366,6 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
   override def toString = "UserFun("+ name + ")" // for debug purposes
 }
 
-/*
-case class UserFunExpr(val funDef: UserFunDef) extends FunExpr() {
-  override def isGenerable() = true
-  override def copy() = UserFunExpr(funDef)
-}
-*/
-
 object UserFunDef {
   def vectorize(uf: UserFunDef, n: ArithExpr): UserFunDef = {
     val name = uf.name + n
@@ -383,12 +376,12 @@ object UserFunDef {
     UserFunDef(name, uf.paramNames, uf.body, expectedInT, expectedOutT)
   }
 
-  private def toParams(t: Type): Array[Param] = {
-    t match {
-      case tt: TupleType => tt.elemsT.map(toParams(_)).flatten.toArray
-      case t: Type => Array(Param(t))
-    }
-  }
+  //private def toParams(t: Type): Array[Param] = {
+  //  t match {
+  //    case tt: TupleType => tt.elemsT.map(toParams).flatten.toArray
+  //    case t: Type => Array(Param(t))
+  //  }
+  //}
 }
 
 

@@ -227,10 +227,10 @@ object Type {
     }
   }
 
-  private def isEqual(l: TupleType, r: TupleType): Boolean = {
-    if (l.elemsT.length != r.elemsT.length) return false
+  private def isEqual(lt: TupleType, rt: TupleType): Boolean = {
+    if (lt.elemsT.length != rt.elemsT.length) return false
 
-    (l.elemsT zip r.elemsT).forall({ case (l,r) => isEqual(l, r) })
+    (lt.elemsT zip rt.elemsT).forall({ case (l,r) => isEqual(l, r) })
   }
 
   private def isEqual(l: ArrayType, r: ArrayType): Boolean = {
