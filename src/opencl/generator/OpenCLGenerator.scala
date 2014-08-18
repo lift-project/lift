@@ -14,6 +14,8 @@ class get_global_id(param: Int) extends OclFunction("get_global_id", param)
 class get_local_id(param: Int) extends OclFunction("get_local_id", param)
 class get_group_id(param: Int) extends OclFunction("get_group_id", param)
 class get_num_groups(param: Int) extends OclFunction("get_num_groups", param)
+class get_global_size(param: Int) extends OclFunction("get_global_size", param)
+class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
@@ -161,6 +163,7 @@ object OpenCLGenerator extends Generator {
     expr match {
       case call: MapCall => call.f match {
         case _: MapWrg => generateMapWrgCall(call)
+        case _: MapGlb => generateMapGlbCall(call)
         case _: MapLcl => generateMapLclCall(call)
         case _: MapWarp => generateMapWarpCall(call)
         case _: MapLane => generateMapLaneCall(call)
@@ -194,8 +197,16 @@ object OpenCLGenerator extends Generator {
   // === Maps ===
   
   // MapWrg
-  private def generateMapWrgCall(call: MapCall) {
+  private def generateMapWrgCall(call: MapCall): Unit = {
     val range = RangeAdd(new get_group_id(0), Type.getLength(call.inT), new get_num_groups(0))
+
+    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+    oclPrinter.println("return;")
+  }
+
+  // MapGlb
+  private def generateMapGlbCall(call: MapCall): Unit = {
+    val range = RangeAdd(new get_global_id(0), Type.getLength(call.inT), new get_global_size(0))
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     oclPrinter.println("return;")

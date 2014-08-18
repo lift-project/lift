@@ -16,7 +16,7 @@ case class MapGlb(f: Lambda1) extends GenerableMap(f){
 case class MapWrg(f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
-    new MapCall("MapWrg", Var("g_id"), this, args(0))
+    new MapCall("MapWrg", Var("wg_id"), this, args(0))
   }
 
   override def o(that: Expr) : MapCall = {

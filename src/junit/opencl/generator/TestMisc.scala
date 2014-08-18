@@ -89,6 +89,31 @@ class TestMisc {
 
   }
 
+  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID() {
+
+    val inputSize = 1024
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inputArray.map(-_)
+
+    val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
+
+    val negFun = fun(ArrayType(Float, Var("N")), (input) =>
+
+      Join() o MapGlb(
+        MapSeq(neg)
+      ) o Split(4) o input
+
+    )
+
+    val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+  }
+
   @Test def VECTOR_SCAL() {
 
     val inputSize = 1024
