@@ -422,6 +422,34 @@ class TestDotProduct {
 
   }
 
+  @Test def MATRIX_VECTOR_LOCAL_MEMORY_FUSED() {
+
+    val inputSize = 4096
+    val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val vector = Array.tabulate(inputSize)(i => ((i % 10) + 1) * 2.0f)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val f = fun(
+      ArrayType(ArrayType(Float, N), M),
+      ArrayType(Float, N),
+      (matrix, vector) => {
+        MapWrg(
+          Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(N / 32) o
+          Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride() o Split(32) o fun( r => Zip(vector, r) )
+        ) o matrix
+      })
+
+    val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector, inputSize, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.1))
+
+  }
+
 
   @Test def MATRIX_VECTOR_FUSED() {
 
@@ -542,17 +570,9 @@ class TestDotProduct {
     (matrixVector(matrix, vectorX, vectorY), output).zipped.map(assertEquals(_,_,0.0))
 
   }
+
   /*
-            @Test def MATRIX_VECTOR_LOCAL_MEMORY_FUSED() {
 
-              /*
-              val firstKernel = MapWrg(
-                Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128) o
-                Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride() o Split(32) o Zip(vector)
-              ) o matrix
-              */
-
-            }
 
             @Test def VECTOR_NORM() {
 
