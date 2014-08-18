@@ -60,7 +60,9 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
 
 }
 
-class ParamReference(val p: Param, val i: Int) extends Param
+class ParamReference(val p: Param, val i: Int) extends Param {
+  override def toString = "PARAM REF"
+}
 
 object Get {
   def apply(p: Param, i: Int): ParamReference = new ParamReference(p, i)
@@ -108,6 +110,8 @@ object Param {
 
 case class Value(var value: String) extends Param {
   override def copy: Value =  this.clone().asInstanceOf[Value]
+  
+  override def toString = "VALUE"
 }
 
 object Value {

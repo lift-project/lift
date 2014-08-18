@@ -114,7 +114,7 @@ object AccessFunction {
           case l: Lambda => addAccessFunctionsLambda(l, call, inAccess, outputAccess)
           case f: FPattern => addAccessFunctionsFPattern(f, inAccess, outputAccess)
           case cf: CompFunDef =>
-            cf.funs.foldRight[AccessFunctions](inAccess)(
+            call.inAccess = cf.funs.foldRight[AccessFunctions](inAccess)(
               (lambda: Lambda, af: AccessFunctions) => {
                 if (lambda.params.length != 1) throw new NumberOfArgumentsException
                 lambda.params(0).inAccess = af
@@ -135,7 +135,7 @@ object AccessFunction {
 
           case r: ReorderStride =>
             call.inAccess = addAccessFunctionsReorderStride(call, inAccess)
-            call.inAccess
+            call.inAccess // next input
         }
     }
   }
