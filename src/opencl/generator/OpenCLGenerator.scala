@@ -155,7 +155,7 @@ object OpenCLGenerator extends Generator {
 
 
 
-  private def generate(expr: Expr) { //, inputAccess: Array[AccessFunction], outputAccess: Array[AccessFunction]) {
+  private def generate(expr: Expr) {
     assert(expr.outT != UndefType)
 
     expr match {
@@ -184,9 +184,10 @@ object OpenCLGenerator extends Generator {
         case _: asScalar =>
         case _: Split =>
         case _: Join =>
-        case _: Zip =>
+        case _: Zip => call.args.map(generate)
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
+      case p: Param =>
     }
   }
 

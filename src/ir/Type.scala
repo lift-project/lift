@@ -351,18 +351,14 @@ object Type {
   }
 
   private def checkCompFunDef(cf: CompFunDef, inT: Type, setType: Boolean): Type = {
-    inT match {
-      case at: ArrayType =>
-        // combine the parameter of the first function to call with the type inferred from the argument
-        if (cf.funs.last.params.length != 1) throw new NumberOfArgumentsException
-        cf.funs.last.params(0).outT = inT
-        cf.funs.foldRight(inT)((f, inputT) => {
-          if (f.params.length != 1) throw new NumberOfArgumentsException
-          f.params(0).outT = inputT
-          check(f.body, setType)
-        })
-      case _ => throw new TypeException(inT, "ArrayType")
-    }
+    // combine the parameter of the first function to call with the type inferred from the argument
+    if (cf.funs.last.params.length != 1) throw new NumberOfArgumentsException
+    cf.funs.last.params(0).outT = inT
+    cf.funs.foldRight(inT)((f, inputT) => {
+      if (f.params.length != 1) throw new NumberOfArgumentsException
+      f.params(0).outT = inputT
+      check(f.body, setType)
+    })
   }
 
   private def checkZip(z: Zip, inT: Type, setType: Boolean): Type = {

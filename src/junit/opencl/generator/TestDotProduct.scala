@@ -35,6 +35,10 @@ class TestDotProduct {
     "{ return acc + (l * r); }",
     TupleType(Float, TupleType(Float, Float)), Float)
 
+  val multAndSumUp3 = UserFunDef("multAndSumUp3", Array("acc", "l", "r"),
+    "{ return acc + (l * r); }",
+    TupleType(Float, Float, Float), Float)
+
   val doubleItAndSumUp = UserFunDef("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }", TupleType(Float, Float), Float)
 
   val sqrtIt = UserFunDef("sqrtIt", "x", "{ return sqrt(x); }", Float, Float)
@@ -443,10 +447,6 @@ class TestDotProduct {
 
     (matrixVector(matrix, vectorX, alpha), firstOutput).zipped.map(assertEquals(_,_,0.0))
 
-    val multAndSumUp3 = UserFunDef("multAndSumUp", Array("acc", "l", "r"),
-      "{ return acc + (l * r); }",
-      TupleType(Float, Float, Float), Float)
-
     val f2 = fun(
       ArrayType(Float, M),
       ArrayType(Float, M),
@@ -462,23 +462,44 @@ class TestDotProduct {
     (matrixVector(matrix, vectorX, vectorY, alpha, beta), output).zipped.map(assertEquals(_,_,0.0))
 
   }
-      /*
-          @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL() {
 
-            /*
-            val firstKernel = MapWrg(
-              Lambda(t)( // ??
-                Join() o toGlobal(MapLcl(MapSeq(Bind2(multAndSumUp, beta)))) o Split(1) o
-                Zip(
-                  Join() o MapLcl(MapSeq(Bind(mult, alpha))) o Split(1) o
-                    Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o Split(4096) o Zip(vectorX, t.get(0)),
-                  t.get(1) )
-              )
-            ) o Zip(matrix, vectorY)
-            */
+  @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL() {
 
-          }
+    val inputSize = 4096
+    val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
+    val vectorX = Array.fill(inputSize)(2.0f)
+    val vectorY = Array.fill(inputSize)(1.0f)
+    val alpha = 2.5f
+    val beta = 1.5f
 
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val f = fun(
+      ArrayType(ArrayType(Float, N), M),
+      ArrayType(Float, N),
+      ArrayType(ArrayType(Float, 1), M),
+      Float,
+      Float,
+      (matrix, vectorX, vectorY, alpha, beta) => {
+        MapWrg(
+          Join() o toGlobal(MapLcl(MapSeq(fun( x => multAndSumUp3(Get(x, 0), Get(x, 1), beta))))) o Split(1) o
+          fun( t => Zip(
+            Join() o MapLcl(MapSeq(fun( x => mult(alpha, x) ))) o Split(1) o
+              Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o Split(4096) o Zip(vectorX, Get(t, 0)),
+            Get(t, 1)) )
+        ) o Zip(matrix, vectorY)
+      })
+
+    val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta, inputSize, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    (matrixVector(matrix, vectorX, vectorY, alpha, beta), output).zipped.map(assertEquals(_,_,0.0))
+
+  }
+/*
           @Test def FULL_MATRIX_VECTOR_FUSED() {
 
             /*

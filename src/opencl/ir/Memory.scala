@@ -383,15 +383,17 @@ object OpenCLMemory {
 
   private def allocUserFun(maxGlbOutSize: ArithExpr, maxLclOutSize: ArithExpr,
                            outputMem: OpenCLMemory, outT: Type, inputMem: OpenCLMemory): OpenCLMemory = {
-    val addressSpace =
-      if (!inputMem.isInstanceOf[OpenCLMemoryCollection]) {
-        inputMem.addressSpace
-      } else {
-        val coll = inputMem match { case coll: OpenCLMemoryCollection => coll }
-        coll.findCommonAddressSpace()
-      }
+    if (outputMem == OpenCLNullMemory) {
+      val addressSpace =
+        if (!inputMem.isInstanceOf[OpenCLMemoryCollection]) {
+          inputMem.addressSpace
+        } else {
+          val coll = inputMem match {
+            case coll: OpenCLMemoryCollection => coll
+          }
+          coll.findCommonAddressSpace()
+        }
 
-    if (outputMem == OpenCLNullMemory)
       outT match {
 
         // TODO: could maybe allocated in private memory (need to change slightly the allocator and add toPrivate)
@@ -401,8 +403,9 @@ object OpenCLMemory {
         case _ =>
           allocMemory(maxGlbOutSize, maxLclOutSize, addressSpace)
       }
-    else
+    } else {
       outputMem
+    }
   }
 
 }
