@@ -134,4 +134,43 @@ class TestMatrixMatrix {
 
   }
 
+  @Test def MATRIX_MATRIX_2D_GLOBAL_ID() {
+
+    val Msize = 512
+    val Ksize = 512
+    val Nsize = 512
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        MapGlb(0)(
+          fun( Arow => MapGlb(1)(
+            fun( Bcol =>
+              ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
+            )
+          ) o B )
+        ) o A
+      })
+
+    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    (output, runtime)
+
+  }
+
 }

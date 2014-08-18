@@ -2,7 +2,7 @@ package opencl.ir
 
 import ir._
 
-case class MapGlb(f: Lambda1) extends GenerableMap(f){
+case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
     new MapCall("MapGlbl", Var("gl_id"), this, args(0))
@@ -11,6 +11,13 @@ case class MapGlb(f: Lambda1) extends GenerableMap(f){
   override def o(that: Expr) : MapCall = {
     apply(that)
   }
+}
+
+object MapGlb {
+  // 0 is default
+  def apply(f: Lambda1) = new MapGlb(0, f)
+
+  def apply(dim: Int) = (f: Lambda) => new MapGlb(dim, f)
 }
 
 case class MapWrg(f: Lambda1) extends GenerableMap(f) {

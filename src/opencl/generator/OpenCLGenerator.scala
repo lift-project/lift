@@ -206,10 +206,15 @@ object OpenCLGenerator extends Generator {
 
   // MapGlb
   private def generateMapGlbCall(call: MapCall): Unit = {
-    val range = RangeAdd(new get_global_id(0), Type.getLength(call.inT), new get_global_size(0))
+    val m = call.f.asInstanceOf[MapGlb]
+    val range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.inT), new get_global_size(m.dim))
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
-    oclPrinter.println("return;")
+    // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
+    // TODO: Rethink and then redesign this!
+    if (m.dim == 0) {
+      oclPrinter.println("return;")
+    }
   }
   
   // MapLcl

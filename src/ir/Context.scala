@@ -65,7 +65,7 @@ object Context {
 
           case Map(inF)    => updateContext(inF.body, ctx.incMapDepth)
           case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth.setInSeq())
-          case MapGlb(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapGlb)
+          case MapGlb(_,inF) => updateContext(inF.body, ctx.incMapDepth.setInMapGlb)
           case MapWrg(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapWrg)
           case MapLcl(inF) => updateContext(inF.body, ctx.incMapDepth.setInMapLcl)
           case ReduceSeq(inF) => updateContext(inF.body, ctx.setInSeq())
