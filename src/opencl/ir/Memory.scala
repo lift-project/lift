@@ -245,7 +245,7 @@ object OpenCLMemory {
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
 
-      case Split(_) | Join() | ReorderStride() | asVector(_) | asScalar()  =>
+      case Split(_) | Join() | ReorderStride() | asVector(_) | asScalar() | Transpose()  =>
         inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, outputMem, call.outT, inMem)

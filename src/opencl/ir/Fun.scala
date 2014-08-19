@@ -125,6 +125,8 @@ case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) w
 case class ReorderStride() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
   //override def copy() = ReorderStride()
 
+case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*

@@ -297,6 +297,7 @@ object Type {
       case tL: toLocal =>         checkToLocal(tL, inT, setType)
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
+      case _: Transpose =>        checkTranspose(inT)
       case _: ReorderStride =>    inT
     }
   }
@@ -473,6 +474,22 @@ object Type {
         substitute(closedFormOutputType, tvMap.toMap)
 
       case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  def checkTranspose(t: Type): Type = {
+    t match {
+      case outer: ArrayType =>
+        outer.elemT match {
+          case inner: ArrayType =>
+            val T = inner.elemT
+            val innerLen = inner.len
+            val outerLen = outer.len
+            new ArrayType(new ArrayType(T, outerLen), innerLen)
+
+          case _ => throw new TypeException(outer.elemT, "ArrayType")
+        }
+      case _ => throw new TypeException(t, "ArrayType")
     }
   }
 

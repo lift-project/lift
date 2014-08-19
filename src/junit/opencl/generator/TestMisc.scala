@@ -186,10 +186,97 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(f, inputArray, inputSize)
 
-    assertEquals(gold, output(0), 0.0)
+    assertEquals(gold, output(0), 0.1)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
+  }
+
+  @Test def MATRIX_PLUS_ONE(): Unit = {
+
+    val Msize = 512
+    val Ksize = 512
+    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
+    val gold   = Array.tabulate(Msize, Ksize)((r, c) => 2.0f)
+
+    val M = Var("M")
+    val K = Var("K")
+
+    val r = 2
+    val c = 4
+
+    val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      (matrix) => {
+        Join() o MapWrg(0)(fun( rows =>
+          MapLcl(0)(fun( row =>
+            Join() o MapWrg(1)(fun( cols =>
+              Join() o MapLcl(1)(fun( col =>
+                MapSeq(plusOne) o col
+              )) o Split(1) o cols
+            )) o Split(c) o row
+          )) o rows
+        )) o Split(r) o matrix
+      })
+
+    val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+  }
+
+  private def print(m: Array[Array[Float]]): Unit = {
+    m.map( r => {
+      println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
+    } )
+  }
+
+  private def print(m: Array[Float], cols: Int): Unit = {
+    val (row, rest) = m.splitAt(cols)
+    if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
+    if (rest.nonEmpty) print(rest, cols)
+  }
+
+  @Test def MATRIX_TRANSPOSE(): Unit = {
+
+    val Nsize = 12
+    val Msize = 8
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
+    val gold   = matrix.transpose
+
+    println("matrix: ")
+    print(matrix)
+
+    val N = Var("N")
+    val M = Var("M")
+
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        MapGlb(0)(fun( row =>
+          Join() o MapGlb(1)(fun( col =>
+            MapSeq(id) o col
+          )) o Split(1) o row
+        )) o Transpose() o matrix
+      })
+
+    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Msize, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    println("output: ")
+    print(output, Nsize)
+
+    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
 

@@ -128,6 +128,10 @@ object AccessFunction {
             call.inAccess = inAccess
             inAccess // next input
 
+          case Transpose() =>
+            call.inAccess = addAccessFunctionsTranspose(call, inAccess)
+            call.inAccess // next input
+
           case uf: UserFunDef =>
             call.inAccess = inAccess
             call.outAccess = outputAccess
@@ -262,14 +266,31 @@ object AccessFunction {
   }
 
   private def addAccessFunctionsReorderStride(call: FunCall, inputAccess: AccessFunctions): AccessFunctions = {
-    call.inAccess = inputAccess
-
     val s = Type.getLength(call.inT)
     val n = Type.getLength(Type.getElemT(call.inT))
 
     val scope = getLatestScope(inputAccess)
 
     inputAccess :+ ReorderAccessFunction( (i:ArithExpr) => { i / n + s * (i % n) } , scope)
+  }
+
+  private def addAccessFunctionsTranspose(call: FunCall, inputAccess: AccessFunctions): AccessFunctions = {
+    val scope = getLatestScope(inputAccess)
+
+    // types after the transpose of the matrix
+    val outerType = call.outT match { case at: ArrayType => at }
+    val innerType = outerType.elemT match { case at: ArrayType => at }
+
+    val outerSize = outerType.len
+    val innerSize = innerType.len
+
+    val af = AccessFunction( (i:ArithExpr) => {
+      val col = (i % innerSize) * outerSize
+      val row = i / innerSize
+      row + col
+    } , scope)
+
+    inputAccess :+ af
   }
 
 
