@@ -74,28 +74,6 @@ class Param() extends Expr {
   override def toString = "PARAM"
 
   override def copy: Param =  this.clone().asInstanceOf[Param]
-
-  /*
-  def get(index: Int): Param = {
-    assert(outT.isInstanceOf[TupleType])
-    assert(outM.isInstanceOf[OpenCLMemoryCollection])
-    assert(outAccess.isInstanceOf[AccessFunctionsCollection])
-
-    val t = outT match { case tt: TupleType => tt }
-    val m = outM match { case coll: OpenCLMemoryCollection => coll }
-    val a = outAccess match { case coll: AccessFunctionsCollection => coll }
-
-    assert(index < t.elemsT.length && index < m.subMemories.length && index < a.elems.length)
-
-    val p = new Param
-
-    p.outT = t.elemsT(index)
-    p.outM = m.subMemories(index)
-    p.outAccess = a.elems(index)
-
-    p
-  }
-  */
 }
 
 object Param {

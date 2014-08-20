@@ -127,6 +127,8 @@ case class ReorderStride() extends Pattern(Array[Param](Param(UndefType))) with 
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
+case class Swap() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*

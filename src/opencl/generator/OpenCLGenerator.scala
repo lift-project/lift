@@ -19,7 +19,7 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  def apply() = { false }
+  def apply() = { true }
 }
 
 object OpenCL{
@@ -184,11 +184,15 @@ object OpenCLGenerator extends Generator {
         case l: Lambda => generate(l.body)
         case _: ReorderStride =>
         case _: Transpose =>
+        case _: Swap =>
         case _: asVector =>
         case _: asScalar =>
         case _: Split =>
+        case _: SplitDim2 =>
         case _: Join =>
+        case _: JoinDim2 =>
         case _: Zip => call.args.map(generate)
+        case _: Unzip =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case p: Param =>
@@ -261,11 +265,9 @@ object OpenCLGenerator extends Generator {
     oclPrinter.commln("map_seq")
     oclPrinter.generateLoop(call.loopVar, range, () => {
 
-      oclPrinter.print(access(call.outM, call.f.f.body.outT, call.outAccess) + " = ")
+      // oclPrinter.print(access(call.outM, call.f.f.body.outT, call.outAccess) + " = ")
 
       generate(call.f.f.body)
-
-      oclPrinter.println(";")
     })
     oclPrinter.commln("map_seq")
   }
@@ -292,7 +294,8 @@ object OpenCLGenerator extends Generator {
       // 3. generate acc = fun(acc, input[i])
       oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
 
-      generate(call.f.f.body)
+      // TODO: This assumes a UserFun to be nested here!
+      oclPrinter.generateFunCall(call.f.f.body, access(call.f.f.body.inM, call.f.f.body.inT, call.f.f.body.inAccess))
 
       oclPrinter.println(";")
     })
@@ -387,7 +390,9 @@ object OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFunDef, call: FunCall) = {
     assert(call.f == u)
 
+    oclPrinter.print(access(call.outM, call.outT, call.outAccess) + " = ")
     oclPrinter.generateFunCall(call, access(call.inM, call.inT, call.inAccess))
+    oclPrinter.println(";")
   }
 
   // === Utilities ===

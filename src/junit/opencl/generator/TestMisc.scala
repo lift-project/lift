@@ -196,8 +196,8 @@ class TestMisc {
 
     val Msize = 512
     val Ksize = 512
-    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
-    val gold   = Array.tabulate(Msize, Ksize)((r, c) => 2.0f)
+    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * c * r)
+    val gold   = matrix.map(_.map(_+1.0f))
 
     val M = Var("M")
     val K = Var("K")
@@ -213,12 +213,60 @@ class TestMisc {
         Join() o MapWrg(0)(fun( rows =>
           MapLcl(0)(fun( row =>
             Join() o MapWrg(1)(fun( cols =>
-              Join() o MapLcl(1)(fun( col =>
-                MapSeq(plusOne) o col
-              )) o Split(1) o cols
+              MapLcl(1)(fun( col =>
+                plusOne(col)
+              )) o cols
             )) o Split(c) o row
           )) o rows
         )) o Split(r) o matrix
+      })
+
+    val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+  }
+
+  @Test def MATRIX_PLUS_ONE_2(): Unit = {
+
+    val Msize = 512
+    val Ksize = 512
+    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * c * r)
+    val gold   = matrix.map(_.map(_+1.0f))
+
+    val M = Var("M")
+    val K = Var("K")
+
+    val r = 4
+    val c = 8
+
+    val plusOne = UserFunDef("plusOne", "x", "{ return x+1.0f; }", Float, Float)
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      (matrix) => {
+        Join() o MapWrg(0)(fun( cols =>
+           JoinDim2() o Swap() o MapWrg(1)(fun( tile =>
+
+            // step 2: compute plus one
+            toGlobal(MapLcl(0)(fun( row =>
+              MapLcl(1)(fun( elem =>
+                plusOne(elem)
+              )) o row
+            ))) o
+            // step 1: load tile to local memory
+            toLocal(MapLcl(0)(fun( row =>
+              MapLcl(1)(fun( elem =>
+                id(elem)
+              )) o row
+            ))) o tile
+
+          )) o Swap() o SplitDim2(c) o cols
+        )) o Split(r) o  matrix
       })
 
     val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)

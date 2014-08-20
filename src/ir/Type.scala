@@ -289,8 +289,11 @@ object Type {
       case ar: AbstractPartRed => checkReduce(ar, inT, setType)
       case cf: CompFunDef =>      checkCompFunDef(cf, inT, setType)
       case z: Zip =>              checkZip(z, inT, setType)
+      case uz: Unzip =>           checkUnzip(uz, inT, setType)
       case Split(n) =>            checkSplit(n, inT)
+      case SplitDim2(n) =>        checkSplitDim2(n, inT)
       case _: Join =>             checkJoin(inT)
+      case _: JoinDim2 =>         checkJoinDim2(inT)
       case _: asScalar  =>        checkAsScalar(inT)
       case asVector(n) =>         checkAsVector(n, inT)
       case uf: UserFunDef =>      checkUserFunDef(uf, inT)
@@ -298,6 +301,7 @@ object Type {
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
       case _: Transpose =>        checkTranspose(inT)
+      case _:Swap =>              checkSwap(inT)
       case _: ReorderStride =>    inT
     }
   }
@@ -384,10 +388,36 @@ object Type {
     }
   }
 
+  private def checkUnzip(uz: Unzip, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case at: ArrayType =>
+        val tt = at.elemT match {
+          case tt: TupleType => tt
+          case _ => throw new TypeException(at.elemT, "TupleType")
+        }
+
+        TupleType( tt.elemsT.map(t => ArrayType(t, at.len)):_* )
+      case _ => throw new TypeException(inT, "TupleType")
+    }
+  }
+
   private def checkJoin(inT: Type): Type = {
     inT match {
       case at0: ArrayType => at0.elemT match {
-        case at1: ArrayType => ArrayType(at1.elemT, at0.len * at1.len)
+        case at1: ArrayType => ArrayType(at1.elemT, ExprSimplifier.simplify(at0.len * at1.len))
+        case _ => throw new TypeException(at0.elemT, "ArrayType")
+      }
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  private def checkJoinDim2(inT: Type): Type = {
+    inT match {
+      case at0: ArrayType => at0.elemT match {
+        case at1: ArrayType => at1.elemT match {
+          case at2: ArrayType => ArrayType(ArrayType(at2.elemT, ExprSimplifier.simplify(at1.len * at2.len)), at0.len)
+          case _ => throw new TypeException(at1.elemT, "ArrayType")
+        }
         case _ => throw new TypeException(at0.elemT, "ArrayType")
       }
       case _ => throw new TypeException(inT, "ArrayType")
@@ -397,6 +427,18 @@ object Type {
   private def checkSplit(n: ArithExpr, inT: Type): Type = {
     inT match {
       case at: ArrayType => ArrayType(ArrayType(at.elemT, n), at.len / n)
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  private def checkSplitDim2(n: ArithExpr, inT: Type): Type = {
+    inT match {
+      case at: ArrayType =>
+        val outerLen  = at.len
+        at.elemT match {
+          case at: ArrayType => ArrayType(ArrayType(ArrayType(at.elemT, n), at.len/ n), outerLen)
+          case _ => throw new TypeException(at.elemT, "ArrayType")
+        }
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
@@ -492,6 +534,8 @@ object Type {
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
+
+  def checkSwap(t: Type): Type = checkTranspose(t)
 
   def vectorize(t: Type, n: ArithExpr): Type = {
     t match {

@@ -124,7 +124,7 @@ object AccessFunction {
 
           case z: Zip => addAccessFunctionsZip(z, call, inAccess, outputAccess)
 
-          case Split(_) | Join() | asVector(_) | asScalar()  =>
+          case Split(_) | SplitDim2(_) | Join() | JoinDim2() | asVector(_) | asScalar() | Unzip() | Swap()  =>
             call.inAccess = inAccess
             inAccess // next input
 

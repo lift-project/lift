@@ -320,9 +320,14 @@ object PartRed {
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Join()
 }
+
+case class JoinDim2() extends  Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Split(chunkSize)
 }
+
+case class SplitDim2(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = asScalar()
@@ -413,6 +418,15 @@ object Zip {
   def apply(args : Expr*) : FunCall = {
     assert(args.length == 2)
     Zip()(args:_*)
+  }
+}
+
+case class Unzip() extends FunDecl(Array[Param](Param(UndefType))) with isGenerable
+
+object Unzip {
+  def apply(args: Expr*): FunCall = {
+    assert(args.length == 2)
+    Unzip()(args:_*)
   }
 }
 
