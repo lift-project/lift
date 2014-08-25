@@ -12,6 +12,12 @@ object ReorderAccessFunction {
   def apply(f: (ArithExpr) => ArithExpr, scope: String) = new ReorderAccessFunction(f, scope)
 }
 
+class TransposeAccessFunction(val dim0: ArithExpr, val dim1: ArithExpr, override val f: (ArithExpr) => ArithExpr, override val scope: String) extends AccessFunction(f, scope)
+
+object TransposeAccessFunction {
+  def apply(dim0: ArithExpr, dim1: ArithExpr, f: (ArithExpr) => ArithExpr, scope: String) = new TransposeAccessFunction(dim0, dim1, f, scope)
+}
+
 object IdAccessFunction extends AccessFunction((e: ArithExpr) => e, "") {
   override def toString = "IdAccessFunction"
 }
@@ -271,11 +277,11 @@ object AccessFunction {
 
     val scope = getLatestScope(inputAccess)
 
-    inputAccess :+ ReorderAccessFunction( (i:ArithExpr) => { i / n + s * (i % n) } , scope)
+    inputAccess :+ ReorderAccessFunction( (i:ArithExpr) => { i / n + s * ( i % n) } , scope)
   }
 
   private def addAccessFunctionsTranspose(call: FunCall, inputAccess: AccessFunctions): AccessFunctions = {
-    val scope = getLatestScope(inputAccess)
+    val scope = ""
 
     // types after the transpose of the matrix
     val outerType = call.outT match { case at: ArrayType => at }
@@ -284,11 +290,17 @@ object AccessFunction {
     val outerSize = outerType.len
     val innerSize = innerType.len
 
-    val af = AccessFunction( (i:ArithExpr) => {
-      val col = (i % innerSize) * outerSize
-      val row = i / innerSize
-      row + col
-    } , scope)
+    // TODO: figure out how this plays into the picture for the case with more than 2 dimensions ...
+    val elemSize = Type.getLengths(Type.getElemT(innerType)).reduce(_ * _)
+
+    val af = TransposeAccessFunction(
+      innerSize,
+      outerSize,
+      (i:ArithExpr) => {
+        val col = (i % innerSize) * outerSize
+        val row = i / innerSize
+        row + col
+      } , scope)
 
     inputAccess :+ af
   }
@@ -314,6 +326,7 @@ object AccessFunction {
       case _ =>
         access.afs.filterNot({
           case _: ReorderAccessFunction => true
+          case _: TransposeAccessFunction => true
           case _ => false
         })
     }

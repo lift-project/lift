@@ -260,15 +260,29 @@ class TestMatrixMatrix {
   }
   */
 
+  private def print(m: Array[Array[Float]]): Unit = {
+    m.map( r => {
+      println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
+    } )
+  }
+
+  private def print(m: Array[Float], cols: Int): Unit = {
+    val (row, rest) = m.splitAt(cols)
+    if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
+    if (rest.nonEmpty) print(rest, cols)
+  }
+
+  /*
+  TODO: Add support for writing transposed, as in: Transpose() o Join() o MapWrg(1)( ...) o Split(c) o B
   @Test def MATRIX_MATRIX_2D_TESTS_2() {
 
-    val Msize = 32
-    val Ksize = 32
-    val Nsize = 32
-    //val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    //val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
-    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => 2.0f)
+    val Msize = 8
+    val Ksize = 8
+    val Nsize = 8
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 1 + c * 0) % 10) + 1) * 1.0f)
+    //val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 2 + c * 3) % 10) + 1) * 1.0f)
+    //val matrixA = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => 1.0f)
 
     val N = Var("N")
     val M = Var("M")
@@ -283,25 +297,17 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         Join() o MapWrg(0)(fun( Arows =>
-          Join() o MapWrg(1)(fun( Bcols =>
-
-            // Join() o MapSeq(fun( (zippedChunk) => //acc,
-
-              MapLcl(0)(fun( Arow =>
-                MapLcl(1)(fun( Bcol =>
-
-                  ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
-
-                )) o Bcols // o Transpose() o fun(p => Get(p, 1)) o Unzip() o zippedChunk
-              )) o Arows // o Transpose() o fun(p => Get(p, 0)) o Unzip() o zippedChunk
-
-            // )) o Split(d) o Zip(Transpose() o Arows, Transpose() o Bcols) // ,0.0f*r*c
-
+          Transpose() o Join() o MapWrg(1)(fun( Bcols =>
+            MapLcl(0)(fun( Bcol =>
+              MapLcl(1)(fun( Arow =>
+                ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
+              )) o Arows
+            )) o Bcols
           )) o Split(c) o B
         )) o Split(r) o A
       })
 
-    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output, runtime) = Execute(8, Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
@@ -309,10 +315,16 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
+    println("gold:")
+    print(gold, Msize)
+    println("output:")
+    print(output, Msize)
+
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
     (output, runtime)
 
   }
+  */
 
 }

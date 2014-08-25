@@ -409,6 +409,45 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
 
+  private def applyTranspose(accessFunctions: Array[AccessFunction]): Array[AccessFunction] = {
+    val afs = accessFunctions
+    val transposeIndex = afs.indexWhere({
+      case _:TransposeAccessFunction => true
+      case _ => false })
+
+    if (transposeIndex == -1) return afs
+
+    val transposeAf = afs(transposeIndex).asInstanceOf[TransposeAccessFunction]
+
+    val firstMapIndex = afs.indexWhere({
+      case _:MapAccessFunction => true
+      case _ => false
+    }, transposeIndex + 1)
+    val firstMap = afs(firstMapIndex) match { case maf: MapAccessFunction => maf }
+
+    val secondMapIndex = afs.indexWhere({
+      case _:MapAccessFunction => true
+      case _ => false
+    }, firstMapIndex + 1)
+    val secondMap = afs(secondMapIndex) match { case maf: MapAccessFunction => maf }
+
+    val newFirstMapChunkSize = ArithExpr.substitute(
+      firstMap.chunkSize,
+      scala.collection.immutable.Map(transposeAf.dim0 -> transposeAf.dim1))
+    val newFirstMap = MapAccessFunction(secondMap.loopVar, newFirstMapChunkSize, firstMap.mapName)
+    val newSecondMap = MapAccessFunction(firstMap.loopVar, secondMap.chunkSize, secondMap.mapName)
+
+    val newAfs = afs.clone()
+    newAfs(firstMapIndex) = newFirstMap
+    newAfs(secondMapIndex) = newSecondMap
+
+    //val firstUpdated = afs.updated(secondMapIndex, newSecondMap)
+    //val secondUpdated = firstUpdated.updated(firstMapIndex, newFirstMap)
+
+    // recursively search for the next transpose (after removing the transpose access function)
+    applyTranspose(newAfs.patch(transposeIndex, Seq(), 1))
+  }
+
   private def access(memory: Memory, t: Type, accessFunctions: AccessFunctions): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)
 
@@ -424,43 +463,40 @@ object OpenCLGenerator extends Generator {
                 ((coll.subMemories zip tt.elemsT) zip collAf.elems).map({
                     case ((m, ty), af) => access(m, ty, af)
                   } ).reduce(_ + ", " + _)
-/*
-              case af: AccessFunctions =>
-                println("JUST ONE ACCESS FUNCTION FOR MULTIPLE MEMORY") // TODO: find out why this is necessary
-                (coll.subMemories zip tt.elemsT).map({
-                  case (m, ty) => access(m, ty, af)
-                } ).reduce(_ + ", " + _)
-*/
+
             }
         }
 
       case _ =>
-        t match {
-          case _ =>
-            oclMem.addressSpace match {
-              case GlobalMemory =>
-                "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
-                  oclPrinter.toOpenCL(oclMem.variable) +
-                  "[" + oclPrinter.toOpenCL(accessFunctions.afs.foldRight[ArithExpr](Cst(0))((aF, i) => {
-                  aF(i)
-                })) + "])"
+        oclMem.addressSpace match {
+          case GlobalMemory =>
+            //val afs = applyTranspose(accessFunctions.afs)
+            val afs = accessFunctions.afs
 
-              case LocalMemory =>
-                // access function from the kernel or MapWrg scope should not affect local
-                val localAccessFunctions = accessFunctions.afs.filter((a) => {
-                  (a.scope != "MapWrg") && (a.scope != "Kernel")
-                })
-                "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
-                  oclPrinter.toOpenCL(oclMem.variable) +
-                  "[" + oclPrinter.toOpenCL(localAccessFunctions.foldRight[ArithExpr](Cst(0))((aF, i) => {
-                  aF(i)
-                })) + "])"
+            "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
+              oclPrinter.toOpenCL(oclMem.variable) +
+              "[" + oclPrinter.toOpenCL(afs.foldRight[ArithExpr](Cst(0))((aF, i) => {
+              aF(i)
+            })) + "])"
 
-              case PrivateMemory =>
-                oclPrinter.toOpenCL(oclMem.variable)
+          case LocalMemory =>
+            // access function from the kernel or MapWrg scope should not affect local
+            val localAccessFunctions = accessFunctions.afs.filter((a) => {
+              (a.scope != "MapWrg") && (a.scope != "Kernel")
+            })
+            //val afs = applyTranspose(localAccessFunctions)
+            val afs = localAccessFunctions
 
-              case _ => throw new NotImplementedError()
-            }
+            "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
+              oclPrinter.toOpenCL(oclMem.variable) +
+              "[" + oclPrinter.toOpenCL(afs.foldRight[ArithExpr](Cst(0))((aF, i) => {
+              aF(i)
+            })) + "])"
+
+          case PrivateMemory =>
+            oclPrinter.toOpenCL(oclMem.variable)
+
+          case _ => throw new NotImplementedError()
         }
     }
   }

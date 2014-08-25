@@ -230,12 +230,13 @@ class TestMisc {
     (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
-  @Test def MATRIX_PLUS_ONE_2(): Unit = {
+  // TODO: generate the kernel code as show (i.e. generate a transposed write access)
+  @Test def MATRIX_PLUS_ONE_TILED(): Unit = {
 
-    val Msize = 512
-    val Ksize = 512
-    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * c * r)
-    val gold   = matrix.map(_.map(_+1.0f))
+    val Msize = 8
+    val Ksize = 16
+    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * (c + r))
+    val gold   = matrix.map(_.map(_+0.0f))
 
     val M = Var("M")
     val K = Var("K")
@@ -243,51 +244,185 @@ class TestMisc {
     val r = 4
     val c = 8
 
-    val plusOne = UserFunDef("plusOne", "x", "{ return x+1.0f; }", Float, Float)
+    val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
     val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
       (matrix) => {
         Join() o MapWrg(0)(fun( cols =>
-           JoinDim2() o Swap() o MapWrg(1)(fun( tile =>
+          MapSeq(Join()) o Transpose() o MapWrg(1)(fun( tile =>
 
             // step 2: compute plus one
-            toGlobal(MapLcl(0)(fun( row =>
-              MapLcl(1)(fun( elem =>
-                plusOne(elem)
-              )) o row
-            ))) o
+            //toGlobal(MapLcl(0)(fun( row =>
+            //  MapLcl(1)(fun( elem =>
+            //    plusOne(elem)
+            //  )) o row
+            //))) o
             // step 1: load tile to local memory
-            toLocal(MapLcl(0)(fun( row =>
+            //toLocal(
+            MapLcl(0)(fun( row =>
               MapLcl(1)(fun( elem =>
                 id(elem)
               )) o row
-            ))) o tile
+            )) o tile
+            //) o tile
 
-          )) o Swap() o SplitDim2(c) o cols
+          )) o Transpose() o MapSeq(Split(c)) o cols
         )) o Split(r) o  matrix
       })
 
-    val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)
+    Compile(f)
+
+    val code =
+      "float id(float x){ return x; }\n" +
+      "\n" +
+      "kernel void KERNEL(global float* v__9, global float* v__11, int v_K_2, int v_M_1) {\n" +
+      "  for (int v_wg_id_8 = get_group_id(0); v_wg_id_8 < (v_M_1 / (4)); v_wg_id_8 += get_num_groups(0)) {\n" +
+      "    /* map_seq */\n" +
+      "    for (int v_i_7 = 0; v_i_7 < 4; v_i_7 += 1) {\n" +
+      "    }\n" +
+      "    /* map_seq */\n" +
+      "    for (int v_wg_id_6 = get_group_id(1); v_wg_id_6 < (v_K_2 / (8)); v_wg_id_6 += get_num_groups(1)) {\n" +
+      "      for (int v_l_id_5 = get_local_id(0); v_l_id_5 < 4; v_l_id_5 += get_local_size(0)) {\n" +
+      "        for (int v_l_id_4 = get_local_id(1); v_l_id_4 < 8; v_l_id_4 += get_local_size(1)) {\n" +
+      "          *((global float*)&v__11[((v_wg_id_8 * 1 * v_K_2 / (8) * 4 * 8) + (v_wg_id_6 * 1 * 8) + (v_l_id_5 * v_K_2) + (v_l_id_4 * 1) + 0)]) = " +
+      "             id(*((global float*)&v__9[((v_wg_id_8 * 1 * v_K_2 / (8) * 4 * 8) + (v_l_id_5 * v_K_2) + (v_wg_id_6 * 1 * 8) + (v_l_id_4 * 1) + 0)]));\n" +
+      "        }\n" +
+      "      }\n" +
+      "      barrier(CLK_GLOBAL_MEM_FENCE);\n" +
+      "    }\n" +
+      "    /* map_seq */\n" +
+      "    for (int v_i_3 = 0; v_i_3 < 4; v_i_3 += 1) {\n" +
+      "    }\n" +
+      "    /* map_seq */\n" +
+      "  }\n" +
+      "  return;\n" +
+      "}"
+
+    val (output, runtime) = Execute(32, Ksize * Msize)(code, f, matrix, Ksize, Msize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
+    println("gold: ")
+    myPrint(gold.flatten, Ksize)
+
+    println("output: ")
+    myPrint(output, Ksize)
+
     (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
-  private def print(m: Array[Array[Float]]): Unit = {
+  /*
+  TODO: add suport for writing transposed
+  @Test def MATRIX_PLUS_ONE_TILED_TRANSPOSE_WITH_JOIN_REORDER_SPLIT(): Unit = {
+
+    val Msize = 8
+    val Ksize = 16
+    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * (c + r))
+    val gold   = matrix.map(_.map(_+0.0f))
+
+    val M = Var("M")
+    val K = Var("K")
+
+    val r = 4
+    val c = 8
+
+    val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      (matrix) => {
+        Join() o MapWrg(0)(fun( cols =>
+          MapSeq(Join()) o Transpose() o MapWrg(1)(fun( tile =>
+
+            MapLcl(0)(fun( row =>
+              MapLcl(1)(fun( elem =>
+                id(elem)
+              )) o row
+            )) o tile
+
+          )) o Transpose() o MapSeq(Split(c)) o cols
+        )) o Split(r) o  matrix
+      })
+
+    Compile(f)
+
+    val code =
+      "float id(float x){ return x; }\n" +
+        "\n" +
+        "kernel void KERNEL(global float* v__9, global float* v__11, int v_K_2, int v_M_1) {\n" +
+        "  for (int v_wg_id_8 = get_group_id(0); v_wg_id_8 < (v_M_1 / (4)); v_wg_id_8 += get_num_groups(0)) {\n" +
+        "    /* map_seq */\n" +
+        "    for (int v_i_7 = 0; v_i_7 < 4; v_i_7 += 1) {\n" +
+        "    }\n" +
+        "    /* map_seq */\n" +
+        "    for (int v_wg_id_6 = get_group_id(1); v_wg_id_6 < (v_K_2 / (8)); v_wg_id_6 += get_num_groups(1)) {\n" +
+        "      for (int v_l_id_5 = get_local_id(0); v_l_id_5 < 4; v_l_id_5 += get_local_size(0)) {\n" +
+        "        for (int v_l_id_4 = get_local_id(1); v_l_id_4 < 8; v_l_id_4 += get_local_size(1)) {\n" +
+        "          *((global float*)&v__11[((v_wg_id_8 * 1 * v_K_2 / (8) * 4 * 8) + (v_wg_id_6 * 1 * 4 * 8) + (v_l_id_5 * 1 * 8) + (v_l_id_4 * 1) + 0)]) = " +
+        "             id(*((global float*)&v__9[((v_wg_id_8 * 1 * v_K_2 / (8) * 4 * 8) + (v_l_id_5 * v_K_2) + (v_wg_id_6 * 1 * 8) + (v_l_id_4 * 1) + 0)]));\n" +
+        "        }\n" +
+        "      }\n" +
+        "      barrier(CLK_GLOBAL_MEM_FENCE);\n" +
+        "    }\n" +
+        "    /* map_seq */\n" +
+        "    for (int v_i_3 = 0; v_i_3 < 4; v_i_3 += 1) {\n" +
+        "    }\n" +
+        "    /* map_seq */\n" +
+        "  }\n" +
+        "  return;\n" +
+        "}"
+
+    val (output, runtime) = Execute(32, Ksize * Msize)(code, f, matrix, Ksize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    println("gold: ")
+    myPrint(gold.flatten, Ksize)
+
+    println("output: ")
+    myPrint(output, Ksize)
+
+    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+  }
+  */
+
+  private def myPrint(m: Array[Array[Array[Float]]]): Unit = {
+    m.map( r => {
+      println(r.map( e => {
+        "(" + e.map("%2.0f".format(_)).reduce(_ + ", " + _) + ")"
+      }).reduce(_ + " " + _))
+    } )
+  }
+
+  private def myPrint(m: Array[Array[Float]]): Unit = {
     m.map( r => {
       println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
     } )
   }
 
-  private def print(m: Array[Float], cols: Int): Unit = {
+  private def myPrint(m: Array[Float], cols: Int): Unit = {
     val (row, rest) = m.splitAt(cols)
     if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
-    if (rest.nonEmpty) print(rest, cols)
+    if (rest.nonEmpty) myPrint(rest, cols)
+  }
+
+  private def printRow(r: Array[Float], elems: Int): Unit = {
+    val (elem, rest) = r.splitAt(elems)
+    if (elem.nonEmpty) print("(" + elem.map("%2.0f".format(_)).reduce(_ + ", " + _) + ") ")
+    if (rest.nonEmpty) printRow(rest, elems)
+  }
+
+  private def myPrint(m: Array[Float], cols: Int, elems: Int): Unit = {
+    val (row, rest) = m.splitAt(cols*elems)
+    if (row.nonEmpty) printRow(row, elems); println("")
+    if (rest.nonEmpty) myPrint(rest, cols, elems)
   }
 
   @Test def MATRIX_TRANSPOSE(): Unit = {
@@ -298,7 +433,7 @@ class TestMisc {
     val gold   = matrix.transpose
 
     println("matrix: ")
-    print(matrix)
+    myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -308,10 +443,10 @@ class TestMisc {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapGlb(0)(fun( row =>
-          Join() o MapGlb(1)(fun( col =>
-            MapSeq(id) o col
-          )) o Split(1) o row
+        MapGlb(0)(fun( col =>
+          MapGlb(1)(fun( elemInCol =>
+            id(elemInCol)
+          )) o col
         )) o Transpose() o matrix
       })
 
@@ -322,11 +457,113 @@ class TestMisc {
     println("runtime = " + runtime)
 
     println("output: ")
-    print(output, Nsize)
+    myPrint(output, Nsize)
 
     (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
+  /*
+  TODO: fix transpose function to work with more than 2 dimensions
+  @Test def MATRIX_TRANSPOSE_3D(): Unit = {
+
+    val Nsize = 8
+    val Msize = 4
+    val Ksize = 2
+    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    println("matrix: ")
+    myPrint(matrix)
+
+    val gold   = matrix.transpose
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      (matrix) => {
+        MapGlb(0)(fun( col =>
+          MapGlb(1)(fun( elemInCol =>
+            MapSeq(id) o elemInCol
+          )) o col
+        )) o Transpose() o matrix
+      })
+
+    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Msize, Nsize, Ksize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    println("gold: ")
+    myPrint(gold.flatten.flatten, Nsize, Ksize)
+
+    println("output: ")
+    myPrint(output, Nsize, Ksize)
+
+    (gold.flatten.flatten, output).zipped.map(assertEquals(_,_,0.0))
+  }
+  */
+
+  /* TODO: Add support for writing tansposed
+  @Test def MATRIX_TRANSPOSE_TILED(): Unit = {
+
+    val Nsize = 4
+    val Msize = 16
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 16.0f)
+    val gold   = matrix.transpose
+
+    println("matrix: ")
+    myPrint(matrix)
+
+    val N = Var("N")
+    val M = Var("M")
+
+    val r = 2
+    val c = 4
+
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        Join() o MapWrg(0)(fun( rows =>
+          Transpose() o MapSeq(Join()) o Transpose() o MapWrg(1)(fun( tile =>
+
+            // step 2: write back to global memory
+            toGlobal(MapLcl(0)(fun( col =>
+              MapLcl(1)(fun( elem =>
+                id(elem)
+              )) o col
+            ))) o Transpose() o
+            // step 1: load tile to local memory
+            toLocal(MapLcl(1)(fun( row =>
+              MapLcl(0)(fun( elem =>
+                id(elem)
+              )) o row
+            ))) o tile
+
+          )) o Transpose() o MapSeq(Split(c)) o rows
+        )) o Split(r) o matrix
+      })
+
+    val comp = Compile(f)
+
+    val (output, runtime) = Execute(8, Nsize * Msize)(f, matrix, Msize, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    println("output: ")
+    myPrint(output, Nsize)
+
+    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+  }
+  */
 
 
   /*

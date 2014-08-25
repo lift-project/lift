@@ -39,6 +39,7 @@ class Execute(val localSize: Int, val globalSize: Int) {
 
     val vars = f.params.map((p) => Type.getLengths(p.outT).filter(_.isInstanceOf[Var])).flatten// just take the variable
     val sizes = values.map({
+        case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size))
         case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size))
         case a: Array[_] => Seq(Cst(a.size))
         case any: Any => Seq(Cst(1))
@@ -51,6 +52,7 @@ class Execute(val localSize: Int, val globalSize: Int) {
       case f: Float => value(f)
       case af: Array[Float] => global.input(af)
       case aaf: Array[Array[Float]] => global.input(aaf.flatten)
+      case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
 
       case i: Int => value(i)
       case ai: Array[Int] => global.input(ai)
