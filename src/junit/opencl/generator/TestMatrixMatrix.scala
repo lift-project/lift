@@ -44,6 +44,13 @@ class TestMatrixMatrix {
     )
   }
 
+  def matrixMatrixPatternMultiply2(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
+    val Bt = B.transpose
+    A.map( Arow =>
+      Bt.map( Bcol => (Arow, Bcol).zipped )
+    ).map(_.map(_.map(_ * _).reduce(_ + _)))
+  }
+
   def matrixMatrixMultiply(A: Array[Array[Float]], B: Array[Array[Float]]) :  Array[Array[Float]] = {
     val aCols = A(0).length
     val aRows = A.length
@@ -72,7 +79,7 @@ class TestMatrixMatrix {
   /*
   @Test def TestScalaPatternImplementation(): Unit = {
 
-    val inputSize = 1024
+    val inputSize = 512
     val matrixA = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
@@ -141,7 +148,7 @@ class TestMatrixMatrix {
     val M = Var("M")
     val K = Var("K")
 
-    val f = fun(
+    val f1 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
@@ -152,7 +159,24 @@ class TestMatrixMatrix {
         )) o A
       })
 
-    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    // TODO: make this work
+    val f2 = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      (A, B) => {
+        MapGlb(0)(fun(
+          MapGlb(1)(fun(
+            ReduceSeq(multAndSumUp, 0.0f) o _
+          )) o _
+        )) o
+        MapGlb(0)(fun( Arow =>
+          MapGlb(1)(fun( Bcol =>
+            Zip(Arow, Bcol)
+          )) o B
+        )) o A
+      })
+
+    val (output, runtime) = Execute(Msize * Nsize)(f1, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))

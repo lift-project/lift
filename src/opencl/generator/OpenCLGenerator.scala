@@ -182,6 +182,8 @@ object OpenCLGenerator extends Generator {
         case f: toGlobal => generate(f.f.body)
         case f: toLocal => generate(f.f.body)
         case l: Lambda => generate(l.body)
+        case g: Gather => generate(g.f.body)
+        case s: Scatter => generate(s.f.body)
         case _: ReorderStride =>
         case _: Transpose =>
         case _: Swap =>

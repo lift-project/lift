@@ -130,6 +130,26 @@ case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGe
 case class Swap() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 
+
+class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
+
+object IndexFunction {
+  implicit def apply(f: (ArithExpr, Type) => ArithExpr) = new IndexFunction(f)
+}
+
+case class Gather(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+
+object Gather {
+  def apply(idx: IndexFunction) = (f: Lambda1) => new Gather(idx, f)
+}
+
+case class Scatter(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+
+object Scatter {
+  def apply(idx: IndexFunction) = (f: Lambda1) => new Scatter(idx, f)
+}
+
+
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*
 object Fun {

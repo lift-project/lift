@@ -114,6 +114,31 @@ class TestMisc {
 
   }
 
+  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID_REORDER_REVERSE() {
+
+    val reverse = (i:ArithExpr, t:Type) => { Type.getLength(t) - 1 - i }
+
+    val inputSize = 1024
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inputArray.map(-_).reverse
+
+    val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
+
+    val negFun = fun(ArrayType(Float, Var("N")), (input) =>
+
+      Gather(reverse)(Join() o MapGlb(
+        MapSeq(neg)
+      ) o Split(4)) o input
+    )
+
+    val (output, runtime) = Execute(16, inputArray.length)(negFun, inputArray, inputArray.size)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+  }
+
   @Test def VECTOR_SCAL() {
 
     val inputSize = 1024
@@ -230,13 +255,12 @@ class TestMisc {
     (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
-  // TODO: generate the kernel code as show (i.e. generate a transposed write access)
   @Test def MATRIX_PLUS_ONE_TILED(): Unit = {
 
     val Msize = 8
     val Ksize = 16
     val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * (c + r))
-    val gold   = matrix.map(_.map(_+0.0f))
+    val gold   = matrix.map(_.map(_+1.0f))
 
     val M = Var("M")
     val K = Var("K")
@@ -251,56 +275,30 @@ class TestMisc {
       ArrayType(ArrayType(Float, K), M),
       (matrix) => {
         Join() o MapWrg(0)(fun( cols =>
-          MapSeq(Join()) o Transpose() o MapWrg(1)(fun( tile =>
+          MapSeq(Join()) o Swap() o Scatter(transpose)(Gather(transpose)(MapWrg(1)(fun( tile =>
 
             // step 2: compute plus one
-            //toGlobal(MapLcl(0)(fun( row =>
-            //  MapLcl(1)(fun( elem =>
-            //    plusOne(elem)
-            //  )) o row
-            //))) o
+            toGlobal(
+              MapLcl(0)(fun( row =>
+                MapLcl(1)(fun( elem =>
+                  id(elem)
+                )) o row
+              ))
+            ) o
             // step 1: load tile to local memory
-            //toLocal(
-            MapLcl(0)(fun( row =>
-              MapLcl(1)(fun( elem =>
-                id(elem)
-              )) o row
-            )) o tile
-            //) o tile
+            toLocal(
+              MapLcl(0)(fun( row =>
+                MapLcl(1)(fun( elem =>
+                  plusOne(elem)
+                )) o row
+              ))
+            ) o tile
 
-          )) o Transpose() o MapSeq(Split(c)) o cols
+          )))) o Swap() o MapSeq(Split(c)) o cols
         )) o Split(r) o  matrix
       })
 
-    Compile(f)
-
-    val code =
-      "float id(float x){ return x; }\n" +
-      "\n" +
-      "kernel void KERNEL(global float* v__9, global float* v__11, int v_K_2, int v_M_1) {\n" +
-      "  for (int v_wg_id_8 = get_group_id(0); v_wg_id_8 < (v_M_1 / (4)); v_wg_id_8 += get_num_groups(0)) {\n" +
-      "    /* map_seq */\n" +
-      "    for (int v_i_7 = 0; v_i_7 < 4; v_i_7 += 1) {\n" +
-      "    }\n" +
-      "    /* map_seq */\n" +
-      "    for (int v_wg_id_6 = get_group_id(1); v_wg_id_6 < (v_K_2 / (8)); v_wg_id_6 += get_num_groups(1)) {\n" +
-      "      for (int v_l_id_5 = get_local_id(0); v_l_id_5 < 4; v_l_id_5 += get_local_size(0)) {\n" +
-      "        for (int v_l_id_4 = get_local_id(1); v_l_id_4 < 8; v_l_id_4 += get_local_size(1)) {\n" +
-      "          *((global float*)&v__11[((v_wg_id_8 * 1 * v_K_2 / (8) * 4 * 8) + (v_wg_id_6 * 1 * 8) + (v_l_id_5 * v_K_2) + (v_l_id_4 * 1) + 0)]) = " +
-      "             id(*((global float*)&v__9[((v_wg_id_8 * 1 * v_K_2 / (8) * 4 * 8) + (v_l_id_5 * v_K_2) + (v_wg_id_6 * 1 * 8) + (v_l_id_4 * 1) + 0)]));\n" +
-      "        }\n" +
-      "      }\n" +
-      "      barrier(CLK_GLOBAL_MEM_FENCE);\n" +
-      "    }\n" +
-      "    /* map_seq */\n" +
-      "    for (int v_i_3 = 0; v_i_3 < 4; v_i_3 += 1) {\n" +
-      "    }\n" +
-      "    /* map_seq */\n" +
-      "  }\n" +
-      "  return;\n" +
-      "}"
-
-    val (output, runtime) = Execute(32, Ksize * Msize)(code, f, matrix, Ksize, Msize)
+    val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
@@ -315,8 +313,6 @@ class TestMisc {
     (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
-  /*
-  TODO: add suport for writing transposed
   @Test def MATRIX_PLUS_ONE_TILED_TRANSPOSE_WITH_JOIN_REORDER_SPLIT(): Unit = {
 
     val Msize = 8
@@ -337,7 +333,7 @@ class TestMisc {
       ArrayType(ArrayType(Float, K), M),
       (matrix) => {
         Join() o MapWrg(0)(fun( cols =>
-          MapSeq(Join()) o Transpose() o MapWrg(1)(fun( tile =>
+          MapSeq(Join()) o Swap() o Scatter(transpose)(Gather(transpose)(MapWrg(1)(fun( tile =>
 
             MapLcl(0)(fun( row =>
               MapLcl(1)(fun( elem =>
@@ -345,39 +341,11 @@ class TestMisc {
               )) o row
             )) o tile
 
-          )) o Transpose() o MapSeq(Split(c)) o cols
+          )))) o Swap() o MapSeq(Split(c)) o cols
         )) o Split(r) o  matrix
       })
 
-    Compile(f)
-
-    val code =
-      "float id(float x){ return x; }\n" +
-        "\n" +
-        "kernel void KERNEL(global float* v__9, global float* v__11, int v_K_2, int v_M_1) {\n" +
-        "  for (int v_wg_id_8 = get_group_id(0); v_wg_id_8 < (v_M_1 / (4)); v_wg_id_8 += get_num_groups(0)) {\n" +
-        "    /* map_seq */\n" +
-        "    for (int v_i_7 = 0; v_i_7 < 4; v_i_7 += 1) {\n" +
-        "    }\n" +
-        "    /* map_seq */\n" +
-        "    for (int v_wg_id_6 = get_group_id(1); v_wg_id_6 < (v_K_2 / (8)); v_wg_id_6 += get_num_groups(1)) {\n" +
-        "      for (int v_l_id_5 = get_local_id(0); v_l_id_5 < 4; v_l_id_5 += get_local_size(0)) {\n" +
-        "        for (int v_l_id_4 = get_local_id(1); v_l_id_4 < 8; v_l_id_4 += get_local_size(1)) {\n" +
-        "          *((global float*)&v__11[((v_wg_id_8 * 1 * v_K_2 / (8) * 4 * 8) + (v_wg_id_6 * 1 * 4 * 8) + (v_l_id_5 * 1 * 8) + (v_l_id_4 * 1) + 0)]) = " +
-        "             id(*((global float*)&v__9[((v_wg_id_8 * 1 * v_K_2 / (8) * 4 * 8) + (v_l_id_5 * v_K_2) + (v_wg_id_6 * 1 * 8) + (v_l_id_4 * 1) + 0)]));\n" +
-        "        }\n" +
-        "      }\n" +
-        "      barrier(CLK_GLOBAL_MEM_FENCE);\n" +
-        "    }\n" +
-        "    /* map_seq */\n" +
-        "    for (int v_i_3 = 0; v_i_3 < 4; v_i_3 += 1) {\n" +
-        "    }\n" +
-        "    /* map_seq */\n" +
-        "  }\n" +
-        "  return;\n" +
-        "}"
-
-    val (output, runtime) = Execute(32, Ksize * Msize)(code, f, matrix, Ksize, Msize)
+    val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
@@ -391,7 +359,6 @@ class TestMisc {
 
     (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
-  */
 
   private def myPrint(m: Array[Array[Array[Float]]]): Unit = {
     m.map( r => {
@@ -440,7 +407,7 @@ class TestMisc {
 
     val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
-    val f = fun(
+    val f1 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapGlb(0)(fun( col =>
@@ -449,6 +416,39 @@ class TestMisc {
           )) o col
         )) o Transpose() o matrix
       })
+
+    val f2 = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        Gather(transpose)(MapGlb(0)(fun( col =>
+          MapGlb(1)(fun( elemInCol =>
+            id(elemInCol)
+          ))o col
+        ))) o Swap() o matrix
+      })
+
+    val f3 = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        Swap() o Scatter(transpose)(MapGlb(0)(fun( col =>
+          MapGlb(1)(fun( elemInCol =>
+            id(elemInCol)
+          ))o col
+        ))) o matrix
+      })
+
+    // transpose twice == id
+    val f4 = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(fun( col =>
+          MapGlb(1)(fun( elemInCol =>
+            id(elemInCol)
+          ))o col
+        )))) o Swap() o matrix
+      })
+
+    val f = f3
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Msize, Nsize)
 
@@ -462,8 +462,21 @@ class TestMisc {
     (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
-  /*
-  TODO: fix transpose function to work with more than 2 dimensions
+  val transpose = (i:ArithExpr, t:Type) => {
+    val outerType = t match { case at: ArrayType => at }
+    val innerType = outerType.elemT match { case at: ArrayType => at }
+
+    val outerSize = outerType.len
+    val innerSize = innerType.len
+
+    val elemSize = Type.getLengths(Type.getElemT(innerType)).reduce(_ * _)
+
+    val col = (((i/elemSize) % innerSize) * outerSize) * elemSize
+    val row = ((i/elemSize) / innerSize) * elemSize
+
+    row + col + (i % elemSize)
+  }
+
   @Test def MATRIX_TRANSPOSE_3D(): Unit = {
 
     val Nsize = 8
@@ -485,11 +498,13 @@ class TestMisc {
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, K), M), N),
       (matrix) => {
-        MapGlb(0)(fun( col =>
-          MapGlb(1)(fun( elemInCol =>
-            MapSeq(id) o elemInCol
-          )) o col
-        )) o Transpose() o matrix
+        Gather(transpose)(
+          MapGlb(0)(
+            MapGlb(1)(
+              MapSeq(id)
+            )
+          )
+        ) o Swap() o matrix
       })
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Msize, Nsize, Ksize)
@@ -506,7 +521,6 @@ class TestMisc {
 
     (gold.flatten.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
-  */
 
   /* TODO: Add support for writing tansposed
   @Test def MATRIX_TRANSPOSE_TILED(): Unit = {

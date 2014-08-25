@@ -242,6 +242,8 @@ object OpenCLMemory {
       case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, inMem, outputMem, maxGlbOutSize)
       case tl: toLocal =>         allocToLocal(tl,    numGlb, numLcl, inMem, outputMem, maxLclOutSize)
 
+      case g: Gather =>           allocGather(g, numGlb, numLcl, inMem, outputMem)
+      case s: Scatter =>          allocScatter(s, numGlb, numLcl, inMem, outputMem)
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
 
@@ -313,6 +315,18 @@ object OpenCLMemory {
         alloc(r.f.body, numGlb, numLcl, outputMem)
       case _ => throw new IllegalArgumentException("PANIC")
     }
+  }
+
+  private def allocGather(g: Gather, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+    if (g.f.params.length != 1) throw new NumberOfArgumentsException
+    g.f.params(0).outM = inMem
+    alloc(g.f.body, numGlb, numLcl, outputMem)
+  }
+
+  private def allocScatter(s: Scatter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+    if (s.f.params.length != 1) throw new NumberOfArgumentsException
+    s.f.params(0).outM = inMem
+    alloc(s.f.body, numGlb, numLcl, outputMem)
   }
 
   private def allocToGlobal(tg: toGlobal, numGlb: ArithExpr, numLcl: ArithExpr,

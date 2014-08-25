@@ -118,7 +118,6 @@ object AccessFunction {
       case call: FunCall =>
         call.f match {
           case l: Lambda => addAccessFunctionsLambda(l, call, inAccess, outputAccess)
-          case f: FPattern => addAccessFunctionsFPattern(f, inAccess, outputAccess)
           case cf: CompFunDef =>
             call.inAccess = cf.funs.foldRight[AccessFunctions](inAccess)(
               (lambda: Lambda, af: AccessFunctions) => {
@@ -146,6 +145,16 @@ object AccessFunction {
           case r: ReorderStride =>
             call.inAccess = addAccessFunctionsReorderStride(call, inAccess)
             call.inAccess // next input
+
+          case g: Gather =>
+            call.inAccess = addGather(g, call, inAccess, outputAccess)
+            call.inAccess
+
+          case s: Scatter =>
+            call.outAccess = addScatter(s, call, inAccess, outputAccess)
+            call.outAccess
+
+          case f: FPattern => addAccessFunctionsFPattern(f, inAccess, outputAccess)
         }
     }
   }
@@ -271,6 +280,28 @@ object AccessFunction {
     }
   }
 
+  private def addGather(g: Gather, call: FunCall, inputAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
+    if (g.f.params.length != 1) throw new NumberOfArgumentsException
+
+    val scope = getLatestScope(inputAccess)
+    g.f.params(0).inAccess = inputAccess :+ ReorderAccessFunction( (i: ArithExpr) => g.idx.f(i, call.inT), scope)
+
+    addAccessFunctions(g.f.body, outputAccess)
+
+    outputAccess // next input
+  }
+
+  private def addScatter(s: Scatter, call: FunCall, inputAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
+    if (s.f.params.length != 1) throw new NumberOfArgumentsException
+
+    val scope = getLatestScope(inputAccess)
+    s.f.params(0).inAccess = inputAccess
+
+    addAccessFunctions(s.f.body, outputAccess :+ ReorderAccessFunction( (i: ArithExpr) => s.idx.f(i, call.outT), scope))
+
+    outputAccess :+ ReorderAccessFunction( (i: ArithExpr) => s.idx.f(i, call.outT), scope) // next input
+  }
+
   private def addAccessFunctionsReorderStride(call: FunCall, inputAccess: AccessFunctions): AccessFunctions = {
     val s = Type.getLength(call.inT)
     val n = Type.getLength(Type.getElemT(call.inT))
@@ -290,16 +321,16 @@ object AccessFunction {
     val outerSize = outerType.len
     val innerSize = innerType.len
 
-    // TODO: figure out how this plays into the picture for the case with more than 2 dimensions ...
     val elemSize = Type.getLengths(Type.getElemT(innerType)).reduce(_ * _)
 
     val af = TransposeAccessFunction(
       innerSize,
       outerSize,
       (i:ArithExpr) => {
-        val col = (i % innerSize) * outerSize
-        val row = i / innerSize
-        row + col
+        val col = (((i/elemSize) % innerSize) * outerSize) * elemSize
+        val row = ((i/elemSize) / innerSize) * elemSize
+
+        row + col + (i % elemSize)
       } , scope)
 
     inputAccess :+ af

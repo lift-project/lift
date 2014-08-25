@@ -301,8 +301,10 @@ object Type {
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
       case _: Transpose =>        checkTranspose(inT)
-      case _:Swap =>              checkSwap(inT)
+      case _: Swap =>             checkSwap(inT)
       case _: ReorderStride =>    inT
+      case g: Gather =>           checkGather(g, inT, setType)
+      case s: Scatter =>          checkScatter(s, inT, setType)
     }
   }
 
@@ -460,6 +462,18 @@ object Type {
   private def checkUserFunDef(uf: UserFunDef, inT: Type): Type = {
     val substitutions = reify(uf.inT, inT)
     substitute(uf.outT, substitutions.toMap)
+  }
+
+  private def checkGather(g: Gather, inT: Type, setType: Boolean): Type = {
+    if (g.f.params.length != 1) throw new NumberOfArgumentsException
+    g.f.params(0).outT = inT
+    check(g.f.body, setType)
+  }
+
+  private def checkScatter(s: Scatter, inT: Type, setType: Boolean): Type = {
+    if (s.f.params.length != 1) throw new NumberOfArgumentsException
+    s.f.params(0).outT = inT
+    check(s.f.body, setType)
   }
 
   private def checkToLocal(tL: toLocal, inT: Type, setType: Boolean): Type = {
