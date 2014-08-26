@@ -5,7 +5,7 @@ import opencl.ir._
 class Context extends Cloneable {
   
   var mapDepth : Int = 0
-  var inMapGlb = false;
+  var inMapGlb = false
   var inMapWrg = false
   var inMapLcl = false
   var inSeq = false
@@ -52,26 +52,29 @@ object Context {
    /*
    * Update the context recursively
    */
-  def updateContext(f: Fun): Unit = updateContext(f, f.context)
+  def updateContext(expr: Expr): Unit = updateContext(expr, expr.context)
     
   /*
    * Update the context recursively
    */  
-  def updateContext(f: Fun, ctx: Context): Unit = {
+  def updateContext(expr: Expr, ctx: Context): Unit = {
     if (ctx != null) {
-      f.context = ctx;
-      f match {   
-        
-        case Map(inF)    => updateContext(inF, ctx.incMapDepth)
-        case MapSeq(inF) => updateContext(inF, ctx.incMapDepth.setInSeq())
-        case MapGlb(inF) => updateContext(inF, ctx.incMapDepth.setInMapGlb)
-        case MapWrg(inF) => updateContext(inF, ctx.incMapDepth.setInMapWrg)
-        case MapLcl(inF) => updateContext(inF, ctx.incMapDepth.setInMapLcl)
-        case ReduceSeq(inF,_) => updateContext(inF, ctx.setInSeq())
+      expr.context = ctx
+      expr match {
+        case call: FunCall => call.f match {
 
-        case fp: FPattern => updateContext(fp.f, ctx.copy)
-        case cf: CompFun => cf.funs.map(inF => updateContext(inF, ctx.copy))
-        case _ => 
+          case Map(inF)    => updateContext(inF.body, ctx.incMapDepth)
+          case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth.setInSeq())
+          case MapGlb(_,inF) => updateContext(inF.body, ctx.incMapDepth.setInMapGlb)
+          case MapWrg(_,inF) => updateContext(inF.body, ctx.incMapDepth.setInMapWrg)
+          case MapLcl(_,inF) => updateContext(inF.body, ctx.incMapDepth.setInMapLcl)
+          case ReduceSeq(inF) => updateContext(inF.body, ctx.setInSeq())
+
+          case fp: FPattern => updateContext(fp.f.body, ctx.copy)
+          case cf: CompFunDef => cf.funs.map(inF => updateContext(inF.body, ctx.copy))
+          case _ =>
+        }
+        case _ =>
       }
     }    
   }

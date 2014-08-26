@@ -38,10 +38,10 @@ object Utils {
 	}
 
 
-	  
-	
-  def randomDescent(f: Fun, inputType: Type, maxDepth: Int,
-      constraints: Constraints = new Constraints(3, false)): Fun = {
+
+
+  /*def randomDescent(f: FunExpr, inputType: Type, maxDepth: Int,
+      constraints: Constraints = new Constraints(3, false)): FunExpr = {
 
     var c = constraints    
     
@@ -67,6 +67,6 @@ object Utils {
     val randomDeriv = derivs(rnd)
 
     randomDescent(randomDeriv, inputType, maxDepth - 1, c)
-  }
-  
+  }*/
+
 }

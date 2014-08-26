@@ -60,7 +60,7 @@ class OpenCLPrinter {
   def printVarDecl(t: Type, v: TypeVar, init: String) {
     print(toOpenCL(t)+" "+toOpenCL(v)+" = "+init)
   }
-
+/*
   def printAsParameterDecl(input: Input) {
     val t = input.expectedOutT
     print(t match {
@@ -68,26 +68,32 @@ class OpenCLPrinter {
       case _ => "global " + toOpenCL(t) + " " + toOpenCL(input.variable)
     })
   }
-
+*/
   private def toParameterDecl(mem: TypedOpenCLMemory) : String = {
-    //val coll = mem.mem.asInstanceOf[OpenCLMemoryCollection]
-    mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
+    mem.t match {
+      case ScalarType(_,_) | VectorType(_,_) => toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
+      case ArrayType(_,_) => mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
+    }
   }
 
   def printAsParameterDecl(mems: Array[TypedOpenCLMemory]) {
     print(mems.map( mem => toParameterDecl(mem) ).reduce(separateByComma))
   }
 
-  def generateFunCall(f: Fun, args: String*) {
-    f match {
-      case uf: UserFun => generateFunCall(uf, args:_*)
-      //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
+  def generateFunCall(expr: Expr, args: String*) {
+    expr match {
+      case call: FunCall => call.f match {
+        case uf: UserFunDef => generateFunCall(uf, args:_*)
+        //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
+        case l: Lambda => generateFunCall(l.body, args:_*)
+        case _ => throw new NotImplementedError()
+      }
       case _ => throw new NotImplementedError()
     }
   }
 
-  def generateFunCall(f: UserFun, args: String*) {
-    print(f.funDef.name+"(")
+  def generateFunCall(f: UserFunDef, args: String*) {
+    print(f.name+"(")
     if (args.length > 0)
       print(args.reduceLeft((result, a) => result + "," + a))
     print(")")
@@ -105,18 +111,19 @@ class OpenCLPrinter {
       case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)
       case ScalarType(name, _) => name
       case tt: TupleType =>
-        "(" + tt.elemsT.map(toOpenCL(_)).reduce( _ + ", " + _ ) + ")"
-        //throw new Exception // don't know how to print a tuple in opencl ...
+//        "(" + tt.elemsT.map(toOpenCL(_)).reduce( _ + ", " + _ ) + ")"
+        throw new Exception // don't know how to print a tuple in opencl ...
       case UndefType => "void"
     }
   }
 
-  def toOpenCL(e: Expr) : String = {
+  def toOpenCL(e: ArithExpr) : String = {
     val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "pow(" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
-      case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: Expr) => {
+      case Log(b, x) => "(int)log"+b+"((float)"+toOpenCL(x)+")"
+      case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
         s + (e match {
           case Pow(b, Cst(-1)) => " / (" + toOpenCL(b) + ")"
           case _ => " * " + toOpenCL(e)
@@ -147,8 +154,8 @@ class OpenCLPrinter {
   def toOpenCL(uf: UserFunDef) : String = {
     // "sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float
     // (val name: String, val paramNames: Array[String], val body: String, val expectedInT: Type, val expectedOutT: Type)
-    val params = toOpenCL( (uf.expectedInT, uf.paramNames) )
-    toOpenCL(uf.expectedOutT) + " " + uf.name + "(" + params + ")" + uf.body
+    val params = toOpenCL( (uf.inT, uf.paramNames) )
+    toOpenCL(uf.outT) + " " + uf.name + "(" + params + ")" + uf.body
   }
 
 
@@ -172,13 +179,14 @@ class OpenCLPrinter {
 
 
   def generateLoop(indexVar: Var, range: RangeAdd, printBody: (() => Unit)) {
+    indexVar.range = range
 
     val init = ExprSimplifier.simplify(range.start)
     val cond = ExprSimplifier.simplify(range.stop)
     val update = ExprSimplifier.simplify(range.step)
 
     // eval expression. if sucessfull return true and the value, otherwise return false
-    def evalExpr = (e: Expr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
+    def evalExpr = (e: ArithExpr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
 
     // try to directly evaluate
     val (initIsEvaluated, initEvaluated) = evalExpr(init)

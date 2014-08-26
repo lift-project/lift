@@ -1,6 +1,6 @@
 package exploration
 
-import ir.Fun
+import ir.{Lambda, FunCall}
 
 class Constraints(val maxMapDepth: Int, val converge: Boolean, val randomOnly: Boolean = false) {
 
@@ -14,7 +14,7 @@ class Constraints(val maxMapDepth: Int, val converge: Boolean, val randomOnly: B
   
   def setOnlyTerminal() : Constraints = new Constraints(maxMapDepth, converge)
   
-  val fixedFuns : scala.collection.mutable.Set[Wrap[Fun]] = new scala.collection.mutable.HashSet() // set of functions that shouldn't be derived  
-  def addFixedFun(f: Fun) = {fixedFuns += new Wrap(f)}
-  def canDerive(f: Fun) = !fixedFuns.contains(new Wrap(f))
+  val fixedFuns : scala.collection.mutable.Set[Wrap[FunCall]] = new scala.collection.mutable.HashSet() // set of function calls that shouldn't be derived any further
+  def addFixedFunCall(f: FunCall) = {fixedFuns += new Wrap(f)}
+  def canDerive(f: FunCall) = !fixedFuns.contains(new Wrap(f))
 }

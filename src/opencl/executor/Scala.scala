@@ -2,19 +2,13 @@ package opencl.executor
 
 import ir._
 import opencl.generator.OpenCLGenerator
-import opencl.ir.{OpenCLMemory, GlobalMemory, LocalMemory, Float}
+import opencl.ir._
 
 import scala.reflect.ClassTag
 
 object Compile {
   def apply(f: Lambda) = {
-    Type.check(f, NoType)
-
-    // allocate the params and set the corresponding type
-    f.params.map( (p) => {
-      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.expectedOutT))
-      p.inT = p.expectedOutT
-    })
+    Type.check(f.body)
 
     val kernelCode = OpenCLGenerator.generate(f)
     println("Kernel code:")
@@ -25,44 +19,63 @@ object Compile {
 }
 
 object Execute {
-  var wgSize = 128
-
-
-  def apply(f: Lambda, values: Array[Float]*) : (Array[Float], Double) = {
-    val code = Compile(f)
-    Execute(code, f, values:_*)
+  def apply(globalSize: Int): Execute = {
+    apply(128, globalSize)
   }
 
-  def apply(code: String, f: Lambda, values: Array[Float]*) : (Array[Float], Double) = {
-    val valueMap = (    f.params.map( (p) => Type.getLength(p.expectedOutT))
-      zip values.map( (a) => Cst(a.size)) ).toMap[Expr, Expr]
+  def apply(localSize: Int, globalSize: Int): Execute = {
+    new Execute(localSize, globalSize)
+  }
+}
 
-    // allocate the params and set the corresponding type
-    f.params.map( (p) => {
-      p.inM = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.expectedOutT))
-      p.inT = p.expectedOutT
+class Execute(val localSize: Int, val globalSize: Int) {
+  def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
+    assert( f.params.forall( _.outT != UndefType ), "Types of the params have to be set!" )
+    val code = Compile(f)
+    apply(code, f, values:_*)
+  }
+
+  def apply(code: String, f: Lambda, values: Any*) : (Array[Float], Double) = {
+
+    val vars = f.params.map((p) => Type.getLengths(p.outT).filter(_.isInstanceOf[Var])).flatten// just take the variable
+    val sizes = values.map({
+        case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size))
+        case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size))
+        case a: Array[_] => Seq(Cst(a.size))
+        case any: Any => Seq(Cst(1))
+      }).flatten[ArithExpr]
+    val valueMap = (vars zip sizes).toMap[ArithExpr, ArithExpr]
+
+    val outputSize = ArithExpr.substitute(Type.getLengths(f.body.outT).reduce(_*_), valueMap).eval()
+
+    val inputs = values.map({
+      case f: Float => value(f)
+      case af: Array[Float] => global.input(af)
+      case aaf: Array[Array[Float]] => global.input(aaf.flatten)
+      case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
+
+      case i: Int => value(i)
+      case ai: Array[Int] => global.input(ai)
+      case aai: Array[Array[Int]] => global.input(aai.flatten)
     })
-
-    val outputSize = Expr.substitute(Type.getLength(f.ouT), valueMap).eval()
-
-    val inputs = values.map( global.input(_) )
     val outputData = global.output[Float](outputSize)
 
     val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
       val m = mem.mem
       val i = f.params.indexWhere( m == _.outM )
       if (i != -1) inputs(i)
-      else if (m == f.outM) outputData
+      else if (m == f.body.outM) outputData
       else m.addressSpace match {
-        case LocalMemory => local(Expr.substitute(m.size, valueMap).eval() * 4) // TODO: check on this ...
-        case GlobalMemory => global(Expr.substitute(m.size, valueMap).eval() * 4)
+        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval())
+        case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval())
       }
     })
 
-    val args = memArgs ++ values.map( (a) =>  value(a.size) )
+    val args: Array[KernelArg] = (memArgs ++ inputs).distinct.toArray
 
-    // TODO: think about global size
-    val runtime = Executor.execute(code, wgSize, values(0).size, args)
+    println("args.length " + args.length)
+
+    val runtime = Executor.execute(code, localSize, globalSize, args)
 
     val output = outputData.asFloatArray()
 
@@ -71,91 +84,6 @@ object Execute {
     (output, runtime)
   }
 
-  // =====================
-
-  def apply(first: Array[Float], f: (Input) => CompFun) = {
-
-    val inputSize = first.size
-    val N = Var("N")
-    val valueMap = scala.collection.immutable.Map[Expr, Expr](N -> inputSize)
-
-    val inputs = Array(Input(Var("x"), ArrayType(Float, N)))
-
-    val kernel = f(inputs(0))
-
-    Type.check(kernel, NoType)
-
-    val kernelCode = OpenCLGenerator.generate(kernel)
-    println("Kernel code:")
-    println(kernelCode)
-
-    val outputSize = Expr.substitute(Type.getLength(kernel.ouT), valueMap).eval()
-
-    val inputData = global.input(first)
-    val outputData = global.output[Float](outputSize)
-
-    val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
-      val m = mem.mem
-      if (m == inputs(0).outM) inputData
-      else if (m == kernel.outM) outputData
-      else m.addressSpace match {
-        case LocalMemory => local(Expr.substitute(m.size, valueMap).eval() * 4) // TODO: check on this ...
-        case GlobalMemory => global(Expr.substitute(m.size, valueMap).eval() * 4)
-      }
-    })
-
-    val args = memArgs :+ value(inputSize)
-
-    val runtime = Executor.execute(kernelCode, wgSize, inputSize, args)
-
-    val outputArray = outputData.asFloatArray()
-
-    args.foreach(_.dispose)
-
-    (outputArray, runtime)
-  }
-
-  def apply(first: Array[Float], second: Array[Float], f: (Input, Input) => Fun) = {
-    val N = Var("N")
-    val M = Var("M")
-    val valueMap = scala.collection.immutable.Map[Expr, Expr](N -> first.size, M -> second.size)
-
-    val inputs = Array(Input(Var("x"), ArrayType(Float, N)), Input(Var("y"), ArrayType(Float, M)))
-
-    val kernel = f(inputs(0), inputs(1))
-
-    Type.check(kernel, NoType)
-
-    val kernelCode = OpenCLGenerator.generate(kernel)
-    println("Kernel code:")
-    println(kernelCode)
-
-    val outputSize = Expr.substitute(Type.getLength(kernel.ouT), valueMap).eval()
-
-    val data = Array(global.input(first), global.input(second))
-    val outputData = global.output[Float](outputSize)
-
-    val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
-      val m = mem.mem
-      if (m == inputs(0).outM) data(0)
-      else if (m == inputs(1).outM) data(1)
-      else if (m == kernel.outM) outputData
-      else m.addressSpace match {
-        case LocalMemory => local(Expr.substitute(m.size, valueMap).eval() * 4) // TODO: check on this ...
-        case GlobalMemory => global(Expr.substitute(m.size, valueMap).eval() * 4)
-      }
-    })
-
-    val args = memArgs :+ value(first.size) :+ value(second.size)
-
-    val runtime = Executor.execute(kernelCode, wgSize, first.size, args)
-
-    val outputArray = outputData.asFloatArray()
-
-    args.foreach(_.dispose)
-
-    (outputArray, runtime)
-  }
 }
 
 

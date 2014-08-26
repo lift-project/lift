@@ -4,7 +4,7 @@ import _root_.opencl.ir.Int
 import ir._
 import org.junit.Test
 
-
+/*
 class TestType {
 
   val len = TypeVar()
@@ -17,3 +17,4 @@ class TestType {
   }
 
 }
+*/

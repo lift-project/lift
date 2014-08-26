@@ -2,23 +2,39 @@ package ir
 
 sealed abstract class Range {
   // default impl
-  def *(e: Expr): Range = this
-  def min : Expr = ?
-  def max : Expr = ?
+  def *(e: ArithExpr): Range = this
+  def min : ArithExpr = ?
+  def max : ArithExpr = ?
 }
 
 class RangeUnkownException(msg: String) extends Exception(msg)
 
+case class StartFromRange(start: ArithExpr) extends Range {
+  override def *(e: ArithExpr): Range = {
+    StartFromRange(ExprSimplifier.simplify(start * e))
+  }
+  override def min = start
+  override def max = ?
+}
 
-case class RangeAdd(val start: Expr, val stop: Expr, step: Expr) extends Range {
-  override def *(e: Expr): Range = {
+case class GoesToRange(end: ArithExpr) extends Range {
+  override def *(e: ArithExpr): Range = {
+    StartFromRange(ExprSimplifier.simplify(end * e))
+  }
+  override def min = ?
+  override def max = end
+}
+
+case class RangeAdd(start: ArithExpr, stop: ArithExpr, step: ArithExpr) extends Range {
+  override def *(e: ArithExpr): Range = {
     RangeAdd(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), step)
   }
   override def min = start
   override def max = stop
 }
-case class RangeMul(val start: Expr, val stop: Expr, mul: Expr) extends Range {
-  override def *(e: Expr): Range = {
+
+case class RangeMul(start: ArithExpr, stop: ArithExpr, mul: ArithExpr) extends Range {
+  override def *(e: ArithExpr): Range = {
     RangeMul(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), mul)
   }
   override def min = start
@@ -26,7 +42,7 @@ case class RangeMul(val start: Expr, val stop: Expr, mul: Expr) extends Range {
 }
 
 object ContinousRange {
-  def apply(start: Expr, stop: Expr) = {
+  def apply(start: ArithExpr, stop: ArithExpr) = {
     RangeAdd(start, stop, Cst(1))
   }
 }

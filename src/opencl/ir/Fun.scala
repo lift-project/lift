@@ -2,38 +2,153 @@ package opencl.ir
 
 import ir._
 
-case class MapGlb(f: Fun) extends GenerableMap(f)
+case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapGlbl", Var("gl_id"), this, args(0))
+  }
 
-case class MapWrg(f: Fun) extends GenerableMap(f)
-case class MapLcl(f: Fun) extends GenerableMap(f)
-
-case class MapWarp(f: Fun) extends GenerableMap(f)
-case class MapLane(f: Fun) extends GenerableMap(f)
-
-case class MapSeq(f: Fun) extends GenerableMap(f)
-
-case class ReduceSeq(f: Fun, override val init: Value) extends AbstractReduce(f, init) {
-      def isGenerable() = true
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
 }
 
-case class ReduceHost(f: Fun, override val init: Value) extends AbstractReduce(f, init) {
-      def isGenerable() = true
+object MapGlb {
+  def apply(f: Lambda1) = new MapGlb(0, f) // 0 is default
+
+  def apply(dim: Int) = (f: Lambda) => new MapGlb(dim, f)
 }
 
-case class toGlobal(f: Fun) extends FPattern {
-  def isGenerable() = true
-  override def copy() = toGlobal(f)
+case class MapWrg(dim: Int, f: Lambda1) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapWrg", Var("wg_id"), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
 }
 
-case class toLocal(f: Fun) extends FPattern {
-  def isGenerable() = true
-  override def copy() = toLocal(f)
+object MapWrg {
+  def apply(f: Lambda1) = new MapWrg(0, f) // 0 is default
+
+  def apply(dim: Int) = (f: Lambda1) => new MapWrg(dim, f)
 }
 
-case class ReorderStride() extends Pattern {
-  def isGenerable() = true
-  override def copy() = ReorderStride()
+case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapLcl", Var("l_id"), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
 }
+
+object MapLcl {
+  def apply(f: Lambda1) = new MapLcl(0, f) // o is default
+
+  def apply(dim: Int) = (f: Lambda1) => new MapLcl(dim, f)
+}
+
+case class MapWarp(f: Lambda1) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapWarp", Var("warp_id"), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+case class MapLane(f: Lambda1) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapLane", Var("lane_id"), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+
+case class MapSeq(f: Lambda1) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapSeq", Var("i"), this, args(0))
+  }
+
+  override def o(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+
+case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
+  override def apply(args: Expr*) : ReduceCall = {
+    assert(args.length == 2)
+    new ReduceCall(Var("i"), this, args(0), args(1))
+  }
+
+  override def o(that: Expr) : ReduceCall = {
+    apply(that)
+  }
+}
+
+object ReduceSeq {
+  def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
+}
+
+case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {
+  override def apply(args: Expr*) : ReduceCall = {
+    assert(args.length == 2)
+    new ReduceCall(Var("i"), this, args(0), args(1))
+  }
+
+  override def o(that: Expr) : ReduceCall = {
+    apply(that)
+  }
+}
+object ReduceHost {
+  def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceHost(f)(init, x))
+}
+
+case class toGlobal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+  //override def copy() = toGlobal(f)
+
+
+case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+  //override def copy() = toLocal(f)
+
+
+case class ReorderStride() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+  //override def copy() = ReorderStride()
+
+case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
+case class Swap() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
+
+
+class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
+
+object IndexFunction {
+  implicit def apply(f: (ArithExpr, Type) => ArithExpr) = new IndexFunction(f)
+}
+
+case class Gather(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+
+object Gather {
+  def apply(idx: IndexFunction) = (f: Lambda1) => new Gather(idx, f)
+}
+
+case class Scatter(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+
+object Scatter {
+  def apply(idx: IndexFunction) = (f: Lambda1) => new Scatter(idx, f)
+}
+
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*

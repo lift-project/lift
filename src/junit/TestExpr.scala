@@ -21,7 +21,7 @@ class TestExpr {
       r
   }
 
-  private def rndExpr(maxDepth: Int, depth: Int=0) : Expr = {
+  private def rndExpr(maxDepth: Int, depth: Int=0) : ArithExpr = {
 
     if (depth > maxDepth)
       return Cst(rndPositive())
@@ -33,14 +33,20 @@ class TestExpr {
     }
   }
 
-  def testRandom() {
-    val re = rndExpr(3)
-    println(re)
-    println(ExprSimplifier.simplify(re))
+  @Test def testRandom() {
 
-    val ori = re.evalDbl()
-    val sim = ExprSimplifier.simplify(re).evalDbl()
-    assert(math.abs((ori-sim)) <= 1.0/1000000.0, ori+" != "+sim)
+    for (a <- 1 to 10) {
+      val re = rndExpr(3)
+      println("random expression = "+re)
+
+      val oriEval = re.evalDbl()
+      val sim = ExprSimplifier.simplify(re)
+      println("simplified expression = "+sim)
+
+      val simEval = sim.evalDbl()
+      assert(math.abs(oriEval-simEval) <= 1.0/1000000.0, oriEval+" != "+simEval)
+    }
+
 
   }
 
@@ -52,7 +58,7 @@ class TestExpr {
       val c1 = Cst(1)
       val c2 = Cst(2)
       val c10 = Cst(10)
-      val v = Var(new RangeMul(c0,c2,c10))
+      //val v = Var(new RangeMul(c0,c2,c10))
       val e = (c0+c1)*(c10+c2)+(c10/c2)
 
       ExprSimplifier.simplify(e).eval()
@@ -65,8 +71,8 @@ class TestExpr {
     
     assertEquals(Cst(17),result)
     
-    val e2 = (c0/v+c1/v)*v*(c10+c2)+(c10/c2)
-    val result2 = ExprSimplifier.simplify(e)
+    //val e2 = (c0/v+c1/v)*v*(c10+c2)+(c10/c2)
+    //val result2 = ExprSimplifier.simplify(e)
     //println(result2)
 
 
@@ -76,6 +82,100 @@ class TestExpr {
 
   @Test def OneByOne() {
     assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) / Cst(1)))
+  }
+
+  @Test def powSimplify(): Unit = {
+    val N = Var("N")
+    val expr = Pow( 1*1*Pow(2, -1), Log(2, N) + (1  * -1) ) * N
+    assertEquals(Cst(2), ExprSimplifier.simplify(expr))
+  }
+
+  @Test def simplifyAccess(): Unit = {
+    val M = Var(StartFromRange(Cst(1)))
+    val N = Var(StartFromRange(Cst(1)))
+
+    val wg_id_0 = Var("wid_0",ContinousRange(0, N / 2))
+    val wg_id_1 = Var("wid_1",ContinousRange(0, M / 4))
+    val l_id_0 = Var("lid_0",ContinousRange(0, 2))
+    val l_id_1 = Var("lid_0",ContinousRange(0, 4))
+
+    val firstRead = (
+      (wg_id_0 * 1 * M / (4) * 2 * 4) +
+        (((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+          0) /
+          ((4 * 1)) / (2) * 4 * 1) +
+        (((((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) +
+          (l_id_1 * 1) + 0) /
+          ((4 * 1))) %
+          2) *
+          M / (4) * 4 * 1) +
+        (((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+          0) %
+          (4 * 1)))
+
+    val simpFirstRead = ExprSimplifier.simplify(firstRead)
+    println(firstRead)
+    println(simpFirstRead)
+
+    val firstWrite = ((((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
+      (1) / (M) * 1) +
+      (((((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
+        (1)) %
+        M) *
+        N * 1) +
+      (((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
+        1))
+
+    val secondWrite = (
+      (((wg_id_0 * 1 * M / (4) * 2 * 4) +
+        (((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
+          ((4 * 1)) / (2) * 4 * 1) +
+        (((((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+          0) /
+          ((4 * 1))) %
+          2) *
+          M / (4) * 4 * 1) +
+        (((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
+          (4 * 1))) /
+        (1) / (M) * 1) +
+        (((((wg_id_0 * 1 * M / (4) * 2 * 4) +
+          (((wg_id_1 * 1 * 2 * 4) +
+            (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+            0) /
+            ((4 * 1)) / (2) * 4 * 1) +
+          (((((wg_id_1 * 1 * 2 * 4) +
+            (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+            0) /
+            ((4 * 1))) %
+            2) *
+            M / (4) * 4 * 1) +
+          (((wg_id_1 * 1 * 2 * 4) +
+            (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+            0) %
+            (4 * 1))) /
+          (1)) %
+          M) *
+          N * 1) +
+        (((wg_id_0 * 1 * M / (4) * 2 * 4) +
+          (((wg_id_1 * 1 * 2 * 4) +
+            (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
+            ((4 * 1)) / (2) * 4 * 1) +
+          (((((wg_id_1 * 1 * 2 * 4) +
+            (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+            0) /
+            ((4 * 1))) %
+            2) *
+            M / (4) * 4 * 1) +
+          (((wg_id_1 * 1 * 2 * 4) +
+            (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
+            (4 * 1))) %
+          1))
   }
   
 }
