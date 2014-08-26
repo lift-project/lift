@@ -94,10 +94,10 @@ class TestExpr {
     val M = Var(StartFromRange(Cst(1)))
     val N = Var(StartFromRange(Cst(1)))
 
-    val wg_id_0 = Var(ContinousRange(0, N / 2))
-    val wg_id_1 = Var(ContinousRange(0, M / 4))
-    val l_id_0 = Var(ContinousRange(0, 2))
-    val l_id_1 = Var(ContinousRange(0, 4))
+    val wg_id_0 = Var("wid_0",ContinousRange(0, N / 2))
+    val wg_id_1 = Var("wid_1",ContinousRange(0, M / 4))
+    val l_id_0 = Var("lid_0",ContinousRange(0, 2))
+    val l_id_1 = Var("lid_0",ContinousRange(0, 4))
 
     val firstRead = (
       (wg_id_0 * 1 * M / (4) * 2 * 4) +
@@ -115,6 +115,10 @@ class TestExpr {
           (l_id_0 * 1 * 4) + (l_id_1 * 1) +
           0) %
           (4 * 1)))
+
+    val simpFirstRead = ExprSimplifier.simplify(firstRead)
+    println(firstRead)
+    println(simpFirstRead)
 
     val firstWrite = ((((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
       (1) / (M) * 1) +

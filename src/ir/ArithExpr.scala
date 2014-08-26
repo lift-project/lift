@@ -308,7 +308,7 @@ case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr 
     hash * 79 + id
   }
 
-  override def toString = name
+  override def toString = if (name == "") "v_"+id else name
 
   def updateRange(func: (Range) => Range): Unit = {
     if (range != RangeUnkown) {
