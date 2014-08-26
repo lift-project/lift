@@ -63,6 +63,36 @@ object IdAccessFunctions extends AccessFunctions(Array(IdAccessFunction)) {
 object AccessFunction {
   def apply(f: (ArithExpr) => ArithExpr, scope: String) = new AccessFunction(f, scope)
 
+  // predefined reorder functions ...
+  val transpose = (i: ArithExpr, t: Type) => {
+    val outerType = t match { case at: ArrayType => at }
+    val innerType = outerType.elemT match { case at: ArrayType => at }
+
+    val outerSize = outerType.len
+    val innerSize = innerType.len
+
+    val elemSize = Type.getLengths(Type.getElemT(innerType)).reduce(_ * _)
+
+    val col = (((i/elemSize) % innerSize) * outerSize) * elemSize
+    val row = ((i/elemSize) / innerSize) * elemSize
+
+    // TODO: simplify this ...
+    row + col + (i % elemSize)
+  }
+
+  val reorderStride = (i: ArithExpr, t: Type) => {
+    val s = Type.getLength(t)
+    val n = Type.getLength(Type.getElemT(t))
+
+    i / n + s * ( i % n)
+  }
+
+  val reverse = (i: ArithExpr, t: Type) => {
+    val n = Type.getLength(t)
+
+    n - 1 - i
+  }
+
   def addAccessFunctions(expr: Expr): AccessFunctions = {
     addAccessFunctions(expr, EmptyAccessFuntions)
   }
@@ -283,7 +313,8 @@ object AccessFunction {
   private def addGather(g: Gather, call: FunCall, inputAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
     if (g.f.params.length != 1) throw new NumberOfArgumentsException
 
-    val scope = getLatestScope(inputAccess)
+    var scope = getLatestScope(inputAccess)
+    scope = g.f.body match { case m: MapCall => m.name; case _ => scope}
     g.f.params(0).inAccess = inputAccess :+ ReorderAccessFunction( (i: ArithExpr) => g.idx.f(i, call.inT), scope)
 
     addAccessFunctions(g.f.body, outputAccess)

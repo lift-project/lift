@@ -33,6 +33,8 @@ class TestMisc {
 
   val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
 
+  val transpose = AccessFunction.transpose
+
   @Test def VECTOR_ADD_SIMPLE() {
 
     val inputSize = 1024
@@ -116,7 +118,7 @@ class TestMisc {
 
   @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID_REORDER_REVERSE() {
 
-    val reverse = (i:ArithExpr, t:Type) => { Type.getLength(t) - 1 - i }
+    val reverse = AccessFunction.reverse
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -318,7 +320,7 @@ class TestMisc {
     val Msize = 8
     val Ksize = 16
     val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * (c + r))
-    val gold   = matrix.map(_.map(_+0.0f))
+    val gold   = matrix.map(_.map(_+1.0f))
 
     val M = Var("M")
     val K = Var("K")
@@ -327,7 +329,6 @@ class TestMisc {
     val c = 8
 
     val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
-    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -337,7 +338,7 @@ class TestMisc {
 
             MapLcl(0)(fun( row =>
               MapLcl(1)(fun( elem =>
-                id(elem)
+                plusOne(elem)
               )) o row
             )) o tile
 
@@ -462,21 +463,6 @@ class TestMisc {
     (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
-  val transpose = (i:ArithExpr, t:Type) => {
-    val outerType = t match { case at: ArrayType => at }
-    val innerType = outerType.elemT match { case at: ArrayType => at }
-
-    val outerSize = outerType.len
-    val innerSize = innerType.len
-
-    val elemSize = Type.getLengths(Type.getElemT(innerType)).reduce(_ * _)
-
-    val col = (((i/elemSize) % innerSize) * outerSize) * elemSize
-    val row = ((i/elemSize) / innerSize) * elemSize
-
-    row + col + (i % elemSize)
-  }
-
   @Test def MATRIX_TRANSPOSE_3D(): Unit = {
 
     val Nsize = 8
@@ -522,12 +508,12 @@ class TestMisc {
     (gold.flatten.flatten, output).zipped.map(assertEquals(_,_,0.0))
   }
 
-  /* TODO: Add support for writing tansposed
+  /* TODO: Not there yet ... Transpose the tiles as well ...
   @Test def MATRIX_TRANSPOSE_TILED(): Unit = {
 
-    val Nsize = 4
-    val Msize = 16
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 16.0f)
+    val Nsize = 16
+    val Msize = 8
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
     val gold   = matrix.transpose
 
     println("matrix: ")
@@ -536,7 +522,7 @@ class TestMisc {
     val N = Var("N")
     val M = Var("M")
 
-    val r = 2
+    val r = 8
     val c = 4
 
     val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
@@ -545,22 +531,15 @@ class TestMisc {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         Join() o MapWrg(0)(fun( rows =>
-          Transpose() o MapSeq(Join()) o Transpose() o MapWrg(1)(fun( tile =>
+          MapSeq(Join()) o Swap() o Scatter(transpose)(Gather(transpose)(MapWrg(1)(fun( tile =>
 
             // step 2: write back to global memory
-            toGlobal(MapLcl(0)(fun( col =>
-              MapLcl(1)(fun( elem =>
-                id(elem)
-              )) o col
-            ))) o Transpose() o
-            // step 1: load tile to local memory
-            toLocal(MapLcl(1)(fun( row =>
-              MapLcl(0)(fun( elem =>
-                id(elem)
-              )) o row
-            ))) o tile
+            toGlobal(Gather(transpose)(MapLcl(0)(MapLcl(1)(fun(id(_)))))) o Swap() o
 
-          )) o Transpose() o MapSeq(Split(c)) o rows
+            // step 1: load tile to local memory
+            toLocal(MapLcl(0)(MapLcl(1)(fun(id(_))))) o tile
+
+          )))) o Swap() o MapSeq(Split(c)) o rows
         )) o Split(r) o matrix
       })
 
@@ -571,6 +550,9 @@ class TestMisc {
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
+
+    println("gold: ")
+    myPrint(gold.flatten, Nsize)
 
     println("output: ")
     myPrint(output, Nsize)
