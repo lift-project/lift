@@ -411,42 +411,26 @@ class TestMisc {
     val f1 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapGlb(0)(fun( col =>
-          MapGlb(1)(fun( elemInCol =>
-            id(elemInCol)
-          )) o col
-        )) o Transpose() o matrix
+        MapGlb(0)(MapGlb(1)(id)) o Transpose() o matrix
       })
 
     val f2 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Gather(transpose)(MapGlb(0)(fun( col =>
-          MapGlb(1)(fun( elemInCol =>
-            id(elemInCol)
-          ))o col
-        ))) o Swap() o matrix
+        Gather(transpose)(MapGlb(0)(MapGlb(1)(id))) o Swap() o matrix
       })
 
     val f3 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Swap() o Scatter(transpose)(MapGlb(0)(fun( col =>
-          MapGlb(1)(fun( elemInCol =>
-            id(elemInCol)
-          ))o col
-        ))) o matrix
+        Swap() o Scatter(transpose)(MapGlb(0)(MapGlb(1)(id))) o matrix
       })
 
     // transpose twice == id
     val f4 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(fun( col =>
-          MapGlb(1)(fun( elemInCol =>
-            id(elemInCol)
-          ))o col
-        )))) o Swap() o matrix
+        Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(MapGlb(1)(id)))) o Swap() o matrix
       })
 
     val f = f3

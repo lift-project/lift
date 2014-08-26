@@ -854,13 +854,9 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        MapGlb(0)(fun(
-          MapGlb(1)(fun(
-            ReduceSeq(multAndSumUp, 0.0f) o _
-          )) o _
-        )) o
-        MapGlb(0)(fun( Arow =>
-          MapGlb(1)(fun( Bcol =>
+        MapGlb(0)(MapGlb(1)(ReduceSeq(multAndSumUp, 0.0f))) o
+        MapSeq(fun( Arow =>
+          MapSeq(fun( Bcol =>
             Zip(Arow, Bcol)
           )) o B
         )) o A
