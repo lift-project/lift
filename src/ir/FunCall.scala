@@ -9,8 +9,7 @@ abstract class Expr {
   var t: Type = UndefType
 
   // memory information
-  var inM: Memory = UnallocatedMemory
-  var outM: Memory = UnallocatedMemory
+  var mem: Memory = UnallocatedMemory
 
   // memory access information
   var inAccess: AccessFunctions = EmptyAccessFuntions
@@ -60,6 +59,11 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
   def argsType: Type = {
     if (args.length == 1) args(0).t
     else TupleType( args.map(_.t):_* )
+  }
+
+  def argsMemory: Memory = {
+    if (args.length == 1) args(0).mem
+    else OpenCLMemoryCollection( UndefAddressSpace, args.map(_.mem.asInstanceOf[OpenCLMemory]):_* )
   }
 
 }

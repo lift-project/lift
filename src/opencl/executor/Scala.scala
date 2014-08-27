@@ -62,9 +62,9 @@ class Execute(val localSize: Int, val globalSize: Int) {
 
     val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
       val m = mem.mem
-      val i = f.params.indexWhere( m == _.outM )
+      val i = f.params.indexWhere( m == _.mem )
       if (i != -1) inputs(i)
-      else if (m == f.body.outM) outputData
+      else if (m == f.body.mem) outputData
       else m.addressSpace match {
         case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval())
         case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval())

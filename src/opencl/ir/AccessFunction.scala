@@ -134,7 +134,7 @@ object AccessFunction {
   }
 
   private def addAccessFunctionsFunCall(call: FunCall, outputAccess: AccessFunctions): AccessFunctions = {
-    assert(call.inM != UnallocatedMemory && call.outM != UnallocatedMemory)
+    assert(call.mem != UnallocatedMemory)
 
     // get the input access of f from the input arguments
     val inAccess = getInAccessFromArgs(call, outputAccess)

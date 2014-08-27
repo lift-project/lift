@@ -172,20 +172,18 @@ object OpenCLMemory {
     }
     // set the output
     assert(result != OpenCLNullMemory)
-    expr.outM = result
+    expr.mem = result
 
     // finally return the output
     result
   }
 
   private def allocValue(v: Value): OpenCLMemory = {
-    if (v.inM != UnallocatedMemory) {
-      v.outM = v.inM
+    if (v.mem != UnallocatedMemory) {
+      OpenCLMemory.asOpenCLMemory(v.mem)
     } else {
-      v.outM = allocPrivateMemory(getSizeInBytes(v.t))
+      allocPrivateMemory(getSizeInBytes(v.t))
     }
-
-    OpenCLMemory.asOpenCLMemory(v.outM)
   }
 
   private def getMemAtIndex(mem: Memory, index: Int): OpenCLMemory = {
@@ -200,11 +198,11 @@ object OpenCLMemory {
   private def allocParam(param: Param): OpenCLMemory = {
     val res = param match {
       case pr: ParamReference =>
-        if (pr.p.outM == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
-        getMemAtIndex(pr.p.outM, pr.i)
+        if (pr.p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
+        getMemAtIndex(pr.p.mem, pr.i)
       case p: Param =>
-        if (param.outM == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
-        p.outM
+        if (param.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
+        p.mem
     }
 
     OpenCLMemory.asOpenCLMemory(res)
@@ -214,7 +212,6 @@ object OpenCLMemory {
                            outputMem: OpenCLMemory): OpenCLMemory = {
     // get the input memory of f from the input arguments
     val inMem = getInMFromArgs(call, numGlb, numLcl)
-    call.inM = inMem
 
     // size in bytes necessary to hold the result of f in global and local memory
     val maxGlbOutSize = getMaxSizeInBytes(call.t) * numGlb
@@ -278,12 +275,12 @@ object OpenCLMemory {
     assert(call.args.nonEmpty)
     if (call.args.length == 1) {
       if (l.params.length != 1) throw new NumberOfArgumentsException
-      l.params(0).outM = inMem
+      l.params(0).mem = inMem
     } else {
       val coll = inMem match { case coll: OpenCLMemoryCollection => coll}
       if (l.params.length != coll.subMemories.length) throw new NumberOfArgumentsException
 
-      (l.params zip coll.subMemories).map({case (p, m) => p.outM = m})
+      (l.params zip coll.subMemories).map({case (p, m) => p.mem = m})
     }
     alloc(l.body, numGlb, numLcl, outputMem)
   }
@@ -291,7 +288,7 @@ object OpenCLMemory {
   private def allocMapGlb(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr,
                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {
     if (am.f.params.length != 1) throw new NumberOfArgumentsException
-    am.f.params(0).outM = inMem
+    am.f.params(0).mem = inMem
     alloc(am.f.body, numGlb * maxLen, numLcl, outputMem)
   }
 
@@ -299,7 +296,7 @@ object OpenCLMemory {
   private def allocMapLcl(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr,
                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {
     if (am.f.params.length != 1) throw new NumberOfArgumentsException
-    am.f.params(0).outM = inMem
+    am.f.params(0).mem = inMem
     alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, outputMem)
   }
 
@@ -310,8 +307,8 @@ object OpenCLMemory {
         val initM = coll.subMemories(0)
         val elemM = coll.subMemories(1)
         if (r.f.params.length != 2) throw new NumberOfArgumentsException
-        r.f.params(0).outM = initM
-        r.f.params(1).outM = elemM
+        r.f.params(0).mem = initM
+        r.f.params(1).mem = elemM
         alloc(r.f.body, numGlb, numLcl, outputMem)
       case _ => throw new IllegalArgumentException("PANIC")
     }
@@ -319,20 +316,20 @@ object OpenCLMemory {
 
   private def allocGather(g: Gather, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     if (g.f.params.length != 1) throw new NumberOfArgumentsException
-    g.f.params(0).outM = inMem
+    g.f.params(0).mem = inMem
     alloc(g.f.body, numGlb, numLcl, outputMem)
   }
 
   private def allocScatter(s: Scatter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     if (s.f.params.length != 1) throw new NumberOfArgumentsException
-    s.f.params(0).outM = inMem
+    s.f.params(0).mem = inMem
     alloc(s.f.body, numGlb, numLcl, outputMem)
   }
 
   private def allocToGlobal(tg: toGlobal, numGlb: ArithExpr, numLcl: ArithExpr,
                             inMem: OpenCLMemory, outputMem: OpenCLMemory, maxGlbOutSize: ArithExpr): OpenCLMemory = {
     if (tg.f.params.length != 1) throw new NumberOfArgumentsException
-    tg.f.params(0).outM = inMem
+    tg.f.params(0).mem = inMem
 
     val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != GlobalMemory) {
       allocGlobalMemory(maxGlbOutSize)
@@ -346,7 +343,7 @@ object OpenCLMemory {
   private def allocToLocal(tl: toLocal, numGlb: ArithExpr, numLcl: ArithExpr,
                            inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLclOutSize: ArithExpr): OpenCLMemory = {
     if (tl.f.params.length != 1) throw new NumberOfArgumentsException
-    tl.f.params(0).outM = inMem
+    tl.f.params(0).mem = inMem
 
     val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != LocalMemory) {
       allocLocalMemory(maxLclOutSize)
@@ -361,11 +358,10 @@ object OpenCLMemory {
                               inMem: OpenCLMemory): OpenCLMemory = {
     // combine the parameter of the first function to call with the type inferred from the argument
     if (cf.funs.last.params.length != 1) throw new NumberOfArgumentsException
-    cf.funs.last.params(0).inM = inMem
 
     cf.funs.foldRight(inMem)((f, mem) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
-      f.params(0).outM = mem
+      f.params(0).mem = mem
       alloc(f.body, numGlb, numLcl)
     })
   }
@@ -392,7 +388,7 @@ object OpenCLMemory {
 
     // recurs to allocate memory for the function(s) inside
     if (it.f.params.length != 1) throw new NumberOfArgumentsException
-    it.f.params(0).outM = inMem
+    it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl)
   }
 
@@ -453,24 +449,22 @@ object TypedOpenCLMemory {
             case it: Iterate =>
               val fIter = call.asInstanceOf[IterateCall]
               arr :+
-              TypedOpenCLMemory(fIter.inM, fIter.argsType) :+
-              TypedOpenCLMemory(fIter.outM, fIter.t) :+
-              TypedOpenCLMemory(fIter.swapBuffer, ArrayType(fIter.argsType, ?))
+              TypedOpenCLMemory(fIter.arg.mem, fIter.arg.t) :+
+              TypedOpenCLMemory(fIter.mem, fIter.t) :+
+              TypedOpenCLMemory(fIter.swapBuffer, ArrayType(fIter.arg.t, ?))
 
             case r: AbstractPartRed =>
-              val coll = call.inM match { case coll: OpenCLMemoryCollection => coll }
-              val tt = call.argsType match { case tt: TupleType => tt}
-
               // exclude the iniT (TODO: only if it is already allocated ...)
-              val inMem = TypedOpenCLMemory( coll.subMemories(1), tt.elemsT(1) )
 
-              arr :+ inMem :+ TypedOpenCLMemory(call.outM, call.t)
+              val inMem = TypedOpenCLMemory( call.args(1).mem, call.args(1).t )
 
-            case z: Zip => arr ++ call.args.map( e => TypedOpenCLMemory(e.inM, e.t) )
+              arr :+ inMem :+ TypedOpenCLMemory(call.mem, call.t)
 
-            case _ => arr :+ TypedOpenCLMemory(call.inM, call.argsType) :+ TypedOpenCLMemory(call.outM, call.t)
+            case z: Zip => arr ++ call.args.map( e => TypedOpenCLMemory(e.mem, e.t) )
+
+            case _ => arr :+ TypedOpenCLMemory(call.argsMemory, call.argsType) :+ TypedOpenCLMemory(call.mem, call.t)
           }
-        case p: Param => arr :+ TypedOpenCLMemory(p.inM, p.t)
+        case p: Param => arr :+ TypedOpenCLMemory(p.mem, p.t)
         case v: Value => arr
       })
 
@@ -490,7 +484,7 @@ object TypedOpenCLMemory {
 
           // m is in private memory but not an parameter => trow away
           || (   m.addressSpace == PrivateMemory
-              && params.find(p => p.outM == m) == None)) {
+              && params.find(p => p.mem == m) == None)) {
         arr
       } else {
         seen += m
