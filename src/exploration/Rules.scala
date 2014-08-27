@@ -83,7 +83,7 @@ object Rules {
 
         // split-join
         if (call.context.mapDepth+1 < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(Map(inF)) o Split(Var(validOSplitRange(call.inT))))
+          result = result :+ (Join() o Map(Map(inF)) o Split(Var(validOSplitRange(call.argsType))))
 
         result
 
@@ -104,7 +104,7 @@ object Rules {
         var result = List[FunDecl]()
         result = result :+ Reduce(inF)
         if (call.context.mapDepth < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(PartRed(inF)) o Split(Var(validOSplitRange(call.inT))))
+          result = result :+ (Join() o Map(PartRed(inF)) o Split(Var(validOSplitRange(call.argsType))))
         result
 
       case _ => List[FunDecl]() // all the terminals end up here

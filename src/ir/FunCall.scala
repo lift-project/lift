@@ -6,17 +6,13 @@ abstract class Expr {
   var context : Context = null
 
   // type information
-  var inT: Type = UndefType
-  var outT: Type = UndefType
+  var t: Type = UndefType
 
   // memory information
-  var inM: Memory = UnallocatedMemory
-  var outM: Memory = UnallocatedMemory
+  var mem: Memory = UnallocatedMemory
 
   // memory access information
-  var inAccess: AccessFunctions = EmptyAccessFuntions
-  var outAccess: AccessFunctions = EmptyAccessFuntions
-
+  var access: AccessFunctions = EmptyAccessFuntions
 
   def setContext(ctx: Context): Expr = {
     if (ctx != null)
@@ -45,7 +41,6 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
   override def copy: FunCall = {
     //val c = new FunExpr(this.f, this.args:_*)
     //c.context = this.context
-    //c.inT = this.inT
     //c.ouT = this.ouT
     this.clone().asInstanceOf[FunCall]
   }
@@ -56,6 +51,22 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
     assert (newArgs.length <= f.params.length)
 
     new FunCall(f, newArgs:_*)
+  }
+
+  // One type for all arguments (i.e. a tuple if there arae more than one args)
+  def argsType: Type = {
+    if (args.length == 1) args(0).t
+    else TupleType( args.map(_.t):_* )
+  }
+
+  def argsMemory: Memory = {
+    if (args.length == 1) args(0).mem
+    else OpenCLMemoryCollection( UndefAddressSpace, args.map(_.mem.asInstanceOf[OpenCLMemory]):_* )
+  }
+
+  def argsAccess: AccessFunctions = {
+    if (args.length == 1) args(0).access
+    else AccessFunctionsCollection( args.map(_.access):_* )
   }
 
 }
@@ -69,7 +80,7 @@ object Get {
 }
 
 class Param() extends Expr {
-  outT = UndefType
+  t = UndefType
 
   override def toString = "PARAM"
 
@@ -81,7 +92,7 @@ object Param {
 
   def apply(outT: Type): Param = {
     val p = Param()
-    p.outT =outT
+    p.t =outT
     p
   }
 }
@@ -95,28 +106,40 @@ case class Value(var value: String) extends Param {
 object Value {
   def apply(outT: Type): Value = {
     val v = Value("")
-    v.outT = outT
+    v.t = outT
     v
   }
 
   def apply(value: String, outT: Type): Value = {
     val v = Value(value)
-    v.outT = outT
+    v.t = outT
     v
   }
 
   def vectorize(v: Value, n: ArithExpr): Value = {
-    Value(v.value, Type.vectorize(v.outT, n))
+    Value(v.value, Type.vectorize(v.t, n))
   }
 }
 
-case class IterateCall(override val f: Iterate, arg: Expr) extends FunCall(f, arg) {
+case class IterateCall(override val f: Iterate, override val args: Expr*) extends FunCall(f, args(0)) {
+  assert(args.length == 1)
+  def arg: Expr = args(0)
+
   var swapBuffer: Memory = UnallocatedMemory
 }
 
-case class MapCall(name: String, loopVar: Var, override val f: AbstractMap, arg: Expr) extends FunCall(f, arg)
+case class MapCall(name: String, loopVar: Var, override val f: AbstractMap, override val args: Expr*) extends FunCall(f, args(0)) {
+  assert(args.length == 1)
 
-case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, arg0: Expr, arg1: Expr) extends FunCall(f, arg0, arg1)
+  def arg: Expr = args(0)
+}
+
+case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override val args: Expr*) extends FunCall(f, args(0), args(1)) {
+  assert(args.length == 2)
+
+  def arg0: Expr = args(0)
+  def arg1: Expr = args(1)
+}
 
 object Expr {
 

@@ -348,14 +348,14 @@ class TestReduce {
   @Test def AMD_DERIVED() {
 
     val inputSize = 16777216
-    //val inputData = Array.fill(inputSize)(1.0f)
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
+    val inputData = Array.fill(inputSize)(1.0f)
+    //val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o asScalar() o Join() o MapWrg(
-          MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp), Vectorize(2)(0.0f)) o ReorderStride())
+          MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp), Vectorize(2)(0.0f)))// o ReorderStride())
         ) o Split(128) o asVector(2) o Split(4096) o in
 
       }), inputData, inputData.length)

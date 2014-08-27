@@ -1,5 +1,7 @@
 package ir
 
+import opencl.ir.{UndefAddressSpace, OpenCLMemory, OpenCLMemoryCollection}
+
 abstract class FunDecl(val params: Array[Param]) {
 
   def isGenerable = false
@@ -64,8 +66,9 @@ class Lambda(override val params: Array[Param], val body: Expr) extends FunDecl(
 }
 
 object Lambda {
-  implicit def FunDefToLambda(f: FunDecl) = {
-    new Lambda(f.params, f(f.params:_*))
+  implicit def FunDefToLambda(f: FunDecl): Lambda = {
+    val params = f.params.map(_ => Param(UndefType))
+    new Lambda(params, f(params:_*))
   }
 }
 
@@ -77,7 +80,7 @@ object Lambda1 {
   implicit def FunDefToLambda(f: FunDecl) = {
     assert(f.params.nonEmpty)
     if (f.params.length == 1) {
-      new Lambda1(f.params, f(f.params(0)))
+      fun(f(_))
     } else {
       fun( x => f( f.params.zipWithIndex.map({ case (_,i) => Get(x, i) }):_* ) )
     }
@@ -93,9 +96,9 @@ class Lambda2(override val params: Array[Param], override val body: Expr) extend
 }
 
 object Lambda2 {
-  implicit def FunDefToLambda(f: FunDecl) = {
+  implicit def FunDefToLambda(f: FunDecl): Lambda2 = {
     assert(f.params.length == 2)
-    new Lambda2(f.params, f(f.params(0), f.params(1)))
+    fun(f(_, _))
   }
 }
 

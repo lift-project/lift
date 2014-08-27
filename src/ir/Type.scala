@@ -264,15 +264,15 @@ object Type {
     }
 
     if (setType)
-      expr.outT = inferredOuT
+      expr.t = inferredOuT
 
     inferredOuT
   }
 
   private def checkParam(param: Param): Type = {
     param match {
-      case pr: ParamReference => getTypeAtIndex(pr.p.outT, pr.i)
-      case p: Param => p.outT
+      case pr: ParamReference => getTypeAtIndex(pr.p.t, pr.i)
+      case p: Param => p.t
     }
   }
 
@@ -280,8 +280,6 @@ object Type {
     assert(call.f != null)
 
     val inT = getInTFromArgs(call, setType)
-    if (setType)
-      call.inT = inT
 
     call.f match {
       case l: Lambda =>           checkLambda(l, call, inT, setType)
@@ -322,12 +320,12 @@ object Type {
     assert(call.args.nonEmpty)
     if (call.args.length == 1) {
       if (l.params.length != 1) throw new NumberOfArgumentsException
-      l.params(0).outT = inT
+      l.params(0).t = inT
     } else {
       val tt = inT match { case tt: TupleType => tt }
       if (l.params.length != tt.elemsT.length) throw new NumberOfArgumentsException
 
-      (l.params zip tt.elemsT).map({case (p,t) => p.outT = t })
+      (l.params zip tt.elemsT).map({case (p,t) => p.t = t })
     }
     check(l.body, setType)
   }
@@ -336,7 +334,7 @@ object Type {
     inT match {
       case at: ArrayType =>
         if (am.f.params.length != 1) throw new NumberOfArgumentsException
-        am.f.params(0).outT = getElemT(inT)
+        am.f.params(0).t = getElemT(inT)
         ArrayType(check(am.f.body, setType), getLength(inT))
       case _ => throw new TypeException(inT, "ArrayType")
     }
@@ -349,8 +347,8 @@ object Type {
         val initT = tt.elemsT(0)
         val elemT = getElemT(tt.elemsT(1))
         if (ar.f.params.length != 2) throw new NumberOfArgumentsException
-        ar.f.params(0).outT = initT
-        ar.f.params(1).outT = elemT
+        ar.f.params(0).t = initT
+        ar.f.params(1).t = elemT
         check(ar.f.body, setType)
         ArrayType(initT, new Cst(1))
       case _ => throw new TypeException(inT, "TupleType")
@@ -359,11 +357,10 @@ object Type {
 
   private def checkCompFunDef(cf: CompFunDef, inT: Type, setType: Boolean): Type = {
     // combine the parameter of the first function to call with the type inferred from the argument
-    if (cf.funs.last.params.length != 1) throw new NumberOfArgumentsException
-    cf.funs.last.params(0).outT = inT
+
     cf.funs.foldRight(inT)((f, inputT) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
-      f.params(0).outT = inputT
+      f.params(0).t = inputT
       check(f.body, setType)
     })
   }
@@ -466,25 +463,25 @@ object Type {
 
   private def checkGather(g: Gather, inT: Type, setType: Boolean): Type = {
     if (g.f.params.length != 1) throw new NumberOfArgumentsException
-    g.f.params(0).outT = inT
+    g.f.params(0).t = inT
     check(g.f.body, setType)
   }
 
   private def checkScatter(s: Scatter, inT: Type, setType: Boolean): Type = {
     if (s.f.params.length != 1) throw new NumberOfArgumentsException
-    s.f.params(0).outT = inT
+    s.f.params(0).t = inT
     check(s.f.body, setType)
   }
 
   private def checkToLocal(tL: toLocal, inT: Type, setType: Boolean): Type = {
     if (tL.f.params.length != 1) throw new NumberOfArgumentsException
-    tL.f.params(0).outT = inT
+    tL.f.params(0).t = inT
     check(tL.f.body, setType)
   }
 
   private def checkToGlobal(tG: toGlobal, inT: Type, setType: Boolean): Type = {
     if (tG.f.params.length != 1) throw new NumberOfArgumentsException
-    tG.f.params(0).outT = inT
+    tG.f.params(0).t = inT
     check(tG.f.body, setType)
   }
 
@@ -508,7 +505,7 @@ object Type {
           })
 
         if (i.f.params.length != 1) throw new NumberOfArgumentsException
-        i.f.params(0).outT = inputTypeWithTypeVar
+        i.f.params(0).t = inputTypeWithTypeVar
         val outputTypeWithTypeVar = check(i.f.body, setType = false)
 
         // find all the type variable in the output type

@@ -30,14 +30,14 @@ object Execute {
 
 class Execute(val localSize: Int, val globalSize: Int) {
   def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
-    assert( f.params.forall( _.outT != UndefType ), "Types of the params have to be set!" )
+    assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
     val code = Compile(f)
     apply(code, f, values:_*)
   }
 
   def apply(code: String, f: Lambda, values: Any*) : (Array[Float], Double) = {
 
-    val vars = f.params.map((p) => Type.getLengths(p.outT).filter(_.isInstanceOf[Var])).flatten// just take the variable
+    val vars = f.params.map((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var])).flatten// just take the variable
     val sizes = values.map({
         case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size))
         case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size))
@@ -46,7 +46,7 @@ class Execute(val localSize: Int, val globalSize: Int) {
       }).flatten[ArithExpr]
     val valueMap = (vars zip sizes).toMap[ArithExpr, ArithExpr]
 
-    val outputSize = ArithExpr.substitute(Type.getLengths(f.body.outT).reduce(_*_), valueMap).eval()
+    val outputSize = ArithExpr.substitute(Type.getLengths(f.body.t).reduce(_*_), valueMap).eval()
 
     val inputs = values.map({
       case f: Float => value(f)
@@ -62,9 +62,9 @@ class Execute(val localSize: Int, val globalSize: Int) {
 
     val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
       val m = mem.mem
-      val i = f.params.indexWhere( m == _.outM )
+      val i = f.params.indexWhere( m == _.mem )
       if (i != -1) inputs(i)
-      else if (m == f.body.outM) outputData
+      else if (m == f.body.mem) outputData
       else m.addressSpace match {
         case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval())
         case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval())
