@@ -12,9 +12,7 @@ abstract class Expr {
   var mem: Memory = UnallocatedMemory
 
   // memory access information
-  var inAccess: AccessFunctions = EmptyAccessFuntions
-  var outAccess: AccessFunctions = EmptyAccessFuntions
-
+  var access: AccessFunctions = EmptyAccessFuntions
 
   def setContext(ctx: Context): Expr = {
     if (ctx != null)
@@ -64,6 +62,11 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
   def argsMemory: Memory = {
     if (args.length == 1) args(0).mem
     else OpenCLMemoryCollection( UndefAddressSpace, args.map(_.mem.asInstanceOf[OpenCLMemory]):_* )
+  }
+
+  def argsAccess: AccessFunctions = {
+    if (args.length == 1) args(0).access
+    else AccessFunctionsCollection( args.map(_.access):_* )
   }
 
 }

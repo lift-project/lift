@@ -109,14 +109,13 @@ object AccessFunction {
   private def addAccessFunctions(expr: Expr, outputAccess: AccessFunctions): AccessFunctions = {
     assert(expr.t != UndefType)
 
-    expr match {
-      case pr: ParamReference =>
-        pr.inAccess = getAccessAtIndex(pr.p.inAccess, pr.i)
-        pr.inAccess
-      case p: Param => p.inAccess
-      case call: FunCall =>
-        addAccessFunctionsFunCall(call, outputAccess)
+    val result = expr match {
+      case pr: ParamReference =>  getAccessAtIndex(pr.p.access, pr.i)
+      case p: Param =>            p.access
+      case call: FunCall =>       addAccessFunctionsFunCall(call, outputAccess)
     }
+    expr.access = result
+    result
   }
 
   private def getInAccessFromArgs(call: FunCall, outputAccess: AccessFunctions): AccessFunctions = {
@@ -124,12 +123,8 @@ object AccessFunction {
       EmptyAccessFuntions
     } else if (call.args.length == 1) {
       addAccessFunctions(call.args(0), outputAccess)
-      call.args(0).inAccess
     } else {
-      call.args.map(addAccessFunctions(_, outputAccess))
-      val inAfs = call.args.map(_.inAccess)
-
-      AccessFunctionsCollection( inAfs:_*  )
+      AccessFunctionsCollection( call.args.map(addAccessFunctions(_, outputAccess)):_*  )
     }
   }
 
@@ -148,41 +143,22 @@ object AccessFunction {
       case call: FunCall =>
         call.f match {
           case l: Lambda => addAccessFunctionsLambda(l, call, inAccess, outputAccess)
-          case cf: CompFunDef =>
-            call.inAccess = cf.funs.foldRight[AccessFunctions](inAccess)(
-              (lambda: Lambda, af: AccessFunctions) => {
-                if (lambda.params.length != 1) throw new NumberOfArgumentsException
-                lambda.params(0).inAccess = af
-                addAccessFunctions(lambda.body, outputAccess)
-              })
-            outputAccess // next input
+          case cf: CompFunDef => addAccessFunctionsCompFunDef(cf, inAccess, outputAccess)
 
           case z: Zip => addAccessFunctionsZip(z, call, inAccess, outputAccess)
 
           case Split(_) | SplitDim2(_) | Join() | JoinDim2() | asVector(_) | asScalar() | Unzip() | Swap()  =>
-            call.inAccess = inAccess
             inAccess // next input
 
-          case Transpose() =>
-            call.inAccess = addAccessFunctionsTranspose(call, inAccess)
-            call.inAccess // next input
+          case Transpose() => addAccessFunctionsTranspose(call, inAccess)
 
-          case uf: UserFunDef =>
-            call.inAccess = inAccess
-            call.outAccess = outputAccess
-            call.outAccess // next input
+          case uf: UserFunDef => outputAccess
 
-          case r: ReorderStride =>
-            call.inAccess = addAccessFunctionsReorderStride(call, inAccess)
-            call.inAccess // next input
+          case r: ReorderStride => addAccessFunctionsReorderStride(call, inAccess)
 
-          case g: Gather =>
-            call.inAccess = addGather(g, call, inAccess, outputAccess)
-            call.inAccess
+          case g: Gather => addGather(g, call, inAccess, outputAccess)
 
-          case s: Scatter =>
-            call.outAccess = addScatter(s, call, inAccess, outputAccess)
-            call.outAccess
+          case s: Scatter => addScatter(s, call, inAccess, outputAccess)
 
           case f: FPattern => addAccessFunctionsFPattern(f, inAccess, outputAccess)
         }
@@ -193,8 +169,6 @@ object AccessFunction {
     inAccess match {
       case coll: AccessFunctionsCollection =>
         if (coll.elems.length != 2) throw new NumberOfArgumentsException
-        call.inAccess = coll
-        call.outAccess = outputAccess
         coll // next input
       case _ => throw new IllegalArgumentException("PANIC")
     }
@@ -202,7 +176,7 @@ object AccessFunction {
 
   private def addAccessFunctionsFPattern(f: FPattern, inAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
     if (f.f.params.length != 1) throw new NumberOfArgumentsException
-    f.f.params(0).inAccess = inAccess
+    f.f.params(0).access = inAccess
 
     addAccessFunctions(f.f.body, outputAccess)
 
@@ -213,15 +187,25 @@ object AccessFunction {
     assert(call.args.nonEmpty)
     if (call.args.length == 1) {
       if (l.params.length != 1) throw new NumberOfArgumentsException
-      l.params(0).inAccess = inputAccess
+      l.params(0).access = inputAccess
     } else {
       val coll = inputAccess match { case coll: AccessFunctionsCollection => coll}
       if (l.params.length != coll.elems.length) throw new NumberOfArgumentsException
 
-      (l.params zip coll.elems).map({case (p, af) => p.inAccess = af})
+      (l.params zip coll.elems).map({case (p, af) => p.access = af})
     }
     addAccessFunctions(l.body, outputAccess)
 
+    outputAccess // next input
+  }
+
+  private def addAccessFunctionsCompFunDef(cf: CompFunDef, inAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
+    cf.funs.foldRight[AccessFunctions](inAccess)(
+      (lambda: Lambda, af: AccessFunctions) => {
+        if (lambda.params.length != 1) throw new NumberOfArgumentsException
+        lambda.params(0).access = af
+        addAccessFunctions(lambda.body, outputAccess)
+      })
     outputAccess // next input
   }
 
@@ -230,16 +214,16 @@ object AccessFunction {
 
     // input
     val inAccessFun = MapAccessFunction(call.loopVar, Cst(1), call.name)
-    call.inAccess = updateAccessFunction(inputAccess, Type.length(call.argsType).head) :+ inAccessFun
+    val inAccess = updateAccessFunction(inputAccess, Type.length(call.argsType).head) :+ inAccessFun
 
     // output
     val outAccessFun = MapAccessFunction(call.loopVar, Cst(1), call.name)
-    call.outAccess = updateAccessFunction(outputAccess, Type.length(call.t).head) :+ outAccessFun
+    val outAccess = updateAccessFunction(outputAccess, Type.length(call.t).head) :+ outAccessFun
 
     // recurse
     if (m.f.params.length != 1) throw new NumberOfArgumentsException
-    m.f.params(0).inAccess = call.inAccess
-    addAccessFunctions(call.f.f.body, call.outAccess)
+    m.f.params(0).access = inAccess
+    addAccessFunctions(call.f.f.body, outAccess)
 
     removeReorderAccessFunctions(outputAccess) // nextInput
   }
@@ -252,47 +236,50 @@ object AccessFunction {
 
     // input
     val inChunkSizes = Type.length(call.argsType).reduce(_ * _) // this includes the vector size
-    call.inAccess = updateAccessFunction(inputAccess, inChunkSizes) :+ innermostAccess
+    val inAccess = updateAccessFunction(inputAccess, inChunkSizes) :+ innermostAccess
 
     // output
     val outChunkSizes = Type.length(call.t).reduce(_ * _)  // this includes the vector size
-    call.outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes) :+ innermostAccess
+    val outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes) :+ innermostAccess
 
     // recurse
     if (m.f.params.length != 1) throw new NumberOfArgumentsException
-    m.f.params(0).inAccess = call.inAccess
-    addAccessFunctions(call.f.f.body, call.outAccess)
+    m.f.params(0).access = inAccess
+    addAccessFunctions(call.f.f.body, outAccess)
 
     removeReorderAccessFunctions(outputAccess) // nextInput
   }
 
   private def addAccessFunctionsReduce(call: ReduceCall, inputAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
     val r = call.f
+    inputAccess match {
+      case coll: AccessFunctionsCollection =>
+        if (coll.elems.length != 2) throw new NumberOfArgumentsException
+        val initA = coll.elems(0)
+        val elemA = coll.elems(1)
 
-    val inT = call.arg1.t
+        val innerFunCall = r.f.body match { case call: FunCall => call }
 
-    val initA = inputAccess match { case coll: AccessFunctionsCollection => coll.elems(0) }
-    val inA = inputAccess match { case coll: AccessFunctionsCollection => coll.elems(1) }
+        val t = innerFunCall.args(1).t // type of the second argument of the inner function
+        val innermostAccess = AccessFunction( (_) => call.loopVar * Type.getVectorSize(t), "ReduceSeq")
 
-    val funCall = r.f.body match { case call: FunCall => call }
+        // input
+        val inChunkSizes = Type.length(call.arg1.t).reduce(_ * _) // this includes the vector size
+        if (r.f.params.length != 2) throw new NumberOfArgumentsException
+        r.f.params(0).access = initA
+        r.f.params(1).access = updateAccessFunction(elemA, inChunkSizes) :+ innermostAccess
 
-    val t = funCall.args(1).t // type of the second argument
-    val innermostAccess = AccessFunction( (_) => call.loopVar * Type.getVectorSize(t), "ReduceSeq")
+        // output
+        val outChunkSizes = Type.length(call.t).reduce(_ * _)  // this includes the vector size
+        val outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes)
 
-    // input
-    val inChunkSizes = Type.length(inT).reduce(_ * _) // this includes the vector size
-    if (r.f.params.length != 2) throw new NumberOfArgumentsException
-    r.f.params(0).inAccess = initA
-    r.f.params(1).inAccess = updateAccessFunction(inA, inChunkSizes) :+ innermostAccess
+        // recurs
+        addAccessFunctions(call.f.f.body, outAccess)
 
-    // output
-    val outChunkSizes = Type.length(call.t).reduce(_ * _)  // this includes the vector size
-    call.outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes)
+        removeReorderAccessFunctions(outputAccess) // nextInput
 
-    // recurse
-    addAccessFunctions(call.f.f.body, call.outAccess)
-
-    removeReorderAccessFunctions(outputAccess) // nextInput
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
   }
 
   private def getLatestScope(af: AccessFunctions): String = {
@@ -317,7 +304,7 @@ object AccessFunction {
 
     var scope = getLatestScope(inputAccess)
     scope = g.f.body match { case m: MapCall => m.name; case _ => scope}
-    g.f.params(0).inAccess = inputAccess :+ ReorderAccessFunction( (i: ArithExpr) => g.idx.f(i, call.argsType), scope)
+    g.f.params(0).access = inputAccess :+ ReorderAccessFunction( (i: ArithExpr) => g.idx.f(i, call.argsType), scope)
 
     addAccessFunctions(g.f.body, outputAccess)
 
@@ -328,7 +315,7 @@ object AccessFunction {
     if (s.f.params.length != 1) throw new NumberOfArgumentsException
 
     val scope = getLatestScope(inputAccess)
-    s.f.params(0).inAccess = inputAccess
+    s.f.params(0).access = inputAccess
 
     addAccessFunctions(s.f.body, outputAccess :+ ReorderAccessFunction( (i: ArithExpr) => s.idx.f(i, call.t), scope))
 

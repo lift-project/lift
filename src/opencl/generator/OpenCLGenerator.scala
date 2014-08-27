@@ -62,7 +62,7 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.inAccess = IdAccessFunctions
+      p.access = IdAccessFunctions
     })
 
     // pass 1
@@ -298,21 +298,22 @@ object OpenCLGenerator extends Generator {
     oclPrinter.println(";")
 
     val inT = call.arg1.t
+    val funCall = call.f.f.body match { case call: FunCall => call }
+
     // 2. generate loop from 0 .. length
     val range = RangeAdd(Cst(0), Type.getLength(inT), Cst(1))
     oclPrinter.generateLoop(call.loopVar, range, () => {
       // 3. generate acc = fun(acc, input[i])
       oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
 
-      val funCall = call.f.f.body match { case call: FunCall => call }
       // TODO: This assumes a UserFun to be nested here!
-      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.inAccess))
+      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
 
       oclPrinter.println(";")
     })
 
     // 4. generate output[0] = acc
-    oclPrinter.println(access(call.mem, call.f.f.body.t, call.outAccess) =:= oclPrinter.toOpenCL(accVar))
+    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
   }
@@ -402,8 +403,8 @@ object OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFunDef, call: FunCall) = {
     assert(call.f == u)
 
-    oclPrinter.print(access(call.mem, call.t, call.outAccess) + " = ")
-    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.inAccess))
+    oclPrinter.print(access(call.mem, call.t, call.access) + " = ")
+    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.argsAccess))
     oclPrinter.println(";")
   }
 

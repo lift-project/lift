@@ -357,8 +357,7 @@ object Type {
 
   private def checkCompFunDef(cf: CompFunDef, inT: Type, setType: Boolean): Type = {
     // combine the parameter of the first function to call with the type inferred from the argument
-    if (cf.funs.last.params.length != 1) throw new NumberOfArgumentsException
-    cf.funs.last.params(0).t = inT
+
     cf.funs.foldRight(inT)((f, inputT) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).t = inputT

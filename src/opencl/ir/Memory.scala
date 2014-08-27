@@ -261,6 +261,7 @@ object OpenCLMemory {
       val mems = call.args.map(alloc(_, numGlb, numLcl))
 
       call.f match {
+        // TODO: not sure if this is necessary!!
         case r: AbstractPartRed =>
           if (mems.length != 2) throw new NumberOfArgumentsException
           OpenCLMemoryCollection(mems(1).addressSpace, mems: _*)
@@ -357,7 +358,6 @@ object OpenCLMemory {
   private def allocCompFunDef(cf: CompFunDef, numGlb: ArithExpr, numLcl: ArithExpr,
                               inMem: OpenCLMemory): OpenCLMemory = {
     // combine the parameter of the first function to call with the type inferred from the argument
-    if (cf.funs.last.params.length != 1) throw new NumberOfArgumentsException
 
     cf.funs.foldRight(inMem)((f, mem) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
