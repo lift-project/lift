@@ -271,7 +271,7 @@ object TypeVar {
   }
 
   def getTypeVars(expr: Expr) : Set[TypeVar] = {
-    Expr.visit(immutable.HashSet[TypeVar]())(expr, (inExpr, set) => set ++ getTypeVars(inExpr.inT))
+    Expr.visit(immutable.HashSet[TypeVar]())(expr, (inExpr, set) => set ++ getTypeVars(inExpr.t))
   }
 
   def getTypeVars(t: Type) : Set[TypeVar] = {
@@ -371,7 +371,7 @@ object Var {
   }
 
   def getVars(expr: Expr) : Set[Var] = {
-    Expr.visit(immutable.HashSet[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.inT))
+    Expr.visit(immutable.HashSet[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.t))
   }
 
   def getVars(t: Type) : Set[Var] = {

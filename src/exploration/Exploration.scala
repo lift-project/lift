@@ -25,7 +25,7 @@ object Exploration {
       println("Evaluating performance of "+f)
     }
     
-    f.params.map(p => assert(p.outT != UndefType))
+    f.params.map(p => assert(p.t != UndefType))
     
     var perfs = List[Double]()
     val seen = scala.collection.mutable.Set[Lambda]()
@@ -100,7 +100,8 @@ object Exploration {
 
         choices.map(choice => {          
           val f = FunDecl.replace(rndFun, oriF, choice)
-          f.params(0).outT = topF.body.inT
+          val funCall = topF.body match { case call: FunCall => call }
+          f.params(0).t = funCall.argsType
           Type.check(f.body)
           Context.updateContext(f.body, topF.body.context)
           try{
@@ -164,8 +165,6 @@ object Exploration {
 
   private def deriveFunCall(topF: Lambda, call: FunCall, inputs: Seq[Any], c:Constraints, depth:Int) : Expr = {
 
-	  //assert (f.inT    != UndefType)
-    //assert (topF.inT != UndefType)
     assert (call.context != null)
     assert (topF.body.context != null)
 
@@ -198,7 +197,8 @@ object Exploration {
         if (choice != call) {
           // try to derive the newly found best
           val newTopF = FunDecl.replace(topF, call, choice)
-          newTopF.params(0).outT = topF.body.inT
+          val funCall = topF.body match { case call: FunCall => call }
+          newTopF.params(0).t = funCall.argsType
           Type.check(newTopF.body)
           Context.updateContext(newTopF.body, topF.body.context)
 
@@ -211,7 +211,8 @@ object Exploration {
     } 
 
     val newTopF = FunDecl.replace(topF, call, bestChoice)
-    newTopF.params(0).outT = topF.body.inT
+    val funCall = topF.body match { case call: FunCall => call }
+    newTopF.params(0).t = funCall.argsType
     Type.check(newTopF.body)
     Context.updateContext(newTopF.body, topF.body.context)
 

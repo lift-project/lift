@@ -107,7 +107,7 @@ object AccessFunction {
   }
 
   private def addAccessFunctions(expr: Expr, outputAccess: AccessFunctions): AccessFunctions = {
-    assert(expr.outT != UndefType)
+    assert(expr.t != UndefType)
 
     expr match {
       case pr: ParamReference =>
@@ -230,11 +230,11 @@ object AccessFunction {
 
     // input
     val inAccessFun = MapAccessFunction(call.loopVar, Cst(1), call.name)
-    call.inAccess = updateAccessFunction(inputAccess, Type.length(call.inT).head) :+ inAccessFun
+    call.inAccess = updateAccessFunction(inputAccess, Type.length(call.argsType).head) :+ inAccessFun
 
     // output
     val outAccessFun = MapAccessFunction(call.loopVar, Cst(1), call.name)
-    call.outAccess = updateAccessFunction(outputAccess, Type.length(call.outT).head) :+ outAccessFun
+    call.outAccess = updateAccessFunction(outputAccess, Type.length(call.t).head) :+ outAccessFun
 
     // recurse
     if (m.f.params.length != 1) throw new NumberOfArgumentsException
@@ -246,15 +246,16 @@ object AccessFunction {
 
   private def addAccessFunctionsMapSeq(call: MapCall, inputAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
     val m = call.f
+    val funCall = m.f.body match { case call: FunCall => call }
 
-    val innermostAccess = AccessFunction( (_) => call.loopVar * Type.getVectorSize(m.f.body.inT), "MapSeq")
+    val innermostAccess = AccessFunction( (_) => call.loopVar * Type.getVectorSize(funCall.argsType), "MapSeq")
 
     // input
-    val inChunkSizes = Type.length(call.inT).reduce(_ * _) // this includes the vector size
+    val inChunkSizes = Type.length(call.argsType).reduce(_ * _) // this includes the vector size
     call.inAccess = updateAccessFunction(inputAccess, inChunkSizes) :+ innermostAccess
 
     // output
-    val outChunkSizes = Type.length(call.outT).reduce(_ * _)  // this includes the vector size
+    val outChunkSizes = Type.length(call.t).reduce(_ * _)  // this includes the vector size
     call.outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes) :+ innermostAccess
 
     // recurse
@@ -268,23 +269,24 @@ object AccessFunction {
   private def addAccessFunctionsReduce(call: ReduceCall, inputAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
     val r = call.f
 
-    val inT = call.inT match { case tt: TupleType => tt.elemsT(1) }
+    val inT = call.arg1.t
 
     val initA = inputAccess match { case coll: AccessFunctionsCollection => coll.elems(0) }
     val inA = inputAccess match { case coll: AccessFunctionsCollection => coll.elems(1) }
 
-    val t = call.f.f.body.inT match { case tt: TupleType => tt.elemsT(1) } // type of the second argument
+    val funCall = r.f.body match { case call: FunCall => call }
+
+    val t = funCall.args(1).t // type of the second argument
     val innermostAccess = AccessFunction( (_) => call.loopVar * Type.getVectorSize(t), "ReduceSeq")
 
     // input
     val inChunkSizes = Type.length(inT).reduce(_ * _) // this includes the vector size
-    //call.inAccess = AccessFunctionsCollection(initA, updateAccessFunction(inA, inChunkSizes) :+ innermostAccess)
     if (r.f.params.length != 2) throw new NumberOfArgumentsException
     r.f.params(0).inAccess = initA
     r.f.params(1).inAccess = updateAccessFunction(inA, inChunkSizes) :+ innermostAccess
 
     // output
-    val outChunkSizes = Type.length(call.outT).reduce(_ * _)  // this includes the vector size
+    val outChunkSizes = Type.length(call.t).reduce(_ * _)  // this includes the vector size
     call.outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes)
 
     // recurse
@@ -315,7 +317,7 @@ object AccessFunction {
 
     var scope = getLatestScope(inputAccess)
     scope = g.f.body match { case m: MapCall => m.name; case _ => scope}
-    g.f.params(0).inAccess = inputAccess :+ ReorderAccessFunction( (i: ArithExpr) => g.idx.f(i, call.inT), scope)
+    g.f.params(0).inAccess = inputAccess :+ ReorderAccessFunction( (i: ArithExpr) => g.idx.f(i, call.argsType), scope)
 
     addAccessFunctions(g.f.body, outputAccess)
 
@@ -328,14 +330,14 @@ object AccessFunction {
     val scope = getLatestScope(inputAccess)
     s.f.params(0).inAccess = inputAccess
 
-    addAccessFunctions(s.f.body, outputAccess :+ ReorderAccessFunction( (i: ArithExpr) => s.idx.f(i, call.outT), scope))
+    addAccessFunctions(s.f.body, outputAccess :+ ReorderAccessFunction( (i: ArithExpr) => s.idx.f(i, call.t), scope))
 
-    outputAccess :+ ReorderAccessFunction( (i: ArithExpr) => s.idx.f(i, call.outT), scope) // next input
+    outputAccess :+ ReorderAccessFunction( (i: ArithExpr) => s.idx.f(i, call.t), scope) // next input
   }
 
   private def addAccessFunctionsReorderStride(call: FunCall, inputAccess: AccessFunctions): AccessFunctions = {
-    val s = Type.getLength(call.inT)
-    val n = Type.getLength(Type.getElemT(call.inT))
+    val s = Type.getLength(call.argsType)
+    val n = Type.getLength(Type.getElemT(call.argsType))
 
     val scope = getLatestScope(inputAccess)
 
@@ -346,7 +348,7 @@ object AccessFunction {
     val scope = ""
 
     // types after the transpose of the matrix
-    val outerType = call.outT match { case at: ArrayType => at }
+    val outerType = call.t match { case at: ArrayType => at }
     val innerType = outerType.elemT match { case at: ArrayType => at }
 
     val outerSize = outerType.len

@@ -182,7 +182,7 @@ object OpenCLMemory {
     if (v.inM != UnallocatedMemory) {
       v.outM = v.inM
     } else {
-      v.outM = allocPrivateMemory(getSizeInBytes(v.outT))
+      v.outM = allocPrivateMemory(getSizeInBytes(v.t))
     }
 
     OpenCLMemory.asOpenCLMemory(v.outM)
@@ -217,11 +217,11 @@ object OpenCLMemory {
     call.inM = inMem
 
     // size in bytes necessary to hold the result of f in global and local memory
-    val maxGlbOutSize = getMaxSizeInBytes(call.outT) * numGlb
-    val maxLclOutSize = getMaxSizeInBytes(call.outT) * numLcl
+    val maxGlbOutSize = getMaxSizeInBytes(call.t) * numGlb
+    val maxLclOutSize = getMaxSizeInBytes(call.t) * numLcl
 
     // maximum length of the output array
-    val maxLen = ArithExpr.max(Type.getLength(call.outT))
+    val maxLen = ArithExpr.max(Type.getLength(call.t))
 
     // determine the output memory based on the type of f ...
     call.f match {
@@ -250,7 +250,7 @@ object OpenCLMemory {
       case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride() | asVector(_) | asScalar() | Transpose() | Swap() | Unzip()  =>
         inMem
       case uf: UserFunDef =>
-        allocUserFun(maxGlbOutSize, maxLclOutSize, outputMem, call.outT, inMem)
+        allocUserFun(maxGlbOutSize, maxLclOutSize, outputMem, call.t, inMem)
 
     }
   }
@@ -382,8 +382,8 @@ object OpenCLMemory {
   private def allocIterate(it: Iterate, call: IterateCall, numGlb: ArithExpr, numLcl: ArithExpr,
                            inMem: OpenCLMemory): OpenCLMemory = {
     // get sizes in bytes necessary to hold the input and output of the function inside the iterate
-    val inSize = getMaxSizeInBytes(call.inT)
-    val outSize = getMaxSizeInBytes(call.outT)
+    val inSize = getMaxSizeInBytes(call.argsType)
+    val outSize = getMaxSizeInBytes(call.t)
     // get the max from those two
     val largestSize = ArithExpr.max(inSize, outSize)
 
@@ -453,24 +453,24 @@ object TypedOpenCLMemory {
             case it: Iterate =>
               val fIter = call.asInstanceOf[IterateCall]
               arr :+
-              TypedOpenCLMemory(fIter.inM, fIter.inT) :+
-              TypedOpenCLMemory(fIter.outM, fIter.outT) :+
-              TypedOpenCLMemory(fIter.swapBuffer, ArrayType(fIter.inT, ?))
+              TypedOpenCLMemory(fIter.inM, fIter.argsType) :+
+              TypedOpenCLMemory(fIter.outM, fIter.t) :+
+              TypedOpenCLMemory(fIter.swapBuffer, ArrayType(fIter.argsType, ?))
 
             case r: AbstractPartRed =>
               val coll = call.inM match { case coll: OpenCLMemoryCollection => coll }
-              val tt = call.inT match { case tt: TupleType => tt}
+              val tt = call.argsType match { case tt: TupleType => tt}
 
               // exclude the iniT (TODO: only if it is already allocated ...)
               val inMem = TypedOpenCLMemory( coll.subMemories(1), tt.elemsT(1) )
 
-              arr :+ inMem :+ TypedOpenCLMemory(call.outM, call.outT)
+              arr :+ inMem :+ TypedOpenCLMemory(call.outM, call.t)
 
-            case z: Zip => arr ++ call.args.map( e => TypedOpenCLMemory(e.inM, e.inT) )
+            case z: Zip => arr ++ call.args.map( e => TypedOpenCLMemory(e.inM, e.t) )
 
-            case _ => arr :+ TypedOpenCLMemory(call.inM, call.inT) :+ TypedOpenCLMemory(call.outM, call.outT)
+            case _ => arr :+ TypedOpenCLMemory(call.inM, call.argsType) :+ TypedOpenCLMemory(call.outM, call.t)
           }
-        case p: Param => arr :+ TypedOpenCLMemory(p.inM, p.inT)
+        case p: Param => arr :+ TypedOpenCLMemory(p.inM, p.t)
         case v: Value => arr
       })
 
