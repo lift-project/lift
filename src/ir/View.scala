@@ -101,7 +101,6 @@ object ViewPrinter {
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.foreach(idx => print("["+idx+"]"))
 
-
       case aa : ArrayAccess =>
         val newAAS = arrayAccessStack.push(aa.idx)
         emitView(aa.av,newAAS, tupleAccessStack)
@@ -111,6 +110,13 @@ object ViewPrinter {
         val newAAS = arrayAccessStack.pop
         val newV = ac.v.replaced(ac.itVar, idx)
         emitView(newV,newAAS,tupleAccessStack)
+
+      case as : ArraySplit =>
+        val (chunkId,stack1) = arrayAccessStack.pop2
+        val (chunlElemId,stack2) = stack1.pop2
+        val newIdx = chunkId*as.chunkSize+chunlElemId
+        val newAAS = stack2.push(newIdx)
+        emitView(as.av,newAAS,tupleAccessStack)
 
       case ta : TupleAccess =>
         val newTAS = tupleAccessStack.push(ta.i)
@@ -169,30 +175,7 @@ object Test extends App {
     val A = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("A"))
     val B = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("B"))
 
-
-    /*val A = new ArrayView(
-      new ArrayType(new ArrayType(int, 8), 4),
-      new ArrayCreation(new ArrayView(
-        new ArrayType(int, 8),
-        new ArrayCreation(
-          new ScalarView(new InputAccess("A")),
-          Cst(8),
-          Var(RangeUnkown))),
-        Cst(4),
-        Var(RangeUnkown)))
-
-    val B = new ArrayView(
-      new ArrayType(new ArrayType(int, 8), 4),
-      new ArrayCreation(new ArrayView(
-        new ArrayType(int, 8),
-        new ArrayCreation(
-          new ScalarView(new InputAccess("A")),
-          Cst(8),
-          Var(RangeUnkown))),
-        Cst(4),
-        Var(RangeUnkown)))*/
-
-    // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
+    // map(a => map(b => map(zip(a,b)) o B) o A
     val var_i = new Var("i", RangeUnkown)
     val var_j = new Var("j", RangeUnkown)
     val a = A.get(var_i).asInstanceOf[ArrayView]
@@ -213,13 +196,64 @@ object Test extends App {
     val map_map_f0_9 = map_map_f0.get(9).asInstanceOf[ScalarView]
     val map_map_f1_7 = map_map_f1.get(7).asInstanceOf[ScalarView]
 
+    print("gold = A[k][9], emitted = ")
     ViewPrinter.emit(map_map_f0_9)
     println()
+    print("gold = B[l][7], emitted = ")
     ViewPrinter.emit(map_map_f1_7)
     println()
 
   }
 
+  def test3() {
+
+    val A = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("A"))
+    val B = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("B"))
+
+    // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
+    val var_i = new Var("i", RangeUnkown)
+    val var_j = new Var("j", RangeUnkown)
+    val a = A.get(var_i).asInstanceOf[ArrayView]
+    val b = B.get(var_j).asInstanceOf[ArrayView]
+    val zip_ab = new TupleView(List(new ArrayType(int, 8), new ArrayType(int, 8)), new TupleCreation(List(a, b)))
+    val zip_ab0 = zip_ab.get(0).asInstanceOf[ArrayView]
+    val zip_ab1 = zip_ab.get(1).asInstanceOf[ArrayView]
+
+    val zip_ab0_3 = zip_ab0.get(3).asInstanceOf[ScalarView]
+    val zip_ab1_7 = zip_ab1.get(7).asInstanceOf[ScalarView]
+
+
+    print("gold = A[i][3], emitted = ")
+    ViewPrinter.emit(zip_ab0_3)
+    println()
+    print("gold = B[j][7], emitted = ")
+    ViewPrinter.emit(zip_ab1_7)
+    println()
+
+  }
+
+
+  def testSplit() {
+
+    val A = new ArrayView(new ArrayType(int, 8), new InputAccess("A"))
+
+
+    // split-2 o A
+    val split2A = A.split(2)
+    val var_i = new Var("i", RangeUnkown)
+    val var_j = new Var("j", RangeUnkown)
+
+    val split2A_i = split2A.get(var_i).asInstanceOf[ArrayView]
+    val split2A_i_j = split2A_i.get(var_j).asInstanceOf[ArrayView]
+
+    val split2A_i_j_7 = split2A_i_j.get(7).asInstanceOf[ScalarView]
+
+    print("gold = A[i*2+j][7], emitted = ")
+    ViewPrinter.emit(split2A_i_j_7)
+    println()
+  }
 
   test2()
+  test3()
+  testSplit()
 }
