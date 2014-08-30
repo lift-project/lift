@@ -256,6 +256,10 @@ case class And(lhs: ArithExpr, rhs: ArithExpr) extends ArithExpr {
   override def toString: String = "(" + lhs + " & " + rhs + ")"
 }
 
+case class Floor(ae : ArithExpr) extends ArithExpr {
+  override def toString: String = "Floor(" + ae + ")"
+}
+
 case class ArithExprFunction() extends ArithExpr
 
 // a special variable that should only be used for defining function type
