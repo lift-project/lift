@@ -12,6 +12,7 @@ object Int8 extends VectorType(Int, Cst(8))
 object Int16 extends VectorType(Int, Cst(16))
 
 object Float extends ScalarType("float", Cst(4))
+object jFloat { def getSingleton = Float }
 
 object Float2 extends VectorType(Float, Cst(2))
 object Float3 extends VectorType(Float, Cst(3))

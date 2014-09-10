@@ -1,6 +1,6 @@
 package ir
 
-import opencl.ir.{UndefAddressSpace, OpenCLMemory, OpenCLMemoryCollection}
+import java.util.function._
 
 abstract class FunDecl(val params: Array[Param]) {
 
@@ -18,6 +18,11 @@ abstract class FunDecl(val params: Array[Param]) {
     val allFuns = thisFuns ++ thatFuns
     CompFunDef(allFuns:_*)
   }
+
+  def comp(that: Lambda) = o(that)
+
+  def call(arg: Expr) = apply(arg)
+  def call(arg0: Expr, arg1: Expr) = apply(arg0, arg1)
 
   def o(that: Expr) : FunCall = {
     apply(that)
@@ -150,6 +155,18 @@ class Lambda5(override val params: Array[Param], override val body: Expr) extend
   }
 }
 
+object jfun {
+  def create(f: Function[Param, Expr]): Lambda1 = {
+    val params = Array(Param(UndefType))
+    new Lambda1(params, f.apply(params(0)))
+  }
+
+  def create(t: Type, f: Function[Param, Expr]): Lambda1 = {
+    val params = Array(Param(t))
+    new Lambda1(params, f.apply(params(0)))
+  }
+}
+
 object fun {
   def apply(f: (Param) => Expr): Lambda1 = {
     val params = Array(Param(UndefType))
@@ -269,18 +286,20 @@ abstract class AbstractMap(f:Lambda1) extends Pattern(Array[Param](Param(UndefTy
 }*/
 
 case class Map(f:Lambda1) extends AbstractMap(f) {
-  override def apply(args: Expr*): MapCall = {
+  override def apply(args: Expr*): MapCall = mapCall(args:_*)
+
+  override def o(that: Expr): MapCall = mapCall(that)
+
+  private def mapCall(args: Expr*): MapCall = {
     assert(args.length == 1)
     new MapCall("Map", Var(""), this, args(0))
-  }
-
-  override def o(that: Expr): MapCall = {
-    apply(that)
   }
 }
 
 object Map {
-  def apply(f: Lambda1, expr: Expr): MapCall = Map(f)(expr)
+  def apply(f: Lambda1, expr: Expr): MapCall = {
+    Map(f).mapCall(expr)
+  }
 }
 
 
@@ -293,13 +312,13 @@ abstract class AbstractPartRed(f:Lambda2) extends Pattern(Array[Param](Param(Und
 abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
 
 case class Reduce(f: Lambda2) extends AbstractReduce(f) {
-  override def apply(args: Expr*) : ReduceCall = {
+  override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
+
+  override def o(that: Expr) : ReduceCall =  reduceCall(that)
+
+  private def reduceCall(args: Expr*): ReduceCall = {
     assert(args.length == 2)
     new ReduceCall(Var("i"), this, args(0), args(1))
-  }
-
-  override def o(that: Expr) : ReduceCall = {
-    apply(that)
   }
 }
 object Reduce {
@@ -307,13 +326,13 @@ object Reduce {
 }
 
 case class PartRed(f: Lambda2) extends AbstractPartRed(f) with FPattern {
-  override def apply(args: Expr*) : ReduceCall = {
+  override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
+
+  override def o(that: Expr) : ReduceCall = reduceCall(that)
+
+  private def reduceCall(args: Expr*): ReduceCall = {
     assert(args.length == 2)
     new ReduceCall(Var("i"), this, args(0), args(1))
-  }
-
-  override def o(that: Expr) : ReduceCall = {
-    apply(that)
   }
 }
 object PartRed {
@@ -324,10 +343,23 @@ case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerab
   //override def copy() = Join()
 }
 
+object jJoin {
+  def create = Join()
+
+  def comp(that: Lambda) = {
+    Join() o that
+  }
+}
+
 case class JoinDim2() extends  Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Split(chunkSize)
+}
+
+object jSplit {
+  def create(c: Int) = Split(c)
+  //def comp(that: Lambda) = Split() o that
 }
 
 case class SplitDim2(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
@@ -395,13 +427,13 @@ object UserFunDef {
 
 case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
 
-  override def apply(args: Expr*) : IterateCall = {
+  override def apply(args: Expr*) : IterateCall = iterateCall(args:_*)
+
+  override def o(that: Expr) : IterateCall = iterateCall(that)
+
+  private def iterateCall(args: Expr*): IterateCall = {
     assert(args.length == 1)
     new IterateCall(this, args(0))
-  }
-
-  override def o(that: Expr) : IterateCall = {
-    apply(that)
   }
 }
 

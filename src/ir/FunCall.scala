@@ -14,6 +14,9 @@ abstract class Expr {
   // memory access information
   var access: AccessFunctions = EmptyAccessFuntions
 
+  // view explaining how to access the memory
+  var view: View = NoView
+
   def setContext(ctx: Context): Expr = {
     if (ctx != null)
       this.context = ctx

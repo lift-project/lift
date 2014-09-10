@@ -1,87 +1,249 @@
 package ir
 
+import opencl.ir._
 
-abstract class View(val parent : Operation) {
+sealed abstract class Operation
 
-  def replaced(old: ArithExpr, rep: ArithExpr): View = {
+object NoOperation extends Operation
 
+class InputAccess(/*val name: String*/) extends Operation
+
+class ArrayCreation(val v: View, val len: ArithExpr, val itVar: Var) extends Operation
+class ArrayAccess(val av: ArrayView, val idx: ArithExpr) extends Operation
+class ArrayReorder(val av: ArrayView, val f: (ArithExpr) => ArithExpr) extends Operation
+class ArraySplit(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
+class ArrayJoin(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
+class ArrayZip(val tv: TupleView) extends Operation
+
+class TupleCreation(val views: Seq[View]) extends Operation
+class TupleAccess(val tv: TupleView, val i: Int) extends Operation
+
+
+abstract class View(val operation: Operation) {
+  def replaced(oldExpr: ArithExpr, newExpr: ArithExpr): View = {
     val subst = new scala.collection.mutable.HashMap[ArithExpr,ArithExpr]()
-    subst.put(old, rep)
+    subst.put(oldExpr, newExpr)
 
-    val newAccess = this.parent match {
-      case aa : ArrayAccess => new ArrayAccess(aa.av.replaced(old,rep).asInstanceOf[ArrayView], ArithExpr.substitute(aa.idx, subst.toMap))
-      case ac : ArrayCreation => new ArrayCreation(ac.v.replaced(old,rep), ArithExpr.substitute(ac.len, subst.toMap), ArithExpr.substitute(ac.itVar, subst.toMap).asInstanceOf[Var])
-      case ta : TupleAccess => new TupleAccess(ta.tv.replaced(old,rep).asInstanceOf[TupleView],ta.i)
-      case tc : TupleCreation => new TupleCreation(tc.views.map(_.replaced(old,rep)))
-      case  _ => this.parent
+    val newOperation = this.operation match {
+      case ac: ArrayCreation => new ArrayCreation(ac.v.replaced(oldExpr,newExpr), ArithExpr.substitute(ac.len, subst.toMap), ArithExpr.substitute(ac.itVar, subst.toMap).asInstanceOf[Var])
+      case aa: ArrayAccess => new ArrayAccess(aa.av.replaced(oldExpr,newExpr).asInstanceOf[ArrayView], ArithExpr.substitute(aa.idx, subst.toMap))
+
+      case tc: TupleCreation => new TupleCreation(tc.views.map(_.replaced(oldExpr,newExpr)))
+      case ta: TupleAccess => new TupleAccess(ta.tv.replaced(oldExpr,newExpr).asInstanceOf[TupleView],ta.i)
+
+      case  _ => this.operation
     }
 
     this match {
-      case av : ArrayView => new ArrayView(av.elemT, newAccess)
-      case sv : PrimitiveView => new PrimitiveView(newAccess)
-      case tv : TupleView => new TupleView(tv.elemsT, newAccess)
+      case av: ArrayView => new ArrayView(av.elemT, newOperation)
+      case sv: PrimitiveView => new PrimitiveView(newOperation)
+      case tv: TupleView => new TupleView(tv.tupleType, newOperation)
     }
   }
 }
 
-object View {
-  def apply(t: Type, a: Operation) : View = {
-    t match {
-      case at:ArrayType => new ArrayView(at.elemT, a)
-      case st:ScalarType => new PrimitiveView(a)
-      case tt:TupleType => new TupleView(tt.elemsT,a)
-    }
-  }
+object NoView extends View(NoOperation)
 
-}
+class ArrayView(val elemT: Type, override val operation: Operation) extends View(operation) {
 
-class ArrayView(val elemT: Type, override val parent : Operation) extends View(parent) {
-
-  def get(idx : ArithExpr) : View = {
+  def access(idx: ArithExpr): View = {
     val aa = new ArrayAccess(this, idx)
     View(elemT, aa)
   }
 
-  def split(chunkSize : ArithExpr) : ArrayView = {
+  def split(chunkSize : ArithExpr): ArrayView = {
     val as = new ArraySplit(this, chunkSize)
     new ArrayView(new ArrayType(elemT, chunkSize), as)
   }
 
-  def join(chunkSize: ArithExpr) : ArrayView = {
+  def join(chunkSize: ArithExpr): ArrayView = {
     val aj = new ArrayJoin(this, chunkSize)
     new ArrayView(elemT.asInstanceOf[ArrayType].elemT, aj)
   }
 
-  def reorder(f : (ArithExpr) => ArithExpr) : ArrayView = {
+  def reorder(f: (ArithExpr) => ArithExpr): ArrayView = {
     val ar = new ArrayReorder(this, f)
     new ArrayView(elemT, ar)
   }
 
 }
 
-class TupleView(val elemsT : Seq[Type], override val parent : Operation) extends View(parent) {
+class TupleView(val tupleType: TupleType, override val operation: Operation) extends View(operation) {
 
-  def get(i : Cst) : View = {
-    val ta = new TupleAccess(this, i.c)
-    View(elemsT(i.c), ta)
+  def access(i: Int) : View = {
+    val ta = new TupleAccess(this, i)
+    val elemT = tupleType.elemsT(i)
+    View(elemT, ta)
   }
 
 }
 
+object TupleView {
+  def apply(t: Type, op: Operation): TupleView = {
+    assert(t.isInstanceOf[TupleType])
+    new TupleView(t.asInstanceOf[TupleType], op)
+  }
+}
 
-class PrimitiveView(override val parent : Operation) extends View(parent) {}
+class PrimitiveView(override val operation: Operation) extends View(operation)
 
 
 
-sealed abstract class Operation
-class InputAccess(val name : String) extends Operation
-class ArraySplit(val av: ArrayView, val chunkSize : ArithExpr) extends Operation
-class ArrayJoin(val av: ArrayView, val chunkSize : ArithExpr) extends Operation
-class ArrayAccess(val av: ArrayView, val idx : ArithExpr) extends Operation
-class ArrayReorder(val av: ArrayView, val f : (ArithExpr) => ArithExpr) extends Operation
-class ArrayCreation(val v: View, val len: ArithExpr, val itVar: Var) extends Operation
-class TupleAccess(val tv: TupleView, val i : Int) extends Operation
-class TupleCreation(val views: Seq[View]) extends Operation
+object View {
+  // create new view based on the given type
+  def apply(t: Type, op: Operation): View = {
+    t match {
+      case at: ArrayType => new ArrayView(at.elemT, op)
+      case st: ScalarType => new PrimitiveView(op)
+      case tt: TupleType => new TupleView(tt, op)
+    }
+  }
+
+  def createView(expr: Expr): View = {
+    val result = expr match {
+      case pr: ParamReference => getViewAtIndex(pr.p.view, pr.i)
+      case p: Param => p.view //View(expr.t, new InputAccess())
+      case call: FunCall => createViewFunCall(call)
+    }
+    expr.view = result
+    result
+  }
+
+  private def getViewAtIndex(v: View, index: Int): View = {
+    v match {
+      case tv: TupleView =>
+        assert(index < tv.tupleType.elemsT.length)
+        tv.access(index)
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewFunCall(call: FunCall): View = {
+    val argView = getViewFromArgs(call)
+
+    call match {
+      case call: MapCall => createViewMap(call, argView)
+      case call: ReduceCall => createViewReduce(call, argView)
+      case call: FunCall =>
+        call.f match {
+          case l: Lambda => createViewLambda(l, call, argView)
+          case cf: CompFunDef => createViewCompFunDef(cf, argView)
+          case z: Zip => createViewZip(z, call, argView)
+          case Split(n) => createViewSplit(n, argView)
+          case _: Join => createViewJoin(Type.getLength(call.argsType), argView)
+          case uf: UserFunDef => createViewUserFunDef(uf, argView)
+          case _: ReorderStride => createViewReorderStride(call, argView)
+          /*case uz: Unzip =>
+          case SplitDim2(n) =>
+          case j: JoinDim2 =>
+          case _: asScalar =>
+          case asVector(n) =>
+
+          case tL: toLocal =>
+          case tG: toGlobal =>
+          case i: Iterate =>
+          case _: Transpose =>
+          case _: Swap =>
+          case g: Gather =>
+          case s: Scatter =>
+          */
+          case _ => argView
+        }
+    }
+  }
+
+  private def getViewFromArgs(call: FunCall): View = {
+    if (call.args.isEmpty) {
+      NoView
+    } else if (call.args.length == 1) {
+      createView(call.args(0))
+    } else {
+      TupleView(call.argsType, new TupleCreation(call.args.map(createView)))
+    }
+  }
+
+  private def createViewMap(call: MapCall, argView: View): View = {
+    argView match {
+      case av: ArrayView =>
+        call.f.f.params(0).view = av.access(call.loopVar)
+        val innerView = createView(call.f.f.body)
+        new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewReduce(call: ReduceCall, argView: View): View = {
+    argView match {
+      case tv: TupleView =>
+        call.f.f.params(0).view = tv.access(0)
+        call.f.f.params(1).view = tv.access(1).asInstanceOf[ArrayView].access(call.loopVar)
+        val innerView = createView(call.f.f.body)
+        new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewLambda(l: Lambda, call: FunCall, argView: View): View = {
+    assert(call.args.nonEmpty)
+    if (call.args.length == 1) {
+      if (l.params.length != 1) throw new NumberOfArgumentsException
+      l.params(0).view = argView
+    } else {
+      val tv = argView match { case tv: TupleView => tv }
+
+      l.params.zipWithIndex.map({ case (p, i) => p.view = tv.access(i) })
+    }
+    createView(l.body)
+  }
+
+  private def createViewCompFunDef(cf: CompFunDef, argView: View): View = {
+    cf.funs.foldRight(argView)((f, v) => {
+      if (f.params.length != 1) throw new NumberOfArgumentsException
+      f.params(0).view = v
+      createView(f.body)
+    })
+  }
+
+  private def createViewZip(z: Zip, call: FunCall, argView: View): View = {
+    argView match {
+      case tv: TupleView => new ArrayView(Type.getElemT(call.t), new ArrayZip(tv))
+      // new ArrayCreation(tv, Type.getLength(call.t), ???))
+      //case tv: TupleView => tv
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewSplit(n: ArithExpr, argView: View): View = {
+    argView match {
+      case av: ArrayView => av.split(n)
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewJoin(n: ArithExpr, argView: View): View = {
+    argView match {
+      case av: ArrayView => av.join(n)
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewUserFunDef(uf: UserFunDef, argView: View): View = {
+    // TODO: what to do here ...
+    View(uf.outT, new InputAccess())
+  }
+
+  private def createViewReorderStride(call: FunCall, argView: View): View = {
+    val s = Type.getLength(call.argsType)
+    val n = Type.getLength(Type.getElemT(call.argsType))
+
+    argView match {
+      case av: ArrayView => av.reorder( (i:ArithExpr) => { i / n + s * ( i % n) } )
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+}
+
 
 
 
@@ -96,9 +258,9 @@ object ViewPrinter {
   private def emitView(sv : View,
                        arrayAccessStack : scala.collection.immutable.Stack[ArithExpr],
                        tupleAccessStack : scala.collection.immutable.Stack[Int]) : Unit = {
-    sv.parent match {
+    sv.operation match {
       case ia : InputAccess =>
-        print(ia.name)
+        // print(ia.name)
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.foreach(idx => print("["+idx+"]"))
 
@@ -141,13 +303,18 @@ object ViewPrinter {
         val newTAS = tupleAccessStack.pop
         emitView(tc.views(i),arrayAccessStack,newTAS)
 
+      case az : ArrayZip =>
+        val i = tupleAccessStack.top
+        val newTAS = tupleAccessStack.pop
+        emitView(az.tv.access(i) ,arrayAccessStack,newTAS)
+
 
      }
   }
 
 }
 
-
+/*
 object Test extends App {
 
   val int = ScalarType("int", 4)
@@ -314,3 +481,4 @@ object Test extends App {
   testSplitJoin()
   testReorder()
 }
+*/

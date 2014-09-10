@@ -34,6 +34,10 @@ case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
   override def toString = "Arr(" +elemT+","+len+ ")"
 }
 
+object jArrayType {
+  def create(elemT: Type, len: ArithExpr) = ArrayType(elemT, len)
+}
+
 //case class UnboundArrayType(et: Type, te: TypeExpr) extends ArrayType(et)
 //case class BoundArrayType(et: Type, n: Int) extends ArrayType(et)
 

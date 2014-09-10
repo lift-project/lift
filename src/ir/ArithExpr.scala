@@ -225,6 +225,8 @@ object ArithExpr {
 case object ? extends ArithExpr
 
 case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
+object jCst { def create(c: Int) = Cst(c) }
+
 case class Pow(b: ArithExpr, e: ArithExpr) extends ArithExpr {
   override def toString : String = e match {
     case Cst(-1) => "1/("+b+")"
@@ -320,6 +322,11 @@ case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr 
     }
   }
 
+}
+
+object jVar {
+  def create(name: String, range: Range) = Var(name, range)
+  def create(name: String) = Var(name)
 }
 
 object Var {

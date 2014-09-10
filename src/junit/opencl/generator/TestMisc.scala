@@ -21,6 +21,8 @@ object TestMisc {
 
 class TestMisc {
 
+  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
   val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
 
   val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
@@ -52,7 +54,7 @@ class TestMisc {
 
         Join() o MapWrg(
           Join() o MapLcl(MapSeq(add)) o Split(4)
-        ) o Split(1024) o Zip(ReorderStride() o left, right)
+        ) o Split(1024) o Zip(left, right)
 
     )
 

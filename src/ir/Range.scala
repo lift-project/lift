@@ -48,3 +48,4 @@ object ContinousRange {
 }
 
 case object RangeUnkown extends Range
+object jRangeUnkown { def getSingleton = RangeUnkown }

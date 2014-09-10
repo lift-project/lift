@@ -19,6 +19,10 @@ object MapGlb {
   def apply(dim: Int) = (f: Lambda) => new MapGlb(dim, f)
 }
 
+object jMapGlb {
+  def create(f: Lambda1) = MapGlb.apply(f)
+}
+
 case class MapWrg(dim: Int, f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
@@ -83,6 +87,10 @@ case class MapSeq(f: Lambda1) extends GenerableMap(f) {
   override def o(that: Expr) : MapCall = {
     apply(that)
   }
+}
+
+object jMapSeq {
+  def create(f: Lambda1) = MapSeq.apply(f)
 }
 
 case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
