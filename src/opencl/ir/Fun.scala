@@ -1,5 +1,7 @@
 package opencl.ir
 
+import java.util.function.BiFunction
+
 import ir._
 
 case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
@@ -20,7 +22,8 @@ object MapGlb {
 }
 
 object jMapGlb {
-  def create(f: Lambda1) = MapGlb.apply(f)
+  def create(f: Lambda1) = MapGlb(f)
+  def create(f: FunDecl) = MapGlb(Lambda1.FunDefToLambda(f))
 }
 
 case class MapWrg(dim: Int, f: Lambda1) extends GenerableMap(f) {
@@ -40,6 +43,11 @@ object MapWrg {
   def apply(dim: Int) = (f: Lambda1) => new MapWrg(dim, f)
 }
 
+object jMapWrg {
+  def create(f: Lambda1) = MapWrg(f)
+  def create(f: FunDecl) = MapWrg(Lambda1.FunDefToLambda(f))
+}
+
 case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
@@ -57,6 +65,11 @@ object MapLcl {
   def apply(dim: Int) = (f: Lambda1) => new MapLcl(dim, f)
 }
 
+object jMapLcl {
+  def create(f: Lambda1) = MapLcl(f)
+  def create(f: FunDecl) = MapLcl(Lambda1.FunDefToLambda(f))
+}
+
 case class MapWarp(f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
@@ -67,6 +80,13 @@ case class MapWarp(f: Lambda1) extends GenerableMap(f) {
     apply(that)
   }
 }
+
+object jMapWarp {
+  def create(f: Lambda1) = MapWarp(f)
+  def create(f: FunDecl) = MapWarp(Lambda1.FunDefToLambda(f))
+}
+
+
 case class MapLane(f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
@@ -76,6 +96,11 @@ case class MapLane(f: Lambda1) extends GenerableMap(f) {
   override def o(that: Expr) : MapCall = {
     apply(that)
   }
+}
+
+object jMapLane {
+  def create(f: Lambda1) = MapLane(f)
+  def create(f: FunDecl) = MapLane(Lambda1.FunDefToLambda(f))
 }
 
 case class MapSeq(f: Lambda1) extends GenerableMap(f) {
@@ -90,7 +115,8 @@ case class MapSeq(f: Lambda1) extends GenerableMap(f) {
 }
 
 object jMapSeq {
-  def create(f: Lambda1) = MapSeq.apply(f)
+  def create(f: Lambda1) = MapSeq(f)
+  def create(f: FunDecl) = MapSeq(Lambda1.FunDefToLambda(f))
 }
 
 case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
@@ -108,6 +134,11 @@ object ReduceSeq {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
 }
 
+object jReduceSeq {
+  def create(f: Lambda2, init: Value) = ReduceSeq(f, init)
+  def create(f: FunDecl, init: Value) = ReduceSeq(Lambda1.FunDefToLambda(f), init)
+}
+
 case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {
   override def apply(args: Expr*) : ReduceCall = {
     assert(args.length == 2)
@@ -121,22 +152,53 @@ case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {
 object ReduceHost {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceHost(f)(init, x))
 }
+object jReduceHost {
+  def create(f: Lambda2, init: Value) = ReduceHost(f, init)
+  def create(f: FunDecl, init: Value) = ReduceHost(Lambda1.FunDefToLambda(f), init)
+}
 
 case class toGlobal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
   //override def copy() = toGlobal(f)
+
+object jToGlobal {
+  def create(f: Lambda1) = toGlobal(f)
+  def create(f: FunDecl) = toGlobal(Lambda1.FunDefToLambda(f))
+}
 
 
 case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
   //override def copy() = toLocal(f)
 
+object jToLocal {
+  def create(f: Lambda1) = toLocal(f)
+  def create(f: FunDecl) = toLocal(Lambda1.FunDefToLambda(f))
+}
+
 
 case class ReorderStride() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
   //override def copy() = ReorderStride()
+object jReorderStride {
+  def create = ReorderStride()
+
+  def comp(f: Lambda) = create o f
+  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
+}
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+object jTranspose {
+  def create = Transpose()
+
+  def comp(f: Lambda) = create o f
+  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
+}
 
 case class Swap() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+object jSwap {
+  def create = Swap()
 
+  def comp(f: Lambda) = create o f
+  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
+}
 
 
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
@@ -151,10 +213,34 @@ object Gather {
   def apply(idx: IndexFunction) = (f: Lambda1) => new Gather(idx, f)
 }
 
+object jGather {
+  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: Lambda1) = {
+    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
+    Gather(idxLambda, f)
+  }
+
+  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: FunDecl) = {
+    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
+    Gather(idxLambda, Lambda1.FunDefToLambda(f))
+  }
+}
+
 case class Scatter(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
 
 object Scatter {
   def apply(idx: IndexFunction) = (f: Lambda1) => new Scatter(idx, f)
+}
+
+object jScatter {
+  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: Lambda1) = {
+    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
+    Scatter(idxLambda, f)
+  }
+
+  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: FunDecl) = {
+    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
+    Scatter(idxLambda, Lambda1.FunDefToLambda(f))
+  }
 }
 
 

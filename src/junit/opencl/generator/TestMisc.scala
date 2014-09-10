@@ -101,12 +101,11 @@ class TestMisc {
 
     val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
 
-    val negFun = fun(ArrayType(Float, Var("N")), (input) =>
-
-      Join() o MapGlb(
+    val negFun = fun(
+      ArrayType(Float, Var("N")),
+      (input) => Join() o MapGlb(
         MapSeq(neg)
       ) o Split(4) o input
-
     )
 
     val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)

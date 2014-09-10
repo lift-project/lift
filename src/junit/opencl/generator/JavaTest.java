@@ -26,16 +26,25 @@ public class JavaTest {
 
         Lambda1 negFun = jfun.create(
                 jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
-                (Param input) -> {
+                (input) -> {
                     return jJoin.comp(jfun.create((Param x1) -> {
                         return jMapGlb.create(jfun.create((Param x2) -> {
-                            return jMapSeq.create(jfun.create(neg::call)).call(x2);
+                            return jMapSeq.create(neg).call(x2);
                         })).call(x1);
                     })).comp(jfun.create((Param x) -> jSplit.create(4).call(x))).call(input);
                 });
 
         String code = Compile.apply(negFun);
-        System.out.println(code);
+
+        Lambda1 negFun2 = jfun.create(
+                jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
+                (input) -> {
+                    return jJoin.comp(jMapGlb.create(
+                                    jMapSeq.create(neg))
+                           ).comp(jSplit.create(4)).call(input);
+                });
+
+        String code2 = Compile.apply(negFun2);
     }
 
 }

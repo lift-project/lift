@@ -1,12 +1,13 @@
 package ir
 
 import java.util.function._
+import scala.collection.JavaConverters._
 
 abstract class FunDecl(val params: Array[Param]) {
 
   def isGenerable = false
 
-  def o(that: Lambda) : CompFunDef = {
+  def comp(that: Lambda) : CompFunDef = {
     val thisFuns = this match {
       case cf : CompFunDef => cf.funs
       case l : Lambda => Seq(l)
@@ -18,8 +19,9 @@ abstract class FunDecl(val params: Array[Param]) {
     val allFuns = thisFuns ++ thatFuns
     CompFunDef(allFuns:_*)
   }
+  def comp(f: FunDecl): CompFunDef = comp(Lambda.FunDefToLambda(f))
 
-  def comp(that: Lambda) = o(that)
+  def o(f: Lambda): CompFunDef = comp(f)
 
   def call(arg: Expr) = apply(arg)
   def call(arg0: Expr, arg1: Expr) = apply(arg0, arg1)
@@ -156,6 +158,7 @@ class Lambda5(override val params: Array[Param], override val body: Expr) extend
 }
 
 object jfun {
+  // create lambda1
   def create(f: Function[Param, Expr]): Lambda1 = {
     val params = Array(Param(UndefType))
     new Lambda1(params, f.apply(params(0)))
@@ -164,6 +167,17 @@ object jfun {
   def create(t: Type, f: Function[Param, Expr]): Lambda1 = {
     val params = Array(Param(t))
     new Lambda1(params, f.apply(params(0)))
+  }
+
+  // create lambda2
+  def create(f: BiFunction[Param, Param, Expr]): Lambda2 = {
+    val params = Array(Param(UndefType), Param(UndefType))
+    new Lambda1(params, f.apply(params(0), params(1)))
+  }
+
+  def create(t1: Type, t2: Type, f: BiFunction[Param, Param, Expr]): Lambda2 = {
+    val params = Array(Param(t1), Param(t2))
+    new Lambda1(params, f.apply(params(0), params(1)))
   }
 }
 
@@ -286,11 +300,11 @@ abstract class AbstractMap(f:Lambda1) extends Pattern(Array[Param](Param(UndefTy
 }*/
 
 case class Map(f:Lambda1) extends AbstractMap(f) {
-  override def apply(args: Expr*): MapCall = mapCall(args:_*)
+  override def apply(args: Expr*): MapCall = createMapCall(args:_*)
 
-  override def o(that: Expr): MapCall = mapCall(that)
+  override def o(that: Expr): MapCall = createMapCall(that)
 
-  private def mapCall(args: Expr*): MapCall = {
+  private def createMapCall(args: Expr*): MapCall = {
     assert(args.length == 1)
     new MapCall("Map", Var(""), this, args(0))
   }
@@ -298,8 +312,13 @@ case class Map(f:Lambda1) extends AbstractMap(f) {
 
 object Map {
   def apply(f: Lambda1, expr: Expr): MapCall = {
-    Map(f).mapCall(expr)
+    Map(f).createMapCall(expr)
   }
+}
+
+object jMap {
+  def create(f: Lambda1) = Map(f)
+  def create(f: FunDecl) = Map(Lambda1.FunDefToLambda(f))
 }
 
 
@@ -325,6 +344,11 @@ object Reduce {
   def apply(f: Lambda2, init: Value): Lambda = fun((x) => Reduce(f)(init, x))
 }
 
+object jReduce {
+  def create(f: Lambda2, init: Value) = Reduce(f, init)
+  def create(f: FunDecl, init: Value) = Reduce(Lambda2.FunDefToLambda(f), init)
+}
+
 case class PartRed(f: Lambda2) extends AbstractPartRed(f) with FPattern {
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
@@ -342,13 +366,11 @@ object PartRed {
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Join()
 }
-
 object jJoin {
   def create = Join()
 
-  def comp(that: Lambda) = {
-    Join() o that
-  }
+  def comp(f: Lambda): CompFunDef = create o f
+  def comp(f: FunDecl): CompFunDef = create o Lambda.FunDefToLambda(f)
 }
 
 case class JoinDim2() extends  Pattern(Array[Param](Param(UndefType))) with isGenerable
@@ -356,10 +378,8 @@ case class JoinDim2() extends  Pattern(Array[Param](Param(UndefType))) with isGe
 case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Split(chunkSize)
 }
-
 object jSplit {
   def create(c: Int) = Split(c)
-  //def comp(that: Lambda) = Split() o that
 }
 
 case class SplitDim2(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
@@ -367,8 +387,18 @@ case class SplitDim2(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(Un
 case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = asScalar()
 }
+object jAsScalar {
+  def create = asScalar()
+
+  def comp(f: Lambda) = create o f
+  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
+}
+
 case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = asVector(len)
+}
+object jAsVector {
+  def create(c: Int) = asVector(c)
 }
 
 /*
@@ -445,6 +475,14 @@ object Iterate {
   }
 }
 
+object jIterate {
+  def create(n: Int, f: Lambda1) = Iterate(n, f)
+  def create(n: ArithExpr, f: Lambda1) = Iterate(n, f)
+
+  def create(n: Int, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
+  def create(n: ArithExpr, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
+}
+
 case class Zip() extends FunDecl(Array[Param](Param(UndefType),Param(UndefType))) with isGenerable {
   //override def copy() = Zip(f1, f2)
 }
@@ -454,6 +492,14 @@ object Zip {
     assert(args.length == 2)
     Zip()(args:_*)
   }
+}
+
+object jZip {
+  def create = Zip()
+
+  def call(arg0: Expr, arg1: Expr) = Zip()(arg0, arg1)
+
+  def call(args: java.util.List[Expr]) = Zip()(args.asScala:_*)
 }
 
 case class Unzip() extends FunDecl(Array[Param](Param(UndefType))) with isGenerable
