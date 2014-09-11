@@ -136,7 +136,7 @@ object ReduceSeq {
 
 object jReduceSeq {
   def create(f: Lambda2, init: Value) = ReduceSeq(f, init)
-  def create(f: FunDecl, init: Value) = ReduceSeq(Lambda1.FunDefToLambda(f), init)
+  def create(f: FunDecl, init: Value) = ReduceSeq(Lambda2.FunDefToLambda(f), init)
 }
 
 case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {

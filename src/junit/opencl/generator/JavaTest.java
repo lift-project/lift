@@ -36,7 +36,7 @@ public class JavaTest {
 
         String code = Compile.apply(negFun);
 
-        Lambda1 negFun2 = jfun.create(
+        Lambda negFun2 = jfun.create(
                 jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
                 (input) -> {
                     return jJoin.comp(jMapGlb.create(
@@ -45,6 +45,23 @@ public class JavaTest {
                 });
 
         String code2 = Compile.apply(negFun2);
+    }
+
+    @Test
+    public void vectorScalarMultiplication() {
+        UserFunDef mult = new UserFunDef("mult", new String[] {"x", "y"}, "{ return x*y}", jTupleType.create(jFloat.getSingleton(), jFloat.getSingleton()), jFloat.getSingleton());
+
+        Lambda multFun = jfun.create(
+                jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
+                jFloat.getSingleton(),
+                (input, alpha) -> {
+                    return jMapGlb.create(
+                            jfun.create((x) -> mult.call(alpha, x)))
+                            .call(input);
+                });
+
+        String code = Compile.apply(multFun);
+
     }
 
 }

@@ -25,6 +25,7 @@ abstract class FunDecl(val params: Array[Param]) {
 
   def call(arg: Expr) = apply(arg)
   def call(arg0: Expr, arg1: Expr) = apply(arg0, arg1)
+  def call(arg0: Expr, arg1: Expr, arg2: Expr) = apply(arg0, arg1, arg2)
 
   def o(that: Expr) : FunCall = {
     apply(that)
@@ -172,12 +173,23 @@ object jfun {
   // create lambda2
   def create(f: BiFunction[Param, Param, Expr]): Lambda2 = {
     val params = Array(Param(UndefType), Param(UndefType))
-    new Lambda1(params, f.apply(params(0), params(1)))
+    new Lambda2(params, f.apply(params(0), params(1)))
   }
 
   def create(t1: Type, t2: Type, f: BiFunction[Param, Param, Expr]): Lambda2 = {
     val params = Array(Param(t1), Param(t2))
-    new Lambda1(params, f.apply(params(0), params(1)))
+    new Lambda2(params, f.apply(params(0), params(1)))
+  }
+
+  //create lambda3
+  def create(f: TriFunction[Param, Param, Param, Expr]): Lambda3 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda3(params, f.apply(params(0), params(1), params(2)))
+  }
+
+  def create(t1: Type, t2: Type, t3: Type, f: TriFunction[Param, Param, Param, Expr]): Lambda3 = {
+    val params = Array(Param(t1), Param(t2), Param(t3))
+    new Lambda3(params, f.apply(params(0), params(1), params(2)))
   }
 }
 
