@@ -445,6 +445,36 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
       case t: Type => Array(Param(t))
     } ) with isGenerable {
 
+  private def namesAndTypesMatch(): Boolean = {
+
+    def checkParam(param: (Type, Any)): Boolean = {
+      param match {
+        case (_:ScalarType, _:String) => true
+        case (_:VectorType, _:String) => true
+        case (tt:TupleType, names: Array[Any]) => {
+          if (tt.elemsT.length != names.length) false
+          else {
+            (tt.elemsT zip names).forall( {case (t,n) => checkParam( (t,n) )} )
+          }
+        }
+        case _ => false
+      }
+    }
+
+    checkParam((inT, paramNames))
+  }
+
+  def paramNamesString: String = {
+    def printAny(arg: Any): String = arg match {
+      case a: Array[Any] => "Array(" + a.map(printAny).reduce(_+", "+_) + ")"
+      case _ => arg.toString
+    }
+
+    printAny(paramNames)
+  }
+
+  assert(namesAndTypesMatch(), s"Structure of parameter names ( $paramNamesString ) and the input type ( $inT ) doesn't match!")
+
   override def toString = "UserFun("+ name + ")" // for debug purposes
 }
 
