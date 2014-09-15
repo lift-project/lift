@@ -63,15 +63,15 @@ object Context {
       expr match {
         case call: FunCall => call.f match {
 
-          case Map(inF)    => updateContext(inF.body, ctx.incMapDepth)
-          case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth.setInSeq())
-          case MapGlb(_,inF) => updateContext(inF.body, ctx.incMapDepth.setInMapGlb)
-          case MapWrg(_,inF) => updateContext(inF.body, ctx.incMapDepth.setInMapWrg)
-          case MapLcl(_,inF) => updateContext(inF.body, ctx.incMapDepth.setInMapLcl)
+          case Map(inF)    => updateContext(inF.body, ctx.incMapDepth())
+          case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth().setInSeq())
+          case MapGlb(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapGlb())
+          case MapWrg(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapWrg())
+          case MapLcl(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapLcl())
           case ReduceSeq(inF) => updateContext(inF.body, ctx.setInSeq())
 
-          case fp: FPattern => updateContext(fp.f.body, ctx.copy)
-          case cf: CompFunDef => cf.funs.map(inF => updateContext(inF.body, ctx.copy))
+          case fp: FPattern => updateContext(fp.f.body, ctx.copy())
+          case cf: CompFunDef => cf.funs.map(inF => updateContext(inF.body, ctx.copy()))
           case _ =>
         }
         case _ =>

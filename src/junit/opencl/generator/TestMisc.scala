@@ -117,6 +117,30 @@ class TestMisc {
 
   }
 
+  @Test def VECTOR_NEG_PAIR() {
+
+    val inputSize = 1024
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val gold = inputArray.map((f) => Array(-f, -f)).flatten
+
+    val negPair = UserFunDef("pair", "x", "{ Tuple t = {-x, -x}; return t; }", Float, TupleType(Float, Float))
+
+    val f = fun(ArrayType(Float, Var("N")), (input) =>
+      Join() o MapWrg(
+        Join() o MapLcl(MapSeq(negPair)) o Split(4)
+      ) o Split(1024) o input
+    )
+
+    val (output, runtime) = Execute(inputArray.length)(f, inputArray, inputArray.size)
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+  }
+
   @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID() {
 
     val inputSize = 1024

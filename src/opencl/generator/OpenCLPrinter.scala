@@ -1,6 +1,5 @@
 package opencl.generator
 
-import Function.tupled
 import ir._
 import opencl.ir._
 
@@ -141,11 +140,10 @@ class OpenCLPrinter {
     param match {
       case (st: ScalarType, name: String) => toOpenCL(st) + " " + name
       case (vt: VectorType, name: String) => toOpenCL(vt) + " " + name
-      case (tt: TupleType, names: Array[Any]) => {
+      case (tt: TupleType, names: Array[Any]) =>
         assert(tt.elemsT.length == names.length)
         (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).reduce(separateByComma)
-      }
-      case _ => throw new NotPrintableExpression( param.toString )
+      case _ => throw new NotPrintableExpression( param.toString() )
     }
   }
 
@@ -164,7 +162,7 @@ class OpenCLPrinter {
     t match {
       case tt: TupleType =>
         val name = Type.name(tt)
-        val fields = tt.elemsT.zipWithIndex.map({ case (t,i) => Type.name(t)+" _"+i}).reduce(_+";\n  "+_)
+        val fields = tt.elemsT.zipWithIndex.map({ case (ty,i) => Type.name(ty)+" _"+i}).reduce(_+";\n  "+_)
         s"""
           |#ifndef ${name}_DEFINED
           |#define ${name}_DEFINED

@@ -15,7 +15,7 @@ object ExprSimplifier {
   private def simplifyPow(pow: Pow): ArithExpr = {
     pow match {
       case Pow(Cst(0), Cst(0)) => throw new NotEvaluableException(pow.toString())
-      case Pow(Cst(b), Cst(e)) => {
+      case Pow(Cst(b), Cst(e)) =>
         val powDbl = scala.math.pow(b,e)
         if (powDbl.isValidInt)
           Cst(powDbl.toInt)
@@ -30,7 +30,6 @@ object ExprSimplifier {
           } else
             pow
         }
-      }
       case Pow(base, Cst(0)) => Cst(1)
       case Pow(base, Cst(1)) => base
       case Pow(Cst(0), _) => Cst(0)
@@ -53,7 +52,7 @@ object ExprSimplifier {
       case Pow(x,Prod(factors)) =>
         var b : ArithExpr = null
         val idx = factors.indexWhere({
-          case Log(x,b1) =>
+          case Log(_,b1) =>
             b = b1
             true
           case _ => false
@@ -76,10 +75,10 @@ object ExprSimplifier {
   private def flattenSum(sum: Sum) : Sum = {
     var result = List[ArithExpr]()
 
-    sum.terms.foreach(t => t match {
-      case s : Sum => result = result ++ s.terms
-      case _  => result = t :: result
-    })
+    sum.terms.foreach {
+      case s: Sum => result = result ++ s.terms
+      case t => result = t :: result
+    }
 
     Sum(result)
   }
@@ -190,10 +189,10 @@ object ExprSimplifier {
     var sums = List[Sum]()
     var prodRest = Prod(List())
 
-    prod.factors.foreach(t => t match {
+    prod.factors.foreach {
       case s: Sum => sums = sums :+ s
-      case _ => prodRest = prodRest * t
-    })
+      case t => prodRest = prodRest * t
+    }
 
     sums = sums :+ Sum(List(prodRest))
 
@@ -203,10 +202,10 @@ object ExprSimplifier {
   private def flattenProd(prod: Prod) : Prod = {
     var result = List[ArithExpr]()
 
-    prod.factors.foreach(t => t match {
-      case p : Prod => result = result ++ p.factors
-      case _  => result = t :: result
-    })
+    prod.factors.foreach {
+      case p: Prod => result = result ++ p.factors
+      case t => result = t :: result
+    }
 
     Prod(result)
   }
