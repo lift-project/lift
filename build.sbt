@@ -11,3 +11,5 @@ javaSource in Compile <<= baseDirectory(_ / "src")
 javaSource in Test <<= baseDirectory(_ / "junit")
 
 libraryDependencies += "junit" % "junit" % "4.11"
+
+libraryDependencies += "com.twitter" %% "util-eval" % "6.12.1"

@@ -1,13 +1,30 @@
 package opencl.executor
 
 import ir._
-import opencl.generator.OpenCLGenerator
 import opencl.ir._
+import opencl.generator.OpenCLGenerator
 
 import scala.reflect.ClassTag
 
+object Eval {
+  def apply(code: String): Lambda = {
+    val imports = """
+                    |import ir._
+                    |import opencl.ir._
+                    |
+                  """.stripMargin
+    com.twitter.util.Eval[Lambda](imports ++ code)
+  }
+}
+
 object Compile {
-  def apply(f: Lambda) = {
+  def apply(code: String): (String, Lambda) = {
+    val f = Eval(code)
+    (apply(f), f)
+  }
+
+  def apply(f: Lambda): String = {
+    assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
     Type.check(f.body)
 
     val kernelCode = OpenCLGenerator.generate(f)
@@ -29,8 +46,12 @@ object Execute {
 }
 
 class Execute(val localSize: Int, val globalSize: Int) {
-  def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
-    assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
+  def apply(input: String, values: Any*): (Array[Float], Double) = {
+    val (code, f) = Compile(input)
+    apply(code, f, values:_*)
+  }
+
+  def apply(f: Lambda, values: Any*): (Array[Float], Double) = {
     val code = Compile(f)
     apply(code, f, values:_*)
   }
