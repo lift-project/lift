@@ -63,6 +63,15 @@ object UndefType extends Type {override def toString = "UndefType"}
 object NoType extends Type {override def toString = "NoType"}
 
 object Type {
+
+  def name(t: Type): String = {
+    t match {
+      case st: ScalarType => st.name
+      case vt: VectorType => vt.scalarT.name + vt.len.toString
+      case tt: TupleType  => "Tuple_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
+      case at: ArrayType  => "Array_" + Type.name(at.elemT)
+    }
+  }
   
   /*def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    
     t match {

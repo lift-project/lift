@@ -110,9 +110,7 @@ class OpenCLPrinter {
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)
       case ScalarType(name, _) => name
-      case tt: TupleType =>
-//        "(" + tt.elemsT.map(toOpenCL(_)).reduce( _ + ", " + _ ) + ")"
-        throw new Exception // don't know how to print a tuple in opencl ...
+      case tt: TupleType => Type.name(tt)
       case UndefType => "void"
     }
   }
@@ -152,10 +150,36 @@ class OpenCLPrinter {
   }
 
   def toOpenCL(uf: UserFunDef) : String = {
-    // "sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float
-    // (val name: String, val paramNames: Array[String], val body: String, val expectedInT: Type, val expectedOutT: Type)
+    val typedef = //printTypedef(uf.inT) ++
+      createTypedef(uf.outT)
     val params = toOpenCL( (uf.inT, uf.paramNames) )
-    toOpenCL(uf.outT) + " " + uf.name + "(" + params + ")" + uf.body
+
+    typedef +
+      toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
+      createTupleAlias(typedef, uf.outT) +
+      uf.body + "}"
+  }
+
+  def createTypedef(t: Type): String = {
+    t match {
+      case tt: TupleType =>
+        val name = Type.name(tt)
+        val fields = tt.elemsT.zipWithIndex.map({ case (t,i) => Type.name(t)+" _"+i}).reduce(_+";\n  "+_)
+        s"""
+          |#ifndef ${name}_DEFINED
+          |#define ${name}_DEFINED
+          |typedef struct {
+          |  $fields;
+          |} $name;
+          |#endif
+          |""".stripMargin
+      case _ => ""
+    }
+  }
+
+  def createTupleAlias(typedef: String, t: Type): String = {
+    if (typedef.isEmpty) return ""
+    "typedef " + Type.name(t) + " Tuple; "
   }
 
 
