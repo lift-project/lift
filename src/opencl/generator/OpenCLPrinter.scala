@@ -140,6 +140,7 @@ class OpenCLPrinter {
     param match {
       case (st: ScalarType, name: String) => toOpenCL(st) + " " + name
       case (vt: VectorType, name: String) => toOpenCL(vt) + " " + name
+      case (tt: TupleType, name: String) => toOpenCL(tt) + " " + name
       case (tt: TupleType, names: Array[Any]) =>
         assert(tt.elemsT.length == names.length)
         (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).reduce(separateByComma)

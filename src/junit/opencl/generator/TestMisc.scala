@@ -23,17 +23,17 @@ class TestMisc {
 
   val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
-  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
 
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
 
-  val doubleItAndSumUp = UserFunDef("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }", TupleType(Float, Float), Float)
+  val doubleItAndSumUp = UserFunDef("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }", Seq(Float, Float), Float)
 
   val sqrtIt = UserFunDef("sqrtIt", "x", "{ return sqrt(x); }", Float, Float)
 
   val abs = UserFunDef("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
-  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
+  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
   val transpose = AccessFunction.transpose
 
@@ -94,7 +94,6 @@ class TestMisc {
   }
 
   @Test def VECTOR_PAIR() {
-
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
@@ -114,31 +113,64 @@ class TestMisc {
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
-
   }
 
   @Test def VECTOR_NEG_PAIR() {
-
     val inputSize = 1024
-    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inputArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
 
-    val gold = inputArray.map((f) => Array(-f, -f)).flatten
+    val gold = inputArray.map(-_)
 
-    val negPair = UserFunDef("pair", "x", "{ Tuple t = {-x, -x}; return t; }", Float, TupleType(Float, Float))
+    val negPair = UserFunDef("pair", "x", "{ x._0 = -x._0; x._1 = -x._1; return x; }",
+                             TupleType(Float, Float), TupleType(Float, Float))
 
-    val f = fun(ArrayType(Float, Var("N")), (input) =>
+    val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
       Join() o MapWrg(
-        Join() o MapLcl(MapSeq(negPair)) o Split(4)
+        Join() o MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
       ) o Split(1024) o input
     )
 
-    val (output, runtime) = Execute(inputArray.length)(f, inputArray, inputArray.size)
+    val (output, runtime) = Execute(inputSize)(f, inputArray, inputArray.size)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
+  }
 
+  @Test def VECTOR_ADD_PAIRS() {
+    val inputSize = 1024
+    val leftArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
+    val rightArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
+
+    val gold = (leftArray zip rightArray).map({case (l, r) => l + r})
+
+    val addPair = UserFunDef(
+      "pair",
+      Array("x", "y"),
+      "{ x._0 = x._0 + y._0;" +
+        "x._1 = x._1 + y._1;" +
+        "return x; }",
+      Seq(TupleType(Float, Float), TupleType(Float, Float)),
+      TupleType(Float, Float))
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(TupleType(Float, Float), N),
+      ArrayType(TupleType(Float, Float), N),
+      (left, right) =>
+        Join() o MapWrg(
+          Join() o MapLcl(MapSeq(addPair)) o Split(4)
+        ) o Split(1024) o Zip(left, right)
+    )
+
+    val (output, runtime) = Execute(inputSize)(f, leftArray, rightArray, leftArray.size)
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
   }
 
   @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID() {
@@ -197,8 +229,6 @@ class TestMisc {
     val alpha = 2.5f
     val gold = inputArray.map(_ * alpha)
 
-    val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
-
     val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(
@@ -221,8 +251,6 @@ class TestMisc {
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
     val gold = inputArray.map(_ * alpha).reduce(_+_)
-
-    val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
 
     val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
       Join() o MapWrg(
@@ -455,8 +483,6 @@ class TestMisc {
     val N = Var("N")
     val M = Var("M")
 
-    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
-
     val f1 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
@@ -511,8 +537,6 @@ class TestMisc {
     val N = Var("N")
     val M = Var("M")
     val K = Var("K")
-
-    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, K), M), N),

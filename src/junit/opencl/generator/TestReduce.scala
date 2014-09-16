@@ -22,11 +22,11 @@ object TestReduce {
 
 class TestReduce {
 
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
 
   val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
-  val absAndSumUp = UserFunDef("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", TupleType(Float, Float), Float)
+  val absAndSumUp = UserFunDef("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", Seq(Float, Float), Float)
 
 
   @Test def SIMPLE_REDUCE_FIRST() {

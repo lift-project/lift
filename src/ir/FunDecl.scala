@@ -438,12 +438,14 @@ object Vectorize {
 }
 
 case class UserFunDef(name: String, paramNames: Any, body: String,
-                      inT: Type, outT: Type)
+                      inTs: Seq[Type], outT: Type)
 //  extends FunDecl(UserFunDef.toParams(inT)) with isGenerable {
-  extends FunDecl( inT match {
+  extends FunDecl( /*inT match {
       case tt: TupleType => tt.elemsT.map(Param(_)).toArray
       case t: Type => Array(Param(t))
-    } ) with isGenerable {
+    }*/
+    inTs.map(Param(_)).toArray
+    ) with isGenerable {
 
   private def namesAndTypesMatch(): Boolean = {
 
@@ -451,12 +453,10 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
       param match {
         case (_:ScalarType, _:String) => true
         case (_:VectorType, _:String) => true
-        case (tt:TupleType, names: Array[Any]) => {
+        case (_:TupleType, _:String)  => true
+        case (tt:TupleType, names: Array[Any]) =>
           if (tt.elemsT.length != names.length) false
-          else {
-            (tt.elemsT zip names).forall( {case (t,n) => checkParam( (t,n) )} )
-          }
-        }
+          else (tt.elemsT zip names).forall( {case (t,n) => checkParam( (t,n) )} )
         case _ => false
       }
     }
@@ -475,13 +475,19 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
 
   assert(namesAndTypesMatch(), s"Structure of parameter names ( $paramNamesString ) and the input type ( $inT ) doesn't match!")
 
+  def inT = if (inTs.size == 1) inTs.head else TupleType(inTs:_*)
+
   override def toString = "UserFun("+ name + ")" // for debug purposes
 }
 
 object UserFunDef {
+  def apply(name: String, paramName: Any, body: String, inT: Type, outT: Type): UserFunDef = {
+    UserFunDef(name, paramName, body, Seq(inT), outT)
+  }
+
   def vectorize(uf: UserFunDef, n: ArithExpr): UserFunDef = {
     val name = uf.name + n
-    val expectedInT = Type.vectorize(uf.inT, n)
+    val expectedInT = uf.inTs.map(Type.vectorize(_, n))
     val expectedOutT = Type.vectorize(uf.outT, n)
 
     // create new user fun
@@ -494,6 +500,16 @@ object UserFunDef {
   //    case t: Type => Array(Param(t))
   //  }
   //}
+}
+
+object jUserFunDef {
+  def create(name: String, paramName: Any, body: String, inT: Type, outT: Type): UserFunDef = {
+    UserFunDef(name, paramName, body, inT, outT)
+  }
+
+  def create(name: String, paramNames: Array[Any], body: String, inTs: Array[Type], outT: Type): UserFunDef = {
+    UserFunDef(name, paramNames, body, inTs, outT)
+  }
 }
 
 

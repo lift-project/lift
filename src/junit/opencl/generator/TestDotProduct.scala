@@ -25,19 +25,15 @@ class TestDotProduct {
 
   val abs = UserFunDef("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
 
-  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
 
-  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
+  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
   val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", Array("l", "r")),
     "{ return acc + (l * r); }",
-    TupleType(Float, TupleType(Float, Float)), Float)
-
-  val multAndSumUp3 = UserFunDef("multAndSumUp3", Array("acc", "l", "r"),
-    "{ return acc + (l * r); }",
-    TupleType(Float, Float, Float), Float)
+    Seq(Float, TupleType(Float, Float)), Float)
 
   val N = Var("N")
   val M = Var("M")
