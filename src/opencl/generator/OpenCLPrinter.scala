@@ -149,13 +149,12 @@ class OpenCLPrinter {
   }
 
   def toOpenCL(uf: UserFunDef) : String = {
-    val typedef = //printTypedef(uf.inT) ++
-      createTypedef(uf.outT)
+    val typedefs = uf.unexpandedTupleTypes.map(createTypedef).fold("")(_+_)
     val params = toOpenCL( (uf.inT, uf.paramNames) )
 
-    typedef +
+    typedefs +
       toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
-      createTupleAlias(typedef, uf.outT) +
+      createTupleAlias(uf.unexpandedTupleTypes) +
       uf.body + "}"
   }
 
@@ -163,22 +162,25 @@ class OpenCLPrinter {
     t match {
       case tt: TupleType =>
         val name = Type.name(tt)
-        val fields = tt.elemsT.zipWithIndex.map({ case (ty,i) => Type.name(ty)+" _"+i}).reduce(_+";\n  "+_)
-        s"""
-          |#ifndef ${name}_DEFINED
-          |#define ${name}_DEFINED
-          |typedef struct {
-          |  $fields;
-          |} $name;
-          |#endif
-          |""".stripMargin
+        val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
+        s"""#ifndef ${name}_DEFINED
+           |#define ${name}_DEFINED
+           |typedef struct {
+           |  ${fields.reduce(_+";\n  "+_)};
+           |} $name;
+           |#endif
+           |""".stripMargin
       case _ => ""
     }
   }
 
-  def createTupleAlias(typedef: String, t: Type): String = {
-    if (typedef.isEmpty) return ""
-    "typedef " + Type.name(t) + " Tuple; "
+  def createTupleAlias(tts: Seq[TupleType]): String = {
+    if (tts.isEmpty) return ""
+    if (tts.size == 1) "typedef " + Type.name(tts.head) + " Tuple; "
+    else {
+      // TODO: think about this one ...
+      tts.zipWithIndex.map({case (tt, i) => "typedef " + Type.name(tt) + s" Tuple$i;"}).reduce(_+" "+_)
+    }
   }
 
 

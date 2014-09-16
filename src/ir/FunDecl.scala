@@ -475,6 +475,38 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
 
   assert(namesAndTypesMatch(), s"Structure of parameter names ( $paramNamesString ) and the input type ( $inT ) doesn't match!")
 
+  def hasUnexpandedTupleParam: Boolean = {
+    def test(param: (Type, Any)): Boolean = {
+      param match {
+        case (_: TupleType, _: String) => true
+        case (_: ScalarType, _: String) => false
+        case (_: VectorType, _: String) => false
+        case (tt: TupleType, names: Array[Any]) =>
+          (tt.elemsT zip names).exists({ case (t, n) => test((t, n))})
+      }
+    }
+    test((inT, paramNames))
+  }
+
+  private def unexpandedParamTupleTypes: Seq[TupleType] = {
+    def emit(param: (Type, Any)): Seq[TupleType] = {
+      param match {
+        case (tt: TupleType, _:String) => Seq(tt)
+        case (tt: TupleType, names: Array[Any]) =>
+          (tt.elemsT zip names).map({ case (t,n) => emit(t, n)}).flatten
+        case _ => Seq()
+      }
+    }
+    emit((inT, paramNames))
+  }
+
+  def unexpandedTupleTypes: Seq[TupleType] = {
+    outT match {
+      case tt: TupleType => (unexpandedParamTupleTypes :+ tt).distinct
+      case _ => unexpandedParamTupleTypes
+    }
+  }
+
   def inT = if (inTs.size == 1) inTs.head else TupleType(inTs:_*)
 
   override def toString = "UserFun("+ name + ")" // for debug purposes
