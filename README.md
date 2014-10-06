@@ -39,3 +39,8 @@ make test
 ```
 
 You find more instructions to build &install SkelCL [here](https://github.com/skelcl/skelcl/wiki).
+
+Finally add the SkelCL build directory to the Java library path:
+* In IntelliJ select "Run -> Edit Configurations ..."
+* On the left side select "Defaults -> JUnit"
+* On the right side add to the "VM options": "-Djava.library.path=/path-to-the-skelcl-folder/skelcl/buildDebug/executor"
