@@ -23,4 +23,9 @@ cmake ..
 make
 ```
 
-Execute all tests with make test
+Execute all tests with 
+```
+#!bash
+
+make test
+```
