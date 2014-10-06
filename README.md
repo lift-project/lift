@@ -13,7 +13,7 @@ Please clone the SkelCL repository from [bitbucket](https://bitbucket.org/skelcl
 ```
 #!bash
 
-git clone ssh://hg@bitbucket.org/skelcl/skelcl
+git clone git@bitbucket.org:skelcl/skelcl.git
 ```
 
 2. Switch to the 'Executor' branch: 
