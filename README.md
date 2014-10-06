@@ -10,3 +10,17 @@ To be able to execute computations in OpenCL you need to install the SkelCL libr
 You find general instructions to build &install SkelCL [here](https://github.com/skelcl/skelcl/wiki).
 Please clone the SkelCL repository from [bitbucket](https://bitbucket.org/skelcl/skelcl) and not from github, as you need to checkout the 'Executor' branch!
 
+1. Clone the SkelCL repository: git clone ssh://hg@bitbucket.org/skelcl/skelcl
+2. Switch to the 'Executor' branch: cd skelcl && git checkout Executor
+3.Install dependencies with the ./installDependenciesUbuntu.sh script. Answer all questions with y
+4. Create a build directory, execute cmake and perform the build with make:
+```
+#!bash
+
+mkdir build
+cd build
+cmake ..
+make
+```
+
+Execute all tests with make test
