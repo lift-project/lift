@@ -23,7 +23,8 @@ git clone git@bitbucket.org:skelcl/skelcl.git
 cd skelcl && git checkout Executor
 ```
 
-3.Install dependencies with the ./installDependenciesUbuntu.sh script. Answer all questions with y
+3. Install dependencies with the ./installDependenciesUbuntu.sh script. Answer all questions with 'y'
+
 4. Create a build directory, execute cmake and perform the build with make:
 ```
 #!bash
