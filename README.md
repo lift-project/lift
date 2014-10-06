@@ -15,16 +15,13 @@ Please clone the SkelCL repository from [bitbucket](https://bitbucket.org/skelcl
 
 git clone git@bitbucket.org:skelcl/skelcl.git
 ```
-
 2. Switch to the 'Executor' branch: 
 ```
 #!bash
 
 cd skelcl && git checkout Executor
 ```
-
 3. Install dependencies with the ./installDependenciesUbuntu.sh script. Answer all questions with 'y'
-
 4. Create a build directory, execute cmake and perform the build with make:
 ```
 #!bash
@@ -34,8 +31,7 @@ cd build
 cmake ..
 make
 ```
-
-Execute all tests with 
+5. Execute all tests with 
 ```
 #!bash
 
