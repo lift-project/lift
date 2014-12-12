@@ -54,8 +54,8 @@ class TestDotProduct {
                                                     ArrayType(Float, Var("N")), (left, right) => {
 
       Join() o MapWrg(
-        fun( (x) => Join() o MapLcl(fun( (x) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o x)) o Split(4) o x )
-      ) o Split(1024) o Zip(left, right)
+        Join() o MapLcl(ReduceSeq(sumUp, 0.0f) o MapSeq(mult)) o Split(4)
+      ) o Split(1024) $ Zip(left, right)
 
     }), leftInputData, rightInputData, leftInputData.size, rightInputData.size )
 
@@ -80,7 +80,7 @@ class TestDotProduct {
 
         Join() o Join() o MapWrg(
           toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f)))
-        ) o Split(128) o Split(2048) o Zip(left, right)
+        ) o Split(128) o Split(2048) $ Zip(left, right)
 
       }), leftInputData, rightInputData, leftInputData.size, rightInputData.size )
 
@@ -98,7 +98,7 @@ class TestDotProduct {
 
         Join() o MapWrg(
           Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(128)
-        ) o Split(128) o in
+        ) o Split(128) $ in
 
       }), firstOutput, firstOutput.length )
 
@@ -125,7 +125,7 @@ class TestDotProduct {
 
         Join() o Join() o MapWrg(
           toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride()
-        ) o Split(128) o Split(2048) o Zip(left, right)
+        ) o Split(128) o Split(2048) $ Zip(left, right)
 
       }), leftInputData, rightInputData, leftInputData.length, rightInputData.length )
 
@@ -145,7 +145,7 @@ class TestDotProduct {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(6)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
-        ) o Split(128) o in
+        ) o Split(128) $ in
 
       }), firstOutput, firstOutput.length )
 

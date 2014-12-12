@@ -27,7 +27,7 @@ abstract class FunDecl(val params: Array[Param]) {
   def call(arg0: Expr, arg1: Expr) = apply(arg0, arg1)
   def call(arg0: Expr, arg1: Expr, arg2: Expr) = apply(arg0, arg1, arg2)
 
-  def o(that: Expr) : FunCall = {
+  def $(that: Expr) : FunCall = {
     apply(that)
   }
 
@@ -312,11 +312,11 @@ abstract class AbstractMap(f:Lambda1) extends Pattern(Array[Param](Param(UndefTy
 }*/
 
 case class Map(f:Lambda1) extends AbstractMap(f) {
-  override def apply(args: Expr*): MapCall = createMapCall(args:_*)
+  override def apply(args: Expr*): MapCall = mapCall(args:_*)
 
-  override def o(that: Expr): MapCall = createMapCall(that)
+  override def $(that: Expr): MapCall = mapCall(that)
 
-  private def createMapCall(args: Expr*): MapCall = {
+  private def mapCall(args: Expr*): MapCall = {
     assert(args.length == 1)
     new MapCall("Map", Var(""), this, args(0))
   }
@@ -324,7 +324,7 @@ case class Map(f:Lambda1) extends AbstractMap(f) {
 
 object Map {
   def apply(f: Lambda1, expr: Expr): MapCall = {
-    Map(f).createMapCall(expr)
+    Map(f).mapCall(expr)
   }
 }
 
@@ -345,15 +345,14 @@ abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
 case class Reduce(f: Lambda2) extends AbstractReduce(f) {
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
-  override def o(that: Expr) : ReduceCall =  reduceCall(that)
-
   private def reduceCall(args: Expr*): ReduceCall = {
     assert(args.length == 2)
     new ReduceCall(Var("i"), this, args(0), args(1))
   }
 }
 object Reduce {
-  def apply(f: Lambda2, init: Value): Lambda = fun((x) => Reduce(f)(init, x))
+  def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => Reduce(f)(init, x))
+  def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = Reduce(f)(init, expr)
 }
 
 object jReduce {
@@ -364,15 +363,14 @@ object jReduce {
 case class PartRed(f: Lambda2) extends AbstractPartRed(f) with FPattern {
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
-  override def o(that: Expr) : ReduceCall = reduceCall(that)
-
   private def reduceCall(args: Expr*): ReduceCall = {
     assert(args.length == 2)
     new ReduceCall(Var("i"), this, args(0), args(1))
   }
 }
 object PartRed {
-  def apply(f: Lambda2, init: Value): Lambda = fun((x) => PartRed(f)(init, x))
+  def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => PartRed(f)(init, x))
+  def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = PartRed(f)(init, expr)
 }
 
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
@@ -549,7 +547,7 @@ case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(
 
   override def apply(args: Expr*) : IterateCall = iterateCall(args:_*)
 
-  override def o(that: Expr) : IterateCall = iterateCall(that)
+  override def $(that: Expr) : IterateCall = iterateCall(that)
 
   private def iterateCall(args: Expr*): IterateCall = {
     assert(args.length == 1)

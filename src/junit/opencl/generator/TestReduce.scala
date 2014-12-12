@@ -37,7 +37,7 @@ class TestReduce {
     val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
         Join() o MapLcl(ReduceSeq(sumUp, 0.0f) /*o MapSeq(id)*/) o Split(2048)
-      ) o Split(262144) o in
+      ) o Split(262144) $ in
     } )
 
     val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
@@ -58,7 +58,7 @@ class TestReduce {
     val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
       Join() o Join() o  MapWrg(
         MapLcl(ReduceSeq(sumUp, 0.0f))
-      ) o Split(128) o Split(2048) o in
+      ) o Split(128) o Split(2048) $ in
     }), inputData, inputData.length)
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
@@ -76,7 +76,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (output, runtime) = opencl.executor.Execute(1, inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
-      ReduceHost(sumUp, 0.0f) o in
+      ReduceHost(sumUp, 0.0f) $ in
     }), inputData, inputData.length)
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
@@ -101,7 +101,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
-        ) o Split(128) o in
+        ) o Split(128) $ in
       }), inputData, inputData.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
@@ -118,7 +118,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
             Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
-        ) o Split(8) o in
+        ) o Split(8) $ in
       }), firstOutput, firstOutput.length)
 
       assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
@@ -144,7 +144,7 @@ class TestReduce {
         Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
           Iterate(7)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
           Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
-      ) o Split(256) o in
+      ) o Split(256) $ in
     }), inputData, inputData.length)
 
     assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
@@ -167,7 +167,7 @@ class TestReduce {
             Join() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(sumUp, 0.0f)) o Split(2) ) ) o Split(32) o
             Iterate(2)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o ReorderStride() o Split(2048)
-        ) o Split(262144) o in
+        ) o Split(262144) $ in
 
       }), inputData, inputData.length)
 
@@ -186,7 +186,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
-        ) o Split(64) o in
+        ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
 
@@ -216,7 +216,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o ReorderStride() o Split(2048)
-        ) o Split(262144) o in
+        ) o Split(262144) $ in
       )
 
       val (output, runtime) = Execute(inputData.length)(f, inputData, inputData.length)
@@ -236,7 +236,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
-        ) o Split(64) o in
+        ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
 
@@ -266,7 +266,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
             Iterate(8)( Join() o MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f))) o Split(2) ) o
             Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f)))) o Split(2)
-        ) o asVector(4) o Split(2048) o in
+        ) o asVector(4) o Split(2048) $ in
 
       }), inputData, inputData.length)
 
@@ -285,7 +285,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
-        ) o Split(64) o in
+        ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
 
@@ -312,7 +312,7 @@ class TestReduce {
         Join() o Join() o MapWrg(
           MapLcl(ReduceSeq(sumUp, 0.0f)) o ReorderStride()
           //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o ReduceSeq(sumUp, 0.0f))) o ReorderStride()
-        ) o Split(128) o Split(2048) o in
+        ) o Split(128) o Split(2048) $ in
 
       }), inputData, inputData.length)
 
@@ -331,7 +331,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
-        ) o Split(8192) o in
+        ) o Split(8192) $ in
 
       }), firstOutput, firstOutput.length)
 
@@ -356,7 +356,7 @@ class TestReduce {
 
         Join() o asScalar() o Join() o MapWrg(
           MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp), Vectorize(2)(0.0f)))// o ReorderStride())
-        ) o Split(128) o asVector(2) o Split(4096) o in
+        ) o Split(128) o asVector(2) o Split(4096) $ in
 
       }), inputData, inputData.length)
 
@@ -376,7 +376,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
-        ) o Split(8192) o in
+        ) o Split(8192) $ in
 
       }), firstOutput, firstOutput.length)
 
@@ -403,7 +403,7 @@ class TestReduce {
           Join() o asScalar() o Join() o MapWarp(
             MapLane(MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f)))
           ) o Split(1) o asVector(4) o Split(32768)
-        ) o Split(32768) o in
+        ) o Split(32768) $ in
 
       }), inputData, inputData.length)
 
@@ -423,7 +423,7 @@ class TestReduce {
           Join() o MapLcl(
             ReduceSeq(sumUp, 0.0f)
           ) o Split(2048)
-        ) o Split(2048) o in
+        ) o Split(2048) $ in
 
       }), firstOutput, firstOutput.length)
 
@@ -450,7 +450,7 @@ class TestReduce {
           Join() o asScalar() o MapLcl(
             MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f))
           ) o asVector(4) o Split(32768)
-        ) o Split(32768) o in
+        ) o Split(32768) $ in
 
       }), inputData, inputData.length)
 
@@ -469,7 +469,7 @@ class TestReduce {
           Join() o MapLcl(
             ReduceSeq(sumUp, 0.0f)
           ) o Split(2048)
-        ) o Split(2048) o in
+        ) o Split(2048) $ in
 
       }), firstOutput, firstOutput.length)
 

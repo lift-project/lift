@@ -54,7 +54,7 @@ class TestMisc {
 
         Join() o MapWrg(
           Join() o MapLcl(MapSeq(add)) o Split(4)
-        ) o Split(1024) o Zip(left, right)
+        ) o Split(1024) $ Zip(left, right)
 
     )
 
@@ -80,7 +80,7 @@ class TestMisc {
 
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(neg)) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
 
     )
 
@@ -104,7 +104,7 @@ class TestMisc {
     val pairFun = fun(ArrayType(Float, Var("N")), (input) =>
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(pair)) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
     )
 
     val (output, runtime) = Execute(inputArray.length)(pairFun, inputArray, inputArray.size)
@@ -127,7 +127,7 @@ class TestMisc {
     val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
     )
 
     val (output, runtime) = Execute(inputSize)(f, inputArray, inputArray.size)
@@ -162,7 +162,7 @@ class TestMisc {
       (left, right) =>
         Join() o MapWrg(
           Join() o MapLcl(MapSeq(addPair)) o Split(4)
-        ) o Split(1024) o Zip(left, right)
+        ) o Split(1024) $ Zip(left, right)
     )
 
     val (output, runtime) = Execute(inputSize)(f, leftArray, rightArray, leftArray.size)
@@ -185,7 +185,7 @@ class TestMisc {
       ArrayType(Float, Var("N")),
       (input) => Join() o MapGlb(
         MapSeq(neg)
-      ) o Split(4) o input
+      ) o Split(4) $ input
     )
 
     val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)
@@ -211,7 +211,7 @@ class TestMisc {
 
       Gather(reverse)(Join() o MapGlb(
         MapSeq(neg)
-      ) o Split(4)) o input
+      ) o Split(4)) $ input
     )
 
     val (output, runtime) = Execute(16, inputArray.length)(negFun, inputArray, inputArray.size)
@@ -234,7 +234,7 @@ class TestMisc {
         Join() o MapLcl(MapSeq(
           fun( x => mult(alpha, x) )
         )) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
     )
 
     val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
@@ -257,7 +257,7 @@ class TestMisc {
         Join() o MapLcl(ReduceSeq(sumUp, 0.0f) o MapSeq(
           fun( x => mult(alpha, x) )
         )) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
     )
 
     val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
@@ -284,7 +284,7 @@ class TestMisc {
           Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
             Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride()
-        ) o Split(1024) o input
+        ) o Split(1024) $ input
 
     )
 
@@ -319,10 +319,10 @@ class TestMisc {
             Join() o MapWrg(1)(fun( cols =>
               MapLcl(1)(fun( col =>
                 plusOne(col)
-              )) o cols
-            )) o Split(c) o row
-          )) o rows
-        )) o Split(r) o matrix
+              )) $ cols
+            )) o Split(c) $ row
+          )) $ rows
+        )) o Split(r) $ matrix
       })
 
     val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)
@@ -361,7 +361,7 @@ class TestMisc {
               MapLcl(0)(fun( row =>
                 MapLcl(1)(fun( elem =>
                   id(elem)
-                )) o row
+                )) $ row
               ))
             ) o
             // step 1: load tile to local memory
@@ -369,12 +369,12 @@ class TestMisc {
               MapLcl(0)(fun( row =>
                 MapLcl(1)(fun( elem =>
                   plusOne(elem)
-                )) o row
+                )) $ row
               ))
-            ) o tile
+            ) $ tile
 
-          )))) o Swap() o MapSeq(Split(c)) o cols
-        )) o Split(r) o  matrix
+          )))) o Swap() o MapSeq(Split(c)) $ cols
+        )) o Split(r) $  matrix
       })
 
     val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
@@ -416,11 +416,11 @@ class TestMisc {
             MapLcl(0)(fun( row =>
               MapLcl(1)(fun( elem =>
                 plusOne(elem)
-              )) o row
-            )) o tile
+              )) $ row
+            )) $ tile
 
-          )))) o Swap() o MapSeq(Split(c)) o cols
-        )) o Split(r) o  matrix
+          )))) o Swap() o MapSeq(Split(c)) $ cols
+        )) o Split(r) $  matrix
       })
 
     val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
@@ -486,26 +486,26 @@ class TestMisc {
     val f1 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapGlb(0)(MapGlb(1)(id)) o Transpose() o matrix
+        MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
       })
 
     val f2 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Gather(transpose)(MapGlb(0)(MapGlb(1)(id))) o Swap() o matrix
+        Gather(transpose)(MapGlb(0)(MapGlb(1)(id))) o Swap() $ matrix
       })
 
     val f3 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Swap() o Scatter(transpose)(MapGlb(0)(MapGlb(1)(id))) o matrix
+        Swap() o Scatter(transpose)(MapGlb(0)(MapGlb(1)(id))) $ matrix
       })
 
     // transpose twice == id
     val f4 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(MapGlb(1)(id)))) o Swap() o matrix
+        Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(MapGlb(1)(id)))) o Swap() $ matrix
       })
 
     val f = f3
@@ -547,7 +547,7 @@ class TestMisc {
               MapSeq(id)
             )
           )
-        ) o Swap() o matrix
+        ) o Swap() $ matrix
       })
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Msize, Nsize, Ksize)
@@ -731,15 +731,15 @@ class TestMisc {
   @Test def stuff() {
     val scal = fun(Float, ArrayType(Float, Var("N")),
       (alpha, input) => {
-        Map(fun((x) => mult(x, alpha))) o input })
+        Map(fun((x) => mult(x, alpha))) $ input })
 
     val asum = fun(ArrayType(Float, Var("N")),
-      (input) => { Reduce(sumUp, 0.0f) o Map(abs) o input })
+      (input) => { Reduce(sumUp, 0.0f) o Map(abs) $ input })
 
     val dot = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")),
-      (x,y) => { Reduce(sumUp, 0.0f) o Map(mult) o Zip(x,y) })
+      (x,y) => { Reduce(sumUp, 0.0f) o Map(mult) $ Zip(x,y) })
 
-    val vecAdd = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")), (x,y) => { Map(add) o Zip(x,y) })
+    val vecAdd = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")), (x,y) => { Map(add) $ Zip(x,y) })
 
     val gemv = fun(ArrayType(ArrayType(Float, Var("M")), Var("N")),
       ArrayType(Float, Var("N")),
@@ -747,7 +747,7 @@ class TestMisc {
       Float, Float,
       (A, x, y, alpha, beta) => {
         val scalledY = scal(beta, y)
-        val AtimesX = Map(fun( row => scal(alpha) o dot(x, row) ), A)
+        val AtimesX = Map(fun( row => scal(alpha) $ dot(x, row) ), A)
         vecAdd(AtimesX, scalledY)
       })
 

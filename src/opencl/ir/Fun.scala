@@ -10,7 +10,7 @@ case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
     new MapCall("MapGlbl", Var("gl_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -32,7 +32,7 @@ case class MapWrg(dim: Int, f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapWrg", Var("wg_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -54,7 +54,7 @@ case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapLcl", Var("l_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -76,7 +76,7 @@ case class MapWarp(f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapWarp", Var("warp_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -93,7 +93,7 @@ case class MapLane(f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapLane", Var("lane_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -109,7 +109,7 @@ case class MapSeq(f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapSeq", Var("i"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -125,7 +125,7 @@ case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
     new ReduceCall(Var("i"), this, args(0), args(1))
   }
 
-  override def o(that: Expr) : ReduceCall = {
+  override def $(that: Expr) : ReduceCall = {
     apply(that)
   }
 }
@@ -145,7 +145,7 @@ case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {
     new ReduceCall(Var("i"), this, args(0), args(1))
   }
 
-  override def o(that: Expr) : ReduceCall = {
+  override def $(that: Expr) : ReduceCall = {
     apply(that)
   }
 }
