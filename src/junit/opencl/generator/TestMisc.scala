@@ -33,9 +33,56 @@ class TestMisc {
 
   val abs = UserFunDef("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
+  val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
+
   val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
   val transpose = AccessFunction.transpose
+
+  @Test def compositionTest(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val gold = inputData.map(x => - x)
+
+    val composition = id o neg
+    val N = Var("N")
+
+    val compFun = fun(
+        ArrayType(Float, N),
+      (input) =>
+        MapGlb(composition) $ input
+    )
+
+    val (output, runtime) = Execute(inputSize)(compFun, inputData, inputData.length)
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Test def composeUserFunctionWithPattern(): Unit = {
+
+    val Nsize = 512
+    val Msize = 512
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => 1.0f * c * r)
+    val gold   = matrix.map(- _.reduce(_+_))
+
+    val function = fun(
+          ArrayType(ArrayType(Float, Var("N")), Var("M")),
+          (input) => MapGlb(MapSeq(neg) o ReduceSeq(add, 0.0f)) $ input
+    )
+
+    val (output, runtime) = Execute(Nsize * Msize)(function, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+  }
+
 
   @Test def VECTOR_ADD_SIMPLE() {
 

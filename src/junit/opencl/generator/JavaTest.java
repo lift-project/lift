@@ -145,4 +145,16 @@ public class JavaTest {
 
         String code = Compile.apply(negFun);
     }
+
+    @Test
+    public void composeUserFunctionWithPattern() {
+
+        Lambda function = jfun.create(
+                jArrayType.create(jArrayType.create(jFloat.getSingleton(), jVar.create("M")), jVar.create("N")),
+                (input) -> jMapGlb.create(
+                        jfun.create(row -> jMapSeq.create(neg).comp(jReduceSeq.create(add, Expr$.MODULE$.FloatToValue(0.0f))).call(row))
+                ).call(input));
+
+        String code = Compile.apply(function);
+    }
 }
