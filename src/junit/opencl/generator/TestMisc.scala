@@ -55,7 +55,7 @@ class TestMisc {
     )
 
     val (output, runtime) = Execute(inputSize)(compFun, inputData, inputData.length)
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -79,7 +79,7 @@ class TestMisc {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
   }
 
@@ -108,7 +108,7 @@ class TestMisc {
     val code = Compile(addFun)
     val (output, runtime) = Execute(inputSize)(code, addFun, leftInputData, rightInputData, leftInputData.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -133,7 +133,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -156,7 +156,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputArray.length)(pairFun, inputArray, inputArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -179,7 +179,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(f, inputArray, inputArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -214,7 +214,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(f, leftArray, rightArray, leftArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -237,7 +237,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -266,7 +266,7 @@ class TestMisc {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def VECTOR_SCAL() {
@@ -378,7 +378,7 @@ class TestMisc {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   @Test def MATRIX_PLUS_ONE_TILED(): Unit = {
@@ -436,7 +436,7 @@ class TestMisc {
     println("output: ")
     myPrint(output, Ksize)
 
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   @Test def MATRIX_PLUS_ONE_TILED_TRANSPOSE_WITH_JOIN_REORDER_SPLIT(): Unit = {
@@ -482,7 +482,7 @@ class TestMisc {
     println("output: ")
     myPrint(output, Ksize)
 
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   private def myPrint(m: Array[Array[Array[Float]]]): Unit = {
@@ -566,7 +566,7 @@ class TestMisc {
     println("output: ")
     myPrint(output, Nsize)
 
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   @Test def MATRIX_TRANSPOSE_3D(): Unit = {
@@ -609,7 +609,7 @@ class TestMisc {
     println("output: ")
     myPrint(output, Nsize, Ksize)
 
-    (gold.flatten.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
   /* TODO: Not there yet ... Transpose the tiles as well ...
