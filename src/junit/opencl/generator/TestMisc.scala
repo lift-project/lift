@@ -146,6 +146,191 @@ class TestMisc {
     assertArrayEquals(gold, output, 0.0f)
   }
 
+  // A mix between AMD and nVidia versions, with the CND function inlined in the UserFunDef
+  @Test def blackScholes() : Unit = {
+
+    val inputSize = 512
+    val input = Array.fill(inputSize)(util.Random.nextFloat())
+
+    val gold = input.map(inRand => {
+      val S_LOWER_LIMIT = 10.0f
+      val S_UPPER_LIMIT = 100.0f
+      val K_LOWER_LIMIT = 10.0f
+      val K_UPPER_LIMIT = 100.0f
+      val T_LOWER_LIMIT = 1.0f
+      val T_UPPER_LIMIT = 10.0f
+      val R_LOWER_LIMIT = 0.01f
+      val R_UPPER_LIMIT = 0.05f
+      val SIGMA_LOWER_LIMIT = 0.01f
+      val SIGMA_UPPER_LIMIT = 0.10f
+      val S = S_LOWER_LIMIT * inRand + S_UPPER_LIMIT * (1.0f - inRand)
+      val K = K_LOWER_LIMIT * inRand + K_UPPER_LIMIT * (1.0f - inRand)
+      val T = T_LOWER_LIMIT * inRand + T_UPPER_LIMIT * (1.0f - inRand)
+      val R = R_LOWER_LIMIT * inRand + R_UPPER_LIMIT * (1.0f - inRand)
+      val V = SIGMA_LOWER_LIMIT * inRand + SIGMA_UPPER_LIMIT * (1.0f - inRand)
+
+      val sqrtT = math.sqrt(T).toFloat
+      val d1 = (math.log(S / K).toFloat + ((R + V * V * 0.05f) * T)) / V * sqrtT
+      val d2 = d1 - (V * sqrtT)
+
+      val CNDD1 = CND(d1)
+      val CNDD2 = CND(d2)
+
+      val expRT = math.exp(-T * R).toFloat
+      val callResult = S * CNDD1 - K * expRT * CNDD2
+      val putResult = K * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1)
+
+      (callResult, putResult)
+    }).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+
+    val blackScholesComp =
+      UserFunDef("blackScholesComp", "inRand",
+        "{\n" +
+          "  #define S_LOWER_LIMIT 10.0f\n" +
+          "  #define S_UPPER_LIMIT 100.0f\n" +
+          "  #define K_LOWER_LIMIT 10.0f\n" +
+          "  #define K_UPPER_LIMIT 100.0f\n" +
+          "  #define T_LOWER_LIMIT 1.0f\n" +
+          "  #define T_UPPER_LIMIT 10.0f\n" +
+          "  #define R_LOWER_LIMIT 0.01f\n" +
+          "  #define R_UPPER_LIMIT 0.05f\n" +
+          "  #define SIGMA_LOWER_LIMIT 0.01f\n" +
+          "  #define SIGMA_UPPER_LIMIT 0.10f\n" +
+          "  Tuple p;\n" +
+          "  \n" +
+          "  float S = S_LOWER_LIMIT * inRand + S_UPPER_LIMIT * (1.0f - inRand);\n" +
+          "  float K = K_LOWER_LIMIT * inRand + K_UPPER_LIMIT * (1.0f - inRand);\n" +
+          "  float T = T_LOWER_LIMIT * inRand + T_UPPER_LIMIT * (1.0f - inRand);\n" +
+          "  float R = R_LOWER_LIMIT * inRand + R_UPPER_LIMIT * (1.0f - inRand);\n" +
+          "  float V = SIGMA_LOWER_LIMIT * inRand + SIGMA_UPPER_LIMIT * (1.0f - inRand);\n" +
+          "  \n" +
+          "  float sqrtT = sqrt(T);\n" +
+          "  float d1 = (log(S / K) + ((R + V * V * 0.05f) * T)) / V * sqrtT;\n" +
+          "  float d2 = d1 - (V * sqrtT);\n" +
+          "  \n" +
+          "  float CNDD1;\n" +
+          "  {\n" +
+          "    float L;\n" +
+          "    float K1;\n" +
+          "    float w;\n" +
+          "    float a1 = 0.319381530f;\n" +
+          "    float a2 = -0.356563782f;\n" +
+          "    float a3 = 1.781477937f;\n" +
+          "    float a4 = -1.821255978f;\n" +
+          "    float a5 = 1.330274429f;\n" +
+          "    float a6 = 2.506628273f;\n" +
+          "    L = fabs(d1);\n" +
+          "    K1 = 1.0f / (1.0f + 0.2316419f * L);\n" +
+          "    w = 1.0f - 1.0f / 1 * a6 * exp((-1 * L) * L / 2) * (a1 * K1 + a2 * K1 * K1 * 1 + a3 * K1 * K1 * K1 * +a4 * K1 * K1 * K1 * K1 * 1 + a5 * K1 * K1 * K1 * K1 * K1);\n" +
+          "    if (d1 < 0) {\n" +
+          "      CNDD1 = 1.0f - w;\n" +
+          "    } else {\n" +
+          "      CNDD1 = w;\n" +
+          "    }\n" +
+          "  }\n" +
+          "  float CNDD2;\n" +
+          "  {\n" +
+          "    float L;\n" +
+          "    float K2;\n" +
+          "    float w;\n" +
+          "    float a1 = 0.319381530f;\n" +
+          "    float a2 = -0.356563782f;\n" +
+          "    float a3 = 1.781477937f;\n" +
+          "    float a4 = -1.821255978f;\n" +
+          "    float a5 = 1.330274429f;\n" +
+          "    float a6 = 2.506628273f;\n" +
+          "    L = fabs(d2);\n" +
+          "    K2 = 1.0f / (1.0f + 0.2316419f * L);\n" +
+          "    w = 1.0f - 1.0f / 1 * a6 * exp((-1 * L) * L / 2) * (a1 * K2 + a2 * K2 * K2 * 1 + a3 * K2 * K2 * K2 * +a4 * K2 * K2 * K2 * K2 * 1 + a5 * K2 * K2 * K2 * K2 * K2);\n" +
+          "    if (d2 < 0) {\n" +
+          "      CNDD2 = 1.0f - w;\n" +
+          "    } else {\n" +
+          "      CNDD2 = w;\n" +
+          "    }\n" +
+          "  }\n" +
+          "  float expRT = exp(-T * R);\n" +
+          "  Tuple result;\n" +
+          "  result._0 = S * CNDD1 - K * expRT * CNDD2;\n" +
+          "  result._1 = K * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1);\n" +
+          "  return result;\n" +
+          "}\n"
+        , Float, TupleType(Float, Float))
+
+    val kernel = fun(
+      ArrayType(Float, Var("N")),
+      inRand => MapGlb(blackScholesComp) $ inRand
+    )
+
+    val (output, runtime) = Execute(inputSize)(kernel, input, inputSize)
+
+    assertArrayEquals(gold, output, 0.001f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  def CND(X : Float) : Float = {
+    val a1 = 0.319381530f
+    val a2 = -0.356563782f
+    val a3 = 1.781477937f
+    val a4 = -1.821255978f
+    val a5 = 1.330274429f
+    val a6 = 2.506628273f
+    val L = X.abs
+    val K = 1.0f / (1.0f + 0.2316419f * L)
+    val w = 1.0f - 1.0f / 1 * a6 * math.exp((-L) * L / 2).toFloat * (a1 * K + a2 * K * K + a3 * K * K * K * +a4 * K * K * K * K + a5 * K * K * K * K * K);
+    if (X < 0) {
+      1.0f - w
+    } else {
+      w
+    }
+  }
+  @Test def kmeansMembership(): Unit = {
+    val inputSize = 512
+    val k = 16
+
+    val pointsX = Array.fill(inputSize)(util.Random.nextFloat())
+    val pointsY = Array.fill(inputSize)(util.Random.nextFloat())
+    val centresX = Array.fill(k)(util.Random.nextFloat())
+    val centresY = Array.fill(k)(util.Random.nextFloat())
+    val indices = Array.range(0, inputSize)
+
+    val distance = UserFunDef("distance", Array("x", "y", "a", "b", "id"), "{ return {(x - a) * (x - a) + (y - b) * (y - b), id}; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
+    val minimum = UserFunDef("minimum", Array("x", "y"), "{ return x._0 < y.0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
+    val getSecond = UserFunDef("getSecond", "x", "{ return x._1 }", TupleType(Float, Int), Int)
+
+    val points = pointsX zip pointsY
+    val centres = (centresX, centresY, indices).zipped
+
+    val gold = points.map(x => {
+      centres
+        .map((a,b,id) => ((x._1 - a) * (x._1 - a) + (x._2 - b) * (x._2 - b),id))
+        .reduce( (p1, p2) => if (p1._1 < p2._1) p1 else p2)
+        ._2
+        .toFloat
+    })
+
+    val N = Var("N")
+    val K = Var("K")
+
+    // TODO: zip3, integer output
+    val function = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      ArrayType(Float, K),
+      ArrayType(Float, K),
+      ArrayType(Int, K),
+      (x, y, a, b, i) => MapGlb(fun( xy => MapSeq(getSecond) o ReduceSeq(minimum) o MapSeq(fun( ab => distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2)))) $ Zip(a,b,i))) $ Zip(x, y)
+    )
+
+    val (output, runtime) = Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices, inputSize, k)
+
+    assertArrayEquals(gold, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
 
   @Test def VECTOR_ADD_SIMPLE() {
 
