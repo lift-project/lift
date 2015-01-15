@@ -38,15 +38,24 @@ class Execute(val localSize: Int, val globalSize: Int) {
   def apply(code: String, f: Lambda, values: Any*) : (Array[Float], Double) = {
 
     val vars = f.params.map((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var])).flatten// just take the variable
-    val sizes = values.map({
-        case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size))
-        case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size))
-        case a: Array[_] => Seq(Cst(a.size))
+
+    val tupleSizes = f.params.map(_.t match {
+        case ArrayType(ArrayType(ArrayType(tt : TupleType, _), _), _) => tt.elemsT.length
+        case ArrayType(ArrayType(tt : TupleType, _), _) => tt.elemsT.length
+        case ArrayType(tt : TupleType, _) => tt.elemsT.length
+        case tt : TupleType => tt.elemsT.length
+        case _ => 1
+      })
+
+    val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
+        case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size / tupleSize))
+        case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size / tupleSize))
+        case a: Array[_] => Seq(Cst(a.size / tupleSize))
         case any: Any => Seq(Cst(1))
       }).flatten[ArithExpr]
     val valueMap = (vars zip sizes).toMap[ArithExpr, ArithExpr]
 
-    val outputSize = ArithExpr.substitute(Type.getLengths(f.body.t).reduce(_*_), valueMap).eval()
+    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
 
     val inputs = values.map({
       case f: Float => value(f)
@@ -58,7 +67,7 @@ class Execute(val localSize: Int, val globalSize: Int) {
       case ai: Array[Int] => global.input(ai)
       case aai: Array[Array[Int]] => global.input(aai.flatten)
     })
-    val outputData = global.output[Float](outputSize)
+    val outputData = global(outputSize)
 
     val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
       val m = mem.mem

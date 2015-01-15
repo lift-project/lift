@@ -114,6 +114,16 @@ object Type {
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
+
+  def getSize(t: Type) : ArithExpr = {
+    t match {
+      case st: ScalarType => st.size
+      case vt: VectorType => vt.scalarT.size * vt.len
+      case tt: TupleType => tt.elemsT.map(getSize).reduce(_+_)
+      case at: ArrayType => at.len * getSize(at.elemT)
+      case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
   
   def getLength(t: Type) : ArithExpr = {
     t match {
