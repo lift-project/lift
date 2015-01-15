@@ -37,6 +37,15 @@ class TestMisc {
 
   val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
+  val addPair = UserFunDef(
+    "pair",
+    Array("x", "y"),
+    "{ x._0 = x._0 + y._0;" +
+      "x._1 = x._1 + y._1;" +
+      "return x; }",
+    Seq(TupleType(Float, Float), TupleType(Float, Float)),
+    TupleType(Float, Float))
+
   val transpose = AccessFunction.transpose
 
   @Test def compositionTest(): Unit = {
@@ -81,6 +90,60 @@ class TestMisc {
 
     assertArrayEquals(gold, output, 0.0f)
 
+  }
+
+  @Test def reduceOverTuples(): Unit = {
+
+    val maxFirstArg = UserFunDef("maxFirstArg", Array("x", "y"), "{ return x._0 > y._0 ? x : y; }", Array(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
+
+    val inputSize = 512
+
+    val N = Var("N")
+
+    val input2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
+
+    val gold = input2.reduce((x, y) => if (x._1 > y._1) x else y).productIterator.asInstanceOf[Iterator[Float]].toArray
+
+    val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+
+    val function = fun(
+        ArrayType(TupleType(Float, Float), N),
+        input => ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
+    )
+
+    val (output, runtime) = Execute(inputSize)(function, input, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test def sumOverTuples(): Unit = {
+
+    val inputSize = 512
+
+    val N = Var("N")
+
+    val input2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
+
+    val gold = input2.reduce((x, y) => (x._1 + y._1, x._2 + y._2)).productIterator.asInstanceOf[Iterator[Float]].toArray
+
+    val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+
+    val function = fun(
+      ArrayType(TupleType(Float, Float), N),
+      input => ReduceSeq(addPair, (0.0f, 0.0f)) $ input
+    )
+
+    val (output, runtime) = Execute(inputSize)(function, input, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
   }
 
 
@@ -154,7 +217,7 @@ class TestMisc {
       ) o Split(1024) $ input
     )
 
-    val (output, runtime) = Execute(inputArray.length)(pairFun, inputArray, inputArray.size)
+    val (output, runtime) = Execute(inputArray.length)(pairFun, inputArray, inputArray.length)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -177,7 +240,7 @@ class TestMisc {
       ) o Split(1024) $ input
     )
 
-    val (output, runtime) = Execute(inputSize)(f, inputArray, inputArray.size)
+    val (output, runtime) = Execute(inputSize)(f, inputArray, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -192,15 +255,6 @@ class TestMisc {
 
     val gold = (leftArray zip rightArray).map({case (l, r) => l + r})
 
-    val addPair = UserFunDef(
-      "pair",
-      Array("x", "y"),
-      "{ x._0 = x._0 + y._0;" +
-        "x._1 = x._1 + y._1;" +
-        "return x; }",
-      Seq(TupleType(Float, Float), TupleType(Float, Float)),
-      TupleType(Float, Float))
-
     val N = Var("N")
 
     val f = fun(
@@ -212,7 +266,7 @@ class TestMisc {
         ) o Split(1024) $ Zip(left, right)
     )
 
-    val (output, runtime) = Execute(inputSize)(f, leftArray, rightArray, leftArray.size)
+    val (output, runtime) = Execute(inputSize)(f, leftArray, rightArray, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
 

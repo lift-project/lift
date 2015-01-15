@@ -150,6 +150,17 @@ object Expr {
 
   implicit def FloatToValue(f: Float) = Value(f.toString + "f", opencl.ir.Float)
 
+  implicit def Tuple2ToValue[T1 , T2](t : Tuple2[T1, T2]): Value = {
+
+    def getType(a : Any) : Type = a match {
+      case _ : Float => Float
+      case _ : Int => Int
+      case _ => throw new IllegalArgumentException
+    }
+
+    Value(t.toString().replace('(', '{').replace(')', '}'), TupleType(getType(t._1), getType(t._2)))
+  }
+
   def replace(e: Expr, oldE: Expr, newE: Expr) : Expr =
     visit (e, (e:Expr) => if (e.eq(oldE)) newE else oldE, (e:Expr) => e)
 
