@@ -72,6 +72,8 @@ class OpenCLPrinter {
     mem.t match {
       case ScalarType(_,_) | VectorType(_,_) => toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
       case ArrayType(_,_) => mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
+      case ArrayType(_,_) => mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
+      case MatrixType(_,_,_) => mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
     }
   }
 
@@ -105,6 +107,9 @@ class OpenCLPrinter {
   def toOpenCL(t: Type, seenArray: Boolean = false) : String = {
     t match {
       case ArrayType(elemT, _) =>
+        val s = toOpenCL(elemT, seenArray=true)
+        if (!seenArray) s + "*" else s
+      case MatrixType(elemT, _, _) =>
         val s = toOpenCL(elemT, seenArray=true)
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)

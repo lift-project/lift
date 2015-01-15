@@ -180,6 +180,7 @@ object OpenCLGenerator extends Generator {
         case _: MapWarp => generateMapWarpCall(call)
         case _: MapLane => generateMapLaneCall(call)
         case _: MapSeq => generateMapSeqCall(call)
+        case _: MapMatrix => generateMapMatrixCall(call)
       }
       case call: ReduceCall => call.f match {
         case _: ReduceSeq => generateReduceSeqCall(call)
@@ -284,6 +285,19 @@ object OpenCLGenerator extends Generator {
       generate(call.f.f.body)
     })
     oclPrinter.commln("map_seq")
+  }
+
+  // MapMatrix
+  private def generateMapMatrixCall(call: MapCall) {
+    val m = call.f.asInstanceOf[MapMatrix]
+    val range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.arg.t), new get_global_size(m.dim))
+
+    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+    // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
+    // TODO: Rethink and then redesign this!
+    if (m.dim == 0) {
+      oclPrinter.println("return;")
+    }
   }
   
   // === Reduce ===

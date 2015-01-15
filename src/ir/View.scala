@@ -15,6 +15,9 @@ class ArraySplit(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
 class ArrayJoin(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
 class ArrayZip(val tv: TupleView) extends Operation
 
+class MatrixCreation(val v: View, val dx: ArithExpr, val dy: ArithExpr, val itVar: Var) extends Operation
+class MatrixAccess(val mv:MatrixView, val idx: ArithExpr, val idy: ArithExpr) extends Operation
+
 class TupleCreation(val views: Seq[View]) extends Operation
 class TupleAccess(val tv: TupleView, val i: Int) extends Operation
 
@@ -68,6 +71,13 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
 
 }
 
+class MatrixView(val elemT: Type, override val operation: Operation) extends View(operation) {
+  def access(idx: ArithExpr, idy: ArithExpr): View = {
+    val ma = new MatrixAccess(this, idx,idy)
+    View(elemT, ma)
+  }
+}
+
 class TupleView(val tupleType: TupleType, override val operation: Operation) extends View(operation) {
 
   def access(i: Int) : View = {
@@ -94,6 +104,7 @@ object View {
   def apply(t: Type, op: Operation): View = {
     t match {
       case at: ArrayType => new ArrayView(at.elemT, op)
+      case mt: MatrixType => new MatrixView(mt.elemT, op)
       case st: ScalarType => new PrimitiveView(op)
       case tt: TupleType => new TupleView(tt, op)
     }
@@ -168,6 +179,7 @@ object View {
         call.f.f.params(0).view = av.access(call.loopVar)
         val innerView = createView(call.f.f.body)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
+        new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }

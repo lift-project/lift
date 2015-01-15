@@ -54,6 +54,8 @@ class Execute(val localSize: Int, val globalSize: Int) {
       case aaf: Array[Array[Float]] => global.input(aaf.flatten)
       case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
 
+//      case ifa: Array[(Int,Float)] => global.input(ifa)
+
       case i: Int => value(i)
       case ai: Array[Int] => global.input(ai)
       case aai: Array[Array[Int]] => global.input(aai.flatten)
@@ -91,6 +93,7 @@ object global {
   object input {
     def apply(array: Array[Float]) = GlobalArg.createInput(array)
     def apply(array: Array[Int]) = GlobalArg.createInput(array)
+//    def apply(array: Array[(Int,Float)]) = GlobalArg.createInput(array)
   }
 
   object output {

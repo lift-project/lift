@@ -109,6 +109,7 @@ object OpenCLMemory {
         case st: ScalarType => st.size
         case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
         case at: ArrayType => at.len * getSizeInBytes(at.elemT)
+        case mt: MatrixType => mt.dx * mt.dy * getSizeInBytes(mt.elemT)
         case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
         case _ => throw new TypeException(t, "??")
       }
@@ -230,6 +231,7 @@ object OpenCLMemory {
       case MapLcl(_,_) | MapWarp(_)| MapLane(_) | MapSeq(_)
                                => allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
 
+      case MapMatrix(_,_) => allocMapMatrix(call.f.asInstanceOf[AbstractMap] ,numGlb, numLcl, inMem, outputMem, maxLen)
       case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, inMem, outputMem)
 
       case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem)
@@ -301,6 +303,12 @@ object OpenCLMemory {
     alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, outputMem)
   }
 
+  private def allocMapMatrix(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr,
+                          inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {
+    if (am.f.params.length != 1) throw new NumberOfArgumentsException
+    am.f.params(0).mem = inMem
+    alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, outputMem)
+  }
   private def allocReduce(r: AbstractPartRed, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
