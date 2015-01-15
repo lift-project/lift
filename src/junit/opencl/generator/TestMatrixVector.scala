@@ -78,8 +78,8 @@ class TestMatrixVector {
       ArrayType(Float, 1024),
       (matrix, vector) => {
         Join() o MapWrg(
-          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o Zip(vector, r) ) )
-        ) o Split(128) o matrix
+          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
+        ) o Split(128) $ matrix
 
       })
 
@@ -108,7 +108,7 @@ class TestMatrixVector {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(10)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o fun( (r) => Zip(vector, r) )
-        ) o matrix
+        ) $ matrix
 
       })
 
@@ -136,8 +136,8 @@ class TestMatrixVector {
       ArrayType(Float, Var("N2")),
       (matrix, vector) => {
         Join() o MapWrg(
-          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) o Zip(vector, r) ) )
-        ) o Split(128) o matrix
+          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
+        ) o Split(128) $ matrix
       })
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector, inputSize, inputSize, inputSize)
@@ -168,7 +168,7 @@ class TestMatrixVector {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate(Log(2, N))(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
             Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o fun( (r) => Zip(vector, r) )
-        ) o matrix
+        ) $ matrix
       })
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector, inputSize, inputSize)
@@ -198,7 +198,7 @@ class TestMatrixVector {
         MapWrg(
           Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(N / 32) o
             Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride() o Split(32) o fun( r => Zip(vector, r) )
-        ) o matrix
+        ) $ matrix
       })
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector, inputSize, inputSize)
@@ -232,7 +232,7 @@ class TestMatrixVector {
           Join() o MapLcl(
             MapSeq(fun( x => mult(alpha, x) )) o ReduceSeq(multAndSumUp, 0.0f)
           ) o Split(4096) o fun( (r) => Zip(vectorX, r) )
-        ) o matrix
+        ) $ matrix
       })
 
     val (firstOutput, firstRuntime) = Execute(inputSize * inputSize)(f1, matrix, vectorX, alpha, inputSize, inputSize)
@@ -250,7 +250,7 @@ class TestMatrixVector {
       (tmp, vectorY, beta) => {
         Join() o Join() o MapWrg(
           MapLcl(MapSeq(fun( x => multAndSumUp3(Get(x, 0), Get(x, 1), beta) )))
-        ) o Split(128) o Split(32) o Zip(tmp, vectorY)
+        ) o Split(128) o Split(32) $ Zip(tmp, vectorY)
       })
 
     val (output, secondRuntime) = Execute(inputSize)(f2, firstOutput, vectorY, beta, inputSize)
@@ -285,9 +285,9 @@ class TestMatrixVector {
           Join() o toGlobal(MapLcl(MapSeq(fun( x => multAndSumUp3(Get(x, 0), Get(x, 1), beta))))) o Split(1) o
             fun( t => Zip(
               Join() o MapLcl(MapSeq(fun( x => mult(alpha, x) ))) o Split(1) o
-                Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o Split(N) o Zip(vectorX, Get(t, 0)),
+                Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o Split(N) $ Zip(vectorX, Get(t, 0)),
               Get(t, 1)) )
-        ) o Zip(matrix, vectorY)
+        ) $ Zip(matrix, vectorY)
       })
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta, inputSize, inputSize)
@@ -317,9 +317,9 @@ class TestMatrixVector {
         MapWrg(
           Join() o MapLcl(MapSeq(add)) o Split(1) o
             fun( t => Zip(
-              Join() o MapLcl(ReduceSeq(multAndSumUp, 0.0f)) o Split(N) o Zip(vectorX, Get(t, 0)),
+              Join() o MapLcl(ReduceSeq(multAndSumUp, 0.0f)) o Split(N) $ Zip(vectorX, Get(t, 0)),
               Get(t, 1) ) )
-        ) o Zip(matrix, vectorY)
+        ) $ Zip(matrix, vectorY)
       })
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, inputSize, inputSize)

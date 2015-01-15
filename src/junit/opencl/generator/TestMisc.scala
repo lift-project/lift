@@ -33,9 +33,56 @@ class TestMisc {
 
   val abs = UserFunDef("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
+  val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
+
   val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
   val transpose = AccessFunction.transpose
+
+  @Test def compositionTest(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val gold = inputData.map(x => - x)
+
+    val composition = id o neg
+    val N = Var("N")
+
+    val compFun = fun(
+        ArrayType(Float, N),
+      (input) =>
+        MapGlb(composition) $ input
+    )
+
+    val (output, runtime) = Execute(inputSize)(compFun, inputData, inputData.length)
+    assertArrayEquals(gold, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Test def composeUserFunctionWithPattern(): Unit = {
+
+    val Nsize = 512
+    val Msize = 512
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => 1.0f * c * r)
+    val gold   = matrix.map(- _.reduce(_+_))
+
+    val function = fun(
+          ArrayType(ArrayType(Float, Var("N")), Var("M")),
+          (input) => MapGlb(MapSeq(neg) o ReduceSeq(add, 0.0f)) $ input
+    )
+
+    val (output, runtime) = Execute(Nsize * Msize)(function, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
+
+  }
+
 
   @Test def VECTOR_ADD_SIMPLE() {
 
@@ -54,14 +101,14 @@ class TestMisc {
 
         Join() o MapWrg(
           Join() o MapLcl(MapSeq(add)) o Split(4)
-        ) o Split(1024) o Zip(left, right)
+        ) o Split(1024) $ Zip(left, right)
 
     )
 
     val code = Compile(addFun)
     val (output, runtime) = Execute(inputSize)(code, addFun, leftInputData, rightInputData, leftInputData.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -80,13 +127,13 @@ class TestMisc {
 
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(neg)) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
 
     )
 
     val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -104,12 +151,12 @@ class TestMisc {
     val pairFun = fun(ArrayType(Float, Var("N")), (input) =>
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(pair)) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
     )
 
     val (output, runtime) = Execute(inputArray.length)(pairFun, inputArray, inputArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -127,12 +174,12 @@ class TestMisc {
     val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
     )
 
     val (output, runtime) = Execute(inputSize)(f, inputArray, inputArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -162,12 +209,12 @@ class TestMisc {
       (left, right) =>
         Join() o MapWrg(
           Join() o MapLcl(MapSeq(addPair)) o Split(4)
-        ) o Split(1024) o Zip(left, right)
+        ) o Split(1024) $ Zip(left, right)
     )
 
     val (output, runtime) = Execute(inputSize)(f, leftArray, rightArray, leftArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -185,12 +232,12 @@ class TestMisc {
       ArrayType(Float, Var("N")),
       (input) => Join() o MapGlb(
         MapSeq(neg)
-      ) o Split(4) o input
+      ) o Split(4) $ input
     )
 
     val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -211,7 +258,7 @@ class TestMisc {
 
       Gather(reverse)(Join() o MapGlb(
         MapSeq(neg)
-      ) o Split(4)) o input
+      ) o Split(4)) $ input
     )
 
     val (output, runtime) = Execute(16, inputArray.length)(negFun, inputArray, inputArray.size)
@@ -219,7 +266,7 @@ class TestMisc {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def VECTOR_SCAL() {
@@ -234,7 +281,7 @@ class TestMisc {
         Join() o MapLcl(MapSeq(
           fun( x => mult(alpha, x) )
         )) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
     )
 
     val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
@@ -257,7 +304,7 @@ class TestMisc {
         Join() o MapLcl(ReduceSeq(sumUp, 0.0f) o MapSeq(
           fun( x => mult(alpha, x) )
         )) o Split(4)
-      ) o Split(1024) o input
+      ) o Split(1024) $ input
     )
 
     val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
@@ -284,7 +331,7 @@ class TestMisc {
           Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
             Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride()
-        ) o Split(1024) o input
+        ) o Split(1024) $ input
 
     )
 
@@ -319,10 +366,10 @@ class TestMisc {
             Join() o MapWrg(1)(fun( cols =>
               MapLcl(1)(fun( col =>
                 plusOne(col)
-              )) o cols
-            )) o Split(c) o row
-          )) o rows
-        )) o Split(r) o matrix
+              )) $ cols
+            )) o Split(c) $ row
+          )) $ rows
+        )) o Split(r) $ matrix
       })
 
     val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)
@@ -331,7 +378,7 @@ class TestMisc {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   @Test def MATRIX_PLUS_ONE_TILED(): Unit = {
@@ -361,7 +408,7 @@ class TestMisc {
               MapLcl(0)(fun( row =>
                 MapLcl(1)(fun( elem =>
                   id(elem)
-                )) o row
+                )) $ row
               ))
             ) o
             // step 1: load tile to local memory
@@ -369,12 +416,12 @@ class TestMisc {
               MapLcl(0)(fun( row =>
                 MapLcl(1)(fun( elem =>
                   plusOne(elem)
-                )) o row
+                )) $ row
               ))
-            ) o tile
+            ) $ tile
 
-          )))) o Swap() o MapSeq(Split(c)) o cols
-        )) o Split(r) o  matrix
+          )))) o Swap() o MapSeq(Split(c)) $ cols
+        )) o Split(r) $  matrix
       })
 
     val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
@@ -389,7 +436,7 @@ class TestMisc {
     println("output: ")
     myPrint(output, Ksize)
 
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   @Test def MATRIX_PLUS_ONE_TILED_TRANSPOSE_WITH_JOIN_REORDER_SPLIT(): Unit = {
@@ -416,11 +463,11 @@ class TestMisc {
             MapLcl(0)(fun( row =>
               MapLcl(1)(fun( elem =>
                 plusOne(elem)
-              )) o row
-            )) o tile
+              )) $ row
+            )) $ tile
 
-          )))) o Swap() o MapSeq(Split(c)) o cols
-        )) o Split(r) o  matrix
+          )))) o Swap() o MapSeq(Split(c)) $ cols
+        )) o Split(r) $  matrix
       })
 
     val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
@@ -435,7 +482,7 @@ class TestMisc {
     println("output: ")
     myPrint(output, Ksize)
 
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   private def myPrint(m: Array[Array[Array[Float]]]): Unit = {
@@ -486,26 +533,26 @@ class TestMisc {
     val f1 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapGlb(0)(MapGlb(1)(id)) o Transpose() o matrix
+        MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
       })
 
     val f2 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Gather(transpose)(MapGlb(0)(MapGlb(1)(id))) o Swap() o matrix
+        Gather(transpose)(MapGlb(0)(MapGlb(1)(id))) o Swap() $ matrix
       })
 
     val f3 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Swap() o Scatter(transpose)(MapGlb(0)(MapGlb(1)(id))) o matrix
+        Swap() o Scatter(transpose)(MapGlb(0)(MapGlb(1)(id))) $ matrix
       })
 
     // transpose twice == id
     val f4 = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(MapGlb(1)(id)))) o Swap() o matrix
+        Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(MapGlb(1)(id)))) o Swap() $ matrix
       })
 
     val f = f3
@@ -519,7 +566,7 @@ class TestMisc {
     println("output: ")
     myPrint(output, Nsize)
 
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   @Test def MATRIX_TRANSPOSE_3D(): Unit = {
@@ -547,7 +594,7 @@ class TestMisc {
               MapSeq(id)
             )
           )
-        ) o Swap() o matrix
+        ) o Swap() $ matrix
       })
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Msize, Nsize, Ksize)
@@ -562,7 +609,7 @@ class TestMisc {
     println("output: ")
     myPrint(output, Nsize, Ksize)
 
-    (gold.flatten.flatten, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
   /* TODO: Not there yet ... Transpose the tiles as well ...
@@ -731,15 +778,15 @@ class TestMisc {
   @Test def stuff() {
     val scal = fun(Float, ArrayType(Float, Var("N")),
       (alpha, input) => {
-        Map(fun((x) => mult(x, alpha))) o input })
+        Map(fun((x) => mult(x, alpha))) $ input })
 
     val asum = fun(ArrayType(Float, Var("N")),
-      (input) => { Reduce(sumUp, 0.0f) o Map(abs) o input })
+      (input) => { Reduce(sumUp, 0.0f) o Map(abs) $ input })
 
     val dot = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")),
-      (x,y) => { Reduce(sumUp, 0.0f) o Map(mult) o Zip(x,y) })
+      (x,y) => { Reduce(sumUp, 0.0f) o Map(mult) $ Zip(x,y) })
 
-    val vecAdd = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")), (x,y) => { Map(add) o Zip(x,y) })
+    val vecAdd = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")), (x,y) => { Map(add) $ Zip(x,y) })
 
     val gemv = fun(ArrayType(ArrayType(Float, Var("M")), Var("N")),
       ArrayType(Float, Var("N")),
@@ -747,7 +794,7 @@ class TestMisc {
       Float, Float,
       (A, x, y, alpha, beta) => {
         val scalledY = scal(beta, y)
-        val AtimesX = Map(fun( row => scal(alpha) o dot(x, row) ), A)
+        val AtimesX = Map(fun( row => scal(alpha) $ dot(x, row) ), A)
         vecAdd(AtimesX, scalledY)
       })
 
