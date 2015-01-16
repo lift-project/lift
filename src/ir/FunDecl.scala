@@ -571,14 +571,14 @@ object jIterate {
   def create(n: ArithExpr, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
 }
 
-case class Zip() extends FunDecl(Array[Param](Param(UndefType),Param(UndefType))) with isGenerable {
+case class Zip(n : Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable {
   //override def copy() = Zip(f1, f2)
 }
 
 object Zip {
   def apply(args : Expr*) : FunCall = {
-    assert(args.length == 2)
-    Zip()(args:_*)
+    assert(args.length >= 2)
+    Zip(args.length)(args:_*)
   }
 }
 

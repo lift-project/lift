@@ -168,7 +168,7 @@ object AccessFunction {
   private def addAccessFunctionsZip(z: Zip, call: FunCall, inAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
     inAccess match {
       case coll: AccessFunctionsCollection =>
-        if (coll.elems.length != 2) throw new NumberOfArgumentsException
+        if (coll.elems.length < 2) throw new NumberOfArgumentsException
         coll // next input
       case _ => throw new IllegalArgumentException("PANIC")
     }

@@ -408,21 +408,20 @@ object Type {
   private def checkZip(z: Zip, inT: Type, setType: Boolean): Type = {
     inT match {
       case tt: TupleType =>
-        if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
+        if (tt.elemsT.length < 2) throw new NumberOfArgumentsException
 
-        val at1 = tt.elemsT(0) match {
+        tt.elemsT.map({
           case at: ArrayType => at
-          case _ => throw new TypeException(tt.elemsT(0), "ArrayType")
-        }
-        val at2 = tt.elemsT(1) match {
-          case at: ArrayType => at
-          case _ => throw new TypeException(tt.elemsT(1), "ArrayType")
-        }
-        if (at1.len != at2.len) {
-          println("Warning: can not statically proof that sizes (" + at1 + " and " + at2 + ") match!")
+          case t => throw new TypeException(t, "ArrayType")
+        })
+
+        val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType])
+
+        if (arrayTypes.map(_.len).distinct.length != 1) {
+          println("Warning: can not statically proof that sizes (" + tt.elemsT.mkString(", ") + ") match!")
           // throw TypeException("sizes do not match")
         }
-        ArrayType(TupleType(at1.elemT, at2.elemT), at1.len)
+        ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes(0).len)
       case _ => throw new TypeException(inT, "TupleType")
     }
   }
