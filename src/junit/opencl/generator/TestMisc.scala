@@ -295,9 +295,9 @@ class TestMisc {
     val centresY = Array.fill(k)(util.Random.nextFloat())
     val indices = Array.range(0, inputSize)
 
-    val distance = UserFunDef("distance", Array("x", "y", "a", "b", "id"), "{ return {(x - a) * (x - a) + (y - b) * (y - b), id}; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
-    val minimum = UserFunDef("minimum", Array("x", "y"), "{ return x._0 < y.0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
-    val getSecond = UserFunDef("getSecond", "x", "{ return x._1 }", TupleType(Float, Int), Int)
+    val distance = UserFunDef("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
+    val minimum = UserFunDef("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
+    val getSecond = UserFunDef("getSecond", "x", "{ return (float) x._1; }", TupleType(Float, Int), Float)
 
     val points = pointsX zip pointsY
     val centres = (centresX, centresY, indices).zipped
@@ -313,14 +313,14 @@ class TestMisc {
     val N = Var("N")
     val K = Var("K")
 
-    // TODO: zip3, integer output
+    // TODO: integer output
     val function = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
       ArrayType(Float, K),
       ArrayType(Float, K),
       ArrayType(Int, K),
-      (x, y, a, b, i) => MapGlb(fun( xy => MapSeq(getSecond) o ReduceSeq(minimum) o MapSeq(fun( ab => distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2)))) $ Zip(a,b,i))) $ Zip(x, y)
+      (x, y, a, b, i) => MapGlb(fun( xy => MapSeq(getSecond) o ReduceSeq(minimum, (scala.Float.MaxValue, -1)) o MapSeq(fun( ab => distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2)))) $ Zip(a,b,i))) $ Zip(x, y)
     )
 
     val (output, runtime) = Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices, inputSize, k)
