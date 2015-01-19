@@ -1,5 +1,10 @@
 package junit.opencl.generator
 
+import java.io._
+import java.awt.image._
+
+import javax.imageio.ImageIO
+
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -269,7 +274,7 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
-  def CND(X : Float) : Float = {
+  private def CND(X : Float) : Float = {
     val a1 = 0.319381530f
     val a2 = -0.356563782f
     val a3 = 1.781477937f
@@ -285,6 +290,7 @@ class TestMisc {
       w
     }
   }
+
   @Test def kmeansMembership(): Unit = {
     val inputSize = 512
     val k = 16
@@ -331,6 +337,94 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
+  // Output type
+  @Test def mandelbrot(): Unit = {
+    val inputSize = 512
+
+    val iterations = 100
+
+    val input = Array.range(0, inputSize)
+
+    val gold = input.map(i => {
+      input.map(j => {
+        val space = 2.0f / inputSize
+
+        var Zr = 0.0f
+        var Zi = 0.0f
+        val Cr = j * space - 1.5f
+        val Ci = i * space - 1.0f
+
+        var ZrN = 0.0f
+        var ZiN = 0.0f
+        var y = 0
+        while (ZiN + ZrN <= 4.0f && y < iterations) {
+          Zi = 2.0f * Zr * Zi + Ci
+          Zr = ZrN - ZiN + Cr
+          ZiN = Zi * Zi
+          ZrN = Zr * Zr
+          y += 1
+        }
+
+        ((y * 255) / iterations).toFloat
+//        y.toFloat
+      })
+    }).flatten
+
+    val md = UserFunDef("md", Array("i", "j", "niters", "size"),
+      "{ \n" +
+        "  float space = 2.0f / size;\n" +
+        "  float Zr = 0.0f;\n" +
+        "  float Zi = 0.0f;\n" +
+        "  float Cr = (j * space - 1.5f);\n" +
+        "  float Ci = (i * space - 1.0f);\n" +
+        "  \n" +
+        "  float ZrN = 0;\n" +
+        "  float ZiN = 0;\n" +
+        "  int y = 0;\n" +
+        "  \n" +
+        "  for (y = 0; y < niters && ZiN + ZrN <= 4.0f; y++) {\n" +
+        "    Zi = 2.0f * Zr * Zi + Ci;\n" +
+        "    Zr = ZrN - ZiN + Cr;\n" +
+        "    ZiN = Zi * Zi;\n" +
+        "    ZrN = Zr * Zr;\n" +
+        "  }\n" +
+        "  return (float) ((y * 255) / niters);\n" +
+//        "  return (float) y;\n" +
+        "}\n", Seq(Int, Int, Int, Int), Float)
+
+    val f = fun(
+      ArrayType(Int, Var("N")),
+      Int,
+      Int,
+      (in, niters, size) => MapGlb(fun(i=>MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
+    )
+
+    val (output, runtime) = Execute(inputSize)(f, input, iterations, inputSize, inputSize)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  private def writeMD(width : Int, height : Int, data : Array[Float], name : String): Unit = {
+    val out = new File(name + ".png")
+    val img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY)
+    val r = img.getRaster
+
+    for (i <- 0 until height) {
+      for (j <- 0 until width) {
+        r.setSample(j, i, 0, data(i*height + j).toByte)
+      }
+    }
+
+    try {
+      ImageIO.write (img, "png", out)
+    } catch {
+      case e: IOException => e.printStackTrace()
+    }
+  }
 
   @Test def VECTOR_ADD_SIMPLE() {
 
