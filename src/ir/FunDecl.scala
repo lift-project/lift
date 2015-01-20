@@ -585,9 +585,9 @@ object Zip {
 object jZip {
   def create = Zip()
 
-  def call(arg0: Expr, arg1: Expr) = Zip()(arg0, arg1)
+  def call(arg0: Expr, arg1: Expr) = Zip(arg0, arg1)
 
-  def call(args: java.util.List[Expr]) = Zip()(args.asScala:_*)
+  def call(args: java.util.List[Expr]) = Zip(args.asScala:_*)
 }
 
 case class Unzip() extends FunDecl(Array[Param](Param(UndefType))) with isGenerable
