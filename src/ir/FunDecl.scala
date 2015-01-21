@@ -191,7 +191,30 @@ object jfun {
     val params = Array(Param(t1), Param(t2), Param(t3))
     new Lambda3(params, f.apply(params(0), params(1), params(2)))
   }
+
+  //create lambda4
+  def create(f: QuadFunction[Param, Param, Param, Param, Expr]): Lambda4 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda4(params, f.apply(params(0), params(1), params(2), params(3)))
+  }
+
+  def create(t1: Type, t2: Type, t3: Type, t4: Type, f: QuadFunction[Param, Param, Param, Param, Expr]): Lambda4 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4))
+    new Lambda4(params, f.apply(params(0), params(1), params(2), params(4)))
+  }
+
+  //create lambda5
+  def create(f: QuintFunction[Param, Param, Param, Param, Param, Expr]): Lambda5 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda5(params, f.apply(params(0), params(1), params(2), params(3), params(4)))
+  }
+
+  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, f: QuintFunction[Param, Param, Param, Param, Param, Expr]): Lambda5 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5))
+    new Lambda5(params, f.apply(params(0), params(1), params(2), params(3), params(4)))
+  }
 }
+
 
 object fun {
   def apply(f: (Param) => Expr): Lambda1 = {
