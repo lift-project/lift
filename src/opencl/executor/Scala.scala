@@ -4,6 +4,7 @@ import ir._
 import opencl.generator.OpenCLGenerator
 import opencl.ir._
 
+import scala.collection.immutable
 import scala.reflect.ClassTag
 
 object Compile {
@@ -26,6 +27,27 @@ object Execute {
   def apply(localSize: Int, globalSize: Int): Execute = {
     new Execute(localSize, globalSize)
   }
+
+  def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
+    val vars = f.params.map((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var])).flatten // just take the variable
+
+    val tupleSizes = f.params.map(_.t match {
+      case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
+      case ArrayType(ArrayType(tt: TupleType, _), _) => tt.elemsT.length
+      case ArrayType(tt: TupleType, _) => tt.elemsT.length
+      case tt: TupleType => tt.elemsT.length
+      case _ => 1
+    })
+
+    val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
+      case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size / tupleSize))
+      case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size / tupleSize))
+      case a: Array[_] => Seq(Cst(a.size / tupleSize))
+      case any: Any => Seq(Cst(1))
+    }).flatten[ArithExpr]
+
+    (vars zip sizes).toMap[ArithExpr, ArithExpr]
+  }
 }
 
 class Execute(val localSize: Int, val globalSize: Int) {
@@ -37,23 +59,7 @@ class Execute(val localSize: Int, val globalSize: Int) {
 
   def apply(code: String, f: Lambda, values: Any*) : (Array[Float], Double) = {
 
-    val vars = f.params.map((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var])).flatten// just take the variable
-
-    val tupleSizes = f.params.map(_.t match {
-        case ArrayType(ArrayType(ArrayType(tt : TupleType, _), _), _) => tt.elemsT.length
-        case ArrayType(ArrayType(tt : TupleType, _), _) => tt.elemsT.length
-        case ArrayType(tt : TupleType, _) => tt.elemsT.length
-        case tt : TupleType => tt.elemsT.length
-        case _ => 1
-      })
-
-    val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
-        case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size / tupleSize))
-        case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size / tupleSize))
-        case a: Array[_] => Seq(Cst(a.size / tupleSize))
-        case any: Any => Seq(Cst(1))
-      }).flatten[ArithExpr]
-    val valueMap = (vars zip sizes).toMap[ArithExpr, ArithExpr]
+    val valueMap: immutable.Map[ArithExpr, ArithExpr] = Execute.createValueMap(f, values:_*)
 
     val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
 
