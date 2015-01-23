@@ -200,7 +200,7 @@ object jfun {
 
   def create(t1: Type, t2: Type, t3: Type, t4: Type, f: QuadFunction[Param, Param, Param, Param, Expr]): Lambda4 = {
     val params = Array(Param(t1), Param(t2), Param(t3), Param(t4))
-    new Lambda4(params, f.apply(params(0), params(1), params(2), params(4)))
+    new Lambda4(params, f.apply(params(0), params(1), params(2), params(3)))
   }
 
   //create lambda5
