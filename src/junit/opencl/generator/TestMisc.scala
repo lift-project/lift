@@ -426,6 +426,94 @@ class TestMisc {
     }
   }
 
+  @Test def nbody(): Unit = {
+
+    val inputSize = 512
+
+    val deltaT = 0.005f
+    val espSqr = 500.0f
+
+    // x, y, z, velocity x, y, z, mass
+    val input = Array.fill[Tuple7[Float,Float, Float, Float, Float, Float, Float]](inputSize)((util.Random.nextFloat(),util.Random.nextFloat(),util.Random.nextFloat(),0.0f,0.0f,0.0f,util.Random.nextFloat()))
+
+    val x = input.map(_._1)
+    val y = input.map(_._2)
+    val z = input.map(_._3)
+
+    val velX = input.map(_._4)
+    val velY = input.map(_._5)
+    val velZ = input.map(_._6)
+
+    val mass =input.map(_._7)
+
+    val gold = input.map(x => {
+      val acceleration = input.map(y => {
+        val r = Array(0.0f, 0.0f, 0.0f)
+
+        r(0) = x._1 - y._1
+        r(1) = x._2 - y._2
+        r(2) = x._3 - y._3
+
+        val distSqr = r.reduce(_+_)
+
+        val invDist = 1.0f / math.sqrt(distSqr + espSqr)
+
+        val s = invDist * invDist * invDist * y._7
+
+        (s*r(0), s*r(1), s*r(2))
+      }).reduce((y, z) => (y._1 + z._1, y._2 + z._2, y._3 + z._3))
+
+      val px = x._4 * deltaT + 0.5f * acceleration._1 * deltaT * deltaT
+      val py = x._5 * deltaT + 0.5f * acceleration._2 * deltaT * deltaT
+      val pz = x._6 * deltaT + 0.5f * acceleration._3 * deltaT * deltaT
+
+      (x._1 + px.toFloat, x._2 + py.toFloat, x._3 + pz.toFloat, x._4 + acceleration._1.toFloat * deltaT, x._5 + acceleration._2.toFloat * deltaT, x._6 + acceleration._3.toFloat * deltaT, x._7)
+    }).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+
+    val calcAcc = UserFunDef("calcAcc", Array("x1", "y1", "z1", "x2", "y2", "z2", "mass", "espSqr"),
+      "{\n" +
+      "  float4 r = (x1 - x2, y1 - y2, z1 - z2, 0.0f);\n" +
+      "  float distSqr = r.x + r.y + r.z;\n" +
+      "  float invDist = 1.0f / sqrt(distSqr + espSqr);\n" +
+      "  float invDistCube = invDist * invDist * invDist;\n" +
+      "  float s = invDistCube * mass;\n" +
+      "  Tuple acc = {s * r.x, s * r.y, s * r.z};" +
+      "  return acc;\n" +
+        "}\n", Seq(Float,Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float, Float))
+    val reduce = UserFunDef("reduce", Array("x", "y"), "{ Tuple t = {x._0 + y._0, x._1 + y._1, x._2 + y._2}; return t;}", Seq(TupleType(Float, Float, Float), TupleType(Float, Float, Float)), TupleType(Float, Float, Float))
+    val update = UserFunDef("update", Array("x", "y", "z", "velX", "velY", "velZ", "mass", "deltaT", "acceleration"),
+      "{\n" +
+      "  float px = velX * deltaT + 0.5f * acceleration._0 * deltaT * deltaT;\n" +
+      "  float py = velY * deltaT + 0.5f * acceleration._1 * deltaT * deltaT;\n" +
+      "  float pz = velZ * deltaT + 0.5f * acceleration._2 * deltaT * deltaT;\n" +
+      "  Tuple1 t = {x + px, y + py, z + pz, velX + acceleration._0 * deltaT, velY + acceleration._1 * deltaT, velZ + acceleration._2 * deltaT, mass};\n" +
+      "  return t;\n" +
+      "}\n", Seq(Float,Float, Float, Float, Float, Float, Float, Float, TupleType(Float, Float, Float)), TupleType(Float,Float, Float, Float, Float, Float, Float) )
+
+    val N = Var("N")
+
+    val function = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      Float,
+      Float,
+      (x, y, z, velX, velY, velZ, mass, espSqr, deltaT) =>
+        MapGlb(fun(xyz => MapSeq(fun(acceleration => update(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(xyz, 3), Get(xyz, 4), Get(xyz, 5), Get(xyz, 6), deltaT, acceleration))) o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f)) o MapSeq(fun(abc => calcAcc(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(abc, 0), Get(abc, 1), Get(abc, 2), Get(abc, 6), espSqr))) $ Zip(x, y, z, velX, velY, velZ, mass))) $ Zip(x, y, z, velX, velY, velZ, mass)
+    )
+
+    val (output, runtime) = Execute(inputSize)(function, x, y, z, velX, velY, velZ, mass, espSqr, deltaT, inputSize)
+
+    assertArrayEquals(gold, output, 0.0001f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def VECTOR_ADD_SIMPLE() {
 
     val inputSize = 1024
