@@ -333,6 +333,50 @@ object jfun {
     val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5))
     new Lambda5(params, f.apply(params(0), params(1), params(2), params(3), params(4)))
   }
+
+  //create lambda6
+  def create(f: HexaFunction[Param, Param, Param, Param, Param, Param, Expr]): Lambda6 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda6(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5)))
+  }
+
+  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, f: HexaFunction[Param, Param, Param, Param, Param, Param, Expr]): Lambda6 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6))
+    new Lambda6(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5)))
+  }
+
+  //create lambda7
+  def create(f: SeptFunction[Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda7 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda7(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6)))
+  }
+
+  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, f: SeptFunction[Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda7 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7))
+    new Lambda7(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6)))
+  }
+
+  //create lambda8
+  def create(f: OctoFunction[Param, Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda8 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda8(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7)))
+  }
+
+  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, f: OctoFunction[Param, Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda8 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8))
+    new Lambda8(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7)))
+  }
+
+  //create lambda9
+  def create(f: NovemFunction[Param, Param, Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda9 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda9(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8)))
+  }
+
+  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9: Type, f: NovemFunction[Param, Param, Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda9 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9))
+    new Lambda9(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8)))
+  }
 }
 
 
