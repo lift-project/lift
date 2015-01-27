@@ -1,10 +1,11 @@
 package junit.opencl.generator;
 
-import opencl.ir.Float;
+import static org.junit.Assert.*;
 import org.junit.*;
 
-import java.util.Arrays;
+import java.util.*;
 import java.util.function.*;
+import java.util.stream.Collectors;
 
 import ir.*;
 import opencl.ir.*;
@@ -42,6 +43,11 @@ public class JavaTest {
             jFloat.getSingleton());
 
     UserFunDef neg = jUserFunDef.create("neg", "x", "{ return -x; }", jFloat.getSingleton(), jFloat.getSingleton());
+
+    UserFunDef distance = jUserFunDef.create("dist", jStringArray.create("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
+    UserFunDef minimum = jUserFunDef.create("minimum", jStringArray.create("x", "y"), "{ return x._0 < y._0 ? x : y; }", jTypeArray.create(jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton())), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
+    UserFunDef getSecond = jUserFunDef.create("getSecond", "x", "{ return (float) x._1; }", jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jFloat.getSingleton());
+
 
     @BeforeClass
     public static void before() {
@@ -127,6 +133,76 @@ public class JavaTest {
         Lambda f = new Lambda(params, mg.apply(JavaConversions.asScalaBuffer(Arrays.asList(params[0]))));
 
         Compile.apply(f);
+    }
+
+    @Test
+    public void kmeans() {
+        // kmeans
+        Var n = jVar.create("N");
+        Var k = jVar.create("K");
+
+        // @formatter:off
+        Lambda fun = jfun.create(
+                jArrayType.create(jFloat.getSingleton(), n),
+                jArrayType.create(jFloat.getSingleton(), n),
+                jArrayType.create(jFloat.getSingleton(), k),
+                jArrayType.create(jFloat.getSingleton(), k),
+                jArrayType.create(jInt.getSingleton(), k),
+                (x, y, a, b, i) ->
+                        jMapGlb.create(
+                                jfun.create(xy ->
+                                                jMapSeq.create(getSecond).comp(
+                                                        jReduceSeq.create(minimum, Expr.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1))).comp(
+                                                                jMapSeq.create(jfun.create(abi -> distance.apply(
+                                                                        JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(xy, 0), Get.apply(xy, 1),
+                                                                                Get.apply(abi, 0), Get.apply(abi, 1), Get.apply(abi, 2))))))
+                                                        )
+                                                ).call(jZip.call(Arrays.asList(a, b, i)))
+                                )
+                        ).call(jZip.call(x, y))
+        );
+
+        String code1 = Compile.apply(fun);
+    }
+
+    @Test
+    public void kmeansWithoutJfun() {
+        Var n = jVar.create("N");
+        Var k = jVar.create("K");
+
+        Type[] types = {
+                jArrayType.create(jFloat.getSingleton(), n),
+                jArrayType.create(jFloat.getSingleton(), n),
+                jArrayType.create(jFloat.getSingleton(), k),
+                jArrayType.create(jFloat.getSingleton(), k),
+                jArrayType.create(jInt.getSingleton(), k)};
+
+        List<Expr> params = Arrays.asList(types).stream().map(Param::apply).collect(Collectors.toList());
+
+        Expr zip3 = jZip.call(params.subList(2, 5));
+        Expr zip2 = jZip.call(params.subList(0, 2));
+        Param undef1 = Param.apply(UndefType$.MODULE$);
+        Param undef2 = Param.apply(UndefType$.MODULE$);
+
+        Expr distExpr = distance.apply(JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(undef1, 0), Get.apply(undef1, 1),
+                Get.apply(undef2, 0), Get.apply(undef2, 1), Get.apply(undef2, 2))));
+
+        Lambda1 lmap1 = new Lambda1(new Param[]{undef2}, distExpr);
+
+        MapSeq map1 = MapSeq$.MODULE$.apply(lmap1);
+
+
+        MapSeq map2 = jMapSeq.create(getSecond);
+        Lambda1 reduce = jReduceSeq.create(minimum, Expr.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1)));
+
+        FunCall f = map2.comp(reduce).comp(map1).call(zip3);
+
+        Lambda1 l = new Lambda1(new Param[]{undef1}, f);
+        MapGlb mg = MapGlb$.MODULE$.apply(l);
+
+        Lambda function = new Lambda(params.toArray(new Param[0]), mg.call(zip2));
+
+        String code2 = Compile.apply(function);
     }
 
     @Test
