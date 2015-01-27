@@ -144,6 +144,11 @@ case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override va
   def arg1: Expr = args(1)
 }
 
+case class DropWhileCall(loopVar: Var, override val f: AbstractDropWhile, override val args: Expr*) extends FunCall(f, args(0)) {
+  assert(args.length == 1)
+  def arg: Expr = args(0)
+}
+
 object Expr {
 
   implicit def IntToValue(i: Int) = Value(i.toString, opencl.ir.Int)

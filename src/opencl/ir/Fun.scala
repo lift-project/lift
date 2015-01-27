@@ -129,7 +129,7 @@ case class MapMatrix(dim: Int, f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapMatrix", Var("wg_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -144,6 +144,29 @@ object jMapMatrix {
   def create(f: Lambda1) = MapMatrix(f)
   def create(f: FunDecl) = MapMatrix(Lambda1.FunDefToLambda(f))
 }
+
+
+// DropWhile - seems a little hacky?
+case class DropWhileSeq(f: Lambda) extends AbstractDropWhile(f) with isGenerable {
+  override def apply(args: Expr*) : DropWhileCall = {
+    assert(args.length == 1)
+    new DropWhileCall(Var("i"),this, args(0))
+  }
+  override def $(that: Expr) : DropWhileCall = {
+    apply(that)
+  }
+}
+
+object DropWhileSeq {
+  def apply(f: Lambda1): Lambda1 = new DropWhileSeq(f)
+}
+
+object jDropWhileSeq {
+  def create(f: Lambda1) = DropWhileSeq(f)
+  def create(f: FunDecl) = DropWhileSeq(Lambda1.FunDefToLambda(f))
+}
+
+
 
 // Reductions
 

@@ -365,6 +365,7 @@ object Type {
       case _: ReorderStride =>    inT
       case g: Gather =>           checkGather(g, inT, setType)
       case s: Scatter =>          checkScatter(s, inT, setType)
+      case d: AbstractDropWhile => checkDropWhile(d, inT, setType)
     }
   }
 
@@ -421,6 +422,16 @@ object Type {
         check(ar.f.body, setType)
         ArrayType(initT, new Cst(1))
       case _ => throw new TypeException(inT, "TupleType")
+    }
+  }
+
+  private def checkDropWhile(ad: AbstractDropWhile, inT: Type, setType: Boolean): Type= {
+    inT match {
+      case at: ArrayType =>
+        if (ad.f.params.length != 1) throw new NumberOfArgumentsException
+        ad.f.params(0).t = getElemT(inT)
+        ArrayType(check(ad.f.body, setType), getLength(inT))
+      case _ => throw new TypeException(inT, "ArrayType")
     }
   }
 

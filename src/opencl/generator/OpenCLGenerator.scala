@@ -44,7 +44,7 @@ object OpenCLGenerator extends Generator {
     }, (f: Expr) => {})
   }
 
-  // compiler a type-checked function into an OpenCL kernel
+  // compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda): String = {
 
     assert(f.body.t != UndefType)
@@ -187,6 +187,8 @@ object OpenCLGenerator extends Generator {
         case _: ReduceHost => generateReduceSeqCall(call)
       }
       case call: IterateCall => generateIterateCall(call)
+      case call: DropWhileCall => generateDropWhileCall(call)
+
       case call: FunCall => call.f match {
         case cf: CompFunDef => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
 
@@ -197,6 +199,7 @@ object OpenCLGenerator extends Generator {
         case l: Lambda => generate(l.body)
         case g: Gather => generate(g.f.body)
         case s: Scatter => generate(s.f.body)
+
         case _: ReorderStride =>
         case _: Transpose =>
         case _: Swap =>
@@ -308,9 +311,11 @@ object OpenCLGenerator extends Generator {
 
     // 1. generate: int acc = 0
     // val accVar = call.argsMemory match { case coll: OpenCLMemoryCollection => coll.subMemories(0).variable }
+    //get local copies of our accumulation variables from our ReduceCall
     val accVar = call.arg0.mem.variable
     val accType = call.arg0.t
     val accValue = call.arg0 match { case v: Value => v.value }
+    //print an OpenCL/C declaration for our variable
     oclPrinter.printVarDecl(accType, accVar, accValue)
     oclPrinter.println(";")
 
@@ -322,7 +327,6 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateLoop(call.loopVar, range, () => {
       // 3. generate acc = fun(acc, input[i])
       oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
-
       // TODO: This assumes a UserFun to be nested here!
       oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
 
@@ -336,6 +340,26 @@ object OpenCLGenerator extends Generator {
     // 4. generate output[0] = acc
     oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
+    oclPrinter.closeCB()
+  }
+
+  // === DropWhile ===
+  private def generateDropWhileCall(call: DropWhileCall): Unit =
+  {
+    val inputMemory = OpenCLMemory.asOpenCLMemory(call.arg.mem)
+    val inVStr = oclPrinter.toOpenCL(inputMemory.variable) //our input array
+
+
+    println("Generating dropwhile:")
+    println(inputMemory.toString)
+    println(inVStr.toString)
+
+
+    oclPrinter.openCB()
+    oclPrinter.commln("dropwhile_seq")
+    oclPrinter.println("printf(\"Hello world\\n\");")
+
+    oclPrinter.commln("dropwhile_seq")
     oclPrinter.closeCB()
   }
 

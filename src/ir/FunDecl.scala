@@ -373,6 +373,30 @@ object PartRed {
   def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = PartRed(f)(init, expr)
 }
 
+abstract class AbstractDropWhile(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
+
+case class DropWhile(f: Lambda1) extends AbstractDropWhile(f) {
+  override def apply(args: Expr*) : DropWhileCall = dropWhileCall(args:_*)
+
+  override def $(that: Expr): DropWhileCall = dropWhileCall(that)
+
+  private def dropWhileCall(args: Expr*): DropWhileCall = {
+    assert(args.length == 1)
+    new DropWhileCall(Var("i"),this, args(0))
+  }
+}
+
+object DropWhile {
+  def apply(f: Lambda1, expr: Expr): DropWhileCall = {
+    DropWhile(f).dropWhileCall(expr)
+  }
+}
+
+object jDropWhile {
+  def create(f: Lambda1) = DropWhile(f)
+  def create(f: FunDecl) = DropWhile(Lambda1.FunDefToLambda(f))
+}
+
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Join()
 }

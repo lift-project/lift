@@ -21,35 +21,42 @@ object TestSparsity {
 
 
 class TestSparsity {
-  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
-  val sq = UserFunDef("sq", "x", "{return x*x;}", Float, Float)
+  def generateSparseArray(length:Int) : Array[(Int,Float)]=
+  {
+    var a = 0;
+    var baseArray = Array.fill(length)((util.Random.nextInt(5)+1),(util.Random.nextInt(5).toFloat))
+    for(a <- 1 to length-1)
+    {
+      //for each element, append our random index to find our true index
+      baseArray(a) = (baseArray(a-1)._1+baseArray(a)._1, baseArray(a)._2)
+    }
+    baseArray
+  }
 
-  @Test def MATRIX_SCALAR_MAP() {
-    val Msize = 16
-    val Nsize = 16
-    val matrix = Array.tabulate(Msize,Nsize)(((r,c)=> (r + (c*Nsize)*1.0f)))
+  @Test def DROP_WHILE() {
+    val length = 2048
+    val vect = (1 to length).toArray
+    val limit = 1024
+    val gold = vect.dropWhile(_<limit)
 
-    val N = SizeVar("N")
-    val M = SizeVar("M")
 
-    val f = fun(
-      ArrayType(ArrayType(Float, N), M),
-      (A) => {
-        MapWrg(fun( Arow =>
+    val lessThan = UserFunDef("lessThan", Array("x", "s"), "{return (x<s);}", Seq(Float, Float), Int)
 
-          MapLcl( fun( E => sq o E)
-          ) o Arow
-        )) o A
-      }
+    val dropFunc = fun(ArrayType(Float, Var("N")), Float, (input, limit) =>
+      DropWhileSeq(
+        fun(x => lessThan(x,limit))
+      ) $ input
     )
-    val (output, runtime) = Execute(Msize * Nsize)(f, matrix, Nsize, Msize)
-    println(matrix.deep.mkString("\n"))
-    println(output.deep.mkString("\n"))
+    val code = Compile(dropFunc)
+    //println(code)
+    val (output, runtime) = Execute(1,1)(dropFunc, vect, limit, length)
+    println("output(0) = " + output(0))
+    println(output.toList)
+    println("runtime = " + runtime)
   }
 
   @Test def SPARSE_VECTOR_DOT_PRODUCT() {
-
     val sum = UserFunDef(
       "sum",
       Array("acc","v"),
@@ -87,10 +94,10 @@ class TestSparsity {
         ReduceSeq(sum, 0) o MapWrg( //map across the first list
           fun(aElem =>
             ReduceSeq(select, 0.0f) o //reduce to find ones which are "true"
-              MapLcl( //map across the first list
-                fun(bElem => eqMult(aElem, bElem)) //produce a new list of equational values
-              ) o B //map across the second list
-          )) o A //map across the first list
+              MapSeq( //map across the first list
+                fun(bElem => eqMult(aElem, bElem)) //produce a new array of equational values
+              ) $ B //map across the second list
+          )) $ A //map across the first list
       }
     )
 
@@ -98,77 +105,73 @@ class TestSparsity {
     println(output.deep.mkString)
   }
 
-  @Test def DENSE_VECTOR_THING(){
+  @Test def SPARSE_VECTOR_NEG(){
+    val rawVector = generateSparseArray(1024)
+    val inputVector = rawVector.map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
+    val inputSize = inputVector.length/2
 
-    val add = UserFunDef("add", Array("a","b"), "{return (a+b);}", TupleType(Float, Float), Float)
-    val sum = UserFunDef("sum", Array("acc", "v"), "{return acc+v;}", Seq(Float, Float), Float)
+    val gold = rawVector.map((vi) => (vi._1, -vi._2)).map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
 
-    val vect = Array.tabulate(4096)((x:Int) => (x.toFloat)/4096.0f + (1.0f/4096.0f))
+    val negElem = UserFunDef("negElem", "x", "{ x._0 = x._0; x._1 = -x._1; return x; }",
+      TupleType(Float, Float), TupleType(Float, Float))
 
-    val N = SizeVar("N")
-    val f = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      (A,B) => {
-        //          Join() o ReduceSeq(sum, 0.0f) o Split(4) o Zip(A,B)
-        Join() o MapWrg(
-          Join() o MapLcl(MapSeq(
-            fun( pair => add(pair) )
-          )) o Split(8)
-        ) o Split(512) o Zip(A,B)
-      }
+    val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
+      Join() o MapWrg(
+        Join() o MapLcl(MapSeq(negElem)) o Split(4)
+      ) o Split(1024) $ input
     )
 
-    val (output, runtime) = Execute(vect.length)(f, vect, vect.reverse, vect.length)
-    println(output.deep.mkString(" "))
+    val (output, runtime) = Execute(inputSize)(f, inputVector, inputVector.size)
+
+    assertArrayEquals(gold, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println(inputVector.toList)
+    println(output.toList)
+    println("runtime = " + runtime)
   }
 
-  @Test def MATRIX_MAP() {
-    val Msize = 16
-    val Nsize = 16
-    val matrix = Array.tabulate(Msize, Nsize)(((r,c)=> (r+ (c*Nsize)*1.0f)))
+  @Test def SPARSE_VECTOR_SCAL() {
 
-    val N = SizeVar("N")
-    val M = SizeVar("M")
+    val sparseElemMult = UserFunDef("sem", Array("x","s"), "{ x._0 = x._0; x._1 = s*x._1; return x; }",
+      Seq(TupleType(Float, Float),Float), TupleType(Float, Float))
 
-    val f = fun(
-      MatrixType(Float, N,M),
-      (m) => {
-        MapWrg( fun( row => //for MapWrg, map over rows by default - i.e. feed a row to the next function
-          MapLcl( fun( E=> sq o E)
-          ) o row
-        )) o m
-      }
+    val rawVector = generateSparseArray(1024)
+    val inputVector = rawVector.map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
+    val inputSize = inputVector.length/2
+    val alpha = 2.5f
+//    val gold = inputArray.map(_ * alpha)
+
+    val scalFun = fun(ArrayType(TupleType(Float,Float), Var("N")), Float, (input, alpha) =>
+      Join() o MapWrg(
+        Join() o MapLcl(MapSeq(
+          fun(x => sparseElemMult(x,alpha))
+        )) o Split(4)
+      ) o Split(1024) $ input
     )
-    val CLCode = Compile(f)
-    val (output, runtime) = Execute(Msize*Nsize)(f,matrix, Nsize, Msize)
-    //    println(matrix.deep.mkString("\n"))
-    //    println(output.deep.mkString("\n"))
 
+    val (output, runtime) = Execute(inputVector.length)(scalFun, inputVector, alpha, inputVector.size)
+
+//    (gold, output).zipped.map(assertEquals(_, _, 0.0))
+
+    println("output(0) = " + output(0))
+    println("input = " + inputVector.toList)
+    println("output = " + output.toList)
+    println("runtime = " + runtime)
   }
 
-  @Test def CUST_MATRIX_MAP() {
-    val Msize = 8
-    val Nsize = 32
-    val matrix = Array.tabulate(Msize, Nsize)(((c,r)=> (r+ (c*Nsize)*1.0f)))
-
-    //val N = SizeVar("N")
-    //val M = SizeVar("M")
-
-    val f = fun(
-      //MatrixType(Float, N,M),
-      MatrixType(Float,8,32),
-      (m) => {
-        //MapWrg ( fun( matrix =>
-        MapMatrix( fun( E=> sq o E)
-        ) o m
-        //)) o m
-      }
-    )
-    //val CLCode = Compile(f)
-    val (output, runtime) = Execute(Msize*Nsize)(f,matrix)
-    println(matrix.deep.mkString("\n"))
-    println(output.deep.mkString("\n"))
+  @Test def PURE_SCALA_DOT_PRODUCT(){
+    val vectA = List((1, 9.0),(3, 3.0),(8, 4.0),(16,7.0),(19,1.0),(20,2.0),(21,3.0)).toArray
+    val vectB = List((1, 9.0),(2, 3.0),(8, 4.0),(15,7.0),(19,1.0),(20,2.0),(22,3.0)).toArray
+    val initial = (vectB,0.0)
+    def foldBody(acc:Tuple2[Array[Tuple2[Int,Double]],Double], vi:Tuple2[Int,Double]) : Tuple2[Array[Tuple2[Int,Double]],Double] = {
+      val greaterOrEqual = acc._1.dropWhile((vj: Tuple2[Int, Double]) => vj._1 < vi._1)
+      if(greaterOrEqual.head._1 == vi._1)
+        (greaterOrEqual.tail, acc._2+(vi._2*greaterOrEqual.head._2))
+      else
+        (greaterOrEqual, acc._2)
+    }
+    val result = vectA.foldLeft(initial)( foldBody )
+    println(result._2 )
   }
-
 }

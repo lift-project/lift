@@ -215,7 +215,7 @@ class OpenCLPrinter {
     val cond = ExprSimplifier.simplify(range.stop)
     val update = ExprSimplifier.simplify(range.step)
 
-    // eval expression. if sucessfull return true and the value, otherwise return false
+    // eval expression. if successful return true and the value, otherwise return false
     def evalExpr = (e: ArithExpr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
 
     // try to directly evaluate

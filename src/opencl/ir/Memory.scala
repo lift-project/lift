@@ -246,6 +246,8 @@ object OpenCLMemory {
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
 
+      case dw: DropWhileSeq =>    allocDropWhileSeq(dw, numGlb, numLcl, inMem, outputMem)
+
       case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride() | asVector(_) | asScalar() | Transpose() | Swap() | Unzip()  =>
         inMem
       case uf: UserFunDef =>
@@ -333,6 +335,13 @@ object OpenCLMemory {
     if (s.f.params.length != 1) throw new NumberOfArgumentsException
     s.f.params(0).mem = inMem
     alloc(s.f.body, numGlb, numLcl, outputMem)
+  }
+
+  //temporary allocDropWhile call, shouldn't actually need to allocate anything...
+  private def allocDropWhileSeq(dw: DropWhileSeq, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+    if (dw.f.params.length != 1) throw new NumberOfArgumentsException
+    dw.f.params(0).mem = inMem
+    alloc(dw.f.body, numGlb, numLcl, outputMem)
   }
 
   private def allocToGlobal(tg: toGlobal, numGlb: ArithExpr, numLcl: ArithExpr,
