@@ -3,11 +3,13 @@ package junit.opencl.generator;
 import opencl.ir.Float;
 import org.junit.*;
 
+import java.util.Arrays;
 import java.util.function.*;
 
 import ir.*;
 import opencl.ir.*;
 import opencl.executor.*;
+import scala.collection.JavaConversions;
 
 public class JavaTest {
 
@@ -79,6 +81,19 @@ public class JavaTest {
     }
 
     @Test
+    public void vectorNegSimpleWithoutJfun() {
+        MapGlb mg = jMapGlb.create(neg);
+
+        Type arrayType = jArrayType.create(jFloat.getSingleton(), jVar.create("V"));
+
+        Param p = Param.apply(arrayType);
+
+        Lambda f = new Lambda(new Param[]{p}, mg.call(p));
+
+        Compile.apply(f);
+    }
+
+    @Test
     public void vectorScalarMultiplication() {
 
         Lambda multFun = jfun.create(
@@ -91,6 +106,27 @@ public class JavaTest {
                 });
 
         String code = Compile.apply(multFun);
+    }
+
+    @Test
+    public void vectorScalarMultiplicationWithoutJfun() {
+        Type arrayType = jArrayType.create(jFloat.getSingleton(), jVar.create("N"));
+        Type floatType = jFloat.getSingleton();
+
+        Param p0 = Param.apply(arrayType);
+        Param p1 = Param.apply(floatType);
+
+        Param[] params = {p0, p1};
+
+        Param undefParam = Param.apply(UndefType$.MODULE$);
+        Expr multExpr = mult.apply(JavaConversions.asScalaBuffer(Arrays.asList(p1, undefParam)));
+        Lambda1 multLambda = new Lambda1(new Param[]{undefParam}, multExpr);
+        MapGlb mg = MapGlb$.MODULE$.apply(multLambda);
+
+
+        Lambda f = new Lambda(params, mg.apply(JavaConversions.asScalaBuffer(Arrays.asList(params[0]))));
+
+        Compile.apply(f);
     }
 
     @Test
