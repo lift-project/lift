@@ -132,6 +132,43 @@ class TestMatrixMatrix {
 
   }
 
+  @Test def MATRIX_MATRIX_SIMPLER() {
+
+    val Msize = 64
+    val Ksize = 64
+    val Nsize = 64
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        MapGlb(fun( Arow =>
+          MapSeq(fun( Bcol =>
+            ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(Arow, Bcol)
+          )) $ B
+        )) $ A
+      })
+
+    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    (output, runtime)
+
+  }
+
   @Test def MATRIX_MATRIX_Christophe() {
 
     val Msize = 32
