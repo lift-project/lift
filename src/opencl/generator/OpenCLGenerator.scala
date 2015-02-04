@@ -63,7 +63,7 @@ object OpenCLGenerator extends Generator {
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
       p.access = IdAccessFunctions
-      p.view = View(p.t, new InputAccess())
+      p.view = View(p.t, new InputAccess(""))
     })
 
     // pass 1
@@ -82,7 +82,7 @@ object OpenCLGenerator extends Generator {
 
     AccessFunction.addAccessFunctions(f.body)
 
-    //View.createView(f.body)
+    View.createView(f.body)
 
     oclPrinter = new OpenCLPrinter
 
@@ -312,9 +312,9 @@ object OpenCLGenerator extends Generator {
       // TODO: This assumes a UserFun to be nested here!
       oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
 
-      //println("ReduceSeqCall access: ")
-      //ViewPrinter.emit(funCall.args(1).view.asInstanceOf[PrimitiveView])
-      //println()
+      println("ReduceSeqCall access: ")
+      ViewPrinter.emit(funCall.args(1).view.asInstanceOf[PrimitiveView])
+      println()
 
       oclPrinter.println(";")
     })
@@ -411,16 +411,16 @@ object OpenCLGenerator extends Generator {
     assert(call.f == u)
 
     oclPrinter.print(access(call.mem, call.t, call.access) + " = ")
-    //println("Uf write access: ")
-    //ViewPrinter.emit(call.view.asInstanceOf[PrimitiveView])
-    //println()
+    println("Uf write access: ")
+    ViewPrinter.emit(call.view.asInstanceOf[PrimitiveView])
+    println()
 
     oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.argsAccess))
-    //println("Uf read accesss: ")
-    //call.args.map(a => {
-    //  ViewPrinter.emit(a.view.asInstanceOf[PrimitiveView])
-    //  println()
-    //})
+    println("Uf read accesss: ")
+    call.args.map(a => {
+      ViewPrinter.emit(a.view.asInstanceOf[PrimitiveView])
+      println()
+    })
 
 
     oclPrinter.println(";")

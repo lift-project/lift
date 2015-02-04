@@ -6,7 +6,7 @@ sealed abstract class Operation
 
 object NoOperation extends Operation
 
-class InputAccess(/*val name: String*/) extends Operation
+class InputAccess(val name: String) extends Operation
 
 class ArrayCreation(val v: View, val len: ArithExpr, val itVar: Var) extends Operation
 class ArrayAccess(val av: ArrayView, val idx: ArithExpr) extends Operation
@@ -229,7 +229,7 @@ object View {
 
   private def createViewUserFunDef(uf: UserFunDef, argView: View): View = {
     // TODO: what to do here ...
-    View(uf.outT, new InputAccess())
+    View(uf.outT, new InputAccess(""))
   }
 
   private def createViewReorderStride(call: FunCall, argView: View): View = {
@@ -260,7 +260,7 @@ object ViewPrinter {
                        tupleAccessStack : scala.collection.immutable.Stack[Int]) : Unit = {
     sv.operation match {
       case ia : InputAccess =>
-        // print(ia.name)
+        print(ia.name)
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.foreach(idx => print("["+idx+"]"))
 
@@ -314,8 +314,8 @@ object ViewPrinter {
 
 }
 
-/*
-object Test extends App {
+
+object TestView extends App {
 
   val int = ScalarType("int", 4)
 
@@ -326,16 +326,16 @@ object Test extends App {
 
     // map(b => zip(a,b)) o B
     val var_i = new Var("i", RangeUnkown)
-    val b = B.get(var_i).asInstanceOf[PrimitiveView] // TODO B.get should return the appropirate type (use generics)
-    val zip_ab = new TupleView(List(int, int), new TupleCreation(List(a, b)))
+    val b = B.access(var_i).asInstanceOf[PrimitiveView] // TODO B.get should return the appropirate type (use generics)
+    val zip_ab = new TupleView(TupleType(int, int), new TupleCreation(List(a, b)))
     val map_zip_ab = new ArrayView(TupleType(int, int), new ArrayCreation(zip_ab, Cst(10), var_i))
 
     // map (f) o ...
     val var_j = new Var("j", RangeUnkown)
-    val mapf = map_zip_ab.get(var_j).asInstanceOf[TupleView]
+    val mapf = map_zip_ab.access(var_j).asInstanceOf[TupleView]
 
-    val mapf0 = mapf.get(0).asInstanceOf[PrimitiveView]
-    val mapf1 = mapf.get(1).asInstanceOf[PrimitiveView]
+    val mapf0 = mapf.access(0).asInstanceOf[PrimitiveView]
+    val mapf1 = mapf.access(1).asInstanceOf[PrimitiveView]
 
 
     ViewPrinter.emit(a)
@@ -359,23 +359,23 @@ object Test extends App {
     // map(a => map(b => map(zip(a,b)) o B) o A
     val var_i = new Var("i", RangeUnkown)
     val var_j = new Var("j", RangeUnkown)
-    val a = A.get(var_i).asInstanceOf[ArrayView]
-    val b = B.get(var_j).asInstanceOf[ArrayView]
-    val zip_ab = new TupleView(List(new ArrayType(int, 8), new ArrayType(int, 8)), new TupleCreation(List(a, b)))
+    val a = A.access(var_i).asInstanceOf[ArrayView]
+    val b = B.access(var_j).asInstanceOf[ArrayView]
+    val zip_ab = new TupleView(TupleType(new ArrayType(int, 8), new ArrayType(int, 8)), new TupleCreation(List(a, b)))
     val map_zip_ab = new ArrayView(TupleType(new ArrayType(int, 8), new ArrayType(int, 8)), new ArrayCreation(zip_ab, Cst(4), var_j))
     val map_map_zip_ab = new ArrayView(new ArrayType(TupleType(new ArrayType(int, 8), new ArrayType(int, 8)),4), new ArrayCreation(map_zip_ab, Cst(4), var_i))
 
     // map(map (f)) o ...
     val var_k = new Var("k", RangeUnkown)
     val var_l = new Var("l", RangeUnkown)
-    val map_f = map_map_zip_ab.get(var_k).asInstanceOf[ArrayView]
-    val map_map_f = map_f.get(var_l).asInstanceOf[TupleView]
+    val map_f = map_map_zip_ab.access(var_k).asInstanceOf[ArrayView]
+    val map_map_f = map_f.access(var_l).asInstanceOf[TupleView]
 
-    val map_map_f0 = map_map_f.get(0).asInstanceOf[ArrayView]
-    val map_map_f1 = map_map_f.get(1).asInstanceOf[ArrayView]
+    val map_map_f0 = map_map_f.access(0).asInstanceOf[ArrayView]
+    val map_map_f1 = map_map_f.access(1).asInstanceOf[ArrayView]
 
-    val map_map_f0_9 = map_map_f0.get(9).asInstanceOf[PrimitiveView]
-    val map_map_f1_7 = map_map_f1.get(7).asInstanceOf[PrimitiveView]
+    val map_map_f0_9 = map_map_f0.access(9).asInstanceOf[PrimitiveView]
+    val map_map_f1_7 = map_map_f1.access(7).asInstanceOf[PrimitiveView]
 
     print("gold = A[k][9], emitted = ")
     ViewPrinter.emit(map_map_f0_9)
@@ -394,14 +394,14 @@ object Test extends App {
     // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
     val var_i = new Var("i", RangeUnkown)
     val var_j = new Var("j", RangeUnkown)
-    val a = A.get(var_i).asInstanceOf[ArrayView]
-    val b = B.get(var_j).asInstanceOf[ArrayView]
-    val zip_ab = new TupleView(List(new ArrayType(int, 8), new ArrayType(int, 8)), new TupleCreation(List(a, b)))
-    val zip_ab0 = zip_ab.get(0).asInstanceOf[ArrayView]
-    val zip_ab1 = zip_ab.get(1).asInstanceOf[ArrayView]
+    val a = A.access(var_i).asInstanceOf[ArrayView]
+    val b = B.access(var_j).asInstanceOf[ArrayView]
+    val zip_ab = new TupleView(TupleType(new ArrayType(int, 8), new ArrayType(int, 8)), new TupleCreation(List(a, b)))
+    val zip_ab0 = zip_ab.access(0).asInstanceOf[ArrayView]
+    val zip_ab1 = zip_ab.access(1).asInstanceOf[ArrayView]
 
-    val zip_ab0_3 = zip_ab0.get(3).asInstanceOf[PrimitiveView]
-    val zip_ab1_7 = zip_ab1.get(7).asInstanceOf[PrimitiveView]
+    val zip_ab0_3 = zip_ab0.access(3).asInstanceOf[PrimitiveView]
+    val zip_ab1_7 = zip_ab1.access(7).asInstanceOf[PrimitiveView]
 
 
     print("gold = A[i][3], emitted = ")
@@ -424,10 +424,10 @@ object Test extends App {
     val var_i = new Var("i", RangeUnkown)
     val var_j = new Var("j", RangeUnkown)
 
-    val split2A_i = split2A.get(var_i).asInstanceOf[ArrayView]
-    val split2A_i_j = split2A_i.get(var_j).asInstanceOf[ArrayView]
+    val split2A_i = split2A.access(var_i).asInstanceOf[ArrayView]
+    val split2A_i_j = split2A_i.access(var_j).asInstanceOf[ArrayView]
 
-    val split2A_i_j_7 = split2A_i_j.get(7).asInstanceOf[PrimitiveView]
+    val split2A_i_j_7 = split2A_i_j.access(7).asInstanceOf[PrimitiveView]
 
     print("gold = A[i*2+j][7], emitted = ")
     ViewPrinter.emit(split2A_i_j_7)
@@ -447,7 +447,7 @@ object Test extends App {
 
     val var_i = new Var("i", RangeUnkown)
 
-    val join_split_2A_i = join_split_2A.get(var_i).asInstanceOf[PrimitiveView]
+    val join_split_2A_i = join_split_2A.access(var_i).asInstanceOf[PrimitiveView]
 
     print("gold = A[i], emitted = ")
     ViewPrinter.emit(join_split_2A_i)
@@ -465,8 +465,8 @@ object Test extends App {
     // split o reorder o A
     val split_reorder_A = reorder_A.split(4)
 
-    val reorder_split_reorder_A_1 = split_reorder_A.get(1).asInstanceOf[ArrayView]
-    val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.get(3).asInstanceOf[PrimitiveView]
+    val reorder_split_reorder_A_1 = split_reorder_A.access(1).asInstanceOf[ArrayView]
+    val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.access(3).asInstanceOf[PrimitiveView]
 
 
     print("gold = A[33], emitted = ")
@@ -481,4 +481,4 @@ object Test extends App {
   testSplitJoin()
   testReorder()
 }
-*/
+
