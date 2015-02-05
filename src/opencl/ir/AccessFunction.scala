@@ -232,7 +232,7 @@ object AccessFunction {
     val m = call.f
     val funCall = m.f.body match { case call: FunCall => call }
 
-    val innermostAccess = AccessFunction( (_) => call.loopVar * Type.getVectorSize(funCall.argsType), "MapSeq")
+    val innermostAccess = MapAccessFunction(call.loopVar, Type.getVectorSize(funCall.argsType), call.name)
 
     // input
     val inChunkSizes = Type.length(call.argsType).reduce(_ * _) // this includes the vector size
