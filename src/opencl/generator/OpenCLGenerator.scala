@@ -312,8 +312,12 @@ object OpenCLGenerator extends Generator {
       // TODO: This assumes a UserFun to be nested here!
       oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
 
-      println("ReduceSeqCall access: ")
+      println("ReduceSeqCall read access: ")
       ViewPrinter.emit(funCall.args(1).view.asInstanceOf[PrimitiveView])
+      println()
+
+      println("ReduceSeqCall write access: ")
+      ViewPrinter.emit(funCall.view.asInstanceOf[PrimitiveView])
       println()
 
       oclPrinter.println(";")

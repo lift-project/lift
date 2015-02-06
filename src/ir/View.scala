@@ -1,6 +1,7 @@
 package ir
 
 import opencl.ir._
+import org.junit.Test
 
 sealed abstract class Operation
 
@@ -64,6 +65,11 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
   def reorder(f: (ArithExpr) => ArithExpr): ArrayView = {
     val ar = new ArrayReorder(this, f)
     new ArrayView(elemT, ar)
+  }
+
+
+  override def toString = {
+    elemT.toString + " " + operation.toString
   }
 
 }
@@ -167,8 +173,32 @@ object View {
       case av: ArrayView =>
         call.f.f.params(0).view = av.access(call.loopVar)
         val innerView = createView(call.f.f.body)
-        new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
+        augmentViews(call.f.f.body, call)
+        val av2 = new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
+        call.view = av2
+        av2
       case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def augmentViews(expr: Expr, mapCall: MapCall) : Unit = {
+    expr match {
+      case call: MapCall =>
+        augmentViews(call.f.f.body, mapCall)
+        call.view = new ArrayView(call.t, new ArrayCreation(call.view, Type.getLength(call.t)* Type.getLength(mapCall.t), mapCall.loopVar)).access(mapCall.loopVar)
+
+      case call: ReduceCall =>
+        augmentViews(call.f.f.body, mapCall)
+        call.view = new ArrayView(call.t, new ArrayCreation(call.view, Type.getLength(call.t) * Type.getLength(mapCall.t), mapCall.loopVar)).access(mapCall.loopVar)
+
+      case call: FunCall =>
+        call.view = new ArrayView(call.t, new ArrayCreation(call.view, Type.getLength(call.t)* Type.getLength(mapCall.t), mapCall.loopVar)).access(mapCall.loopVar)
+        call.f match {
+          case cf: CompFunDef => cf.funs.map(x => augmentViews(x.body, mapCall))
+          case l: Lambda => l.body.view = new ArrayView(call.t, new ArrayCreation(l.body.view, Type.getLength(call.t)* Type.getLength(mapCall.t), mapCall.loopVar)).access(mapCall.loopVar)
+          case _ =>
+        }
+      case _ =>
     }
   }
 
@@ -270,9 +300,9 @@ object ViewPrinter {
 
       case ac : ArrayCreation =>
         val idx = arrayAccessStack.top
-        val newAAS = arrayAccessStack.pop
+//        val newAAS = arrayAccessStack.pop
         val newV = ac.v.replaced(ac.itVar, idx)
-        emitView(newV,newAAS,tupleAccessStack)
+        emitView(newV,arrayAccessStack,tupleAccessStack)
 
       case as : ArraySplit =>
         val (chunkId,stack1) = arrayAccessStack.pop2
@@ -311,22 +341,56 @@ object ViewPrinter {
 
      }
   }
-
 }
 
 
-object TestView extends App {
+class ViewTest {
 
   val int = ScalarType("int", 4)
+
+  @Test
+  def testUserFun(): Unit = {
+
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+    val f = fun(
+        ArrayType(Float, Var("N")),
+        x => Map(id) $ x
+    )
+
+    Type.check(f.body)
+
+    f.params.map(p => p.view = View(p.t, new InputAccess("A")))
+
+    View.createView(f.body)
+
+    val mapCall: MapCall = f.body.asInstanceOf[MapCall]
+    val funCall = mapCall.f.f.body.asInstanceOf[FunCall]
+
+    println("Uf read accesss: ")
+    funCall.args.map(a => {
+      ViewPrinter.emit(a.view.asInstanceOf[PrimitiveView])
+      println()
+    })
+
+    println("Uf write access: ")
+    ViewPrinter.emit(funCall.view.asInstanceOf[PrimitiveView])
+    println()
+
+    println("Next read: ")
+    ViewPrinter.emit(mapCall.view.asInstanceOf[ArrayView].access(Var("j")).asInstanceOf[PrimitiveView])
+    println()
+  }
 
   def test1() {
 
     val a = new PrimitiveView(new InputAccess("a"))
     val B = new ArrayView(int, new InputAccess("B"))
 
+    // The map below is not valid, zip on primitives would fail during type-checking
     // map(b => zip(a,b)) o B
     val var_i = new Var("i", RangeUnkown)
-    val b = B.access(var_i).asInstanceOf[PrimitiveView] // TODO B.get should return the appropirate type (use generics)
+    val b = B.access(var_i).asInstanceOf[PrimitiveView] // TODO B.get should return the appropriate type (use generics)
     val zip_ab = new TupleView(TupleType(int, int), new TupleCreation(List(a, b)))
     val map_zip_ab = new ArrayView(TupleType(int, int), new ArrayCreation(zip_ab, Cst(10), var_i))
 
@@ -351,19 +415,29 @@ object TestView extends App {
     println()
   }
 
+  @Test
   def test2() {
 
     val A = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("A"))
     val B = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("B"))
 
-    // map(a => map(b => map(zip(a,b)) o B) o A
+    // map(a => map(b => map(zip(a,b)) o B) o A doesn't seem to be legal
+    // map(a => map(b => map(f) $ zip(a,b)) o B) o A
+
+    // map(a => ... ) $ A
     val var_i = new Var("i", RangeUnkown)
-    val var_j = new Var("j", RangeUnkown)
     val a = A.access(var_i).asInstanceOf[ArrayView]
+    // ... map(b => ...) $ B ...
+    val var_j = new Var("j", RangeUnkown)
     val b = B.access(var_j).asInstanceOf[ArrayView]
+    // ... $ zip(a, b) ...
     val zip_ab = new TupleView(TupleType(new ArrayType(int, 8), new ArrayType(int, 8)), new TupleCreation(List(a, b)))
     val map_zip_ab = new ArrayView(TupleType(new ArrayType(int, 8), new ArrayType(int, 8)), new ArrayCreation(zip_ab, Cst(4), var_j))
     val map_map_zip_ab = new ArrayView(new ArrayType(TupleType(new ArrayType(int, 8), new ArrayType(int, 8)),4), new ArrayCreation(map_zip_ab, Cst(4), var_i))
+
+    // ... map(f) $ ...
+    var var_x = new Var("x", RangeUnkown)
+
 
     // map(map (f)) o ...
     val var_k = new Var("k", RangeUnkown)
@@ -384,8 +458,20 @@ object TestView extends App {
     ViewPrinter.emit(map_map_f1_7)
     println()
 
+    val n = Var("N")
+    val m = Var("M")
+
+    val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
+
+    val f = fun(
+    ArrayType(ArrayType(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
+      (X, Y) => MapWrg(fun(x => MapLcl(fun(y => MapSeq(add) $ Zip(x, y))) $ Y )) $ X
+    )
+
   }
 
+  @Test
   def test3() {
 
     val A = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("A"))
@@ -413,7 +499,7 @@ object TestView extends App {
 
   }
 
-
+  @Test
   def testSplit() {
 
     val A = new ArrayView(new ArrayType(int, 8), new InputAccess("A"))
@@ -434,6 +520,7 @@ object TestView extends App {
     println()
   }
 
+  @Test
   def testSplitJoin() {
 
     val A = new ArrayView(int, new InputAccess("A"))
@@ -454,6 +541,7 @@ object TestView extends App {
     println()
   }
 
+  @Test
   def testReorder() {
 
     val A = new ArrayView(int, new InputAccess("A"))
@@ -474,11 +562,5 @@ object TestView extends App {
     println()
   }
 
-
-  test2()
-  test3()
-  testSplit()
-  testSplitJoin()
-  testReorder()
 }
 
