@@ -381,25 +381,25 @@ object Var {
     substitions
   }
 
-  def getVars(expr: Expr) : Set[Var] = {
-    Expr.visit(immutable.HashSet[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.t))
+  def getVars(expr: Expr) : Seq[Var] = {
+    Expr.visit(Seq[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.t))
   }
 
-  def getVars(t: Type) : Set[Var] = {
+  def getVars(t: Type) : Seq[Var] = {
     t match {
       case at: ArrayType => getVars(at.elemT) ++ getVars(at.len)
       case vt: VectorType => getVars(vt.len)
-      case tt: TupleType => tt.elemsT.foldLeft(new immutable.HashSet[Var]())((set,inT) => set ++ getVars(inT))
-      case _ => immutable.HashSet()
+      case tt: TupleType => tt.elemsT.foldLeft(Seq[Var]())((set,inT) => set ++ getVars(inT))
+      case _ => Seq[Var]().distinct
     }
   }
 
-  def getVars(e: ArithExpr) : Set[Var] = {
+  def getVars(e: ArithExpr) : Seq[Var] = {
     e match {
-      case adds: Sum => adds.terms.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
-      case muls: Prod => muls.factors.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
-      case v: Var => immutable.HashSet(v)
-      case _ => immutable.HashSet()
+      case adds: Sum => adds.terms.foldLeft(Seq[Var]())((set,expr) => set ++ getVars(expr))
+      case muls: Prod => muls.factors.foldLeft(Seq[Var]())((set,expr) => set ++ getVars(expr))
+      case v: Var => Seq(v)
+      case _ => Seq[Var]()
     }
   }
 }

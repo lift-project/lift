@@ -147,7 +147,7 @@ object ExprSimplifier {
 
   private def prodFactorsSimplify(prod: Prod) : Prod = {
 
-    val powMap = scala.collection.mutable.Map[ArithExpr, Sum]()
+    val powMap = scala.collection.mutable.LinkedHashMap[ArithExpr, Sum]()
 
     prod.factors.foreach(factor => {
 
