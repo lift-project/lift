@@ -97,8 +97,8 @@ class TestMatrixMatrix {
 
   @Test def MATRIX_MATRIX_SIMPLE() {
 
-    val Msize = 512
-    val Ksize = 512
+    val Msize = 256
+    val Ksize = 64
     val Nsize = 512
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
@@ -108,7 +108,7 @@ class TestMatrixMatrix {
     val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         MapWrg(fun( Arow =>
@@ -126,7 +126,7 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0001f)
 
     (output, runtime)
 
@@ -135,8 +135,8 @@ class TestMatrixMatrix {
   @Test def MATRIX_MATRIX_SIMPLER() {
 
     val Msize = 64
-    val Ksize = 64
-    val Nsize = 64
+    val Ksize = 128
+    val Nsize = 256
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
@@ -145,7 +145,7 @@ class TestMatrixMatrix {
     val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         MapGlb(fun( Arow =>
@@ -163,7 +163,7 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
 
     (output, runtime)
 
