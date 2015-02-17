@@ -313,11 +313,11 @@ object OpenCLGenerator extends Generator {
       oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
 
       println("ReduceSeqCall read access: ")
-      ViewPrinter.emit(funCall.args(1).view.asInstanceOf[PrimitiveView])
+      ViewPrinter.emit(funCall.args(1).view)
       println()
 
       println("ReduceSeqCall write access: ")
-      ViewPrinter.emit(funCall.view.asInstanceOf[PrimitiveView])
+      ViewPrinter.emit(funCall.view)
       println()
 
       oclPrinter.println(";")
@@ -416,13 +416,13 @@ object OpenCLGenerator extends Generator {
 
     oclPrinter.print(access(call.mem, call.t, call.access) + " = ")
     println("Uf write access: ")
-    ViewPrinter.emit(call.view.asInstanceOf[PrimitiveView])
+    ViewPrinter.emit(call.view)
     println()
 
     oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.argsAccess))
     println("Uf read accesss: ")
     call.args.map(a => {
-      ViewPrinter.emit(a.view.asInstanceOf[PrimitiveView])
+      ViewPrinter.emit(a.view)
       println()
     })
 

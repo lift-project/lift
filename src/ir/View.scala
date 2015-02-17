@@ -261,7 +261,7 @@ object View {
 
   private def createViewUserFunDef(uf: UserFunDef, argView: View, f: (Type) => View): View = {
     // Use the lengths and iteration vars to mimic inputs
-    f(uf.outT).asInstanceOf[PrimitiveView]
+    f(uf.outT)
   }
 
   private def createViewReorderStride(call: FunCall, argView: View): View = {
@@ -282,8 +282,12 @@ object View {
 
 object ViewPrinter {
 
-  def emit(sv : PrimitiveView) : Unit = {
-    emitView(sv, new scala.collection.immutable.Stack(), new scala.collection.immutable.Stack())
+  def emit(sv : View) : Unit = {
+    sv match {
+      case _: PrimitiveView => emitView(sv, new scala.collection.immutable.Stack(), new scala.collection.immutable.Stack())
+      case _: TupleView => emitView(sv, new scala.collection.immutable.Stack(), new scala.collection.immutable.Stack())
+      case t => throw new IllegalArgumentException(t + " found, TupleView/PrimitiveView expected")
+    }
   }
 
 
