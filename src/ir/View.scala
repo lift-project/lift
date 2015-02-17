@@ -290,7 +290,7 @@ object View {
 
 object ViewPrinter {
 
-  def emit(sv : View) : Unit = {
+  def emit(sv : View) : ArithExpr = {
     sv match {
       case _: PrimitiveView => emitView(sv, new scala.collection.immutable.Stack(), new scala.collection.immutable.Stack())
       case _: TupleView => emitView(sv, new scala.collection.immutable.Stack(), new scala.collection.immutable.Stack())
@@ -300,20 +300,22 @@ object ViewPrinter {
 
 
   private def emitView(sv : View,
-                       arrayAccessStack : scala.collection.immutable.Stack[ArithExpr],
-                       tupleAccessStack : scala.collection.immutable.Stack[Int]) : Unit = {
+                       arrayAccessStack : scala.collection.immutable.Stack[(ArithExpr, ArithExpr)], // id, dimension size
+                       tupleAccessStack : scala.collection.immutable.Stack[Int]) : ArithExpr = {
     sv.operation match {
       case ia : InputAccess =>
         print(ia.name)
         assert(tupleAccessStack.isEmpty)
-        arrayAccessStack.foreach(idx => print("["+idx+"]"))
+        val res = arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).reduce(_+_)
+        print("["+res+"]")
+        res
 
       case aa : ArrayAccess =>
-        val newAAS = arrayAccessStack.push(aa.idx)
+        val newAAS = arrayAccessStack.push((aa.idx, Type.getLengths(aa.av.elemT).reduce(_*_)))
         emitView(aa.av,newAAS, tupleAccessStack)
 
       case ac : ArrayCreation =>
-        val idx = arrayAccessStack.top
+        val idx = arrayAccessStack.top._1
         val newAAS = arrayAccessStack.pop
         val newV = ac.v.replaced(ac.itVar, idx)
         emitView(newV,newAAS,tupleAccessStack)
@@ -321,21 +323,21 @@ object ViewPrinter {
       case as : ArraySplit =>
         val (chunkId,stack1) = arrayAccessStack.pop2
         val (chunkElemId,stack2) = stack1.pop2
-        val newIdx = chunkId*as.chunkSize+chunkElemId
-        val newAAS = stack2.push(newIdx)
+        val newIdx = chunkId._1*as.chunkSize+chunkElemId._1
+        val newAAS = stack2.push((newIdx, Cst(1)))
         emitView(as.av,newAAS,tupleAccessStack)
 
       case aj : ArrayJoin =>
         val (idx,stack) = arrayAccessStack.pop2
-        val chunkId = Floor(idx/aj.chunkSize)
-        val chunkElemId = idx - (chunkId *  aj.chunkSize)//idx % aj.chunkSize
-        val newAS = stack.push(chunkElemId).push(chunkId)
+        val chunkId = Floor(idx._1/aj.chunkSize)
+        val chunkElemId = idx._1 - (chunkId *  aj.chunkSize)//idx % aj.chunkSize
+        val newAS = stack.push((chunkElemId, Cst(1))).push((chunkId, Cst(1)))
         emitView(aj.av,newAS,tupleAccessStack)
 
       case ar : ArrayReorder =>
         val (idx,stack) = arrayAccessStack.pop2
-        val newIdx = ar.f(idx)
-        val newAS = stack.push(newIdx)
+        val newIdx = ar.f(idx._1)
+        val newAS = stack.push((newIdx, idx._2))
         emitView(ar.av,newAS,tupleAccessStack)
 
       case ta : TupleAccess =>
