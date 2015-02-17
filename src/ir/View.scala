@@ -186,7 +186,7 @@ object View {
       case tv: TupleView =>
         call.f.f.params(0).view = tv.access(0)
         call.f.f.params(1).view = tv.access(1).asInstanceOf[ArrayView].access(call.loopVar)
-        val newF: Type => View = t => f(ArrayType(t, Type.getLength(call.t))).asInstanceOf[ArrayView].access(call.loopVar)
+        val newF: Type => View = t => f(ArrayType(t, Type.getLength(call.t))).asInstanceOf[ArrayView].access(Cst(0))
 
         val innerView = createView(call.f.f.body, newF)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
