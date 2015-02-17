@@ -105,11 +105,11 @@ object View {
     }
   }
 
-  def createView(expr: Expr, lengths: List[(ArithExpr, Var)] = List()): View = {
+  def createView(expr: Expr, f: Type => View = t => View(t, new InputAccess(""))): View = {
     val result = expr match {
       case pr: ParamReference => getViewAtIndex(pr.p.view, pr.i)
       case p: Param => p.view //View(expr.t, new InputAccess())
-      case call: FunCall => createViewFunCall(call, lengths)
+      case call: FunCall => createViewFunCall(call, f)
     }
     expr.view = result
     result
@@ -124,20 +124,20 @@ object View {
     }
   }
 
-  private def createViewFunCall(call: FunCall, lengths: List[(ArithExpr, Var)]): View = {
+  private def createViewFunCall(call: FunCall, f: (Type) => View): View = {
     val argView = getViewFromArgs(call)
 
     call match {
-      case call: MapCall => createViewMap(call, argView, lengths)
-      case call: ReduceCall => createViewReduce(call, argView, lengths)
+      case call: MapCall => createViewMap(call, argView, f)
+      case call: ReduceCall => createViewReduce(call, argView, f)
       case call: FunCall =>
         call.f match {
           case l: Lambda => createViewLambda(l, call, argView)
-          case cf: CompFunDef => createViewCompFunDef(cf, argView, lengths)
+          case cf: CompFunDef => createViewCompFunDef(cf, argView, f)
           case z: Zip => createViewZip(z, call, argView)
           case Split(n) => createViewSplit(n, argView)
           case _: Join => createViewJoin(Type.getLength(call.argsType), argView)
-          case uf: UserFunDef => createViewUserFunDef(uf, argView, lengths)
+          case uf: UserFunDef => createViewUserFunDef(uf, argView, f)
           case _: ReorderStride => createViewReorderStride(call, argView)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
@@ -168,22 +168,27 @@ object View {
     }
   }
 
-  private def createViewMap(call: MapCall, argView: View, lengths: List[(ArithExpr, Var)]): View = {
+  private def createViewMap(call: MapCall, argView: View, f: (Type) => View): View = {
     argView match {
       case av: ArrayView =>
         call.f.f.params(0).view = av.access(call.loopVar)
-        val innerView = createView(call.f.f.body, lengths :+ (Type.getLength(call.t), call.loopVar))
+
+        val newF: Type => View = t => f(ArrayType(t, Type.getLength(call.t))).asInstanceOf[ArrayView].access(call.loopVar)
+
+        val innerView = createView(call.f.f.body, newF)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
 
-  private def createViewReduce(call: ReduceCall, argView: View, lengths: List[(ArithExpr, Var)]): View = {
+  private def createViewReduce(call: ReduceCall, argView: View, f: (Type) => View): View = {
     argView match {
       case tv: TupleView =>
         call.f.f.params(0).view = tv.access(0)
         call.f.f.params(1).view = tv.access(1).asInstanceOf[ArrayView].access(call.loopVar)
-        val innerView = createView(call.f.f.body, lengths :+ (Type.getLength(call.t), call.loopVar))
+        val newF: Type => View = t => f(ArrayType(t, Type.getLength(call.t))).asInstanceOf[ArrayView].access(call.loopVar)
+
+        val innerView = createView(call.f.f.body, newF)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
       case _ => throw new IllegalArgumentException("PANIC")
     }
@@ -202,11 +207,32 @@ object View {
     createView(l.body)
   }
 
-  private def createViewCompFunDef(cf: CompFunDef, argView: View, lengths: List[(ArithExpr, Var)]): View = {
+  private def createViewCompFunDef(cf: CompFunDef, argView: View, fun: (Type) => View): View = {
+
+    var actualFun = fun
+
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).view = v
-      createView(f.body, lengths)
+
+      f.body match {
+        case call: FunCall =>
+          call.f match {
+            case Split(n) =>
+              actualFun = t => {
+                val newType = t match {
+                  case ArrayType(ArrayType(elemT, d2), d1) => ArrayType(elemT, d2*d1)
+                }
+
+                fun(newType).asInstanceOf[ArrayView].split(n)
+              }
+            //          case _: ReorderStride => createViewReorderStride(call, argView)
+            case _ =>
+          }
+        case _ =>
+      }
+
+      createView(f.body, actualFun)
     })
   }
 
@@ -233,12 +259,9 @@ object View {
     }
   }
 
-  private def createViewUserFunDef(uf: UserFunDef, argView: View, lengths: List[(ArithExpr, Var)]): View = {
+  private def createViewUserFunDef(uf: UserFunDef, argView: View, f: (Type) => View): View = {
     // Use the lengths and iteration vars to mimic inputs
-    // TODO: Split/Join etc
-    val outArray = lengths.foldRight(uf.outT)((len, t) => ArrayType(t, len._1))
-    val outView = View(outArray, new InputAccess(""))
-    lengths.foldLeft(outView)((view, idx) => view.asInstanceOf[ArrayView].access(idx._2))
+    f(uf.outT).asInstanceOf[PrimitiveView]
   }
 
   private def createViewReorderStride(call: FunCall, argView: View): View = {
