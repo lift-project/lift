@@ -105,11 +105,11 @@ object View {
     }
   }
 
-  def createView(expr: Expr): View = {
+  def createView(expr: Expr, lengths: List[(ArithExpr, Var)] = List()): View = {
     val result = expr match {
       case pr: ParamReference => getViewAtIndex(pr.p.view, pr.i)
       case p: Param => p.view //View(expr.t, new InputAccess())
-      case call: FunCall => createViewFunCall(call)
+      case call: FunCall => createViewFunCall(call, lengths)
     }
     expr.view = result
     result
@@ -124,20 +124,20 @@ object View {
     }
   }
 
-  private def createViewFunCall(call: FunCall): View = {
+  private def createViewFunCall(call: FunCall, lengths: List[(ArithExpr, Var)]): View = {
     val argView = getViewFromArgs(call)
 
     call match {
-      case call: MapCall => createViewMap(call, argView)
-      case call: ReduceCall => createViewReduce(call, argView)
+      case call: MapCall => createViewMap(call, argView, lengths)
+      case call: ReduceCall => createViewReduce(call, argView, lengths)
       case call: FunCall =>
         call.f match {
           case l: Lambda => createViewLambda(l, call, argView)
-          case cf: CompFunDef => createViewCompFunDef(cf, argView)
+          case cf: CompFunDef => createViewCompFunDef(cf, argView, lengths)
           case z: Zip => createViewZip(z, call, argView)
           case Split(n) => createViewSplit(n, argView)
           case _: Join => createViewJoin(Type.getLength(call.argsType), argView)
-          case uf: UserFunDef => createViewUserFunDef(uf, argView)
+          case uf: UserFunDef => createViewUserFunDef(uf, argView, lengths)
           case _: ReorderStride => createViewReorderStride(call, argView)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
@@ -164,50 +164,26 @@ object View {
     } else if (call.args.length == 1) {
       createView(call.args(0))
     } else {
-      TupleView(call.argsType, new TupleCreation(call.args.map(createView)))
+      TupleView(call.argsType, new TupleCreation(call.args.map((expr: Expr) => createView(expr))))
     }
   }
 
-  private def createViewMap(call: MapCall, argView: View): View = {
+  private def createViewMap(call: MapCall, argView: View, lengths: List[(ArithExpr, Var)]): View = {
     argView match {
       case av: ArrayView =>
         call.f.f.params(0).view = av.access(call.loopVar)
-        val innerView = createView(call.f.f.body)
-        augmentViews(call.f.f.body, call)
-        val av2 = new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
-        call.view = av2
-        av2
+        val innerView = createView(call.f.f.body, lengths :+ (Type.getLength(call.t), call.loopVar))
+        new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
 
-  private def augmentViews(expr: Expr, mapCall: MapCall) : Unit = {
-    expr match {
-      case call: MapCall =>
-        augmentViews(call.f.f.body, mapCall)
-        call.view = new ArrayView(call.t, new ArrayCreation(call.view, Type.getLength(call.t)* Type.getLength(mapCall.t), mapCall.loopVar)).access(mapCall.loopVar)
-
-      case call: ReduceCall =>
-        augmentViews(call.f.f.body, mapCall)
-        call.view = new ArrayView(call.t, new ArrayCreation(call.view, Type.getLength(call.t) * Type.getLength(mapCall.t), mapCall.loopVar)).access(mapCall.loopVar)
-
-      case call: FunCall =>
-        call.view = new ArrayView(call.t, new ArrayCreation(call.view, Type.getLength(call.t)* Type.getLength(mapCall.t), mapCall.loopVar)).access(mapCall.loopVar)
-        call.f match {
-          case cf: CompFunDef => cf.funs.map(x => augmentViews(x.body, mapCall))
-          case l: Lambda => l.body.view = new ArrayView(call.t, new ArrayCreation(l.body.view, Type.getLength(call.t)* Type.getLength(mapCall.t), mapCall.loopVar)).access(mapCall.loopVar)
-          case _ =>
-        }
-      case _ =>
-    }
-  }
-
-  private def createViewReduce(call: ReduceCall, argView: View): View = {
+  private def createViewReduce(call: ReduceCall, argView: View, lengths: List[(ArithExpr, Var)]): View = {
     argView match {
       case tv: TupleView =>
         call.f.f.params(0).view = tv.access(0)
         call.f.f.params(1).view = tv.access(1).asInstanceOf[ArrayView].access(call.loopVar)
-        val innerView = createView(call.f.f.body)
+        val innerView = createView(call.f.f.body, lengths :+ (Type.getLength(call.t), call.loopVar))
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
       case _ => throw new IllegalArgumentException("PANIC")
     }
@@ -226,11 +202,11 @@ object View {
     createView(l.body)
   }
 
-  private def createViewCompFunDef(cf: CompFunDef, argView: View): View = {
+  private def createViewCompFunDef(cf: CompFunDef, argView: View, lengths: List[(ArithExpr, Var)]): View = {
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).view = v
-      createView(f.body)
+      createView(f.body, lengths)
     })
   }
 
@@ -257,9 +233,12 @@ object View {
     }
   }
 
-  private def createViewUserFunDef(uf: UserFunDef, argView: View): View = {
-    // TODO: what to do here ...
-    View(uf.outT, new InputAccess(""))
+  private def createViewUserFunDef(uf: UserFunDef, argView: View, lengths: List[(ArithExpr, Var)]): View = {
+    // Use the lengths and iteration vars to mimic inputs
+    // TODO: Split/Join etc
+    val outArray = lengths.foldRight(uf.outT)((len, t) => ArrayType(t, len._1))
+    val outView = View(outArray, new InputAccess(""))
+    lengths.foldLeft(outView)((view, idx) => view.asInstanceOf[ArrayView].access(idx._2))
   }
 
   private def createViewReorderStride(call: FunCall, argView: View): View = {
@@ -300,9 +279,9 @@ object ViewPrinter {
 
       case ac : ArrayCreation =>
         val idx = arrayAccessStack.top
-//        val newAAS = arrayAccessStack.pop
+        val newAAS = arrayAccessStack.pop
         val newV = ac.v.replaced(ac.itVar, idx)
-        emitView(newV,arrayAccessStack,tupleAccessStack)
+        emitView(newV,newAAS,tupleAccessStack)
 
       case as : ArraySplit =>
         val (chunkId,stack1) = arrayAccessStack.pop2
@@ -421,7 +400,7 @@ class ViewTest {
     val A = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("A"))
     val B = new ArrayView(new ArrayType(new ArrayType(int, 8), 4), new InputAccess("B"))
 
-    // map(a => map(b => map(zip(a,b)) o B) o A doesn't seem to be legal
+    //  map(map(map(f))) o map(a => map(b => map(zip(a,b)) o B) o A equivalent to
     // map(a => map(b => map(f) $ zip(a,b)) o B) o A
 
     // map(a => ... ) $ A
