@@ -139,6 +139,7 @@ object View {
           case _: Join => createViewJoin(Type.getLength(call.argsType), argView)
           case uf: UserFunDef => createViewUserFunDef(uf, argView, f)
           case _: ReorderStride => createViewReorderStride(call, argView)
+          case g: Gather => createViewGather(g, call, argView, f)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
@@ -150,7 +151,6 @@ object View {
           case i: Iterate =>
           case _: Transpose =>
           case _: Swap =>
-          case g: Gather =>
           case s: Scatter =>
           */
           case _ => argView
@@ -272,6 +272,14 @@ object View {
       case av: ArrayView => av.reorder( (i:ArithExpr) => { i / n + s * ( i % n) } )
       case _ => throw new IllegalArgumentException("PANIC")
     }
+  }
+
+  private def createViewGather(gather: Gather, call: FunCall, argView: View, f: Type => View): View = {
+    argView match {
+      case av: ArrayView =>
+        gather.f.params(0).view = av.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
+        createView(gather.f.body, f)
+      case _ => throw new IllegalArgumentException("PANIC")    }
   }
 
 }
