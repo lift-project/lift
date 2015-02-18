@@ -310,21 +310,15 @@ object OpenCLGenerator extends Generator {
       oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
 
       // TODO: This assumes a UserFun to be nested here!
-      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
-
       println("ReduceSeqCall read access: ")
-      ViewPrinter.emit(funCall.args(1).view)
-      println()
-
-      println("ReduceSeqCall write access: ")
-      ViewPrinter.emit(funCall.view)
-      println()
+      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.args.map(_.view):_*))
 
       oclPrinter.println(";")
     })
 
     // 4. generate output[0] = acc
-    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) =:= oclPrinter.toOpenCL(accVar))
+    println("ReduceSeqCall write access: ")
+    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.view) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
   }
@@ -414,18 +408,11 @@ object OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFunDef, call: FunCall) = {
     assert(call.f == u)
 
-    oclPrinter.print(access(call.mem, call.t, call.access) + " = ")
     println("Uf write access: ")
-    ViewPrinter.emit(call.view)
-    println()
+    oclPrinter.print(access(call.mem, call.t, call.view) + " = ")
 
-    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.argsAccess))
     println("Uf read accesss: ")
-    call.args.map(a => {
-      ViewPrinter.emit(a.view)
-      println()
-    })
-
+    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.args.map(_.view):_*))
 
     oclPrinter.println(";")
   }
@@ -480,7 +467,7 @@ object OpenCLGenerator extends Generator {
     applyTranspose(newAfs.patch(transposeIndex, Seq(), 1))
   }
 
-  private def access(memory: Memory, t: Type, accessFunctions: AccessFunctions): String = {
+  private def access(memory: Memory, t: Type, views: View*): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)
 
     oclMem match {
@@ -489,37 +476,31 @@ object OpenCLGenerator extends Generator {
           case tt: TupleType =>
             assert(tt.elemsT.length == coll.subMemories.length)
 
-            accessFunctions match {
-              case collAf: AccessFunctionsCollection =>
-                assert(collAf.elems.length == coll.subMemories.length)
-                ((coll.subMemories zip tt.elemsT) zip collAf.elems).map({
-                    case ((m, ty), af) => access(m, ty, af)
-                  } ).reduce(_ + ", " + _)
-
-            }
+            assert(views.length == coll.subMemories.length)
+            ((coll.subMemories zip tt.elemsT) zip views).map({
+              case ((m, ty), af) => access(m, ty, af)
+            } ).reduce(_ + ", " + _)
         }
 
       case _ =>
         oclMem.addressSpace match {
           case GlobalMemory =>
             //val afs = applyTranspose(accessFunctions.afs)
-            val afs = accessFunctions.afs
 
             "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(afs.foldRight[ArithExpr](Cst(0))((aF, i) => aF(i))) + "])"
+              "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
 
           case LocalMemory =>
             // access function from the kernel or MapWrg scope should not affect local
-            val localAccessFunctions = accessFunctions.afs.filter((a) => {
-              (a.scope != "MapWrg") && (a.scope != "Kernel")
-            })
+//            val localAccessFunctions = accessFunctions.afs.filter((a) => {
+//              (a.scope != "MapWrg") && (a.scope != "Kernel")
+//            })
             //val afs = applyTranspose(localAccessFunctions)
-            val afs = localAccessFunctions
 
             "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(afs.foldRight[ArithExpr](Cst(0))((aF, i) => aF(i))) + "])"
+              "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
 
           case PrivateMemory =>
             oclPrinter.toOpenCL(oclMem.variable)
