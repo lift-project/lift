@@ -7,7 +7,7 @@ import javax.imageio.ImageIO
 
 import opencl.executor._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 import opencl.ir._
 import ir._
 
@@ -29,6 +29,8 @@ class TestMisc {
   val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
   val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
+
+  val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
 
   val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
 
@@ -53,7 +55,9 @@ class TestMisc {
 
   val transpose = AccessFunction.transpose
 
+  @Ignore
   @Test def compositionTest(): Unit = {
+    // TODO: Crashes the VM, compilation fails on the native sise
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
@@ -80,7 +84,7 @@ class TestMisc {
     val Nsize = 512
     val Msize = 512
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => 1.0f * c * r)
-    val gold   = matrix.map(- _.reduce(_+_))
+    val gold   = matrix.map(- _.sum)
 
     val function = fun(
           ArrayType(ArrayType(Float, Var("N")), Var("M")),
@@ -94,7 +98,340 @@ class TestMisc {
     println("runtime = " + runtime)
 
     assertArrayEquals(gold, output, 0.0f)
+  }
 
+  @Test def testScatterGlb1D(): Unit = {
+    val Nsize = 128
+    val vector = Array.tabulate(Nsize)(_.toFloat)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => Scatter(AccessFunction.reverse)(MapGlb(id)) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(vector.reverse, output, 0.0f)
+  }
+
+  @Test def testScatterGlbSeqInnerDim(): Unit = {
+    val Nsize = 128
+    val Msize = 64
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => MapGlb(Scatter(AccessFunction.reverse)(MapSeq(id))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.map(_.reverse).flatten, output, 0.0f)
+  }
+
+  @Test def testScatterGlbSeqOuterDim(): Unit = {
+    val Nsize = 128
+    val Msize = 64
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => Scatter(AccessFunction.reverse)(MapGlb(MapSeq(id))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.reverse.flatten, output, 0.0f)
+  }
+
+  @Test def testScatterGlbSeqBothDims(): Unit = {
+    val Nsize = 128
+    val Msize = 64
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => Scatter(AccessFunction.reverse)(MapGlb(Scatter(AccessFunction.reverse)(MapSeq(id)))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.reverse.map(_.reverse).flatten, output, 0.0f)
+  }
+
+  @Test def testGatherGlb1D(): Unit = {
+    val Nsize = 128
+    val vector = Array.tabulate(Nsize)(_.toFloat)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => Gather(AccessFunction.reverse)(MapGlb(id)) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(vector.reverse, output, 0.0f)
+  }
+
+  @Test def testGatherGlbSeqInnerDim(): Unit = {
+    val Nsize = 128
+    val Msize = 64
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => MapGlb(Gather(AccessFunction.reverse)(MapSeq(id))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.map(_.reverse).flatten, output, 0.0f)
+  }
+
+  @Test def testGatherGlbSeqOuterDim(): Unit = {
+    val Nsize = 128
+    val Msize = 64
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => Gather(AccessFunction.reverse)(MapGlb(MapSeq(id))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.reverse.flatten, output, 0.0f)
+  }
+
+  @Test def testGatherGlbSeqBothDims(): Unit = {
+    val Nsize = 128
+    val Msize = 64
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => Gather(AccessFunction.reverse)(MapGlb(Gather(AccessFunction.reverse)(MapSeq(id)))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.reverse.map(_.reverse).flatten, output, 0.0f)
+  }
+
+  @Test def testGatherWrg1D(): Unit = {
+    val Nsize = 256
+    val vector = Array.tabulate(Nsize)(_.toFloat)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => Gather(AccessFunction.reverse)(MapWrg(id)) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(vector.reverse, output, 0.0f)
+  }
+
+  @Test def testGatherWrgLclInnerDim(): Unit = {
+    val Nsize = 256
+    val Msize = 128
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => MapWrg(Gather(AccessFunction.reverse)(MapLcl(id))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.map(_.reverse).flatten, output, 0.0f)
+  }
+
+  @Test def testGatherWrgLclOuterDim(): Unit = {
+    val Nsize = 256
+    val Msize = 128
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => Gather(AccessFunction.reverse)(MapWrg(MapLcl(id))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.reverse.flatten, output, 0.0f)
+  }
+
+  @Test def testGatherWrgLclBothDims(): Unit = {
+    val Nsize = 128
+    val Msize = 64
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      in => Gather(AccessFunction.reverse)(MapWrg(Gather(AccessFunction.reverse)(MapLcl(id)))) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.reverse.map(_.reverse).flatten, output, 0.0f)
+  }
+
+  @Test def testGatherSplit(): Unit = {
+    val Nsize = 256
+    val vector = Array.tabulate(Nsize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => Gather(AccessFunction.reverse)(MapGlb(MapSeq(id))) o Split(splitSize) $ in
+    )
+
+    val (output, runtime) = Execute(1,Nsize)(f, vector, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(vector.grouped(splitSize).toArray.reverse.flatten, output, 0.0f)
+  }
+
+  @Test def testSplitGather(): Unit = {
+    val Nsize = 256
+    val vector = Array.tabulate(Nsize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => Gather(AccessFunction.reverse)(MapGlb(MapSeq(id)) o Split(splitSize)) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
+  }
+
+  @Test def testScatterSplit(): Unit = {
+    val Nsize = 256
+    val vector = Array.tabulate(Nsize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => Scatter(AccessFunction.reverse)(MapGlb(MapSeq(id))) o Split(splitSize) $ in
+    )
+
+    val (output, runtime) = Execute(1,Nsize)(f, vector, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(vector.grouped(splitSize).toArray.reverse.flatten, output, 0.0f)
+  }
+
+  @Test def testSplitScatter(): Unit = {
+    val Nsize = 256
+    val vector = Array.tabulate(Nsize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => Scatter(AccessFunction.reverse)(MapGlb(MapSeq(id)) o Split(splitSize)) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
+  }
+
+
+  @Test def decompose(): Unit = {
+
+    val nSize = 512
+    val mSize = 256
+    val A = Array.tabulate(nSize, mSize)((x, y) => x + y.toFloat)
+    val B = Array.tabulate(nSize, mSize)((x, y) => x + y.toFloat)
+
+    val gold = A.map(a => B.map(b => (a, b).zipped)).map(_.map(_.map(_+_)))
+
+
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(ArrayType(Float, M), N),
+      (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o MapGlb(fun(x => MapSeq(fun(y => Zip(x, y))) $ Y )) $ X
+    )
+
+    val (output, runtime) = Execute(nSize)(f, A, B, nSize, mSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
   @Test def reduceOverTuples(): Unit = {
@@ -283,7 +620,7 @@ class TestMisc {
     val a6 = 2.506628273f
     val L = X.abs
     val K = 1.0f / (1.0f + 0.2316419f * L)
-    val w = 1.0f - 1.0f / 1 * a6 * math.exp((-L) * L / 2).toFloat * (a1 * K + a2 * K * K + a3 * K * K * K * +a4 * K * K * K * K + a5 * K * K * K * K * K);
+    val w = 1.0f - 1.0f / 1 * a6 * math.exp((-L) * L / 2).toFloat * (a1 * K + a2 * K * K + a3 * K * K * K * +a4 * K * K * K * K + a5 * K * K * K * K * K)
     if (X < 0) {
       1.0f - w
     } else {
@@ -434,7 +771,7 @@ class TestMisc {
     val espSqr = 500.0f
 
     // x, y, z, velocity x, y, z, mass
-    val input = Array.fill[Tuple7[Float,Float, Float, Float, Float, Float, Float]](inputSize)((util.Random.nextFloat(),util.Random.nextFloat(),util.Random.nextFloat(),0.0f,0.0f,0.0f,util.Random.nextFloat()))
+    val input = Array.fill(inputSize)((util.Random.nextFloat(),util.Random.nextFloat(),util.Random.nextFloat(),0.0f,0.0f,0.0f,util.Random.nextFloat()))
 
     val x = input.map(_._1)
     val y = input.map(_._2)
@@ -454,7 +791,7 @@ class TestMisc {
         r(1) = x._2 - y._2
         r(2) = x._3 - y._3
 
-        val distSqr = r.reduce(_+_)
+        val distSqr = r.sum
 
         val invDist = 1.0f / math.sqrt(distSqr + espSqr)
 
@@ -715,10 +1052,10 @@ class TestMisc {
 
   @Test def VECTOR_SCAL_REDUCE() {
 
-    val inputSize = 1024
+    val inputSize = 2048
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
-    val gold = inputArray.map(_ * alpha).reduce(_+_)
+    val gold = inputArray.map(_ * alpha).sum
 
     val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
       Join() o MapWrg(
@@ -730,7 +1067,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
 
-    assertEquals(gold,output.reduce(_+_),0.0)
+    assertEquals(gold,output.sum,0.0)
     //(gold, output).zipped.map(assertEquals(_,_,0.0))
 
     println("output.size = " + output.size)
@@ -742,7 +1079,7 @@ class TestMisc {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val gold = scala.math.sqrt(inputArray.map(x => x*x).reduce(_ + _)).toFloat
+    val gold = scala.math.sqrt(inputArray.map(x => x*x).sum).toFloat
 
     val f = fun(
       ArrayType(Float, Var("N")),
@@ -776,8 +1113,6 @@ class TestMisc {
 
     val r = 2
     val c = 4
-
-    val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
