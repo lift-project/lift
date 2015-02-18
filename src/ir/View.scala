@@ -186,6 +186,7 @@ object View {
       case tv: TupleView =>
         call.f.f.params(0).view = tv.access(0)
         call.f.f.params(1).view = tv.access(1).asInstanceOf[ArrayView].access(call.loopVar)
+
         val newF: Type => View = t => f(ArrayType(t, Type.getLength(call.t))).asInstanceOf[ArrayView].access(Cst(0))
 
         val innerView = createView(call.f.f.body, newF)
@@ -306,8 +307,8 @@ object ViewPrinter {
       case ia : InputAccess =>
         print(ia.name)
         assert(tupleAccessStack.isEmpty)
-        val res = arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).reduce(_+_)
-        print("["+res+"]")
+        val res = arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
+        println("["+res+"]")
         res
 
       case aa : ArrayAccess =>
