@@ -325,14 +325,15 @@ object ViewPrinter {
         val (chunkId,stack1) = arrayAccessStack.pop2
         val (chunkElemId,stack2) = stack1.pop2
         val newIdx = chunkId._1*as.chunkSize+chunkElemId._1
-        val newAAS = stack2.push((newIdx, Cst(1)))
+        val newAAS = stack2.push((newIdx, Type.getLength(as.av.elemT)))
         emitView(as.av,newAAS,tupleAccessStack)
 
       case aj : ArrayJoin =>
         val (idx,stack) = arrayAccessStack.pop2
-        val chunkId = Floor(idx._1/aj.chunkSize)
-        val chunkElemId = idx._1 - (chunkId *  aj.chunkSize)//idx % aj.chunkSize
-        val newAS = stack.push((chunkElemId, Cst(1))).push((chunkId, Cst(1)))
+        val chunkSize: ArithExpr = aj.chunkSize
+        val chunkId = Floor(idx._1/chunkSize)
+        val chunkElemId = idx._1 - (chunkId *  chunkSize)//idx % aj.chunkSize
+        val newAS = stack.push((chunkElemId, Type.getLength(aj.av.elemT)/chunkSize)).push((chunkId, chunkSize))
         emitView(aj.av,newAS,tupleAccessStack)
 
       case ar : ArrayReorder =>
