@@ -80,7 +80,7 @@ object OpenCLGenerator extends Generator {
       println("")
     }
 
-    AccessFunction.addAccessFunctions(f.body)
+//    AccessFunction.addAccessFunctions(f.body)
 
     View.createView(f.body)
 

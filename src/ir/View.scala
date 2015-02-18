@@ -105,7 +105,7 @@ object View {
     }
   }
 
-  def createView(expr: Expr, f: Type => View = t => View(t, new InputAccess(""))): View = {
+  def createView(expr: Expr, f: (Type, ArithExpr) => View = (t, expr) => View(t, new InputAccess(""))): View = {
     val result = expr match {
       case pr: ParamReference => getViewAtIndex(pr.p.view, pr.i)
       case p: Param => p.view //View(expr.t, new InputAccess())
@@ -124,7 +124,7 @@ object View {
     }
   }
 
-  private def createViewFunCall(call: FunCall, f: (Type) => View): View = {
+  private def createViewFunCall(call: FunCall, f: (Type, ArithExpr) => View): View = {
     val argView = getViewFromArgs(call)
 
     call match {
@@ -168,12 +168,12 @@ object View {
     }
   }
 
-  private def createViewMap(call: MapCall, argView: View, f: (Type) => View): View = {
+  private def createViewMap(call: MapCall, argView: View, f: (Type, ArithExpr) => View): View = {
     argView match {
       case av: ArrayView =>
         call.f.f.params(0).view = av.access(call.loopVar)
 
-        val newF: Type => View = t => f(ArrayType(t, Type.getLength(call.t))).asInstanceOf[ArrayView].access(call.loopVar)
+        val newF: (Type, ArithExpr) => View = (t, expr) => f(ArrayType(t, Type.getLength(call.t)), expr).asInstanceOf[ArrayView].access(call.loopVar)
 
         val innerView = createView(call.f.f.body, newF)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
@@ -181,13 +181,13 @@ object View {
     }
   }
 
-  private def createViewReduce(call: ReduceCall, argView: View, f: (Type) => View): View = {
+  private def createViewReduce(call: ReduceCall, argView: View, f: (Type, ArithExpr) => View): View = {
     argView match {
       case tv: TupleView =>
         call.f.f.params(0).view = tv.access(0)
         call.f.f.params(1).view = tv.access(1).asInstanceOf[ArrayView].access(call.loopVar)
 
-        val newF: Type => View = t => f(ArrayType(t, Type.getLength(call.t))).asInstanceOf[ArrayView].access(Cst(0))
+        val newF: (Type, ArithExpr) => View = (t, expr) => f(ArrayType(t, Type.getLength(call.t)), expr).asInstanceOf[ArrayView].access(Cst(0))
 
         val innerView = createView(call.f.f.body, newF)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
@@ -208,7 +208,7 @@ object View {
     createView(l.body)
   }
 
-  private def createViewCompFunDef(cf: CompFunDef, argView: View, fun: (Type) => View): View = {
+  private def createViewCompFunDef(cf: CompFunDef, argView: View, fun: (Type, ArithExpr) => View): View = {
 
     var actualFun = fun
 
@@ -220,14 +220,14 @@ object View {
         case call: FunCall =>
           call.f match {
             case Split(n) =>
-              actualFun = t => {
-                val newType = t match {
-                  case ArrayType(ArrayType(elemT, d2), d1) => ArrayType(elemT, d2*d1)
+              actualFun = (t, expr) => {
+                t match {
+                  case ArrayType(ArrayType(elemT, d2), d1) =>
+                    val newType = ArrayType(elemT, d2*d1)
+                    val (newN, newExpr) = if (d2 == Cst(1)) (Cst(1), n) else (n/expr, expr)
+                    fun(newType, newExpr).asInstanceOf[ArrayView].split(newN)
                 }
-
-                fun(newType).asInstanceOf[ArrayView].split(n)
               }
-            //          case _: ReorderStride => createViewReorderStride(call, argView)
             case _ =>
           }
         case _ =>
@@ -260,9 +260,9 @@ object View {
     }
   }
 
-  private def createViewUserFunDef(uf: UserFunDef, argView: View, f: (Type) => View): View = {
+  private def createViewUserFunDef(uf: UserFunDef, argView: View, f: (Type, ArithExpr) => View): View = {
     // Use the lengths and iteration vars to mimic inputs
-    f(uf.outT)
+    f(uf.outT, Cst(1))
   }
 
   private def createViewReorderStride(call: FunCall, argView: View): View = {
@@ -275,7 +275,7 @@ object View {
     }
   }
 
-  private def createViewGather(gather: Gather, call: FunCall, argView: View, f: Type => View): View = {
+  private def createViewGather(gather: Gather, call: FunCall, argView: View, f: (Type, ArithExpr) => View): View = {
     argView match {
       case av: ArrayView =>
         gather.f.params(0).view = av.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
