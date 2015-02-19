@@ -10,7 +10,7 @@ object NoOperation extends Operation
 class InputAccess(val name: String) extends Operation
 
 class ArrayCreation(val v: View, val len: ArithExpr, val itVar: Var) extends Operation
-class ArrayAccess(val av: ArrayView, val idx: ArithExpr) extends Operation
+class ArrayAccess(var av: ArrayView, val idx: ArithExpr) extends Operation
 class ArrayReorder(val av: ArrayView, val f: (ArithExpr) => ArithExpr) extends Operation
 class ArraySplit(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
 class ArrayJoin(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
@@ -140,6 +140,7 @@ object View {
           case uf: UserFunDef => createViewUserFunDef(uf, argView, f)
           case _: ReorderStride => createViewReorderStride(call, argView)
           case g: Gather => createViewGather(g, call, argView, f)
+          case s: Scatter => createViewScatter(s, call, argView, f)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
@@ -151,7 +152,6 @@ object View {
           case i: Iterate =>
           case _: Transpose =>
           case _: Swap =>
-          case s: Scatter =>
           */
           case _ => argView
         }
@@ -282,6 +282,46 @@ object View {
         createView(gather.f.body, f)
       case _ => throw new IllegalArgumentException("PANIC")    }
   }
+
+  private def createViewScatter(scatter: Scatter, call: FunCall, argView: View, f: (Type, ArithExpr) => View): View = {
+    argView match {
+      case av: ArrayView =>
+        scatter.f.params(0).view = av
+        createView(scatter.f.body, f)
+
+        // Find the matching ArrayAccess to the first ArrayCreation,
+        // and reorder the ArrayView in the access
+        scatterReorder(scatter.f.body.view, scatter.idx, call.t, 0)
+
+        scatter.f.body.view
+      case _ => throw new IllegalArgumentException("PANIC")    }
+  }
+
+  private def scatterReorder(view: View, idx: IndexFunction, t:Type, count: scala.Int): Unit = {
+    view match {
+      case av: ArrayView =>
+        scatterReorder(av.operation.asInstanceOf[ArrayCreation].v, idx, t, count+1)
+      case pv: PrimitiveView =>
+        findAccessAndReorder(pv, idx, t, count)
+    }
+  }
+
+  private def findAccessAndReorder(view: View, idx: IndexFunction, t:Type, count: scala.Int): Unit = {
+
+    view.operation match {
+      case access: ArrayAccess =>
+        if (count == 1) {
+          access.av = access.av.reorder( (i:ArithExpr) => { idx.f(i, t) } )
+        } else {
+          findAccessAndReorder(access.av, idx, t, count-1)
+        }
+      case ar: ArrayReorder => findAccessAndReorder(ar.av, idx, t, count)
+      case as: ArraySplit => findAccessAndReorder(as.av, idx, t, count)
+      case aj: ArrayJoin => findAccessAndReorder(aj.av, idx, t, count)
+    }
+  }
+
+
 
 }
 
