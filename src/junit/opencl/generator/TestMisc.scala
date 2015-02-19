@@ -1313,7 +1313,7 @@ class TestMisc {
 
     val f = f3
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Msize, Nsize)
+    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
@@ -1353,7 +1353,7 @@ class TestMisc {
         ) o Swap() $ matrix
       })
 
-    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Msize, Nsize, Ksize)
+    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
