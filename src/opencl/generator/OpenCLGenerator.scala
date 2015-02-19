@@ -223,9 +223,9 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
-      oclPrinter.println("return;")
-    }
+    // if (m.dim == 0) {
+    //  oclPrinter.println("return;")
+    // }
   }
 
   // MapGlb
@@ -236,9 +236,9 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
-      oclPrinter.println("return;")
-    }
+    // if (m.dim == 0) {
+    //  oclPrinter.println("return;")
+    // }
   }
   
   // MapLcl
