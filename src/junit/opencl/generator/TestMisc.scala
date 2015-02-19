@@ -353,7 +353,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Gather(AccessFunction.reverse)(MapGlb(MapSeq(id)) o Split(splitSize)) $ in
+      in => MapGlb(Gather(AccessFunction.reverse)(MapSeq(id))) o Split(splitSize) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
@@ -393,7 +393,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Scatter(AccessFunction.reverse)(MapGlb(MapSeq(id)) o Split(splitSize)) $ in
+      in => MapGlb(Scatter(AccessFunction.reverse)(MapSeq(id))) o Split(splitSize) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
