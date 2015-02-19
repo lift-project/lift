@@ -134,7 +134,7 @@ object View {
       case call: ReduceCall => createViewReduce(call, argView, f)
       case call: FunCall =>
         call.f match {
-          case l: Lambda => createViewLambda(l, call, argView)
+          case l: Lambda => createViewLambda(l, call, argView, f)
           case cf: CompFunDef => createViewCompFunDef(cf, argView, f)
           case z: Zip => createViewZip(z, call, argView)
           case Split(n) => createViewSplit(n, argView)
@@ -197,7 +197,7 @@ object View {
     }
   }
 
-  private def createViewLambda(l: Lambda, call: FunCall, argView: View): View = {
+  private def createViewLambda(l: Lambda, call: FunCall, argView: View, f: (Type, ArithExpr) => View): View = {
     assert(call.args.nonEmpty)
     if (call.args.length == 1) {
       if (l.params.length != 1) throw new NumberOfArgumentsException
@@ -207,7 +207,7 @@ object View {
 
       l.params.zipWithIndex.map({ case (p, i) => p.view = tv.access(i) })
     }
-    createView(l.body)
+    createView(l.body, f)
   }
 
   private def createViewCompFunDef(cf: CompFunDef, argView: View, fun: (Type, ArithExpr) => View): View = {
@@ -248,16 +248,16 @@ object View {
     }
   }
 
-  private def createViewSplit(n: ArithExpr, argView: View): View = {
+  private def createViewJoin(n: ArithExpr, argView: View): View = {
     argView match {
-      case av: ArrayView => av.split(n)
+      case av: ArrayView => av.join(n)
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
 
-  private def createViewJoin(n: ArithExpr, argView: View): View = {
+  private def createViewSplit(n: ArithExpr, argView: View): View = {
     argView match {
-      case av: ArrayView => av.join(n)
+      case av: ArrayView => av.split(n)
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
