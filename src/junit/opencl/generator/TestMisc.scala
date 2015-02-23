@@ -405,6 +405,108 @@ class TestMisc {
     assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
   }
 
+  @Test def joinThenSplit2D(): Unit = {
+
+    val Nsize = 256
+    val Msize = 128
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * Msize.toFloat)
+
+    val N = Var("N")
+    val M = Var("M")
+
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => Split(Msize) o MapGlb(0)(id) o Join() $ matrix
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.flatten, output, 0.0f)
+  }
+
+  @Test def joinThenSplit3D(): Unit = {
+
+    val Nsize = 256
+    val Msize = 128
+    val Ksize = 64
+    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      (matrix) => Split(Msize) o MapGlb(0)(MapSeq(id)) o Join() $ matrix
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
+  }
+
+  @Test def joinThenSplitInsideMap3D(): Unit = {
+
+    val Nsize = 256
+    val Msize = 128
+    val Ksize = 64
+    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      (matrix) => MapGlb(0)(Split(Ksize) o MapSeq(id) o Join()) $ matrix
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
+  }
+
+  @Test def joinJoinThenSplitSplit3D(): Unit = {
+
+    val Nsize = 256
+    val Msize = 128
+    val Ksize = 64
+    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      (matrix) => Split(Msize) o Split(Ksize) o MapGlb(0)(id) o Join() o Join() $ matrix
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
+  }
+
 
   @Test def decompose(): Unit = {
 
@@ -1313,7 +1415,7 @@ class TestMisc {
 
     val f = f3
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Msize, Nsize)
+    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
@@ -1353,7 +1455,7 @@ class TestMisc {
         ) o Swap() $ matrix
       })
 
-    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Msize, Nsize, Ksize)
+    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
