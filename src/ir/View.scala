@@ -138,7 +138,12 @@ object View {
           case cf: CompFunDef => createViewCompFunDef(cf, argView, f)
           case z: Zip => createViewZip(z, call, argView)
           case Split(n) => createViewSplit(n, argView)
-          case _: Join => createViewJoin(Type.getLength(call.argsType), argView)
+          case _: Join =>
+            val chunkSize = call.argsType match {
+              case ArrayType(ArrayType(_, n), _) => n
+              case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
+            }
+            createViewJoin(chunkSize, argView)
           case uf: UserFunDef => createViewUserFunDef(uf, argView, f)
           case _: ReorderStride => createViewReorderStride(call, argView)
           case g: Gather => createViewGather(g, call, argView, f)
@@ -373,7 +378,7 @@ object ViewPrinter {
       case aj : ArrayJoin =>
         val (idx,stack) = arrayAccessStack.pop2
         val chunkSize: ArithExpr = aj.chunkSize
-        val chunkId = Floor(idx._1/chunkSize)
+        val chunkId = idx._1/chunkSize
         val chunkElemId = idx._1 - (chunkId *  chunkSize)//idx % aj.chunkSize
         val newAS = stack.push((chunkElemId, Type.getLength(aj.av.elemT)/chunkSize)).push((chunkId, chunkSize))
         emitView(aj.av,newAS,tupleAccessStack)
