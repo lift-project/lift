@@ -122,7 +122,7 @@ object ExprSimplifier {
           case nee : NotEvaluableException => newResult = e :: newResult
         })
 
-      newResult = if (cstVal != neutral)
+      newResult = if (cstVal != neutral || (cstVal == neutral && newResult.length == 0))
         cstVal :: newResult
       else
         newResult
