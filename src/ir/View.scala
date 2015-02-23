@@ -380,7 +380,7 @@ object ViewPrinter {
         val chunkSize: ArithExpr = aj.chunkSize
         val chunkId = idx._1/chunkSize
         val chunkElemId = idx._1 - (chunkId *  chunkSize)//idx % aj.chunkSize
-        val newAS = stack.push((chunkElemId, Type.getLength(aj.av.elemT)/chunkSize)).push((chunkId, chunkSize))
+        val newAS = stack.push((chunkElemId, Type.getLengths(sv.asInstanceOf[ArrayView].elemT).reduce(_*_))).push((chunkId, Type.getLengths(aj.av.elemT).reduce(_*_)))
         emitView(aj.av,newAS,tupleAccessStack)
 
       case ar : ArrayReorder =>
