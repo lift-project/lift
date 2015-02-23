@@ -84,6 +84,10 @@ class TestExpr {
     assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) / Cst(1)))
   }
 
+  @Test def simplifySumZero(): Unit ={
+     assertEquals(Cst(0), ExprSimplifier.simplify(Cst(2) - Cst(2)))
+  }
+
   @Test def powSimplify(): Unit = {
     val N = Var("N")
     val expr = Pow( 1*1*Pow(2, -1), Log(2, N) + (1  * -1) ) * N
