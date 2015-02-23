@@ -1413,7 +1413,13 @@ class TestMisc {
         Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(MapGlb(1)(id)))) o Swap() $ matrix
       })
 
-    val f = f3
+    val f5 = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        Gather(transpose)(MapGlb(0)(MapGlb(1)(id)) o Split(Nsize)) o Join() $ matrix
+      })
+
+    val f = f5
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
