@@ -154,14 +154,15 @@ object View {
           case tG: toGlobal =>
             tG.f.params(0).view = argView
             createView(tG.f.body, f)
+          case i: Iterate =>
+            i.f.params(0).view = argView
+            createView(i.f.body, f)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
           case _: asScalar =>
           case asVector(n) =>
 
-
-          case i: Iterate =>
           case _: Transpose =>
           case _: Swap =>
           */
