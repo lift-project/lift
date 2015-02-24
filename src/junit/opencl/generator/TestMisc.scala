@@ -1457,8 +1457,8 @@ class TestMisc {
             MapGlb(1)(
               MapSeq(id)
             )
-          )
-        ) o Swap() $ matrix
+          ) o Split(Nsize)
+        ) o Join() $ matrix
       })
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)

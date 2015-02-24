@@ -71,13 +71,14 @@ object AccessFunction {
     val outerSize = outerType.len
     val innerSize = innerType.len
 
-    val elemSize = Type.getLengths(Type.getElemT(innerType)).reduce(_ * _)
+    println(outerSize)
+    println(innerSize)
 
-    val col = (((i/elemSize) % innerSize) * outerSize) * elemSize
-    val row = ((i/elemSize) / innerSize) * elemSize
+    val col = (i % innerSize) * outerSize
+    val row = i / innerSize
 
     // TODO: simplify this ...
-    row + col + (i % elemSize)
+    row + col
   }
 
   val reorderStride = (i: ArithExpr, t: Type) => {
