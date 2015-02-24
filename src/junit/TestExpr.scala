@@ -84,6 +84,16 @@ class TestExpr {
     assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) / Cst(1)))
   }
 
+  @Test def NByN() {
+    val N = Var("N")
+    assertEquals(Cst(1), ExprSimplifier.simplify(N / N))
+  }
+
+  @Test def zeroTimesVar(): Unit = {
+    val N = Var("N")
+    assertEquals(Cst(0), ExprSimplifier.simplify(Cst(0) * N))
+  }
+
   @Test def simplifySumTwoMinusTwo(): Unit ={
      assertEquals(Cst(0), ExprSimplifier.simplify(Cst(2) - Cst(2)))
   }
@@ -128,6 +138,10 @@ class TestExpr {
     val N = Var("N")
     val expr = Pow( 1*1*Pow(2, -1), Log(2, N) + (1  * -1) ) * N
     assertEquals(Cst(2), ExprSimplifier.simplify(expr))
+  }
+
+  @Test def minusOneTimesMinusFive(): Unit = {
+    assertEquals(Cst(5), ExprSimplifier.simplify(Cst(-1) * Cst(-5)))
   }
 
   @Test def simplifyAccess(): Unit = {
