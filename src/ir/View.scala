@@ -148,14 +148,19 @@ object View {
           case _: ReorderStride => createViewReorderStride(call, argView)
           case g: Gather => createViewGather(g, call, argView, f)
           case s: Scatter => createViewScatter(s, call, argView, f)
+          case tL: toLocal =>
+            tL.f.params(0).view = argView
+            createView(tL.f.body, f)
+          case tG: toGlobal =>
+            tG.f.params(0).view = argView
+            createView(tG.f.body, f)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
           case _: asScalar =>
           case asVector(n) =>
 
-          case tL: toLocal =>
-          case tG: toGlobal =>
+
           case i: Iterate =>
           case _: Transpose =>
           case _: Swap =>
@@ -215,9 +220,9 @@ object View {
     createView(l.body, f)
   }
 
-  private def createViewCompFunDef(cf: CompFunDef, argView: View, fun: (Type, ArithExpr) => View): View = {
+  private def createViewCompFunDef(cf: CompFunDef, argView: View, f: (Type, ArithExpr) => View): View = {
 
-    var actualFun = fun
+    val funs = scala.collection.mutable.Stack(f)
 
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
@@ -227,20 +232,24 @@ object View {
         case call: FunCall =>
           call.f match {
             case Split(n) =>
-              actualFun = (t, expr) => {
+              val currentF = funs.top
+              val newF: ((Type, ArithExpr) => View) = (t, expr) => {
                 t match {
                   case ArrayType(ArrayType(elemT, d2), d1) =>
                     val newType = ArrayType(elemT, d2*d1)
                     val (newN, newExpr) = if (d2 == Cst(1)) (Cst(1), n) else (n/expr, expr)
-                    fun(newType, newExpr).asInstanceOf[ArrayView].split(newN)
+                    currentF(newType, newExpr).asInstanceOf[ArrayView].split(newN)
                 }
               }
+              funs.push(newF)
+            case tL: toLocal => funs.push((t, expr) => View(t, new InputAccess("")))
+            case tG: toGlobal => if (funs.length > 1) funs.pop()
             case _ =>
           }
         case _ =>
       }
 
-      createView(f.body, actualFun)
+      createView(f.body, funs.top)
     })
   }
 
