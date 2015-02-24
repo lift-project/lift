@@ -84,8 +84,44 @@ class TestExpr {
     assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) / Cst(1)))
   }
 
-  @Test def simplifySumZero(): Unit ={
+  @Test def simplifySumTwoMinusTwo(): Unit ={
      assertEquals(Cst(0), ExprSimplifier.simplify(Cst(2) - Cst(2)))
+  }
+
+  @Test def simplifySumNMinusN(): Unit ={
+    val N = Var("N")
+    assertEquals(Cst(0), ExprSimplifier.simplify(N - N))
+  }
+
+  @Test def simplifySumZeroProducts(): Unit ={
+    val N = Var("N")
+    assertEquals(Cst(0), ExprSimplifier.simplify(4*N - 4*N))
+  }
+
+  @Test def simplifySumTwoPlusFive(): Unit ={
+    assertEquals(Cst(7), ExprSimplifier.simplify(Cst(2) + Cst(5)))
+  }
+
+  @Test def prodEqualsConstants(): Unit = {
+    assertEquals(Cst(2) * Cst(1), Cst(2) * Cst(1))
+    assertEquals(Cst(1) * Cst(2), Cst(2) * Cst(1))
+  }
+
+  @Test def prodEqualsVars(): Unit = {
+    val N = Var("N")
+    assertEquals(Cst(2) * N, Cst(2) * N)
+    assertEquals(N * Cst(2), Cst(2) * N)
+  }
+
+  @Test def sumEqualsConstants(): Unit = {
+    assertEquals(Cst(2) + Cst(1), Cst(2) + Cst(1))
+    assertEquals(Cst(1) + Cst(2), Cst(2) + Cst(1))
+  }
+
+  @Test def sumEqualsVars(): Unit = {
+    val N = Var("N")
+    assertEquals(Cst(2) + N, Cst(2) + N)
+    assertEquals(N + Cst(2), Cst(2) + N)
   }
 
   @Test def powSimplify(): Unit = {
