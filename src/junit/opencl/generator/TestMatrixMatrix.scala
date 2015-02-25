@@ -29,9 +29,9 @@ class TestMatrixMatrix {
 
   val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
-  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", Array("l", "r")),
+  val multAndSumUp = UserFunDef("multAndSumUp3", Array("acc", "l", "r"),
     "{ return acc + (l * r); }",
-    Seq(Float, TupleType(Float, Float)), Float)
+    Seq(Float, Float, Float), Float)
 
   def matrixMatrixPatternMultiply(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
     val Bt = B.transpose
@@ -113,7 +113,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapWrg(fun( Arow =>
           MapLcl(fun( Bcol =>
-              ReduceSeq(multAndSumUp, 0.0f) $ Zip(Arow, Bcol)
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
       })
@@ -876,7 +876,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
-            ReduceSeq(multAndSumUp, 0.0f) $ Zip(Arow, Bcol)
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
       })
@@ -886,7 +886,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        MapGlb(0)(MapGlb(1)(ReduceSeq(multAndSumUp, 0.0f))) o
+        MapGlb(0)(MapGlb(1)(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
         MapSeq(fun( Arow =>
           MapSeq(fun( Bcol =>
             Zip(Arow, Bcol)
@@ -926,7 +926,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
-            ReduceSeq(multAndSumUp, 0.0f) $ Zip(Arow, Bcol)
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) o Transpose() $ B
         )) $ A
       })
