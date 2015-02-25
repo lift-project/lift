@@ -88,6 +88,8 @@ object ExprSimplifier {
 
     resultSum = flattenSum(resultSum)
 
+    resultSum = simplifySumTerms(resultSum)
+
     // constant folding
     resultSum = sumCstFolding(resultSum)
 
@@ -97,7 +99,52 @@ object ExprSimplifier {
     resultSum
   }
 
+  private def simplifySumTerms(sum: Sum): Sum = {
 
+    val terms: List[ArithExpr] = sum.terms
+
+    def simplifyTerm(i: Int, ae: ArithExpr): Option[Sum] = {
+      val vars = Var.getVars(ae)
+
+      for (j <- 0 until vars.length) {
+        val v = vars(j)
+
+        for (k <- i + 1 until terms.length) {
+          val term = terms(k)
+
+          if (ArithExpr.contains(term, v)) {
+            val e: Sum = ae / v + term / v
+            val simplified = ExprSimplifier.simplify(e)
+
+            if (!simplified.isInstanceOf[Sum])
+              return Some(simplifySumTerms(Sum(ExprSimplifier.simplify(v * simplified) :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+
+          }
+        }
+      }
+      None
+    }
+
+    for (i <- 0 until terms.length) {
+      terms(i) match {
+        case p: Var =>
+          simplifyTerm(i, p) match {
+            case Some(toReturn) => return toReturn
+            case None =>
+          }
+
+        case p: Product =>
+          simplifyTerm(i, p) match {
+            case Some(toReturn) => return toReturn
+            case None =>
+          }
+
+        case t =>
+      }
+    }
+
+    sum
+  }
 
   // constant folding
   private def cstFolding(l : List[ArithExpr], op : ((Double,Double) => Double), neutral: Int) : List[ArithExpr] = {
