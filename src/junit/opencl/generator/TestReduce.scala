@@ -42,7 +42,7 @@ class TestReduce {
 
     val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
 
-    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+    assertEquals(inputData.sum, output.sum, 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -61,7 +61,7 @@ class TestReduce {
       ) o Split(128) o Split(2048) $ in
     }), inputData, inputData.length)
 
-    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+    assertEquals(inputData.sum, output.sum, 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -79,7 +79,7 @@ class TestReduce {
       ReduceHost(sumUp, 0.0f) $ in
     }), inputData, inputData.length)
 
-    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+    assertEquals(inputData.sum, output.sum, 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -104,7 +104,7 @@ class TestReduce {
         ) o Split(128) $ in
       }), inputData, inputData.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -121,12 +121,11 @@ class TestReduce {
         ) o Split(8) $ in
       }), firstOutput, firstOutput.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -147,7 +146,7 @@ class TestReduce {
       ) o Split(256) $ in
     }), inputData, inputData.length)
 
-    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+    assertEquals(inputData.sum, output.sum, 0.0)
 
     println("outputArray(0) = " + output(0))
     println("Runtime = " + runtime)
@@ -171,7 +170,7 @@ class TestReduce {
 
       }), inputData, inputData.length)
 
-      assertEquals("Note that this benchmark is only valid on device with a warp_size of 32!",inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+      assertEquals("Note that this benchmark is only valid on device with a warp_size of 32!",inputData.sum, output.sum, 0.1)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -191,12 +190,11 @@ class TestReduce {
       }), firstOutput, firstOutput.length)
 
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+      assertEquals(inputData.sum, output.sum, 0.1)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -221,7 +219,7 @@ class TestReduce {
 
       val (output, runtime) = Execute(inputData.length)(f, inputData, inputData.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -240,12 +238,11 @@ class TestReduce {
 
       }), firstOutput, firstOutput.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -273,7 +270,7 @@ class TestReduce {
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+      assertEquals(inputData.sum, output.sum, 0.1)
 
       (output, runtime)
     }
@@ -289,12 +286,11 @@ class TestReduce {
 
       }), firstOutput, firstOutput.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -316,7 +312,7 @@ class TestReduce {
 
       }), inputData, inputData.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -335,12 +331,11 @@ class TestReduce {
 
       }), firstOutput, firstOutput.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -364,7 +359,7 @@ class TestReduce {
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       (output, runtime)
     }
@@ -383,9 +378,8 @@ class TestReduce {
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
-      (output, runtime)
     }
 
   }
@@ -410,7 +404,7 @@ class TestReduce {
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       (output, runtime)
     }
@@ -430,9 +424,8 @@ class TestReduce {
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
-      (output, runtime)
     }
 
   }
@@ -457,7 +450,7 @@ class TestReduce {
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       (output, runtime)
     }
@@ -476,9 +469,8 @@ class TestReduce {
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
-      (output, runtime)
     }
 
   }
@@ -519,7 +511,7 @@ class TestReduce {
         println("first output(0) = " + output(0))
         println("first runtime = " + runtime)
 
-        assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+        assertEquals(inputData.sum, output.sum, 0.0)
 
         (output, runtime)
       }

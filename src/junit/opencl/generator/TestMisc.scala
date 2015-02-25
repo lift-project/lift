@@ -1713,8 +1713,6 @@ class TestMisc {
         vecAdd(AtimesX, scalledY)
       })
 
-    (asum, gemv)
-
     /*
     private def BlackScholes(s: Input): Fun =
     {
