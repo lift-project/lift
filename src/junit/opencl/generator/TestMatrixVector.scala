@@ -29,11 +29,7 @@ class TestMatrixVector {
 
   val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
-  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", Array("l", "r")),
-    "{ return acc + (l * r); }",
-    Seq(Float, TupleType(Float, Float)), Float)
-
-  val multAndSumUp3 = UserFunDef("multAndSumUp3", Array("acc", "l", "r"),
+  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", "l", "r"),
     "{ return acc + (l * r); }",
     Seq(Float, Float, Float), Float)
 
@@ -90,8 +86,6 @@ class TestMatrixVector {
     println("runtime = " + runtime)
 
     (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
   }
 
   @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY() {
@@ -197,7 +191,7 @@ class TestMatrixVector {
       (matrix, vector) => {
         MapWrg(
           Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(N / 32) o
-            Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride() o Split(32) o fun( r => Zip(vector, r) )
+            Join() o toLocal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o ReorderStride() o Split(32) o fun( r => Zip(vector, r) )
         ) $ matrix
       })
 
@@ -230,7 +224,7 @@ class TestMatrixVector {
       (matrix, vectorX, alpha) => {
         MapWrg(
           Join() o MapLcl(
-            MapSeq(fun( x => mult(alpha, x) )) o ReduceSeq(multAndSumUp, 0.0f)
+            MapSeq(fun( x => mult(alpha, x) )) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)
           ) o Split(4096) o fun( (r) => Zip(vectorX, r) )
         ) $ matrix
       })
@@ -249,7 +243,7 @@ class TestMatrixVector {
       Float,
       (tmp, vectorY, beta) => {
         Join() o Join() o MapWrg(
-          MapLcl(MapSeq(fun( x => multAndSumUp3(Get(x, 0), Get(x, 1), beta) )))
+          MapLcl(MapSeq(fun( x => multAndSumUp(Get(x, 0), Get(x, 1), beta) )))
         ) o Split(128) o Split(32) $ Zip(tmp, vectorY)
       })
 
@@ -282,10 +276,10 @@ class TestMatrixVector {
       Float,
       (matrix, vectorX, vectorY, alpha, beta) => {
         MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(fun( x => multAndSumUp3(Get(x, 0), Get(x, 1), beta))))) o Split(1) o
+          Join() o toGlobal(MapLcl(MapSeq(fun( x => multAndSumUp(Get(x, 0), Get(x, 1), beta))))) o Split(1) o
             fun( t => Zip(
               Join() o MapLcl(MapSeq(fun( x => mult(alpha, x) ))) o Split(1) o
-                Join() o toLocal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o Split(N) $ Zip(vectorX, Get(t, 0)),
+                Join() o toLocal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(N) $ Zip(vectorX, Get(t, 0)),
               Get(t, 1)) )
         ) $ Zip(matrix, vectorY)
       })
@@ -317,7 +311,7 @@ class TestMatrixVector {
         MapWrg(
           Join() o MapLcl(MapSeq(add)) o Split(1) o
             fun( t => Zip(
-              Join() o MapLcl(ReduceSeq(multAndSumUp, 0.0f)) o Split(N) $ Zip(vectorX, Get(t, 0)),
+              Join() o MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)) o Split(N) $ Zip(vectorX, Get(t, 0)),
               Get(t, 1) ) )
         ) $ Zip(matrix, vectorY)
       })
