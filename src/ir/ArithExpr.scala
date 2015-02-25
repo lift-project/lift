@@ -238,12 +238,22 @@ case class Log(b: ArithExpr, x: ArithExpr) extends ArithExpr {
 }
 
 case class Prod(factors: List[ArithExpr]) extends ArithExpr {
+  override def equals(that: Any) = that match {
+    case p: Prod => factors.length == p.factors.length && factors.intersect(p.factors).length == factors.length
+    case _ => false
+  }
+
   override def toString : String = {
     val m = if (factors.nonEmpty) factors.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) else {""}
     "(" + m +")"
   }
 }
 case class Sum(terms: List[ArithExpr]) extends ArithExpr {
+  override def equals(that: Any) = that match {
+    case s: Sum => terms.length == s.terms.length && terms.intersect(s.terms).length == terms.length
+    case _ => false
+  }
+
   override def toString: String = {
     val m = if (terms.nonEmpty) terms.map((t) => t.toString).reduce((s1, s2) => s1 + "+" + s2) else {""}
     "(" + m +")"

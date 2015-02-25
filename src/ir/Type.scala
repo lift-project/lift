@@ -219,11 +219,13 @@ object Type {
         val closedFormLen = {
           val inLen = ExprSimplifier.simplify(inAT.len)
           val outLen = ExprSimplifier.simplify(outAT.len)
-          if (inLen == outLen)
-            return ouT
 
           inLen match {
             case tv: TypeVar =>
+              if (inLen == outLen) {
+                tv.range = ContinousRange(tvMap.get(tv).get, tvMap.get(tv).get)
+                return ouT
+              }
               // recognises output independent of tv
               if (!ArithExpr.contains(outLen, tv))
                return ouT
