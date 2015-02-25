@@ -157,13 +157,13 @@ object View {
           case i: Iterate =>
             i.f.params(0).view = argView
             createView(i.f.body, f)
+          case t: Transpose => createViewTranspose(t, call, argView, f)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
           case _: asScalar =>
           case asVector(n) =>
 
-          case _: Transpose =>
           case _: Swap =>
           */
           case _ => argView
@@ -277,6 +277,18 @@ object View {
     argView match {
       case av: ArrayView => av.reorder( (i:ArithExpr) => { i / n + s * ( i % n) } )
       case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewTranspose(t: Transpose, call: FunCall, argView: View, f: (Type) => View): View = {
+    t.params(0).view = argView
+
+    call.argsType match {
+      case ArrayType(ArrayType(typ, m), n) =>
+        argView.asInstanceOf[ArrayView].
+          join(n).
+          reorder((i:ArithExpr) => { AccessFunction.transpose(i, call.argsType) }).
+          split(m)
     }
   }
 
