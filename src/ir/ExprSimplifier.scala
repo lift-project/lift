@@ -157,6 +157,7 @@ object ExprSimplifier {
       }
 
       base match {
+        case Cst(0) => return Prod(List(0))
         case Cst(c) =>
           // fractions simplification
           val factors = primeFactors(c)

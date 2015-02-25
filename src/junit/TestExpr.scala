@@ -94,6 +94,10 @@ class TestExpr {
     assertEquals(Cst(0), ExprSimplifier.simplify(Cst(0) * N))
   }
 
+  @Test def zeroTimesTwo(): Unit = {
+    assertEquals(Cst(0), ExprSimplifier.simplify(Cst(0) * Cst(2)))
+  }
+
   @Test def simplifySumTwoMinusTwo(): Unit ={
      assertEquals(Cst(0), ExprSimplifier.simplify(Cst(2) - Cst(2)))
   }
