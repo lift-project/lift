@@ -191,7 +191,7 @@ class TestMatrixVector {
       (matrix, vector) => {
         MapWrg(
           Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(N / 32) o
-            Join() o toLocal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o ReorderStride() o Split(32) o fun( r => Zip(vector, r) )
+            Join() o toLocal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(32) o ReorderStride(N/32) o fun( r => Zip(vector, r) )
         ) $ matrix
       })
 

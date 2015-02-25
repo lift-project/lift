@@ -1247,7 +1247,7 @@ class TestMisc {
         Join() o MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
             Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride()
+            Join() o toLocal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride(1024/32)
         ) o Split(1024) $ input
 
     )

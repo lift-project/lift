@@ -145,7 +145,7 @@ object View {
             }
             createViewJoin(chunkSize, argView)
           case uf: UserFunDef => createViewUserFunDef(uf, argView, f)
-          case _: ReorderStride => createViewReorderStride(call, argView)
+          case ReorderStride(s) => createViewReorderStride(s, call, argView)
           case g: Gather => createViewGather(g, call, argView, f)
           case s: Scatter => createViewScatter(s, call, argView, f)
           case tL: toLocal =>
@@ -271,9 +271,8 @@ object View {
     f(uf.outT)
   }
 
-  private def createViewReorderStride(call: FunCall, argView: View): View = {
-    val s = Type.getLength(call.argsType)
-    val n = Type.getLength(Type.getElemT(call.argsType))
+  private def createViewReorderStride(s: ArithExpr, call: FunCall, argView: View): View = {
+    val n = Type.getLength(call.argsType) / s
 
     argView match {
       case av: ArrayView => av.reorder( (i:ArithExpr) => { i / n + s * ( i % n) } )

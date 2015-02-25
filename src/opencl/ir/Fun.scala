@@ -175,13 +175,10 @@ object jToLocal {
 }
 
 
-case class ReorderStride() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+case class ReorderStride(s: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
   //override def copy() = ReorderStride()
 object jReorderStride {
-  def create = ReorderStride()
-
-  def comp(f: Lambda) = create o f
-  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
+  def create (s: ArithExpr)= ReorderStride(s)
 }
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
