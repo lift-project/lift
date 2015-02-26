@@ -348,8 +348,8 @@ class TestReduce {
   @Test def AMD_DERIVED() {
 
     val inputSize = 16777216
-    val inputData = Array.fill(inputSize)(1.0f)
-    //val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
+//    val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
