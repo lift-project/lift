@@ -166,7 +166,7 @@ class TestReduce {
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Join() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(sumUp, 0.0f)) o Split(2) ) ) o Split(32) o
             Iterate(2)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2048) o ReorderStride(2048 / 262144)
+            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2048) o ReorderStride(262144 / 2048)
         ) o Split(262144) $ in
 
       }), inputData, inputData.length)
