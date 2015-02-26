@@ -262,11 +262,11 @@ class TestReduce {
 
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
-        Join() o asScalar() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
+        Join() o MapWrg(
+          asScalar() o Join() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
             Iterate(8)( Join() o MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f))) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f)))) o Split(2)
-        ) o asVector(4) o Split(2048) $ in
+            Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f)))) o Split(2) o asVector(4)
+        ) o Split(2048) $ in
 
       }), inputData, inputData.length)
 
@@ -354,9 +354,11 @@ class TestReduce {
     val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
-        Join() o asScalar() o Join() o MapWrg(
+        Join() o MapWrg(
+          asScalar() o Join() o
           MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp), Vectorize(2)(0.0f)))// o ReorderStride())
-        ) o Split(128) o asVector(2) o Split(4096) $ in
+            o Split(128) o asVector(2)
+        ) o Split(4096) $ in
 
       }), inputData, inputData.length)
 
@@ -400,9 +402,9 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o asScalar() o Join() o MapWarp(
+            asScalar() o Join() o Join() o MapWarp(
             MapLane(MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f)))
-          ) o Split(1) o asVector(4) o Split(32768)
+          ) o Split(1) o Split(8192) o asVector(4)
         ) o Split(32768) $ in
 
       }), inputData, inputData.length)
@@ -447,9 +449,9 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o asScalar() o MapLcl(
+          asScalar() o Join() o MapLcl(
             MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f))
-          ) o asVector(4) o Split(32768)
+          ) o Split(8192) o asVector(4)
         ) o Split(32768) $ in
 
       }), inputData, inputData.length)

@@ -15,6 +15,8 @@ class ArrayReorder(val av: ArrayView, val f: (ArithExpr) => ArithExpr) extends O
 class ArraySplit(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
 class ArrayJoin(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
 class ArrayZip(val tv: TupleView) extends Operation
+class ArrayAsVector(val av: ArrayView, val n: ArithExpr) extends Operation
+class ArrayAsScalar(val av: ArrayView, val n: ArithExpr) extends Operation
 
 class TupleCreation(val views: Seq[View]) extends Operation
 class TupleAccess(val tv: TupleView, val i: Int) extends Operation
@@ -70,6 +72,28 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
     new ArrayView(elemT, ar)
   }
 
+  def asVector(n: ArithExpr): ArrayView = {
+    elemT match {
+      case st: ScalarType =>
+        val av = new ArrayAsVector(this, n)
+        new ArrayView(elemT, av)
+      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of " + elemT + " into vector types")
+    }
+  }
+
+  def asScalar(): ArrayView = {
+    elemT match  {
+      case VectorType(st, n) =>
+        val av = new ArrayAsScalar(this, n)
+        new ArrayView(st, av)
+      case st: ScalarType =>
+        this.operation match {
+          case aav: ArrayAsVector => aav.av
+          case _ => this
+        }
+      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of " + elemT + " into scalar types")
+    }
+  }
 
   override def toString = {
     elemT.toString + " " + operation.toString
@@ -105,6 +129,7 @@ object View {
       case at: ArrayType => new ArrayView(at.elemT, op)
       case st: ScalarType => new PrimitiveView(op)
       case tt: TupleType => new TupleView(tt, op)
+      case vt: VectorType => new PrimitiveView(op)
     }
   }
 
@@ -158,12 +183,12 @@ object View {
           case i: Iterate =>
             i.f.params(0).view = argView
             createView(i.f.body, f)
-          case t: Transpose => createViewTranspose(t, call, argView, f)
+          case t: Transpose => createViewTranspose(t, call, argView)
+          case asVector(n) => createViewAsVector(n, argView)
+          case _: asScalar => createViewAsScalar(argView)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
-          case _: asScalar =>
-          case asVector(n) =>
 
           case _: Swap =>
           */
@@ -267,6 +292,20 @@ object View {
     }
   }
 
+  private def createViewAsVector(n: ArithExpr, argView: View): View = {
+    argView match {
+      case av: ArrayView => av.asVector(n)
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewAsScalar(argView: View): View = {
+    argView match {
+      case av: ArrayView => av.asScalar()
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
   private def createViewUserFunDef(uf: UserFunDef, argView: View, f: (Type) => View): View = {
     // Use the lengths and iteration vars to mimic inputs
     f(uf.outT)
@@ -281,9 +320,7 @@ object View {
     }
   }
 
-  private def createViewTranspose(t: Transpose, call: FunCall, argView: View, f: (Type) => View): View = {
-    t.params(0).view = argView
-
+  private def createViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
     call.argsType match {
       case ArrayType(ArrayType(typ, m), n) =>
         argView.asInstanceOf[ArrayView].
@@ -414,6 +451,11 @@ object ViewPrinter {
         val newTAS = tupleAccessStack.pop
         emitView(az.tv.access(i) ,arrayAccessStack,newTAS)
 
+      case aav: ArrayAsVector =>
+        emitView(aav.av, arrayAccessStack.map(x => (x._1*aav.n, x._2)), tupleAccessStack)
+
+      case aas: ArrayAsScalar =>
+        emitView(aas.av, arrayAccessStack.map(x => (x._1/aas.n, x._2)), tupleAccessStack)
 
      }
   }
