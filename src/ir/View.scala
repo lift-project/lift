@@ -3,6 +3,8 @@ package ir
 import opencl.ir._
 import org.junit.Test
 
+import scala.collection.immutable.Stack
+
 sealed abstract class Operation
 
 object NoOperation extends Operation
@@ -153,7 +155,7 @@ object View {
   }
 
   private def createViewFunCall(call: FunCall, f: (Type) => View): View = {
-    val argView = getViewFromArgs(call)
+    val argView = getViewFromArgs(call, f)
 
     call match {
       case call: MapCall => createViewMap(call, argView, f)
@@ -197,13 +199,13 @@ object View {
     }
   }
 
-  private def getViewFromArgs(call: FunCall): View = {
+  private def getViewFromArgs(call: FunCall, f: (Type) => View): View = {
     if (call.args.isEmpty) {
       NoView
     } else if (call.args.length == 1) {
-      createView(call.args(0))
+      createView(call.args(0), f)
     } else {
-      TupleView(call.argsType, new TupleCreation(call.args.map((expr: Expr) => createView(expr))))
+      TupleView(call.argsType, new TupleCreation(call.args.map((expr: Expr) => createView(expr, f))))
     }
   }
 
@@ -388,16 +390,16 @@ object ViewPrinter {
 
   def emit(sv : View) : ArithExpr = {
     sv match {
-      case _: PrimitiveView => emitView(sv, new scala.collection.immutable.Stack(), new scala.collection.immutable.Stack())
-      case _: TupleView => emitView(sv, new scala.collection.immutable.Stack(), new scala.collection.immutable.Stack())
+      case _: PrimitiveView => emitView(sv, new Stack(), new Stack())
+      case _: TupleView => emitView(sv, new Stack(), new Stack())
       case t => throw new IllegalArgumentException(t + " found, TupleView/PrimitiveView expected")
     }
   }
 
 
   private def emitView(sv : View,
-                       arrayAccessStack : scala.collection.immutable.Stack[(ArithExpr, ArithExpr)], // id, dimension size
-                       tupleAccessStack : scala.collection.immutable.Stack[Int]) : ArithExpr = {
+                       arrayAccessStack : Stack[(ArithExpr, ArithExpr)], // id, dimension size
+                       tupleAccessStack : Stack[Int]) : ArithExpr = {
     sv.operation match {
       case ia : InputAccess =>
         print(ia.name)
@@ -407,7 +409,7 @@ object ViewPrinter {
         res
 
       case aa : ArrayAccess =>
-        val newAAS = arrayAccessStack.push((aa.idx, Type.getLengths(aa.av.elemT).reduce(_*_)))
+        val newAAS = arrayAccessStack.push((aa.idx, getLengthForArrayAccess(aa.av.elemT, tupleAccessStack)))
         emitView(aa.av,newAAS, tupleAccessStack)
 
       case ac : ArrayCreation =>
@@ -458,6 +460,18 @@ object ViewPrinter {
         emitView(aas.av, arrayAccessStack.map(x => (x._1/aas.n, x._2)), tupleAccessStack)
 
      }
+  }
+
+  private def getLengthForArrayAccess(t: Type, tupleAccesses: Stack[Int]): ArithExpr = {
+
+    if (tupleAccesses.isEmpty) {
+      Type.getLengths(t).reduce(_*_)
+    } else {
+      t match {
+        case tt: TupleType => getLengthForArrayAccess(Type.getTypeAtIndex(tt, tupleAccesses.top), tupleAccesses.pop)
+        case ArrayType(elemT, n) => getLengthForArrayAccess(elemT, tupleAccesses) * n
+      }
+    }
   }
 }
 
