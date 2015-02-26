@@ -166,25 +166,14 @@ object View {
           case cf: CompFunDef => createViewCompFunDef(cf, argView, f)
           case z: Zip => createViewZip(z, call, argView)
           case Split(n) => createViewSplit(n, argView)
-          case _: Join =>
-            val chunkSize = call.argsType match {
-              case ArrayType(ArrayType(_, n), _) => n
-              case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
-            }
-            createViewJoin(chunkSize, argView)
+          case _: Join => createViewJoin(call, argView)
           case uf: UserFunDef => createViewUserFunDef(uf, argView, f)
           case ReorderStride(s) => createViewReorderStride(s, call, argView)
           case g: Gather => createViewGather(g, call, argView, f)
           case s: Scatter => createViewScatter(s, call, argView, f)
-          case tL: toLocal =>
-            tL.f.params(0).view = argView
-            createView(tL.f.body, f)
-          case tG: toGlobal =>
-            tG.f.params(0).view = argView
-            createView(tG.f.body, f)
-          case i: Iterate =>
-            i.f.params(0).view = argView
-            createView(i.f.body, f)
+          case tL: toLocal => createViewToLocal(tL, argView, f)
+          case tG: toGlobal => createViewToGlobal(tG, argView, f)
+          case i: Iterate => createViewIterate(i, argView, f)
           case t: Transpose => createViewTranspose(t, call, argView)
           case asVector(n) => createViewAsVector(n, argView)
           case _: asScalar => createViewAsScalar(argView)
@@ -197,6 +186,21 @@ object View {
           case _ => argView
         }
     }
+  }
+
+  private def createViewIterate(i: Iterate, argView: View, f: (Type) => View): View = {
+    i.f.params(0).view = argView
+    createView(i.f.body, f)
+  }
+
+  private def createViewToGlobal(tG: toGlobal, argView: View, f: (Type) => View): View = {
+    tG.f.params(0).view = argView
+    createView(tG.f.body, f)
+  }
+
+  private def createViewToLocal(tL: toLocal, argView: View, f: (Type) => View): View = {
+    tL.f.params(0).view = argView
+    createView(tL.f.body, f)
   }
 
   private def getViewFromArgs(call: FunCall, f: (Type) => View): View = {
@@ -280,9 +284,14 @@ object View {
     }
   }
 
-  private def createViewJoin(n: ArithExpr, argView: View): View = {
+  private def createViewJoin(call: FunCall, argView: View): View = {
+    val chunkSize = call.argsType match {
+      case ArrayType(ArrayType(_, n), _) => n
+      case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
+    }
+
     argView match {
-      case av: ArrayView => av.join(n)
+      case av: ArrayView => av.join(chunkSize)
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
