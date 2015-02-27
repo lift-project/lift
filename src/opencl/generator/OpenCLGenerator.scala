@@ -62,7 +62,6 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.access = IdAccessFunctions
       p.view = View(p.t, new InputAccess(""))
     })
 
@@ -79,8 +78,6 @@ object OpenCLGenerator extends Generator {
       TypedOpenCLMemory.getAllocatedMemory(f.body, f.params).map(m => println(m.toString))
       println("")
     }
-
-//    AccessFunction.addAccessFunctions(f.body)
 
     View.createView(f.body)
 
@@ -429,42 +426,6 @@ object OpenCLGenerator extends Generator {
   
   private def apply(fun: Any, arg: Any*) : String = {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
-  }
-
-  private def applyTranspose(accessFunctions: Array[AccessFunction]): Array[AccessFunction] = {
-    val afs = accessFunctions
-    val transposeIndex = afs.indexWhere({
-      case _:TransposeAccessFunction => true
-      case _ => false })
-
-    if (transposeIndex == -1) return afs
-
-    val transposeAf = afs(transposeIndex).asInstanceOf[TransposeAccessFunction]
-
-    val firstMapIndex = afs.indexWhere({
-      case _:MapAccessFunction => true
-      case _ => false
-    }, transposeIndex + 1)
-    val firstMap = afs(firstMapIndex) match { case maf: MapAccessFunction => maf }
-
-    val secondMapIndex = afs.indexWhere({
-      case _:MapAccessFunction => true
-      case _ => false
-    }, firstMapIndex + 1)
-    val secondMap = afs(secondMapIndex) match { case maf: MapAccessFunction => maf }
-
-    val newFirstMapChunkSize = ArithExpr.substitute(
-      firstMap.chunkSize,
-      scala.collection.immutable.Map(transposeAf.dim0 -> transposeAf.dim1))
-    val newFirstMap = MapAccessFunction(secondMap.loopVar, newFirstMapChunkSize, firstMap.mapName)
-    val newSecondMap = MapAccessFunction(firstMap.loopVar, secondMap.chunkSize, secondMap.mapName)
-
-    val newAfs = afs.clone()
-    newAfs(firstMapIndex) = newFirstMap
-    newAfs(secondMapIndex) = newSecondMap
-
-    // recursively search for the next transpose (after removing the transpose access function)
-    applyTranspose(newAfs.patch(transposeIndex, Seq(), 1))
   }
 
   private def access(memory: Memory, t: Type, views: View*): String = {

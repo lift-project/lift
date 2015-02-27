@@ -343,7 +343,7 @@ object View {
       case ArrayType(ArrayType(typ, m), n) =>
         argView.asInstanceOf[ArrayView].
           join(n).
-          reorder((i:ArithExpr) => { AccessFunction.transpose(i, call.argsType) }).
+          reorder((i:ArithExpr) => { IndexFunction.transpose(i, call.argsType) }).
           split(m)
     }
   }

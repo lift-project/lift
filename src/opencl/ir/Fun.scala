@@ -201,7 +201,28 @@ object jSwap {
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
 
 object IndexFunction {
-  implicit def apply(f: (ArithExpr, Type) => ArithExpr) = new IndexFunction(f)
+  implicit def apply(f: (ArithExpr, Type) => ArithExpr): IndexFunction = new IndexFunction(f)
+
+  // predefined reorder functions ...
+  val transpose = (i: ArithExpr, t: Type) => {
+    val outerType = t match { case at: ArrayType => at }
+    val innerType = outerType.elemT match { case at: ArrayType => at }
+
+    val outerSize = outerType.len
+    val innerSize = innerType.len
+
+    val col = (i % innerSize) * outerSize
+    val row = i / innerSize
+
+    // TODO: simplify this ...
+    row + col
+  }
+
+  val reverse = (i: ArithExpr, t: Type) => {
+    val n = Type.getLength(t)
+
+    n - 1 - i
+  }
 }
 
 case class Gather(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
