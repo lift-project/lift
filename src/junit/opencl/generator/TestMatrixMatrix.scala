@@ -2,7 +2,7 @@ package junit.opencl.generator
 
 import opencl.executor._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
 import ir._
 
@@ -163,6 +163,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0f)
   }
 
+  @Ignore
   @Test def MATRIX_MATRIX_Christophe() {
 
     val Msize = 32

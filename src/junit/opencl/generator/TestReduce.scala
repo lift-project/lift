@@ -152,7 +152,9 @@ class TestReduce {
     println("Runtime = " + runtime)
   }
 
+  @Ignore
   @Test def NVIDIA_C() {
+    // TODO: Only valid with warp size of 32. Perhaps query the device and use org.junit.Assume to conditionally ignore the test
 
     val inputSize = 16777216
     //val inputData = Array.fill(inputSize)(1.0f)
