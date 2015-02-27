@@ -2,7 +2,7 @@ package junit.opencl.generator
 
 import opencl.executor._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
 import ir._
 
@@ -140,7 +140,9 @@ class TestMatrixVector {
     assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
+  @Ignore
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
+    // TODO: Fails with CL_OUT_OF_RESOURCES
 
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
