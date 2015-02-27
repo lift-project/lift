@@ -35,26 +35,26 @@ class TestMatrixVector {
 
   def matrixVector(matrix: Array[Array[Float]], vector: Array[Float]): Array[Float] = {
     matrix.map(
-      (row) => (row, vector).zipped.map(_ * _).reduce(_ + _)
+      (row) => (row, vector).zipped.map(_ * _).sum
     )
   }
 
   def matrixVector(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float]): Array[Float] = {
     val tmp = matrix.map(
-      (row) => (row, vectorX).zipped.map(_ * _).reduce(_ + _)
+      (row) => (row, vectorX).zipped.map(_ * _).sum
     )
     (tmp, vectorY).zipped.map(_ + _)
   }
 
   def matrixVector(matrix: Array[Array[Float]], vector: Array[Float], alpha: Float): Array[Float] = {
     matrix.map(
-      (row) => (row, vector).zipped.map(_ * _).reduce(_ + _) * alpha
+      (row) => (row, vector).zipped.map(_ * _).sum * alpha
     )
   }
 
   def matrixVector(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float], alpha: Float, beta: Float): Array[Float] = {
     val tmp = matrix.map(
-      (row) => (row, vectorX).zipped.map(_ * _).reduce(_ + _) * alpha
+      (row) => (row, vectorX).zipped.map(_ * _).sum * alpha
     )
 
     val scaledY = vectorY.map(_ * beta)
@@ -85,7 +85,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
   @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY() {
@@ -112,10 +112,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
+    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
 
@@ -140,10 +137,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
+    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
@@ -171,10 +165,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
+    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
   @Test def MATRIX_VECTOR_LOCAL_MEMORY_FUSED() {
@@ -201,7 +192,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (matrixVector(matrix, vector), output).zipped.map(assertEquals(_,_,0.1))
+    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
 
   }
 
@@ -235,7 +226,7 @@ class TestMatrixVector {
     println("output(0) = " + firstOutput(0))
     println("runtime = " + firstRuntime)
 
-    (matrixVector(matrix, vectorX, alpha), firstOutput).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(matrixVector(matrix, vectorX, alpha), firstOutput, 0.0f)
 
     val f2 = fun(
       ArrayType(Float, M),
@@ -253,7 +244,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + secondRuntime)
 
-    (matrixVector(matrix, vectorX, vectorY, alpha, beta), output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(matrixVector(matrix, vectorX, vectorY, alpha, beta), output, 0.0f)
 
   }
 
@@ -290,8 +281,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (matrixVector(matrix, vectorX, vectorY, alpha, beta), output).zipped.map(assertEquals(_,_,0.0))
-
+    assertArrayEquals(matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
   }
 
   @Test def FULL_MATRIX_VECTOR_FUSED() {
@@ -322,8 +312,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    (matrixVector(matrix, vectorX, vectorY), output).zipped.map(assertEquals(_,_,0.0))
-
+    assertArrayEquals(matrixVector(matrix, vectorX, vectorY), output,0.0f)
   }
 
 }

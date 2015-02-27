@@ -130,6 +130,46 @@ class TestMisc {
     assertArrayEquals(gold, output, 0.0f)
   }
 
+  @Test def vectorize(): Unit = {
+    val inputSize = 512
+    val inputData = Array.tabulate(inputSize)(_.toFloat)
+
+    val gold = inputData.map(_+1)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => asScalar() o MapGlb(Vectorize(4)(plusOne)) o asVector(4) $ in
+    )
+
+    val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test def asVectorFollowedByAsScalar(): Unit = {
+    val inputSize = 512
+    val inputData = Array.tabulate(inputSize)(_.toFloat)
+
+    val gold = inputData.map(_+1)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(plusOne) o asScalar() o asVector(4) $ in
+    )
+
+    val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
   @Test def testScatterGlb1D(): Unit = {
     val Nsize = 128
     val vector = Array.tabulate(Nsize)(_.toFloat)
@@ -1746,8 +1786,6 @@ class TestMisc {
         val AtimesX = Map(fun( row => scal(alpha) $ dot(x, row) ), A)
         vecAdd(AtimesX, scalledY)
       })
-
-    (asum, gemv)
 
     /*
     private def BlackScholes(s: Input): Fun =

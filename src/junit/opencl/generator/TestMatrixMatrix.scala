@@ -36,7 +36,7 @@ class TestMatrixMatrix {
   def matrixMatrixPatternMultiply(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
     val Bt = B.transpose
     A.map( Arow =>
-      Bt.map( Bcol => (Arow, Bcol).zipped.map(_ * _).reduce(_ + _) )
+      Bt.map( Bcol => (Arow, Bcol).zipped.map(_ * _).sum )
     )
   }
 
@@ -44,7 +44,7 @@ class TestMatrixMatrix {
     val Bt = B.transpose
     A.map( Arow =>
       Bt.map( Bcol => (Arow, Bcol).zipped )
-    ).map(_.map(_.map(_ * _).reduce(_ + _)))
+    ).map(_.map(_.map(_ * _).sum))
   }
 
   def matrixMatrixMultiply(A: Array[Array[Float]], B: Array[Array[Float]]) :  Array[Array[Float]] = {
@@ -127,9 +127,6 @@ class TestMatrixMatrix {
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0001f)
-
-    (output, runtime)
-
   }
 
   @Test def MATRIX_MATRIX_SIMPLER() {
@@ -164,9 +161,6 @@ class TestMatrixMatrix {
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0f)
-
-    (output, runtime)
-
   }
 
   @Test def MATRIX_MATRIX_Christophe() {
@@ -939,10 +933,7 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   /*
