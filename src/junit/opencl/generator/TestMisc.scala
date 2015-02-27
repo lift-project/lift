@@ -53,11 +53,13 @@ class TestMisc {
     Seq(TupleType(Float, Float), TupleType(Float, Float)),
     TupleType(Float, Float))
 
-  val transpose = AccessFunction.transpose
+  val transpose = IndexFunction.transpose
+
+  val reverse = IndexFunction.reverse
 
   @Ignore
   @Test def compositionTest(): Unit = {
-    // TODO: Crashes the VM, compilation fails on the native sise
+    // TODO: Crashes the VM, compilation fails on the native side
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
@@ -74,6 +76,34 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(compFun, inputData, inputData.length)
     assertArrayEquals(gold, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Test def accessingMultidimArrayAfterZip(): Unit = {
+    val Nsize = 8
+    val Msize = 4
+    val Ksize = 2
+    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+    val vector = Array.fill(Nsize)(1.0f)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayType(Float, N),
+      (matrix, vector) => MapGlb(fun(r =>
+        MapSeq(fun(t =>
+          MapSeq(id) $ Get(t, 0)
+        )) $ Zip(Get(r,0), vector)
+      )) $ Zip(matrix, vector)
+    )
+
+    val (output, runtime) = Execute(4, Nsize)(f, matrix, vector, Nsize, Msize, Ksize)
+    assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -146,7 +176,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Scatter(AccessFunction.reverse)(MapGlb(id)) $ in
+      in => Scatter(reverse)(MapGlb(id)) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
@@ -165,7 +195,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapGlb(Scatter(AccessFunction.reverse)(MapSeq(id))) $ in
+      in => MapGlb(Scatter(reverse)(MapSeq(id))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -184,7 +214,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Scatter(AccessFunction.reverse)(MapGlb(MapSeq(id))) $ in
+      in => Scatter(reverse)(MapGlb(MapSeq(id))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -203,7 +233,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Scatter(AccessFunction.reverse)(MapGlb(Scatter(AccessFunction.reverse)(MapSeq(id)))) $ in
+      in => Scatter(reverse)(MapGlb(Scatter(reverse)(MapSeq(id)))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -221,7 +251,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Gather(AccessFunction.reverse)(MapGlb(id)) $ in
+      in => Gather(reverse)(MapGlb(id)) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
@@ -240,7 +270,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapGlb(Gather(AccessFunction.reverse)(MapSeq(id))) $ in
+      in => MapGlb(Gather(reverse)(MapSeq(id))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -259,7 +289,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(AccessFunction.reverse)(MapGlb(MapSeq(id))) $ in
+      in => Gather(reverse)(MapGlb(MapSeq(id))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -278,7 +308,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(AccessFunction.reverse)(MapGlb(Gather(AccessFunction.reverse)(MapSeq(id)))) $ in
+      in => Gather(reverse)(MapGlb(Gather(reverse)(MapSeq(id)))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -296,7 +326,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Gather(AccessFunction.reverse)(MapWrg(id)) $ in
+      in => Gather(reverse)(MapWrg(id)) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
@@ -315,7 +345,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapWrg(Gather(AccessFunction.reverse)(MapLcl(id))) $ in
+      in => MapWrg(Gather(reverse)(MapLcl(id))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -334,7 +364,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(AccessFunction.reverse)(MapWrg(MapLcl(id))) $ in
+      in => Gather(reverse)(MapWrg(MapLcl(id))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -353,7 +383,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(AccessFunction.reverse)(MapWrg(Gather(AccessFunction.reverse)(MapLcl(id)))) $ in
+      in => Gather(reverse)(MapWrg(Gather(reverse)(MapLcl(id)))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -373,7 +403,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Gather(AccessFunction.reverse)(MapGlb(MapSeq(id))) o Split(splitSize) $ in
+      in => Gather(reverse)(MapGlb(MapSeq(id))) o Split(splitSize) $ in
     )
 
     val (output, runtime) = Execute(1,Nsize)(f, vector, Nsize)
@@ -393,7 +423,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapGlb(Gather(AccessFunction.reverse)(MapSeq(id))) o Split(splitSize) $ in
+      in => MapGlb(Gather(reverse)(MapSeq(id))) o Split(splitSize) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
@@ -413,7 +443,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Scatter(AccessFunction.reverse)(MapGlb(MapSeq(id))) o Split(splitSize) $ in
+      in => Scatter(reverse)(MapGlb(MapSeq(id))) o Split(splitSize) $ in
     )
 
     val (output, runtime) = Execute(1,Nsize)(f, vector, Nsize)
@@ -433,7 +463,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapGlb(Scatter(AccessFunction.reverse)(MapSeq(id))) o Split(splitSize) $ in
+      in => MapGlb(Scatter(reverse)(MapSeq(id))) o Split(splitSize) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
@@ -1203,8 +1233,6 @@ class TestMisc {
 
   @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID_REORDER_REVERSE() {
 
-    val reverse = AccessFunction.reverse
-
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_).reverse
@@ -1287,7 +1315,7 @@ class TestMisc {
         Join() o MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
             Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride()
+            Join() o toLocal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride(1024/32)
         ) o Split(1024) $ input
 
     )
@@ -1510,7 +1538,13 @@ class TestMisc {
         Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(MapGlb(1)(id)))) o Swap() $ matrix
       })
 
-    val f = f3
+    val f5 = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        Gather(transpose)(MapGlb(0)(MapGlb(1)(id)) o Split(Nsize)) o Join() $ matrix
+      })
+
+    val f = f5
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
@@ -1548,8 +1582,8 @@ class TestMisc {
             MapGlb(1)(
               MapSeq(id)
             )
-          )
-        ) o Swap() $ matrix
+          ) o Split(Nsize)
+        ) o Join() $ matrix
       })
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)

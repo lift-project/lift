@@ -31,9 +31,9 @@ class TestDotProduct {
 
   val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
-  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", Array("l", "r")),
+  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", "l", "r"),
     "{ return acc + (l * r); }",
-    Seq(Float, TupleType(Float, Float)), Float)
+    Seq(Float, Float, Float), Float)
 
   val N = Var("N")
   val M = Var("M")
@@ -79,7 +79,7 @@ class TestDotProduct {
                                                        ArrayType(Float, Var("N")),(left, right) => {
 
         Join() o Join() o MapWrg(
-          toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f)))
+          toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
         ) o Split(128) o Split(2048) $ Zip(left, right)
 
       }), leftInputData, rightInputData, leftInputData.size, rightInputData.size )
@@ -124,8 +124,8 @@ class TestDotProduct {
                                                                       ArrayType(Float, Var("N")), (left, right) => {
 
         Join() o Join() o MapWrg(
-          toGlobal(MapLcl(ReduceSeq(multAndSumUp, 0.0f))) o ReorderStride()
-        ) o Split(128) o Split(2048) $ Zip(left, right)
+          toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
+        ) o Split(128) o ReorderStride(2048/128) o Split(2048) $ Zip(left, right)
 
       }), leftInputData, rightInputData, leftInputData.length, rightInputData.length )
 

@@ -11,9 +11,6 @@ abstract class Expr {
   // memory information
   var mem: Memory = UnallocatedMemory
 
-  // memory access information
-  var access: AccessFunctions = EmptyAccessFuntions
-
   // view explaining how to access the memory
   var view: View = NoView
 
@@ -56,7 +53,7 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
     new FunCall(f, newArgs:_*)
   }
 
-  // One type for all arguments (i.e. a tuple if there arae more than one args)
+  // One type for all arguments (i.e. a tuple if there are more than one args)
   def argsType: Type = {
     if (args.length == 1) args(0).t
     else TupleType( args.map(_.t):_* )
@@ -65,11 +62,6 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
   def argsMemory: Memory = {
     if (args.length == 1) args(0).mem
     else OpenCLMemoryCollection( UndefAddressSpace, args.map(_.mem.asInstanceOf[OpenCLMemory]):_* )
-  }
-
-  def argsAccess: AccessFunctions = {
-    if (args.length == 1) args(0).access
-    else AccessFunctionsCollection( args.map(_.access):_* )
   }
 
 }
@@ -146,9 +138,9 @@ case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override va
 
 object Expr {
 
-  implicit def IntToValue(i: Int) = Value(i.toString, opencl.ir.Int)
+  implicit def IntToValue(i: Int): Value = Value(i.toString, opencl.ir.Int)
 
-  implicit def FloatToValue(f: Float) = Value(f.toString + "f", opencl.ir.Float)
+  implicit def FloatToValue(f: Float): Value = Value(f.toString + "f", opencl.ir.Float)
 
   implicit def Tuple2ToValue[T1 , T2](t : Tuple2[T1, T2]): Value = {
     Value(t.toString().replace('(', '{').replace(')', '}'), TupleType(getType(t._1), getType(t._2)))

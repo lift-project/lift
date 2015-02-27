@@ -129,7 +129,7 @@ object Type {
     t match {
       case at: ArrayType => at.len
       case st: ScalarType => Cst(1)
-      case vt: VectorType => Cst(1)
+      case vt: VectorType => getVectorSize(vt)
       case tt: TupleType => Cst(1)
       case _ => throw new TypeException(t, "ArrayType")
     }

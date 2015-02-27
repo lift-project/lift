@@ -62,8 +62,7 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.access = IdAccessFunctions
-      p.view = View(p.t, new InputAccess())
+      p.view = View(p.t, new InputAccess(""))
     })
 
     // pass 1
@@ -80,9 +79,7 @@ object OpenCLGenerator extends Generator {
       println("")
     }
 
-    AccessFunction.addAccessFunctions(f.body)
-
-    //View.createView(f.body)
+    View.createView(f.body)
 
     oclPrinter = new OpenCLPrinter
 
@@ -223,9 +220,9 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
-      oclPrinter.println("return;")
-    }
+    // if (m.dim == 0) {
+    //  oclPrinter.println("return;")
+    // }
   }
 
   // MapGlb
@@ -236,9 +233,9 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
-      oclPrinter.println("return;")
-    }
+    // if (m.dim == 0) {
+    //  oclPrinter.println("return;")
+    // }
   }
   
   // MapLcl
@@ -310,17 +307,15 @@ object OpenCLGenerator extends Generator {
       oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
 
       // TODO: This assumes a UserFun to be nested here!
-      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
-
-      //println("ReduceSeqCall access: ")
-      //ViewPrinter.emit(funCall.args(1).view.asInstanceOf[PrimitiveView])
-      //println()
+      println("ReduceSeqCall read access: ")
+      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.args.map(_.view):_*))
 
       oclPrinter.println(";")
     })
 
     // 4. generate output[0] = acc
-    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) =:= oclPrinter.toOpenCL(accVar))
+    println("ReduceSeqCall write access: ")
+    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.view) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
   }
@@ -410,18 +405,11 @@ object OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFunDef, call: FunCall) = {
     assert(call.f == u)
 
-    oclPrinter.print(access(call.mem, call.t, call.access) + " = ")
-    //println("Uf write access: ")
-    //ViewPrinter.emit(call.view.asInstanceOf[PrimitiveView])
-    //println()
+    println("Uf write access: ")
+    oclPrinter.print(access(call.mem, call.t, call.view) + " = ")
 
-    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.argsAccess))
-    //println("Uf read accesss: ")
-    //call.args.map(a => {
-    //  ViewPrinter.emit(a.view.asInstanceOf[PrimitiveView])
-    //  println()
-    //})
-
+    println("Uf read accesss: ")
+    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.args.map(_.view):_*))
 
     oclPrinter.println(";")
   }
@@ -440,43 +428,7 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
 
-  private def applyTranspose(accessFunctions: Array[AccessFunction]): Array[AccessFunction] = {
-    val afs = accessFunctions
-    val transposeIndex = afs.indexWhere({
-      case _:TransposeAccessFunction => true
-      case _ => false })
-
-    if (transposeIndex == -1) return afs
-
-    val transposeAf = afs(transposeIndex).asInstanceOf[TransposeAccessFunction]
-
-    val firstMapIndex = afs.indexWhere({
-      case _:MapAccessFunction => true
-      case _ => false
-    }, transposeIndex + 1)
-    val firstMap = afs(firstMapIndex) match { case maf: MapAccessFunction => maf }
-
-    val secondMapIndex = afs.indexWhere({
-      case _:MapAccessFunction => true
-      case _ => false
-    }, firstMapIndex + 1)
-    val secondMap = afs(secondMapIndex) match { case maf: MapAccessFunction => maf }
-
-    val newFirstMapChunkSize = ArithExpr.substitute(
-      firstMap.chunkSize,
-      scala.collection.immutable.Map(transposeAf.dim0 -> transposeAf.dim1))
-    val newFirstMap = MapAccessFunction(secondMap.loopVar, newFirstMapChunkSize, firstMap.mapName)
-    val newSecondMap = MapAccessFunction(firstMap.loopVar, secondMap.chunkSize, secondMap.mapName)
-
-    val newAfs = afs.clone()
-    newAfs(firstMapIndex) = newFirstMap
-    newAfs(secondMapIndex) = newSecondMap
-
-    // recursively search for the next transpose (after removing the transpose access function)
-    applyTranspose(newAfs.patch(transposeIndex, Seq(), 1))
-  }
-
-  private def access(memory: Memory, t: Type, accessFunctions: AccessFunctions): String = {
+  private def access(memory: Memory, t: Type, views: View*): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)
 
     oclMem match {
@@ -485,37 +437,31 @@ object OpenCLGenerator extends Generator {
           case tt: TupleType =>
             assert(tt.elemsT.length == coll.subMemories.length)
 
-            accessFunctions match {
-              case collAf: AccessFunctionsCollection =>
-                assert(collAf.elems.length == coll.subMemories.length)
-                ((coll.subMemories zip tt.elemsT) zip collAf.elems).map({
-                    case ((m, ty), af) => access(m, ty, af)
-                  } ).reduce(_ + ", " + _)
-
-            }
+            assert(views.length == coll.subMemories.length)
+            ((coll.subMemories zip tt.elemsT) zip views).map({
+              case ((m, ty), af) => access(m, ty, af)
+            } ).reduce(_ + ", " + _)
         }
 
       case _ =>
         oclMem.addressSpace match {
           case GlobalMemory =>
             //val afs = applyTranspose(accessFunctions.afs)
-            val afs = accessFunctions.afs
 
             "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(afs.foldRight[ArithExpr](Cst(0))((aF, i) => aF(i))) + "])"
+              "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
 
           case LocalMemory =>
             // access function from the kernel or MapWrg scope should not affect local
-            val localAccessFunctions = accessFunctions.afs.filter((a) => {
-              (a.scope != "MapWrg") && (a.scope != "Kernel")
-            })
+//            val localAccessFunctions = accessFunctions.afs.filter((a) => {
+//              (a.scope != "MapWrg") && (a.scope != "Kernel")
+//            })
             //val afs = applyTranspose(localAccessFunctions)
-            val afs = localAccessFunctions
 
             "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(afs.foldRight[ArithExpr](Cst(0))((aF, i) => aF(i))) + "])"
+              "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
 
           case PrivateMemory =>
             oclPrinter.toOpenCL(oclMem.variable)
