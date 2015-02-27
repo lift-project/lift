@@ -339,11 +339,11 @@ object View {
   }
 
   private def createViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
-    call.argsType match {
+    call.t match {
       case ArrayType(ArrayType(typ, m), n) =>
         argView.asInstanceOf[ArrayView].
           join(n).
-          reorder((i:ArithExpr) => { IndexFunction.transpose(i, call.argsType) }).
+          reorder((i:ArithExpr) => { IndexFunction.transpose(i, call.t) }).
           split(m)
     }
   }

@@ -1500,6 +1500,37 @@ class TestMisc {
     if (rest.nonEmpty) myPrint(rest, cols, elems)
   }
 
+  @Test def MATRIX_TRANSPOSE_Join_Gather_Split(): Unit = {
+
+    val Nsize = 12
+    val Msize = 8
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
+    val gold   = matrix.transpose
+
+    println("matrix: ")
+    myPrint(matrix)
+
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        Gather(transpose)(MapGlb(0)(MapGlb(1)(id)) o Split(Nsize)) o Join() $ matrix
+      })
+
+    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    println("output: ")
+    myPrint(output, Nsize)
+
+    assertArrayEquals(gold.flatten, output, 0.0f)
+  }
+
   @Test def MATRIX_TRANSPOSE(): Unit = {
 
     val Nsize = 12
@@ -1513,38 +1544,11 @@ class TestMisc {
     val N = Var("N")
     val M = Var("M")
 
-    val f1 = fun(
+    val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
       })
-
-    val f2 = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        Gather(transpose)(MapGlb(0)(MapGlb(1)(id))) o Swap() $ matrix
-      })
-
-    val f3 = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        Swap() o Scatter(transpose)(MapGlb(0)(MapGlb(1)(id))) $ matrix
-      })
-
-    // transpose twice == id
-    val f4 = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        Swap() o Scatter(transpose)(Gather(transpose)(MapGlb(0)(MapGlb(1)(id)))) o Swap() $ matrix
-      })
-
-    val f5 = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        Gather(transpose)(MapGlb(0)(MapGlb(1)(id)) o Split(Nsize)) o Join() $ matrix
-      })
-
-    val f = f5
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
@@ -1617,8 +1621,6 @@ class TestMisc {
 
     val r = 8
     val c = 4
-
-    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
