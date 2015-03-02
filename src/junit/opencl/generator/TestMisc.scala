@@ -1570,6 +1570,84 @@ class TestMisc {
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
   }
 
+  @Test def tileAndUntileMatrix(): Unit = {
+    val Nsize = 12
+    val Msize = 8
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
+    val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
+    val gold = tiled.map(_.map(_.transpose).flatten.transpose).flatten
+
+    println("matrix: ")
+    myPrint(matrix)
+
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        MapWrg(0)(MapWrg(1)(id)) o
+          Join() o MapWrg(0)(Transpose() o Join() o MapWrg(1)(Transpose())) o
+          MapWrg(0)(MapWrg(1)(Transpose()
+          ) o Split(4) o Transpose()) o Split(4) $ matrix
+      })
+
+    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    println("gold: ")
+    myPrint(gold.flatten, 8)
+
+    println("output: ")
+    myPrint(output, Msize)
+
+    assertArrayEquals(gold.flatten, output, 0.0f)
+  }
+
+  @Test def transposeMatrixInsideTiles(): Unit = {
+    val Nsize = 12
+    val Msize = 8
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
+    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose)).map(_.map(_.transpose))
+
+    println("matrix: ")
+    myPrint(matrix)
+
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)) o Transpose())) o
+          MapWrg(0)(MapWrg(1)(Transpose()
+          ) o Split(4) o Transpose()) o Split(4) $ matrix
+      })
+
+    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    println("tile: 0,0 ")
+    myPrint(gold(0)(0))
+
+    println("tile: 0,1 ")
+    myPrint(gold(0)(1))
+
+    println("gold: ")
+    myPrint(gold.flatten.flatten.flatten, 8)
+
+    println("output: ")
+    myPrint(output, Msize)
+
+    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+  }
+
   @Test def MATRIX_TRANSPOSE(): Unit = {
 
     val Nsize = 12
@@ -1643,6 +1721,44 @@ class TestMisc {
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
+
+  @Test def MATRIX_TRANSPOSE_4D(): Unit = {
+
+    val Nsize = 16
+    val Msize = 8
+    val Ksize = 4
+    val Lsize = 2
+    val matrix = Array.tabulate(Nsize, Msize, Ksize, Lsize)((r, c, z, l) => c * 4.0f + r * 16.0f + z * 2.0f + l * 1.0f)
+
+    val gold   = matrix.transpose
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+    val L = Var("L")
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, L), K), M), N),
+      (matrix) => {
+          MapWrg(0)(
+            MapWrg(1)(
+              MapLcl(0)(
+                MapLcl(1)(id)
+              )
+            )
+          ) o Transpose() $ matrix
+      })
+
+    val (output, runtime) = Execute(4, Nsize * Msize * Lsize)(f, matrix, Nsize, Msize, Ksize, Lsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+  }
+
+
 
   /* TODO: Not there yet ... Transpose the tiles as well ...
   @Test def MATRIX_TRANSPOSE_TILED(): Unit = {
