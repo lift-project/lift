@@ -118,7 +118,7 @@ class OpenCLPrinter {
     val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
     me match {
       case Cst(c) => c.toString
-      case Pow(b, ex) => "pow(" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
+      case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
       case Log(b, x) => "(int)log"+b+"((float)"+toOpenCL(x)+")"
       case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
         s + (e match {
