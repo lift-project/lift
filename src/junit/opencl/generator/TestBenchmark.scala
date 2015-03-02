@@ -141,7 +141,7 @@ class TestBenchmark {
 
     val (output, runtime) = Execute(inputSize)(kernel, input, inputSize)
 
-    assertArrayEquals(gold, output, 0.001f)
+    assertArrayEquals(gold, output, 0.01f)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
