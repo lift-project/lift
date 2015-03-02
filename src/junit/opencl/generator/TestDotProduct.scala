@@ -39,7 +39,7 @@ class TestDotProduct {
   val M = Var("M")
 
   private def dotProd(left: Array[Float], right: Array[Float]): Float = {
-    (left,right).zipped.map(_*_).reduce(_+_)
+    (left,right).zipped.map(_*_).sum
   }
 
   @Test def DOT_PRODUCT_SIMPLE() {
@@ -63,7 +63,7 @@ class TestDotProduct {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertEquals(dotProd(leftInputData, rightInputData), output.reduce(_ + _), 0.0)
+    assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
   }
 
   @Test def DOT_PRODUCT_CPU() {
@@ -88,7 +88,7 @@ class TestDotProduct {
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
 
-      assertEquals(dotProd(leftInputData, rightInputData), output.reduce(_ + _), 0.0)
+      assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
 
       (output, runtime)
     }
@@ -105,9 +105,7 @@ class TestDotProduct {
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
 
-      assertEquals(dotProd(leftInputData, rightInputData), output.reduce(_ + _), 0.0)
-
-      (output, runtime)
+      assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
     }
   }
 
@@ -133,7 +131,7 @@ class TestDotProduct {
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
 
-      assertEquals(dotProd(leftInputData, rightInputData), output.reduce(_ + _), 0.0)
+      assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
 
       (output, runtime)
     }
@@ -152,9 +150,7 @@ class TestDotProduct {
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
 
-      assertEquals(dotProd(leftInputData, rightInputData), output.reduce(_ + _), 0.0)
-
-      (output, runtime)
+      assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
     }
 
   }

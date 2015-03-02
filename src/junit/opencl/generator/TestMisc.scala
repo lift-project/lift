@@ -1117,8 +1117,6 @@ class TestMisc {
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_)
 
-    val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
-
     val negFun = fun(ArrayType(Float, Var("N")), (input) =>
 
       Join() o MapWrg(
@@ -1213,8 +1211,6 @@ class TestMisc {
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_)
 
-    val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
-
     val negFun = fun(
       ArrayType(Float, Var("N")),
       (input) => Join() o MapGlb(
@@ -1236,8 +1232,6 @@ class TestMisc {
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_).reverse
-
-    val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
 
     val negFun = fun(ArrayType(Float, Var("N")), (input) =>
 
@@ -1377,14 +1371,11 @@ class TestMisc {
     val r = 4
     val c = 8
 
-    val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
-    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
-
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
       (matrix) => {
         Join() o MapWrg(0)(fun( cols =>
-          MapSeq(Join()) o Swap() o Scatter(transpose)(Gather(transpose)(MapWrg(1)(fun( tile =>
+          MapSeq(Join()) o MapWrg(1)(fun( tile =>
 
             // step 2: compute plus one
             toGlobal(
@@ -1403,7 +1394,7 @@ class TestMisc {
               ))
             ) $ tile
 
-          )))) o Swap() o MapSeq(Split(c)) $ cols
+          )) o MapSeq(Split(c)) $ cols
         )) o Split(r) $  matrix
       })
 
@@ -1435,13 +1426,11 @@ class TestMisc {
     val r = 4
     val c = 8
 
-    val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
-
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
       (matrix) => {
         Join() o MapWrg(0)(fun( cols =>
-          MapSeq(Join()) o Swap() o Scatter(transpose)(Gather(transpose)(MapWrg(1)(fun( tile =>
+          MapSeq(Join()) o MapWrg(1)(fun( tile =>
 
             MapLcl(0)(fun( row =>
               MapLcl(1)(fun( elem =>
@@ -1449,7 +1438,7 @@ class TestMisc {
               )) $ row
             )) $ tile
 
-          )))) o Swap() o MapSeq(Split(c)) $ cols
+          )) o MapSeq(Split(c)) $ cols
         )) o Split(r) $  matrix
       })
 
