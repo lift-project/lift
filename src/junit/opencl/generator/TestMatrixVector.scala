@@ -5,6 +5,7 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
 import ir._
+import ir.UserFunDef._
 
 object TestMatrixVector {
   @BeforeClass def before() {
@@ -20,18 +21,6 @@ object TestMatrixVector {
 }
 
 class TestMatrixVector {
-
-  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
-
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
-
-  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
-
-  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
-
-  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", "l", "r"),
-    "{ return acc + (l * r); }",
-    Seq(Float, Float, Float), Float)
 
   def matrixVector(matrix: Array[Array[Float]], vector: Array[Float]): Array[Float] = {
     matrix.map(
@@ -74,7 +63,7 @@ class TestMatrixVector {
       ArrayType(Float, 1024),
       (matrix, vector) => {
         Join() o MapWrg(
-          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
+          MapLcl( fun( (r) => ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
         ) o Split(128) $ matrix
 
       })
@@ -100,7 +89,7 @@ class TestMatrixVector {
       (matrix, vector) => {
         MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(10)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
+            Iterate(10)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
             Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o fun( (r) => Zip(vector, r) )
         ) $ matrix
 
@@ -127,7 +116,7 @@ class TestMatrixVector {
       ArrayType(Float, Var("N2")),
       (matrix, vector) => {
         Join() o MapWrg(
-          MapLcl( fun( (r) => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
+          MapLcl( fun( (r) => ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
         ) o Split(128) $ matrix
       })
 
@@ -156,7 +145,7 @@ class TestMatrixVector {
       (matrix, vector) => {
         MapWrg(
           Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(Log(2, N))(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
+            Iterate(Log(2, N))(Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
             Join() o toLocal(MapLcl(MapSeq(mult))) o Split(1) o fun( (r) => Zip(vector, r) )
         ) $ matrix
       })
@@ -183,7 +172,7 @@ class TestMatrixVector {
       ArrayType(Float, N),
       (matrix, vector) => {
         MapWrg(
-          Join() o toGlobal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(N / 32) o
+          Join() o toGlobal(MapLcl(ReduceSeq(add, 0.0f))) o Split(N / 32) o
             Join() o toLocal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(32) o ReorderStride(N/32) o fun( r => Zip(vector, r) )
         ) $ matrix
       })

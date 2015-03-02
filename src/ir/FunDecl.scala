@@ -1,6 +1,8 @@
 package ir
 
 import java.util.function._
+import opencl.ir.Float
+
 import scala.collection.JavaConverters._
 
 abstract class FunDecl(val params: Array[Param]) {
@@ -85,7 +87,7 @@ class Lambda1(override val params: Array[Param], override val body: Expr) extend
 }
 
 object Lambda1 {
-  implicit def FunDefToLambda(f: FunDecl) = {
+  implicit def FunDefToLambda(f: FunDecl): Lambda1 = {
     assert(f.params.nonEmpty)
     if (f.params.length == 1) {
       fun(f(_))
@@ -757,6 +759,38 @@ object UserFunDef {
   //    case t: Type => Array(Param(t))
   //  }
   //}
+
+  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+  val absAndSumUp = UserFunDef("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", Seq(Float, Float), Float)
+
+  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
+
+  val plusOne = UserFunDef("plusOne", "x", "{ return x+1; }", Float, Float)
+
+  val doubleItAndSumUp = UserFunDef("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }", Seq(Float, Float), Float)
+
+  val sqrtIt = UserFunDef("sqrtIt", "x", "{ return sqrt(x); }", Float, Float)
+
+  val abs = UserFunDef("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
+
+  val neg = UserFunDef("neg", "x", "{ return -x; }", Float, Float)
+
+  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
+
+  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", "l", "r"),
+    "{ return acc + (l * r); }",
+    Seq(Float, Float, Float), Float)
+
+  val addPair = UserFunDef(
+    "pair",
+    Array("x", "y"),
+    "{ x._0 = x._0 + y._0;" +
+      "x._1 = x._1 + y._1;" +
+      "return x; }",
+    Seq(TupleType(Float, Float), TupleType(Float, Float)),
+    TupleType(Float, Float))
+
 }
 
 object jUserFunDef {

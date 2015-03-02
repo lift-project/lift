@@ -5,6 +5,7 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
 import ir._
+import ir.UserFunDef._
 
 object TestMatrixMatrix {
   @BeforeClass def before() {
@@ -20,18 +21,6 @@ object TestMatrixMatrix {
 }
 
 class TestMatrixMatrix {
-
-  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
-
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
-
-  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
-
-  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
-
-  val multAndSumUp = UserFunDef("multAndSumUp3", Array("acc", "l", "r"),
-    "{ return acc + (l * r); }",
-    Seq(Float, Float, Float), Float)
 
   def matrixMatrixPatternMultiply(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
     val Bt = B.transpose
