@@ -1,4 +1,4 @@
-package junit.opencl.generator
+package opencl.generator
 
 import opencl.executor._
 import org.junit.Assert._

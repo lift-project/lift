@@ -1,6 +1,5 @@
-package junit.opencl.generator;
+package opencl.generator;
 
-import static org.junit.Assert.*;
 import org.junit.*;
 
 import java.util.*;

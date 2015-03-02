@@ -1,4 +1,4 @@
-package junit.opencl.generator
+package opencl.generator
 
 import org.junit.Assert._
 import org.junit.{Ignore, AfterClass, BeforeClass, Test}
