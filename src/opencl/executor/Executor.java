@@ -28,6 +28,8 @@ public class Executor {
     public native static double execute(String kernelCode, String kernelName,
                                         int localSize, int globalSize, KernelArg[] args);
 
+    public native static void init(int platformId, int deviceId);
+
     public native static void init();
 
     public native static void shutdown();
