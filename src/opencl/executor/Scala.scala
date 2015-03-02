@@ -40,6 +40,7 @@ object Execute {
     })
 
     val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
+        case aaaa: Array[Array[Array[Array[_]]]] => Seq(Cst(aaaa.size), Cst(aaaa(0).size), Cst(aaaa(0)(0).size), Cst(aaaa(0)(0)(0).size / tupleSize))
       case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size / tupleSize))
       case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size / tupleSize))
       case a: Array[_] => Seq(Cst(a.size / tupleSize))
@@ -68,6 +69,8 @@ class Execute(val localSize: Int, val globalSize: Int) {
       case af: Array[Float] => global.input(af)
       case aaf: Array[Array[Float]] => global.input(aaf.flatten)
       case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
+      case aaaf: Array[Array[Array[Array[Float]]]] => global.input(aaaf.flatten.flatten.flatten)
+
 
       case i: Int => value(i)
       case ai: Array[Int] => global.input(ai)
