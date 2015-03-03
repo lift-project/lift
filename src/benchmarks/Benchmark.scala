@@ -12,7 +12,7 @@ import org.clapper.argot._
 
 abstract class Benchmark(val name: String,
                          val defaultSizes: Seq[Int],
-                         val f: Seq[(String, Lambda)],
+                         val f: Seq[(String, Seq[Lambda])],
                          val delta: Float) {
 
 
@@ -28,10 +28,10 @@ abstract class Benchmark(val name: String,
   val device = parser.option[Int](List("d", "device"), "devId",
     "Id of the OpenCL device to use")
 
-  val localSize = parser.option[Int](List("l", "localSize"), "lclSize",
+  val localSizeOpt = parser.option[Int](List("l", "localSize"), "lclSize",
     "Id of the OpenCL device to use")
 
-  val globalSize = parser.option[Int](List("g", "globalSize"), "glbSize",
+  val globalSizeOpt = parser.option[Int](List("g", "globalSize"), "glbSize",
     "Id of the OpenCL device to use")
 
   val size = parser.multiOption[Int](List("s", "size"), "inputSize",
@@ -40,7 +40,7 @@ abstract class Benchmark(val name: String,
   val verbose = parser.flag[Boolean](List("v", "verbose"),
     "Print allocated memory and source code")
 
-  val variant = parser.option[Int](List("variant"), "var",
+  val variantOpt = parser.option[Int](List("variant"), "var",
     "Which of the following variants to run:\n" + f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
 
   val checkResultOpt = parser.flag[Boolean](List("c", "check"),
@@ -74,15 +74,32 @@ abstract class Benchmark(val name: String,
 
   def runOpenCL(inputs: Any*): (Array[Float], Double) = {
     val sizes: Seq[Int] = inputSizes()
-    Execute(localSize.value.getOrElse(128), globalSize.value.getOrElse(sizes.product))(f(variant.value.getOrElse(0))._2, inputs ++ sizes:_*)
+
+    var realInputs = inputs
+    var realSizes = sizes
+    var totalRuntime = 0.0
+    var finalOutput = Array.emptyFloatArray
+
+    val lambdas: Seq[Lambda] = f(variant)._2
+    for (i <- 0 until lambdas.length) {
+      val (output, runtime) = Execute(localSize, globalSizeOpt.value.getOrElse(sizes.product))(lambdas(i), realInputs ++ realSizes:_*)
+      realInputs = Seq(output)
+      realSizes = Seq(output.length)
+      totalRuntime += runtime
+      finalOutput = output
+    }
+
+    (finalOutput, totalRuntime)
+  }
+
+  private def localSize: Int = {
+    localSizeOpt.value.getOrElse(128)
   }
 
   def runBenchmark(): Unit = {
     Executor.loadLibrary()
     Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
     Debug.verbose = verbose.value.getOrElse(false)
-
-    println(name)
 
     val checkResult: Boolean = checkResultOpt.value.getOrElse(false)
 
@@ -91,15 +108,24 @@ abstract class Benchmark(val name: String,
     val inputs = generateInputs()
     var scalaResult = Array.emptyFloatArray
 
+    println(name + " " + f(variant))
+    println("Size: " + inputSizes().mkString(", "))
+    println("Total iterations: " + iterations)
+    println("Checking results: " + checkResult)
+    println("Local size: " + localSize)
+
     if (checkResult) {
       scalaResult = runScala(inputs:_*)
     }
 
     for (i <- 0 until iterations) {
 
+      println("Iteration " + i)
+
       val (output, runtime) = runOpenCL(inputs:_*)
 
       runtimes(i) = runtime
+      println("Runtime: " + runtime + " ms")
 
       if (checkResult) {
 
@@ -119,11 +145,15 @@ abstract class Benchmark(val name: String,
 
     val sorted = runtimes.sorted
 
-    println("MIN: " + sorted(0))
-    println("MAX: " + sorted(iterations-1))
-    println("MEDIAN: " + sorted((iterations-1)/2))
+    println("MIN: " + sorted(0) + " ms")
+    println("MAX: " + sorted(iterations-1) + " ms")
+    println("MEDIAN: " + sorted((iterations-1)/2) + " ms")
 
     Executor.shutdown()
+  }
+
+  private def variant: Int = {
+    variantOpt.value.getOrElse(0)
   }
 
   def run(args: Array[String]): Unit = {
