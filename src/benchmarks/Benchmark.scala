@@ -3,6 +3,7 @@ package benchmarks
 import java.io.File
 
 import scala.util.control._
+import scala.sys.process._
 
 import ir.Lambda
 import opencl.executor.{Execute, Executor}
@@ -108,19 +109,23 @@ abstract class Benchmark(val name: String,
     val inputs = generateInputs()
     var scalaResult = Array.emptyFloatArray
 
-    println(name + " " + f(variant))
+    println(name + " " + f(variant)._1)
     println("Size: " + inputSizes().mkString(", "))
     println("Total iterations: " + iterations)
     println("Checking results: " + checkResult)
     println("Local size: " + localSize)
+    println("Machine: " + "hostname".!!.dropRight(1))
+    println("Commit: " + "hg id -i".!!.dropRight(1))
 
     if (checkResult) {
       scalaResult = runScala(inputs:_*)
     }
 
+    println()
+
     for (i <- 0 until iterations) {
 
-      println("Iteration " + i)
+      println("Iteration: " + i)
 
       val (output, runtime) = runOpenCL(inputs:_*)
 
@@ -142,6 +147,8 @@ abstract class Benchmark(val name: String,
       }
 
     }
+
+    println()
 
     val sorted = runtimes.sorted
 
