@@ -55,7 +55,7 @@ object DotProduct {
       ) o Split(128) o ReorderStride(2048/128) o Split(2048) $ Zip(left, right)
     })
 
-  def apply() = new VectorScaling("Dot Product",
+  def apply() = new DotProduct("Dot Product",
     Seq(1024),
     0.001f,
     Seq(("simple", f1), ("cpu", f2), ("gpu", f3)))
