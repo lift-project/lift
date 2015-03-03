@@ -1,7 +1,7 @@
 package opencl.executor
 
 import ir._
-import opencl.generator.OpenCLGenerator
+import opencl.generator.{Debug, OpenCLGenerator}
 import opencl.ir._
 
 import scala.collection.immutable
@@ -12,8 +12,10 @@ object Compile {
     Type.check(f.body)
 
     val kernelCode = OpenCLGenerator.generate(f)
-    println("Kernel code:")
-    println(kernelCode)
+    if (Debug()) {
+      println("Kernel code:")
+      println(kernelCode)
+    }
 
     kernelCode
   }
@@ -91,7 +93,8 @@ class Execute(val localSize: Int, val globalSize: Int) {
 
     val args: Array[KernelArg] = (memArgs ++ inputs).distinct.toArray
 
-    println("args.length " + args.length)
+    if (Debug())
+      println("args.length " + args.length)
 
     val runtime = Executor.execute(code, localSize, globalSize, args)
 

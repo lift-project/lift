@@ -14,7 +14,9 @@ libraryDependencies += "junit" % "junit" % "4.11"
 
 libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 
-fork in Test := true
+libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
+
+fork := true
 
 // To run tests from the command line, uncomment and replace with the proper path form your system
 //javaOptions in Test += "-Djava.library.path=/path-to-the-skelcl-folder/build/executor"

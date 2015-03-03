@@ -421,9 +421,7 @@ object ViewPrinter {
       case ia : InputAccess =>
         print(ia.name)
         assert(tupleAccessStack.isEmpty)
-        val res = arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
-        println("["+res+"]")
-        res
+        arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
 
       case aa : ArrayAccess =>
         val newAAS = arrayAccessStack.push((aa.idx, getLengthForArrayAccess(aa.av.elemT, tupleAccessStack)))

@@ -19,7 +19,8 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  def apply() = { true }
+  var verbose = true
+  def apply() = { verbose }
 }
 
 object OpenCL{
@@ -307,14 +308,12 @@ object OpenCLGenerator extends Generator {
       oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
 
       // TODO: This assumes a UserFun to be nested here!
-      println("ReduceSeqCall read access: ")
       oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.args.map(_.view):_*))
 
       oclPrinter.println(";")
     })
 
     // 4. generate output[0] = acc
-    println("ReduceSeqCall write access: ")
     oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.view) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
@@ -405,10 +404,8 @@ object OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFunDef, call: FunCall) = {
     assert(call.f == u)
 
-    println("Uf write access: ")
     oclPrinter.print(access(call.mem, call.t, call.view) + " = ")
 
-    println("Uf read accesss: ")
     oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.args.map(_.view):_*))
 
     oclPrinter.println(";")
