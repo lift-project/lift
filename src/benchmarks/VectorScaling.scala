@@ -4,18 +4,10 @@ import ir.UserFunDef._
 import ir._
 import opencl.ir.{MapSeq, MapLcl, MapWrg, Float}
 
-class VectorScaling extends Benchmark {
-
-  override val name: String = "Vector Scaling"
-  override val defaultSizes: Seq[Int] = Seq(1024)
-  override val delta = 0.001f
-  override val f: Lambda = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
-    Join() o MapWrg(
-      Join() o MapLcl(MapSeq(
-        fun( x => mult(alpha, x) )
-      )) o Split(4)
-    ) o Split(1024) $ input
-  )
+class VectorScaling(override val name: String,
+                    override val defaultSizes: Seq[Int],
+                    override val delta: Float,
+                    override val f: Seq[(String, Lambda)]) extends Benchmark(name, defaultSizes, f, delta) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     inputs(0).asInstanceOf[Array[Float]].map(_ * inputs(1).asInstanceOf[Float])
@@ -35,8 +27,22 @@ class VectorScaling extends Benchmark {
   }
 }
 
-object VectorScaling extends App{
-  def apply() = new VectorScaling
+object VectorScaling {
 
-  VectorScaling().run(args)
+  val f = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+    Join() o MapWrg(
+      Join() o MapLcl(MapSeq(
+        fun( x => mult(alpha, x) )
+      )) o Split(4)
+    ) o Split(1024) $ input
+  )
+
+  def apply() = new VectorScaling("Vector Scaling",
+    Seq(1024),
+    0.001f,
+    Seq(("simple", f)))
+
+  def main(args: Array[String]) = {
+    VectorScaling().run(args)
+  }
 }

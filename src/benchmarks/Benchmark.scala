@@ -10,12 +10,12 @@ import opencl.generator.Debug
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 
-abstract class Benchmark {
+abstract class Benchmark(val name: String,
+                         val defaultSizes: Seq[Int],
+                         val f: Seq[(String, Lambda)],
+                         val delta: Float) {
 
-  val name: String
-  val defaultSizes: Seq[Int]
-  val f: Lambda
-  val delta: Float
+
 
   val parser = new ArgotParser(name)
 
@@ -35,23 +35,33 @@ abstract class Benchmark {
     "Id of the OpenCL device to use")
 
   val size = parser.multiOption[Int](List("s", "size"), "inputSize",
-    "Size of the input to use.")
+    "Size of the input to use")
 
   val verbose = parser.flag[Boolean](List("v", "verbose"),
-    "Print allocated memory and source code.")
+    "Print allocated memory and source code")
+
+  val variant = parser.option[Int](List("variant"), "var",
+    "Which of the following variants to run:\n" + f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
 
   val checkResultOpt = parser.flag[Boolean](List("c", "check"),
     "Check the result.")
 
+  val help = parser.flag[Boolean](List("h", "help"),
+    "Show this message.") {
+    (sValue, opt) =>
+      parser.usage()
+      sValue
+  }
+
   val input = parser.multiParameter[File]("input",
     "Input files to read. If not " +
-      "specified, generate randomly.",
+      "specified, generate randomly",
     optional = true) {
     (s, opt) =>
 
       val file = new File(s)
       if (! file.exists)
-        parser.usage("Input file \"" + s + "\" does not exist.")
+        parser.usage("Input file \"" + s + "\" does not exist")
 
       file
   }
@@ -64,7 +74,7 @@ abstract class Benchmark {
 
   def runOpenCL(inputs: Any*): (Array[Float], Double) = {
     val sizes: Seq[Int] = inputSizes()
-    Execute(localSize.value.getOrElse(128), globalSize.value.getOrElse(sizes.product))(f, inputs ++ sizes:_*)
+    Execute(localSize.value.getOrElse(128), globalSize.value.getOrElse(sizes.product))(f(variant.value.getOrElse(0))._2, inputs ++ sizes:_*)
   }
 
   def runBenchmark(): Unit = {
@@ -88,7 +98,7 @@ abstract class Benchmark {
     for (i <- 0 until iterations) {
 
       val (output, runtime) = runOpenCL(inputs:_*)
-      
+
       runtimes(i) = runtime
 
       if (checkResult) {
@@ -106,9 +116,9 @@ abstract class Benchmark {
       }
 
     }
-    
+
     val sorted = runtimes.sorted
-    
+
     println("MIN: " + sorted(0))
     println("MAX: " + sorted(iterations-1))
     println("MEDIAN: " + sorted((iterations-1)/2))
