@@ -36,7 +36,7 @@ abstract class Benchmark(val name: String,
     "Id of the OpenCL device to use")
 
   val size = parser.multiOption[Int](List("s", "size"), "inputSize",
-    "Size of the input to use")
+    "Size of the input to use, expecting " + defaultSizes.length)
 
   val verbose = parser.flag[Boolean](List("v", "verbose"),
     "Print allocated memory and source code")
@@ -110,7 +110,7 @@ abstract class Benchmark(val name: String,
     var scalaResult = Array.emptyFloatArray
 
     println(name + " " + f(variant)._1)
-    println("Size: " + inputSizes().mkString(", "))
+    println("Size(s): " + inputSizes().mkString(", "))
     println("Total iterations: " + iterations)
     println("Checking results: " + checkResult)
     println("Local size: " + localSize)

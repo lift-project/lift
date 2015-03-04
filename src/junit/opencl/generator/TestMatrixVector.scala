@@ -1,5 +1,6 @@
 package opencl.generator
 
+import benchmarks.MatrixVector
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test, Ignore}
@@ -250,21 +251,7 @@ class TestMatrixVector {
 
     val N = SizeVar("N")
     val M = SizeVar("M")
-    val f = fun(
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, N),
-      ArrayType(ArrayType(Float, 1), M),
-      Float,
-      Float,
-      (matrix, vectorX, vectorY, alpha, beta) => {
-        MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(fun( x => multAndSumUp(Get(x, 0), Get(x, 1), beta))))) o Split(1) o
-            fun( t => Zip(
-              Join() o MapLcl(MapSeq(fun( x => mult(alpha, x) ))) o Split(1) o
-                Join() o toLocal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(N) $ Zip(vectorX, Get(t, 0)),
-              Get(t, 1)) )
-        ) $ Zip(matrix, vectorY)
-      })
+    val f = MatrixVector.fullMatrixVectorFusedOpenCL
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta, inputSize, inputSize)
 
