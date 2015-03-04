@@ -36,31 +36,50 @@ object DotProduct {
 
   val N = Var("N")
 
-  val f1 = fun(ArrayType(Float, N),
+  val dotProductSimple = fun(ArrayType(Float, N),
     ArrayType(Float, N), (left, right) => {
       Join() o MapWrg(
         Join() o MapLcl(ReduceSeq(add, 0.0f) o MapSeq(mult)) o Split(4)
       ) o Split(1024) $ Zip(left, right)
     })
 
-  val f2 = fun(ArrayType(Float, N),
+  val dotProductCPU1 = fun(ArrayType(Float, N),
     ArrayType(Float, N),(left, right) => {
       Join() o Join() o MapWrg(
         toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
       ) o Split(128) o Split(2048) $ Zip(left, right)
     })
 
-  val f3 = fun(ArrayType(Float, N),
+  val dotProductCPU2 = fun (ArrayType(Float, N),(in) => {
+    Join() o MapWrg(
+      Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(128)
+    ) o Split(128) $ in
+
+  })
+
+  val dotProduct1 = fun(ArrayType(Float, N),
     ArrayType(Float, N), (left, right) => {
       Join() o Join() o MapWrg(
         toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
       ) o Split(128) o ReorderStride(2048/128) o Split(2048) $ Zip(left, right)
     })
 
+  val dotProduct2 = fun (ArrayType(Float, N), (in) => {
+
+    Join() o MapWrg(
+      Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+        Iterate(6)(Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
+        Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+    ) o Split(128) $ in
+
+  })
+
   def apply() = new DotProduct("Dot Product",
     Seq(1024),
     0.001f,
-    Seq(("simple", Seq(f1)), ("cpu", Seq(f2)), ("gpu", Seq(f3))))
+    Seq(("simple", Seq(dotProductSimple)),
+        ("cpu", Seq(dotProductCPU1, dotProductCPU2)),
+        ("gpu", Seq(dotProduct1, dotProduct2))))
 
   def main(args: Array[String]) = {
     DotProduct().run(args)

@@ -1,5 +1,6 @@
 package opencl.generator
 
+import benchmarks.VectorScaling
 import ir.UserFunDef._
 import ir._
 import opencl.executor.{Execute, Compile, Executor}
@@ -128,13 +129,7 @@ class TestVector {
     val alpha = 2.5f
     val gold = inputArray.map(_ * alpha)
 
-    val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
-      Join() o MapWrg(
-        Join() o MapLcl(MapSeq(
-          fun( x => mult(alpha, x) )
-        )) o Split(4)
-      ) o Split(1024) $ input
-    )
+    val scalFun = VectorScaling.vectorScal
 
     val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
 

@@ -1,5 +1,6 @@
 package opencl.generator
 
+import benchmarks.SumAbsoluteValues
 import org.junit._
 import org.junit.Assert._
 import opencl.ir._
@@ -298,15 +299,8 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = opencl.executor.Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        // the original derived one does not generate correct code ...
-        Join() o Join() o MapWrg(
-          MapLcl(ReduceSeq(add, 0.0f))
-          //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o ReduceSeq(sumUp, 0.0f))) o ReorderStride()
-        ) o Split(128) o ReorderStride(2048/128) o Split(2048) $ in
-
-      }), inputData, inputData.length)
+      val (output, runtime) = opencl.executor.Execute(inputData.length)(SumAbsoluteValues.nvidiaDerived1,
+        inputData, inputData.length)
 
       assertEquals(inputData.sum, output.sum, 0.0)
 
@@ -317,15 +311,8 @@ class TestReduce {
     }
 
     {
-      val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(6)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(128)
-        ) o Split(8192) $ in
-
-      }), firstOutput, firstOutput.length)
+      val (output, runtime) = Execute(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2,
+        firstOutput, firstOutput.length)
 
       assertEquals(inputData.sum, output.sum, 0.0)
 
@@ -343,15 +330,8 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          asScalar() o Join() o
-          MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(add), Vectorize(2)(0.0f)))// o ReorderStride())
-            o Split(128) o asVector(2)
-        ) o Split(4096) $ in
-
-      }), inputData, inputData.length)
+      val (output, runtime) = Execute(inputData.length)(SumAbsoluteValues.amdDerived1,
+        inputData, inputData.length)
 
       println("output size = " + output.size)
       println("first output(0) = " + output(0))
@@ -363,15 +343,8 @@ class TestReduce {
     }
 
     {
-      val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(6)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(128)
-        ) o Split(8192) $ in
-
-      }), firstOutput, firstOutput.length)
+      val (output, runtime) = Execute(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2,
+        firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -409,15 +382,8 @@ class TestReduce {
 
     {
 
-      val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o MapLcl(
-            ReduceSeq(add, 0.0f)
-          ) o Split(2048)
-        ) o Split(2048) $ in
-
-      }), firstOutput, firstOutput.length)
+      val (output, runtime) = Execute(firstOutput.length)(SumAbsoluteValues.intelDerived2,
+        firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -435,15 +401,8 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          asScalar() o Join() o MapLcl(
-            MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f))
-          ) o Split(8192) o asVector(4)
-        ) o Split(32768) $ in
-
-      }), inputData, inputData.length)
+      val (output, runtime) = Execute(inputData.length)(SumAbsoluteValues.intelDerivedNoWarp1,
+        inputData, inputData.length)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -454,15 +413,8 @@ class TestReduce {
     }
 
     {
-      val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o MapLcl(
-            ReduceSeq(add, 0.0f)
-          ) o Split(2048)
-        ) o Split(2048) $ in
-
-      }), firstOutput, firstOutput.length)
+      val (output, runtime) = Execute(firstOutput.length)(SumAbsoluteValues.intelDerived2,
+        firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)

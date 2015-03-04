@@ -29,7 +29,7 @@ class VectorScaling(override val name: String,
 
 object VectorScaling {
 
-  val f = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val vectorScal = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
       Join() o MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
@@ -40,7 +40,7 @@ object VectorScaling {
   def apply() = new VectorScaling("Vector Scaling",
     Seq(1024),
     0.001f,
-    Seq(("simple", Seq(f))))
+    Seq(("simple", Seq(vectorScal))))
 
   def main(args: Array[String]) = {
     VectorScaling().run(args)

@@ -1,5 +1,6 @@
 package opencl.generator
 
+import benchmarks.DotProduct
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -37,14 +38,8 @@ class TestDotProduct {
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output, runtime) = Execute(inputSize)(fun (ArrayType(Float, Var("N")),
-                                                    ArrayType(Float, Var("N")), (left, right) => {
-
-      Join() o MapWrg(
-        Join() o MapLcl(ReduceSeq(add, 0.0f) o MapSeq(mult)) o Split(4)
-      ) o Split(1024) $ Zip(left, right)
-
-    }), leftInputData, rightInputData, leftInputData.size, rightInputData.size )
+    val (output, runtime) = Execute(inputSize)(DotProduct.dotProductSimple,
+      leftInputData, rightInputData, leftInputData.size)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -62,14 +57,8 @@ class TestDotProduct {
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = Execute(inputSize)( fun (ArrayType(Float, Var("N")),
-                                                       ArrayType(Float, Var("N")),(left, right) => {
-
-        Join() o Join() o MapWrg(
-          toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
-        ) o Split(128) o Split(2048) $ Zip(left, right)
-
-      }), leftInputData, rightInputData, leftInputData.size, rightInputData.size )
+      val (output, runtime) = Execute(inputSize)(DotProduct.dotProductCPU1,
+        leftInputData, rightInputData, leftInputData.size)
 
       println("output.size = " + output.size)
       println("output(0) = " + output(0))
@@ -81,13 +70,8 @@ class TestDotProduct {
     }
 
     {
-      val (output, runtime) = opencl.executor.Execute(firstOutput.length)( fun (ArrayType(Float, Var("N")),(in) => {
-
-        Join() o MapWrg(
-          Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(128)
-        ) o Split(128) $ in
-
-      }), firstOutput, firstOutput.length )
+      val (output, runtime) = opencl.executor.Execute(firstOutput.length)(DotProduct.dotProductCPU2,
+        firstOutput, firstOutput.length )
 
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
@@ -105,14 +89,8 @@ class TestDotProduct {
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = opencl.executor.Execute(inputSize)( fun(ArrayType(Float, Var("N")),
-                                                                      ArrayType(Float, Var("N")), (left, right) => {
-
-        Join() o Join() o MapWrg(
-          toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
-        ) o Split(128) o ReorderStride(2048/128) o Split(2048) $ Zip(left, right)
-
-      }), leftInputData, rightInputData, leftInputData.length, rightInputData.length )
+      val (output, runtime) = opencl.executor.Execute(inputSize)(DotProduct.dotProduct1,
+        leftInputData, rightInputData, leftInputData.length)
 
       println("output.size = " + output.size)
       println("output(0) = " + output(0))
@@ -124,15 +102,8 @@ class TestDotProduct {
     }
 
     {
-      val (output, runtime) = opencl.executor.Execute(firstOutput.length)( fun (ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(6)(Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
-            Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
-        ) o Split(128) $ in
-
-      }), firstOutput, firstOutput.length )
+      val (output, runtime) = opencl.executor.Execute(firstOutput.length)(DotProduct.dotProduct2,
+        firstOutput, firstOutput.length )
 
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
