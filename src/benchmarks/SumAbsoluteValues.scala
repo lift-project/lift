@@ -43,10 +43,10 @@ object SumAbsoluteValues {
 
   val nvidiaDerived1 = fun(ArrayType(Float, Var("N")), (in) => {
     // the original derived one does not generate correct code ...
-    Join() o Join() o MapWrg(
-      MapLcl(ReduceSeq(add, 0.0f))
+    Join() o MapWrg( Join() o
+      MapLcl(ReduceSeq(add, 0.0f)) o Split(2048) o ReorderStride(128)
       //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o ReduceSeq(sumUp, 0.0f))) o ReorderStride()
-    ) o Split(128) o ReorderStride(2048/128) o Split(2048) $ in
+    ) o Split(2048*128) $ in
   })
 
   val amdNvidiaDerived2 = fun(ArrayType(Float, Var("N")), (in) => {
