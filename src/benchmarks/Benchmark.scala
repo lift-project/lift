@@ -21,19 +21,19 @@ abstract class Benchmark(val name: String,
   val parser = new ArgotParser(name)
 
   val iterationsOpt = parser.option[Int](List("i", "iterations"), "n",
-    "Total iterations")
+    "Total iterations (Default: 10)")
 
   val platform = parser.option[Int](List("p", "platform"), "platId",
-    "Id of the OpenCL platform to use")
+    "Id of the OpenCL platform to use (Default: 0)")
 
   val device = parser.option[Int](List("d", "device"), "devId",
-    "Id of the OpenCL device to use")
+    "Id of the OpenCL device to use (Default: 0)")
 
   val localSizeOpt = parser.option[Int](List("l", "localSize"), "lclSize",
-    "Id of the OpenCL device to use")
+    "Local size to use (Default: 128)")
 
   val globalSizeOpt = parser.option[Int](List("g", "globalSize"), "glbSize",
-    "Id of the OpenCL device to use")
+    "Global size to use")
 
   val size = parser.multiOption[Int](List("s", "size"), "inputSize",
     "Size of the input to use, expecting " + defaultSizes.length)
@@ -42,10 +42,10 @@ abstract class Benchmark(val name: String,
     "Print allocated memory and source code")
 
   val variantOpt = parser.option[Int](List("variant"), "var",
-    "Which of the following variants to run:\n" + f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
+    "Which of the following variants to run (Default: 0):\n" + f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
 
   val checkResultOpt = parser.flag[Boolean](List("c", "check"),
-    "Check the result.")
+    "Check the result")
 
   val help = parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
