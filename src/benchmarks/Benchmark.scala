@@ -99,6 +99,10 @@ abstract class Benchmark(val name: String,
     localSizeOpt.value.getOrElse(128)
   }
 
+  private def globalSize: Int = {
+    globalSizeOpt.value.getOrElse(inputSizes().product)
+  }
+
   def runBenchmark(): Unit = {
     Executor.loadLibrary()
     Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
@@ -115,6 +119,7 @@ abstract class Benchmark(val name: String,
     println("Size(s): " + inputSizes().mkString(", "))
     println("Total iterations: " + iterations)
     println("Checking results: " + checkResult)
+    println("Global size: " + globalSize)
     println("Local size: " + localSize)
     println("Machine: " + "hostname".!!.dropRight(1))
     println("Commit: " + "hg id -i".!!.dropRight(1))
