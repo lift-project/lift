@@ -83,7 +83,9 @@ abstract class Benchmark(val name: String,
 
     val lambdas: Seq[Lambda] = f(variant)._2
     for (i <- 0 until lambdas.length) {
-      val (output, runtime) = Execute(localSize, globalSizeOpt.value.getOrElse(sizes.product))(lambdas(i), realInputs ++ realSizes:_*)
+      val (output, runtime) = Execute(localSize,
+                              globalSizeOpt.value.getOrElse(sizes.product),
+                              injectLocalSize = true)(lambdas(i), realInputs ++ realSizes:_*)
       realInputs = Seq(output)
       realSizes = Seq(output.length)
       totalRuntime += runtime

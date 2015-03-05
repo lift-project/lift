@@ -8,10 +8,12 @@ import scala.collection.immutable
 import scala.reflect.ClassTag
 
 object Compile {
-  def apply(f: Lambda) = {
+  def apply(f: Lambda): String = apply(f, -1)
+
+  def apply(f: Lambda, localSize0: Int): String = {
     Type.check(f.body)
 
-    val kernelCode = OpenCLGenerator.generate(f)
+    val kernelCode = OpenCLGenerator.generate(f, localSize0)
     if (Debug()) {
       println("Kernel code:")
       println(kernelCode)
@@ -26,8 +28,8 @@ object Execute {
     apply(128, globalSize)
   }
 
-  def apply(localSize: Int, globalSize: Int): Execute = {
-    new Execute(localSize, globalSize)
+  def apply(localSize: Int, globalSize: Int, injectLocalSize: Boolean = false): Execute = {
+    new Execute(localSize, globalSize, injectLocalSize)
   }
 
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
@@ -53,10 +55,10 @@ object Execute {
   }
 }
 
-class Execute(val localSize: Int, val globalSize: Int) {
+class Execute(val localSize: Int, val globalSize: Int, injectLocalSize: Boolean) {
   def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
     assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
-    val code = Compile(f)
+    val code = if (injectLocalSize) Compile(f, localSize) else Compile(f)
     apply(code, f, values:_*)
   }
 

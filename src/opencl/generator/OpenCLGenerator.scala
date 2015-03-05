@@ -30,6 +30,7 @@ object OpenCL{
 object OpenCLGenerator extends Generator {
 
   var oclPrinter: OpenCLPrinter = null
+  var localSize = Array(Cst(-1), Cst(-1), Cst(-1))
 
   private def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, (e: Expr) => e match {
@@ -43,6 +44,13 @@ object OpenCLGenerator extends Generator {
       case call: FunCall => println(e + "\n    " + e.mem.toString + " <- " + call.argsMemory.toString + "\n")
       case _ => println(e + "\n    " + e.mem.toString + "\n")
     }, (f: Expr) => {})
+  }
+
+  def generate(f: Lambda, localSize0: Int = -1, localSize1: Int = -1, localSize2: Int = -1): String = {
+    localSize(0) = localSize0
+    localSize(1) = localSize1
+    localSize(2) = localSize2
+    generate(f)
   }
 
   // compiler a type-checked function into an OpenCL kernel
@@ -242,12 +250,24 @@ object OpenCLGenerator extends Generator {
   // MapLcl
   private def generateMapLclCall(call: MapCall) {
     val m = call.f.asInstanceOf[MapLcl]
-    val range = RangeAdd(new get_local_id(m.dim), Type.getLength(call.arg.t), new get_local_size(m.dim))//Cst(Kernel.workGroupSize))
+    val dim: Int = m.dim
+    val length: ArithExpr = Type.getLength(call.arg.t)
+    var step: ArithExpr = new get_local_size(dim)
+
+    try {
+      val size: Cst = localSize(dim)
+      if (size != Cst(-1) && length.evalAtMax() <= size.c)
+          step = size
+    } catch {
+      case nee : NotEvaluableException =>
+    }
+
+    val range = RangeAdd(new get_local_id(dim), length, step)
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapLcl(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
+    if (dim == 0) {
       oclPrinter.generateBarrier(call.mem)
     }
   }
