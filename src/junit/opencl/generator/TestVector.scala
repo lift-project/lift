@@ -124,12 +124,12 @@ class TestVector {
 
   @Test def VECTOR_SCAL() {
 
-    val inputSize = 1024
+    val inputSize = 2048
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
     val gold = inputArray.map(_ * alpha)
 
-    val scalFun = VectorScaling.vectorScal
+    val scalFun = VectorScaling.scalINTEL
 
     val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
 
