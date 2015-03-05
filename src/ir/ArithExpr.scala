@@ -57,7 +57,7 @@ abstract sealed class ArithExpr {
 
 object ArithExpr {
 
-  implicit def IntToCst(i: Int): Cst = Cst(i)
+  implicit def IntToCst(i: Int) = Cst(i)
 
   def max(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
     minmax(e1, e2)._2

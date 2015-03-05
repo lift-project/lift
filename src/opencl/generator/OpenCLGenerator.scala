@@ -19,11 +19,6 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  var debug = false
-  def apply() = { debug }
-}
-
-object Verbose {
   var verbose = true
   def apply() = { verbose }
 }
@@ -74,12 +69,12 @@ object OpenCLGenerator extends Generator {
     // pass 1
     allocateMemory(f)
 
-    if (Verbose()) {
+    if (Debug()) {
       println("Memory:")
       printMemories(f.body)
     }
 
-    if (Verbose()) {
+    if (Debug()) {
       println("Allocated Memory:")
       TypedOpenCLMemory.getAllocatedMemory(f.body, f.params).map(m => println(m.toString))
       println("")

@@ -7,7 +7,7 @@ import scala.sys.process._
 
 import ir.Lambda
 import opencl.executor.{Execute, Executor}
-import opencl.generator.{Verbose, Debug}
+import opencl.generator.Debug
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 
@@ -40,9 +40,6 @@ abstract class Benchmark(val name: String,
 
   val verbose = parser.flag[Boolean](List("v", "verbose"),
     "Print allocated memory and source code")
-
-  val debug = parser.flag[Boolean](List("d", "debug"),
-    "Disable expression simplification for debugging")
 
   val variantOpt = parser.option[Int](List("variant"), "var",
     "Which of the following variants to run (Default: 0):\n" + f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
@@ -103,8 +100,7 @@ abstract class Benchmark(val name: String,
   def runBenchmark(): Unit = {
     Executor.loadLibrary()
     Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
-    Debug.debug = debug.value.getOrElse(false)
-    Verbose.verbose = verbose.value.getOrElse(false)
+    Debug.verbose = verbose.value.getOrElse(false)
 
     val checkResult: Boolean = checkResultOpt.value.getOrElse(false)
 
