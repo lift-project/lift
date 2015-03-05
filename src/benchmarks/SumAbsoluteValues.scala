@@ -60,9 +60,9 @@ object SumAbsoluteValues {
   val amdDerived1 = fun(ArrayType(Float, Var("N")), (in) => {
     Join() o MapWrg(
       asScalar() o Join() o
-        MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(add), Vectorize(2)(0.0f)))// o ReorderStride())
-        o Split(128) o asVector(2)
-    ) o Split(4096) $ in
+        MapLcl(ReduceSeq(Vectorize(2)(add), Vectorize(2)(0.0f)))
+        o Split(2048) o ReorderStride(64) o asVector(2)
+    ) o Split(4096*128) $ in
   })
 
   def apply() = new SumAbsoluteValues("Sum of absolute values",
