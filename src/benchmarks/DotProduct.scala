@@ -46,8 +46,8 @@ object DotProduct {
   val dotProductCPU1 = fun(ArrayType(Float, N),
     ArrayType(Float, N),(left, right) => {
       Join() o Join() o MapWrg(
-        toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
-      ) o Split(128) o Split(2048) $ Zip(left, right)
+        toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(2048)
+      )o  Split(2048*128) $ Zip(left, right)
     })
 
   val dotProductCPU2 = fun (ArrayType(Float, N),(in) => {
@@ -61,7 +61,8 @@ object DotProduct {
     ArrayType(Float, N), (left, right) => {
       Join() o Join() o MapWrg(
         toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
-      ) o Split(128) o ReorderStride(2048/128) o Split(2048) $ Zip(left, right)
+          o Split(2048) o ReorderStride(128)
+      ) o Split(2048*128) $ Zip(left, right)
     })
 
   val dotProduct2 = fun (ArrayType(Float, N), (in) => {
