@@ -278,7 +278,6 @@ object ExprSimplifier {
     // distributivity
     val result = distribute(resultProd)
 
-
     result
   }
 
