@@ -295,6 +295,7 @@ object ExprSimplifier {
       case And(l,r) => And(simplify(l),simplify(r))
       case Prod(factors) => Prod(factors.map(t => simplify(t)))
       case Sum(terms) => Sum(terms.map(t => simplify(t)))
+      case Fraction(n, d) => Fraction(simplify(n), simplify(d))
     }
 
     result = result match {

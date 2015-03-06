@@ -50,6 +50,7 @@ abstract sealed class ArithExpr {
     Sum(thisExprs++thatExprs)
   }
 
+  def div(that: ArithExpr) = Fraction(this, that)
   def /(that: ArithExpr) = this * Pow(that, Cst(-1))
   def -(that: ArithExpr) = this + (that * Cst(-1))
 
@@ -63,7 +64,7 @@ abstract sealed class ArithExpr {
 
 object ArithExpr {
 
-  implicit def IntToCst(i: Int) = Cst(i)
+  implicit def IntToCst(i: Int): Cst = Cst(i)
 
   def max(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
     minmax(e1, e2)._2
@@ -199,6 +200,8 @@ object ArithExpr {
     case Cst(c) => c
     case Var(_,_) | ArithExprFunction() | ? => throw new NotEvaluableException(e.toString)
 
+    case Fraction(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
+
     case Pow(base,exp) => scala.math.pow(evalDouble(base),evalDouble(exp))
     case Log(b,x) => scala.math.log(evalDouble(x)) / scala.math.log(evalDouble(b))
 
@@ -232,6 +235,10 @@ case object ? extends ArithExpr
 
 case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
 object jCst { def create(c: Int) = Cst(c) }
+
+case class Fraction(numer: ArithExpr, denom: ArithExpr) extends ArithExpr {
+  override def toString: String = "("+ numer + " div " + denom +")"
+}
 
 case class Pow(b: ArithExpr, e: ArithExpr) extends ArithExpr {
   override def toString : String = e match {

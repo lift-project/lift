@@ -132,6 +132,7 @@ class OpenCLPrinter {
       case of: OclFunction => of.toOCLString
       case tv : TypeVar => "tv_"+tv.id
       case v: Var => "v_"+v.name+"_"+v.id
+      case Fraction(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
