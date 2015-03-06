@@ -52,6 +52,16 @@ class TestMatrixVector {
     (tmp, scaledY).zipped.map(_ + _)
   }
 
+  def matrixVector2(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float], alpha: Float, beta: Float): Array[Float] = {
+    val tmp = matrix.map(
+      (row) => (row, vectorX).zipped.toArray.grouped(vectorX.length/128).toArray.map(_.map(x => x._1 * x._2).sum).map(_ * alpha).sum
+    )
+
+    val scaledY = vectorY.map(_ * beta)
+
+    (tmp, scaledY).zipped.map(_ + _)
+  }
+
 
   @Test def MATRIX_VECTOR_FIXED_SIZE() {
 

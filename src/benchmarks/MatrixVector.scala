@@ -63,7 +63,26 @@ object MatrixVector {
       ) $ Zip(matrix, vectorY)
     })
 
-  def apply() = new MatrixVector(Seq(("FULL_MATRIX_VECTOR_FUSED_OPENCL", Seq(fullMatrixVectorFusedOpenCL))))
+  val fullMatrixVectorFusedOpenCLAMD = fun(
+    ArrayType(ArrayType(Float, N), M),
+    ArrayType(Float, N),
+    ArrayType(ArrayType(Float, 1), M),
+    Float,
+    Float,
+    (matrix, vectorX, vectorY, alpha, beta) => {
+      MapWrg(
+        Join() o toGlobal(MapLcl(MapSeq(fun( x => multAndSumUp(Get(x, 0), Get(x, 1), beta))))) o Split(1) o
+          fun( t => Zip(
+            Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(128) o
+              Join() o MapLcl(MapSeq(fun( x => mult(alpha, x) ))) o Split(1) o
+              Join() o toLocal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(N/128) o ReorderStride(128) $ Zip(vectorX, Get(t, 0)),
+            Get(t, 1)) )
+      ) $ Zip(matrix, vectorY)
+    })
+
+  def apply() = new MatrixVector(Seq(
+    ("FULL_MATRIX_VECTOR_FUSED_OPENCL", Seq(fullMatrixVectorFusedOpenCL)),
+    ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD", Seq(fullMatrixVectorFusedOpenCLAMD))))
 
   def main(args: Array[String]): Unit = {
     MatrixVector().run(args)
