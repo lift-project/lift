@@ -334,7 +334,7 @@ object View {
     val n = Type.getLength(call.argsType) / s
 
     argView match {
-      case av: ArrayView => av.reorder( (i:ArithExpr) => { i / n + s * ( i % n) } )
+      case av: ArrayView => av.reorder( (i:ArithExpr) => { (i div n) + s * ( i % n) } )
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
