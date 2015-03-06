@@ -249,8 +249,6 @@ class TestMatrixVector {
     val alpha = 2.5f
     val beta = 1.5f
 
-    val N = SizeVar("N")
-    val M = SizeVar("M")
     val f = MatrixVector.fullMatrixVectorFusedOpenCL
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta, inputSize, inputSize)

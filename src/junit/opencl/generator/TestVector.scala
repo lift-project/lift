@@ -139,6 +139,40 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
+  @Test def SCAL_NVIDIA() {
+
+    val inputSize = 4096
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val alpha = 2.5f
+    val gold = inputArray.map(_ * alpha)
+
+    val scalFun = VectorScaling.scalNVIDIA
+
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Test def SCAL_AMD() {
+
+    val inputSize = 2048
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val alpha = 2.5f
+    val gold = inputArray.map(_ * alpha)
+
+    val scalFun = VectorScaling.scalAMD
+
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
+
+    (gold, output).zipped.map(assertEquals(_,_,0.0))
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def VECTOR_SCAL_REDUCE() {
 
     val inputSize = 2048
