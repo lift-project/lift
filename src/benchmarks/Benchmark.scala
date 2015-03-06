@@ -7,7 +7,7 @@ import scala.sys.process._
 
 import ir.Lambda
 import opencl.executor.{Execute, Executor}
-import opencl.generator.Debug
+import opencl.generator.Verbose
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 
@@ -106,7 +106,7 @@ abstract class Benchmark(val name: String,
   def runBenchmark(): Unit = {
     Executor.loadLibrary()
     Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
-    Debug.verbose = verbose.value.getOrElse(false)
+    Verbose.verbose = verbose.value.getOrElse(false)
 
     val checkResult: Boolean = checkResultOpt.value.getOrElse(false)
 

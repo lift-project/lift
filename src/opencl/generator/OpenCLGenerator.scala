@@ -19,6 +19,10 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
+  def apply() = { true }
+}
+
+object Verbose {
   var verbose = true
   def apply() = { verbose }
 }
@@ -58,7 +62,7 @@ object OpenCLGenerator extends Generator {
 
     assert(f.body.t != UndefType)
 
-    if (Debug()) {
+    if (Verbose()) {
       println("Types:")
       printTypes(f.body)
     }
@@ -77,12 +81,12 @@ object OpenCLGenerator extends Generator {
     // pass 1
     allocateMemory(f)
 
-    if (Debug()) {
+    if (Verbose()) {
       println("Memory:")
       printMemories(f.body)
     }
 
-    if (Debug()) {
+    if (Verbose()) {
       println("Allocated Memory:")
       TypedOpenCLMemory.getAllocatedMemory(f.body, f.params).map(m => println(m.toString))
       println("")
@@ -156,7 +160,7 @@ object OpenCLGenerator extends Generator {
     val varMap = iterateVars.map(v => (v, ArithExpr.asCst(v.range.max))).toMap
     Kernel.memory.map(mem => {
       val m = mem.mem
-      if (Debug()) {
+      if (Verbose()) {
         println("Allocated " + ArithExpr.substitute(m.size, varMap.toMap) + " bytes for variable " +
           oclPrinter.toOpenCL(m.variable) + " in " + m.addressSpace + " memory")
       }
