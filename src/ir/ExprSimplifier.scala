@@ -71,6 +71,12 @@ object ExprSimplifier {
     }
   }
 
+  private def simplifyMod(m: Mod): ArithExpr = {
+    m.divisor match {
+      case Cst(1) => Cst(0)
+      case _ => m
+    }
+  }
 
   private def flattenSum(sum: Sum) : Sum = {
     var result = List[ArithExpr]()
@@ -302,6 +308,7 @@ object ExprSimplifier {
       case p: Pow => simplifyPow(p)
       case p: Prod => simplifyProd(p)
       case s: Sum => simplifySum(s)
+      case m: Mod => simplifyMod(m)
       case _ => result
     }
 
