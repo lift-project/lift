@@ -78,6 +78,13 @@ object ExprSimplifier {
     }
   }
 
+  private def simplifyFraction(f: Fraction): ArithExpr = {
+    f.denom match {
+      case Cst(1) => f.numer
+      case _ => f
+    }
+  }
+
   private def flattenSum(sum: Sum) : Sum = {
     var result = List[ArithExpr]()
 
@@ -309,6 +316,7 @@ object ExprSimplifier {
       case p: Prod => simplifyProd(p)
       case s: Sum => simplifySum(s)
       case m: Mod => simplifyMod(m)
+      case f: Fraction => simplifyFraction(f)
       case _ => result
     }
 
