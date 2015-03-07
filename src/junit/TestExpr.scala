@@ -88,6 +88,23 @@ class TestExpr {
     assertEquals((i div M) * M + i % M, ExprSimplifier.simplify((i div M) * M + i % M))
   }
 
+  @Test def modOfVarWithVarRange(): Unit = {
+    val M = Var("M")
+    val i = Var(GoesToRange(M))
+    assertEquals(i, ExprSimplifier.simplify(i % M))
+  }
+
+  @Test def modOfVarWithConstantRange(): Unit = {
+    val c =  Cst(10)
+    val i = Var(GoesToRange(c))
+    assertEquals(i, ExprSimplifier.simplify(i % c))
+  }
+
+  @Test def modOfVarWithConstantRange2(): Unit = {
+    val i = Var(GoesToRange(Cst(10)))
+    assertEquals(i, ExprSimplifier.simplify(i % Cst(128)))
+  }
+
   @Test def OneByOne() {
     assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) / Cst(1)))
   }
@@ -107,7 +124,7 @@ class TestExpr {
   }
 
   @Test def simplifySumTwoMinusTwo(): Unit ={
-     assertEquals(Cst(0), ExprSimplifier.simplify(Cst(2) - Cst(2)))
+    assertEquals(Cst(0), ExprSimplifier.simplify(Cst(2) - Cst(2)))
   }
 
   @Test def simplifySumNMinusN(): Unit ={
@@ -243,5 +260,4 @@ class TestExpr {
             (4 * 1))) %
           1))
   }
-  
 }

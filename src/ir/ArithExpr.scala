@@ -20,10 +20,14 @@ abstract sealed class ArithExpr {
   def evalDbl(): Double = ArithExpr.evalDouble(this)
 
   def evalAtMax(): Int = {
-    val typeVars = TypeVar.getTypeVars(this)
-    val maxLens = typeVars.map(_.range.max)
-    val e = ArithExpr.substitute(this, (typeVars, maxLens).zipped.toMap)
+    val e: ArithExpr = atMax
     e.eval()
+  }
+
+  def atMax: ArithExpr = {
+    val vars = Var.getVars(this)
+    val maxLens = vars.map(_.range.max)
+    ArithExpr.substitute(this, (vars, maxLens).zipped.toMap)
   }
 
   def *(that: ArithExpr): Prod = {

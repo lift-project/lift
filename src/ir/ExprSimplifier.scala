@@ -73,9 +73,21 @@ object ExprSimplifier {
 
   private def simplifyMod(m: Mod): ArithExpr = {
     m.divisor match {
-      case Cst(1) => Cst(0)
-      case _ => m
+      case Cst(1) =>
+        // TODO: Not if dividend is < 1
+        return Cst(0)
+      case _ =>
     }
+
+    try {
+      // TODO: Assuming range.max is non-inclusive
+      if (m.dividend.atMax == m.divisor || m.dividend.atMax.eval() <= m.divisor.eval())
+        return m.dividend
+    } catch {
+      case e: NotEvaluableException =>
+    }
+
+    m
   }
 
   private def simplifyFraction(f: Fraction): ArithExpr = {
@@ -309,6 +321,7 @@ object ExprSimplifier {
       case Prod(factors) => Prod(factors.map(t => simplify(t)))
       case Sum(terms) => Sum(terms.map(t => simplify(t)))
       case Fraction(n, d) => Fraction(simplify(n), simplify(d))
+      case _ => e
     }
 
     result = result match {
