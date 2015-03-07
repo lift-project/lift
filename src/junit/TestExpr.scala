@@ -139,6 +139,10 @@ class TestExpr {
     assertFalse(ArithExpr.multipleOf(N*M, N*K))
   }
 
+  @Test def simplifyProdEmpty(): Unit = {
+    assertEquals(Cst(1), ExprSimplifier.simplify(Prod(List[ArithExpr]())))
+  }
+
   @Test def modSum(): Unit = {
     val N = Var("N")
     assertEquals(1 % N, ExprSimplifier.simplify((N + 1) % N))

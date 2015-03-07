@@ -90,12 +90,8 @@ object ExprSimplifier {
       case _ =>
     }
 
-    try {
-      // TODO: Assuming range.max is non-inclusive
-      if (m.dividend.atMax == m.divisor || m.dividend.atMax.eval() <= m.divisor.eval())
-        return m.dividend
-    } catch {
-      case e: NotEvaluableException =>
+    if(isSmaller(m.dividend, m.divisor)) {
+      return m.dividend
     }
 
     m match {
@@ -141,11 +137,65 @@ object ExprSimplifier {
     }
   }
 
-  private def simplifyFraction(f: Fraction): ArithExpr = {
-    f.denom match {
-      case Cst(1) => f.numer
-      case _ => f
+  private def isSmaller(ae1: ArithExpr, ae2: ArithExpr): Boolean = {
+    try {
+      // TODO: Assuming range.max is non-inclusive
+      if (ae1.atMax == ae2 || ae1.atMax.eval() <= ae2.eval())
+        return true
+    } catch {
+      case e: NotEvaluableException =>
     }
+    false
+  }
+
+  private def simplifyFraction(f: Fraction): ArithExpr = {
+    if (f.denom == Cst(1))
+      return f.numer
+
+    if (f.numer == Cst(0))
+      return Cst(0)
+
+    if (f.numer == f.denom && f.denom != Cst(0))
+      return Cst(1)
+
+    if (isSmaller(f.numer, f.denom))
+      return Cst(0)
+
+    f match {
+      case Fraction(Fraction(numer, denom1), denom2) => return Fraction(numer, simplify(denom1 * denom2))
+      case Fraction(Sum(terms), denom) =>
+        var newTerms = List[ArithExpr]()
+        var newFractions = List[ArithExpr]()
+        for (term <- terms) {
+          if (ArithExpr.multipleOf(term, denom))
+            newFractions = Fraction(term, denom) :: newFractions
+          else
+            newTerms = term :: newTerms
+        }
+
+        if (newFractions.nonEmpty)
+          return simplify(Sum(newFractions)) + simplify(Fraction(Sum(newTerms), denom))
+
+      case Fraction(Prod(factors), denom) =>
+        // If denom or any part of denom is part of factors, eliminate
+        denom match {
+          case Prod(denomFactors) =>
+            val common = denomFactors.intersect(factors)
+            if (common.nonEmpty){
+              val newNumer = Prod(factors.diff(common))
+              val newDenom = Prod(denomFactors.diff(common))
+              return simplify(Fraction(newNumer, newDenom))
+            }
+          case _ =>
+            if (factors.contains(denom)) {
+              val index = factors.indexOf(denom)
+              return simplify(Prod(factors.slice(0, index) ++ factors.slice(index+1, factors.length)))
+            }
+        }
+      case _ =>
+    }
+
+    f
   }
 
   private def flattenSum(sum: Sum) : Sum = {
