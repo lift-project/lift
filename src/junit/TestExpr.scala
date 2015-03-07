@@ -105,6 +105,31 @@ class TestExpr {
     assertEquals(i, ExprSimplifier.simplify(i % Cst(128)))
   }
 
+  @Test def modSameDividendDivisor(): Unit = {
+    val N = Var("N")
+    assertEquals(Cst(0), ExprSimplifier.simplify(N % N))
+  }
+
+  @Test def modDivisorZero(): Unit = {
+    val N = Var("N")
+    assertEquals(Cst(0), ExprSimplifier.simplify(0 % N))
+  }
+
+  @Test def modConstants(): Unit = {
+    assertEquals(Cst(1), ExprSimplifier.simplify(Cst(11) % Cst(2)))
+  }
+
+  @Test def modSum(): Unit = {
+    val N = Var("N")
+    assertEquals(1 % N, ExprSimplifier.simplify((N + 1) % N))
+  }
+
+  @Test def modProd(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    assertEquals(Cst(0), ExprSimplifier.simplify((N * M) % N))
+  }
+
   @Test def OneByOne() {
     assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) / Cst(1)))
   }

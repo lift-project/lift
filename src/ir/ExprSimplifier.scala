@@ -72,10 +72,21 @@ object ExprSimplifier {
   }
 
   private def simplifyMod(m: Mod): ArithExpr = {
+
     m.divisor match {
       case Cst(1) =>
         // TODO: Not if dividend is < 1
         return Cst(0)
+      case _ =>
+    }
+
+    if (m.dividend == Cst(0) && m.divisor != Cst(0) || m.divisor == m.dividend)
+      return Cst(0)
+
+    m.dividend match {
+      case Mod(dividend, divisor) =>
+        if (divisor == m.divisor)
+          return Mod(dividend, divisor)
       case _ =>
     }
 
@@ -87,7 +98,37 @@ object ExprSimplifier {
       case e: NotEvaluableException =>
     }
 
-    m
+    m match {
+      case Mod(Cst(_), Cst(_)) => m.eval()
+      case Mod(Sum(terms), d) =>
+        // (A + B) mod C = (A mod C + B mod C) mod C
+        val newDividend = simplify(Sum(terms.map(t  =>simplify(Mod(t, d)))))
+        newDividend match {
+          case Sum(newTerms) =>
+            if (newTerms.length < terms.length)
+              return simplify(Mod(newDividend, d))
+          case _ => return simplify(Mod(newDividend, d))
+        }
+
+        m
+      case Mod(Prod(dividendFactors), Prod(divisorFactors)) =>
+        val common = dividendFactors.intersect(divisorFactors)
+        if (common.length == divisorFactors.length)
+          return Cst(0)
+
+        m
+      case Mod(Prod(factors), d) =>
+        // (A * B) mod C = (A mod C * B mod C) mod C
+        val newDividend = simplify(Prod(factors.map(t  =>simplify(Mod(t, d)))))
+        newDividend match {
+          case Prod(newFactors) =>
+            if (newFactors.length < factors.length)
+              return simplify(Mod(newDividend, d))
+          case _ => return simplify(Mod(newDividend, d))
+        }
+        m
+      case _ => m
+    }
   }
 
   private def simplifyFraction(f: Fraction): ArithExpr = {
