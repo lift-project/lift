@@ -105,8 +105,13 @@ object ExprSimplifier {
         val newDividend = simplify(Sum(terms.map(t  =>simplify(Mod(t, d)))))
         newDividend match {
           case Sum(newTerms) =>
-            if (newTerms.length < terms.length)
-              return simplify(Mod(newDividend, d))
+            if (newTerms.length < terms.length) {
+              val removedMods = newTerms.map({
+                case Mod(dividend, m.divisor) => dividend
+                case t => t
+              })
+              return Mod(Sum(removedMods), d)
+            }
           case _ => return simplify(Mod(newDividend, d))
         }
 
@@ -122,8 +127,13 @@ object ExprSimplifier {
         val newDividend = simplify(Prod(factors.map(t  =>simplify(Mod(t, d)))))
         newDividend match {
           case Prod(newFactors) =>
-            if (newFactors.length < factors.length)
-              return simplify(Mod(newDividend, d))
+            if (newFactors.length < factors.length){
+              val removedMods = newFactors.map({
+                case Mod(dividend, m.divisor) => dividend
+                case t => t
+              })
+              return Mod(Prod(removedMods), d)
+            }
           case _ => return simplify(Mod(newDividend, d))
         }
         m
