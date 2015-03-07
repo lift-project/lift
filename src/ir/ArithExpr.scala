@@ -172,6 +172,17 @@ object ArithExpr {
     visit(expr, e => if (e==elem) seen=true)
     seen
   }
+  
+  def multipleOf(expr: ArithExpr, that: ArithExpr) : Boolean = {
+    expr match {
+      case Prod(terms) =>
+        that match {
+          case Prod(otherTerms) => otherTerms.map(x => terms.contains(x)).reduce(_&&_)
+          case e => terms.contains(that)
+        }
+      case _ => false
+    }
+  }
 
   def visit(e: ArithExpr, f: (ArithExpr) => Unit) : Unit = {
     f(e)

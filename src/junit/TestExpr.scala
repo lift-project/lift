@@ -119,6 +119,26 @@ class TestExpr {
     assertEquals(Cst(1), ExprSimplifier.simplify(Cst(11) % Cst(2)))
   }
 
+  @Test def prodMultipleOfVar(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    assertTrue(ArithExpr.multipleOf(N*M, N))
+  }
+
+  @Test def prodMultipleOfProd(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+    assertTrue(ArithExpr.multipleOf(N*M*K, N*K))
+  }
+
+  @Test def prodNotMultipleOfProd(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+    assertFalse(ArithExpr.multipleOf(N*M, N*K))
+  }
+
   @Test def modSum(): Unit = {
     val N = Var("N")
     assertEquals(1 % N, ExprSimplifier.simplify((N + 1) % N))
