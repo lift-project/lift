@@ -19,7 +19,7 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  def apply() = { true }
+  def apply() = { false }
 }
 
 object Verbose {
