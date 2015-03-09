@@ -175,7 +175,7 @@ class TestVector {
 
   @Test def SCAL_INTEL() {
 
-    val inputSize = 2048
+    val inputSize = 65536
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
     val gold = inputArray.map(_ * alpha)
