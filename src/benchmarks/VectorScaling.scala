@@ -57,8 +57,8 @@ object VectorScaling {
     Join() o MapWrg(
       Join() o MapLcl(MapSeq(
         fun( x => Vectorize(4)(mult).apply(Vectorize(4)(alpha), x) )
-      )) o Split(1) o asVector(4)
-    ) o Split(4*128) $ input
+      )) o Split(128) o asVector(4)
+    ) o Split(4*128*128) $ input
   )
 
   def apply() = new VectorScaling("Vector Scaling",

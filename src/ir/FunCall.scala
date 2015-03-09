@@ -84,7 +84,6 @@ class Param() extends Expr {
 
 class VectorParam(val p: Param, n: ArithExpr) extends Param {
   t = Type.vectorize(p.t, n)
-
 }
 
 object Param {
@@ -97,9 +96,7 @@ object Param {
   }
 
   def vectorize(p: Param, n: ArithExpr): Param = {
-    val vectorParam = new VectorParam(p, n)
-    println(vectorParam.t)
-    vectorParam
+    new VectorParam(p, n)
   }
 }
 
