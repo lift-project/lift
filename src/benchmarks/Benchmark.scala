@@ -16,8 +16,15 @@ abstract class Benchmark(val name: String,
                          val f: Seq[(String, Seq[Lambda])],
                          val delta: Float) {
 
+  var variant = -1
+  var checkResult = false
+  var iterations = 10
+  var scalaResult = Array.emptyFloatArray
+  var inputs = Seq[Any]()
+  var runtimes = Array.emptyDoubleArray
 
 
+  // Parser options
   val parser = new ArgotParser(name)
 
   val iterationsOpt = parser.option[Int](List("i", "iterations"), "n",
@@ -43,6 +50,9 @@ abstract class Benchmark(val name: String,
 
   val variantOpt = parser.option[Int](List("variant"), "var",
     "Which of the following variants to run (Default: 0):\n" + f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
+
+  val all = parser.flag[Boolean](List("a", "all"),
+    "Run all variants, takes precedence over the variant option.")
 
   val checkResultOpt = parser.flag[Boolean](List("c", "check"),
     "Check the result")
@@ -84,8 +94,8 @@ abstract class Benchmark(val name: String,
     val lambdas: Seq[Lambda] = f(variant)._2
     for (i <- 0 until lambdas.length) {
       val (output, runtime) = Execute(localSize,
-                              globalSizeOpt.value.getOrElse(sizes.product)
-                              )(lambdas(i), realInputs ++ realSizes:_*)
+        globalSizeOpt.value.getOrElse(sizes.product)
+      )(lambdas(i), realInputs ++ realSizes:_*)
       realInputs = Seq(output)
       realSizes = Seq(output.length)
       totalRuntime += runtime
@@ -104,18 +114,7 @@ abstract class Benchmark(val name: String,
   }
 
   def runBenchmark(): Unit = {
-    Executor.loadLibrary()
-    Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
-    Verbose.verbose = verbose.value.getOrElse(false)
-
-    val checkResult: Boolean = checkResultOpt.value.getOrElse(false)
-
-    val iterations: Int = iterationsOpt.value.getOrElse(10)
-    val runtimes = Array.ofDim[Double](iterations)
-    val inputs = generateInputs()
-    var scalaResult = Array.emptyFloatArray
-
-    println(name + " " + f(variant)._1)
+    println("Benchmark: " + name + " " + f(variant)._1)
     println("Size(s): " + inputSizes().mkString(", "))
     println("Total iterations: " + iterations)
     println("Checking results: " + checkResult)
@@ -123,10 +122,6 @@ abstract class Benchmark(val name: String,
     println("Local size: " + localSize)
     println("Machine: " + "hostname".!!.dropRight(1))
     println("Commit: " + "hg id -i".!!.dropRight(1))
-
-    if (checkResult) {
-      scalaResult = runScala(inputs:_*)
-    }
 
     println()
 
@@ -139,15 +134,15 @@ abstract class Benchmark(val name: String,
       runtimes(i) = runtime
       println("Runtime: " + runtime + " ms")
 
-      if (checkResult) {
+      if (checkResult && i == 0) {
 
         val loop = new Breaks
 
         loop.breakable {
           for (j <- 0 until scalaResult.length) {
             if (output(j) - scalaResult(j) >= delta) {
-              println("Output at position [" + j + "] differs more than " + delta)
-              loop.break()
+              println("Output at position " + j + " differs more than " + delta)
+              // loop.break()
             }
           }
         }
@@ -155,26 +150,55 @@ abstract class Benchmark(val name: String,
 
     }
 
-    println()
-
     val sorted = runtimes.sorted
 
+    println()
     println("MIN: " + sorted(0) + " ms")
     println("MAX: " + sorted(iterations-1) + " ms")
-    println("MEDIAN: " + sorted((iterations-1)/2) + " ms")
-
-    Executor.shutdown()
+    println("MEDIAN: " + median(sorted) + " ms")
+    println("BANDWIDTH: " + 4 * inputSizes().product / median(sorted) * 0.000001 + " GB/s" )
+    println()
   }
 
-  private def variant: Int = {
-    variantOpt.value.getOrElse(0)
+  private def median(sorted: Array[Double]): Double = {
+    val iterations = sorted.length
+    if (iterations % 2 == 0)
+      sorted((iterations - 1) / 2)
+    else
+      (sorted((iterations - 1) / 2) + sorted(iterations / 2)) / 2
   }
 
   def run(args: Array[String]): Unit = {
     try {
       parser.parse(args)
 
-      runBenchmark()
+      Executor.loadLibrary()
+      Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
+      Verbose.verbose = verbose.value.getOrElse(false)
+
+      checkResult = checkResultOpt.value.getOrElse(false)
+
+      iterations = iterationsOpt.value.getOrElse(10)
+      inputs = generateInputs()
+      runtimes = Array.ofDim[Double](iterations)
+
+
+      if (checkResult) {
+        scalaResult = runScala(inputs:_*)
+      }
+
+      if (all.value.getOrElse(false)) {
+        for (i <- 0 until f.length) {
+          variant = i
+          runBenchmark()
+        }
+
+      } else {
+        variant = variantOpt.value.getOrElse(0)
+        runBenchmark()
+      }
+
+      Executor.shutdown()
 
     } catch {
       case e: ArgotUsageException => println(e.message)
