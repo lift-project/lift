@@ -25,7 +25,7 @@ done
 for size in 4096 8192
 do
 	OPTIONS="${COMMON_OPTIONS_ALGEBRA} -s ${size} -s ${size}"
-	./././././././././MatrixVector $OPTIONS
+	MatrixVector $OPTIONS
 done
 
 ./BlackScholes $COMMON_OPTIONS -s 4194304 -g $GLOBA_SIZE_BS
