@@ -1,0 +1,26 @@
+#!/bin/bash
+
+PLATFORM=0
+DEVICE=0
+GLOBAL_SIZE=1048576
+ITERATIONS=100
+
+COMMON_OPTIONS="--all -g ${GLOBAL_SIZE} -p ${PLATFORM} -d ${DEVICE} -i ${ITERATIONS}"
+
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+
+# Vector Benchmarks
+for size in 16777216 67108864
+do
+	OPTIONS="${COMMON_OPTIONS} -s ${size}"
+	./VectorScaling $OPTIONS
+	./SumAbsoluteValues $OPTIONS
+	./DotProduct $OPTIONS
+done
+
+# Matrix Benchmarks
+for size in 4096 8192
+do
+	OPTIONS="${COMMON_OPTIONS} -s ${size} -s ${size}"
+	MatrixVector $OPTIONS
+done
