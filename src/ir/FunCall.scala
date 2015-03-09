@@ -82,6 +82,11 @@ class Param() extends Expr {
   override def copy: Param =  this.clone().asInstanceOf[Param]
 }
 
+class VectorParam(val p: Param, n: ArithExpr) extends Param {
+  t = Type.vectorize(p.t, n)
+
+}
+
 object Param {
   def apply(): Param = new Param
 
@@ -89,6 +94,12 @@ object Param {
     val p = Param()
     p.t =outT
     p
+  }
+
+  def vectorize(p: Param, n: ArithExpr): Param = {
+    val vectorParam = new VectorParam(p, n)
+    println(vectorParam.t)
+    vectorParam
   }
 }
 

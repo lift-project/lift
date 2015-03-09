@@ -53,21 +53,21 @@ object VectorScaling {
     ) o Split(2048) $ input
   )
 
-  // Vectorising a parameter?
-//  val scalINTEL = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
-//    Join() o MapWrg(
-//      Join() o MapLcl(MapSeq(
-//        fun( x => Vectorize(4)(mult).apply(alpha, x) )
-//      )) o Split(1) o asVector(4)
-//    ) o Split(4*128) $ input
-//  )
+  val scalINTEL = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+    Join() o MapWrg(
+      Join() o MapLcl(MapSeq(
+        fun( x => Vectorize(4)(mult).apply(Vectorize(4)(alpha), x) )
+      )) o Split(1) o asVector(4)
+    ) o Split(4*128) $ input
+  )
 
   def apply() = new VectorScaling("Vector Scaling",
     Seq(1024),
     0.001f,
     Seq(("simple", Seq(vectorScal)),
         ("SCAL_NVIDIA", Seq(scalNVIDIA)),
-        ("SCAL_AMD", Seq(scalAMD))))
+        ("SCAL_AMD", Seq(scalAMD)),
+        ("SCAL_INTEL", Seq(scalINTEL))))
 
   def main(args: Array[String]) = {
     VectorScaling().run(args)

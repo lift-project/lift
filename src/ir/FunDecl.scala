@@ -657,6 +657,10 @@ object Vectorize {
     def apply(v: Value): Value = {
       Value.vectorize(v, n)
     }
+
+    def apply(p: Param): Param = {
+      Param.vectorize(p, n)
+    }
   }
 
   def apply(n: ArithExpr): Helper = {

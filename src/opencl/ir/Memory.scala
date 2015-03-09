@@ -200,6 +200,9 @@ object OpenCLMemory {
       case pr: ParamReference =>
         if (pr.p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
         getMemAtIndex(pr.p.mem, pr.i)
+      case vp: VectorParam =>
+        if (vp.p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
+        vp.p.mem
       case p: Param =>
         if (param.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
         p.mem
