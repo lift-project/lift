@@ -114,6 +114,8 @@ abstract class Benchmark(val name: String,
   }
 
   def runBenchmark(): Unit = {
+    val commit = "hg id -i".!!.dropRight(1)
+
     println("Benchmark: " + name + " " + f(variant)._1)
     println("Size(s): " + inputSizes().mkString(", "))
     println("Total iterations: " + iterations)
@@ -121,7 +123,9 @@ abstract class Benchmark(val name: String,
     println("Global size: " + globalSize)
     println("Local size: " + localSize)
     println("Machine: " + "hostname".!!.dropRight(1))
-    println("Commit: " + "hg id -i".!!.dropRight(1))
+    println("Commit: " + commit)
+    if (commit.last == '+')
+      println("Diff:\n" + "hg diff".!!.dropRight(1))
 
     println()
 
@@ -133,6 +137,9 @@ abstract class Benchmark(val name: String,
 
       runtimes(i) = runtime
       println("Runtime: " + runtime + " ms")
+
+      if (i == 1)
+        Verbose.verbose = false
 
       if (checkResult && i == 0) {
 
