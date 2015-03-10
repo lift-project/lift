@@ -7,7 +7,7 @@ import opencl.ir._
 import scala.reflect.ClassTag
 
 object Compile {
-  def apply(f: Lambda) = {
+  def apply(f: Lambda):String = {
     Type.check(f.body)
 
     val kernelCode = OpenCLGenerator.generate(f)
@@ -59,6 +59,7 @@ class Execute(val localSize: Int, val globalSize: Int) {
       case i: Int => value(i)
       case ai: Array[Int] => global.input(ai)
       case aai: Array[Array[Int]] => global.input(aai.flatten)
+
     })
     val outputData = global.output[Float](outputSize)
 

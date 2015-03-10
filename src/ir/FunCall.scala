@@ -144,9 +144,15 @@ case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override va
   def arg1: Expr = args(1)
 }
 
-case class DropWhileCall(loopVar: Var, override val f: AbstractDropWhile, override val args: Expr*) extends FunCall(f, args(0)) {
+case class DropLeftCall(loopVar: Var, override val f: AbstractDropLeft, override val args: Expr*) extends FunCall(f, args(0)) {
   assert(args.length == 1)
   def arg: Expr = args(0)
+}
+
+case class SearchCall(loopVar: Var, override val f: AbstractSearch, override val args: Expr*) extends FunCall(f, args(0)) {
+  assert(args.length == 2)
+  def arg0: Expr = args(0)
+  def arg1: Expr = args(1)
 }
 
 object Expr {

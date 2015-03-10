@@ -186,9 +186,12 @@ object OpenCLGenerator extends Generator {
         case _: ReduceSeq => generateReduceSeqCall(call)
         case _: ReduceHost => generateReduceSeqCall(call)
       }
-      case call: IterateCall => generateIterateCall(call)
-      case call: DropWhileCall => generateDropWhileCall(call)
 
+      case call: IterateCall => generateIterateCall(call)
+      case call: DropLeftCall => generateDropLeftCall(call)
+      case call: SearchCall => call.f match {
+        case _: LinearSearchSeq => generateLinearSearchSeq(call)
+      }
       case call: FunCall => call.f match {
         case cf: CompFunDef => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
 
@@ -343,25 +346,116 @@ object OpenCLGenerator extends Generator {
     oclPrinter.closeCB()
   }
 
-  // === DropWhile ===
-  private def generateDropWhileCall(call: DropWhileCall): Unit =
+  private def generateLinearSearchSeq(call: SearchCall){
+    oclPrinter.openCB()
+
+    val searchVar = call.arg0.mem.variable
+    val searchType = call.arg0.t
+    val searchValue = call.arg0 match { case v: Value => v.value }
+
+    val defaultVal = call.arg1.mem.variable
+    val defaultType = call.arg1.t
+    val defaultValue = call.arg0 match { case v: Value => v.value }
+
+    //print an OpenCL/C declaration for the searching variable
+    oclPrinter.printVarDecl(searchType, searchVar, searchValue)
+    oclPrinter.println(";")
+
+    //print an OpenCL/C declaration for the "default" variable
+    oclPrinter.printVarDecl(searchType, searchVar, searchValue)
+    oclPrinter.println(";")
+
+    val inT = call.arg1.t
+
+    val funCall = call.f.f.body match { case call: FunCall => call }
+
+    //hackily generate a temporary variable for storing our values...
+    oclPrinter.println(oclPrinter.toOpenCL(inT.asInstanceOf[ArrayType].elemT)+" tempVar = {0.0,0.0};")
+    // 2. generate loop from 0 .. length
+    val range = RangeAdd(Cst(0), Type.getLength(inT), Cst(1))
+    oclPrinter.generateLoop(call.loopVar, range, () => {
+      // 3. generate if(fun(searchvalue, input[i])
+
+      oclPrinter.generateConditional(
+        // 3. generate if(fun(searchvalue, input[i])
+        () => {oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))},
+        // 4. generate "searchvar =  input[i]; break"
+        () => {
+//          oclPrinter.print(oclPrinter.toOpenCL(searchVar) + " = (")
+          oclPrinter.print("searchVar = (")
+          oclPrinter.print(access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
+          oclPrinter.println(");")
+//          oclPrinter.println("printf(\"Found the variable\\n\");")
+//          oclPrinter.print("printf(\"Values: %f %f\\n\",")
+//          oclPrinter.print(access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
+//          oclPrinter.println(");")
+          oclPrinter.println("break;")
+        },
+        () => {
+//          oclPrinter.println("printf(\"Not matched the variable\\n\");")
+//          oclPrinter.print("printf(\"Values: %f %f\\n\",")
+//          oclPrinter.print(access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
+//          oclPrinter.println(");")
+        }
+      )
+      //println("ReduceSeqCall access: ")
+      //ViewPrinter.emit(funCall.args(1).view.asInstanceOf[PrimitiveView])
+      //println()
+    })
+
+    // 4. generate output[0] = acc
+//    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) =:= oclPrinter.toOpenCL(searchVar))
+    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) + " = tempVar;")
+    oclPrinter.print("printf(\"Returning variable %f\\n\",")
+    oclPrinter.print(access(call.mem, call.f.f.body.t, funCall.access))
+    oclPrinter.println(");")
+    oclPrinter.commln("search_seq")
+    oclPrinter.closeCB()
+  }
+
+  // === DropLeft ===
+  private def generateDropLeftCall(call: DropLeftCall)
   {
+    //    We want to generate something like this:
+    //    int predicate(float x, float l);
+    //
+    //    dropLeft(float* in, int N, float limit)
+    //    {
+    //      float* t = in;
+    //      for(int i = 0;i<N;i++)
+    //      {
+    //        if(predicate(in[i], limit))
+    //        {
+    //          t++;
+    //        }else{
+    //          break;
+    //        }
+    //      }
+    //    }
     val inputMemory = OpenCLMemory.asOpenCLMemory(call.arg.mem)
     val inVStr = oclPrinter.toOpenCL(inputMemory.variable) //our input array
+    val funCall = call.f.f.body match { case call: FunCall => call }
+    val innerInputLength = Type.getLength(funCall.argsType)
 
-
-    println("Generating dropwhile:")
+    println("Generating dropLeft:")
     println(inputMemory.toString)
     println(inVStr.toString)
 
 
     oclPrinter.openCB()
-    oclPrinter.commln("dropwhile_seq")
-    oclPrinter.println("printf(\"Hello world\\n\");")
+    oclPrinter.commln("dropLeft_seq")
 
-    oclPrinter.commln("dropwhile_seq")
+//    oclPrinter.println(inVStr.toString+"++;")
+//    oclPrinter.generateIterate(
+//      () => {oclPrinter.generateFunCall(call.f.f.body, access(call.argsMemory, call.argsType, call.argsAccess))},
+////      () => {oclPrinter.generateFunCall(call.f.f.body)},
+//      () => {oclPrinter.println(inVStr+"++;")}
+//    )
+    oclPrinter.commln("dropLeft_seq")
     oclPrinter.closeCB()
   }
+
+
 
   // === Iterate ===
   private def generateIterateCall(call: IterateCall) = {

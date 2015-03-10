@@ -34,23 +34,73 @@ class TestSparsity {
     baseArray
   }
 
-  @Test def DROP_WHILE() {
-    val length = 2048
+  @Test def SEARCH_HOST() {
+//    val rawVector = generateSparseArray(1024)
+//    val inputVector = rawVector.map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
+//    val inputSize = inputVector.length/2
+//
+//    val pred = UserFunDef("predicate", Array("s", "i"), "return (i._0 == s);",
+//      Seq(Float,TupleType(Float, Float)), Int)
+//    val proc = UserFunDef("process", "i", "return (i._1);", TupleType(Float, Float), Float)
+//
+//
+//    val searchFunc = fun(ArrayType(TupleType(Float, Float), Var("N")), (in) => {
+//      LinearSearchSeq(fun(x => {pred(2.0f,x)}), proc, 0.0f) $ in
+//    })
+//
+//    val (output, runtime) = Execute(inputSize)(searchFunc, inputVector, inputVector.size)
+//
+//    println(output.deep.mkString)
+//    println("output(0) = " + output(0))
+//    println("runtime = " + runtime)
+  }
+
+  @Test def SEARCH_DOT_PRODUCT() {
+//    val rawVector = generateSparseArray(1024)
+//    val inputVector = rawVector.map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
+//    val inputSize = inputVector.length/2
+//
+////    val gold = vect.dropWhile(_<limit)
+//
+//    val pred = UserFunDef("predicate", Array("i", "s"), "{return (i==s)}", Seq(Float, Float), Int)
+//
+//    val correspondFunc = fun(
+//      ArrayType(Int, Var("N")),
+//      ArrayType(Int, Var("M")),
+//      (arrA, arrB) =>{
+//        Join() o MapWrg(
+//          MapLcl( //search and correspond
+//            fun (x =>
+//              SparseSearch(x, arrB, pred)
+//            )
+//          )
+//        ) o Split(128) $ arrA //split array A, and map across it
+//      }
+//    )
+//
+//    val code = Compile(dropFunc)
+//    //println(code)
+//    val (output, runtime) = Execute(length)(dropFunc, vect, limit, length)
+//    println("output(0) = " + output(0))
+//    println(output.toList)
+//    println("runtime = " + runtime)
+  }
+
+  @Test def DROP_LEFT() {
+    val length = 4096
     val vect = (1 to length).toArray
     val limit = 1024
     val gold = vect.dropWhile(_<limit)
-
-
     val lessThan = UserFunDef("lessThan", Array("x", "s"), "{return (x<s);}", Seq(Float, Float), Int)
+//    val lessThan = UserFunDef("lessThan", "x", "{return (x<0);}", Float, Int)
 
-    val dropFunc = fun(ArrayType(Float, Var("N")), Float, (input, limit) =>
-      DropWhileSeq(
-        fun(x => lessThan(x,limit))
-      ) $ input
+    val dropTest = fun(ArrayType(Float, Var("N")), Float, (input, limit) =>
+      DropLeftSeq(fun(x => lessThan(limit, x))) $ input
     )
-    val code = Compile(dropFunc)
+
+    val code = Compile(dropTest)
     //println(code)
-    val (output, runtime) = Execute(1,1)(dropFunc, vect, limit, length)
+    val (output, runtime) = Execute(length)(dropTest, vect, limit, length)
     println("output(0) = " + output(0))
     println(output.toList)
     println("runtime = " + runtime)
@@ -112,7 +162,7 @@ class TestSparsity {
 
     val gold = rawVector.map((vi) => (vi._1, -vi._2)).map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
 
-    val negElem = UserFunDef("negElem", "x", "{ x._0 = x._0; x._1 = -x._1; return x; }",
+    val negElem = UserFunDef("negElem", "x", "{ x._0 = x._0; x._1 = -(x._1); return x; }",
       TupleType(Float, Float), TupleType(Float, Float))
 
     val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
@@ -164,6 +214,7 @@ class TestSparsity {
     val vectA = List((1, 9.0),(3, 3.0),(8, 4.0),(16,7.0),(19,1.0),(20,2.0),(21,3.0)).toArray
     val vectB = List((1, 9.0),(2, 3.0),(8, 4.0),(15,7.0),(19,1.0),(20,2.0),(22,3.0)).toArray
     val initial = (vectB,0.0)
+
     def foldBody(acc:Tuple2[Array[Tuple2[Int,Double]],Double], vi:Tuple2[Int,Double]) : Tuple2[Array[Tuple2[Int,Double]],Double] = {
       val greaterOrEqual = acc._1.dropWhile((vj: Tuple2[Int, Double]) => vj._1 < vi._1)
       if(greaterOrEqual.head._1 == vi._1)
@@ -173,5 +224,21 @@ class TestSparsity {
     }
     val result = vectA.foldLeft(initial)( foldBody )
     println(result._2 )
+  }
+
+  @Test def PURE_SCALA_SEARCH_DOT_PRODUCT() {
+    val vectA = List((1, 9.0),(3, 3.0),(8, 4.0),(16,7.0),(19,1.0),(20,2.0),(21,3.0)).toArray
+    val vectB = List((1, 9.0),(2, 3.0),(8, 4.0),(15,7.0),(19,1.0),(20,2.0),(22,3.0)).toArray
+
+    def findCorresponding(item : Int, list: Array[Tuple2[Int, Double]]) : Double = {
+      for(li <- list) {
+        if(li._1 == item)
+          return li._2
+      }
+      0
+    }
+    val result = vectA.foldLeft(0.0)((acc:Double, i: Tuple2[Int,Double]) => (acc + (i._2 * findCorresponding(i._1, vectB))))
+
+    println(result)
   }
 }

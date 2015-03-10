@@ -246,7 +246,8 @@ object OpenCLMemory {
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
 
-      case dw: DropWhileSeq =>    allocDropWhileSeq(dw, numGlb, numLcl, inMem, outputMem)
+      case dw: DropLeftSeq =>    allocDropLeftSeq(dw, numGlb, numLcl, inMem, outputMem)
+      case lss: LinearSearchSeq => allocLinearSearchSeq(lss, numGlb, numLcl, inMem, outputMem)
 
       case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride() | asVector(_) | asScalar() | Transpose() | Swap() | Unzip()  =>
         inMem
@@ -297,7 +298,6 @@ object OpenCLMemory {
     alloc(am.f.body, numGlb * maxLen, numLcl, outputMem)
   }
 
-
   private def allocMapLcl(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr,
                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {
     if (am.f.params.length != 1) throw new NumberOfArgumentsException
@@ -311,6 +311,7 @@ object OpenCLMemory {
     am.f.params(0).mem = inMem
     alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, outputMem)
   }
+
   private def allocReduce(r: AbstractPartRed, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
@@ -321,6 +322,19 @@ object OpenCLMemory {
         r.f.params(0).mem = initM
         r.f.params(1).mem = elemM
         alloc(r.f.body, numGlb, numLcl, outputMem)
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+  private def allocLinearSearchSeq(ls: LinearSearchSeq, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+    inMem match {
+      case coll: OpenCLMemoryCollection =>
+        if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
+        val initM = coll.subMemories(0)
+        val elemM = coll.subMemories(1)
+        if (ls.f.params.length != 2) throw new NumberOfArgumentsException
+        ls.f.params(0).mem = initM
+        ls.f.params(1).mem = elemM
+        alloc(ls.f.body, numGlb, numLcl, outputMem)
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
@@ -337,8 +351,8 @@ object OpenCLMemory {
     alloc(s.f.body, numGlb, numLcl, outputMem)
   }
 
-  //temporary allocDropWhile call, shouldn't actually need to allocate anything...
-  private def allocDropWhileSeq(dw: DropWhileSeq, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+  //temporary allocDropLeft call, shouldn't actually need to allocate anything...
+  private def allocDropLeftSeq(dw: DropLeftSeq, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     if (dw.f.params.length != 1) throw new NumberOfArgumentsException
     dw.f.params(0).mem = inMem
     alloc(dw.f.body, numGlb, numLcl, outputMem)

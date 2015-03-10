@@ -352,6 +352,7 @@ object Type {
       case uz: Unzip =>           checkUnzip(uz, inT, setType)
       case Split(n) =>            checkSplit(n, inT)
       case SplitDim2(n) =>        checkSplitDim2(n, inT)
+      case SplitDim2(n) =>        checkSplitDim2(n, inT)
       case _: Join =>             checkJoin(inT)
       case _: JoinDim2 =>         checkJoinDim2(inT)
       case _: asScalar  =>        checkAsScalar(inT)
@@ -365,7 +366,8 @@ object Type {
       case _: ReorderStride =>    inT
       case g: Gather =>           checkGather(g, inT, setType)
       case s: Scatter =>          checkScatter(s, inT, setType)
-      case d: AbstractDropWhile => checkDropWhile(d, inT, setType)
+      case d: AbstractDropLeft => checkDropLeft(d, inT, setType)
+      case as: AbstractSearch => checkSearch(as, inT, setType)
     }
   }
 
@@ -413,24 +415,39 @@ object Type {
   private def checkReduce(ar: AbstractPartRed, inT: Type, setType: Boolean): Type = {
     inT match {
       case tt: TupleType =>
-        if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
-        val initT = tt.elemsT(0)
-        val elemT = getElemT(tt.elemsT(1))
-        if (ar.f.params.length != 2) throw new NumberOfArgumentsException
-        ar.f.params(0).t = initT
-        ar.f.params(1).t = elemT
-        check(ar.f.body, setType)
-        ArrayType(initT, new Cst(1))
+        if (tt.elemsT.length != 2) throw new NumberOfArgumentsException // get the input type to the reduction, got to be tuple of array + initial val
+        val initT = tt.elemsT(0) // get the type of the inital value
+        val elemT = getElemT(tt.elemsT(1)) // get the type of the array values to the reduce
+        if (ar.f.params.length != 2) throw new NumberOfArgumentsException // make sure our function has two args
+        ar.f.params(0).t = initT // initial elem type
+        ar.f.params(1).t = elemT // array element type
+        check(ar.f.body, setType) // check the body - setting the type
+        ArrayType(initT, new Cst(1)) // return a constant length array
       case _ => throw new TypeException(inT, "TupleType")
     }
   }
 
-  private def checkDropWhile(ad: AbstractDropWhile, inT: Type, setType: Boolean): Type= {
+  private def checkDropLeft(ad: AbstractDropLeft, inT: Type, setType: Boolean): Type= {
     inT match {
       case at: ArrayType =>
         if (ad.f.params.length != 1) throw new NumberOfArgumentsException
         ad.f.params(0).t = getElemT(inT)
         ArrayType(check(ad.f.body, setType), getLength(inT))
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  private def checkSearch(as: AbstractSearch, inT: Type, setType: Boolean): Type = {
+    inT match{
+      case tt: TupleType =>
+        if (tt.elemsT.length != 1) throw new NumberOfArgumentsException // search input type: search value + array
+//        val searchT = tt.elemsT(0) // get the type of the inital value
+        val elemT = getElemT(tt.elemsT(0)) // get the type of the array values to the reduce
+        if (as.f.params.length != 1) throw new NumberOfArgumentsException // make sure our function has two args
+//        as.f.params(0).t = searchT // initial elem type
+        as.f.params(0).t = elemT // array element type
+        check(as.f.body, setType) // check the body - setting the type
+        ArrayType(elemT, new Cst(1)) // return a constant length array
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }

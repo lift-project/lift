@@ -373,28 +373,52 @@ object PartRed {
   def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = PartRed(f)(init, expr)
 }
 
-abstract class AbstractDropWhile(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
+abstract class AbstractDropLeft(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
 
-case class DropWhile(f: Lambda1) extends AbstractDropWhile(f) {
-  override def apply(args: Expr*) : DropWhileCall = dropWhileCall(args:_*)
+case class DropLeft(f: Lambda1) extends AbstractDropLeft(f) {
+  override def apply(args: Expr*) : DropLeftCall = dropLeftCall(args:_*)
 
-  override def $(that: Expr): DropWhileCall = dropWhileCall(that)
+  override def $(that: Expr): DropLeftCall = dropLeftCall(that)
 
-  private def dropWhileCall(args: Expr*): DropWhileCall = {
+  private def dropLeftCall(args: Expr*): DropLeftCall = {
     assert(args.length == 1)
-    new DropWhileCall(Var("i"),this, args(0))
+    new DropLeftCall(Var("i"),this, args(0))
   }
 }
 
-object DropWhile {
-  def apply(f: Lambda1, expr: Expr): DropWhileCall = {
-    DropWhile(f).dropWhileCall(expr)
+object DropLeft {
+  def apply(f: Lambda1, expr: Expr): DropLeftCall = {
+    DropLeft(f).dropLeftCall(expr)
   }
 }
 
-object jDropWhile {
-  def create(f: Lambda1) = DropWhile(f)
-  def create(f: FunDecl) = DropWhile(Lambda1.FunDefToLambda(f))
+object jDropLeft {
+  def create(f: Lambda1) = DropLeft(f)
+
+  def create(f: FunDecl) = DropLeft(Lambda1.FunDefToLambda(f))
+}
+
+abstract class AbstractSearch(f:Lambda2) extends Pattern(Array[Param](Param(UndefType))) with FPattern
+
+case class Search(f: Lambda2) extends AbstractSearch(f) {
+  override def apply(args: Expr*): SearchCall = searchCall(args:_*)
+  override def $(that: Expr): SearchCall = searchCall(that)
+
+  private def searchCall(args: Expr*) : SearchCall = {
+    assert(args.length == 3)
+    new SearchCall(Var("i"), this, args(0), args(1), args(2))
+  }
+}
+
+object Search {
+  def apply(f: Lambda2, expr: Expr): SearchCall = {
+    Search(f).searchCall(expr)
+  }
+}
+
+object jSearch {
+  def create(f: Lambda2) = Search(f)
+  def create(f: FunDecl) = Search(Lambda2.FunDefToLambda(f))
 }
 
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {

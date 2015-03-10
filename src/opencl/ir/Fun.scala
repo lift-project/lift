@@ -146,27 +146,46 @@ object jMapMatrix {
 }
 
 
-// DropWhile - seems a little hacky?
-case class DropWhileSeq(f: Lambda) extends AbstractDropWhile(f) with isGenerable {
-  override def apply(args: Expr*) : DropWhileCall = {
+// DropLeft - seems a little hacky?
+case class DropLeftSeq(f: Lambda) extends AbstractDropLeft(f) with isGenerable {
+  override def apply(args: Expr*) : DropLeftCall = {
     assert(args.length == 1)
-    new DropWhileCall(Var("i"),this, args(0))
+    new DropLeftCall(Var("i"),this, args(0))
   }
-  override def $(that: Expr) : DropWhileCall = {
+  override def $(that: Expr) : DropLeftCall = {
     apply(that)
   }
 }
 
-object DropWhileSeq {
-  def apply(f: Lambda1): Lambda1 = new DropWhileSeq(f)
+object DropLeftSeq {
+  def apply(f: Lambda1): Lambda1 = new DropLeftSeq(f)
 }
 
-object jDropWhileSeq {
-  def create(f: Lambda1) = DropWhileSeq(f)
-  def create(f: FunDecl) = DropWhileSeq(Lambda1.FunDefToLambda(f))
+object jDropLeftSeq {
+  def create(f: Lambda1) = DropLeftSeq(f)
+  def create(f: FunDecl) = DropLeftSeq(Lambda1.FunDefToLambda(f))
 }
 
+//linear sequential search
+case class LinearSearchSeq(f: Lambda) extends AbstractSearch(f) with isGenerable {
+  override def apply(args: Expr* ) : SearchCall = {
+    assert(args.length == 3)
+    new SearchCall(Var("i"),this, args(0), args(1), args(2))
+  }
 
+  override def $(that: Expr) : SearchCall = {
+    apply(that)
+  }
+}
+
+object LinearSearchSeq {
+  def apply(f: Lambda2, search: Value, zero: Value): Lambda1 = fun((x)=> LinearSearchSeq(f)(search, x))
+}
+
+object jLinearSearchSeq {
+  def create(f: Lambda2, search: Value, zero: Value) = LinearSearchSeq(f, search, zero)
+  def create(f: FunDecl, search: Value, zero: Value) = LinearSearchSeq(Lambda2.FunDefToLambda(f), search, zero)
+}
 
 // Reductions
 

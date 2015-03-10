@@ -140,6 +140,7 @@ object AccessFunction {
         case m: AbstractMap => addAccessFunctionsMap(call, inAccess, outputAccess)
       }
       case call: ReduceCall => addAccessFunctionsReduce(call, inAccess, outputAccess)
+      case call: SearchCall => addAccessFunctionsSearch(call, inAccess, outputAccess)
       case call: FunCall =>
         call.f match {
           case l: Lambda => addAccessFunctionsLambda(l, call, inAccess, outputAccess)
@@ -281,7 +282,38 @@ object AccessFunction {
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
+  private def addAccessFunctionsSearch(call: SearchCall, inputAccess: AccessFunctions, outputAccess: AccessFunctions): AccessFunctions = {
+    val s = call.f
+    inputAccess match {
+      case coll: AccessFunctionsCollection =>
+        if (coll.elems.length != 2) throw new NumberOfArgumentsException
+        val initA = coll.elems(0)
+        val elemA = coll.elems(1)
 
+        val innerFunCall = s.f.body match { case call: FunCall => call }
+
+        val t = innerFunCall.args(1).t // type of the second argument of the inner function
+        val innermostAccess = AccessFunction( (_) => call.loopVar * Type.getVectorSize(t), "ReduceSeq")
+
+        // input
+        val inChunkSizes = Type.length(call.arg1.t).reduce(_ * _) // this includes the vector size
+        if (s.f.params.length != 2) throw new NumberOfArgumentsException
+        s.f.params(0).access = initA
+        s.f.params(1).access = updateAccessFunction(elemA, inChunkSizes) :+ innermostAccess
+
+        // output
+        val outChunkSizes = Type.length(call.t).reduce(_ * _)  // this includes the vector size
+        val outAccess = updateAccessFunction(removeReorderAccessFunctions(outputAccess), outChunkSizes)
+
+        // recurs
+        addAccessFunctions(call.f.f.body, outAccess)
+
+        removeReorderAccessFunctions(outputAccess) // nextInput
+
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+
+  }
   private def getLatestScope(af: AccessFunctions): String = {
     af match {
       case coll: AccessFunctionsCollection =>
