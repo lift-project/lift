@@ -400,7 +400,7 @@ object OpenCLMemory {
   private def allocZip(z: Zip, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
-        if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
+        if (coll.subMemories.length < 2) throw new NumberOfArgumentsException
         coll
       case _ => throw new IllegalArgumentException("PANIC")
     }
