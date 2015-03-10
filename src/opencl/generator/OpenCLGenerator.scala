@@ -57,7 +57,7 @@ object OpenCLGenerator extends Generator {
     generate(f)
   }
 
-  // compiler a type-checked function into an OpenCL kernel
+  // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda): String = {
 
     assert(f.body.t != UndefType)
@@ -299,12 +299,7 @@ object OpenCLGenerator extends Generator {
     val range = ContinousRange(Cst(0), Type.getLength(call.arg.t))
 
     oclPrinter.commln("map_seq")
-    oclPrinter.generateLoop(call.loopVar, range, () => {
-
-      // oclPrinter.print(access(call.outM, call.f.f.body.outT, call.outAccess) + " = ")
-
-      generate(call.f.f.body)
-    })
+    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     oclPrinter.commln("map_seq")
   }
   
@@ -315,7 +310,6 @@ object OpenCLGenerator extends Generator {
     oclPrinter.commln("reduce_seq")
 
     // 1. generate: int acc = 0
-    // val accVar = call.argsMemory match { case coll: OpenCLMemoryCollection => coll.subMemories(0).variable }
     val accVar = call.arg0.mem.variable
     val accType = call.arg0.t
     val accValue = call.arg0 match { case v: Value => v.value }
@@ -329,7 +323,7 @@ object OpenCLGenerator extends Generator {
     val range = RangeAdd(Cst(0), Type.getLength(inT), Cst(1))
     oclPrinter.generateLoop(call.loopVar, range, () => {
       // 3. generate acc = fun(acc, input[i])
-      oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
+      oclPrinter.print(access(call.arg0.mem, call.arg0.t, call.arg0.view) + " = ")
 
       // TODO: This assumes a UserFun to be nested here!
       oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.args.map(_.view):_*))
@@ -467,18 +461,12 @@ object OpenCLGenerator extends Generator {
       case _ =>
         oclMem.addressSpace match {
           case GlobalMemory =>
-            //val afs = applyTranspose(accessFunctions.afs)
 
             "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
               "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
 
           case LocalMemory =>
-            // access function from the kernel or MapWrg scope should not affect local
-//            val localAccessFunctions = accessFunctions.afs.filter((a) => {
-//              (a.scope != "MapWrg") && (a.scope != "Kernel")
-//            })
-            //val afs = applyTranspose(localAccessFunctions)
 
             "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
