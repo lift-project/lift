@@ -133,6 +133,7 @@ object View {
       case st: ScalarType => new PrimitiveView(op)
       case tt: TupleType => new TupleView(tt, op)
       case vt: VectorType => new PrimitiveView(op)
+      case _ => throw new IllegalArgumentException("PANIC")
     }
   }
 
@@ -392,6 +393,7 @@ object View {
       case ar: ArrayReorder => findAccessAndReorder(ar.av, idx, t, count)
       case as: ArraySplit => findAccessAndReorder(as.av, idx, t, count)
       case aj: ArrayJoin => findAccessAndReorder(aj.av, idx, t, count)
+      case _ => throw new IllegalArgumentException("PANIC")
     }
   }
 
@@ -474,6 +476,7 @@ object ViewPrinter {
       case aas: ArrayAsScalar =>
         emitView(aas.av, arrayAccessStack.map(x => (x._1/aas.n, x._2)), tupleAccessStack)
 
+      case _ => throw new IllegalArgumentException("PANIC!")
      }
   }
 
@@ -583,8 +586,6 @@ class ViewTest {
     val map_map_zip_ab = new ArrayView(new ArrayType(TupleType(new ArrayType(int, 8), new ArrayType(int, 8)),4), new ArrayCreation(map_zip_ab, Cst(4), var_i))
 
     // ... map(f) $ ...
-    var var_x = new Var("x", RangeUnkown)
-
 
     // map(map (f)) o ...
     val var_k = new Var("k", RangeUnkown)
@@ -604,18 +605,6 @@ class ViewTest {
     print("gold = B[l][7], emitted = ")
     ViewPrinter.emit(map_map_f1_7)
     println()
-
-    val n = Var("N")
-    val m = Var("M")
-
-    val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
-
-    val f = fun(
-    ArrayType(ArrayType(Float, m), n),
-      ArrayType(ArrayType(Float, m), n),
-      (X, Y) => MapWrg(fun(x => MapLcl(fun(y => MapSeq(add) $ Zip(x, y))) $ Y )) $ X
-    )
-
   }
 
   @Test

@@ -2,6 +2,8 @@ package ir
 
 import opencl.ir._
 
+import language.implicitConversions
+
 abstract class Expr {
   var context : Context = null
 
@@ -150,11 +152,11 @@ object Expr {
 
   implicit def FloatToValue(f: Float): Value = Value(f.toString + "f", opencl.ir.Float)
 
-  implicit def Tuple2ToValue[T1 , T2](t : Tuple2[T1, T2]): Value = {
+  implicit def Tuple2ToValue[T1 , T2](t : (T1, T2)): Value = {
     Value(t.toString().replace('(', '{').replace(')', '}'), TupleType(getType(t._1), getType(t._2)))
   }
 
-  implicit def Tuple3ToValue[T1 , T2, T3](t : Tuple3[T1, T2, T3]): Value = {
+  implicit def Tuple3ToValue[T1 , T2, T3](t : (T1, T2, T3)): Value = {
     Value(t.toString().replace('(', '{').replace(')', '}'), TupleType(getType(t._1), getType(t._2), getType(t._3)))
   }
 
@@ -191,16 +193,16 @@ object Expr {
    */
   def visitArithExpr(expr: Expr, exprF: (ArithExpr) => (ArithExpr)) : Expr = {
     visit(expr,
-          (inExpr: Expr) => inExpr match {
-            case call: FunCall =>
-              call.f match {
-                case Split(e) => Split(exprF(e))(call.args:_*)
-                case asVector(e) => asVector(exprF(e))(call.args:_*)
-                case _ => inExpr
-              }
-            case _ => inExpr
-            },
-          (inExpr: Expr) => inExpr)
+    {
+      case call: FunCall =>
+        call.f match {
+          case Split(e) => Split(exprF(e))(call.args:_*)
+          case asVector(e) => asVector(exprF(e))(call.args:_*)
+          case _ => call
+        }
+      case inExpr => inExpr
+    },
+    (inExpr: Expr) => inExpr)
   }
   
   /*

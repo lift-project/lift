@@ -4,6 +4,7 @@ import java.util.function._
 import opencl.ir.Float
 
 import scala.collection.JavaConverters._
+import language.implicitConversions
 
 abstract class FunDecl(val params: Array[Param]) {
 

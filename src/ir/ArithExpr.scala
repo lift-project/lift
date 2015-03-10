@@ -4,6 +4,8 @@ package ir
 import scala.collection.immutable
 import scala.util.Random
 
+import language.implicitConversions
+
 class NotEvaluableException(msg: String) extends Exception(msg)
 
 
@@ -226,6 +228,8 @@ object ArithExpr {
 
     case Sum(terms) => terms.foldLeft(0.0)((result,expr) => result+evalDouble(expr))
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
+
+    case Floor(expr) => scala.math.floor(evalDouble(expr))
   }
 
 

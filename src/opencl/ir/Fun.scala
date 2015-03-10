@@ -4,6 +4,8 @@ import java.util.function.BiFunction
 
 import ir._
 
+import language.implicitConversions
+
 case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)

@@ -8,23 +8,6 @@ class BlackScholes(override val f: Seq[(String, Seq[Lambda])]) extends Benchmark
     BlackScholes.runScala(inputs(0).asInstanceOf[Array[Float]])
   }
 
-  private def CND(X : Float) : Float = {
-    val a1 = 0.319381530f
-    val a2 = -0.356563782f
-    val a3 = 1.781477937f
-    val a4 = -1.821255978f
-    val a5 = 1.330274429f
-    val a6 = 2.506628273f
-    val L = X.abs
-    val K = 1.0f / (1.0f + 0.2316419f * L)
-    val w = 1.0f - 1.0f / 1 * a6 * math.exp((-L) * L / 2).toFloat * (a1 * K + a2 * K * K + a3 * K * K * K * +a4 * K * K * K * K + a5 * K * K * K * K * K)
-    if (X < 0) {
-      1.0f - w
-    } else {
-      w
-    }
-  }
-
   override def generateInputs(): Seq[Any] = {
     val inputSize = inputSizes()(0)
 
