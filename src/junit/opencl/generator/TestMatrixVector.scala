@@ -270,6 +270,26 @@ class TestMatrixVector {
     assertArrayEquals(matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
   }
 
+  @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD() {
+
+    val inputSize = 4096
+    val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
+    val vectorX = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val vectorY = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val alpha = 2.5f
+    val beta = 1.5f
+
+    val f = MatrixVector.fullMatrixVectorFusedOpenCLAMD
+
+    val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta, inputSize, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
+  }
+
   @Test def FULL_MATRIX_VECTOR_FUSED() {
 
     val inputSize = 4096
