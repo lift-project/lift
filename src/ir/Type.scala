@@ -345,6 +345,7 @@ object Type {
       case _: ReorderStride =>    inT
       case g: Gather =>           checkGather(g, inT, setType)
       case s: Scatter =>          checkScatter(s, inT, setType)
+      case f: Filter =>           checkFilter(f, inT, setType)
     }
   }
 
@@ -512,6 +513,16 @@ object Type {
     if (s.f.params.length != 1) throw new NumberOfArgumentsException
     s.f.params(0).t = inT
     check(s.f.body, setType)
+  }
+
+  private def checkFilter(f: Filter, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case TupleType(ArrayType(t, n), ArrayType(Int, m)) =>
+
+        ArrayType(t, m)
+
+      case _ => throw new TypeException(inT, "TupleType(ArrayType(_, _), ArrayType(Int, _))")
+    }
   }
 
   private def checkToLocal(tL: toLocal, inT: Type, setType: Boolean): Type = {

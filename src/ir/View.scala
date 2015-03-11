@@ -19,6 +19,7 @@ class ArrayJoin(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
 class ArrayZip(val tv: TupleView) extends Operation
 class ArrayAsVector(val av: ArrayView, val n: ArithExpr) extends Operation
 class ArrayAsScalar(val av: ArrayView, val n: ArithExpr) extends Operation
+class SubArray(val in: ArrayView, val ids: ArrayView) extends Operation
 
 class TupleCreation(val views: Seq[View]) extends Operation
 class TupleAccess(val tv: TupleView, val i: Int) extends Operation
@@ -133,7 +134,7 @@ object View {
       case st: ScalarType => new PrimitiveView(op)
       case tt: TupleType => new TupleView(tt, op)
       case vt: VectorType => new PrimitiveView(op)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC " + t.getClass)
     }
   }
 
@@ -156,29 +157,60 @@ object View {
     }
   }
 
-  private def createViewFunCall(call: FunCall, f:  List[(ArithExpr, ArithExpr)]): View = {
-    val argView = getViewFromArgs(call, f)
+  def getInputAccess(sv : View, tupleAccessStack : Stack[Int] = new Stack()) : InputAccess = {
+    sv.operation match {
+      case ia : InputAccess => ia
+      case aa : ArrayAccess => View.getInputAccess(aa.av, tupleAccessStack)
+      case ac : ArrayCreation =>View.getInputAccess(ac.v, tupleAccessStack)
+      case as : ArraySplit => View.getInputAccess(as.av, tupleAccessStack)
+      case aj : ArrayJoin => View.getInputAccess(aj.av, tupleAccessStack)
+      case ar : ArrayReorder => View.getInputAccess(ar.av, tupleAccessStack)
+      case sa : SubArray => View.getInputAccess(sa.in, tupleAccessStack)
+      case aav: ArrayAsVector => View.getInputAccess(aav.av, tupleAccessStack)
+      case aas: ArrayAsScalar => View.getInputAccess(aas.av, tupleAccessStack)
+
+      case ta : TupleAccess =>
+        val newTAS = tupleAccessStack.push(ta.i)
+        getInputAccess(ta.tv,newTAS)
+
+      case tc : TupleCreation =>
+        val i = tupleAccessStack.top
+        val newTAS = tupleAccessStack.pop
+        getInputAccess(tc.views(i),newTAS)
+
+      case az : ArrayZip =>
+        val i = tupleAccessStack.top
+        val newTAS = tupleAccessStack.pop
+        getInputAccess(az.tv.access(i), newTAS)
+
+      case op => throw new NotImplementedError(op.getClass.toString)
+    }
+  }
+
+  private def createViewFunCall(call: FunCall, ids: List[(ArithExpr, ArithExpr)]): View = {
+    val argView = getViewFromArgs(call, ids)
 
     call match {
-      case call: MapCall => createViewMap(call, argView, f)
-      case call: ReduceCall => createViewReduce(call, argView, f)
+      case call: MapCall => createViewMap(call, argView, ids)
+      case call: ReduceCall => createViewReduce(call, argView, ids)
       case call: FunCall =>
         call.f match {
-          case l: Lambda => createViewLambda(l, call, argView, f)
-          case cf: CompFunDef => createViewCompFunDef(cf, argView, f)
+          case l: Lambda => createViewLambda(l, call, argView, ids)
+          case cf: CompFunDef => createViewCompFunDef(cf, argView, ids)
           case z: Zip => createViewZip(z, call, argView)
           case Split(n) => createViewSplit(n, argView)
           case _: Join => createViewJoin(call, argView)
-          case uf: UserFunDef => createViewUserFunDef(uf, argView, f)
+          case uf: UserFunDef => createViewUserFunDef(uf, argView, ids)
           case ReorderStride(s) => createViewReorderStride(s, call, argView)
-          case g: Gather => createViewGather(g, call, argView, f)
-          case s: Scatter => createViewScatter(s, call, argView, f)
-          case tL: toLocal => createViewToLocal(tL, argView, f)
-          case tG: toGlobal => createViewToGlobal(tG, argView, f)
-          case i: Iterate => createViewIterate(i, call, argView, f)
+          case g: Gather => createViewGather(g, call, argView, ids)
+          case s: Scatter => createViewScatter(s, call, argView, ids)
+          case tL: toLocal => createViewToLocal(tL, argView, ids)
+          case tG: toGlobal => createViewToGlobal(tG, argView, ids)
+          case i: Iterate => createViewIterate(i, call, argView, ids)
           case t: Transpose => createViewTranspose(t, call, argView)
           case asVector(n) => createViewAsVector(n, argView)
           case _: asScalar => createViewAsScalar(argView)
+          case f: Filter => createViewFilter(f, call, argView)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
@@ -284,6 +316,16 @@ object View {
       // new ArrayCreation(tv, Type.getLength(call.t), ???))
       //case tv: TupleView => tv
       case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def createViewFilter(f: Filter, call: FunCall, argView: View): View = {
+    argView match {
+      case tv: TupleView =>
+        new ArrayView(Type.getElemT(call.t),
+          new SubArray(tv.access(0).asInstanceOf[ArrayView], tv.access(1).asInstanceOf[ArrayView])
+        )
+      case _ => throw new IllegalArgumentException("PANIC! Expected tuple, found " + argView.getClass)
     }
   }
 
@@ -411,7 +453,7 @@ object ViewPrinter {
     sv match {
       case _: PrimitiveView => emitView(sv, new Stack(), new Stack())
       case _: TupleView => emitView(sv, new Stack(), new Stack())
-      case t => throw new IllegalArgumentException(t + " found, TupleView/PrimitiveView expected")
+      case t => throw new IllegalArgumentException(t.getClass + " found, TupleView/PrimitiveView expected")
     }
   }
 
@@ -421,7 +463,6 @@ object ViewPrinter {
                        tupleAccessStack : Stack[Int]) : ArithExpr = {
     sv.operation match {
       case ia : InputAccess =>
-        print(ia.name)
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
 
@@ -456,6 +497,14 @@ object ViewPrinter {
         val newAS = stack.push((newIdx, idx._2))
         emitView(ar.av,newAS,tupleAccessStack)
 
+      case sa : SubArray =>
+        val ((idx, len), stack) = arrayAccessStack.pop2
+
+        val newIdx = emit(sa.ids.access(idx))
+        val indirection = new ArrayIndex(View.getInputAccess(sa.ids).name, newIdx)
+
+        emitView(sa.in, stack.push((indirection, len)), tupleAccessStack)
+
       case ta : TupleAccess =>
         val newTAS = tupleAccessStack.push(ta.i)
         emitView(ta.tv,arrayAccessStack,newTAS)
@@ -476,7 +525,7 @@ object ViewPrinter {
       case aas: ArrayAsScalar =>
         emitView(aas.av, arrayAccessStack.map(x => (x._1/aas.n, x._2)), tupleAccessStack)
 
-      case _ => throw new IllegalArgumentException("PANIC!")
+      case op => throw new NotImplementedError(op.getClass.toString)
      }
   }
 

@@ -341,6 +341,8 @@ object TypeVar {
   }
 }
 
+class ArrayIndex(val array: String, val idx: ArithExpr) extends Var("")
+
 case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr {
 
   Var.cnt += 1
