@@ -6,10 +6,10 @@ import javax.imageio.ImageIO
 
 import benchmarks.BlackScholes
 import ir._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 object TestBenchmark {
   @BeforeClass def before() {
@@ -269,4 +269,49 @@ class TestBenchmark {
     println("runtime = " + runtime)
   }
 
+  @Ignore
+  @Test def md(): Unit = {
+
+    val mdCompute = UserFunDef("updateF",
+      Array("f", "ipos", "jpos", "cutsq", "lj1", "lj2"),
+      "{\n" +
+        "  // Calculate distance\n" +
+        "  float delx = ipos.x - jpos.x;\n" +
+        "  float dely = ipos.y - jpos.y;\n" +
+        "  float delz = ipos.z - jpos.z;\n" +
+        "  float r2inv = delx*delx + dely*dely + delz*delz;\n" +
+        "  // If distance is less than cutoff, calculate force\n" +
+        "  if (r2inv < cutsq) {\n" +
+        "    r2inv = 1.0f/r2inv;\n" +
+        "    float r6inv = r2inv * r2inv * r2inv;\n" +
+        "    float forceC = r2inv*r6inv*(lj1*r6inv - lj2);\n" +
+        "    f.x += delx * forceC;\n" +
+        "    f.y += dely * forceC;\n" +
+        "    f.z += delz * forceC;\n" +
+        "  }\n" +
+        "  return f\n" +
+        "}\n",
+      Seq(Float4, Float4, Float4, Float, Float, Float),
+      Float4)
+
+    val N = new Var("N")
+    val M = new Var("M")
+
+    val f = fun(
+      ArrayType(Float4, N),
+      ArrayType(ArrayType(Int, M), N),
+      Float,
+      Float,
+      Float,
+      (particles, neighbours, cutsq, lj1, lj2) =>
+        MapGlb(fun(p =>
+          ReduceSeq(fun((force, n) =>
+            mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
+          ), Value("{0.0f, 0.0f, 0.0f, 0.0f}", Float4)) $ Filter(particles, Get(p, 1))
+        )) $ Zip(particles, neighbours)
+    )
+
+    Compile.apply(f)
+
+  }
 }
