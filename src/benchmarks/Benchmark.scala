@@ -148,7 +148,7 @@ abstract class Benchmark(val name: String,
 
         loop.breakable {
           for (j <- 0 until scalaResult.length) {
-            if (output(j) - scalaResult(j) >= delta) {
+            if (check(output(j), scalaResult(j))) {
               println("Output at position " + j + " differs more than " + delta)
               // loop.break()
             }
@@ -166,6 +166,10 @@ abstract class Benchmark(val name: String,
     println("MEDIAN: " + median(sorted) + " ms")
     println("BANDWIDTH: " + 4 * inputSizes().product / median(sorted) * 0.000001 + " GB/s" )
     println()
+  }
+
+  protected def check(x: Float, y: Float): Boolean = {
+    (x - y).abs >= delta
   }
 
   private def median(sorted: Array[Double]): Double = {
