@@ -497,7 +497,7 @@ object ViewPrinter {
         val ((idx, len), stack) = arrayAccessStack.pop2
 
         val newIdx = emit(sa.ids.access(idx))
-        val indirection = new ArrayIndex(View.getInputAccess(sa.ids).name, newIdx)
+        val indirection = new AccessVar(View.getInputAccess(sa.ids).name, newIdx)
 
         emitView(sa.in, stack.push((indirection, len)), tupleAccessStack)
 
