@@ -3,7 +3,49 @@ package benchmarks
 import ir._
 import opencl.ir._
 
-class MolecularDynamics {
+class MolecularDynamics(override val f: Seq[(String, Seq[Lambda])]) extends Benchmark("Molecular Dynamics (md)", Seq(1024, 128), f, 0.1f) {
+  var scalaInput: Array[(Float, Float, Float, Float)] = Array()
+
+  override def runScala(inputs: Any*): Array[Float] = {
+    val neighbours = inputs(1).asInstanceOf[Array[Array[Int]]]
+    val cutsq = inputs(2).asInstanceOf[Float]
+    val lj1 = inputs(3).asInstanceOf[Float]
+    val lj2 = inputs(4).asInstanceOf[Float]
+
+    MolecularDynamics.mdScala(scalaInput, neighbours, cutsq, lj1, lj2)
+      .map(_.productIterator)
+      .reduce(_++_)
+      .asInstanceOf[Iterator[Float]]
+      .toArray
+  }
+
+  override def generateInputs(): Seq[Any] = {
+    val inputSize = inputSizes()(0)
+    val maxNeighbours = inputSizes()(1)
+
+    scalaInput = Array.fill(inputSize)((
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f
+      ))
+    val particles = scalaInput.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+    val neighbours = MolecularDynamics.buildNeighbourList(scalaInput, maxNeighbours)
+    val cutsq = 16.0f
+    val lj1 = 1.5f
+    val lj2 = 2.0f
+
+    Seq(particles, neighbours, cutsq, lj1, lj2)
+  }
+
+  override protected def check(x: Float, y: Float): Boolean = {
+    var diff = (x-y)/x
+
+    if (x == 0.0f)
+      diff = 0.0f
+
+    diff.abs >= delta
+  }
 
 }
 
@@ -114,5 +156,11 @@ object MolecularDynamics {
     }
 
     neighbourList
+  }
+
+  def apply() = new MolecularDynamics(Seq(("md", Seq(shoc))))
+
+  def main(args: Array[String]): Unit = {
+    MolecularDynamics().run(args)
   }
 }
