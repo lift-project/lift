@@ -275,7 +275,6 @@ class TestBenchmark {
     println("runtime = " + runtime)
   }
 
-  @Ignore
   @Test def md(): Unit = {
 
     val inputSize = 1024
