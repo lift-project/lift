@@ -339,7 +339,18 @@ class TestBenchmark {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(gold, output, 0.1f)
+    assertEquals(output.length, gold.length)
+
+    (output, gold).zipped.map((x, y) => {
+
+      var diff = (x-y)/x
+
+      if (x == 0.0f)
+        diff = 0.0f
+
+      math.sqrt(diff * diff).toFloat
+    }).zipWithIndex.map(x => assertEquals("Error at pos " + x._2, 0.0f, x._1, 0.1f))
+
   }
 
   private def mdScala(position: Array[(Float, Float, Float, Float)], neigbours: Array[Array[Int]], cutsq: Float, lj1: Float, lj2:Float): Array[(Float, Float, Float, Float)] = {
