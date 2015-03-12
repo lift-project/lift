@@ -81,7 +81,7 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
       case st: ScalarType =>
         val av = new ArrayAsVector(this, n)
         new ArrayView(elemT, av)
-      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of " + elemT + " into vector types")
+      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + elemT + " into vector types")
     }
   }
 
@@ -95,7 +95,7 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
           case aav: ArrayAsVector => aav.av
           case _ => this
         }
-      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of " + elemT + " into scalar types")
+      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + elemT + " into scalar types")
     }
   }
 
@@ -104,6 +104,7 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
   }
 
 }
+
 
 class TupleView(val tupleType: TupleType, override val operation: Operation) extends View(operation) {
 
@@ -122,8 +123,8 @@ object TupleView {
   }
 }
 
-class PrimitiveView(override val operation: Operation) extends View(operation)
 
+class PrimitiveView(override val operation: Operation) extends View(operation)
 
 
 object View {
@@ -153,7 +154,7 @@ object View {
       case tv: TupleView =>
         assert(index < tv.tupleType.elemsT.length)
         tv.access(index)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC " + v.getClass)
     }
   }
 
@@ -257,7 +258,7 @@ object View {
 
         val innerView = createView(call.f.f.body, newF)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC " + argView.getClass)
     }
   }
 
@@ -271,7 +272,7 @@ object View {
 
         val innerView = createView(call.f.f.body, newF)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC " + argView.getClass)
     }
   }
 
@@ -315,7 +316,7 @@ object View {
       case tv: TupleView => new ArrayView(Type.getElemT(call.t), new ArrayZip(tv))
       // new ArrayCreation(tv, Type.getLength(call.t), ???))
       //case tv: TupleView => tv
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC! Expected tuple, found " + argView.getClass)
     }
   }
 
@@ -337,28 +338,28 @@ object View {
 
     argView match {
       case av: ArrayView => av.join(chunkSize)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
     }
   }
 
   private def createViewSplit(n: ArithExpr, argView: View): View = {
     argView match {
       case av: ArrayView => av.split(n)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
     }
   }
 
   private def createViewAsVector(n: ArithExpr, argView: View): View = {
     argView match {
       case av: ArrayView => av.asVector(n)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
     }
   }
 
   private def createViewAsScalar(argView: View): View = {
     argView match {
       case av: ArrayView => av.asScalar()
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
     }
   }
 
@@ -366,10 +367,10 @@ object View {
     initialiseNewView(uf.outT, f)
   }
 
-  private def initialiseNewView(t: Type, f: List[(ArithExpr, ArithExpr)]): View = {
+  private def initialiseNewView(t: Type, f: List[(ArithExpr, ArithExpr)], name: String = ""): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = f.foldLeft(t)((t, len) => ArrayType(t, len._1))
-    val outView = View(outArray, new InputAccess(""))
+    val outView = View(outArray, new InputAccess(name))
     f.foldRight(outView)((idx, view) => view.asInstanceOf[ArrayView].access(idx._2))
   }
 
@@ -378,7 +379,7 @@ object View {
 
     argView match {
       case av: ArrayView => av.reorder( (i:ArithExpr) => { (i div n) + s * ( i % n) } )
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
     }
   }
 
@@ -411,7 +412,8 @@ object View {
         scatterReorder(scatter.f.body.view, scatter.idx, call.t, 0)
 
         scatter.f.body.view
-      case _ => throw new IllegalArgumentException("PANIC")    }
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
+    }
   }
 
   private def scatterReorder(view: View, idx: IndexFunction, t:Type, count: scala.Int): Unit = {
@@ -435,17 +437,11 @@ object View {
       case ar: ArrayReorder => findAccessAndReorder(ar.av, idx, t, count)
       case as: ArraySplit => findAccessAndReorder(as.av, idx, t, count)
       case aj: ArrayJoin => findAccessAndReorder(aj.av, idx, t, count)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case op => throw new NotImplementedError(op.getClass.toString)
     }
   }
 
-
-
 }
-
-
-
-
 
 object ViewPrinter {
 
