@@ -80,7 +80,7 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
     elemT match {
       case st: ScalarType =>
         val av = new ArrayAsVector(this, n)
-        new ArrayView(elemT, av)
+        new ArrayView(VectorType(st, n), av)
       case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + elemT + " into vector types")
     }
   }
@@ -463,7 +463,8 @@ object ViewPrinter {
         arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
 
       case aa : ArrayAccess =>
-        val newAAS = arrayAccessStack.push((aa.idx, getLengthForArrayAccess(aa.av.elemT, tupleAccessStack)))
+        val length: ArithExpr = getLengthForArrayAccess(aa.av.elemT, tupleAccessStack)
+        val newAAS = arrayAccessStack.push((aa.idx, length))
         emitView(aa.av,newAAS, tupleAccessStack)
 
       case ac : ArrayCreation =>
@@ -476,8 +477,8 @@ object ViewPrinter {
         val (chunkId,stack1) = arrayAccessStack.pop2
         val (chunkElemId,stack2) = stack1.pop2
         val newIdx = chunkId._1*as.chunkSize+chunkElemId._1
-        val newAAS = stack2.push((newIdx, Type.getLength(as.av.elemT)))
-        emitView(as.av,newAAS,tupleAccessStack)
+        val newAAS = stack2.push((newIdx, chunkElemId._2))
+        emitView(as.av, newAAS,tupleAccessStack)
 
       case aj : ArrayJoin =>
         val (idx,stack) = arrayAccessStack.pop2
@@ -516,10 +517,14 @@ object ViewPrinter {
         emitView(az.tv.access(i) ,arrayAccessStack,newTAS)
 
       case aav: ArrayAsVector =>
-        emitView(aav.av, arrayAccessStack.map(x => (x._1*aav.n, x._2)), tupleAccessStack)
+        val top = arrayAccessStack.top
+        val newAAS = arrayAccessStack.pop.push((top._1 * aav.n, top._2)).map(x => (x._1, x._2 / aav.n))
+        emitView(aav.av, newAAS, tupleAccessStack)
 
       case aas: ArrayAsScalar =>
-        emitView(aas.av, arrayAccessStack.map(x => (x._1/aas.n, x._2)), tupleAccessStack)
+        val top = arrayAccessStack.top
+        val newAAS = arrayAccessStack.pop.push((top._1 / aas.n, top._2)).map(x => (x._1, x._2 * aas.n))
+        emitView(aas.av, arrayAccessStack, tupleAccessStack)
 
       case op => throw new NotImplementedError(op.getClass.toString)
      }
