@@ -22,10 +22,6 @@ class DotProduct(override val name: String,
     Seq(leftInputData, rightInputData)
   }
 
-  override def inputSizes(): Seq[Int] = {
-    if (size.value.length == 1) size.value else defaultSizes
-  }
-
   override def runOpenCL(inputs: Any*): (Array[Float], Double) = {
     val (output, runtime) = super.runOpenCL(inputs:_*)
     (Array(output.sum), runtime)

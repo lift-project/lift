@@ -18,9 +18,6 @@ class SumAbsoluteValues(override val name: String,
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
     Seq(inputData)
   }
-  override def inputSizes(): Seq[Int] = {
-    if (size.value.length == 1) size.value else defaultSizes
-  }
 }
 
 object SumAbsoluteValues {

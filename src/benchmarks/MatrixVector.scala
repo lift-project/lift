@@ -36,10 +36,6 @@ class MatrixVector (override val f: Seq[(String, Seq[Lambda])]) extends Benchmar
 
     Seq(matrix, vectorX, vectorY, alpha, beta)
   }
-
-  override def inputSizes(): Seq[Int] = {
-    if (size.value.length == 2) size.value else defaultSizes
-  }
 }
 
 object MatrixVector {

@@ -21,10 +21,6 @@ class VectorScaling(override val name: String,
 
     Seq(inputArray, alpha)
   }
-
-  override def inputSizes(): Seq[Int] = {
-    if (size.value.length == 1) size.value else defaultSizes
-  }
 }
 
 object VectorScaling {

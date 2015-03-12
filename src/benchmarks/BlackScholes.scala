@@ -15,10 +15,6 @@ class BlackScholes(override val f: Seq[(String, Seq[Lambda])]) extends Benchmark
 
     Seq(inputData)
   }
-
-  override def inputSizes(): Seq[Int] = {
-    if (size.value.length == 1) size.value else defaultSizes
-  }
 }
 
 object BlackScholes {

@@ -81,8 +81,9 @@ abstract class Benchmark(val name: String,
 
   def generateInputs(): Seq[Any]
 
-  def inputSizes(): Seq[Int]
-
+  def inputSizes(): Seq[Int] = {
+    if (size.value.length == defaultSizes.length) size.value else defaultSizes
+  }
   def runOpenCL(inputs: Any*): (Array[Float], Double) = {
     val sizes: Seq[Int] = inputSizes()
 
