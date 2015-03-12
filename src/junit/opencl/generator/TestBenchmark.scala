@@ -4,7 +4,7 @@ import java.awt.image.BufferedImage
 import java.io.{IOException, File}
 import javax.imageio.ImageIO
 
-import benchmarks.BlackScholes
+import benchmarks.{MolecularDynamics, BlackScholes}
 import ir._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
@@ -287,34 +287,12 @@ class TestBenchmark {
       util.Random.nextFloat() * 20.0f
       ))
     val particles = particlesTuple.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
-    val neighbours = buildNeighbourList(particlesTuple, maxNeighbours)
+    val neighbours = MolecularDynamics.buildNeighbourList(particlesTuple, maxNeighbours)
     val cutsq = 16.0f
     val lj1 = 1.5f
     val lj2 = 2.0f
 
-    val gold = mdScala(particlesTuple, neighbours, cutsq, lj1, lj2).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
-
-    val mdCompute = UserFunDef("updateF",
-      Array("f", "ipos", "jpos", "cutsq", "lj1", "lj2"),
-      "{\n" +
-        "  // Calculate distance\n" +
-        "  float delx = ipos.x - jpos.x;\n" +
-        "  float dely = ipos.y - jpos.y;\n" +
-        "  float delz = ipos.z - jpos.z;\n" +
-        "  float r2inv = delx*delx + dely*dely + delz*delz;\n" +
-        "  // If distance is less than cutoff, calculate force\n" +
-        "  if (r2inv < cutsq) {\n" +
-        "    r2inv = 1.0f/r2inv;\n" +
-        "    float r6inv = r2inv * r2inv * r2inv;\n" +
-        "    float forceC = r2inv*r6inv*(lj1*r6inv - lj2);\n" +
-        "    f.x += delx * forceC;\n" +
-        "    f.y += dely * forceC;\n" +
-        "    f.z += delz * forceC;\n" +
-        "  }\n" +
-        "  return f;\n" +
-        "}\n",
-      Seq(Float4, Float4, Float4, Float, Float, Float),
-      Float4)
+    val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
 
     val N = new Var("N")
     val M = new Var("M")
@@ -328,7 +306,7 @@ class TestBenchmark {
       (particles, neighbourIds, cutsq, lj1, lj2) =>
         MapGlb(fun(p =>
           ReduceSeq(fun((force, n) =>
-            mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
+            MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
           ), Value("{0.0f, 0.0f, 0.0f, 0.0f}", Float4)) $ Filter(particles, Get(p, 1))
         )) $ Zip(particles, neighbourIds)
     )
@@ -352,70 +330,41 @@ class TestBenchmark {
 
   }
 
-  private def mdScala(position: Array[(Float, Float, Float, Float)], neigbours: Array[Array[Int]], cutsq: Float, lj1: Float, lj2:Float): Array[(Float, Float, Float, Float)] = {
-    val result = Array.ofDim[(Float, Float, Float, Float)](position.length)
+  @Test def mdShoc(): Unit = {
 
-    for (i <- 0 until position.length) {
-      val ipos = position(i)
-      var f = (0.0f, 0.0f, 0.0f, 0.0f)
+    val inputSize = 1024
+    val maxNeighbours = 128
 
-      for (j <- 0 until neigbours(i).length) {
-        val jidx = neigbours(i)(j)
-        val jpos = position(jidx)
+    val particlesTuple = Array.fill(inputSize)((
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f
+      ))
+    val particles = particlesTuple.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+    val neighbours = MolecularDynamics.buildNeighbourList(particlesTuple, maxNeighbours)
+    val cutsq = 16.0f
+    val lj1 = 1.5f
+    val lj2 = 2.0f
 
-        // Calculate distance
-        val delx = ipos._1 - jpos._1
-        val dely = ipos._2 - jpos._2
-        val delz = ipos._3 - jpos._3
+    val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
 
-        var r2inv = delx * delx + dely * dely + delz * delz
+    val (output, runtime) = Execute(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2, inputSize, maxNeighbours)
 
-        // If distance is less than cutoff, calculate force
-        if (r2inv < cutsq) {
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
 
-          r2inv = 1.0f / r2inv
-          val r6inv = r2inv * r2inv * r2inv
-          val force = r2inv * r6inv * (lj1 * r6inv - lj2)
+    assertEquals(output.length, gold.length)
 
-          f = (f._1 + delx * force, f._2 + dely * force, f._3 + delz * force, 0.0f)
-        }
-      }
+    (output, gold).zipped.map((x, y) => {
 
-      result(i) = f
-    }
-    result
-  }
+      var diff = (x-y)/x
 
-  private def buildNeighbourList(position: Array[(Float, Float, Float, Float)], maxNeighbours: Int): Array[Array[Int]] = {
+      if (x == 0.0f)
+        diff = 0.0f
 
-    val neighbourList = Array.ofDim[Int](position.length, maxNeighbours)
+      math.sqrt(diff * diff).toFloat
+    }).zipWithIndex.map(x => assertEquals("Error at pos " + x._2, 0.0f, x._1, 0.1f))
 
-    for (i <- 0 until position.length) {
-      var currDist = List[(Int, Float)]()
-
-      for (j <- 0 until position.length) {
-        if (i != j) {
-
-          val ipos = position(i)
-          val jpos = position(j)
-
-          val delx = ipos._1 - jpos._1
-          val dely = ipos._2 - jpos._2
-          val delz = ipos._3 - jpos._3
-
-          val distIJ = delx * delx + dely * dely + delz * delz
-
-          currDist =  (j, distIJ) :: currDist
-        }
-      }
-
-      currDist = currDist.sortBy(x => x._2)
-
-      for (j <- 0 until maxNeighbours) {
-        neighbourList(i)(j) = currDist(j)._1
-      }
-    }
-
-    neighbourList
   }
 }
