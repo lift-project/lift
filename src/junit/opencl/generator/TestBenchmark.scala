@@ -293,7 +293,7 @@ class TestBenchmark {
     val lj1 = 1.5f
     val lj2 = 2.0f
 
-    val gold = mdScala(particlesTuple, neighbours, cutsq, lj1, lj2)
+    val gold = mdScala(particlesTuple, neighbours, cutsq, lj1, lj2).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
 
     val mdCompute = UserFunDef("updateF",
       Array("f", "ipos", "jpos", "cutsq", "lj1", "lj2"),
@@ -342,12 +342,12 @@ class TestBenchmark {
     assertArrayEquals(gold, output, 0.1f)
   }
 
-  private def mdScala(position: Array[(Float, Float, Float, Float)], neigbours: Array[Array[Int]], cutsq: Float, lj1: Float, lj2:Float): Array[Float] = {
-    val result = Array.ofDim[Float](position.length)
+  private def mdScala(position: Array[(Float, Float, Float, Float)], neigbours: Array[Array[Int]], cutsq: Float, lj1: Float, lj2:Float): Array[(Float, Float, Float, Float)] = {
+    val result = Array.ofDim[(Float, Float, Float, Float)](position.length)
 
     for (i <- 0 until position.length) {
       val ipos = position(i)
-      var f = (0.0f, 0.0f, 0.0f)
+      var f = (0.0f, 0.0f, 0.0f, 0.0f)
 
       for (j <- 0 until neigbours(i).length) {
         val jidx = neigbours(i)(j)
@@ -367,9 +367,11 @@ class TestBenchmark {
           val r6inv = r2inv * r2inv * r2inv
           val force = r2inv * r6inv * (lj1 * r6inv - lj2)
 
-          f = (f._1 + delx * force, f._2 + dely * force, f._3 + delz * force)
+          f = (f._1 + delx * force, f._2 + dely * force, f._3 + delz * force, 0.0f)
         }
       }
+
+      result(i) = f
     }
     result
   }
