@@ -40,11 +40,15 @@ object Execute {
       case ArrayType(ArrayType(tt: TupleType, _), _) => tt.elemsT.length
       case ArrayType(tt: TupleType, _) => tt.elemsT.length
       case tt: TupleType => tt.elemsT.length
+      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval()
+      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval()
+      case ArrayType(vt: VectorType, _) => vt.len.eval()
+      case vt: VectorType => vt.len.eval()
       case _ => 1
     })
 
     val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
-        case aaaa: Array[Array[Array[Array[_]]]] => Seq(Cst(aaaa.size), Cst(aaaa(0).size), Cst(aaaa(0)(0).size), Cst(aaaa(0)(0)(0).size / tupleSize))
+      case aaaa: Array[Array[Array[Array[_]]]] => Seq(Cst(aaaa.size), Cst(aaaa(0).size), Cst(aaaa(0)(0).size), Cst(aaaa(0)(0)(0).size / tupleSize))
       case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size / tupleSize))
       case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size / tupleSize))
       case a: Array[_] => Seq(Cst(a.size / tupleSize))

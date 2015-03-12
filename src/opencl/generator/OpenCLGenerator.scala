@@ -67,6 +67,8 @@ object OpenCLGenerator extends Generator {
       printTypes(f.body)
     }
 
+    oclPrinter = new OpenCLPrinter
+
     // allocate the params and set the corresponding type
     f.params.map((p) => {
       p.t match {
@@ -75,7 +77,7 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.view = View(p.t, new InputAccess(""))
+      p.view = View(p.t, new InputAccess(oclPrinter.toOpenCL(p.mem.variable)))
     })
 
     // pass 1
@@ -93,8 +95,6 @@ object OpenCLGenerator extends Generator {
     }
 
     View.createView(f.body)
-
-    oclPrinter = new OpenCLPrinter
 
     // pass 2: find and generate user functions
     generateUserFunction(f.body)

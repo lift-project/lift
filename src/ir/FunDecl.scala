@@ -837,6 +837,14 @@ object jIterate {
   def create(n: ArithExpr, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
 }
 
+case class Filter() extends FunDecl(Array(Param(UndefType), Param(UndefType))) with isGenerable
+
+object Filter {
+  def apply(input: Param, ids: Param): FunCall = {
+    Filter()(input, ids)
+  }
+}
+
 case class Zip(n : Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable {
   //override def copy() = Zip(f1, f2)
 }
