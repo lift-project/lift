@@ -6,7 +6,7 @@ import javax.imageio.ImageIO
 
 import benchmarks.BlackScholes
 import ir._
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{Ignore, AfterClass, BeforeClass, Test}
@@ -258,7 +258,13 @@ class TestBenchmark {
       Float,
       Float,
       (x, y, z, velX, velY, velZ, mass, espSqr, deltaT) =>
-        MapGlb(fun(xyz => MapSeq(fun(acceleration => update(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(xyz, 3), Get(xyz, 4), Get(xyz, 5), Get(xyz, 6), deltaT, acceleration))) o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f)) o MapSeq(fun(abc => calcAcc(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(abc, 0), Get(abc, 1), Get(abc, 2), Get(abc, 6), espSqr))) $ Zip(x, y, z, velX, velY, velZ, mass))) $ Zip(x, y, z, velX, velY, velZ, mass)
+        MapGlb(fun(xyz =>
+          MapSeq(fun(acceleration =>
+            update(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(xyz, 3), Get(xyz, 4), Get(xyz, 5), Get(xyz, 6), deltaT, acceleration)))
+            o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f))
+            o MapSeq(fun(abc => calcAcc(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(abc, 0), Get(abc, 1), Get(abc, 2), Get(abc, 6), espSqr)))
+            $ Zip(x, y, z, velX, velY, velZ, mass)
+        )) $ Zip(x, y, z, velX, velY, velZ, mass)
     )
 
     val (output, runtime) = Execute(inputSize)(function, x, y, z, velX, velY, velZ, mass, espSqr, deltaT, inputSize)
@@ -271,6 +277,23 @@ class TestBenchmark {
 
   @Ignore
   @Test def md(): Unit = {
+
+    val inputSize = 1024
+    val maxNeighbours = 128
+
+    val particlesTuple = Array.fill(inputSize)((
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f,
+      util.Random.nextFloat() * 20.0f
+      ))
+    val particles = particlesTuple.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+    val neighbours = buildNeighbourList(particlesTuple, maxNeighbours)
+    val cutsq = 16.0f
+    val lj1 = 1.5f
+    val lj2 = 2.0f
+
+    val gold = mdScala(particlesTuple, neighbours, cutsq, lj1, lj2)
 
     val mdCompute = UserFunDef("updateF",
       Array("f", "ipos", "jpos", "cutsq", "lj1", "lj2"),
@@ -289,7 +312,7 @@ class TestBenchmark {
         "    f.y += dely * forceC;\n" +
         "    f.z += delz * forceC;\n" +
         "  }\n" +
-        "  return f\n" +
+        "  return f;\n" +
         "}\n",
       Seq(Float4, Float4, Float4, Float, Float, Float),
       Float4)
@@ -303,15 +326,84 @@ class TestBenchmark {
       Float,
       Float,
       Float,
-      (particles, neighbours, cutsq, lj1, lj2) =>
+      (particles, neighbourIds, cutsq, lj1, lj2) =>
         MapGlb(fun(p =>
           ReduceSeq(fun((force, n) =>
             mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
           ), Value("{0.0f, 0.0f, 0.0f, 0.0f}", Float4)) $ Filter(particles, Get(p, 1))
-        )) $ Zip(particles, neighbours)
+        )) $ Zip(particles, neighbourIds)
     )
 
-    Compile.apply(f)
+    val (output, runtime) = Execute(inputSize)(f, particles, neighbours, cutsq, lj1, lj2, inputSize, maxNeighbours)
 
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.1f)
+  }
+
+  private def mdScala(position: Array[(Float, Float, Float, Float)], neigbours: Array[Array[Int]], cutsq: Float, lj1: Float, lj2:Float): Array[Float] = {
+    val result = Array.ofDim[Float](position.length)
+
+    for (i <- 0 until position.length) {
+      val ipos = position(i)
+      var f = (0.0f, 0.0f, 0.0f)
+
+      for (j <- 0 until neigbours(i).length) {
+        val jidx = neigbours(i)(j)
+        val jpos = position(jidx)
+
+        // Calculate distance
+        val delx = ipos._1 - jpos._1
+        val dely = ipos._2 - jpos._2
+        val delz = ipos._3 - jpos._3
+
+        var r2inv = delx * delx + dely * dely + delz * delz
+
+        // If distance is less than cutoff, calculate force
+        if (r2inv < cutsq) {
+
+          r2inv = 1.0f / r2inv
+          val r6inv = r2inv * r2inv * r2inv
+          val force = r2inv * r6inv * (lj1 * r6inv - lj2)
+
+          f = (f._1 + delx * force, f._2 + dely * force, f._3 + delz * force)
+        }
+      }
+    }
+    result
+  }
+
+  private def buildNeighbourList(position: Array[(Float, Float, Float, Float)], maxNeighbours: Int): Array[Array[Int]] = {
+
+    val neighbourList = Array.ofDim[Int](position.length, maxNeighbours)
+
+    for (i <- 0 until position.length) {
+      var currDist = List[(Int, Float)]()
+
+      for (j <- 0 until position.length) {
+        if (i != j) {
+
+          val ipos = position(i)
+          val jpos = position(j)
+
+          val delx = ipos._1 - jpos._1
+          val dely = ipos._2 - jpos._2
+          val delz = ipos._3 - jpos._3
+
+          val distIJ = delx * delx + dely * dely + delz * delz
+
+          currDist =  (j, distIJ) :: currDist
+        }
+      }
+
+      currDist = currDist.sortBy(x => x._2)
+
+      for (j <- 0 until maxNeighbours) {
+        neighbourList(i)(j) = currDist(j)._1
+      }
+    }
+
+    neighbourList
   }
 }
