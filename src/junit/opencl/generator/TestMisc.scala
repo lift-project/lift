@@ -75,6 +75,25 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
+  @Test def vectorType(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float4, N),
+      (input) =>
+        MapGlb(Vectorize(4)(id)) $ input
+    )
+
+    val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
+    assertArrayEquals(inputData, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def composeUserFunctionWithPattern(): Unit = {
 
     val Nsize = 512

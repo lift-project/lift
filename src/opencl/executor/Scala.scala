@@ -70,8 +70,6 @@ class Execute(val localSize: Int, val globalSize: Int, injectLocalSize: Boolean)
 
     val valueMap: immutable.Map[ArithExpr, ArithExpr] = Execute.createValueMap(f, values:_*)
 
-    println(valueMap)
-
     val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
 
     val inputs = values.map({
