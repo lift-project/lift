@@ -29,8 +29,17 @@ class MolecularDynamics(override val f: Seq[(String, Seq[Lambda])]) extends Benc
       util.Random.nextFloat() * 20.0f,
       util.Random.nextFloat() * 20.0f
       ))
-    val particles = scalaInput.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+
+    val particles = Array.ofDim[Float](inputSizes()(0) * 4)
+    scalaInput.zipWithIndex.map(x => {
+      particles(x._2*4) = x._1._1
+      particles(x._2*4 + 1) = x._1._2
+      particles(x._2*4 + 2) = x._1._3
+      particles(x._2*4 + 3) = x._1._4
+    })
+
     val neighbours = MolecularDynamics.buildNeighbourList(scalaInput, maxNeighbours)
+    
     val cutsq = 16.0f
     val lj1 = 1.5f
     val lj2 = 2.0f

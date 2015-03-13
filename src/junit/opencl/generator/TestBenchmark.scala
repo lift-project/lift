@@ -9,7 +9,7 @@ import ir._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestBenchmark {
   @BeforeClass def before() {
