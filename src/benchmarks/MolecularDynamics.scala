@@ -38,7 +38,7 @@ class MolecularDynamics(override val f: Seq[(String, Seq[Lambda])]) extends Benc
       particles(x._2*4 + 3) = x._1._4
     })
 
-    val neighbours = MolecularDynamics.buildNeighbourList(scalaInput, maxNeighbours)
+    val neighbours = MolecularDynamics.buildNeighbourList(scalaInput, maxNeighbours).transpose
     
     val cutsq = 16.0f
     val lj1 = 1.5f
@@ -86,7 +86,7 @@ object MolecularDynamics {
 
   val shoc = fun(
     ArrayType(Float4, N),
-    ArrayType(ArrayType(Int, M), N),
+    ArrayType(ArrayType(Int, N), M),
     Float,
     Float,
     Float,
@@ -97,7 +97,7 @@ object MolecularDynamics {
             MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
           ), Value("{0.0f, 0.0f, 0.0f, 0.0f}", Float4)) $ Filter(particles, Get(p, 1))
         ))
-      ) o Split(128) $ Zip(particles, neighbourIds)
+      ) o Split(128) $ Zip(particles, Transpose() $ neighbourIds)
   )
 
   def mdScala(position: Array[(Float, Float, Float, Float)], neighbours: Array[Array[Int]], cutsq: Float, lj1: Float, lj2:Float): Array[(Float, Float, Float, Float)] = {
@@ -107,8 +107,8 @@ object MolecularDynamics {
       val ipos = position(i)
       var f = (0.0f, 0.0f, 0.0f, 0.0f)
 
-      for (j <- 0 until neighbours(i).length) {
-        val jidx = neighbours(i)(j)
+      for (j <- 0 until neighbours.length) {
+        val jidx = neighbours(j)(i)
         val jpos = position(jidx)
 
         // Calculate distance

@@ -292,7 +292,7 @@ class TestBenchmark {
     val lj1 = 1.5f
     val lj2 = 2.0f
 
-    val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+    val gold = MolecularDynamics.mdScala(particlesTuple, neighbours.transpose, cutsq, lj1, lj2).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
 
     val N = new Var("N")
     val M = new Var("M")
@@ -342,7 +342,7 @@ class TestBenchmark {
       util.Random.nextFloat() * 20.0f
       ))
     val particles = particlesTuple.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
-    val neighbours = MolecularDynamics.buildNeighbourList(particlesTuple, maxNeighbours)
+    val neighbours = MolecularDynamics.buildNeighbourList(particlesTuple, maxNeighbours).transpose
     val cutsq = 16.0f
     val lj1 = 1.5f
     val lj2 = 2.0f
