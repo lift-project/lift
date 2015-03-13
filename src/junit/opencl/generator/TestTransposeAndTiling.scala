@@ -382,8 +382,6 @@ class TestTransposeAndTiling {
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
   }
 
-  // Not quite there, race condition
-  @Ignore
   @Test def tiledMatrixTranspose(): Unit = {
     val Nsize = 12
     val Msize = 8
@@ -405,8 +403,8 @@ class TestTransposeAndTiling {
         // Merge the tiles
         MapWrg(0)(MapWrg(1)(id)) o
           Join() o MapWrg(0)(MapWrg(1)(Join()) o Transpose()) o
-          // Transpose the tiles and the insides of tiles
-          MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)) o Transpose())) o Transpose() o
+          // Transpose the tiles and then the insides of tiles
+          MapWrg(0)(MapWrg(1)(Transpose())) o Transpose() o
           // Tile the matrix
           MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
       })
