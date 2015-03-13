@@ -132,6 +132,33 @@ class TestExpr {
     assertTrue(ArithExpr.multipleOf(N*M*K, N*K))
   }
 
+  @Test def divConstants(): Unit = {
+    assertEquals(Cst(2), ExprSimplifier.simplify(Cst(4) div Cst(2)))
+  }
+
+  @Test def prodDivConstant(): Unit = {
+    val N = Var("N")
+    assertEquals(Cst(2) * N, ExprSimplifier.simplify(Cst(4) * N div Cst(2)))
+  }
+
+  @Test def prodDivProdWithConstants(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    assertEquals(Cst(2) * N div M, ExprSimplifier.simplify(Cst(4) * N div (Cst(2) * M)))
+  }
+
+  @Test def prodDivProdWithConstants2(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    assertEquals(N div (M * Cst(2)), ExprSimplifier.simplify(Cst(2) * N div (Cst(4) * M)))
+  }
+
+  @Test def prodDivProdWithConstants3(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    assertEquals((N * Cst(2)) div (M * Cst(3)), ExprSimplifier.simplify(Cst(2) * N div (Cst(3) * M)))
+  }
+
   @Test def prodNotMultipleOfProd(): Unit = {
     val N = Var("N")
     val M = Var("M")

@@ -162,6 +162,7 @@ object ExprSimplifier {
       return Cst(0)
 
     f match {
+      case Fraction(Cst(_), Cst(_)) => return f.eval()
       case Fraction(Fraction(numer, denom1), denom2) => return Fraction(numer, simplify(denom1 * denom2))
       case Fraction(Sum(terms), denom) =>
         var newTerms = List[ArithExpr]()
@@ -186,6 +187,18 @@ object ExprSimplifier {
               val newDenom = Prod(denomFactors.diff(common))
               return simplify(Fraction(newNumer, newDenom))
             }
+
+            simplifyFractionConstants(factors, denomFactors) match {
+              case Some(toReturn) => return toReturn
+              case None =>
+            }
+
+          case c: Cst =>
+            simplifyFractionConstants(factors, List(c)) match {
+              case Some(toReturn) => return toReturn
+              case None =>
+            }
+
           case _ =>
             if (factors.contains(denom)) {
               val index = factors.indexOf(denom)
@@ -196,6 +209,26 @@ object ExprSimplifier {
     }
 
     f
+  }
+
+  private def simplifyFractionConstants(factors: List[ArithExpr], denomFactors: List[ArithExpr]): Option[ArithExpr] = {
+    val numerConstant = factors.filter(_.isInstanceOf[Cst])
+    val denomConstant = denomFactors.filter(_.isInstanceOf[Cst])
+
+    if (denomConstant.nonEmpty && numerConstant.nonEmpty) {
+      val result = simplify(numerConstant(0) / denomConstant(0))
+      result match {
+        case Pow(b, e) =>
+          val numer = simplify(e * Cst(-1)) :: factors.diff(numerConstant)
+          val denom = b :: denomFactors.diff(denomConstant)
+          return Some(simplify(Fraction(Prod(numer), Prod(denom))))
+        case c: Cst =>
+          val numer = c :: factors.diff(numerConstant)
+          return Some(simplify(Fraction(Prod(numer), Prod(denomFactors.diff(denomConstant)))))
+        case _ =>
+      }
+    }
+    None
   }
 
   private def flattenSum(sum: Sum) : Sum = {
