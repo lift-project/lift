@@ -1,8 +1,8 @@
-package junit
+package ir
 
-import ir._
 import org.junit.Assert._
 import org.junit.Test
+
 import scala.util.Random
 
 
@@ -164,6 +164,25 @@ class TestExpr {
     val M = Var("M")
     val K = Var("K")
     assertFalse(ArithExpr.multipleOf(N*M, N*K))
+  }
+
+  @Test def cstMultipleOfCst(): Unit = {
+    assertTrue(ArithExpr.multipleOf(Cst(8), Cst(4)))
+  }
+
+  @Test def prodMultipleOfCst(): Unit = {
+    assertTrue(ArithExpr.multipleOf(Cst(8)*Var("i"), Cst(4)))
+  }
+
+  @Test def varWithConstantRangeDivConstant(): Unit = {
+    val i = Var(RangeAdd(Cst(0), Cst(4), Cst(1)))
+    assertEquals(Cst(0), ExprSimplifier.simplify(i div Cst(4)))
+  }
+
+  @Test def sumVarsDivConstant(): Unit = {
+    val i = Var(GoesToRange(Cst(4)))
+    val j = Var(GoesToRange(Var("M")))
+    assertEquals(Cst(4) * j, ExprSimplifier.simplify((i + Cst(16) * j ) div Cst(4)))
   }
 
   @Test def simplifyProdEmpty(): Unit = {

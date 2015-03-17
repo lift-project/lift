@@ -175,7 +175,7 @@ object ExprSimplifier {
         }
 
         if (newFractions.nonEmpty)
-          return simplify(Sum(newFractions)) + simplify(Fraction(Sum(newTerms), denom))
+          return simplify(Sum(newFractions) + Fraction(Sum(newTerms), denom))
 
       case Fraction(Prod(factors), denom) =>
         // If denom or any part of denom is part of factors, eliminate
