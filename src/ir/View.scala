@@ -208,7 +208,7 @@ object View {
           case tG: toGlobal => createViewToGlobal(tG, argView, ids)
           case i: Iterate => createViewIterate(i, call, argView, ids)
           case t: Transpose => createViewTranspose(t, call, argView)
-          case tw: TransposeW => createViewTransposeW(tw, call, argView)
+          case tw: TransposeW => createViewTransposeW(tw, call, argView, ids)
           case asVector(n) => createViewAsVector(n, argView)
           case _: asScalar => createViewAsScalar(argView)
           case f: Filter => createViewFilter(f, call, argView)
@@ -393,13 +393,13 @@ object View {
     }
   }
 
-  private def createViewTransposeW(tw: TransposeW, call: FunCall, argView: View): View = {
+  private def createViewTransposeW(tw: TransposeW, call: FunCall, argView: View, ids: List[(ArithExpr, ArithExpr)]): View = {
     call.t match {
       case ArrayType(ArrayType(typ, m), n) =>
         findAccessAndReorder(argView, IndexFunction.transpose, call.t, 0, transpose = true)
     }
 
-    argView
+    initialiseNewView(call.t, ids)
   }
 
   private def createViewGather(gather: Gather, call: FunCall, argView: View, f:  List[(ArithExpr, ArithExpr)]): View = {
