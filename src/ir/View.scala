@@ -408,19 +408,10 @@ object View {
 
         // Find the matching ArrayAccess to the first ArrayCreation,
         // and reorder the ArrayView in the access
-        scatterReorder(scatter.f.body.view, scatter.idx, call.t, 0)
+        findAccessAndReorder(scatter.f.body.view, scatter.idx, call.t, 0)
 
         scatter.f.body.view
       case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
-    }
-  }
-
-  private def scatterReorder(view: View, idx: IndexFunction, t:Type, count: scala.Int): Unit = {
-    view match {
-      case av: ArrayView =>
-        scatterReorder(av.operation.asInstanceOf[ArrayCreation].v, idx, t, count+1)
-      case pv: PrimitiveView =>
-        findAccessAndReorder(pv, idx, t, count)
     }
   }
 
@@ -436,6 +427,7 @@ object View {
       case ar: ArrayReorder => findAccessAndReorder(ar.av, idx, t, count)
       case as: ArraySplit => findAccessAndReorder(as.av, idx, t, count)
       case aj: ArrayJoin => findAccessAndReorder(aj.av, idx, t, count)
+      case ac: ArrayCreation => findAccessAndReorder(ac.v, idx, t, count+1)
       case op => throw new NotImplementedError(op.getClass.toString)
     }
   }
