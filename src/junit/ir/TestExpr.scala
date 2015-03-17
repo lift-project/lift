@@ -1,8 +1,8 @@
-package junit
+package ir
 
-import ir._
 import org.junit.Assert._
 import org.junit.Test
+
 import scala.util.Random
 
 
