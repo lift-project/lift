@@ -176,12 +176,37 @@ object ArithExpr {
   }
   
   def multipleOf(expr: ArithExpr, that: ArithExpr) : Boolean = {
-    expr match {
+    ExprSimplifier.simplify(expr) match {
       case Prod(terms) =>
         that match {
           case Prod(otherTerms) => otherTerms.map(x => terms.contains(x)).reduce(_&&_)
+          case c: Cst =>
+            val cstTerm = terms.filter(_.isInstanceOf[Cst])
+
+            if (cstTerm.length == 1) {
+              try {
+                if ((cstTerm(0) % c).eval() == 0)
+                  return true
+              } catch {
+                case ne: NotEvaluableException =>
+              }
+            }
+
+            false
           case e => terms.contains(that)
         }
+      case c1: Cst =>
+        that match {
+          case c2: Cst =>
+            try {
+              if ((c1 % c2).eval() == 0)
+                return true
+            } catch {
+              case ne: NotEvaluableException =>
+            }
+        }
+
+        false
       case _ => false
     }
   }
