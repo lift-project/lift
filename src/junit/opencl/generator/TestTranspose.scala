@@ -1,5 +1,6 @@
 package opencl.generator
 
+import benchmarks.MatrixTransposition
 import ir._
 import ir.UserFunDef._
 import opencl.executor.{Execute, Executor}
@@ -314,16 +315,7 @@ class TestTranspose {
     println("matrix: ")
     PrintUtils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
-
-    val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
-      })
-
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output, runtime) = Execute(Nsize * Msize)(MatrixTransposition.naive, matrix, Nsize, Msize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))

@@ -169,7 +169,7 @@ abstract class Benchmark(val name: String,
   }
 
   protected def check(x: Float, y: Float): Boolean = {
-    (x - y).abs >= delta
+    (x - y).abs > delta
   }
 
   private def median(sorted: Array[Double]): Double = {
