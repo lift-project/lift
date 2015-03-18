@@ -32,6 +32,17 @@ object Execute {
     new Execute(localSize, 1, 1, globalSize, 1, 1, injectLocalSize)
   }
 
+  def apply(localSize1: Int, localSize2: Int, globalSize1: Int,  globalSize2: Int,
+            injectLocalSize: Boolean = false): Execute = {
+    new Execute(localSize1, localSize2, 1, globalSize1, globalSize2, 1, injectLocalSize)
+  }
+
+  def apply(localSize1: Int, localSize2: Int, localSize3: Int,
+            globalSize1: Int,  globalSize2: Int, globalSize3: Int,
+            injectLocalSize: Boolean = false): Execute = {
+    new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, injectLocalSize)
+  }
+
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
     val vars = f.params.map((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var])).flatten // just take the variable
 
