@@ -139,7 +139,7 @@ object Type {
       case at: ArrayType => at.len
       case mt: MatrixType => mt.len
       case st: ScalarType => Cst(1)
-      case vt: VectorType => Cst(1)
+      case vt: VectorType => getVectorSize(vt)
       case tt: TupleType => Cst(1)
       case _ => throw new TypeException(t, "ArrayType")
     }
@@ -251,11 +251,13 @@ object Type {
         val closedFormLen = {
           val inLen = ExprSimplifier.simplify(inAT.len)
           val outLen = ExprSimplifier.simplify(outAT.len)
-          if (inLen == outLen)
-            return ouT
 
           inLen match {
             case tv: TypeVar =>
+              if (inLen == outLen) {
+                tv.range = ContinousRange(tvMap.get(tv).get, tvMap.get(tv).get)
+                return ouT
+              }
               // recognises output independent of tv
               if (!ArithExpr.contains(outLen, tv))
                return ouT
@@ -376,11 +378,12 @@ object Type {
       case _: ReorderStride =>    inT
       case g: Gather =>           checkGather(g, inT, setType)
       case s: Scatter =>          checkScatter(s, inT, setType)
+      case f: Filter =>           checkFilter(f, inT, setType)
       case d: AbstractDropLeft => checkDropLeft(d, inT, setType)
       case as: AbstractSearch => checkSearch(as, inT, setType)
     }
   }
-
+ƒ
   private def getInTFromArgs(call: FunCall, setType: Boolean): Type = {
     if (call.args.isEmpty) {
       NoType
@@ -577,6 +580,16 @@ object Type {
     if (s.f.params.length != 1) throw new NumberOfArgumentsException
     s.f.params(0).t = inT
     check(s.f.body, setType)
+  }
+
+  private def checkFilter(f: Filter, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case TupleType(ArrayType(t, n), ArrayType(Int, m)) =>
+
+        ArrayType(t, m)
+
+      case _ => throw new TypeException(inT, "TupleType(ArrayType(_, _), ArrayType(Int, _))")
+    }
   }
 
   private def checkToLocal(tL: toLocal, inT: Type, setType: Boolean): Type = {

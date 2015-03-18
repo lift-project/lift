@@ -47,3 +47,5 @@ Finally add the SkelCL build directory to the Java library path:
 * On the left side select "Defaults -> JUnit"
 
 * On the right side add to the "VM options": "-Djava.library.path=/path-to-the-skelcl-folder/build/executor" (with the proper path from your system)
+
+Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. That will also make it possible to run tests from the command line using "sbt test"

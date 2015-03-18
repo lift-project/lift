@@ -201,6 +201,9 @@ object OpenCLMemory {
       case pr: ParamReference =>
         if (pr.p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
         getMemAtIndex(pr.p.mem, pr.i)
+      case vp: VectorParam =>
+        if (vp.p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
+        vp.p.mem
       case p: Param =>
         if (param.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
         p.mem
@@ -237,6 +240,7 @@ object OpenCLMemory {
       case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem)
 
       case z: Zip =>              allocZip(z, numGlb, numLcl, inMem)
+      case f: Filter =>           allocFilter(f, numGlb, numLcl, inMem)
 
       case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, inMem, outputMem, maxGlbOutSize)
       case tl: toLocal =>         allocToLocal(tl,    numGlb, numLcl, inMem, outputMem, maxLclOutSize)
@@ -246,10 +250,9 @@ object OpenCLMemory {
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
 
-      case dw: DropLeftSeq =>    allocDropLeftSeq(dw, numGlb, numLcl, inMem, outputMem)
+case dw: DropLeftSeq =>    allocDropLeftSeq(dw, numGlb, numLcl, inMem, outputMem)
       case lss: LinearSearchSeq => allocLinearSearchSeq(lss, numGlb, numLcl, inMem, outputMem)
-
-      case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride() | asVector(_) | asScalar() | Transpose() | Swap() | Unzip()  =>
+      case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride(_) | asVector(_) | asScalar() | Transpose() | Swap() | Unzip() =>
         inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, outputMem, call.t, inMem)
@@ -406,6 +409,15 @@ object OpenCLMemory {
     }
   }
 
+  private def allocFilter(f: Filter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
+    inMem match {
+      case coll: OpenCLMemoryCollection =>
+        if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
+        coll.subMemories(0)
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
   private def allocIterate(it: Iterate, call: IterateCall, numGlb: ArithExpr, numLcl: ArithExpr,
                            inMem: OpenCLMemory): OpenCLMemory = {
     // get sizes in bytes necessary to hold the input and output of the function inside the iterate
@@ -492,6 +504,8 @@ object TypedOpenCLMemory {
               arr :+ inMem :+ TypedOpenCLMemory(call.mem, call.t)
 
             case z: Zip => arr ++ call.args.map( e => TypedOpenCLMemory(e.mem, e.t) )
+
+            case f: Filter => arr ++ call.args.map( e => TypedOpenCLMemory(e.mem, e.t))
 
             case _ => arr :+ TypedOpenCLMemory(call.argsMemory, call.argsType) :+ TypedOpenCLMemory(call.mem, call.t)
           }

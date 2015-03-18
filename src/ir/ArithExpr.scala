@@ -4,6 +4,8 @@ package ir
 import scala.collection.immutable
 import scala.util.Random
 
+import language.implicitConversions
+
 class NotEvaluableException(msg: String) extends Exception(msg)
 
 
@@ -19,6 +21,16 @@ abstract sealed class ArithExpr {
 
   def evalDbl(): Double = ArithExpr.evalDouble(this)
 
+  def evalAtMax(): Int = {
+    val e: ArithExpr = atMax
+    e.eval()
+  }
+
+  def atMax: ArithExpr = {
+    val vars = Var.getVars(this)
+    val maxLens = vars.map(_.range.max)
+    ArithExpr.substitute(this, (vars, maxLens).zipped.toMap)
+  }
 
   def *(that: ArithExpr): Prod = {
     val thisExprs = this match {
@@ -44,6 +56,7 @@ abstract sealed class ArithExpr {
     Sum(thisExprs++thatExprs)
   }
 
+  def div(that: ArithExpr) = Fraction(this, that)
   def /(that: ArithExpr) = this * Pow(that, Cst(-1))
   def -(that: ArithExpr) = this + (that * Cst(-1))
 
@@ -57,7 +70,7 @@ abstract sealed class ArithExpr {
 
 object ArithExpr {
 
-  implicit def IntToCst(i: Int) = Cst(i)
+  implicit def IntToCst(i: Int): Cst = Cst(i)
 
   def max(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
     minmax(e1, e2)._2
@@ -161,6 +174,42 @@ object ArithExpr {
     visit(expr, e => if (e==elem) seen=true)
     seen
   }
+  
+  def multipleOf(expr: ArithExpr, that: ArithExpr) : Boolean = {
+    ExprSimplifier.simplify(expr) match {
+      case Prod(terms) =>
+        that match {
+          case Prod(otherTerms) => otherTerms.map(x => terms.contains(x)).reduce(_&&_)
+          case c: Cst =>
+            val cstTerm = terms.filter(_.isInstanceOf[Cst])
+
+            if (cstTerm.length == 1) {
+              try {
+                if ((cstTerm(0) % c).eval() == 0)
+                  return true
+              } catch {
+                case ne: NotEvaluableException =>
+              }
+            }
+
+            false
+          case e => terms.contains(that)
+        }
+      case c1: Cst =>
+        that match {
+          case c2: Cst =>
+            try {
+              if ((c1 % c2).eval() == 0)
+                return true
+            } catch {
+              case ne: NotEvaluableException =>
+            }
+        }
+
+        false
+      case _ => false
+    }
+  }
 
   def visit(e: ArithExpr, f: (ArithExpr) => Unit) : Unit = {
     f(e)
@@ -193,6 +242,8 @@ object ArithExpr {
     case Cst(c) => c
     case Var(_,_) | ArithExprFunction() | ? => throw new NotEvaluableException(e.toString)
 
+    case Fraction(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
+
     case Pow(base,exp) => scala.math.pow(evalDouble(base),evalDouble(exp))
     case Log(b,x) => scala.math.log(evalDouble(x)) / scala.math.log(evalDouble(b))
 
@@ -202,6 +253,8 @@ object ArithExpr {
 
     case Sum(terms) => terms.foldLeft(0.0)((result,expr) => result+evalDouble(expr))
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
+
+    case Floor(expr) => scala.math.floor(evalDouble(expr))
   }
 
 
@@ -227,6 +280,10 @@ case object ? extends ArithExpr
 case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
 object jCst { def create(c: Int) = Cst(c) }
 
+case class Fraction(numer: ArithExpr, denom: ArithExpr) extends ArithExpr {
+  override def toString: String = "("+ numer + " div " + denom +")"
+}
+
 case class Pow(b: ArithExpr, e: ArithExpr) extends ArithExpr {
   override def toString : String = e match {
     case Cst(-1) => "1/("+b+")"
@@ -238,12 +295,22 @@ case class Log(b: ArithExpr, x: ArithExpr) extends ArithExpr {
 }
 
 case class Prod(factors: List[ArithExpr]) extends ArithExpr {
+  override def equals(that: Any) = that match {
+    case p: Prod => factors.length == p.factors.length && factors.intersect(p.factors).length == factors.length
+    case _ => false
+  }
+
   override def toString : String = {
     val m = if (factors.nonEmpty) factors.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) else {""}
     "(" + m +")"
   }
 }
 case class Sum(terms: List[ArithExpr]) extends ArithExpr {
+  override def equals(that: Any) = that match {
+    case s: Sum => terms.length == s.terms.length && terms.intersect(s.terms).length == terms.length
+    case _ => false
+  }
+
   override def toString: String = {
     val m = if (terms.nonEmpty) terms.map((t) => t.toString).reduce((s1, s2) => s1 + "+" + s2) else {""}
     "(" + m +")"
@@ -298,6 +365,8 @@ object TypeVar {
     }
   }
 }
+
+class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
 case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr {
 
@@ -381,25 +450,25 @@ object Var {
     substitions
   }
 
-  def getVars(expr: Expr) : Set[Var] = {
-    Expr.visit(immutable.HashSet[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.t))
+  def getVars(expr: Expr) : Seq[Var] = {
+    Expr.visit(Seq[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.t))
   }
 
-  def getVars(t: Type) : Set[Var] = {
+  def getVars(t: Type) : Seq[Var] = {
     t match {
       case at: ArrayType => getVars(at.elemT) ++ getVars(at.len)
       case vt: VectorType => getVars(vt.len)
-      case tt: TupleType => tt.elemsT.foldLeft(new immutable.HashSet[Var]())((set,inT) => set ++ getVars(inT))
-      case _ => immutable.HashSet()
+      case tt: TupleType => tt.elemsT.foldLeft(Seq[Var]())((set,inT) => set ++ getVars(inT))
+      case _ => Seq[Var]().distinct
     }
   }
 
-  def getVars(e: ArithExpr) : Set[Var] = {
+  def getVars(e: ArithExpr) : Seq[Var] = {
     e match {
-      case adds: Sum => adds.terms.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
-      case muls: Prod => muls.factors.foldLeft(new immutable.HashSet[Var]())((set,expr) => set ++ getVars(expr))
-      case v: Var => immutable.HashSet(v)
-      case _ => immutable.HashSet()
+      case adds: Sum => adds.terms.foldLeft(Seq[Var]())((set,expr) => set ++ getVars(expr))
+      case muls: Prod => muls.factors.foldLeft(Seq[Var]())((set,expr) => set ++ getVars(expr))
+      case v: Var => Seq(v)
+      case _ => Seq[Var]()
     }
   }
 }

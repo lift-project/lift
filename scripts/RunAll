@@ -1,0 +1,31 @@
+#!/bin/bash
+
+PLATFORM=0
+DEVICE=0
+ITERATIONS=100
+GLOBAL_SIZE_ALGEBRA=1048576
+GLOBA_SIZE_BS=512
+
+COMMON_OPTIONS="--all -p ${PLATFORM} -d ${DEVICE} -i ${ITERATIONS}"
+
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+
+COMMON_OPTIONS_ALGEBRA="${COMMON_OPTIONS} -g ${GLOBAL_SIZE_ALGEBRA}"
+
+# Vector Benchmarks
+for size in 16777216 67108864
+do
+	OPTIONS="${COMMON_OPTIONS_ALGEBRA} -s ${size}"
+	./VectorScaling $OPTIONS
+	./SumAbsoluteValues $OPTIONS
+	./DotProduct $OPTIONS
+done
+
+# Matrix Benchmarks
+for size in 4096 8192
+do
+	OPTIONS="${COMMON_OPTIONS_ALGEBRA} -s ${size} -s ${size}"
+	./MatrixVector $OPTIONS
+done
+
+./BlackScholes $COMMON_OPTIONS -s 4194304 -g $GLOBA_SIZE_BS

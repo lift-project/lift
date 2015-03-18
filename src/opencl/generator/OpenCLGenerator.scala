@@ -19,7 +19,12 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  def apply() = { true }
+  def apply() = { false }
+}
+
+object Verbose {
+  var verbose = true
+  def apply() = { verbose }
 }
 
 object OpenCL{
@@ -29,6 +34,7 @@ object OpenCL{
 object OpenCLGenerator extends Generator {
 
   var oclPrinter: OpenCLPrinter = null
+  var localSize = Array(Cst(-1), Cst(-1), Cst(-1))
 
   private def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, (e: Expr) => e match {
@@ -44,15 +50,24 @@ object OpenCLGenerator extends Generator {
     }, (f: Expr) => {})
   }
 
-  // compile a type-checked function into an OpenCL kernel
+  def generate(f: Lambda, localSize0: Int = -1, localSize1: Int = -1, localSize2: Int = -1): String = {
+    localSize(0) = localSize0
+    localSize(1) = localSize1
+    localSize(2) = localSize2
+    generate(f)
+  }
+
+  // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda): String = {
 
     assert(f.body.t != UndefType)
 
-    if (Debug()) {
+    if (Verbose()) {
       println("Types:")
       printTypes(f.body)
     }
+
+    oclPrinter = new OpenCLPrinter
 
     // allocate the params and set the corresponding type
     f.params.map((p) => {
@@ -62,29 +77,24 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.access = IdAccessFunctions
-      p.view = View(p.t, new InputAccess())
+      p.view = View(p.t, new InputAccess(oclPrinter.toOpenCL(p.mem.variable)))
     })
 
     // pass 1
     allocateMemory(f)
 
-    if (Debug()) {
+    if (Verbose()) {
       println("Memory:")
       printMemories(f.body)
     }
 
-    if (Debug()) {
+    if (Verbose()) {
       println("Allocated Memory:")
       TypedOpenCLMemory.getAllocatedMemory(f.body, f.params).map(m => println(m.toString))
       println("")
     }
 
-    AccessFunction.addAccessFunctions(f.body)
-
-    //View.createView(f.body)
-
-    oclPrinter = new OpenCLPrinter
+    View.createView(f.body)
 
     // pass 2: find and generate user functions
     generateUserFunction(f.body)
@@ -150,7 +160,7 @@ object OpenCLGenerator extends Generator {
     val varMap = iterateVars.map(v => (v, ArithExpr.asCst(v.range.max))).toMap
     Kernel.memory.map(mem => {
       val m = mem.mem
-      if (Debug()) {
+      if (Verbose()) {
         println("Allocated " + ArithExpr.substitute(m.size, varMap.toMap) + " bytes for variable " +
           oclPrinter.toOpenCL(m.variable) + " in " + m.addressSpace + " memory")
       }
@@ -230,9 +240,9 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
-      oclPrinter.println("return;")
-    }
+    // if (m.dim == 0) {
+    //  oclPrinter.println("return;")
+    // }
   }
 
   // MapGlb
@@ -243,20 +253,32 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
-      oclPrinter.println("return;")
-    }
+    // if (m.dim == 0) {
+    //  oclPrinter.println("return;")
+    // }
   }
   
   // MapLcl
   private def generateMapLclCall(call: MapCall) {
     val m = call.f.asInstanceOf[MapLcl]
-    val range = RangeAdd(new get_local_id(m.dim), Type.getLength(call.arg.t), new get_local_size(m.dim))//Cst(Kernel.workGroupSize))
+    val dim: Int = m.dim
+    val length: ArithExpr = Type.getLength(call.arg.t)
+    var step: ArithExpr = new get_local_size(dim)
+
+    try {
+      val size: Cst = localSize(dim)
+      if (size != Cst(-1) && length.evalAtMax() <= size.c)
+          step = size
+    } catch {
+      case nee : NotEvaluableException =>
+    }
+
+    val range = RangeAdd(new get_local_id(dim), length, step)
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapLcl(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
+    if (dim == 0) {
       oclPrinter.generateBarrier(call.mem)
     }
   }
@@ -284,12 +306,7 @@ object OpenCLGenerator extends Generator {
     val range = ContinousRange(Cst(0), Type.getLength(call.arg.t))
 
     oclPrinter.commln("map_seq")
-    oclPrinter.generateLoop(call.loopVar, range, () => {
-
-      // oclPrinter.print(access(call.outM, call.f.f.body.outT, call.outAccess) + " = ")
-
-      generate(call.f.f.body)
-    })
+    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     oclPrinter.commln("map_seq")
   }
 
@@ -313,7 +330,6 @@ object OpenCLGenerator extends Generator {
     oclPrinter.commln("reduce_seq")
 
     // 1. generate: int acc = 0
-    // val accVar = call.argsMemory match { case coll: OpenCLMemoryCollection => coll.subMemories(0).variable }
     //get local copies of our accumulation variables from our ReduceCall
     val accVar = call.arg0.mem.variable
     val accType = call.arg0.t
@@ -329,19 +345,15 @@ object OpenCLGenerator extends Generator {
     val range = RangeAdd(Cst(0), Type.getLength(inT), Cst(1))
     oclPrinter.generateLoop(call.loopVar, range, () => {
       // 3. generate acc = fun(acc, input[i])
-      oclPrinter.print(oclPrinter.toOpenCL(accVar) + " = ")
+      oclPrinter.print(access(call.arg0.mem, call.arg0.t, call.arg0.view) + " = ")
       // TODO: This assumes a UserFun to be nested here!
-      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
-
-      //println("ReduceSeqCall access: ")
-      //ViewPrinter.emit(funCall.args(1).view.asInstanceOf[PrimitiveView])
-      //println()
+      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.args.map(_.view):_*))
 
       oclPrinter.println(";")
     })
 
     // 4. generate output[0] = acc
-    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) =:= oclPrinter.toOpenCL(accVar))
+    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.view) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
   }
@@ -542,18 +554,9 @@ object OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFunDef, call: FunCall) = {
     assert(call.f == u)
 
-    oclPrinter.print(access(call.mem, call.t, call.access) + " = ")
-    //println("Uf write access: ")
-    //ViewPrinter.emit(call.view.asInstanceOf[PrimitiveView])
-    //println()
+    oclPrinter.print(access(call.mem, call.t, call.view) + " = ")
 
-    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.argsAccess))
-    //println("Uf read accesss: ")
-    //call.args.map(a => {
-    //  ViewPrinter.emit(a.view.asInstanceOf[PrimitiveView])
-    //  println()
-    //})
-
+    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.args.map(_.view):_*))
 
     oclPrinter.println(";")
   }
@@ -572,43 +575,7 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
 
-  private def applyTranspose(accessFunctions: Array[AccessFunction]): Array[AccessFunction] = {
-    val afs = accessFunctions
-    val transposeIndex = afs.indexWhere({
-      case _:TransposeAccessFunction => true
-      case _ => false })
-
-    if (transposeIndex == -1) return afs
-
-    val transposeAf = afs(transposeIndex).asInstanceOf[TransposeAccessFunction]
-
-    val firstMapIndex = afs.indexWhere({
-      case _:MapAccessFunction => true
-      case _ => false
-    }, transposeIndex + 1)
-    val firstMap = afs(firstMapIndex) match { case maf: MapAccessFunction => maf }
-
-    val secondMapIndex = afs.indexWhere({
-      case _:MapAccessFunction => true
-      case _ => false
-    }, firstMapIndex + 1)
-    val secondMap = afs(secondMapIndex) match { case maf: MapAccessFunction => maf }
-
-    val newFirstMapChunkSize = ArithExpr.substitute(
-      firstMap.chunkSize,
-      scala.collection.immutable.Map(transposeAf.dim0 -> transposeAf.dim1))
-    val newFirstMap = MapAccessFunction(secondMap.loopVar, newFirstMapChunkSize, firstMap.mapName)
-    val newSecondMap = MapAccessFunction(firstMap.loopVar, secondMap.chunkSize, secondMap.mapName)
-
-    val newAfs = afs.clone()
-    newAfs(firstMapIndex) = newFirstMap
-    newAfs(secondMapIndex) = newSecondMap
-
-    // recursively search for the next transpose (after removing the transpose access function)
-    applyTranspose(newAfs.patch(transposeIndex, Seq(), 1))
-  }
-
-  private def access(memory: Memory, t: Type, accessFunctions: AccessFunctions): String = {
+  private def access(memory: Memory, t: Type, views: View*): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)
 
     oclMem match {
@@ -617,37 +584,25 @@ object OpenCLGenerator extends Generator {
           case tt: TupleType =>
             assert(tt.elemsT.length == coll.subMemories.length)
 
-            accessFunctions match {
-              case collAf: AccessFunctionsCollection =>
-                assert(collAf.elems.length == coll.subMemories.length)
-                ((coll.subMemories zip tt.elemsT) zip collAf.elems).map({
-                    case ((m, ty), af) => access(m, ty, af)
-                  } ).reduce(_ + ", " + _)
-
-            }
+            assert(views.length == coll.subMemories.length)
+            ((coll.subMemories zip tt.elemsT) zip views).map({
+              case ((m, ty), af) => access(m, ty, af)
+            } ).reduce(_ + ", " + _)
         }
 
       case _ =>
         oclMem.addressSpace match {
           case GlobalMemory =>
-            //val afs = applyTranspose(accessFunctions.afs)
-            val afs = accessFunctions.afs
 
             "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(afs.foldRight[ArithExpr](Cst(0))((aF, i) => aF(i))) + "])"
+              "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
 
           case LocalMemory =>
-            // access function from the kernel or MapWrg scope should not affect local
-            val localAccessFunctions = accessFunctions.afs.filter((a) => {
-              (a.scope != "MapWrg") && (a.scope != "Kernel")
-            })
-            //val afs = applyTranspose(localAccessFunctions)
-            val afs = localAccessFunctions
 
             "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
               oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(afs.foldRight[ArithExpr](Cst(0))((aF, i) => aF(i))) + "])"
+              "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
 
           case PrivateMemory =>
             oclPrinter.toOpenCL(oclMem.variable)

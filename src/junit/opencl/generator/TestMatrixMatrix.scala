@@ -1,10 +1,11 @@
-package junit.opencl.generator
+package opencl.generator
 
 import opencl.executor._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
 import ir._
+import ir.UserFunDef._
 
 object TestMatrixMatrix {
   @BeforeClass def before() {
@@ -21,22 +22,10 @@ object TestMatrixMatrix {
 
 class TestMatrixMatrix {
 
-  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
-
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
-
-  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
-
-  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
-
-  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", Array("l", "r")),
-    "{ return acc + (l * r); }",
-    Seq(Float, TupleType(Float, Float)), Float)
-
   def matrixMatrixPatternMultiply(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
     val Bt = B.transpose
     A.map( Arow =>
-      Bt.map( Bcol => (Arow, Bcol).zipped.map(_ * _).reduce(_ + _) )
+      Bt.map( Bcol => (Arow, Bcol).zipped.map(_ * _).sum )
     )
   }
 
@@ -44,7 +33,7 @@ class TestMatrixMatrix {
     val Bt = B.transpose
     A.map( Arow =>
       Bt.map( Bcol => (Arow, Bcol).zipped )
-    ).map(_.map(_.map(_ * _).reduce(_ + _)))
+    ).map(_.map(_.map(_ * _).sum))
   }
 
   def matrixMatrixMultiply(A: Array[Array[Float]], B: Array[Array[Float]]) :  Array[Array[Float]] = {
@@ -97,8 +86,8 @@ class TestMatrixMatrix {
 
   @Test def MATRIX_MATRIX_SIMPLE() {
 
-    val Msize = 512
-    val Ksize = 512
+    val Msize = 256
+    val Ksize = 64
     val Nsize = 512
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
@@ -108,12 +97,12 @@ class TestMatrixMatrix {
     val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         MapWrg(fun( Arow =>
           MapLcl(fun( Bcol =>
-              ReduceSeq(multAndSumUp, 0.0f) $ Zip(Arow, Bcol)
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
       })
@@ -126,12 +115,44 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
+    assertArrayEquals(gold, output, 0.0001f)
   }
 
+  @Test def MATRIX_MATRIX_SIMPLER() {
+
+    val Msize = 64
+    val Ksize = 128
+    val Nsize = 256
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        MapGlb(fun( Arow =>
+          MapSeq(fun( Bcol =>
+            ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(Arow, Bcol)
+          )) $ B
+        )) $ A
+      })
+
+    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Ignore
   @Test def MATRIX_MATRIX_Christophe() {
 
     val Msize = 32
@@ -839,7 +860,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
-            ReduceSeq(multAndSumUp, 0.0f) $ Zip(Arow, Bcol)
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
       })
@@ -849,7 +870,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        MapGlb(0)(MapGlb(1)(ReduceSeq(multAndSumUp, 0.0f))) o
+        MapGlb(0)(MapGlb(1)(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
         MapSeq(fun( Arow =>
           MapSeq(fun( Bcol =>
             Zip(Arow, Bcol)
@@ -889,7 +910,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
-            ReduceSeq(multAndSumUp, 0.0f) $ Zip(Arow, Bcol)
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) o Transpose() $ B
         )) $ A
       })
@@ -902,10 +923,7 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   /*

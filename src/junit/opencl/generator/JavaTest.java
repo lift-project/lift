@@ -1,6 +1,5 @@
-package junit.opencl.generator;
+package opencl.generator;
 
-import static org.junit.Assert.*;
 import org.junit.*;
 
 import java.util.*;
@@ -220,6 +219,50 @@ public class JavaTest {
         );
 
         String code = Compile.apply(pairFun);
+    }
+
+    @Test
+    public void matrixMatrix() {
+
+        Var N = jVar.create("N");
+        Var M = jVar.create("M");
+        Var K = jVar.create("K");
+        Var L = jVar.create("L");
+
+
+        Type[] types = {
+            jArrayType.create((jArrayType.create(jFloat.getSingleton(), M)), N),
+                jArrayType.create((jArrayType.create(jFloat.getSingleton(), K)), L)
+        };
+
+        List<Expr> params = Arrays.asList(types).stream().map(Param::apply).collect(Collectors.toList());
+
+
+        Param undef0 = Param.apply();
+        Param undef1 = Param.apply();
+        Param undef2 = Param.apply();
+
+        Expr multExpr = mult.apply(JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(undef2, 0), Get.apply(undef2, 1))));
+        Lambda1 multLambda = new Lambda1(new Param[]{undef2}, multExpr);
+        Lambda map = Lambda.FunDefToLambda(jMapSeq.create(multLambda));
+
+        Lambda1 reduce = jReduceSeq.create(add, Expr.FloatToValue(0.0f));
+
+        Expr zip2 = jZip.call(undef0, undef1);
+
+        FunCall f = reduce.comp(map).call(zip2);
+
+        Lambda1 l = new Lambda1(new Param[]{undef1}, f);
+        Lambda ms = Lambda.FunDefToLambda(jMapSeq.create(l));
+
+        Lambda1 l2 = new Lambda1(new Param[]{undef0}, ms.call(params.get(1)));
+
+        Lambda mg = Lambda.FunDefToLambda(jMapGlb.create(l2));
+
+        Lambda function = new Lambda(params.toArray(new Param[0]), mg.call(params.get(0)));
+
+        Compile.apply(function);
+
     }
 
     @Test

@@ -123,7 +123,7 @@ class OpenCLPrinter {
     val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
     me match {
       case Cst(c) => c.toString
-      case Pow(b, ex) => "pow(" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
+      case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
       case Log(b, x) => "(int)log"+b+"((float)"+toOpenCL(x)+")"
       case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
         s + (e match {
@@ -136,7 +136,9 @@ class OpenCLPrinter {
       case And(lhs, rhs) => "(" + toOpenCL(lhs) + " & " + toOpenCL(rhs) + ")"
       case of: OclFunction => of.toOCLString
       case tv : TypeVar => "tv_"+tv.id
+      case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
+      case Fraction(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
@@ -236,8 +238,8 @@ class OpenCLPrinter {
     val cond = ExprSimplifier.simplify(range.stop)
     val update = ExprSimplifier.simplify(range.step)
 
-    // eval expression. if successful return true and the value, otherwise return false
-    def evalExpr = (e: ArithExpr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
+    // eval expression. if sucessful return true and the value, otherwise return false
+    def evalExpr = (e: ArithExpr) => {try { (true, e.evalAtMax())} catch { case _ : Throwable => (false, 0) } }
 
     // try to directly evaluate
     val (initIsEvaluated, initEvaluated) = evalExpr(init)

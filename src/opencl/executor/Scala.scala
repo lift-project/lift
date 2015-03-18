@@ -1,19 +1,23 @@
 package opencl.executor
 
 import ir._
-import opencl.generator.OpenCLGenerator
+import opencl.generator.{Verbose, OpenCLGenerator}
 import opencl.ir._
 
 import scala.collection.immutable
 import scala.reflect.ClassTag
 
 object Compile {
-  def apply(f: Lambda):String = {
+  def apply(f: Lambda): String = apply(f, -1)
+
+  def apply(f: Lambda, localSize0: Int): String = {
     Type.check(f.body)
 
-    val kernelCode = OpenCLGenerator.generate(f)
-    println("Kernel code:")
-    println(kernelCode)
+    val kernelCode = OpenCLGenerator.generate(f, localSize0)
+    if (Verbose()) {
+      println("Kernel code:")
+      println(kernelCode)
+    }
 
     kernelCode
   }
@@ -24,8 +28,8 @@ object Execute {
     apply(128, globalSize)
   }
 
-  def apply(localSize: Int, globalSize: Int): Execute = {
-    new Execute(localSize, globalSize)
+  def apply(localSize: Int, globalSize: Int, injectLocalSize: Boolean = false): Execute = {
+    new Execute(localSize, globalSize, injectLocalSize)
   }
 
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
@@ -36,10 +40,15 @@ object Execute {
       case ArrayType(ArrayType(tt: TupleType, _), _) => tt.elemsT.length
       case ArrayType(tt: TupleType, _) => tt.elemsT.length
       case tt: TupleType => tt.elemsT.length
+      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval()
+      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval()
+      case ArrayType(vt: VectorType, _) => vt.len.eval()
+      case vt: VectorType => vt.len.eval()
       case _ => 1
     })
 
     val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
+      case aaaa: Array[Array[Array[Array[_]]]] => Seq(Cst(aaaa.size), Cst(aaaa(0).size), Cst(aaaa(0)(0).size), Cst(aaaa(0)(0)(0).size / tupleSize))
       case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size / tupleSize))
       case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size / tupleSize))
       case a: Array[_] => Seq(Cst(a.size / tupleSize))
@@ -50,10 +59,10 @@ object Execute {
   }
 }
 
-class Execute(val localSize: Int, val globalSize: Int) {
+class Execute(val localSize: Int, val globalSize: Int, injectLocalSize: Boolean) {
   def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
     assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
-    val code = Compile(f)
+    val code = if (injectLocalSize) Compile(f, localSize) else Compile(f)
     apply(code, f, values:_*)
   }
 
@@ -68,6 +77,8 @@ class Execute(val localSize: Int, val globalSize: Int) {
       case af: Array[Float] => global.input(af)
       case aaf: Array[Array[Float]] => global.input(aaf.flatten)
       case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
+      case aaaf: Array[Array[Array[Array[Float]]]] => global.input(aaaf.flatten.flatten.flatten)
+
 
 //      case ifa: Array[(Int,Float)] => global.input(ifa)
 
@@ -91,7 +102,8 @@ class Execute(val localSize: Int, val globalSize: Int) {
 
     val args: Array[KernelArg] = (memArgs ++ inputs).distinct.toArray
 
-    println("args.length " + args.length)
+    if (Verbose())
+      println("args.length " + args.length)
 
     val runtime = Executor.execute(code, localSize, globalSize, args)
 
