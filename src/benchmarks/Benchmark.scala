@@ -126,7 +126,7 @@ abstract class Benchmark(val name: String,
     println("Machine: " + "hostname".!!.dropRight(1))
     println("Commit: " + commit)
     if (commit.last == '+')
-      println("Diff:\n" + "hg diff".!!.dropRight(1))
+      println("Diff:\n" + "hg diff -X scripts".!!.dropRight(1))
 
     println()
 
