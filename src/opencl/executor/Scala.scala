@@ -29,7 +29,7 @@ object Execute {
   }
 
   def apply(localSize: Int, globalSize: Int, injectLocalSize: Boolean = false): Execute = {
-    new Execute(localSize, globalSize, injectLocalSize)
+    new Execute(localSize, 1, 1, globalSize, 1, 1, injectLocalSize)
   }
 
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
@@ -59,10 +59,11 @@ object Execute {
   }
 }
 
-class Execute(val localSize: Int, val globalSize: Int, injectLocalSize: Boolean) {
+class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
+              val globalSize1: Int, val globalSize2:Int, val globalSize3:Int, injectLocalSize: Boolean) {
   def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
     assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
-    val code = if (injectLocalSize) Compile(f, localSize) else Compile(f)
+    val code = if (injectLocalSize) Compile(f, localSize1) else Compile(f)
     apply(code, f, values:_*)
   }
 
@@ -102,7 +103,8 @@ class Execute(val localSize: Int, val globalSize: Int, injectLocalSize: Boolean)
     if (Verbose())
       println("args.length " + args.length)
 
-    val runtime = Executor.execute(code, localSize, globalSize, args)
+    val runtime = Executor.execute(code, localSize1, localSize2, localSize3,
+      globalSize1, globalSize2, globalSize3, args)
 
     val output = outputData.asFloatArray()
 
