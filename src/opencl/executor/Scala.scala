@@ -33,13 +33,13 @@ object Execute {
   }
 
   def apply(localSize1: Int, localSize2: Int, globalSize1: Int,  globalSize2: Int,
-            injectLocalSize: Boolean = false): Execute = {
+            injectLocalSize: Boolean): Execute = {
     new Execute(localSize1, localSize2, 1, globalSize1, globalSize2, 1, injectLocalSize)
   }
 
   def apply(localSize1: Int, localSize2: Int, localSize3: Int,
             globalSize1: Int,  globalSize2: Int, globalSize3: Int,
-            injectLocalSize: Boolean = false): Execute = {
+            injectLocalSize: Boolean): Execute = {
     new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, injectLocalSize)
   }
 
