@@ -383,7 +383,7 @@ object Type {
       case as: AbstractSearch => checkSearch(as, inT, setType)
     }
   }
-ƒ
+
   private def getInTFromArgs(call: FunCall, setType: Boolean): Type = {
     if (call.args.isEmpty) {
       NoType
