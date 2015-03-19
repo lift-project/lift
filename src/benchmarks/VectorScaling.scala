@@ -5,9 +5,9 @@ import ir._
 import opencl.ir._
 
 class VectorScaling(override val name: String,
-                    override val defaultSizes: Seq[Int],
+                    override val defaultInputSizes: Seq[Int],
                     override val delta: Float,
-                    override val f: Seq[(String, Seq[Lambda])]) extends Benchmark(name, defaultSizes, f, delta) {
+                    override val f: Seq[(String, Seq[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     inputs(0).asInstanceOf[Array[Float]].map(_ * inputs(1).asInstanceOf[Float])

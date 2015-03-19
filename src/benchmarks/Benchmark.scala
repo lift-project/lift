@@ -2,7 +2,6 @@ package benchmarks
 
 import java.io.File
 
-import scala.util.control._
 import scala.sys.process._
 
 import ir.Lambda
@@ -12,17 +11,17 @@ import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 
 abstract class Benchmark(val name: String,
-                         val defaultSizes: Seq[Int],
+                         val defaultInputSizes: Seq[Int],
                          val f: Seq[(String, Seq[Lambda])],
-                         val delta: Float) {
+                         val delta: Float,
+                         val defaultLocalSizes: Array[Int] = Array(128,1,1)) {
 
   var variant = -1
   var checkResult = false
   var iterations = 10
-  var scalaResult = Array.emptyFloatArray
   var inputs = Seq[Any]()
+  var scalaResult = Array.emptyFloatArray
   var runtimes = Array.emptyDoubleArray
-
 
   // Parser options
   val parser = new ArgotParser(name)
@@ -36,14 +35,14 @@ abstract class Benchmark(val name: String,
   val device = parser.option[Int](List("d", "device"), "devId",
     "Id of the OpenCL device to use (Default: 0)")
 
-  val localSizeOpt = parser.option[Int](List("l", "localSize"), "lclSize",
-    "Local size to use (Default: 128)")
+  val localSizeOpt = parser.multiOption[Int](List("l", "localSize"), "lclSize",
+    "Local size(s) to use (Defaults: " + defaultLocalSizes.mkString(", ") + ")")
 
-  val globalSizeOpt = parser.option[Int](List("g", "globalSize"), "glbSize",
-    "Global size to use")
+  val globalSizeOpt = parser.multiOption[Int](List("g", "globalSize"), "glbSize",
+    "Global size(s) to use")
 
   val size = parser.multiOption[Int](List("s", "size"), "inputSize",
-    "Size of the input to use, expecting " + defaultSizes.length)
+    "Size of the input to use, expecting " + defaultInputSizes.length + " sizes.")
 
   val verbose = parser.flag[Boolean](List("v", "verbose"),
     "Print allocated memory and source code")
@@ -56,6 +55,10 @@ abstract class Benchmark(val name: String,
 
   val checkResultOpt = parser.flag[Boolean](List("c", "check"),
     "Check the result")
+
+  val injectLocal = parser.flag[Boolean](List("il", "inject"),
+    "Inject the local size into the kernel as a constant, " +
+      "possibly replacing some for loops with if statements.")
 
   val help = parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
@@ -82,23 +85,38 @@ abstract class Benchmark(val name: String,
   def generateInputs(): Seq[Any]
 
   def inputSizes(): Seq[Int] = {
-    if (size.value.length == defaultSizes.length) size.value else defaultSizes
+    if (size.value.length == defaultInputSizes.length) size.value else defaultInputSizes
   }
+
   def runOpenCL(inputs: Any*): (Array[Float], Double) = {
     val sizes: Seq[Int] = inputSizes()
 
     var realInputs = inputs
     var realSizes = sizes
+    val realGlobalSizes = globalSize
     var totalRuntime = 0.0
     var finalOutput = Array.emptyFloatArray
 
     val lambdas: Seq[Lambda] = f(variant)._2
     for (i <- 0 until lambdas.length) {
-      val (output, runtime) = Execute(localSize,
-        globalSizeOpt.value.getOrElse(sizes.product)
+
+      val (output, runtime) = Execute(
+        localSize(0),
+        localSize(1),
+        localSize(2),
+        realGlobalSizes(0),
+        realGlobalSizes(1),
+        realGlobalSizes(2),
+        injectLocal.value.getOrElse(false)
       )(lambdas(i), realInputs ++ realSizes:_*)
+
+      // Adjust parameters for the next kernel, if any
       realInputs = Seq(output)
       realSizes = Seq(output.length)
+      realGlobalSizes(0) = output.length
+      realGlobalSizes(1) = 1
+      realGlobalSizes(2) = 1
+
       totalRuntime += runtime
       finalOutput = output
     }
@@ -106,12 +124,16 @@ abstract class Benchmark(val name: String,
     (finalOutput, totalRuntime)
   }
 
-  private def localSize: Int = {
-    localSizeOpt.value.getOrElse(128)
+  protected def localSize: Array[Int] = {
+    val localSizes = defaultLocalSizes.clone()
+    localSizeOpt.value.copyToArray(localSizes)
+    localSizes
   }
 
-  private def globalSize: Int = {
-    globalSizeOpt.value.getOrElse(inputSizes().product)
+  protected def globalSize: Array[Int] = {
+    val globalSizes = Array(inputSizes().product, 1, 1)
+    globalSizeOpt.value.copyToArray(globalSizes)
+    globalSizes
   }
 
   def runBenchmark(): Unit = {
@@ -121,8 +143,8 @@ abstract class Benchmark(val name: String,
     println("Size(s): " + inputSizes().mkString(", "))
     println("Total iterations: " + iterations)
     println("Checking results: " + checkResult)
-    println("Global size: " + globalSize)
-    println("Local size: " + localSize)
+    println("Global sizes: " + globalSize.mkString(", "))
+    println("Local sizes: " + localSize.mkString(", "))
     println("Machine: " + "hostname".!!.dropRight(1))
     println("Commit: " + commit)
     if (commit.last == '+')
@@ -132,6 +154,9 @@ abstract class Benchmark(val name: String,
 
     for (i <- 0 until iterations) {
 
+      if (i == 1)
+        Verbose.verbose = false
+
       println("Iteration: " + i)
 
       val (output, runtime) = runOpenCL(inputs:_*)
@@ -139,23 +164,18 @@ abstract class Benchmark(val name: String,
       runtimes(i) = runtime
       println("Runtime: " + runtime + " ms")
 
-      if (i == 1)
-        Verbose.verbose = false
-
       if (checkResult && i == 0) {
 
-        val loop = new Breaks
+        if (output.length != scalaResult.length)
+          println("Output length is wrong, " + output.length + " vs " + scalaResult.length)
 
-        loop.breakable {
-          for (j <- 0 until scalaResult.length) {
-            if (check(output(j), scalaResult(j))) {
-              println("Output at position " + j + " differs more than " + delta)
-              // loop.break()
-            }
+        for (j <- 0 until scalaResult.length) {
+          if (check(output(j), scalaResult(j))) {
+            println("Output at position " + j + " differs more than " + delta)
+
           }
         }
       }
-
     }
 
     val sorted = runtimes.sorted

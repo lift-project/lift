@@ -5,9 +5,9 @@ import ir._
 import opencl.ir._
 
 class DotProduct(override val name: String,
-                 override val defaultSizes: Seq[Int],
+                 override val defaultInputSizes: Seq[Int],
                  override val delta: Float,
-                 override val f: Seq[(String, Seq[Lambda])]) extends Benchmark(name, defaultSizes, f, delta) {
+                 override val f: Seq[(String, Seq[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     Array((inputs(0).asInstanceOf[Array[Float]], inputs(1).asInstanceOf[Array[Float]]).zipped.map(_*_).sum)

@@ -4,7 +4,8 @@ import ir.UserFunDef._
 import ir.{ArrayType, fun, Var, Lambda}
 import opencl.ir.{Transpose, MapGlb, Float}
 
-class MatrixTransposition (override val f: Seq[(String, Seq[Lambda])]) extends Benchmark("Matrix Transposition)", Seq(1024, 1024), f, 0.0f) {
+class MatrixTransposition (override val f: Seq[(String, Seq[Lambda])])
+  extends Benchmark("Matrix Transposition)", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     val matrix = inputs(0).asInstanceOf[Array[Array[Float]]]
@@ -19,6 +20,12 @@ class MatrixTransposition (override val f: Seq[(String, Seq[Lambda])]) extends B
     val matrix = Array.tabulate(inputSizeN, inputSizeM)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
 
     Seq(matrix)
+  }
+
+  override def globalSize: Array[Int] = {
+    val globalSizes = Array(inputSizes()(0), inputSizes()(1), 1)
+    globalSizeOpt.value.copyToArray(globalSizes)
+    globalSizes
   }
 }
 
