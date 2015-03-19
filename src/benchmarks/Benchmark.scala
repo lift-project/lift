@@ -184,8 +184,12 @@ abstract class Benchmark(val name: String,
     println("MIN: " + sorted(0) + " ms")
     println("MAX: " + sorted(iterations-1) + " ms")
     println("MEDIAN: " + median(sorted) + " ms")
-    println("BANDWIDTH: " + 4 * inputSizes().product / median(sorted) * 0.000001 + " GB/s" )
+    println("BANDWIDTH: " + bandwidth(median(sorted)) + " GB/s" )
     println()
+  }
+
+  protected def bandwidth(time: Double): Double = {
+    4 * inputSizes().product / time * 0.000001
   }
 
   protected def check(x: Float, y: Float): Boolean = {
