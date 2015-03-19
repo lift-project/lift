@@ -208,6 +208,7 @@ object OpenCLGenerator extends Generator {
         case s: Scatter => generate(s.f.body)
         case _: ReorderStride =>
         case _: Transpose =>
+        case _: TransposeW =>
         case _: Swap =>
         case _: asVector =>
         case _: asScalar =>

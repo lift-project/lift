@@ -341,6 +341,7 @@ object Type {
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
       case _: Transpose =>        checkTranspose(inT)
+      case _: TransposeW =>       checkTranspose(inT)
       case _: Swap =>             checkSwap(inT)
       case _: ReorderStride =>    inT
       case g: Gather =>           checkGather(g, inT, setType)

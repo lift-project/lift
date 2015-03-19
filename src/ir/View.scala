@@ -53,7 +53,7 @@ abstract class View(val operation: Operation) {
 
 object NoView extends View(NoOperation)
 
-class ArrayView(val elemT: Type, override val operation: Operation) extends View(operation) {
+class ArrayView(var elemT: Type, override val operation: Operation) extends View(operation) {
 
   def access(idx: ArithExpr): View = {
     val aa = new ArrayAccess(this, idx)
@@ -208,6 +208,7 @@ object View {
           case tG: toGlobal => createViewToGlobal(tG, argView, ids)
           case i: Iterate => createViewIterate(i, call, argView, ids)
           case t: Transpose => createViewTranspose(t, call, argView)
+          case tw: TransposeW => createViewTransposeW(tw, call, argView, ids)
           case asVector(n) => createViewAsVector(n, argView)
           case _: asScalar => createViewAsScalar(argView)
           case f: Filter => createViewFilter(f, call, argView)
@@ -392,12 +393,22 @@ object View {
     }
   }
 
+  private def createViewTransposeW(tw: TransposeW, call: FunCall, argView: View, ids: List[(ArithExpr, ArithExpr)]): View = {
+    call.t match {
+      case ArrayType(ArrayType(typ, m), n) =>
+        findAccessAndReorder(argView, IndexFunction.transpose, call.t, 0, transpose = true)
+    }
+
+    initialiseNewView(call.t, ids)
+  }
+
   private def createViewGather(gather: Gather, call: FunCall, argView: View, f:  List[(ArithExpr, ArithExpr)]): View = {
     argView match {
       case av: ArrayView =>
         gather.f.params(0).view = av.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
         createView(gather.f.body, f)
-      case _ => throw new IllegalArgumentException("PANIC")    }
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
   }
 
   private def createViewScatter(scatter: Scatter, call: FunCall, argView: View, f:  List[(ArithExpr, ArithExpr)]): View = {
@@ -415,19 +426,29 @@ object View {
     }
   }
 
-  private def findAccessAndReorder(view: View, idx: IndexFunction, t:Type, count: scala.Int): Unit = {
-
+  private def findAccessAndReorder(view: View, idx: IndexFunction, t:Type, count: scala.Int, transpose: Boolean = false): Unit = {
     view.operation match {
       case access: ArrayAccess =>
         if (count == 1) {
-          access.av = access.av.reorder( (i:ArithExpr) => { idx.f(i, t) } )
+          if (!transpose)
+            access.av = access.av.reorder( (i:ArithExpr) => { idx.f(i, t) } )
+          else
+            access.av = t match {
+              case ArrayType(ArrayType(typ, m), n) =>
+                access.av.elemT = ArrayType(access.av.elemT.asInstanceOf[ArrayType].elemT, m)
+
+                access.av.
+                  join(m).
+                  reorder((i:ArithExpr) => { IndexFunction.transpose(i, ArrayType(ArrayType(typ, n), m)) }).
+                  split(n)
+            }
         } else {
-          findAccessAndReorder(access.av, idx, t, count-1)
+          findAccessAndReorder(access.av, idx, t, count-1, transpose)
         }
-      case ar: ArrayReorder => findAccessAndReorder(ar.av, idx, t, count)
-      case as: ArraySplit => findAccessAndReorder(as.av, idx, t, count)
-      case aj: ArrayJoin => findAccessAndReorder(aj.av, idx, t, count)
-      case ac: ArrayCreation => findAccessAndReorder(ac.v, idx, t, count+1)
+      case ar: ArrayReorder => findAccessAndReorder(ar.av, idx, t, count, transpose)
+      case as: ArraySplit => findAccessAndReorder(as.av, idx, t, count, transpose)
+      case aj: ArrayJoin => findAccessAndReorder(aj.av, idx, t, count, transpose)
+      case ac: ArrayCreation => findAccessAndReorder(ac.v, idx, t, count+1, transpose)
       case op => throw new NotImplementedError(op.getClass.toString)
     }
   }
