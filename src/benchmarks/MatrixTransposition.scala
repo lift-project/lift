@@ -1,8 +1,8 @@
 package benchmarks
 
 import ir.UserFunDef._
-import ir.{ArrayType, fun, Var, Lambda}
-import opencl.ir.{Transpose, MapGlb, Float}
+import ir._
+import opencl.ir._
 
 class MatrixTransposition (override val f: Seq[(String, Seq[Lambda])])
   extends Benchmark("Matrix Transposition)", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
@@ -39,7 +39,23 @@ object MatrixTransposition {
       MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
     })
 
-  def apply() = new MatrixTransposition(Seq(("naive", Seq(naive))))
+  val coalesced = fun(
+    ArrayType(ArrayType(Float, M), N),
+    (matrix) => {
+      // Merge the tiles
+      Join() o MapWrg(0)(TransposeW() o MapWrg(1)(Join() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+        // Transpose the tiles and then the insides of tiles
+        TransposeW() o toLocal(MapLcl(0)(MapLcl(1)(id)))
+      )) o Transpose() o
+        // Tile the matrix
+        MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+    })
+
+  // TODO: Specifying the tile size
+  def apply() = new MatrixTransposition(
+    Seq(("naive", Seq(naive)),
+      ("coalesced", Seq(coalesced))
+    ))
 
   def main(args: Array[String]): Unit = {
     MatrixTransposition().run(args)

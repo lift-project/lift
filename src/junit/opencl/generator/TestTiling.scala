@@ -1,5 +1,6 @@
 package opencl.generator
 
+import benchmarks.MatrixTransposition
 import ir.UserFunDef._
 import ir._
 import opencl.executor.{Execute, Executor}
@@ -361,22 +362,7 @@ class TestTiling {
     println("matrix: ")
     PrintUtils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
-
-    val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        // Merge the tiles
-        Join() o MapWrg(0)(TransposeW() o MapWrg(1)(Join() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
-          // Transpose the tiles and then the insides of tiles
-          TransposeW() o toLocal(MapLcl(0)(MapLcl(1)(id)))
-        )) o Transpose() o
-          // Tile the matrix
-          MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
-      })
-
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.coalesced, matrix, Nsize, Msize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
