@@ -315,7 +315,7 @@ class TestTranspose {
     println("matrix: ")
     PrintUtils.myPrint(matrix)
 
-    val (output, runtime) = Execute(Nsize * Msize)(MatrixTransposition.naive, matrix, Nsize, Msize)
+    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.naive, matrix, Nsize, Msize)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))
