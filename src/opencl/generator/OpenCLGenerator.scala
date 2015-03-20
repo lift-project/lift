@@ -258,13 +258,13 @@ object OpenCLGenerator extends Generator {
     val m = call.f.asInstanceOf[MapLcl]
     val dim: Int = m.dim
     val start = new get_local_id(dim)
-    val length: ArithExpr = Type.getLength(call.arg.t)
+    val length = Type.getLength(call.arg.t)
     var step: ArithExpr = new get_local_size(dim)
 
     val size = localSize(dim)
     if (size != Cst(-1)) {
       step = size
-      start.range = GoesToRange(size.c-1)
+      start.range = ContinousRange(0, size)
     }
 
     val range = RangeAdd(start, length, step)

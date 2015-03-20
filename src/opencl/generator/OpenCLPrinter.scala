@@ -213,24 +213,29 @@ class OpenCLPrinter {
     val update = ExprSimplifier.simplify(range.step)
 
     // eval expression. if sucessful return true and the value, otherwise return false
-    def evalExpr = (e: ArithExpr) => {try { (true, e.evalAtMax())} catch { case _ : Throwable => (false, 0) } }
+    def evalExpr = (e: ArithExpr) => {try { (true, e.eval())} catch { case _ : Throwable => (false, 0) } }
+    def evalExprMinMax = (e: ArithExpr) => {try { (true, e.evalAtMin(), e.evalAtMax())} catch { case _ : Throwable => (false, 0, 0) } }
 
     // try to directly evaluate
-    val (initIsEvaluated, initEvaluated) = evalExpr(init)
+    val (initIsEvaluated, initMinEvaluated, initMaxEvaluated) = evalExprMinMax(init)
     val (condIsEvaluated, condEvaluated) = evalExpr(cond)
     val (updateIsEvaluated, updateEvaluated) = evalExpr(update)
 
     // TODO evaluate symbolically with a comparison operator (add support for <,<=,==,>=,> in Expr)
 
     if (initIsEvaluated && condIsEvaluated) {
-      if (condEvaluated <= initEvaluated)
+      if (condEvaluated <= initMinEvaluated)
         // nothing to do
         return
     }
 
     if (initIsEvaluated && condIsEvaluated && updateIsEvaluated) {
-      assert (condEvaluated > initEvaluated)
-      if (condEvaluated <= (initEvaluated + updateEvaluated)) {
+      assert (condEvaluated > initMinEvaluated)
+      if (initMinEvaluated == initMaxEvaluated &&
+        condEvaluated <= initMinEvaluated + updateEvaluated ||
+        // Above: sequential loop, below: parallel loop
+        initMaxEvaluated - initMinEvaluated == updateEvaluated &&
+        condEvaluated == initMinEvaluated + updateEvaluated) {
         // exactly one iteration
         openCB()
         println("int " + toOpenCL(indexVar) + " = " + toOpenCL(init) + ";")

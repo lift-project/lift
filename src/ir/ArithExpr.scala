@@ -22,14 +22,24 @@ abstract sealed class ArithExpr {
   def evalDbl(): Double = ArithExpr.evalDouble(this)
 
   def evalAtMax(): Int = {
-    val e: ArithExpr = atMax
-    e.eval()
+    atMax.eval()
+  }
+
+  def evalAtMin(): Int = {
+    atMin.eval()
   }
 
   def atMax: ArithExpr = {
     val vars = Var.getVars(this)
     val exprFunctions = ArithExprFunction.getArithExprFuns(this)
     val maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
+    ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
+  }
+
+  def atMin: ArithExpr = {
+    val vars = Var.getVars(this)
+    val exprFunctions = ArithExprFunction.getArithExprFuns(this)
+    val maxLens = vars.map(_.range.min) ++ exprFunctions.map(_.range.min)
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
 

@@ -94,6 +94,63 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
+  @Test def injectExactlyOneIteration(): Unit = {
+    val inputSize = 1024
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapWrg(MapLcl(id)) o Split(128) $ in
+    )
+
+    val (output, runtime) = Execute(128, inputSize, injectLocalSize = true)(
+      f, input, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(input, output, 0.0f)
+  }
+
+  @Test def injectLessThanOneIteration(): Unit ={
+    val inputSize = 1024
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapWrg(MapLcl(id)) o Split(64) $ in
+    )
+
+    val (output, runtime) = Execute(128, inputSize, injectLocalSize = true)(
+      f, input, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(input, output, 0.0f)
+  }
+
+  @Test def injectMoreThanOneIteration(): Unit ={
+    val inputSize = 1024
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapWrg(MapLcl(id)) o Split(256) $ in
+    )
+
+    val (output, runtime) = Execute(128, inputSize, injectLocalSize = true)(
+      f, input, inputSize)
+
+    println("output.size = " + output.size)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(input, output, 0.0f)
+  }
+
   @Test def composeUserFunctionWithPattern(): Unit = {
 
     val Nsize = 512
