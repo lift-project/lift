@@ -8,12 +8,12 @@ import scala.collection.immutable
 import scala.reflect.ClassTag
 
 object Compile {
-  def apply(f: Lambda): String = apply(f, -1, -1, -1)
+  def apply(f: Lambda): String = apply(f, ?, ?, ?)
 
-  def apply(f: Lambda, localSize0: Int = -1, localSize1: Int, localSize2: Int): String = {
+  def apply(f: Lambda, localSize0: ArithExpr, localSize1: ArithExpr, localSize2: ArithExpr) = {
     Type.check(f.body)
 
-    val kernelCode = OpenCLGenerator.generate(f, localSize0, localSize1, localSize2)
+    val kernelCode = OpenCLGenerator.generate(f, Array(localSize0, localSize1, localSize2))
     if (Verbose()) {
       println("Kernel code:")
       println(kernelCode)

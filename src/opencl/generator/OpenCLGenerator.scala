@@ -34,7 +34,7 @@ object OpenCL{
 object OpenCLGenerator extends Generator {
 
   var oclPrinter: OpenCLPrinter = null
-  var localSize = Array(Cst(-1), Cst(-1), Cst(-1))
+  var localSize: Array[ArithExpr] = Array(?, ?, ?)
 
   private def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, (e: Expr) => e match {
@@ -50,16 +50,15 @@ object OpenCLGenerator extends Generator {
     }, (f: Expr) => {})
   }
 
-  def generate(f: Lambda, localSize0: Int = -1, localSize1: Int = -1, localSize2: Int = -1): String = {
-    localSize(0) = localSize0
-    localSize(1) = localSize1
-    localSize(2) = localSize2
-    generate(f)
+  def generate(f: Lambda): String = {
+    generate(f, Array(?, ?, ?))
   }
 
   // Compile a type-checked function into an OpenCL kernel
-  def generate(f: Lambda): String = {
+  def generate(f: Lambda, localSize: Array[ArithExpr]): String = {
+    this.localSize = localSize
 
+    assert(localSize.length == 3)
     assert(f.body.t != UndefType)
 
     if (Verbose()) {
@@ -262,7 +261,7 @@ object OpenCLGenerator extends Generator {
     var step: ArithExpr = new get_local_size(dim)
 
     val size = localSize(dim)
-    if (size != Cst(-1)) {
+    if (size != ?) {
       step = size
       start.range = ContinousRange(0, size)
     }
