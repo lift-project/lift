@@ -8,12 +8,12 @@ import scala.collection.immutable
 import scala.reflect.ClassTag
 
 object Compile {
-  def apply(f: Lambda): String = apply(f, -1)
+  def apply(f: Lambda): String = apply(f, -1, -1, -1)
 
-  def apply(f: Lambda, localSize0: Int): String = {
+  def apply(f: Lambda, localSize0: Int = -1, localSize1: Int, localSize2: Int): String = {
     Type.check(f.body)
 
-    val kernelCode = OpenCLGenerator.generate(f, localSize0)
+    val kernelCode = OpenCLGenerator.generate(f, localSize0, localSize1, localSize2)
     if (Verbose()) {
       println("Kernel code:")
       println(kernelCode)
@@ -74,7 +74,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
               val globalSize1: Int, val globalSize2:Int, val globalSize3:Int, injectLocalSize: Boolean) {
   def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
     assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
-    val code = if (injectLocalSize) Compile(f, localSize1) else Compile(f)
+    val code = if (injectLocalSize) Compile(f, localSize1, localSize2, localSize3) else Compile(f)
     apply(code, f, values:_*)
   }
 
