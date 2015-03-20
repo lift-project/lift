@@ -445,7 +445,7 @@ object ExprSimplifier {
 
     // recurse inside first
     var result = e match {
-      case ArithExprFunction() => e
+      case ArithExprFunction(_) => e
       case Cst(_) => e
       case Var(_,_) => e
       case Pow(base, exp) => Pow(simplify(base), simplify(exp))

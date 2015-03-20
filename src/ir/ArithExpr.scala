@@ -28,8 +28,9 @@ abstract sealed class ArithExpr {
 
   def atMax: ArithExpr = {
     val vars = Var.getVars(this)
-    val maxLens = vars.map(_.range.max)
-    ArithExpr.substitute(this, (vars, maxLens).zipped.toMap)
+    val exprFunctions = ArithExprFunction.getArithExprFuns(this)
+    val maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
+    ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
 
   def *(that: ArithExpr): Prod = {
@@ -240,7 +241,7 @@ object ArithExpr {
 
   private def evalDouble(e: ArithExpr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ArithExprFunction() | ? => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | ArithExprFunction(_) | ? => throw new NotEvaluableException(e.toString)
 
     case Fraction(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
 
@@ -329,7 +330,19 @@ case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
 }
 
-case class ArithExprFunction() extends ArithExpr
+case class ArithExprFunction(var range: Range = RangeUnkown) extends ArithExpr
+
+object ArithExprFunction {
+
+  def getArithExprFuns(expr: ArithExpr) : Set[ArithExprFunction] = {
+    val exprFunctions = scala.collection.mutable.HashSet[ArithExprFunction]()
+    ArithExpr.visit(expr, {
+      case function: ArithExprFunction => exprFunctions += function
+      case _ =>
+    })
+    exprFunctions.toSet
+  }
+}
 
 // a special variable that should only be used for defining function type
 class TypeVar private(range : Range) extends Var("", range) {

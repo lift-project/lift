@@ -256,18 +256,17 @@ object OpenCLGenerator extends Generator {
   private def generateMapLclCall(call: MapCall) {
     val m = call.f.asInstanceOf[MapLcl]
     val dim: Int = m.dim
+    val start = new get_local_id(dim)
     val length: ArithExpr = Type.getLength(call.arg.t)
     var step: ArithExpr = new get_local_size(dim)
 
-    try {
-      val size: Cst = localSize(dim)
-      if (size != Cst(-1) && length.evalAtMax() <= size.c)
-          step = size
-    } catch {
-      case nee : NotEvaluableException =>
+    val size = localSize(dim)
+    if (size != Cst(-1)) {
+      step = size
+      start.range = GoesToRange(size.c-1)
     }
 
-    val range = RangeAdd(new get_local_id(dim), length, step)
+    val range = RangeAdd(start, length, step)
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapLcl(0) is always the outermost and there is no need for synchronization inside.
