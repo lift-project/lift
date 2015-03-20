@@ -43,9 +43,9 @@ object MatrixTransposition {
     ArrayType(ArrayType(Float, M), N),
     (matrix) => {
       // Merge the tiles
-      Join() o MapWrg(0)(TransposeW() o MapWrg(1)(Join() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+      Join() o MapWrg(0)(TransposeW() o MapWrg(1)(Join() o toGlobal(MapLcl(1)(MapLcl(0)(id))) o
         // Transpose the tiles and then the insides of tiles
-        TransposeW() o toLocal(MapLcl(0)(MapLcl(1)(id)))
+        TransposeW() o toLocal(MapLcl(1)(MapLcl(0)(id)))
       )) o Transpose() o
         // Tile the matrix
         MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
