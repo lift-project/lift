@@ -41,7 +41,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o
-          MapWrg(0)(MapWrg(1)(Transpose()
+          Map(Map(Transpose()
           ) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
@@ -83,7 +83,7 @@ class TestTiling {
           toGlobal(MapLcl(0)(MapLcl(1)(id))) o
             toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o
-          MapWrg(0)(MapWrg(1)(Transpose()
+          Map(Map(Transpose()
           ) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
@@ -123,9 +123,9 @@ class TestTiling {
       (matrix) => {
         // Merge the tiles
         MapWrg(0)(MapWrg(1)(id)) o
-          Join() o MapWrg(0)(MapWrg(1)(Join()) o Transpose()) o
+          Join() o Map(Map(Join()) o Transpose()) o
           // Tile the matrix
-          MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+          Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -165,7 +165,7 @@ class TestTiling {
           toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o
           // Tile the matrix
-          MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+          Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -199,7 +199,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)) o Transpose())) o
-          MapWrg(0)(MapWrg(1)(Transpose()
+          Map(Map(Transpose()
           ) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
@@ -242,7 +242,7 @@ class TestTiling {
         MapWrg(0)(MapWrg(1)(
           toGlobal(MapLcl(0)(MapLcl(1)(id))) o
             TransposeW() o toLocal(MapLcl(0)(MapLcl(1)(id))))) o
-          MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+          Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -283,7 +283,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o Transpose() o
-          MapWrg(0)(MapWrg(1)(Transpose()
+          Map(Map(Transpose()
           ) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
@@ -328,11 +328,11 @@ class TestTiling {
       (matrix) => {
         // Merge the tiles
         MapWrg(0)(MapWrg(1)(id)) o
-          Join() o MapWrg(0)(MapWrg(1)(Join()) o Transpose()) o
+          Join() o Map(Map(Join()) o Transpose()) o
           // Transpose the tiles and then the insides of tiles
-          MapWrg(0)(MapWrg(1)(Transpose())) o Transpose() o
+          Map(Map(Transpose())) o Transpose() o
           // Tile the matrix
-          MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+          Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)

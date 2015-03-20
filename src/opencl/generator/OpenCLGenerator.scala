@@ -190,6 +190,7 @@ object OpenCLGenerator extends Generator {
         case _: MapWarp => generateMapWarpCall(call)
         case _: MapLane => generateMapLaneCall(call)
         case _: MapSeq => generateMapSeqCall(call)
+        case _: Map =>
       }
       case call: ReduceCall => call.f match {
         case _: ReduceSeq => generateReduceSeqCall(call)

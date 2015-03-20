@@ -331,7 +331,7 @@ class TestMisc {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       ArrayType(ArrayType(Float, M), N),
-      (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o MapGlb(fun(x => MapSeq(fun(y => Zip(x, y))) $ Y )) $ X
+      (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o Map(fun(x => Map(fun(y => Zip(x, y))) $ Y )) $ X
     )
 
     val (output, runtime) = Execute(nSize)(f, A, B, nSize, mSize)

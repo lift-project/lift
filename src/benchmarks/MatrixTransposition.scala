@@ -48,7 +48,7 @@ object MatrixTransposition {
         TransposeW() o toLocal(MapLcl(1)(MapLcl(0)(id)))
       )) o Transpose() o
         // Tile the matrix
-        MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+        Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
     })
 
   // TODO: Specifying the tile size
