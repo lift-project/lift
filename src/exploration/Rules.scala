@@ -54,7 +54,7 @@ object Rules {
   private def validOSplitRange(t: Type) = {
     t match {
       case ArrayType(_, len) => RangeMul(Cst(1), len, Cst(2))
-      case _ => RangeUnkown // Error
+      case _ => RangeUnknown // Error
     }
   }
  

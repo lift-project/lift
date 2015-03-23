@@ -259,7 +259,7 @@ object OpenCLGenerator extends Generator {
           }
         })
         step = numGroups
-        start.range = ContinousRange(0, numGroups)
+        start.range = ContinuousRange(0, numGroups)
       case ? =>
     }
 
@@ -299,7 +299,7 @@ object OpenCLGenerator extends Generator {
     val size = localSize(dim)
     if (size != ?) {
       step = size
-      start.range = ContinousRange(0, size)
+      start.range = ContinuousRange(0, size)
     }
 
     val range = RangeAdd(start, length, step)
@@ -332,7 +332,7 @@ object OpenCLGenerator extends Generator {
   // MapSeq
   private def generateMapSeqCall(call: MapCall) {
 
-    val range = ContinousRange(Cst(0), Type.getLength(call.arg.t))
+    val range = ContinuousRange(Cst(0), Type.getLength(call.arg.t))
 
     oclPrinter.commln("map_seq")
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
@@ -403,7 +403,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.printVarDecl(opencl.ir.Int, curOutLen, oclPrinter.toOpenCL(Type.getLength(call.argsType)))
     oclPrinter.println(";")
 
-    val range = ContinousRange(Cst(0), call.f.n)
+    val range = ContinuousRange(Cst(0), call.f.n)
     val indexVar = Var("i", range)
 
     // create new temporary input and output pointers

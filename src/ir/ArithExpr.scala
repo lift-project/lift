@@ -340,7 +340,7 @@ case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
 }
 
-case class ArithExprFunction(var range: Range = RangeUnkown) extends ArithExpr
+case class ArithExprFunction(var range: Range = RangeUnknown) extends ArithExpr
 
 object ArithExprFunction {
 
@@ -361,7 +361,7 @@ class TypeVar private(range : Range) extends Var("", range) {
 
 object TypeVar {
   //var cnt: Int = -1
-  def apply(range : Range = RangeUnkown) = {
+  def apply(range : Range = RangeUnknown) = {
     //cnt = cnt+1
     new TypeVar(/*cnt, */range)
   }
@@ -391,7 +391,7 @@ object TypeVar {
 
 class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
-case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr {
+case class Var(name: String, var range : Range = RangeUnknown) extends ArithExpr {
 
   Var.cnt += 1
   val id: Int = Var.cnt
@@ -409,7 +409,7 @@ case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr 
   override def toString = if (name == "") "v_"+id else name
 
   def updateRange(func: (Range) => Range): Unit = {
-    if (range != RangeUnkown) {
+    if (range != RangeUnknown) {
       range = func(range)
     }
   }

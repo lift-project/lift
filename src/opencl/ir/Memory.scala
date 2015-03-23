@@ -142,16 +142,16 @@ object OpenCLMemory {
 
   //** Return newly allocated global memory */
   def allocGlobalMemory(glbOutSize: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
   }
 
   //** Return newly allocated local memory */
   def allocLocalMemory(lclOutSize: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
   }
 
   def allocPrivateMemory(size: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, PrivateMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), size)), size, PrivateMemory)
   }
 
   /** Allocate OpenCLMemory objects for a given Fun f

@@ -15,13 +15,13 @@ class ViewTest {
 
     // The map below is not valid, zip on primitives would fail during type-checking
     // map(b => zip(a,b)) o B
-    val var_i = new Var("i", RangeUnkown)
+    val var_i = new Var("i", RangeUnknown)
     val b = B.access(var_i).asInstanceOf[PrimitiveView] // TODO B.get should return the appropriate type (use generics)
     val zip_ab = new TupleView(TupleType(Int, Int), new TupleCreation(List(a, b)))
     val map_zip_ab = new ArrayView(TupleType(Int, Int), new ArrayCreation(zip_ab, Cst(10), var_i))
 
     // map (f) o ...
-    val var_j = new Var("j", RangeUnkown)
+    val var_j = new Var("j", RangeUnknown)
     val mapf = map_zip_ab.access(var_j).asInstanceOf[TupleView]
 
     val mapf0 = mapf.access(0).asInstanceOf[PrimitiveView]
@@ -44,10 +44,10 @@ class ViewTest {
     // map(a => map(b => map(f) $ zip(a,b)) o B) o A
 
     // map(a => ... ) $ A
-    val var_i = new Var("i", RangeUnkown)
+    val var_i = new Var("i", RangeUnknown)
     val a = A.access(var_i).asInstanceOf[ArrayView]
     // ... map(b => ...) $ B ...
-    val var_j = new Var("j", RangeUnkown)
+    val var_j = new Var("j", RangeUnknown)
     val b = B.access(var_j).asInstanceOf[ArrayView]
     // ... $ zip(a, b) ...
     val zip_ab = new TupleView(TupleType(new ArrayType(Int, 8), new ArrayType(Int, 8)), new TupleCreation(List(a, b)))
@@ -57,8 +57,8 @@ class ViewTest {
     // ... map(f) $ ...
 
     // map(map (f)) o ...
-    val var_k = new Var("k", RangeUnkown)
-    val var_l = new Var("l", RangeUnkown)
+    val var_k = new Var("k", RangeUnknown)
+    val var_l = new Var("l", RangeUnknown)
     val map_f = map_map_zip_ab.access(var_k).asInstanceOf[ArrayView]
     val map_map_f = map_f.access(var_l).asInstanceOf[TupleView]
 
@@ -79,8 +79,8 @@ class ViewTest {
     val B = new ArrayView(new ArrayType(Int, 8), new InputAccess("B"))
 
     // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
-    val var_i = new Var("i", RangeUnkown)
-    val var_j = new Var("j", RangeUnkown)
+    val var_i = new Var("i", RangeUnknown)
+    val var_j = new Var("j", RangeUnknown)
     val a = A.access(var_i).asInstanceOf[ArrayView]
     val b = B.access(var_j).asInstanceOf[ArrayView]
     val zip_ab = new TupleView(TupleType(new ArrayType(Int, 8), new ArrayType(Int, 8)), new TupleCreation(List(a, b)))
@@ -103,8 +103,8 @@ class ViewTest {
 
     // split-2 o A
     val split2A = A.split(2)
-    val var_i = new Var("i", RangeUnkown)
-    val var_j = new Var("j", RangeUnkown)
+    val var_i = new Var("i", RangeUnknown)
+    val var_j = new Var("j", RangeUnknown)
 
     val split2A_i = split2A.access(var_i).asInstanceOf[ArrayView]
     val split2A_i_j = split2A_i.access(var_j).asInstanceOf[ArrayView]
