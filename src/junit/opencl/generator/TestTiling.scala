@@ -47,7 +47,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -89,7 +89,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -130,7 +130,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -170,7 +170,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -205,7 +205,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -247,7 +247,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -289,7 +289,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -337,7 +337,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -364,7 +364,7 @@ class TestTiling {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.coalesced, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 

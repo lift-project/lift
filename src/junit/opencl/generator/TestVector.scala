@@ -47,7 +47,7 @@ class TestVector {
     )
 
     val code = Compile(addFun)
-    val (output, runtime) = Execute(inputSize)(code, addFun, leftInputData, rightInputData, leftInputData.size)
+    val (output, runtime) = Execute(inputSize)(code, addFun, leftInputData, rightInputData, leftInputData.length)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -70,7 +70,7 @@ class TestVector {
 
     )
 
-    val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)
+    val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.length)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -92,7 +92,7 @@ class TestVector {
       ) o Split(4) $ input
     )
 
-    val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.size)
+    val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.length)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -114,7 +114,7 @@ class TestVector {
       ) o Split(4)) $ input
     )
 
-    val (output, runtime) = Execute(16, inputArray.length)(negFun, inputArray, inputArray.size)
+    val (output, runtime) = Execute(16, inputArray.length)(negFun, inputArray, inputArray.length)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -131,7 +131,7 @@ class TestVector {
 
     val scalFun = VectorScaling.vectorScal
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -148,7 +148,7 @@ class TestVector {
 
     val scalFun = VectorScaling.scalNVIDIA
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -165,7 +165,7 @@ class TestVector {
 
     val scalFun = VectorScaling.scalAMD
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -182,7 +182,7 @@ class TestVector {
 
     val scalFun = VectorScaling.scalINTEL
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -205,12 +205,12 @@ class TestVector {
       ) o Split(1024) $ input
     )
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.size)
+    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
 
     assertEquals(gold,output.sum,0.0)
     //(gold, output).zipped.map(assertEquals(_,_,0.0))
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
   }

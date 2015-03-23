@@ -113,7 +113,7 @@ class TestTuple {
 
     val (output, runtime) = Execute(inputSize)(function, input, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -139,7 +139,7 @@ class TestTuple {
 
     val (output, runtime) = Execute(inputSize)(function, input, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 

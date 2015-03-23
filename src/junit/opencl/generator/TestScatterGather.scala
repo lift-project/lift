@@ -35,7 +35,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -54,7 +54,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -73,7 +73,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -92,11 +92,11 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrix.reverse.map(_.reverse).flatten, output, 0.0f)
+    assertArrayEquals(matrix.reverseMap(_.reverse).flatten, output, 0.0f)
   }
 
   @Test def testGatherGlb1D(): Unit = {
@@ -110,7 +110,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -129,7 +129,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -148,7 +148,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -167,11 +167,11 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrix.reverse.map(_.reverse).flatten, output, 0.0f)
+    assertArrayEquals(matrix.reverseMap(_.reverse).flatten, output, 0.0f)
   }
 
   @Test def testGatherWrg1D(): Unit = {
@@ -185,7 +185,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -204,7 +204,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -223,7 +223,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -242,11 +242,11 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrix.reverse.map(_.reverse).flatten, output, 0.0f)
+    assertArrayEquals(matrix.reverseMap(_.reverse).flatten, output, 0.0f)
   }
 
   @Test def testGatherSplit(): Unit = {
@@ -262,7 +262,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(1,Nsize)(f, vector, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -282,7 +282,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -302,7 +302,7 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(1,Nsize)(f, vector, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -322,11 +322,10 @@ class TestScatterGather {
 
     val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
   }
-
 }

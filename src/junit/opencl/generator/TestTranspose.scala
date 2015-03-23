@@ -54,7 +54,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -103,7 +103,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -147,7 +147,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -181,7 +181,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -212,7 +212,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -251,7 +251,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -292,7 +292,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -317,7 +317,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.naive, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -357,7 +357,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -399,7 +399,7 @@ class TestTranspose {
 
     val (output, runtime) = Execute(4, Nsize * Msize * Lsize)(f, matrix, Nsize, Msize, Ksize, Lsize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 

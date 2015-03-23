@@ -2,7 +2,7 @@ package opencl.generator
 
 object PrintUtils {
   def myPrint(m: Array[Array[Array[Float]]]): Unit = {
-    m.map( r => {
+    m.foreach( r => {
       println(r.map( e => {
         "(" + e.map("%2.0f".format(_)).reduce(_ + ", " + _) + ")"
       }).reduce(_ + " " + _))
@@ -10,7 +10,7 @@ object PrintUtils {
   }
 
   def myPrint(m: Array[Array[Float]]): Unit = {
-    m.map( r => {
+    m.foreach( r => {
       println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
     } )
   }
