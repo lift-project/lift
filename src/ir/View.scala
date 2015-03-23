@@ -284,7 +284,7 @@ object View {
     } else {
       val tv = argView match { case tv: TupleView => tv }
 
-      l.params.zipWithIndex.map({ case (p, i) => p.view = tv.access(i) })
+      l.params.zipWithIndex.foreach({ case (p, i) => p.view = tv.access(i) })
     }
     createView(l.body, f)
   }
@@ -411,17 +411,17 @@ object View {
     }
   }
 
-  private def createViewScatter(scatter: Scatter, call: FunCall, argView: View, f:  List[(ArithExpr, ArithExpr)]): View = {
+  private def createViewScatter(scatter: Scatter, call: FunCall, argView: View, ids:  List[(ArithExpr, ArithExpr)]): View = {
     argView match {
       case av: ArrayView =>
         scatter.f.params(0).view = av
-        createView(scatter.f.body, f)
+        createView(scatter.f.body, ids)
 
         // Find the matching ArrayAccess to the first ArrayCreation,
         // and reorder the ArrayView in the access
         findAccessAndReorder(scatter.f.body.view, scatter.idx, call.t, 0)
 
-        scatter.f.body.view
+        initialiseNewView(call.t, ids)
       case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
     }
   }
