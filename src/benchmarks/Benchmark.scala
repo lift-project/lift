@@ -107,7 +107,7 @@ abstract class Benchmark(val name: String,
         realGlobalSizes(0),
         realGlobalSizes(1),
         realGlobalSizes(2),
-        injectLocal.value.getOrElse(false)
+        (injectLocal.value.getOrElse(false), false)
       )(lambdas(i), realInputs ++ realSizes:_*)
 
       // Adjust parameters for the next kernel, if any

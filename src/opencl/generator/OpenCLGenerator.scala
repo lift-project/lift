@@ -4,6 +4,8 @@ import generator.Generator
 import ir._
 import opencl.ir._
 
+import scala.collection.immutable
+
 class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
 
@@ -35,6 +37,8 @@ object OpenCLGenerator extends Generator {
 
   var oclPrinter: OpenCLPrinter = null
   var localSize: Array[ArithExpr] = Array(?, ?, ?)
+  var globalSize: Array[ArithExpr] = Array(?, ?, ?)
+  var valueMap: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()
 
   private def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, (e: Expr) => e match {
@@ -54,11 +58,18 @@ object OpenCLGenerator extends Generator {
     generate(f, Array(?, ?, ?))
   }
 
+  def generate(f: Lambda, localSizes: Array[ArithExpr]): String = {
+    generate(f, localSizes, Array(?, ?, ?), immutable.Map())
+  }
+
   // Compile a type-checked function into an OpenCL kernel
-  def generate(f: Lambda, localSize: Array[ArithExpr]): String = {
+  def generate(f: Lambda, localSize: Array[ArithExpr], globalSizes: Array[ArithExpr], valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
     this.localSize = localSize
+    this.globalSize = globalSizes
+    this.valueMap = valueMap
 
     assert(localSize.length == 3)
+    assert(globalSize.length == 3)
     assert(f.body.t != UndefType)
 
     if (Verbose()) {
@@ -69,7 +80,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter = new OpenCLPrinter
 
     // allocate the params and set the corresponding type
-    f.params.map((p) => {
+    f.params.foreach((p) => {
       p.t match {
         case _: ScalarType =>
           p.mem = OpenCLMemory.allocPrivateMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
@@ -89,7 +100,7 @@ object OpenCLGenerator extends Generator {
 
     if (Verbose()) {
       println("Allocated Memory:")
-      TypedOpenCLMemory.getAllocatedMemory(f.body, f.params).map(m => println(m.toString))
+      TypedOpenCLMemory.getAllocatedMemory(f.body, f.params).foreach(m => println(m.toString))
       println("")
     }
 
@@ -157,7 +168,7 @@ object OpenCLGenerator extends Generator {
 
     // print out allocated memory sizes
     val varMap = iterateVars.map(v => (v, ArithExpr.asCst(v.range.max))).toMap
-    Kernel.memory.map(mem => {
+    Kernel.memory.foreach(mem => {
       val m = mem.mem
       if (Verbose()) {
         println("Allocated " + ArithExpr.substitute(m.size, varMap.toMap) + " bytes for variable " +
@@ -216,7 +227,7 @@ object OpenCLGenerator extends Generator {
         case _: SplitDim2 =>
         case _: Join =>
         case _: JoinDim2 =>
-        case _: Zip => call.args.map(generate)
+        case _: Zip => call.args.foreach(generate)
         case _: Unzip =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
@@ -229,7 +240,30 @@ object OpenCLGenerator extends Generator {
   // MapWrg
   private def generateMapWrgCall(call: MapCall): Unit = {
     val m = call.f.asInstanceOf[MapWrg]
-    val range = RangeAdd(new get_group_id(m.dim), Type.getLength(call.arg.t), new get_num_groups(m.dim))
+    val dim: Int = m.dim
+    val start: get_group_id = new get_group_id(dim)
+    val length: ArithExpr = Type.getLength(call.arg.t)
+    var step: ArithExpr = new get_num_groups(m.dim)
+
+    val gSize = globalSize(dim)
+    val lSize = localSize(dim)
+
+    gSize match {
+      case Cst(c) =>
+        val numGroups = gSize / lSize
+        val vars = Var.getVars(length)
+        vars.foreach(v => {
+          valueMap.get(v) match {
+            case Some(value) => v.range = GoesToRange(value)
+            case None =>
+          }
+        })
+        step = numGroups
+        start.range = ContinousRange(0, numGroups)
+      case ? =>
+    }
+
+    val range = RangeAdd(start, length, step)
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
@@ -243,6 +277,8 @@ object OpenCLGenerator extends Generator {
   private def generateMapGlbCall(call: MapCall): Unit = {
     val m = call.f.asInstanceOf[MapGlb]
     val range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.arg.t), new get_global_size(m.dim))
+
+
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
@@ -355,7 +391,7 @@ object OpenCLGenerator extends Generator {
     // use the type var as the var holding the iterating size if it exists
     if (TypeVar.getTypeVars(funCall.argsType).size > 1) {
       println("size: " + TypeVar.getTypeVars(funCall.argsType).size)
-      TypeVar.getTypeVars(funCall.argsType).map( (tv) => { println("tv: " + tv) })
+      TypeVar.getTypeVars(funCall.argsType).foreach( (tv) => { println("tv: " + tv) })
       println("i.f.inT " + funCall.argsType)
       throw new NotImplementedError()
     }
