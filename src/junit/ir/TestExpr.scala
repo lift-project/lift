@@ -85,7 +85,13 @@ class TestExpr {
   @Test def Fraction(): Unit = {
     val i = Var("i")
     val M = Var("M")
-    assertEquals((i div M) * M + i % M, ExprSimplifier.simplify((i div M) * M + i % M))
+    assertEquals((i div M) * M, ExprSimplifier.simplify((i div M) * M))
+  }
+
+  @Test def remainderAndModulo(): Unit = {
+    val a = Var("x")
+    val d = Var("d")
+    assertEquals(a, ExprSimplifier.simplify((a div d) * d + a % d))
   }
 
   @Test def modOfVarWithVarRange(): Unit = {
