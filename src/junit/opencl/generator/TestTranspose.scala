@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.IndexFunction.transpose
 
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 object TestTranspose {
   @BeforeClass def before() {
@@ -24,6 +24,39 @@ object TestTranspose {
 }
 
 class TestTranspose {
+
+  @Ignore
+  @Test def transposeWrite2Dims(): Unit = {
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val gold = input.map(_.transpose).transpose
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      input => TransposeW() o MapWrg(TransposeW() o MapLcl(MapSeq(id))) $ input
+    )
+
+    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
+  }
+
+  @Ignore
+  @Test def idTransposeWrite(): Unit = {
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val gold = input.map(_.transpose).transpose
+
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      input => MapWrg(TransposeW() o TransposeW() o MapLcl(MapSeq(id))) $ input
+    )
+
+    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
+  }
 
   @Test def twiceTransposeWriteScala(): Unit = {
     val N = 2

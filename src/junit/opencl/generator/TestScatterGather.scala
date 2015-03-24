@@ -7,7 +7,7 @@ import opencl.ir._
 import opencl.ir.IndexFunction.reverse
 
 import org.junit.Assert._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{Ignore, Test, AfterClass, BeforeClass}
 
 object TestScatterGather {
   @BeforeClass def before() {
@@ -327,5 +327,27 @@ class TestScatterGather {
     println("runtime = " + runtime)
 
     assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
+  }
+
+  @Ignore
+  @Test def mapScatterMap(): Unit = {
+    val Nsize = 256
+    val vector = Array.tabulate(Nsize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(MapSeq(id) o Scatter(reverse)(MapSeq(id))) o Split(splitSize) $ in
+    )
+
+    val (output, runtime) = Execute(Nsize)(f, vector, Nsize)
+
+    println("output.size = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
+
   }
 }
