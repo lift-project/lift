@@ -196,7 +196,7 @@ object ArithExpr {
 
             if (cstTerm.length == 1) {
               try {
-                if ((cstTerm(0) % c).eval() == 0)
+                if ((cstTerm.head % c).eval() == 0)
                   return true
               } catch {
                 case ne: NotEvaluableException =>
@@ -315,11 +315,22 @@ case class Prod(factors: List[ArithExpr]) extends ArithExpr {
     val m = if (factors.nonEmpty) factors.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) else {""}
     "(" + m +")"
   }
+
+  override def hashCode(): Int = {
+    val hash = 31
+    factors.map(_.hashCode()).sum * hash
+  }
 }
+
 case class Sum(terms: List[ArithExpr]) extends ArithExpr {
   override def equals(that: Any) = that match {
     case s: Sum => terms.length == s.terms.length && terms.intersect(s.terms).length == terms.length
     case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val hash = 31
+    terms.map(_.hashCode()).sum * hash
   }
 
   override def toString: String = {
@@ -430,7 +441,7 @@ object Var {
   def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {
 
     var changed = false
-    var substitions : immutable.Map[Var, Cst] = new immutable.HashMap[Var, Cst]()
+    var substitutions : immutable.Map[Var, Cst] = new immutable.HashMap[Var, Cst]()
     var newVars : Set[Var] = vars
 
     do {
@@ -445,7 +456,7 @@ object Var {
 
       if (newSubsts.nonEmpty)
         changed = true
-      substitions = substitions ++ newSubsts
+      substitutions = substitutions ++ newSubsts
 
       // remove from the set of variables the ones which have a substitution
       newVars = newVars-- newSubsts.keySet
@@ -460,7 +471,7 @@ object Var {
           case RangeMul(start, stop, step) => v.range = RangeMul(
             ExprSimplifier.simplify(ArithExpr.substitute(start, newSubsts.toMap)),
             ExprSimplifier.simplify(ArithExpr.substitute(stop, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(step, substitions.toMap)))
+            ExprSimplifier.simplify(ArithExpr.substitute(step, substitutions.toMap)))
           case _ =>
         }
         v
@@ -470,7 +481,7 @@ object Var {
 
     } while (changed)
 
-    substitions
+    substitutions
   }
 
   def getVars(expr: Expr) : Seq[Var] = {
