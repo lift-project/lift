@@ -273,11 +273,11 @@ object ExprSimplifier {
           case (p: Prod, Mod(a, d)) =>
             val term1 = (a div d) * d
             if (p == term1)
-              return Some(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length)))
+              return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
           case (Mod(a, d), p: Prod) =>
             val term1 = (a div d) * d
             if (p == term1)
-              return Some(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length)))
+              return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
           case _ =>
         }
 
