@@ -25,6 +25,40 @@ object TestTranspose {
 
 class TestTranspose {
 
+  @Test def twiceTransposeWriteScala(): Unit = {
+    val N = 2
+    val M = 4
+    val L = 8
+    val input = Array.tabulate(N, M, L)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val gold = input.map(_.transpose).transpose
+
+    val test = Array.ofDim[Float](L, N, M).flatten.flatten
+
+    for (i <- 0 until N) {
+      for (j <- 0 until M) {
+        for (k <- 0 until L) {
+          test(j + M*i + N*M*k) = input(i)(j)(k)
+        }
+      }
+    }
+
+    assertArrayEquals(gold.flatten.flatten, test, 0.0f)
+  }
+
+  @Test def idTranspose(): Unit = {
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      input => MapWrg(toGlobal(MapLcl(MapSeq(id))) o Transpose() o TransposeW() o toLocal(MapLcl(MapSeq(id)))) $ input
+    )
+
+    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+
+    assertArrayEquals(input.flatten.flatten, output, 0.0f)
+  }
+
   @Test def MATRIX_PLUS_ONE(): Unit = {
 
     val Msize = 512

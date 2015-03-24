@@ -130,4 +130,142 @@ class ViewTest {
 
     assertEquals(Cst(33), ExprSimplifier.simplify(ViewPrinter.emit(reorder_split_reorder_A_1_3)))
   }
+
+  @Test
+  def transposeWrite(): Unit = {
+    // Map(Map(g)) o Split() o Scatter(IndexFunction.transpose) o Join() o Map(Map(f))
+    // Write view for f
+    val N = new Var("N")
+    val M = new Var("M")
+
+    val origArray = ArrayType(ArrayType(Float, M), N)
+    val transposedArray = ArrayType(ArrayType(Float, N), M)
+
+    val i = new Var("i", ContinuousRange(0, N))
+    val j = new Var("j", ContinuousRange(0, M))
+
+    val goal = View(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].access(j).
+      asInstanceOf[ArrayView].access(i)
+
+    val reality = View(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].join(N).
+      reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).asInstanceOf[ArrayView].
+      access(j)
+
+    assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
+      ExprSimplifier.simplify(ViewPrinter.emit(reality)))
+  }
+
+  @Test
+  def joinScatter(): Unit = {
+    // Map(g) o Scatter() o Join() o Map(Map(f))
+    // Write view for f
+    val N = new Var("N")
+    val M = new Var("M")
+
+    val origArray = ArrayType(ArrayType(Float, M), N)
+    val finalArray = ArrayType(Float, M*N)
+    val transposedArray = ArrayType(ArrayType(Float, N), M)
+
+    val i = new Var("i", ContinuousRange(0, N))
+    val j = new Var("j", ContinuousRange(0, M))
+
+    val goal = View(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].access(j).
+      asInstanceOf[ArrayView].access(i)
+
+    val view = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
+      reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).asInstanceOf[ArrayView].
+      access(j)
+
+    assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
+      ExprSimplifier.simplify(ViewPrinter.emit(view)))
+  }
+
+  @Test
+  def transposeWriteJoin(): Unit = {
+    // Map(f) o Join() o Split() o Scatter(IndexFunction.transpose) o Join() o Map(Map(g))
+    val N = new Var("N")
+    val M = new Var("M")
+
+    val origArray = ArrayType(ArrayType(Float, M), N)
+    val transposedArray = ArrayType(ArrayType(Float, N), M)
+    val finalArray = ArrayType(Float, M*N)
+
+    val i = new Var("i", ContinuousRange(0, N))
+    val j = new Var("j", ContinuousRange(0, M))
+
+    // Write for g
+    val goal = View(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].
+      access(j).asInstanceOf[ArrayView].access(i)
+
+    val view = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
+      split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
+      split(M).access(i).asInstanceOf[ArrayView].access(j)
+
+    assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
+      ExprSimplifier.simplify(ViewPrinter.emit(view)))
+  }
+
+  @Test
+  def transposeWriteSplitJoin(): Unit = {
+    // Map(Map(f)) o Split() o Join() o Split() o Scatter(IndexFunction.transpose) o Join() o Map(Map(g))
+    val N = new Var("N")
+    val M = new Var("M")
+
+    val origArray = ArrayType(ArrayType(Float, M), N)
+    val transposedArray = ArrayType(ArrayType(Float, N), M)
+    val finalArray = ArrayType(ArrayType(Float, N), M)
+
+    val i = new Var("i", ContinuousRange(0, N))
+    val j = new Var("j", ContinuousRange(0, M))
+
+    // Write for g
+    val goal = View(transposedArray, new InputAccess("")).
+      asInstanceOf[ArrayView].access(j).asInstanceOf[ArrayView].access(i)
+
+    val view = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
+      join(N).split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
+      split(M).access(i).asInstanceOf[ArrayView].access(j)
+
+    assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
+      ExprSimplifier.simplify(ViewPrinter.emit(view)))
+  }
+
+  @Test
+  def twiceTransposeWrite(): Unit = {
+    // Split() o Scatter(IndexFunction.transpose) o Join() o Map(Split() o
+    // Scatter(IndexFunction.transpose) o Join() o Map(Map(f)))
+    val N = new Var("N")
+    val M = new Var("M")
+    val L = new Var("L")
+
+    val i = new Var("i", ContinuousRange(0, N))
+    val j = new Var("j", ContinuousRange(0, M))
+    val k = new Var("k", ContinuousRange(0, L))
+
+    val origArray = ArrayType(ArrayType(ArrayType(Float, L), M), N)
+    val middleArray = ArrayType(ArrayType(ArrayType(Float, M), L), N)
+    val finalArray = ArrayType(ArrayType(ArrayType(Float, M), N), L)
+
+    val goal = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].access(k).
+      asInstanceOf[ArrayView].access(i).asInstanceOf[ArrayView].access(j)
+
+    val midGoal = View(middleArray, new InputAccess("")).asInstanceOf[ArrayView].access(i).
+      asInstanceOf[ArrayView].access(k).asInstanceOf[ArrayView].access(j)
+
+    val midPoint = View(middleArray, new InputAccess("")).asInstanceOf[ArrayView].access(i).
+      asInstanceOf[ArrayView].join(M).
+      reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
+      access(j).asInstanceOf[ArrayView].access(k)
+
+    val view = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].join(N).
+      reorder(i => IndexFunction.transpose(i, middleArray)).split(L).access(i).asInstanceOf[ArrayView].
+      join(M).reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
+      access(j).asInstanceOf[ArrayView].access(k)
+
+    assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(midGoal)),
+      ExprSimplifier.simplify(ViewPrinter.emit(midPoint)))
+    assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
+      ExprSimplifier.simplify(ViewPrinter.emit(view)))
+
+  }
 }
