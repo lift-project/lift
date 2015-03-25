@@ -217,18 +217,10 @@ object OpenCLGenerator extends Generator {
         case l: Lambda => generate(l.body)
         case g: Gather => generate(g.f.body)
         case s: Scatter => generate(s.f.body)
-        case _: ReorderStride =>
-        case _: Transpose =>
-        case _: TransposeW =>
-        case _: Swap =>
-        case _: asVector =>
-        case _: asScalar =>
-        case _: Split =>
-        case _: SplitDim2 =>
-        case _: Join =>
-        case _: JoinDim2 =>
         case _: Zip => call.args.foreach(generate)
-        case _: Unzip =>
+        case b : Barrier => oclPrinter.generateBarrier(call.mem)
+        case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | Swap() | asVector(_) | asScalar() |
+             Split(_) | SplitDim2(_) | Join() | JoinDim2() =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case p: Param =>
@@ -305,11 +297,6 @@ object OpenCLGenerator extends Generator {
     val range = RangeAdd(start, length, step)
 
     oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
-    // TODO: This assumes, that the MapLcl(0) is always the outermost and there is no need for synchronization inside.
-    // TODO: Rethink and then redesign this!
-    if (dim == 0) {
-      oclPrinter.generateBarrier(call.mem)
-    }
   }
 
   // MapWarp
