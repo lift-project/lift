@@ -1,7 +1,7 @@
 package opencl.generator
 
 import ir.UserFunDef._
-import ir.{Split, Var, ArrayType, fun}
+import ir._
 import opencl.executor.{Execute, Executor}
 import opencl.ir.{MapLcl, MapWrg, Float}
 import org.junit.Assert._
@@ -27,7 +27,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(MapLcl(id)) o Split(128) $ in
+      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
     val (output, runtime) = Execute(128, inputSize, (true, false))(
@@ -46,7 +46,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(MapLcl(id)) o Split(64) $ in
+      in => MapWrg(Barrier() o MapLcl(id)) o Split(64) $ in
     )
 
     val (output, runtime) = Execute(128, inputSize, (true, false))(
@@ -65,7 +65,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(MapLcl(id)) o Split(256) $ in
+      in => MapWrg(Barrier() o MapLcl(id)) o Split(256) $ in
     )
 
     val (output, runtime) = Execute(128, inputSize, (true, false))(
@@ -84,7 +84,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(MapLcl(id)) o Split(128) $ in
+      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
     val (output, runtime) = Execute(128, inputSize, (true, true))(
@@ -103,7 +103,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(MapLcl(id)) o Split(128) $ in
+      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
     val (output, runtime) = Execute(128, inputSize*2, (true, true))(
@@ -122,7 +122,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(MapLcl(id)) o Split(128) $ in
+      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
     val (output, runtime) = Execute(128, inputSize/2, (true, true))(

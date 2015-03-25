@@ -40,7 +40,7 @@ class TestTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o
+        MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)))) o
           Map(Map(Transpose()
           ) o Split(4) o Transpose()) o Split(4) $ matrix
       })
@@ -80,8 +80,8 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(
-          toGlobal(MapLcl(0)(MapLcl(1)(id))) o
-            toLocal(MapLcl(0)(MapLcl(1)(id)))
+          Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+            Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o
           Map(Map(Transpose()
           ) o Split(4) o Transpose()) o Split(4) $ matrix
@@ -161,8 +161,8 @@ class TestTiling {
       (matrix) => {
         // Merge the tiles
         Join() o MapWrg(0)(TransposeW() o MapWrg(1)(Join() o
-          toGlobal(MapLcl(0)(MapLcl(1)(id))) o
-          toLocal(MapLcl(0)(MapLcl(1)(id)))
+          Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+          Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o
           // Tile the matrix
           Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
@@ -198,7 +198,7 @@ class TestTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)) o Transpose())) o
+        MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)) o Transpose())) o
           Map(Map(Transpose()
           ) o Split(4) o Transpose()) o Split(4) $ matrix
       })
@@ -240,8 +240,8 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(
-          toGlobal(MapLcl(0)(MapLcl(1)(id))) o
-            TransposeW() o toLocal(MapLcl(0)(MapLcl(1)(id))))) o
+          Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+            TransposeW() o Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))))) o
           Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
       })
 
@@ -282,7 +282,7 @@ class TestTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o Transpose() o
+        MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)))) o Transpose() o
           Map(Map(Transpose()
           ) o Split(4) o Transpose()) o Split(4) $ matrix
       })

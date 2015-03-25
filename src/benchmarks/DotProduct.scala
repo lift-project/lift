@@ -14,7 +14,7 @@ class DotProduct(override val name: String,
   }
 
   override def generateInputs(): Seq[Any] = {
-    val inputSize = inputSizes()(0)
+    val inputSize = inputSizes().head
 
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -35,20 +35,20 @@ object DotProduct {
   val dotProductSimple = fun(ArrayType(Float, N),
     ArrayType(Float, N), (left, right) => {
       Join() o MapWrg(
-        Join() o MapLcl(ReduceSeq(add, 0.0f) o MapSeq(mult)) o Split(4)
+        Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f) o MapSeq(mult)) o Split(4)
       ) o Split(1024) $ Zip(left, right)
     })
 
   val dotProductCPU1 = fun(ArrayType(Float, N),
     ArrayType(Float, N),(left, right) => {
       Join() o Join() o MapWrg(
-        toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(2048)
+        Barrier() o toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(2048)
       )o  Split(2048*128) $ Zip(left, right)
     })
 
   val dotProductCPU2 = fun (ArrayType(Float, N),(in) => {
     Join() o MapWrg(
-      Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(128)
+      Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(128)
     ) o Split(128) $ in
 
   })
@@ -56,7 +56,7 @@ object DotProduct {
   val dotProduct1 = fun(ArrayType(Float, N),
     ArrayType(Float, N), (left, right) => {
       Join() o Join() o MapWrg(
-        toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
+        Barrier() o toGlobal(MapLcl(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)))
           o Split(2048) o ReorderStride(128)
       ) o Split(2048*128) $ Zip(left, right)
     })
@@ -64,9 +64,9 @@ object DotProduct {
   val dotProduct2 = fun (ArrayType(Float, N), (in) => {
 
     Join() o MapWrg(
-      Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)(Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
-        Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+      Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+        Iterate(6)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
+        Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
     ) o Split(128) $ in
 
   })

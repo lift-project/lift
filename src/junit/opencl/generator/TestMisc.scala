@@ -283,7 +283,9 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(toGlobal(MapLcl(id)) o Iterate(5)(MapLcl(plusOne)) o toLocal(MapLcl(id))) o Split(16) $ in
+      in => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o
+        Iterate(5)(Barrier() o MapLcl(plusOne)) o
+        toLocal(MapLcl(id))) o Split(16) $ in
     )
 
     val (output, runtime) = Execute(inputSize)(f, input, inputSize)
@@ -303,7 +305,9 @@ class TestMisc {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(toGlobal(MapLcl(plusOne)) o toLocal(MapLcl(id))) o Split(4) $ in
+      in => Join() o MapWrg(Barrier() o toGlobal(MapLcl(plusOne)) o
+        Barrier() o toLocal(MapLcl(id)))
+        o Split(4) $ in
     )
 
     val (output, runtime) = Execute(inputSize)(f, input, inputSize)
@@ -376,7 +380,7 @@ class TestMisc {
                       "return p; }", TupleType(Float, Float, Float, Float, Float), pricesType)
 
               val firstKernel = Join() o Join() o MapWrg(
-                MapLcl(MapSeq(blackScholesComp))
+                Barrier() o MapLcl(MapSeq(blackScholesComp))
               ) o Split(8192) o Split(1) o Zip(Svec, Xvec, Tvec, Rvec, Vvec)
 
             }
@@ -429,7 +433,7 @@ class TestMisc {
                           "}", Float, pricesType)
 
               val firstKernel = Join() o Join() o MapWrg(
-                MapLcl(MapSeq(blackScholesComp))
+                Barrier() o MapLcl(MapSeq(blackScholesComp))
               ) o Split(256) o Split(1) o input
 
             }
@@ -438,7 +442,7 @@ class TestMisc {
 
               /*
               val firstKernel = Join() o Join() o MapWrg(
-                MapLcl(MapSeq(Bind(mult, alpha)))
+                Barrier() o MapLcl(MapSeq(Bind(mult, alpha)))
               ) o Split(128) o Split(1) o input
               */
 

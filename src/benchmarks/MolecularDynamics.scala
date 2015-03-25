@@ -20,7 +20,7 @@ class MolecularDynamics(override val f: Seq[(String, Seq[Lambda])]) extends Benc
   }
 
   override def generateInputs(): Seq[Any] = {
-    val inputSize = inputSizes()(0)
+    val inputSize = inputSizes().head
     val maxNeighbours = inputSizes()(1)
 
     scalaInput = Array.fill(inputSize)((
@@ -30,8 +30,8 @@ class MolecularDynamics(override val f: Seq[(String, Seq[Lambda])]) extends Benc
       util.Random.nextFloat() * 20.0f
       ))
 
-    val particles = Array.ofDim[Float](inputSizes()(0) * 4)
-    scalaInput.zipWithIndex.map(x => {
+    val particles = Array.ofDim[Float](inputSizes().head * 4)
+    scalaInput.zipWithIndex.foreach(x => {
       particles(x._2*4) = x._1._1
       particles(x._2*4 + 1) = x._1._2
       particles(x._2*4 + 2) = x._1._3
@@ -92,7 +92,7 @@ object MolecularDynamics {
     Float,
     (particles, neighbourIds, cutsq, lj1, lj2) =>
       Join() o MapWrg(
-        MapLcl(fun(p =>
+        Barrier() o MapLcl(fun(p =>
           ReduceSeq(fun((force, n) =>
             MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
           ), Value("{0.0f, 0.0f, 0.0f, 0.0f}", Float4)) $ Filter(particles, Get(p, 1))
