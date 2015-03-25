@@ -160,7 +160,7 @@ class TestReduce {
 
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Join() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(add, 0.0f)) o Split(2) ) ) o Split(32) o
+            Join() o Barrier() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(add, 0.0f)) o Split(2) ) ) o Split(32) o
             Iterate(2)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
             Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144 / 2048)
         ) o Split(262144) $ in
