@@ -121,9 +121,7 @@ object jMapSeq {
   def create(f: FunDecl) = MapSeq(Lambda1.FunDefToLambda(f))
 }
 
-// ========================================================================
-// ===== Map over a matrix - more abstract, to please the typechecker =====
-// ========================================================================
+// Map over a matrix - more abstract, to please the typechecker
 
 case class MapMatrix(dim: Int, f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
@@ -146,7 +144,6 @@ object jMapMatrix {
   def create(f: Lambda1) = MapMatrix(f)
   def create(f: FunDecl) = MapMatrix(Lambda1.FunDefToLambda(f))
 }
-
 
 // DropLeft - seems a little hacky?
 case class DropLeftSeq(f: Lambda) extends AbstractDropLeft(f) with isGenerable {

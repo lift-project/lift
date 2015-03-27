@@ -19,9 +19,10 @@ class ArrayZip(val tv: TupleView) extends Operation
 class ArrayAsVector(val av: ArrayView, val n: ArithExpr) extends Operation
 class ArrayAsScalar(val av: ArrayView, val n: ArithExpr) extends Operation
 class SubArray(val in: ArrayView, val ids: ArrayView) extends Operation
+class ArrayTail(val in: ArrayView) extends Operation
 
-class MatrixCreation(val v: View, val dx: ArithExpr, val dy: ArithExpr, val itVar: Var) extends Operation
-class MatrixAccess(val mv:MatrixView, val idx: ArithExpr, val idy: ArithExpr) extends Operation
+//class MatrixCreation(val v: View, val dx: ArithExpr, val dy: ArithExpr, val itVar: Var) extends Operation
+//class MatrixAccess(val mv:MatrixView, val idx: ArithExpr, val idy: ArithExpr) extends Operation
 
 class TupleCreation(val views: Seq[View]) extends Operation
 class TupleAccess(val tv: TupleView, val i: Int) extends Operation
@@ -39,6 +40,8 @@ abstract class View(val operation: Operation) {
       case as: ArraySplit => new ArraySplit(as.av.replaced(oldExpr,newExpr).asInstanceOf[ArrayView], ArithExpr.substitute(as.chunkSize, subst.toMap))
       case aj: ArrayJoin => new ArrayJoin(aj.av.replaced(oldExpr,newExpr).asInstanceOf[ArrayView], ArithExpr.substitute(aj.chunkSize, subst.toMap))
       case ar: ArrayReorder => new ArrayReorder(ar.av.replaced(oldExpr, newExpr).asInstanceOf[ArrayView], ar.f)
+
+      case at: ArrayTail => new ArrayTail(at.in.replaced(oldExpr, newExpr).asInstanceOf[ArrayView])
 
       case tc: TupleCreation => new TupleCreation(tc.views.map(_.replaced(oldExpr,newExpr)))
       case ta: TupleAccess => new TupleAccess(ta.tv.replaced(oldExpr,newExpr).asInstanceOf[TupleView],ta.i)
@@ -71,6 +74,11 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
   def join(chunkSize: ArithExpr): ArrayView = {
     val aj = new ArrayJoin(this, chunkSize)
     new ArrayView(elemT.asInstanceOf[ArrayType].elemT, aj)
+  }
+
+  def tail() : ArrayView = {
+    val at = new ArrayTail(this)
+    new ArrayView(elemT, at)
   }
 
   def reorder(f: (ArithExpr) => ArithExpr): ArrayView = {
@@ -107,12 +115,12 @@ class ArrayView(val elemT: Type, override val operation: Operation) extends View
 
 }
 
-class MatrixView(val elemT: Type, override val operation: Operation) extends View(operation) {
-  def access(idx: ArithExpr, idy: ArithExpr): View = {
-    val ma = new MatrixAccess(this, idx,idy)
-    View(elemT, ma)
-  }
-}
+//class MatrixView(val elemT: Type, override val operation: Operation) extends View(operation) {
+//  def access(idx: ArithExpr, idy: ArithExpr): View = {
+//    val ma = new MatrixAccess(this, idx,idy)
+//    View(elemT, ma)
+//  }
+//}
 
 class TupleView(val tupleType: TupleType, override val operation: Operation) extends View(operation) {
 
@@ -140,7 +148,7 @@ object View {
   def apply(t: Type, op: Operation): View = {
     t match {
       case at: ArrayType => new ArrayView(at.elemT, op)
-      case mt: MatrixType => new MatrixView(mt.elemT, op)
+//      case mt: MatrixType => new MatrixView(mt.elemT, op)
       case st: ScalarType => new PrimitiveView(op)
       case tt: TupleType => new TupleView(tt, op)
       case vt: VectorType => new PrimitiveView(op)
@@ -176,6 +184,8 @@ object View {
       case aj : ArrayJoin => View.getInputAccess(aj.av, tupleAccessStack)
       case ar : ArrayReorder => View.getInputAccess(ar.av, tupleAccessStack)
       case sa : SubArray => View.getInputAccess(sa.in, tupleAccessStack)
+      case at : ArrayTail => View.getInputAccess(at.in, tupleAccessStack)
+
       case aav: ArrayAsVector => View.getInputAccess(aav.av, tupleAccessStack)
       case aas: ArrayAsScalar => View.getInputAccess(aas.av, tupleAccessStack)
 
@@ -203,6 +213,9 @@ object View {
     call match {
       case call: MapCall => createViewMap(call, argView, ids)
       case call: ReduceCall => createViewReduce(call, argView, ids)
+      case call: HeadCall => createViewHead(call, argView, ids)
+      case call: TailCall => createViewTailCall(call, argView, ids)
+
       case call: FunCall =>
         call.f match {
           case l: Lambda => createViewLambda(l, call, argView, ids)
@@ -221,6 +234,8 @@ object View {
           case asVector(n) => createViewAsVector(n, argView)
           case _: asScalar => createViewAsScalar(argView)
           case f: Filter => createViewFilter(f, call, argView)
+          case VTail() => createViewTail(argView)
+
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
@@ -267,7 +282,7 @@ object View {
 
         val innerView = createView(call.f.f.body, newF)
         new ArrayView(Type.getElemT(call.t), new ArrayCreation(innerView, Type.getLength(call.t), call.loopVar))
-        new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
+//        new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
         case _ => throw new IllegalArgumentException("PANIC " + argView.getClass)
     }
   }
@@ -340,6 +355,7 @@ object View {
     }
   }
 
+
   private def createViewJoin(call: FunCall, argView: View): View = {
     val chunkSize = call.argsType match {
       case ArrayType(ArrayType(_, n), _) => n
@@ -356,6 +372,44 @@ object View {
     argView match {
       case av: ArrayView => av.split(n)
       case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
+    }
+  }
+
+  private def createViewHead(call: HeadCall, argView: View, f:  List[(ArithExpr, ArithExpr)]) : View = {
+    argView match {
+      case av: ArrayView =>
+        call.arg.view = av.access(Cst(0))
+        av.access(Cst(0))
+//        argView
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
+    }
+  }
+
+  private def createViewTail(argView: View) : View = {
+    argView match {
+      case av: ArrayView =>
+        av.tail()
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found "+ argView.getClass)
+    }
+  }
+
+  private def createViewTailCall(call: TailCall, argView: View, f: List[(ArithExpr,ArithExpr)]) :View ={
+    argView match {
+      case av: ArrayView =>
+        call.arg.view = av.access(call.loopVar + 1)
+        val elemT = call.t match { case at : ArrayType => at.elemT }
+
+        val newF = (Type.getLength(call.t), call.loopVar) :: f
+
+        val innerView = initialiseNewView(call.t, newF)
+
+        call.view = new ArrayView(elemT, new ArrayCreation(innerView, Type.getLength(call.t)-1, call.loopVar))
+
+        call.view
+//        av.access(call.loopVar)
+//        val newF = (Type.getLength(call.t), call.loopVar) :: f
+//        new ArrayView(Type.getElemT(call.t), new ArrayCreation(argView, Type.getLength(call.t) -1, call.loopVar))
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found "+ argView.getClass)
     }
   }
 
@@ -503,6 +557,13 @@ object ViewPrinter {
         val indirection = new AccessVar(View.getInputAccess(sa.ids).name, newIdx)
 
         emitView(sa.in, stack.push((indirection, len)), tupleAccessStack)
+
+      case at: ArrayTail =>
+        val ((idx, len), stack) = arrayAccessStack.pop2
+        val newIdx = idx - 1
+        val newLen = len - 1
+        val newAS = stack.push((newIdx, newLen))
+        emitView(at.in, newAS, tupleAccessStack)
 
       case ta : TupleAccess =>
         val newTAS = tupleAccessStack.push(ta.i)

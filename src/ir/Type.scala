@@ -380,7 +380,10 @@ object Type {
       case s: Scatter =>          checkScatter(s, inT, setType)
       case f: Filter =>           checkFilter(f, inT, setType)
       case d: AbstractDropLeft => checkDropLeft(d, inT, setType)
-      case as: AbstractSearch => checkSearch(as, inT, setType)
+      case as: AbstractSearch =>  checkSearch(as, inT, setType)
+      case h: Head =>             checkHead(inT)
+      case t: Tail =>             checkTail(inT)
+      case vt: VTail =>           checkTail(inT)
     }
   }
 
@@ -533,6 +536,7 @@ object Type {
   }
 
   private def checkSplit(n: ArithExpr, inT: Type): Type = {
+    println(inT.toString())
     inT match {
       case at: ArrayType => ArrayType(ArrayType(at.elemT, n), at.len / n)
       case _ => throw new TypeException(inT, "ArrayType")
@@ -550,6 +554,27 @@ object Type {
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
+
+  private def checkHead(inT: Type): Type = {
+    inT match {
+//      case at: ArrayType => at.elemT
+      case at: ArrayType => ArrayType(at.elemT, Cst(1))
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  private def checkTail(inT: Type): Type = {
+    inT match {
+      case at: ArrayType =>
+        if(at.len == Cst(1)) {
+          ArrayType(at.elemT, Cst(1))
+        }else {
+          ArrayType(at.elemT, at.len - 1)
+        }
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
 
   private def checkAsScalar(inT: Type): Type = {
     inT match {
@@ -648,6 +673,13 @@ object Type {
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
+//  private def checkIterateP(i: Iterate, inT: Type) : Type = {
+//    inT match{
+//      case at: ArrayType =>
+//        val
+//      case _ => throw new TypeException(inT, "ArrayType")
+//    }
+//  }
 
   def checkTranspose(t: Type): Type = {
     t match {

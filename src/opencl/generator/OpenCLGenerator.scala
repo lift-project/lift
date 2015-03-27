@@ -202,6 +202,9 @@ object OpenCLGenerator extends Generator {
       case call: SearchCall => call.f match {
         case _: LinearSearchSeq => generateLinearSearchSeq(call)
       }
+      case call: HeadCall => generateHeadCall(call)
+      case call: TailCall => generateTailCall(call)
+
       case call: FunCall => call.f match {
         case cf: CompFunDef => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
 
@@ -212,7 +215,6 @@ object OpenCLGenerator extends Generator {
         case l: Lambda => generate(l.body)
         case g: Gather => generate(g.f.body)
         case s: Scatter => generate(s.f.body)
-
         case _: ReorderStride =>
         case _: Transpose =>
         case _: Swap =>
@@ -224,6 +226,7 @@ object OpenCLGenerator extends Generator {
         case _: JoinDim2 =>
         case _: Zip => call.args.map(generate)
         case _: Unzip =>
+        case _: VTail =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case p: Param =>
@@ -358,6 +361,40 @@ object OpenCLGenerator extends Generator {
     oclPrinter.closeCB()
   }
 
+  // === Head ===
+
+  private def generateHeadCall(call: HeadCall) {
+    val outET = call.t match { case aT: ArrayType => aT.elemT }
+    val argET = call.arg.t match { case aT: ArrayType => aT.elemT }
+//    oclPrinter.openCB()
+    oclPrinter.commln("head")
+    // want to generate: output[0] = input[0]
+    oclPrinter.println(access(call.mem, outET, call.view) =:= access(call.arg.mem, argET, call.arg.view))
+    oclPrinter.commln("head")
+//    oclPrinter.closeCB()
+  }
+
+  // === Tail ===
+
+  private def generateTailCall(call: TailCall) {
+    val outET = call.t match { case aT: ArrayType => aT.elemT }
+    val argET = call.arg.t match { case aT: ArrayType => aT.elemT }
+//    oclPrinter.openCB()
+    oclPrinter.commln("tail")
+    val range = ContinousRange(Cst(0), Type.getLength(call.t))
+
+    val av = call.view match { case av: ArrayView => av }
+
+    oclPrinter.generateLoop(call.loopVar, range, () =>
+      oclPrinter.println(access(call.mem, outET, av.access(call.loopVar)) =:= access(call.arg.mem, argET, call.arg.view))
+    )
+
+    // want to generate: output[0] = input[0]
+    oclPrinter.commln("tail")
+//    oclPrinter.closeCB()
+  }
+
+  // === LinearSearch ===
   private def generateLinearSearchSeq(call: SearchCall){
 //    oclPrinter.openCB()
 //

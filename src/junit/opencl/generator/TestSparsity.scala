@@ -22,7 +22,7 @@ object TestSparsity {
 
 class TestSparsity {
 
-  def generateSparseArray(length:Int) : Array[(Int,Float)]=
+  def generateSparseArray(length:Int) : Array[(Int,Float)] =
   {
     var a = 0;
     var baseArray = Array.fill(length)((util.Random.nextInt(5)+1),(util.Random.nextInt(5).toFloat))
@@ -34,7 +34,62 @@ class TestSparsity {
     baseArray
   }
 
+  @Test def HEAD_TAIL_TEST () {
+    val vector = Array.range(1024,2048) //(util.Random.nextInt(5).toFloat)
+    val gold = Array(vector(0))
+    val sum = UserFunDef("sum", Array("a","b"), "{return (a+b);}", Seq(Float,Float), Float)
+    val f = fun (ArrayType(Float,Var("N")),(input) =>
+      //      ReduceSeq(sum,0.0f) $ input
+      //        Head() $ input
+      Head() o Tail() $ input
+    )
+    val (output, runtime) = Execute(vector.length)(f,vector,vector.size)
 
+
+    println("output(0) = "+output(0))
+    println("vector = "+vector.toList.toString())
+    println("output = "+ output.toList.toString())
+    println("runtime = " + runtime)
+  }
+
+  @Test def HEAD_TEST (){
+    val vector : Array[Float] = Array.range(1024,2048).map(_.toFloat) //(util.Random.nextInt(5).toFloat)
+    val gold = Array(vector(0))
+    val f = fun (ArrayType(Float,Var("N")),(input) =>
+//      ReduceSeq(sum,0.0f) $ input
+//        Head() $ input
+//        Head() $ input
+        Join() o MapGlb(Head()) o Split(32) $ input
+    )
+    val (output, runtime) = Execute(vector.length)(f,vector,vector.size)
+
+
+    println("output(0) = "+output(0))
+    println("vector = "+vector.toList.toString())
+    println("output = "+ output.toList.toString())
+    println("runtime = " + runtime)
+//    assertArrayEquals(gold,output,0.0f)
+  }
+
+  @Test def TAIL_TEST (): Unit = {
+    val vector = Array.range(0,256).map(_.toFloat) //(util.Random.nextInt(5).toFloat)
+//    val vector = Array.range(32,65).map(_.toFloat) //(util.Random.nextInt(5).toFloat)
+    val gold = Array(vector(0))
+    val square = UserFunDef("square", "x", "{return (x*x);}", Float, Float)
+    val f = fun (ArrayType(Float,Var("N")),(input) =>
+      //      ReduceSeq(sum,0.0f) $ input
+        Join() o MapSeq(Tail()) o Split(4) $ input
+//    Tail() o Tail() $ input
+//      MapSeq(square) o Tail() o Tail() o Tail() $ input
+    )
+    val (output, runtime) = Execute(vector.length)(f,vector,vector.size)
+
+
+    println("output(0) = "+output(0))
+    println("vector = "+vector.toList.toString())
+    println("output = "+ output.toList.toString())
+    println("runtime = " + runtime)
+  }
 
   @Test def SPARSE_VECTOR_DOT_PRODUCT() {
     val sum = UserFunDef("sum", Array("acc","v"),

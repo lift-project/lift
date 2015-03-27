@@ -382,7 +382,6 @@ object jfun {
   }
 }
 
-
 object fun {
   def apply(f: (Param) => Expr): Lambda1 = {
     val params = Array(Param(UndefType))
@@ -474,8 +473,6 @@ object fun {
     new Lambda9(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8)))
   }
 }
-
-
 
 object CompFunDef {
 
@@ -859,9 +856,9 @@ object jUserFunDef {
 
 case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
 
-  override def apply(args: Expr*) : IterateCall = iterateCall(args:_*)
+  override def apply(args: Expr*): IterateCall = iterateCall(args: _*)
 
-  override def $(that: Expr) : IterateCall = iterateCall(that)
+  override def $(that: Expr): IterateCall = iterateCall(that)
 
   private def iterateCall(args: Expr*): IterateCall = {
     assert(args.length == 1)
@@ -884,6 +881,51 @@ object jIterate {
   def create(n: Int, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
   def create(n: ArithExpr, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
 }
+
+//case class IterateP(f: Lambda1, p: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
+//  override def apply(args: Expr*) : IteratePCall = iteratePCall(args:_*)
+//
+//  override def $(that: Expr*) : IteratePCall = iteratePCall(that)
+//  private def iterateCall(args: Expr*) : IterateCall = {
+//    assert(args.length == 1)
+//    new IterateCall(this, args(0))
+//  }
+//}
+//
+//object IterateP {
+//  def apply(p: Lambda1): ((Lambda1) => IterateP) = (f: Lambda1) => IterateP(p,f)
+//}
+//
+//object jIterateP {
+//  def create(f: Lambda1, p: Lambda1) = IterateP(f,p)
+//  def create(f: FunDecl, p: Lambda1) = IterateP(Lambda1.FunDefToLambda(f),p)
+//  def create(f: Lambda1, p: FunDecl) = IterateP(f, Lambda1.FunDefToLambda(p))
+//}
+
+case class Head() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  override def apply(args: Expr*) : HeadCall = headCall(args:_*)
+  override def $(that: Expr) : HeadCall = headCall(that)
+
+  private def headCall(args: Expr*): HeadCall = {
+    assert(args.length == 1)
+    new HeadCall(this, args(0))
+  }
+}
+
+case class Tail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  override def apply(args: Expr*) : TailCall = tailCall(args:_*)
+  override def $(that: Expr) : TailCall = tailCall(that)
+
+  private def tailCall(args: Expr*): TailCall = {
+    assert(args.length == 1)
+    new TailCall(Var("i"), this, args(0))
+  }
+}
+
+case class VTail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  //override def copy() = Split(chunkSize)
+}
+
 
 case class Filter() extends FunDecl(Array(Param(UndefType), Param(UndefType))) with isGenerable
 

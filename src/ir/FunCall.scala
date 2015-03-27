@@ -133,6 +133,16 @@ case class IterateCall(override val f: Iterate, override val args: Expr*) extend
   var swapBuffer: Memory = UnallocatedMemory
 }
 
+case class HeadCall(override val f: Head, override val args: Expr*) extends FunCall(f, args(0)) {
+  assert(args.length == 1)
+  def arg: Expr = args(0)
+}
+
+case class TailCall(loopVar: Var, override val f: Tail, override val args: Expr*) extends FunCall(f, args(0)) {
+  assert(args.length == 1)
+  def arg: Expr = args(0)
+}
+
 case class MapCall(name: String, loopVar: Var, override val f: AbstractMap, override val args: Expr*) extends FunCall(f, args(0)) {
   assert(args.length == 1)
 
@@ -145,6 +155,7 @@ case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override va
   def arg0: Expr = args(0)
   def arg1: Expr = args(1)
 }
+
 
 case class DropLeftCall(loopVar: Var, override val f: AbstractDropLeft, override val args: Expr*) extends FunCall(f, args(0)) {
   assert(args.length == 1)
