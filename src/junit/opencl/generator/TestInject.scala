@@ -3,7 +3,7 @@ package opencl.generator
 import ir.UserFunDef._
 import ir._
 import opencl.executor.{Execute, Executor}
-import opencl.ir.{MapLcl, MapWrg, Float}
+import opencl.ir.{Barrier, MapLcl, MapWrg, Float}
 import org.junit.Assert._
 import org.junit.{Test, AfterClass, BeforeClass}
 

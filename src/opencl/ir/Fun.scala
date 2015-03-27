@@ -171,6 +171,8 @@ object jToGlobal {
 case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
   //override def copy() = toLocal(f)
 
+case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 object jToLocal {
   def create(f: Lambda1) = toLocal(f)
   def create(f: FunDecl) = toLocal(Lambda1.FunDefToLambda(f))

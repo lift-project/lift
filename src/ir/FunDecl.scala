@@ -603,7 +603,7 @@ object PartRed {
   def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = PartRed(f)(init, expr)
 }
 
-case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Join()
