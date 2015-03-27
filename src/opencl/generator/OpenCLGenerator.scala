@@ -416,7 +416,7 @@ object OpenCLGenerator extends Generator {
     val argET = call.arg.t match { case aT: ArrayType => aT.elemT }
 //    oclPrinter.openCB()
     oclPrinter.commln("tail")
-    val range = ContinousRange(Cst(0), Type.getLength(call.t))
+    val range = ContinuousRange(Cst(0), Type.getLength(call.t))
 
     val av = call.view match { case av: ArrayView => av }
 
