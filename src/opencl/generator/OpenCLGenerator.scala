@@ -87,7 +87,7 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.view = View(p.t, new InputAccess(oclPrinter.toOpenCL(p.mem.variable)))
+      p.view = InputView(p.t, new InputAccess(oclPrinter.toOpenCL(p.mem.variable)))
     })
 
     // pass 1
@@ -104,7 +104,7 @@ object OpenCLGenerator extends Generator {
       println("")
     }
 
-    View.createView(f.body)
+    InputView.visitAndBuildViews(f.body)
 
     // pass 2: find and generate user functions
     generateUserFunction(f.body)
@@ -479,7 +479,7 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
 
-  private def access(memory: Memory, t: Type, views: View*): String = {
+  private def access(memory: Memory, t: Type, views: InputView*): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(memory)
 
     oclMem match {

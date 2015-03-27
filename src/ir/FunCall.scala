@@ -14,7 +14,7 @@ abstract class Expr {
   var mem: Memory = UnallocatedMemory
 
   // view explaining how to access the memory
-  var view: View = NoView
+  var view: InputView = NoView
 
   def setContext(ctx: Context): Expr = {
     if (ctx != null)
@@ -65,6 +65,23 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
     if (args.length == 1) args(0).mem
     else OpenCLMemoryCollection( UndefAddressSpace, args.map(_.mem.asInstanceOf[OpenCLMemory]):_* )
   }
+
+
+  def isConcrete: Boolean = {
+    Expr.visit(false)(this, (e: Expr, b: Boolean) => {
+      e match {
+        case call: FunCall => {
+          call.f match {
+            case _: UserFunDef => true
+            case _ => b
+          }
+        }
+        case _ => b
+      }
+    })
+  }
+
+  def isAbstract: Boolean = !isConcrete
 
 }
 

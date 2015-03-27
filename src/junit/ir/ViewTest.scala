@@ -144,10 +144,10 @@ class ViewTest {
     val i = new Var("i", ContinuousRange(0, N))
     val j = new Var("j", ContinuousRange(0, M))
 
-    val goal = View(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].access(j).
+    val goal = InputView(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].access(j).
       asInstanceOf[ArrayView].access(i)
 
-    val reality = View(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].join(N).
+    val reality = InputView(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].join(N).
       reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).asInstanceOf[ArrayView].
       access(j)
 
@@ -169,10 +169,10 @@ class ViewTest {
     val i = new Var("i", ContinuousRange(0, N))
     val j = new Var("j", ContinuousRange(0, M))
 
-    val goal = View(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].access(j).
+    val goal = InputView(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].access(j).
       asInstanceOf[ArrayView].access(i)
 
-    val view = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
+    val view = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
       reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).asInstanceOf[ArrayView].
       access(j)
 
@@ -194,10 +194,10 @@ class ViewTest {
     val j = new Var("j", ContinuousRange(0, M))
 
     // Write for g
-    val goal = View(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].
+    val goal = InputView(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].
       access(j).asInstanceOf[ArrayView].access(i)
 
-    val view = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
+    val view = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
       split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
       split(M).access(i).asInstanceOf[ArrayView].access(j)
 
@@ -219,10 +219,10 @@ class ViewTest {
     val j = new Var("j", ContinuousRange(0, M))
 
     // Write for g
-    val goal = View(transposedArray, new InputAccess("")).
+    val goal = InputView(transposedArray, new InputAccess("")).
       asInstanceOf[ArrayView].access(j).asInstanceOf[ArrayView].access(i)
 
-    val view = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
+    val view = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
       join(N).split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
       split(M).access(i).asInstanceOf[ArrayView].access(j)
 
@@ -246,18 +246,18 @@ class ViewTest {
     val middleArray = ArrayType(ArrayType(ArrayType(Float, M), L), N)
     val finalArray = ArrayType(ArrayType(ArrayType(Float, M), N), L)
 
-    val goal = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].access(k).
+    val goal = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].access(k).
       asInstanceOf[ArrayView].access(i).asInstanceOf[ArrayView].access(j)
 
-    val midGoal = View(middleArray, new InputAccess("")).asInstanceOf[ArrayView].access(i).
+    val midGoal = InputView(middleArray, new InputAccess("")).asInstanceOf[ArrayView].access(i).
       asInstanceOf[ArrayView].access(k).asInstanceOf[ArrayView].access(j)
 
-    val midPoint = View(middleArray, new InputAccess("")).asInstanceOf[ArrayView].access(i).
+    val midPoint = InputView(middleArray, new InputAccess("")).asInstanceOf[ArrayView].access(i).
       asInstanceOf[ArrayView].join(M).
       reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
       access(j).asInstanceOf[ArrayView].access(k)
 
-    val view = View(finalArray, new InputAccess("")).asInstanceOf[ArrayView].join(N).
+    val view = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].join(N).
       reorder(i => IndexFunction.transpose(i, middleArray)).split(L).access(i).asInstanceOf[ArrayView].
       join(M).reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
       access(j).asInstanceOf[ArrayView].access(k)
