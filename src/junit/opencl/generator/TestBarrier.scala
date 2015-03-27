@@ -30,8 +30,6 @@ class TestBarrier {
       input => Join() o MapWrg(Barrier() o MapLcl(id)) o Split(128) $ input
     )
 
-    Barriers.mark(f)
-
     val (output, _) = Execute(inputSize)(f, input, inputSize)
 
     assertArrayEquals(input, output, 0.0f)

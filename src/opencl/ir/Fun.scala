@@ -172,7 +172,7 @@ case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) w
   //override def copy() = toLocal(f)
 
 case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  var necessary = true
+  var valid = true
 }
 
 object jToLocal {

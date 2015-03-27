@@ -93,6 +93,8 @@ object OpenCLGenerator extends Generator {
     // pass 1
     allocateMemory(f)
 
+    Barriers.mark(f)
+
     if (Verbose()) {
       println("Memory:")
       printMemories(f.body)
@@ -218,7 +220,7 @@ object OpenCLGenerator extends Generator {
         case g: Gather => generate(g.f.body)
         case s: Scatter => generate(s.f.body)
         case _: Zip => call.args.foreach(generate)
-        case b : Barrier => oclPrinter.generateBarrier(call.mem)
+        case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
         case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | Swap() | asVector(_) | asScalar() |
              Split(_) | SplitDim2(_) | Join() | JoinDim2() =>
         case _ => oclPrinter.print("__" + call.toString + "__")

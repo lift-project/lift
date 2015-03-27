@@ -37,21 +37,33 @@ object Barriers {
         val c = funs.count(isConcrete)
 
         var next = funs
-        var groups = Seq(Seq[Lambda]())
+        var groups = Seq[Seq[Lambda]]()
 
         if (c > 0) {
 
           while (next.nonEmpty) {
-            val prefixLength = funs.prefixLength(!isConcrete(_))
-            groups = groups :+ funs.take(prefixLength + 1)
-            next = funs.drop(prefixLength + 1)
+            val prefixLength = next.prefixLength(!isConcrete(_))
+            groups = groups :+ next.take(prefixLength + 1)
+            next = next.drop(prefixLength + 1)
           }
 
-          groups.head.exists(_.f)
+          val barrierInHead = groups.head.exists(l => l.body.isInstanceOf[FunCall] &&
+            l.body.asInstanceOf[FunCall].f.isInstanceOf[Barrier])
+
+          // TODO: Or local and not in a loop
+          if (barrierInHead && readsFrom(groups.head.last) == GlobalMemory) {
+            invalidateBarrier(groups.head)
+          }
         }
 
       case _ =>
     }
+  }
+
+  def invalidateBarrier(group: Seq[Lambda]): Unit = {
+    group.find(l => l.body.isInstanceOf[FunCall] &&
+      l.body.asInstanceOf[FunCall].f.isInstanceOf[Barrier]).
+      get.body.asInstanceOf[FunCall].f.asInstanceOf[Barrier].valid = false
   }
 
   def isConcrete(l: Lambda): Boolean = {
