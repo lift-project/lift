@@ -326,7 +326,7 @@ class TestBenchmark {
         diff = 0.0f
 
       math.sqrt(diff * diff).toFloat
-    }).zipWithIndex.map(x => assertEquals("Error at pos " + x._2, 0.0f, x._1, 0.1f))
+    }).zipWithIndex.foreach(x => assertEquals("Error at pos " + x._2, 0.0f, x._1, 0.1f))
 
   }
 
@@ -364,7 +364,7 @@ class TestBenchmark {
         diff = 0.0f
 
       math.sqrt(diff * diff).toFloat
-    }).zipWithIndex.map(x => assertEquals("Error at pos " + x._2, 0.0f, x._1, 0.1f))
+    }).zipWithIndex.foreach(x => assertEquals("Error at pos " + x._2, 0.0f, x._1, 0.1f))
 
   }
 }

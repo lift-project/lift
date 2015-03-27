@@ -102,13 +102,13 @@ class TestMisc {
     val gold   = matrix.map(- _.sum)
 
     val function = fun(
-          ArrayType(ArrayType(Float, Var("N")), Var("M")),
-          (input) => MapGlb(MapSeq(neg) o ReduceSeq(add, 0.0f)) $ input
+      ArrayType(ArrayType(Float, Var("N")), Var("M")),
+      (input) => MapGlb(MapSeq(neg) o ReduceSeq(add, 0.0f)) $ input
     )
 
     val (output, runtime) = Execute(Nsize * Msize)(function, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -128,7 +128,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -148,7 +148,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -172,7 +172,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -198,7 +198,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -224,7 +224,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -250,7 +250,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -269,7 +269,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(f, input, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -288,7 +288,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(f, input, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -308,7 +308,7 @@ class TestMisc {
 
     val (output, runtime) = Execute(inputSize)(f, input, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -331,70 +331,17 @@ class TestMisc {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       ArrayType(ArrayType(Float, M), N),
-      (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o MapGlb(fun(x => MapSeq(fun(y => Zip(x, y))) $ Y )) $ X
+      (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o Map(fun(x => Map(fun(y => Zip(x, y))) $ Y )) $ X
     )
 
     val (output, runtime) = Execute(nSize)(f, A, B, nSize, mSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
-
-
-  /* TODO: Not there yet ... Transpose the tiles as well ...
-  @Test def MATRIX_TRANSPOSE_TILED(): Unit = {
-
-    val Nsize = 16
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val gold   = matrix.transpose
-
-    println("matrix: ")
-    myPrint(matrix)
-
-    val N = Var("N")
-    val M = Var("M")
-
-    val r = 8
-    val c = 4
-
-    val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        Join() o MapWrg(0)(fun( rows =>
-          MapSeq(Join()) o Swap() o Scatter(transpose)(Gather(transpose)(MapWrg(1)(fun( tile =>
-
-            // step 2: write back to global memory
-            toGlobal(Gather(transpose)(MapLcl(0)(MapLcl(1)(fun(id(_)))))) o Swap() o
-
-            // step 1: load tile to local memory
-            toLocal(MapLcl(0)(MapLcl(1)(fun(id(_))))) o tile
-
-          )))) o Swap() o MapSeq(Split(c)) o rows
-        )) o Split(r) o matrix
-      })
-
-    val comp = Compile(f)
-
-    val (output, runtime) = Execute(8, Nsize * Msize)(f, matrix, Msize, Nsize)
-
-    println("output.size = " + output.size)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    println("gold: ")
-    myPrint(gold.flatten, Nsize)
-
-    println("output: ")
-    myPrint(output, Nsize)
-
-    (gold.flatten, output).zipped.map(assertEquals(_,_,0.0))
-  }
-  */
-
 
   /*
             @Test def BLACK_SCHOLES_NVIDIA_VERSION() {

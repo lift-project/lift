@@ -333,7 +333,7 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)(SumAbsoluteValues.amdDerived1,
         inputData, inputData.length)
 
-      println("output size = " + output.size)
+      println("output size = " + output.length)
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 

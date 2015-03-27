@@ -1,5 +1,6 @@
 package opencl.generator
 
+import benchmarks.MatrixTransposition
 import ir._
 import ir.UserFunDef._
 import opencl.executor.{Execute, Executor}
@@ -9,7 +10,7 @@ import opencl.ir.IndexFunction.transpose
 import org.junit.Assert._
 import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
-object TestTransposeAndTiling {
+object TestTranspose {
   @BeforeClass def before() {
     Executor.loadLibrary()
     println("Initialize the executor")
@@ -22,7 +23,74 @@ object TestTransposeAndTiling {
   }
 }
 
-class TestTransposeAndTiling {
+class TestTranspose {
+
+  @Ignore
+  @Test def transposeWrite2Dims(): Unit = {
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val gold = input.map(_.transpose).transpose
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      input => TransposeW() o MapWrg(TransposeW() o MapLcl(MapSeq(id))) $ input
+    )
+
+    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
+  }
+
+  @Ignore
+  @Test def idTransposeWrite(): Unit = {
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val gold = input.map(_.transpose).transpose
+
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      input => MapWrg(TransposeW() o TransposeW() o MapLcl(MapSeq(id))) $ input
+    )
+
+    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
+  }
+
+  @Test def twiceTransposeWriteScala(): Unit = {
+    val N = 2
+    val M = 4
+    val L = 8
+    val input = Array.tabulate(N, M, L)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val gold = input.map(_.transpose).transpose
+
+    val test = Array.ofDim[Float](L, N, M).flatten.flatten
+
+    for (i <- 0 until N) {
+      for (j <- 0 until M) {
+        for (k <- 0 until L) {
+          test(j + M*i + N*M*k) = input(i)(j)(k)
+        }
+      }
+    }
+
+    assertArrayEquals(gold.flatten.flatten, test, 0.0f)
+  }
+
+  @Test def idTranspose(): Unit = {
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      input => MapWrg(toGlobal(MapLcl(MapSeq(id))) o Transpose() o TransposeW() o toLocal(MapLcl(MapSeq(id)))) $ input
+    )
+
+    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+
+    assertArrayEquals(input.flatten.flatten, output, 0.0f)
+  }
 
   @Test def MATRIX_PLUS_ONE(): Unit = {
 
@@ -53,7 +121,7 @@ class TestTransposeAndTiling {
 
     val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -102,15 +170,15 @@ class TestTransposeAndTiling {
 
     val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     println("gold: ")
-    myPrint(gold.flatten, Ksize)
+    PrintUtils.myPrint(gold.flatten, Ksize)
 
     println("output: ")
-    myPrint(output, Ksize)
+    PrintUtils.myPrint(output, Ksize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -146,49 +214,17 @@ class TestTransposeAndTiling {
 
     val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     println("gold: ")
-    myPrint(gold.flatten, Ksize)
+    PrintUtils.myPrint(gold.flatten, Ksize)
 
     println("output: ")
-    myPrint(output, Ksize)
+    PrintUtils.myPrint(output, Ksize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
-  }
-
-  private def myPrint(m: Array[Array[Array[Float]]]): Unit = {
-    m.map( r => {
-      println(r.map( e => {
-        "(" + e.map("%2.0f".format(_)).reduce(_ + ", " + _) + ")"
-      }).reduce(_ + " " + _))
-    } )
-  }
-
-  private def myPrint(m: Array[Array[Float]]): Unit = {
-    m.map( r => {
-      println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
-    } )
-  }
-
-  private def myPrint(m: Array[Float], cols: Int): Unit = {
-    val (row, rest) = m.splitAt(cols)
-    if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
-    if (rest.nonEmpty) myPrint(rest, cols)
-  }
-
-  private def printRow(r: Array[Float], elems: Int): Unit = {
-    val (elem, rest) = r.splitAt(elems)
-    if (elem.nonEmpty) print("(" + elem.map("%2.0f".format(_)).reduce(_ + ", " + _) + ") ")
-    if (rest.nonEmpty) printRow(rest, elems)
-  }
-
-  private def myPrint(m: Array[Float], cols: Int, elems: Int): Unit = {
-    val (row, rest) = m.splitAt(cols*elems)
-    if (row.nonEmpty) printRow(row, elems); println("")
-    if (rest.nonEmpty) myPrint(rest, cols, elems)
   }
 
   @Test def MATRIX_TRANSPOSE_Join_Gather_Split(): Unit = {
@@ -199,7 +235,7 @@ class TestTransposeAndTiling {
     val gold   = matrix.transpose
 
     println("matrix: ")
-    myPrint(matrix)
+    PrintUtils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -207,30 +243,30 @@ class TestTransposeAndTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        Gather(transpose)(MapGlb(0)(MapGlb(1)(id)) o Split(Nsize)) o Join() $ matrix
+        MapGlb(0)(MapGlb(1)(id)) o Gather(transpose)(Split(N)) o Join() $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     println("output: ")
-    myPrint(output, Nsize)
+    PrintUtils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
-  @Test def tileMatrix(): Unit = {
+  @Test def transposeMatrixOnWrite(): Unit = {
 
     val Nsize = 12
     val Msize = 8
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val gold   = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
+    val gold   = matrix.transpose
 
     println("matrix: ")
-    myPrint(matrix)
+    PrintUtils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -238,190 +274,102 @@ class TestTransposeAndTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o
-          MapWrg(0)(MapWrg(1)(Transpose()
-          ) o Split(4) o Transpose()) o Split(4) $ matrix
+        TransposeW() o MapGlb(0)(MapGlb(1)(id)) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    println("tile: ")
-    myPrint(gold(0)(0))
-
-    println("gold: ")
-    myPrint(gold.flatten.flatten.flatten, 8)
-
     println("output: ")
-    myPrint(output, Msize)
-
-    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
-  }
-
-  @Test def tileAndUntileMatrix(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
-    val gold = tiled.map(_.transpose.map(_.flatten)).flatten
-
-    println("matrix: ")
-    myPrint(matrix)
-
-    val N = Var("N")
-    val M = Var("M")
-
-    val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        // Merge the tiles
-        MapWrg(0)(MapWrg(1)(id)) o
-          Join() o MapWrg(0)(MapWrg(1)(Join()) o Transpose()) o
-          // Tile the matrix
-          MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
-      })
-
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
-
-    println("output.size = " + output.size)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    println("gold: ")
-    myPrint(gold.flatten, 8)
-
-    println("output: ")
-    myPrint(output, Msize)
+    PrintUtils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
-  @Test def transposeMatrixInsideTiles(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose)).map(_.map(_.transpose))
+  @Test def transposeMatrix3DOuterOnWrite(): Unit = {
+
+    val Nsize = 8
+    val Msize = 4
+    val Ksize = 2
+    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     println("matrix: ")
-    myPrint(matrix)
+    PrintUtils.myPrint(matrix)
+
+    val gold   = matrix.transpose
 
     val N = Var("N")
     val M = Var("M")
+    val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayType(ArrayType(ArrayType(Float, K), M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)) o Transpose())) o
-          MapWrg(0)(MapWrg(1)(Transpose()
-          ) o Split(4) o Transpose()) o Split(4) $ matrix
+        TransposeW() o
+          MapGlb(0)(
+            MapGlb(1)(
+              MapSeq(id)
+            )
+          ) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    println("tile: 0,0 ")
-    myPrint(gold(0)(0))
-
-    println("tile: 0,1 ")
-    myPrint(gold(0)(1))
-
     println("gold: ")
-    myPrint(gold.flatten.flatten.flatten, 8)
+    PrintUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
 
     println("output: ")
-    myPrint(output, Msize)
+    PrintUtils.myPrint(output, Nsize, Ksize)
 
-    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
-  @Test def transposeTiles(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose)).transpose
+  @Test def transposeMatrix3DInnerOnWrite(): Unit = {
 
+    val Nsize = 8
+    val Msize = 4
+    val Ksize = 2
+    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     println("matrix: ")
-    myPrint(matrix)
+    PrintUtils.myPrint(matrix)
+
+    val gold   = matrix.map(_.transpose)
 
     val N = Var("N")
     val M = Var("M")
+    val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayType(ArrayType(ArrayType(Float, K), M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o Transpose() o
-          MapWrg(0)(MapWrg(1)(Transpose()
-          ) o Split(4) o Transpose()) o Split(4) $ matrix
+          MapGlb(0)(
+            TransposeW() o MapGlb(1)(
+              MapSeq(id)
+            )
+          ) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    println("tile: 0,0 ")
-    myPrint(gold(0)(0))
-
-    println("tile: 0,1 ")
-    myPrint(gold(0)(1))
-
-    println("gold: ")
-    myPrint(gold.flatten.flatten.flatten, Nsize)
-
-    println("output: ")
-    myPrint(output, Nsize)
-
-    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
-  }
-
-  @Test def tiledMatrixTranspose(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
-    val tiledTransposed = tiled.map(_.map(_.transpose)).transpose
-
-    val gold = tiledTransposed.map(_.transpose.map(_.flatten)).flatten
-
-    println("matrix: ")
-    myPrint(matrix)
-
-    val N = Var("N")
-    val M = Var("M")
-
-    val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        // Merge the tiles
-        MapWrg(0)(MapWrg(1)(id)) o
-          Join() o MapWrg(0)(MapWrg(1)(Join()) o Transpose()) o
-          // Transpose the tiles and then the insides of tiles
-          MapWrg(0)(MapWrg(1)(Transpose())) o Transpose() o
-          // Tile the matrix
-          MapWrg(0)(MapWrg(1)(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
-      })
-
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
-
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     println("gold: ")
-    myPrint(gold.flatten, Nsize)
+    PrintUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
 
     println("output: ")
-    myPrint(output, Nsize)
+    PrintUtils.myPrint(output, Nsize, Ksize)
 
-    assertArrayEquals(gold.flatten, output, 0.0f)
+    assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
   @Test def MATRIX_TRANSPOSE(): Unit = {
@@ -432,25 +380,16 @@ class TestTransposeAndTiling {
     val gold   = matrix.transpose
 
     println("matrix: ")
-    myPrint(matrix)
+    PrintUtils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.naive, matrix, Nsize, Msize)
 
-    val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      (matrix) => {
-        MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
-      })
-
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
-
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     println("output: ")
-    myPrint(output, Nsize)
+    PrintUtils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -463,7 +402,7 @@ class TestTransposeAndTiling {
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     println("matrix: ")
-    myPrint(matrix)
+    PrintUtils.myPrint(matrix)
 
     val gold   = matrix.transpose
 
@@ -485,15 +424,15 @@ class TestTransposeAndTiling {
 
     val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     println("gold: ")
-    myPrint(gold.flatten.flatten, Nsize, Ksize)
+    PrintUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
 
     println("output: ")
-    myPrint(output, Nsize, Ksize)
+    PrintUtils.myPrint(output, Nsize, Ksize)
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
@@ -527,7 +466,7 @@ class TestTransposeAndTiling {
 
     val (output, runtime) = Execute(4, Nsize * Msize * Lsize)(f, matrix, Nsize, Msize, Ksize, Lsize)
 
-    println("output.size = " + output.size)
+    println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 

@@ -81,7 +81,7 @@ class TestMatrixVector {
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector )
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -108,7 +108,7 @@ class TestMatrixVector {
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -133,7 +133,7 @@ class TestMatrixVector {
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector, inputSize, inputSize, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -163,7 +163,7 @@ class TestMatrixVector {
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector, inputSize, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -190,7 +190,7 @@ class TestMatrixVector {
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vector, inputSize, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -224,7 +224,7 @@ class TestMatrixVector {
 
     val (firstOutput, firstRuntime) = Execute(inputSize * inputSize)(f1, matrix, vectorX, alpha, inputSize, inputSize)
 
-    println("output.size = " + firstOutput.size)
+    println("output.size = " + firstOutput.length)
     println("output(0) = " + firstOutput(0))
     println("runtime = " + firstRuntime)
 
@@ -242,7 +242,7 @@ class TestMatrixVector {
 
     val (output, secondRuntime) = Execute(inputSize)(f2, firstOutput, vectorY, beta, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + secondRuntime)
 
@@ -263,7 +263,7 @@ class TestMatrixVector {
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta, inputSize, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -283,7 +283,7 @@ class TestMatrixVector {
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta, inputSize, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -314,7 +314,7 @@ class TestMatrixVector {
 
     val (output, runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, inputSize, inputSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 

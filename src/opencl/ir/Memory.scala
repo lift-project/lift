@@ -143,16 +143,16 @@ object OpenCLMemory {
 
   //** Return newly allocated global memory */
   def allocGlobalMemory(glbOutSize: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
   }
 
   //** Return newly allocated local memory */
   def allocLocalMemory(lclOutSize: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
   }
 
   def allocPrivateMemory(size: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, PrivateMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), size)), size, PrivateMemory)
   }
 
   /** Allocate OpenCLMemory objects for a given Fun f
@@ -229,7 +229,7 @@ object OpenCLMemory {
 
       case l: Lambda =>           allocLambda(l, call, numGlb, numLcl, inMem, outputMem)
 
-      case MapGlb(_, _) |MapWrg(_,_)
+      case MapGlb(_, _) |MapWrg(_,_) | Map(_)
                                => allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
       case MapLcl(_,_) | MapWarp(_)| MapLane(_) | MapSeq(_)
                                => allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
@@ -256,7 +256,7 @@ object OpenCLMemory {
 
       case dw: DropLeftSeq =>      allocDropLeftSeq(dw, numGlb, numLcl, inMem, outputMem)
       case lss: LinearSearchSeq => allocLinearSearchSeq(lss, numGlb, numLcl, inMem, outputMem)
-      case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride(_) | asVector(_) | asScalar() | Transpose() | Swap() | Unzip() | VTail() =>
+      case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride(_) | asVector(_) | asScalar() | Transpose() | Swap() | Unzip() | TransposeW() | VTail() =>
         inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, outputMem, call.t, inMem)

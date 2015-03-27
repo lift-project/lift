@@ -255,7 +255,7 @@ object Type {
           inLen match {
             case tv: TypeVar =>
               if (inLen == outLen) {
-                tv.range = ContinousRange(tvMap.get(tv).get, tvMap.get(tv).get)
+                tv.range = ContinuousRange(tvMap.get(tv).get, tvMap.get(tv).get)
                 return ouT
               }
               // recognises output independent of tv
@@ -270,7 +270,7 @@ object Type {
                 // TODO: Pow(a, n) or Pow(a, n-1)???
                 val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n)*tvMap.get(tv).get))
                 // TODO: deal with growing output size
-                tv.range = ContinousRange(min,max)
+                tv.range = ContinuousRange(min,max)
 
                 // we have outLen*tv where tv is not present inside outLen
                 Pow(a, n)*tv
@@ -374,6 +374,7 @@ object Type {
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
       case _: Transpose =>        checkTranspose(inT)
+      case _: TransposeW =>       checkTranspose(inT)
       case _: Swap =>             checkSwap(inT)
       case _: ReorderStride =>    inT
       case g: Gather =>           checkGather(g, inT, setType)

@@ -109,7 +109,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -143,7 +143,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -830,7 +830,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f5, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -880,7 +880,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f1, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -917,7 +917,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -983,20 +983,7 @@ class TestMatrixMatrix {
   }
   */
 
-  private def print(m: Array[Array[Float]]): Unit = {
-    m.map( r => {
-      println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
-    } )
-  }
-
-  private def print(m: Array[Float], cols: Int): Unit = {
-    val (row, rest) = m.splitAt(cols)
-    if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
-    if (rest.nonEmpty) print(rest, cols)
-  }
-
-  /*
-  TODO: Add support for writing transposed, as in: Transpose() o Join() o MapWrg(1)( ...) o Split(c) o B
+  /* TODO: Add support for writing transposed, as in: Transpose() o Join() o MapWrg(1)( ...) o Split(c) o B
   @Test def MATRIX_MATRIX_2D_TESTS_2() {
 
     val Msize = 8
@@ -1032,22 +1019,20 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(8, Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
     println("gold:")
-    print(gold, Msize)
+    PrintUtils.myPrint(gold, Msize)
     println("output:")
-    print(output, Msize)
+    PrintUtils.myPrint(output, Msize)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
+    assertArrayEquals(gold,output,0.0f)
 
   }
-  */
+*/
 
 }

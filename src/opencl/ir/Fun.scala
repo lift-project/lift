@@ -250,6 +250,8 @@ object jReorderStride {
   def create (s: ArithExpr)= ReorderStride(s)
 }
 
+case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 object jTranspose {
   def create = Transpose()
@@ -281,7 +283,7 @@ object IndexFunction {
     val innerSize = innerType.len
 
     val col = (i % innerSize) * outerSize
-    val row = i / innerSize
+    val row = i div innerSize
 
     // TODO: simplify this ...
     row + col

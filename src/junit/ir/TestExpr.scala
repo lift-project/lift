@@ -85,7 +85,13 @@ class TestExpr {
   @Test def Fraction(): Unit = {
     val i = Var("i")
     val M = Var("M")
-    assertEquals((i div M) * M + i % M, ExprSimplifier.simplify((i div M) * M + i % M))
+    assertEquals((i div M) * M, ExprSimplifier.simplify((i div M) * M))
+  }
+
+  @Test def remainderAndModulo(): Unit = {
+    val a = Var("x")
+    val d = Var("d")
+    assertEquals(a, ExprSimplifier.simplify((a div d) * d + a % d))
   }
 
   @Test def modOfVarWithVarRange(): Unit = {
@@ -272,10 +278,10 @@ class TestExpr {
     val M = Var(StartFromRange(Cst(1)))
     val N = Var(StartFromRange(Cst(1)))
 
-    val wg_id_0 = Var("wid_0",ContinousRange(0, N / 2))
-    val wg_id_1 = Var("wid_1",ContinousRange(0, M / 4))
-    val l_id_0 = Var("lid_0",ContinousRange(0, 2))
-    val l_id_1 = Var("lid_0",ContinousRange(0, 4))
+    val wg_id_0 = Var("wid_0",ContinuousRange(0, N / 2))
+    val wg_id_1 = Var("wid_1",ContinuousRange(0, M / 4))
+    val l_id_0 = Var("lid_0",ContinuousRange(0, 2))
+    val l_id_1 = Var("lid_0",ContinuousRange(0, 4))
 
     val firstRead = (
       (wg_id_0 * 1 * M / (4) * 2 * 4) +
