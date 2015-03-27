@@ -48,4 +48,4 @@ Finally add the SkelCL build directory to the Java library path:
 
 * On the right side add to the "VM options": "-Djava.library.path=/path-to-the-skelcl-folder/build/executor" (with the proper path from your system)
 
-Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. That will also make it possible to run tests from the command line using "sbt test"
+Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. That will also make it possible to run tests and benchmarks from the command line using "sbt test" and scripts in the "scripts" folder, respectively.
