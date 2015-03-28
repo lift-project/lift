@@ -3,9 +3,9 @@ package opencl.generator
 import ir._
 import opencl.ir._
 
-object Barriers {
+object BarrierElimination {
 
-  def mark(l: Lambda): Unit = {
+  def apply(l: Lambda): Unit = {
     Expr.visit(l.body, (x: Expr) => {
       x match {
         case mapCall: MapCall =>
@@ -21,13 +21,6 @@ object Barriers {
         case _ =>
       }
     })
-  }
-
-  def mark(e: Expr): Unit = {
-    e match {
-      case call: FunCall => markFunCall(call)
-      case _ =>
-    }
   }
 
   def markFunCall(call: FunCall): Unit = {
@@ -50,10 +43,14 @@ object Barriers {
           val barrierInHead = groups.head.exists(l => l.body.isInstanceOf[FunCall] &&
             l.body.asInstanceOf[FunCall].f.isInstanceOf[Barrier])
 
-          // TODO: Or local and not in a loop
+          // TODO: Or reads from local and is not in a loop
           if (barrierInHead && readsFrom(groups.head.last) == GlobalMemory) {
             invalidateBarrier(groups.head)
           }
+
+          // TODO: reorder in global only needs one barrier
+          // TODO: reorder in local needs one after being consumed if in a loop
+          // TODO: can remove if several there is one anyway?
         }
 
       case _ =>

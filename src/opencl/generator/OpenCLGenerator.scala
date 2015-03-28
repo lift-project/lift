@@ -93,7 +93,7 @@ object OpenCLGenerator extends Generator {
     // pass 1
     allocateMemory(f)
 
-    Barriers.mark(f)
+    BarrierElimination(f)
 
     if (Verbose()) {
       println("Memory:")
