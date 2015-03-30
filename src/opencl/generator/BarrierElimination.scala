@@ -6,54 +6,62 @@ import opencl.ir._
 object BarrierElimination {
 
   def apply(l: Lambda): Unit = {
-    Expr.visit(l.body, (x: Expr) => {
-      x match {
-        case mapCall: MapCall =>
-          println("Map, down a level")
-        case call: FunCall =>
-          markFunCall(call)
-        case _ =>
-      }
-    }, (x: Expr) => {
-      x match {
-        case mapCall: MapCall =>
-          println("up a level")
-        case _ =>
-      }
-    })
+    apply(l.body, insideLoop = false)
   }
 
-  def markFunCall(call: FunCall): Unit = {
-    call.f match {
-      case cf: CompFunDef =>
-        val funs = cf.funs
-        val c = funs.count(isConcrete)
-
-        var next = funs
-        var groups = Seq[Seq[Lambda]]()
-
-        if (c > 0) {
-
-          while (next.nonEmpty) {
-            val prefixLength = next.prefixLength(!isConcrete(_))
-            groups = groups :+ next.take(prefixLength + 1)
-            next = next.drop(prefixLength + 1)
-          }
-
-          val barrierInHead = groups.head.exists(l => l.body.isInstanceOf[FunCall] &&
-            l.body.asInstanceOf[FunCall].f.isInstanceOf[Barrier])
-
-          // TODO: Or reads from local and is not in a loop
-          if (barrierInHead && readsFrom(groups.head.last) == GlobalMemory) {
-            invalidateBarrier(groups.head)
-          }
-
-          // TODO: reorder in global only needs one barrier
-          // TODO: reorder in local needs one after being consumed if in a loop
-          // TODO: can remove if several there is one anyway?
-        }
-
+  def apply(expr: Expr, insideLoop: Boolean): Unit = {
+    expr match {
+      case call: MapCall =>
+        apply(call.f.f.body, insideLoop || loop(call.iterationCount))
+      case call: ReduceCall =>
+        apply(call.f.f.body, insideLoop || loop(call.iterationCount))
+      case call: IterateCall =>
+        apply(call.f.f.body, insideLoop || loop(call.iterationCount))
+      case call: FunCall => call.f match {
+        case cf: CompFunDef =>
+          markFunCall(cf, insideLoop)
+          cf.funs.foreach( (l:Lambda) => apply(l.body, insideLoop) )
+        case f: FPattern => apply(f.f.body, insideLoop)
+        case l: Lambda => apply(l.body, insideLoop)
+        case _: Zip => call.args.foreach(apply(_, insideLoop))
+        case _ =>
+      }
       case _ =>
+    }
+  }
+
+  def loop(ae: ArithExpr): Boolean = {
+    !(ae == Cst(1) || ae == Cst(0) || ae == Fraction(1, ?))
+  }
+
+  def markFunCall(cf: CompFunDef, insideLoop: Boolean): Unit = {
+    val lambdas = cf.funs
+    val c = lambdas.count(isConcrete)
+
+    var next = lambdas
+    var groups = Seq[Seq[Lambda]]()
+
+    if (c > 0) {
+
+      while (next.nonEmpty) {
+        val prefixLength = next.prefixLength(!isConcrete(_))
+        groups = groups :+ next.take(prefixLength + 1)
+        next = next.drop(prefixLength + 1)
+      }
+
+      val barrierInHead = groups.head.exists(l => l.body.isInstanceOf[FunCall] &&
+        l.body.asInstanceOf[FunCall].f.isInstanceOf[Barrier])
+
+      val finalReadMemory = readsFrom(groups.head.last)
+      println(finalReadMemory)
+      if (barrierInHead && finalReadMemory == GlobalMemory ||
+        barrierInHead && finalReadMemory == LocalMemory && !insideLoop) {
+        invalidateBarrier(groups.head)
+      }
+
+      // TODO: reorder in global only needs one barrier
+      // TODO: reorder in local needs one after being consumed if in a loop
+      // TODO: can remove if several and there is one anyway?
     }
   }
 

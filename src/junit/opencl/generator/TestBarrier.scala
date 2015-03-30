@@ -53,7 +53,7 @@ class TestBarrier {
     val code = Compile(f)
     val (output, _) = Execute(inputSize)(code, f, input, inputSize)
 
-    assertFalse(code.containsSlice("barrier"))
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -159,8 +159,10 @@ class TestBarrier {
       input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(MapLcl(id))) o Split(128) $ input
     )
 
-    val code = Compile(f)
-    val (output, _) = Execute(128, inputSize, (true, true))(code, f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, true))
+    val (output, _) = Execute(128, inputSize)(
+      code, f, inputs:_*)
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -177,14 +179,16 @@ class TestBarrier {
       input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))) o Split(128) $ input
     )
 
-    val code = Compile(f)
-    val (output, _) = Execute(128, inputSize, (true, true))(code, f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, true))
+    val (output, _) = Execute(128, inputSize)(
+      code, f, inputs:_*)
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def noLoopReorderWriteLocal(): Unit = {
+  @Test def noLoopReorderLastLocal(): Unit = {
     val inputSize = 1024
     val input = Array.tabulate(inputSize)(_.toFloat)
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
@@ -192,11 +196,13 @@ class TestBarrier {
     // Last barrier should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(Scatter(reverse)(MapLcl(id)))) o Split(128) $ input
+      input => Join() o MapWrg(Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))) o Split(128) $ input
     )
 
-    val code = Compile(f)
-    val (output, _) = Execute(128, inputSize, (true, true))(code, f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, true))
+    val (output, _) = Execute(128, inputSize)(
+      code, f, inputs:_*)
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
