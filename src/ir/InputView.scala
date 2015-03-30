@@ -62,7 +62,7 @@ abstract class InputView(val operation: Operation, var t: Type = UndefType) {
   def split(chunkSize : ArithExpr): InputView = {
     val split = new InputViewSplit(chunkSize, this)
     split.t = this.t match {
-      case ArrayType(t, n) => ArrayType(ArrayType(t, chunkSize), n div chunkSize)
+      case ArrayType(elemT, n) => ArrayType(ArrayType(elemT, chunkSize), n div chunkSize)
     }
     split
   }
@@ -70,7 +70,7 @@ abstract class InputView(val operation: Operation, var t: Type = UndefType) {
   def join(chunkSize: ArithExpr): InputView = {
     val join = new InputViewJoin(chunkSize, this)
     join.t = this.t match {
-      case ArrayType(ArrayType(t, n), m) => ArrayType(t, n*m)
+      case ArrayType(ArrayType(elemT, n), m) => ArrayType(elemT, n*m)
     }
     join
   }
@@ -89,6 +89,12 @@ abstract class InputView(val operation: Operation, var t: Type = UndefType) {
         vectorize
       case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into vector types")
     }
+  }
+
+  def filter(ids: InputView): InputView = {
+    val filter = new InputViewFilter(this, ids)
+    filter.t = ArrayType(this.t.asInstanceOf[ArrayType].elemT, ids.t.asInstanceOf[ArrayType].len)
+    filter
   }
 
   def asScalar(): InputView = {
@@ -125,6 +131,8 @@ class InputViewAsVector(n: ArithExpr, iv: InputView) extends InputView(NoOperati
 
 class InputViewAsScalar(iv: InputView) extends InputView(NoOperation)
 
+class InputViewFilter(iv: InputView, ids: InputView) extends InputView(NoOperation)
+
 class InputViewMap(iv: InputView) extends InputView(NoOperation)
 
 class InputViewZipComponent(i: Int, iv: InputView) extends InputView(NoOperation)
@@ -135,75 +143,9 @@ object NoView extends InputView(NoOperation)
 
 // TODO: Remove OLD!!!! views
 
-class ArrayView(var elemT: Type, override val operation: Operation) extends InputView(operation) {
+class ArrayView(val elemT: Type, override val operation: Operation) extends InputView(operation)
 
-  def access(idx: ArithExpr): InputView = {
-    val aa = new ArrayAccess(this, idx)
-    InputView(elemT, aa)
-  }
-
-  def split(chunkSize : ArithExpr): ArrayView = {
-    val as = new ArraySplit(this, chunkSize)
-    new ArrayView(new ArrayType(elemT, chunkSize), as)
-  }
-
-  def join(chunkSize: ArithExpr): ArrayView = {
-    val aj = new ArrayJoin(this, chunkSize)
-    new ArrayView(elemT.asInstanceOf[ArrayType].elemT, aj)
-  }
-
-  def reorder(f: (ArithExpr) => ArithExpr): ArrayView = {
-    val ar = new ArrayReorder(this, f)
-    new ArrayView(elemT, ar)
-  }
-
-  def asVector(n: ArithExpr): ArrayView = {
-    elemT match {
-      case st: ScalarType =>
-        val av = new ArrayAsVector(this, n)
-        new ArrayView(VectorType(st, n), av)
-      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + elemT + " into vector types")
-    }
-  }
-
-  def asScalar(): ArrayView = {
-    elemT match  {
-      case VectorType(st, n) =>
-        val av = new ArrayAsScalar(this, n)
-        new ArrayView(st, av)
-      case st: ScalarType =>
-        this.operation match {
-          case aav: ArrayAsVector => aav.av
-          case _ => this
-        }
-      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + elemT + " into scalar types")
-    }
-  }
-
-  override def toString = {
-    elemT.toString + " " + operation.toString
-  }
-
-}
-
-
-class TupleView(val tupleType: TupleType, override val operation: Operation) extends InputView(operation) {
-
-  def access(i: Int) : InputView = {
-    val ta = new TupleAccess(this, i)
-    val elemT = tupleType.elemsT(i)
-    InputView(elemT, ta)
-  }
-
-}
-
-object TupleView {
-  def apply(t: Type, op: Operation): TupleView = {
-    assert(t.isInstanceOf[TupleType])
-    new TupleView(t.asInstanceOf[TupleType], op)
-  }
-}
-
+class TupleView(val tupleType: TupleType, override val operation: Operation) extends InputView(operation)
 
 class PrimitiveView(override val operation: Operation) extends InputView(operation)
 
@@ -217,7 +159,7 @@ object InputView {
 
   def zip(ivs: InputView*): InputView = {
     val zip = new InputViewZip(ivs:_*)
-    zip.t = ArrayType(TupleType(ivs.map(_.t.asInstanceOf[ArrayView].elemT)),
+    zip.t = ArrayType(TupleType(ivs.map(_.t.asInstanceOf[ArrayType].elemT):_*),
       ivs(0).t.asInstanceOf[ArrayType].len)
     zip
   }
@@ -226,11 +168,11 @@ object InputView {
     new InputViewMem(name, t)
   }
 
-  def visitAndBuildViews(expr: Expr, f:  List[(ArithExpr, ArithExpr)] = List()): InputView = {
+  def visitAndBuildViews(expr: Expr, outputAccessInf:  List[(ArithExpr, ArithExpr)] = List()): InputView = {
     val result = expr match {
       case pr: ParamReference => getViewAtIndex(pr.p.view, pr.i)
       case p: Param => p.view //View(expr.t, new InputAccess())
-      case call: FunCall => buildViewFunCall(call, f)
+      case call: FunCall => buildViewFunCall(call, outputAccessInf)
     }
     expr.view = result
     result
@@ -255,7 +197,7 @@ object InputView {
 
     call match {
       case call: MapCall => buildMapView(call, argView, outputAccessInf)
-      case call: ReduceCall => buildReduceCall(call, argView, outputAccessInf)
+      case call: ReduceCall => buildViewReduceCall(call, argView, outputAccessInf)
       case call: FunCall =>
         call.f match {
           case l: Lambda => buildViewLambda(l, call, argView, outputAccessInf)
@@ -315,17 +257,17 @@ object InputView {
       // get full type of the output memory object
       val fullReturnType = getFullType(call.t, outputAccessInf)
       // create fresh input view for following function
-      return InputView.create(call.mem.variable.name, fullReturnType)
+      InputView.create(call.mem.variable.name, fullReturnType)
     } else { // call.isAbstract and return input map view
       new InputViewMap(innerView)
     }
   }
 
 
-  private def buildReduceCall(call: ReduceCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
+  private def buildViewReduceCall(call: ReduceCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
     // pass down input view
     call.f.f.params(0).view = argView.access(0)
-    call.f.f.params(1).view = argView.access(1).asInstanceOf[ArrayView].access(call.loopVar)
+    call.f.f.params(1).view = argView.access(1).access(call.loopVar)
     // build information where call.f should write
     val newOutputAccessInf = (Type.getLength(call.t), Cst(0)) :: outputAccessInf
     // traverse into call.f
@@ -342,7 +284,7 @@ object InputView {
       if (l.params.length != 1) throw new NumberOfArgumentsException
       l.params(0).view = argView
     } else {
-      l.params.zipWithIndex.map({ case (p, i) => p.view = argView.access(i) })
+      l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.access(i) })
     }
     visitAndBuildViews(l.body, outputAccessInf)
   }
@@ -369,26 +311,12 @@ object InputView {
     })
   }
 
-
-  // TODO: continue refactoring here on monday ....
-
   private def createViewZip(z: Zip, call: FunCall, argView: InputView): InputView = {
-    argView match {
-      case tv: TupleView => new ArrayView(Type.getElemT(call.t), new ArrayZip(tv))
-      // new ArrayCreation(tv, Type.getLength(call.t), ???))
-      //case tv: TupleView => tv
-      case _ => throw new IllegalArgumentException("PANIC! Expected tuple, found " + argView.getClass)
-    }
+    argView
   }
 
   private def createViewFilter(f: Filter, call: FunCall, argView: InputView): InputView = {
-    argView match {
-      case tv: TupleView =>
-        new ArrayView(Type.getElemT(call.t),
-          new SubArray(tv.access(0).asInstanceOf[ArrayView], tv.access(1).asInstanceOf[ArrayView])
-        )
-      case _ => throw new IllegalArgumentException("PANIC! Expected tuple, found " + argView.getClass)
-    }
+    argView.get(0).filter(argView.get(1))
   }
 
   private def createViewJoin(call: FunCall, argView: InputView): InputView = {
@@ -397,97 +325,76 @@ object InputView {
       case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
     }
 
-    argView match {
-      case av: ArrayView => av.join(chunkSize)
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
-    }
+    argView.join(chunkSize)
   }
 
   private def createViewSplit(n: ArithExpr, argView: InputView): InputView = {
-    argView match {
-      case av: ArrayView => av.split(n)
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
-    }
+    argView.split(n)
   }
 
   private def createViewAsVector(n: ArithExpr, argView: InputView): InputView = {
-    argView match {
-      case av: ArrayView => av.asVector(n)
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
-    }
+    argView.asVector(n)
   }
 
   private def createViewAsScalar(argView: InputView): InputView = {
-    argView match {
-      case av: ArrayView => av.asScalar()
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
-    }
+    argView.asScalar()
   }
 
-  private def createViewUserFunDef(uf: UserFunDef, argView: InputView, f:  List[(ArithExpr, ArithExpr)]): InputView = {
-    initialiseNewView(uf.outT, f)
+  private def createViewUserFunDef(uf: UserFunDef, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
+    initialiseNewView(uf.outT, outputAccessInf)
   }
 
-  private def initialiseNewView(t: Type, f: List[(ArithExpr, ArithExpr)], name: String = ""): InputView = {
+  private def initialiseNewView(t: Type, outputAccessInf: List[(ArithExpr, ArithExpr)], name: String = ""): InputView = {
     // Use the lengths and iteration vars to mimic inputs
-    val outArray = f.foldLeft(t)((t, len) => ArrayType(t, len._1))
-    val outView = InputView(outArray, new InputAccess(name))
-    f.foldRight(outView)((idx, view) => view.asInstanceOf[ArrayView].access(idx._2))
+    val outArray = getFullType(t, outputAccessInf)
+    val outView = InputView.create(name, outArray)
+    outputAccessInf.foldRight(outView)((idx, view) => view.asInstanceOf[ArrayView].access(idx._2))
   }
 
   private def createViewReorderStride(s: ArithExpr, call: FunCall, argView: InputView): InputView = {
     val n = Type.getLength(call.argsType) / s
 
-    argView match {
-      case av: ArrayView => av.reorder( (i:ArithExpr) => { (i div n) + s * ( i % n) } )
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
-    }
+    argView.reorder( (i:ArithExpr) => { (i div n) + s * ( i % n) } )
   }
 
   private def createViewTranspose(t: Transpose, call: FunCall, argView: InputView): InputView = {
     call.t match {
       case ArrayType(ArrayType(typ, m), n) =>
-        argView.asInstanceOf[ArrayView].
+        argView.
           join(n).
           reorder((i:ArithExpr) => { IndexFunction.transpose(i, call.t) }).
           split(m)
     }
   }
 
-  private def createViewTransposeW(tw: TransposeW, call: FunCall, argView: InputView, ids: List[(ArithExpr, ArithExpr)]): InputView = {
+  // TODO: Implement in OutputView
+  private def createViewTransposeW(tw: TransposeW, call: FunCall, argView: InputView, outputAccessInf: List[(ArithExpr, ArithExpr)]): InputView = {
     call.t match {
       case ArrayType(ArrayType(typ, m), n) =>
-        findAccessAndReorder(argView, IndexFunction.transpose, call.t, 0, transpose = true)
+//        findAccessAndReorder(argView, IndexFunction.transpose, call.t, 0, transpose = true)
     }
 
-    initialiseNewView(call.t, ids)
+    initialiseNewView(call.t, outputAccessInf)
   }
 
-  private def createViewGather(gather: Gather, call: FunCall, argView: InputView, f:  List[(ArithExpr, ArithExpr)]): InputView = {
-    argView match {
-      case av: ArrayView =>
-        gather.f.params(0).view = av.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
-        visitAndBuildViews(gather.f.body, f)
-      case _ => throw new IllegalArgumentException("PANIC")
-    }
+  private def createViewGather(gather: Gather, call: FunCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
+    argView.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
   }
 
-  private def createViewScatter(scatter: Scatter, call: FunCall, argView: InputView, f:  List[(ArithExpr, ArithExpr)]): InputView = {
-    argView match {
-      case av: ArrayView =>
-        scatter.f.params(0).view = av
-        visitAndBuildViews(scatter.f.body, f)
+  // TODO: Implement in OutputView
+  private def createViewScatter(scatter: Scatter, call: FunCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
+    scatter.f.params(0).view = argView
+    visitAndBuildViews(scatter.f.body, outputAccessInf)
 
-        // Find the matching ArrayAccess to the first ArrayCreation,
-        // and reorder the ArrayView in the access
-        findAccessAndReorder(scatter.f.body.view, scatter.idx, call.t, 0)
+    // Find the matching ArrayAccess to the first ArrayCreation,
+    // and reorder the ArrayView in the access
+//    findAccessAndReorder(scatter.f.body.view, scatter.idx, call.t, 0)
 
-        scatter.f.body.view
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
-    }
+    argView
   }
 
-  private def findAccessAndReorder(view: InputView, idx: IndexFunction, t:Type, count: scala.Int, transpose: Boolean = false): Unit = {
+  // TODO: Implement in OutputView
+  /*private def findAccessAndReorder(view: InputView, idx: IndexFunction, t:Type, count: scala.Int, transpose: Boolean = false): Unit = {
     view.operation match {
       case access: ArrayAccess =>
         if (count == 1) {
@@ -512,14 +419,11 @@ object InputView {
       case ac: ArrayCreation => findAccessAndReorder(ac.v, idx, t, count+1, transpose)
       case op => throw new NotImplementedError(op.getClass.toString)
     }
-  }
+  }*/
 
-
-  private def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)): Type = {
+  private def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)]): Type = {
     outputAccessInf.foldLeft(outputType)((t, len) => ArrayType(t, len._1))
   }
-
-
 
   def getInputAccess(sv : InputView, tupleAccessStack : Stack[Int] = new Stack()) : InputAccess = {
     sv.operation match {
