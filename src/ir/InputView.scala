@@ -19,7 +19,8 @@ abstract class InputView(val t: Type = UndefType) {
       case asVector: InputViewAsVector => new InputViewAsVector(asVector.n, asVector.iv.replaced(oldExpr, newExpr), t)
       case asScalar: InputViewAsScalar => new InputViewAsScalar(asScalar.iv.replaced(oldExpr, newExpr), asScalar.n, t)
       case filter: InputViewFilter => new InputViewFilter(filter.iv.replaced(oldExpr, newExpr), filter.ids.replaced(oldExpr, newExpr), t)
-      case component: InputViewZipComponent => new InputViewZipComponent(component.i, component.iv.replaced(oldExpr,newExpr), t)
+      case tuple: InputViewTuple => new InputViewTuple(tuple.ivs.map(_.replaced(oldExpr, newExpr)), t)
+      case component: InputViewTupleComponent => new InputViewTupleComponent(component.i, component.iv.replaced(oldExpr,newExpr), t)
 
       case  _ => this
     }
@@ -37,8 +38,12 @@ abstract class InputView(val t: Type = UndefType) {
   }
 
   def join(chunkSize: ArithExpr): InputView = {
+    println("join " + chunkSize)
+    println(t)
     this.t match {
-      case ArrayType(ArrayType(elemT, n), m) => new InputViewJoin(chunkSize, this, ArrayType(elemT, n*m))
+      case ArrayType(ArrayType(elemT, n), m) =>
+        println(elemT)
+        new InputViewJoin(chunkSize, this, ArrayType(elemT, n*m))
     }
   }
 
@@ -48,8 +53,8 @@ abstract class InputView(val t: Type = UndefType) {
 
   def asVector(n: ArithExpr): InputView = {
     t match {
-      case st: ScalarType =>
-        new InputViewAsVector(n, this, Type.vectorize(st, n))
+      case ArrayType(st: ScalarType, len) =>
+        new InputViewAsVector(n, this, ArrayType(Type.vectorize(st, n), len))
       case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into vector types")
     }
   }
@@ -61,15 +66,24 @@ abstract class InputView(val t: Type = UndefType) {
 
   def asScalar(): InputView = {
     t match {
-      case VectorType(st, n) =>
-        new InputViewAsScalar(this, n, st)
+      case ArrayType(VectorType(st, n), len) =>
+        new InputViewAsScalar(this, n, ArrayType(st, len))
       case st: ScalarType => this
       case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
     }
   }
 
   def get(i: Int): InputView = {
-   new InputViewZipComponent(i, this, t.asInstanceOf[TupleType].elemsT(i))
+   new InputViewTupleComponent(i, this, t.asInstanceOf[TupleType].elemsT(i))
+  }
+
+  def zip(): InputView = {
+    this match {
+      case tuple: InputViewTuple =>
+        new InputViewZip(tuple.ivs, ArrayType(TupleType(tuple.ivs.map(_.t.asInstanceOf[ArrayType].elemT):_*),
+          tuple.ivs.head.t.asInstanceOf[ArrayType].len))
+      case other => throw new IllegalArgumentException("Can't zip " + other.getClass)
+    }
   }
 }
 
@@ -93,7 +107,9 @@ class InputViewFilter(val iv: InputView, val ids: InputView, override val t: Typ
 
 class InputViewMap(val iv: InputView, val itVar: Var, override val t: Type) extends InputView(t)
 
-class InputViewZipComponent(val i: Int, val iv: InputView, override val t: Type) extends InputView(t)
+class InputViewTupleComponent(val i: Int, val iv: InputView, override val t: Type) extends InputView(t)
+
+class InputViewTuple(val ivs: Seq[InputView], override val t: Type) extends InputView(t)
 
 object NoView extends InputView()
 
@@ -103,9 +119,8 @@ object InputView {
     InputView.create(name, t)
   }
 
-  def zip(ivs: InputView*): InputView = {
-    new InputViewZip(ivs, ArrayType(TupleType(ivs.map(_.t.asInstanceOf[ArrayType].elemT):_*),
-      ivs(0).t.asInstanceOf[ArrayType].len))
+  def tuple(ivs: InputView*) = {
+    new InputViewTuple(ivs, TupleType(ivs.map(_.t):_*))
   }
 
   def create(name: String, t: Type): InputView = {
@@ -132,7 +147,8 @@ object InputView {
     } else if (call.args.length == 1) {
       visitAndBuildViews(call.args(0), outputAccessInf)
     } else {
-      InputView.zip(call.args.map((expr: Expr) => visitAndBuildViews(expr, outputAccessInf)):_*)
+      println(call.args.map(_.t).mkString(", "))
+      InputView.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr, outputAccessInf)):_*)
     }
   }
 
@@ -196,17 +212,16 @@ object InputView {
 
     // traverse into call.f
     val innerView = visitAndBuildViews(call.f.f.body, newOutputAccessInf)
-    // get full type of the output memory object
-    val fullReturnType = getFullType(call.t, outputAccessInf)
 
     if (call.isConcrete) {
       // create fresh input view for following function
-      InputView.create(call.mem.variable.name, fullReturnType)
+      initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
+    // get full type of the output memory object
+    val fullReturnType = getFullType(call.t, outputAccessInf)
       new InputViewMap(innerView, call.loopVar, fullReturnType)
     }
   }
-
 
   private def buildViewReduceCall(call: ReduceCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
     // pass down input view
@@ -216,10 +231,8 @@ object InputView {
     val newOutputAccessInf = (Type.getLength(call.t), Cst(0)) :: outputAccessInf
     // traverse into call.f
     visitAndBuildViews(call.f.f.body, newOutputAccessInf)
-    // get full type of the output memory object
-    val fullReturnType = getFullType(call.t, outputAccessInf)
     // create fresh input view for following function
-    InputView.create(call.mem.variable.name, fullReturnType)
+   initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
@@ -256,7 +269,7 @@ object InputView {
   }
 
   private def createViewZip(z: Zip, call: FunCall, argView: InputView): InputView = {
-    argView
+    argView.zip()
   }
 
   private def createViewFilter(f: Filter, call: FunCall, argView: InputView): InputView = {
@@ -322,7 +335,8 @@ object InputView {
   }
 
   private def createViewGather(gather: Gather, call: FunCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
-    argView.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
+    gather.f.params(0).view = argView.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
+    visitAndBuildViews(gather.f.body, outputAccessInf)
   }
 
   // TODO: Implement in OutputView
@@ -333,8 +347,6 @@ object InputView {
     // Find the matching ArrayAccess to the first ArrayCreation,
     // and reorder the ArrayView in the access
 //    findAccessAndReorder(scatter.f.body.view, scatter.idx, call.t, 0)
-
-    argView
   }
 
   // TODO: Implement in OutputView
@@ -381,7 +393,7 @@ object InputView {
       case asVector: InputViewAsVector => InputView.getInputAccess(asVector.iv, tupleAccessStack)
       case asScalar: InputViewAsScalar => InputView.getInputAccess(asScalar.iv, tupleAccessStack)
 
-      case component : InputViewZipComponent =>
+      case component : InputViewTupleComponent =>
         val newTAS = tupleAccessStack.push(component.i)
         getInputAccess(component.iv, newTAS)
 
@@ -389,6 +401,11 @@ object InputView {
         val i = tupleAccessStack.top
         val newTAS = tupleAccessStack.pop
         getInputAccess(zip.ivs(i),newTAS)
+
+      case tuple: InputViewTuple =>
+        val i = tupleAccessStack.top
+        val newTAS = tupleAccessStack.pop
+        getInputAccess(tuple.ivs(i),newTAS)
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }
@@ -452,14 +469,19 @@ object ViewPrinter {
 
         emitView(filter.iv, stack.push((indirection, len)), tupleAccessStack)
 
-      case ta : InputViewZipComponent =>
-        val newTAS = tupleAccessStack.push(ta.i)
-        emitView(ta.iv,arrayAccessStack,newTAS)
+      case component : InputViewTupleComponent =>
+        val newTAS = tupleAccessStack.push(component.i)
+        emitView(component.iv,arrayAccessStack,newTAS)
 
-      case tc : InputViewZip =>
+      case zip : InputViewZip =>
         val i = tupleAccessStack.top
         val newTAS = tupleAccessStack.pop
-        emitView(tc.ivs(i),arrayAccessStack,newTAS)
+        emitView(zip.ivs(i),arrayAccessStack,newTAS)
+
+      case tuple : InputViewTuple =>
+        val i = tupleAccessStack.top
+        val newTAS = tupleAccessStack.pop
+        emitView(tuple.ivs(i),arrayAccessStack,newTAS)
 
       case asVector: InputViewAsVector =>
         val top = arrayAccessStack.top
