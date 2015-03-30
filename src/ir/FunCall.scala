@@ -126,21 +126,28 @@ object Value {
   }
 }
 
-case class IterateCall(override val f: Iterate, override val args: Expr*) extends FunCall(f, args(0)) {
+case class IterateCall(override val f: Iterate, override val args: Expr*) extends FunCall(f, args.head) {
   assert(args.length == 1)
   def arg: Expr = args(0)
+
+  var iterationCount: ArithExpr = ?
 
   var swapBuffer: Memory = UnallocatedMemory
+  var indexVar = Var("i", RangeUnknown)
 }
 
-case class MapCall(name: String, loopVar: Var, override val f: AbstractMap, override val args: Expr*) extends FunCall(f, args(0)) {
+case class MapCall(name: String, loopVar: Var, override val f: AbstractMap, override val args: Expr*) extends FunCall(f, args.head) {
   assert(args.length == 1)
+
+  var iterationCount: ArithExpr = ?
 
   def arg: Expr = args(0)
 }
 
-case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override val args: Expr*) extends FunCall(f, args(0), args(1)) {
+case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override val args: Expr*) extends FunCall(f, args.head, args(1)) {
   assert(args.length == 2)
+
+  var iterationCount: ArithExpr = ?
 
   def arg0: Expr = args(0)
   def arg1: Expr = args(1)
@@ -231,7 +238,7 @@ object Expr {
     pre(expr)
     expr match {
       case call: FunCall =>
-        call.args.map( (arg) => visit(arg, pre, post) )
+        call.args.foreach( (arg) => visit(arg, pre, post) )
 
         call.f match {
           case fp: FPattern => visit(fp.f.body, pre, post)
