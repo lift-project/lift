@@ -2,7 +2,7 @@ package opencl.generator
 
 import ir.UserFunDef._
 import ir._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ Execute, Executor}
 import opencl.ir.{Barrier, MapLcl, MapWrg, Float}
 import org.junit.Assert._
 import org.junit.{Test, AfterClass, BeforeClass}
@@ -30,13 +30,17 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val (output, runtime) = Execute(128, inputSize, (true, false))(
-      f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, false))
+    val (output, runtime) = Execute(128, inputSize)(
+      code, f, inputs:_*)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
+    assertEquals(1, "for".r.findAllMatchIn(code).length)
+    assertEquals(0, "if".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -49,13 +53,17 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(64) $ in
     )
 
-    val (output, runtime) = Execute(128, inputSize, (true, false))(
-      f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, false))
+    val (output, runtime) = Execute(128, inputSize)(
+      code, f, inputs:_*)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
+    assertEquals(1, "for".r.findAllMatchIn(code).length)
+    assertEquals(1, "if".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -68,13 +76,17 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(256) $ in
     )
 
-    val (output, runtime) = Execute(128, inputSize, (true, false))(
-      f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, false))
+    val (output, runtime) = Execute(128, inputSize)(
+      code, f, inputs:_*)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
+    assertEquals(2, "for".r.findAllMatchIn(code).length)
+    assertEquals(0, "if".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -87,13 +99,17 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val (output, runtime) = Execute(128, inputSize, (true, true))(
-      f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, true))
+    val (output, runtime) = Execute(128, inputSize)(
+      code, f, inputs:_*)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
+    assertEquals(0, "for".r.findAllMatchIn(code).length)
+    assertEquals(0, "if".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -106,13 +122,17 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val (output, runtime) = Execute(128, inputSize*2, (true, true))(
-      f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize*2, (true, true))
+    val (output, runtime) = Execute(128, inputSize*2)(
+      code, f, inputs:_*)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
+    assertEquals(0, "for".r.findAllMatchIn(code).length)
+    assertEquals(1, "if".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -125,13 +145,17 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val (output, runtime) = Execute(128, inputSize/2, (true, true))(
-      f, input, inputSize)
+    val inputs = Seq(input, inputSize)
+    val code = TestUtils.compile(f, inputs, 128, inputSize/2, (true, true))
+    val (output, runtime) = Execute(128, inputSize/2)(
+      code, f, inputs:_*)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
+    assertEquals(1, "for".r.findAllMatchIn(code).length)
+    assertEquals(0, "if".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 }

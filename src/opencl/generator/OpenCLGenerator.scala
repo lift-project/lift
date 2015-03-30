@@ -236,7 +236,7 @@ object OpenCLGenerator extends Generator {
   // MapWrg
   private def generateMapWrgCall(call: MapCall): Unit = {
 
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
     // if (m.dim == 0) {
@@ -247,7 +247,7 @@ object OpenCLGenerator extends Generator {
   // MapGlb
   private def generateMapGlbCall(call: MapCall): Unit = {
 
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
     // if (m.dim == 0) {
@@ -257,24 +257,24 @@ object OpenCLGenerator extends Generator {
   
   // MapLcl
   private def generateMapLclCall(call: MapCall) {
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
   }
 
   // MapWarp
   private def generateMapWarpCall(call: MapCall) {
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     oclPrinter.generateBarrier(call.mem)
   }
 
   // MapLane
   private def generateMapLaneCall(call: MapCall) {
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
   }
   
   // MapSeq
   private def generateMapSeqCall(call: MapCall) {
     oclPrinter.commln("map_seq")
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     oclPrinter.commln("map_seq")
   }
   
@@ -302,7 +302,7 @@ object OpenCLGenerator extends Generator {
       oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.args.map(_.view): _*))
 
       oclPrinter.println(";")
-    })
+    }, call.iterationCount)
 
     // 4. generate output[0] = acc
     oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.view) =:= oclPrinter.toOpenCL(accVar))
@@ -386,7 +386,7 @@ object OpenCLGenerator extends Generator {
       oclPrinter.println(tinVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + swapVStr + ":" + outVStr + ";")
       // tout = (tout == swap) ? out : swap
       oclPrinter.println(toutVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + outVStr + ":" + swapVStr + ";")
-    })
+    }, call.iterationCount)
 
     oclPrinter.closeCB()
   }

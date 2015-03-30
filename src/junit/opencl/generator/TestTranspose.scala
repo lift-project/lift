@@ -179,10 +179,10 @@ class TestTranspose {
     println("runtime = " + runtime)
 
     println("gold: ")
-    PrintUtils.myPrint(gold.flatten, Ksize)
+    TestUtils.myPrint(gold.flatten, Ksize)
 
     println("output: ")
-    PrintUtils.myPrint(output, Ksize)
+    TestUtils.myPrint(output, Ksize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -223,10 +223,10 @@ class TestTranspose {
     println("runtime = " + runtime)
 
     println("gold: ")
-    PrintUtils.myPrint(gold.flatten, Ksize)
+    TestUtils.myPrint(gold.flatten, Ksize)
 
     println("output: ")
-    PrintUtils.myPrint(output, Ksize)
+    TestUtils.myPrint(output, Ksize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -239,7 +239,7 @@ class TestTranspose {
     val gold   = matrix.transpose
 
     println("matrix: ")
-    PrintUtils.myPrint(matrix)
+    TestUtils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -257,7 +257,7 @@ class TestTranspose {
     println("runtime = " + runtime)
 
     println("output: ")
-    PrintUtils.myPrint(output, Nsize)
+    TestUtils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -270,7 +270,7 @@ class TestTranspose {
     val gold   = matrix.transpose
 
     println("matrix: ")
-    PrintUtils.myPrint(matrix)
+    TestUtils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -288,7 +288,7 @@ class TestTranspose {
     println("runtime = " + runtime)
 
     println("output: ")
-    PrintUtils.myPrint(output, Nsize)
+    TestUtils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -301,7 +301,7 @@ class TestTranspose {
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     println("matrix: ")
-    PrintUtils.myPrint(matrix)
+    TestUtils.myPrint(matrix)
 
     val gold   = matrix.transpose
 
@@ -327,10 +327,10 @@ class TestTranspose {
     println("runtime = " + runtime)
 
     println("gold: ")
-    PrintUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
+    TestUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
 
     println("output: ")
-    PrintUtils.myPrint(output, Nsize, Ksize)
+    TestUtils.myPrint(output, Nsize, Ksize)
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
@@ -343,7 +343,7 @@ class TestTranspose {
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     println("matrix: ")
-    PrintUtils.myPrint(matrix)
+    TestUtils.myPrint(matrix)
 
     val gold   = matrix.map(_.transpose)
 
@@ -368,10 +368,10 @@ class TestTranspose {
     println("runtime = " + runtime)
 
     println("gold: ")
-    PrintUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
+    TestUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
 
     println("output: ")
-    PrintUtils.myPrint(output, Nsize, Ksize)
+    TestUtils.myPrint(output, Nsize, Ksize)
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
@@ -384,7 +384,7 @@ class TestTranspose {
     val gold   = matrix.transpose
 
     println("matrix: ")
-    PrintUtils.myPrint(matrix)
+    TestUtils.myPrint(matrix)
 
     val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.naive, matrix, Nsize, Msize)
 
@@ -393,7 +393,7 @@ class TestTranspose {
     println("runtime = " + runtime)
 
     println("output: ")
-    PrintUtils.myPrint(output, Nsize)
+    TestUtils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -406,7 +406,7 @@ class TestTranspose {
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     println("matrix: ")
-    PrintUtils.myPrint(matrix)
+    TestUtils.myPrint(matrix)
 
     val gold   = matrix.transpose
 
@@ -433,10 +433,10 @@ class TestTranspose {
     println("runtime = " + runtime)
 
     println("gold: ")
-    PrintUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
+    TestUtils.myPrint(gold.flatten.flatten, Nsize, Ksize)
 
     println("output: ")
-    PrintUtils.myPrint(output, Nsize, Ksize)
+    TestUtils.myPrint(output, Nsize, Ksize)
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
