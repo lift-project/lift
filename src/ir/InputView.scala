@@ -4,41 +4,20 @@ import opencl.ir._
 
 import scala.collection.immutable.Stack
 
-// TODO: Remove operations after refactoring ViewPrinter
-sealed abstract class Operation
-
-object NoOperation extends Operation
-
-class InputAccess(val name: String) extends Operation
-
-class ArrayCreation(val v: InputView, val len: ArithExpr, val itVar: Var) extends Operation
-class ArrayAccess(var av: InputView, val idx: ArithExpr) extends Operation
-class ArrayReorder(val av: InputView, val f: (ArithExpr) => ArithExpr) extends Operation
-class ArraySplit(val av: InputView, val chunkSize: ArithExpr) extends Operation
-class ArrayJoin(val av: InputView, val chunkSize: ArithExpr) extends Operation
-class ArrayZip(val tv: InputView) extends Operation
-class ArrayAsVector(val av: InputView, val n: ArithExpr) extends Operation
-class ArrayAsScalar(val av: InputView, val n: ArithExpr) extends Operation
-class SubArray(val in: InputView, val ids: InputView) extends Operation
-
-class TupleCreation(val views: Seq[InputView]) extends Operation
-class TupleAccess(val tv: InputView, val i: Int) extends Operation
-
-
-abstract class InputView(val operation: Operation, val t: Type = UndefType) {
+abstract class InputView(val t: Type = UndefType) {
   def replaced(oldExpr: ArithExpr, newExpr: ArithExpr): InputView = {
     val subst = new scala.collection.mutable.HashMap[ArithExpr,ArithExpr]()
     subst.put(oldExpr, newExpr)
 
     this match {
-      case map: InputViewMap => new InputViewMap(map.iv.replaced(oldExpr,newExpr), t)
+      case map: InputViewMap => new InputViewMap(map.iv.replaced(oldExpr,newExpr), map.itVar, t)
       case access: InputViewAccess => new InputViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(oldExpr,newExpr), t)
       case zip: InputViewZip => new InputViewZip(zip.ivs.map(_.replaced(oldExpr,newExpr)), t)
       case split: InputViewSplit => new InputViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(oldExpr,newExpr), t)
       case join: InputViewJoin => new InputViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(oldExpr,newExpr), t)
       case gather: InputViewGather => new InputViewGather(gather.f, gather.iv.replaced(oldExpr, newExpr), t)
       case asVector: InputViewAsVector => new InputViewAsVector(asVector.n, asVector.iv.replaced(oldExpr, newExpr), t)
-      case asScalar: InputViewAsScalar => new InputViewAsScalar(asScalar.iv.replaced(oldExpr, newExpr), t)
+      case asScalar: InputViewAsScalar => new InputViewAsScalar(asScalar.iv.replaced(oldExpr, newExpr), asScalar.n, t)
       case filter: InputViewFilter => new InputViewFilter(filter.iv.replaced(oldExpr, newExpr), filter.ids.replaced(oldExpr, newExpr), t)
       case component: InputViewZipComponent => new InputViewZipComponent(component.i, component.iv.replaced(oldExpr,newExpr), t)
 
@@ -83,7 +62,7 @@ abstract class InputView(val operation: Operation, val t: Type = UndefType) {
   def asScalar(): InputView = {
     t match {
       case VectorType(st, n) =>
-        new InputViewAsScalar(this, st)
+        new InputViewAsScalar(this, n, st)
       case st: ScalarType => this
       case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
     }
@@ -94,29 +73,29 @@ abstract class InputView(val operation: Operation, val t: Type = UndefType) {
   }
 }
 
-class InputViewMem(val name: String, override val t: Type) extends InputView(NoOperation, t)
+class InputViewMem(val name: String, override val t: Type) extends InputView(t)
 
-class InputViewAccess(val i: ArithExpr, val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewAccess(val i: ArithExpr, val iv: InputView, override val t: Type) extends InputView(t)
 
-class InputViewSplit(val n: ArithExpr, val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewSplit(val n: ArithExpr, val iv: InputView, override val t: Type) extends InputView(t)
 
-class InputViewJoin(val n: ArithExpr, val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewJoin(val n: ArithExpr, val iv: InputView, override val t: Type) extends InputView(t)
 
-class InputViewZip(val ivs: Seq[InputView], override val t: Type) extends InputView(NoOperation, t)
+class InputViewZip(val ivs: Seq[InputView], override val t: Type) extends InputView(t)
 
-class InputViewGather(val f: ArithExpr => ArithExpr, val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewGather(val f: ArithExpr => ArithExpr, val iv: InputView, override val t: Type) extends InputView(t)
 
-class InputViewAsVector(val n: ArithExpr, val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewAsVector(val n: ArithExpr, val iv: InputView, override val t: Type) extends InputView(t)
 
-class InputViewAsScalar(val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewAsScalar(val iv: InputView, val n: ArithExpr, override val t: Type) extends InputView(t)
 
-class InputViewFilter(val iv: InputView, val ids: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewFilter(val iv: InputView, val ids: InputView, override val t: Type) extends InputView(t)
 
-class InputViewMap(val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewMap(val iv: InputView, val itVar: Var, override val t: Type) extends InputView(t)
 
-class InputViewZipComponent(val i: Int, val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
+class InputViewZipComponent(val i: Int, val iv: InputView, override val t: Type) extends InputView(t)
 
-object NoView extends InputView(NoOperation)
+object NoView extends InputView()
 
 object InputView {
   // create new view based on the given type
@@ -224,7 +203,7 @@ object InputView {
       // create fresh input view for following function
       InputView.create(call.mem.variable.name, fullReturnType)
     } else { // call.isAbstract and return input map view
-      new InputViewMap(innerView, fullReturnType)
+      new InputViewMap(innerView, call.loopVar, fullReturnType)
     }
   }
 
@@ -427,75 +406,70 @@ object ViewPrinter {
   private def emitView(sv : InputView,
                        arrayAccessStack : Stack[(ArithExpr, ArithExpr)], // id, dimension size
                        tupleAccessStack : Stack[Int]) : ArithExpr = {
-    sv.operation match {
-      case ia : InputAccess =>
+    sv match {
+      case mem : InputViewMem =>
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
 
-      case aa : ArrayAccess =>
+      case access : InputViewAccess =>
         val length: ArithExpr = getLengthForArrayAccess(sv.t.asInstanceOf[ArrayType].elemT, tupleAccessStack)
-        val newAAS = arrayAccessStack.push((aa.idx, length))
-        emitView(aa.av,newAAS, tupleAccessStack)
+        val newAAS = arrayAccessStack.push((access.i, length))
+        emitView(access.iv,newAAS, tupleAccessStack)
 
-      case ac : ArrayCreation =>
+      case map : InputViewMap =>
         val idx = arrayAccessStack.top._1
         val newAAS = arrayAccessStack.pop
-        val newV = ac.v.replaced(ac.itVar, idx)
+        val newV = map.iv.replaced(map.itVar, idx)
         emitView(newV,newAAS,tupleAccessStack)
 
-      case as : ArraySplit =>
+      case split : InputViewSplit =>
         val (chunkId,stack1) = arrayAccessStack.pop2
         val (chunkElemId,stack2) = stack1.pop2
-        val newIdx = chunkId._1*as.chunkSize+chunkElemId._1
+        val newIdx = chunkId._1*split.n+chunkElemId._1
         val newAAS = stack2.push((newIdx, chunkElemId._2))
-        emitView(as.av, newAAS,tupleAccessStack)
+        emitView(split.iv, newAAS,tupleAccessStack)
 
-      case aj : ArrayJoin =>
+      case join : InputViewJoin =>
         val (idx,stack) = arrayAccessStack.pop2
-        val chunkSize: ArithExpr = aj.chunkSize
+        val chunkSize: ArithExpr = join.n
         val chunkId = idx._1 div chunkSize
         val chunkElemId = idx._1 % chunkSize
         val newAS = stack.push((chunkElemId, Type.getLengths(sv.t.asInstanceOf[ArrayType].elemT).reduce(_*_))).
           push((chunkId, Type.getLengths(sv.asInstanceOf[InputViewJoin].t.asInstanceOf[ArrayType].elemT).reduce(_*_)))
-        emitView(aj.av,newAS,tupleAccessStack)
+        emitView(join.iv,newAS,tupleAccessStack)
 
-      case ar : ArrayReorder =>
+      case gather : InputViewGather =>
         val (idx,stack) = arrayAccessStack.pop2
-        val newIdx = ar.f(idx._1)
+        val newIdx = gather.f(idx._1)
         val newAS = stack.push((newIdx, idx._2))
-        emitView(ar.av,newAS,tupleAccessStack)
+        emitView(gather.iv,newAS,tupleAccessStack)
 
-      case sa : SubArray =>
+      case filter : InputViewFilter =>
         val ((idx, len), stack) = arrayAccessStack.pop2
 
-        val newIdx = emit(sa.ids.access(idx))
-        val indirection = new AccessVar(InputView.getInputAccess(sa.ids).name, newIdx)
+        val newIdx = emit(filter.ids.access(idx))
+        val indirection = new AccessVar(InputView.getInputAccess(filter.ids).name, newIdx)
 
-        emitView(sa.in, stack.push((indirection, len)), tupleAccessStack)
+        emitView(filter.iv, stack.push((indirection, len)), tupleAccessStack)
 
-      case ta : TupleAccess =>
+      case ta : InputViewZipComponent =>
         val newTAS = tupleAccessStack.push(ta.i)
-        emitView(ta.tv,arrayAccessStack,newTAS)
+        emitView(ta.iv,arrayAccessStack,newTAS)
 
-      case tc : TupleCreation =>
+      case tc : InputViewZip =>
         val i = tupleAccessStack.top
         val newTAS = tupleAccessStack.pop
-        emitView(tc.views(i),arrayAccessStack,newTAS)
+        emitView(tc.ivs(i),arrayAccessStack,newTAS)
 
-      case az : ArrayZip =>
-        val i = tupleAccessStack.top
-        val newTAS = tupleAccessStack.pop
-        emitView(az.tv.access(i) ,arrayAccessStack,newTAS)
-
-      case aav: ArrayAsVector =>
+      case asVector: InputViewAsVector =>
         val top = arrayAccessStack.top
-        val newAAS = arrayAccessStack.pop.push((top._1 * aav.n, top._2)).map(x => (x._1, x._2 / aav.n))
-        emitView(aav.av, newAAS, tupleAccessStack)
+        val newAAS = arrayAccessStack.pop.push((top._1 * asVector.n, top._2)).map(x => (x._1, x._2 / asVector.n))
+        emitView(asVector.iv, newAAS, tupleAccessStack)
 
-      case aas: ArrayAsScalar =>
+      case asScalar: InputViewAsScalar =>
         val top = arrayAccessStack.top
-        val newAAS = arrayAccessStack.pop.push((top._1 / aas.n, top._2)).map(x => (x._1, x._2 * aas.n))
-        emitView(aas.av, newAAS, tupleAccessStack)
+        val newAAS = arrayAccessStack.pop.push((top._1 / asScalar.n, top._2)).map(x => (x._1, x._2 * asScalar.n))
+        emitView(asScalar.iv, newAAS, tupleAccessStack)
 
       case op => throw new NotImplementedError(op.getClass.toString)
      }
