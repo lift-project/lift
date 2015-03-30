@@ -196,7 +196,7 @@ object InputView {
     val argView = getViewFromArgs(call, outputAccessInf)
 
     call match {
-      case call: MapCall => buildMapView(call, argView, outputAccessInf)
+      case call: MapCall => buildViewMapCall(call, argView, outputAccessInf)
       case call: ReduceCall => buildViewReduceCall(call, argView, outputAccessInf)
       case call: FunCall =>
         call.f match {
@@ -244,7 +244,7 @@ object InputView {
     visitAndBuildViews(tL.f.body, outputAccessInf)
   }
 
-  private def buildMapView(call: MapCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
+  private def buildViewMapCall(call: MapCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
     // pass down input view
     call.f.f.params(0).view = argView.access(call.loopVar)
     // build information where call.f should write
@@ -266,8 +266,8 @@ object InputView {
 
   private def buildViewReduceCall(call: ReduceCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
     // pass down input view
-    call.f.f.params(0).view = argView.access(0)
-    call.f.f.params(1).view = argView.access(1).access(call.loopVar)
+    call.f.f.params(0).view = argView.get(0)
+    call.f.f.params(1).view = argView.get(1).access(call.loopVar)
     // build information where call.f should write
     val newOutputAccessInf = (Type.getLength(call.t), Cst(0)) :: outputAccessInf
     // traverse into call.f

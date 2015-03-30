@@ -10,22 +10,22 @@ class ViewTest {
   @Test
   def test1() {
 
-    val a = new PrimitiveView(new InputAccess("a"))
-    val B = new ArrayView(Int, new InputAccess("B"))
+    val a = InputView(Int, "a")
+    val B = InputView(ArrayType(Int, 8), "B")
 
     // The map below is not valid, zip on primitives would fail during type-checking
     // map(b => zip(a,b)) o B
     val var_i = new Var("i", RangeUnknown)
-    val b = B.access(var_i).asInstanceOf[PrimitiveView] // TODO B.get should return the appropriate type (use generics)
-    val zip_ab = new TupleView(TupleType(Int, Int), new TupleCreation(List(a, b)))
-    val map_zip_ab = new ArrayView(TupleType(Int, Int), new ArrayCreation(zip_ab, Cst(10), var_i))
+    val b = B.access(var_i)
+    val zip_ab = InputView.zip(a, b)
+    val map_zip_ab = new InputViewMap(zip_ab.access(var_i))
 
     // map (f) o ...
     val var_j = new Var("j", RangeUnknown)
-    val mapf = map_zip_ab.access(var_j).asInstanceOf[TupleView]
+    val mapf = map_zip_ab.access(var_j)
 
-    val mapf0 = mapf.access(0).asInstanceOf[PrimitiveView]
-    val mapf1 = mapf.access(1).asInstanceOf[PrimitiveView]
+    val mapf0 = mapf.get(0)
+    val mapf1 = mapf.get(1)
 
 
     assertEquals(Cst(0), ViewPrinter.emit(a))
@@ -37,36 +37,36 @@ class ViewTest {
   @Test
   def test2() {
 
-    val A = new ArrayView(new ArrayType(Int, 8), new InputAccess("A"))
-    val B = new ArrayView(new ArrayType(Int, 8), new InputAccess("B"))
+    val A = InputView(ArrayType(Int, 8), "A")
+    val B = InputView(ArrayType(Int, 8), "B")
 
     //  map(map(map(f))) o map(a => map(b => map(zip(a,b)) o B) o A equivalent to
     // map(a => map(b => map(f) $ zip(a,b)) o B) o A
 
     // map(a => ... ) $ A
     val var_i = new Var("i", RangeUnknown)
-    val a = A.access(var_i).asInstanceOf[ArrayView]
+    val a = A.access(var_i)
     // ... map(b => ...) $ B ...
     val var_j = new Var("j", RangeUnknown)
-    val b = B.access(var_j).asInstanceOf[ArrayView]
+    val b = B.access(var_j)
     // ... $ zip(a, b) ...
-    val zip_ab = new TupleView(TupleType(new ArrayType(Int, 8), new ArrayType(Int, 8)), new TupleCreation(List(a, b)))
-    val map_zip_ab = new ArrayView(TupleType(new ArrayType(Int, 8), new ArrayType(Int, 8)), new ArrayCreation(zip_ab, Cst(4), var_j))
-    val map_map_zip_ab = new ArrayView(new ArrayType(TupleType(new ArrayType(Int, 8), new ArrayType(Int, 8)),4), new ArrayCreation(map_zip_ab, Cst(4), var_i))
+    val zip_ab = InputView.zip(a, b)
+    val map_zip_ab = new InputViewMap(zip_ab)
+    val map_map_zip_ab = new InputViewMap(map_zip_ab)
 
     // ... map(f) $ ...
 
     // map(map (f)) o ...
     val var_k = new Var("k", RangeUnknown)
     val var_l = new Var("l", RangeUnknown)
-    val map_f = map_map_zip_ab.access(var_k).asInstanceOf[ArrayView]
-    val map_map_f = map_f.access(var_l).asInstanceOf[TupleView]
+    val map_f = map_map_zip_ab.access(var_k)
+    val map_map_f = map_f.access(var_l)
 
-    val map_map_f0 = map_map_f.access(0).asInstanceOf[ArrayView]
-    val map_map_f1 = map_map_f.access(1).asInstanceOf[ArrayView]
+    val map_map_f0 = map_map_f.get(0)
+    val map_map_f1 = map_map_f.get(1)
 
-    val map_map_f0_9 = map_map_f0.access(9).asInstanceOf[PrimitiveView]
-    val map_map_f1_7 = map_map_f1.access(7).asInstanceOf[PrimitiveView]
+    val map_map_f0_9 = map_map_f0.access(9)
+    val map_map_f1_7 = map_map_f1.access(7)
 
     assertEquals(8*var_k + 9, ExprSimplifier.simplify(ViewPrinter.emit(map_map_f0_9)))
     assertEquals(8*var_l + 7, ExprSimplifier.simplify(ViewPrinter.emit(map_map_f1_7)))
@@ -75,20 +75,20 @@ class ViewTest {
   @Test
   def test3() {
 
-    val A = new ArrayView(new ArrayType(Int, 8), new InputAccess("A"))
-    val B = new ArrayView(new ArrayType(Int, 8), new InputAccess("B"))
+    val A = InputView(new ArrayType(Int, 8), "A")
+    val B = InputView(new ArrayType(Int, 8), "B")
 
     // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
     val var_i = new Var("i", RangeUnknown)
     val var_j = new Var("j", RangeUnknown)
-    val a = A.access(var_i).asInstanceOf[ArrayView]
-    val b = B.access(var_j).asInstanceOf[ArrayView]
-    val zip_ab = new TupleView(TupleType(new ArrayType(Int, 8), new ArrayType(Int, 8)), new TupleCreation(List(a, b)))
-    val zip_ab0 = zip_ab.access(0).asInstanceOf[ArrayView]
-    val zip_ab1 = zip_ab.access(1).asInstanceOf[ArrayView]
+    val a = A.access(var_i)
+    val b = B.access(var_j)
+    val zip_ab = InputView.zip(a, b)
+    val zip_ab0 = zip_ab.get(0)
+    val zip_ab1 = zip_ab.get(1)
 
-    val zip_ab0_3 = zip_ab0.access(3).asInstanceOf[PrimitiveView]
-    val zip_ab1_7 = zip_ab1.access(7).asInstanceOf[PrimitiveView]
+    val zip_ab0_3 = zip_ab0.access(3)
+    val zip_ab1_7 = zip_ab1.access(7)
 
 
     assertEquals(8*var_i + 3, ExprSimplifier.simplify(ViewPrinter.emit(zip_ab0_3)))
@@ -98,7 +98,7 @@ class ViewTest {
   @Test
   def testSplit() {
 
-    val A = new ArrayView(new ArrayType(Int, 8), new InputAccess("A"))
+    val A = InputView(ArrayType(Int, 8), "A")
 
 
     // split-2 o A
@@ -106,10 +106,10 @@ class ViewTest {
     val var_i = new Var("i", RangeUnknown)
     val var_j = new Var("j", RangeUnknown)
 
-    val split2A_i = split2A.access(var_i).asInstanceOf[ArrayView]
-    val split2A_i_j = split2A_i.access(var_j).asInstanceOf[ArrayView]
+    val split2A_i = split2A.access(var_i)
+    val split2A_i_j = split2A_i.access(var_j)
 
-    val split2A_i_j_7 = split2A_i_j.access(7).asInstanceOf[PrimitiveView]
+    val split2A_i_j_7 = split2A_i_j.access(7)
 
     assertEquals(ExprSimplifier.simplify(8*(var_i*2 + var_j) + 7), ExprSimplifier.simplify(ViewPrinter.emit(split2A_i_j_7)))
   }
@@ -117,7 +117,7 @@ class ViewTest {
   @Test
   def testReorder() {
 
-    val A = new ArrayView(Int, new InputAccess("A"))
+    val A = InputView(ArrayType(Int, new Var("N")), "A")
 
     // reorder o A
     val reorder_A = A.reorder((idx) => 40-idx)
@@ -125,8 +125,8 @@ class ViewTest {
     // split o reorder o A
     val split_reorder_A = reorder_A.split(4)
 
-    val reorder_split_reorder_A_1 = split_reorder_A.access(1).asInstanceOf[ArrayView]
-    val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.access(3).asInstanceOf[PrimitiveView]
+    val reorder_split_reorder_A_1 = split_reorder_A.access(1)
+    val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.access(3)
 
     assertEquals(Cst(33), ExprSimplifier.simplify(ViewPrinter.emit(reorder_split_reorder_A_1_3)))
   }
@@ -144,12 +144,10 @@ class ViewTest {
     val i = new Var("i", ContinuousRange(0, N))
     val j = new Var("j", ContinuousRange(0, M))
 
-    val goal = InputView(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].access(j).
-      asInstanceOf[ArrayView].access(i)
+    val goal = InputView(transposedArray, "").access(j).access(i)
 
-    val reality = InputView(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].join(N).
-      reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).asInstanceOf[ArrayView].
-      access(j)
+    val reality = InputView(transposedArray, "").join(N).
+      reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).access(j)
 
     assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
       ExprSimplifier.simplify(ViewPrinter.emit(reality)))
@@ -169,12 +167,10 @@ class ViewTest {
     val i = new Var("i", ContinuousRange(0, N))
     val j = new Var("j", ContinuousRange(0, M))
 
-    val goal = InputView(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].access(j).
-      asInstanceOf[ArrayView].access(i)
+    val goal = InputView(transposedArray, "").access(j).access(i)
 
-    val view = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
-      reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).asInstanceOf[ArrayView].
-      access(j)
+    val view = InputView(finalArray, "").
+      reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).access(j)
 
     assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
       ExprSimplifier.simplify(ViewPrinter.emit(view)))
@@ -194,10 +190,9 @@ class ViewTest {
     val j = new Var("j", ContinuousRange(0, M))
 
     // Write for g
-    val goal = InputView(transposedArray, new InputAccess("")).asInstanceOf[ArrayView].
-      access(j).asInstanceOf[ArrayView].access(i)
+    val goal = InputView(transposedArray, "").access(j).access(i)
 
-    val view = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
+    val view = InputView(finalArray, "").asInstanceOf[ArrayView].
       split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
       split(M).access(i).asInstanceOf[ArrayView].access(j)
 
@@ -219,12 +214,11 @@ class ViewTest {
     val j = new Var("j", ContinuousRange(0, M))
 
     // Write for g
-    val goal = InputView(transposedArray, new InputAccess("")).
-      asInstanceOf[ArrayView].access(j).asInstanceOf[ArrayView].access(i)
+    val goal = InputView(transposedArray, "").access(j).access(i)
 
-    val view = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].
+    val view = InputView(finalArray, "").
       join(N).split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
-      split(M).access(i).asInstanceOf[ArrayView].access(j)
+      split(M).access(i).access(j)
 
     assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
       ExprSimplifier.simplify(ViewPrinter.emit(view)))
@@ -242,25 +236,22 @@ class ViewTest {
     val j = new Var("j", ContinuousRange(0, M))
     val k = new Var("k", ContinuousRange(0, L))
 
-    val origArray = ArrayType(ArrayType(ArrayType(Float, L), M), N)
+    // origArray = ArrayType(ArrayType(ArrayType(Float, L), M), N)
     val middleArray = ArrayType(ArrayType(ArrayType(Float, M), L), N)
     val finalArray = ArrayType(ArrayType(ArrayType(Float, M), N), L)
 
-    val goal = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].access(k).
-      asInstanceOf[ArrayView].access(i).asInstanceOf[ArrayView].access(j)
+    val goal = InputView(finalArray, "").access(k).access(i).access(j)
 
-    val midGoal = InputView(middleArray, new InputAccess("")).asInstanceOf[ArrayView].access(i).
-      asInstanceOf[ArrayView].access(k).asInstanceOf[ArrayView].access(j)
+    val midGoal = InputView(middleArray, "").access(i).access(k).access(j)
 
-    val midPoint = InputView(middleArray, new InputAccess("")).asInstanceOf[ArrayView].access(i).
-      asInstanceOf[ArrayView].join(M).
+    val midPoint = InputView(middleArray, "").access(i).join(M).
       reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
-      access(j).asInstanceOf[ArrayView].access(k)
+      access(j).access(k)
 
-    val view = InputView(finalArray, new InputAccess("")).asInstanceOf[ArrayView].join(N).
-      reorder(i => IndexFunction.transpose(i, middleArray)).split(L).access(i).asInstanceOf[ArrayView].
+    val view = InputView(finalArray, "").join(N).
+      reorder(i => IndexFunction.transpose(i, middleArray)).split(L).access(i).
       join(M).reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
-      access(j).asInstanceOf[ArrayView].access(k)
+      access(j).access(k)
 
     assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(midGoal)),
       ExprSimplifier.simplify(ViewPrinter.emit(midPoint)))

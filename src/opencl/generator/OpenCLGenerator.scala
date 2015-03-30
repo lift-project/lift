@@ -87,7 +87,7 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.view = InputView(p.t, new InputAccess(oclPrinter.toOpenCL(p.mem.variable)))
+      p.view = InputView(p.t, oclPrinter.toOpenCL(p.mem.variable))
     })
 
     // pass 1
