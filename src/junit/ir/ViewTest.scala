@@ -18,7 +18,7 @@ class ViewTest {
     val var_i = new Var("i", RangeUnknown)
     val b = B.access(var_i)
     val zip_ab = InputView.zip(a, b)
-    val map_zip_ab = new InputViewMap(zip_ab.access(var_i))
+    val map_zip_ab = new InputViewMap(zip_ab.access(var_i), TupleType(Int, Int))
 
     // map (f) o ...
     val var_j = new Var("j", RangeUnknown)
@@ -51,8 +51,8 @@ class ViewTest {
     val b = B.access(var_j)
     // ... $ zip(a, b) ...
     val zip_ab = InputView.zip(a, b)
-    val map_zip_ab = new InputViewMap(zip_ab)
-    val map_map_zip_ab = new InputViewMap(map_zip_ab)
+    val map_zip_ab = new InputViewMap(zip_ab, ArrayType(TupleType(Int, Int), 8))
+    val map_map_zip_ab = new InputViewMap(map_zip_ab, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
 
     // ... map(f) $ ...
 
