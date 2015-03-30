@@ -8,7 +8,6 @@ import opencl.ir._
 class ViewTest {
 
   @Test
-  @Ignore
   def test1() {
 
     val a = InputView(Int, "a")
@@ -38,7 +37,7 @@ class ViewTest {
 
   @Test
   def test2() {
-
+    // TODO: Expression doesn't make sense
     val A = InputView(ArrayType(ArrayType(Int, 8), 8), "A")
     val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
 
@@ -76,7 +75,7 @@ class ViewTest {
 
   @Test
   def test3() {
-
+    // TODO: Expression doesn't make sense
     val A = InputView(ArrayType(ArrayType(Int, 8), 8), "A")
     val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
 
@@ -110,7 +109,7 @@ class ViewTest {
     val split2A_i = split2A.access(var_i)
     val split2A_i_j = split2A_i.access(var_j)
 
-    assertEquals(ExprSimplifier.simplify(4*var_i + var_j), ExprSimplifier.simplify(ViewPrinter.emit(split2A_i_j)))
+    assertEquals(ExprSimplifier.simplify(2*var_i + var_j), ExprSimplifier.simplify(ViewPrinter.emit(split2A_i_j)))
   }
 
   @Test

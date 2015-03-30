@@ -412,7 +412,7 @@ object ViewPrinter {
         arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
 
       case access : InputViewAccess =>
-        val length: ArithExpr = getLengthForArrayAccess(sv.t.asInstanceOf[ArrayType].elemT, tupleAccessStack)
+        val length: ArithExpr = getLengthForArrayAccess(sv.t, tupleAccessStack)
         val newAAS = arrayAccessStack.push((access.i, length))
         emitView(access.iv,newAAS, tupleAccessStack)
 
@@ -435,7 +435,7 @@ object ViewPrinter {
         val chunkId = idx._1 div chunkSize
         val chunkElemId = idx._1 % chunkSize
         val newAS = stack.push((chunkElemId, Type.getLengths(sv.t.asInstanceOf[ArrayType].elemT).reduce(_*_))).
-          push((chunkId, Type.getLengths(sv.asInstanceOf[InputViewJoin].t.asInstanceOf[ArrayType].elemT).reduce(_*_)))
+          push((chunkId, Type.getLengths(join.t.asInstanceOf[ArrayType].elemT).reduce(_*_)*join.n))
         emitView(join.iv,newAS,tupleAccessStack)
 
       case gather : InputViewGather =>
