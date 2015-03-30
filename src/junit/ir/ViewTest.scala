@@ -192,9 +192,9 @@ class ViewTest {
     // Write for g
     val goal = InputView(transposedArray, "").access(j).access(i)
 
-    val view = InputView(finalArray, "").asInstanceOf[ArrayView].
+    val view = InputView(finalArray, "").
       split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
-      split(M).access(i).asInstanceOf[ArrayView].access(j)
+      split(M).access(i).access(j)
 
     assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
       ExprSimplifier.simplify(ViewPrinter.emit(view)))

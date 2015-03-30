@@ -4,6 +4,7 @@ import opencl.ir._
 
 import scala.collection.immutable.Stack
 
+// TODO: Remove operations after refactoring ViewPrinter
 sealed abstract class Operation
 
 object NoOperation extends Operation
@@ -11,17 +12,17 @@ object NoOperation extends Operation
 class InputAccess(val name: String) extends Operation
 
 class ArrayCreation(val v: InputView, val len: ArithExpr, val itVar: Var) extends Operation
-class ArrayAccess(var av: ArrayView, val idx: ArithExpr) extends Operation
-class ArrayReorder(val av: ArrayView, val f: (ArithExpr) => ArithExpr) extends Operation
-class ArraySplit(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
-class ArrayJoin(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
-class ArrayZip(val tv: TupleView) extends Operation
-class ArrayAsVector(val av: ArrayView, val n: ArithExpr) extends Operation
-class ArrayAsScalar(val av: ArrayView, val n: ArithExpr) extends Operation
-class SubArray(val in: ArrayView, val ids: ArrayView) extends Operation
+class ArrayAccess(var av: InputView, val idx: ArithExpr) extends Operation
+class ArrayReorder(val av: InputView, val f: (ArithExpr) => ArithExpr) extends Operation
+class ArraySplit(val av: InputView, val chunkSize: ArithExpr) extends Operation
+class ArrayJoin(val av: InputView, val chunkSize: ArithExpr) extends Operation
+class ArrayZip(val tv: InputView) extends Operation
+class ArrayAsVector(val av: InputView, val n: ArithExpr) extends Operation
+class ArrayAsScalar(val av: InputView, val n: ArithExpr) extends Operation
+class SubArray(val in: InputView, val ids: InputView) extends Operation
 
 class TupleCreation(val views: Seq[InputView]) extends Operation
-class TupleAccess(val tv: TupleView, val i: Int) extends Operation
+class TupleAccess(val tv: InputView, val i: Int) extends Operation
 
 
 abstract class InputView(val operation: Operation, val t: Type = UndefType) {
@@ -116,18 +117,6 @@ class InputViewMap(val iv: InputView, override val t: Type) extends InputView(No
 class InputViewZipComponent(val i: Int, val iv: InputView, override val t: Type) extends InputView(NoOperation, t)
 
 object NoView extends InputView(NoOperation)
-
-
-
-// TODO: Remove OLD!!!! views
-
-class ArrayView(val elemT: Type, override val operation: Operation) extends InputView(operation)
-
-class TupleView(val tupleType: TupleType, override val operation: Operation) extends InputView(operation)
-
-class PrimitiveView(override val operation: Operation) extends InputView(operation)
-
-// TODO: here is the new stuff
 
 object InputView {
   // create new view based on the given type
@@ -324,7 +313,7 @@ object InputView {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
     val outView = InputView.create(name, outArray)
-    outputAccessInf.foldRight(outView)((idx, view) => view.asInstanceOf[ArrayView].access(idx._2))
+    outputAccessInf.foldRight(outView)((idx, view) => view.access(idx._2))
   }
 
   private def createViewReorderStride(s: ArithExpr, call: FunCall, argView: InputView): InputView = {
@@ -431,14 +420,10 @@ object InputView {
 object ViewPrinter {
 
   def emit(sv : InputView) : ArithExpr = {
-    sv match {
-      case _: PrimitiveView => emitView(sv, new Stack(), new Stack())
-      case _: TupleView => emitView(sv, new Stack(), new Stack())
-      case t => throw new IllegalArgumentException(t.getClass + " found, TupleView/PrimitiveView expected")
-    }
+      emitView(sv, new Stack(), new Stack())
   }
 
-
+  // TODO: Continue refactoring here
   private def emitView(sv : InputView,
                        arrayAccessStack : Stack[(ArithExpr, ArithExpr)], // id, dimension size
                        tupleAccessStack : Stack[Int]) : ArithExpr = {
@@ -448,7 +433,7 @@ object ViewPrinter {
         arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
 
       case aa : ArrayAccess =>
-        val length: ArithExpr = getLengthForArrayAccess(aa.av.elemT, tupleAccessStack)
+        val length: ArithExpr = getLengthForArrayAccess(sv.t.asInstanceOf[ArrayType].elemT, tupleAccessStack)
         val newAAS = arrayAccessStack.push((aa.idx, length))
         emitView(aa.av,newAAS, tupleAccessStack)
 
@@ -470,7 +455,8 @@ object ViewPrinter {
         val chunkSize: ArithExpr = aj.chunkSize
         val chunkId = idx._1 div chunkSize
         val chunkElemId = idx._1 % chunkSize
-        val newAS = stack.push((chunkElemId, Type.getLengths(sv.asInstanceOf[ArrayView].elemT).reduce(_*_))).push((chunkId, Type.getLengths(aj.av.elemT).reduce(_*_)))
+        val newAS = stack.push((chunkElemId, Type.getLengths(sv.t.asInstanceOf[ArrayType].elemT).reduce(_*_))).
+          push((chunkId, Type.getLengths(sv.asInstanceOf[InputViewJoin].t.asInstanceOf[ArrayType].elemT).reduce(_*_)))
         emitView(aj.av,newAS,tupleAccessStack)
 
       case ar : ArrayReorder =>
