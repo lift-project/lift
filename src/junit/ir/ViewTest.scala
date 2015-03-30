@@ -1,6 +1,6 @@
 package ir
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 import org.junit.Assert._
 
 import opencl.ir._
@@ -10,38 +10,34 @@ class ViewTest {
   @Test
   def test1() {
 
-    val a = InputView(Int, "a")
-    val B = InputView(ArrayType(Int, 8), "B")
+    val a = InputView(ArrayType(Int, 8), "a")
+    val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
 
-    // TODO: Remove? Explanation below
-    // The map below is not valid, zip on primitives would fail during type-checking
     // map(b => zip(a,b)) o B
     val var_i = new Var("i", RangeUnknown)
     val b = B.access(var_i)
-    val zip_ab = InputView.tuple(a, b).zip
-    val map_zip_ab = new InputViewMap(zip_ab.access(var_i), var_i, TupleType(Int, Int))
+    val zip_ab = InputView.tuple(a, b).zip()
+    val map_zip_ab = new InputViewMap(zip_ab, var_i, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
 
-    // map (f) o ...
+    // map(map(f)) o ...
     val var_j = new Var("j", RangeUnknown)
     val mapf = map_zip_ab.access(var_j)
+    val var_k = new Var("k")
+    val map_mapf = mapf.access(var_k)
 
-    val mapf0 = mapf.get(0)
-    val mapf1 = mapf.get(1)
+    val map_mapf0 = map_mapf.get(0)
+    val map_mapf1 = map_mapf.get(1)
 
-
-    assertEquals(Cst(0), ViewPrinter.emit(a))
-    assertEquals(var_i, ExprSimplifier.simplify(ViewPrinter.emit(b)))
-    assertEquals(Cst(0), ExprSimplifier.simplify(ViewPrinter.emit(mapf0)))
-    assertEquals(var_j, ExprSimplifier.simplify(ViewPrinter.emit(mapf1)))
+    assertEquals(var_k, ExprSimplifier.simplify(ViewPrinter.emit(map_mapf0)))
+    assertEquals(var_j*8 + var_k, ExprSimplifier.simplify(ViewPrinter.emit(map_mapf1)))
   }
 
   @Test
   def test2() {
-    // TODO: Expression doesn't make sense
     val A = InputView(ArrayType(ArrayType(Int, 8), 8), "A")
     val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
 
-    //  map(map(map(f))) o map(a => map(b => map(zip(a,b)) o B) o A equivalent to
+    //  map(map(map(f))) o map(a => map(b => zip(a,b) o B) o A equivalent to
     // map(a => map(b => map(f) $ zip(a,b)) o B) o A
 
     // map(a => ... ) $ A
@@ -51,9 +47,9 @@ class ViewTest {
     val var_j = new Var("j", RangeUnknown)
     val b = B.access(var_j)
     // ... $ zip(a, b) ...
-    val zip_ab = InputView.tuple(a, b).zip
-    val map_zip_ab = new InputViewMap(zip_ab, var_i, ArrayType(TupleType(Int, Int), 8))
-    val map_map_zip_ab = new InputViewMap(map_zip_ab, var_j, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
+    val zip_ab = InputView.tuple(a, b).zip()
+    val map_zip_ab = new InputViewMap(zip_ab, var_j, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
+    val map_map_zip_ab = new InputViewMap(map_zip_ab, var_i, ArrayType(ArrayType(ArrayType(TupleType(Int, Int), 8), 8), 8))
 
     // ... map(f) $ ...
 
@@ -63,19 +59,17 @@ class ViewTest {
     val map_f = map_map_zip_ab.access(var_k)
     val map_map_f = map_f.access(var_l)
 
-    val map_map_f0 = map_map_f.get(0)
-    val map_map_f1 = map_map_f.get(1)
+    val map_map_map_f = map_map_f.access(9)
 
-    val map_map_f0_9 = map_map_f0.access(9)
-    val map_map_f1_7 = map_map_f1.access(7)
+    val map_map_map_f0 = map_map_map_f.get(0)
+    val map_map_map_f1 = map_map_map_f.get(1)
 
-    assertEquals(8*var_k + 9, ExprSimplifier.simplify(ViewPrinter.emit(map_map_f0_9)))
-    assertEquals(8*var_l + 7, ExprSimplifier.simplify(ViewPrinter.emit(map_map_f1_7)))
+    assertEquals(8*var_k + 9, ExprSimplifier.simplify(ViewPrinter.emit(map_map_map_f0)))
+    assertEquals(8*var_l + 9, ExprSimplifier.simplify(ViewPrinter.emit(map_map_map_f1)))
   }
 
   @Test
   def test3() {
-    // TODO: Expression doesn't make sense
     val A = InputView(ArrayType(ArrayType(Int, 8), 8), "A")
     val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
 
@@ -84,16 +78,16 @@ class ViewTest {
     val var_j = new Var("j", RangeUnknown)
     val a = A.access(var_i)
     val b = B.access(var_j)
-    val zip_ab = InputView.tuple(a, b).zip
-    val zip_ab0 = zip_ab.get(0)
-    val zip_ab1 = zip_ab.get(1)
+    val zip_ab = InputView.tuple(a, b).zip()
 
-    val zip_ab0_3 = zip_ab0.access(3)
-    val zip_ab1_7 = zip_ab1.access(7)
+    val zip_ab_3 = zip_ab.access(3)
+
+    val zip_ab_3_0 = zip_ab_3.get(0)
+    val zip_ab_3_1 = zip_ab_3.get(1)
 
 
-    assertEquals(8*var_i + 3, ExprSimplifier.simplify(ViewPrinter.emit(zip_ab0_3)))
-    assertEquals(8*var_j + 7, ExprSimplifier.simplify(ViewPrinter.emit(zip_ab1_7)))
+    assertEquals(8*var_i + 3, ExprSimplifier.simplify(ViewPrinter.emit(zip_ab_3_0)))
+    assertEquals(8*var_j + 3, ExprSimplifier.simplify(ViewPrinter.emit(zip_ab_3_1)))
   }
 
   @Test
