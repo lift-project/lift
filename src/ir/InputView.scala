@@ -29,7 +29,6 @@ abstract class InputView(val operation: Operation, val t: Type = UndefType) {
     val subst = new scala.collection.mutable.HashMap[ArithExpr,ArithExpr]()
     subst.put(oldExpr, newExpr)
 
-    // TODO: Pass on types
     this match {
       case map: InputViewMap => new InputViewMap(map.iv.replaced(oldExpr,newExpr), t)
       case access: InputViewAccess => new InputViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(oldExpr,newExpr), t)
