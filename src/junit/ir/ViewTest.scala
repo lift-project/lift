@@ -1,6 +1,6 @@
 package ir
 
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import org.junit.Assert._
 
 import opencl.ir._
@@ -8,11 +8,13 @@ import opencl.ir._
 class ViewTest {
 
   @Test
+  @Ignore
   def test1() {
 
     val a = InputView(Int, "a")
     val B = InputView(ArrayType(Int, 8), "B")
 
+    // TODO: Remove? Explanation below
     // The map below is not valid, zip on primitives would fail during type-checking
     // map(b => zip(a,b)) o B
     val var_i = new Var("i", RangeUnknown)
@@ -37,8 +39,8 @@ class ViewTest {
   @Test
   def test2() {
 
-    val A = InputView(ArrayType(Int, 8), "A")
-    val B = InputView(ArrayType(Int, 8), "B")
+    val A = InputView(ArrayType(ArrayType(Int, 8), 8), "A")
+    val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
 
     //  map(map(map(f))) o map(a => map(b => map(zip(a,b)) o B) o A equivalent to
     // map(a => map(b => map(f) $ zip(a,b)) o B) o A
@@ -75,8 +77,8 @@ class ViewTest {
   @Test
   def test3() {
 
-    val A = InputView(new ArrayType(Int, 8), "A")
-    val B = InputView(new ArrayType(Int, 8), "B")
+    val A = InputView(ArrayType(ArrayType(Int, 8), 8), "A")
+    val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
 
     // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
     val var_i = new Var("i", RangeUnknown)
@@ -100,7 +102,6 @@ class ViewTest {
 
     val A = InputView(ArrayType(Int, 8), "A")
 
-
     // split-2 o A
     val split2A = A.split(2)
     val var_i = new Var("i", RangeUnknown)
@@ -109,9 +110,7 @@ class ViewTest {
     val split2A_i = split2A.access(var_i)
     val split2A_i_j = split2A_i.access(var_j)
 
-    val split2A_i_j_7 = split2A_i_j.access(7)
-
-    assertEquals(ExprSimplifier.simplify(8*(var_i*2 + var_j) + 7), ExprSimplifier.simplify(ViewPrinter.emit(split2A_i_j_7)))
+    assertEquals(ExprSimplifier.simplify(4*var_i + var_j), ExprSimplifier.simplify(ViewPrinter.emit(split2A_i_j)))
   }
 
   @Test
