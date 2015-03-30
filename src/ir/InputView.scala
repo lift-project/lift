@@ -74,7 +74,7 @@ abstract class InputView(val t: Type = UndefType) {
   }
 
   def get(i: Int): InputView = {
-   new InputViewTupleComponent(i, this, t.asInstanceOf[TupleType].elemsT(i))
+    new InputViewTupleComponent(i, this, t.asInstanceOf[TupleType].elemsT(i))
   }
 
   def zip(): InputView = {
@@ -217,9 +217,7 @@ object InputView {
       // create fresh input view for following function
       initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
-    // get full type of the output memory object
-    val fullReturnType = getFullType(call.t, outputAccessInf)
-      new InputViewMap(innerView, call.loopVar, fullReturnType)
+      new InputViewMap(innerView, call.loopVar, call.t)
     }
   }
 
@@ -232,7 +230,7 @@ object InputView {
     // traverse into call.f
     visitAndBuildViews(call.f.f.body, newOutputAccessInf)
     // create fresh input view for following function
-   initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
+    initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, argView: InputView, outputAccessInf:  List[(ArithExpr, ArithExpr)]): InputView = {
@@ -328,7 +326,7 @@ object InputView {
   private def createViewTransposeW(tw: TransposeW, call: FunCall, argView: InputView, outputAccessInf: List[(ArithExpr, ArithExpr)]): InputView = {
     call.t match {
       case ArrayType(ArrayType(typ, m), n) =>
-//        findAccessAndReorder(argView, IndexFunction.transpose, call.t, 0, transpose = true)
+      //        findAccessAndReorder(argView, IndexFunction.transpose, call.t, 0, transpose = true)
     }
 
     initialiseNewView(call.t, outputAccessInf)
@@ -346,7 +344,7 @@ object InputView {
 
     // Find the matching ArrayAccess to the first ArrayCreation,
     // and reorder the ArrayView in the access
-//    findAccessAndReorder(scatter.f.body.view, scatter.idx, call.t, 0)
+    //    findAccessAndReorder(scatter.f.body.view, scatter.idx, call.t, 0)
   }
 
   // TODO: Implement in OutputView
@@ -416,7 +414,7 @@ object InputView {
 object ViewPrinter {
 
   def emit(sv : InputView) : ArithExpr = {
-      emitView(sv, new Stack(), new Stack())
+    emitView(sv, new Stack(), new Stack())
   }
 
   // TODO: Continue refactoring here
@@ -494,7 +492,7 @@ object ViewPrinter {
         emitView(asScalar.iv, newAAS, tupleAccessStack)
 
       case op => throw new NotImplementedError(op.getClass.toString)
-     }
+    }
   }
 
   private def getLengthForArrayAccess(t: Type, tupleAccesses: Stack[Int]): ArithExpr = {
