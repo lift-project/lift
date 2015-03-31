@@ -7,19 +7,13 @@
 4. On the IntelliJ Welcome Screen select "Open Project" and select the "build.sbt" file in the "apart" folder you just checked out.
 
 To be able to execute computations in OpenCL you need to install the SkelCL library.
-Please clone the SkelCL repository from [bitbucket](https://bitbucket.org/skelcl/skelcl) and not from github, as you need to checkout the 'Executor' branch!
+Please clone the SkelCL repository from [bitbucket](https://bitbucket.org/skelcl/skelcl) or [github](https://github.com/skelcl/skelcl).
 
 *  Clone the SkelCL repository: 
 ```
 #!bash
 
 git clone git@bitbucket.org:skelcl/skelcl.git
-```
-* Switch to the 'Executor' branch: 
-```
-#!bash
-
-cd skelcl && git checkout Executor
 ```
 * Install dependencies with the ./installDependenciesUbuntu.sh script. Answer all questions with 'y'
 * Create a build directory, execute cmake and perform the build with make:
