@@ -160,9 +160,7 @@ class TestBarrier {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, true))
-    val (output, _) = Execute(128, inputSize)(
-      code, f, inputs:_*)
+    val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -180,9 +178,7 @@ class TestBarrier {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, true))
-    val (output, _) = Execute(128, inputSize)(
-      code, f, inputs:_*)
+    val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -200,9 +196,7 @@ class TestBarrier {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, true))
-    val (output, _) = Execute(128, inputSize)(
-      code, f, inputs:_*)
+    val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)

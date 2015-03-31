@@ -36,29 +36,35 @@ object TestUtils {
     if (rest.nonEmpty) myPrint(rest, cols, elems)
   }
 
-  def compile(f: Lambda, values: Seq[Any], localSize: Int, globalSize: Int, injectSizes: (Boolean, Boolean) = (false, false)): String = {
-    compile(f, values, localSize, 1, 1, globalSize, 1, 1, injectSizes)
+  def execute(f: Lambda, values: Seq[Any], localSize: Int, globalSize: Int, injectSizes: (Boolean, Boolean) = (false, false)): (Array[Float], Double, String) = {
+    execute(f, values, localSize, 1, 1, globalSize, 1, 1, injectSizes)
   }
 
-  def compile(f: Lambda, values: Seq[Any],
+  def execute(f: Lambda, values: Seq[Any],
               localSize1: Int, localSize2: Int, globalSize1: Int,  globalSize2: Int,
-              injectSizes: (Boolean, Boolean)): String = {
-    compile(f, values, localSize1, localSize2, 1, globalSize1, globalSize2, 1, injectSizes)
+              injectSizes: (Boolean, Boolean)): (Array[Float], Double, String) = {
+    execute(f, values, localSize1, localSize2, 1, globalSize1, globalSize2, 1, injectSizes)
   }
 
-  def compile(f: Lambda, values: Seq[Any],
+  def execute(f: Lambda, values: Seq[Any],
               localSize1: Int, localSize2: Int, localSize3: Int,
               globalSize1: Int,  globalSize2: Int, globalSize3: Int,
-              injectSizes: (Boolean, Boolean)): String = {
+              injectSizes: (Boolean, Boolean)): (Array[Float], Double, String) = {
     val valueMap = Execute.createValueMap(f, values:_*)
+
+    var code = ""
 
     if (injectSizes._1)
       if (injectSizes._2)
-        Compile(f, localSize1, localSize2, localSize3,
+        code = Compile(f, localSize1, localSize2, localSize3,
           globalSize1, globalSize2, globalSize3, valueMap)
       else
-        Compile(f, localSize1, localSize2, localSize3)
+        code = Compile(f, localSize1, localSize2, localSize3)
     else
-      Compile(f)
+      code = Compile(f)
+
+    val (output, runtime) = Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, injectSizes)(code, f, values:_*)
+
+    (output, runtime, code)
   }
 }

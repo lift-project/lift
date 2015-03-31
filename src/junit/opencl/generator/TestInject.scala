@@ -31,9 +31,8 @@ class TestInject {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, false))
-    val (output, runtime) = Execute(128, inputSize)(
-      code, f, inputs:_*)
+    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
+
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -54,9 +53,7 @@ class TestInject {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, false))
-    val (output, runtime) = Execute(128, inputSize)(
-      code, f, inputs:_*)
+    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -77,9 +74,7 @@ class TestInject {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, false))
-    val (output, runtime) = Execute(128, inputSize)(
-      code, f, inputs:_*)
+    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -100,9 +95,7 @@ class TestInject {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize, (true, true))
-    val (output, runtime) = Execute(128, inputSize)(
-      code, f, inputs:_*)
+    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -123,9 +116,7 @@ class TestInject {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize*2, (true, true))
-    val (output, runtime) = Execute(128, inputSize*2)(
-      code, f, inputs:_*)
+    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize*2, (true, true))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -146,9 +137,7 @@ class TestInject {
     )
 
     val inputs = Seq(input, inputSize)
-    val code = TestUtils.compile(f, inputs, 128, inputSize/2, (true, true))
-    val (output, runtime) = Execute(128, inputSize/2)(
-      code, f, inputs:_*)
+    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize/2, (true, true))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
