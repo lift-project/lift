@@ -199,7 +199,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapWrg(Gather(reverse)(MapLcl(id))) $ in
+      in => MapWrg(Gather(reverse)(Barrier() o MapLcl(id))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -218,7 +218,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(reverse)(MapWrg(MapLcl(id))) $ in
+      in => Gather(reverse)(MapWrg(Barrier() o MapLcl(id))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
@@ -237,7 +237,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(reverse)(MapWrg(Gather(reverse)(MapLcl(id)))) $ in
+      in => Gather(reverse)(MapWrg(Gather(reverse)(Barrier() o MapLcl(id)))) $ in
     )
 
     val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)

@@ -9,7 +9,7 @@ class BlackScholes(override val f: Seq[(String, Seq[Lambda])]) extends Benchmark
   }
 
   override def generateInputs(): Seq[Any] = {
-    val inputSize = inputSizes()(0)
+    val inputSize = inputSizes().head
 
     val inputData = Array.fill(inputSize)(util.Random.nextFloat())
 
@@ -144,12 +144,12 @@ object BlackScholes {
 
   val blackScholes = fun(
     ArrayType(Float, Var("N")),
-    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(8192) $ inRand
+    inRand => Join() o MapWrg(Barrier() o MapLcl(blackScholesComp)) o Split(8192) $ inRand
   )
 
   val blackScholesAMD = fun(
     ArrayType(Float, Var("N")),
-    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(256) $ inRand
+    inRand => Join() o MapWrg(Barrier() o MapLcl(blackScholesComp)) o Split(256) $ inRand
   )
 
   def apply() = new BlackScholes(

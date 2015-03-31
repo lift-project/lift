@@ -14,7 +14,7 @@ class VectorScaling(override val name: String,
   }
 
   override def generateInputs(): Seq[Any] = {
-    val inputSize = inputSizes()(0)
+    val inputSize = inputSizes().head
 
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
@@ -27,7 +27,7 @@ object VectorScaling {
 
   val vectorScal = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
-      Join() o MapLcl(MapSeq(
+      Join() o Barrier() o MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
       )) o Split(4)
     ) o Split(1024) $ input
@@ -35,7 +35,7 @@ object VectorScaling {
 
   val scalAMD = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
-      Join() o MapLcl(MapSeq(
+      Join() o Barrier() o MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
       )) o Split(1)
     ) o Split(128) $ input
@@ -43,7 +43,7 @@ object VectorScaling {
 
   val scalNVIDIA = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
-      Join() o MapLcl(MapSeq(
+      Join() o Barrier() o MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
       )) o Split(1)
     ) o Split(2048) $ input
@@ -51,7 +51,7 @@ object VectorScaling {
 
   val scalINTEL = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
-      Join() o MapLcl(MapSeq(
+      Join() o Barrier() o MapLcl(MapSeq(
         fun( x => Vectorize(4)(mult).apply(Vectorize(4)(alpha), x) )
       )) o Split(128) o asVector(4)
     ) o Split(4*128*128) $ input

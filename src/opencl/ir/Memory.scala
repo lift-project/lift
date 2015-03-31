@@ -248,7 +248,8 @@ object OpenCLMemory {
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
 
-      case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride(_) | asVector(_) | asScalar() | Transpose() | Swap() | Unzip() | TransposeW() =>
+      case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride(_) | asVector(_) |
+           asScalar() | Transpose() | Swap() | Unzip() | TransposeW() | Barrier() =>
         inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, outputMem, call.t, inMem)
@@ -285,7 +286,7 @@ object OpenCLMemory {
       val coll = inMem match { case coll: OpenCLMemoryCollection => coll}
       if (l.params.length != coll.subMemories.length) throw new NumberOfArgumentsException
 
-      (l.params zip coll.subMemories).map({case (p, m) => p.mem = m})
+      (l.params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
     alloc(l.body, numGlb, numLcl, outputMem)
   }
@@ -485,7 +486,7 @@ object TypedOpenCLMemory {
 
     val resultWithoutCollections = result.map(tm => tm.mem match {
       case coll: OpenCLMemoryCollection =>
-        coll.subMemories.zipWithIndex.map({ case (m, i) => TypedOpenCLMemory(m, Type.getTypeAtIndex(tm.t, i))}).toArray
+        coll.subMemories.zipWithIndex.map({ case (m, i) => TypedOpenCLMemory(m, Type.getTypeAtIndex(tm.t, i))})
       case ocl: OpenCLMemory => Array(tm)
     }).flatten
 
