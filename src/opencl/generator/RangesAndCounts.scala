@@ -59,7 +59,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
     val m = call.f.asInstanceOf[MapWrg]
     val dim: Int = m.dim
     val start: get_group_id = new get_group_id(dim)
-    val length: ArithExpr = Type.getLength(call.arg.t)
+    var length: ArithExpr = Type.getLength(call.arg.t)
     var step: ArithExpr = new get_num_groups(m.dim)
 
     val gSize = globalSizes(dim)
@@ -68,13 +68,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
     gSize match {
       case Cst(c) =>
         val numGroups = gSize / lSize
-        val vars = Var.getVars(length)
-        vars.foreach(v => {
-          valueMap.get(v) match {
-            case Some(value) => v.range = GoesToRange(value)
-            case None =>
-          }
-        })
+        length = ArithExpr.substitute(length, valueMap)
         step = numGroups
         start.range = ContinuousRange(0, numGroups)
       case ? =>
