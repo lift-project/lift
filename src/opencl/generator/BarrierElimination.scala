@@ -74,7 +74,7 @@ object BarrierElimination {
 
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
-        if (group.exists(isScatter) || group.init.exists(isGather)) {
+        if (group.exists(isScatter) || group.init.exists(isGather) || group.exists(isTranspose)) {
           needsBarrier(id) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
@@ -144,6 +144,11 @@ object BarrierElimination {
 
   private def isSplit(l: Lambda): Boolean = {
     l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Split]
+  }
+
+  private def isTranspose(l: Lambda): Boolean = {
+    l.body.isInstanceOf[FunCall] &&
+      (l.body.asInstanceOf[FunCall].f.isInstanceOf[Transpose] || l.body.asInstanceOf[FunCall].f.isInstanceOf[TransposeW])
   }
 
   private def isJoin(l: Lambda): Boolean = {
