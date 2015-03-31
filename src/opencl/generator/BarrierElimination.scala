@@ -67,7 +67,7 @@ object BarrierElimination {
         val id = x._2
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
-        if (group.exists(l => isSplit(l) || isJoin(l))) {
+        if (group.exists(l => isSplit(l) || isJoin(l)) && id > 0) {
           needsBarrier(id) = true
 
           // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
