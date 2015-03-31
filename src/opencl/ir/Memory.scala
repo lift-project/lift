@@ -204,7 +204,7 @@ object OpenCLMemory {
         if (vp.p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
         vp.p.mem
       case p: Param =>
-        if (param.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
+        if (p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
         p.mem
     }
 
