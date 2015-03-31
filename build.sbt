@@ -12,6 +12,8 @@ javaSource in Test <<= baseDirectory(_ / "src/junit")
 
 libraryDependencies += "junit" % "junit" % "4.11"
 
+libraryDependencies += "com.twitter" %% "util-eval" % "6.12.1"
+
 libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 
 libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
