@@ -62,8 +62,6 @@ object BarrierElimination {
       needsBarrier(0) = !(barrierInHead && (finalReadMemory == GlobalMemory ||
         finalReadMemory == LocalMemory && !insideLoop))
 
-      println("groups " + groups.mkString(", "))
-
       groups.zipWithIndex.foreach(x => {
         val group = x._1
         val id = x._2
@@ -102,8 +100,6 @@ object BarrierElimination {
             needsBarrier(id) = true
         }
       })
-
-      println(needsBarrier.mkString(", "))
 
       (groups, needsBarrier).zipped.foreach((group, valid) => if (!valid) invalidateBarrier(group))
     }
