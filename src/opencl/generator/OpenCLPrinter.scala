@@ -1,6 +1,5 @@
 package opencl.generator
 
-import Function.tupled
 import ir._
 import opencl.ir._
 
@@ -110,9 +109,7 @@ class OpenCLPrinter {
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)
       case ScalarType(name, _) => name
-      case tt: TupleType =>
-//        "(" + tt.elemsT.map(toOpenCL(_)).reduce( _ + ", " + _ ) + ")"
-        throw new Exception // don't know how to print a tuple in opencl ...
+      case tt: TupleType => Type.name(tt)
       case UndefType => "void"
     }
   }
@@ -121,7 +118,7 @@ class OpenCLPrinter {
     val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
     me match {
       case Cst(c) => c.toString
-      case Pow(b, ex) => "pow(" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
+      case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
       case Log(b, x) => "(int)log"+b+"((float)"+toOpenCL(x)+")"
       case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
         s + (e match {
@@ -134,7 +131,9 @@ class OpenCLPrinter {
       case And(lhs, rhs) => "(" + toOpenCL(lhs) + " & " + toOpenCL(rhs) + ")"
       case of: OclFunction => of.toOCLString
       case tv : TypeVar => "tv_"+tv.id
+      case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
+      case Fraction(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
@@ -143,19 +142,47 @@ class OpenCLPrinter {
     param match {
       case (st: ScalarType, name: String) => toOpenCL(st) + " " + name
       case (vt: VectorType, name: String) => toOpenCL(vt) + " " + name
-      case (tt: TupleType, names: Array[Any]) => {
+      case (tt: TupleType, name: String) => toOpenCL(tt) + " " + name
+      case (tt: TupleType, names: Array[Any]) =>
         assert(tt.elemsT.length == names.length)
         (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).reduce(separateByComma)
-      }
-      case _ => throw new NotPrintableExpression( param.toString )
+      case _ => throw new NotPrintableExpression( param.toString() )
     }
   }
 
   def toOpenCL(uf: UserFunDef) : String = {
-    // "sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float
-    // (val name: String, val paramNames: Array[String], val body: String, val expectedInT: Type, val expectedOutT: Type)
+    val typedefs = uf.unexpandedTupleTypes.map(createTypedef).fold("")(_+_)
     val params = toOpenCL( (uf.inT, uf.paramNames) )
-    toOpenCL(uf.outT) + " " + uf.name + "(" + params + ")" + uf.body
+
+    typedefs +
+      toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
+      createTupleAlias(uf.unexpandedTupleTypes) +
+      uf.body + "}"
+  }
+
+  def createTypedef(t: Type): String = {
+    t match {
+      case tt: TupleType =>
+        val name = Type.name(tt)
+        val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
+        s"""#ifndef ${name}_DEFINED
+           |#define ${name}_DEFINED
+           |typedef struct {
+           |  ${fields.reduce(_+";\n  "+_)};
+           |} $name;
+           |#endif
+           |""".stripMargin
+      case _ => ""
+    }
+  }
+
+  def createTupleAlias(tts: Seq[TupleType]): String = {
+    if (tts.isEmpty) return ""
+    if (tts.size == 1) "typedef " + Type.name(tts.head) + " Tuple; "
+    else {
+      // TODO: think about this one ...
+      tts.zipWithIndex.map({case (tt, i) => "typedef " + Type.name(tt) + s" Tuple$i;"}).reduce(_+" "+_)
+    }
   }
 
 
@@ -173,67 +200,47 @@ class OpenCLPrinter {
     if (mem.addressSpace == LocalMemory) {
       println("barrier(CLK_LOCAL_MEM_FENCE);")
     } else {
-      println("barrier(CLK_LOCAL_MEM_FENCE && CLK_GLOBAL_MEM_FENCE);")
+      println("barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);")
     }
   }
 
 
-  def generateLoop(indexVar: Var, range: RangeAdd, printBody: (() => Unit)) {
-    indexVar.range = range
+  def generateLoop(indexVar: Var, printBody: () => Unit, iterationCount: ArithExpr = ?) {
+    val range = indexVar.range.asInstanceOf[RangeAdd]
 
     val init = ExprSimplifier.simplify(range.start)
     val cond = ExprSimplifier.simplify(range.stop)
     val update = ExprSimplifier.simplify(range.step)
 
-    // eval expression. if sucessfull return true and the value, otherwise return false
-    def evalExpr = (e: ArithExpr) => { try { (true, e.eval()) } catch { case _ : Throwable => (false, 0) } }
+    iterationCount match {
+      case Cst(0) =>
 
-    // try to directly evaluate
-    val (initIsEvaluated, initEvaluated) = evalExpr(init)
-    val (condIsEvaluated, condEvaluated) = evalExpr(cond)
-    val (updateIsEvaluated, updateEvaluated) = evalExpr(update)
-
-    // TODO evaluate symbolically with a comparison operator (add support for <,<=,==,>=,> in Expr)
-
-    if (initIsEvaluated && condIsEvaluated) {
-      if (condEvaluated <= initEvaluated)
-        // nothing to do
-        return
-    }
-
-    if (initIsEvaluated && condIsEvaluated && updateIsEvaluated) {
-      assert (condEvaluated > initEvaluated)
-      if (condEvaluated <= (initEvaluated + updateEvaluated)) {
+      case Cst(1) =>
         // exactly one iteration
-        openCB()
-        println("int " + toOpenCL(indexVar) + " = " + toOpenCL(init) + ";")
-        printBody()
-        closeCB()
-        return
-      }
-    }
+        openCB ()
+        println ("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
+        printBody ()
+        closeCB ()
 
-    if (condIsEvaluated && updateIsEvaluated)
-      if (condEvaluated <= updateEvaluated) {
+      case Fraction (Cst(1), ?) =>
         // one or less iteration
-        openCB()
-        println("int " + toOpenCL(indexVar) + " = " + toOpenCL(init) + ";")
-        print("if (" + toOpenCL(indexVar) + " < (" + toOpenCL(cond) + ")) ")
-        openCB()
-        printBody()
-        closeCB()
-        closeCB()
-        return
-      }
+        openCB ()
+        println ("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
+        print ("if (" + toOpenCL (indexVar) + " < (" + toOpenCL (cond) + ")) ")
+        openCB ()
+        printBody ()
+        closeCB ()
+        closeCB ()
 
-
-    // as the default print of the default loop
-    print ("for (int " + toOpenCL(indexVar) + " = " + toOpenCL(init)  + "; " +
-      toOpenCL(indexVar) + " < " + toOpenCL(cond)  + "; " +
-      toOpenCL(indexVar) + " += " + toOpenCL(update) + ") ")
-    openCB()
-    printBody()
-    closeCB()
+      case _ =>
+        // as the default print of the default loop
+        print ("for (int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + "; " +
+          toOpenCL (indexVar) + " < " + toOpenCL (cond) + "; " +
+          toOpenCL (indexVar) + " += " + toOpenCL (update) + ") ")
+        openCB ()
+        printBody ()
+        closeCB ()
+    }
   }
 
 }

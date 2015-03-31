@@ -1,9 +1,11 @@
-package junit.opencl.generator
+package opencl.generator
 
+import benchmarks.SumAbsoluteValues
 import org.junit._
 import org.junit.Assert._
 import opencl.ir._
 import ir._
+import ir.UserFunDef._
 
 import opencl.executor._
 
@@ -22,13 +24,6 @@ object TestReduce {
 
 class TestReduce {
 
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
-
-  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
-
-  val absAndSumUp = UserFunDef("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", TupleType(Float, Float), Float)
-
-
   @Test def SIMPLE_REDUCE_FIRST() {
 
     val inputSize = 4194304
@@ -36,13 +31,13 @@ class TestReduce {
 
     val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
-        Join() o MapLcl(ReduceSeq(sumUp, 0.0f) /*o MapSeq(id)*/) o Split(2048)
-      ) o Split(262144) o in
+        Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f) /*o MapSeq(id)*/) o Split(2048)
+      ) o Split(262144) $ in
     } )
 
     val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
 
-    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+    assertEquals(inputData.sum, output.sum, 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -57,11 +52,11 @@ class TestReduce {
 
     val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
       Join() o Join() o  MapWrg(
-        MapLcl(ReduceSeq(sumUp, 0.0f))
-      ) o Split(128) o Split(2048) o in
+        Barrier() o MapLcl(ReduceSeq(add, 0.0f))
+      ) o Split(128) o Split(2048) $ in
     }), inputData, inputData.length)
 
-    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+    assertEquals(inputData.sum, output.sum, 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -76,10 +71,10 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (output, runtime) = opencl.executor.Execute(1, inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
-      ReduceHost(sumUp, 0.0f) o in
+      ReduceHost(add, 0.0f) $ in
     }), inputData, inputData.length)
 
-    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+    assertEquals(inputData.sum, output.sum, 0.0)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -98,13 +93,13 @@ class TestReduce {
     val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
-        ) o Split(128) o in
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(7)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
+        ) o Split(128) $ in
       }), inputData, inputData.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -115,18 +110,17 @@ class TestReduce {
     {
       val (output, runtime) = Execute(8, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(3)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
-            Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
-        ) o Split(8) o in
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(3)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
+            Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
+        ) o Split(8) $ in
       }), firstOutput, firstOutput.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -141,19 +135,21 @@ class TestReduce {
 
     val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
-        Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-          Iterate(7)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-          Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
-      ) o Split(256) o in
+        Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+          Iterate(7)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+          Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+      ) o Split(256) $ in
     }), inputData, inputData.length)
 
-    assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+    assertEquals(inputData.sum, output.sum, 0.0)
 
     println("outputArray(0) = " + output(0))
     println("Runtime = " + runtime)
   }
 
+  @Ignore
   @Test def NVIDIA_C() {
+    // TODO: Only valid with warp size of 32. Perhaps query the device and use org.junit.Assume to conditionally ignore the test
 
     val inputSize = 16777216
     //val inputData = Array.fill(inputSize)(1.0f)
@@ -163,15 +159,15 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Join() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(sumUp, 0.0f)) o Split(2) ) ) o Split(32) o
-            Iterate(2)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o ReorderStride() o Split(2048)
-        ) o Split(262144) o in
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Join() o Barrier() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(add, 0.0f)) o Split(2) ) ) o Split(32) o
+            Iterate(2)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144 / 2048)
+        ) o Split(262144) $ in
 
       }), inputData, inputData.length)
 
-      assertEquals("Note that this benchmark is only valid on device with a warp_size of 32!",inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+      assertEquals("Note that this benchmark is only valid on device with a warp_size of 32!",inputData.sum, output.sum, 0.1)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -183,20 +179,19 @@ class TestReduce {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
-        ) o Split(64) o in
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(5)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+        ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
 
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+      assertEquals(inputData.sum, output.sum, 0.1)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -213,15 +208,15 @@ class TestReduce {
         ArrayType(Float, Var("N")),
         (in) =>
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(7)(Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2)) o
-            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o ReorderStride() o Split(2048)
-        ) o Split(262144) o in
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(7)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144/2048)
+        ) o Split(262144) $ in
       )
 
       val (output, runtime) = Execute(inputData.length)(f, inputData, inputData.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -233,19 +228,18 @@ class TestReduce {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(5)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(2)
-        ) o Split(64) o in
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(5)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+        ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -262,18 +256,18 @@ class TestReduce {
 
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
-        Join() o asScalar() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
-            Iterate(8)( Join() o MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f))) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(sumUp), Vectorize(4)(0.0f)))) o Split(2)
-        ) o asVector(4) o Split(2048) o in
+        Join() o MapWrg(
+          asScalar() o Join() o Barrier() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
+            Iterate(8)( Join() o Barrier() o MapLcl(ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f))) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f)))) o Split(2) o asVector(4)
+        ) o Split(2048) $ in
 
       }), inputData, inputData.length)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.1)
+      assertEquals(inputData.sum, output.sum, 0.1)
 
       (output, runtime)
     }
@@ -282,19 +276,18 @@ class TestReduce {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
-        ) o Split(64) o in
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(6)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
+        ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -306,17 +299,10 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = opencl.executor.Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
+      val (output, runtime) = opencl.executor.Execute(inputData.length)(SumAbsoluteValues.nvidiaDerived1,
+        inputData, inputData.length)
 
-        // the original derived one does not generate correct code ...
-        Join() o Join() o MapWrg(
-          MapLcl(ReduceSeq(sumUp, 0.0f)) o ReorderStride()
-          //toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o ReduceSeq(sumUp, 0.0f))) o ReorderStride()
-        ) o Split(128) o Split(2048) o in
-
-      }), inputData, inputData.length)
-
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -325,22 +311,14 @@ class TestReduce {
     }
 
     {
-      val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
+      val (output, runtime) = Execute(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2,
+        firstOutput, firstOutput.length)
 
-        Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
-        ) o Split(8192) o in
-
-      }), firstOutput, firstOutput.length)
-
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      (output, runtime)
     }
 
   }
@@ -348,44 +326,31 @@ class TestReduce {
   @Test def AMD_DERIVED() {
 
     val inputSize = 16777216
-    val inputData = Array.fill(inputSize)(1.0f)
-    //val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
+//    val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
+      val (output, runtime) = Execute(inputData.length)(SumAbsoluteValues.amdDerived1,
+        inputData, inputData.length)
 
-        Join() o asScalar() o Join() o MapWrg(
-          MapLcl(MapSeq(Vectorize(2)(id)) o ReduceSeq(Vectorize(2)(sumUp), Vectorize(2)(0.0f)))// o ReorderStride())
-        ) o Split(128) o asVector(2) o Split(4096) o in
-
-      }), inputData, inputData.length)
-
-      println("output size = " + output.size)
+      println("output size = " + output.length)
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       (output, runtime)
     }
 
     {
-      val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(6)( Join() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(sumUp, 0.0f))) o Split(128)
-        ) o Split(8192) o in
-
-      }), firstOutput, firstOutput.length)
+      val (output, runtime) = Execute(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2,
+        firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
-      (output, runtime)
     }
 
   }
@@ -400,39 +365,31 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o asScalar() o Join() o MapWarp(
+            asScalar() o Join() o Join() o MapWarp(
             MapLane(MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f)))
-          ) o Split(1) o asVector(4) o Split(32768)
-        ) o Split(32768) o in
+          ) o Split(1) o Split(8192) o asVector(4)
+        ) o Split(32768) $ in
 
       }), inputData, inputData.length)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       (output, runtime)
     }
 
     {
 
-      val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o MapLcl(
-            ReduceSeq(sumUp, 0.0f)
-          ) o Split(2048)
-        ) o Split(2048) o in
-
-      }), firstOutput, firstOutput.length)
+      val (output, runtime) = Execute(firstOutput.length)(SumAbsoluteValues.intelDerived2,
+        firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
-      (output, runtime)
     }
 
   }
@@ -444,41 +401,26 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o asScalar() o MapLcl(
-            MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f))
-          ) o asVector(4) o Split(32768)
-        ) o Split(32768) o in
-
-      }), inputData, inputData.length)
+      val (output, runtime) = Execute(inputData.length)(SumAbsoluteValues.intelDerivedNoWarp1,
+        inputData, inputData.length)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
       (output, runtime)
     }
 
     {
-      val (output, runtime) = Execute(firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
-
-        Join() o MapWrg(
-          Join() o MapLcl(
-            ReduceSeq(sumUp, 0.0f)
-          ) o Split(2048)
-        ) o Split(2048) o in
-
-      }), firstOutput, firstOutput.length)
+      val (output, runtime) = Execute(firstOutput.length)(SumAbsoluteValues.intelDerived2,
+        firstOutput, firstOutput.length)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
 
-      assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+      assertEquals(inputData.sum, output.sum, 0.0)
 
-      (output, runtime)
     }
 
   }
@@ -489,20 +431,20 @@ class TestReduce {
       /*
        // this is working fine
       val kernel = Join() o MapWrg(
-        Join() o MapLcl(MapSeq(id)) o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(1024)
+        Join() o Barrier() o MapLcl(MapSeq(id)) o Barrier() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(1024)
       ) o Split(1024) o input
       */
 
       /* // triggers wrong allocation ...
       val kernel = Join() o MapWrg(
-        Join() o MapLcl(MapSeq(id)) o Split(1024)
+        Join() o Barrier() o MapLcl(MapSeq(id)) o Split(1024)
       ) o Split(1024) o input
       */
 
 
       // triggers generation of wrong code (the indices are broken)
       val kernel = Join() o MapWrg(
-        Join() o MapLcl(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o Split(1024)
+        Join() o Barrier() o MapLcl(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o Split(1024)
       ) o Split(1024) o input
 
 
@@ -519,7 +461,7 @@ class TestReduce {
         println("first output(0) = " + output(0))
         println("first runtime = " + runtime)
 
-        assertEquals(inputData.reduce(_ + _), output.reduce(_ + _), 0.0)
+        assertEquals(inputData.sum, output.sum, 0.0)
 
         (output, runtime)
       }

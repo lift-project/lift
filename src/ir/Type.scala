@@ -63,6 +63,15 @@ object UndefType extends Type {override def toString = "UndefType"}
 object NoType extends Type {override def toString = "NoType"}
 
 object Type {
+
+  def name(t: Type): String = {
+    t match {
+      case st: ScalarType => st.name
+      case vt: VectorType => vt.scalarT.name + vt.len.toString
+      case tt: TupleType  => "Tuple_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
+      case at: ArrayType  => "Array_" + Type.name(at.elemT)
+    }
+  }
   
   /*def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    
     t match {
@@ -92,7 +101,7 @@ object Type {
     t match {
       case at: ArrayType => visit(at.elemT, pre, post)
       case vt: VectorType => visit(vt.scalarT, pre, post)      
-      case tt: TupleType => tt.elemsT.map(et => visit(et,pre,post))
+      case tt: TupleType => tt.elemsT.foreach(et => visit(et,pre,post))
       case _ => // nothing to do
     }
     post(t)
@@ -105,12 +114,22 @@ object Type {
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
+
+  def getSize(t: Type) : ArithExpr = {
+    t match {
+      case st: ScalarType => st.size
+      case vt: VectorType => vt.scalarT.size * vt.len
+      case tt: TupleType => tt.elemsT.map(getSize).reduce(_+_)
+      case at: ArrayType => at.len * getSize(at.elemT)
+      case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
   
   def getLength(t: Type) : ArithExpr = {
     t match {
       case at: ArrayType => at.len
       case st: ScalarType => Cst(1)
-      case vt: VectorType => Cst(1)
+      case vt: VectorType => getVectorSize(vt)
       case tt: TupleType => Cst(1)
       case _ => throw new TypeException(t, "ArrayType")
     }
@@ -200,11 +219,13 @@ object Type {
         val closedFormLen = {
           val inLen = ExprSimplifier.simplify(inAT.len)
           val outLen = ExprSimplifier.simplify(outAT.len)
-          if (inLen == outLen)
-            return ouT
 
           inLen match {
             case tv: TypeVar =>
+              if (inLen == outLen) {
+                tv.range = ContinuousRange(tvMap.get(tv).get, tvMap.get(tv).get)
+                return ouT
+              }
               // recognises output independent of tv
               if (!ArithExpr.contains(outLen, tv))
                return ouT
@@ -217,7 +238,7 @@ object Type {
                 // TODO: Pow(a, n) or Pow(a, n-1)???
                 val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n)*tvMap.get(tv).get))
                 // TODO: deal with growing output size
-                tv.range = ContinousRange(min,max)
+                tv.range = ContinuousRange(min,max)
 
                 // we have outLen*tv where tv is not present inside outLen
                 Pow(a, n)*tv
@@ -320,10 +341,13 @@ object Type {
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
       case _: Transpose =>        checkTranspose(inT)
+      case _: TransposeW =>       checkTranspose(inT)
       case _: Swap =>             checkSwap(inT)
       case _: ReorderStride =>    inT
       case g: Gather =>           checkGather(g, inT, setType)
       case s: Scatter =>          checkScatter(s, inT, setType)
+      case f: Filter =>           checkFilter(f, inT, setType)
+      case _: Barrier =>          inT
     }
   }
 
@@ -346,7 +370,7 @@ object Type {
       val tt = inT match { case tt: TupleType => tt }
       if (l.params.length != tt.elemsT.length) throw new NumberOfArgumentsException
 
-      (l.params zip tt.elemsT).map({case (p,t) => p.t = t })
+      (l.params zip tt.elemsT).foreach({case (p,t) => p.t = t })
     }
     check(l.body, setType)
   }
@@ -365,7 +389,7 @@ object Type {
     inT match {
       case tt: TupleType =>
         if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
-        val initT = tt.elemsT(0)
+        val initT = tt.elemsT.head
         val elemT = getElemT(tt.elemsT(1))
         if (ar.f.params.length != 2) throw new NumberOfArgumentsException
         ar.f.params(0).t = initT
@@ -389,21 +413,20 @@ object Type {
   private def checkZip(z: Zip, inT: Type, setType: Boolean): Type = {
     inT match {
       case tt: TupleType =>
-        if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
+        if (tt.elemsT.length < 2) throw new NumberOfArgumentsException
 
-        val at1 = tt.elemsT(0) match {
+        tt.elemsT.map({
           case at: ArrayType => at
-          case _ => throw new TypeException(tt.elemsT(0), "ArrayType")
-        }
-        val at2 = tt.elemsT(1) match {
-          case at: ArrayType => at
-          case _ => throw new TypeException(tt.elemsT(1), "ArrayType")
-        }
-        if (at1.len != at2.len) {
-          println("Warning: can not statically proof that sizes (" + at1 + " and " + at2 + ") match!")
+          case t => throw new TypeException(t, "ArrayType")
+        })
+
+        val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType])
+
+        if (arrayTypes.map(_.len).distinct.length != 1) {
+          println("Warning: can not statically proof that sizes (" + tt.elemsT.mkString(", ") + ") match!")
           // throw TypeException("sizes do not match")
         }
-        ArrayType(TupleType(at1.elemT, at2.elemT), at1.len)
+        ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.len)
       case _ => throw new TypeException(inT, "TupleType")
     }
   }
@@ -492,6 +515,16 @@ object Type {
     if (s.f.params.length != 1) throw new NumberOfArgumentsException
     s.f.params(0).t = inT
     check(s.f.body, setType)
+  }
+
+  private def checkFilter(f: Filter, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case TupleType(ArrayType(t, n), ArrayType(Int, m)) =>
+
+        ArrayType(t, m)
+
+      case _ => throw new TypeException(inT, "TupleType(ArrayType(_, _), ArrayType(Int, _))")
+    }
   }
 
   private def checkToLocal(tL: toLocal, inT: Type, setType: Boolean): Type = {

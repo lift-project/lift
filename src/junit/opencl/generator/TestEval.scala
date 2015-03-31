@@ -1,4 +1,4 @@
-package junit.opencl.generator
+package opencl.generator
 
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -29,7 +29,7 @@ class TestEval {
     val gold = (leftInputData, rightInputData).zipped.map(_+_)
 
     val addFun = """
-      val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
+      val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
 
       val N = Var("N")
 
@@ -39,11 +39,11 @@ class TestEval {
         (left, right) =>
           Join() o MapWrg(
             Join() o MapLcl(MapSeq(add)) o Split(4)
-          ) o Split(1024) o Zip(left, right)
+          ) o Split(1024) $ Zip(left, right)
       )
     """
 
-    val (output, runtime) = Execute(inputSize)(addFun, leftInputData, rightInputData, leftInputData.size)
+    val (output, runtime) = Execute(inputSize)(addFun, leftInputData, rightInputData, leftInputData.length)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 

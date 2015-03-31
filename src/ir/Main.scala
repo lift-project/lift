@@ -67,7 +67,7 @@ object Main extends App {
 
   val reduceFun = fun(
     ArrayType(Float, Var("N")),
-    (input) => Reduce(sumUp,0.0f) o input
+    (input) => Reduce(sumUp,0.0f) $ input
   )
 
   val inputData = Array.fill(1024)(util.Random.nextInt(2).toFloat)

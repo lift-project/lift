@@ -1,9 +1,10 @@
 package opencl.executor
 
 import ir._
+import opencl.generator.{Verbose, OpenCLGenerator}
 import opencl.ir._
-import opencl.generator.OpenCLGenerator
 
+import scala.collection.immutable
 import scala.reflect.ClassTag
 
 object Eval {
@@ -23,16 +24,30 @@ object Compile {
     (apply(f), f)
   }
 
-  def apply(f: Lambda): String = {
-    assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
+  def apply(f: Lambda): String = apply(f, ?, ?, ?)
+
+  def apply(f: Lambda,
+            localSize1: ArithExpr, localSize2: ArithExpr, localSize3: ArithExpr): String =
+    apply(f, localSize1, localSize2, localSize3, ?, ?, ?, immutable.Map())
+
+  def apply(f: Lambda,
+            localSize0: ArithExpr, localSize1: ArithExpr, localSize2: ArithExpr,
+            globalSize1: ArithExpr, globalSize2: ArithExpr, globalSize3: ArithExpr,
+            valueMap: immutable.Map[ArithExpr, ArithExpr]) = {
+
     Type.check(f.body)
 
-    val kernelCode = OpenCLGenerator.generate(f)
-    println("Kernel code:")
-    println(kernelCode)
+    val kernelCode = OpenCLGenerator.generate(f,
+      Array(localSize0, localSize1, localSize2),
+      Array(globalSize1, globalSize2, globalSize3), valueMap)
+    if (Verbose()) {
+      println("Kernel code:")
+      println(kernelCode)
+    }
 
     kernelCode
   }
+
 }
 
 object Execute {
@@ -40,46 +55,91 @@ object Execute {
     apply(128, globalSize)
   }
 
-  def apply(localSize: Int, globalSize: Int): Execute = {
-    new Execute(localSize, globalSize)
+  def apply(localSize: Int, globalSize: Int, injectSizes: (Boolean, Boolean) = (false, false)): Execute = {
+    new Execute(localSize, 1, 1, globalSize, 1, 1, injectSizes._1, injectSizes._2)
+  }
+
+  def apply(localSize1: Int, localSize2: Int, globalSize1: Int,  globalSize2: Int,
+            injectSizes: (Boolean, Boolean)): Execute = {
+    new Execute(localSize1, localSize2, 1, globalSize1, globalSize2, 1, injectSizes._1, injectSizes._2)
+  }
+
+  def apply(localSize1: Int, localSize2: Int, localSize3: Int,
+            globalSize1: Int,  globalSize2: Int, globalSize3: Int,
+            injectSizes: (Boolean, Boolean)): Execute = {
+    new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, injectSizes._1, injectSizes._2)
+  }
+
+  def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
+    // just take the variables
+    val vars = f.params.map((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var])).flatten
+
+    val tupleSizes = f.params.map(_.t match {
+      case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
+      case ArrayType(ArrayType(tt: TupleType, _), _) => tt.elemsT.length
+      case ArrayType(tt: TupleType, _) => tt.elemsT.length
+      case tt: TupleType => tt.elemsT.length
+      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval()
+      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval()
+      case ArrayType(vt: VectorType, _) => vt.len.eval()
+      case vt: VectorType => vt.len.eval()
+      case _ => 1
+    })
+
+    val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
+      case aaaa: Array[Array[Array[Array[_]]]] => Seq(Cst(aaaa.length), Cst(aaaa(0).length), Cst(aaaa(0)(0).length), Cst(aaaa(0)(0)(0).length / tupleSize))
+      case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.length), Cst(aaa(0).length), Cst(aaa(0)(0).length / tupleSize))
+      case aa: Array[Array[_]] => Seq(Cst(aa.length), Cst(aa(0).length / tupleSize))
+      case a: Array[_] => Seq(Cst(a.length / tupleSize))
+      case any: Any => Seq(Cst(1))
+    }).flatten[ArithExpr]
+
+    (vars zip sizes).toMap[ArithExpr, ArithExpr]
   }
 }
 
-class Execute(val localSize: Int, val globalSize: Int) {
+class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
+              val globalSize1: Int, val globalSize2: Int, val globalSize3: Int,
+              val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
+
   def apply(input: String, values: Any*): (Array[Float], Double) = {
     val (code, f) = Compile(input)
     apply(code, f, values:_*)
   }
 
   def apply(f: Lambda, values: Any*): (Array[Float], Double) = {
-    val code = Compile(f)
+    val valueMap = Execute.createValueMap(f, values:_*)
+
+    val code = if (injectLocalSize)
+      if (injectGroupSize)
+        Compile(f, localSize1, localSize2, localSize3,
+          globalSize1, globalSize2, globalSize3, valueMap)
+      else
+        Compile(f, localSize1, localSize2, localSize3)
+    else Compile(f)
+
     apply(code, f, values:_*)
   }
 
   def apply(code: String, f: Lambda, values: Any*) : (Array[Float], Double) = {
 
-    val vars = f.params.map((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var])).flatten// just take the variable
-    val sizes = values.map({
-        case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.size), Cst(aaa(0).size), Cst(aaa(0)(0).size))
-        case aa: Array[Array[_]] => Seq(Cst(aa.size), Cst(aa(0).size))
-        case a: Array[_] => Seq(Cst(a.size))
-        case any: Any => Seq(Cst(1))
-      }).flatten[ArithExpr]
-    val valueMap = (vars zip sizes).toMap[ArithExpr, ArithExpr]
+    val valueMap: immutable.Map[ArithExpr, ArithExpr] = Execute.createValueMap(f, values:_*)
 
-    val outputSize = ArithExpr.substitute(Type.getLengths(f.body.t).reduce(_*_), valueMap).eval()
+    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
 
     val inputs = values.map({
       case f: Float => value(f)
       case af: Array[Float] => global.input(af)
       case aaf: Array[Array[Float]] => global.input(aaf.flatten)
       case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
+      case aaaf: Array[Array[Array[Array[Float]]]] => global.input(aaaf.flatten.flatten.flatten)
+
 
       case i: Int => value(i)
       case ai: Array[Int] => global.input(ai)
       case aai: Array[Array[Int]] => global.input(aai.flatten)
     })
-    val outputData = global.output[Float](outputSize)
+    val outputData = global(outputSize)
 
     val memArgs = OpenCLGenerator.Kernel.memory.map( mem => {
       val m = mem.mem
@@ -92,11 +152,13 @@ class Execute(val localSize: Int, val globalSize: Int) {
       }
     })
 
-    val args: Array[KernelArg] = (memArgs ++ inputs).distinct.toArray
+    val args: Array[KernelArg] = (memArgs ++ inputs).distinct
 
-    println("args.length " + args.length)
+    if (Verbose())
+      println("args.length " + args.length)
 
-    val runtime = Executor.execute(code, localSize, globalSize, args)
+    val runtime = Executor.execute(code, localSize1, localSize2, localSize3,
+      globalSize1, globalSize2, globalSize3, args)
 
     val output = outputData.asFloatArray()
 

@@ -4,13 +4,15 @@ import java.util.function.BiFunction
 
 import ir._
 
+import language.implicitConversions
+
 case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
     new MapCall("MapGlbl", Var("gl_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -32,7 +34,7 @@ case class MapWrg(dim: Int, f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapWrg", Var("wg_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -54,7 +56,7 @@ case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapLcl", Var("l_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -76,7 +78,7 @@ case class MapWarp(f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapWarp", Var("warp_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -93,7 +95,7 @@ case class MapLane(f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapLane", Var("lane_id"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -109,7 +111,7 @@ case class MapSeq(f: Lambda1) extends GenerableMap(f) {
     new MapCall("MapSeq", Var("i"), this, args(0))
   }
 
-  override def o(that: Expr) : MapCall = {
+  override def $(that: Expr) : MapCall = {
     apply(that)
   }
 }
@@ -125,7 +127,7 @@ case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
     new ReduceCall(Var("i"), this, args(0), args(1))
   }
 
-  override def o(that: Expr) : ReduceCall = {
+  override def $(that: Expr) : ReduceCall = {
     apply(that)
   }
 }
@@ -145,7 +147,7 @@ case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {
     new ReduceCall(Var("i"), this, args(0), args(1))
   }
 
-  override def o(that: Expr) : ReduceCall = {
+  override def $(that: Expr) : ReduceCall = {
     apply(that)
   }
 }
@@ -169,20 +171,23 @@ object jToGlobal {
 case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
   //override def copy() = toLocal(f)
 
+case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  var valid = true
+}
+
 object jToLocal {
   def create(f: Lambda1) = toLocal(f)
   def create(f: FunDecl) = toLocal(Lambda1.FunDefToLambda(f))
 }
 
 
-case class ReorderStride() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+case class ReorderStride(s: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
   //override def copy() = ReorderStride()
 object jReorderStride {
-  def create = ReorderStride()
-
-  def comp(f: Lambda) = create o f
-  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
+  def create (s: ArithExpr)= ReorderStride(s)
 }
+
+case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 object jTranspose {
@@ -204,7 +209,28 @@ object jSwap {
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
 
 object IndexFunction {
-  implicit def apply(f: (ArithExpr, Type) => ArithExpr) = new IndexFunction(f)
+  implicit def apply(f: (ArithExpr, Type) => ArithExpr): IndexFunction = new IndexFunction(f)
+
+  // predefined reorder functions ...
+  val transpose = (i: ArithExpr, t: Type) => {
+    val outerType = t match { case at: ArrayType => at }
+    val innerType = outerType.elemT match { case at: ArrayType => at }
+
+    val outerSize = outerType.len
+    val innerSize = innerType.len
+
+    val col = (i % innerSize) * outerSize
+    val row = i div innerSize
+
+    // TODO: simplify this ...
+    row + col
+  }
+
+  val reverse = (i: ArithExpr, t: Type) => {
+    val n = Type.getLength(t)
+
+    n - 1 - i
+  }
 }
 
 case class Gather(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable

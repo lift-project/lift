@@ -5,7 +5,7 @@ import org.junit.Test
 import scala.collection.immutable.HashMap
 import scala.collection.immutable.HashSet
 
-case class V(val id: String)
+case class V(id: String)
 
 class Bug {
 

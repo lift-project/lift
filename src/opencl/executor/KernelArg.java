@@ -1,6 +1,6 @@
 package opencl.executor;
 
-public abstract class KernelArg {
+abstract class KernelArg {
     KernelArg(long handle) {
         nativeHandle = handle;
     }

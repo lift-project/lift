@@ -1,10 +1,11 @@
-package junit.opencl.generator
+package opencl.generator
 
 import opencl.executor._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
 import ir._
+import ir.UserFunDef._
 
 object TestMatrixMatrix {
   @BeforeClass def before() {
@@ -21,26 +22,10 @@ object TestMatrixMatrix {
 
 class TestMatrixMatrix {
 
-  val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
-
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
-
-  val add = UserFunDef("add", Array("x", "y"), "{ return x+y; }", TupleType(Float, Float), Float)
-
-  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", TupleType(Float, Float), Float)
-
-  val multAndSumUp = UserFunDef("multAndSumUp", Array("acc", Array("l", "r")),
-    "{ return acc + (l * r); }",
-    TupleType(Float, TupleType(Float, Float)), Float)
-
-  val multAndSumUp3 = UserFunDef("multAndSumUp3", Array("acc", "l", "r"),
-    "{ return acc + (l * r); }",
-    TupleType(Float, Float, Float), Float)
-
   def matrixMatrixPatternMultiply(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
     val Bt = B.transpose
     A.map( Arow =>
-      Bt.map( Bcol => (Arow, Bcol).zipped.map(_ * _).reduce(_ + _) )
+      Bt.map( Bcol => (Arow, Bcol).zipped.map(_ * _).sum )
     )
   }
 
@@ -48,7 +33,7 @@ class TestMatrixMatrix {
     val Bt = B.transpose
     A.map( Arow =>
       Bt.map( Bcol => (Arow, Bcol).zipped )
-    ).map(_.map(_.map(_ * _).reduce(_ + _)))
+    ).map(_.map(_.map(_ * _).sum))
   }
 
   def matrixMatrixMultiply(A: Array[Array[Float]], B: Array[Array[Float]]) :  Array[Array[Float]] = {
@@ -101,8 +86,8 @@ class TestMatrixMatrix {
 
   @Test def MATRIX_MATRIX_SIMPLE() {
 
-    val Msize = 512
-    val Ksize = 512
+    val Msize = 256
+    val Ksize = 64
     val Nsize = 512
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
@@ -112,30 +97,62 @@ class TestMatrixMatrix {
     val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         MapWrg(fun( Arow =>
-          MapLcl(fun( Bcol =>
-              ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
-          )) o B
-        )) o A
+          Barrier() o MapLcl(fun( Bcol =>
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+          )) $ B
+        )) $ A
       })
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
+    assertArrayEquals(gold, output, 0.0001f)
   }
 
+  @Test def MATRIX_MATRIX_SIMPLER() {
+
+    val Msize = 64
+    val Ksize = 128
+    val Nsize = 256
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        MapGlb(fun( Arow =>
+          MapSeq(fun( Bcol =>
+            ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(Arow, Bcol)
+          )) $ B
+        )) $ A
+      })
+
+    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+
+    println("output.size = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Ignore
   @Test def MATRIX_MATRIX_Christophe() {
 
     val Msize = 32
@@ -155,7 +172,7 @@ class TestMatrixMatrix {
     val d = 16 // chunk size
 
     //val dotProd = fun(rowPair => ReduceSeq(multAndSumUp, 0.0f) o rowPair)
-    val dotProd = fun(rowPair => ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o rowPair)
+    val dotProd = fun(rowPair => ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ rowPair)
 
     val f1 = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -164,8 +181,8 @@ class TestMatrixMatrix {
         Map(fun(rowA =>
           Map(fun(colB =>
             dotProd(Zip(rowA, colB))
-          )) o B
-        )) o A
+          )) $ B
+        )) $ A
       }
     )
 
@@ -179,9 +196,9 @@ class TestMatrixMatrix {
       (A, B) => {
         Map(fun(rowA =>
           Map(fun(colB =>
-            ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-          )) o B
-        )) o A
+            ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+          )) $ B
+        )) $ A
       }
     )
     val t12 = Type.check(f12.body)
@@ -207,12 +224,12 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) o x)) o
+          Map(fun(x => ReduceSeq(add, 0.0f) $ x)) o
           Map(fun(colB =>
-            MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-            //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-          )) o B
-        )) o A
+            MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+            //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+          )) $ B
+        )) $ A
       }
     )
     val t14 = Type.check(f14.body)
@@ -223,14 +240,14 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) o x)) o
+          Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
           Join() o Map(fun(colsB =>
             Map(fun(colB =>
-              MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-              //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-            )) o colsB
-          )) o Split(c) o B
-        )) o A
+              MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+              //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+            )) $ colsB
+          )) o Split(c) $ B
+        )) $ A
       }
     )
     val t15 = Type.check(f15.body)
@@ -241,17 +258,17 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) o x)) o
+          Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
             Join() o
             Map(fun(colsB =>
               Map(fun(colB =>
                 Join() o Map(fun(pairChunk =>
-                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o pairChunk
-                )) o Split(d) o Zip(rowA, colB)
-                //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-              )) o colsB
-            )) o Split(c) o B
-        )) o A
+                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
+                )) o Split(d) $ Zip(rowA, colB)
+                //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+              )) $ colsB
+            )) o Split(c) $ B
+        )) $ A
       }
     )
     val t16 = Type.check(f16.body)
@@ -262,18 +279,18 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) o x)) o
+          Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
             Join() o
             Map(fun(colsB =>
-              Map(fun(y => Join() o y)) o
+              Map(fun(y => Join() $ y)) o
               Map(fun(colB =>
                 Map(fun(pairChunk =>
-                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o pairChunk
-                )) o Split(d) o Zip(rowA, colB)
-                //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-              )) o colsB
-            )) o Split(c) o B
-        )) o A
+                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
+                )) o Split(d) $ Zip(rowA, colB)
+                //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+              )) $ colsB
+            )) o Split(c) $ B
+        )) $ A
       }
     )
     val t17 = Type.check(f17.body)
@@ -284,22 +301,21 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) o x)) o
+          Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
             Join() o
             Map(fun(colsB =>
-              Map(fun(y => Join() o y)) o
+              Map(fun(y => Join() $ y)) o
                 Transpose() o
                 Map(fun(colB =>
                   Map(fun(pairChunk =>
-                    MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o pairChunk
-                    // MapSeq(mult) o pairChunk
-                  )) o Split(d) o Zip(rowA, colB)
-                  //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
+                    MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
+                    // MapSeq(mult) $ pairChunk
+                  )) o Split(d) $ Zip(rowA, colB)
+                  //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
                 )) o
-                Transpose() o
-                colsB
-            )) o Split(c) o B
-        )) o A
+                Transpose() $ colsB
+            )) o Split(c) $ B
+        )) $ A
       }
     )
     val t18 = Type.check(f18.body)
@@ -313,9 +329,9 @@ class TestMatrixMatrix {
           Map(fun(rowA =>
             Map(fun(colB =>
               dotProd(Zip(rowA, colB))
-            )) o B
-          )) o rowsA
-        )) o Split(r) o A
+            )) $ B
+          )) $ rowsA
+        )) o Split(r) $ A
       }
     )
 
@@ -332,10 +348,10 @@ class TestMatrixMatrix {
             Join() o Map(fun(colsB =>
               Map(fun(colB =>
                 dotProd(Zip(rowA, colB))
-              )) o colsB
-            )) o Split(c) o  B
-          )) o rowsA
-        )) o Split(r) o A
+              )) $ colsB
+            )) o Split(c) $ B
+          )) $ rowsA
+        )) o Split(r) $ A
       }
     )
 
@@ -347,15 +363,15 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         Join() o Map(fun(rowsA =>
-          Map(fun(x => Join() o x)) o
+          Map(fun(x => Join() $ x)) o
           Map(fun(rowA =>
             Map(fun(colsB =>
               Map(fun(colB =>
                 dotProd(Zip(rowA, colB))
-              )) o colsB
-            )) o Split(c) o  B
-          )) o rowsA
-        )) o Split(r) o A
+              )) $ colsB
+            )) o Split(c) $ B
+          )) $ rowsA
+        )) o Split(r) $ A
       }
     )
     val t23 = Type.check(f23.body)
@@ -365,16 +381,16 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Map(fun(rowA =>
               Map(fun(colsB =>
                 Map(fun(colB =>
                   dotProd(Zip(rowA, colB))
-                )) o colsB
-              )) o Split(c) o  B
-            )) o rowsA
-        )) o Split(r) o A
+                )) $ colsB
+              )) o Split(c) $ B
+            )) $ rowsA
+        )) o Split(r) $ A
       }
     )
     val t24 = Type.check(f24.body)
@@ -384,7 +400,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, N), K), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
             Map(fun(colsB =>
@@ -392,11 +408,11 @@ class TestMatrixMatrix {
               Map(fun(rowA =>
                 Map(fun(colB =>
                   dotProd(Zip(rowA, colB))
-                )) o colsB
-              )) o rowsA
+                )) $ colsB
+              )) $ rowsA
 
-            )) o Split(c) o  Transpose() o B
-          )) o Split(r) o A
+            )) o Split(c) o  Transpose() $ B
+          )) o Split(r) $ A
       }
     )
     val t25 = Type.check(f25.body)
@@ -409,17 +425,17 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
                 Map(fun(rowA =>
                   Map(fun(colB =>
-                    ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-                  )) o colsB
-                )) o rowsA
-              )) o Split(c) o  B
-          )) o Split(r) o A
+                    ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+                  )) $ colsB
+                )) $ rowsA
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t26 = Type.check(f26.body)
@@ -429,25 +445,25 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
 
                 Map(fun(x =>
                   Map(fun(y =>
-                    ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o y
-                  )) o x
+                    ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ y
+                  )) $ x
                 )) o
 
                 Map(fun(rowA =>
                   Map(fun(colB =>
                     Zip(rowA, colB)
-                  )) o colsB
-                )) o rowsA
+                  )) $ colsB
+                )) $ rowsA
 
-              )) o Split(c) o  B
-          )) o Split(r) o A
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t26a1 = Type.check(f26a1.body)
@@ -457,25 +473,25 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
 
                 Map(fun(x =>
                   Map(fun(y =>
-                    ReduceSeq(add,0.0f) o Join() o Map(ReduceSeq(add,0.0f)) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o y
-                  )) o x
+                    ReduceSeq(add,0.0f) o Join() o Map(ReduceSeq(add,0.0f)) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ y
+                  )) $ x
                 )) o
 
                   Map(fun(rowA =>
                     Map(fun(colB =>
                       Zip(rowA, colB)
-                    )) o colsB
-                  )) o rowsA
+                    )) $ colsB
+                  )) $ rowsA
 
-              )) o Split(c) o  B
-          )) o Split(r) o A
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t26a2 = Type.check(f26a2.body)
@@ -485,25 +501,25 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
 
                 Map(fun(x =>
                   Map(fun(y =>
-                    ReduceSeq(add,0.0f) o Join() o Map(ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1))))) o Split(d) o y
-                  )) o x
+                    ReduceSeq(add,0.0f) o Join() o Map(ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1))))) o Split(d) $ y
+                  )) $ x
                 )) o
 
                   Map(fun(rowA =>
                     Map(fun(colB =>
                       Zip(rowA, colB)
-                    )) o colsB
-                  )) o rowsA
+                    )) $ colsB
+                  )) $ rowsA
 
-              )) o Split(c) o  B
-          )) o Split(r) o A
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t26a3 = Type.check(f26a3.body)
@@ -515,18 +531,18 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
                 Map(fun(rowA =>
-                  Map(fun(x => ReduceSeq(add,0.0f) o x)) o
+                  Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
                   Map(fun(colB =>
-                     MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-                  )) o colsB
-                )) o rowsA
-              )) o Split(c) o  B
-          )) o Split(r) o A
+                     MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+                  )) $ colsB
+                )) $ rowsA
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t27 = Type.check(f27.body)
@@ -536,22 +552,22 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
 
                 Map(fun(rowA =>
-                  Map(fun(x => ReduceSeq(add,0.0f) o x)) o
+                  Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
                     Map(fun(colB =>
                       Join() o Map(fun(chunkPair =>
-                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o chunkPair
-                      )) o Split(r) o Zip(rowA, colB)
-                    )) o colsB
-                )) o rowsA
+                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
+                      )) o Split(r) $ Zip(rowA, colB)
+                    )) $ colsB
+                )) $ rowsA
 
-              )) o Split(c) o  B
-          )) o Split(r) o A
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t28 = Type.check(f28.body)
@@ -561,23 +577,23 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
 
-                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) o x)) o y)) o
+                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) $ x)) $ y)) o
 
                 Map(fun(rowA =>
                     Map(fun(colB =>
                       Join() o Map(fun(chunkPair =>
-                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o chunkPair
-                      )) o Split(r) o Zip(rowA, colB)
-                    )) o colsB
-                )) o rowsA
+                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
+                      )) o Split(r) $ Zip(rowA, colB)
+                    )) $ colsB
+                )) $ rowsA
 
-              )) o Split(c) o  B
-          )) o Split(r) o A
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t29 = Type.check(f29.body)
@@ -587,24 +603,24 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
 
-                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) o x)) o y)) o
-                Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) $ x)) $ y)) o
+                Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
 
                   Map(fun(rowA =>
                     Map(fun(colB =>
                      Map(fun(chunkPair =>
-                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o chunkPair
-                      )) o Split(r) o Zip(rowA, colB)
-                    )) o colsB
-                  )) o rowsA
+                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
+                      )) o Split(r) $ Zip(rowA, colB)
+                    )) $ colsB
+                  )) $ rowsA
 
-              )) o Split(c) o  B
-          )) o Split(r) o A
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t210 = Type.check(f210.body)
@@ -614,28 +630,28 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
 
-                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) o x)) o y)) o
-                Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) $ x)) $ y)) o
+                Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
 
                 Map(fun(y => Map(fun(x =>
                   Map(fun(chunkPair =>
-                    MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o chunkPair
-                  )) o x)) o y)) o
+                    MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
+                  )) $ x)) $ y)) o
 
 
                 Map(fun(rowA =>
                   Map(fun(colB =>
-                     Split(r) o Zip(rowA, colB)
-                  )) o colsB
-                )) o rowsA
+                     Split(r) $ Zip(rowA, colB)
+                  )) $ colsB
+                )) $ rowsA
 
-              )) o Split(c) o  B
-          )) o Split(r) o A
+              )) o Split(c) $  B
+          )) o Split(r) $ A
       }
     )
     val t211 = Type.check(f211.body)
@@ -645,28 +661,28 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
           Map(fun(rowsA =>
             Transpose() o
               Map(fun(colsB =>
 
-                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) o x)) o y)) o
-                  Map(fun(y => Map(fun(x => Join() o x)) o y)) o
+                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) $ x)) $ y)) o
+                  Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
 
                   Map(fun(y =>
                     Map(fun(x =>
                       Map(fun(chunkPair =>
-                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o chunkPair
-                      )) o Split(r) o x)) o y)) o
+                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
+                      )) o Split(r) $ x)) $ y)) o
 
                   Map(fun(rowA =>
                     Map(fun(colB =>
                       Zip(rowA, colB)
-                    )) o colsB
-                  )) o rowsA
+                    )) $ colsB
+                  )) $ rowsA
 
-              )) o Split(c) o  B
-          )) o Split(r) o A
+              )) o Split(c) $ B
+          )) o Split(r) $ A
       }
     )
     val t212 = Type.check(f212.body)
@@ -681,9 +697,9 @@ class TestMatrixMatrix {
           Transpose() o Map(fun(colB =>
             Map(fun(rowA =>
               dotProd(Zip(rowA, colB))
-            )) o rowsA
-          ))  o B
-        )) o Split(r) o A
+            )) $ rowsA
+          )) $ B
+        )) o Split(r) $ A
       }
     )
 
@@ -701,10 +717,10 @@ class TestMatrixMatrix {
             Map(fun(colB =>
               Map(fun(rowA =>
                 dotProd(Zip(rowA, colB))
-              )) o rowsA
-            )) o colsB
-          ))  o Split(c) o B
-        )) o Split(r) o A
+              )) $ rowsA
+            )) $ colsB
+          ))  o Split(c) $ B
+        )) o Split(r) $ A
       }
     )
 
@@ -720,11 +736,11 @@ class TestMatrixMatrix {
           Transpose() o Join() o Map(fun(colsB =>
             Map(fun(colB =>
               Map(fun(rowA =>
-                ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-              )) o rowsA
-            )) o colsB
-          ))  o Split(c) o B
-        )) o Split(r) o A
+                ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+              )) $ rowsA
+            )) $ colsB
+          ))  o Split(c) $ B
+        )) o Split(r) $ A
       }
     )
 
@@ -741,12 +757,12 @@ class TestMatrixMatrix {
             Map(fun(colB =>
               Map(fun(rowA =>
                 ReduceSeq(add,0.0f) o Join() o Map(fun(pairChunk =>
-                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o pairChunk
-                )) o Split(d) o Zip(rowA, colB)
-              )) o rowsA
-            )) o colsB
-          ))  o Split(c) o B
-        )) o Split(r) o A
+                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
+                )) o Split(d) $ Zip(rowA, colB)
+              )) $ rowsA
+            )) $ colsB
+          ))  o Split(c) $ B
+        )) o Split(r) $ A
       }
     )
 
@@ -762,12 +778,12 @@ class TestMatrixMatrix {
             Map(fun(colB =>
               Map(fun(rowA =>
                 ReduceSeq(add,0.0f) o Join() o Map(fun(pairChunk =>
-                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o pairChunk
-                )) o Split(d) o Zip(rowA, colB)
-              )) o rowsA
-            )) o colsB
-          ))  o Split(c) o B
-        )) o Split(r) o A
+                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
+                )) o Split(d) $ Zip(rowA, colB)
+              )) $ rowsA
+            )) $ colsB
+          ))  o Split(c) $ B
+        )) o Split(r) $ A
       }
     )
 
@@ -781,13 +797,13 @@ class TestMatrixMatrix {
       (A, B) => {
         Join() o MapWrg(0)(fun(rowsA =>
           Transpose() o Join() o MapWrg(1)(fun(colsB =>
-            MapLcl(0)(fun(colB =>
-              MapLcl(1)(fun(rowA =>
-                ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-              )) o rowsA
-            )) o colsB
-          ))  o Split(c) o B
-        )) o Split(r) o A
+            Barrier() o MapLcl(0)(fun(colB =>
+              Barrier() o MapLcl(1)(fun(rowA =>
+                ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
+              )) $ rowsA
+            )) $ colsB
+          ))  o Split(c) $ B
+        )) o Split(r) $ A
       }
     )
 
@@ -800,8 +816,8 @@ class TestMatrixMatrix {
       (A, B) => {
         MapWrg(0)(fun(rowsA =>
           MapWrg(1)(fun(colsB =>
-            MapLcl(0)(fun(rowA =>
-              MapLcl(1)(fun(colB =>
+            Barrier() o MapLcl(0)(fun(rowA =>
+              Barrier() o MapLcl(1)(fun(colB =>
                 ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1))
                 )) o Zip(rowA, colB)
               )) o colsB
@@ -814,7 +830,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f5, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -844,9 +860,9 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
-            ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
-          )) o B
-        )) o A
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+          )) $ B
+        )) $ A
       })
 
     // TODO: make this work
@@ -854,17 +870,17 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        MapGlb(0)(MapGlb(1)(ReduceSeq(multAndSumUp, 0.0f))) o
+        MapGlb(0)(MapGlb(1)(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
         MapSeq(fun( Arow =>
           MapSeq(fun( Bcol =>
             Zip(Arow, Bcol)
-          )) o B
-        )) o A
+          )) $ B
+        )) $ A
       })
 
     val (output, runtime) = Execute(Msize * Nsize)(f1, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -894,23 +910,20 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
-            ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
-          )) o Transpose() o B
-        )) o A
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+          )) o Transpose() $ B
+        )) $ A
       })
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   /*
@@ -941,8 +954,8 @@ class TestMatrixMatrix {
 
             Join() o MapSeq(fun( (zippedChunk) => //acc,
 
-              MapLcl(0)(fun( Arow =>
-                MapLcl(1)(fun( Bcol =>
+              Barrier() o MapLcl(0)(fun( Arow =>
+                Barrier() o MapLcl(1)(fun( Bcol =>
 
                   ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
 
@@ -970,20 +983,7 @@ class TestMatrixMatrix {
   }
   */
 
-  private def print(m: Array[Array[Float]]): Unit = {
-    m.map( r => {
-      println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
-    } )
-  }
-
-  private def print(m: Array[Float], cols: Int): Unit = {
-    val (row, rest) = m.splitAt(cols)
-    if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
-    if (rest.nonEmpty) print(rest, cols)
-  }
-
-  /*
-  TODO: Add support for writing transposed, as in: Transpose() o Join() o MapWrg(1)( ...) o Split(c) o B
+  /* TODO: Add support for writing transposed, as in: Transpose() o Join() o MapWrg(1)( ...) o Split(c) o B
   @Test def MATRIX_MATRIX_2D_TESTS_2() {
 
     val Msize = 8
@@ -1008,8 +1008,8 @@ class TestMatrixMatrix {
       (A, B) => {
         Join() o MapWrg(0)(fun( Arows =>
           Transpose() o Join() o MapWrg(1)(fun( Bcols =>
-            MapLcl(0)(fun( Bcol =>
-              MapLcl(1)(fun( Arow =>
+            Barrier() o MapLcl(0)(fun( Bcol =>
+              Barrier() o MapLcl(1)(fun( Arow =>
                 ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
               )) o Arows
             )) o Bcols
@@ -1019,22 +1019,20 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(8, Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
     println("gold:")
-    print(gold, Msize)
+    PrintUtils.myPrint(gold, Msize)
     println("output:")
-    print(output, Msize)
+    PrintUtils.myPrint(output, Msize)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
+    assertArrayEquals(gold,output,0.0f)
 
   }
-  */
+*/
 
 }

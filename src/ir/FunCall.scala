@@ -2,6 +2,8 @@ package ir
 
 import opencl.ir._
 
+import language.implicitConversions
+
 abstract class Expr {
   var context : Context = null
 
@@ -10,9 +12,6 @@ abstract class Expr {
 
   // memory information
   var mem: Memory = UnallocatedMemory
-
-  // memory access information
-  var access: AccessFunctions = EmptyAccessFuntions
 
   // view explaining how to access the memory
   var view: View = NoView
@@ -56,7 +55,7 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
     new FunCall(f, newArgs:_*)
   }
 
-  // One type for all arguments (i.e. a tuple if there arae more than one args)
+  // One type for all arguments (i.e. a tuple if there are more than one args)
   def argsType: Type = {
     if (args.length == 1) args(0).t
     else TupleType( args.map(_.t):_* )
@@ -65,11 +64,6 @@ sealed class FunCall(val f : FunDecl, val args : Expr*) extends Expr with Clonea
   def argsMemory: Memory = {
     if (args.length == 1) args(0).mem
     else OpenCLMemoryCollection( UndefAddressSpace, args.map(_.mem.asInstanceOf[OpenCLMemory]):_* )
-  }
-
-  def argsAccess: AccessFunctions = {
-    if (args.length == 1) args(0).access
-    else AccessFunctionsCollection( args.map(_.access):_* )
   }
 
 }
@@ -90,6 +84,10 @@ class Param() extends Expr {
   override def copy: Param =  this.clone().asInstanceOf[Param]
 }
 
+class VectorParam(val p: Param, n: ArithExpr) extends Param {
+  t = Type.vectorize(p.t, n)
+}
+
 object Param {
   def apply(): Param = new Param
 
@@ -97,6 +95,10 @@ object Param {
     val p = Param()
     p.t =outT
     p
+  }
+
+  def vectorize(p: Param, n: ArithExpr): Param = {
+    new VectorParam(p, n)
   }
 }
 
@@ -124,21 +126,28 @@ object Value {
   }
 }
 
-case class IterateCall(override val f: Iterate, override val args: Expr*) extends FunCall(f, args(0)) {
+case class IterateCall(override val f: Iterate, override val args: Expr*) extends FunCall(f, args.head) {
   assert(args.length == 1)
   def arg: Expr = args(0)
+
+  var iterationCount: ArithExpr = ?
 
   var swapBuffer: Memory = UnallocatedMemory
+  var indexVar = Var("i", RangeUnknown)
 }
 
-case class MapCall(name: String, loopVar: Var, override val f: AbstractMap, override val args: Expr*) extends FunCall(f, args(0)) {
+case class MapCall(name: String, loopVar: Var, override val f: AbstractMap, override val args: Expr*) extends FunCall(f, args.head) {
   assert(args.length == 1)
+
+  var iterationCount: ArithExpr = ?
 
   def arg: Expr = args(0)
 }
 
-case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override val args: Expr*) extends FunCall(f, args(0), args(1)) {
+case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override val args: Expr*) extends FunCall(f, args.head, args(1)) {
   assert(args.length == 2)
+
+  var iterationCount: ArithExpr = ?
 
   def arg0: Expr = args(0)
   def arg1: Expr = args(1)
@@ -146,9 +155,23 @@ case class ReduceCall(loopVar: Var, override val f: AbstractPartRed, override va
 
 object Expr {
 
-  implicit def IntToValue(i: Int) = Value(i.toString, opencl.ir.Int)
+  implicit def IntToValue(i: Int): Value = Value(i.toString, opencl.ir.Int)
 
-  implicit def FloatToValue(f: Float) = Value(f.toString + "f", opencl.ir.Float)
+  implicit def FloatToValue(f: Float): Value = Value(f.toString + "f", opencl.ir.Float)
+
+  implicit def Tuple2ToValue[T1 , T2](t : (T1, T2)): Value = {
+    Value(t.toString().replace('(', '{').replace(')', '}'), TupleType(getType(t._1), getType(t._2)))
+  }
+
+  implicit def Tuple3ToValue[T1 , T2, T3](t : (T1, T2, T3)): Value = {
+    Value(t.toString().replace('(', '{').replace(')', '}'), TupleType(getType(t._1), getType(t._2), getType(t._3)))
+  }
+
+  private def getType(a : Any) : Type = a match {
+    case _ : Float => Float
+    case _ : Int => Int
+    case _ => throw new IllegalArgumentException
+  }
 
   def replace(e: Expr, oldE: Expr, newE: Expr) : Expr =
     visit (e, (e:Expr) => if (e.eq(oldE)) newE else oldE, (e:Expr) => e)
@@ -177,16 +200,16 @@ object Expr {
    */
   def visitArithExpr(expr: Expr, exprF: (ArithExpr) => (ArithExpr)) : Expr = {
     visit(expr,
-          (inExpr: Expr) => inExpr match {
-            case call: FunCall =>
-              call.f match {
-                case Split(e) => Split(exprF(e))(call.args:_*)
-                case asVector(e) => asVector(exprF(e))(call.args:_*)
-                case _ => inExpr
-              }
-            case _ => inExpr
-            },
-          (inExpr: Expr) => inExpr)
+    {
+      case call: FunCall =>
+        call.f match {
+          case Split(e) => Split(exprF(e))(call.args:_*)
+          case asVector(e) => asVector(exprF(e))(call.args:_*)
+          case _ => call
+        }
+      case inExpr => inExpr
+    },
+    (inExpr: Expr) => inExpr)
   }
   
   /*
@@ -215,7 +238,7 @@ object Expr {
     pre(expr)
     expr match {
       case call: FunCall =>
-        call.args.map( (arg) => visit(arg, pre, post) )
+        call.args.foreach( (arg) => visit(arg, pre, post) )
 
         call.f match {
           case fp: FPattern => visit(fp.f.body, pre, post)
