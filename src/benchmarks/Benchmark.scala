@@ -60,6 +60,10 @@ abstract class Benchmark(val name: String,
     "Inject the local size into the kernel as a constant, " +
       "possibly replacing some for loops with if statements.")
 
+  val injectGroup = parser.flag[Boolean](List("ig", "injectGroup"),
+    "Inject the number of groups into the kernel as a constant, " +
+      "possibly replacing some for loops with if statements.")
+
   val help = parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
     (sValue, opt) =>
@@ -107,7 +111,7 @@ abstract class Benchmark(val name: String,
         realGlobalSizes(0),
         realGlobalSizes(1),
         realGlobalSizes(2),
-        (injectLocal.value.getOrElse(false), false)
+        (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
       )(lambdas(i), realInputs ++ realSizes:_*)
 
       // Adjust parameters for the next kernel, if any
