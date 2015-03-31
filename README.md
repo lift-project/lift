@@ -1,4 +1,4 @@
-### How do I get set up? ###
+### Setup ###
 
 1. Install mercurial and the latest Java SDK
 2. Cone the "apart" repository to a directory of you choice
