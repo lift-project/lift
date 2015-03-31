@@ -30,7 +30,6 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
         call.f match {
           case _: Map =>
           case _ =>
-            evaluateMapRange(call)
             apply(call.f.f.body)
         }
       case call: ReduceCall =>
@@ -59,8 +58,8 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
     val m = call.f.asInstanceOf[MapWrg]
     val dim: Int = m.dim
     val start: get_group_id = new get_group_id(dim)
-    var length: ArithExpr = Type.getLength(call.arg.t)
-    var step: ArithExpr = new get_num_groups(m.dim)
+    val length: ArithExpr = Type.getLength(call.arg.t)
+    val step: ArithExpr = new get_num_groups(m.dim)
 
     val gSize = globalSizes(dim)
     val lSize = localSizes(dim)
@@ -68,9 +67,10 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
     gSize match {
       case Cst(c) =>
         val numGroups = gSize / lSize
-        length = ArithExpr.substitute(length, valueMap)
-        step = numGroups
+        val lengthSubst = ArithExpr.substitute(length, valueMap)
         start.range = ContinuousRange(0, numGroups)
+        call.loopVar.range = RangeAdd(start, lengthSubst, numGroups)
+        evaluateMapRange(call)
       case ? =>
     }
 
@@ -80,6 +80,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
   private def setRangeMapGlb(call: MapCall): Unit = {
     val m = call.f.asInstanceOf[MapGlb]
     call.loopVar.range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.arg.t), new get_global_size(m.dim))
+    evaluateMapRange(call)
   }
 
   private def setRangeMapLcl(call: MapCall): Unit = {
@@ -96,20 +97,24 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
     }
 
     call.loopVar.range = RangeAdd(start, length, step)
+    evaluateMapRange(call)
   }
 
   private def setRangeMapWarp(call: MapCall): Unit = {
     call.loopVar.range = RangeAdd(new get_local_id(0) / OpenCL.warpSize,
       Type.getLength(call.arg.t),
       Cst(Kernel.workGroupSize) / OpenCL.warpSize)
+    evaluateMapRange(call)
   }
 
   private def setRangeMapLane(call: MapCall): Unit = {
     call.loopVar.range = RangeAdd(new get_local_id(0) & (OpenCL.warpSize - Cst(1)), Type.getLength(call.arg.t), OpenCL.warpSize)
+    evaluateMapRange(call)
   }
 
   private def setRangeMapSeq(call: MapCall): Unit = {
     call.loopVar.range = ContinuousRange(Cst(0), Type.getLength(call.arg.t))
+    evaluateMapRange(call)
   }
 
   private def setRangeReduceSeq(call: ReduceCall): Unit = {
