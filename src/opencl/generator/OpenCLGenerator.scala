@@ -36,9 +36,6 @@ object OpenCL{
 object OpenCLGenerator extends Generator {
 
   var oclPrinter: OpenCLPrinter = null
-  var localSize: Array[ArithExpr] = Array(?, ?, ?)
-  var globalSize: Array[ArithExpr] = Array(?, ?, ?)
-  var valueMap: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()
 
   private def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, (e: Expr) => e match {
@@ -63,10 +60,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // Compile a type-checked function into an OpenCL kernel
-  def generate(f: Lambda, localSize: Array[ArithExpr], globalSizes: Array[ArithExpr], valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
-    this.localSize = localSize
-    this.globalSize = globalSizes
-    this.valueMap = valueMap
+  def generate(f: Lambda, localSize: Array[ArithExpr], globalSize: Array[ArithExpr], valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
 
     assert(localSize.length == 3)
     assert(globalSize.length == 3)
