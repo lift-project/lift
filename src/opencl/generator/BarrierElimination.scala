@@ -69,8 +69,15 @@ object BarrierElimination {
         val id = x._2
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
-        if (group.exists(l => isSplit(l) || isJoin(l)))
+        if (group.exists(l => isSplit(l) || isJoin(l))) {
           needsBarrier(id) = true
+
+          // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
+          // But it doesn't matter at which point.
+          if (writesTo(group.last) == LocalMemory && id > 1 && insideLoop &&
+            !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
+            needsBarrier(id - 1) = true
+        }
 
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
