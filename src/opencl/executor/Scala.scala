@@ -7,7 +7,23 @@ import opencl.ir._
 import scala.collection.immutable
 import scala.reflect.ClassTag
 
+object Eval {
+  def apply(code: String): Lambda = {
+    val imports = """
+                    |import ir._
+                    |import opencl.ir._
+                    |
+                  """.stripMargin
+    com.twitter.util.Eval[Lambda](imports ++ code)
+  }
+}
+
 object Compile {
+  def apply(code: String): (String, Lambda) = {
+    val f = Eval(code)
+    (apply(f), f)
+  }
+
   def apply(f: Lambda): String = apply(f, ?, ?, ?)
 
   def apply(f: Lambda,
@@ -31,6 +47,7 @@ object Compile {
 
     kernelCode
   }
+
 }
 
 object Execute {
@@ -85,8 +102,12 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
               val globalSize1: Int, val globalSize2: Int, val globalSize3: Int,
               val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
 
-  def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
-    assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
+  def apply(input: String, values: Any*): (Array[Float], Double) = {
+    val (code, f) = Compile(input)
+    apply(code, f, values:_*)
+  }
+
+  def apply(f: Lambda, values: Any*): (Array[Float], Double) = {
     val valueMap = Execute.createValueMap(f, values:_*)
 
     val code = if (injectLocalSize)

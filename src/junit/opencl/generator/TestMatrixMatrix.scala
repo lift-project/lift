@@ -101,7 +101,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         MapWrg(fun( Arow =>
-          MapLcl(fun( Bcol =>
+          Barrier() o MapLcl(fun( Bcol =>
             ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
@@ -797,8 +797,8 @@ class TestMatrixMatrix {
       (A, B) => {
         Join() o MapWrg(0)(fun(rowsA =>
           Transpose() o Join() o MapWrg(1)(fun(colsB =>
-            MapLcl(0)(fun(colB =>
-              MapLcl(1)(fun(rowA =>
+            Barrier() o MapLcl(0)(fun(colB =>
+              Barrier() o MapLcl(1)(fun(rowA =>
                 ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
               )) $ rowsA
             )) $ colsB
@@ -816,8 +816,8 @@ class TestMatrixMatrix {
       (A, B) => {
         MapWrg(0)(fun(rowsA =>
           MapWrg(1)(fun(colsB =>
-            MapLcl(0)(fun(rowA =>
-              MapLcl(1)(fun(colB =>
+            Barrier() o MapLcl(0)(fun(rowA =>
+              Barrier() o MapLcl(1)(fun(colB =>
                 ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1))
                 )) o Zip(rowA, colB)
               )) o colsB
@@ -954,8 +954,8 @@ class TestMatrixMatrix {
 
             Join() o MapSeq(fun( (zippedChunk) => //acc,
 
-              MapLcl(0)(fun( Arow =>
-                MapLcl(1)(fun( Bcol =>
+              Barrier() o MapLcl(0)(fun( Arow =>
+                Barrier() o MapLcl(1)(fun( Bcol =>
 
                   ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
 
@@ -1008,8 +1008,8 @@ class TestMatrixMatrix {
       (A, B) => {
         Join() o MapWrg(0)(fun( Arows =>
           Transpose() o Join() o MapWrg(1)(fun( Bcols =>
-            MapLcl(0)(fun( Bcol =>
-              MapLcl(1)(fun( Arow =>
+            Barrier() o MapLcl(0)(fun( Bcol =>
+              Barrier() o MapLcl(1)(fun( Arow =>
                 ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
               )) o Arows
             )) o Bcols

@@ -101,7 +101,7 @@ object Type {
     t match {
       case at: ArrayType => visit(at.elemT, pre, post)
       case vt: VectorType => visit(vt.scalarT, pre, post)      
-      case tt: TupleType => tt.elemsT.map(et => visit(et,pre,post))
+      case tt: TupleType => tt.elemsT.foreach(et => visit(et,pre,post))
       case _ => // nothing to do
     }
     post(t)
@@ -347,6 +347,7 @@ object Type {
       case g: Gather =>           checkGather(g, inT, setType)
       case s: Scatter =>          checkScatter(s, inT, setType)
       case f: Filter =>           checkFilter(f, inT, setType)
+      case _: Barrier =>          inT
     }
   }
 
@@ -369,7 +370,7 @@ object Type {
       val tt = inT match { case tt: TupleType => tt }
       if (l.params.length != tt.elemsT.length) throw new NumberOfArgumentsException
 
-      (l.params zip tt.elemsT).map({case (p,t) => p.t = t })
+      (l.params zip tt.elemsT).foreach({case (p,t) => p.t = t })
     }
     check(l.body, setType)
   }
@@ -388,7 +389,7 @@ object Type {
     inT match {
       case tt: TupleType =>
         if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
-        val initT = tt.elemsT(0)
+        val initT = tt.elemsT.head
         val elemT = getElemT(tt.elemsT(1))
         if (ar.f.params.length != 2) throw new NumberOfArgumentsException
         ar.f.params(0).t = initT
@@ -425,7 +426,7 @@ object Type {
           println("Warning: can not statically proof that sizes (" + tt.elemsT.mkString(", ") + ") match!")
           // throw TypeException("sizes do not match")
         }
-        ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes(0).len)
+        ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.len)
       case _ => throw new TypeException(inT, "TupleType")
     }
   }
