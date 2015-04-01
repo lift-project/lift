@@ -329,7 +329,6 @@ class TestScatterGather {
     assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
   }
 
-  @Ignore
   @Test def mapScatterMap(): Unit = {
     val Nsize = 256
     val vector = Array.tabulate(Nsize)(_.toFloat)

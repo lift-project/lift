@@ -2,6 +2,7 @@ package opencl.generator
 
 import generator.Generator
 import ir._
+import ir.view.{ViewPrinter, View}
 import opencl.ir._
 
 import scala.collection.immutable
@@ -81,8 +82,10 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.view = View(p.t, new InputAccess(oclPrinter.toOpenCL(p.mem.variable)))
+      p.view = View(p.t, oclPrinter.toOpenCL(p.mem.variable))
     })
+
+    f.body.view = View(f.body.t, oclPrinter.toOpenCL(f.body.mem.variable))
 
     // pass 1
     allocateMemory(f)
@@ -102,7 +105,7 @@ object OpenCLGenerator extends Generator {
       println("")
     }
 
-    View.createView(f.body)
+    View.visitAndBuildViews(f.body)
 
     // pass 2: find and generate user functions
     generateUserFunction(f.body)

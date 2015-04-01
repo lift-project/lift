@@ -1,5 +1,6 @@
 package ir
 
+import ir.view.{NoView, View}
 import opencl.ir._
 
 import language.implicitConversions
@@ -25,6 +26,21 @@ abstract class Expr {
       this.context = ctx
     this
   }
+
+  def isConcrete: Boolean = {
+    Expr.visit(false)(this, (e: Expr, b: Boolean) => {
+      e match {
+        case call: FunCall =>
+          call.f match {
+            case _: UserFunDef => true
+            case _ => b
+          }
+        case _ => b
+      }
+    })
+  }
+
+  def isAbstract: Boolean = !isConcrete
 
   def copy: Expr
 }
@@ -78,17 +94,17 @@ object Expr {
       case call: FunCall =>
         val newArgs = call.args.map((arg) => visit(arg, pre, post))
         call.f match {
-          case cf: CompFunDef => {
+          case cf: CompFunDef =>
             CompFunDef(cf.funs.map(inF => new Lambda(inF.params, visit(inF.body, pre, post))): _*).apply(newArgs: _*)
-          }
-          case ar: AbstractPartRed => {
+
+          case ar: AbstractPartRed =>
             ar.getClass.getConstructor(classOf[Lambda], classOf[Value])
               .newInstance(visit(ar.f.body, pre, post), ar.init).apply(newArgs: _*)
-          }
-          case fp: FPattern => {
+
+          case fp: FPattern =>
             fp.getClass.getConstructor(classOf[Expr])
               .newInstance(visit(fp.f.body, pre, post)).apply(newArgs: _*)
-          }
+
           case _ => newExpr.copy
         }
       case _ => newExpr.copy
