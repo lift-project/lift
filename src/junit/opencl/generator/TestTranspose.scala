@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.IndexFunction.transpose
 
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestTranspose {
   @BeforeClass def before() {

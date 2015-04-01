@@ -353,6 +353,7 @@ object InputView {
   }
 
   private def buildViewScatter(scatter: Scatter, call: FunCall, argView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
+    scatter.f.params(0).view = argView
     visitAndBuildViews(scatter.f.body, outputAccessInf)
   }
 
