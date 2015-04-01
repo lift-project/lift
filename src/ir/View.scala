@@ -275,7 +275,7 @@ object InputView {
 
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
-      f.params(0).view = v
+      f.params(0).view = if (v != NoView) v else initialiseNewView(f.params(0).t, outputAccessInf)
 
       f.body match {
         case call: FunCall =>
