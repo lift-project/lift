@@ -2,7 +2,7 @@ package opencl.generator
 
 import generator.Generator
 import ir._
-import ir.view.{OutputView, ViewPrinter, View, InputView}
+import ir.view.{ViewPrinter, View}
 import opencl.ir._
 
 import scala.collection.immutable
@@ -107,8 +107,7 @@ object OpenCLGenerator extends Generator {
       println("")
     }
 
-    InputView.visitAndBuildViews(f.body)
-    OutputView.visitAndBuildViews(f.body, f.body.view)
+    View.visitAndBuildViews(f.body)
 
     // pass 2: find and generate user functions
     generateUserFunction(f.body)

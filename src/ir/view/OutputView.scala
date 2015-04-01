@@ -4,10 +4,6 @@ import ir._
 import opencl.ir._
 
 object OutputView {
-  // create new view based on the given type
-  def apply(t: Type, name: String): View = {
-    View.create(name, t)
-  }
 
   def visitAndBuildViews(expr: Expr, writeView: View, outputAccessInf: List[(ArithExpr, ArithExpr)] = List()): View = {
     expr match {
@@ -57,7 +53,7 @@ object OutputView {
 
   private def buildViewIterate(i: Iterate, call:FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
     visitAndBuildViews(i.f.body, writeView, outputAccessInf)
-    initialiseNewView(call.t, outputAccessInf)
+    View.initialiseNewView(call.t, outputAccessInf)
   }
 
   private def buildViewToGlobal(tG: toGlobal, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
@@ -77,7 +73,7 @@ object OutputView {
 
     if (call.isConcrete) {
       // create fresh input view for following function
-      initialiseNewView(call.arg.t, outputAccessInf, call.mem.variable.name)
+      View.initialiseNewView(call.arg.t, outputAccessInf, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
       new ViewMap(innerView, call.loopVar, call.arg.t)
     }
@@ -89,7 +85,7 @@ object OutputView {
     // traverse into call.f
     visitAndBuildViews(call.f.f.body, writeView.access(Cst(0)), newOutputAccessInf)
     // create fresh input view for following function
-    initialiseNewView(call.arg1.t, outputAccessInf, call.mem.variable.name)
+    View.initialiseNewView(call.arg1.t, outputAccessInf, call.mem.variable.name)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
@@ -140,13 +136,6 @@ object OutputView {
     }
   }
 
-  private def initialiseNewView(t: Type, outputAccessInf: List[(ArithExpr, ArithExpr)], name: String = ""): View = {
-    // Use the lengths and iteration vars to mimic inputs
-    val outArray = getFullType(t, outputAccessInf)
-    val outView = View.create(name, outArray)
-    outputAccessInf.foldRight(outView)((idx, view) => view.access(idx._2))
-  }
-
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View, outputAccessInf: List[(ArithExpr, ArithExpr)]): View = {
     call.t match {
       case ArrayType(ArrayType(typ, m), n) =>
@@ -164,9 +153,5 @@ object OutputView {
   private def buildViewScatter(scatter: Scatter, call: FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
     val reordered = writeView.reorder( (i:ArithExpr) => { scatter.idx.f(i, call.t) } )
     visitAndBuildViews(scatter.f.body, reordered, outputAccessInf)
-  }
-
-  private def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)]): Type = {
-    outputAccessInf.foldLeft(outputType)((t, len) => ArrayType(t, len._1))
   }
 }

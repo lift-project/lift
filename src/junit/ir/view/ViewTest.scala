@@ -1,10 +1,9 @@
-package ir
+package ir.view
 
-import ir.view.{ViewPrinter, View, ViewMap}
-import org.junit.Test
-import org.junit.Assert._
-
+import ir._
 import opencl.ir._
+import org.junit.Assert._
+import org.junit.Test
 
 class ViewTest {
 

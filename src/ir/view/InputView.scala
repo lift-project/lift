@@ -46,7 +46,6 @@ object InputView {
           case tG: toGlobal => buildViewToGlobal(tG, argView, outputAccessInf)
           case i: Iterate => buildViewIterate(i, call, argView, outputAccessInf)
           case t: Transpose => buildViewTranspose(t, call, argView)
-          //          case tw: TransposeW => buildViewTransposeW(tw, call, argView, outputAccessInf)
           case asVector(n) => buildViewAsVector(n, argView)
           case _: asScalar => buildViewAsScalar(argView)
           case f: Filter => buildViewFilter(f, call, argView)
@@ -54,7 +53,6 @@ object InputView {
           case SplitDim2(n) =>
           case j: JoinDim2 =>
 
-          case _: Swap =>
           */
           case _ => argView
         }
@@ -64,7 +62,7 @@ object InputView {
   private def buildViewIterate(i: Iterate, call:FunCall, argView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
     i.f.params(0).view = argView
     visitAndBuildViews(i.f.body, outputAccessInf)
-    initialiseNewView(call.t, outputAccessInf)
+    View.initialiseNewView(call.t, outputAccessInf)
   }
 
   private def buildViewToGlobal(tG: toGlobal, argView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
@@ -88,7 +86,7 @@ object InputView {
 
     if (call.isConcrete) {
       // create fresh input view for following function
-      initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
+      View.initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
       new ViewMap(innerView, call.loopVar, call.t)
     }
@@ -103,7 +101,7 @@ object InputView {
     // traverse into call.f
     visitAndBuildViews(call.f.f.body, newOutputAccessInf)
     // create fresh input view for following function
-    initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
+    View.initialiseNewView(call.t, outputAccessInf, call.mem.variable.name)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, argView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
@@ -123,7 +121,7 @@ object InputView {
 
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
-      f.params(0).view = if (v != NoView) v else initialiseNewView(f.params(0).t, outputAccessInf)
+      f.params(0).view = if (v != NoView) v else View.initialiseNewView(f.params(0).t, outputAccessInf)
 
       f.body match {
         case call: FunCall =>
@@ -172,13 +170,6 @@ object InputView {
     NoView
   }
 
-  private def initialiseNewView(t: Type, outputAccessInf: List[(ArithExpr, ArithExpr)], name: String = ""): View = {
-    // Use the lengths and iteration vars to mimic inputs
-    val outArray = getFullType(t, outputAccessInf)
-    val outView = View.create(name, outArray)
-    outputAccessInf.foldRight(outView)((idx, view) => view.access(idx._2))
-  }
-
   private def buildViewReorderStride(s: ArithExpr, call: FunCall, argView: View): View = {
     val n = Type.getLength(call.argsType) / s
 
@@ -203,10 +194,6 @@ object InputView {
   private def buildViewScatter(scatter: Scatter, call: FunCall, argView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
     scatter.f.params(0).view = argView
     visitAndBuildViews(scatter.f.body, outputAccessInf)
-  }
-
-  private def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)]): Type = {
-    outputAccessInf.foldLeft(outputType)((t, len) => ArrayType(t, len._1))
   }
 
 }
