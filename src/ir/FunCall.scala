@@ -1,5 +1,6 @@
 package ir
 
+import ir.view.{NoView, View}
 import opencl.ir._
 
 import language.implicitConversions

@@ -2,6 +2,7 @@ package opencl.generator
 
 import generator.Generator
 import ir._
+import ir.view.{OutputView, ViewPrinter, View, InputView}
 import opencl.ir._
 
 import scala.collection.immutable

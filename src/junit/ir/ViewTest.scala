@@ -1,5 +1,6 @@
 package ir
 
+import ir.view.{ViewPrinter, View, ViewMap}
 import org.junit.Test
 import org.junit.Assert._
 

@@ -1,5 +1,6 @@
-package ir
+package ir.view
 
+import ir._
 import opencl.ir._
 
 object OutputView {
