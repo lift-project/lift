@@ -10,14 +10,14 @@ class ViewTest {
   @Test
   def test1() {
 
-    val a = InputView(ArrayType(Int, 8), "a")
-    val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
+    val a = View(ArrayType(Int, 8), "a")
+    val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
 
     // map(b => zip(a,b)) o B
     val var_i = new Var("i", RangeUnknown)
     val b = B.access(var_i)
-    val zip_ab = InputView.tuple(a, b).zip()
-    val map_zip_ab = new InputViewMap(zip_ab, var_i, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
+    val zip_ab = View.tuple(a, b).zip()
+    val map_zip_ab = new ViewMap(zip_ab, var_i, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
 
     // map(map(f)) o ...
     val var_j = new Var("j", RangeUnknown)
@@ -34,8 +34,8 @@ class ViewTest {
 
   @Test
   def test2() {
-    val A = InputView(ArrayType(ArrayType(Int, 8), 8), "A")
-    val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
+    val A = View(ArrayType(ArrayType(Int, 8), 8), "A")
+    val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
 
     //  map(map(map(f))) o map(a => map(b => zip(a,b) o B) o A equivalent to
     // map(a => map(b => map(f) $ zip(a,b)) o B) o A
@@ -47,9 +47,9 @@ class ViewTest {
     val var_j = new Var("j", RangeUnknown)
     val b = B.access(var_j)
     // ... $ zip(a, b) ...
-    val zip_ab = InputView.tuple(a, b).zip()
-    val map_zip_ab = new InputViewMap(zip_ab, var_j, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
-    val map_map_zip_ab = new InputViewMap(map_zip_ab, var_i, ArrayType(ArrayType(ArrayType(TupleType(Int, Int), 8), 8), 8))
+    val zip_ab = View.tuple(a, b).zip()
+    val map_zip_ab = new ViewMap(zip_ab, var_j, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
+    val map_map_zip_ab = new ViewMap(map_zip_ab, var_i, ArrayType(ArrayType(ArrayType(TupleType(Int, Int), 8), 8), 8))
 
     // ... map(f) $ ...
 
@@ -70,15 +70,15 @@ class ViewTest {
 
   @Test
   def test3() {
-    val A = InputView(ArrayType(ArrayType(Int, 8), 8), "A")
-    val B = InputView(ArrayType(ArrayType(Int, 8), 8), "B")
+    val A = View(ArrayType(ArrayType(Int, 8), 8), "A")
+    val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
 
     // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
     val var_i = new Var("i", RangeUnknown)
     val var_j = new Var("j", RangeUnknown)
     val a = A.access(var_i)
     val b = B.access(var_j)
-    val zip_ab = InputView.tuple(a, b).zip()
+    val zip_ab = View.tuple(a, b).zip()
 
     val zip_ab_3 = zip_ab.access(3)
 
@@ -93,7 +93,7 @@ class ViewTest {
   @Test
   def testSplit() {
 
-    val A = InputView(ArrayType(Int, 8), "A")
+    val A = View(ArrayType(Int, 8), "A")
 
     // split-2 o A
     val split2A = A.split(2)
@@ -109,7 +109,7 @@ class ViewTest {
   @Test
   def testReorder() {
 
-    val A = InputView(ArrayType(Int, new Var("N")), "A")
+    val A = View(ArrayType(Int, new Var("N")), "A")
 
     // reorder o A
     val reorder_A = A.reorder((idx) => 40-idx)
@@ -136,9 +136,9 @@ class ViewTest {
     val i = new Var("i", ContinuousRange(0, N))
     val j = new Var("j", ContinuousRange(0, M))
 
-    val goal = InputView(transposedArray, "").access(j).access(i)
+    val goal = View(transposedArray, "").access(j).access(i)
 
-    val reality = InputView(transposedArray, "").join(N).
+    val reality = View(transposedArray, "").join(N).
       reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).access(j)
 
     assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
@@ -159,9 +159,9 @@ class ViewTest {
     val i = new Var("i", ContinuousRange(0, N))
     val j = new Var("j", ContinuousRange(0, M))
 
-    val goal = InputView(transposedArray, "").access(j).access(i)
+    val goal = View(transposedArray, "").access(j).access(i)
 
-    val view = InputView(finalArray, "").
+    val view = View(finalArray, "").
       reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).access(j)
 
     assertEquals(ExprSimplifier.simplify(ViewPrinter.emit(goal)),
@@ -182,9 +182,9 @@ class ViewTest {
     val j = new Var("j", ContinuousRange(0, M))
 
     // Write for g
-    val goal = InputView(transposedArray, "").access(j).access(i)
+    val goal = View(transposedArray, "").access(j).access(i)
 
-    val view = InputView(finalArray, "").
+    val view = View(finalArray, "").
       split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
       split(M).access(i).access(j)
 
@@ -206,9 +206,9 @@ class ViewTest {
     val j = new Var("j", ContinuousRange(0, M))
 
     // Write for g
-    val goal = InputView(transposedArray, "").access(j).access(i)
+    val goal = View(transposedArray, "").access(j).access(i)
 
-    val view = InputView(finalArray, "").
+    val view = View(finalArray, "").
       join(N).split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
       split(M).access(i).access(j)
 
@@ -232,15 +232,15 @@ class ViewTest {
     val middleArray = ArrayType(ArrayType(ArrayType(Float, M), L), N)
     val finalArray = ArrayType(ArrayType(ArrayType(Float, M), N), L)
 
-    val goal = InputView(finalArray, "").access(k).access(i).access(j)
+    val goal = View(finalArray, "").access(k).access(i).access(j)
 
-    val midGoal = InputView(middleArray, "").access(i).access(k).access(j)
+    val midGoal = View(middleArray, "").access(i).access(k).access(j)
 
-    val midPoint = InputView(middleArray, "").access(i).join(M).
+    val midPoint = View(middleArray, "").access(i).join(M).
       reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
       access(j).access(k)
 
-    val view = InputView(finalArray, "").join(N).
+    val view = View(finalArray, "").join(N).
       reorder(i => IndexFunction.transpose(i, middleArray)).split(L).access(i).
       join(M).reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
       access(j).access(k)

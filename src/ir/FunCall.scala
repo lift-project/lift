@@ -14,7 +14,7 @@ abstract class Expr {
   var mem: Memory = UnallocatedMemory
 
   // view explaining how to access the memory
-  var view: InputView = NoView
+  var view: View = NoView
 
   def setContext(ctx: Context): Expr = {
     if (ctx != null)
