@@ -90,6 +90,8 @@ object OpenCLGenerator extends Generator {
       p.view = View(p.t, oclPrinter.toOpenCL(p.mem.variable))
     })
 
+    f.body.view = View(f.body.t, oclPrinter.toOpenCL(f.body.mem.variable))
+
     // pass 1
     allocateMemory(f)
 
@@ -105,6 +107,7 @@ object OpenCLGenerator extends Generator {
     }
 
     InputView.visitAndBuildViews(f.body)
+    OutputView.visitAndBuildViews(f.body, f.body.view)
 
     // pass 2: find and generate user functions
     generateUserFunction(f.body)

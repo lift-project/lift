@@ -25,7 +25,6 @@ object TestTranspose {
 
 class TestTranspose {
 
-  @Ignore
   @Test def transposeWrite2Dims(): Unit = {
     val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
@@ -41,11 +40,10 @@ class TestTranspose {
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
-  @Ignore
   @Test def idTransposeWrite(): Unit = {
     val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
-    val gold = input.map(_.transpose).transpose
+    val gold = input
 
 
     val f = fun(

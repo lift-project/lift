@@ -40,7 +40,6 @@ abstract class View(val t: Type = UndefType) {
   def join(chunkSize: ArithExpr): View = {
     this.t match {
       case ArrayType(ArrayType(elemT, n), m) =>
-        println(elemT)
         new ViewJoin(chunkSize, this, ArrayType(elemT, n*m))
     }
   }
@@ -322,7 +321,7 @@ object InputView {
   }
 
   private def buildViewUserFunDef(uf: UserFunDef, argView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    initialiseNewView(uf.outT, outputAccessInf)
+    NoView
   }
 
   private def initialiseNewView(t: Type, outputAccessInf: List[(ArithExpr, ArithExpr)], name: String = ""): View = {
