@@ -4,35 +4,6 @@ import org.junit.Test
 import org.junit.Assert._
 import scala.reflect._
 
-
-object jTypeArray {
-  type T = Type
-  def create(t: T) = Array(t)
-  def create(t0: T, t1: T) = Array(t0, t1)
-  def create(t0: T, t1: T, t2: T) = Array(t0, t1, t2)
-  def create(t0: T, t1: T, t2: T, t3: T) = Array(t0, t1, t2, t3)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T) = Array(t0, t1, t2, t3, t4)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T) = Array(t0, t1, t2, t3, t4, t5)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T, t6: T) = Array(t0, t1, t2, t3, t4, t5, t6)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T, t6: T, t7: T) = Array(t0, t1, t2, t3, t4, t5, t6, t7)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T, t6: T, t7: T, t8: T) = Array(t0, t1, t2, t3, t4, t5, t6, t7, t8)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T, t6: T, t7: T, t8: T, t9: T) = Array(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9)
-}
-
-object jStringArray {
-  type T = String
-  def create(t: T) = Array(t)
-  def create(t0: T, t1: T) = Array(t0, t1)
-  def create(t0: T, t1: T, t2: T) = Array(t0, t1, t2)
-  def create(t0: T, t1: T, t2: T, t3: T) = Array(t0, t1, t2, t3)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T) = Array(t0, t1, t2, t3, t4)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T) = Array(t0, t1, t2, t3, t4, t5)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T, t6: T) = Array(t0, t1, t2, t3, t4, t5, t6)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T, t6: T, t7: T) = Array(t0, t1, t2, t3, t4, t5, t6, t7)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T, t6: T, t7: T, t8: T) = Array(t0, t1, t2, t3, t4, t5, t6, t7, t8)
-  def create(t0: T, t1: T, t2: T, t3: T, t4: T, t5: T, t6: T, t7: T, t8: T, t9: T) = Array(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9)
-}
-
 class Utils() {
 
   @Test def testListPossiblities() {

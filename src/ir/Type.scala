@@ -1,7 +1,6 @@
 package ir
 
 import opencl.ir._
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.immutable
 
@@ -24,35 +23,15 @@ case class ScalarType(name: String, size: ArithExpr) extends Type {
   override def toString = name
 }
 
-object jScalaType {
-  def create(name: String, size: ArithExpr) = ScalarType(name, size)
-}
-
 // TODO: Is the VectorType OpenCL specific? If yes -> move to opencl.ir package
 case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type
-
-object jVectorType {
-  def create(scalarT: ScalarType, len: ArithExpr) = VectorType(scalarT, len)
-}
 
 case class TupleType(elemsT: Type*) extends Type {
   override def toString = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 }
 
-object jTupleType {
-  def create(elemT0: Type, elemT1: Type) = TupleType(elemT0, elemT1)
-  def create(elemT0: Type, elemT1: Type, elemT2: Type) = TupleType(elemT0, elemT1, elemT2)
-  def create(elemT0: Type, elemT1: Type, elemT2: Type, elemT3: Type) = TupleType(elemT0, elemT1, elemT2, elemT3)
-
-  def create(elemTs: java.util.List[Type]) = TupleType(elemTs.asScala:_*)
-}
-
 case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
   override def toString = "Arr(" +elemT+","+len+ ")"
-}
-
-object jArrayType {
-  def create(elemT: Type, len: ArithExpr) = ArrayType(elemT, len)
 }
 
 //case class UnboundArrayType(et: Type, te: TypeExpr) extends ArrayType(et)

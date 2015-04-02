@@ -1,4 +1,4 @@
-package ir;
+package ir.interop;
 
 @FunctionalInterface
 public interface HexaFunction<A,B,C,D,E,F,R> {
