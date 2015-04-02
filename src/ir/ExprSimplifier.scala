@@ -140,7 +140,16 @@ object ExprSimplifier {
   private def isSmaller(ae1: ArithExpr, ae2: ArithExpr): Boolean = {
     try {
       // TODO: Assuming range.max is non-inclusive
-      if (ae1.atMax == ae2 || ae1.atMax.eval() <= ae2.eval())
+      val atMax = ae1.atMax
+
+      atMax match {
+        case Prod(List(expr, Pow(Cst(_), Cst(-1)))) =>
+          if (expr == ae2)
+            return true
+        case _ =>
+      }
+
+      if (atMax == ae2 || atMax.eval() <= ae2.eval())
         return true
     } catch {
       case e: NotEvaluableException =>
