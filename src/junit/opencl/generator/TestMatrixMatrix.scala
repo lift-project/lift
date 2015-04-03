@@ -837,9 +837,6 @@ class TestMatrixMatrix {
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
   }
 
   @Test def MATRIX_MATRIX_2D_GLOBAL_ID() {
@@ -865,14 +862,13 @@ class TestMatrixMatrix {
         )) $ A
       })
 
-    // TODO: make this work
     val f2 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         MapGlb(0)(MapGlb(1)(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
-        MapSeq(fun( Arow =>
-          MapSeq(fun( Bcol =>
+        Map(fun( Arow =>
+          Map(fun( Bcol =>
             Zip(Arow, Bcol)
           )) $ B
         )) $ A
@@ -886,10 +882,49 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.001f)
 
-    (output, runtime)
+    val (output2, runtime2) = Execute(Msize * Nsize)(f2, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
+    println("output.size = " + output2.length)
+    println("output(0) = " + output2(0))
+    println("runtime = " + runtime2)
+
+    assertArrayEquals(gold, output2, 0.001f)
+  }
+
+  @Test def tiledMultiplicationScala(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val transposedB = matrixB.transpose
+
+    val tileSize = 4
+
+    val tiledA = matrixA.grouped(tileSize).toArray.map(_.transpose.grouped(tileSize).toArray.map(_.transpose))
+    val tiledB = transposedB.grouped(tileSize).toArray.map(_.transpose.grouped(tileSize).toArray.map(_.transpose))
+
+    val tiledC = tiledA.map(aRows => {
+      tiledB.map(bCols => {
+        (aRows, bCols).zipped.foldLeft(Array.ofDim[Float](tileSize, tileSize))((acc, tiles) => {
+          val aTile = tiles._1
+          val bTile = tiles._2
+
+          val temp = aTile.map(aRow => bTile.map(bRow => (aRow, bRow).zipped.map(_ * _).sum))
+
+          (temp, acc).zipped.map((x, y) => (x, y).zipped.map(_+_))
+        })
+      })
+    })
+
+    val matrixC = tiledC.map(_.transpose.map(_.flatten)).flatten.flatten
+
+    assertArrayEquals(gold, matrixC, 0.001f)
   }
 
   @Test def MATRIX_MATRIX_2D_GLOBAL_ID_WITH_TRANSPOSE() {
