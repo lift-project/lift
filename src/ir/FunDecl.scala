@@ -882,6 +882,33 @@ object jIterate {
   def create(n: ArithExpr, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
 }
 
+case class IterateFixedSize(n:ArithExpr, f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
+  override def apply(args: Expr*): IterateFixedSizeCall = iterateFixedSizeCall(args: _*)
+
+  override def $(that: Expr): IterateFixedSizeCall = iterateFixedSizeCall(that)
+
+  private def iterateFixedSizeCall(args: Expr*): IterateFixedSizeCall = {
+    assert(args.length == 1)
+    new IterateFixedSizeCall(this, args(0))
+  }
+}
+
+object IterateFixedSize {
+  def apply(n: ArithExpr): ((Lambda1) => IterateFixedSize)  = (f: Lambda1) => IterateFixedSize(n ,f)
+
+  def varName(): String = {
+    "iterSize"
+  }
+}
+
+object jIterateFixedSize {
+  def create(n: Int, f: Lambda1) = IterateFixedSize(n, f)
+  def create(n: ArithExpr, f: Lambda1) = IterateFixedSize(n, f)
+
+  def create(n: Int, f: FunDecl) = IterateFixedSize(n, Lambda1.FunDefToLambda(f))
+  def create(n: ArithExpr, f: FunDecl) = IterateFixedSize(n, Lambda1.FunDefToLambda(f))
+}
+
 //case class IterateP(f: Lambda1, p: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
 //  override def apply(args: Expr*) : IteratePCall = iteratePCall(args:_*)
 //

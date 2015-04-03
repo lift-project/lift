@@ -276,7 +276,6 @@ object Type {
                 Pow(a, n)*tv
               }
               else throw new TypeException("Cannot infer closed form for iterate return type (only support x*a). inT = " + inT + " ouT = " + ouT)
-
             case _ => throw new TypeException("Cannot infer closed form for iterate return type. inT = " + inT + " ouT = " + ouT)
           }
         }
@@ -373,6 +372,7 @@ object Type {
       case tL: toLocal =>         checkToLocal(tL, inT, setType)
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
+      case ifs: IterateFixedSize => checkIterateFixedSize(ifs, inT)
       case _: Transpose =>        checkTranspose(inT)
       case _: TransposeW =>       checkTranspose(inT)
       case _: Swap =>             checkSwap(inT)
@@ -492,7 +492,7 @@ object Type {
         val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType])
 
         if (arrayTypes.map(_.len).distinct.length != 1) {
-          println("Warning: can not statically proof that sizes (" + tt.elemsT.mkString(", ") + ") match!")
+          println("Warning: can not statically prove that sizes (" + tt.elemsT.mkString(", ") + ") match!")
           // throw TypeException("sizes do not match")
         }
         ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes(0).len)
@@ -633,6 +633,18 @@ object Type {
   private def checkIterate(i: Iterate, inT: Type): Type = {
     inT match {
       case at: ArrayType =>
+        //perform a simple (and hopefully quick!) check to see if the input/output types
+        //of the nested function match. If they do, we don't need to do the closed
+        //form iterate to work out the output type
+        i.f.params(0).t = inT
+        if(check(i.f.body, setType=false) == inT)
+        {
+          //if they match, check the body as normal, and return that type.
+          return check(i.f.body, setType=true)
+        }else{
+          //reset the input parameter to "UndefType" ready for closed form iterate checking
+          i.f.params(0).t = UndefType
+        }
         // substitute all the expression in the input type with type variables
         val tvMap = scala.collection.mutable.HashMap[TypeVar, ArithExpr]()
         var inputTypeWithTypeVar = visitRebuild(at, t => t, {
@@ -670,6 +682,19 @@ object Type {
 
         val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar, outputTypeWithTypeVar, i.n, tvMap)
         substitute(closedFormOutputType, tvMap.toMap)
+
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+  private def checkIterateFixedSize(i: IterateFixedSize, inT: Type) : Type = {
+    inT match {
+      case at: ArrayType =>
+        if (i.f.params.length != 1) throw new NumberOfArgumentsException
+        i.f.params(0).t = inT
+        var ouT = check(i.f.body, true)
+        if (inT != ouT)
+          throw new TypeException("Cannot match in and out types for iterate body, inT = " + inT + " ouT = " + ouT)
+        ouT
 
       case _ => throw new TypeException(inT, "ArrayType")
     }

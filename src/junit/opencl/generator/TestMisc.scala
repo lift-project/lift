@@ -260,11 +260,11 @@ class TestMisc {
   @Test def iterate(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
-    val gold = input.map(_+1).map(_+1).map(_+1).map(_+1).map(_+1)
+    val gold = input.map(_+(1*7))
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Iterate(5)(MapGlb(plusOne)) $ in
+      in => Iterate(7)(MapGlb(plusOne)) $ in
     )
 
     val (output, runtime) = Execute(inputSize)(f, input, inputSize)
@@ -273,9 +273,36 @@ class TestMisc {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
+
     assertArrayEquals(gold, output, 0.0f)
   }
 
+  @Test def iterateFixedSecondArg() : Unit = {
+    val inputSize = 512
+    val inputA = Array.tabulate(inputSize)(_.toFloat)
+    val inputB = Array.tabulate(inputSize)(_.toFloat).reverse
+    val gold = inputA.zip(inputB.map(_*5.0f)).map((t:(Float, Float)) => t match{ case (x:Float,y:Float) => x+y})
+
+    var N = Var("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (inA,inB) => Iterate(5)(fun( (va) =>
+        fun( (vb) =>
+          MapWrg(add) $ Zip(va,vb)
+        ) $ inB
+      )) $ inA
+    )
+
+    val (output, runtime) = Execute(inputSize)(f, inputA, inputB, inputSize)
+
+    println("output.size = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
   @Test def iterateLocalOnly(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)

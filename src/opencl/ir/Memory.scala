@@ -249,6 +249,7 @@ object OpenCLMemory {
       case s: Scatter =>          allocScatter(s, numGlb, numLcl, inMem, outputMem)
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
+      case ifs: IterateFixedSize => allocIterateFixedSize(ifs, call.asInstanceOf[IterateFixedSizeCall], numGlb, numLcl, inMem)
 
       case h: Head =>             allocHead(call.asInstanceOf[HeadCall], maxGlbOutSize, maxLclOutSize, call.t, inMem, outputMem)
 
@@ -495,6 +496,23 @@ object OpenCLMemory {
     if (it.f.params.length != 1) throw new NumberOfArgumentsException
     it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl)
+  }
+
+  private def allocIterateFixedSize(ifs: IterateFixedSize, call: IterateFixedSizeCall, numGlb: ArithExpr, numLcl: ArithExpr,
+                                    inMem: OpenCLMemory): OpenCLMemory = {
+    // get sizes in bytes necessary to hold the input and output of the function inside the iterate
+    val inSize = getMaxSizeInBytes(call.argsType)
+    val outSize = getMaxSizeInBytes(call.t)
+    // get the max from those two
+    val largestSize = ArithExpr.max(inSize, outSize)
+
+    // create a swap buffer
+    call.swapBuffer = allocMemory(largestSize, largestSize, inMem.addressSpace)
+
+    // recurs to allocate memory for the function(s) inside
+    if (ifs.f.params.length != 1) throw new NumberOfArgumentsException
+    ifs.f.params(0).mem = inMem
+    alloc(ifs.f.body, numGlb, numLcl)
   }
 
   private def allocUserFun(maxGlbOutSize: ArithExpr, maxLclOutSize: ArithExpr,

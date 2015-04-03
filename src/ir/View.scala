@@ -230,6 +230,7 @@ object View {
           case tL: toLocal => createViewToLocal(tL, argView, ids)
           case tG: toGlobal => createViewToGlobal(tG, argView, ids)
           case i: Iterate => createViewIterate(i, call, argView, ids)
+          case ifs: IterateFixedSize => createViewIterateFixedSize(ifs, call, argView, ids)
           case t: Transpose => createViewTranspose(t, call, argView)
           case tw: TransposeW => createViewTransposeW(tw, call, argView, ids)
           case asVector(n) => createViewAsVector(n, argView)
@@ -251,6 +252,12 @@ object View {
   private def createViewIterate(i: Iterate, call:FunCall, argView: View, f:  List[(ArithExpr, ArithExpr)]): View = {
     i.f.params(0).view = argView
     createView(i.f.body, f)
+    initialiseNewView(call.t, f)
+  }
+
+  private def createViewIterateFixedSize(ifs: IterateFixedSize, call:FunCall, argView: View, f:  List[(ArithExpr, ArithExpr)]): View = {
+    ifs.f.params(0).view = argView
+    createView(ifs.f.body, f)
     initialiseNewView(call.t, f)
   }
 

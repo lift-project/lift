@@ -208,6 +208,7 @@ object OpenCLGenerator extends Generator {
       }
 
       case call: IterateCall => generateIterateCall(call)
+      case call: IterateFixedSizeCall => generateIterateFixedSizeCall(call)
       case call: DropLeftCall => generateDropLeftCall(call)
       case call: SearchCall => call.f match {
         case _: LinearSearchSeq => generateLinearSearchSeq(call)
@@ -613,6 +614,88 @@ object OpenCLGenerator extends Generator {
       oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = " +
                          oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength))+
                          ";")
+
+      // tin = (tout == swap) ? swap : out
+      oclPrinter.println(tinVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ swapVStr +":"+ outVStr+";")
+      // tout = (tout == swap) ? out : swap
+      oclPrinter.println(toutVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ outVStr +":"+ swapVStr+";")
+    } )
+
+    oclPrinter.closeCB()
+  }
+
+  // === IterateFixedSize ===
+  private def generateIterateFixedSizeCall(call: IterateFixedSizeCall) = {
+
+    val inputMem = OpenCLMemory.asOpenCLMemory(call.arg.mem)
+    val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
+    val swapMem = OpenCLMemory.asOpenCLMemory(call.swapBuffer)
+
+    assert (inputMem.addressSpace == outputMem.addressSpace)
+
+    val funCall = call.f.f.body match { case call: FunCall => call }
+    val innerInputLength = Type.getLength(funCall.argsType)
+    val innerOutputLength = Type.getLength(funCall.t)
+
+    oclPrinter.openCB()
+
+    // use the type var as the var holding the iterating size if it exists
+    if (TypeVar.getTypeVars(funCall.argsType).size > 1) {
+      println("size: " + TypeVar.getTypeVars(funCall.argsType).size)
+      TypeVar.getTypeVars(funCall.argsType).foreach( (tv) => { println("tv: " + tv) })
+      println("i.f.inT " + funCall.argsType)
+      throw new NotImplementedError()
+    }
+    val curOutLen =
+      if (TypeVar.getTypeVars(funCall.argsType).isEmpty)
+        Var("curOutLen")
+      else
+        TypeVar.getTypeVars(funCall.argsType).head
+    oclPrinter.printVarDecl(opencl.ir.Int, curOutLen, oclPrinter.toOpenCL(Type.getLength(call.argsType)))
+    oclPrinter.println(";")
+
+    val range = ContinuousRange(Cst(0), call.f.n)
+    val indexVar = Var("i", range)
+
+    // create new temporary input and output pointers
+    val tin = Var("tin")
+    val tout = Var("tout")
+
+    val tinVStr = oclPrinter.toOpenCL(tin)
+    val toutVStr = oclPrinter.toOpenCL(tout)
+    val inVStr = oclPrinter.toOpenCL(inputMem.variable)
+    val outVStr = oclPrinter.toOpenCL(outputMem.variable)
+    val swapVStr = oclPrinter.toOpenCL(swapMem.variable)
+
+    // ADDRSPC TYPE tin = in;
+    oclPrinter.println(outputMem.addressSpace + " " + oclPrinter.toOpenCL(Type.devectorize(call.t)) + " " + tinVStr + " = " + inVStr+";")
+
+    // ADDRSPC TYPE tin = (odd ? out : swap);
+    oclPrinter.print(outputMem.addressSpace + " " + oclPrinter.toOpenCL(Type.devectorize(call.t)) + " " + toutVStr + " = ")
+    oclPrinter.print("( ("+oclPrinter.toOpenCL(range.stop)+" & 1) != 0 ) ? ")
+    oclPrinter.print(outVStr + " : " + swapVStr)
+    oclPrinter.println(" ;")
+
+    oclPrinter.println("#pragma unroll 1")
+    oclPrinter.generateLoop(indexVar, range, () => {
+
+      // modify the pointers to the memory before generating the body
+      val oldInV = inputMem.variable
+      val oldOutV = outputMem.variable
+      inputMem.variable = tin
+      outputMem.variable = tout
+
+      // generate the function call in the body
+      generate(funCall)
+
+      // restore the pointers to memory
+      inputMem.variable = oldInV
+      outputMem.variable = oldOutV
+
+      // tmp = tmp * outputLen / inputLen
+      oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = " +
+        oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength))+
+        ";")
 
       // tin = (tout == swap) ? swap : out
       oclPrinter.println(tinVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ swapVStr +":"+ outVStr+";")
