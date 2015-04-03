@@ -30,15 +30,15 @@ abstract sealed class ArithExpr {
   }
 
   def atMax: ArithExpr = {
-    val vars = Var.getVars(this)
-    val exprFunctions = ArithExprFunction.getArithExprFuns(this)
+    val vars = Var.getVars(this).filter(_.range.max != ?)
+    val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.max != ?)
     val maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
 
   def atMin: ArithExpr = {
-    val vars = Var.getVars(this)
-    val exprFunctions = ArithExprFunction.getArithExprFuns(this)
+    val vars = Var.getVars(this).filter(_.range.min != ?)
+    val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.min != ?)
     val maxLens = vars.map(_.range.min) ++ exprFunctions.map(_.range.min)
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
