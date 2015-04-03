@@ -241,4 +241,24 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
+  @Test def addArrayOfVectors(): Unit = {
+    val inputSize = 1024
+    val numVectors = 1024
+    val inputArray = Array.fill(numVectors, inputSize)(util.Random.nextInt(5).toFloat)
+
+    val gold = inputArray.reduce((x, y) => (x, y).zipped.map(_+_))
+
+    val test = inputArray.transpose.map(_.sum)
+    assertArrayEquals(gold, test, 0.001f)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, new Var("M")), new Var("N")),
+      input => MapGlb(ReduceSeq(add, 0.0f)) o Transpose() $ input
+    )
+
+    val (output, _) = Execute(inputSize)(f, inputArray, inputSize, numVectors)
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
 }
