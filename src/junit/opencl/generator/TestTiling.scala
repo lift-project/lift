@@ -161,7 +161,8 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         // Merge the tiles
-        Join() o MapWrg(0)(Join() o TransposeW() o MapWrg(1)(
+        Join() o Map(Map(Join()) o TransposeW()) o
+        MapWrg(0)(MapWrg(1)(
           Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
           Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o

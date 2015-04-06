@@ -123,7 +123,7 @@ object View {
 
   def visitAndBuildViews(expr: Expr): Unit = {
     InputView.visitAndBuildViews(expr)
-    OutputView.visitAndBuildViews(expr, expr.view)
+    OutputView.visitAndBuildViews(expr, View(expr.t, ""))
   }
 
   private def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)]): Type = {
