@@ -4,7 +4,7 @@ import ir.UserFunDef._
 import ir._
 import opencl.ir._
 
-class MatrixVector (override val f: Seq[(String, Seq[Lambda])]) extends Benchmark("Matrix Vector Multiplication (gemv)", Seq(4096, 4096), f, 0.0f) {
+class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Matrix Vector Multiplication (gemv)", Seq(4096, 4096), f, 0.0f) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     val matrix = inputs(0).asInstanceOf[Array[Array[Float]]]
@@ -77,8 +77,8 @@ object MatrixVector {
     })
 
   def apply() = new MatrixVector(Seq(
-    ("FULL_MATRIX_VECTOR_FUSED_OPENCL", Seq(fullMatrixVectorFusedOpenCL)),
-    ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD", Seq(fullMatrixVectorFusedOpenCLAMD))))
+    ("FULL_MATRIX_VECTOR_FUSED_OPENCL", Array[Lambda](fullMatrixVectorFusedOpenCL)),
+    ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD", Array[Lambda](fullMatrixVectorFusedOpenCLAMD))))
 
   def main(args: Array[String]): Unit = {
     MatrixVector().run(args)

@@ -12,7 +12,7 @@ import org.clapper.argot._
 
 abstract class Benchmark(val name: String,
                          val defaultInputSizes: Seq[Int],
-                         val f: Seq[(String, Seq[Lambda])],
+                         val f: Seq[(String, Array[Lambda])],
                          val delta: Float,
                          val defaultLocalSizes: Array[Int] = Array(128,1,1)) {
 
@@ -200,6 +200,8 @@ abstract class Benchmark(val name: String,
     (x - y).abs > delta
   }
 
+  protected def beforeBenchmark(): Unit = {}
+
   private def median(sorted: Array[Double]): Double = {
     val iterations = sorted.length
     if (iterations % 2 == 0)
@@ -226,6 +228,8 @@ abstract class Benchmark(val name: String,
       if (checkResult) {
         scalaResult = runScala(inputs:_*)
       }
+
+      beforeBenchmark()
 
       if (all.value.getOrElse(false)) {
         for (i <- 0 until f.length) {
