@@ -1,5 +1,6 @@
 package ir
 
+import arithmetic.Var
 import opencl.ir._
 
 import exploration.Exploration

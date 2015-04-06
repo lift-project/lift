@@ -1,5 +1,6 @@
 package ir
 
+import arithmetic._
 import opencl.ir._
 import scala.collection.mutable
 import scala.collection.immutable

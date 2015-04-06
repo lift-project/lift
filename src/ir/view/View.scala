@@ -1,5 +1,6 @@
 package ir.view
 
+import arithmetic.{Var, AccessVar, Cst, ArithExpr}
 import ir._
 
 import scala.collection.immutable.Stack

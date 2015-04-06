@@ -2,6 +2,7 @@ package opencl.ir
 
 import java.util.function.BiFunction
 
+import arithmetic.{Var, ArithExpr}
 import ir._
 
 import language.implicitConversions

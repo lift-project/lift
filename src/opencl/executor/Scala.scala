@@ -1,5 +1,6 @@
 package opencl.executor
 
+import arithmetic.{Var, Cst, ?, ArithExpr}
 import ir._
 import opencl.generator.{Verbose, OpenCLGenerator}
 import opencl.ir._
@@ -10,6 +11,7 @@ import scala.reflect.ClassTag
 object Eval {
   def apply(code: String): Lambda = {
     val imports = """
+                    |import arithmetic._
                     |import ir._
                     |import opencl.ir._
                     |

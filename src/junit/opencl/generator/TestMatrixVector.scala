@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.{SizeVar, Var, Log}
 import benchmarks.MatrixVector
 import opencl.executor._
 import org.junit.Assert._

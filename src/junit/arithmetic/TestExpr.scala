@@ -1,4 +1,4 @@
-package ir
+package arithmetic
 
 import org.junit.Assert._
 import org.junit.Test

@@ -1,5 +1,6 @@
 package opencl.generator;
 
+import arithmetic.*;
 import ir.*;
 import ir.interop.*;
 import opencl.executor.*;

@@ -1,4 +1,6 @@
-package ir
+package arithmetic
+
+import ir._
 
 object ExprSimplifier {
 

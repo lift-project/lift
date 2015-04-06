@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.{Fraction, Cst, ?, ArithExpr}
 import ir._
 import opencl.ir._
 

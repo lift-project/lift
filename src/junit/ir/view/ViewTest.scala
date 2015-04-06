@@ -1,5 +1,6 @@
 package ir.view
 
+import arithmetic._
 import ir._
 import opencl.ir._
 import org.junit.Assert._

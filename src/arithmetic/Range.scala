@@ -1,4 +1,4 @@
-package ir
+package arithmetic
 
 sealed abstract class Range {
   // default impl

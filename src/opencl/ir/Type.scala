@@ -1,5 +1,6 @@
 package opencl.ir
 
+import arithmetic.Cst
 import ir._
 
 // TODO: put this in a more generic backend

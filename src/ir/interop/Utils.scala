@@ -1,5 +1,6 @@
 package ir.interop
 
+import arithmetic.ArithExpr
 import ir._
 import java.util.function._
 import scala.collection.JavaConverters._

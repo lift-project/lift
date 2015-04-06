@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.Var
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test, Ignore}

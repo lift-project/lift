@@ -1,5 +1,6 @@
 package ir
 
+import arithmetic.{Var, ArithExpr}
 import opencl.ir.Float
 
 import language.implicitConversions

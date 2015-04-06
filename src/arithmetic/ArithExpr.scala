@@ -1,10 +1,10 @@
-package ir
+package arithmetic
 
+import ir._
 
 import scala.collection.immutable
+import scala.language.implicitConversions
 import scala.util.Random
-
-import language.implicitConversions
 
 class NotEvaluableException(msg: String) extends Exception(msg)
 
@@ -351,7 +351,7 @@ case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
 }
 
-case class ArithExprFunction(var range: Range = RangeUnknown) extends ArithExpr
+case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr
 
 object ArithExprFunction {
 
@@ -366,13 +366,13 @@ object ArithExprFunction {
 }
 
 // a special variable that should only be used for defining function type
-class TypeVar private(range : Range) extends Var("", range) {
+class TypeVar private(range : arithmetic.Range) extends Var("", range) {
   override def toString = "t" + id
 }
 
 object TypeVar {
   //var cnt: Int = -1
-  def apply(range : Range = RangeUnknown) = {
+  def apply(range : arithmetic.Range = RangeUnknown) = {
     //cnt = cnt+1
     new TypeVar(/*cnt, */range)
   }
@@ -402,7 +402,7 @@ object TypeVar {
 
 class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
-case class Var(name: String, var range : Range = RangeUnknown) extends ArithExpr {
+case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extends ArithExpr {
 
   Var.cnt += 1
   val id: Int = Var.cnt
@@ -419,7 +419,7 @@ case class Var(name: String, var range : Range = RangeUnknown) extends ArithExpr
 
   override def toString = if (name == "") "v_"+id else name
 
-  def updateRange(func: (Range) => Range): Unit = {
+  def updateRange(func: (arithmetic.Range) => arithmetic.Range): Unit = {
     if (range != RangeUnknown) {
       range = func(range)
     }
@@ -428,14 +428,14 @@ case class Var(name: String, var range : Range = RangeUnknown) extends ArithExpr
 }
 
 object jVar {
-  def create(name: String, range: Range) = Var(name, range)
+  def create(name: String, range: arithmetic.Range) = Var(name, range)
   def create(name: String) = Var(name)
 }
 
 object Var {
   var cnt: Int = -1
 
-  def apply(range : Range) : Var = new Var("",range)
+  def apply(range : arithmetic.Range) : Var = new Var("",range)
 
 
   def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {

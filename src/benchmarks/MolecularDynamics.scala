@@ -1,5 +1,6 @@
 package benchmarks
 
+import arithmetic.Var
 import ir._
 import opencl.ir._
 

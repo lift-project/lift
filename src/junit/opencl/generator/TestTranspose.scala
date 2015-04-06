@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.Var
 import benchmarks.MatrixTransposition
 import ir._
 import ir.UserFunDef._
