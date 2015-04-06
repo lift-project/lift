@@ -29,7 +29,7 @@ class TestGraphTheory {
   val add = UserFunDef("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
   val mult = UserFunDef("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
 
-  @Test def DENSE_BFS_ITERATION(): Unit = {
+  def DENSE_BFS_ITERATION(): Unit = {
     val inputSize = 1024
     val graph = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>2) 0 else 1).toFloat)
     var fringe = Array.fill(inputSize)(0.0f)
@@ -55,7 +55,7 @@ class TestGraphTheory {
     assertArrayEquals(scalaBFSIteration(graph,fringe), output, 0.0f)
   }
 
-  @Test def DENSE_BFS_ITERATION_FIXED_SIZE(): Unit = {
+  def DENSE_BFS_ITERATION_FIXED_SIZE(): Unit = {
     val inputSize = 1024
     val graph = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>2) 0 else 1).toFloat)
     var fringe = Array.fill(inputSize)(0.0f)
@@ -80,7 +80,7 @@ class TestGraphTheory {
 
   }
 
-  @Test def DENSE_BFS_MULTI_ITERATION(): Unit = {
+  def DENSE_BFS_MULTI_ITERATION(): Unit = {
     val inputSize = 1024
     val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(10)>2) 0 else 1).toFloat)
     var fringeArr = Array.fill(inputSize)(0.0f)
@@ -114,7 +114,7 @@ class TestGraphTheory {
 
   }
 
-  @Test def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
+  def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
     val inputSize = 16
     val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(25)>2) 0 else 1).toFloat)
     var fringeArr = Array.fill(inputSize)(1.0f)
