@@ -139,18 +139,18 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     if (Verbose())
       println("args.length " + args.length)
 
-    println("Args pre execution: ")
-    args.foreach({
-      case g: GlobalArg => println(g.asFloatArray().toList.toString())
-    })
+//    println("Args pre execution: ")
+//    args.foreach({
+//      case g: GlobalArg => println(g.asFloatArray().toList.toString())
+//    })
 
     val runtime = Executor.execute(code, localSize1, localSize2, localSize3,
       globalSize1, globalSize2, globalSize3, args)
 
-    println("Args post execution: ")
-    args.foreach({
-      case g: GlobalArg => println(g.asFloatArray().toList.toString())
-    })
+//    println("Args post execution: ")
+//    args.foreach({
+//      case g: GlobalArg => println(g.asFloatArray().toList.toString())
+//    })
 
     val output = outputData.asFloatArray()
 
