@@ -7,7 +7,7 @@ import opencl.ir._
 class VectorScaling(override val name: String,
                     override val defaultInputSizes: Seq[Int],
                     override val delta: Float,
-                    override val f: Seq[(String, Seq[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
+                    override val f: Seq[(String, Array[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     inputs(0).asInstanceOf[Array[Float]].map(_ * inputs(1).asInstanceOf[Float])
@@ -60,10 +60,10 @@ object VectorScaling {
   def apply() = new VectorScaling("Vector Scaling",
     Seq(1024),
     0.001f,
-    Seq(("simple", Seq(vectorScal)),
-        ("SCAL_NVIDIA", Seq(scalNVIDIA)),
-        ("SCAL_AMD", Seq(scalAMD)),
-        ("SCAL_INTEL", Seq(scalINTEL))))
+    Seq(("simple", Array[Lambda](vectorScal)),
+        ("SCAL_NVIDIA", Array[Lambda](scalNVIDIA)),
+        ("SCAL_AMD", Array[Lambda](scalAMD)),
+        ("SCAL_INTEL", Array[Lambda](scalINTEL))))
 
   def main(args: Array[String]) = {
     VectorScaling().run(args)

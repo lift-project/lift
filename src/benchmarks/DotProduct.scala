@@ -7,7 +7,7 @@ import opencl.ir._
 class DotProduct(override val name: String,
                  override val defaultInputSizes: Seq[Int],
                  override val delta: Float,
-                 override val f: Seq[(String, Seq[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
+                 override val f: Seq[(String, Array[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     Array((inputs(0).asInstanceOf[Array[Float]], inputs(1).asInstanceOf[Array[Float]]).zipped.map(_*_).sum)
@@ -74,9 +74,9 @@ object DotProduct {
   def apply() = new DotProduct("Dot Product",
     Seq(1024),
     0.001f,
-    Seq(("simple", Seq(dotProductSimple)),
-        ("cpu", Seq(dotProductCPU1, dotProductCPU2)),
-        ("gpu", Seq(dotProduct1, dotProduct2))))
+    Seq(("simple", Array[Lambda](dotProductSimple)),
+        ("cpu", Array[Lambda](dotProductCPU1, dotProductCPU2)),
+        ("gpu", Array[Lambda](dotProduct1, dotProduct2))))
 
   def main(args: Array[String]) = {
     DotProduct().run(args)

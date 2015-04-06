@@ -3,7 +3,7 @@ package benchmarks
 import ir._
 import opencl.ir._
 
-class BlackScholes(override val f: Seq[(String, Seq[Lambda])]) extends Benchmark("Black-Scholes", Seq(4096), f, 0.01f) {
+class BlackScholes(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Black-Scholes", Seq(4096), f, 0.01f) {
   override def runScala(inputs: Any*): Array[Float] = {
     BlackScholes.runScala(inputs(0).asInstanceOf[Array[Float]])
   }
@@ -154,8 +154,8 @@ object BlackScholes {
 
   def apply() = new BlackScholes(
     Seq(
-      ("BLACK_SCHOLES", Seq(blackScholes)),
-      ("BLACK_SCHOLES_AMD", Seq(blackScholesAMD))))
+      ("BLACK_SCHOLES", Array[Lambda](blackScholes)),
+      ("BLACK_SCHOLES_AMD", Array[Lambda](blackScholesAMD))))
 
   def main(args: Array[String]) = {
     BlackScholes().run(args)

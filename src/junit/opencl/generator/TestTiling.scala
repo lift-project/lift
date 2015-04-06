@@ -362,7 +362,7 @@ class TestTiling {
     println("matrix: ")
     TestUtils.myPrint(matrix)
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.coalesced, matrix, Nsize, Msize)
+    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(), matrix, Nsize, Msize)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))

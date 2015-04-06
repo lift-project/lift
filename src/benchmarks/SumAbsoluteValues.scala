@@ -7,7 +7,7 @@ import opencl.ir._
 class SumAbsoluteValues(override val name: String,
                  override val defaultInputSizes: Seq[Int],
                  override val delta: Float,
-                 override val f: Seq[(String, Seq[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
+                 override val f: Seq[(String, Array[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     Array(inputs(0).asInstanceOf[Array[Float]].sum)
@@ -65,9 +65,9 @@ object SumAbsoluteValues {
   def apply() = new SumAbsoluteValues("Sum of absolute values",
     Seq(16777216),
     0.001f,
-    Seq(("INTEL_DERIVED_NO_WARP", Seq(intelDerivedNoWarp1, intelDerived2)),
-        ("NVIDIA_DERIVED", Seq(nvidiaDerived1, amdNvidiaDerived2)),
-        ("AMD_DERIVED", Seq(amdDerived1, amdNvidiaDerived2))))
+    Seq(("INTEL_DERIVED_NO_WARP", Array[Lambda](intelDerivedNoWarp1, intelDerived2)),
+        ("NVIDIA_DERIVED", Array[Lambda](nvidiaDerived1, amdNvidiaDerived2)),
+        ("AMD_DERIVED", Array[Lambda](amdDerived1, amdNvidiaDerived2))))
 
   def main(args: Array[String]) = {
     SumAbsoluteValues().run(args)
