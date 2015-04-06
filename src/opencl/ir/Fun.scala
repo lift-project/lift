@@ -1,11 +1,19 @@
 package opencl.ir
 
-import java.util.function.BiFunction
-
 import arithmetic.{Var, ArithExpr}
 import ir._
 
 import language.implicitConversions
+
+object CompositePatterns {
+
+  def Tile(size: Int): CompFunDef = Tile(size, size)
+
+  def Tile(x: Int, y: Int) =
+    Map(Map(Transpose()) o Split(y) o Transpose()) o Split(x)
+
+  def Untile() = Join() o Map(Map(Join()) o TransposeW())
+ }
 
 case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
   override def apply(args: Expr*) : MapCall = {
