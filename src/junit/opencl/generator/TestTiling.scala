@@ -6,6 +6,7 @@ import ir.UserFunDef._
 import ir._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.CompositePatterns._
 import org.junit.Assert._
 import org.junit.{Test, AfterClass, BeforeClass}
 
@@ -42,8 +43,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)))) o
-          Map(Map(Transpose()
-          ) o Split(4) o Transpose()) o Split(4) $ matrix
+          Tile(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -84,8 +84,7 @@ class TestTiling {
           Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
             Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o
-          Map(Map(Transpose()
-          ) o Split(4) o Transpose()) o Split(4) $ matrix
+          Tile(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -126,7 +125,7 @@ class TestTiling {
         MapWrg(0)(MapWrg(1)(id)) o
           Join() o Map(Map(Join()) o Transpose()) o
           // Tile the matrix
-          Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+          Tile(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -161,13 +160,13 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         // Merge the tiles
-        Join() o Map(Map(Join()) o TransposeW()) o
+        Untile() o
         MapWrg(0)(MapWrg(1)(
           Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
           Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o
           // Tile the matrix
-          Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+          Tile(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -201,8 +200,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)) o Transpose())) o
-          Map(Map(Transpose()
-          ) o Split(4) o Transpose()) o Split(4) $ matrix
+          Tile(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -244,7 +242,7 @@ class TestTiling {
         MapWrg(0)(MapWrg(1)(
           Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
             TransposeW() o Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))))) o
-          Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+          Tile(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -285,8 +283,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)))) o Transpose() o
-          Map(Map(Transpose()
-          ) o Split(4) o Transpose()) o Split(4) $ matrix
+          Tile(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
@@ -329,12 +326,12 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         // Merge the tiles
-        MapWrg(0)(MapWrg(1)(id)) o
-          Join() o Map(Map(Join()) o Transpose()) o
+        Untile() o
+        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o
           // Transpose the tiles and then the insides of tiles
           Map(Map(Transpose())) o Transpose() o
           // Tile the matrix
-          Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+          Tile(4) $ matrix
       })
 
     val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)

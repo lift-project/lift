@@ -4,6 +4,7 @@ import arithmetic.Var
 import ir.UserFunDef._
 import ir._
 import opencl.ir._
+import opencl.ir.CompositePatterns._
 import org.clapper.argot.ArgotConverters._
 
 class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
@@ -55,13 +56,14 @@ object MatrixTransposition {
     ArrayType(ArrayType(Float, M), N),
     (matrix) => {
       // Merge the tiles
-      Join() o MapWrg(0)(Map(Join()) o TransposeW() o MapWrg(1)(
+      Untile() o
+      MapWrg(0)(MapWrg(1)(
         Barrier() o toGlobal(MapLcl(1)(MapLcl(0)(id))) o
         // Transpose the tiles and then the insides of tiles
         TransposeW() o Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
       )) o Transpose() o
         // Tile the matrix
-        Map(Map(Transpose()) o Split(y) o Transpose()) o Split(x) $ matrix
+        Tile(x, y) $ matrix
     })
 
   def apply() = new MatrixTransposition(

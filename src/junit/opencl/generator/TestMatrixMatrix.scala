@@ -5,6 +5,7 @@ import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
+import opencl.ir.CompositePatterns._
 import ir._
 import ir.UserFunDef._
 
@@ -971,14 +972,13 @@ class TestMatrixMatrix {
     val m = new Var("M")
     val k = new Var("K")
 
-    def Tile = Map(Map(Transpose()) o Split(tileSize) o Transpose()) o Split(tileSize)
-
     val f = fun(
       ArrayType(ArrayType(Float, k), m),
       ArrayType(ArrayType(Float, k), n),
       (A, B) => {
         // Undo the tiling
-        Join() o MapWrg(0)(Map(Join()) o TransposeW() o fun( aRows =>
+        Untile() o
+        MapWrg(0)(fun( aRows =>
           MapWrg(1)(fun( bCols =>
 
             // Reduce the partial results (matrices), so that the reduce is innermost
@@ -994,8 +994,8 @@ class TestMatrixMatrix {
             )) $ Zip(aRows, bCols)
 
           // Tile the matrices
-          )) o Tile $ B
-        )) o Tile $ A
+          )) o Tile(tileSize) $ B
+        )) o Tile(tileSize) $ A
       })
 
     val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
