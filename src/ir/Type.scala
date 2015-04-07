@@ -347,6 +347,7 @@ object Type {
       case g: Gather =>           checkGather(g, inT, setType)
       case s: Scatter =>          checkScatter(s, inT, setType)
       case f: Filter =>           checkFilter(f, inT, setType)
+      case g: Group =>            checkGroup(g, inT)
     }
   }
 
@@ -462,6 +463,16 @@ object Type {
         }
         case _ => throw new TypeException(at0.elemT, "ArrayType")
       }
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  private def checkGroup(group: Group, inT: Type): Type = {
+    inT match {
+      case at: ArrayType =>
+        assert(group.params.length == 1)
+        group.params(0).t = ArrayType(ArrayType(at.elemT, group.relIndices.length), at.len)
+        group.params(0).t
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }

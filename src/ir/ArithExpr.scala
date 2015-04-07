@@ -1,6 +1,8 @@
 package ir
 
 
+import opencl.ir.Group
+
 import scala.collection.immutable
 import scala.util.Random
 
@@ -251,7 +253,7 @@ object ArithExpr {
 
   private def evalDouble(e: ArithExpr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ArithExprFunction(_) | ? => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | GroupCall(_,_,_,_) | ArithExprFunction(_) | ? => throw new NotEvaluableException(e.toString)
 
     case Fraction(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
 
@@ -338,6 +340,10 @@ case class And(lhs: ArithExpr, rhs: ArithExpr) extends ArithExpr {
 
 case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
+}
+
+case class GroupCall(group: Group, outerAe: ArithExpr, innerAe: ArithExpr, len: ArithExpr) extends ArithExpr {
+  "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
 }
 
 case class ArithExprFunction(var range: Range = RangeUnkown) extends ArithExpr

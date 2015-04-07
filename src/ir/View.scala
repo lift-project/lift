@@ -14,6 +14,7 @@ class ArrayCreation(val v: View, val len: ArithExpr, val itVar: Var) extends Ope
 class ArrayAccess(var av: ArrayView, val idx: ArithExpr) extends Operation
 class ArrayReorder(val av: ArrayView, val f: (ArithExpr) => ArithExpr) extends Operation
 class ArraySplit(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
+class ArrayGroup(val av: ArrayView, val group: Group) extends Operation
 class ArrayJoin(val av: ArrayView, val chunkSize: ArithExpr) extends Operation
 class ArrayZip(val tv: TupleView) extends Operation
 class ArrayAsVector(val av: ArrayView, val n: ArithExpr) extends Operation
@@ -36,6 +37,7 @@ abstract class View(val operation: Operation) {
       case as: ArraySplit => new ArraySplit(as.av.replaced(oldExpr,newExpr).asInstanceOf[ArrayView], ArithExpr.substitute(as.chunkSize, subst.toMap))
       case aj: ArrayJoin => new ArrayJoin(aj.av.replaced(oldExpr,newExpr).asInstanceOf[ArrayView], ArithExpr.substitute(aj.chunkSize, subst.toMap))
       case ar: ArrayReorder => new ArrayReorder(ar.av.replaced(oldExpr, newExpr).asInstanceOf[ArrayView], ar.f)
+      case ag: ArrayGroup => new ArrayGroup(ag.av.replaced(oldExpr, newExpr).asInstanceOf[ArrayView], ag.group)
 
       case tc: TupleCreation => new TupleCreation(tc.views.map(_.replaced(oldExpr,newExpr)))
       case ta: TupleAccess => new TupleAccess(ta.tv.replaced(oldExpr,newExpr).asInstanceOf[TupleView],ta.i)
@@ -63,6 +65,11 @@ class ArrayView(var elemT: Type, override val operation: Operation) extends View
   def split(chunkSize : ArithExpr): ArrayView = {
     val as = new ArraySplit(this, chunkSize)
     new ArrayView(new ArrayType(elemT, chunkSize), as)
+  }
+
+  def group(group: Group): ArrayView = {
+    val ag = new ArrayGroup(this, group)
+    new ArrayView(new ArrayType(elemT, group.relIndices.length), ag)
   }
 
   def join(chunkSize: ArithExpr): ArrayView = {
@@ -212,6 +219,7 @@ object View {
           case asVector(n) => createViewAsVector(n, argView)
           case _: asScalar => createViewAsScalar(argView)
           case f: Filter => createViewFilter(f, call, argView)
+          case g: Group => createViewGroup(g, call, argView)
           /*case uz: Unzip =>
           case SplitDim2(n) =>
           case j: JoinDim2 =>
@@ -345,6 +353,13 @@ object View {
   private def createViewSplit(n: ArithExpr, argView: View): View = {
     argView match {
       case av: ArrayView => av.split(n)
+      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
+    }
+  }
+
+  private def createViewGroup(g: Group, call: FunCall, argView: View): View = {
+    argView match {
+      case av: ArrayView => av.group(g)
       case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
     }
   }
@@ -491,6 +506,18 @@ object ViewPrinter {
         val newIdx = chunkId._1*as.chunkSize+chunkElemId._1
         val newAAS = stack2.push((newIdx, chunkElemId._2))
         emitView(as.av, newAAS,tupleAccessStack)
+
+      case ag : ArrayGroup =>
+        val (outerId,stack1) = arrayAccessStack.pop2
+        val (innerId,stack2) = stack1.pop2
+
+        ag.group.params(0).t match {
+          case ArrayType(t, len) =>
+            val newIdx = GroupCall(ag.group, outerId._1, innerId._1, len)
+            val newAAS = stack2.push((newIdx, innerId._2))
+            emitView(ag.av, newAAS, tupleAccessStack)
+          case _ => throw new IllegalArgumentException()
+        }
 
       case aj : ArrayJoin =>
         val (idx,stack) = arrayAccessStack.pop2

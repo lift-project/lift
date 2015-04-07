@@ -96,8 +96,9 @@ object OpenCLGenerator extends Generator {
 
     View.createView(f.body)
 
-    // pass 2: find and generate user functions
+    // pass 2: find and generate user and group functions
     generateUserFunction(f.body)
+    generateGroupFunction(f.body)
 
     oclPrinter.println()
 
@@ -121,6 +122,22 @@ object OpenCLGenerator extends Generator {
       })
     userFuns.foreach(uf => {
       oclPrinter.print(oclPrinter.toOpenCL(uf))
+      oclPrinter.println()
+    })
+  }
+
+  /** Traverses f and print all group functions using oclPrinter */
+  def generateGroupFunction(expr: Expr) {
+    val groupFuns = Expr.visit(Set[Group]())(expr, (expr, set) =>
+      expr match {
+        case call: FunCall => call.f match {
+          case group: Group => set + group
+          case _ => set
+        }
+        case _ => set
+      })
+    groupFuns.foreach(group => {
+      oclPrinter.print(oclPrinter.toOpenCL(group))
       oclPrinter.println()
     })
   }
@@ -219,6 +236,7 @@ object OpenCLGenerator extends Generator {
         case _: JoinDim2 =>
         case _: Zip => call.args.map(generate)
         case _: Unzip =>
+        case _: Group =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case p: Param =>

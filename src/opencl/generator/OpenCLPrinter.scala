@@ -134,6 +134,8 @@ class OpenCLPrinter {
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
       case Fraction(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
+      case GroupCall(g, outerAe, innerAe, len) =>
+        "groupComp" + g.id + "(" + toOpenCL(outerAe) + ", " + toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
@@ -158,6 +160,33 @@ class OpenCLPrinter {
       toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
       createTupleAlias(uf.unexpandedTupleTypes) +
       uf.body + "}"
+  }
+
+  def toOpenCL(group: Group) : String = {
+    group.params(0).t match {
+      case ArrayType(t, len) =>
+        val lenVar = Var("length")
+        val newIdx = Var("newIdx")
+        val newIdxStr = toOpenCL(newIdx)
+
+        s"""
+           |int groupComp${group.id}(int j, int i, int ${toOpenCL(lenVar)}){
+           |  // Compute new index
+           |  int relIndices[] = {${group.relIndices.deep.mkString(", ")}};
+           |  int $newIdxStr = j + relIndices[i];
+           |
+           |  // Boundary check
+           |  if ($newIdxStr < 0) {
+           |    return ${toOpenCL(group.negOutOfBoundsF(newIdx, lenVar))};
+           |  } else if ($newIdxStr >= ${toOpenCL(lenVar)}) {
+           |    return ${toOpenCL(group.posOutOfBoundsF(newIdx - lenVar + 1, lenVar))};
+           |  } else {
+           |    return $newIdxStr;
+           |  }
+           |}
+         """.stripMargin
+      case _ => throw new IllegalArgumentException
+    }
   }
 
   def createTypedef(t: Type): String = {

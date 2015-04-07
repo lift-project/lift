@@ -201,6 +201,55 @@ object jSwap {
   def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
 }
 
+case class Group(relIndices: Array[Int],
+                 negOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr,
+                 posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  Group.cnt += 1
+  val id = Group.cnt
+}
+object Group {
+  var cnt: Int = -1
+
+  // Predefined out-of-boundary cases
+  val edgeNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => 0
+  val edgePos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - 1
+  val reflectNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => -1 - idx
+  val reflectPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - idx
+  val wrapNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len + idx
+  val wrapPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => idx - 1
+}
+object jGroup {
+  def create(relIndices: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group(relIndices, negOOB, posOOB)
+}
+
+object Group2D {
+  def apply(relColumns: Array[Int],
+            relRows: Array[Int],
+            negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+            posOOB: (ArithExpr, ArithExpr) => ArithExpr): CompFunDef = {
+    Map(
+      Map(
+        Transpose()
+      ) o Group(relColumns, negOOB, posOOB) o Transpose()
+    ) o Group(relRows, negOOB, posOOB)
+  }
+}
+object jGroup2D {
+  def create(relColumns: Array[Int], relRows: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(relColumns, relRows, negOOB, posOOB)
+}
+
+/*
+// Group that returns a constant
+case class GroupConstant(relIndices: Array[Int], constant: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  Group.cnt += 1
+  val id = Group.cnt
+}
+object jGroupConstant {
+  def create(relIndices: Array[Int], constant: ArithExpr) = GroupConstant(relIndices, constant)
+}
+*/
 
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
 
