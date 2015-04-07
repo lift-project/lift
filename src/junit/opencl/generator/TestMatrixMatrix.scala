@@ -1063,16 +1063,17 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-/*
+  // TODO: Gives incorrect result
+  @Ignore
   @Test def MATRIX_MATRIX_2D_TESTS_1() {
 
-    val Msize = 32
-    val Ksize = 32
-    val Nsize = 32
-    //val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    //val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
-    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => 2.0f)
+    val mSize = 32
+    val kSize = 32
+    val nSize = 32
+    //val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    //val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => 2.0f)
 
     val N = Var("N")
     val M = Var("M")
@@ -1086,26 +1087,26 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o MapWrg(0)(fun( Arows =>
-          Join() o MapWrg(1)(fun( Bcols =>
+        Join() o MapWrg(0)(fun( aRows =>
+          Join() o MapWrg(1)(fun( bCols =>
 
             Join() o MapSeq(fun( (zippedChunk) => //acc,
 
-              Barrier() o MapLcl(0)(fun( Arow =>
-                Barrier() o MapLcl(1)(fun( Bcol =>
+              Barrier() o MapLcl(0)(fun( aRow =>
+                Barrier() o MapLcl(1)(fun( bCol =>
 
-                  ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+                  ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
 
                 )) o Transpose() o fun(p => Get(p, 1)) $ zippedChunk
               )) o Transpose() o fun(p => Get(p, 0)) $ zippedChunk
 
-            )) o Split(d) $ Zip(Transpose() $ Arows, Transpose() $ Bcols) // ,0.0f*r*c
+            )) $ Zip(Split(d) o Transpose() $ aRows, Split(d) o Transpose() $ bCols) // ,0.0f*r*c
 
           )) o Split(c) $ B
         )) o Split(r) $ A
       })
 
-    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -1113,21 +1114,18 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.0f)
   }
-*/
 
-
-  /* TODO: Add support for writing transposed, as in: Transpose() o Join() o MapWrg(1)( ...) o Split(c) o B
   @Test def MATRIX_MATRIX_2D_TESTS_2() {
 
-    val Msize = 8
-    val Ksize = 8
-    val Nsize = 8
-    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 1 + c * 0) % 10) + 1) * 1.0f)
-    //val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 2 + c * 3) % 10) + 1) * 1.0f)
-    //val matrixA = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
-    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => 1.0f)
+    val mSize = 8
+    val kSize = 8
+    val nSize = 8
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 1 + c * 0) % 10) + 1) * 1.0f)
+    //val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 2 + c * 3) % 10) + 1) * 1.0f)
+    //val matrixA = Array.tabulate(mSize, kSize)((r, c) => 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => 1.0f)
 
     val N = Var("N")
     val M = Var("M")
@@ -1135,24 +1133,23 @@ class TestMatrixMatrix {
 
     val r = 2 // number of rows a single workgroup computes
     val c = 4 // number of columns a single workgroup computes
-    val d = 16 // chunk size
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o MapWrg(0)(fun( Arows =>
-          Transpose() o Join() o MapWrg(1)(fun( Bcols =>
-            Barrier() o MapLcl(0)(fun( Bcol =>
-              Barrier() o MapLcl(1)(fun( Arow =>
-                ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
-              )) o Arows
-            )) o Bcols
-          )) o Split(c) o B
-        )) o Split(r) o A
+        Join() o MapWrg(0)(fun( aRows =>
+          TransposeW() o Join() o MapWrg(1)(fun( bCols =>
+            Barrier() o MapLcl(0)(fun( bCol =>
+              Barrier() o MapLcl(1)(fun( aRow =>
+                ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
+              )) $ aRows
+            )) $ bCols
+          )) o Split(c) $ B
+        )) o Split(r) $ A
       })
 
-    val (output, runtime) = Execute(8, Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output, runtime) = Execute(8, mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -1161,13 +1158,13 @@ class TestMatrixMatrix {
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
     println("gold:")
-    PrintUtils.myPrint(gold, Msize)
+    TestUtils.myPrint(gold, mSize)
     println("output:")
-    PrintUtils.myPrint(output, Msize)
+    TestUtils.myPrint(output, mSize)
 
     assertArrayEquals(gold,output,0.0f)
 
   }
-*/
+
 
 }
