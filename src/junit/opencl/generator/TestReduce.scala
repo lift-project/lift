@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.Var
 import benchmarks.SumAbsoluteValues
 import org.junit._
 import org.junit.Assert._
@@ -31,7 +32,7 @@ class TestReduce {
 
     val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
-        Join() o MapLcl(ReduceSeq(add, 0.0f) /*o MapSeq(id)*/) o Split(2048)
+        Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f) /*o MapSeq(id)*/) o Split(2048)
       ) o Split(262144) $ in
     } )
 
@@ -52,7 +53,7 @@ class TestReduce {
 
     val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
       Join() o Join() o  MapWrg(
-        MapLcl(ReduceSeq(add, 0.0f))
+        Barrier() o MapLcl(ReduceSeq(add, 0.0f))
       ) o Split(128) o Split(2048) $ in
     }), inputData, inputData.length)
 
@@ -93,9 +94,9 @@ class TestReduce {
     val (firstOutput, _) = {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(7)(Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(7)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
         ) o Split(128) $ in
       }), inputData, inputData.length)
 
@@ -110,9 +111,9 @@ class TestReduce {
     {
       val (output, runtime) = Execute(8, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(3)(Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
-            Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(3)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
+            Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
         ) o Split(8) $ in
       }), firstOutput, firstOutput.length)
 
@@ -135,9 +136,9 @@ class TestReduce {
 
     val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
-        Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-          Iterate(7)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-          Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+        Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+          Iterate(7)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+          Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
       ) o Split(256) $ in
     }), inputData, inputData.length)
 
@@ -159,10 +160,10 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Join() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(add, 0.0f)) o Split(2) ) ) o Split(32) o
-            Iterate(2)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144 / 2048)
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Join() o Barrier() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(add, 0.0f)) o Split(2) ) ) o Split(32) o
+            Iterate(2)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144 / 2048)
         ) o Split(262144) $ in
 
       }), inputData, inputData.length)
@@ -179,9 +180,9 @@ class TestReduce {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(5)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(5)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
         ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
@@ -208,9 +209,9 @@ class TestReduce {
         ArrayType(Float, Var("N")),
         (in) =>
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(7)(Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
-            Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144/2048)
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(7)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144/2048)
         ) o Split(262144) $ in
       )
 
@@ -228,9 +229,9 @@ class TestReduce {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(5)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(5)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
         ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
@@ -257,9 +258,9 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          asScalar() o Join() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
-            Iterate(8)( Join() o MapLcl(ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f))) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f)))) o Split(2) o asVector(4)
+          asScalar() o Join() o Barrier() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
+            Iterate(8)( Join() o Barrier() o MapLcl(ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f))) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f)))) o Split(2) o asVector(4)
         ) o Split(2048) $ in
 
       }), inputData, inputData.length)
@@ -276,9 +277,9 @@ class TestReduce {
       val (output, runtime) = Execute(64, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(6)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(MapSeq(id))) o Split(1)
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate(6)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
         ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
@@ -333,7 +334,7 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)(SumAbsoluteValues.amdDerived1,
         inputData, inputData.length)
 
-      println("output size = " + output.size)
+      println("output size = " + output.length)
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
 
@@ -431,20 +432,20 @@ class TestReduce {
       /*
        // this is working fine
       val kernel = Join() o MapWrg(
-        Join() o MapLcl(MapSeq(id)) o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(1024)
+        Join() o Barrier() o MapLcl(MapSeq(id)) o Barrier() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(1024)
       ) o Split(1024) o input
       */
 
       /* // triggers wrong allocation ...
       val kernel = Join() o MapWrg(
-        Join() o MapLcl(MapSeq(id)) o Split(1024)
+        Join() o Barrier() o MapLcl(MapSeq(id)) o Split(1024)
       ) o Split(1024) o input
       */
 
 
       // triggers generation of wrong code (the indices are broken)
       val kernel = Join() o MapWrg(
-        Join() o MapLcl(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o Split(1024)
+        Join() o Barrier() o MapLcl(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o Split(1024)
       ) o Split(1024) o input
 
 

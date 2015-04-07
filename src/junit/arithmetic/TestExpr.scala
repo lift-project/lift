@@ -1,4 +1,4 @@
-package ir
+package arithmetic
 
 import org.junit.Assert._
 import org.junit.Test
@@ -85,7 +85,13 @@ class TestExpr {
   @Test def Fraction(): Unit = {
     val i = Var("i")
     val M = Var("M")
-    assertEquals((i div M) * M + i % M, ExprSimplifier.simplify((i div M) * M + i % M))
+    assertEquals((i div M) * M, ExprSimplifier.simplify((i div M) * M))
+  }
+
+  @Test def remainderAndModulo(): Unit = {
+    val a = Var("x")
+    val d = Var("d")
+    assertEquals(a, ExprSimplifier.simplify((a div d) * d + a % d))
   }
 
   @Test def modOfVarWithVarRange(): Unit = {
@@ -268,14 +274,26 @@ class TestExpr {
     assertEquals(Cst(5), ExprSimplifier.simplify(Cst(-1) * Cst(-5)))
   }
 
+  @Test def modBug(): Unit = {
+    val n = Var("n")
+    val l = Var("l", ContinuousRange(0, 4))
+    val wg = Var("wg", ContinuousRange(0, n/4))
+
+    assertEquals(Cst(0), ExprSimplifier.simplify((l * n/4) % (n/4)))
+    assertEquals(wg, ExprSimplifier.simplify(wg % (n/4)))
+    assertEquals(wg, ExprSimplifier.simplify((wg + l * n/4) % (n/4)))
+    assertEquals(wg, ExprSimplifier.simplify(wg % n))
+    assertEquals(l * n/4, ExprSimplifier.simplify((l * n/4) % n))
+  }
+
   @Test def simplifyAccess(): Unit = {
     val M = Var(StartFromRange(Cst(1)))
     val N = Var(StartFromRange(Cst(1)))
 
-    val wg_id_0 = Var("wid_0",ContinousRange(0, N / 2))
-    val wg_id_1 = Var("wid_1",ContinousRange(0, M / 4))
-    val l_id_0 = Var("lid_0",ContinousRange(0, 2))
-    val l_id_1 = Var("lid_0",ContinousRange(0, 4))
+    val wg_id_0 = Var("wid_0",ContinuousRange(0, N / 2))
+    val wg_id_1 = Var("wid_1",ContinuousRange(0, M / 4))
+    val l_id_0 = Var("lid_0",ContinuousRange(0, 2))
+    val l_id_1 = Var("lid_0",ContinuousRange(0, 4))
 
     val firstRead = (
       (wg_id_0 * 1 * M / (4) * 2 * 4) +

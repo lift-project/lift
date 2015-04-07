@@ -1,9 +1,11 @@
 package opencl.generator
 
+import arithmetic.Var
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
+import opencl.ir.CompositePatterns._
 import ir._
 import ir.UserFunDef._
 
@@ -101,7 +103,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         MapWrg(fun( Arow =>
-          MapLcl(fun( Bcol =>
+          Barrier() o MapLcl(fun( Bcol =>
             ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
@@ -109,7 +111,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -143,7 +145,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -797,8 +799,8 @@ class TestMatrixMatrix {
       (A, B) => {
         Join() o MapWrg(0)(fun(rowsA =>
           Transpose() o Join() o MapWrg(1)(fun(colsB =>
-            MapLcl(0)(fun(colB =>
-              MapLcl(1)(fun(rowA =>
+            Barrier() o MapLcl(0)(fun(colB =>
+              Barrier() o MapLcl(1)(fun(rowA =>
                 ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
               )) $ rowsA
             )) $ colsB
@@ -816,8 +818,8 @@ class TestMatrixMatrix {
       (A, B) => {
         MapWrg(0)(fun(rowsA =>
           MapWrg(1)(fun(colsB =>
-            MapLcl(0)(fun(rowA =>
-              MapLcl(1)(fun(colB =>
+            Barrier() o MapLcl(0)(fun(rowA =>
+              Barrier() o MapLcl(1)(fun(colB =>
                 ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1))
                 )) o Zip(rowA, colB)
               )) o colsB
@@ -830,16 +832,13 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f5, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
   }
 
   @Test def MATRIX_MATRIX_2D_GLOBAL_ID() {
@@ -865,14 +864,13 @@ class TestMatrixMatrix {
         )) $ A
       })
 
-    // TODO: make this work
     val f2 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         MapGlb(0)(MapGlb(1)(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
-        MapSeq(fun( Arow =>
-          MapSeq(fun( Bcol =>
+        Map(fun( Arow =>
+          Map(fun( Bcol =>
             Zip(Arow, Bcol)
           )) $ B
         )) $ A
@@ -880,16 +878,216 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f1, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
+    assertArrayEquals(gold, output, 0.001f)
 
-    (output, runtime)
+    val (output2, runtime2) = Execute(Msize * Nsize)(f2, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
 
+    println("output.size = " + output2.length)
+    println("output(0) = " + output2(0))
+    println("runtime = " + runtime2)
+
+    assertArrayEquals(gold, output2, 0.001f)
+  }
+
+  @Test def tiledMultiplicationScala(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val transposedB = matrixB.transpose
+
+    val tileSize = 4
+
+    val tiledA = matrixA.grouped(tileSize).toArray.map(_.transpose.grouped(tileSize).toArray.map(_.transpose))
+    val tiledB = transposedB.grouped(tileSize).toArray.map(_.transpose.grouped(tileSize).toArray.map(_.transpose))
+
+    // Matrix-Multiplication and reduction over tiles fused
+    val tiledC = tiledA.map(aRows => {
+      tiledB.map(bCols => {
+        (aRows, bCols).zipped.foldLeft(Array.ofDim[Float](tileSize, tileSize))((acc, tiles) => {
+          val aTile = tiles._1
+          val bTile = tiles._2
+
+          val temp = aTile.map(aRow => bTile.map(bRow => (aRow, bRow).zipped.map(_ * _).sum))
+
+          (temp, acc).zipped.map((x, y) => (x, y).zipped.map(_+_))
+        })
+      })
+    })
+
+    val matrixC = tiledC.map(_.transpose.map(_.flatten)).flatten.flatten
+
+    assertArrayEquals(gold, matrixC, 0.001f)
+
+    // Matrix-Multiplication and reduction over tiles separate
+    val tiledC2 = tiledA.map(aRows => {
+      tiledB.map(bCols => {
+        (aRows, bCols).zipped.map((aTile, bTile) => aTile.map(aRow => bTile.map(bRow => (aRow, bRow).zipped.map(_ * _).sum))).
+          reduce((acc, tile) => {
+
+          (tile, acc).zipped.map((x, y) => (x, y).zipped.map(_+_))
+        })
+      })
+    })
+
+    val matrixC2 = tiledC2.map(_.transpose.map(_.flatten)).flatten.flatten
+
+    assertArrayEquals(gold, matrixC2, 0.001f)
+
+    // Matrix-Multiplication and reduction over tiles separate, reduction over last dimension, not first
+    val tiledC3 = tiledA.map(aRows => {
+      tiledB.map(bCols => {
+        (aRows, bCols).zipped.map((aTile, bTile) => aTile.map(aRow => bTile.map(bRow => (aRow, bRow).zipped.map(_ * _).sum))).
+          transpose.map(_.transpose.map(_.sum))
+      })
+    })
+
+    val matrixC3 = tiledC3.map(_.transpose.map(_.flatten)).flatten.flatten
+
+    assertArrayEquals(gold, matrixC3, 0.001f)
+  }
+
+  @Test def tiledMatrixMultiply(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val n = new Var("N")
+    val m = new Var("M")
+    val k = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, k), m),
+      ArrayType(ArrayType(Float, k), n),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+        MapWrg(0)(fun( aRows =>
+          MapWrg(1)(fun( bCols =>
+
+            // Reduce the partial results (matrices), so that the reduce is innermost
+            Barrier() o MapLcl(0)(Join() o MapLcl(1)(ReduceSeq(add, 0.0f) o Join()) o Transpose()) o Transpose() o
+
+            // Multiply all necessary combinations of tiles
+            MapSeq(fun( tiles =>
+              Barrier() o MapLcl(0)( fun(aTile =>
+                MapLcl(1)( fun( bTile =>
+                  ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
+                )) $ Get(tiles, 1)
+              )) $ Get(tiles, 0)
+            )) $ Zip(aRows, bCols)
+
+          // Tile the matrices
+          )) o Tile(tileSize) $ B
+        )) o Tile(tileSize) $ A
+      })
+
+    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
+
+    println("output.size = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Ignore
+  @Test def tiledMatrixMultiplyLocalMemory(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val n = new Var("N")
+    val m = new Var("M")
+    val k = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, k), m),
+      ArrayType(ArrayType(Float, k), n),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapWrg(0)(fun( aRows =>
+            MapWrg(1)(fun( bCols =>
+
+              Map(Join()) o
+              // Reduce the partial results (matrices), so that the reduce is innermost
+              Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(ReduceSeq(add, 0.0f)))) o
+              Map(Map(Join()) o Transpose()) o Transpose() o
+
+                // Multiply all necessary combinations of tiles
+                MapSeq(fun( tiles =>
+                  Barrier() o MapLcl(0)( fun(aTile =>
+                    MapLcl(1)( fun( bTile =>
+                      ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
+                    )) $ Get(tiles, 1)
+                  )) $ Get(tiles, 0)
+                ) o
+
+                // Copy tiles to local memory
+                fun(tiles =>
+                  Tuple(
+                    Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 0),
+                    Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 1)
+                  ))
+                ) $ Zip(aRows, bCols)
+
+              // Tile the matrices
+            )) o Tile(tileSize) $ B
+          )) o Tile(tileSize) $ A
+      })
+
+    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
+
+    println("output.size = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test def addArrayOfMatrices(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val numMatrices = 16
+    val matrices = Array.fill(numMatrices, mSize, kSize)(util.Random.nextInt(5).toFloat)
+
+    val gold = matrices.reduce((x, y) => (x, y).zipped.map((x, y) => (x, y).zipped.map(_+_))).flatten
+
+    val test = matrices.transpose.map(_.transpose.map(_.sum)).flatten
+
+    assertArrayEquals(gold, test, 0.001f)
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("M")), new Var("K")), new Var("N")),
+      input => MapGlb(0)(MapGlb(1)(ReduceSeq(add, 0.0f)) o Transpose()) o Transpose() $ input
+    )
+
+    val (output, _) = Execute(mSize*kSize)(f, matrices, numMatrices, kSize, mSize)
+
+    assertArrayEquals(gold, output, 0.001f)
   }
 
   @Test def MATRIX_MATRIX_2D_GLOBAL_ID_WITH_TRANSPOSE() {
@@ -917,7 +1115,7 @@ class TestMatrixMatrix {
 
     val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB, Msize, Ksize, Nsize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
@@ -926,16 +1124,17 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  /*
+  // TODO: Gives incorrect result
+  @Ignore
   @Test def MATRIX_MATRIX_2D_TESTS_1() {
 
-    val Msize = 32
-    val Ksize = 32
-    val Nsize = 32
-    //val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    //val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
-    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => 2.0f)
+    val mSize = 32
+    val kSize = 32
+    val nSize = 32
+    //val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    //val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => 2.0f)
 
     val N = Var("N")
     val M = Var("M")
@@ -949,63 +1148,45 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o MapWrg(0)(fun( Arows =>
-          Join() o MapWrg(1)(fun( Bcols =>
+        Join() o MapWrg(0)(fun( aRows =>
+          Join() o MapWrg(1)(fun( bCols =>
 
             Join() o MapSeq(fun( (zippedChunk) => //acc,
 
-              MapLcl(0)(fun( Arow =>
-                MapLcl(1)(fun( Bcol =>
+              Barrier() o MapLcl(0)(fun( aRow =>
+                Barrier() o MapLcl(1)(fun( bCol =>
 
-                  ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
+                  ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
 
-                )) o Transpose() o fun(p => Get(p, 1)) o Unzip() o zippedChunk
-              )) o Transpose() o fun(p => Get(p, 0)) o Unzip() o zippedChunk
+                )) o Transpose() o fun(p => Get(p, 1)) $ zippedChunk
+              )) o Transpose() o fun(p => Get(p, 0)) $ zippedChunk
 
-            )) o Split(d) o Zip(Transpose() o Arows, Transpose() o Bcols) // ,0.0f*r*c
+            )) $ Zip(Split(d) o Transpose() $ aRows, Split(d) o Transpose() $ bCols) // ,0.0f*r*c
 
-          )) o Split(c) o B
-        )) o Split(r) o A
+          )) o Split(c) $ B
+        )) o Split(r) $ A
       })
 
-    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
-
-  }
-  */
-
-  private def print(m: Array[Array[Float]]): Unit = {
-    m.map( r => {
-      println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
-    } )
+    assertArrayEquals(gold, output, 0.0f)
   }
 
-  private def print(m: Array[Float], cols: Int): Unit = {
-    val (row, rest) = m.splitAt(cols)
-    if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
-    if (rest.nonEmpty) print(rest, cols)
-  }
-
-  /*
-  TODO: Add support for writing transposed, as in: Transpose() o Join() o MapWrg(1)( ...) o Split(c) o B
   @Test def MATRIX_MATRIX_2D_TESTS_2() {
 
-    val Msize = 8
-    val Ksize = 8
-    val Nsize = 8
-    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 1 + c * 0) % 10) + 1) * 1.0f)
-    //val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 2 + c * 3) % 10) + 1) * 1.0f)
-    //val matrixA = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
-    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => 1.0f)
+    val mSize = 8
+    val kSize = 8
+    val nSize = 8
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 1 + c * 0) % 10) + 1) * 1.0f)
+    //val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 2 + c * 3) % 10) + 1) * 1.0f)
+    //val matrixA = Array.tabulate(mSize, kSize)((r, c) => 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => 1.0f)
 
     val N = Var("N")
     val M = Var("M")
@@ -1013,41 +1194,38 @@ class TestMatrixMatrix {
 
     val r = 2 // number of rows a single workgroup computes
     val c = 4 // number of columns a single workgroup computes
-    val d = 16 // chunk size
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        Join() o MapWrg(0)(fun( Arows =>
-          Transpose() o Join() o MapWrg(1)(fun( Bcols =>
-            MapLcl(0)(fun( Bcol =>
-              MapLcl(1)(fun( Arow =>
-                ReduceSeq(multAndSumUp, 0.0f) o Zip(Arow, Bcol)
-              )) o Arows
-            )) o Bcols
-          )) o Split(c) o B
-        )) o Split(r) o A
+        Join() o MapWrg(0)(fun( aRows =>
+          TransposeW() o Join() o MapWrg(1)(fun( bCols =>
+            Barrier() o MapLcl(0)(fun( bCol =>
+              Barrier() o MapLcl(1)(fun( aRow =>
+                ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
+              )) $ aRows
+            )) $ bCols
+          )) o Split(c) $ B
+        )) o Split(r) $ A
       })
 
-    val (output, runtime) = Execute(8, Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output, runtime) = Execute(8, mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
 
-    println("output.size = " + output.size)
+    println("output.size = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
     println("gold:")
-    print(gold, Msize)
+    TestUtils.myPrint(gold, mSize)
     println("output:")
-    print(output, Msize)
+    TestUtils.myPrint(output, mSize)
 
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
-
-    (output, runtime)
+    assertArrayEquals(gold,output,0.0f)
 
   }
-  */
+
 
 }

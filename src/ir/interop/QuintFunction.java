@@ -1,4 +1,4 @@
-package ir;
+package ir.interop;
 
 @FunctionalInterface
 public interface QuintFunction<A,B,C,D,E,R> {

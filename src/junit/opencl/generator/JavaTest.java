@@ -1,15 +1,17 @@
 package opencl.generator;
 
+import arithmetic.*;
+import ir.*;
+import ir.interop.*;
+import opencl.executor.*;
+import opencl.ir.*;
+import opencl.ir.interop.*;
 import org.junit.*;
+import scala.collection.JavaConversions;
 
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
-
-import ir.*;
-import opencl.ir.*;
-import opencl.executor.*;
-import scala.collection.JavaConversions;
 
 public class JavaTest {
 
@@ -79,7 +81,7 @@ public class JavaTest {
                 (input) -> {
                     return jJoin.comp(jMapGlb.create(
                                     jMapSeq.create(neg))
-                           ).comp(jSplit.create(4)).call(input);
+                    ).comp(jSplit.create(4)).call(input);
                 });
 
         String code2 = Compile.apply(negFun2);
@@ -151,7 +153,7 @@ public class JavaTest {
                         jMapGlb.create(
                                 jfun.create(xy ->
                                                 jMapSeq.create(getSecond).comp(
-                                                        jReduceSeq.create(minimum, Expr.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1))).comp(
+                                                        jReduceSeq.create(minimum, Value.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1))).comp(
                                                                 jMapSeq.create(jfun.create(abi -> distance.apply(
                                                                         JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(xy, 0), Get.apply(xy, 1),
                                                                                 Get.apply(abi, 0), Get.apply(abi, 1), Get.apply(abi, 2))))))
@@ -192,7 +194,7 @@ public class JavaTest {
 
 
         MapSeq map2 = jMapSeq.create(getSecond);
-        Lambda1 reduce = jReduceSeq.create(minimum, Expr.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1)));
+        Lambda1 reduce = jReduceSeq.create(minimum, Value.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1)));
 
         FunCall f = map2.comp(reduce).comp(map1).call(zip3);
 
@@ -231,7 +233,7 @@ public class JavaTest {
 
 
         Type[] types = {
-            jArrayType.create((jArrayType.create(jFloat.getSingleton(), M)), N),
+                jArrayType.create((jArrayType.create(jFloat.getSingleton(), M)), N),
                 jArrayType.create((jArrayType.create(jFloat.getSingleton(), K)), L)
         };
 
@@ -246,7 +248,7 @@ public class JavaTest {
         Lambda1 multLambda = new Lambda1(new Param[]{undef2}, multExpr);
         Lambda map = Lambda.FunDefToLambda(jMapSeq.create(multLambda));
 
-        Lambda1 reduce = jReduceSeq.create(add, Expr.FloatToValue(0.0f));
+        Lambda1 reduce = jReduceSeq.create(add, Value.FloatToValue(0.0f));
 
         Expr zip2 = jZip.call(undef0, undef1);
 
@@ -276,7 +278,7 @@ public class JavaTest {
 
         Function<Param, Lambda> test = a -> jfun.create((r) -> add.call(r, a));
 
-        Function<Param, Lambda> test2 = a -> jfun.create( row -> jMapSeq.create(test.apply(a)).call(row));
+        Function<Param, Lambda> test2 = a -> jfun.create(row -> jMapSeq.create(test.apply(a)).call(row));
 
         BiFunction<Param, Param, Expr> test3 = (a, b) -> jMapGlb.create(test2.apply(b)).call(a);
 
@@ -307,7 +309,7 @@ public class JavaTest {
         Lambda function = jfun.create(
                 jArrayType.create(jArrayType.create(jFloat.getSingleton(), jVar.create("M")), jVar.create("N")),
                 (input) -> jMapGlb.create(
-                        jfun.create(row -> jMapSeq.create(neg).comp(jReduceSeq.create(add, Expr$.MODULE$.FloatToValue(0.0f))).call(row))
+                        jfun.create(row -> jMapSeq.create(neg).comp(jReduceSeq.create(add, Value$.MODULE$.FloatToValue(0.0f))).call(row))
                 ).call(input));
 
         String code = Compile.apply(function);

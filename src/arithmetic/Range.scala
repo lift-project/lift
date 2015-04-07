@@ -1,4 +1,4 @@
-package ir
+package arithmetic
 
 sealed abstract class Range {
   // default impl
@@ -7,7 +7,7 @@ sealed abstract class Range {
   def max : ArithExpr = ?
 }
 
-class RangeUnkownException(msg: String) extends Exception(msg)
+class RangeUnknownException(msg: String) extends Exception(msg)
 
 case class StartFromRange(start: ArithExpr) extends Range {
   override def *(e: ArithExpr): Range = {
@@ -19,7 +19,7 @@ case class StartFromRange(start: ArithExpr) extends Range {
 
 case class GoesToRange(end: ArithExpr) extends Range {
   override def *(e: ArithExpr): Range = {
-    StartFromRange(ExprSimplifier.simplify(end * e))
+    GoesToRange(ExprSimplifier.simplify(end * e))
   }
   override def min = ?
   override def max = end
@@ -41,10 +41,10 @@ case class RangeMul(start: ArithExpr, stop: ArithExpr, mul: ArithExpr) extends R
   override def max = stop
 }
 
-object ContinousRange {
+object ContinuousRange {
   def apply(start: ArithExpr, stop: ArithExpr) = {
     RangeAdd(start, stop, Cst(1))
   }
 }
 
-case object RangeUnkown extends Range
+case object RangeUnknown extends Range

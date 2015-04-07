@@ -1,5 +1,7 @@
 package opencl.ir
 
+import arithmetic._
+
 import scala.collection.mutable
 
 import ir._
@@ -142,16 +144,16 @@ object OpenCLMemory {
 
   //** Return newly allocated global memory */
   def allocGlobalMemory(glbOutSize: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), glbOutSize)), glbOutSize, GlobalMemory)
   }
 
   //** Return newly allocated local memory */
   def allocLocalMemory(lclOutSize: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), lclOutSize)), lclOutSize, LocalMemory)
   }
 
   def allocPrivateMemory(size: ArithExpr): OpenCLMemory = {
-    OpenCLMemory(Var(ContinousRange(Cst(0), size)), size, PrivateMemory)
+    OpenCLMemory(Var(ContinuousRange(Cst(0), size)), size, PrivateMemory)
   }
 
   /** Allocate OpenCLMemory objects for a given Fun f
@@ -204,7 +206,7 @@ object OpenCLMemory {
         if (vp.p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
         vp.p.mem
       case p: Param =>
-        if (param.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
+        if (p.mem == UnallocatedMemory) throw new IllegalArgumentException("PANIC!")
         p.mem
     }
 
@@ -237,7 +239,7 @@ object OpenCLMemory {
 
       case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem)
 
-      case z: Zip =>              allocZip(z, numGlb, numLcl, inMem)
+      case Zip(_) | Tuple(_) =>   allocZipTuple(inMem)
       case f: Filter =>           allocFilter(f, numGlb, numLcl, inMem)
 
       case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, inMem, outputMem, maxGlbOutSize)
@@ -248,7 +250,8 @@ object OpenCLMemory {
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
 
-      case Split(_) | SplitDim2(_) | Join() | JoinDim2() | ReorderStride(_) | asVector(_) | asScalar() | Transpose() | Swap() | Unzip() | TransposeW() | Group(_,_,_) =>
+      case Split(_) | Join() | ReorderStride(_) | asVector(_) |
+           asScalar() | Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) =>
         inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, outputMem, call.t, inMem)
@@ -285,7 +288,7 @@ object OpenCLMemory {
       val coll = inMem match { case coll: OpenCLMemoryCollection => coll}
       if (l.params.length != coll.subMemories.length) throw new NumberOfArgumentsException
 
-      (l.params zip coll.subMemories).map({case (p, m) => p.mem = m})
+      (l.params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
     alloc(l.body, numGlb, numLcl, outputMem)
   }
@@ -370,7 +373,7 @@ object OpenCLMemory {
     })
   }
 
-  private def allocZip(z: Zip, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
+  private def allocZipTuple(inMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
         if (coll.subMemories.length < 2) throw new NumberOfArgumentsException
@@ -485,7 +488,7 @@ object TypedOpenCLMemory {
 
     val resultWithoutCollections = result.map(tm => tm.mem match {
       case coll: OpenCLMemoryCollection =>
-        coll.subMemories.zipWithIndex.map({ case (m, i) => TypedOpenCLMemory(m, Type.getTypeAtIndex(tm.t, i))}).toArray
+        coll.subMemories.zipWithIndex.map({ case (m, i) => TypedOpenCLMemory(m, Type.getTypeAtIndex(tm.t, i))})
       case ocl: OpenCLMemory => Array(tm)
     }).flatten
 

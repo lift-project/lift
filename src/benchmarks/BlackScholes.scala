@@ -1,15 +1,16 @@
 package benchmarks
 
+import arithmetic.Var
 import ir._
 import opencl.ir._
 
-class BlackScholes(override val f: Seq[(String, Seq[Lambda])]) extends Benchmark("Black-Scholes", Seq(4096), f, 0.01f) {
+class BlackScholes(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Black-Scholes", Seq(4096), f, 0.01f) {
   override def runScala(inputs: Any*): Array[Float] = {
     BlackScholes.runScala(inputs(0).asInstanceOf[Array[Float]])
   }
 
   override def generateInputs(): Seq[Any] = {
-    val inputSize = inputSizes()(0)
+    val inputSize = inputSizes().head
 
     val inputData = Array.fill(inputSize)(util.Random.nextFloat())
 
@@ -144,18 +145,18 @@ object BlackScholes {
 
   val blackScholes = fun(
     ArrayType(Float, Var("N")),
-    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(8192) $ inRand
+    inRand => Join() o MapWrg(Barrier() o MapLcl(blackScholesComp)) o Split(8192) $ inRand
   )
 
   val blackScholesAMD = fun(
     ArrayType(Float, Var("N")),
-    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(256) $ inRand
+    inRand => Join() o MapWrg(Barrier() o MapLcl(blackScholesComp)) o Split(256) $ inRand
   )
 
   def apply() = new BlackScholes(
     Seq(
-      ("BLACK_SCHOLES", Seq(blackScholes)),
-      ("BLACK_SCHOLES_AMD", Seq(blackScholesAMD))))
+      ("BLACK_SCHOLES", Array[Lambda](blackScholes)),
+      ("BLACK_SCHOLES_AMD", Array[Lambda](blackScholesAMD))))
 
   def main(args: Array[String]) = {
     BlackScholes().run(args)

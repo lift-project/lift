@@ -1,12 +1,12 @@
-package ir
+package arithmetic
 
+import ir._
 
 import opencl.ir.Group
 
 import scala.collection.immutable
+import scala.language.implicitConversions
 import scala.util.Random
-
-import language.implicitConversions
 
 class NotEvaluableException(msg: String) extends Exception(msg)
 
@@ -32,15 +32,15 @@ abstract sealed class ArithExpr {
   }
 
   def atMax: ArithExpr = {
-    val vars = Var.getVars(this)
-    val exprFunctions = ArithExprFunction.getArithExprFuns(this)
+    val vars = Var.getVars(this).filter(_.range.max != ?)
+    val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.max != ?)
     val maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
 
   def atMin: ArithExpr = {
-    val vars = Var.getVars(this)
-    val exprFunctions = ArithExprFunction.getArithExprFuns(this)
+    val vars = Var.getVars(this).filter(_.range.min != ?)
+    val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.min != ?)
     val maxLens = vars.map(_.range.min) ++ exprFunctions.map(_.range.min)
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
@@ -198,7 +198,7 @@ object ArithExpr {
 
             if (cstTerm.length == 1) {
               try {
-                if ((cstTerm(0) % c).eval() == 0)
+                if ((cstTerm.head % c).eval() == 0)
                   return true
               } catch {
                 case ne: NotEvaluableException =>
@@ -317,11 +317,22 @@ case class Prod(factors: List[ArithExpr]) extends ArithExpr {
     val m = if (factors.nonEmpty) factors.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) else {""}
     "(" + m +")"
   }
+
+  override def hashCode(): Int = {
+    val hash = 31
+    factors.map(_.hashCode()).sum * hash
+  }
 }
+
 case class Sum(terms: List[ArithExpr]) extends ArithExpr {
   override def equals(that: Any) = that match {
     case s: Sum => terms.length == s.terms.length && terms.intersect(s.terms).length == terms.length
     case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val hash = 31
+    terms.map(_.hashCode()).sum * hash
   }
 
   override def toString: String = {
@@ -346,7 +357,7 @@ case class GroupCall(group: Group, outerAe: ArithExpr, innerAe: ArithExpr, len: 
   "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
 }
 
-case class ArithExprFunction(var range: Range = RangeUnkown) extends ArithExpr
+case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr
 
 object ArithExprFunction {
 
@@ -361,13 +372,13 @@ object ArithExprFunction {
 }
 
 // a special variable that should only be used for defining function type
-class TypeVar private(range : Range) extends Var("", range) {
+class TypeVar private(range : arithmetic.Range) extends Var("", range) {
   override def toString = "t" + id
 }
 
 object TypeVar {
   //var cnt: Int = -1
-  def apply(range : Range = RangeUnkown) = {
+  def apply(range : arithmetic.Range = RangeUnknown) = {
     //cnt = cnt+1
     new TypeVar(/*cnt, */range)
   }
@@ -397,7 +408,7 @@ object TypeVar {
 
 class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
-case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr {
+case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extends ArithExpr {
 
   Var.cnt += 1
   val id: Int = Var.cnt
@@ -414,8 +425,8 @@ case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr 
 
   override def toString = if (name == "") "v_"+id else name
 
-  def updateRange(func: (Range) => Range): Unit = {
-    if (range != RangeUnkown) {
+  def updateRange(func: (arithmetic.Range) => arithmetic.Range): Unit = {
+    if (range != RangeUnknown) {
       range = func(range)
     }
   }
@@ -423,20 +434,20 @@ case class Var(name: String, var range : Range = RangeUnkown) extends ArithExpr 
 }
 
 object jVar {
-  def create(name: String, range: Range) = Var(name, range)
+  def create(name: String, range: arithmetic.Range) = Var(name, range)
   def create(name: String) = Var(name)
 }
 
 object Var {
   var cnt: Int = -1
 
-  def apply(range : Range) : Var = new Var("",range)
+  def apply(range : arithmetic.Range) : Var = new Var("",range)
 
 
   def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {
 
     var changed = false
-    var substitions : immutable.Map[Var, Cst] = new immutable.HashMap[Var, Cst]()
+    var substitutions : immutable.Map[Var, Cst] = new immutable.HashMap[Var, Cst]()
     var newVars : Set[Var] = vars
 
     do {
@@ -451,7 +462,7 @@ object Var {
 
       if (newSubsts.nonEmpty)
         changed = true
-      substitions = substitions ++ newSubsts
+      substitutions = substitutions ++ newSubsts
 
       // remove from the set of variables the ones which have a substitution
       newVars = newVars-- newSubsts.keySet
@@ -466,7 +477,7 @@ object Var {
           case RangeMul(start, stop, step) => v.range = RangeMul(
             ExprSimplifier.simplify(ArithExpr.substitute(start, newSubsts.toMap)),
             ExprSimplifier.simplify(ArithExpr.substitute(stop, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(step, substitions.toMap)))
+            ExprSimplifier.simplify(ArithExpr.substitute(step, substitutions.toMap)))
           case _ =>
         }
         v
@@ -476,7 +487,7 @@ object Var {
 
     } while (changed)
 
-    substitions
+    substitutions
   }
 
   def getVars(expr: Expr) : Seq[Var] = {

@@ -7,6 +7,7 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 import opencl.ir._
 import ir._
+import arithmetic._
 
 import scala.util.Random
 
@@ -154,7 +155,7 @@ class TestStencil {
         ) o Group2D(relColumns, relRows, edgeNeg, edgePos) $ matrix
       })
 
-    val (output, runtime) = Execute(16, 16, Nsize, Msize, false)(f, matrix, weights, Nsize, Msize, weights.length)
+    val (output, runtime) = Execute(16, 16, Nsize, Msize, (false, false))(f, matrix, weights, Nsize, Msize, weights.length)
 
     println("output.size = " + output.size)
     println("output(0) = " + output(0))

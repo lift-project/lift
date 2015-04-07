@@ -1,6 +1,8 @@
 package exploration
 
 
+import arithmetic.{Var, Cst, RangeUnknown, RangeMul}
+
 import scala.collection.Seq
 import ir._
 import opencl.ir._
@@ -54,7 +56,7 @@ object Rules {
   private def validOSplitRange(t: Type) = {
     t match {
       case ArrayType(_, len) => RangeMul(Cst(1), len, Cst(2))
-      case _ => RangeUnkown // Error
+      case _ => RangeUnknown // Error
     }
   }
  

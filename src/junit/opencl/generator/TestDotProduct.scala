@@ -1,12 +1,11 @@
 package opencl.generator
 
+import arithmetic.Var
 import benchmarks.DotProduct
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir._
 import ir._
-import ir.UserFunDef._
 
 object TestDotProduct {
   @BeforeClass def before() {
@@ -39,7 +38,7 @@ class TestDotProduct {
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (output, runtime) = Execute(inputSize)(DotProduct.dotProductSimple,
-      leftInputData, rightInputData, leftInputData.size)
+      leftInputData, rightInputData, leftInputData.length)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -58,9 +57,9 @@ class TestDotProduct {
 
     val (firstOutput, _) = {
       val (output, runtime) = Execute(inputSize)(DotProduct.dotProductCPU1,
-        leftInputData, rightInputData, leftInputData.size)
+        leftInputData, rightInputData, leftInputData.length)
 
-      println("output.size = " + output.size)
+      println("output.size = " + output.length)
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
 
@@ -92,7 +91,7 @@ class TestDotProduct {
       val (output, runtime) = opencl.executor.Execute(inputSize)(DotProduct.dotProduct1,
         leftInputData, rightInputData, leftInputData.length)
 
-      println("output.size = " + output.size)
+      println("output.size = " + output.length)
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
 
