@@ -90,3 +90,13 @@ object jToLocal {
   def create(f: Lambda1) = toLocal(f)
   def create(f: FunDecl) = toLocal(Lambda1.FunDefToLambda(f))
 }
+
+object jGroup {
+  def create(relIndices: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group(relIndices, negOOB, posOOB)
+}
+
+object jGroup2D {
+  def create(relColumns: Array[Int], relRows: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(relColumns, relRows, negOOB, posOOB)
+}

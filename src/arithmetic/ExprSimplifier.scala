@@ -1,7 +1,5 @@
 package arithmetic
 
-import ir._
-
 object ExprSimplifier {
 
   private def primeFactors(n: Int, i: Int =2) : List[Int] = {

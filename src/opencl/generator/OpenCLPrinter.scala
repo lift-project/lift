@@ -116,7 +116,7 @@ class OpenCLPrinter {
   }
 
   def toOpenCL(e: ArithExpr) : String = {
-    val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
+    val me = if(Debug()) e else ExprSimplifier.simplify(e)
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
@@ -135,6 +135,12 @@ class OpenCLPrinter {
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
       case Fraction(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
+      case gc: GroupCall =>
+        val outerAe = if (Debug()) ExprSimplifier.simplify(gc.outerAe) else gc.outerAe
+        val innerAe = if (Debug()) ExprSimplifier.simplify(gc.innerAe) else gc.innerAe
+        val len = if (Debug()) ExprSimplifier.simplify(gc.len) else gc.len
+        "groupComp" + gc.group.id + "(" + toOpenCL(outerAe) + ", " +
+          toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
@@ -159,6 +165,33 @@ class OpenCLPrinter {
       toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
       createTupleAlias(uf.unexpandedTupleTypes) +
       uf.body + "}"
+  }
+
+  def toOpenCL(group: Group) : String = {
+    group.params(0).t match {
+      case ArrayType(t, len) =>
+        val lenVar = Var("length")
+        val newIdx = Var("newIdx")
+        val newIdxStr = toOpenCL(newIdx)
+
+        s"""
+           |int groupComp${group.id}(int j, int i, int ${toOpenCL(lenVar)}){
+           |  // Compute new index
+           |  int relIndices[] = {${group.relIndices.deep.mkString(", ")}};
+           |  int $newIdxStr = j + relIndices[i];
+           |
+           |  // Boundary check
+           |  if ($newIdxStr < 0) {
+           |    return ${toOpenCL(group.negOutOfBoundsF(newIdx, lenVar))};
+           |  } else if ($newIdxStr >= ${toOpenCL(lenVar)}) {
+           |    return ${toOpenCL(group.posOutOfBoundsF(newIdx - lenVar + 1, lenVar))};
+           |  } else {
+           |    return $newIdxStr;
+           |  }
+           |}
+         """.stripMargin
+      case _ => throw new IllegalArgumentException
+    }
   }
 
   def createTypedef(t: Type): String = {

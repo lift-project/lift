@@ -2,6 +2,8 @@ package arithmetic
 
 import ir._
 
+import opencl.ir.Group
+
 import scala.collection.immutable
 import scala.language.implicitConversions
 import scala.util.Random
@@ -399,8 +401,6 @@ object TypeVar {
     }
   }
 }
-
-class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
 case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extends ArithExpr {
 

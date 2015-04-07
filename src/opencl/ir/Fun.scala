@@ -1,6 +1,6 @@
 package opencl.ir
 
-import arithmetic.{Var, ArithExpr}
+import arithmetic.{ArithExprFunction, Var, ArithExpr}
 import ir._
 
 import language.implicitConversions
@@ -129,10 +129,8 @@ object ReduceHost {
 }
 
 case class toGlobal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
-  //override def copy() = toGlobal(f)
 
 case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
-  //override def copy() = toLocal(f)
 
 case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   var valid = true
@@ -144,6 +142,53 @@ case class ReorderStride(s: ArithExpr) extends Pattern(Array[Param](Param(UndefT
 case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
+case class Group(relIndices: Array[Int],
+                 negOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr,
+                 posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  Group.cnt += 1
+  val id = Group.cnt
+}
+
+object Group {
+  var cnt: Int = -1
+
+  // Predefined out-of-boundary cases
+  val edgeNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => 0
+  val edgePos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - 1
+  val reflectNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => -1 - idx
+  val reflectPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - idx
+  val wrapNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len + idx
+  val wrapPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => idx - 1
+}
+
+object Group2D {
+  def apply(relColumns: Array[Int],
+            relRows: Array[Int],
+            negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+            posOOB: (ArithExpr, ArithExpr) => ArithExpr): CompFunDef = {
+    Map(
+      Map(
+        Transpose()
+      ) o Group(relColumns, negOOB, posOOB) o Transpose()
+    ) o Group(relRows, negOOB, posOOB)
+  }
+}
+
+class GroupCall(val group: Group, val outerAe: ArithExpr, val innerAe: ArithExpr, val len: ArithExpr) extends ArithExprFunction {
+  "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
+}
+
+/*
+// Group that returns a constant
+case class GroupConstant(relIndices: Array[Int], constant: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  Group.cnt += 1
+  val id = Group.cnt
+}
+object jGroupConstant {
+  def create(relIndices: Array[Int], constant: ArithExpr) = GroupConstant(relIndices, constant)
+}
+*/
 
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
 

@@ -129,6 +129,9 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
 
+    // Check all Group functions valid arguments for the given input sizes
+    staticGroupCheck(f, valueMap)
+
     val inputs = values.map({
       case f: Float => value(f)
       case af: Array[Float] => global.input(af)
@@ -167,6 +170,41 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     args.foreach(_.dispose)
 
     (output, runtime)
+  }
+
+  /** Check that all possible indices returned by Group calls are in-bounds */
+  def staticGroupCheck(f: Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+    val groupFuns = Expr.visit(Set[Group]())(f.body, (expr, set) =>
+      expr match {
+        case call: FunCall => call.f match {
+          case group: Group => set + group
+          case _ => set
+        }
+        case _ => set
+      })
+
+    for (g <- groupFuns) {
+      val allIndices = g.relIndices.min to g.relIndices.max
+
+      g.params(0).t match  {
+        case ArrayType(_, lenExpr) =>
+          val length = ArithExpr.substitute(lenExpr, valueMap).eval()
+
+          for (relIdx <- allIndices) {
+            var newIdx = 0
+            if (relIdx < 0) {
+              newIdx = g.negOutOfBoundsF(relIdx, length).eval()
+            } else if (relIdx > 0) {
+              newIdx = g.posOutOfBoundsF(relIdx, length).eval()
+            }
+
+            if (newIdx < 0 || newIdx >= length) {
+              throw new IllegalArgumentException("Group function would map relative out-of-bounds index " + relIdx +
+                " to new illegal index " + newIdx + ".")
+            }
+          }
+      }
+    }
   }
 
 }

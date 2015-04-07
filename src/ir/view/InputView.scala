@@ -50,10 +50,15 @@ object InputView {
           case asVector(n) => buildViewAsVector(n, argView)
           case _: asScalar => buildViewAsScalar(argView)
           case f: Filter => buildViewFilter(f, call, argView)
+          case g: Group => buildViewGroup(g, call, argView)
           //case uz: Unzip =>
           case _ => argView
         }
     }
+  }
+
+  private def buildViewGroup(g: Group, call: FunCall, argView: View): View = {
+      argView.group(g)
   }
 
   private def buildViewIterate(i: Iterate, call:FunCall, argView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {

@@ -1,7 +1,8 @@
 package ir.view
 
-import arithmetic.{Var, AccessVar, Cst, ArithExpr}
+import arithmetic._
 import ir._
+import opencl.ir._
 
 import scala.collection.immutable.Stack
 
@@ -22,6 +23,7 @@ abstract class View(val t: Type = UndefType) {
       case filter: ViewFilter => new ViewFilter(filter.iv.replaced(oldExpr, newExpr), filter.ids.replaced(oldExpr, newExpr), t)
       case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(oldExpr, newExpr)), t)
       case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(oldExpr,newExpr), t)
+      case group: ViewGroup => new ViewGroup(group.iv.replaced(oldExpr, newExpr), group.group, group.t)
 
       case  _ => this
     }
@@ -83,6 +85,14 @@ abstract class View(val t: Type = UndefType) {
       case other => throw new IllegalArgumentException("Can't zip " + other.getClass)
     }
   }
+
+  def group(g: Group): View = {
+    this.t match {
+      case ArrayType(elemT, len) =>
+        new ViewGroup(this, g, ArrayType(ArrayType(elemT, g.relIndices.length), len))
+      case other => throw new IllegalArgumentException("Can't group " + other)
+    }
+  }
 }
 
 class ViewMem(val name: String, override val t: Type) extends View(t)
@@ -109,6 +119,8 @@ class ViewTupleComponent(val i: Int, val iv: View, override val t: Type) extends
 
 class ViewTuple(val ivs: Seq[View], override val t: Type) extends View(t)
 
+class ViewGroup(val iv: View, val group: Group, override val t: Type) extends View(t)
+
 object NoView extends View()
 
 object View {
@@ -116,7 +128,6 @@ object View {
   def apply(t: Type, name: String): View = {
     new ViewMem(name, t)
   }
-
   def tuple(ivs: View*) = {
     new ViewTuple(ivs, TupleType(ivs.map(_.t):_*))
   }
@@ -170,6 +181,18 @@ object ViewPrinter {
         val newIdx = chunkId._1*split.n+chunkElemId._1
         val newAAS = stack2.push((newIdx, chunkElemId._2))
         emitView(split.iv, newAAS,tupleAccessStack)
+
+      case ag : ViewGroup =>
+        val (outerId,stack1) = arrayAccessStack.pop2
+        val (innerId,stack2) = stack1.pop2
+
+        ag.group.params(0).t match {
+          case ArrayType(t, len) =>
+            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1, len)
+            val newAAS = stack2.push((newIdx, innerId._2))
+            emitView(ag.iv, newAAS, tupleAccessStack)
+          case _ => throw new IllegalArgumentException()
+        }
 
       case join : ViewJoin =>
         val (idx,stack) = arrayAccessStack.pop2
