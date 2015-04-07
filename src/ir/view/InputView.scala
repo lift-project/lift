@@ -50,11 +50,7 @@ object InputView {
           case asVector(n) => buildViewAsVector(n, argView)
           case _: asScalar => buildViewAsScalar(argView)
           case f: Filter => buildViewFilter(f, call, argView)
-          /*case uz: Unzip =>
-          case SplitDim2(n) =>
-          case j: JoinDim2 =>
-
-          */
+          //case uz: Unzip =>
           case _ => argView
         }
     }

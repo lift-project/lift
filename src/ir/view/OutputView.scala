@@ -36,12 +36,7 @@ object OutputView {
           case asVector(n) => buildViewAsVector(n, writeView)
           case _: asScalar => buildViewAsScalar(call, writeView)
           case z: Zip => buildViewZip(z, call, writeView, outputAccessInf)
-          /*case uz: Unzip =>
-          case SplitDim2(n) =>
-          case j: JoinDim2 =>
-
-          case _: Swap =>
-          */
+          //case uz: Unzip =>
           case _ => writeView
         }
     }
