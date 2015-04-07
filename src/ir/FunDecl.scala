@@ -387,6 +387,15 @@ object Filter {
   }
 }
 
+case class Tuple(n: Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable
+
+object Tuple {
+  def apply(args : Expr*) : FunCall = {
+    assert(args.length >= 2)
+    Tuple(args.length)(args:_*)
+  }
+}
+
 case class Zip(n : Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable {
   //override def copy() = Zip(f1, f2)
 }

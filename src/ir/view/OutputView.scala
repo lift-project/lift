@@ -35,14 +35,14 @@ object OutputView {
           case tw: TransposeW => buildViewTransposeW(tw, call, writeView, outputAccessInf)
           case asVector(n) => buildViewAsVector(n, writeView)
           case _: asScalar => buildViewAsScalar(call, writeView)
-          case z: Zip => buildViewZip(z, call, writeView, outputAccessInf)
+          case Zip(_) | Tuple(_) => buildViewZipTuple(call, writeView, outputAccessInf)
           //case uz: Unzip =>
           case _ => writeView
         }
     }
   }
 
-  private def buildViewZip(z: Zip, call: FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
+  private def buildViewZipTuple(call: FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
     call.args.map(visitAndBuildViews(_, writeView, outputAccessInf))
     writeView
   }

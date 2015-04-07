@@ -309,6 +309,7 @@ object Type {
       case ar: AbstractPartRed => checkReduce(ar, inT, setType)
       case cf: CompFunDef =>      checkCompFunDef(cf, inT, setType)
       case z: Zip =>              checkZip(z, inT, setType)
+      case t: Tuple =>            checkTuple(t, inT, setType)
       case uz: Unzip =>           checkUnzip(uz, inT, setType)
       case Split(n) =>            checkSplit(n, inT)
       case _: Join =>             checkJoin(inT)
@@ -404,6 +405,16 @@ object Type {
           // throw TypeException("sizes do not match")
         }
         ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.len)
+      case _ => throw new TypeException(inT, "TupleType")
+    }
+  }
+
+  private def checkTuple(t: Tuple, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case tt: TupleType =>
+        if (tt.elemsT.length < 2) throw new NumberOfArgumentsException
+
+        tt
       case _ => throw new TypeException(inT, "TupleType")
     }
   }

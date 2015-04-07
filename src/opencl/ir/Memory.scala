@@ -239,7 +239,7 @@ object OpenCLMemory {
 
       case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem)
 
-      case z: Zip =>              allocZip(z, numGlb, numLcl, inMem)
+      case Zip(_) | Tuple(_) =>   allocZipTuple(inMem)
       case f: Filter =>           allocFilter(f, numGlb, numLcl, inMem)
 
       case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, inMem, outputMem, maxGlbOutSize)
@@ -373,7 +373,7 @@ object OpenCLMemory {
     })
   }
 
-  private def allocZip(z: Zip, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
+  private def allocZipTuple(inMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
         if (coll.subMemories.length < 2) throw new NumberOfArgumentsException
