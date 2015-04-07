@@ -95,8 +95,6 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
     funs.foldRight(3*79)((f,hash) => hash*f.hashCode())
   }
 
-  //override def copy() = new CompFunDef(funs.map(f => f.copy()):_*)
-
   // flatten all the composed functions
   def flatten : List[Lambda] = {
     this.funs.foldLeft(List[Lambda]())((ll, f) => {
@@ -115,23 +113,12 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
 // For opencl specific patterns see the opencl.ir package
 
 abstract class Pattern(override val params: Array[Param]) extends FunDecl(params)
-/*object Pattern {
-  def unapply(p: Pattern) : Option[Context] = Some(p.context)
-}*/
 
 trait FPattern {
   def f: Lambda
-  //def copy() : FunExpr = this.getClass().getConstructor(classOf[FunExpr]).newInstance(f.copy())
 }
 
-
-
-
-
 abstract class AbstractMap(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
-/*object AbstractMap {
-  def unapply(am: AbstractMap): Option[FunExpr] = Some(am.f)
-}*/
 
 case class Map(f:Lambda1) extends AbstractMap(f) {
   override def apply(args: Expr*): MapCall = mapCall(args:_*)
@@ -186,21 +173,13 @@ object PartRed {
 
 
 
-case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = Join()
-}
+case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = Split(chunkSize)
-}
+case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = asScalar()
-}
+case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = asVector(len)
-}
+case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 /*
 // TODO: discuss if this should be a Fun again (if so, this has to be replaced in the very first pass before type checking)
@@ -232,13 +211,7 @@ object Vectorize {
 
 case class UserFunDef(name: String, paramNames: Any, body: String,
                       inTs: Seq[Type], outT: Type)
-//  extends FunDecl(UserFunDef.toParams(inT)) with isGenerable {
-  extends FunDecl( /*inT match {
-      case tt: TupleType => tt.elemsT.map(Param(_)).toArray
-      case t: Type => Array(Param(t))
-    }*/
-    inTs.map(Param(_)).toArray
-    ) with isGenerable {
+  extends FunDecl(inTs.map(Param(_)).toArray) with isGenerable {
 
   private def namesAndTypesMatch(): Boolean = {
 
@@ -319,13 +292,6 @@ object UserFunDef {
     UserFunDef(name, uf.paramNames, uf.body, expectedInT, expectedOutT)
   }
 
-  //private def toParams(t: Type): Array[Param] = {
-  //  t match {
-  //    case tt: TupleType => tt.elemsT.map(toParams).flatten.toArray
-  //    case t: Type => Array(Param(t))
-  //  }
-  //}
-
   val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
   val absAndSumUp = UserFunDef("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", Seq(Float, Float), Float)
@@ -396,9 +362,7 @@ object Tuple {
   }
 }
 
-case class Zip(n : Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable {
-  //override def copy() = Zip(f1, f2)
-}
+case class Zip(n : Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable
 
 object Zip {
   def apply(args : Expr*) : FunCall = {
