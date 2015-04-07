@@ -145,8 +145,6 @@ case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isG
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class Swap() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
-
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
 
 object IndexFunction {

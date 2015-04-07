@@ -190,13 +190,9 @@ case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerab
   //override def copy() = Join()
 }
 
-case class JoinDim2() extends  Pattern(Array[Param](Param(UndefType))) with isGenerable
-
 case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = Split(chunkSize)
 }
-
-case class SplitDim2(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   //override def copy() = asScalar()
@@ -207,7 +203,7 @@ case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType
 }
 
 /*
-// TODO: disuss if this should be a Fun again (if so, this has to be replaced in the very first pass before type checking)
+// TODO: discuss if this should be a Fun again (if so, this has to be replaced in the very first pass before type checking)
 case class Vectorize(n: Expr, f: Fun) extends FPattern {
   def isGenerable() = true
   override def copy() = Vectorize(n, f)

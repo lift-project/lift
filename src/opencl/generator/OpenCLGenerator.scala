@@ -219,8 +219,8 @@ object OpenCLGenerator extends Generator {
         case s: Scatter => generate(s.f.body)
         case _: Zip => call.args.foreach(generate)
         case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
-        case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | Swap() | asVector(_) | asScalar() |
-             Split(_) | SplitDim2(_) | Join() | JoinDim2() =>
+        case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | asVector(_) | asScalar() |
+             Split(_) | Join() =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case p: Param =>

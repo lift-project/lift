@@ -90,10 +90,3 @@ object jToLocal {
   def create(f: Lambda1) = toLocal(f)
   def create(f: FunDecl) = toLocal(Lambda1.FunDefToLambda(f))
 }
-
-object jSwap {
-  def create = Swap()
-
-  def comp(f: Lambda) = create o f
-  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
-}

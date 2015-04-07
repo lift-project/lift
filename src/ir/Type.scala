@@ -311,9 +311,7 @@ object Type {
       case z: Zip =>              checkZip(z, inT, setType)
       case uz: Unzip =>           checkUnzip(uz, inT, setType)
       case Split(n) =>            checkSplit(n, inT)
-      case SplitDim2(n) =>        checkSplitDim2(n, inT)
       case _: Join =>             checkJoin(inT)
-      case _: JoinDim2 =>         checkJoinDim2(inT)
       case _: asScalar  =>        checkAsScalar(inT)
       case asVector(n) =>         checkAsVector(n, inT)
       case uf: UserFunDef =>      checkUserFunDef(uf, inT)
@@ -322,7 +320,6 @@ object Type {
       case i: Iterate =>          checkIterate(i, inT)
       case _: Transpose =>        checkTranspose(inT)
       case _: TransposeW =>       checkTranspose(inT)
-      case _: Swap =>             checkSwap(inT)
       case _: ReorderStride =>    inT
       case g: Gather =>           checkGather(g, inT, setType)
       case s: Scatter =>          checkScatter(s, inT, setType)
@@ -434,34 +431,9 @@ object Type {
     }
   }
 
-  private def checkJoinDim2(inT: Type): Type = {
-    inT match {
-      case at0: ArrayType => at0.elemT match {
-        case at1: ArrayType => at1.elemT match {
-          case at2: ArrayType => ArrayType(ArrayType(at2.elemT, ExprSimplifier.simplify(at1.len * at2.len)), at0.len)
-          case _ => throw new TypeException(at1.elemT, "ArrayType")
-        }
-        case _ => throw new TypeException(at0.elemT, "ArrayType")
-      }
-      case _ => throw new TypeException(inT, "ArrayType")
-    }
-  }
-
   private def checkSplit(n: ArithExpr, inT: Type): Type = {
     inT match {
       case at: ArrayType => ArrayType(ArrayType(at.elemT, n), at.len / n)
-      case _ => throw new TypeException(inT, "ArrayType")
-    }
-  }
-
-  private def checkSplitDim2(n: ArithExpr, inT: Type): Type = {
-    inT match {
-      case at: ArrayType =>
-        val outerLen  = at.len
-        at.elemT match {
-          case at: ArrayType => ArrayType(ArrayType(ArrayType(at.elemT, n), at.len/ n), outerLen)
-          case _ => throw new TypeException(at.elemT, "ArrayType")
-        }
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
@@ -579,8 +551,6 @@ object Type {
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
-
-  def checkSwap(t: Type): Type = checkTranspose(t)
 
   def vectorize(t: Type, n: ArithExpr): Type = {
     t match {
