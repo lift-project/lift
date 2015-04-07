@@ -253,7 +253,7 @@ object ArithExpr {
 
   private def evalDouble(e: ArithExpr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | GroupCall(_,_,_,_) | ArithExprFunction(_) | ? => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | ArithExprFunction(_) | ? => throw new NotEvaluableException(e.toString)
 
     case Fraction(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
 
@@ -353,10 +353,6 @@ case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
 }
 
-case class GroupCall(group: Group, outerAe: ArithExpr, innerAe: ArithExpr, len: ArithExpr) extends ArithExpr {
-  "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
-}
-
 case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr
 
 object ArithExprFunction {
@@ -405,8 +401,6 @@ object TypeVar {
     }
   }
 }
-
-class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
 case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extends ArithExpr {
 

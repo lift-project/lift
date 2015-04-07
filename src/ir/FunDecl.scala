@@ -345,6 +345,8 @@ object Iterate {
   }
 }
 
+class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
+
 case class Filter() extends FunDecl(Array(Param(UndefType), Param(UndefType))) with isGenerable
 
 object Filter {

@@ -1,6 +1,6 @@
 package opencl.ir
 
-import arithmetic.{Var, ArithExpr}
+import arithmetic.{ArithExprFunction, Var, ArithExpr}
 import ir._
 
 import language.implicitConversions
@@ -173,6 +173,10 @@ object Group2D {
       ) o Group(relColumns, negOOB, posOOB) o Transpose()
     ) o Group(relRows, negOOB, posOOB)
   }
+}
+
+class GroupCall(val group: Group, val outerAe: ArithExpr, val innerAe: ArithExpr, val len: ArithExpr) extends ArithExprFunction {
+  "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
 }
 
 /*

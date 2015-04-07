@@ -2,7 +2,7 @@ package ir.view
 
 import arithmetic._
 import ir._
-import opencl.ir.Group
+import opencl.ir._
 
 import scala.collection.immutable.Stack
 
@@ -188,7 +188,7 @@ object ViewPrinter {
 
         ag.group.params(0).t match {
           case ArrayType(t, len) =>
-            val newIdx = GroupCall(ag.group, outerId._1, innerId._1, len)
+            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1, len)
             val newAAS = stack2.push((newIdx, innerId._2))
             emitView(ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()

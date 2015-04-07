@@ -116,7 +116,7 @@ class OpenCLPrinter {
   }
 
   def toOpenCL(e: ArithExpr) : String = {
-    val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
+    val me = if(Debug()) e else ExprSimplifier.simplify(e)
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
@@ -135,8 +135,12 @@ class OpenCLPrinter {
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
       case Fraction(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
-      case GroupCall(g, outerAe, innerAe, len) =>
-        "groupComp" + g.id + "(" + toOpenCL(outerAe) + ", " + toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
+      case gc: GroupCall =>
+        val outerAe = if (Debug()) ExprSimplifier.simplify(gc.outerAe) else gc.outerAe
+        val innerAe = if (Debug()) ExprSimplifier.simplify(gc.innerAe) else gc.innerAe
+        val len = if (Debug()) ExprSimplifier.simplify(gc.len) else gc.len
+        "groupComp" + gc.group.id + "(" + toOpenCL(outerAe) + ", " +
+          toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }

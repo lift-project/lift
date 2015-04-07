@@ -1,7 +1,5 @@
 package arithmetic
 
-import ir._
-
 object ExprSimplifier {
 
   private def primeFactors(n: Int, i: Int =2) : List[Int] = {
@@ -483,7 +481,6 @@ object ExprSimplifier {
       case Prod(factors) => Prod(factors.map(t => simplify(t)))
       case Sum(terms) => Sum(terms.map(t => simplify(t)))
       case Fraction(n, d) => Fraction(simplify(n), simplify(d))
-      case GroupCall(g, o, i, len) => GroupCall(g, simplify(o), simplify(i), simplify(len))
       case _ => e
     }
 
