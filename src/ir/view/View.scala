@@ -16,7 +16,7 @@ abstract class View(val t: Type = UndefType) {
       case zip: ViewZip => new ViewZip(zip.ivs.map(_.replaced(oldExpr,newExpr)), t)
       case split: ViewSplit => new ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(oldExpr,newExpr), t)
       case join: ViewJoin => new ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(oldExpr,newExpr), t)
-      case gather: ViewGather => new ViewGather(gather.f, gather.iv.replaced(oldExpr, newExpr), t)
+      case gather: ViewReorder => new ViewReorder(gather.f, gather.iv.replaced(oldExpr, newExpr), t)
       case asVector: ViewAsVector => new ViewAsVector(asVector.n, asVector.iv.replaced(oldExpr, newExpr), t)
       case asScalar: ViewAsScalar => new ViewAsScalar(asScalar.iv.replaced(oldExpr, newExpr), asScalar.n, t)
       case filter: ViewFilter => new ViewFilter(filter.iv.replaced(oldExpr, newExpr), filter.ids.replaced(oldExpr, newExpr), t)
@@ -46,7 +46,7 @@ abstract class View(val t: Type = UndefType) {
   }
 
   def reorder(f: (ArithExpr) => ArithExpr): View = {
-    new ViewGather(f, this, this.t)
+    new ViewReorder(f, this, this.t)
   }
 
   def asVector(n: ArithExpr): View = {
@@ -95,7 +95,7 @@ class ViewJoin(val n: ArithExpr, val iv: View, override val t: Type) extends Vie
 
 class ViewZip(val ivs: Seq[View], override val t: Type) extends View(t)
 
-class ViewGather(val f: ArithExpr => ArithExpr, val iv: View, override val t: Type) extends View(t)
+class ViewReorder(val f: ArithExpr => ArithExpr, val iv: View, override val t: Type) extends View(t)
 
 class ViewAsVector(val n: ArithExpr, val iv: View, override val t: Type) extends View(t)
 
@@ -180,7 +180,7 @@ object ViewPrinter {
           push((chunkId, Type.getLengths(join.t.asInstanceOf[ArrayType].elemT).reduce(_*_)*join.n))
         emitView(join.iv,newAS,tupleAccessStack)
 
-      case gather : ViewGather =>
+      case gather : ViewReorder =>
         val (idx,stack) = arrayAccessStack.pop2
         val newIdx = gather.f(idx._1)
         val newAS = stack.push((newIdx, idx._2))
@@ -229,7 +229,7 @@ object ViewPrinter {
       case map : ViewMap => getInputAccess(map.iv, tupleAccessStack)
       case split : ViewSplit => getInputAccess(split.iv, tupleAccessStack)
       case join : ViewJoin => getInputAccess(join.iv, tupleAccessStack)
-      case gather : ViewGather => getInputAccess(gather.iv, tupleAccessStack)
+      case gather : ViewReorder => getInputAccess(gather.iv, tupleAccessStack)
       case filter : ViewFilter => getInputAccess(filter.iv, tupleAccessStack)
       case asVector: ViewAsVector => getInputAccess(asVector.iv, tupleAccessStack)
       case asScalar: ViewAsScalar => getInputAccess(asScalar.iv, tupleAccessStack)

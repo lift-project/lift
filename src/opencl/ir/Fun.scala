@@ -163,7 +163,6 @@ object IndexFunction {
     val col = (i % innerSize) * outerSize
     val row = i div innerSize
 
-    // TODO: simplify this ...
     row + col
   }
 
