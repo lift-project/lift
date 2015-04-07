@@ -1007,6 +1007,67 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
+  @Ignore
+  @Test def tiledMatrixMultiplyLocalMemory(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+
+    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val n = new Var("N")
+    val m = new Var("M")
+    val k = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, k), m),
+      ArrayType(ArrayType(Float, k), n),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapWrg(0)(fun( aRows =>
+            MapWrg(1)(fun( bCols =>
+
+              Map(Join()) o
+              // Reduce the partial results (matrices), so that the reduce is innermost
+              Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(ReduceSeq(add, 0.0f)))) o
+              Map(Map(Join()) o Transpose()) o Transpose() o
+
+                // Multiply all necessary combinations of tiles
+                MapSeq(fun( tiles =>
+                  Barrier() o MapLcl(0)( fun(aTile =>
+                    MapLcl(1)( fun( bTile =>
+                      ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
+                    )) $ Get(tiles, 1)
+                  )) $ Get(tiles, 0)
+                ) o
+
+                // Copy tiles to local memory
+                fun(tiles =>
+                  Tuple(
+                    Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 0),
+                    Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 1)
+                  ))
+                ) $ Zip(aRows, bCols)
+
+              // Tile the matrices
+            )) o Tile(tileSize) $ B
+          )) o Tile(tileSize) $ A
+      })
+
+    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
+
+    println("output.size = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
   @Test def addArrayOfMatrices(): Unit = {
     val mSize = 16
     val kSize = 16
