@@ -43,6 +43,40 @@ abstract class Expr {
 
   def isAbstract: Boolean = !isConcrete
 
+  def writesTo: OpenCLAddressSpace = {
+    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(this, (expr, addressSpace) => {
+      expr match {
+        case call: FunCall =>
+          call.f match {
+            case uf: UserFunDef =>
+              if (addressSpace == UndefAddressSpace)
+                OpenCLMemory.asOpenCLMemory(call.mem).addressSpace
+              else
+                addressSpace
+            case _ => addressSpace
+          }
+        case _ => addressSpace
+      }
+    })
+  }
+
+  def readsFrom: OpenCLAddressSpace = {
+    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(this, (expr, addressSpace) => {
+      expr match {
+        case call: FunCall =>
+          call.f match {
+            case uf: UserFunDef =>
+              if (addressSpace == UndefAddressSpace)
+                OpenCLMemory.asOpenCLMemory(call.args(0).mem).addressSpace
+              else
+                addressSpace
+            case _ => addressSpace
+          }
+        case _ => addressSpace
+      }
+    })
+  }
+
   def copy: Expr
 }
 

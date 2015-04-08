@@ -37,7 +37,7 @@ object BarrierElimination {
 
   private def markFunCall(cf: CompFunDef, insideLoop: Boolean): Unit = {
     val lambdas = cf.funs
-    val c = lambdas.count(isConcrete)
+    val c = lambdas.count(_.body.isConcrete)
 
     var next = lambdas
     var groups = Seq[Seq[Lambda]]()
@@ -47,19 +47,19 @@ object BarrierElimination {
       // Partition the functions into groups such that the last element
       // of a group is concrete, except possibly in the last group
       while (next.nonEmpty) {
-        val prefixLength = next.prefixLength(!isConcrete(_))
+        val prefixLength = next.prefixLength(_.body.isAbstract)
         groups = groups :+ next.take(prefixLength + 1)
         next = next.drop(prefixLength + 1)
       }
 
       // If it is not concrete, then there can't be a barrier
-      if (!isConcrete(groups.last.last))
+      if (groups.last.last.body.isAbstract)
         groups = groups.init
 
       val needsBarrier = Array.fill(groups.length)(false)
 
       val barrierInHead = groups.head.exists(isBarrier)
-      val finalReadMemory = readsFrom(groups.head.last)
+      val finalReadMemory = groups.head.last.body.readsFrom
       needsBarrier(0) = !(barrierInHead && (finalReadMemory == GlobalMemory ||
         finalReadMemory == LocalMemory && !insideLoop))
 
@@ -73,7 +73,7 @@ object BarrierElimination {
 
           // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (writesTo(group.last) == LocalMemory && id > 1 && insideLoop &&
+          if (group.last.body.writesTo == LocalMemory && id > 1 && insideLoop &&
             !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
@@ -85,7 +85,7 @@ object BarrierElimination {
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (writesTo(group.last) == LocalMemory && id > 1 && insideLoop &&
+          if (group.last.body.writesTo == LocalMemory && id > 1 && insideLoop &&
             !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
@@ -96,7 +96,7 @@ object BarrierElimination {
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (readsFrom(group.last) == LocalMemory && id > 0 && insideLoop &&
+          if (group.last.body.readsFrom == LocalMemory && id > 0 && insideLoop &&
             !groups.slice(0, id).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id) = true
         }
@@ -164,44 +164,5 @@ object BarrierElimination {
       case Some(b) => b.body.asInstanceOf[FunCall].f.asInstanceOf[Barrier].valid = false
       case None =>
     }
-  }
-
-  private def isConcrete(l: Lambda): Boolean = {
-    Expr.visit[Boolean](false)(l.body, (e, b) => {
-      e match {
-        case call: FunCall =>
-          call.f match {
-            case _: UserFunDef => true
-            case _ => b
-          }
-        case _ => b
-      }
-    })
-  }
-
-  private def readsFrom(l:Lambda): OpenCLAddressSpace = {
-    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(l.body, (e, b) => {
-      e match {
-        case call: FunCall =>
-          call.f match {
-            case uf: UserFunDef => if (b == UndefAddressSpace) OpenCLMemory.asOpenCLMemory(call.args(0).mem).addressSpace else b
-            case _ => b
-          }
-        case _ => b
-      }
-    })
-  }
-
-  private def writesTo(l:Lambda): OpenCLAddressSpace = {
-    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(l.body, (e, b) => {
-      e match {
-        case call: FunCall =>
-          call.f match {
-            case uf: UserFunDef => if (b == UndefAddressSpace) OpenCLMemory.asOpenCLMemory(call.mem).addressSpace else b
-            case _ => b
-          }
-        case _ => b
-      }
-    })
   }
 }
