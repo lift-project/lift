@@ -198,23 +198,23 @@ object Param {
   }
 }
 
-// a vectorized parameter
+/** A vectorized parameter*/
 class VectorParam(val p: Param, n: ArithExpr) extends Param {
   t = Type.vectorize(p.t, n)
 }
 
-// a reference to a parameter wrapped in a tupel possibly produced by a zip.
+/** A reference to a parameter wrapped in a tupel possibly produced by a zip.*/
 class ParamReference(val p: Param, val i: Int) extends Param {
   override def toString = "PARAM REF"
 }
 
-// shortcut to access parameter in a tuple, i.e., fun( p => Get(p, 0) ) $ Zip(x, y) == x
+/** Shortcut to access parameter in a tuple, i.e., fun( p => Get(p, 0) ) $ Zip(x, y) == x*/
 object Get {
   def apply(p: Param, i: Int): ParamReference = new ParamReference(p, i)
 }
 
 
-// values, i.e.: 4, 128, ...
+/** Values, i.e.: 4, 128, ...*/
 case class Value(var value: String) extends Param {
   override def copy: Value = this.clone().asInstanceOf[Value]
 
