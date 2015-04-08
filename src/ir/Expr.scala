@@ -26,6 +26,9 @@ abstract class Expr {
   // view explaining how to access the memory
   var view: View = NoView
 
+  var inputDepth: List[(ArithExpr, ArithExpr)] = List()
+  var outputDepth: List[(ArithExpr, ArithExpr)] = List()
+
   def setContext(ctx: Context): Expr = {
     if (ctx != null)
       this.context = ctx
@@ -47,38 +50,14 @@ abstract class Expr {
 
   def isAbstract: Boolean = !isConcrete
 
-  def writesTo: OpenCLAddressSpace = {
-    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(this, (expr, addressSpace) => {
-      expr match {
-        case call: FunCall =>
-          call.f match {
-            case uf: UserFunDef =>
-              if (addressSpace == UndefAddressSpace)
-                OpenCLMemory.asOpenCLMemory(call.mem).addressSpace
-              else
-                addressSpace
-            case _ => addressSpace
-          }
-        case _ => addressSpace
-      }
-    })
-  }
+  def addressSpace: OpenCLAddressSpace = OpenCLMemory.asOpenCLMemory(this.mem).addressSpace
 
-  def readsFrom: OpenCLAddressSpace = {
-    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(this, (expr, addressSpace) => {
-      expr match {
-        case call: FunCall =>
-          call.f match {
-            case uf: UserFunDef =>
-              if (addressSpace == UndefAddressSpace)
-                OpenCLMemory.asOpenCLMemory(call.args(0).mem).addressSpace
-              else
-                addressSpace
-            case _ => addressSpace
-          }
-        case _ => addressSpace
-      }
-    })
+  def containsLocal: Boolean = {
+    this.mem match {
+      case coll: OpenCLMemoryCollection => coll.subMemories.exists(x => x.addressSpace == LocalMemory)
+      case m: OpenCLMemory => m.addressSpace == LocalMemory
+      case _ => false
+    }
   }
 
   def copy: Expr
@@ -262,7 +241,7 @@ object Value {
 
 
 /** Function calls, ie.: map(f, x), zip(x, y), ...
-  * 
+  *
   * Refers back to the function decl (e.g. map(f)) and the arguments (e.g. x)
   */
 sealed class FunCall(val f: FunDecl, val args: Expr*) extends Expr with Cloneable {
