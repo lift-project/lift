@@ -6,10 +6,14 @@ import opencl.ir._
 
 import language.implicitConversions
 
-// base class for all expressions, ie.
-//  - function calls: map(f, x), zip(x,y), ...
-//  - parameter: x, y, ...
-//  - values: 4, 128, ...
+/** Base class for all expressions, ie.
+  *
+  * - function calls: map(f, x), zip(x,y), ...
+  *
+  * - parameter: x, y, ...
+  *
+  * - values: 4, 128, ...
+  */
 abstract class Expr {
   var context: Context = null
 
@@ -104,7 +108,7 @@ object Expr {
     }
   }
 
-  /*
+  /**
    * Visit the expression of function f (recursively) and rebuild along the way
    */
   def visitArithExpr(expr: Expr, exprF: (ArithExpr) => (ArithExpr)): Expr = {
@@ -120,7 +124,7 @@ object Expr {
     (inExpr: Expr) => inExpr)
   }
 
-  /*
+  /**
    * Visit the function f recursively and rebuild along the way
    */
   def visit(expr: Expr, pre: (Expr) => (Expr), post: (Expr) => (Expr)): Expr = {
@@ -147,7 +151,7 @@ object Expr {
     post(newExpr)
   }
 
-  /*
+  /**
    * Visit the function f recursively
    */
   def visit(expr: Expr, pre: (Expr) => (Unit), post: (Expr) => (Unit)): Unit = {
@@ -170,7 +174,8 @@ object Expr {
 }
 
 
-// parameters to functions and lambdas, i.e.: x, y, ...
+/** Parameters to functions and lambdas, i.e.: x, y, ...
+  */
 class Param() extends Expr {
   t = UndefType
 
@@ -237,7 +242,7 @@ object Value {
     case _ => throw new IllegalArgumentException
   }
 
-  // factory methods for creating values
+  /** Factory methods for creating values */
   def apply(outT: Type): Value = {
     val v = Value("")
     v.t = outT
@@ -256,8 +261,10 @@ object Value {
 }
 
 
-// function calls, ie.: map(f, x), zip(x, y), ...
-// refers back to the function decl (e.g. map(f)) and the arguments (e.g. x)
+/** Function calls, ie.: map(f, x), zip(x, y), ...
+  * 
+  * Refers back to the function decl (e.g. map(f)) and the arguments (e.g. x)
+  */
 sealed class FunCall(val f: FunDecl, val args: Expr*) extends Expr with Cloneable {
 
   assert(if (f.isInstanceOf[Iterate]) {
@@ -289,7 +296,7 @@ sealed class FunCall(val f: FunDecl, val args: Expr*) extends Expr with Cloneabl
     new FunCall(f, newArgs: _*)
   }
 
-  // One type for all arguments (i.e. a tuple if there are more than one args)
+  /** One type for all arguments (i.e. a tuple if there are more than one args)*/
   def argsType: Type = {
     if (args.length == 1) args(0).t
     else TupleType(args.map(_.t): _*)

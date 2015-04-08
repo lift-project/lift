@@ -331,7 +331,7 @@ object ExprSimplifier {
     sum
   }
 
-  // constant folding
+  /** Constant folding*/
   private def cstFolding(l : List[ArithExpr], op : ((Double,Double) => Double), neutral: Int) : List[ArithExpr] = {
 
     // fixed point iteration until everything has been folded

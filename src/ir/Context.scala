@@ -49,12 +49,12 @@ class Context extends Cloneable {
 }
 
 object Context {
-   /*
-   * Update the context recursively
-   */
+   /**
+     * Update the context recursively
+     */
   def updateContext(expr: Expr): Unit = updateContext(expr, expr.context)
     
-  /*
+  /**
    * Update the context recursively
    */  
   def updateContext(expr: Expr, ctx: Context): Unit = {

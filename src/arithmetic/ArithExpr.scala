@@ -2,8 +2,6 @@ package arithmetic
 
 import ir._
 
-import opencl.ir.Group
-
 import scala.collection.immutable
 import scala.language.implicitConversions
 import scala.util.Random
@@ -367,7 +365,7 @@ object ArithExprFunction {
   }
 }
 
-// a special variable that should only be used for defining function type
+/** a special variable that should only be used for defining function type*/
 class TypeVar private(range : arithmetic.Range) extends Var("", range) {
   override def toString = "t" + id
 }

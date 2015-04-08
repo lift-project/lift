@@ -7,7 +7,7 @@ import scala.collection.mutable
 import ir._
 import ir.FunCall
 
-/** represents OpenCL address spaces either: local or global; UndefAddressSpace should be used in case of errors */
+/** Represents OpenCL address spaces either: local or global; UndefAddressSpace should be used in case of errors */
 abstract class OpenCLAddressSpace
 
 object LocalMemory extends OpenCLAddressSpace {

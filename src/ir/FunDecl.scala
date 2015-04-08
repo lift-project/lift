@@ -95,7 +95,7 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
     funs.foldRight(3*79)((f,hash) => hash*f.hashCode())
   }
 
-  // flatten all the composed functions
+  /** flatten all the composed functions*/
   def flatten : List[Lambda] = {
     this.funs.foldLeft(List[Lambda]())((ll, f) => {
       f.body match {
