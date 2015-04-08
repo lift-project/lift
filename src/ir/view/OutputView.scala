@@ -26,9 +26,7 @@ object OutputView {
           case cf: CompFunDef => buildViewCompFunDef(cf, writeView)
           case Split(n) => buildViewSplit(n, writeView)
           case _: Join => buildViewJoin(call, writeView)
-          case uf: UserFunDef =>
-            call.view = writeView
-            writeView
+          case uf: UserFunDef => buildViewUserFun(writeView, call)
           case s: Scatter => buildViewScatter(s, call, writeView)
           case g: Gather => buildViewGather(g, call, writeView)
           case tL: toLocal => buildViewToLocal(tL, writeView)
@@ -44,6 +42,11 @@ object OutputView {
     }
   }
 
+  private def buildViewUserFun(writeView: View, call: FunCall): View = {
+    call.view = writeView
+    writeView
+  }
+
   private def buildViewZipTuple(call: FunCall, writeView: View): View = {
     call.args.map((expr: Expr) => visitAndBuildViews(expr, writeView))
     writeView
@@ -51,7 +54,7 @@ object OutputView {
 
   private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {
     visitAndBuildViews(i.f.body, writeView)
-    View.initialiseNewView(call.t, call.inputDepth)
+    View.initialiseNewView(call.t, call.outputDepth)
   }
 
   private def buildViewToGlobal(tG: toGlobal, writeView: View): View = {
@@ -68,9 +71,7 @@ object OutputView {
 
     if (call.isConcrete) {
       // create fresh view for following function
-      println(call.inputDepth.mkString(", "))
-      println(call.arg.t)
-      View.initialiseNewView(call.arg.t, call.inputDepth, call.mem.variable.name)
+      View.initialiseNewView(call.arg.t, call.outputDepth, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
       new ViewMap(innerView, call.loopVar, call.arg.t)
     }
@@ -80,7 +81,7 @@ object OutputView {
     // traverse into call.f
     visitAndBuildViews(call.f.f.body, writeView.access(Cst(0)))
     // create fresh input view for following function
-    View.initialiseNewView(call.arg1.t, call.inputDepth, call.mem.variable.name)
+    View.initialiseNewView(call.arg1.t, call.outputDepth, call.mem.variable.name)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {

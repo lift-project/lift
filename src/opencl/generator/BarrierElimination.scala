@@ -59,7 +59,7 @@ object BarrierElimination {
       val needsBarrier = Array.fill(groups.length)(false)
 
       val barrierInHead = groups.head.exists(isBarrier)
-      val finalReadMemory = groups.head.last.body.readsFrom
+      val finalReadMemory = readsFrom(groups.head.last)
       needsBarrier(0) = !(barrierInHead && (finalReadMemory == GlobalMemory ||
         finalReadMemory == LocalMemory && !insideLoop))
 
@@ -73,7 +73,7 @@ object BarrierElimination {
 
           // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (group.last.body.writesTo == LocalMemory && id > 1 && insideLoop &&
+          if (group.last.body.containsLocal && id > 1 && insideLoop &&
             !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
@@ -85,7 +85,7 @@ object BarrierElimination {
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (group.last.body.writesTo == LocalMemory && id > 1 && insideLoop &&
+          if (group.last.body.containsLocal && id > 1 && insideLoop &&
             !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
@@ -96,7 +96,7 @@ object BarrierElimination {
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (group.last.body.readsFrom == LocalMemory && id > 0 && insideLoop &&
+          if (readsFrom(group.last) == LocalMemory && id > 0 && insideLoop &&
             !groups.slice(0, id).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id) = true
         }
@@ -164,5 +164,22 @@ object BarrierElimination {
       case Some(b) => b.body.asInstanceOf[FunCall].f.asInstanceOf[Barrier].valid = false
       case None =>
     }
+  }
+
+  def readsFrom(lambda: Lambda): OpenCLAddressSpace = {
+    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(lambda.body, (expr, addressSpace) => {
+      expr match {
+        case call: FunCall =>
+          call.f match {
+            case uf: UserFunDef =>
+              if (addressSpace == UndefAddressSpace)
+                OpenCLMemory.asOpenCLMemory(call.args(0).mem).addressSpace
+              else
+                addressSpace
+            case _ => addressSpace
+          }
+        case _ => addressSpace
+      }
+    })
   }
 }

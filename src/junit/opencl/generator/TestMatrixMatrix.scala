@@ -1007,7 +1007,6 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
-  @Ignore
   @Test def tiledMatrixMultiplyLocalMemory(): Unit = {
     val mSize = 16
     val kSize = 16
@@ -1158,8 +1157,8 @@ class TestMatrixMatrix {
 
                   ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
 
-                )) o Transpose() o fun(p => Get(p, 1)) $ zippedChunk
-              )) o Transpose() o fun(p => Get(p, 0)) $ zippedChunk
+                )) o Transpose() $ Get(zippedChunk, 1)
+              )) o Transpose() $ Get(zippedChunk, 0)
 
             )) $ Zip(Split(d) o Transpose() $ aRows, Split(d) o Transpose() $ bCols) // ,0.0f*r*c
 
