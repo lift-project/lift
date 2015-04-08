@@ -1038,7 +1038,7 @@ class TestMatrixMatrix {
               Map(Map(Join()) o Transpose()) o Transpose() o
 
                 // Multiply all necessary combinations of tiles
-                MapSeq(fun( tiles =>
+                toLocal(MapSeq(fun( tiles =>
                   Barrier() o MapLcl(0)( fun(aTile =>
                     MapLcl(1)( fun( bTile =>
                       ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
@@ -1052,7 +1052,7 @@ class TestMatrixMatrix {
                     Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 0),
                     Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 1)
                   ))
-                ) $ Zip(aRows, bCols)
+                )) $ Zip(aRows, bCols)
 
               // Tile the matrices
             )) o Tile(tileSize) $ B

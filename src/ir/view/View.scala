@@ -124,17 +124,15 @@ class ViewGroup(val iv: View, val group: Group, override val t: Type) extends Vi
 object NoView extends View()
 
 object View {
-  // create new view based on the given type
-  def apply(t: Type, name: String): View = {
-    new ViewMem(name, t)
-  }
-  def tuple(ivs: View*) = {
-    new ViewTuple(ivs, TupleType(ivs.map(_.t):_*))
-  }
+  /** create new view based on the given type*/
+  def apply(t: Type, name: String): View = new ViewMem(name, t)
+
+  def tuple(ivs: View*) = new ViewTuple(ivs, TupleType(ivs.map(_.t):_*))
 
   def visitAndBuildViews(expr: Expr): Unit = {
-    InputView.visitAndBuildViews(expr)
-    OutputView.visitAndBuildViews(expr, View(expr.t, ""))
+    BuildDepthInfo(expr)
+    InputView(expr)
+    OutputView(expr)
   }
 
   private def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)]): Type = {
@@ -152,9 +150,7 @@ object View {
 
 object ViewPrinter {
 
-  def emit(sv : View) : ArithExpr = {
-    emitView(sv, new Stack(), new Stack())
-  }
+  def emit(sv : View) : ArithExpr = emitView(sv, new Stack(), new Stack())
 
   private def emitView(sv : View,
                        arrayAccessStack : Stack[(ArithExpr, ArithExpr)], // id, dimension size

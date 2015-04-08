@@ -6,106 +6,89 @@ import opencl.ir._
 
 object OutputView {
 
-  def visitAndBuildViews(expr: Expr, writeView: View, outputAccessInf: List[(ArithExpr, ArithExpr)] = List()): View = {
+  def apply(expr: Expr): Unit = visitAndBuildViews(expr, View(expr.t, ""))
+
+  def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
       case pr: ParamReference => pr.p.view.get(pr.i)
       case p: Param => p.view
-      case call: FunCall => buildViewFunCall(call, outputAccessInf, writeView)
+      case call: FunCall => buildViewFunCall(call, writeView)
     }
   }
 
-  private def buildViewFunCall(call: FunCall, outputAccessInf: List[(ArithExpr, ArithExpr)], writeView: View): View = {
+  private def buildViewFunCall(call: FunCall, writeView: View): View = {
     call match {
-      case call: MapCall => buildViewMapCall(call, writeView, outputAccessInf)
-      case call: ReduceCall => buildViewReduceCall(call, writeView, outputAccessInf)
+      case call: MapCall => buildViewMapCall(call, writeView)
+      case call: ReduceCall => buildViewReduceCall(call, writeView)
       case call: FunCall =>
         call.f match {
-          case l: Lambda => buildViewLambda(l, call, writeView, outputAccessInf)
-          case cf: CompFunDef => buildViewCompFunDef(cf, writeView, outputAccessInf)
+          case l: Lambda => buildViewLambda(l, call, writeView)
+          case cf: CompFunDef => buildViewCompFunDef(cf, writeView)
           case Split(n) => buildViewSplit(n, writeView)
           case _: Join => buildViewJoin(call, writeView)
           case uf: UserFunDef =>
             call.view = writeView
             writeView
-          case s: Scatter => buildViewScatter(s, call, writeView, outputAccessInf)
-          case g: Gather => buildViewGather(g, call, writeView, outputAccessInf)
-          case tL: toLocal => buildViewToLocal(tL, writeView, outputAccessInf)
-          case tG: toGlobal => buildViewToGlobal(tG, writeView, outputAccessInf)
-          case i: Iterate => buildViewIterate(i, call, writeView, outputAccessInf)
-          case tw: TransposeW => buildViewTransposeW(tw, call, writeView, outputAccessInf)
+          case s: Scatter => buildViewScatter(s, call, writeView)
+          case g: Gather => buildViewGather(g, call, writeView)
+          case tL: toLocal => buildViewToLocal(tL, writeView)
+          case tG: toGlobal => buildViewToGlobal(tG, writeView)
+          case i: Iterate => buildViewIterate(i, call, writeView)
+          case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
           case asVector(n) => buildViewAsVector(n, writeView)
           case _: asScalar => buildViewAsScalar(call, writeView)
-          case Zip(_) | Tuple(_) => buildViewZipTuple(call, writeView, outputAccessInf)
+          case Zip(_) | Tuple(_) => buildViewZipTuple(call, writeView)
           //case uz: Unzip =>
           case _ => writeView
         }
     }
   }
 
-  private def buildViewZipTuple(call: FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    call.args.map(visitAndBuildViews(_, writeView, outputAccessInf))
+  private def buildViewZipTuple(call: FunCall, writeView: View): View = {
+    call.args.map((expr: Expr) => visitAndBuildViews(expr, writeView))
     writeView
   }
 
-  private def buildViewIterate(i: Iterate, call:FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    visitAndBuildViews(i.f.body, writeView, outputAccessInf)
-    View.initialiseNewView(call.t, outputAccessInf)
+  private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {
+    visitAndBuildViews(i.f.body, writeView)
+    View.initialiseNewView(call.t, call.inputDepth)
   }
 
-  private def buildViewToGlobal(tG: toGlobal, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    visitAndBuildViews(tG.f.body, writeView, outputAccessInf)
+  private def buildViewToGlobal(tG: toGlobal, writeView: View): View = {
+    visitAndBuildViews(tG.f.body, writeView)
   }
 
-  private def buildViewToLocal(tL: toLocal, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    visitAndBuildViews(tL.f.body, writeView, outputAccessInf)
+  private def buildViewToLocal(tL: toLocal, writeView: View): View = {
+    visitAndBuildViews(tL.f.body, writeView)
   }
 
-  private def buildViewMapCall(call: MapCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    // build information where call.f should write
-    val newOutputAccessInf = (Type.getLength(call.t), call.loopVar) :: outputAccessInf
-
+  private def buildViewMapCall(call: MapCall, writeView: View): View = {
     // traverse into call.f
-    val innerView = visitAndBuildViews(call.f.f.body, writeView.access(call.loopVar), newOutputAccessInf)
+    val innerView = visitAndBuildViews(call.f.f.body, writeView.access(call.loopVar))
 
     if (call.isConcrete) {
-      // create fresh input view for following function
-      View.initialiseNewView(call.arg.t, outputAccessInf, call.mem.variable.name)
+      // create fresh view for following function
+      println(call.inputDepth.mkString(", "))
+      println(call.arg.t)
+      View.initialiseNewView(call.arg.t, call.inputDepth, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
       new ViewMap(innerView, call.loopVar, call.arg.t)
     }
   }
 
-  private def buildViewReduceCall(call: ReduceCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    // build information where call.f should write
-    val newOutputAccessInf = (Type.getLength(call.t), Cst(0)) :: outputAccessInf
+  private def buildViewReduceCall(call: ReduceCall, writeView: View): View = {
     // traverse into call.f
-    visitAndBuildViews(call.f.f.body, writeView.access(Cst(0)), newOutputAccessInf)
+    visitAndBuildViews(call.f.f.body, writeView.access(Cst(0)))
     // create fresh input view for following function
-    View.initialiseNewView(call.arg1.t, outputAccessInf, call.mem.variable.name)
+    View.initialiseNewView(call.arg1.t, call.inputDepth, call.mem.variable.name)
   }
 
-  private def buildViewLambda(l: Lambda, call: FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    visitAndBuildViews(l.body, writeView, outputAccessInf)
+  private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
+    visitAndBuildViews(l.body, writeView)
   }
 
-  private def buildViewCompFunDef(cf: CompFunDef, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-
-    val outputAccessInfs = scala.collection.mutable.Stack(outputAccessInf)
-
-    cf.funs.foldLeft(writeView)((v, f) => {
-
-      f.body match {
-        case call: FunCall =>
-          call.f match {
-            case _: toGlobal => outputAccessInfs.push(List())
-            case _: toLocal => if (outputAccessInfs.length > 1) outputAccessInfs.pop()
-            case _ =>
-          }
-        case _ =>
-      }
-
-      visitAndBuildViews(f.body, v, outputAccessInfs.top)
-    })
+  private def buildViewCompFunDef(cf: CompFunDef, writeView: View): View = {
+    cf.funs.foldLeft(writeView)((v, f) => visitAndBuildViews(f.body, v))
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
@@ -132,7 +115,7 @@ object OutputView {
     }
   }
 
-  private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View, outputAccessInf: List[(ArithExpr, ArithExpr)]): View = {
+  private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View): View = {
     call.t match {
       case ArrayType(ArrayType(typ, m), n) =>
         writeView.
@@ -142,12 +125,12 @@ object OutputView {
     }
   }
 
-  private def buildViewGather(gather: Gather, call: FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
-    visitAndBuildViews(gather.f.body, writeView, outputAccessInf)
+  private def buildViewGather(gather: Gather, call: FunCall, writeView: View): View = {
+    visitAndBuildViews(gather.f.body, writeView)
   }
 
-  private def buildViewScatter(scatter: Scatter, call: FunCall, writeView: View, outputAccessInf:  List[(ArithExpr, ArithExpr)]): View = {
+  private def buildViewScatter(scatter: Scatter, call: FunCall, writeView: View): View = {
     val reordered = writeView.reorder( (i:ArithExpr) => { scatter.idx.f(i, call.t) } )
-    visitAndBuildViews(scatter.f.body, reordered, outputAccessInf)
+    visitAndBuildViews(scatter.f.body, reordered)
   }
 }

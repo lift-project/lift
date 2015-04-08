@@ -26,6 +26,9 @@ abstract class Expr {
   // view explaining how to access the memory
   var view: View = NoView
 
+  var inputDepth: List[(ArithExpr, ArithExpr)] = List()
+  var outputDepth: List[(ArithExpr, ArithExpr)] = List()
+
   def setContext(ctx: Context): Expr = {
     if (ctx != null)
       this.context = ctx
@@ -262,7 +265,7 @@ object Value {
 
 
 /** Function calls, ie.: map(f, x), zip(x, y), ...
-  * 
+  *
   * Refers back to the function decl (e.g. map(f)) and the arguments (e.g. x)
   */
 sealed class FunCall(val f: FunDecl, val args: Expr*) extends Expr with Cloneable {
