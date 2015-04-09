@@ -139,6 +139,7 @@ object OpenCLMemory {
     addressSpace match {
       case GlobalMemory => allocGlobalMemory(glbOutSize)
       case LocalMemory => allocLocalMemory(lclOutSize)
+      case PrivateMemory => allocPrivateMemory(4)
     }
   }
 

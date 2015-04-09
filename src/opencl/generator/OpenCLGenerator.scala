@@ -210,6 +210,11 @@ object OpenCLGenerator extends Generator {
     assert(expr.t != UndefType)
 
     expr match {
+      case f: FunCall => f.args.foreach(generate)
+      case _ =>
+    }
+
+    expr match {
       case call: MapCall => call.f match {
         case _: MapWrg => generateMapWrgCall(call)
         case _: MapGlb => generateMapGlbCall(call)
@@ -229,18 +234,14 @@ object OpenCLGenerator extends Generator {
 
         case u : UserFunDef =>generateUserFunCall(u, call)
 
-        case f: toGlobal => generate(f.f.body)
-        case f: toLocal => generate(f.f.body)
+        case fp: FPattern => generate(fp.f.body)
         case l: Lambda => generate(l.body)
-        case g: Gather => generate(g.f.body)
-        case s: Scatter => generate(s.f.body)
-        case Zip(_) | Tuple(_) => call.args.foreach(generate)
         case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
         case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | asVector(_) | asScalar() |
-             Split(_) | Join() =>
-        case _: Group =>
+             Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
+      case v: Value => generateValue(v)
       case p: Param =>
     }
   }
@@ -300,10 +301,6 @@ object OpenCLGenerator extends Generator {
 
     // 1. generate: int acc = 0
     val accVar = call.arg0.mem.variable
-    val accType = call.arg0.t
-    val accValue = call.arg0 match { case v: Value => v.value }
-    oclPrinter.printVarDecl(accType, accVar, accValue)
-    oclPrinter.println(";")
 
     val funCall = call.f.f.body match { case call: FunCall => call }
 
@@ -322,6 +319,14 @@ object OpenCLGenerator extends Generator {
     oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.view) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
+  }
+
+  private def generateValue(v: Value): Unit = {
+    val accVar = v.mem.variable
+    val accType = v.t
+    val accValue = v.value
+    oclPrinter.printVarDecl(accType, accVar, accValue)
+    oclPrinter.println(";")
   }
 
   // === Iterate ===

@@ -25,6 +25,67 @@ object TestReduce {
 
 class TestReduce {
 
+  @Test def reduceParamInitial(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (ArrayType(Float, Var("N")),
+      Float,
+      (in, init) => {
+      Join() o MapWrg(
+        Join() o Barrier() o MapLcl(ReduceSeq(add, init)) o Split(4)
+      ) o Split(128) $ in
+    } )
+
+    val (output, runtime) = Execute(inputData.length)( l, inputData, 0.0f, inputData.length )
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Ignore
+  @Test def reduceIdParamInitial(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (ArrayType(Float, Var("N")),
+      Float,
+      (in, init) => {
+        Join() o MapWrg(
+          Join() o Barrier() o MapLcl(ReduceSeq(add, id(init))) o Split(4)
+        ) o Split(128) $ in
+      } )
+
+    val (output, runtime) = Execute(inputData.length)( l, inputData, 0.0f, inputData.length )
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Ignore
+  @Test def reduceIdValueInitial(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (ArrayType(Float, Var("N")),
+      (in) => {
+        Join() o MapWrg(
+          Join() o Barrier() o MapLcl(ReduceSeq(add, id(Value.FloatToValue(0.0f)))) o Split(4)
+        ) o Split(128) $ in
+      } )
+
+    val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def SIMPLE_REDUCE_FIRST() {
 
     val inputSize = 4194304
@@ -32,7 +93,7 @@ class TestReduce {
 
     val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
-        Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f) /*o MapSeq(id)*/) o Split(2048)
+        Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2048)
       ) o Split(262144) $ in
     } )
 
