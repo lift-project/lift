@@ -456,7 +456,7 @@ object TypedOpenCLMemory {
     * @param expr Expression for witch the allocated memory objects should be gathered.
     * @return All memory objects which have been allocated for f.
     */
-  def getAllocatedMemory(expr: Expr, params: Array[Param]): Array[TypedOpenCLMemory] = {
+  def getAllocatedMemory(expr: Expr, params: Array[Param], includePrivate: Boolean = false): Array[TypedOpenCLMemory] = {
 
     // recursively visit all functions and collect input and output (and swap buffer for the iterate)
     val result = Expr.visit(Array[TypedOpenCLMemory]())(expr, (exp, arr) =>
@@ -483,8 +483,8 @@ object TypedOpenCLMemory {
 
             case _ => arr :+ TypedOpenCLMemory(call.argsMemory, call.argsType) :+ TypedOpenCLMemory(call.mem, call.t)
           }
-        case p: Param => arr :+ TypedOpenCLMemory(p.mem, p.t)
         case v: Value => arr
+        case p: Param => arr :+ TypedOpenCLMemory(p.mem, p.t)
       })
 
     val resultWithoutCollections = result.map(tm => tm.mem match {
@@ -503,7 +503,8 @@ object TypedOpenCLMemory {
 
           // m is in private memory but not an parameter => trow away
           || (   m.addressSpace == PrivateMemory
-              && params.find(p => p.mem == m) == None)) {
+              && params.find(p => p.mem == m) == None)
+              && !includePrivate) {
         arr
       } else {
         seen += m

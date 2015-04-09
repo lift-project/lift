@@ -54,12 +54,13 @@ class OpenCLPrinter {
   }
 
   def printVarDecl(t: Type, v: Var, init: String) {
-    print(toOpenCL(t)+" "+toOpenCL(v)+" = "+init)
+    println(toOpenCL(t)+" "+toOpenCL(v)+" = "+init + ";")
   }
 
-  def printVarDecl(t: Type, v: TypeVar, init: String) {
-    print(toOpenCL(t)+" "+toOpenCL(v)+" = "+init)
+  def printVarDecl(t: Type, v: Var) {
+    println(toOpenCL(t)+" "+toOpenCL(v)+ ";")
   }
+
 /*
   def printAsParameterDecl(input: Input) {
     val t = input.expectedOutT

@@ -193,8 +193,13 @@ object OpenCLGenerator extends Generator {
       }
     })
 
+    val privateMems = TypedOpenCLMemory.
+      getAllocatedMemory(f.body, f.params, includePrivate = true).diff(Kernel.memory)
+
     // generate the body of the kernel
     oclPrinter.openCB()
+    // Print declarations for non parameter private memories
+    privateMems.foreach(m => oclPrinter.printVarDecl(m.t, m.mem.variable))
     generate(expr)
     oclPrinter.closeCB()
   }
@@ -322,11 +327,7 @@ object OpenCLGenerator extends Generator {
   }
 
   private def generateValue(v: Value): Unit = {
-    val accVar = v.mem.variable
-    val accType = v.t
-    val accValue = v.value
-    oclPrinter.printVarDecl(accType, accVar, accValue)
-    oclPrinter.println(";")
+    oclPrinter.println(oclPrinter.toOpenCL(v.mem.variable) + " = " + v.value + ";")
   }
 
   // === Iterate ===
@@ -357,7 +358,6 @@ object OpenCLGenerator extends Generator {
       else
         TypeVar.getTypeVars(funCall.argsType).head
     oclPrinter.printVarDecl(opencl.ir.Int, curOutLen, oclPrinter.toOpenCL(Type.getLength(call.argsType)))
-    oclPrinter.println(";")
 
     // create new temporary input and output pointers
     val tin = Var("tin")

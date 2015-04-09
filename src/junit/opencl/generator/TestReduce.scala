@@ -46,6 +46,48 @@ class TestReduce {
   }
 
   @Ignore
+  @Test def reduceArrayParamInitial(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val N = Var("N")
+    val l = fun (ArrayType(Float, N),
+      ArrayType(Float, N),
+      (in, init) => {
+        Join() o MapWrg(
+          Join() o Barrier() o MapLcl(ReduceSeq(add, init)) o Split(4)
+        ) o Split(128) $ in
+      } )
+
+    val (output, runtime) = Execute(inputData.length)( l, inputData, 0.0f, inputData.length )
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Ignore
+  @Test def reduceArrayValueInitial(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val N = Var("N")
+    val l = fun (ArrayType(Float, N),
+      (in) => {
+        Join() o MapWrg(
+          Join() o Barrier() o MapLcl(ReduceSeq(add, Value("0.0f", ArrayType(Float, N)))) o Split(4)
+        ) o Split(128) $ in
+      } )
+
+    val (output, runtime) = Execute(inputData.length)( l, inputData, 0.0f, inputData.length )
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def reduceIdParamInitial(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -66,7 +108,6 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-  @Ignore
   @Test def reduceIdValueInitial(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
