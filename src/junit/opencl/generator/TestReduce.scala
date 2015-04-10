@@ -29,13 +29,14 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")),
+    val l = fun (
+      ArrayType(Float, Var("N")),
       Float,
       (in, init) => {
       Join() o MapWrg(
-        Join() o Barrier() o MapLcl(ReduceSeq(add, init)) o Split(4)
+        Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, init)) o Split(4)
       ) o Split(128) $ in
-    } )
+    })
 
     val (output, runtime) = Execute(inputData.length)( l, inputData, 0.0f, inputData.length )
 
@@ -45,47 +46,55 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-  @Ignore
   @Test def reduceArrayParamInitial(): Unit = {
     val inputSize = 1024
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inputData = Array.fill(inputSize)(0.0f)
+    val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
 
     val N = Var("N")
-    val l = fun (ArrayType(Float, N),
+    val M = Var("M")
+
+    val l = fun(
+      ArrayType(ArrayType(Float, N), M),
       ArrayType(Float, N),
       (in, init) => {
-        Join() o MapWrg(
-          Join() o Barrier() o MapLcl(ReduceSeq(add, init)) o Split(4)
-        ) o Split(128) $ in
-      } )
+        Join() o MapSeq(ReduceSeq(fun((x, y) => MapSeq(add) $ Zip(x, y)), MapSeq(id) $ init)) o Split(M) $ in
+      })
 
-    val (output, runtime) = Execute(inputData.length)( l, inputData, 0.0f, inputData.length )
+    val (output, runtime) = Execute(1, 1)(l, matrix, inputData, inputSize, inputSize)
 
-    assertEquals(inputData.sum, output.sum, 0.0)
+    val gold = matrix.reduce((x, y) => (x, y).zipped.map(_+_))
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
+
   }
 
   @Ignore
   @Test def reduceArrayValueInitial(): Unit = {
     val inputSize = 1024
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inputData = Array.fill(inputSize)(0.0f)
+    val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
 
     val N = Var("N")
-    val l = fun (ArrayType(Float, N),
-      (in) => {
-        Join() o MapWrg(
-          Join() o Barrier() o MapLcl(ReduceSeq(add, Value("0.0f", ArrayType(Float, N)))) o Split(4)
-        ) o Split(128) $ in
-      } )
+    val M = Var("M")
 
-    val (output, runtime) = Execute(inputData.length)( l, inputData, 0.0f, inputData.length )
+    val l = fun(
+      ArrayType(ArrayType(Float, N), M),
+      in => {
+        Join() o MapSeq(MapSeq(MapSeq(id)) o ReduceSeq(fun((x, y) => MapSeq(add) $ Zip(x, y)), MapSeq(id) $ Value.apply(ArrayType(Float, N)))) o Split(M) $ in
+      })
 
-    assertEquals(inputData.sum, output.sum, 0.0)
+    val (output, runtime) = Execute(1, 1)(l, matrix, inputData, inputSize, inputSize)
+
+    val gold = matrix.reduce((x, y) => (x, y).zipped.map(_+_))
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def reduceIdParamInitial(): Unit = {
@@ -96,11 +105,11 @@ class TestReduce {
       Float,
       (in, init) => {
         Join() o MapWrg(
-          Join() o Barrier() o MapLcl(ReduceSeq(add, id(init))) o Split(4)
+          Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, id(init))) o Split(4)
         ) o Split(128) $ in
-      } )
+      })
 
-    val (output, runtime) = Execute(inputData.length)( l, inputData, 0.0f, inputData.length )
+    val (output, runtime) = Execute(inputData.length)(l, inputData, 0.0f, inputData.length)
 
     assertEquals(inputData.sum, output.sum, 0.0)
 
@@ -113,13 +122,13 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l = fun (ArrayType(Float, Var("N")),
-      (in) => {
+      in => {
         Join() o MapWrg(
-          Join() o Barrier() o MapLcl(ReduceSeq(add, id(Value.FloatToValue(0.0f)))) o Split(4)
+          Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, id(Value.FloatToValue(0.0f)))) o Split(4)
         ) o Split(128) $ in
-      } )
+      })
 
-    val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
+    val (output, runtime) = Execute(inputData.length)(l, inputData, inputData.length)
 
     assertEquals(inputData.sum, output.sum, 0.0)
 

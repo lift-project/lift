@@ -318,7 +318,7 @@ object OpenCLMemory {
         if (r.f.params.length != 2) throw new NumberOfArgumentsException
         r.f.params(0).mem = initM
         r.f.params(1).mem = elemM
-        alloc(r.f.body, numGlb, numLcl, outputMem)
+        alloc(r.f.body, numGlb, numLcl, initM)
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
@@ -475,7 +475,7 @@ object TypedOpenCLMemory {
 
               val inMem = TypedOpenCLMemory( call.args(1).mem, call.args(1).t )
 
-              arr :+ inMem :+ TypedOpenCLMemory(call.mem, call.t)
+              arr :+ inMem
 
             case z: Zip => arr ++ call.args.map( e => TypedOpenCLMemory(e.mem, e.t) )
 

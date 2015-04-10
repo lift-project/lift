@@ -39,6 +39,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
           case _: ReduceHost => setRangeReduceSeq(call)
         }
         evaluateReduceRange(call)
+        apply(call.arg0)
         apply(call.f.f.body)
       case call: IterateCall =>
         setRangeIterate(call)

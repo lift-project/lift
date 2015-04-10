@@ -78,6 +78,8 @@ object OutputView {
   }
 
   private def buildViewReduceCall(call: ReduceCall, writeView: View): View = {
+    visitAndBuildViews(call.arg0,
+      View.initialiseNewView(call.arg0.t, call.inputDepth, call.arg0.mem.variable.name))
     // traverse into call.f
     visitAndBuildViews(call.f.f.body, writeView.access(Cst(0)))
     // create fresh input view for following function

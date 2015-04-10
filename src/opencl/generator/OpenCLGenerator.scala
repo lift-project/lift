@@ -304,24 +304,8 @@ object OpenCLGenerator extends Generator {
     oclPrinter.openCB()
     oclPrinter.commln("reduce_seq")
 
-    // 1. generate: int acc = 0
-    val accVar = call.arg0.mem.variable
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
 
-    val funCall = call.f.f.body match { case call: FunCall => call }
-
-    // 2. generate loop from 0 .. length
-    oclPrinter.generateLoop(call.loopVar, () => {
-      // 3. generate acc = fun(acc, input[i])
-      oclPrinter.print(access(call.arg0.mem, call.arg0.t, call.arg0.view) + " = ")
-
-      // TODO: This assumes a UserFun to be nested here!
-      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.args.map(_.view): _*))
-
-      oclPrinter.println(";")
-    }, call.iterationCount)
-
-    // 4. generate output[0] = acc
-    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.view) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
   }
