@@ -58,7 +58,7 @@ class TestReduce {
       ArrayType(ArrayType(Float, N), M),
       ArrayType(Float, N),
       (in, init) => {
-        Join() o MapSeq(ReduceSeq(fun((x, y) => MapSeq(add) $ Zip(x, y)), MapSeq(id) $ init)) o Split(M) $ in
+        Join() o MapSeq(MapSeq(MapSeq(id)) o ReduceSeq(fun((x, y) => MapSeq(add) $ Zip(x, y)), MapSeq(id) $ init)) o Split(M) $ in
       })
 
     val (output, runtime) = Execute(1, 1)(l, matrix, inputData, inputSize, inputSize)
@@ -72,10 +72,8 @@ class TestReduce {
 
   }
 
-  @Ignore
   @Test def reduceArrayValueInitial(): Unit = {
     val inputSize = 1024
-    val inputData = Array.fill(inputSize)(0.0f)
     val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
 
     val N = Var("N")
@@ -84,10 +82,14 @@ class TestReduce {
     val l = fun(
       ArrayType(ArrayType(Float, N), M),
       in => {
-        Join() o MapSeq(MapSeq(MapSeq(id)) o ReduceSeq(fun((x, y) => MapSeq(add) $ Zip(x, y)), MapSeq(id) $ Value.apply(ArrayType(Float, N)))) o Split(M) $ in
+        Join() o MapSeq(
+          MapSeq(MapSeq(id)) o
+            ReduceSeq(fun((x, y) => MapSeq(add) $ Zip(x, y)),
+              toGlobal(MapSeq(id)) $ Value.apply(0.0f, ArrayType(Float, N)))
+        ) o Split(M) $ in
       })
 
-    val (output, runtime) = Execute(1, 1)(l, matrix, inputData, inputSize, inputSize)
+    val (output, runtime) = Execute(1, 1)(l, matrix, inputSize, inputSize)
 
     val gold = matrix.reduce((x, y) => (x, y).zipped.map(_+_))
 

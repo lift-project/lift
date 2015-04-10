@@ -199,7 +199,7 @@ object OpenCLGenerator extends Generator {
     // generate the body of the kernel
     oclPrinter.openCB()
     // Print declarations for non parameter private memories
-    privateMems.foreach(m => oclPrinter.printVarDecl(m.t, m.mem.variable))
+    privateMems.foreach(m => oclPrinter.printVarDecl(Type.getBaseType(m.t), m.mem.variable))
     generate(expr)
     oclPrinter.closeCB()
   }
@@ -252,7 +252,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // === Maps ===
-  
+
   // MapWrg
   private def generateMapWrgCall(call: MapCall): Unit = {
 
@@ -274,7 +274,7 @@ object OpenCLGenerator extends Generator {
     //  oclPrinter.println("return;")
     // }
   }
-  
+
   // MapLcl
   private def generateMapLclCall(call: MapCall) {
     oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
@@ -290,14 +290,14 @@ object OpenCLGenerator extends Generator {
   private def generateMapLaneCall(call: MapCall) {
     oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
   }
-  
+
   // MapSeq
   private def generateMapSeqCall(call: MapCall) {
     oclPrinter.commln("map_seq")
     oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     oclPrinter.commln("map_seq")
   }
-  
+
   // === Reduce ===
   private def generateReduceSeqCall(call: ReduceCall) {
 
@@ -405,7 +405,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // === Utilities ===
-  
+
   // helper functions to generate the actual OpenCL code
   private implicit class Operators(v: Any) {
     // generate assignment
@@ -413,7 +413,7 @@ object OpenCLGenerator extends Generator {
 
     override def toString : String = v.toString
   }
-  
+
   private def apply(fun: Any, arg: Any*) : String = {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }

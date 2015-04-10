@@ -234,6 +234,11 @@ object Value {
     v
   }
 
+  def apply(v:Value, outT: Type): Value = {
+    v.t = outT
+    v
+  }
+
   def vectorize(v: Value, n: ArithExpr): Value = {
     Value(v.value, Type.vectorize(v.t, n))
   }
