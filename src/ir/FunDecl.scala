@@ -1,7 +1,7 @@
 package ir
 
 import arithmetic.{Var, ArithExpr}
-import opencl.ir.Float
+import opencl.ir._
 
 abstract class FunDecl(val params: Array[Param]) {
 
@@ -293,6 +293,10 @@ object UserFunDef {
   }
 
   val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+  val idFI = UserFunDef("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
+
+  val idFF = UserFunDef("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
 
   val absAndSumUp = UserFunDef("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", Seq(Float, Float), Float)
 

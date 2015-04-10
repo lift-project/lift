@@ -104,7 +104,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapWrg(fun( Arow =>
           Barrier() o MapLcl(fun( Bcol =>
-            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+            toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
       })
@@ -138,7 +138,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(fun( Arow =>
           MapSeq(fun( Bcol =>
-            ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(Arow, Bcol)
+            toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
       })
@@ -859,7 +859,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
-            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+            toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
       })
@@ -868,7 +868,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
-        MapGlb(0)(MapGlb(1)(ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
+        MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
         Map(fun( Arow =>
           Map(fun( Bcol =>
             Zip(Arow, Bcol)
@@ -982,13 +982,13 @@ class TestMatrixMatrix {
           MapWrg(1)(fun( bCols =>
 
             // Reduce the partial results (matrices), so that the reduce is innermost
-            Barrier() o MapLcl(0)(Join() o MapLcl(1)(ReduceSeq(add, 0.0f) o Join()) o Transpose()) o Transpose() o
+            Barrier() o MapLcl(0)(Join() o MapLcl(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join()) o Transpose()) o Transpose() o
 
             // Multiply all necessary combinations of tiles
             MapSeq(fun( tiles =>
               Barrier() o MapLcl(0)( fun(aTile =>
                 MapLcl(1)( fun( bTile =>
-                  ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
+                  toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
                 )) $ Get(tiles, 1)
               )) $ Get(tiles, 0)
             )) $ Zip(aRows, bCols)
@@ -1033,14 +1033,14 @@ class TestMatrixMatrix {
 
               Map(Join()) o
               // Reduce the partial results (matrices), so that the reduce is innermost
-              Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(ReduceSeq(add, 0.0f)))) o
+              Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)))) o
               Map(Map(Join()) o Transpose()) o Transpose() o
 
                 // Multiply all necessary combinations of tiles
                 toLocal(MapSeq(fun( tiles =>
                   Barrier() o MapLcl(0)( fun(aTile =>
                     MapLcl(1)( fun( bTile =>
-                      ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
+                      toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
                     )) $ Get(tiles, 1)
                   )) $ Get(tiles, 0)
                 ) o
@@ -1081,7 +1081,7 @@ class TestMatrixMatrix {
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, new Var("M")), new Var("K")), new Var("N")),
-      input => MapGlb(0)(MapGlb(1)(ReduceSeq(add, 0.0f)) o Transpose()) o Transpose() $ input
+      input => MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose()) o Transpose() $ input
     )
 
     val (output, _) = Execute(mSize*kSize)(f, matrices, numMatrices, kSize, mSize)
@@ -1107,7 +1107,7 @@ class TestMatrixMatrix {
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
-            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+            toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) o Transpose() $ B
         )) $ A
       })
@@ -1155,7 +1155,7 @@ class TestMatrixMatrix {
               Barrier() o MapLcl(0)(fun( aRow =>
                 Barrier() o MapLcl(1)(fun( bCol =>
 
-                  ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
+                  toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
 
                 )) o Transpose() $ Get(zippedChunk, 1)
               )) o Transpose() $ Get(zippedChunk, 0)
@@ -1202,7 +1202,7 @@ class TestMatrixMatrix {
           TransposeW() o Join() o MapWrg(1)(fun( bCols =>
             Barrier() o MapLcl(0)(fun( bCol =>
               Barrier() o MapLcl(1)(fun( aRow =>
-                ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
+                toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
               )) $ aRows
             )) $ bCols
           )) o Split(c) $ B

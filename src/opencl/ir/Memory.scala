@@ -383,15 +383,6 @@ object OpenCLMemory {
     }
   }
 
-  private def allocFilter(f: Filter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
-    inMem match {
-      case coll: OpenCLMemoryCollection =>
-        if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
-        coll.subMemories(0)
-      case _ => throw new IllegalArgumentException("PANIC")
-    }
-  }
-
   private def allocIterate(it: Iterate, call: IterateCall, numGlb: ArithExpr, numLcl: ArithExpr,
                            inMem: OpenCLMemory): OpenCLMemory = {
     // get sizes in bytes necessary to hold the input and output of the function inside the iterate
@@ -407,6 +398,15 @@ object OpenCLMemory {
     if (it.f.params.length != 1) throw new NumberOfArgumentsException
     it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl)
+  }
+
+  private def allocFilter(f: Filter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
+    inMem match {
+      case coll: OpenCLMemoryCollection =>
+        if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
+        coll.subMemories(0)
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
   }
 
   private def allocUserFun(maxGlbOutSize: ArithExpr, maxLclOutSize: ArithExpr,

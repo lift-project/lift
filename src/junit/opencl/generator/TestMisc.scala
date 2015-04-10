@@ -125,7 +125,7 @@ class TestMisc {
 
     val function = fun(
       ArrayType(ArrayType(Float, Var("N")), Var("M")),
-      (input) => MapGlb(MapSeq(neg) o ReduceSeq(add, 0.0f)) $ input
+      (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
     val (output, runtime) = Execute(Nsize * Msize)(function, matrix, Nsize, Msize)

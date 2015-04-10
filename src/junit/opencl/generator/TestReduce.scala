@@ -145,7 +145,7 @@ class TestReduce {
 
     val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
-        Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2048)
+        Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2048)
       ) o Split(262144) $ in
     } )
 
@@ -166,7 +166,7 @@ class TestReduce {
 
     val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
       Join() o Join() o  MapWrg(
-        Barrier() o MapLcl(ReduceSeq(add, 0.0f))
+        Barrier() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))
       ) o Split(128) o Split(2048) $ in
     }), inputData, inputData.length)
 
@@ -185,7 +185,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (output, runtime) = opencl.executor.Execute(1, inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
-      ReduceHost(add, 0.0f) $ in
+      toGlobal(MapSeq(id)) o ReduceHost(add, 0.0f) $ in
     }), inputData, inputData.length)
 
     assertEquals(inputData.sum, output.sum, 0.0)
@@ -208,7 +208,7 @@ class TestReduce {
       val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(7)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Iterate(7)(Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
             Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
         ) o Split(128) $ in
       }), inputData, inputData.length)
@@ -225,7 +225,7 @@ class TestReduce {
       val (output, runtime) = Execute(8, firstOutput.length)( fun(ArrayType(Float, Var("N")), (in) => {
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(3)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
+            Iterate(3)(Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)) o
             Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
         ) o Split(8) $ in
       }), firstOutput, firstOutput.length)
@@ -250,8 +250,8 @@ class TestReduce {
     val (output, runtime) = Execute(inputData.length)( fun(ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg(
         Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-          Iterate(7)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-          Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+          Iterate(7)( Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
+          Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(2)
       ) o Split(256) $ in
     }), inputData, inputData.length)
 
@@ -274,9 +274,9 @@ class TestReduce {
 
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Join() o Barrier() o MapWarp( Iterate(5)( Join() o MapLane(ReduceSeq(add, 0.0f)) o Split(2) ) ) o Split(32) o
-            Iterate(2)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144 / 2048)
+            Join() o Barrier() o MapWarp( Iterate(5)( Join() o MapLane(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) ) o Split(32) o
+            Iterate(2)( Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144 / 2048)
         ) o Split(262144) $ in
 
       }), inputData, inputData.length)
@@ -294,8 +294,8 @@ class TestReduce {
 
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(5)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+            Iterate(5)( Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(2)
         ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
@@ -323,8 +323,8 @@ class TestReduce {
         (in) =>
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(7)(Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2)) o
-            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144/2048)
+            Iterate(7)(Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)) o
+            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(2048) o ReorderStride(262144/2048)
         ) o Split(262144) $ in
       )
 
@@ -343,8 +343,8 @@ class TestReduce {
 
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(5)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(add, 0.0f))) o Split(2)
+            Iterate(5)( Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(2)
         ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
@@ -372,8 +372,8 @@ class TestReduce {
 
         Join() o MapWrg(
           asScalar() o Join() o Barrier() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
-            Iterate(8)( Join() o Barrier() o MapLcl(ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f))) o Split(2) ) o
-            Join() o Barrier() o toLocal(MapLcl(ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f)))) o Split(2) o asVector(4)
+            Iterate(8)( Join() o Barrier() o MapLcl(toLocal(MapSeq(Vectorize(4)(id))) o ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f))) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(Vectorize(4)(id))) o ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f)))) o Split(2) o asVector(4)
         ) o Split(2048) $ in
 
       }), inputData, inputData.length)
@@ -391,8 +391,8 @@ class TestReduce {
 
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(6)( Join() o Barrier() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o Barrier() o toLocal(MapLcl(MapSeq(id))) o Split(1)
+            Iterate(6)( Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o MapSeq(id))) o Split(1)
         ) o Split(64) $ in
 
       }), firstOutput, firstOutput.length)
@@ -480,7 +480,7 @@ class TestReduce {
 
         Join() o MapWrg(
             asScalar() o Join() o Join() o MapWarp(
-            MapLane(MapSeq(Vectorize(4)(id)) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f)))
+            MapLane(toGlobal(MapSeq(Vectorize(4)(id))) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f)))
           ) o Split(1) o Split(8192) o asVector(4)
         ) o Split(32768) $ in
 

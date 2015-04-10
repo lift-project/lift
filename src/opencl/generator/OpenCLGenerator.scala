@@ -321,6 +321,9 @@ object OpenCLGenerator extends Generator {
     val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
     val swapMem = OpenCLMemory.asOpenCLMemory(call.swapBuffer)
 
+    println(inputMem.addressSpace)
+    println(outputMem.addressSpace)
+
     assert (inputMem.addressSpace == outputMem.addressSpace)
 
     val funCall = call.f.f.body match { case call: FunCall => call }
