@@ -238,7 +238,7 @@ object OpenCLMemory {
 
       case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, inMem, outputMem)
 
-      case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem)
+      case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem, outputMem)
 
       case Zip(_) | Tuple(_) =>   allocZipTuple(inMem)
       case f: Filter =>           allocFilter(f, numGlb, numLcl, inMem)
@@ -364,13 +364,21 @@ object OpenCLMemory {
   }
 
   private def allocCompFunDef(cf: CompFunDef, numGlb: ArithExpr, numLcl: ArithExpr,
-                              inMem: OpenCLMemory): OpenCLMemory = {
+                              inMem: OpenCLMemory, outMem: OpenCLMemory): OpenCLMemory = {
     // combine the parameter of the first function to call with the type inferred from the argument
+
+    val lastConcrete = cf.funs.find(_.body.isConcrete) match {
+      case Some(c) => c
+      case None => None
+    }
 
     cf.funs.foldRight(inMem)((f, mem) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).mem = mem
-      alloc(f.body, numGlb, numLcl)
+      if (f == lastConcrete) {
+        alloc(f.body, numGlb, numLcl, outMem)
+      } else
+        alloc(f.body, numGlb, numLcl)
     })
   }
 

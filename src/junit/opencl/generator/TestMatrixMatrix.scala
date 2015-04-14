@@ -1067,7 +1067,6 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
-  @Ignore
   @Test def tiledMatrixMultiplyLocalMemory2(): Unit = {
     val mSize = 16
     val kSize = 16
@@ -1092,10 +1091,11 @@ class TestMatrixMatrix {
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
-                toGlobal(MapLcl(0)(MapLcl(1)(MapSeq(id)))) o
+                toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+                  Join() o
 
                 // Multiply all necessary combinations of tiles
-                toLocal(ReduceSeq(fun( (acc, tiles) =>
+                ReduceSeq(fun( (acc, tiles) =>
                   fun(tiles =>
                   Barrier() o fun(partial => MapLcl(0)(fun(x => MapLcl(1)(add) $ Zip(Get(x, 0), Get(x, 1)))) $ Zip(acc, partial) ) o
                     Map(Join()) o
@@ -1113,7 +1113,7 @@ class TestMatrixMatrix {
                       Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 1)
                     )) $ tiles)
                 , toLocal(MapLcl(0)(MapLcl(1)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
-                )) $ Zip(aRows, bCols)
+                ) $ Zip(aRows, bCols)
 
               // Tile the matrices
             )) o Tile(tileSize) $ B
