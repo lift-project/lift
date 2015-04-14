@@ -18,6 +18,8 @@ libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 
 libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
 
+scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
+
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*"
 
 fork := true
