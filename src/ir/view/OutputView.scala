@@ -91,7 +91,22 @@ object OutputView {
   }
 
   private def buildViewCompFunDef(cf: CompFunDef, writeView: View): View = {
-    cf.funs.foldLeft(writeView)((v, f) => visitAndBuildViews(f.body, v))
+    cf.funs.foldLeft(writeView)((v, f) => {
+      val resultView = visitAndBuildViews(f.body, v)
+
+      f.body match {
+        case call: FunCall =>
+          if (call.args.exists({
+            case call: FunCall => call.f.isInstanceOf[Zip] ||
+              call.f.isInstanceOf[Tuple]
+            case _ => false
+          }))
+            View.initialiseNewView(f.params.head.t, f.body.outputDepth)
+          else
+            resultView
+        case _ => resultView
+      }
+    })
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
