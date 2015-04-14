@@ -33,6 +33,7 @@ object OutputView {
           case tG: toGlobal => buildViewToGlobal(tG, writeView)
           case i: Iterate => buildViewIterate(i, call, writeView)
           case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
+          case t: Transpose => buildViewTranspose(t, call, writeView)
           case asVector(n) => buildViewAsVector(n, writeView)
           case _: asScalar => buildViewAsScalar(call, writeView)
           case Zip(_) | Tuple(_) => buildViewZipTuple(call, writeView)
@@ -122,6 +123,15 @@ object OutputView {
         writeView.
           join(m).
           reorder((i:ArithExpr) => { IndexFunction.transpose(i, ArrayType(ArrayType(typ, n), m)) }).
+          split(n)
+    }
+  }
+
+  private def buildViewTranspose(t: Transpose, call: FunCall, writeView: View): View = {
+    call.t match {
+      case ArrayType(ArrayType(typ, m), n) =>
+        writeView.
+          join(m).
           split(n)
     }
   }

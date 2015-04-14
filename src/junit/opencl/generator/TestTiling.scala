@@ -375,4 +375,31 @@ class TestTiling {
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
+
+  @Test def tiledMatrixTransposeNonSquareTile(): Unit = {
+    val Nsize = 12
+    val Msize = 8
+    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
+    val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
+    val tiledTransposed = tiled.map(_.map(_.transpose)).transpose
+
+    val gold = tiledTransposed.map(_.transpose.map(_.flatten)).flatten
+
+    println("matrix: ")
+    TestUtils.myPrint(matrix)
+
+    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(4,8), matrix, Nsize, Msize)
+
+    println("output.size = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    println("gold: ")
+    TestUtils.myPrint(gold.flatten, Nsize)
+
+    println("output: ")
+    TestUtils.myPrint(output, Nsize)
+
+    assertArrayEquals(gold.flatten, output, 0.0f)
+  }
 }
