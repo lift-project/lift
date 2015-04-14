@@ -1102,7 +1102,7 @@ class TestMatrixMatrix {
                     Map(Join()) o
                   MapLcl(0)( fun(rowA =>
                     MapLcl(1)( fun( colB =>
-                      ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(rowA, colB)
+                      toLocal(MapSeq(id) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)) $ Zip(rowA, colB)
                     )) $ Get(pairOfTiles, 1)
                   )) $ Get(pairOfTiles, 0)
                 ) o
