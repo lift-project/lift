@@ -1095,23 +1095,25 @@ class TestMatrixMatrix {
                   Join() o
 
                 // Multiply all necessary combinations of tiles
-                ReduceSeq(fun( (acc, tiles) =>
-                  fun(tiles =>
-                  Barrier() o fun(partial => MapLcl(0)(fun(x => MapLcl(1)(add) $ Zip(Get(x, 0), Get(x, 1)))) $ Zip(acc, partial) ) o
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(pairOfTiles =>
+                  Barrier() o fun(partial => MapLcl(0)(fun(pairOfRows => MapLcl(1)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
                     Map(Join()) o
-                  MapLcl(0)( fun(aTile =>
-                    MapLcl(1)( fun( bTile =>
-                      toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
-                    )) $ Get(tiles, 1)
-                  )) $ Get(tiles, 0)
+                  MapLcl(0)( fun(rowA =>
+                    MapLcl(1)( fun( colB =>
+                      ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(rowA, colB)
+                    )) $ Get(pairOfTiles, 1)
+                  )) $ Get(pairOfTiles, 0)
                 ) o
 
                   // Copy tiles to local memory
-                  fun(tiles =>
+                  fun(pairOfTiles =>
                     Tuple(
-                      Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 0),
-                      Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 1)
-                    )) $ tiles)
+                      Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(pairOfTiles, 0),
+                      Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(pairOfTiles, 1)
+                    )) $ pairOfTiles
+                )
                 , toLocal(MapLcl(0)(MapLcl(1)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
                 ) $ Zip(aRows, bCols)
 

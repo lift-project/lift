@@ -138,6 +138,25 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
+  @Test def reduceValueToGlobal(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (ArrayType(ArrayType(Float, 1), Var("N")),
+      in => {
+        Join() o MapWrg(
+          Join() o Barrier() o MapLcl(ReduceSeq(fun((acc, x) => MapSeq(add) $ Zip(acc, x)), toGlobal(MapSeq(id)) $ Value(0.0f, ArrayType(Float, 1)))) o Split(4)
+        ) o Split(128) $ in
+      })
+
+    val (output, runtime) = Execute(inputData.length)(l, inputData, inputData.length)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def SIMPLE_REDUCE_FIRST() {
 
     val inputSize = 4194304
