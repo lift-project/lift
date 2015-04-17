@@ -175,7 +175,7 @@ abstract class Benchmark(val name: String,
 
         for (j <- 0 until scalaResult.length) {
           if (check(output(j), scalaResult(j))) {
-            println("Output at position " + j + " differs more than " + delta)
+            println("Output at position " + j + " differs more than " + delta + ". " + output(j) + " vs " + scalaResult(j))
 
           }
         }

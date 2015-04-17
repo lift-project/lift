@@ -8,7 +8,7 @@ import opencl.ir._
 import org.clapper.argot.ArgotConverters._
 
 class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
-  extends Benchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.001f, Array(16, 16, 1)) {
+  extends Benchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
 
   val tileX = parser.option[Int](List("x", "tileX"), "size",
     "Tile size in the x dimension")
@@ -30,7 +30,7 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
       var col = 0
       while(col < bCols) { var i = 0; var sum = 0.0f
         while(i < aCols) {
-          sum += A(row)(i) * B(col)(i)
+          sum += A(row)(i) * B(i)(col)
           i += 1
         }
 
@@ -43,6 +43,8 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
 
     res.flatten
   }
+
+
 
   override def generateInputs(): Seq[Any] = {
     val inputSizeN = inputSizes()(0)
@@ -78,7 +80,7 @@ object MatrixMultiplication {
       MapWrg(fun( Arow =>
         Barrier() o MapLcl(fun( Bcol =>
           toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
-        )) $ B
+        )) o Transpose() $ B
       )) $ A
     })
 
@@ -98,7 +100,7 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o fun(partial => MapLcl(0)(fun(pairOfRows => MapLcl(1)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                  Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
                     Map(Join()) o
                     MapLcl(1)( fun(rowA =>
                       MapLcl(0)( fun( colB =>
@@ -111,14 +113,14 @@ object MatrixMultiplication {
                   fun(pairOfTiles =>
                     Tuple(
                       Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
-                      Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                      Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
-                , toLocal(MapLcl(0)(MapLcl(1)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
               ) $ Zip(aRows, bCols)
 
             // Tile the matrices
-          )) o Tile(tileSize) $ B
+          )) o Tile(tileSize) o Transpose() $ B
         )) o Tile(tileSize) $ A
     })
 
@@ -126,6 +128,7 @@ object MatrixMultiplication {
     Seq(("naive", Array[Lambda](naive)),
       ("coalesced", Array[Lambda](coalesced(16)))
     ))
+
 
   def main(args: Array[String]): Unit = {
     MatrixMultiplication().run(args)
