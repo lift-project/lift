@@ -193,7 +193,7 @@ abstract class Benchmark(val name: String,
   }
 
   protected def bandwidth(time: Double): Double = {
-    4 * inputSizes().product / time * 0.000001
+    4 * inputSizes().product.toDouble / time * 0.000001
   }
 
   protected def check(x: Float, y: Float): Boolean = {

@@ -91,7 +91,7 @@ object MatrixMultiplication {
         MapWrg(0)(fun( aRows =>
           MapWrg(1)(fun( bCols =>
 
-            toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+            toGlobal(MapLcl(1)(MapLcl(0)(id))) o
               Join() o
 
               // Multiply all necessary combinations of tiles
@@ -100,8 +100,8 @@ object MatrixMultiplication {
                 fun(pairOfTiles =>
                   Barrier() o fun(partial => MapLcl(0)(fun(pairOfRows => MapLcl(1)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
                     Map(Join()) o
-                    MapLcl(0)( fun(rowA =>
-                      MapLcl(1)( fun( colB =>
+                    MapLcl(1)( fun(rowA =>
+                      MapLcl(0)( fun( colB =>
                         toLocal(MapSeq(id) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)) $ Zip(rowA, colB)
                       )) $ Get(pairOfTiles, 1)
                     )) $ Get(pairOfTiles, 0)
@@ -110,8 +110,8 @@ object MatrixMultiplication {
                   // Copy tiles to local memory
                   fun(pairOfTiles =>
                     Tuple(
-                      Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(pairOfTiles, 0),
-                      Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(pairOfTiles, 1)
+                      Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                      Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
                 , toLocal(MapLcl(0)(MapLcl(1)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
