@@ -594,7 +594,9 @@ object OpenCLGenerator extends Generator {
     oclPrinter.print(outVStr + " : " + swapVStr)
     oclPrinter.println(" ;")
 
-    oclPrinter.println("#pragma unroll 1")
+//    Removed the pragma temporarily as it was causing a (presumably) memory related bug on non NVIDIA and Intel CPU platforms
+//    TODO: implement a platform dependent system for inserting the pragma when legal
+//    oclPrinter.println("#pragma unroll 1")
     oclPrinter.generateLoop(indexVar, range, () => {
 
       // modify the pointers to the memory before generating the body

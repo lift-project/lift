@@ -28,8 +28,11 @@ class TestGraphTheory {
 
   val add = UserFunDef("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
   val mult = UserFunDef("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
+  val or = UserFunDef("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  val and = UserFunDef("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
 
-  def DENSE_BFS_ITERATION(): Unit = {
+  @Test def DENSE_BFS_ITERATION(): Unit = {
+    println("DENSE_BFS_ITERATION")
     val inputSize = 1024
     val graph = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>2) 0 else 1).toFloat)
     var fringe = Array.fill(inputSize)(0.0f)
@@ -55,7 +58,8 @@ class TestGraphTheory {
     assertArrayEquals(scalaBFSIteration(graph,fringe), output, 0.0f)
   }
 
-  def DENSE_BFS_ITERATION_FIXED_SIZE(): Unit = {
+  @Test def DENSE_BFS_ITERATION_FIXED_SIZE(): Unit = {
+    println("DENSE_BFS_ITERATION_FIXED_SIZE")
     val inputSize = 1024
     val graph = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>2) 0 else 1).toFloat)
     var fringe = Array.fill(inputSize)(0.0f)
@@ -80,62 +84,32 @@ class TestGraphTheory {
 
   }
 
-  def DENSE_BFS_MULTI_ITERATION(): Unit = {
-    val inputSize = 1024
-    val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(10)>2) 0 else 1).toFloat)
+  @Test def DENSE_BFS_MULTI_ITERATION(): Unit = {
+    println("DENSE_BFS_MULTI_ITERATION")
+    val inputSize = 512
+    val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(1000)>2) 0 else 1).toFloat)
     var fringeArr = Array.fill(inputSize)(0.0f)
     fringeArr(util.Random.nextInt(inputSize)) = 1.0f
     val N = Var("N")
-
-
-    val or = UserFunDef("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
-    val and = UserFunDef("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
-
 
     val BFSMultiIteration  = fun(
       ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
     ArrayType(Float, N),
     (graph, bfsFringe) => {
-//      Iterate(100)(Join() o fun((fr) => denseBFSIteration(graph, fr))) $ bfsFringe
-      Iterate(10)( fun((fr) =>
-        Join() o MapWrg(
-          Join() o MapLcl( fun( (r) => ReduceSeq(and, 0.0f) o MapSeq(or) $ Zip(fr,r)))
-        ) o Split(128) $ graph
+      Iterate(5)( fun((fr) =>
+//        Join() o MapGlb(
+//          Join() o MapLcl( fun( (r) => ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r)))
+//        ) o Split(16) $ graph
+        Join() o MapGlb(
+        Join() o MapLcl(
+          fun( (r) => ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))
+        )) o Split(512) $ graph
       )) $ bfsFringe
     })
 
-    val (output, runtime) = Execute(inputSize*inputSize)(BFSMultiIteration, graphArr, fringeArr,inputSize)
-    println("output(0) = " + output(0))
-    println(fringeArr.toList)
-    println(output.toList)
-    println("runtime = " + runtime)
-    val gold = scalaIterateBFS(10,graphArr,fringeArr)
-    assertArrayEquals(gold, output, 0.0f)
+    val (output, runtime) = Execute(1,inputSize)(BFSMultiIteration, graphArr, fringeArr,inputSize)
+    val gold = scalaIterateBFS(5,graphArr,fringeArr)
 
-  }
-
-  def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
-    val inputSize = 16
-    val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(25)>2) 0 else 1).toFloat)
-    var fringeArr = Array.fill(inputSize)(1.0f)
-    fringeArr(util.Random.nextInt(inputSize)) = 1.0f
-    val N = Var("N")
-    val or = UserFunDef("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
-    val and = UserFunDef("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
-
-    val BFSMultiIteration  = fun(
-      ArrayType(ArrayType(Float, 16), 16), //must be a square matrix for a graph
-      ArrayType(Float, 16),
-      (graph, bfsFringe) => {
-        Iterate(7)( fun((fr) =>
-//          Join() o Join() o MapWrg(
-          Join() o MapSeq( fun( (r) => ReduceSeq(mult, 0.0f) o MapSeq(add) $ Zip(fr,r))) $ graph
-//          ) o Split(128) $ graph
-        )) $ bfsFringe
-      })
-
-    val (output, runtime) = Execute(inputSize*inputSize)(BFSMultiIteration, graphArr, fringeArr)
-    val gold = scalaIterateBFS(7,graphArr,fringeArr)
     println("output(0) = " + output(0))
     println("FringArr = " + fringeArr.toList.toString())
     println("Output = " + output.toList.toString())
@@ -143,11 +117,46 @@ class TestGraphTheory {
     println("Gold = " + gold.toList.toString())
     println("GSum = " + gold.reduce(_+_))
     println("runtime = " + runtime)
-    printDFSDotFile(graphArr, output, gold, fringeArr)
+//    printDFSDotFile(graphArr, output, gold, fringeArr)
+    assertArrayEquals(gold,output, 0.0f)
+
+  }
+
+  @Test def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
+    println("DENSE_BFS_MULTI_ITERATION_FIXED_SIZE")
+    val inputSize = 64
+    val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(25)>2) 0 else 1).toFloat)
+//    val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => if(r==c) 1.1f else 0.0f)
+//    val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => 1.0f)
+    var fringeArr = Array.fill(inputSize)(0.0f)
+    fringeArr(util.Random.nextInt(inputSize)) = 1.0f
+
+    val BFSMultiIteration  = fun(
+      ArrayType(ArrayType(Float, 64), 64), //must be a square matrix for a graph
+      ArrayType(Float, 64),
+      (graph, bfsFringe) => {
+        Iterate(2)( fun((fr) =>
+          Join() o MapSeq( fun( (r) => ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))) $ graph
+        )) $ bfsFringe
+      })
+
+
+    val (output, runtime) = Execute(1,1)(BFSMultiIteration, graphArr, fringeArr)
+    val gold = scalaIterateBFS(2,graphArr,fringeArr)
+
+    println("output(0) = " + output(0))
+    println("FringArr = " + fringeArr.toList.toString())
+    println("Output = " + output.toList.toString())
+    println("OSum = " + output.reduce(_+_))
+    println("Gold = " + gold.toList.toString())
+    println("GSum = " + gold.reduce(_+_))
+    println("runtime = " + runtime)
+//    printDFSDotFile(graphArr, output, gold, fringeArr)
     assertArrayEquals(gold,output, 0.0f)
   }
 
   @Test def DENSE_MULTI_ITERATION_MWE() : Unit = {
+    println("DENSE_MULTI_ITERATION_MWE")
     val inputSize = 32
     val matrix = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => if(r==c) 1.1f else 0.0f)
     val vector = Array.fill(inputSize)(1.0f)
@@ -175,24 +184,19 @@ class TestGraphTheory {
       |        /* map_seq */
       |        for (int v_i_2 = 0; v_i_2 < 32; v_i_2 += 1) {
       |          *((global float*)&v__10[(v_i_2 + (32 * v_i_3))]) = mult(*((global float*)&v_tin_25[v_i_2]), *((global float*)&v__4[(v_i_2 + (32 * v_i_3))]));
-      |        //mem_fence(CLK_GLOBAL_MEM_FENCE);
       |        }
-      |        mem_fence(CLK_GLOBAL_MEM_FENCE);
       |        /* map_seq */
       |        {
       |          /* reduce_seq */
       |          float v__11 = 0.0f;
       |          for (int v_i_1 = 0; v_i_1 < 32; v_i_1 += 1) {
       |            v__11 = add(v__11, *((global float*)&v__10[(v_i_1 + (32 * v_i_3))]));
-      |        //mem_fence(CLK_GLOBAL_MEM_FENCE);
       |          }
       |          *((global float*)&v_tout_26[v_i_3]) = v__11;
-      |        //mem_fence(CLK_GLOBAL_MEM_FENCE);
       |
       |          /* reduce_seq */
       |        }
       |      }
-      |      //mem_fence(CLK_GLOBAL_MEM_FENCE);
       |      /* map_seq */
       |
       |}
@@ -202,7 +206,7 @@ class TestGraphTheory {
       |    int v_curOutLen_23 = 6;
       |    volatile global float* v_tin_25 = v__5;
       |    volatile global float* v_tout_26 = ( (10 & 1) != 0 ) ? v__14 : v__7 ;
-      |    #pragma unroll 1
+      |
       |    for (int v_i_24 = 0; v_i_24 < 10; v_i_24 += 1) {
       |      iterationBody(v_tin_25, v_tout_26,v__4, v__10);
       |      v_tin_25 = ( v_tout_26==v__7 ) ? v__7:v__14;
@@ -216,24 +220,25 @@ class TestGraphTheory {
     Compile(DotProductMultiIteration)
 
     val (output, runtime) = Execute(1, 1)(kernelCode, DotProductMultiIteration, matrix, vector)
-
+    val gold = scalaIterateDotProduct(10, matrix, vector)
 
     println("output(0) = " + output(0))
     println("FringeArr = " + vector.toList.toString())
     println("Output = " + output.toList.toString())
-
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   def scalaIterateDotProduct(iterations: Int,matrix:Array[Array[Float]],vector:Array[Float]) : Array[Float] = {
     var tVector = vector
     for(i:Int <- 0 until iterations){
-      tVector = matrix.map((row) => (row, vector).zipped.map((a,b) => a*b).reduce((a,b) => a+b))
+      tVector = matrix.map((row) => (row, tVector).zipped.map((a,b) => a*b).reduce((a,b) => a+b))
     }
     tVector
   }
   def scalaIterateBFS(iterations: Int,graph:Array[Array[Float]],fringe:Array[Float]) : Array[Float] = {
     var tFringe = fringe
     for(i:Int <- 0 until iterations){
+      println("Iteration!")
       tFringe = scalaBFSIteration(graph, tFringe)
     }
     tFringe
