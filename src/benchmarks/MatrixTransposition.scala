@@ -8,7 +8,9 @@ import opencl.ir.CompositePatterns._
 import org.clapper.argot.ArgotConverters._
 
 class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
-  extends Benchmark("Matrix Transposition)", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
+  extends Benchmark("Matrix Transposition", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
+
+  val defaultTileSize = 16
 
   val tileX = parser.option[Int](List("x", "tileX"), "size",
     "Tile size in the x dimension")
@@ -38,7 +40,14 @@ class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
   }
 
   override protected def beforeBenchmark() = {
-    f(1)._2(0) = MatrixTransposition.coalesced(tileX.value.getOrElse(16), tileY.value.getOrElse(16))
+    f(1)._2(0) = MatrixTransposition.coalesced(tileX.value.getOrElse(defaultTileSize),
+      tileY.value.getOrElse(defaultTileSize))
+  }
+
+  override protected def printParams() = {
+    if (variant == 1)
+      println("Tile sizes: " + tileX.value.getOrElse(defaultTileSize) +
+        ", " + tileY.value.getOrElse(defaultTileSize))
   }
 }
 
@@ -68,7 +77,7 @@ object MatrixTransposition {
 
   def apply() = new MatrixTransposition(
     Seq(("naive", Array[Lambda](naive)),
-      ("coalesced", Array[Lambda](coalesced(16, 16)))
+      ("coalesced", Array[Lambda](coalesced()))
     ))
 
   def main(args: Array[String]): Unit = {

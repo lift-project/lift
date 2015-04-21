@@ -50,6 +50,7 @@ object InputView {
           case tG: toGlobal => buildViewToGlobal(tG, argView)
           case i: Iterate => buildViewIterate(i, call, argView)
           case t: Transpose => buildViewTranspose(t, call, argView)
+          case tw: TransposeW => buildViewTransposeW(tw, call, argView)
           case asVector(n) => buildViewAsVector(n, argView)
           case _: asScalar => buildViewAsScalar(argView)
           case f: Filter => buildViewFilter(f, call, argView)
@@ -87,6 +88,8 @@ object InputView {
     // traverse into call.f
     val innerView = visitAndBuildViews(call.f.f.body)
 
+
+
     if (call.isConcrete) {
       // create fresh input view for following function
       View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
@@ -121,6 +124,8 @@ object InputView {
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).view = if (v != NoView) v else View.initialiseNewView(f.params(0).t, call.inputDepth)
+
+
       visitAndBuildViews(f.body)
     })
   }
@@ -170,6 +175,15 @@ object InputView {
         argView.
           join(n).
           reorder((i:ArithExpr) => { IndexFunction.transpose(i, call.t) }).
+          split(m)
+    }
+  }
+
+  private def buildViewTransposeW(tw: TransposeW, call: FunCall, argView: View): View = {
+    call.t match {
+      case ArrayType(ArrayType(typ, m), n) =>
+        argView.
+          join(n).
           split(m)
     }
   }
