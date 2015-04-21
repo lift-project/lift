@@ -113,7 +113,7 @@ object MatrixMultiplication {
                   fun(pairOfTiles =>
                     Tuple(
                       Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
-                      Barrier() o TransposeW() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(pairOfTiles, 1)
+                      Barrier() o TransposeW() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
                 , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
