@@ -66,6 +66,12 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
   override protected def beforeBenchmark() = {
     f(1)._2(0) = MatrixMultiplication.tiled(tileX.value.getOrElse(16))
   }
+
+  override protected def printResults(time: Double): Unit = {
+    val dNumOps = 2.0 * inputSizes()(0).toDouble * inputSizes()(1).toDouble * inputSizes()(2).toDouble
+    val gflops = 1.0e-6 * dNumOps/time
+    println("THROUGHPUT: " + gflops + " GFlops/s")
+  }
 }
 
 object MatrixMultiplication {

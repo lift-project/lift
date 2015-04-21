@@ -142,6 +142,10 @@ abstract class Benchmark(val name: String,
 
   protected def printParams(): Unit = {}
 
+  protected def printResults(time: Double): Unit = {
+    println("BANDWIDTH: " + bandwidth(time) + " GB/s" )
+  }
+
   def runBenchmark(): Unit = {
     val commit = "hg id -i".!!.dropRight(1)
 
@@ -191,8 +195,9 @@ abstract class Benchmark(val name: String,
     println()
     println("MIN: " + sorted(0) + " ms")
     println("MAX: " + sorted(iterations-1) + " ms")
-    println("MEDIAN: " + median(sorted) + " ms")
-    println("BANDWIDTH: " + bandwidth(median(sorted)) + " GB/s" )
+    val medianTime = median(sorted)
+    println("MEDIAN: " + medianTime + " ms")
+    printResults(medianTime)
     println()
   }
 
