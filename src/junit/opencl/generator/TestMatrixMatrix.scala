@@ -1143,7 +1143,7 @@ class TestMatrixMatrix {
 
     val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val f = MatrixMultiplication.coalesced(tileSize)
+    val f = MatrixMultiplication.tiled(tileSize)
 
     val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB, mSize, kSize, nSize)
 

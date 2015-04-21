@@ -64,7 +64,7 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
   }
 
   override protected def beforeBenchmark() = {
-    f(1)._2(0) = MatrixMultiplication.coalesced(tileX.value.getOrElse(16))
+    f(1)._2(0) = MatrixMultiplication.tiled(tileX.value.getOrElse(16))
   }
 }
 
@@ -75,7 +75,7 @@ object MatrixMultiplication {
 
   val naive = fun(
     ArrayType(ArrayType(Float, K), M),
-    ArrayType(ArrayType(Float, K), N),
+    ArrayType(ArrayType(Float, N), K),
     (A, B) => {
       MapWrg(fun( Arow =>
         Barrier() o MapLcl(fun( Bcol =>
@@ -84,9 +84,9 @@ object MatrixMultiplication {
       )) $ A
     })
 
-  def coalesced(tileSize: Int = 4) = fun(
+  def tiled(tileSize: Int = 4) = fun(
     ArrayType(ArrayType(Float, K), M),
-    ArrayType(ArrayType(Float, K), N),
+    ArrayType(ArrayType(Float, N), K),
     (A, B) => {
       // Undo the tiling
       Untile() o
@@ -113,20 +113,20 @@ object MatrixMultiplication {
                   fun(pairOfTiles =>
                     Tuple(
                       Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
-                      Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(pairOfTiles, 1)
+                      Barrier() o TransposeW() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
                 , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
               ) $ Zip(aRows, bCols)
 
-            // Tile the matrices
-          )) o Tile(tileSize) o Transpose() $ B
+          )) o Transpose() o Tile(tileSize) $ B
+          // Tile the matrices
         )) o Tile(tileSize) $ A
     })
 
   def apply() = new MatrixMultiplication(
     Seq(("naive", Array[Lambda](naive)),
-      ("coalesced", Array[Lambda](coalesced(16)))
+      ("tiled", Array[Lambda](tiled(16)))
     ))
 
 
