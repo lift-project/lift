@@ -47,6 +47,7 @@ object Type {
   def getBaseType(t: Type): Type = {
     t match {
       case at: ArrayType  => getBaseType(at.elemT)
+      case vt: VectorType => vt.scalarT
       case _ => t
     }
   }
