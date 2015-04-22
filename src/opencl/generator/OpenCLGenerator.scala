@@ -25,16 +25,19 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 object Debug {
   var debug = false
   def apply() = debug
+  def apply(debug: Boolean) = { this.debug = debug }
 }
 
 object Verbose {
   var verbose = true
   def apply() = verbose
+  def apply(verbose: Boolean) = { this.verbose = verbose }
 }
 
 object AllocateStatically{
   var allocateStatically = true
   def apply() = allocateStatically
+  def apply(allocateStatically: Boolean) = { this.allocateStatically = allocateStatically }
 }
 
 object OpenCL{
