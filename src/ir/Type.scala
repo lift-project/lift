@@ -52,6 +52,13 @@ object Type {
     }
   }
 
+  def getValueType(t: Type): Type = {
+    t match {
+      case at: ArrayType  => getValueType(at.elemT)
+      case _ => t
+    }
+  }
+
   def name(t: Type): String = {
     t match {
       case st: ScalarType => st.name

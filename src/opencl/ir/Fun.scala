@@ -112,6 +112,7 @@ case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
 
 object ReduceSeq {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
+  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
 }
 
 case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {

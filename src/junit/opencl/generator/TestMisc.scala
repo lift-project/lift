@@ -95,6 +95,27 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
+  @Test def mapValueArg(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.tabulate(inputSize)(_.toFloat)
+
+    val gold = inputData.map(_ + 3.0f)
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      (input) =>
+        MapGlb(fun(x => add(x, Value.FloatToValue(3.0f)))) $ input
+    )
+
+    val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
+    assertArrayEquals(gold, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def composeUserFunctionWithPattern(): Unit = {
 
     val Nsize = 512
@@ -104,7 +125,7 @@ class TestMisc {
 
     val function = fun(
       ArrayType(ArrayType(Float, Var("N")), Var("M")),
-      (input) => MapGlb(MapSeq(neg) o ReduceSeq(add, 0.0f)) $ input
+      (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
     val (output, runtime) = Execute(Nsize * Msize)(function, matrix, Nsize, Msize)

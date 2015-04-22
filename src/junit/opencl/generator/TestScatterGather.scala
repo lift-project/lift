@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.IndexFunction.reverse
 
 import org.junit.Assert._
-import org.junit.{Ignore, Test, AfterClass, BeforeClass}
+import org.junit.{Test, AfterClass, BeforeClass}
 
 object TestScatterGather {
   @BeforeClass def before() {

@@ -109,7 +109,7 @@ class TestTuple {
 
     val function = fun(
       ArrayType(TupleType(Float, Float), N),
-      input => ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
+      input => toGlobal(MapSeq(idFF)) o ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
     )
 
     val (output, runtime) = Execute(inputSize)(function, input, inputSize)
@@ -135,7 +135,7 @@ class TestTuple {
 
     val function = fun(
       ArrayType(TupleType(Float, Float), N),
-      input => ReduceSeq(addPair, (0.0f, 0.0f)) $ input
+      input => toGlobal(MapSeq(idFF)) o ReduceSeq(addPair, (0.0f, 0.0f)) $ input
     )
 
     val (output, runtime) = Execute(inputSize)(function, input, inputSize)

@@ -139,6 +139,7 @@ object OpenCLMemory {
     addressSpace match {
       case GlobalMemory => allocGlobalMemory(glbOutSize)
       case LocalMemory => allocLocalMemory(lclOutSize)
+      case PrivateMemory => allocPrivateMemory(4)
     }
   }
 
@@ -237,7 +238,7 @@ object OpenCLMemory {
 
       case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, inMem, outputMem)
 
-      case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem)
+      case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem, outputMem)
 
       case Zip(_) | Tuple(_) =>   allocZipTuple(inMem)
       case f: Filter =>           allocFilter(f, numGlb, numLcl, inMem)
@@ -317,7 +318,7 @@ object OpenCLMemory {
         if (r.f.params.length != 2) throw new NumberOfArgumentsException
         r.f.params(0).mem = initM
         r.f.params(1).mem = elemM
-        alloc(r.f.body, numGlb, numLcl, outputMem)
+        alloc(r.f.body, numGlb, numLcl, initM)
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
@@ -363,13 +364,21 @@ object OpenCLMemory {
   }
 
   private def allocCompFunDef(cf: CompFunDef, numGlb: ArithExpr, numLcl: ArithExpr,
-                              inMem: OpenCLMemory): OpenCLMemory = {
+                              inMem: OpenCLMemory, outMem: OpenCLMemory): OpenCLMemory = {
     // combine the parameter of the first function to call with the type inferred from the argument
+
+    val lastConcrete = cf.funs.find(_.body.isConcrete) match {
+      case Some(c) => c
+      case None => None
+    }
 
     cf.funs.foldRight(inMem)((f, mem) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).mem = mem
-      alloc(f.body, numGlb, numLcl)
+      if (f == lastConcrete) {
+        alloc(f.body, numGlb, numLcl, outMem)
+      } else
+        alloc(f.body, numGlb, numLcl)
     })
   }
 
@@ -378,15 +387,6 @@ object OpenCLMemory {
       case coll: OpenCLMemoryCollection =>
         if (coll.subMemories.length < 2) throw new NumberOfArgumentsException
         coll
-      case _ => throw new IllegalArgumentException("PANIC")
-    }
-  }
-
-  private def allocFilter(f: Filter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
-    inMem match {
-      case coll: OpenCLMemoryCollection =>
-        if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
-        coll.subMemories(0)
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
@@ -406,6 +406,15 @@ object OpenCLMemory {
     if (it.f.params.length != 1) throw new NumberOfArgumentsException
     it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl)
+  }
+
+  private def allocFilter(f: Filter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
+    inMem match {
+      case coll: OpenCLMemoryCollection =>
+        if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
+        coll.subMemories(0)
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
   }
 
   private def allocUserFun(maxGlbOutSize: ArithExpr, maxLclOutSize: ArithExpr,
@@ -455,7 +464,7 @@ object TypedOpenCLMemory {
     * @param expr Expression for witch the allocated memory objects should be gathered.
     * @return All memory objects which have been allocated for f.
     */
-  def getAllocatedMemory(expr: Expr, params: Array[Param]): Array[TypedOpenCLMemory] = {
+  def getAllocatedMemory(expr: Expr, params: Array[Param], includePrivate: Boolean = false): Array[TypedOpenCLMemory] = {
 
     // recursively visit all functions and collect input and output (and swap buffer for the iterate)
     val result = Expr.visit(Array[TypedOpenCLMemory]())(expr, (exp, arr) =>
@@ -474,7 +483,7 @@ object TypedOpenCLMemory {
 
               val inMem = TypedOpenCLMemory( call.args(1).mem, call.args(1).t )
 
-              arr :+ inMem :+ TypedOpenCLMemory(call.mem, call.t)
+              arr :+ inMem
 
             case z: Zip => arr ++ call.args.map( e => TypedOpenCLMemory(e.mem, e.t) )
 
@@ -482,8 +491,8 @@ object TypedOpenCLMemory {
 
             case _ => arr :+ TypedOpenCLMemory(call.argsMemory, call.argsType) :+ TypedOpenCLMemory(call.mem, call.t)
           }
-        case p: Param => arr :+ TypedOpenCLMemory(p.mem, p.t)
         case v: Value => arr
+        case p: Param => arr :+ TypedOpenCLMemory(p.mem, p.t)
       })
 
     val resultWithoutCollections = result.map(tm => tm.mem match {
@@ -502,7 +511,8 @@ object TypedOpenCLMemory {
 
           // m is in private memory but not an parameter => trow away
           || (   m.addressSpace == PrivateMemory
-              && params.find(p => p.mem == m) == None)) {
+              && params.find(p => p.mem == m) == None)
+              && !includePrivate) {
         arr
       } else {
         seen += m

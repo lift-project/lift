@@ -142,6 +142,10 @@ abstract class Benchmark(val name: String,
 
   protected def printParams(): Unit = {}
 
+  protected def printResults(time: Double): Unit = {
+    println("BANDWIDTH: " + bandwidth(time) + " GB/s" )
+  }
+
   def runBenchmark(): Unit = {
     val commit = "hg id -i".!!.dropRight(1)
 
@@ -179,7 +183,7 @@ abstract class Benchmark(val name: String,
 
         for (j <- 0 until scalaResult.length) {
           if (check(output(j), scalaResult(j))) {
-            println("Output at position " + j + " differs more than " + delta)
+            println("Output at position " + j + " differs more than " + delta + ". " + output(j) + " vs " + scalaResult(j))
 
           }
         }
@@ -191,13 +195,14 @@ abstract class Benchmark(val name: String,
     println()
     println("MIN: " + sorted(0) + " ms")
     println("MAX: " + sorted(iterations-1) + " ms")
-    println("MEDIAN: " + median(sorted) + " ms")
-    println("BANDWIDTH: " + bandwidth(median(sorted)) + " GB/s" )
+    val medianTime = median(sorted)
+    println("MEDIAN: " + medianTime + " ms")
+    printResults(medianTime)
     println()
   }
 
   protected def bandwidth(time: Double): Double = {
-    4 * inputSizes().product / time * 0.000001
+    4 * inputSizes().product.toDouble / time * 0.000001
   }
 
   protected def check(x: Float, y: Float): Boolean = {

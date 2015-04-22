@@ -95,7 +95,7 @@ class TestStencil {
       ArrayType(Float, Var("M")),
       (input, weights) => {
         MapGlb(
-          fun(neighbours => ReduceSeq(sumUp, 0.0f) o MapSeq(mult) $ Zip(weights, neighbours))
+          fun(neighbours => toGlobal(MapSeq(id)) o ReduceSeq(sumUp, 0.0f) o MapSeq(mult) $ Zip(weights, neighbours))
         ) o Group(relativeIndices, Group.edgeNeg, Group.edgePos) $ input
       }
     )
@@ -120,7 +120,7 @@ class TestStencil {
       ArrayType(Float, Var("M")),
       (input, weights) => {
         MapGlb(
-          fun(neighbours => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(neighbours, weights))
+          fun(neighbours => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(neighbours, weights))
         ) o Group(relativeIndices, Group.edgeNeg, Group.edgePos) $ input
       }
     )
@@ -151,7 +151,8 @@ class TestStencil {
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
-            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Join() $ neighbours, weights)))
+            toGlobal(MapSeq(id)) o
+              ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Join() $ neighbours, weights)))
         ) o Group2D(relColumns, relRows, edgeNeg, edgePos) $ matrix
       })
 

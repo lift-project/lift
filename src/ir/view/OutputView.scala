@@ -79,6 +79,8 @@ object OutputView {
   }
 
   private def buildViewReduceCall(call: ReduceCall, writeView: View): View = {
+    visitAndBuildViews(call.arg0,
+      View.initialiseNewView(call.arg0.t, call.inputDepth, call.arg0.mem.variable.name))
     // traverse into call.f
     visitAndBuildViews(call.f.f.body, writeView.access(Cst(0)))
     // create fresh input view for following function
@@ -90,7 +92,22 @@ object OutputView {
   }
 
   private def buildViewCompFunDef(cf: CompFunDef, writeView: View): View = {
-    cf.funs.foldLeft(writeView)((v, f) => visitAndBuildViews(f.body, v))
+    cf.funs.foldLeft(writeView)((v, f) => {
+      val resultView = visitAndBuildViews(f.body, v)
+
+      f.body match {
+        case call: FunCall =>
+          if (call.args.exists({
+            case call: FunCall => call.f.isInstanceOf[Zip] ||
+              call.f.isInstanceOf[Tuple]
+            case _ => false
+          }))
+            View.initialiseNewView(f.params.head.t, f.body.outputDepth)
+          else
+            resultView
+        case _ => resultView
+      }
+    })
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {

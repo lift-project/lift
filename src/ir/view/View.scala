@@ -150,7 +150,10 @@ object View {
 
 object ViewPrinter {
 
-  def emit(sv : View) : ArithExpr = emitView(sv, new Stack(), new Stack())
+  def emit(sv : View) : ArithExpr = {
+    assert(!sv.t.isInstanceOf[ArrayType])
+    emitView(sv, new Stack(), new Stack())
+  }
 
   private def emitView(sv : View,
                        arrayAccessStack : Stack[(ArithExpr, ArithExpr)], // id, dimension size
