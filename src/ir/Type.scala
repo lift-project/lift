@@ -44,6 +44,13 @@ object NoType extends Type {override def toString = "NoType"}
 
 object Type {
 
+  def getBaseType(t: Type): Type = {
+    t match {
+      case at: ArrayType  => getBaseType(at.elemT)
+      case _ => t
+    }
+  }
+
   def name(t: Type): String = {
     t match {
       case st: ScalarType => st.name

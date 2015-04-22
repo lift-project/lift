@@ -166,6 +166,9 @@ object OpenCLGenerator extends Generator {
     // generate kernel function signature
     oclPrinter.print("kernel void KERNEL(")
 
+    val (staticLocal, rest) = Kernel.memory.partition(isFixedSizeLocalMemory)
+    Kernel.memory = rest
+
     oclPrinter.printAsParameterDecl(Kernel.memory)
 
     // array of all unique vars (like N, iterSize, etc. )
@@ -195,8 +198,19 @@ object OpenCLGenerator extends Generator {
 
     // generate the body of the kernel
     oclPrinter.openCB()
+    staticLocal.foreach(oclPrinter.printVarDecl)
     generate(expr)
     oclPrinter.closeCB()
+  }
+
+  private def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
+    mem => try {
+      mem.mem.size.eval()
+      mem.mem.addressSpace == LocalMemory
+    } catch {
+      case _: NotEvaluableException =>
+        false
+    }
   }
 
   object Kernel {
