@@ -60,6 +60,12 @@ class OpenCLPrinter {
   def printVarDecl(t: Type, v: TypeVar, init: String) {
     print(toOpenCL(t)+" "+toOpenCL(v)+" = "+init)
   }
+
+  def printVarDecl(mem: TypedOpenCLMemory): Unit = {
+    val baseType = Type.getBaseType(mem.t)
+    println(mem.mem.addressSpace + " " + toOpenCL(baseType) + " " +
+      toOpenCL(mem.mem.variable) + "[" + toOpenCL(mem.mem.size / Type.getSize(baseType)) + "];")
+  }
 /*
   def printAsParameterDecl(input: Input) {
     val t = input.expectedOutT

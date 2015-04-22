@@ -23,12 +23,21 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  def apply() = { false }
+  var debug = false
+  def apply() = debug
+  def apply(debug: Boolean) = { this.debug = debug }
 }
 
 object Verbose {
   var verbose = true
-  def apply() = { verbose }
+  def apply() = verbose
+  def apply(verbose: Boolean) = { this.verbose = verbose }
+}
+
+object AllocateStatically{
+  var allocateStatically = true
+  def apply() = allocateStatically
+  def apply(allocateStatically: Boolean) = { this.allocateStatically = allocateStatically }
 }
 
 object OpenCL{
@@ -157,6 +166,20 @@ object OpenCLGenerator extends Generator {
     Kernel.memory = TypedOpenCLMemory.getAllocatedMemory(f.body, f.params)
   }
 
+  private def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
+    mem => try {
+      mem.mem.size.eval()
+      mem.mem.addressSpace == LocalMemory
+    } catch {
+      case _: NotEvaluableException =>
+        false
+    }
+  }
+
+  object Kernel {
+    var memory = Array.empty[TypedOpenCLMemory]
+    var workGroupSize = 128
+  }
 
   private def generateKernel(f: Lambda, workGroupSize: Int = 128) {
     val expr = f.body
@@ -165,6 +188,13 @@ object OpenCLGenerator extends Generator {
 
     // generate kernel function signature
     oclPrinter.print("kernel void KERNEL(")
+
+    val (staticLocal, rest) =
+      if (AllocateStatically())
+        Kernel.memory.partition(isFixedSizeLocalMemory)
+      else (Array.empty[TypedOpenCLMemory], Kernel.memory)
+
+    Kernel.memory = rest
 
     oclPrinter.printAsParameterDecl(Kernel.memory)
 
@@ -195,13 +225,9 @@ object OpenCLGenerator extends Generator {
 
     // generate the body of the kernel
     oclPrinter.openCB()
+    staticLocal.foreach(oclPrinter.printVarDecl)
     generate(expr)
     oclPrinter.closeCB()
-  }
-
-  object Kernel {
-    var memory = Array.empty[TypedOpenCLMemory]
-    var workGroupSize = 128
   }
 
 
