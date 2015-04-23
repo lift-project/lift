@@ -337,7 +337,9 @@ object OpenCLGenerator extends Generator {
   }
 
   private def generateValue(v: Value): Unit = {
-    oclPrinter.println(oclPrinter.toOpenCL(v.mem.variable) + " = " + v.value + ";")
+    val temp = Var("")
+    oclPrinter.printVarDecl(Type.getValueType(v.t), temp, v.value)
+    oclPrinter.println(oclPrinter.toOpenCL(v.mem.variable) + " = " + oclPrinter.toOpenCL(temp) + ";")
   }
 
   // === Iterate ===
