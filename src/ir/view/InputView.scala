@@ -46,6 +46,7 @@ object InputView {
           case ReorderStride(s) => buildViewReorderStride(s, call, argView)
           case g: Gather => buildViewGather(g, call, argView)
           case s: Scatter => buildViewScatter(s, call, argView)
+          case tP: toPrivate => buildViewToPrivate(tP, argView)
           case tL: toLocal => buildViewToLocal(tL, argView)
           case tG: toGlobal => buildViewToGlobal(tG, argView)
           case i: Iterate => buildViewIterate(i, call, argView)
@@ -79,6 +80,11 @@ object InputView {
   private def buildViewToLocal(tL: toLocal, argView: View): View = {
     tL.f.params(0).view = argView
     visitAndBuildViews(tL.f.body)
+  }
+
+  private def buildViewToPrivate(tP: toPrivate, argView: View): View = {
+    tP.f.params(0).view = argView
+    visitAndBuildViews(tP.f.body)
   }
 
   private def buildViewMapCall(call: MapCall, argView: View): View = {

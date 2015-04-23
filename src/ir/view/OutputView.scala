@@ -29,6 +29,7 @@ object OutputView {
           case uf: UserFunDef => buildViewUserFun(writeView, call)
           case s: Scatter => buildViewScatter(s, call, writeView)
           case g: Gather => buildViewGather(g, call, writeView)
+          case tP: toPrivate => buildViewToPrivate(tP, writeView)
           case tL: toLocal => buildViewToLocal(tL, writeView)
           case tG: toGlobal => buildViewToGlobal(tG, writeView)
           case i: Iterate => buildViewIterate(i, call, writeView)
@@ -64,6 +65,10 @@ object OutputView {
 
   private def buildViewToLocal(tL: toLocal, writeView: View): View = {
     visitAndBuildViews(tL.f.body, writeView)
+  }
+
+  private def buildViewToPrivate(tP: toPrivate, writeView: View): View = {
+    visitAndBuildViews(tP.f.body, writeView)
   }
 
   private def buildViewMapCall(call: MapCall, writeView: View): View = {
