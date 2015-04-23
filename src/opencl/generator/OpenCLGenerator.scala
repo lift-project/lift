@@ -253,6 +253,7 @@ object OpenCLGenerator extends Generator {
         case _: MapWarp => generateMapWarpCall(call)
         case _: MapLane => generateMapLaneCall(call)
         case _: MapSeq => generateMapSeqCall(call)
+        case _: MapUnroll => generateMapUnrollCall(call)
         case _: Map =>
       }
       case call: ReduceCall => call.f match {
@@ -324,6 +325,18 @@ object OpenCLGenerator extends Generator {
     oclPrinter.commln("map_seq")
   }
 
+  // MapUnroll
+  private def generateMapUnrollCall(call: MapCall) {
+    oclPrinter.commln("map_unroll")
+
+    oclPrinter.printVarDecl(Int, call.loopVar)
+    for (i <- 0 to call.iterationCount.eval()) {
+      oclPrinter.println(oclPrinter.toOpenCL(call.loopVar) =:= i)
+      generate(call.f.f.body)
+    }
+    oclPrinter.commln("map_unroll")
+  }
+
   // === Reduce ===
   private def generateReduceSeqCall(call: ReduceCall) {
 
@@ -348,9 +361,6 @@ object OpenCLGenerator extends Generator {
     val inputMem = OpenCLMemory.asOpenCLMemory(call.arg.mem)
     val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
     val swapMem = OpenCLMemory.asOpenCLMemory(call.swapBuffer)
-
-    println(inputMem.addressSpace)
-    println(outputMem.addressSpace)
 
     assert (inputMem.addressSpace == outputMem.addressSpace)
 
@@ -440,7 +450,7 @@ object OpenCLGenerator extends Generator {
   // helper functions to generate the actual OpenCL code
   private implicit class Operators(v: Any) {
     // generate assignment
-    def =:=(rhs: Any) : String = { this + " = " + rhs + ";\n" }
+    def =:=(rhs: Any) : String = { this + " = " + rhs + ";" }
 
     override def toString : String = v.toString
   }
