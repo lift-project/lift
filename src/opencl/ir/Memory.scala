@@ -249,7 +249,7 @@ object OpenCLMemory {
 
       case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, numPvt, inMem, outputMem, maxGlbOutSize)
       case tl: toLocal =>         allocToLocal(tl,    numGlb, numLcl, numPvt, inMem, outputMem, maxLclOutSize)
-      case tp: toPrivate =>       allocToPrivate(tp, numGlb, numLcl, numPvt, inMem, outputMem, maxLclOutSize)
+      case tp: toPrivate =>       allocToPrivate(tp, numGlb, numLcl, numPvt, inMem, outputMem, maxPvtOutSize)
 
       case g: Gather =>           allocGather(g, numGlb, numLcl, numPvt, inMem, outputMem)
       case s: Scatter =>          allocScatter(s, numGlb, numLcl, numPvt, inMem, outputMem)
@@ -380,12 +380,12 @@ object OpenCLMemory {
   }
 
   private def allocToPrivate(tp: toPrivate, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
-                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLclOutSize: ArithExpr): OpenCLMemory = {
+                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxPvtOutSize: ArithExpr): OpenCLMemory = {
     if (tp.f.params.length != 1) throw new NumberOfArgumentsException
     tp.f.params(0).mem = inMem
 
     val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != PrivateMemory) {
-      allocPrivateMemory(maxLclOutSize)
+      allocPrivateMemory(maxPvtOutSize)
     } else {
       outputMem
     }

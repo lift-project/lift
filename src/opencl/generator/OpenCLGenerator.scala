@@ -189,8 +189,15 @@ object OpenCLGenerator extends Generator {
     // generate kernel function signature
     oclPrinter.print("kernel void KERNEL(")
 
-    val privateMems = TypedOpenCLMemory.
-      getAllocatedMemory(f.body, f.params, includePrivate = true).diff(Kernel.memory)
+    val valMems = Expr.visit(Set[Value]())(expr, (expr, set) =>
+      expr match {
+        case value: Value => set + value
+        case _ => set
+      }).map(_.mem)
+
+    val (typedValueMems, privateMems) = TypedOpenCLMemory.
+      getAllocatedMemory(f.body, f.params, includePrivate = true).diff(Kernel.memory).
+      partition(m => valMems.contains(m.mem))
 
     val (staticLocal, rest) =
       if (AllocateStatically())
@@ -230,7 +237,8 @@ object OpenCLGenerator extends Generator {
     oclPrinter.openCB()
     // Print declarations for non parameter private memories and fixed size local memories
     staticLocal.foreach(oclPrinter.printVarDecl)
-    privateMems.foreach(m => oclPrinter.printVarDecl(Type.getValueType(m.t), m.mem.variable))
+    typedValueMems.foreach(m => oclPrinter.printVarDecl(Type.getValueType(m.t), m.mem.variable))
+    privateMems.foreach(m => oclPrinter.printVarDecl(m))
     generate(expr)
     oclPrinter.closeCB()
   }

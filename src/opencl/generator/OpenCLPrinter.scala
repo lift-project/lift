@@ -62,9 +62,13 @@ class OpenCLPrinter {
   }
 
   def printVarDecl(mem: TypedOpenCLMemory): Unit = {
-    val baseType = Type.getBaseType(mem.t)
-    println(mem.mem.addressSpace + " " + toOpenCL(baseType) + " " +
-      toOpenCL(mem.mem.variable) + "[" + toOpenCL(mem.mem.size / Type.getSize(baseType)) + "];")
+    if (mem.mem.addressSpace != PrivateMemory) {
+      val baseType = Type.getBaseType(mem.t)
+      println(mem.mem.addressSpace + " " + toOpenCL(baseType) + " " +
+        toOpenCL(mem.mem.variable) + "[" + toOpenCL(mem.mem.size / Type.getSize(baseType)) + "];")
+    } else {
+      printVarDecl(Type.getValueType(mem.t), mem.mem.variable)
+    }
   }
 /*
   def printAsParameterDecl(input: Input) {

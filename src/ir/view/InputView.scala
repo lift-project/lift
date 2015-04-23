@@ -94,8 +94,6 @@ object InputView {
     // traverse into call.f
     val innerView = visitAndBuildViews(call.f.f.body)
 
-
-
     if (call.isConcrete) {
       // create fresh input view for following function
       View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
@@ -130,7 +128,6 @@ object InputView {
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).view = if (v != NoView) v else View.initialiseNewView(f.params(0).t, call.inputDepth)
-
 
       visitAndBuildViews(f.body)
     })
