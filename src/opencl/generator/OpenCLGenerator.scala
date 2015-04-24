@@ -201,8 +201,6 @@ object OpenCLGenerator extends Generator {
       getAllocatedMemory(f.body, f.params, includePrivate = true).diff(Kernel.memory).
       partition(m => valMems.contains(m.mem))
 
-    println("vals " + valMems.map(_.variable).map(oclPrinter.toOpenCL).mkString(", "))
-
     this.privateMems = privateMems
 
     val (staticLocal, rest) =
@@ -267,7 +265,6 @@ object OpenCLGenerator extends Generator {
         case _: MapWarp => generateMapWarpCall(call)
         case _: MapLane => generateMapLaneCall(call)
         case _: MapSeq => generateMapSeqCall(call)
-        case _: MapUnroll => generateMapUnrollCall(call)
         case _: Map =>
       }
       case call: ReduceCall => call.f match {
@@ -335,21 +332,11 @@ object OpenCLGenerator extends Generator {
   // MapSeq
   private def generateMapSeqCall(call: MapCall) {
     oclPrinter.commln("map_seq")
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
+    println(call)
+    generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
+      (call.arg.containsPrivate && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
+        call.addressSpace == PrivateMemory)
     oclPrinter.commln("map_seq")
-  }
-
-  // MapUnroll
-  private def generateMapUnrollCall(call: MapCall) {
-    oclPrinter.commln("map_unroll")
-
-//    oclPrinter.printVarDecl(Int, call.loopVar)
-    for (i <- 0 until call.iterationCount.eval()) {
-//      oclPrinter.println(oclPrinter.toOpenCL(call.loopVar) =:= i)
-      replacements = replacements.updated(call.loopVar, i)
-      generate(call.f.f.body)
-    }
-    oclPrinter.commln("map_unroll")
   }
 
   // === Reduce ===
@@ -358,7 +345,8 @@ object OpenCLGenerator extends Generator {
     oclPrinter.openCB()
     oclPrinter.commln("reduce_seq")
 
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
+    generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
+      call.arg1.containsPrivate)
 
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
@@ -421,7 +409,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.println(" ;")
 
     oclPrinter.println("#pragma unroll 1")
-    oclPrinter.generateLoop(call.indexVar, () => {
+    generateLoop(call.indexVar, () => {
 
       // modify the pointers to the memory before generating the body
       val oldInV = inputMem.variable
@@ -445,7 +433,7 @@ object OpenCLGenerator extends Generator {
       oclPrinter.println(tinVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + swapVStr + ":" + outVStr + ";")
       // tout = (tout == swap) ? out : swap
       oclPrinter.println(toutVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + outVStr + ":" + swapVStr + ";")
-    }, call.iterationCount)
+    }, call.iterationCount, call.arg.containsPrivate || call.addressSpace == PrivateMemory)
 
     oclPrinter.closeCB()
   }
@@ -458,6 +446,20 @@ object OpenCLGenerator extends Generator {
     oclPrinter.generateFunCall(call, access(call.args:_*))
 
     oclPrinter.println(";")
+  }
+
+  private def generateLoop(indexVar: Var, printBody: () => Unit, iterationCount: ArithExpr = ?, unroll: Boolean = false): Unit = {
+    if (unroll) {
+      oclPrinter.commln("unroll")
+
+      for (i <- 0 until iterationCount.eval()) {
+        replacements = replacements.updated(indexVar, i)
+        printBody()
+      }
+      oclPrinter.commln("unroll")
+    } else {
+      oclPrinter.generateLoop(indexVar, printBody)
+    }
   }
 
   // === Utilities ===

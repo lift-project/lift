@@ -44,6 +44,7 @@ public class JavaTest {
             jFloat.getSingleton());
 
     UserFunDef neg = jUserFunDef.create("neg", "x", "{ return -x; }", jFloat.getSingleton(), jFloat.getSingleton());
+    UserFunDef id = jUserFunDef.create("id", "x", "{ return x; }", jFloat.getSingleton(), jFloat.getSingleton());
 
     UserFunDef distance = jUserFunDef.create("dist", jStringArray.create("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
     UserFunDef minimum = jUserFunDef.create("minimum", jStringArray.create("x", "y"), "{ return x._0 < y._0 ? x : y; }", jTypeArray.create(jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton())), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
@@ -250,9 +251,11 @@ public class JavaTest {
 
         Lambda1 reduce = jReduceSeq.create(add, Value.FloatToValue(0.0f));
 
+        Lambda mapId = Lambda.FunDefToLambda(jToGlobal.create(Lambda.FunDefToLambda(jMapSeq.create(id))));
+
         Expr zip2 = jZip.call(undef0, undef1);
 
-        FunCall f = reduce.comp(map).call(zip2);
+        FunCall f = mapId.comp(reduce.comp(map)).call(zip2);
 
         Lambda1 l = new Lambda1(new Param[]{undef1}, f);
         Lambda ms = Lambda.FunDefToLambda(jMapSeq.create(l));

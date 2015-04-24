@@ -26,7 +26,6 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
           case _: MapWarp => setRangeMapWarp(call)
           case _: MapLane => setRangeMapLane(call)
           case _: MapSeq => setRangeMapSeq(call)
-          case _: MapUnroll => setRangeMapSeq(call)
           case _ =>
         }
         call.f match {
