@@ -112,8 +112,8 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Barrier() o toGlobal(MapLcl(plusOne)) o
-        Barrier() o toPrivate(MapLcl(id)))
+      in => Join() o MapWrg(Join() o Barrier() o MapLcl(toGlobal(MapUnroll(id))
+        o toPrivate(MapUnroll(plusOne))) o Split(1))
         o Split(4) $ in
     )
 
@@ -147,7 +147,6 @@ class TestAddressSpaces {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Ignore
   @Test def privateArray(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)

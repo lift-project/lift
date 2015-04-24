@@ -47,6 +47,8 @@ object OpenCL{
 object OpenCLGenerator extends Generator {
 
   var oclPrinter: OpenCLPrinter = null
+  var replacements = collection.immutable.Map[ArithExpr, ArithExpr]()
+  var privateMems = Array[TypedOpenCLMemory]()
 
   private def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, (e: Expr) => e match {
@@ -189,15 +191,19 @@ object OpenCLGenerator extends Generator {
     // generate kernel function signature
     oclPrinter.print("kernel void KERNEL(")
 
-    val valMems = Expr.visit(Set[Value]())(expr, (expr, set) =>
+    val valMems = Expr.visit(Set[Memory]())(expr, (expr, set) =>
       expr match {
-        case value: Value => set + value
+        case value: Value => set + value.mem
         case _ => set
-      }).map(_.mem)
+      })
 
     val (typedValueMems, privateMems) = TypedOpenCLMemory.
       getAllocatedMemory(f.body, f.params, includePrivate = true).diff(Kernel.memory).
       partition(m => valMems.contains(m.mem))
+
+    println("vals " + valMems.map(_.variable).map(oclPrinter.toOpenCL).mkString(", "))
+
+    this.privateMems = privateMems
 
     val (staticLocal, rest) =
       if (AllocateStatically())
@@ -337,9 +343,10 @@ object OpenCLGenerator extends Generator {
   private def generateMapUnrollCall(call: MapCall) {
     oclPrinter.commln("map_unroll")
 
-    oclPrinter.printVarDecl(Int, call.loopVar)
-    for (i <- 0 to call.iterationCount.eval()) {
-      oclPrinter.println(oclPrinter.toOpenCL(call.loopVar) =:= i)
+//    oclPrinter.printVarDecl(Int, call.loopVar)
+    for (i <- 0 until call.iterationCount.eval()) {
+//      oclPrinter.println(oclPrinter.toOpenCL(call.loopVar) =:= i)
+      replacements = replacements.updated(call.loopVar, i)
       generate(call.f.f.body)
     }
     oclPrinter.commln("map_unroll")
@@ -446,9 +453,9 @@ object OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFunDef, call: FunCall) = {
     assert(call.f == u)
 
-    oclPrinter.print(access(call.mem, call.t, call.view) + " = ")
+    oclPrinter.print(access(call) + " = ")
 
-    oclPrinter.generateFunCall(call, access(call.argsMemory, call.argsType, call.args.map(_.view):_*))
+    oclPrinter.generateFunCall(call, access(call.args:_*))
 
     oclPrinter.println(";")
   }
@@ -467,43 +474,41 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
 
-  private def access(memory: Memory, t: Type, views: View*): String = {
-    val oclMem = OpenCLMemory.asOpenCLMemory(memory)
+  private def access(arg: Expr): String = {
+    val oclMem = OpenCLMemory.asOpenCLMemory(arg.mem)
+    val t = arg.t
+    val view = arg.view
 
-    oclMem match {
-      case coll: OpenCLMemoryCollection =>
-        t match {
-          case tt: TupleType =>
-            assert(tt.elemsT.length == coll.subMemories.length)
+    oclMem.addressSpace match {
+      case GlobalMemory =>
 
-            assert(views.length == coll.subMemories.length)
-            ((coll.subMemories zip tt.elemsT) zip views).map({
-              case ((m, ty), af) => access(m, ty, af)
-            } ).reduce(_ + ", " + _)
+        "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
+          oclPrinter.toOpenCL(oclMem.variable) +
+          "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacements)) + "])"
+
+      case LocalMemory =>
+
+        "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
+          oclPrinter.toOpenCL(oclMem.variable) +
+          "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacements)) + "])"
+
+      case PrivateMemory =>
+        privateMems.find(m => m.mem.variable == oclMem.variable) match {
+          case None => oclPrinter.toOpenCL(oclMem.variable)
+          case Some(typedMemory) =>
+            typedMemory.t match {
+              case _: ArrayType =>
+                oclPrinter.toOpenCL(oclMem.variable) + "_" +
+                  oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacements))
+              case _ => oclPrinter.toOpenCL(oclMem.variable)
+            }
         }
 
-      case _ =>
-        oclMem.addressSpace match {
-          case GlobalMemory =>
-
-            "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
-              oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
-
-          case LocalMemory =>
-
-            "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
-              oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(ViewPrinter.emit(views(0))) + "])"
-
-          case PrivateMemory =>
-            oclPrinter.toOpenCL(oclMem.variable)
-
-          case _ => throw new NotImplementedError()
-        }
+      case _ => throw new NotImplementedError()
     }
   }
 
-
-
+  private def access(args: Expr*): String = {
+    args.map(access).mkString(", ")
+  }
 }
