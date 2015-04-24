@@ -47,7 +47,7 @@ public class Executor {
         int platformId = 0;
         int deviceId = 0;
 
-        if (!platform.equals("")) {
+        if (platform != null) {
             try {
                 platformId = Integer.parseInt(platform);
             } catch (NumberFormatException e) {
@@ -55,7 +55,7 @@ public class Executor {
             }
         }
 
-        if (!device.equals("")) {
+        if (device != null) {
             try {
                 deviceId = Integer.parseInt(device);
             } catch (NumberFormatException e) {
