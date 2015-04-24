@@ -240,6 +240,11 @@ object ArithExpr {
 
     newExpr = newExpr match {
       case Pow(l,r) => Pow(substitute(l,substitutions),substitute(r,substitutions))
+      case Fraction(n, d) => Fraction(substitute(n, substitutions), substitute(d, substitutions))
+      case Mod(dividend, divisor) => Mod(substitute(dividend, substitutions), substitute(divisor, substitutions))
+      case Log(b,x) => Log(substitute(b, substitutions), substitute(x, substitutions))
+      case And(l, r) => And(substitute(l, substitutions), substitute(r, substitutions))
+      case Floor(expr) => Floor(substitute(expr, substitutions))
       case adds: Sum => Sum(adds.terms.map(t => substitute(t, substitutions)))
       case muls: Prod => Prod(muls.factors.map(t => substitute(t, substitutions)))
       case _ => newExpr
@@ -415,7 +420,7 @@ case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extend
     hash * 79 + id
   }
 
-  override def toString = if (name == "") "v_"+id else name
+  override def toString = if (name == "") "v_"+id else name + "_" + id
 
   def updateRange(func: (arithmetic.Range) => arithmetic.Range): Unit = {
     if (range != RangeUnknown) {
