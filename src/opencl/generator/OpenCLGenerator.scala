@@ -332,7 +332,6 @@ object OpenCLGenerator extends Generator {
   // MapSeq
   private def generateMapSeqCall(call: MapCall) {
     oclPrinter.commln("map_seq")
-    println(call)
     generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
       (call.arg.containsPrivate && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
         call.addressSpace == PrivateMemory)
@@ -458,7 +457,7 @@ object OpenCLGenerator extends Generator {
       }
       oclPrinter.commln("unroll")
     } else {
-      oclPrinter.generateLoop(indexVar, printBody)
+      oclPrinter.generateLoop(indexVar, printBody, iterationCount)
     }
   }
 
