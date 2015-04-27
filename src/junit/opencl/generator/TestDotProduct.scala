@@ -1,10 +1,10 @@
 package opencl.generator
 
+import arithmetic.Var
 import benchmarks.DotProduct
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import ir._
 
 object TestDotProduct {
   @BeforeClass def before() {

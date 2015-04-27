@@ -1,4 +1,4 @@
-package ir;
+package ir.interop;
 
 @FunctionalInterface
 public interface QuadFunction<A,B,C,D,R> {

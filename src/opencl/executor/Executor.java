@@ -40,7 +40,31 @@ public class Executor {
 
     public native static void init(int platformId, int deviceId);
 
-    public native static void init();
+    public static void init() {
+        String platform = System.getenv("APART_PLATFORM");
+        String device = System.getenv("APART_DEVICE");
+
+        int platformId = 0;
+        int deviceId = 0;
+
+        if (platform != null) {
+            try {
+                platformId = Integer.parseInt(platform);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid platform id specified, using default.");
+            }
+        }
+
+        if (device != null) {
+            try {
+                deviceId = Integer.parseInt(device);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid device id specified, using default.");
+            }
+        }
+
+        init(platformId, deviceId);
+    }
 
     public native static void shutdown();
 

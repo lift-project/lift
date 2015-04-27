@@ -1,9 +1,11 @@
 package benchmarks
 
+import arithmetic.Var
 import ir._
+import ir.UserFunDef._
 import opencl.ir._
 
-class MolecularDynamics(override val f: Seq[(String, Seq[Lambda])]) extends Benchmark("Molecular Dynamics (md)", Seq(1024, 128), f, 0.1f) {
+class MolecularDynamics(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Molecular Dynamics (md)", Seq(1024, 128), f, 0.1f) {
   var scalaInput: Array[(Float, Float, Float, Float)] = Array()
 
   override def runScala(inputs: Any*): Array[Float] = {
@@ -93,9 +95,10 @@ object MolecularDynamics {
     (particles, neighbourIds, cutsq, lj1, lj2) =>
       Join() o MapWrg(
         Barrier() o MapLcl(fun(p =>
+          toGlobal(MapSeq(Vectorize(4)(id))) o
           ReduceSeq(fun((force, n) =>
             MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
-          ), Value("{0.0f, 0.0f, 0.0f, 0.0f}", Float4)) $ Filter(particles, Get(p, 1))
+          ), Value(0.0f, Float4)) $ Filter(particles, Get(p, 1))
         ))
       ) o Split(128) $ Zip(particles, Transpose() $ neighbourIds)
   )
@@ -167,7 +170,7 @@ object MolecularDynamics {
     neighbourList
   }
 
-  def apply() = new MolecularDynamics(Seq(("md", Seq(shoc))))
+  def apply() = new MolecularDynamics(Seq(("md", Array[Lambda](shoc))))
 
   def main(args: Array[String]): Unit = {
     MolecularDynamics().run(args)

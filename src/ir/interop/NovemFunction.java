@@ -1,4 +1,4 @@
-package ir;
+package ir.interop;
 
 @FunctionalInterface
 public interface NovemFunction<A,B,C,D,E,F,G,H,I,R> {

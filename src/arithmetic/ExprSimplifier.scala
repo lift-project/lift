@@ -1,4 +1,4 @@
-package ir
+package arithmetic
 
 object ExprSimplifier {
 
@@ -98,7 +98,7 @@ object ExprSimplifier {
       case Mod(Cst(_), Cst(_)) => m.eval()
       case Mod(Sum(terms), d) =>
         // (A + B) mod C = (A mod C + B mod C) mod C
-        val newDividend = simplify(Sum(terms.map(t  =>simplify(Mod(t, d)))))
+        val newDividend = simplify(Sum(terms.map(Mod(_, d))))
         newDividend match {
           case Sum(newTerms) =>
             if (newTerms.length < terms.length) {
@@ -114,33 +114,53 @@ object ExprSimplifier {
         m
       case Mod(Prod(dividendFactors), Prod(divisorFactors)) =>
         val common = dividendFactors.intersect(divisorFactors)
-        if (common.length == divisorFactors.length)
+        val diff = dividendFactors.diff(divisorFactors)
+        if (common.length == divisorFactors.length && !hasDivision(diff))
           return Cst(0)
-
         m
       case Mod(Prod(factors), d) =>
         // (A * B) mod C = (A mod C * B mod C) mod C
-        val newDividend = simplify(Prod(factors.map(t  =>simplify(Mod(t, d)))))
-        newDividend match {
-          case Prod(newFactors) =>
-            if (newFactors.length < factors.length){
-              val removedMods = newFactors.map({
-                case Mod(dividend, m.divisor) => dividend
-                case t => t
-              })
-              return Mod(Prod(removedMods), d)
-            }
-          case _ => return simplify(Mod(newDividend, d))
-        }
+        val newDividend = simplify(Prod(factors.map(Mod(_, d))))
+        if (!hasDivision(factors))
+          newDividend match {
+            case Prod(newFactors) =>
+              if (newFactors.length < factors.length){
+                val removedMods = newFactors.map({
+                  case Mod(dividend, m.divisor) => dividend
+                  case t => t
+                })
+                return Mod(Prod(removedMods), d)
+              }
+            case _ => return simplify(Mod(newDividend, d))
+          }
         m
       case _ => m
     }
   }
 
+  private def hasDivision(factors: List[ArithExpr]): Boolean = {
+    factors.exists(isDivision)
+  }
+
+  private def isDivision: (ArithExpr) => Boolean = {
+    case Pow(_, Cst(-1)) => true
+    case _ => false
+  }
+
   private def isSmaller(ae1: ArithExpr, ae2: ArithExpr): Boolean = {
     try {
       // TODO: Assuming range.max is non-inclusive
-      if (ae1.atMax == ae2 || ae1.atMax.eval() <= ae2.eval())
+      val atMax = ae1.atMax
+
+      atMax match {
+        case Prod(factors) if hasDivision(factors) =>
+          val newProd = ExprSimplifier.simplify(Prod(factors.filter(!isDivision(_))))
+          if (newProd == ae2)
+            return true
+        case _ =>
+      }
+
+      if (atMax == ae2 || atMax.eval() <= ae2.eval())
         return true
     } catch {
       case e: NotEvaluableException =>
@@ -311,7 +331,7 @@ object ExprSimplifier {
     sum
   }
 
-  // constant folding
+  /** Constant folding*/
   private def cstFolding(l : List[ArithExpr], op : ((Double,Double) => Double), neutral: Int) : List[ArithExpr] = {
 
     // fixed point iteration until everything has been folded

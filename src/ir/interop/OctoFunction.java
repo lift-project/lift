@@ -1,4 +1,4 @@
-package ir;
+package ir.interop;
 
 @FunctionalInterface
 public interface OctoFunction<A,B,C,D,E,F,G,H,R> {

@@ -1,4 +1,4 @@
-package ir
+package arithmetic
 
 import org.junit.Assert._
 import org.junit.Test
@@ -272,6 +272,18 @@ class TestExpr {
 
   @Test def minusOneTimesMinusFive(): Unit = {
     assertEquals(Cst(5), ExprSimplifier.simplify(Cst(-1) * Cst(-5)))
+  }
+
+  @Test def modBug(): Unit = {
+    val n = Var("n")
+    val l = Var("l", ContinuousRange(0, 4))
+    val wg = Var("wg", ContinuousRange(0, n/4))
+
+    assertEquals(Cst(0), ExprSimplifier.simplify((l * n/4) % (n/4)))
+    assertEquals(wg, ExprSimplifier.simplify(wg % (n/4)))
+    assertEquals(wg, ExprSimplifier.simplify((wg + l * n/4) % (n/4)))
+    assertEquals(wg, ExprSimplifier.simplify(wg % n))
+    assertEquals(l * n/4, ExprSimplifier.simplify((l * n/4) % n))
   }
 
   @Test def simplifyAccess(): Unit = {

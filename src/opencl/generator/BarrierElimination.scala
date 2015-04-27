@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.{Fraction, Cst, ?, ArithExpr}
 import ir._
 import opencl.ir._
 
@@ -36,7 +37,7 @@ object BarrierElimination {
 
   private def markFunCall(cf: CompFunDef, insideLoop: Boolean): Unit = {
     val lambdas = cf.funs
-    val c = lambdas.count(isConcrete)
+    val c = lambdas.count(_.body.isConcrete)
 
     var next = lambdas
     var groups = Seq[Seq[Lambda]]()
@@ -46,13 +47,13 @@ object BarrierElimination {
       // Partition the functions into groups such that the last element
       // of a group is concrete, except possibly in the last group
       while (next.nonEmpty) {
-        val prefixLength = next.prefixLength(!isConcrete(_))
+        val prefixLength = next.prefixLength(_.body.isAbstract)
         groups = groups :+ next.take(prefixLength + 1)
         next = next.drop(prefixLength + 1)
       }
 
       // If it is not concrete, then there can't be a barrier
-      if (!isConcrete(groups.last.last))
+      if (groups.last.last.body.isAbstract)
         groups = groups.init
 
       val needsBarrier = Array.fill(groups.length)(false)
@@ -62,24 +63,29 @@ object BarrierElimination {
       needsBarrier(0) = !(barrierInHead && (finalReadMemory == GlobalMemory ||
         finalReadMemory == LocalMemory && !insideLoop))
 
-      println("groups " + groups.mkString(", "))
-
       groups.zipWithIndex.foreach(x => {
         val group = x._1
         val id = x._2
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
-        if (group.exists(l => isSplit(l) || isJoin(l)))
+        if (group.exists(l => isSplit(l) || isJoin(l)) && id > 0) {
           needsBarrier(id) = true
+
+          // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
+          // But it doesn't matter at which point.
+          if (group.last.body.containsLocal && id > 1 && insideLoop &&
+            !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
+            needsBarrier(id - 1) = true
+        }
 
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
-        if (group.exists(isScatter) || group.init.exists(isGather)) {
+        if (group.exists(isScatter) || group.init.exists(isGather) || group.exists(isTranspose)) {
           needsBarrier(id) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (writesTo(group.last) == LocalMemory && id > 1 && insideLoop &&
+          if (group.last.body.containsLocal && id > 1 && insideLoop &&
             !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
@@ -95,8 +101,6 @@ object BarrierElimination {
             needsBarrier(id) = true
         }
       })
-
-      println(needsBarrier.mkString(", "))
 
       (groups, needsBarrier).zipped.foreach((group, valid) => if (!valid) invalidateBarrier(group))
     }
@@ -146,6 +150,11 @@ object BarrierElimination {
     l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Split]
   }
 
+  private def isTranspose(l: Lambda): Boolean = {
+    l.body.isInstanceOf[FunCall] &&
+      (l.body.asInstanceOf[FunCall].f.isInstanceOf[Transpose] || l.body.asInstanceOf[FunCall].f.isInstanceOf[TransposeW])
+  }
+
   private def isJoin(l: Lambda): Boolean = {
     l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Join]
   }
@@ -157,41 +166,19 @@ object BarrierElimination {
     }
   }
 
-  private def isConcrete(l: Lambda): Boolean = {
-    Expr.visit[Boolean](false)(l.body, (e, b) => {
-      e match {
+  def readsFrom(lambda: Lambda): OpenCLAddressSpace = {
+    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(lambda.body, (expr, addressSpace) => {
+      expr match {
         case call: FunCall =>
           call.f match {
-            case _: UserFunDef => true
-            case _ => b
+            case uf: UserFunDef =>
+              if (addressSpace == UndefAddressSpace)
+                OpenCLMemory.asOpenCLMemory(call.args(0).mem).addressSpace
+              else
+                addressSpace
+            case _ => addressSpace
           }
-        case _ => b
-      }
-    })
-  }
-
-  private def readsFrom(l:Lambda): OpenCLAddressSpace = {
-    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(l.body, (e, b) => {
-      e match {
-        case call: FunCall =>
-          call.f match {
-            case uf: UserFunDef => if (b == UndefAddressSpace) OpenCLMemory.asOpenCLMemory(call.args(0).mem).addressSpace else b
-            case _ => b
-          }
-        case _ => b
-      }
-    })
-  }
-
-  private def writesTo(l:Lambda): OpenCLAddressSpace = {
-    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(l.body, (e, b) => {
-      e match {
-        case call: FunCall =>
-          call.f match {
-            case uf: UserFunDef => if (b == UndefAddressSpace) OpenCLMemory.asOpenCLMemory(call.mem).addressSpace else b
-            case _ => b
-          }
-        case _ => b
+        case _ => addressSpace
       }
     })
   }

@@ -1,10 +1,10 @@
-package ir
+package arithmetic
 
+import ir._
 
 import scala.collection.immutable
+import scala.language.implicitConversions
 import scala.util.Random
-
-import language.implicitConversions
 
 class NotEvaluableException(msg: String) extends Exception(msg)
 
@@ -30,15 +30,15 @@ abstract sealed class ArithExpr {
   }
 
   def atMax: ArithExpr = {
-    val vars = Var.getVars(this)
-    val exprFunctions = ArithExprFunction.getArithExprFuns(this)
+    val vars = Var.getVars(this).filter(_.range.max != ?)
+    val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.max != ?)
     val maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
 
   def atMin: ArithExpr = {
-    val vars = Var.getVars(this)
-    val exprFunctions = ArithExprFunction.getArithExprFuns(this)
+    val vars = Var.getVars(this).filter(_.range.min != ?)
+    val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.min != ?)
     val maxLens = vars.map(_.range.min) ++ exprFunctions.map(_.range.min)
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
@@ -240,6 +240,11 @@ object ArithExpr {
 
     newExpr = newExpr match {
       case Pow(l,r) => Pow(substitute(l,substitutions),substitute(r,substitutions))
+      case Fraction(n, d) => Fraction(substitute(n, substitutions), substitute(d, substitutions))
+      case Mod(dividend, divisor) => Mod(substitute(dividend, substitutions), substitute(divisor, substitutions))
+      case Log(b,x) => Log(substitute(b, substitutions), substitute(x, substitutions))
+      case And(l, r) => And(substitute(l, substitutions), substitute(r, substitutions))
+      case Floor(expr) => Floor(substitute(expr, substitutions))
       case adds: Sum => Sum(adds.terms.map(t => substitute(t, substitutions)))
       case muls: Prod => Prod(muls.factors.map(t => substitute(t, substitutions)))
       case _ => newExpr
@@ -351,7 +356,7 @@ case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
 }
 
-case class ArithExprFunction(var range: Range = RangeUnknown) extends ArithExpr
+case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr
 
 object ArithExprFunction {
 
@@ -365,14 +370,14 @@ object ArithExprFunction {
   }
 }
 
-// a special variable that should only be used for defining function type
-class TypeVar private(range : Range) extends Var("", range) {
+/** a special variable that should only be used for defining function type*/
+class TypeVar private(range : arithmetic.Range) extends Var("", range) {
   override def toString = "t" + id
 }
 
 object TypeVar {
   //var cnt: Int = -1
-  def apply(range : Range = RangeUnknown) = {
+  def apply(range : arithmetic.Range = RangeUnknown) = {
     //cnt = cnt+1
     new TypeVar(/*cnt, */range)
   }
@@ -400,9 +405,7 @@ object TypeVar {
   }
 }
 
-class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
-
-case class Var(name: String, var range : Range = RangeUnknown) extends ArithExpr {
+case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extends ArithExpr {
 
   Var.cnt += 1
   val id: Int = Var.cnt
@@ -417,9 +420,9 @@ case class Var(name: String, var range : Range = RangeUnknown) extends ArithExpr
     hash * 79 + id
   }
 
-  override def toString = if (name == "") "v_"+id else name
+  override def toString = if (name == "") "v_"+id else name + "_" + id
 
-  def updateRange(func: (Range) => Range): Unit = {
+  def updateRange(func: (arithmetic.Range) => arithmetic.Range): Unit = {
     if (range != RangeUnknown) {
       range = func(range)
     }
@@ -428,14 +431,14 @@ case class Var(name: String, var range : Range = RangeUnknown) extends ArithExpr
 }
 
 object jVar {
-  def create(name: String, range: Range) = Var(name, range)
+  def create(name: String, range: arithmetic.Range) = Var(name, range)
   def create(name: String) = Var(name)
 }
 
 object Var {
   var cnt: Int = -1
 
-  def apply(range : Range) : Var = new Var("",range)
+  def apply(range : arithmetic.Range) : Var = new Var("",range)
 
 
   def setVarsAtRandom(vars : Set[Var]) : scala.collection.immutable.Map[Var, Cst] = {

@@ -1,10 +1,19 @@
 package opencl.ir
 
-import java.util.function.BiFunction
-
+import arithmetic.{ArithExprFunction, Var, ArithExpr}
 import ir._
 
 import language.implicitConversions
+
+object CompositePatterns {
+
+  def Tile(size: Int): CompFunDef = Tile(size, size)
+
+  def Tile(x: Int, y: Int) =
+    Map(Map(Transpose()) o Split(y) o Transpose()) o Split(x)
+
+  def Untile() = Join() o Map(Map(Join()) o TransposeW())
+ }
 
 case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
   override def apply(args: Expr*) : MapCall = {
@@ -21,11 +30,6 @@ object MapGlb {
   def apply(f: Lambda1) = new MapGlb(0, f) // 0 is default
 
   def apply(dim: Int) = (f: Lambda) => new MapGlb(dim, f)
-}
-
-object jMapGlb {
-  def create(f: Lambda1) = MapGlb(f)
-  def create(f: FunDecl) = MapGlb(Lambda1.FunDefToLambda(f))
 }
 
 case class MapWrg(dim: Int, f: Lambda1) extends GenerableMap(f) {
@@ -45,11 +49,6 @@ object MapWrg {
   def apply(dim: Int) = (f: Lambda1) => new MapWrg(dim, f)
 }
 
-object jMapWrg {
-  def create(f: Lambda1) = MapWrg(f)
-  def create(f: FunDecl) = MapWrg(Lambda1.FunDefToLambda(f))
-}
-
 case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
@@ -67,11 +66,6 @@ object MapLcl {
   def apply(dim: Int) = (f: Lambda1) => new MapLcl(dim, f)
 }
 
-object jMapLcl {
-  def create(f: Lambda1) = MapLcl(f)
-  def create(f: FunDecl) = MapLcl(Lambda1.FunDefToLambda(f))
-}
-
 case class MapWarp(f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
@@ -82,12 +76,6 @@ case class MapWarp(f: Lambda1) extends GenerableMap(f) {
     apply(that)
   }
 }
-
-object jMapWarp {
-  def create(f: Lambda1) = MapWarp(f)
-  def create(f: FunDecl) = MapWarp(Lambda1.FunDefToLambda(f))
-}
-
 
 case class MapLane(f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
@@ -100,11 +88,6 @@ case class MapLane(f: Lambda1) extends GenerableMap(f) {
   }
 }
 
-object jMapLane {
-  def create(f: Lambda1) = MapLane(f)
-  def create(f: FunDecl) = MapLane(Lambda1.FunDefToLambda(f))
-}
-
 case class MapSeq(f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
@@ -114,11 +97,6 @@ case class MapSeq(f: Lambda1) extends GenerableMap(f) {
   override def $(that: Expr) : MapCall = {
     apply(that)
   }
-}
-
-object jMapSeq {
-  def create(f: Lambda1) = MapSeq(f)
-  def create(f: FunDecl) = MapSeq(Lambda1.FunDefToLambda(f))
 }
 
 case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
@@ -134,11 +112,7 @@ case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
 
 object ReduceSeq {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
-}
-
-object jReduceSeq {
-  def create(f: Lambda2, init: Value) = ReduceSeq(f, init)
-  def create(f: FunDecl, init: Value) = ReduceSeq(Lambda2.FunDefToLambda(f), init)
+  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
 }
 
 case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {
@@ -154,57 +128,68 @@ case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {
 object ReduceHost {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceHost(f)(init, x))
 }
-object jReduceHost {
-  def create(f: Lambda2, init: Value) = ReduceHost(f, init)
-  def create(f: FunDecl, init: Value) = ReduceHost(Lambda1.FunDefToLambda(f), init)
-}
 
 case class toGlobal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
-  //override def copy() = toGlobal(f)
-
-object jToGlobal {
-  def create(f: Lambda1) = toGlobal(f)
-  def create(f: FunDecl) = toGlobal(Lambda1.FunDefToLambda(f))
-}
-
 
 case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
-  //override def copy() = toLocal(f)
 
 case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   var valid = true
 }
 
-object jToLocal {
-  def create(f: Lambda1) = toLocal(f)
-  def create(f: FunDecl) = toLocal(Lambda1.FunDefToLambda(f))
-}
-
-
 case class ReorderStride(s: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
   //override def copy() = ReorderStride()
-object jReorderStride {
-  def create (s: ArithExpr)= ReorderStride(s)
-}
 
 case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
-object jTranspose {
-  def create = Transpose()
 
-  def comp(f: Lambda) = create o f
-  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
+case class Group(relIndices: Array[Int],
+                 negOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr,
+                 posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  Group.cnt += 1
+  val id = Group.cnt
 }
 
-case class Swap() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
-object jSwap {
-  def create = Swap()
+object Group {
+  var cnt: Int = -1
 
-  def comp(f: Lambda) = create o f
-  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
+  // Predefined out-of-boundary cases
+  val edgeNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => 0
+  val edgePos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - 1
+  val reflectNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => -1 - idx
+  val reflectPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - idx
+  val wrapNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len + idx
+  val wrapPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => idx - 1
 }
 
+object Group2D {
+  def apply(relColumns: Array[Int],
+            relRows: Array[Int],
+            negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+            posOOB: (ArithExpr, ArithExpr) => ArithExpr): CompFunDef = {
+    Map(
+      Map(
+        Transpose()
+      ) o Group(relColumns, negOOB, posOOB) o Transpose()
+    ) o Group(relRows, negOOB, posOOB)
+  }
+}
+
+class GroupCall(val group: Group, val outerAe: ArithExpr, val innerAe: ArithExpr, val len: ArithExpr) extends ArithExprFunction {
+  "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
+}
+
+/*
+// Group that returns a constant
+case class GroupConstant(relIndices: Array[Int], constant: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  Group.cnt += 1
+  val id = Group.cnt
+}
+object jGroupConstant {
+  def create(relIndices: Array[Int], constant: ArithExpr) = GroupConstant(relIndices, constant)
+}
+*/
 
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
 
@@ -222,7 +207,6 @@ object IndexFunction {
     val col = (i % innerSize) * outerSize
     val row = i div innerSize
 
-    // TODO: simplify this ...
     row + col
   }
 
@@ -239,36 +223,11 @@ object Gather {
   def apply(idx: IndexFunction) = (f: Lambda1) => new Gather(idx, f)
 }
 
-object jGather {
-  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: Lambda1) = {
-    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
-    Gather(idxLambda, f)
-  }
-
-  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: FunDecl) = {
-    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
-    Gather(idxLambda, Lambda1.FunDefToLambda(f))
-  }
-}
-
 case class Scatter(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
 
 object Scatter {
   def apply(idx: IndexFunction) = (f: Lambda1) => new Scatter(idx, f)
 }
-
-object jScatter {
-  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: Lambda1) = {
-    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
-    Scatter(idxLambda, f)
-  }
-
-  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: FunDecl) = {
-    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
-    Scatter(idxLambda, Lambda1.FunDefToLambda(f))
-  }
-}
-
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*

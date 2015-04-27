@@ -1,11 +1,22 @@
 package benchmarks
 
+import arithmetic.Var
 import ir.UserFunDef._
 import ir._
 import opencl.ir._
+import opencl.ir.CompositePatterns._
+import org.clapper.argot.ArgotConverters._
 
-class MatrixTransposition (override val f: Seq[(String, Seq[Lambda])])
-  extends Benchmark("Matrix Transposition)", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
+class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
+  extends Benchmark("Matrix Transposition", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
+
+  val defaultTileSize = 16
+
+  val tileX = parser.option[Int](List("x", "tileX"), "size",
+    "Tile size in the x dimension")
+
+  val tileY = parser.option[Int](List("y", "tileY"), "size",
+    "Tile size in the y dimension")
 
   override def runScala(inputs: Any*): Array[Float] = {
     val matrix = inputs(0).asInstanceOf[Array[Array[Float]]]
@@ -27,6 +38,17 @@ class MatrixTransposition (override val f: Seq[(String, Seq[Lambda])])
     globalSizeOpt.value.copyToArray(globalSizes)
     globalSizes
   }
+
+  override protected def beforeBenchmark() = {
+    f(1)._2(0) = MatrixTransposition.coalesced(tileX.value.getOrElse(defaultTileSize),
+      tileY.value.getOrElse(defaultTileSize))
+  }
+
+  override protected def printParams() = {
+    if (variant == 1)
+      println("Tile sizes: " + tileX.value.getOrElse(defaultTileSize) +
+        ", " + tileY.value.getOrElse(defaultTileSize))
+  }
 }
 
 object MatrixTransposition {
@@ -39,22 +61,23 @@ object MatrixTransposition {
       MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
     })
 
-  val coalesced = fun(
+  def coalesced(x: Int = 4, y: Int = 4) = fun(
     ArrayType(ArrayType(Float, M), N),
     (matrix) => {
       // Merge the tiles
-      Join() o MapWrg(0)(TransposeW() o MapWrg(1)(Join() o Barrier() o toGlobal(MapLcl(1)(MapLcl(0)(id))) o
+      Untile() o
+      MapWrg(0)(MapWrg(1)(
+        Barrier() o toGlobal(MapLcl(1)(MapLcl(0)(id))) o
         // Transpose the tiles and then the insides of tiles
         TransposeW() o Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
       )) o Transpose() o
         // Tile the matrix
-        Map(Map(Transpose()) o Split(4) o Transpose()) o Split(4) $ matrix
+        Tile(x, y) $ matrix
     })
 
-  // TODO: Specifying the tile size
   def apply() = new MatrixTransposition(
-    Seq(("naive", Seq(naive)),
-      ("coalesced", Seq(coalesced))
+    Seq(("naive", Array[Lambda](naive)),
+      ("coalesced", Array[Lambda](coalesced()))
     ))
 
   def main(args: Array[String]): Unit = {
