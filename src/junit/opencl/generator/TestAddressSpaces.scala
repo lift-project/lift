@@ -6,7 +6,7 @@ import ir._
 import opencl.executor.{Executor, Compile, Execute}
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 object TestAddressSpaces {
   @BeforeClass def before() {
@@ -213,6 +213,7 @@ class TestAddressSpaces {
     assertArrayEquals(gold, output, 0.0f)
   }
 
+  @Ignore
   @Test def privateGlobalMemoryLessThreads(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
