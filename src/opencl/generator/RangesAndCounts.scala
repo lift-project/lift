@@ -163,15 +163,14 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
 
     if (initIsEvaluated && condIsEvaluated && updateIsEvaluated) {
       assert (condEvaluated > initMinEvaluated)
-      if (initMinEvaluated == initMaxEvaluated) {
-        // Sequential loop
+      if (initMinEvaluated == initMaxEvaluated) // Sequential loop
         return ((condEvaluated - initMinEvaluated).toDouble / updateEvaluated).ceil.toInt
-      } else if (initMaxEvaluated - initMinEvaluated == updateEvaluated) {
-        // Parallel loop
-        if(condEvaluated == initMinEvaluated + updateEvaluated) {
-          return 1
-        }
-      }
+
+      else if (initMaxEvaluated - initMinEvaluated == updateEvaluated) // Parallel loop
+
+        if ((condEvaluated - initMinEvaluated) % updateEvaluated == 0)
+          return ((condEvaluated - initMinEvaluated).toDouble / updateEvaluated).ceil.toInt
+
     }
 
     if (condIsEvaluated && updateIsEvaluated)

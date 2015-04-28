@@ -315,7 +315,9 @@ object OpenCLGenerator extends Generator {
 
   // MapLcl
   private def generateMapLclCall(call: MapCall) {
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
+    generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
+      (call.arg.containsPrivate && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
+        call.addressSpace == PrivateMemory)
   }
 
   // MapWarp

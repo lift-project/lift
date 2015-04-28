@@ -243,7 +243,7 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, inputSize)
+    val (output, runtime) = Execute(4, inputSize, (true, false))(f, input, inputSize)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -252,7 +252,6 @@ class TestAddressSpaces {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Ignore
   @Test def initArrayValuePrivate(): Unit = {
     val inputSize = 512
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -263,7 +262,7 @@ class TestAddressSpaces {
       ) o Split(4) $ in
     })
 
-    val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
+    val (output, runtime) = Execute(4, inputData.length, (true, false))( l, inputData, inputData.length )
 
     assertEquals(0.0f, output.sum, 0.0)
 
