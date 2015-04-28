@@ -6,7 +6,7 @@ import ir._
 import opencl.executor.{Executor, Compile, Execute}
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestAddressSpaces {
   @BeforeClass def before() {
@@ -35,11 +35,7 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, inputSize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output, _) = Execute(inputSize)(f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -62,11 +58,7 @@ class TestAddressSpaces {
 
     val code = Compile(f)
 
-    val (output, runtime) = Execute(inputSize)(code, f, input, inputSize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(2, OpenCLGenerator.Kernel.memory.length)
@@ -92,11 +84,7 @@ class TestAddressSpaces {
 
     val code = Compile(f)
 
-    val (output, runtime) = Execute(inputSize)(code, f, input, inputSize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(3, OpenCLGenerator.Kernel.memory.length)
@@ -117,11 +105,7 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, inputSize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output, _) = Execute(inputSize)(f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -138,11 +122,7 @@ class TestAddressSpaces {
         o Split(128) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, inputSize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output, _) = Execute(inputSize)(f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -161,11 +141,7 @@ class TestAddressSpaces {
       ) o Split(128) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, inputSize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output, _) = Execute(inputSize)(f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -184,11 +160,7 @@ class TestAddressSpaces {
       ) o Split(128) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, inputSize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output, _) = Execute(inputSize)(f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -203,12 +175,9 @@ class TestAddressSpaces {
       ) o Split(4) $ in
     })
 
-    val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
+    val (output, _) = Execute(inputData.length)( l, inputData, inputData.length )
 
     assertEquals(inputData.sum, output.sum, 0.0)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
   @Test def initArrayValuePrivate2(): Unit = {
@@ -221,15 +190,11 @@ class TestAddressSpaces {
       ) o Split(4) $ in
     })
 
-    val (output, runtime) = Execute(inputData.length)( l, inputData, inputData.length )
+    val (output, _) = Execute(inputData.length)( l, inputData, inputData.length )
 
     assertEquals(0.0f, output.sum, 0.0)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
-  @Ignore
   @Test def privateGlobalMemory2(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
@@ -243,11 +208,25 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    val (output, runtime) = Execute(4, inputSize, (true, false))(f, input, inputSize)
+    val (output, _) = Execute(4, inputSize, (true, false))(f, input, inputSize)
 
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test def privateGlobalMemoryLessThreads(): Unit = {
+    val inputSize = 512
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    val gold = input.map(_+1)
+
+    val  f = fun(
+      ArrayType(Float, Var("N")),
+      in => Join() o MapWrg(Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)))
+        o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
+        o Split(4) $ in
+    )
+
+    val (output, _) = Execute(2, inputSize, (true, false))(f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -258,15 +237,12 @@ class TestAddressSpaces {
 
     val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg( fun(x =>
-        toGlobal(MapLcl(id)) o MapLcl(toPrivate(id)) $ Value("0.0f", ArrayType(Float, 4)))
+        toGlobal(MapLcl(id)) o MapLcl(toPrivate(id)) $ Value("1.0f", ArrayType(Float, 4)))
       ) o Split(4) $ in
     })
 
-    val (output, runtime) = Execute(4, inputData.length, (true, false))( l, inputData, inputData.length )
+    val (output, _) = Execute(4, inputData.length, (true, false))( l, inputData, inputData.length )
 
-    assertEquals(0.0f, output.sum, 0.0)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    assertArrayEquals(Array.fill(inputSize)(1.0f), output, 0.0f)
   }
 }

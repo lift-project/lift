@@ -482,18 +482,27 @@ object OpenCLGenerator extends Generator {
     val t = arg.t
     val view = arg.view
 
+    val functions = replacements.filterKeys({
+      case v: Var => v.range.min.isInstanceOf[OclFunction]
+      case _ => false
+    }).keys.map(key => (key, key.asInstanceOf[Var].range.min)).toMap
+
+    // If the replacements contain variables that take OclFunctions,
+    // use them instead
+    val replacementsWithFuns = replacements ++ functions
+
     oclMem.addressSpace match {
       case GlobalMemory =>
 
         "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
           oclPrinter.toOpenCL(oclMem.variable) +
-          "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacements)) + "])"
+          "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns)) + "])"
 
       case LocalMemory =>
 
         "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
           oclPrinter.toOpenCL(oclMem.variable) +
-          "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacements)) + "])"
+          "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns)) + "])"
 
       case PrivateMemory =>
         privateMems.find(m => m.mem.variable == oclMem.variable) match {
