@@ -256,4 +256,50 @@ class TestBarrier {
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
   }
+
+  @Test def copyToLocalInZip(): Unit = {
+    val inputSize = 512
+    val input = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = (input, input).zipped.map((x, y) => (x,y).zipped.map(_+_))
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), N),
+      ArrayType(ArrayType(Float, N), N),
+      (a, b) => MapWrg(Barrier() o toGlobal(MapLcl(add)) o fun(pairArrays =>
+        Zip(Barrier() o toLocal(MapLcl(id)) $ Get(pairArrays, 0), Barrier() o toLocal(MapLcl(id)) $ Get(pairArrays, 1))
+      )) $ Zip(a, b)
+    )
+
+    val code = Compile(f)
+
+    val (output, _) = Execute(inputSize)(code, f, input, input, inputSize)
+
+    assertEquals(2, "barrier".r.findAllMatchIn(code).length)
+    assertArrayEquals(gold.flatten, output, 0.0f)
+  }
+
+  @Test def copyOneToLocalInZip(): Unit = {
+    val inputSize = 512
+    val input = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = (input, input).zipped.map((x, y) => (x,y).zipped.map(_+_))
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), N),
+      ArrayType(ArrayType(Float, N), N),
+      (a, b) => MapWrg(Barrier() o toGlobal(MapLcl(add)) o fun(pairArrays =>
+        Zip(Barrier() o toLocal(MapLcl(id)) $ Get(pairArrays, 0), Get(pairArrays, 1))
+      )) $ Zip(a, b)
+    )
+
+    val code = Compile(f)
+
+    val (output, _) = Execute(inputSize)(code, f, input, input, inputSize)
+
+    assertEquals(2, "barrier".r.findAllMatchIn(code).length)
+    assertArrayEquals(gold.flatten, output, 0.0f)
+  }
 }

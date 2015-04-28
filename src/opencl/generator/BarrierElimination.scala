@@ -24,7 +24,17 @@ object BarrierElimination {
           cf.funs.foreach( (l:Lambda) => apply(l.body, insideLoop) )
         case f: FPattern => apply(f.f.body, insideLoop)
         case l: Lambda => apply(l.body, insideLoop)
-        case _: Zip => call.args.foreach(apply(_, insideLoop))
+        case Zip(_) | Tuple(_) =>
+          val numAddressSpaces =
+            call.args.map(m => OpenCLMemory.asOpenCLMemory(m.mem).addressSpace).
+              distinct.length != 1
+
+          // Only the last argument needs a barrier if all of them are in
+          // the same address space
+          call.args.foldRight(insideLoop)((e, loop) => {
+            apply(e, loop)
+            numAddressSpaces
+          })
         case _ =>
       }
       case _ =>
@@ -60,8 +70,11 @@ object BarrierElimination {
 
       val barrierInHead = groups.head.exists(isBarrier)
       val finalReadMemory = readsFrom(groups.head.last)
-      needsBarrier(0) = !(barrierInHead && (finalReadMemory == GlobalMemory ||
-        finalReadMemory == LocalMemory && !insideLoop))
+      needsBarrier(0) =
+        if (groups.length > 1)
+          !(barrierInHead && (finalReadMemory == GlobalMemory || finalReadMemory == LocalMemory && !insideLoop))
+        else
+          groups.head.last.body.containsLocal && insideLoop
 
       groups.zipWithIndex.foreach(x => {
         val group = x._1

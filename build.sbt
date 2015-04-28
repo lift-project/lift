@@ -22,6 +22,8 @@ scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
 
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*"
 
+testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v")
+
 fork := true
 
 // To run tests from the command line, uncomment and replace with the proper path form your system
