@@ -48,6 +48,7 @@ object OpenCLGenerator extends Generator {
 
   var oclPrinter: OpenCLPrinter = null
   var replacements = collection.immutable.Map[ArithExpr, ArithExpr]()
+  var replacementsWithFuns = collection.immutable.Map[ArithExpr, ArithExpr]()
   var privateMems = Array[TypedOpenCLMemory]()
 
   private def printTypes(expr: Expr): Unit = {
@@ -97,11 +98,8 @@ object OpenCLGenerator extends Generator {
       p.view = View(p.t, oclPrinter.toOpenCL(p.mem.variable))
     })
 
-    // pass 1
-    allocateMemory(f)
-
     RangesAndCounts(f, localSize, globalSize, valueMap)
-
+    allocateMemory(f)
     BarrierElimination(f)
 
     if (Verbose()) {
@@ -453,8 +451,16 @@ object OpenCLGenerator extends Generator {
     if (unroll) {
       oclPrinter.commln("unroll")
 
+      val range = indexVar.range.asInstanceOf[RangeAdd]
+      val step = range.step
+
       for (i <- 0 until iterationCount.eval()) {
         replacements = replacements.updated(indexVar, i)
+        if (range.min.isInstanceOf[OclFunction])
+          replacementsWithFuns = replacementsWithFuns.updated(indexVar, range.min + step*i)
+        else
+          replacementsWithFuns = replacementsWithFuns.updated(indexVar, i)
+
         printBody()
       }
       oclPrinter.commln("unroll")
@@ -481,15 +487,6 @@ object OpenCLGenerator extends Generator {
     val oclMem = OpenCLMemory.asOpenCLMemory(arg.mem)
     val t = arg.t
     val view = arg.view
-
-    val functions = replacements.filterKeys({
-      case v: Var => v.range.min.isInstanceOf[OclFunction]
-      case _ => false
-    }).keys.map(key => (key, key.asInstanceOf[Var].range.min)).toMap
-
-    // If the replacements contain variables that take OclFunctions,
-    // use them instead
-    val replacementsWithFuns = replacements ++ functions
 
     oclMem.addressSpace match {
       case GlobalMemory =>

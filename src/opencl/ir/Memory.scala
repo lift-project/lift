@@ -236,7 +236,10 @@ object OpenCLMemory {
       case MapGlb(_, _) |MapWrg(_,_) | Map(_)
                                => allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt, inMem, outputMem, maxLen)
       case MapLcl(_,_) | MapWarp(_)| MapLane(_) | MapSeq(_)
-                               => allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt, inMem, outputMem, maxLen)
+                               =>
+        var privateMultiplier = call.asInstanceOf[MapCall].iterationCount
+        privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+        allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt * privateMultiplier, inMem, outputMem, maxLen)
 
       case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, numPvt, inMem, outputMem)
 
