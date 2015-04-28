@@ -237,8 +237,6 @@ object OpenCLMemory {
                                => allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt, inMem, outputMem, maxLen)
       case MapLcl(_,_) | MapWarp(_)| MapLane(_) | MapSeq(_)
                                => allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt, inMem, outputMem, maxLen)
-      case MapUnroll(_)
-                               => allocMapPvt(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt, inMem, outputMem, maxLen)
 
       case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, numPvt, inMem, outputMem)
 
@@ -312,14 +310,7 @@ object OpenCLMemory {
                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {
     if (am.f.params.length != 1) throw new NumberOfArgumentsException
     am.f.params(0).mem = inMem
-    alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, numPvt, outputMem)
-  }
-
-  private def allocMapPvt(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
-                          inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {
-    if (am.f.params.length != 1) throw new NumberOfArgumentsException
-    am.f.params(0).mem = inMem
-    alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, numPvt * maxLen, outputMem)
+    alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, numPvt , outputMem)
   }
 
   private def allocReduce(r: AbstractPartRed, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
