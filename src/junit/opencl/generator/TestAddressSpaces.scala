@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic.Var
+import arithmetic._
 import ir.UserFunDef._
 import ir._
 import opencl.executor.{Executor, Compile, Execute}
@@ -229,6 +229,21 @@ class TestAddressSpaces {
     val (output, _) = Execute(2, inputSize, (true, false))(f, input, inputSize)
 
     assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test(expected = classOf[NotEvaluableException])
+  def privateGlobalMemoryThreadsNotSpecified(): Unit = {
+    val inputSize = 512
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    val  f = fun(
+      ArrayType(Float, Var("N")),
+      in => Join() o MapWrg(Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)))
+        o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
+        o Split(4) $ in
+    )
+
+    Execute(inputSize)(f, input, inputSize)
   }
 
   @Test def initArrayValuePrivate(): Unit = {

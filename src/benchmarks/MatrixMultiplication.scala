@@ -110,7 +110,7 @@ object MatrixMultiplication {
                     Map(Join()) o
                     MapLcl(1)( fun(rowA =>
                       MapLcl(0)( fun( colB =>
-                        toLocal(MapSeq(id) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)) $ Zip(rowA, colB)
+                        MapSeq(id) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(rowA, colB)
                       )) o Transpose() $ Get(pairOfTiles, 1)
                     )) $ Get(pairOfTiles, 0)
                 ) o
@@ -122,7 +122,7 @@ object MatrixMultiplication {
                       Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
-                , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
               ) $ Zip(aRows, bCols)
 
           )) o Transpose() o Tile(tileSize) $ B
