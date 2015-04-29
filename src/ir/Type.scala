@@ -418,7 +418,7 @@ object Type {
         val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType])
 
         if (arrayTypes.map(_.len).distinct.length != 1) {
-          println("Warning: can not statically proof that sizes (" + tt.elemsT.mkString(", ") + ") match!")
+          println("Warning: can not statically prove that sizes (" + tt.elemsT.mkString(", ") + ") match!")
           // throw TypeException("sizes do not match")
         }
         ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.len)
