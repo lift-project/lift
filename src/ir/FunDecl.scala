@@ -1,7 +1,8 @@
 package ir
 
-import java.util.function._
-import opencl.ir.Float
+import java.util.function
+import arithmetic.{Var, ArithExpr}
+import opencl.ir._
 
 import scala.collection.JavaConverters._
 import language.implicitConversions
@@ -72,408 +73,6 @@ object FunDecl {
   }
 }
 
-class Lambda(override val params: Array[Param], val body: Expr) extends FunDecl(params) with isGenerable {
-  override def toString = "Lambda(" + params.map(_.toString).reduce(_ + ", " + _) + "){ " + body.toString + " }"
-}
-
-object Lambda {
-  implicit def FunDefToLambda(f: FunDecl): Lambda = {
-    val params = f.params.map(_ => Param(UndefType))
-    new Lambda(params, f(params:_*))
-  }
-}
-
-class Lambda1(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 1)
-}
-
-object Lambda1 {
-  implicit def FunDefToLambda(f: FunDecl): Lambda1 = {
-    assert(f.params.nonEmpty)
-    if (f.params.length == 1) {
-      fun(f(_))
-    } else {
-      fun( x => f( f.params.zipWithIndex.map({ case (_,i) => Get(x, i) }):_* ) )
-    }
-  }
-}
-
-class Lambda2(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 2)
-
-  def apply(arg: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg, tmp) )
-  }
-}
-
-object Lambda2 {
-  implicit def FunDefToLambda(f: FunDecl): Lambda2 = {
-    assert(f.params.length == 2)
-    fun(f(_, _))
-  }
-}
-
-class Lambda3(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 3)
-
-  def apply(arg0: Expr, arg1: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, tmp) )
-  }
-
-  def apply(arg: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg, tmp0, tmp1) )
-  }
-}
-
-class Lambda4(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 4)
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, arg2, tmp) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, tmp0, tmp1) )
-  }
-
-  def apply(arg: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg, tmp0, tmp1, tmp2) )
-  }
-}
-
-class Lambda5(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 5)
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, arg2, arg3, tmp) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, tmp0, tmp1) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, tmp0, tmp1, tmp2) )
-  }
-
-  def apply(arg: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg, tmp0, tmp1, tmp2, tmp3) )
-  }
-}
-
-class Lambda6(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 6)
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, arg2, arg3, arg4, tmp) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3) )
-  }
-
-  def apply(arg: Expr): Lambda5 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4) )
-  }
-}
-
-class Lambda7(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 7)
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda1 = {
-    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5,  tmp0) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda5 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4) )
-  }
-
-  def apply(arg: Expr): Lambda6 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
-  }
-}
-
-class Lambda8(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 8)
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Lambda1 = {
-    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, tmp0) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5,  tmp0, tmp1) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1, tmp2) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2, tmp3) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda5 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3, tmp4) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda6 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
-  }
-
-  def apply(arg: Expr): Lambda7 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) )
-  }
-}
-
-class Lambda9(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
-  assert(params.length == 9)
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr): Lambda1 = {
-    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, tmp0) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, tmp0, tmp1) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5,  tmp0, tmp1, tmp2) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1, tmp2, tmp3) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda5 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2, tmp3, tmp4) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda6 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda7 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) )
-  }
-
-  def apply(arg: Expr): Lambda8 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) )
-  }
-}
-
-object jfun {
-  // create lambda1
-  def create(f: Function[Param, Expr]): Lambda1 = {
-    val params = Array(Param(UndefType))
-    new Lambda1(params, f.apply(params(0)))
-  }
-
-  def create(t: Type, f: Function[Param, Expr]): Lambda1 = {
-    val params = Array(Param(t))
-    new Lambda1(params, f.apply(params(0)))
-  }
-
-  // create lambda2
-  def create(f: BiFunction[Param, Param, Expr]): Lambda2 = {
-    val params = Array(Param(UndefType), Param(UndefType))
-    new Lambda2(params, f.apply(params(0), params(1)))
-  }
-
-  def create(t1: Type, t2: Type, f: BiFunction[Param, Param, Expr]): Lambda2 = {
-    val params = Array(Param(t1), Param(t2))
-    new Lambda2(params, f.apply(params(0), params(1)))
-  }
-
-  //create lambda3
-  def create(f: TriFunction[Param, Param, Param, Expr]): Lambda3 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda3(params, f.apply(params(0), params(1), params(2)))
-  }
-
-  def create(t1: Type, t2: Type, t3: Type, f: TriFunction[Param, Param, Param, Expr]): Lambda3 = {
-    val params = Array(Param(t1), Param(t2), Param(t3))
-    new Lambda3(params, f.apply(params(0), params(1), params(2)))
-  }
-
-  //create lambda4
-  def create(f: QuadFunction[Param, Param, Param, Param, Expr]): Lambda4 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda4(params, f.apply(params(0), params(1), params(2), params(3)))
-  }
-
-  def create(t1: Type, t2: Type, t3: Type, t4: Type, f: QuadFunction[Param, Param, Param, Param, Expr]): Lambda4 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4))
-    new Lambda4(params, f.apply(params(0), params(1), params(2), params(3)))
-  }
-
-  //create lambda5
-  def create(f: QuintFunction[Param, Param, Param, Param, Param, Expr]): Lambda5 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda5(params, f.apply(params(0), params(1), params(2), params(3), params(4)))
-  }
-
-  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, f: QuintFunction[Param, Param, Param, Param, Param, Expr]): Lambda5 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5))
-    new Lambda5(params, f.apply(params(0), params(1), params(2), params(3), params(4)))
-  }
-
-  //create lambda6
-  def create(f: HexaFunction[Param, Param, Param, Param, Param, Param, Expr]): Lambda6 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda6(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5)))
-  }
-
-  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, f: HexaFunction[Param, Param, Param, Param, Param, Param, Expr]): Lambda6 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6))
-    new Lambda6(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5)))
-  }
-
-  //create lambda7
-  def create(f: SeptFunction[Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda7 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda7(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6)))
-  }
-
-  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, f: SeptFunction[Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda7 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7))
-    new Lambda7(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6)))
-  }
-
-  //create lambda8
-  def create(f: OctoFunction[Param, Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda8 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda8(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7)))
-  }
-
-  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, f: OctoFunction[Param, Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda8 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8))
-    new Lambda8(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7)))
-  }
-
-  //create lambda9
-  def create(f: NovemFunction[Param, Param, Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda9 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda9(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8)))
-  }
-
-  def create(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9: Type, f: NovemFunction[Param, Param, Param, Param, Param, Param, Param, Param, Param, Expr]): Lambda9 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9))
-    new Lambda9(params, f.apply(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8)))
-  }
-}
-
-object fun {
-  def apply(f: (Param) => Expr): Lambda1 = {
-    val params = Array(Param(UndefType))
-    new Lambda1(params, f(params(0)))
-  }
-
-  def apply(f: (Param, Param) => Expr): Lambda2 = {
-    val params = Array(Param(UndefType), Param(UndefType))
-    new Lambda2(params, f(params(0), params(1)))
-  }
-
-  def apply(f: (Param, Param, Param) => Expr): Lambda3 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda3(params, f(params(0), params(1), params(2)))
-  }
-
-  def apply(f: (Param, Param, Param, Param) => Expr): Lambda4 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda4(params, f(params(0), params(1), params(2), params(3)))
-  }
-
-  def apply(f: (Param, Param, Param, Param, Param) => Expr): Lambda5 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda5(params, f(params(0), params(1), params(2), params(3), params(4)))
-  }
-
-  def apply(f: (Param, Param, Param, Param, Param, Param) => Expr): Lambda6 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda6(params, f(params(0), params(1), params(2), params(3), params(4), params(5)))
-  }
-
-  def apply(f: (Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda7 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda7(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6)))
-  }
-
-  def apply(f: (Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda8 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda8(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7)))
-  }
-
-  def apply(f: (Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda9 = {
-    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
-    new Lambda9(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8)))
-  }
-
-  def apply(t: Type, f: (Param) => Expr): Lambda1 = {
-    val params = Array(Param(t))
-    new Lambda1(params, f(params(0)))
-  }
-
-  def apply(t1: Type, t2: Type, f: (Param, Param) => Expr): Lambda2 = {
-    val params = Array(Param(t1), Param(t2))
-    new Lambda2(params, f(params(0), params(1)))
-  }
-
-  def apply(t1: Type, t2: Type, t3: Type, f: (Param, Param, Param) => Expr): Lambda3 = {
-    val params = Array(Param(t1), Param(t2), Param(t3))
-    new Lambda3(params, f(params(0), params(1), params(2)))
-  }
-
-  def apply(t1: Type, t2: Type, t3: Type, t4: Type, f: (Param, Param, Param, Param) => Expr): Lambda4 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4))
-    new Lambda4(params, f(params(0), params(1), params(2), params(3)))
-  }
-
-  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, f: (Param, Param, Param, Param, Param) => Expr): Lambda5 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5))
-    new Lambda5(params, f(params(0), params(1), params(2), params(3), params(4)))
-  }
-
-  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, f: (Param, Param, Param, Param, Param, Param) => Expr): Lambda6 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6))
-    new Lambda6(params, f(params(0), params(1), params(2), params(3), params(4), params(5)))
-  }
-
-  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, f: (Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda7 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7))
-    new Lambda7(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6)))
-  }
-
-  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, f: (Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda8 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8))
-    new Lambda8(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7)))
-  }
-
-  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda9 = {
-    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9))
-    new Lambda9(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8)))
-  }
-}
-
 object CompFunDef {
 
   def apply(funs: Lambda*) : CompFunDef = {
@@ -500,9 +99,7 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
     funs.foldRight(3*79)((f,hash) => hash*f.hashCode())
   }
 
-  //override def copy() = new CompFunDef(funs.map(f => f.copy()):_*)
-
-  // flatten all the composed functions
+  /** flatten all the composed functions*/
   def flatten : List[Lambda] = {
     this.funs.foldLeft(List[Lambda]())((ll, f) => {
       f.body match {
@@ -520,23 +117,12 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
 // For opencl specific patterns see the opencl.ir package
 
 abstract class Pattern(override val params: Array[Param]) extends FunDecl(params)
-/*object Pattern {
-  def unapply(p: Pattern) : Option[Context] = Some(p.context)
-}*/
 
 trait FPattern {
   def f: Lambda
-  //def copy() : FunExpr = this.getClass().getConstructor(classOf[FunExpr]).newInstance(f.copy())
 }
 
-
-
-
-
 abstract class AbstractMap(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
-/*object AbstractMap {
-  def unapply(am: AbstractMap): Option[FunExpr] = Some(am.f)
-}*/
 
 case class Map(f:Lambda1) extends AbstractMap(f) {
   override def apply(args: Expr*): MapCall = mapCall(args:_*)
@@ -554,12 +140,6 @@ object Map {
     Map(f).mapCall(expr)
   }
 }
-
-object jMap {
-  def create(f: Lambda1) = Map(f)
-  def create(f: FunDecl) = Map(Lambda1.FunDefToLambda(f))
-}
-
 
 abstract class GenerableMap(f:Lambda1) extends AbstractMap(f) with isGenerable
 
@@ -580,11 +160,6 @@ case class Reduce(f: Lambda2) extends AbstractReduce(f) {
 object Reduce {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => Reduce(f)(init, x))
   def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = Reduce(f)(init, expr)
-}
-
-object jReduce {
-  def create(f: Lambda2, init: Value) = Reduce(f, init)
-  def create(f: FunDecl, init: Value) = Reduce(Lambda2.FunDefToLambda(f), init)
 }
 
 case class PartRed(f: Lambda2) extends AbstractPartRed(f) with FPattern {
@@ -648,46 +223,18 @@ object jSearch {
   def create(f: FunDecl) = Search(Lambda2.FunDefToLambda(f))
 }
 
-case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = Join()
-}
-object jJoin {
-  def create = Join()
 
-  def comp(f: Lambda): CompFunDef = create o f
-  def comp(f: FunDecl): CompFunDef = create o Lambda.FunDefToLambda(f)
-}
 
-case class JoinDim2() extends  Pattern(Array[Param](Param(UndefType))) with isGenerable
+case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = Split(chunkSize)
-}
-object jSplit {
-  def create(c: Int) = Split(c)
-}
+case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class SplitDim2(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = asScalar()
-}
-object jAsScalar {
-  def create = asScalar()
-
-  def comp(f: Lambda) = create o f
-  def comp(f: FunDecl) = create o Lambda.FunDefToLambda(f)
-}
-
-case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = asVector(len)
-}
-object jAsVector {
-  def create(c: Int) = asVector(c)
-}
+case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 /*
-// TODO: disuss if this should be a Fun again (if so, this has to be replaced in the very first pass before type checking)
+// TODO: discuss if this should be a Fun again (if so, this has to be replaced in the very first pass before type checking)
 case class Vectorize(n: Expr, f: Fun) extends FPattern {
   def isGenerable() = true
   override def copy() = Vectorize(n, f)
@@ -716,13 +263,7 @@ object Vectorize {
 
 case class UserFunDef(name: String, paramNames: Any, body: String,
                       inTs: Seq[Type], outT: Type)
-//  extends FunDecl(UserFunDef.toParams(inT)) with isGenerable {
-  extends FunDecl( /*inT match {
-      case tt: TupleType => tt.elemsT.map(Param(_)).toArray
-      case t: Type => Array(Param(t))
-    }*/
-    inTs.map(Param(_)).toArray
-    ) with isGenerable {
+  extends FunDecl(inTs.map(Param(_)).toArray) with isGenerable {
 
   private def namesAndTypesMatch(): Boolean = {
 
@@ -803,14 +344,11 @@ object UserFunDef {
     UserFunDef(name, uf.paramNames, uf.body, expectedInT, expectedOutT)
   }
 
-  //private def toParams(t: Type): Array[Param] = {
-  //  t match {
-  //    case tt: TupleType => tt.elemsT.map(toParams).flatten.toArray
-  //    case t: Type => Array(Param(t))
-  //  }
-  //}
-
   val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
+  val idFI = UserFunDef("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
+
+  val idFF = UserFunDef("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
 
   val absAndSumUp = UserFunDef("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }", Seq(Float, Float), Float)
 
@@ -874,13 +412,7 @@ object Iterate {
   }
 }
 
-object jIterate {
-  def create(n: Int, f: Lambda1) = Iterate(n, f)
-  def create(n: ArithExpr, f: Lambda1) = Iterate(n, f)
-
-  def create(n: Int, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
-  def create(n: ArithExpr, f: FunDecl) = Iterate(n, Lambda1.FunDefToLambda(f))
-}
+class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
 case class IterateFixedSize(n:ArithExpr, f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
   override def apply(args: Expr*): IterateFixedSizeCall = iterateFixedSizeCall(args: _*)
@@ -962,23 +494,22 @@ object Filter {
   }
 }
 
-case class Zip(n : Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable {
-  //override def copy() = Zip(f1, f2)
+case class Tuple(n: Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable
+
+object Tuple {
+  def apply(args : Expr*) : FunCall = {
+    assert(args.length >= 2)
+    Tuple(args.length)(args:_*)
+  }
 }
+
+case class Zip(n : Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable
 
 object Zip {
   def apply(args : Expr*) : FunCall = {
     assert(args.length >= 2)
     Zip(args.length)(args:_*)
   }
-}
-
-object jZip {
-  def create = Zip()
-
-  def call(arg0: Expr, arg1: Expr) = Zip(arg0, arg1)
-
-  def call(args: java.util.List[Expr]) = Zip(args.asScala:_*)
 }
 
 case class Unzip() extends FunDecl(Array[Param](Param(UndefType))) with isGenerable
@@ -989,7 +520,3 @@ object Unzip {
     Unzip()(args:_*)
   }
 }
-
-/*object Zip {
-  def apply(f1: FunExpr): ((FunExpr) => Zip) = (f2: FunExpr) => Zip(f1, f2)
-*/

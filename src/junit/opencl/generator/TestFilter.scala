@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.Var
 import ir.UserFunDef._
 import ir._
 import opencl.executor.{Executor, Execute}
@@ -62,7 +63,7 @@ class TestFilter {
       ArrayType(Float, N),
       ArrayType(Int, M),
       (input, ids) =>
-        Join() o MapWrg(MapLcl(id)) o Split(4) $ Filter(input, ids)
+        Join() o MapWrg(Barrier() o MapLcl(id)) o Split(4) $ Filter(input, ids)
     )
 
     val (output, runtime) = Execute(inputSize/2)(compFun, inputData, ids, inputSize, inputSize/2)
@@ -86,7 +87,7 @@ class TestFilter {
       ArrayType(Float, N),
       ArrayType(Int, M),
       (input, ids) =>
-        Join() o MapWrg(fun( x => MapLcl(id) $ Filter(x, ids))) o Split(4) $ input
+        Join() o MapWrg(fun( x => Barrier() o MapLcl(id) $ Filter(x, ids))) o Split(4) $ input
     )
 
     val (output, runtime) = Execute(inputSize/2)(compFun, inputData, ids, inputSize, 2)
@@ -110,7 +111,7 @@ class TestFilter {
       ArrayType(ArrayType(Float, N), N),
       ArrayType(Int, M),
       (input, ids) =>
-        MapWrg(MapLcl(id)) $ Filter(input, ids)
+        MapWrg(Barrier() o MapLcl(id)) $ Filter(input, ids)
     )
 
     val (output, runtime) = Execute(inputSize/2)(compFun, inputData, ids, inputSize/2, inputSize)
@@ -134,7 +135,7 @@ class TestFilter {
       ArrayType(ArrayType(Float, N), N),
       ArrayType(Int, M),
       (input, ids) =>
-        MapWrg(fun(x => MapLcl(id) $ Filter(x, ids))) $ input
+        MapWrg(fun(x => Barrier() o MapLcl(id) $ Filter(x, ids))) $ input
     )
 
     val (output, runtime) = Execute(inputSize/2)(compFun, inputData, ids, inputSize, inputSize/2)

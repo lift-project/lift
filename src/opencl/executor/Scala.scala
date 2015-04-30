@@ -1,5 +1,6 @@
 package opencl.executor
 
+import arithmetic.{Var, Cst, ?, ArithExpr}
 import ir._
 import opencl.generator.{Verbose, OpenCLGenerator}
 import opencl.ir._
@@ -7,7 +8,24 @@ import opencl.ir._
 import scala.collection.immutable
 import scala.reflect.ClassTag
 
+object Eval {
+  def apply(code: String): Lambda = {
+    val imports = """
+                    |import arithmetic._
+                    |import ir._
+                    |import opencl.ir._
+                    |
+                  """.stripMargin
+    com.twitter.util.Eval[Lambda](imports ++ code)
+  }
+}
+
 object Compile {
+  def apply(code: String): (String, Lambda) = {
+    val f = Eval(code)
+    (apply(f), f)
+  }
+
   def apply(f: Lambda): String = apply(f, ?, ?, ?)
 
   def apply(f: Lambda,
@@ -31,6 +49,7 @@ object Compile {
 
     kernelCode
   }
+
 }
 
 object Execute {
@@ -85,8 +104,12 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
               val globalSize1: Int, val globalSize2: Int, val globalSize3: Int,
               val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
 
-  def apply(f: Lambda, values: Any*) : (Array[Float], Double) = {
-    assert( f.params.forall( _.t != UndefType ), "Types of the params have to be set!" )
+  def apply(input: String, values: Any*): (Array[Float], Double) = {
+    val (code, f) = Compile(input)
+    apply(code, f, values:_*)
+  }
+
+  def apply(f: Lambda, values: Any*): (Array[Float], Double) = {
     val valueMap = Execute.createValueMap(f, values:_*)
 
     val code = if (injectLocalSize)
@@ -105,6 +128,9 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     val valueMap: immutable.Map[ArithExpr, ArithExpr] = Execute.createValueMap(f, values:_*)
 
     val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
+
+    // Check all Group functions valid arguments for the given input sizes
+    staticGroupCheck(f, valueMap)
 
     val inputs = values.map({
       case f: Float => value(f)
@@ -157,6 +183,41 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     args.foreach(_.dispose)
 
     (output, runtime)
+  }
+
+  /** Check that all possible indices returned by Group calls are in-bounds */
+  def staticGroupCheck(f: Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+    val groupFuns = Expr.visit(Set[Group]())(f.body, (expr, set) =>
+      expr match {
+        case call: FunCall => call.f match {
+          case group: Group => set + group
+          case _ => set
+        }
+        case _ => set
+      })
+
+    for (g <- groupFuns) {
+      val allIndices = g.relIndices.min to g.relIndices.max
+
+      g.params(0).t match  {
+        case ArrayType(_, lenExpr) =>
+          val length = ArithExpr.substitute(lenExpr, valueMap).eval()
+
+          for (relIdx <- allIndices) {
+            var newIdx = 0
+            if (relIdx < 0) {
+              newIdx = g.negOutOfBoundsF(relIdx, length).eval()
+            } else if (relIdx > 0) {
+              newIdx = g.posOutOfBoundsF(relIdx, length).eval()
+            }
+
+            if (newIdx < 0 || newIdx >= length) {
+              throw new IllegalArgumentException("Group function would map relative out-of-bounds index " + relIdx +
+                " to new illegal index " + newIdx + ".")
+            }
+          }
+      }
+    }
   }
 
 }

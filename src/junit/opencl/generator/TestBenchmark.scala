@@ -4,8 +4,10 @@ import java.awt.image.BufferedImage
 import java.io.{IOException, File}
 import javax.imageio.ImageIO
 
+import arithmetic.Var
 import benchmarks.{MolecularDynamics, BlackScholes}
 import ir._
+import ir.UserFunDef._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.Assert._
@@ -81,7 +83,7 @@ class TestBenchmark {
       ArrayType(Float, K),
       ArrayType(Float, K),
       ArrayType(Int, K),
-      (x, y, a, b, i) => MapGlb(fun( xy => MapSeq(getSecond) o ReduceSeq(minimum, (scala.Float.MaxValue, -1)) o MapSeq(fun( ab => distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2)))) $ Zip(a,b,i))) $ Zip(x, y)
+      (x, y, a, b, i) => MapGlb(fun( xy => MapSeq(getSecond) o toGlobal(MapSeq(idFI)) o ReduceSeq(minimum, (scala.Float.MaxValue, -1)) o MapSeq(fun( ab => distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2)))) $ Zip(a,b,i))) $ Zip(x, y)
     )
 
     val (output, runtime) = Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices, inputSize, k)
@@ -259,8 +261,8 @@ class TestBenchmark {
       Float,
       (x, y, z, velX, velY, velZ, mass, espSqr, deltaT) =>
         MapGlb(fun(xyz =>
-          MapSeq(fun(acceleration =>
-            update(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(xyz, 3), Get(xyz, 4), Get(xyz, 5), Get(xyz, 6), deltaT, acceleration)))
+          toGlobal(MapSeq(fun(acceleration =>
+            update(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(xyz, 3), Get(xyz, 4), Get(xyz, 5), Get(xyz, 6), deltaT, acceleration))))
             o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f))
             o MapSeq(fun(abc => calcAcc(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(abc, 0), Get(abc, 1), Get(abc, 2), Get(abc, 6), espSqr)))
             $ Zip(x, y, z, velX, velY, velZ, mass)
@@ -305,9 +307,10 @@ class TestBenchmark {
       Float,
       (particles, neighbourIds, cutsq, lj1, lj2) =>
         MapGlb(fun(p =>
+          toGlobal(MapSeq(Vectorize(4)(id))) o
           ReduceSeq(fun((force, n) =>
             MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
-          ), Value("{0.0f, 0.0f, 0.0f, 0.0f}", Float4)) $ Filter(particles, Get(p, 1))
+          ), Value(0.0f, Float4)) $ Filter(particles, Get(p, 1))
         )) $ Zip(particles, neighbourIds)
     )
 

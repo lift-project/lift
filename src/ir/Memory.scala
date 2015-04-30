@@ -1,5 +1,7 @@
 package ir
 
+import arithmetic.{Var, Cst, ArithExpr}
+
 abstract class Memory {  
   def variable : Var
   def size : ArithExpr

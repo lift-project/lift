@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.Var
 import ir.UserFunDef._
 import ir._
 import opencl.executor.{Execute, Executor}
@@ -32,7 +33,7 @@ class TestTuple {
 
     val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
       Join() o MapWrg(
-        Join() o MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
+        Join() o Barrier() o MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
       ) o Split(1024) $ input
     )
 
@@ -58,7 +59,7 @@ class TestTuple {
       ArrayType(TupleType(Float, Float), N),
       (left, right) =>
         Join() o MapWrg(
-          Join() o MapLcl(MapSeq(addPair)) o Split(4)
+          Join() o Barrier() o MapLcl(MapSeq(addPair)) o Split(4)
         ) o Split(1024) $ Zip(left, right)
     )
 
@@ -80,7 +81,7 @@ class TestTuple {
 
     val pairFun = fun(ArrayType(Float, Var("N")), (input) =>
       Join() o MapWrg(
-        Join() o MapLcl(MapSeq(pair)) o Split(4)
+        Join() o Barrier() o MapLcl(MapSeq(pair)) o Split(4)
       ) o Split(1024) $ input
     )
 
@@ -108,7 +109,7 @@ class TestTuple {
 
     val function = fun(
       ArrayType(TupleType(Float, Float), N),
-      input => ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
+      input => toGlobal(MapSeq(idFF)) o ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
     )
 
     val (output, runtime) = Execute(inputSize)(function, input, inputSize)
@@ -134,10 +135,35 @@ class TestTuple {
 
     val function = fun(
       ArrayType(TupleType(Float, Float), N),
-      input => ReduceSeq(addPair, (0.0f, 0.0f)) $ input
+      input => toGlobal(MapSeq(idFF)) o ReduceSeq(addPair, (0.0f, 0.0f)) $ input
     )
 
     val (output, runtime) = Execute(inputSize)(function, input, inputSize)
+
+    println("output.length = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test def tuplePattern(): Unit = {
+    val nSize = 256
+    val mSize = 128
+    val input = Array.fill(nSize, mSize)(util.Random.nextInt(5).toFloat)
+    val array = Array.fill(nSize)(util.Random.nextInt(5).toFloat)
+    val gold = (input, array).zipped.map((x, y) => (x.map(_+1), y)._1.map(_+y)).flatten
+
+    val N = Var("N")
+    val M = Var("M")
+
+    val function = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, N),
+      (A, B) => MapGlb(fun(t => MapSeq(fun(x => add.apply(x, Get(t, 1)))) $ Get(t, 0)) o fun(t => Tuple(MapSeq(plusOne) $ Get(t, 0), Get(t, 1)))) $ Zip(A, B)
+    )
+
+    val (output, runtime) = Execute(nSize)(function, input, array, nSize, mSize)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))

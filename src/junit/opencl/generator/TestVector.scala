@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic.Var
 import benchmarks.VectorScaling
 import ir.UserFunDef._
 import ir._
@@ -41,7 +42,7 @@ class TestVector {
       (left, right) =>
 
         Join() o MapWrg(
-          Join() o MapLcl(MapSeq(add)) o Split(4)
+          Join() o Barrier() o MapLcl(MapSeq(add)) o Split(4)
         ) o Split(1024) $ Zip(left, right)
 
     )
@@ -65,7 +66,7 @@ class TestVector {
     val negFun = fun(ArrayType(Float, Var("N")), (input) =>
 
       Join() o MapWrg(
-        Join() o MapLcl(MapSeq(neg)) o Split(4)
+        Join() o Barrier() o MapLcl(MapSeq(neg)) o Split(4)
       ) o Split(1024) $ input
 
     )
@@ -199,7 +200,7 @@ class TestVector {
 
     val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
       Join() o MapWrg(
-        Join() o MapLcl(ReduceSeq(add, 0.0f) o MapSeq(
+        Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(
           fun( x => mult(alpha, x) )
         )) o Split(4)
       ) o Split(1024) $ input
@@ -226,9 +227,9 @@ class TestVector {
       (input) =>
 
         Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
-            Iterate(5)( Join() o MapLcl(ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o toLocal(MapLcl(ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride(1024/32)
+          Join() o Barrier() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
+            Iterate(5)( Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
+            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride(1024/32)
         ) o Split(1024) $ input
 
     )
@@ -239,6 +240,26 @@ class TestVector {
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
+  }
+
+  @Test def addArrayOfVectors(): Unit = {
+    val inputSize = 1024
+    val numVectors = 1024
+    val inputArray = Array.fill(numVectors, inputSize)(util.Random.nextInt(5).toFloat)
+
+    val gold = inputArray.reduce((x, y) => (x, y).zipped.map(_+_))
+
+    val test = inputArray.transpose.map(_.sum)
+    assertArrayEquals(gold, test, 0.001f)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, new Var("M")), new Var("N")),
+      input => MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose() $ input
+    )
+
+    val (output, _) = Execute(inputSize)(f, inputArray, inputSize, numVectors)
+
+    assertArrayEquals(gold, output, 0.0f)
   }
 
 }

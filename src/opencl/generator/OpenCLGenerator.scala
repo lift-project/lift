@@ -1,7 +1,9 @@
 package opencl.generator
 
+import arithmetic._
 import generator.Generator
 import ir._
+import ir.view.{ViewPrinter, View}
 import opencl.ir._
 
 import scala.collection.immutable
@@ -21,12 +23,21 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  def apply() = { false }
+  var debug = false
+  def apply() = debug
+  def apply(debug: Boolean) = { this.debug = debug }
 }
 
 object Verbose {
   var verbose = true
-  def apply() = { verbose }
+  def apply() = verbose
+  def apply(verbose: Boolean) = { this.verbose = verbose }
+}
+
+object AllocateStatically{
+  var allocateStatically = true
+  def apply() = allocateStatically
+  def apply(allocateStatically: Boolean) = { this.allocateStatically = allocateStatically }
 }
 
 object OpenCL{
@@ -36,9 +47,6 @@ object OpenCL{
 object OpenCLGenerator extends Generator {
 
   var oclPrinter: OpenCLPrinter = null
-  var localSize: Array[ArithExpr] = Array(?, ?, ?)
-  var globalSize: Array[ArithExpr] = Array(?, ?, ?)
-  var valueMap: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()
 
   private def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, (e: Expr) => e match {
@@ -63,10 +71,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // Compile a type-checked function into an OpenCL kernel
-  def generate(f: Lambda, localSize: Array[ArithExpr], globalSizes: Array[ArithExpr], valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
-    this.localSize = localSize
-    this.globalSize = globalSizes
-    this.valueMap = valueMap
+  def generate(f: Lambda, localSize: Array[ArithExpr], globalSize: Array[ArithExpr], valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
 
     assert(localSize.length == 3)
     assert(globalSize.length == 3)
@@ -87,11 +92,15 @@ object OpenCLGenerator extends Generator {
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.view = View(p.t, new InputAccess(oclPrinter.toOpenCL(p.mem.variable)))
+      p.view = View(p.t, oclPrinter.toOpenCL(p.mem.variable))
     })
 
     // pass 1
     allocateMemory(f)
+
+    RangesAndCounts(f, localSize, globalSize, valueMap)
+
+    BarrierElimination(f)
 
     if (Verbose()) {
       println("Memory:")
@@ -104,10 +113,11 @@ object OpenCLGenerator extends Generator {
       println("")
     }
 
-    View.createView(f.body)
+    View.visitAndBuildViews(f.body)
 
-    // pass 2: find and generate user functions
+    // pass 2: find and generate user and group functions
     generateUserFunction(f.body)
+    generateGroupFunction(f.body)
 
     oclPrinter.println()
 
@@ -135,11 +145,41 @@ object OpenCLGenerator extends Generator {
     })
   }
 
+  /** Traverses f and print all group functions using oclPrinter */
+  def generateGroupFunction(expr: Expr) {
+    val groupFuns = Expr.visit(Set[Group]())(expr, (expr, set) =>
+      expr match {
+        case call: FunCall => call.f match {
+          case group: Group => set + group
+          case _ => set
+        }
+        case _ => set
+      })
+    groupFuns.foreach(group => {
+      oclPrinter.print(oclPrinter.toOpenCL(group))
+      oclPrinter.println()
+    })
+  }
+
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemory.alloc(f.body)
     Kernel.memory = TypedOpenCLMemory.getAllocatedMemory(f.body, f.params)
   }
 
+  private def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
+    mem => try {
+      mem.mem.size.eval()
+      mem.mem.addressSpace == LocalMemory
+    } catch {
+      case _: NotEvaluableException =>
+        false
+    }
+  }
+
+  object Kernel {
+    var memory = Array.empty[TypedOpenCLMemory]
+    var workGroupSize = 128
+  }
 
   private def generateKernel(f: Lambda, workGroupSize: Int = 128) {
     val expr = f.body
@@ -148,6 +188,16 @@ object OpenCLGenerator extends Generator {
 
     // generate kernel function signature
     oclPrinter.print("kernel void KERNEL(")
+
+    val privateMems = TypedOpenCLMemory.
+      getAllocatedMemory(f.body, f.params, includePrivate = true).diff(Kernel.memory)
+
+    val (staticLocal, rest) =
+      if (AllocateStatically())
+        Kernel.memory.partition(isFixedSizeLocalMemory)
+      else (Array.empty[TypedOpenCLMemory], Kernel.memory)
+
+    Kernel.memory = rest
 
     oclPrinter.printAsParameterDecl(Kernel.memory)
 
@@ -178,19 +228,22 @@ object OpenCLGenerator extends Generator {
 
     // generate the body of the kernel
     oclPrinter.openCB()
+    // Print declarations for non parameter private memories and fixed size local memories
+    staticLocal.foreach(oclPrinter.printVarDecl)
+    privateMems.foreach(m => oclPrinter.printVarDecl(Type.getValueType(m.t), m.mem.variable))
     generate(expr)
     oclPrinter.closeCB()
-  }
-
-  object Kernel {
-    var memory = Array.empty[TypedOpenCLMemory]
-    var workGroupSize = 128
   }
 
 
 
   private def generate(expr: Expr) {
     assert(expr.t != UndefType)
+
+    expr match {
+      case f: FunCall => f.args.foreach(generate)
+      case _ =>
+    }
 
     expr match {
       case call: MapCall => call.f match {
@@ -221,61 +274,25 @@ object OpenCLGenerator extends Generator {
 
         case u : UserFunDef =>generateUserFunCall(u, call)
 
-        case f: toGlobal => generate(f.f.body)
-        case f: toLocal => generate(f.f.body)
+        case fp: FPattern => generate(fp.f.body)
         case l: Lambda => generate(l.body)
-        case g: Gather => generate(g.f.body)
-        case s: Scatter => generate(s.f.body)
-        case _: ReorderStride =>
-        case _: Transpose =>
-        case _: TransposeW =>
-        case _: Swap =>
-        case _: asVector =>
-        case _: asScalar =>
-        case _: Split =>
-        case _: SplitDim2 =>
-        case _: Join =>
-        case _: JoinDim2 =>
-        case _: Zip => call.args.foreach(generate)
-        case _: Unzip =>
+        case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
+        case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | asVector(_) | asScalar() |
+             Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() =>
         case _: VTail =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
+      case v: Value => generateValue(v)
       case p: Param =>
     }
   }
 
   // === Maps ===
-  
+
   // MapWrg
   private def generateMapWrgCall(call: MapCall): Unit = {
-    val m = call.f.asInstanceOf[MapWrg]
-    val dim: Int = m.dim
-    val start: get_group_id = new get_group_id(dim)
-    val length: ArithExpr = Type.getLength(call.arg.t)
-    var step: ArithExpr = new get_num_groups(m.dim)
 
-    val gSize = globalSize(dim)
-    val lSize = localSize(dim)
-
-    gSize match {
-      case Cst(c) =>
-        val numGroups = gSize / lSize
-        val vars = Var.getVars(length)
-        vars.foreach(v => {
-          valueMap.get(v) match {
-            case Some(value) => v.range = GoesToRange(value)
-            case None =>
-          }
-        })
-        step = numGroups
-        start.range = ContinuousRange(0, numGroups)
-      case ? =>
-    }
-
-    val range = RangeAdd(start, length, step)
-
-    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
     // if (m.dim == 0) {
@@ -285,67 +302,35 @@ object OpenCLGenerator extends Generator {
 
   // MapGlb
   private def generateMapGlbCall(call: MapCall): Unit = {
-    val m = call.f.asInstanceOf[MapGlb]
-    val range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.arg.t), new get_global_size(m.dim))
 
-
-
-    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
     // if (m.dim == 0) {
     //  oclPrinter.println("return;")
     // }
   }
-  
+
   // MapLcl
   private def generateMapLclCall(call: MapCall) {
-    val m = call.f.asInstanceOf[MapLcl]
-    val dim: Int = m.dim
-    val start = new get_local_id(dim)
-    val length = Type.getLength(call.arg.t)
-    var step: ArithExpr = new get_local_size(dim)
-
-    val size = localSize(dim)
-    if (size != ?) {
-      step = size
-      start.range = ContinuousRange(0, size)
-    }
-
-    val range = RangeAdd(start, length, step)
-
-    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
-    // TODO: This assumes, that the MapLcl(0) is always the outermost and there is no need for synchronization inside.
-    // TODO: Rethink and then redesign this!
-    if (dim == 0) {
-      oclPrinter.generateBarrier(call.mem)
-    }
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
   }
 
   // MapWarp
   private def generateMapWarpCall(call: MapCall) {
-    val range = RangeAdd(new get_local_id(0) / OpenCL.warpSize,
-                         Type.getLength(call.arg.t),
-                         Cst(Kernel.workGroupSize) / OpenCL.warpSize)
-
-    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     oclPrinter.generateBarrier(call.mem)
   }
 
   // MapLane
   private def generateMapLaneCall(call: MapCall) {
-    val range = RangeAdd(new get_local_id(0) & (OpenCL.warpSize - Cst(1)), Type.getLength(call.arg.t), OpenCL.warpSize)
-
-    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
   }
-  
+
   // MapSeq
   private def generateMapSeqCall(call: MapCall) {
-
-    val range = ContinuousRange(Cst(0), Type.getLength(call.arg.t))
-
     oclPrinter.commln("map_seq")
-    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     oclPrinter.commln("map_seq")
   }
 
@@ -368,33 +353,18 @@ object OpenCLGenerator extends Generator {
     oclPrinter.openCB()
     oclPrinter.commln("reduce_seq")
 
-    // 1. generate: int acc = 0
+    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
     //get local copies of our accumulation variables from our ReduceCall
-    val accVar = call.arg0.mem.variable
-    val accType = call.arg0.t
-    val accValue = call.arg0 match { case v: Value => v.value }
     //print an OpenCL/C declaration for our variable
-    oclPrinter.printVarDecl(accType, accVar, accValue)
-    oclPrinter.println(";")
 
-    val inT = call.arg1.t
-    val funCall = call.f.f.body match { case call: FunCall => call }
-
-    // 2. generate loop from 0 .. length
-    val range = RangeAdd(Cst(0), Type.getLength(inT), Cst(1))
-    oclPrinter.generateLoop(call.loopVar, range, () => {
-      // 3. generate acc = fun(acc, input[i])
-      oclPrinter.print(access(call.arg0.mem, call.arg0.t, call.arg0.view) + " = ")
-      // TODO: This assumes a UserFun to be nested here!
-      oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.args.map(_.view):_*))
-
-      oclPrinter.println(";")
-    })
-
-    // 4. generate output[0] = acc
-    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.view) =:= oclPrinter.toOpenCL(accVar))
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
+  }
+
+  private def generateValue(v: Value): Unit = {
+    val temp = Var("")
+    oclPrinter.printVarDecl(Type.getValueType(v.t), temp, v.value)
+    oclPrinter.println(oclPrinter.toOpenCL(v.mem.variable) + " = " + oclPrinter.toOpenCL(temp) + ";")
   }
 
   // === Head ===
@@ -549,6 +519,9 @@ object OpenCLGenerator extends Generator {
     val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
     val swapMem = OpenCLMemory.asOpenCLMemory(call.swapBuffer)
 
+    println(inputMem.addressSpace)
+    println(outputMem.addressSpace)
+
     assert (inputMem.addressSpace == outputMem.addressSpace)
 
     val funCall = call.f.f.body match { case call: FunCall => call }
@@ -570,10 +543,6 @@ object OpenCLGenerator extends Generator {
       else
         TypeVar.getTypeVars(funCall.argsType).head
     oclPrinter.printVarDecl(opencl.ir.Int, curOutLen, oclPrinter.toOpenCL(Type.getLength(call.argsType)))
-    oclPrinter.println(";")
-
-    val range = ContinuousRange(Cst(0), call.f.n)
-    val indexVar = Var("i", range)
 
     // create new temporary input and output pointers
     val tin = Var("tin")
@@ -584,6 +553,8 @@ object OpenCLGenerator extends Generator {
     val inVStr = oclPrinter.toOpenCL(inputMem.variable)
     val outVStr = oclPrinter.toOpenCL(outputMem.variable)
     val swapVStr = oclPrinter.toOpenCL(swapMem.variable)
+
+    val range = call.indexVar.range.asInstanceOf[RangeAdd]
 
     // ADDRSPC TYPE tin = in;
     oclPrinter.println(outputMem.addressSpace + " " + oclPrinter.toOpenCL(Type.devectorize(call.t)) + " " + tinVStr + " = " + inVStr+";")
@@ -679,7 +650,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.println(" ;")
 
     oclPrinter.println("#pragma unroll 1")
-    oclPrinter.generateLoop(indexVar, range, () => {
+    oclPrinter.generateLoop(call.indexVar, () => {
 
       // modify the pointers to the memory before generating the body
       val oldInV = inputMem.variable
@@ -696,14 +667,14 @@ object OpenCLGenerator extends Generator {
 
       // tmp = tmp * outputLen / inputLen
       oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = " +
-        oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength))+
+        oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength)) +
         ";")
 
       // tin = (tout == swap) ? swap : out
-      oclPrinter.println(tinVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ swapVStr +":"+ outVStr+";")
+      oclPrinter.println(tinVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + swapVStr + ":" + outVStr + ";")
       // tout = (tout == swap) ? out : swap
-      oclPrinter.println(toutVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ outVStr +":"+ swapVStr+";")
-    } )
+      oclPrinter.println(toutVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + outVStr + ":" + swapVStr + ";")
+    }, call.iterationCount)
 
     oclPrinter.closeCB()
   }
@@ -719,7 +690,7 @@ object OpenCLGenerator extends Generator {
   }
 
   // === Utilities ===
-  
+
   // helper functions to generate the actual OpenCL code
   private implicit class Operators(v: Any) {
     // generate assignment
@@ -727,7 +698,7 @@ object OpenCLGenerator extends Generator {
 
     override def toString : String = v.toString
   }
-  
+
   private def apply(fun: Any, arg: Any*) : String = {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }

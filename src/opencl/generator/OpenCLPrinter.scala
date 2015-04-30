@@ -1,5 +1,6 @@
 package opencl.generator
 
+import arithmetic._
 import ir._
 import opencl.ir._
 
@@ -53,11 +54,17 @@ class OpenCLPrinter {
   }
 
   def printVarDecl(t: Type, v: Var, init: String) {
-    print(toOpenCL(t)+" "+toOpenCL(v)+" = "+init)
+    println(toOpenCL(t)+" "+toOpenCL(v)+" = "+init + ";")
   }
 
-  def printVarDecl(t: Type, v: TypeVar, init: String) {
-    print(toOpenCL(t)+" "+toOpenCL(v)+" = "+init)
+  def printVarDecl(t: Type, v: Var) {
+    println(toOpenCL(t)+" "+toOpenCL(v)+ ";")
+  }
+
+  def printVarDecl(mem: TypedOpenCLMemory): Unit = {
+    val baseType = Type.getBaseType(mem.t)
+    println(mem.mem.addressSpace + " " + toOpenCL(baseType) + " " +
+      toOpenCL(mem.mem.variable) + "[" + toOpenCL(mem.mem.size / Type.getSize(baseType)) + "];")
   }
 /*
   def printAsParameterDecl(input: Input) {
@@ -120,7 +127,7 @@ class OpenCLPrinter {
   }
 
   def toOpenCL(e: ArithExpr) : String = {
-    val me = if(Debug()) { e } else { ExprSimplifier.simplify(e) }
+    val me = if(Debug()) e else ExprSimplifier.simplify(e)
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
@@ -139,6 +146,12 @@ class OpenCLPrinter {
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
       case Fraction(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
+      case gc: GroupCall =>
+        val outerAe = if (Debug()) ExprSimplifier.simplify(gc.outerAe) else gc.outerAe
+        val innerAe = if (Debug()) ExprSimplifier.simplify(gc.innerAe) else gc.innerAe
+        val len = if (Debug()) ExprSimplifier.simplify(gc.len) else gc.len
+        "groupComp" + gc.group.id + "(" + toOpenCL(outerAe) + ", " +
+          toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
@@ -163,6 +176,33 @@ class OpenCLPrinter {
       toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
       createTupleAlias(uf.unexpandedTupleTypes) +
       uf.body + "}"
+  }
+
+  def toOpenCL(group: Group) : String = {
+    group.params(0).t match {
+      case ArrayType(t, len) =>
+        val lenVar = Var("length")
+        val newIdx = Var("newIdx")
+        val newIdxStr = toOpenCL(newIdx)
+
+        s"""
+           |int groupComp${group.id}(int j, int i, int ${toOpenCL(lenVar)}){
+           |  // Compute new index
+           |  int relIndices[] = {${group.relIndices.deep.mkString(", ")}};
+           |  int $newIdxStr = j + relIndices[i];
+           |
+           |  // Boundary check
+           |  if ($newIdxStr < 0) {
+           |    return ${toOpenCL(group.negOutOfBoundsF(newIdx, lenVar))};
+           |  } else if ($newIdxStr >= ${toOpenCL(lenVar)}) {
+           |    return ${toOpenCL(group.posOutOfBoundsF(newIdx - lenVar + 1, lenVar))};
+           |  } else {
+           |    return $newIdxStr;
+           |  }
+           |}
+         """.stripMargin
+      case _ => throw new IllegalArgumentException
+    }
   }
 
   def createTypedef(t: Type): String = {
@@ -204,7 +244,7 @@ class OpenCLPrinter {
     if (mem.addressSpace == LocalMemory) {
       println("barrier(CLK_LOCAL_MEM_FENCE);")
     } else {
-      println("barrier(CLK_LOCAL_MEM_FENCE && CLK_GLOBAL_MEM_FENCE);")
+      println("barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);")
     }
   }
 
@@ -231,67 +271,42 @@ class OpenCLPrinter {
     closeCB()
   }
 
-  def generateLoop(indexVar: Var, range: RangeAdd, printBody: (() => Unit)) {
-    indexVar.range = range
+  def generateLoop(indexVar: Var, printBody: () => Unit, iterationCount: ArithExpr = ?) {
+    val range = indexVar.range.asInstanceOf[RangeAdd]
 
     val init = ExprSimplifier.simplify(range.start)
     val cond = ExprSimplifier.simplify(range.stop)
     val update = ExprSimplifier.simplify(range.step)
 
-    // eval expression. if sucessful return true and the value, otherwise return false
-    def evalExpr = (e: ArithExpr) => {try { (true, e.evalAtMax())} catch { case _ : Throwable => (false, 0) } }
-    def evalExprMinMax = (e: ArithExpr) => {try { (true, e.evalAtMin(), e.evalAtMax())} catch { case _ : Throwable => (false, 0, 0) } }
+    iterationCount match {
+      case Cst(0) =>
 
-    // try to directly evaluate
-    val (initIsEvaluated, initMinEvaluated, initMaxEvaluated) = evalExprMinMax(init)
-    val (condIsEvaluated, condEvaluated) = evalExpr(cond)
-    val (updateIsEvaluated, updateEvaluated) = evalExpr(update)
-
-    // TODO evaluate symbolically with a comparison operator (add support for <,<=,==,>=,> in Expr)
-
-    if (initIsEvaluated && condIsEvaluated) {
-      if (condEvaluated <= initMinEvaluated)
-        // nothing to do
-        return
-    }
-
-    if (initIsEvaluated && condIsEvaluated && updateIsEvaluated) {
-      assert (condEvaluated > initMinEvaluated)
-      if (initMinEvaluated == initMaxEvaluated &&
-        condEvaluated <= initMinEvaluated + updateEvaluated ||
-        // Above: sequential loop, below: parallel loop
-        initMaxEvaluated - initMinEvaluated == updateEvaluated &&
-        condEvaluated == initMinEvaluated + updateEvaluated) {
+      case Cst(1) =>
         // exactly one iteration
-        openCB()
-        println("int " + toOpenCL(indexVar) + " = " + toOpenCL(init) + ";")
-        printBody()
-        closeCB()
-        return
-      }
-    }
+        openCB ()
+        println ("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
+        printBody ()
+        closeCB ()
 
-    if (condIsEvaluated && updateIsEvaluated)
-      if (condEvaluated <= updateEvaluated) {
+      case Fraction (Cst(1), ?) =>
         // one or less iteration
-        openCB()
-        println("int " + toOpenCL(indexVar) + " = " + toOpenCL(init) + ";")
-        print("if (" + toOpenCL(indexVar) + " < (" + toOpenCL(cond) + ")) ")
-        openCB()
-        printBody()
-        closeCB()
-        closeCB()
-        return
-      }
+        openCB ()
+        println ("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
+        print ("if (" + toOpenCL (indexVar) + " < (" + toOpenCL (cond) + ")) ")
+        openCB ()
+        printBody ()
+        closeCB ()
+        closeCB ()
 
-
-    // as the default print of the default loop
-    print ("for (int " + toOpenCL(indexVar) + " = " + toOpenCL(init)  + "; " +
-      toOpenCL(indexVar) + " < " + toOpenCL(cond)  + "; " +
-      toOpenCL(indexVar) + " += " + toOpenCL(update) + ") ")
-    openCB()
-    printBody()
-    closeCB()
+      case _ =>
+        // as the default print of the default loop
+        print ("for (int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + "; " +
+          toOpenCL (indexVar) + " < " + toOpenCL (cond) + "; " +
+          toOpenCL (indexVar) + " += " + toOpenCL (update) + ") ")
+        openCB ()
+        printBody ()
+        closeCB ()
+    }
   }
 
 }
