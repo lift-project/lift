@@ -5,6 +5,8 @@ import arithmetic.{Var, Cst, ArithExpr}
 abstract class Memory {  
   def variable : Var
   def size : ArithExpr
+
+  var readOnly = false
 }
 
 object UnallocatedMemory extends Memory {
