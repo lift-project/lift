@@ -403,8 +403,8 @@ class TestMisc {
 
   @Test def decompose(): Unit = {
 
-    val nSize = 512
-    val mSize = 256
+    val nSize = 128
+    val mSize = 128
     val A = Array.tabulate(nSize, mSize)((x, y) => x + y.toFloat)
     val B = Array.tabulate(nSize, mSize)((x, y) => x + y.toFloat)
 
