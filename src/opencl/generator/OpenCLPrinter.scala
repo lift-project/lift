@@ -78,7 +78,9 @@ class OpenCLPrinter {
   private def toParameterDecl(mem: TypedOpenCLMemory) : String = {
     mem.t match {
       case ScalarType(_,_) | VectorType(_,_) => toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
-      case ArrayType(_,_) => mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
+      case ArrayType(_,_) =>
+        val const = if (mem.mem.readOnly) "const " else ""
+        const + mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
     }
   }
 

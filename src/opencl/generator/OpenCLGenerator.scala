@@ -199,6 +199,8 @@ object OpenCLGenerator extends Generator {
 
     Kernel.memory = rest
 
+    f.params.foreach(_.mem.readOnly = true)
+
     oclPrinter.printAsParameterDecl(Kernel.memory)
 
     // array of all unique vars (like N, iterSize, etc. )
