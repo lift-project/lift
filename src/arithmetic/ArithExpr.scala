@@ -215,6 +215,7 @@ object ArithExpr {
             } catch {
               case ne: NotEvaluableException =>
             }
+          case _ =>
         }
 
         false

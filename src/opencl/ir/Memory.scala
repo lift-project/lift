@@ -133,13 +133,13 @@ object OpenCLMemory {
     * @return The newly allocated memory object
     */
   def allocMemory(glbOutSize: ArithExpr, lclOutSize: ArithExpr,
-                  addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+                  pvtOutSize: ArithExpr, addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     assert(addressSpace != UndefAddressSpace)
 
     addressSpace match {
       case GlobalMemory => allocGlobalMemory(glbOutSize)
       case LocalMemory => allocLocalMemory(lclOutSize)
-      case PrivateMemory => allocPrivateMemory(4)
+      case PrivateMemory => allocPrivateMemory(pvtOutSize)
     }
   }
 
@@ -424,7 +424,7 @@ object OpenCLMemory {
     val largestSize = ArithExpr.max(inSize, outSize)
 
     // create a swap buffer
-    call.swapBuffer = allocMemory(largestSize, largestSize, inMem.addressSpace)
+    call.swapBuffer = allocMemory(largestSize, largestSize, largestSize, inMem.addressSpace)
 
     // recurs to allocate memory for the function(s) inside
     if (it.f.params.length != 1) throw new NumberOfArgumentsException
@@ -458,10 +458,10 @@ object OpenCLMemory {
 
         // TODO: could maybe allocated in private memory (need to change slightly the allocator and add toPrivate)
         case ScalarType(_, _) | VectorType(_, _) =>
-          allocMemory(maxGlbOutSize, maxLclOutSize, addressSpace)
+          allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, addressSpace)
 
         case _ =>
-          allocMemory(maxGlbOutSize, maxLclOutSize, addressSpace)
+          allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, addressSpace)
       }
     } else {
       outputMem
