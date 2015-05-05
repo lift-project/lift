@@ -106,12 +106,11 @@ class TestExpr {
     assertEquals(i, ExprSimplifier.simplify(i % c))
   }
 
-  @Ignore
   @Test def DivModOfVarWithConstantRange(): Unit = {
     val c =  Cst(10)
     val i = Var(GoesToRange(c))
-    // TODO(tlutz): (i % c) / x = 0 when x > c
-    assertEquals(Cst(0), ExprSimplifier.simplify(i % c)/Cst(20))
+
+    assertEquals(Cst(0), ExprSimplifier.simplify((i % c) div Cst(20)))
   }
 
   @Test def modOfVarWithConstantRange2(): Unit = {
