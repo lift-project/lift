@@ -23,26 +23,76 @@ object TestInvalid {
 }
 
 class TestInvalid {
+  // Dummy user function
+  val fct = UserFunDef("afunc", "array", " return array * 2.0f; ", Seq(Float), Float)
+  // Dummy function
+  val f = fun(ArrayType(Float, Var("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
+
   // Test invalid 1D array with default local size
   @Test(expected=classOf[InvalidIndexSpaceException])
   def Indivisible1DRange(): Unit = {
-    // global size
+    // Input Array
     val inputSize = 31
-
-    // dummy input
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
-    // dummy user function
-    val fct = UserFunDef("afunc", "array", " return array * 2.0f; ", Seq(Float), Float)
+    // execute
+    Execute(inputSize)(f, array, inputSize) // should throw
 
-    // Expression
-    val f = fun(
-      ArrayType(Float, Var("N")),
-      (in) => MapGlb(fun(a => fct(a))) $ in )
+    // explicit failure
+    assert(assertion = false)
+  }
+
+  // Test invalid 1D array with explicit local size
+  @Test(expected=classOf[InvalidIndexSpaceException])
+  def Indivisible1DExplicitRange(): Unit = {
+    // Input Array
+    val inputSize = 499
+    val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    val (output, runtime) = Execute(inputSize)(f, array, inputSize) // should throw
-    println("runtime = " + runtime)
+    Execute(inputSize, 100)(f, array, inputSize) // should throw
+
+    // explicit failure
+    assert(assertion = false)
+  }
+
+  // global size < local size
+  @Test(expected=classOf[InvalidIndexSpaceException])
+  def Invalid1DExplicitRange(): Unit = {
+    // Input Array
+    val inputSize = 64
+    val array = Array.fill(inputSize)(util.Random.nextFloat())
+
+    // execute
+    Execute(inputSize)(f, array, inputSize) // should throw
+
+    // explicit failure
+    assert(assertion = false)
+  }
+
+  // global size == 0
+  @Test(expected=classOf[InvalidGlobalSizeException])
+  def EmptyGlobalSize(): Unit = {
+    // Input Array
+    val inputSize = 128
+    val array = Array.fill(inputSize)(util.Random.nextFloat())
+
+    // execute
+    Execute(0)(f, array, inputSize) // should throw
+
+    // explicit failure
+    assert(assertion = false)
+  }
+
+  // local size == 0
+  @Test(expected=classOf[InvalidGlobalSizeException])
+  def EmptyLocalSize(): Unit = {
+    // Input Array
+    val inputSize = 128
+    val array = Array.fill(inputSize)(util.Random.nextFloat())
+
+    // execute
+    Execute(inputSize,0)(f, array, inputSize) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -51,8 +101,4 @@ class TestInvalid {
   // TODO(tlutz): missing test cases:
   // - invalid 2D volume
   // - invalid 3D volume
-  // - explicit local size
-  // - local size > global size
-  // - local size == 0
-  // - global size == 0
 }
