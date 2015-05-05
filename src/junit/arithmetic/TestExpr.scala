@@ -1,7 +1,7 @@
 package arithmetic
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import scala.util.Random
 
@@ -104,6 +104,14 @@ class TestExpr {
     val c =  Cst(10)
     val i = Var(GoesToRange(c))
     assertEquals(i, ExprSimplifier.simplify(i % c))
+  }
+
+  @Ignore
+  @Test def DivModOfVarWithConstantRange(): Unit = {
+    val c =  Cst(10)
+    val i = Var(GoesToRange(c))
+    // TODO(tlutz): (i % c) / x = 0 when x > c
+    assertEquals(Cst(0), ExprSimplifier.simplify(i % c)/Cst(20))
   }
 
   @Test def modOfVarWithConstantRange2(): Unit = {
