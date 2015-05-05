@@ -79,8 +79,10 @@ class OpenCLPrinter {
     mem.t match {
       case ScalarType(_,_) | VectorType(_,_) => toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
       case ArrayType(_,_) =>
+        // Const restricted pointers to read-only global memory. See issue #2.
         val const = if (mem.mem.readOnly) "const " else ""
-        const + mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
+        val restrict = if (mem.mem.readOnly) "restrict " else ""
+        const + mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + restrict + toOpenCL(mem.mem.variable)
     }
   }
 
