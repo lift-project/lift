@@ -265,7 +265,6 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
-  @Ignore
   @Test def mmTiledReuseA(): Unit = {
     val mSize = 16
     val kSize = 16
@@ -291,7 +290,10 @@ class TestMatrixMatrix {
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
-              toGlobal(MapLcl(1)(MapLcl(0)(id))) o
+
+              toGlobal(MapLcl(1)(
+                Scatter(IndexFunction.reorderStride(blockSize))(MapLcl(0)(id))
+              )) o
                 Join() o
 
                 // Multiply all necessary combinations of tiles
@@ -299,10 +301,10 @@ class TestMatrixMatrix {
 
                   fun(pairOfTiles =>
                     Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
-                      Map(Join()) o
+
+                      Map(Join()) o // This reorders elements and needs the scatter at the end
                       MapLcl(1)( fun(rowA =>
                         MapLcl(0)( fun( colsB =>
-
                           Join() o ReduceSeq(fun((acc, elemRowPair) =>
                             MapSeq(add) o fun(elemRowPair =>
                               Zip(

@@ -217,6 +217,11 @@ object IndexFunction {
 
     n - 1 - i
   }
+
+  val reorderStride = (s:ArithExpr) => (i: ArithExpr, t:Type) => {
+    val n = Type.getLength(t) / s
+    (i div n) + s * (i % n)
+  }
 }
 
 case class Gather(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
