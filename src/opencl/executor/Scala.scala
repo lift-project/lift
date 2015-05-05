@@ -8,6 +8,13 @@ import opencl.ir._
 import scala.collection.immutable
 import scala.reflect.ClassTag
 
+/// @brief Thrown when the global size is not divisible by the local size
+class InvalidIndexSpaceException(msg: String) extends Exception(msg)
+/// @brief Thrown on negative or 0 global size
+class InvalidGlobalSizeException(msg: String) extends Exception(msg)
+/// @brief Thrown on negative or 0 local size
+class InvalidLocalSizeException(msg: String) extends Exception(msg)
+
 object Eval {
   def apply(code: String): Lambda = {
     val imports = """
@@ -53,22 +60,47 @@ object Compile {
 }
 
 object Execute {
+  /// @brief helper function to run sanity checks on the global and local size.
+  /// @param localSize Local range
+  /// @param globalSize Global range
+  /// @param dim Current dimension
+  /// @throws InvalidLocalSizeException if localSize == 0
+  ///         InvalidGlobalSizeException if GlobalSize == 0
+  ///         InvalidIndexSpaceException if GlobalSize % localSize != 0
+  def ValidateNDRange(globalSize: Int, localSize: Int, dim: Int): Unit = {
+    if(localSize <= 0)
+      throw new InvalidLocalSizeException("Local size (" + localSize + ") cannot be negative in dim " + dim)
+    if(globalSize <= 0)
+      throw new InvalidGlobalSizeException("Global size (" + localSize + ") cannot be negative in dim " + dim)
+    if(globalSize % localSize != 0)
+      throw new InvalidIndexSpaceException("Global size (" + globalSize + " is not divisible by local size (" + localSize + ") in dim " + dim)
+  }
+
   def apply(globalSize: Int): Execute = {
     apply(128, globalSize)
   }
 
   def apply(localSize: Int, globalSize: Int, injectSizes: (Boolean, Boolean) = (false, false)): Execute = {
+    // sanity checks
+    ValidateNDRange(globalSize, localSize, 0)
     new Execute(localSize, 1, 1, globalSize, 1, 1, injectSizes._1, injectSizes._2)
   }
 
   def apply(localSize1: Int, localSize2: Int, globalSize1: Int,  globalSize2: Int,
             injectSizes: (Boolean, Boolean)): Execute = {
+    // sanity checks
+    ValidateNDRange(globalSize1, localSize1, 0)
+    ValidateNDRange(globalSize2, localSize2, 1)
     new Execute(localSize1, localSize2, 1, globalSize1, globalSize2, 1, injectSizes._1, injectSizes._2)
   }
 
   def apply(localSize1: Int, localSize2: Int, localSize3: Int,
             globalSize1: Int,  globalSize2: Int, globalSize3: Int,
             injectSizes: (Boolean, Boolean)): Execute = {
+    // sanity checks
+    ValidateNDRange(globalSize1, localSize1, 0)
+    ValidateNDRange(globalSize2, localSize2, 1)
+    ValidateNDRange(globalSize3, localSize3, 2)
     new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, injectSizes._1, injectSizes._2)
   }
 
