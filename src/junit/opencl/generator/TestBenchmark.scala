@@ -128,26 +128,27 @@ class TestBenchmark {
     }).flatten
 
     val md = UserFunDef("md", Array("i", "j", "niters", "size"),
-      "{ \n" +
-        "  float space = 2.0f / size;\n" +
-        "  float Zr = 0.0f;\n" +
-        "  float Zi = 0.0f;\n" +
-        "  float Cr = (j * space - 1.5f);\n" +
-        "  float Ci = (i * space - 1.0f);\n" +
-        "  \n" +
-        "  float ZrN = 0;\n" +
-        "  float ZiN = 0;\n" +
-        "  int y = 0;\n" +
-        "  \n" +
-        "  for (y = 0; y < niters && ZiN + ZrN <= 4.0f; y++) {\n" +
-        "    Zi = 2.0f * Zr * Zi + Ci;\n" +
-        "    Zr = ZrN - ZiN + Cr;\n" +
-        "    ZiN = Zi * Zi;\n" +
-        "    ZrN = Zr * Zr;\n" +
-        "  }\n" +
-        "  return (float) ((y * 255) / niters);\n" +
-        //        "  return (float) y;\n" +
-        "}\n", Seq(Int, Int, Int, Int), Float)
+      """|{
+         |  float space = 2.0f / size;
+         |  float Zr = 0.0f;
+         |  float Zi = 0.0f;
+         |  float Cr = (j * space - 1.5f);
+         |  float Ci = (i * space - 1.0f);
+         |
+         |  float ZrN = 0;
+         |  float ZiN = 0;
+         |  int y = 0;
+         |
+         |  for (y = 0; y < niters && ZiN + ZrN <= 4.0f; y++) {
+         |    Zi = 2.0f * Zr * Zi + Ci;
+         |    Zr = ZrN - ZiN + Cr;
+         |    ZiN = Zi * Zi;
+         |    ZrN = Zr * Zr;
+         |  }
+         |  return (float) ((y * 255) / niters);
+         |//        "  return (float) y;
+         |}
+         |""".stripMargin, Seq(Int, Int, Int, Int), Float)
 
     val f = fun(
       ArrayType(Int, Var("N")),
@@ -228,24 +229,26 @@ class TestBenchmark {
     }).map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
 
     val calcAcc = UserFunDef("calcAcc", Array("x1", "y1", "z1", "x2", "y2", "z2", "mass", "espSqr"),
-      "{\n" +
-        "  float4 r = (x1 - x2, y1 - y2, z1 - z2, 0.0f);\n" +
-        "  float distSqr = r.x + r.y + r.z;\n" +
-        "  float invDist = 1.0f / sqrt(distSqr + espSqr);\n" +
-        "  float invDistCube = invDist * invDist * invDist;\n" +
-        "  float s = invDistCube * mass;\n" +
-        "  Tuple acc = {s * r.x, s * r.y, s * r.z};" +
-        "  return acc;\n" +
-        "}\n", Seq(Float,Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float, Float))
+      """|{
+         |  float4 r = (x1 - x2, y1 - y2, z1 - z2, 0.0f);
+         |  float distSqr = r.x + r.y + r.z;
+         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
+         |  float invDistCube = invDist * invDist * invDist;
+         |  float s = invDistCube * mass;
+         |  Tuple acc = {s * r.x, s * r.y, s * r.z};
+         |  return acc;
+         |}
+         |""".stripMargin, Seq(Float,Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float, Float))
     val reduce = UserFunDef("reduce", Array("x", "y"), "{ Tuple t = {x._0 + y._0, x._1 + y._1, x._2 + y._2}; return t;}", Seq(TupleType(Float, Float, Float), TupleType(Float, Float, Float)), TupleType(Float, Float, Float))
     val update = UserFunDef("update", Array("x", "y", "z", "velX", "velY", "velZ", "mass", "deltaT", "acceleration"),
-      "{\n" +
-        "  float px = velX * deltaT + 0.5f * acceleration._0 * deltaT * deltaT;\n" +
-        "  float py = velY * deltaT + 0.5f * acceleration._1 * deltaT * deltaT;\n" +
-        "  float pz = velZ * deltaT + 0.5f * acceleration._2 * deltaT * deltaT;\n" +
-        "  Tuple1 t = {x + px, y + py, z + pz, velX + acceleration._0 * deltaT, velY + acceleration._1 * deltaT, velZ + acceleration._2 * deltaT, mass};\n" +
-        "  return t;\n" +
-        "}\n", Seq(Float,Float, Float, Float, Float, Float, Float, Float, TupleType(Float, Float, Float)), TupleType(Float,Float, Float, Float, Float, Float, Float) )
+      """|{
+         |  float px = velX * deltaT + 0.5f * acceleration._0 * deltaT * deltaT;
+         |  float py = velY * deltaT + 0.5f * acceleration._1 * deltaT * deltaT;
+         |  float pz = velZ * deltaT + 0.5f * acceleration._2 * deltaT * deltaT;
+         |  Tuple1 t = {x + px, y + py, z + pz, velX + acceleration._0 * deltaT, velY + acceleration._1 * deltaT, velZ + acceleration._2 * deltaT, mass};
+         |  return t;
+         |}
+         """.stripMargin, Seq(Float,Float, Float, Float, Float, Float, Float, Float, TupleType(Float, Float, Float)), TupleType(Float,Float, Float, Float, Float, Float, Float) )
 
     val N = Var("N")
 
