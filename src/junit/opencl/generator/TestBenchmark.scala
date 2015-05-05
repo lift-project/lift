@@ -370,4 +370,42 @@ class TestBenchmark {
     }).zipWithIndex.foreach(x => assertEquals("Error at pos " + x._2, 0.0f, x._1, 0.1f))
 
   }
+
+  // Compute single precision a * x + y
+  @Test def saxpy(): Unit = {
+    // domain size
+    val inputSize = 4096
+    val N = Var("N")
+
+    // Input variables
+    val a : Float = 5.0f
+    val xs = Array.fill(inputSize)(util.Random.nextFloat())
+    val ys = Array.fill(inputSize)(util.Random.nextFloat())
+
+    // Cross validation
+    val gold = (xs.map(_*a),ys).zipped map (_+_)
+
+    // user function
+    val fct = UserFunDef("saxpy", Array("a", "x", "y"),
+      " return a * x + y; ",
+      Seq(Float, Float, Float), Float)
+
+    // Expression
+    val f = fun(
+      Float,
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a,xs,ys) => MapGlb(
+        fun( xy => fct(
+          a, Get(xy, 0), Get(xy, 1)
+        ))
+      ) $ Zip(xs, ys)
+    )
+
+    // execute
+    val (output, runtime) = Execute(inputSize)(f, a, xs, ys, inputSize)
+
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.001f)
+  }
 }
