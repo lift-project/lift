@@ -1,6 +1,6 @@
 package opencl.executor
 
-import arithmetic.{Var, Cst, ?, ArithExpr}
+import arithmetic.{Var, Cst, ArithExpr}
 import ir._
 import opencl.generator.{Verbose, OpenCLGenerator}
 import opencl.ir._
@@ -8,11 +8,11 @@ import opencl.ir._
 import scala.collection.immutable
 import scala.reflect.ClassTag
 
-/// @brief Thrown when the global size is not divisible by the local size
+/** Thrown when the global size is not divisible by the local size */
 class InvalidIndexSpaceException(msg: String) extends Exception(msg)
-/// @brief Thrown on negative or 0 global size
+/** Thrown on negative or 0 global size */
 class InvalidGlobalSizeException(msg: String) extends Exception(msg)
-/// @brief Thrown on negative or 0 local size
+/** Thrown on negative or 0 local size */
 class InvalidLocalSizeException(msg: String) extends Exception(msg)
 
 /**
@@ -23,22 +23,6 @@ class InvalidLocalSizeException(msg: String) extends Exception(msg)
  * This object provides factory functions for creating an instance of the class Execute
  */
 object Execute {
-  /// @brief helper function to run sanity checks on the global and local size.
-  /// @param localSize Local range
-  /// @param globalSize Global range
-  /// @param dim Current dimension
-  /// @throws InvalidLocalSizeException if localSize == 0
-  ///         InvalidGlobalSizeException if GlobalSize == 0
-  ///         InvalidIndexSpaceException if GlobalSize % localSize != 0
-  def ValidateNDRange(globalSize: Int, localSize: Int, dim: Int): Unit = {
-    if(localSize <= 0)
-      throw new InvalidLocalSizeException("Local size (" + localSize + ") cannot be negative in dim " + dim)
-    if(globalSize <= 0)
-      throw new InvalidGlobalSizeException("Global size (" + localSize + ") cannot be negative in dim " + dim)
-    if(globalSize % localSize != 0)
-      throw new InvalidIndexSpaceException("Global size (" + globalSize + " is not divisible by local size (" + localSize + ") in dim " + dim)
-  }
-
   /**
    * Creates an Execute instance with the given one dimensional global size and a default local size.
    * Neither the global nor the local size is injected in the OpenCL kernel code.
@@ -49,7 +33,7 @@ object Execute {
 
   /**
    *
-   * Creates an Execute instance with the given one/two/three dimensional local and global sizes.
+   * These three functions create Execute instances with the given one/two/three dimensional local and global sizes.
    * The last parameter determines if the local and global size are injected in the OpenCL kernel code.
    */
   def apply(localSize: Int, globalSize: Int, injectSizes: (Boolean, Boolean) = (false, false)): Execute = {
@@ -73,11 +57,12 @@ object Execute {
     ValidateNDRange(globalSize1, localSize1, 0)
     ValidateNDRange(globalSize2, localSize2, 1)
     ValidateNDRange(globalSize3, localSize3, 2)
-    new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, injectSizes._1, injectSizes._2)
+    new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
+                injectSizes._1, injectSizes._2)
   }
 
   /**
-   * Private helpder function.
+   * Private helper functions.
    */
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
     // just take the variables
@@ -96,14 +81,38 @@ object Execute {
     })
 
     val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
-      case aaaa: Array[Array[Array[Array[_]]]] => Seq(Cst(aaaa.length), Cst(aaaa(0).length), Cst(aaaa(0)(0).length), Cst(aaaa(0)(0)(0).length / tupleSize))
-      case aaa: Array[Array[Array[_]]] => Seq(Cst(aaa.length), Cst(aaa(0).length), Cst(aaa(0)(0).length / tupleSize))
-      case aa: Array[Array[_]] => Seq(Cst(aa.length), Cst(aa(0).length / tupleSize))
-      case a: Array[_] => Seq(Cst(a.length / tupleSize))
-      case any: Any => Seq(Cst(1))
+      case aaaa: Array[Array[Array[Array[_]]]]
+        => Seq(Cst(aaaa.length), Cst(aaaa(0).length), Cst(aaaa(0)(0).length), Cst(aaaa(0)(0)(0).length / tupleSize))
+      case aaa: Array[Array[Array[_]]]
+        => Seq(Cst(aaa.length), Cst(aaa(0).length), Cst(aaa(0)(0).length / tupleSize))
+      case aa: Array[Array[_]]
+        => Seq(Cst(aa.length), Cst(aa(0).length / tupleSize))
+      case a: Array[_]
+        => Seq(Cst(a.length / tupleSize))
+      case any: Any
+        => Seq(Cst(1))
     }).flatten[ArithExpr]
 
     (vars zip sizes).toMap[ArithExpr, ArithExpr]
+  }
+
+  /**
+   * Helper function to run sanity checks on the global and local size.
+   * @param globalSize Global range
+   * @param localSize Local range
+   * @param dim Current dimension
+   * @throws InvalidLocalSizeException if localSize == 0
+   *         InvalidGlobalSizeException if GlobalSize == 0
+   *         InvalidIndexSpaceException if GlobalSize % localSize != 0
+   */
+  private def ValidateNDRange(globalSize: Int, localSize: Int, dim: Int): Unit = {
+    if(localSize <= 0)
+      throw new InvalidLocalSizeException("Local size (" + localSize + ") cannot be negative in dim " + dim)
+    if(globalSize <= 0)
+      throw new InvalidGlobalSizeException("Global size (" + localSize + ") cannot be negative in dim " + dim)
+    if(globalSize % localSize != 0)
+      throw new InvalidIndexSpaceException("Global size (" + globalSize +
+                                           ") is not divisible by local size (" + localSize + ") in dim " + dim)
   }
 }
 
@@ -126,15 +135,13 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
    * Given just a string: evaluate the string into a lambda and then call the function below
    */
   def apply(input: String, values: Any*): (Array[Float], Double) = {
-    //apply(Eval(input), values)
-    val (code, f) = Compile(input)
-    apply(code, f, values:_*)
+    apply(Eval(input), values:_*)
   }
 
   /**
    * Given a lambda: compile it and the execute it
    */
-  /*def apply(f: Lambda, values: Any*): (Array[Float], Double) = {
+  def apply(f: Lambda, values: Any*): (Array[Float], Double) = {
 
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
@@ -143,7 +150,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       // ... compile with all information provided
       val code = Compile(f, localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, valueMap)
       // .. finally execute
-      return execute(code, f, values)
+      return execute(code, f, values:_*)
     }
 
     // 2.choice: local size should be injected into the OpenCL kernel ...
@@ -151,33 +158,21 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       // ... compile with providing local size information
       val code = Compile(f, localSize1, localSize2, localSize3)
       // .. finally execute
-      return execute(code, f, values)
+      return execute(code, f, values:_*)
     }
 
     // 3.choice: nothing should we injected into the OpenCL kernel ... just compile and execute
-    execute(Compile(f), f, values)
-  }*/
-  def apply(f: Lambda, values: Any*): (Array[Float], Double) = {
-    val valueMap = Execute.createValueMap(f, values:_*)
-
-    val code = if (injectLocalSize)
-      if (injectGroupSize)
-        Compile(f, localSize1, localSize2, localSize3,
-          globalSize1, globalSize2, globalSize3, valueMap)
-      else
-        Compile(f, localSize1, localSize2, localSize3)
-    else Compile(f)
-
-    apply(code, f, values:_*)
+    execute(Compile(f), f, values:_*)
   }
 
   /**
    * Given a compiled code as a string and the corresponding lambda execute it.
+   *
    * This function can be used for debug purposes, where the OpenCL kernel code is changed slightly
    * but the corresponding lambda can remain unchanged.
    */
   def apply(code: String, f: Lambda, values: Any*) : (Array[Float], Double) = {
-    execute(code, f, values)
+    execute(code, f, values:_*)
   }
 
   /**
@@ -270,31 +265,49 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
 }
 
+/**
+ * Factory functions for creating OpenCL kernel arguments
+ */
 
 object global {
+  /**
+   * Create global input arguments from an array
+   */
   object input {
     def apply(array: Array[Float]) = GlobalArg.createInput(array)
-    def apply(array: Array[Int]) = GlobalArg.createInput(array)
+    def apply(array: Array[Int])   = GlobalArg.createInput(array)
   }
 
+  /**
+   * Create output argument given a Type and the number of elements
+   */
   object output {
     def apply[T : ClassTag](length: Int) = {
       implicitly[ClassTag[T]] match {
         case ClassTag.Float => GlobalArg.createOutput(length * 4) // in bytes
-        case ClassTag.Int => GlobalArg.createOutput(length * 4) // in bytes
+        case ClassTag.Int   => GlobalArg.createOutput(length * 4) // in bytes
         case _ => throw new IllegalArgumentException
       }
     }
   }
 
-  def apply(size: Int) = GlobalArg.createOutput(size)
+  /**
+   * Create global argument allocated with the given size in bytes
+   */
+  def apply(sizeInBytes: Int) = GlobalArg.createOutput(sizeInBytes)
 }
 
+/**
+ * Create local argument allocated with the given size in bytes
+ */
 object local {
-  def apply(size: Int) = LocalArg.create(size)
+  def apply(sizeInBytes: Int) = LocalArg.create(sizeInBytes)
 }
 
+/**
+ * Create a kernel argument passed by value
+ */
 object value {
   def apply(value: Float) = ValueArg.create(value)
-  def apply(value: Int) = ValueArg.create(value)
+  def apply(value: Int)   = ValueArg.create(value)
 }
