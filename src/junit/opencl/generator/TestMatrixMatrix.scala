@@ -4,7 +4,7 @@ import arithmetic.Var
 import benchmarks.MatrixMultiplication
 import opencl.executor._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test, Ignore}
+import org.junit.{AfterClass, BeforeClass, Test}
 import opencl.ir._
 import opencl.ir.CompositePatterns._
 import ir._
@@ -228,6 +228,50 @@ class TestMatrixMatrix {
 
     assertArrayEquals(gold, matrixC5.flatten, 0.001f)
 
+    /*
+     * Below:
+     * Trying to reuse B
+     */
+
+    val matrixC6 = matrixA.grouped(4).toArray.map(rowsA => matrixB.transpose.map(colB =>(rowsA.transpose, colB).zipped.
+      foldLeft(Array.ofDim[Float](4))((acc, rowElemPair) => (rowElemPair._1.map(_*rowElemPair._2), acc).
+      zipped.map(_+_)))).map(_.transpose).flatten
+
+    assertArrayEquals(gold, matrixC6.flatten, 0.001f)
+  }
+
+  @Test def mmReuseB(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val n = new Var("N")
+    val m = new Var("M")
+    val k = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, k), m),
+      ArrayType(ArrayType(Float, n), k),
+      (A, B) =>
+        Join() o Map(TransposeW()) o
+          MapGlb(fun( rowsA =>
+            MapSeq(fun( colB =>
+              toGlobal(MapSeq(id)) o Join() o ReduceSeq(fun((acc, rowElemPair) =>
+                MapSeq(add) o fun(rowElemPair => Zip(toPrivate(MapSeq(fun(a => mult.apply(a, Get(rowElemPair, 1))))) $ Get(rowElemPair, 0), acc)) $ rowElemPair
+              ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, tileSize))) $ Zip(Transpose() $ rowsA, colB)
+            )) o Transpose() $ B
+          )) o Split(tileSize) $ A
+    )
+
+    val (output, _) = Execute(mSize * nSize)(f, matrixA, matrixB, mSize, kSize, nSize)
+
+    assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def mmReuseA(): Unit = {
@@ -654,61 +698,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  // TODO: Gives incorrect result
-  @Ignore
-  @Test def MATRIX_MATRIX_2D_TESTS_1() {
-
-    val mSize = 32
-    val kSize = 32
-    val nSize = 32
-    //val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    //val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val matrixA = Array.tabulate(mSize, kSize)((r, c) => 1.0f)
-    val matrixB = Array.tabulate(kSize, nSize)((r, c) => 2.0f)
-
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
-
-    val r = 2 // number of rows a single workgroup computes
-    val c = 4 // number of columns a single workgroup computes
-    val d = 16 // chunk size
-
-    val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o MapWrg(0)(fun( aRows =>
-          Join() o MapWrg(1)(fun( bCols =>
-
-            Join() o MapSeq(fun( (zippedChunk) => //acc,
-
-              Barrier() o MapLcl(0)(fun( aRow =>
-                Barrier() o MapLcl(1)(fun( bCol =>
-
-                  toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
-
-                )) o Transpose() $ Get(zippedChunk, 1)
-              )) o Transpose() $ Get(zippedChunk, 0)
-
-            )) $ Zip(Split(d) o Transpose() $ aRows, Split(d) o Transpose() $ bCols) // ,0.0f*r*c
-
-          )) o Split(c) $ B
-        )) o Split(r) $ A
-      })
-
-    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
-
-    assertArrayEquals(gold, output, 0.0f)
-  }
-
-  @Test def MATRIX_MATRIX_2D_TESTS_2() {
+  @Test def MATRIX_MATRIX_2D_TEST() {
 
     val mSize = 8
     val kSize = 8
