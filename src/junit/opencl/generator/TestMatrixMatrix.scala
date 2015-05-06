@@ -309,7 +309,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
-  @Test def mmTiledReuseA(): Unit = {
+  @Test def mmTiledReuseB(): Unit = {
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -333,6 +333,71 @@ class TestMatrixMatrix {
         Untile() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
+
+              toGlobal(Scatter(IndexFunction.reorderStride(blockSize))(MapLcl(1)(MapLcl(0)(id)))) o
+                Join() o
+
+                // Multiply all necessary combinations of tiles
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(pairOfTiles =>
+                    Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                      Join() o Map(Transpose()) o
+
+                      MapLcl(1)( fun(rowsA =>
+                        MapLcl(0)( fun( colB =>
+                          Join() o ReduceSeq(fun((acc, rowElemPair) =>
+                            MapSeq(add) o fun(rowElemPair => Zip(toPrivate(MapSeq(fun(a => mult.apply(a, Get(rowElemPair, 1))))) $ Get(rowElemPair, 0), acc)) $ rowElemPair
+                          ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, blockSize))) $ Zip(Transpose() $ rowsA, colB)
+                        )) o Transpose() $ Get(pairOfTiles, 1)
+                      )) o Split(blockSize) $ Get(pairOfTiles, 0)
+
+                  ) o
+
+                    // Copy tiles to local memory
+                    fun(pairOfTiles =>
+                      Tuple(
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                      )) $ pairOfTiles
+                )
+                  , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                ) $ Zip(aRows, bCols)
+
+            )) o Transpose() o Tile(tileSize) $ B
+            // Tile the matrices
+          )) o Tile(tileSize) $ A
+      })
+
+    val (output, _) = Execute(tileSize, tileSize/blockSize, mSize, nSize/blockSize, (true, false))(f, matrixA, matrixB, mSize, kSize, nSize)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test def mmTiledReuseA(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+    val blockSize = 2
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val N = new Var("N")
+    val M = new Var("M")
+    val K = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapWrg(1)(fun( aRows =>
+            MapWrg(0)(fun( bCols =>
 
 
               toGlobal(MapLcl(1)(
@@ -377,7 +442,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output, _) = Execute(tileSize/blockSize, tileSize, mSize, nSize, (true, false))(f, matrixA, matrixB, mSize, kSize, nSize)
+    val (output, _) = Execute(tileSize/blockSize, tileSize, mSize/blockSize, nSize, (true, false))(f, matrixA, matrixB, mSize, kSize, nSize)
 
     assertArrayEquals(gold, output, 0.0001f)
   }

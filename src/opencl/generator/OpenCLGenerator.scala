@@ -506,9 +506,15 @@ object OpenCLGenerator extends Generator {
           case None => oclPrinter.toOpenCL(oclMem.variable)
           case Some(typedMemory) =>
             typedMemory.t match {
-              case _: ArrayType =>
+              case ArrayType(_, l) =>
+
+                // If the evaluated view is larger than the length, then writing into columns
+                val substitute = ArithExpr.substitute(ViewPrinter.emit(view), replacements).eval()
+                val lengthEvaluated = l.eval()
+                val index = if (substitute < lengthEvaluated) substitute else substitute / lengthEvaluated
+
                 oclPrinter.toOpenCL(oclMem.variable) + "_" +
-                  oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacements))
+                  oclPrinter.toOpenCL(index)
               case _ => oclPrinter.toOpenCL(oclMem.variable)
             }
         }
