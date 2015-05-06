@@ -36,8 +36,8 @@ class TestDotProduct {
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output, runtime) = Execute(inputSize)(DotProduct.dotProductSimple,
-      leftInputData, rightInputData, leftInputData.length)
+    val (output: Array[Float], runtime) =
+      Execute(inputSize)(DotProduct.dotProductSimple, leftInputData, rightInputData)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -55,8 +55,8 @@ class TestDotProduct {
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = Execute(inputSize)(DotProduct.dotProductCPU1,
-        leftInputData, rightInputData, leftInputData.length)
+      val (output: Array[Float], runtime) =
+        Execute(inputSize)(DotProduct.dotProductCPU1, leftInputData, rightInputData)
 
       println("output.size = " + output.length)
       println("output(0) = " + output(0))
@@ -68,8 +68,8 @@ class TestDotProduct {
     }
 
     {
-      val (output, runtime) = opencl.executor.Execute(firstOutput.length)(DotProduct.dotProductCPU2,
-        firstOutput, firstOutput.length )
+      val (output: Array[Float], runtime) =
+        opencl.executor.Execute(firstOutput.length)(DotProduct.dotProductCPU2, firstOutput)
 
       println("output(0) = " + output(0))
       println("runtime = " + runtime)
@@ -87,8 +87,8 @@ class TestDotProduct {
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
-      val (output, runtime) = opencl.executor.Execute(inputSize)(DotProduct.dotProduct1,
-        leftInputData, rightInputData, leftInputData.length)
+      val (output: Array[Float], runtime) =
+        opencl.executor.Execute(inputSize)(DotProduct.dotProduct1, leftInputData, rightInputData)
 
       println("output.size = " + output.length)
       println("output(0) = " + output(0))
@@ -100,8 +100,8 @@ class TestDotProduct {
     }
 
     {
-      val (output, runtime) = opencl.executor.Execute(firstOutput.length)(DotProduct.dotProduct2,
-        firstOutput, firstOutput.length )
+      val (output: Array[Float], runtime) =
+        opencl.executor.Execute(firstOutput.length)(DotProduct.dotProduct2, firstOutput)
 
       println("output(0) = " + output(0))
       println("runtime = " + runtime)

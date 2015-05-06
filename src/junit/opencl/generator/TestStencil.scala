@@ -44,7 +44,8 @@ class TestStencil {
     })
   }
 
-  def scala2DNeighbours(data: Array[Array[Float]], relRows: Array[Int], relColumns: Array[Int], r: Int, c: Int) = {
+  def scala2DNeighbours(data: Array[Array[Float]], relRows: Array[Int],
+                        relColumns: Array[Int], r: Int, c: Int) = {
     val nrRows = data.length
     val nrColumns = data(0).length
 
@@ -95,12 +96,13 @@ class TestStencil {
       ArrayType(Float, Var("M")),
       (input, weights) => {
         MapGlb(
-          fun(neighbours => toGlobal(MapSeq(id)) o ReduceSeq(sumUp, 0.0f) o MapSeq(mult) $ Zip(weights, neighbours))
+          fun(neighbours => toGlobal(MapSeq(id)) o ReduceSeq(sumUp, 0.0f) o
+                            MapSeq(mult) $ Zip(weights, neighbours))
         ) o Group(relativeIndices, Group.edgeNeg, Group.edgePos) $ input
       }
     )
 
-    val (output, runtime) = Execute(data.length)(stencilFun, data, weights, data.length, weights.length)
+    val (output: Array[Float], runtime) = Execute(data.length)(stencilFun, data, weights)
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -120,12 +122,16 @@ class TestStencil {
       ArrayType(Float, Var("M")),
       (input, weights) => {
         MapGlb(
-          fun(neighbours => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(neighbours, weights))
+          fun(neighbours => {
+            toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => {
+              multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+            }), 0.0f) $ Zip(neighbours, weights)
+          })
         ) o Group(relativeIndices, Group.edgeNeg, Group.edgePos) $ input
       }
     )
 
-    val (output, runtime) = Execute(data.length)(stencilFun, data, weights, data.length, weights.length)
+    val (output: Array[Float], runtime) = Execute(data.length)(stencilFun, data, weights)
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -150,13 +156,17 @@ class TestStencil {
       ArrayType(Float, Var("O")),
       (matrix, weights) => {
         MapGlb(1)(
-          MapGlb(0)(fun(neighbours =>
+          MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeq(id)) o
-              ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Join() $ neighbours, weights)))
+              ReduceSeq(fun((acc, y) => {
+                multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+              }), 0.0f) $ Zip(Join() $ neighbours, weights)
+          }))
         ) o Group2D(relColumns, relRows, edgeNeg, edgePos) $ matrix
       })
 
-    val (output, runtime) = Execute(16, 16, Nsize, Msize, (false, false))(f, matrix, weights, Nsize, Msize, weights.length)
+    val (output: Array[Float], runtime) =
+      Execute(16, 16, Nsize, Msize, (false, false))(f, matrix, weights)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -172,10 +182,9 @@ class TestStencil {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      (input) =>
-        MapGlb(MapSeq(id)) o Group(relIndices, Group.edgeNeg, Group.edgePos) $ input
+      (input) => MapGlb(MapSeq(id)) o Group(relIndices, Group.edgeNeg, Group.edgePos) $ input
     )
-    val (output, runtime) = Execute(1, data.length)(f, data, data.length)
+    val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -190,10 +199,9 @@ class TestStencil {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      (input) =>
-        MapGlb(MapSeq(id)) o Group(relIndices, Group.reflectNeg, Group.reflectPos) $ input
+      (input) => MapGlb(MapSeq(id)) o Group(relIndices, Group.reflectNeg, Group.reflectPos) $ input
     )
-    val (output, runtime) = Execute(1, data.length)(f, data, data.length)
+    val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -208,10 +216,9 @@ class TestStencil {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      (input) =>
-        MapGlb(MapSeq(id)) o Group(relIndices, Group.wrapNeg, Group.wrapPos) $ input
+      (input) => MapGlb(MapSeq(id)) o Group(relIndices, Group.wrapNeg, Group.wrapPos) $ input
     )
-    val (output, runtime) = Execute(1, data.length)(f, data, data.length)
+    val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)

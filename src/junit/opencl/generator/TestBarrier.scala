@@ -34,7 +34,7 @@ class TestBarrier {
     )
 
     val code = Compile(f)
-    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
     assertFalse(code.containsSlice("barrier"))
     assertArrayEquals(input, output, 0.0f)
@@ -48,11 +48,14 @@ class TestBarrier {
     // Last barrier should be removed
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o MapLcl(id)) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o MapLcl(id)
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
-    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -66,11 +69,14 @@ class TestBarrier {
     // All barriers should be removed
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o MapLcl(id) o Barrier() o Gather(reverse)(MapLcl(id))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o MapLcl(id) o Barrier() o Gather(reverse)(MapLcl(id))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
-    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -84,11 +90,14 @@ class TestBarrier {
     // First barrier should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
-    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -102,11 +111,14 @@ class TestBarrier {
     // No barriers should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
-    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -120,11 +132,14 @@ class TestBarrier {
     // First barrier should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(Scatter(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(Scatter(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
-    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -139,11 +154,14 @@ class TestBarrier {
     // First barrier should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(MapLcl(id))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
-    val (output, _) = Execute(inputSize)(code, f, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -157,10 +175,13 @@ class TestBarrier {
     // All barriers should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(MapLcl(id))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
@@ -175,10 +196,13 @@ class TestBarrier {
     // All barriers should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))
+        ) o Split(128) $ input
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
@@ -193,10 +217,13 @@ class TestBarrier {
     // Last barrier should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
@@ -211,10 +238,14 @@ class TestBarrier {
     // Last and middle barriers should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o
+          toLocal(Gather(reverse)(MapLcl(id)))
+        ) o Split(128) $ input
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
@@ -229,10 +260,14 @@ class TestBarrier {
     // Last barrier should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o
+          Gather(reverse)(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))
+        ) o Split(128) $ input
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
@@ -247,11 +282,15 @@ class TestBarrier {
     // Middle barrier should be eliminated
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))) o Split(128) $ input
+      input =>
+        Join() o MapWrg(
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o
+          toLocal(Gather(reverse)(MapLcl(id)))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
-    val (output, _) = Execute(128, inputSize)(f, input, inputSize)
+    val (output: Array[Float], _) = Execute(128, inputSize)(f, input)
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -267,14 +306,17 @@ class TestBarrier {
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(ArrayType(Float, N), N),
-      (a, b) => MapWrg(Barrier() o toGlobal(MapLcl(add)) o fun(pairArrays =>
-        Zip(Barrier() o toLocal(MapLcl(id)) $ Get(pairArrays, 0), Barrier() o toLocal(MapLcl(id)) $ Get(pairArrays, 1))
-      )) $ Zip(a, b)
+      (a, b) => {
+        MapWrg(Barrier() o toGlobal(MapLcl(add)) o fun(pairArrays => {
+          Zip(Barrier() o toLocal(MapLcl(id)) $ Get(pairArrays, 0), Barrier() o
+          toLocal(MapLcl(id)) $ Get(pairArrays, 1))
+        })) $ Zip(a, b)
+      }
     )
 
     val code = Compile(f)
 
-    val (output, _) = Execute(inputSize)(code, f, input, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input, input)
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold.flatten, output, 0.0f)
@@ -297,7 +339,7 @@ class TestBarrier {
 
     val code = Compile(f)
 
-    val (output, _) = Execute(inputSize)(code, f, input, input, inputSize)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input, input)
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold.flatten, output, 0.0f)

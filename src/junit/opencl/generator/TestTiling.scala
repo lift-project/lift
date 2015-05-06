@@ -46,7 +46,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -87,7 +87,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -128,7 +128,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -169,7 +169,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -188,7 +188,8 @@ class TestTiling {
     val Nsize = 12
     val Msize = 8
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose)).map(_.map(_.transpose))
+    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4)
+                                              .toArray.map(_.transpose)).map(_.map(_.transpose))
 
     println("matrix: ")
     TestUtils.myPrint(matrix)
@@ -199,11 +200,10 @@ class TestTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)) o Transpose())) o
-          Tile(4) $ matrix
+        MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)) o Transpose())) o Tile(4) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -228,7 +228,8 @@ class TestTiling {
     val Nsize = 12
     val Msize = 8
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose)).map(_.map(_.transpose))
+    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4)
+                                              .toArray.map(_.transpose)).map(_.map(_.transpose))
 
     println("matrix: ")
     TestUtils.myPrint(matrix)
@@ -241,11 +242,10 @@ class TestTiling {
       (matrix) => {
         MapWrg(0)(MapWrg(1)(
           Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
-            TransposeW() o Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))))) o
-          Tile(4) $ matrix
+            TransposeW() o Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))))) o Tile(4) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -270,7 +270,8 @@ class TestTiling {
     val Nsize = 12
     val Msize = 8
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose)).transpose
+    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4)
+                                              .toArray.map(_.transpose)).transpose
 
 
     println("matrix: ")
@@ -286,7 +287,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -334,7 +335,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -361,7 +362,8 @@ class TestTiling {
     println("matrix: ")
     TestUtils.myPrint(matrix)
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(), matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) =
+      Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(), matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -388,7 +390,8 @@ class TestTiling {
     println("matrix: ")
     TestUtils.myPrint(matrix)
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(4,8), matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) =
+      Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(4,8), matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))

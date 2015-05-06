@@ -40,7 +40,7 @@ class TestBenchmark {
       inRand => MapGlb(BlackScholes.blackScholesComp) $ inRand
     )
 
-    val (output, runtime) = Execute(inputSize)(kernel, input, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(kernel, input)
 
     assertArrayEquals(gold, output, 0.01f)
 
@@ -56,7 +56,7 @@ class TestBenchmark {
     val pointsY = Array.fill(inputSize)(util.Random.nextFloat())
     val centresX = Array.fill(k)(util.Random.nextFloat())
     val centresY = Array.fill(k)(util.Random.nextFloat())
-    val indices = Array.range(0, inputSize)
+    val indices = Array.range(0, k)
 
     val distance = UserFunDef("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
     val minimum = UserFunDef("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
@@ -83,10 +83,23 @@ class TestBenchmark {
       ArrayType(Float, K),
       ArrayType(Float, K),
       ArrayType(Int, K),
-      (x, y, a, b, i) => MapGlb(fun(xy => MapSeq(getSecond) o toGlobal(MapSeq(idFI)) o ReduceSeq(minimum, (scala.Float.MaxValue, -1)) o MapSeq(fun(ab => distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2)))) $ Zip(a, b, i))) $ Zip(x, y)
+      (x, y, a, b, i) => {
+        MapGlb(fun(xy => {
+          MapSeq(getSecond) o
+          toGlobal(MapSeq(idFI)) o
+          ReduceSeq(minimum, (scala.Float.MaxValue, -1)) o
+          MapSeq(fun(ab => {
+            distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2))
+          })) $ Zip(a, b, i)
+        })) $ Zip(x, y)
+      }
     )
 
-    val (output, runtime) = Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices, inputSize, k)
+    println(inputSize)
+    println(k)
+
+    val (output: Array[Float], runtime) =
+      Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -157,7 +170,7 @@ class TestBenchmark {
       (in, niters, size) => MapGlb(fun(i => MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, iterations, inputSize, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, input, iterations, inputSize)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -272,7 +285,8 @@ class TestBenchmark {
         )) $ Zip(x, y, z, velX, velY, velZ, mass)
     )
 
-    val (output, runtime) = Execute(inputSize)(function, x, y, z, velX, velY, velZ, mass, espSqr, deltaT, inputSize)
+    val (output: Array[Float], runtime) =
+      Execute(inputSize)(function, x, y, z, velX, velY, velZ, mass, espSqr, deltaT)
 
     assertArrayEquals(gold, output, 0.0001f)
 
@@ -317,7 +331,8 @@ class TestBenchmark {
         )) $ Zip(particles, neighbourIds)
     )
 
-    val (output, runtime) = Execute(inputSize)(f, particles, neighbours, cutsq, lj1, lj2, inputSize, maxNeighbours)
+    val (output: Array[Float], runtime) =
+      Execute(inputSize)(f, particles, neighbours, cutsq, lj1, lj2)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -353,9 +368,11 @@ class TestBenchmark {
     val lj1 = 1.5f
     val lj2 = 2.0f
 
-    val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2).map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
+    val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2)
+               .map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val (output, runtime) = Execute(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2, inputSize, maxNeighbours)
+    val (output: Array[Float], runtime) =
+      Execute(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -406,7 +423,7 @@ class TestBenchmark {
     )
 
     // execute
-    val (output, runtime) = Execute(inputSize)(f, a, xs, ys, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, a, xs, ys)
 
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.001f)
