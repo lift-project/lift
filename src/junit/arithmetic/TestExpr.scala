@@ -1,11 +1,9 @@
 package arithmetic
 
 import org.junit.Assert._
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import scala.util.Random
-
-
 
 class TestExpr {
 
