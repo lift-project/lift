@@ -224,6 +224,18 @@ object ExprSimplifier {
               return simplify(Prod(factors.slice(0, index) ++ factors.slice(index+1, factors.length)))
             }
         }
+      case Fraction(_, denominator @ Var(_, _) ) =>
+        val numeratorAtMax = f.numer.atMax
+        val numeratorAtMin = f.numer.atMin
+
+        if (ArithExpr.multipleOf(numeratorAtMax, denominator) && ArithExpr.multipleOf(numeratorAtMin, denominator)) {
+          try {
+            if (simplify((numeratorAtMax - numeratorAtMin) div denominator).eval() == 1)
+              return simplify(numeratorAtMin div denominator).eval()
+          } catch {
+            case e: NotEvaluableException =>
+          }
+        }
       case _ =>
     }
 

@@ -309,14 +309,13 @@ class TestExpr {
     assertEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
   }
 
-  @Ignore
   @Test
   def sumFraction(): Unit = {
     val n = Var("n")
     val i = Var("i", ContinuousRange(0, n))
 
     // N <= i + N <= 2*N - 1 < 2*N
-    assertEquals(1, ExprSimplifier.simplify((i+n) div n))
+    assertEquals(Cst(1), ExprSimplifier.simplify((i+n) div n))
   }
 
   @Test def simplifyAccess(): Unit = {

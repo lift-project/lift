@@ -214,6 +214,11 @@ object ArithExpr {
             false
           case e => terms.contains(that)
         }
+      case v1: Var =>
+        that match {
+          case v2: Var => v1 == v2
+          case _ => false
+        }
       case c1: Cst =>
         that match {
           case c2: Cst =>
@@ -223,6 +228,7 @@ object ArithExpr {
             } catch {
               case ne: NotEvaluableException =>
             }
+          case _ =>
         }
 
         false
