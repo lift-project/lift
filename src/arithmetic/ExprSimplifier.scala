@@ -362,9 +362,15 @@ object ExprSimplifier {
   }
 
   private def tryToSimplifyTermPair(terms: List[ArithExpr], i: Int, ae: ArithExpr, k: Int, term: ArithExpr, v: ArithExpr): Option[Option[Sum]] = {
-    val simplified = ExprSimplifier.simplify(ae / v + term / v)
+    val simplified = simplify(ae / v + term / v)
 
-    if (!simplified.isInstanceOf[Sum])
+    var origHasMod = false
+    var newHasMod = false
+
+    ArithExpr.visit(simplified, origHasMod |= _.isInstanceOf[Mod])
+    ArithExpr.visit(ae + term, newHasMod |= _.isInstanceOf[Mod])
+
+    if (!simplified.isInstanceOf[Sum] | (origHasMod != newHasMod))
       return Some(Some(simplifySumTerms(Sum(ExprSimplifier.simplify(v * simplified) :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length)))))
     None
   }
