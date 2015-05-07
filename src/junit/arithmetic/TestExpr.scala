@@ -44,13 +44,9 @@ class TestExpr {
       val simEval = sim.evalDbl()
       assert(math.abs(oriEval-simEval) <= 1.0/1000000.0, oriEval+" != "+simEval)
     }
-
-
   }
 
-  @Test def testSimplifcation() {
-
-    testRandom()
+  @Test def testSimplification() {
 
     val c0 = Cst(0)
     val c1 = Cst(1)
@@ -303,7 +299,6 @@ class TestExpr {
     assertEquals(x*a, ExprSimplifier.simplify(x * (a div d) * d + x * (a % d)))
   }
 
-  @Ignore
   @Test
   def evalAtMaxWithSumAndConstants(): Unit = {
     val i = Var("i", ContinuousRange(0, 2))

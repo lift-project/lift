@@ -75,7 +75,6 @@ object ExprSimplifier {
 
     m.divisor match {
       case Cst(1) =>
-        // TODO: Not if dividend is < 1
         return Cst(0)
       case _ =>
     }
@@ -160,7 +159,7 @@ object ExprSimplifier {
         case _ =>
       }
 
-      if (atMax == ae2 || atMax.eval() <= ae2.eval())
+      if (atMax == ae2 || ae1.atMax(constantMax = true).eval() <= ae2.eval())
         return true
     } catch {
       case e: NotEvaluableException =>
@@ -280,7 +279,7 @@ object ExprSimplifier {
 
   private def simplifySumTerms(sum: Sum): Sum = {
 
-    val terms: List[ArithExpr] = sum.terms
+    val terms = sum.terms
 
     def simplifyTerm(i: Int, ae: ArithExpr): Option[Sum] = {
       val vars = Var.getVars(ae)

@@ -30,9 +30,17 @@ abstract sealed class ArithExpr {
   }
 
   def atMax: ArithExpr = {
+    atMax(constantMax = false)
+  }
+
+  def atMax(constantMax: Boolean): ArithExpr = {
     val vars = Var.getVars(this).filter(_.range.max != ?)
     val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.max != ?)
-    val maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
+    var maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
+
+    if (constantMax && !maxLens.exists(!_.isInstanceOf[Cst]))
+      maxLens = maxLens.map(m => Cst(m.eval() - 1))
+
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
 
