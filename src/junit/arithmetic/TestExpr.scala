@@ -289,7 +289,6 @@ class TestExpr {
     assertEquals(x*a, ExprSimplifier.simplify(x * (a div d) * d + x * (a % d)))
   }
 
-  @Ignore
   @Test
   def divPlusModMultipliedConstants(): Unit = {
     val a = Var("a")

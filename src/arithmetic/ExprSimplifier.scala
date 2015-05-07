@@ -309,6 +309,26 @@ object ExprSimplifier {
             val term1 = (a div d) * d
             if (p == term1)
               return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+          // Constants
+          case (p1: Prod, p2: Prod) =>
+            val cst1 = p1.factors.find(_.isInstanceOf[Cst])
+            val cst2 = p2.factors.find(_.isInstanceOf[Cst])
+
+            (cst1, cst2) match {
+              case (Some(Cst(c1)), Some(Cst(c2))) =>
+                if (c1 % c2 == 0)
+                  tryToSimplifyTermPair(terms, i, ae, k, term, c2) match {
+                    case Some(toReturn) => return toReturn
+                    case None =>
+                  }
+                else if (c2 % c1 == 0)
+                  tryToSimplifyTermPair(terms, i, ae, k, term, c1) match {
+                    case Some(toReturn) => return toReturn
+                    case None =>
+                  }
+
+              case _ =>
+            }
           case _ =>
         }
 
@@ -316,11 +336,10 @@ object ExprSimplifier {
           val v = vars(j)
 
           if (ArithExpr.contains(term, v)) {
-            val e: Sum = ae / v + term / v
-            val simplified = ExprSimplifier.simplify(e)
-
-            if (!simplified.isInstanceOf[Sum])
-              return Some(simplifySumTerms(Sum(ExprSimplifier.simplify(v * simplified) :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+            tryToSimplifyTermPair(terms, i, ae, k, term, v) match {
+              case Some(toReturn) => return toReturn
+              case None =>
+            }
 
           }
         }
@@ -340,6 +359,14 @@ object ExprSimplifier {
     }
 
     sum
+  }
+
+  private def tryToSimplifyTermPair(terms: List[ArithExpr], i: Int, ae: ArithExpr, k: Int, term: ArithExpr, v: ArithExpr): Option[Option[Sum]] = {
+    val simplified = ExprSimplifier.simplify(ae / v + term / v)
+
+    if (!simplified.isInstanceOf[Sum])
+      return Some(Some(simplifySumTerms(Sum(ExprSimplifier.simplify(v * simplified) :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length)))))
+    None
   }
 
   /** Constant folding*/
