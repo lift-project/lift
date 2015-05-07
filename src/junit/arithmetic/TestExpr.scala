@@ -1,11 +1,9 @@
 package arithmetic
 
 import org.junit.Assert._
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import scala.util.Random
-
-
 
 class TestExpr {
 
@@ -37,43 +35,30 @@ class TestExpr {
 
     for (a <- 1 to 10) {
       val re = rndExpr(3)
-      println("random expression = "+re)
 
       val oriEval = re.evalDbl()
       val sim = ExprSimplifier.simplify(re)
-      println("simplified expression = "+sim)
 
       val simEval = sim.evalDbl()
       assert(math.abs(oriEval-simEval) <= 1.0/1000000.0, oriEval+" != "+simEval)
     }
-
-
   }
 
-  @Test def testSimplifcation() {
-
-    testRandom()
+  @Test def testSimplification() {
 
     val c0 = Cst(0)
     val c1 = Cst(1)
     val c2 = Cst(2)
     val c10 = Cst(10)
-    //val v = Var(new RangeMul(c0,c2,c10))
     val e = (c0+c1)*(c10+c2)+(c10/c2)
 
     ExprSimplifier.simplify(e).eval()
 
     assertEquals(e.eval(), ExprSimplifier.simplify(e).eval())
 
-    //println(e.eval())
     val result = ExprSimplifier.simplify(e)
-    //println(result.eval())
 
     assertEquals(Cst(17),result)
-
-    //val e2 = (c0/v+c1/v)*v*(c10+c2)+(c10/c2)
-    //val result2 = ExprSimplifier.simplify(e)
-    //println(result2)
   }
 
   @Test def Division(): Unit = {
@@ -293,6 +278,43 @@ class TestExpr {
     assertEquals(l * n/4, ExprSimplifier.simplify((l * n/4) % n))
   }
 
+  @Test
+  def divPlusModMultiplied(): Unit = {
+    val a = Var("a")
+    val d = Var("d")
+    val x = Var("x")
+
+    assertEquals(x*a, ExprSimplifier.simplify(x * (a div d) * d + x * (a % d)))
+  }
+
+  @Test
+  def divPlusModMultipliedConstants(): Unit = {
+    val a = Var("a")
+    val d = Cst(2)
+    val x = Cst(8)
+
+    assertEquals(x*a, ExprSimplifier.simplify(x * (a div d) * d + x * (a % d)))
+  }
+
+  @Test
+  def evalAtMaxWithSumAndConstants(): Unit = {
+    val i = Var("i", ContinuousRange(0, 2))
+    val id = Var("id", ContinuousRange(0, 4))
+
+    // 0 <= id + 4*i <= 7 < 8
+    assertEquals(Cst(0), ExprSimplifier.simplify((id + 4*i) div 8))
+    assertEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
+  }
+
+  @Test
+  def sumFraction(): Unit = {
+    val n = Var("n")
+    val i = Var("i", ContinuousRange(0, n))
+
+    // N <= i + N <= 2*N - 1 < 2*N
+    assertEquals(Cst(1), ExprSimplifier.simplify((i+n) div n))
+  }
+
   @Test def simplifyAccess(): Unit = {
     val M = Var(StartFromRange(Cst(1)))
     val N = Var(StartFromRange(Cst(1)))
@@ -302,82 +324,80 @@ class TestExpr {
     val l_id_0 = Var("lid_0",ContinuousRange(0, 2))
     val l_id_1 = Var("lid_0",ContinuousRange(0, 4))
 
-    val firstRead = (
-      (wg_id_0 * 1 * M / (4) * 2 * 4) +
-        (((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-          0) /
-          ((4 * 1)) / (2) * 4 * 1) +
-        (((((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) +
-          (l_id_1 * 1) + 0) /
-          ((4 * 1))) %
-          2) *
-          M / (4) * 4 * 1) +
-        (((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-          0) %
-          (4 * 1)))
+    val firstRead = (wg_id_0 * 1 * M / 4 * 2 * 4) +
+      (((wg_id_1 * 1 * 2 * 4) +
+        (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+        0) /
+        (4 * 1) / 2 * 4 * 1) +
+      (((((wg_id_1 * 1 * 2 * 4) +
+        (l_id_0 * 1 * 4) +
+        (l_id_1 * 1) + 0) /
+        (4 * 1)) %
+        2) *
+        M / 4 * 4 * 1) +
+      (((wg_id_1 * 1 * 2 * 4) +
+        (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+        0) %
+        (4 * 1))
 
     val simpFirstRead = ExprSimplifier.simplify(firstRead)
     println(firstRead)
     println(simpFirstRead)
 
-    val firstWrite = ((((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
-      (1) / (M) * 1) +
+    val firstWrite = (((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
+      1 / M * 1) +
       (((((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
-        (1)) %
+        1) %
         M) *
         N * 1) +
       (((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
-        1))
+        1)
 
-    val secondWrite = (
-      (((wg_id_0 * 1 * M / (4) * 2 * 4) +
+    val secondWrite = (((wg_id_0 * 1 * M / 4 * 2 * 4) +
+      (((wg_id_1 * 1 * 2 * 4) +
+        (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
+        (4 * 1) / 2 * 4 * 1) +
+      (((((wg_id_1 * 1 * 2 * 4) +
+        (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+        0) /
+        (4 * 1)) %
+        2) *
+        M / 4 * 4 * 1) +
+      (((wg_id_1 * 1 * 2 * 4) +
+        (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
+        (4 * 1))) /
+      1 / M * 1) +
+      (((((wg_id_0 * 1 * M / 4 * 2 * 4) +
         (((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
-          ((4 * 1)) / (2) * 4 * 1) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+          0) /
+          (4 * 1) / 2 * 4 * 1) +
         (((((wg_id_1 * 1 * 2 * 4) +
           (l_id_0 * 1 * 4) + (l_id_1 * 1) +
           0) /
-          ((4 * 1))) %
+          (4 * 1)) %
           2) *
-          M / (4) * 4 * 1) +
+          M / 4 * 4 * 1) +
+        (((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+          0) %
+          (4 * 1))) /
+        1) %
+        M) *
+        N * 1) +
+      (((wg_id_0 * 1 * M / 4 * 2 * 4) +
+        (((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
+          (4 * 1) / 2 * 4 * 1) +
+        (((((wg_id_1 * 1 * 2 * 4) +
+          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
+          0) /
+          (4 * 1)) %
+          2) *
+          M / 4 * 4 * 1) +
         (((wg_id_1 * 1 * 2 * 4) +
           (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
-          (4 * 1))) /
-        (1) / (M) * 1) +
-        (((((wg_id_0 * 1 * M / (4) * 2 * 4) +
-          (((wg_id_1 * 1 * 2 * 4) +
-            (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-            0) /
-            ((4 * 1)) / (2) * 4 * 1) +
-          (((((wg_id_1 * 1 * 2 * 4) +
-            (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-            0) /
-            ((4 * 1))) %
-            2) *
-            M / (4) * 4 * 1) +
-          (((wg_id_1 * 1 * 2 * 4) +
-            (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-            0) %
-            (4 * 1))) /
-          (1)) %
-          M) *
-          N * 1) +
-        (((wg_id_0 * 1 * M / (4) * 2 * 4) +
-          (((wg_id_1 * 1 * 2 * 4) +
-            (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
-            ((4 * 1)) / (2) * 4 * 1) +
-          (((((wg_id_1 * 1 * 2 * 4) +
-            (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-            0) /
-            ((4 * 1))) %
-            2) *
-            M / (4) * 4 * 1) +
-          (((wg_id_1 * 1 * 2 * 4) +
-            (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
-            (4 * 1))) %
-          1))
+          (4 * 1))) %
+        1)
   }
 }
