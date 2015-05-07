@@ -48,7 +48,7 @@ class TestBenchmark {
     println("runtime = " + runtime)
   }
 
-  @Test def kmeansMembership(): Unit = {
+  @Test def kMeansMembership(): Unit = {
     val inputSize = 512
     val k = 16
 
@@ -60,7 +60,7 @@ class TestBenchmark {
 
     val distance = UserFunDef("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
     val minimum = UserFunDef("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
-    val getSecond = UserFunDef("getSecond", "x", "{ return (float) x._1; }", TupleType(Float, Int), Float)
+    val getSecond = UserFunDef("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
 
     val points = pointsX zip pointsY
     val centres = (centresX, centresY, indices).zipped
@@ -70,13 +70,11 @@ class TestBenchmark {
         .map((a, b, id) => ((x._1 - a) * (x._1 - a) + (x._2 - b) * (x._2 - b), id))
         .reduce((p1, p2) => if (p1._1 < p2._1) p1 else p2)
         ._2
-        .toFloat
     })
 
     val N = Var("N")
     val K = Var("K")
 
-    // TODO: integer output
     val function = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
@@ -98,16 +96,15 @@ class TestBenchmark {
     println(inputSize)
     println(k)
 
-    val (output: Array[Float], runtime) =
+    val (output: Array[Int], runtime) =
       Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices)
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertArrayEquals(gold, output)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
   }
 
-  // Output type
   @Test def mandelbrot(): Unit = {
     val inputSize = 512
 
@@ -135,7 +132,7 @@ class TestBenchmark {
           y += 1
         }
 
-        ((y * 255) / iterations).toFloat
+        (y * 255) / iterations
         //        y.toFloat
       })
     }).flatten
@@ -158,10 +155,10 @@ class TestBenchmark {
          |    ZiN = Zi * Zi;
          |    ZrN = Zr * Zr;
          |  }
-         |  return (float) ((y * 255) / niters);
+         |  return ((y * 255) / niters);
          |//        "  return (float) y;
          |}
-         |""".stripMargin, Seq(Int, Int, Int, Int), Float)
+         |""".stripMargin, Seq(Int, Int, Int, Int), Int)
 
     val f = fun(
       ArrayType(Int, Var("N")),
@@ -170,13 +167,13 @@ class TestBenchmark {
       (in, niters, size) => MapGlb(fun(i => MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, input, iterations, inputSize)
+    val (output: Array[Int], runtime) = Execute(inputSize)(f, input, iterations, inputSize)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertArrayEquals(gold, output)
   }
 
   private def writeMD(width: Int, height: Int, data: Array[Float], name: String): Unit = {
@@ -197,7 +194,7 @@ class TestBenchmark {
     }
   }
 
-  @Test def nbody(): Unit = {
+  @Test def nBody(): Unit = {
 
     val inputSize = 512
 
