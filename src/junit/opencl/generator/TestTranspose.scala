@@ -36,7 +36,7 @@ class TestTranspose {
       input => TransposeW() o MapWrg(TransposeW() o Barrier() o MapLcl(MapSeq(id))) $ input
     )
 
-    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+    val (output: Array[Float], _) = Execute(4, 4)(f, input)
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
@@ -52,7 +52,7 @@ class TestTranspose {
       input => MapWrg(TransposeW() o TransposeW() o Barrier() o MapLcl(MapSeq(id))) $ input
     )
 
-    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+    val (output: Array[Float], _) = Execute(4, 4)(f, input)
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
@@ -90,7 +90,7 @@ class TestTranspose {
       ) $ input
     )
 
-    val (output, _) = Execute(4, 4)(f, input, 2, 4, 8)
+    val (output: Array[Float], _) = Execute(4, 4)(f, input)
 
     assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
@@ -122,7 +122,7 @@ class TestTranspose {
         )) o Split(r) $ matrix
       })
 
-    val (output, runtime) = Execute(Ksize * Msize)(f, matrix, Ksize, Msize)
+    val (output: Array[Float], runtime) = Execute(Ksize * Msize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -171,7 +171,7 @@ class TestTranspose {
         )) o Split(r) $  matrix
       })
 
-    val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Ksize * Msize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -215,7 +215,7 @@ class TestTranspose {
         )) o Split(r) $  matrix
       })
 
-    val (output, runtime) = Execute(32, Ksize * Msize)(f, matrix, Ksize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Ksize * Msize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -249,7 +249,7 @@ class TestTranspose {
         MapGlb(0)(MapGlb(1)(id)) o Gather(transpose)(Split(N)) o Join() $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -280,7 +280,7 @@ class TestTranspose {
         TransposeW() o MapGlb(0)(MapGlb(1)(id)) $ matrix
       })
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -319,7 +319,7 @@ class TestTranspose {
           ) $ matrix
       })
 
-    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
+    val (output: Array[Float], runtime) = Execute(4, Nsize * Msize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -360,7 +360,7 @@ class TestTranspose {
           ) $ matrix
       })
 
-    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
+    val (output: Array[Float], runtime) = Execute(4, Nsize * Msize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -385,7 +385,8 @@ class TestTranspose {
     println("matrix: ")
     TestUtils.myPrint(matrix)
 
-    val (output, runtime) = Execute(32, Nsize * Msize)(MatrixTransposition.naive, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) =
+      Execute(32, Nsize * Msize)(MatrixTransposition.naive, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -425,7 +426,7 @@ class TestTranspose {
         ) o Join() $ matrix
       })
 
-    val (output, runtime) = Execute(4, Nsize * Msize)(f, matrix, Nsize, Msize, Ksize)
+    val (output: Array[Float], runtime) = Execute(4, Nsize * Msize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -446,7 +447,9 @@ class TestTranspose {
     val Msize = 8
     val Ksize = 4
     val Lsize = 2
-    val matrix = Array.tabulate(Nsize, Msize, Ksize, Lsize)((r, c, z, l) => c * 4.0f + r * 16.0f + z * 2.0f + l * 1.0f)
+    val matrix = Array.tabulate(Nsize, Msize, Ksize, Lsize)((r, c, z, l) => {
+        c * 4.0f + r * 16.0f + z * 2.0f + l * 1.0f
+      })
 
     val gold   = matrix.transpose
 
@@ -467,7 +470,7 @@ class TestTranspose {
         ) o Transpose() $ matrix
       })
 
-    val (output, runtime) = Execute(4, Nsize * Msize * Lsize)(f, matrix, Nsize, Msize, Ksize, Lsize)
+    val (output: Array[Float], runtime) = Execute(4, Nsize * Msize * Lsize)(f, matrix)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))

@@ -104,7 +104,7 @@ abstract class Benchmark(val name: String,
     val lambdas: Seq[Lambda] = f(variant)._2
     for (i <- 0 until lambdas.length) {
 
-      val (output, runtime) = Execute(
+      val (output: Array[Float], runtime) = Execute(
         localSize(0),
         localSize(1),
         localSize(2),

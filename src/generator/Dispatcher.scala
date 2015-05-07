@@ -1,6 +1,6 @@
 package generator
 
-import opencl.executor.{local, Executor, value, global}
+import opencl.executor.Executor
 import opencl.generator.OpenCLGenerator
 import opencl.ir._
 

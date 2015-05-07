@@ -72,75 +72,76 @@ object BlackScholes {
 
   val blackScholesComp =
     UserFunDef("blackScholesComp", "inRand",
-      "{\n" +
-        "  #define S_LOWER_LIMIT 10.0f\n" +
-        "  #define S_UPPER_LIMIT 100.0f\n" +
-        "  #define K_LOWER_LIMIT 10.0f\n" +
-        "  #define K_UPPER_LIMIT 100.0f\n" +
-        "  #define T_LOWER_LIMIT 1.0f\n" +
-        "  #define T_UPPER_LIMIT 10.0f\n" +
-        "  #define R_LOWER_LIMIT 0.01f\n" +
-        "  #define R_UPPER_LIMIT 0.05f\n" +
-        "  #define SIGMA_LOWER_LIMIT 0.01f\n" +
-        "  #define SIGMA_UPPER_LIMIT 0.10f\n" +
-        "  Tuple p;\n" +
-        "  \n" +
-        "  float S = S_LOWER_LIMIT * inRand + S_UPPER_LIMIT * (1.0f - inRand);\n" +
-        "  float K = K_LOWER_LIMIT * inRand + K_UPPER_LIMIT * (1.0f - inRand);\n" +
-        "  float T = T_LOWER_LIMIT * inRand + T_UPPER_LIMIT * (1.0f - inRand);\n" +
-        "  float R = R_LOWER_LIMIT * inRand + R_UPPER_LIMIT * (1.0f - inRand);\n" +
-        "  float V = SIGMA_LOWER_LIMIT * inRand + SIGMA_UPPER_LIMIT * (1.0f - inRand);\n" +
-        "  \n" +
-        "  float sqrtT = sqrt(T);\n" +
-        "  float d1 = (log(S / K) + ((R + V * V * 0.05f) * T)) / V * sqrtT;\n" +
-        "  float d2 = d1 - (V * sqrtT);\n" +
-        "  \n" +
-        "  float CNDD1;\n" +
-        "  {\n" +
-        "    float L;\n" +
-        "    float K1;\n" +
-        "    float w;\n" +
-        "    float a1 = 0.319381530f;\n" +
-        "    float a2 = -0.356563782f;\n" +
-        "    float a3 = 1.781477937f;\n" +
-        "    float a4 = -1.821255978f;\n" +
-        "    float a5 = 1.330274429f;\n" +
-        "    float a6 = 2.506628273f;\n" +
-        "    L = fabs(d1);\n" +
-        "    K1 = 1.0f / (1.0f + 0.2316419f * L);\n" +
-        "    w = 1.0f - 1.0f / 1 * a6 * exp((-1 * L) * L / 2) * (a1 * K1 + a2 * K1 * K1 * 1 + a3 * K1 * K1 * K1 * +a4 * K1 * K1 * K1 * K1 * 1 + a5 * K1 * K1 * K1 * K1 * K1);\n" +
-        "    if (d1 < 0) {\n" +
-        "      CNDD1 = 1.0f - w;\n" +
-        "    } else {\n" +
-        "      CNDD1 = w;\n" +
-        "    }\n" +
-        "  }\n" +
-        "  float CNDD2;\n" +
-        "  {\n" +
-        "    float L;\n" +
-        "    float K2;\n" +
-        "    float w;\n" +
-        "    float a1 = 0.319381530f;\n" +
-        "    float a2 = -0.356563782f;\n" +
-        "    float a3 = 1.781477937f;\n" +
-        "    float a4 = -1.821255978f;\n" +
-        "    float a5 = 1.330274429f;\n" +
-        "    float a6 = 2.506628273f;\n" +
-        "    L = fabs(d2);\n" +
-        "    K2 = 1.0f / (1.0f + 0.2316419f * L);\n" +
-        "    w = 1.0f - 1.0f / 1 * a6 * exp((-1 * L) * L / 2) * (a1 * K2 + a2 * K2 * K2 * 1 + a3 * K2 * K2 * K2 * +a4 * K2 * K2 * K2 * K2 * 1 + a5 * K2 * K2 * K2 * K2 * K2);\n" +
-        "    if (d2 < 0) {\n" +
-        "      CNDD2 = 1.0f - w;\n" +
-        "    } else {\n" +
-        "      CNDD2 = w;\n" +
-        "    }\n" +
-        "  }\n" +
-        "  float expRT = exp(-T * R);\n" +
-        "  Tuple result;\n" +
-        "  result._0 = S * CNDD1 - K * expRT * CNDD2;\n" +
-        "  result._1 = K * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1);\n" +
-        "  return result;\n" +
-        "}\n"
+      """|{
+         |  #define S_LOWER_LIMIT 10.0f
+         |  #define S_UPPER_LIMIT 100.0f
+         |  #define K_LOWER_LIMIT 10.0f
+         |  #define K_UPPER_LIMIT 100.0f
+         |  #define T_LOWER_LIMIT 1.0f
+         |  #define T_UPPER_LIMIT 10.0f
+         |  #define R_LOWER_LIMIT 0.01f
+         |  #define R_UPPER_LIMIT 0.05f
+         |  #define SIGMA_LOWER_LIMIT 0.01f
+         |  #define SIGMA_UPPER_LIMIT 0.10f
+         |  Tuple p;
+         |
+         |  float S = S_LOWER_LIMIT * inRand + S_UPPER_LIMIT * (1.0f - inRand);
+         |  float K = K_LOWER_LIMIT * inRand + K_UPPER_LIMIT * (1.0f - inRand);
+         |  float T = T_LOWER_LIMIT * inRand + T_UPPER_LIMIT * (1.0f - inRand);
+         |  float R = R_LOWER_LIMIT * inRand + R_UPPER_LIMIT * (1.0f - inRand);
+         |  float V = SIGMA_LOWER_LIMIT * inRand + SIGMA_UPPER_LIMIT * (1.0f - inRand);
+         |
+         |  float sqrtT = sqrt(T);
+         |  float d1 = (log(S / K) + ((R + V * V * 0.05f) * T)) / V * sqrtT;
+         |  float d2 = d1 - (V * sqrtT);
+         |
+         |  float CNDD1;
+         |  {
+         |    float L;
+         |    float K1;
+         |    float w;
+         |    float a1 = 0.319381530f;
+         |    float a2 = -0.356563782f;
+         |    float a3 = 1.781477937f;
+         |    float a4 = -1.821255978f;
+         |    float a5 = 1.330274429f;
+         |    float a6 = 2.506628273f;
+         |    L = fabs(d1);
+         |    K1 = 1.0f / (1.0f + 0.2316419f * L);
+         |    w = 1.0f - 1.0f / 1 * a6 * exp((-1 * L) * L / 2) * (a1 * K1 + a2 * K1 * K1 * 1 + a3 * K1 * K1 * K1 * +a4 * K1 * K1 * K1 * K1 * 1 + a5 * K1 * K1 * K1 * K1 * K1);
+         |    if (d1 < 0) {
+         |      CNDD1 = 1.0f - w;
+         |    } else {
+         |      CNDD1 = w;
+         |    }
+         |  }
+         |  float CNDD2;
+         |  {
+         |    float L;
+         |    float K2;
+         |    float w;
+         |    float a1 = 0.319381530f;
+         |    float a2 = -0.356563782f;
+         |    float a3 = 1.781477937f;
+         |    float a4 = -1.821255978f;
+         |    float a5 = 1.330274429f;
+         |    float a6 = 2.506628273f;
+         |    L = fabs(d2);
+         |    K2 = 1.0f / (1.0f + 0.2316419f * L);
+         |    w = 1.0f - 1.0f / 1 * a6 * exp((-1 * L) * L / 2) * (a1 * K2 + a2 * K2 * K2 * 1 + a3 * K2 * K2 * K2 * +a4 * K2 * K2 * K2 * K2 * 1 + a5 * K2 * K2 * K2 * K2 * K2);
+         |    if (d2 < 0) {
+         |      CNDD2 = 1.0f - w;
+         |    } else {
+         |      CNDD2 = w;
+         |    }
+         |  }
+         |  float expRT = exp(-T * R);
+         |  Tuple result;
+         |  result._0 = S * CNDD1 - K * expRT * CNDD2;
+         |  result._1 = K * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1);
+         |  return result;
+         |}
+        """.stripMargin
       , Float, TupleType(Float, Float))
 
   val blackScholes = fun(

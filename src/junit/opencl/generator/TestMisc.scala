@@ -41,7 +41,7 @@ class TestMisc {
         MapGlb(composition) $ input
     )
 
-    val (output, runtime) = Execute(inputSize)(compFun, inputData, inputData.length)
+    val (output: Array[Float], runtime) = Execute(inputSize)(compFun, inputData)
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -69,7 +69,7 @@ class TestMisc {
       )) $ Zip(matrix, vector)
     )
 
-    val (output, runtime) = Execute(4, Nsize)(f, matrix, vector, Nsize, Msize, Ksize)
+    val (output: Array[Float], runtime) = Execute(4, Nsize)(f, matrix, vector)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -88,7 +88,7 @@ class TestMisc {
         MapGlb(Vectorize(4)(id)) $ input
     )
 
-    val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
     assertArrayEquals(inputData, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -109,7 +109,7 @@ class TestMisc {
         MapGlb(fun(x => add(x, Value.FloatToValue(3.0f)))) $ input
     )
 
-    val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -128,7 +128,7 @@ class TestMisc {
       (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
-    val (output, runtime) = Execute(Nsize * Msize)(function, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(Nsize * Msize)(function, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -148,7 +148,7 @@ class TestMisc {
       in => asScalar() o MapGlb(Vectorize(4)(plusOne)) o asVector(4) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -168,7 +168,7 @@ class TestMisc {
       in => MapGlb(plusOne) o asScalar() o asVector(4) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, inputData, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -192,7 +192,7 @@ class TestMisc {
       (matrix) => Split(Msize) o MapGlb(0)(id) o Join() $ matrix
     )
 
-    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize)
+    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -218,7 +218,7 @@ class TestMisc {
       (matrix) => Split(Msize) o MapGlb(0)(MapSeq(id)) o Join() $ matrix
     )
 
-    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
+    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -244,7 +244,7 @@ class TestMisc {
       (matrix) => MapGlb(0)(Split(Ksize) o MapSeq(id) o Join()) $ matrix
     )
 
-    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
+    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -270,7 +270,7 @@ class TestMisc {
       (matrix) => Split(Msize) o Split(Ksize) o MapGlb(0)(id) o Join() o Join() $ matrix
     )
 
-    val (output, runtime) = Execute(Nsize)(f, matrix, Nsize, Msize, Ksize)
+    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -289,7 +289,7 @@ class TestMisc {
       in => Iterate(5)(MapGlb(plusOne)) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, input)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -310,7 +310,7 @@ class TestMisc {
         toLocal(MapLcl(id))) o Split(16) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)(f, input, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, input)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -338,7 +338,7 @@ class TestMisc {
       (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o Map(fun(x => Map(fun(y => Zip(x, y))) $ Y )) $ X
     )
 
-    val (output, runtime) = Execute(nSize)(f, A, B, nSize, mSize)
+    val (output: Array[Float], runtime) = Execute(nSize)(f, A, B)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))

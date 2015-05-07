@@ -37,7 +37,7 @@ class TestTuple {
       ) o Split(1024) $ input
     )
 
-    val (output, runtime) = Execute(inputSize)(f, inputArray, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -63,7 +63,7 @@ class TestTuple {
         ) o Split(1024) $ Zip(left, right)
     )
 
-    val (output, runtime) = Execute(inputSize)(f, leftArray, rightArray, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, leftArray, rightArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -77,7 +77,8 @@ class TestTuple {
 
     val gold = inputArray.map((f) => Array(f, f)).flatten
 
-    val pair = UserFunDef("pair", "x", "{ Tuple t = {x, x}; return t; }", Float, TupleType(Float, Float))
+    val pair = UserFunDef("pair", "x", "{ Tuple t = {x, x}; return t; }",
+                          Float, TupleType(Float, Float))
 
     val pairFun = fun(ArrayType(Float, Var("N")), (input) =>
       Join() o MapWrg(
@@ -85,7 +86,7 @@ class TestTuple {
       ) o Split(1024) $ input
     )
 
-    val (output, runtime) = Execute(inputArray.length)(pairFun, inputArray, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(inputArray.length)(pairFun, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -95,7 +96,9 @@ class TestTuple {
 
   @Test def reduceOverTuples(): Unit = {
 
-    val maxFirstArg = UserFunDef("maxFirstArg", Array("x", "y"), "{ return x._0 > y._0 ? x : y; }", Array(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
+    val maxFirstArg = UserFunDef("maxFirstArg", Array("x", "y"), "{ return x._0 > y._0 ? x : y; }",
+                                 Array(TupleType(Float, Float),
+                                       TupleType(Float, Float)), TupleType(Float, Float))
 
     val inputSize = 512
 
@@ -112,7 +115,7 @@ class TestTuple {
       input => toGlobal(MapSeq(idFF)) o ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
     )
 
-    val (output, runtime) = Execute(inputSize)(function, input, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(function, input)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -138,7 +141,7 @@ class TestTuple {
       input => toGlobal(MapSeq(idFF)) o ReduceSeq(addPair, (0.0f, 0.0f)) $ input
     )
 
-    val (output, runtime) = Execute(inputSize)(function, input, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(function, input)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -160,10 +163,16 @@ class TestTuple {
     val function = fun(
       ArrayType(ArrayType(Float, M), N),
       ArrayType(Float, N),
-      (A, B) => MapGlb(fun(t => MapSeq(fun(x => add.apply(x, Get(t, 1)))) $ Get(t, 0)) o fun(t => Tuple(MapSeq(plusOne) $ Get(t, 0), Get(t, 1)))) $ Zip(A, B)
+      (A, B) => {
+        MapGlb(fun(t => {
+          MapSeq(fun(x => add.apply(x, Get(t, 1)))) $ Get(t, 0)
+        }) o fun(t => {
+          Tuple(MapSeq(plusOne) $ Get(t, 0), Get(t, 1))
+        })) $ Zip(A, B)
+      }
     )
 
-    val (output, runtime) = Execute(nSize)(function, input, array, nSize, mSize)
+    val (output: Array[Float], runtime) = Execute(nSize)(function, input, array)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))

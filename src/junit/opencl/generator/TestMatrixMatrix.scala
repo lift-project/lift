@@ -48,7 +48,7 @@ class TestMatrixMatrix {
         )) $ A
       })
 
-    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output: Array[Float], runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -82,7 +82,7 @@ class TestMatrixMatrix {
         )) $ A
       })
 
-    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output: Array[Float], runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -121,14 +121,14 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
-        Map(fun( Arow =>
-          Map(fun( Bcol =>
-            Zip(Arow, Bcol)
-          )) $ B
-        )) $ A
+          Map(fun( Arow =>
+            Map(fun( Bcol =>
+              Zip(Arow, Bcol)
+            )) $ B
+          )) $ A
       })
 
-    val (output, runtime) = Execute(Msize * Nsize)(f1, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output: Array[Float], runtime) = Execute(Msize * Nsize)(f1, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -138,7 +138,7 @@ class TestMatrixMatrix {
 
     assertArrayEquals(gold, output, 0.001f)
 
-    val (output2, runtime2) = Execute(Msize * Nsize)(f2, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output2: Array[Float], runtime2) = Execute(Msize * Nsize)(f2, matrixA, matrixB.transpose)
 
     println("output.size = " + output2.length)
     println("output(0) = " + output2(0))
@@ -269,7 +269,7 @@ class TestMatrixMatrix {
           )) o Split(tileSize) $ A
     )
 
-    val (output, _) = Execute(mSize * nSize)(f, matrixA, matrixB, mSize, kSize, nSize)
+    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -304,7 +304,7 @@ class TestMatrixMatrix {
         )) $ A
     )
 
-    val (output, _) = Execute(mSize * nSize)(f, matrixA, matrixB, mSize, kSize, nSize)
+    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -369,7 +369,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output, _) = Execute(tileSize, tileSize/blockSize, mSize, nSize/blockSize, (true, false))(f, matrixA, matrixB, mSize, kSize, nSize)
+    val (output: Array[Float], _) = Execute(tileSize, tileSize/blockSize, mSize, nSize/blockSize, (true, false))(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -442,7 +442,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output, _) = Execute(tileSize/blockSize, tileSize, mSize/blockSize, nSize, (true, false))(f, matrixA, matrixB, mSize, kSize, nSize)
+    val (output: Array[Float], _) = Execute(tileSize/blockSize, tileSize, mSize/blockSize, nSize, (true, false))(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -488,7 +488,7 @@ class TestMatrixMatrix {
         )) o Tile(tileSize) $ A
       })
 
-    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
+    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -548,7 +548,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
+    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -612,7 +612,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
+    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -676,7 +676,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output, runtime) = Execute(mSize * nSize)(f, matrixA, matrixB, mSize, kSize, nSize)
+    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -698,7 +698,7 @@ class TestMatrixMatrix {
 
     val f = MatrixMultiplication.tiled(tileSize)
 
-    val (output, runtime) = Execute(4, 4, mSize, nSize, (true, false))(f, matrixA, matrixB, mSize, kSize, nSize)
+    val (output: Array[Float], runtime) = Execute(4, 4, mSize, nSize, (true, false))(f, matrixA, matrixB)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -713,7 +713,8 @@ class TestMatrixMatrix {
     val numMatrices = 16
     val matrices = Array.fill(numMatrices, mSize, kSize)(util.Random.nextInt(5).toFloat)
 
-    val gold = matrices.reduce((x, y) => (x, y).zipped.map((x, y) => (x, y).zipped.map(_+_))).flatten
+    val gold = matrices.reduce((x, y) => (x, y).zipped.map((x, y) =>
+                                                             (x, y).zipped.map(_+_))).flatten
 
     val test = matrices.transpose.map(_.transpose.map(_.sum)).flatten
 
@@ -721,10 +722,13 @@ class TestMatrixMatrix {
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, new Var("M")), new Var("K")), new Var("N")),
-      input => MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose()) o Transpose() $ input
+      input => {
+        MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose()) o
+        Transpose() $ input
+      }
     )
 
-    val (output, _) = Execute(mSize*kSize)(f, matrices, numMatrices, kSize, mSize)
+    val (output: Array[Float], _) = Execute(mSize*kSize)(f, matrices)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -752,7 +756,7 @@ class TestMatrixMatrix {
         )) $ A
       })
 
-    val (output, runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB, Msize, Ksize, Nsize)
+    val (output: Array[Float], runtime) = Execute(Msize * Nsize)(f, matrixA, matrixB)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -795,7 +799,7 @@ class TestMatrixMatrix {
         )) o Split(r) $ A
       })
 
-    val (output, runtime) = Execute(8, mSize * nSize)(f, matrixA, matrixB.transpose, mSize, kSize, nSize)
+    val (output: Array[Float], runtime) = Execute(8, mSize * nSize)(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
