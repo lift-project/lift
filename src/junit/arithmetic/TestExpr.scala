@@ -293,6 +293,46 @@ class TestExpr {
     assertEquals(l * n/4, ExprSimplifier.simplify((l * n/4) % n))
   }
 
+  @Test
+  def divPlusModMultiplied(): Unit = {
+    val a = Var("a")
+    val d = Var("d")
+    val x = Var("x")
+
+    assertEquals(x*a, ExprSimplifier.simplify(x * (a div d) * d + x * (a % d)))
+  }
+
+  @Ignore
+  @Test
+  def divPlusModMultipliedConstants(): Unit = {
+    val a = Var("a")
+    val d = Cst(2)
+    val x = Cst(8)
+
+    assertEquals(x*a, ExprSimplifier.simplify(x * (a div d) * d + x * (a % d)))
+  }
+
+  @Ignore
+  @Test
+  def evalAtMaxWithSumAndConstants(): Unit = {
+    val i = Var("i", ContinuousRange(0, 2))
+    val id = Var("id", ContinuousRange(0, 4))
+
+    // 0 <= id + 4*i <= 7 < 8
+    assertEquals(Cst(0), ExprSimplifier.simplify((id + 4*i) div 8))
+    assertEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
+  }
+
+  @Ignore
+  @Test
+  def sumFraction(): Unit = {
+    val n = Var("n")
+    val i = Var("i", ContinuousRange(0, n))
+
+    // N <= i + N <= 2*N - 1 < 2*N
+    assertEquals(1, ExprSimplifier.simplify((i+n) div n))
+  }
+
   @Test def simplifyAccess(): Unit = {
     val M = Var(StartFromRange(Cst(1)))
     val N = Var(StartFromRange(Cst(1)))
