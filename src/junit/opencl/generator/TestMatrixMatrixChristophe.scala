@@ -698,7 +698,7 @@ class TestMatrixMatrixChristophe {
      )*/
 
 
-    val (output, runtime) = Execute(Msize * Nsize)(f5, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
+    val (output: Array[Float], runtime) = Execute(Msize * Nsize)(f5, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
