@@ -242,6 +242,19 @@ object ArithExpr {
       case Pow(base, exp) =>
         visit(base, f)
         visit(exp, f)
+      case Fraction(n, d) =>
+        visit(n, f)
+        visit(d, f)
+      case Mod(dividend, divisor) =>
+        visit(dividend, f)
+        visit(divisor, f)
+      case Log(b,x) =>
+        visit(b, f)
+        visit(x, f)
+      case And(l, r) =>
+        visit(l, f)
+        visit(r, f)
+      case Floor(expr) => visit(expr, f)
       case Sum(terms) => terms.foreach(t => visit(t, f))
       case Prod(terms) => terms.foreach(t => visit(t, f))
       case _ =>

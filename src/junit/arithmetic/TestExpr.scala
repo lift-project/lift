@@ -40,7 +40,7 @@ class TestExpr {
       val sim = ExprSimplifier.simplify(re)
 
       val simEval = sim.evalDbl()
-      assert(math.abs(oriEval-simEval) <= 1.0/1000000.0, oriEval+" != "+simEval)
+      assertTrue(oriEval+" != "+simEval, math.abs(oriEval-simEval) <= 1.0/1000000.0)
     }
   }
 
@@ -304,6 +304,16 @@ class TestExpr {
     // 0 <= id + 4*i <= 7 < 8
     assertEquals(Cst(0), ExprSimplifier.simplify((id + 4*i) div 8))
     assertEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
+  }
+
+  @Test
+  def divPlusModOfSumMultipliedConstants(): Unit = {
+    val a = Var("a")
+    val b = Var("b")
+    val d = Cst(2)
+    val x = Cst(8)
+
+    assertEquals(x*a + x*b, ExprSimplifier.simplify(x * ((a + b) div d) * d + x * ((a + b) % d)))
   }
 
   @Test
