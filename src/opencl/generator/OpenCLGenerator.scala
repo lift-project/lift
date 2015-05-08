@@ -501,7 +501,9 @@ object OpenCLGenerator extends Generator {
 
         "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
           oclPrinter.toOpenCL(oclMem.variable) +
-          "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns)) + "])"
+          "[" + oclPrinter.toOpenCL(
+          ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns)
+        ) + "])"
 
       case PrivateMemory =>
         privateMems.find(m => m.mem.variable == oclMem.variable) match {
