@@ -363,5 +363,15 @@ class TestExpr {
 
     assertTrue(ArithExpr.multipleOf(n / 4, n / 8))
     assertTrue(ArithExpr.multipleOf(3 * n / 4, n / 8))
+    assertFalse(ArithExpr.multipleOf(n / 8, n / 4))
+    assertFalse(ArithExpr.multipleOf(n / 8, n))
+  }
+
+  @Test
+  def modOfDivisionMultiple(): Unit = {
+    val n = Var("N")
+
+    assertEquals(Cst(0), ExprSimplifier.simplify((n / 4) % (n / 8)))
+//    assertEquals(n / 8, ExprSimplifier.simplify((n / 8) % (n / 4)))
   }
 }

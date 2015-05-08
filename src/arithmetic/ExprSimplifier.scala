@@ -79,7 +79,7 @@ object ExprSimplifier {
       case _ =>
     }
 
-    if (m.dividend == Cst(0) && m.divisor != Cst(0) || m.dividend == m.divisor)
+    if (m.dividend == Cst(0) && m.divisor != Cst(0) || ArithExpr.multipleOf(m.dividend, m.divisor))
       return Cst(0)
 
     m.dividend match {
@@ -89,7 +89,7 @@ object ExprSimplifier {
       case _ =>
     }
 
-    if(isSmaller(m.dividend, m.divisor)) {
+    if(ArithExpr.isSmaller(m.dividend, m.divisor)) {
       return m.dividend
     }
 
@@ -114,13 +114,13 @@ object ExprSimplifier {
       case Mod(Prod(dividendFactors), Prod(divisorFactors)) =>
         val common = dividendFactors.intersect(divisorFactors)
         val diff = dividendFactors.diff(divisorFactors)
-        if (common.length == divisorFactors.length && !hasDivision(diff))
+        if (common.length == divisorFactors.length && !ArithExpr.hasDivision(diff))
           return Cst(0)
         m
       case Mod(Prod(factors), d) =>
         // (A * B) mod C = (A mod C * B mod C) mod C
         val newDividend = simplify(Prod(factors.map(Mod(_, d))))
-        if (!hasDivision(factors))
+        if (!ArithExpr.hasDivision(factors))
           newDividend match {
             case Prod(newFactors) =>
               if (newFactors.length < factors.length){
@@ -137,36 +137,6 @@ object ExprSimplifier {
     }
   }
 
-  private def hasDivision(factors: List[ArithExpr]): Boolean = {
-    factors.exists(isDivision)
-  }
-
-  private def isDivision: (ArithExpr) => Boolean = {
-    case Pow(_, Cst(-1)) => true
-    case _ => false
-  }
-
-  private def isSmaller(ae1: ArithExpr, ae2: ArithExpr): Boolean = {
-    try {
-      // TODO: Assuming range.max is non-inclusive
-      val atMax = ae1.atMax
-
-      atMax match {
-        case Prod(factors) if hasDivision(factors) =>
-          val newProd = ExprSimplifier.simplify(Prod(factors.filter(!isDivision(_))))
-          if (newProd == ae2)
-            return true
-        case _ =>
-      }
-
-      if (atMax == ae2 || ae1.atMax(constantMax = true).eval() < ae2.eval())
-        return true
-    } catch {
-      case e: NotEvaluableException =>
-    }
-    false
-  }
-
   private def simplifyFraction(f: Fraction): ArithExpr = {
     if (f.denom == Cst(1))
       return f.numer
@@ -177,7 +147,7 @@ object ExprSimplifier {
     if (f.numer == f.denom && f.denom != Cst(0))
       return Cst(1)
 
-    if (isSmaller(f.numer, f.denom))
+    if (ArithExpr.isSmaller(f.numer, f.denom))
       return Cst(0)
 
     f match {

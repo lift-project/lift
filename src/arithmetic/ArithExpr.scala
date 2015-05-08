@@ -198,10 +198,11 @@ object ArithExpr {
     ExprSimplifier.simplify(expr) match {
       case Prod(terms) =>
         that match {
-          case Prod(otherTerms) => otherTerms.map({
-            case pow: Pow => terms.exists(multipleOf(_, pow))
-            case x => terms.contains(x)
-          }).reduce(_&&_)
+          case Prod(otherTerms) =>
+            otherTerms.map({
+              case pow: Pow => terms.exists(multipleOf(_, pow))
+              case x => terms.contains(x)
+            }).reduce(_&&_) && terms.count(isDivision) == otherTerms.count(isDivision)
           case c: Cst =>
             val cstTerm = terms.filter(_.isInstanceOf[Cst])
 
@@ -215,7 +216,7 @@ object ArithExpr {
             }
 
             false
-          case e => terms.contains(that)
+          case e => terms.contains(that) && !terms.exists(isDivision)
         }
       case v1: Var =>
         that match {
@@ -250,6 +251,36 @@ object ArithExpr {
         }
       case _ => false
     }
+  }
+
+  private[arithmetic] def hasDivision(factors: List[ArithExpr]): Boolean = {
+    factors.exists(isDivision)
+  }
+
+  private[arithmetic] def isDivision: (ArithExpr) => Boolean = {
+    case Pow(_, Cst(-1)) => true
+    case e => false
+  }
+
+  private[arithmetic] def isSmaller(ae1: ArithExpr, ae2: ArithExpr): Boolean = {
+    try {
+      // TODO: Assuming range.max is non-inclusive
+      val atMax = ae1.atMax
+
+      atMax match {
+        case Prod(factors) if hasDivision(factors) =>
+          val newProd = ExprSimplifier.simplify(Prod(factors.filter(!isDivision(_))))
+          if (newProd == ae2)
+            return true
+        case _ =>
+      }
+
+      if (atMax == ae2 || ae1.atMax(constantMax = true).eval() < ae2.eval())
+        return true
+    } catch {
+      case e: NotEvaluableException =>
+    }
+    false
   }
 
   def visit(e: ArithExpr, f: (ArithExpr) => Unit) : Unit = {
