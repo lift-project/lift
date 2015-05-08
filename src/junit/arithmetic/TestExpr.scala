@@ -335,6 +335,36 @@ class TestExpr {
     assertNotEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
   }
 
+  @Test
+  def fractionMultipleOf(): Unit = {
+    val n = Var("N")
+
+    assertTrue(ArithExpr.multipleOf(n div 4, n div 8))
+    assertTrue(ArithExpr.multipleOf(3 * n div 4, n div 8))
+  }
+
+  @Test
+  def varFractionProductMultipleOf(): Unit = {
+    val n = Var("N")
+    val i = Var("i")
+
+    assertTrue(ArithExpr.multipleOf(i* n div 4, n div 8))
+  }
+
+  @Test
+  def equalMultipleOf(): Unit = {
+    val n = Var("N")
+    assertTrue(ArithExpr.multipleOf(n, n))
+  }
+
+  @Test
+  def divisionMultipleOf(): Unit = {
+    val n = Var("N")
+
+    assertTrue(ArithExpr.multipleOf(n / 4, n / 8))
+    assertTrue(ArithExpr.multipleOf(3 * n / 4, n / 8))
+  }
+
   @Test def simplifyAccess(): Unit = {
     val M = Var(StartFromRange(Cst(1)))
     val N = Var(StartFromRange(Cst(1)))
