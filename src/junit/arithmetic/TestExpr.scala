@@ -335,89 +335,43 @@ class TestExpr {
     assertNotEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
   }
 
-  @Test def simplifyAccess(): Unit = {
-    val M = Var(StartFromRange(Cst(1)))
-    val N = Var(StartFromRange(Cst(1)))
+  @Test
+  def fractionMultipleOf(): Unit = {
+    val n = Var("N")
 
-    val wg_id_0 = Var("wid_0",ContinuousRange(0, N / 2))
-    val wg_id_1 = Var("wid_1",ContinuousRange(0, M / 4))
-    val l_id_0 = Var("lid_0",ContinuousRange(0, 2))
-    val l_id_1 = Var("lid_0",ContinuousRange(0, 4))
+    assertTrue(ArithExpr.multipleOf(n div 4, n div 8))
+    assertTrue(ArithExpr.multipleOf(3 * n div 4, n div 8))
+  }
 
-    val firstRead = (wg_id_0 * 1 * M / 4 * 2 * 4) +
-      (((wg_id_1 * 1 * 2 * 4) +
-        (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-        0) /
-        (4 * 1) / 2 * 4 * 1) +
-      (((((wg_id_1 * 1 * 2 * 4) +
-        (l_id_0 * 1 * 4) +
-        (l_id_1 * 1) + 0) /
-        (4 * 1)) %
-        2) *
-        M / 4 * 4 * 1) +
-      (((wg_id_1 * 1 * 2 * 4) +
-        (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-        0) %
-        (4 * 1))
+  @Test
+  def varFractionProductMultipleOf(): Unit = {
+    val n = Var("N")
+    val i = Var("i")
 
-    val simpFirstRead = ExprSimplifier.simplify(firstRead)
-    println(firstRead)
-    println(simpFirstRead)
+    assertTrue(ArithExpr.multipleOf(i* n div 4, n div 8))
+  }
 
-    val firstWrite = (((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
-      1 / M * 1) +
-      (((((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
-        1) %
-        M) *
-        N * 1) +
-      (((l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
-        1)
+  @Test
+  def equalMultipleOf(): Unit = {
+    val n = Var("N")
+    assertTrue(ArithExpr.multipleOf(n, n))
+  }
 
-    val secondWrite = (((wg_id_0 * 1 * M / 4 * 2 * 4) +
-      (((wg_id_1 * 1 * 2 * 4) +
-        (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
-        (4 * 1) / 2 * 4 * 1) +
-      (((((wg_id_1 * 1 * 2 * 4) +
-        (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-        0) /
-        (4 * 1)) %
-        2) *
-        M / 4 * 4 * 1) +
-      (((wg_id_1 * 1 * 2 * 4) +
-        (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
-        (4 * 1))) /
-      1 / M * 1) +
-      (((((wg_id_0 * 1 * M / 4 * 2 * 4) +
-        (((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-          0) /
-          (4 * 1) / 2 * 4 * 1) +
-        (((((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-          0) /
-          (4 * 1)) %
-          2) *
-          M / 4 * 4 * 1) +
-        (((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-          0) %
-          (4 * 1))) /
-        1) %
-        M) *
-        N * 1) +
-      (((wg_id_0 * 1 * M / 4 * 2 * 4) +
-        (((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) /
-          (4 * 1) / 2 * 4 * 1) +
-        (((((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) +
-          0) /
-          (4 * 1)) %
-          2) *
-          M / 4 * 4 * 1) +
-        (((wg_id_1 * 1 * 2 * 4) +
-          (l_id_0 * 1 * 4) + (l_id_1 * 1) + 0) %
-          (4 * 1))) %
-        1)
+  @Test
+  def divisionMultipleOf(): Unit = {
+    val n = Var("N")
+
+    assertTrue(ArithExpr.multipleOf(n / 4, n / 8))
+    assertTrue(ArithExpr.multipleOf(3 * n / 4, n / 8))
+    assertFalse(ArithExpr.multipleOf(n / 8, n / 4))
+    assertFalse(ArithExpr.multipleOf(n / 8, n))
+  }
+
+  @Test
+  def modOfDivisionMultiple(): Unit = {
+    val n = Var("N")
+
+    assertEquals(Cst(0), ExprSimplifier.simplify((n / 4) % (n / 8)))
+//    assertEquals(n / 8, ExprSimplifier.simplify((n / 8) % (n / 4)))
   }
 }
