@@ -358,7 +358,6 @@ object Type {
       case t: Tuple =>            checkTuple(t, inT, setType)
       case uz: Unzip =>           checkUnzip(uz, inT, setType)
       case Split(n) =>            checkSplit(n, inT)
-      case SplitDim2(n) =>        checkSplitDim2(n, inT)
       case _: Join =>             checkJoin(inT)
       case _: asScalar  =>        checkAsScalar(inT)
       case asVector(n) =>         checkAsVector(n, inT)
@@ -366,7 +365,6 @@ object Type {
       case tL: toLocal =>         checkToLocal(tL, inT, setType)
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
-      case ifs: IterateFixedSize => checkIterateFixedSize(ifs, inT)
       case _: Transpose =>        checkTranspose(inT)
       case _: TransposeW =>       checkTranspose(inT)
       case _: ReorderStride =>    inT
@@ -375,11 +373,9 @@ object Type {
       case f: Filter =>           checkFilter(f, inT, setType)
       case g: Group =>            checkGroup(g, inT)
       case _: Barrier =>          inT
-      case d: AbstractDropLeft => checkDropLeft(d, inT, setType)
-      case as: AbstractSearch =>  checkSearch(as, inT, setType)
+//      case h: ConcreteHead =>     checkHead(inT)
       case h: Head =>             checkHead(inT)
       case t: Tail =>             checkTail(inT)
-      case vt: VTail =>           checkTail(inT)
     }
   }
 
@@ -436,31 +432,6 @@ object Type {
         check(ar.f.body, setType) // check the body - setting the type
         ArrayType(initT, new Cst(1)) // return a constant length array
       case _ => throw new TypeException(inT, "TupleType")
-    }
-  }
-
-  private def checkDropLeft(ad: AbstractDropLeft, inT: Type, setType: Boolean): Type= {
-    inT match {
-      case at: ArrayType =>
-        if (ad.f.params.length != 1) throw new NumberOfArgumentsException
-        ad.f.params(0).t = getElemT(inT)
-        ArrayType(check(ad.f.body, setType), getLength(inT))
-      case _ => throw new TypeException(inT, "ArrayType")
-    }
-  }
-
-  private def checkSearch(as: AbstractSearch, inT: Type, setType: Boolean): Type = {
-    inT match{
-      case tt: TupleType =>
-        if (tt.elemsT.length != 1) throw new NumberOfArgumentsException // search input type: search value + array
-//        val searchT = tt.elemsT(0) // get the type of the inital value
-        val elemT = getElemT(tt.elemsT(0)) // get the type of the array values to the reduce
-        if (as.f.params.length != 1) throw new NumberOfArgumentsException // make sure our function has two args
-//        as.f.params(0).t = searchT // initial elem type
-        as.f.params(0).t = elemT // array element type
-        check(as.f.body, setType) // check the body - setting the type
-        ArrayType(elemT, new Cst(1)) // return a constant length array
-      case _ => throw new TypeException(inT, "ArrayType")
     }
   }
 
@@ -550,7 +521,8 @@ object Type {
   private def checkHead(inT: Type): Type = {
     inT match {
 //      case at: ArrayType => at.elemT
-      case at: ArrayType => ArrayType(at.elemT, Cst(1))
+      case at: ArrayType =>
+        ArrayType(at.elemT, Cst(1))
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
@@ -677,19 +649,7 @@ object Type {
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
-  private def checkIterateFixedSize(i: IterateFixedSize, inT: Type) : Type = {
-    inT match {
-      case at: ArrayType =>
-        if (i.f.params.length != 1) throw new NumberOfArgumentsException
-        i.f.params(0).t = inT
-        var ouT = check(i.f.body, true)
-        if (inT != ouT)
-          throw new TypeException("Cannot match in and out types for iterate body, inT = " + inT + " ouT = " + ouT)
-        ouT
 
-      case _ => throw new TypeException(inT, "ArrayType")
-    }
-  }
 //  private def checkIterateP(i: Iterate, inT: Type) : Type = {
 //    inT match{
 //      case at: ArrayType =>

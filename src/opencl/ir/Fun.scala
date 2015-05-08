@@ -123,47 +123,6 @@ object jMapMatrix {
   def create(f: FunDecl) = MapMatrix(Lambda1.FunDefToLambda(f))
 }
 
-// DropLeft - seems a little hacky?
-case class DropLeftSeq(f: Lambda) extends AbstractDropLeft(f) with isGenerable {
-  override def apply(args: Expr*) : DropLeftCall = {
-    assert(args.length == 1)
-    new DropLeftCall(Var("i"),this, args(0))
-  }
-  override def $(that: Expr) : DropLeftCall = {
-    apply(that)
-  }
-}
-
-object DropLeftSeq {
-  def apply(f: Lambda1): Lambda1 = new DropLeftSeq(f)
-}
-
-object jDropLeftSeq {
-  def create(f: Lambda1) = DropLeftSeq(f)
-  def create(f: FunDecl) = DropLeftSeq(Lambda1.FunDefToLambda(f))
-}
-
-//linear sequential search
-case class LinearSearchSeq(f: Lambda) extends AbstractSearch(f) with isGenerable {
-  override def apply(args: Expr* ) : SearchCall = {
-    assert(args.length == 3)
-    new SearchCall(Var("i"),this, args(0), args(1), args(2))
-  }
-
-  override def $(that: Expr) : SearchCall = {
-    apply(that)
-  }
-}
-
-object LinearSearchSeq {
-  def apply(f: Lambda2, search: Value, zero: Value): Lambda1 = fun((x)=> LinearSearchSeq(f)(search, x))
-}
-
-object jLinearSearchSeq {
-  def create(f: Lambda2, search: Value, zero: Value) = LinearSearchSeq(f, search, zero)
-  def create(f: FunDecl, search: Value, zero: Value) = LinearSearchSeq(Lambda2.FunDefToLambda(f), search, zero)
-}
-
 // Reductions
 
 case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
@@ -295,6 +254,11 @@ case class Scatter(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](
 object Scatter {
   def apply(idx: IndexFunction) = (f: Lambda1) => new Scatter(idx, f)
 }
+
+case class Head() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
+case class Tail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*

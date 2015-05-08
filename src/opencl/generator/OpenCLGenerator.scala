@@ -261,13 +261,9 @@ object OpenCLGenerator extends Generator {
       }
 
       case call: IterateCall => generateIterateCall(call)
-      case call: IterateFixedSizeCall => generateIterateFixedSizeCall(call)
-      case call: DropLeftCall => generateDropLeftCall(call)
-      case call: SearchCall => call.f match {
-        case _: LinearSearchSeq => generateLinearSearchSeq(call)
-      }
-      case call: HeadCall => generateHeadCall(call)
-      case call: TailCall => generateTailCall(call)
+//      case call: ConcreteHeadCall => generateConcreteHeadCall(call)
+//      case call: HeadCall => generateHeadCall(call)
+//      case call: TailCall => generateTailCall(call)
 
       case call: FunCall => call.f match {
         case cf: CompFunDef => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
@@ -279,7 +275,8 @@ object OpenCLGenerator extends Generator {
         case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
         case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() =>
-        case _: VTail =>
+//        case _: VTail =>
+        case Head() | Tail() =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case v: Value => generateValue(v)
@@ -335,17 +332,17 @@ object OpenCLGenerator extends Generator {
   }
 
   // MapMatrix
-  private def generateMapMatrixCall(call: MapCall) {
-    val m = call.f.asInstanceOf[MapMatrix]
-    val range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.arg.t), new get_global_size(m.dim))
-
-    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
-    // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
-    // TODO: Rethink and then redesign this!
-    if (m.dim == 0) {
-      oclPrinter.println("return;")
-    }
-  }
+//  private def generateMapMatrixCall(call: MapCall) {
+//    val m = call.f.asInstanceOf[MapMatrix]
+//    val range = RangeAdd(new get_global_id(m.dim), Type.getLength(call.arg.t), new get_global_size(m.dim))
+//
+//    oclPrinter.generateLoop(call.loopVar, range, () => generate(call.f.f.body))
+//    // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
+//    // TODO: Rethink and then redesign this!
+//    if (m.dim == 0) {
+//      oclPrinter.println("return;")
+//    }
+//  }
   
   // === Reduce ===
   private def generateReduceSeqCall(call: ReduceCall) {
@@ -367,150 +364,50 @@ object OpenCLGenerator extends Generator {
     oclPrinter.println(oclPrinter.toOpenCL(v.mem.variable) + " = " + oclPrinter.toOpenCL(temp) + ";")
   }
 
-  // === Head ===
+//    // === ConcreteHead ===
+//
+//    private def generateConcreteHeadCall(call: ConcreteHeadCall) {
+//      val outET = call.t match { case aT: ArrayType => aT.elemT }
+//      val argET = call.arg.t match { case aT: ArrayType => aT.elemT }
+//
+//      oclPrinter.commln("head")
+//      // want to generate: output[0] = input[0]
+//      oclPrinter.println(access(call.mem, outET, call.view) =:= access(call.arg.mem, argET, call.arg.view))
+//      oclPrinter.commln("head")
+//    }
 
-  private def generateHeadCall(call: HeadCall) {
-    val outET = call.t match { case aT: ArrayType => aT.elemT }
-    val argET = call.arg.t match { case aT: ArrayType => aT.elemT }
-//    oclPrinter.openCB()
-    oclPrinter.commln("head")
-    // want to generate: output[0] = input[0]
-    oclPrinter.println(access(call.mem, outET, call.view) =:= access(call.arg.mem, argET, call.arg.view))
-    oclPrinter.commln("head")
-//    oclPrinter.closeCB()
-  }
-
-  // === Tail ===
-
-  private def generateTailCall(call: TailCall) {
-    val outET = call.t match { case aT: ArrayType => aT.elemT }
-    val argET = call.arg.t match { case aT: ArrayType => aT.elemT }
-//    oclPrinter.openCB()
-    oclPrinter.commln("tail")
-    val range = ContinuousRange(Cst(0), Type.getLength(call.t))
-
-    val av = call.view match { case av: ArrayView => av }
-
-    oclPrinter.generateLoop(call.loopVar, range, () =>
-      oclPrinter.println(access(call.mem, outET, av.access(call.loopVar)) =:= access(call.arg.mem, argET, call.arg.view))
-    )
-
-    // want to generate: output[0] = input[0]
-    oclPrinter.commln("tail")
-//    oclPrinter.closeCB()
-  }
-
-  // === LinearSearch ===
-  private def generateLinearSearchSeq(call: SearchCall){
-//    oclPrinter.openCB()
+//  // === Head ===
 //
-//    val searchVar = call.arg0.mem.variable
-//    val searchType = call.arg0.t
-//    val searchValue = call.arg0 match { case v: Value => v.value }
+//  private def generateHeadCall(call: HeadCall) {
+//    val outET = call.t match { case aT: ArrayType => aT.elemT }
+//    val argET = call.arg.t match { case aT: ArrayType => aT.elemT }
+////    oclPrinter.openCB()
+//    oclPrinter.commln("head")
+//    // want to generate: output[0] = input[0]
+//    oclPrinter.println(access(call.mem, outET, call.view) =:= access(call.arg.mem, argET, call.arg.view))
+//    oclPrinter.commln("head")
+////    oclPrinter.closeCB()
+//  }
 //
-//    val defaultVal = call.arg1.mem.variable
-//    val defaultType = call.arg1.t
-//    val defaultValue = call.arg0 match { case v: Value => v.value }
+//  // === Tail ===
 //
-//    //print an OpenCL/C declaration for the searching variable
-//    oclPrinter.printVarDecl(searchType, searchVar, searchValue)
-//    oclPrinter.println(";")
-//
-//    //print an OpenCL/C declaration for the "default" variable
-//    oclPrinter.printVarDecl(searchType, searchVar, searchValue)
-//    oclPrinter.println(";")
-//
-//    val inT = call.arg1.t
-//
-//    val funCall = call.f.f.body match { case call: FunCall => call }
-//
-//    //hackily generate a temporary variable for storing our values...
-//    oclPrinter.println(oclPrinter.toOpenCL(inT.asInstanceOf[ArrayType].elemT)+" tempVar = {0.0,0.0};")
-//    // 2. generate loop from 0 .. length
-//    val range = RangeAdd(Cst(0), Type.getLength(inT), Cst(1))
-//    oclPrinter.generateLoop(call.loopVar, range, () => {
-//      // 3. generate if(fun(searchvalue, input[i])
-//
-//      oclPrinter.generateConditional(
-//        // 3. generate if(fun(searchvalue, input[i])
-//        () => {oclPrinter.generateFunCall(funCall, access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))},
-//        // 4. generate "searchvar =  input[i]; break"
-//        () => {
-////          oclPrinter.print(oclPrinter.toOpenCL(searchVar) + " = (")
-//          oclPrinter.print("searchVar = (")
-//          oclPrinter.print(access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
-//          oclPrinter.println(");")
-////          oclPrinter.println("printf(\"Found the variable\\n\");")
-////          oclPrinter.print("printf(\"Values: %f %f\\n\",")
-////          oclPrinter.print(access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
-////          oclPrinter.println(");")
-//          oclPrinter.println("break;")
-//        },
-//        () => {
-////          oclPrinter.println("printf(\"Not matched the variable\\n\");")
-////          oclPrinter.print("printf(\"Values: %f %f\\n\",")
-////          oclPrinter.print(access(funCall.argsMemory, funCall.argsType, funCall.argsAccess))
-////          oclPrinter.println(");")
-//        }
-//      )
-//      //println("ReduceSeqCall access: ")
-//      //ViewPrinter.emit(funCall.args(1).view.asInstanceOf[PrimitiveView])
-//      //println()
-//    })
-//
-//    // 4. generate output[0] = acc
-////    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) =:= oclPrinter.toOpenCL(searchVar))
-//    oclPrinter.println(access(call.mem, call.f.f.body.t, funCall.access) + " = tempVar;")
-//    oclPrinter.print("printf(\"Returning variable %f\\n\",")
-//    oclPrinter.print(access(call.mem, call.f.f.body.t, funCall.access))
-//    oclPrinter.println(");")
-//    oclPrinter.commln("search_seq")
-//    oclPrinter.closeCB()
-  }
-
-  // === DropLeft ===
-  private def generateDropLeftCall(call: DropLeftCall)
-  {
-    //    We want to generate something like this:
-    //    int predicate(float x, float l);
-    //
-    //    dropLeft(float* in, int N, float limit)
-    //    {
-    //      float* t = in;
-    //      for(int i = 0;i<N;i++)
-    //      {
-    //        if(predicate(in[i], limit))
-    //        {
-    //          t++;
-    //        }else{
-    //          break;
-    //        }
-    //      }
-    //    }
-//    val inputMemory = OpenCLMemory.asOpenCLMemory(call.arg.mem)
-//    val inVStr = oclPrinter.toOpenCL(inputMemory.variable) //our input array
-//    val funCall = call.f.f.body match { case call: FunCall => call }
-//    val innerInputLength = Type.getLength(funCall.argsType)
-//
-//    println("Generating dropLeft:")
-//    println(inputMemory.toString)
-//    println(inVStr.toString)
-//
-//
-//    oclPrinter.openCB()
-//    oclPrinter.commln("dropLeft_seq")
-//
-////    oclPrinter.println(inVStr.toString+"++;")
-////    oclPrinter.generateIterate(
-////      () => {oclPrinter.generateFunCall(call.f.f.body, access(call.argsMemory, call.argsType, call.argsAccess))},
-//////      () => {oclPrinter.generateFunCall(call.f.f.body)},
-////      () => {oclPrinter.println(inVStr+"++;")}
+//  private def generateTailCall(call: TailCall) {
+////    val outET = call.t match { case aT: ArrayType => aT.elemT }
+////    val argET = call.arg.t match { case aT: ArrayType => aT.elemT }
+//////    oclPrinter.openCB()
+////    oclPrinter.commln("tail")
+////    val range = ContinuousRange(Cst(0), Type.getLength(call.t))
+////
+////    val av = call.view match { case av: ArrayView => av }
+////
+////    oclPrinter.generateLoop(call.loopVar, range, () =>
+////      oclPrinter.println(access(call.mem, outET, av.access(call.loopVar)) =:= access(call.arg.mem, argET, call.arg.view))
 ////    )
-//    oclPrinter.commln("dropLeft_seq")
-//    oclPrinter.closeCB()
-  }
-
-
+////
+////    // want to generate: output[0] = input[0]
+////    oclPrinter.commln("tail")
+//////    oclPrinter.closeCB()
+//  }
 
   // === Iterate ===
   private def generateIterateCall(call: IterateCall) = {
@@ -568,7 +465,7 @@ object OpenCLGenerator extends Generator {
 //    Removed the pragma temporarily as it was causing a (presumably) memory related bug on non NVIDIA and Intel CPU platforms
 //    TODO: implement a platform dependent system for inserting the pragma when legal
 //    oclPrinter.println("#pragma unroll 1")
-    oclPrinter.generateLoop(indexVar, range, () => {
+    oclPrinter.generateLoop(call.indexVar,() => {
 
       // modify the pointers to the memory before generating the body
       val oldInV = inputMem.variable
@@ -593,88 +490,6 @@ object OpenCLGenerator extends Generator {
       // tout = (tout == swap) ? out : swap
       oclPrinter.println(toutVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ outVStr +":"+ swapVStr+";")
     } )
-
-    oclPrinter.closeCB()
-  }
-
-  // === IterateFixedSize ===
-  private def generateIterateFixedSizeCall(call: IterateFixedSizeCall) = {
-
-    val inputMem = OpenCLMemory.asOpenCLMemory(call.arg.mem)
-    val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
-    val swapMem = OpenCLMemory.asOpenCLMemory(call.swapBuffer)
-
-    assert (inputMem.addressSpace == outputMem.addressSpace)
-
-    val funCall = call.f.f.body match { case call: FunCall => call }
-    val innerInputLength = Type.getLength(funCall.argsType)
-    val innerOutputLength = Type.getLength(funCall.t)
-
-    oclPrinter.openCB()
-
-    // use the type var as the var holding the iterating size if it exists
-    if (TypeVar.getTypeVars(funCall.argsType).size > 1) {
-      println("size: " + TypeVar.getTypeVars(funCall.argsType).size)
-      TypeVar.getTypeVars(funCall.argsType).foreach( (tv) => { println("tv: " + tv) })
-      println("i.f.inT " + funCall.argsType)
-      throw new NotImplementedError()
-    }
-    val curOutLen =
-      if (TypeVar.getTypeVars(funCall.argsType).isEmpty)
-        Var("curOutLen")
-      else
-        TypeVar.getTypeVars(funCall.argsType).head
-    oclPrinter.printVarDecl(opencl.ir.Int, curOutLen, oclPrinter.toOpenCL(Type.getLength(call.argsType)))
-    oclPrinter.println(";")
-
-    val range = ContinuousRange(Cst(0), call.f.n)
-    val indexVar = Var("i", range)
-
-    // create new temporary input and output pointers
-    val tin = Var("tin")
-    val tout = Var("tout")
-
-    val tinVStr = oclPrinter.toOpenCL(tin)
-    val toutVStr = oclPrinter.toOpenCL(tout)
-    val inVStr = oclPrinter.toOpenCL(inputMem.variable)
-    val outVStr = oclPrinter.toOpenCL(outputMem.variable)
-    val swapVStr = oclPrinter.toOpenCL(swapMem.variable)
-
-    // ADDRSPC TYPE tin = in;
-    oclPrinter.println(outputMem.addressSpace + " " + oclPrinter.toOpenCL(Type.devectorize(call.t)) + " " + tinVStr + " = " + inVStr+";")
-
-    // ADDRSPC TYPE tin = (odd ? out : swap);
-    oclPrinter.print(outputMem.addressSpace + " " + oclPrinter.toOpenCL(Type.devectorize(call.t)) + " " + toutVStr + " = ")
-    oclPrinter.print("( ("+oclPrinter.toOpenCL(range.stop)+" & 1) != 0 ) ? ")
-    oclPrinter.print(outVStr + " : " + swapVStr)
-    oclPrinter.println(" ;")
-
-    oclPrinter.println("#pragma unroll 1")
-    oclPrinter.generateLoop(call.indexVar, () => {
-
-      // modify the pointers to the memory before generating the body
-      val oldInV = inputMem.variable
-      val oldOutV = outputMem.variable
-      inputMem.variable = tin
-      outputMem.variable = tout
-
-      // generate the function call in the body
-      generate(funCall)
-
-      // restore the pointers to memory
-      inputMem.variable = oldInV
-      outputMem.variable = oldOutV
-
-      // tmp = tmp * outputLen / inputLen
-      oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = " +
-        oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength)) +
-        ";")
-
-      // tin = (tout == swap) ? swap : out
-      oclPrinter.println(tinVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + swapVStr + ":" + outVStr + ";")
-      // tout = (tout == swap) ? out : swap
-      oclPrinter.println(toutVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + outVStr + ":" + swapVStr + ";")
-    }, call.iterationCount)
 
     oclPrinter.closeCB()
   }

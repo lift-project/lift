@@ -175,56 +175,6 @@ object PartRed {
   def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = PartRed(f)(init, expr)
 }
 
-abstract class AbstractDropLeft(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
-
-case class DropLeft(f: Lambda1) extends AbstractDropLeft(f) {
-  override def apply(args: Expr*) : DropLeftCall = dropLeftCall(args:_*)
-
-  override def $(that: Expr): DropLeftCall = dropLeftCall(that)
-
-  private def dropLeftCall(args: Expr*): DropLeftCall = {
-    assert(args.length == 1)
-    new DropLeftCall(Var("i"),this, args(0))
-  }
-}
-
-object DropLeft {
-  def apply(f: Lambda1, expr: Expr): DropLeftCall = {
-    DropLeft(f).dropLeftCall(expr)
-  }
-}
-
-object jDropLeft {
-  def create(f: Lambda1) = DropLeft(f)
-
-  def create(f: FunDecl) = DropLeft(Lambda1.FunDefToLambda(f))
-}
-
-abstract class AbstractSearch(f:Lambda2) extends Pattern(Array[Param](Param(UndefType))) with FPattern
-
-case class Search(f: Lambda2) extends AbstractSearch(f) {
-  override def apply(args: Expr*): SearchCall = searchCall(args:_*)
-  override def $(that: Expr): SearchCall = searchCall(that)
-
-  private def searchCall(args: Expr*) : SearchCall = {
-    assert(args.length == 3)
-    new SearchCall(Var("i"), this, args(0), args(1), args(2))
-  }
-}
-
-object Search {
-  def apply(f: Lambda2, expr: Expr): SearchCall = {
-    Search(f).searchCall(expr)
-  }
-}
-
-object jSearch {
-  def create(f: Lambda2) = Search(f)
-  def create(f: FunDecl) = Search(Lambda2.FunDefToLambda(f))
-}
-
-
-
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
@@ -414,33 +364,6 @@ object Iterate {
 
 class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
-case class IterateFixedSize(n:ArithExpr, f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
-  override def apply(args: Expr*): IterateFixedSizeCall = iterateFixedSizeCall(args: _*)
-
-  override def $(that: Expr): IterateFixedSizeCall = iterateFixedSizeCall(that)
-
-  private def iterateFixedSizeCall(args: Expr*): IterateFixedSizeCall = {
-    assert(args.length == 1)
-    new IterateFixedSizeCall(this, args(0))
-  }
-}
-
-object IterateFixedSize {
-  def apply(n: ArithExpr): ((Lambda1) => IterateFixedSize)  = (f: Lambda1) => IterateFixedSize(n ,f)
-
-  def varName(): String = {
-    "iterSize"
-  }
-}
-
-object jIterateFixedSize {
-  def create(n: Int, f: Lambda1) = IterateFixedSize(n, f)
-  def create(n: ArithExpr, f: Lambda1) = IterateFixedSize(n, f)
-
-  def create(n: Int, f: FunDecl) = IterateFixedSize(n, Lambda1.FunDefToLambda(f))
-  def create(n: ArithExpr, f: FunDecl) = IterateFixedSize(n, Lambda1.FunDefToLambda(f))
-}
-
 //case class IterateP(f: Lambda1, p: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
 //  override def apply(args: Expr*) : IteratePCall = iteratePCall(args:_*)
 //
@@ -461,29 +384,39 @@ object jIterateFixedSize {
 //  def create(f: Lambda1, p: FunDecl) = IterateP(f, Lambda1.FunDefToLambda(p))
 //}
 
-case class Head() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  override def apply(args: Expr*) : HeadCall = headCall(args:_*)
-  override def $(that: Expr) : HeadCall = headCall(that)
+case class ConcreteHead() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+  override def apply(args: Expr*): ConcreteHeadCall = concreteHeadCall(args: _*)
 
-  private def headCall(args: Expr*): HeadCall = {
+  override def $(that: Expr): ConcreteHeadCall = concreteHeadCall(that)
+
+  private def concreteHeadCall(args: Expr*): ConcreteHeadCall = {
     assert(args.length == 1)
-    new HeadCall(this, args(0))
+    new ConcreteHeadCall(this, args(0))
   }
 }
+//case class Head() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+//  override def apply(args: Expr*) : HeadCall = headCall(args:_*)
+//  override def $(that: Expr) : HeadCall = headCall(that)
+//
+//  private def headCall(args: Expr*): HeadCall = {
+//    assert(args.length == 1)
+//    new HeadCall(this, args(0))
+//  }
+//}
+//
+//case class Tail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+//  override def apply(args: Expr*) : TailCall = tailCall(args:_*)
+//  override def $(that: Expr) : TailCall = tailCall(that)
+//
+//  private def tailCall(args: Expr*): TailCall = {
+//    assert(args.length == 1)
+//    new TailCall(Var("i"), this, args(0))
+//  }
+//}
 
-case class Tail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  override def apply(args: Expr*) : TailCall = tailCall(args:_*)
-  override def $(that: Expr) : TailCall = tailCall(that)
-
-  private def tailCall(args: Expr*): TailCall = {
-    assert(args.length == 1)
-    new TailCall(Var("i"), this, args(0))
-  }
-}
-
-case class VTail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
-  //override def copy() = Split(chunkSize)
-}
+//case class VTail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+//  //override def copy() = Split(chunkSize)
+//}
 
 
 case class Filter() extends FunDecl(Array(Param(UndefType), Param(UndefType))) with isGenerable

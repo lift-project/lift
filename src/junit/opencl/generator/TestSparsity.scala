@@ -1,5 +1,6 @@
 package junit.opencl.generator
 
+import arithmetic._
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -22,44 +23,89 @@ object TestSparsity {
 
 class TestSparsity {
 
-  def generateSparseArray(length:Int) : Array[(Int,Float)] =
-  {
+  def generateSparseArray(length:Int) : Array[(Int,Float)] = {
     var a = 0;
-    var baseArray = Array.fill(length)((util.Random.nextInt(5)+1),(util.Random.nextInt(5).toFloat))
-    for(a <- 1 to length-1)
-    {
+    var baseArray = Array.fill(length)((util.Random.nextInt(5) + 1), (util.Random.nextInt(5).toFloat))
+    for (a <- 1 to length - 1) {
       //for each element, append our random index to find our true index
-      baseArray(a) = (baseArray(a-1)._1+baseArray(a)._1, baseArray(a)._2)
+      baseArray(a) = (baseArray(a - 1)._1 + baseArray(a)._1, baseArray(a)._2)
     }
     baseArray
   }
 
-  @Test def HEAD_TAIL_TEST () {
-    val vector = Array.range(1024,2048) //(util.Random.nextInt(5).toFloat)
+//  @Test def HEAD_TAIL_TEST () {
+//    val vector = Array.range(1024,2048) //(util.Random.nextInt(5).toFloat)
+//    val gold = Array(vector(0))
+//    val sum = UserFunDef("sum", Array("a","b"), "{return (a+b);}", Seq(Float,Float), Float)
+//    val f = fun (ArrayType(Float,Var("N")),(input) =>
+//      //      ReduceSeq(sum,0.0f) $ input
+//      //        Head() $ input
+//      Head( Tail(fun((x) => x))) $ input
+//    )
+//    val (output, runtime) = Execute(vector.length)(f,vector,vector.size)
+//
+//
+//    println("output(0) = "+output(0))
+//    println("vector = "+vector.toList.toString())
+//    println("output = "+ output.toList.toString())
+//    println("runtime = " + runtime)
+//  }
+  @Test def BASIC_TAIL_TEST (): Unit = {
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+    val double = UserFunDef("times2", "x", "{return x*2; }", Float, Float)
+
+    val vector : Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold = Array(vector(0))
-    val sum = UserFunDef("sum", Array("a","b"), "{return (a+b);}", Seq(Float,Float), Float)
     val f = fun (ArrayType(Float,Var("N")),(input) =>
       //      ReduceSeq(sum,0.0f) $ input
       //        Head() $ input
-      Head() o Tail() $ input
+      //        Head() $ input
+      //      ConcreteHead() o MapLcl(id) $ input
+      MapSeq(id) o Head() o Tail() o Tail() o Tail() o Tail() $ input
     )
-    val (output, runtime) = Execute(vector.length)(f,vector,vector.size)
+    val (output, runtime) = Execute(1, 1)(f,vector,vector.length)
 
 
     println("output(0) = "+output(0))
-    println("vector = "+vector.toList.toString())
-    println("output = "+ output.toList.toString())
+    println("vector = " + vector.toList.toString())
+    println("output = " + output.toList.toString())
     println("runtime = " + runtime)
+    //    assertArrayEquals(gold,output,0.0f)
+  }
+  @Test def BASIC_HEAD_TEST (){
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+    val double = UserFunDef("times2", "x", "{return x*2; }", Float, Float)
+
+//    val vector : Array[Float] = Array.range(1024,2048).map(_.toFloat) //(util.Random.nextInt(5).toFloat)
+    val vector: Array[Array[Float]] = Array.tabulate(32,32)((r:Int,c:Int) => (r+1 * c+2).toFloat)
+    val gold = Array(vector(0))
+    val f = fun (ArrayType(ArrayType(Float,Var("N")), Var("M")),(input) =>
+      //      ReduceSeq(sum,0.0f) $ input
+      //        Head() $ input
+      //        Head() $ input
+//      ConcreteHead() o MapLcl(id) $ input
+      MapSeq(MapSeq(id)) o Head() o MapSeq(MapSeq(double)) $ input
+    )
+    val (output, runtime) = Execute(1, 1)(f,vector, 32, 32)
+
+
+    println("output(0) = "+output(0))
+    println("vector = " + vector.head.toList.toString())
+    println("output = " + output.toList.toString())
+    println("runtime = " + runtime)
+    //    assertArrayEquals(gold,output,0.0f)
   }
 
   @Test def HEAD_TEST (){
+    val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
+
     val vector : Array[Float] = Array.range(1024,2048).map(_.toFloat) //(util.Random.nextInt(5).toFloat)
     val gold = Array(vector(0))
     val f = fun (ArrayType(Float,Var("N")),(input) =>
 //      ReduceSeq(sum,0.0f) $ input
 //        Head() $ input
 //        Head() $ input
-        Join() o MapGlb(Head()) o Split(32) $ input
+      MapGlb(MapSeq(id) o Head()) o Split(32) $ input
     )
     val (output, runtime) = Execute(vector.length)(f,vector,vector.size)
 
@@ -70,19 +116,17 @@ class TestSparsity {
     println("runtime = " + runtime)
 //    assertArrayEquals(gold,output,0.0f)
   }
-
+//
   @Test def TAIL_TEST (): Unit = {
     val vector = Array.range(0,256).map(_.toFloat) //(util.Random.nextInt(5).toFloat)
 //    val vector = Array.range(32,65).map(_.toFloat) //(util.Random.nextInt(5).toFloat)
     val gold = Array(vector(0))
     val square = UserFunDef("square", "x", "{return (x*x);}", Float, Float)
-    val f = fun (ArrayType(Float,Var("N")),(input) =>
-      //      ReduceSeq(sum,0.0f) $ input
-        Join() o MapSeq(Tail()) o Split(4) $ input
-//    Tail() o Tail() $ input
-//      MapSeq(square) o Tail() o Tail() o Tail() $ input
+    val id = UserFunDef("id", "x", "{return (x);}", Float, Float)
+    val f = fun(ArrayType(Float,Var("N")),(input) =>
+      MapSeq(square) o Join() o MapSeq(MapSeq(id) o Tail()) o Split(4) $ input
     )
-    val (output, runtime) = Execute(vector.length)(f,vector,vector.size)
+    val (output, runtime) = Execute(1,1)(f,vector,vector.size)
 
 
     println("output(0) = "+output(0))
@@ -97,7 +141,7 @@ class TestSparsity {
       Seq(Int,Int), Int
     )
 
-    val select = UserFunDef("select", Array("acc", "v"),
+    val matchIndicies = UserFunDef("matchIndicies", Array("acc", "v"),
       "{return (v == 0)?acc:v;}",
       Seq(Int,Int), Int
     )
@@ -107,8 +151,8 @@ class TestSparsity {
       Array(TupleType(Int,Int),TupleType(Int,Int)), Int
     )
 
-    val vectA = List((1, 9),(3, 3),(8, 4),(16,7),(19,1),(20,2),(21,3)).toArray.map((t) => Array(t._1, t._2)).flatten
-    val vectB = List((1, 9),(2, 3),(8, 4),(15,7),(19,1),(20,2),(22,3)).toArray.map((t) => Array(t._1, t._2)).flatten
+    val vectA = List((1, 9),(3, 3),(8, 4),(16,7),(19,1),(20,2),(21,3), (24,10)).toArray.map((t) => Array(t._1, t._2)).flatten
+    val vectB = List((1, 9),(2, 3),(8, 4),(15,7),(19,1),(20,2),(22,3), (24,10)).toArray.map((t) => Array(t._1, t._2)).flatten
     val vSize = 7
 
     val N = SizeVar("N")
@@ -117,10 +161,10 @@ class TestSparsity {
       ArrayType(TupleType(Int,Int), N),  //first list
       ArrayType(TupleType(Int,Int), N),  //second list
       (A,B) => {
-        ReduceSeq(sum, 0) o MapWrg( //map across the first list
+        ReduceSeq(sum, 0) o Join() o MapSeq( //map across the first list
           fun(aElem =>
             //fails tests, as "ReduceSeq" returns a value which is an Arr(int,1), not an int I believe.
-            ReduceSeq(select, 0) o //reduce to find ones which are "true"
+            ReduceSeq(matchIndicies, 0) o //reduce to find ones which are "true"
               MapSeq( //map across the first list
                 fun(bElem => eqMult(aElem, bElem)) //produce a new array of equational values
               ) $ B //map across the second list
@@ -129,7 +173,7 @@ class TestSparsity {
       }
     )
 
-    val (output, runtime) = Execute(vSize)(f, vectA, vectB, vSize*2)
+    val (output, runtime) = Execute(1,1)(f, vectA, vectB, vSize)
     println(output.deep.mkString)
   }
 

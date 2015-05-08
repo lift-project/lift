@@ -258,18 +258,6 @@ sealed class FunCall(val f: FunDecl, val args: Expr*) extends Expr with Cloneabl
   } else {
     true
   })
-}
-
-case class HeadCall(override val f: Head, override val args: Expr*) extends FunCall(f, args(0)) {
-  assert(args.length == 1)
-  def arg: Expr = args(0)
-}
-
-case class TailCall(loopVar: Var, override val f: Tail, override val args: Expr*) extends FunCall(f, args(0)) {
-  assert(args.length == 1)
-  def arg: Expr = args(0)
-}
-
 
   override def toString = {
     val fS = if (f == null) {
@@ -280,18 +268,6 @@ case class TailCall(loopVar: Var, override val f: Tail, override val args: Expr*
     val argS = if (args.length > 0) args.map(_.toString).reduce(_ + ", " + _) else ""
 
     fS + "(" + argS + ")"
-  def arg0: Expr = args(0)
-  def arg1: Expr = args(1)
-}
-
-
-case class DropLeftCall(loopVar: Var, override val f: AbstractDropLeft, override val args: Expr*) extends FunCall(f, args(0)) {
-  assert(args.length == 1)
-  def arg: Expr = args(0)
-}
-
-case class SearchCall(loopVar: Var, override val f: AbstractSearch, override val args: Expr*) extends FunCall(f, args(0)) {
-  assert(args.length == 2)
   }
 
   override def copy: FunCall = {
@@ -318,7 +294,6 @@ case class SearchCall(loopVar: Var, override val f: AbstractSearch, override val
   }
 
 }
-
 // specific types of function calls ...
 
 case class MapCall(name: String, loopVar: Var,
@@ -352,3 +327,19 @@ case class IterateCall(override val f: Iterate, override val args: Expr*) extend
   var swapBuffer: Memory = UnallocatedMemory
   var indexVar = Var("i", RangeUnknown)
 }
+
+case class ConcreteHeadCall(override val f: ConcreteHead, override val args: Expr*) extends FunCall(f, args(0)) {
+  assert(args.length == 1)
+  def arg: Expr = args(0)
+}
+
+//
+//case class HeadCall(override val f: Head, override val args: Expr*) extends FunCall(f, args(0)) {
+//  assert(args.length == 1)
+//  def arg: Expr = args(0)
+//}
+//
+//case class TailCall(loopVar: Var, override val f: Tail, override val args: Expr*) extends FunCall(f, args(0)) {
+//  assert(args.length == 1)
+//  def arg: Expr = args(0)
+//}

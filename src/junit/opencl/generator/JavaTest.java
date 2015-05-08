@@ -3,6 +3,7 @@ package opencl.generator;
 import arithmetic.*;
 import ir.*;
 import ir.interop.*;
+import ir.interop.jUserFunDef;
 import opencl.executor.*;
 import opencl.ir.*;
 import opencl.ir.interop.*;

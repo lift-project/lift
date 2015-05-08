@@ -7,15 +7,10 @@ import opencl.ir._
 import scala.collection.immutable.Stack
 
 abstract class View(val t: Type = UndefType) {
-class ArrayTail(val in: ArrayView) extends Operation
 
-//class MatrixCreation(val v: View, val dx: ArithExpr, val dy: ArithExpr, val itVar: Var) extends Operation
-//class MatrixAccess(val mv:MatrixView, val idx: ArithExpr, val idy: ArithExpr) extends Operation
   def replaced(oldExpr: ArithExpr, newExpr: ArithExpr): View = {
     val subst = new scala.collection.mutable.HashMap[ArithExpr,ArithExpr]()
     subst.put(oldExpr, newExpr)
-
-      case at: ArrayTail => new ArrayTail(at.in.replaced(oldExpr, newExpr).asInstanceOf[ArrayView])
 
     this match {
       case map: ViewMap => new ViewMap(map.iv.replaced(oldExpr,newExpr), map.itVar, t)
@@ -30,20 +25,8 @@ class ArrayTail(val in: ArrayView) extends Operation
       case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(oldExpr, newExpr)), t)
       case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(oldExpr,newExpr), t)
       case group: ViewGroup => new ViewGroup(group.iv.replaced(oldExpr, newExpr), group.group, group.t)
-  def tail() : ArrayView = {
-    val at = new ArrayTail(this)
-    new ArrayView(elemT, at)
-  }
-
-
       case  _ => this
     }
-//class MatrixView(val elemT: Type, override val operation: Operation) extends View(operation) {
-//  def access(idx: ArithExpr, idy: ArithExpr): View = {
-//    val ma = new MatrixAccess(this, idx,idy)
-//    View(elemT, ma)
-//  }
-//}
   }
 
   def access(idx: ArithExpr): View = {
@@ -61,7 +44,6 @@ class ArrayTail(val in: ArrayView) extends Operation
     this.t match {
       case ArrayType(ArrayType(elemT, n), m) =>
         new ViewJoin(chunkSize, this, ArrayType(elemT, n*m))
-//      case mt: MatrixType => new MatrixView(mt.elemT, op)
     }
   }
 
@@ -80,8 +62,6 @@ class ArrayTail(val in: ArrayView) extends Operation
   def filter(ids: View): View = {
     new ViewFilter(this, ids,
       ArrayType(this.t.asInstanceOf[ArrayType].elemT, ids.t.asInstanceOf[ArrayType].len))
-      case at : ArrayTail => View.getInputAccess(at.in, tupleAccessStack)
-
   }
 
   def asScalar(): View = {
@@ -90,12 +70,6 @@ class ArrayTail(val in: ArrayView) extends Operation
         new ViewAsScalar(this, n, ArrayType(st, len))
       case st: ScalarType => this
       case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
-      case call: HeadCall => createViewHead(call, argView, ids)
-      case call: TailCall => createViewTailCall(call, argView, ids)
-
-          case ifs: IterateFixedSize => createViewIterateFixedSize(ifs, call, argView, ids)
-          case VTail() => createViewTail(argView)
-
     }
   }
 
@@ -148,6 +122,10 @@ class ViewTuple(val ivs: Seq[View], override val t: Type) extends View(t)
 
 class ViewGroup(val iv: View, val group: Group, override val t: Type) extends View(t)
 
+class ViewHead(val iv: View, override val t: Type) extends View(t)
+
+class ViewTail(val iv: View, override val t: Type) extends View(t)
+
 object NoView extends View()
 
 object View {
@@ -155,43 +133,6 @@ object View {
   def apply(t: Type, name: String): View = new ViewMem(name, t)
 
   def tuple(ivs: View*) = new ViewTuple(ivs, TupleType(ivs.map(_.t):_*))
-    argView match {
-      case av: ArrayView =>
-        call.arg.view = av.access(Cst(0))
-        av.access(Cst(0))
-//        argView
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found " + argView.getClass)
-    }
-  }
-
-  private def createViewTail(argView: View) : View = {
-    argView match {
-      case av: ArrayView =>
-        av.tail()
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found "+ argView.getClass)
-    }
-  }
-
-  private def createViewTailCall(call: TailCall, argView: View, f: List[(ArithExpr,ArithExpr)]) :View ={
-    argView match {
-      case av: ArrayView =>
-        call.arg.view = av.access(call.loopVar + 1)
-        val elemT = call.t match { case at : ArrayType => at.elemT }
-
-        val newF = (Type.getLength(call.t), call.loopVar) :: f
-
-        val innerView = initialiseNewView(call.t, newF)
-
-        call.view = new ArrayView(elemT, new ArrayCreation(innerView, Type.getLength(call.t)-1, call.loopVar))
-
-        call.view
-//        av.access(call.loopVar)
-//        val newF = (Type.getLength(call.t), call.loopVar) :: f
-//        new ArrayView(Type.getElemT(call.t), new ArrayCreation(argView, Type.getLength(call.t) -1, call.loopVar))
-      case _ => throw new IllegalArgumentException("PANIC! Expected array, found "+ argView.getClass)
-    }
-  }
-
 
   def visitAndBuildViews(expr: Expr): Unit = {
     BuildDepthInfo(expr)
@@ -280,13 +221,6 @@ object ViewPrinter {
 
         emitView(filter.iv, stack.push((indirection, len)), tupleAccessStack)
 
-      case at: ArrayTail =>
-        val ((idx, len), stack) = arrayAccessStack.pop2
-        val newIdx = idx - 1
-        val newLen = len - 1
-        val newAS = stack.push((newIdx, newLen))
-        emitView(at.in, newAS, tupleAccessStack)
-
       case component : ViewTupleComponent =>
         val newTAS = tupleAccessStack.push(component.i)
         emitView(component.iv,arrayAccessStack,newTAS)
@@ -310,6 +244,18 @@ object ViewPrinter {
         val top = arrayAccessStack.top
         val newAAS = arrayAccessStack.pop.push((top._1 / asScalar.n, top._2)).map(x => (x._1, x._2 * asScalar.n))
         emitView(asScalar.iv, newAAS, tupleAccessStack)
+
+      case head: ViewHead =>
+        val newAAS = arrayAccessStack.pop
+        emitView(head.iv, newAAS,tupleAccessStack)
+
+      case tail: ViewTail =>
+        val (idx, stack) = arrayAccessStack.pop2
+        val newIdx = idx._1 + 1
+        val newLen = idx._2
+        val newAAS = stack.push((newIdx, newLen))
+        emitView(tail.iv,newAAS,tupleAccessStack)
+
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }

@@ -37,6 +37,8 @@ object OutputView {
           case asVector(n) => buildViewAsVector(n, writeView)
           case _: asScalar => buildViewAsScalar(call, writeView)
           case Zip(_) | Tuple(_) => buildViewZipTuple(call, writeView)
+          case h: Head => buildViewHead(h, writeView)
+          case t: Tail => buildViewTail(t, writeView)
           //case uz: Unzip =>
           case _ => writeView
         }
@@ -160,5 +162,15 @@ object OutputView {
   private def buildViewScatter(scatter: Scatter, call: FunCall, writeView: View): View = {
     val reordered = writeView.reorder( (i:ArithExpr) => { scatter.idx.f(i, call.t) } )
     visitAndBuildViews(scatter.f.body, reordered)
+  }
+
+  private def buildViewHead(head: Head, writeView: View) : View = {
+    // TODO: Check with Toomas!!!!!!!!
+    writeView
+  }
+
+  private def buildViewTail(tail: Tail, writeView: View) : View = {
+    //TODO: Check with Toomas!!!!!!!!
+    writeView
   }
 }

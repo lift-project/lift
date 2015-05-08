@@ -46,7 +46,7 @@ class TestGraphTheory {
       (graph, bfsFringe) => {
         fun((fr) =>
         Join() o MapWrg(
-          Join() o MapLcl( fun( (r) => ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(fr,r)))
+          Join() o MapLcl( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(fr,r)))
         ) o Split(128) $ graph
         ) $ bfsFringe
       }
@@ -54,7 +54,9 @@ class TestGraphTheory {
     val (output, runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe, inputSize)
     println("output(0) = " + output(0))
     println(fringe.toList)
+    println("Fringe sum = "+ (fringe.reduce(_+_)))
     println(output.toList)
+    println("Output sum = "+ (output.reduce(_+_)))
     println("runtime = " + runtime)
     assertArrayEquals(scalaBFSIteration(graph,fringe), output, 0.0f)
   }
@@ -71,7 +73,7 @@ class TestGraphTheory {
       ArrayType(Float, 1024),
       (graph, bfsFringe) => {
         Join() o MapWrg(
-          MapLcl( fun( (r) => ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(bfsFringe,r)))
+          MapLcl( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(bfsFringe,r)))
         ) o Split(128) $ graph
       }
     )
@@ -82,6 +84,36 @@ class TestGraphTheory {
     println("runtime = " + runtime)
 //    printDFSDotFile(graph, output)
     assertArrayEquals(scalaBFSIteration(graph,fringe), output, 0.0f)
+
+  }
+
+  @Test def DENSE_BFS_MWE(): Unit = {
+    println("DENSE_BFS_MWE")
+    val inputSize = 32
+    val graph = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(10)>2) 0 else 1).toFloat)
+    var fringe = Array.fill(inputSize)(0.0f)
+    fringe(util.Random.nextInt(inputSize)) = 1.0f
+
+    val denseBFSIteration = fun(
+      ArrayType(ArrayType(Float, 32), 32), //must be a square matrix for a graph
+      ArrayType(Float, 32),
+      (graph, bfsFringe) => {
+        Join() o MapLcl(
+          fun( (r) => toGlobal(MapLcl(id)) o ReduceSeq(add, 0.0f) o MapLcl(mult) $ Zip(bfsFringe,r))
+        ) $ graph
+      }
+    )
+    val (output, runtime) = Execute(1,1)(denseBFSIteration, graph, fringe)
+    println("output(0) = " + output(0))
+    println("Fringe: " + fringe.toList)
+    println("Output: " + output.toList)
+    println("Output sum:" + output.reduce(_+_))
+    println("runtime = " + runtime)
+    val gold = scalaDotProductIteration(graph, fringe)
+    println("Gold: "+gold.toList)
+    println("Gold sum: " + gold.reduce(_+_))
+//        printDFSDotFile(graph, output)
+    assertArrayEquals(gold, output, 0.0f)
 
   }
 
@@ -103,7 +135,7 @@ class TestGraphTheory {
 //        ) o Split(16) $ graph
         Join() o MapGlb(
         Join() o MapLcl(
-          fun( (r) => ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))
+          fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))
         )) o Split(512) $ graph
       )) $ bfsFringe
     })
@@ -137,7 +169,7 @@ class TestGraphTheory {
       ArrayType(Float, 64),
       (graph, bfsFringe) => {
         Iterate(2)( fun((fr) =>
-          Join() o MapSeq( fun( (r) => ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))) $ graph
+          Join() o MapSeq( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))) $ graph
         )) $ bfsFringe
       })
 
@@ -232,10 +264,15 @@ class TestGraphTheory {
   def scalaIterateDotProduct(iterations: Int,matrix:Array[Array[Float]],vector:Array[Float]) : Array[Float] = {
     var tVector = vector
     for(i:Int <- 0 until iterations){
-      tVector = matrix.map((row) => (row, tVector).zipped.map((a,b) => a*b).reduce((a,b) => a+b))
+      tVector = scalaDotProductIteration(matrix,tVector)
     }
     tVector
   }
+
+  def scalaDotProductIteration(matrix:Array[Array[Float]],vector:Array[Float]) : Array[Float] = {
+    matrix.map((row) => (row, vector).zipped.map((a,b) => a*b).reduce((a,b) => a+b))
+  }
+
   def scalaIterateBFS(iterations: Int,graph:Array[Array[Float]],fringe:Array[Float]) : Array[Float] = {
     var tFringe = fringe
     for(i:Int <- 0 until iterations){
@@ -244,6 +281,7 @@ class TestGraphTheory {
     }
     tFringe
   }
+
   def scalaBFSIteration(graph:Array[Array[Float]],fringe:Array[Float]) : Array[Float] = {
     graph.map(
       (row) => (row, fringe).zipped.map((a,b) =>
@@ -253,6 +291,7 @@ class TestGraphTheory {
         )
     )
   }
+
   def printDFSDotFile(graph:Array[Array[Float]], fringe:Array[Float], gold: Array[Float], init: Array[Float]) : Unit = {
     "pwd"!
     val writer = new PrintWriter(new File("dfsGraph.dot"))
