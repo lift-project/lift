@@ -63,23 +63,24 @@ class MolecularDynamics(override val f: Seq[(String, Array[Lambda])]) extends Be
 object MolecularDynamics {
   val mdCompute = UserFunDef("updateF",
     Array("f", "ipos", "jpos", "cutsq", "lj1", "lj2"),
-    "{\n" +
-      "  // Calculate distance\n" +
-      "  float delx = ipos.x - jpos.x;\n" +
-      "  float dely = ipos.y - jpos.y;\n" +
-      "  float delz = ipos.z - jpos.z;\n" +
-      "  float r2inv = delx*delx + dely*dely + delz*delz;\n" +
-      "  // If distance is less than cutoff, calculate force\n" +
-      "  if (r2inv < cutsq) {\n" +
-      "    r2inv = 1.0f/r2inv;\n" +
-      "    float r6inv = r2inv * r2inv * r2inv;\n" +
-      "    float forceC = r2inv*r6inv*(lj1*r6inv - lj2);\n" +
-      "    f.x += delx * forceC;\n" +
-      "    f.y += dely * forceC;\n" +
-      "    f.z += delz * forceC;\n" +
-      "  }\n" +
-      "  return f;\n" +
-      "}\n",
+    """|{
+       |  // Calculate distance
+       |  float delx = ipos.x - jpos.x;
+       |  float dely = ipos.y - jpos.y;
+       |  float delz = ipos.z - jpos.z;
+       |  float r2inv = delx*delx + dely*dely + delz*delz;
+       |  // If distance is less than cutoff, calculate force
+       |  if (r2inv < cutsq) {
+       |    r2inv = 1.0f/r2inv;
+       |    float r6inv = r2inv * r2inv * r2inv;
+       |    float forceC = r2inv*r6inv*(lj1*r6inv - lj2);
+       |    f.x += delx * forceC;
+       |    f.y += dely * forceC;
+       |    f.z += delz * forceC;
+       |  }
+       |  return f;
+       |}
+    """.stripMargin,
     Seq(Float4, Float4, Float4, Float, Float, Float),
     Float4)
 

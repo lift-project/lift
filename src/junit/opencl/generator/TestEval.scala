@@ -43,7 +43,7 @@ class TestEval {
       )
     """
 
-    val (output, runtime) = Execute(inputSize)(addFun, leftInputData, rightInputData, leftInputData.length)
+    val (output: Array[Float], runtime) = Execute(inputSize)(addFun, leftInputData, rightInputData)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 

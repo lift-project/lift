@@ -40,15 +40,14 @@ class TestVector {
       ArrayType(Float, N),
       ArrayType(Float, N),
       (left, right) =>
-
         Join() o MapWrg(
           Join() o Barrier() o MapLcl(MapSeq(add)) o Split(4)
         ) o Split(1024) $ Zip(left, right)
-
     )
 
     val code = Compile(addFun)
-    val (output, runtime) = Execute(inputSize)(code, addFun, leftInputData, rightInputData, leftInputData.length)
+    val (output: Array[Float], runtime) =
+      Execute(inputSize)(code, addFun, leftInputData, rightInputData)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -71,7 +70,7 @@ class TestVector {
 
     )
 
-    val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(inputArray.length)(negFun, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -93,7 +92,7 @@ class TestVector {
       ) o Split(4) $ input
     )
 
-    val (output, runtime) = Execute(inputArray.length)(negFun, inputArray, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(inputArray.length)(negFun, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -115,7 +114,7 @@ class TestVector {
       ) o Split(4)) $ input
     )
 
-    val (output, runtime) = Execute(16, inputArray.length)(negFun, inputArray, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(16, inputArray.length)(negFun, inputArray)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -132,7 +131,7 @@ class TestVector {
 
     val scalFun = VectorScaling.vectorScal
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -149,7 +148,7 @@ class TestVector {
 
     val scalFun = VectorScaling.scalNVIDIA
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -166,7 +165,7 @@ class TestVector {
 
     val scalFun = VectorScaling.scalAMD
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -183,7 +182,7 @@ class TestVector {
 
     val scalFun = VectorScaling.scalINTEL
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -206,7 +205,7 @@ class TestVector {
       ) o Split(1024) $ input
     )
 
-    val (output, runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha, inputArray.length)
+    val (output: Array[Float], runtime) = Execute(inputArray.length)(scalFun, inputArray, alpha)
 
     assertEquals(gold,output.sum,0.0)
     //(gold, output).zipped.map(assertEquals(_,_,0.0))
@@ -224,17 +223,18 @@ class TestVector {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      (input) =>
-
+      (input) => {
         Join() o MapWrg(
           Join() o Barrier() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
-            Iterate(5)( Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
-            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o ReorderStride(1024/32)
+          Iterate(5)(
+            Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
+          ) o Join() o Barrier() o
+          toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o
+          ReorderStride(1024/32)
         ) o Split(1024) $ input
+    })
 
-    )
-
-    val (output, runtime) = Execute(inputSize)(f, inputArray, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
 
     assertEquals(gold, output(0), 0.1)
 
@@ -257,7 +257,7 @@ class TestVector {
       input => MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose() $ input
     )
 
-    val (output, _) = Execute(inputSize)(f, inputArray, inputSize, numVectors)
+    val (output: Array[Float], _) = Execute(inputSize)(f, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
   }

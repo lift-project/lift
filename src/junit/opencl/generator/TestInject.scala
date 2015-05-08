@@ -31,7 +31,7 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
 
 
@@ -53,7 +53,7 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(64) $ in
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
 
     println("output.size = " + output.length)
@@ -74,7 +74,7 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(256) $ in
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
 
     println("output.size = " + output.length)
@@ -95,7 +95,7 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     println("output.size = " + output.length)
@@ -116,7 +116,7 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize*2, (true, true))
 
     println("output.size = " + output.length)
@@ -137,7 +137,7 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize/2, (true, true))
 
     println("output.size = " + output.length)
@@ -158,7 +158,7 @@ class TestInject {
       in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
     )
 
-    val inputs = Seq(input, inputSize)
+    val inputs = Seq(input)
     val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
 
     println("output.size = " + output.length)

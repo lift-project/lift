@@ -36,7 +36,8 @@ object TestUtils {
     if (rest.nonEmpty) myPrint(rest, cols, elems)
   }
 
-  def execute(f: Lambda, values: Seq[Any], localSize: Int, globalSize: Int, injectSizes: (Boolean, Boolean) = (false, false)): (Array[Float], Double, String) = {
+  def execute(f: Lambda, values: Seq[Any], localSize: Int, globalSize: Int,
+              injectSizes: (Boolean, Boolean) = (false, false)): (Array[Float], Double, String) = {
     execute(f, values, localSize, 1, 1, globalSize, 1, 1, injectSizes)
   }
 
@@ -63,7 +64,9 @@ object TestUtils {
     else
       code = Compile(f)
 
-    val (output, runtime) = Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, injectSizes)(code, f, values:_*)
+    val (output: Array[Float], runtime) = Execute(localSize1, localSize2, localSize3,
+                                                  globalSize1, globalSize2, globalSize3,
+                                                  injectSizes)(code, f, values:_*)
 
     (output, runtime, code)
   }

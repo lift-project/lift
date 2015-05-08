@@ -30,9 +30,17 @@ abstract sealed class ArithExpr {
   }
 
   def atMax: ArithExpr = {
+    atMax(constantMax = false)
+  }
+
+  def atMax(constantMax: Boolean): ArithExpr = {
     val vars = Var.getVars(this).filter(_.range.max != ?)
     val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.max != ?)
-    val maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
+    var maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
+
+    if (constantMax && !maxLens.exists(!_.isInstanceOf[Cst]))
+      maxLens = maxLens.map(m => Cst(m.eval() - 1))
+
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
 
@@ -206,6 +214,11 @@ object ArithExpr {
             false
           case e => terms.contains(that)
         }
+      case v1: Var =>
+        that match {
+          case v2: Var => v1 == v2
+          case _ => false
+        }
       case c1: Cst =>
         that match {
           case c2: Cst =>
@@ -215,6 +228,7 @@ object ArithExpr {
             } catch {
               case ne: NotEvaluableException =>
             }
+          case _ =>
         }
 
         false
@@ -228,6 +242,19 @@ object ArithExpr {
       case Pow(base, exp) =>
         visit(base, f)
         visit(exp, f)
+      case Fraction(n, d) =>
+        visit(n, f)
+        visit(d, f)
+      case Mod(dividend, divisor) =>
+        visit(dividend, f)
+        visit(divisor, f)
+      case Log(b,x) =>
+        visit(b, f)
+        visit(x, f)
+      case And(l, r) =>
+        visit(l, f)
+        visit(r, f)
+      case Floor(expr) => visit(expr, f)
       case Sum(terms) => terms.foreach(t => visit(t, f))
       case Prod(terms) => terms.foreach(t => visit(t, f))
       case _ =>
