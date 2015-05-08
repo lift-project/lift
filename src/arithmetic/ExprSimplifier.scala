@@ -79,7 +79,7 @@ object ExprSimplifier {
       case _ =>
     }
 
-    if (m.dividend == Cst(0) && m.divisor != Cst(0) || m.divisor == m.dividend)
+    if (m.dividend == Cst(0) && m.divisor != Cst(0) || m.dividend == m.divisor)
       return Cst(0)
 
     m.dividend match {
@@ -183,6 +183,7 @@ object ExprSimplifier {
     f match {
       case Fraction(Cst(_), Cst(_)) => return f.eval()
       case Fraction(Fraction(numer, denom1), denom2) => return Fraction(numer, simplify(denom1 * denom2))
+      case Fraction(numer, Pow(base, Cst(-1))) => return simplify(numer * base)
       case Fraction(Sum(terms), denom) =>
         var newTerms = List[ArithExpr]()
         var newFractions = List[ArithExpr]()

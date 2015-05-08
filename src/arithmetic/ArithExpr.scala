@@ -175,7 +175,7 @@ object ArithExpr {
       case Pow(b, Cst(c)) => ( if (c>=0) Pow(min(b), Cst(c)) else Pow(max(b), Cst(c)),
                                if (c>=0) Pow(max(b), Cst(c)) else Pow(min(b), Cst(c)) )
 
-      case _ =>  throw new NotEvaluableException("Cannot determine min/max values")
+      case _ =>  throw new NotEvaluableException("Cannot determine min/max values for " + e)
     }
   }
 
@@ -198,7 +198,10 @@ object ArithExpr {
     ExprSimplifier.simplify(expr) match {
       case Prod(terms) =>
         that match {
-          case Prod(otherTerms) => otherTerms.map(x => terms.contains(x)).reduce(_&&_)
+          case Prod(otherTerms) => otherTerms.map({
+            case pow: Pow => terms.exists(multipleOf(_, pow))
+            case x => terms.contains(x)
+          }).reduce(_&&_)
           case c: Cst =>
             val cstTerm = terms.filter(_.isInstanceOf[Cst])
 
@@ -232,6 +235,19 @@ object ArithExpr {
         }
 
         false
+      case Fraction(n1, d1) =>
+        that match {
+          case Fraction(n2, d2) =>
+            multipleOf(d2, d1) && multipleOf(n1, n2)
+          case _ => false
+        }
+      case Pow(b1, Cst(-1)) =>
+        that match {
+          case Pow(b2, Cst(-1)) =>
+              multipleOf(b2, b1)
+
+          case _ => false
+        }
       case _ => false
     }
   }
