@@ -316,7 +316,7 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val tileSize = 8
+    val tileSize = 4
     val blockSize = 2
 
     val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
@@ -333,29 +333,21 @@ class TestMatrixMatrix {
         Untile() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
-              Join() o Map(TransposeW()) o
-              toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(id)))) o //Split(tileSize/blockSize) o
+
+              toGlobal(Scatter(IndexFunction.reorderStride(blockSize))(MapLcl(1)(MapLcl(0)(id)))) o
                 Join() o
 
                 // Multiply all necessary combinations of tiles
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o fun(partial =>
-                      MapLcl(1)(fun(pairOfRows =>
-                        MapLcl(0)(fun(x => MapSeq(add) $ Zip(Get(x, 0), Get(x, 1)))) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
-                      )) $ Zip(acc, partial)
-                    ) o
+                    Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                      Join() o Map(Transpose()) o
 
                       MapLcl(1)( fun(rowsA =>
                         MapLcl(0)( fun( colB =>
                           Join() o ReduceSeq(fun((acc, rowElemPair) =>
-                            MapSeq(add) o fun(rowElemPair =>
-                              Zip(
-                                toPrivate(MapSeq(fun(a => mult.apply(a, Get(rowElemPair, 1))))) $ Get(rowElemPair, 0),
-                                acc
-                              )
-                            ) $ rowElemPair
+                            MapSeq(add) o fun(rowElemPair => Zip(toPrivate(MapSeq(fun(a => mult.apply(a, Get(rowElemPair, 1))))) $ Get(rowElemPair, 0), acc)) $ rowElemPair
                           ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, blockSize))) $ Zip(Transpose() $ rowsA, colB)
                         )) o Transpose() $ Get(pairOfTiles, 1)
                       )) o Split(blockSize) $ Get(pairOfTiles, 0)
@@ -365,11 +357,11 @@ class TestMatrixMatrix {
                     // Copy tiles to local memory
                     fun(pairOfTiles =>
                       Tuple(
-                        Join() o Barrier() o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id)))) o Split(tileSize/blockSize) $ Get(pairOfTiles, 0),
-                        Join() o Barrier() o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id)))) o Split(tileSize/blockSize) $ Get(pairOfTiles, 1)
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
-                  , MapLcl(1)(MapLcl(0)(MapSeq(id))) $ Value(0.0f, ArrayType(ArrayType(ArrayType(Float, blockSize), tileSize), tileSize/blockSize))
+                  , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
                 ) $ Zip(aRows, bCols)
 
             )) o Transpose() o Tile(tileSize) $ B
@@ -377,8 +369,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(tileSize, tileSize / blockSize,
-      mSize, nSize / blockSize, (true, false))(f, matrixA, matrixB)
+    val (output: Array[Float], _) = Execute(tileSize, tileSize/blockSize, mSize, nSize/blockSize, (true, false))(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -418,11 +409,7 @@ class TestMatrixMatrix {
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o fun(partial =>
-                      MapLcl(1)(fun(pairOfRows =>
-                        MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
-                      )) $ Zip(acc, partial)
-                    ) o
+                    Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
 
                       Map(Join()) o // This reorders elements and needs the scatter at the end
                       MapLcl(1)( fun(rowA =>
@@ -543,8 +530,7 @@ class TestMatrixMatrix {
                 toLocal(MapSeq(fun( tiles =>
                   Barrier() o MapLcl(0)( fun(aTile =>
                     MapLcl(1)( fun( bTile =>
-                      toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) =>
-                        multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
+                      toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
                     )) $ Get(tiles, 1)
                   )) $ Get(tiles, 0)
                 ) o

@@ -162,7 +162,7 @@ object Type {
 
   private def asVector(at0: ArrayType, len: ArithExpr): Type = {
     at0.elemT match {
-      case pt:ScalarType => new ArrayType(new VectorType(pt,len), at0.len / len)
+      case pt:ScalarType => new ArrayType(new VectorType(pt,len), at0.len/len)
       case at1:ArrayType => new ArrayType(asVector(at1,len), at0.len)
       case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
     }
