@@ -159,7 +159,7 @@ object ExprSimplifier {
         case _ =>
       }
 
-      if (atMax == ae2 || ae1.atMax(constantMax = true).eval() <= ae2.eval())
+      if (atMax == ae2 || ae1.atMax(constantMax = true).eval() < ae2.eval())
         return true
     } catch {
       case e: NotEvaluableException =>

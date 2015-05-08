@@ -325,6 +325,16 @@ class TestExpr {
     assertEquals(Cst(1), ExprSimplifier.simplify((i+n) div n))
   }
 
+  @Test
+  def bugAIsSmaller(): Unit = {
+    val i = Var("i", ContinuousRange(0, 2))
+    val id = Var("id", ContinuousRange(0, 5))
+
+    // 0 <= id + 4*i <= 8 < 9
+    assertNotEquals(Cst(0), ExprSimplifier.simplify((id + 4*i) div 8))
+    assertNotEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
+  }
+
   @Test def simplifyAccess(): Unit = {
     val M = Var(StartFromRange(Cst(1)))
     val N = Var(StartFromRange(Cst(1)))
