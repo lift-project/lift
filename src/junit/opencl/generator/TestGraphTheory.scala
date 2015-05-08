@@ -51,7 +51,7 @@ class TestGraphTheory {
         ) $ bfsFringe
       }
     )
-    val (output, runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe, inputSize)
+    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe, inputSize)
     println("output(0) = " + output(0))
     println(fringe.toList)
     println("Fringe sum = "+ (fringe.reduce(_+_)))
@@ -77,7 +77,7 @@ class TestGraphTheory {
         ) o Split(128) $ graph
       }
     )
-    val (output, runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe)
+    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe)
     println("output(0) = " + output(0))
     println(fringe.toList)
     println(output.toList)
@@ -103,7 +103,7 @@ class TestGraphTheory {
         ) $ graph
       }
     )
-    val (output, runtime) = Execute(1,1)(denseBFSIteration, graph, fringe)
+    val (output:Array[Float], runtime) = Execute(1,1)(denseBFSIteration, graph, fringe)
     println("output(0) = " + output(0))
     println("Fringe: " + fringe.toList)
     println("Output: " + output.toList)
@@ -140,7 +140,7 @@ class TestGraphTheory {
       )) $ bfsFringe
     })
 
-    val (output, runtime) = Execute(1,inputSize)(BFSMultiIteration, graphArr, fringeArr,inputSize)
+    val (output:Array[Float], runtime) = Execute(1,inputSize)(BFSMultiIteration, graphArr, fringeArr,inputSize)
     val gold = scalaIterateBFS(5,graphArr,fringeArr)
 
     println("output(0) = " + output(0))
@@ -174,7 +174,7 @@ class TestGraphTheory {
       })
 
 
-    val (output, runtime) = Execute(1,1)(BFSMultiIteration, graphArr, fringeArr)
+    val (output:Array[Float], runtime) = Execute(1,1)(BFSMultiIteration, graphArr, fringeArr)
     val gold = scalaIterateBFS(2,graphArr,fringeArr)
 
     println("output(0) = " + output(0))
@@ -252,7 +252,7 @@ class TestGraphTheory {
 
     Compile(DotProductMultiIteration)
 
-    val (output, runtime) = Execute(1, 1)(kernelCode, DotProductMultiIteration, matrix, vector)
+    val (output:Array[Float], runtime) = Execute(1, 1)(kernelCode, DotProductMultiIteration, matrix, vector)
     val gold = scalaIterateDotProduct(10, matrix, vector)
 
     println("output(0) = " + output(0))

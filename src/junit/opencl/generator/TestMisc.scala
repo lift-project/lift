@@ -317,7 +317,7 @@ class TestMisc {
       )) $ inA
     )
 
-    val (output, runtime) = Execute(inputSize)(f, inputA, inputB, inputSize)
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputA, inputB, inputSize)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
