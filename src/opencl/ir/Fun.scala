@@ -133,6 +133,8 @@ case class toGlobal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) 
 
 case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
 
+case class toPrivate(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+
 case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   var valid = true
 }
@@ -214,6 +216,11 @@ object IndexFunction {
     val n = Type.getLength(t)
 
     n - 1 - i
+  }
+
+  val reorderStride = (s:ArithExpr) => (i: ArithExpr, t:Type) => {
+    val n = Type.getLength(t) / s
+    (i div n) + s * (i % n)
   }
 }
 

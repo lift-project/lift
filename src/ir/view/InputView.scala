@@ -46,6 +46,7 @@ object InputView {
           case ReorderStride(s) => buildViewReorderStride(s, call, argView)
           case g: Gather => buildViewGather(g, call, argView)
           case s: Scatter => buildViewScatter(s, call, argView)
+          case tP: toPrivate => buildViewToPrivate(tP, argView)
           case tL: toLocal => buildViewToLocal(tL, argView)
           case tG: toGlobal => buildViewToGlobal(tG, argView)
           case i: Iterate => buildViewIterate(i, call, argView)
@@ -81,14 +82,17 @@ object InputView {
     visitAndBuildViews(tL.f.body)
   }
 
+  private def buildViewToPrivate(tP: toPrivate, argView: View): View = {
+    tP.f.params(0).view = argView
+    visitAndBuildViews(tP.f.body)
+  }
+
   private def buildViewMapCall(call: MapCall, argView: View): View = {
     // pass down input view
     call.f.f.params(0).view = argView.access(call.loopVar)
 
     // traverse into call.f
     val innerView = visitAndBuildViews(call.f.f.body)
-
-
 
     if (call.isConcrete) {
       // create fresh input view for following function
@@ -124,7 +128,6 @@ object InputView {
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).view = if (v != NoView) v else View.initialiseNewView(f.params(0).t, call.inputDepth)
-
 
       visitAndBuildViews(f.body)
     })

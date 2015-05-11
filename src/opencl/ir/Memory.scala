@@ -133,13 +133,13 @@ object OpenCLMemory {
     * @return The newly allocated memory object
     */
   def allocMemory(glbOutSize: ArithExpr, lclOutSize: ArithExpr,
-                  addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+                  pvtOutSize: ArithExpr, addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     assert(addressSpace != UndefAddressSpace)
 
     addressSpace match {
       case GlobalMemory => allocGlobalMemory(glbOutSize)
       case LocalMemory => allocLocalMemory(lclOutSize)
-      case PrivateMemory => allocPrivateMemory(4)
+      case PrivateMemory => allocPrivateMemory(pvtOutSize)
     }
   }
 
@@ -165,13 +165,13 @@ object OpenCLMemory {
     * @param outputMem The OpenCLMemory object to be used as output by f. Can be NULL then memory will be allocated.
     * @return The OpenCLMemory used as output by f
     */
-  def alloc(expr: Expr, numGlb: ArithExpr = 1, numLcl: ArithExpr = 1,
+  def alloc(expr: Expr, numGlb: ArithExpr = 1, numLcl: ArithExpr = 1, numPvt: ArithExpr = 1,
             outputMem: OpenCLMemory = OpenCLNullMemory): OpenCLMemory = {
 
     val result = expr match {
       case v: Value => allocValue(v)
       case p: Param => allocParam(p)
-      case call: FunCall => allocFunCall(call, numGlb, numLcl, outputMem)
+      case call: FunCall => allocFunCall(call, numGlb, numLcl, numPvt, outputMem)
     }
     // set the output
     assert(result != OpenCLNullMemory)
@@ -214,14 +214,16 @@ object OpenCLMemory {
     OpenCLMemory.asOpenCLMemory(res)
   }
 
-  private def allocFunCall(call: FunCall, numGlb: ArithExpr, numLcl: ArithExpr,
+  private def allocFunCall(call: FunCall, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                            outputMem: OpenCLMemory): OpenCLMemory = {
     // get the input memory of f from the input arguments
-    val inMem = getInMFromArgs(call, numGlb, numLcl)
+    val inMem = getInMFromArgs(call, numGlb, numLcl, numPvt)
 
+    val maxSizeInBytes = getMaxSizeInBytes(call.t)
     // size in bytes necessary to hold the result of f in global and local memory
-    val maxGlbOutSize = getMaxSizeInBytes(call.t) * numGlb
-    val maxLclOutSize = getMaxSizeInBytes(call.t) * numLcl
+    val maxGlbOutSize = maxSizeInBytes * numGlb
+    val maxLclOutSize = maxSizeInBytes * numLcl
+    val maxPvtOutSize = maxSizeInBytes * numPvt
 
     // maximum length of the output array
     val maxLen = ArithExpr.max(Type.getLength(call.t))
@@ -229,38 +231,42 @@ object OpenCLMemory {
     // determine the output memory based on the type of f ...
     call.f match {
 
-      case l: Lambda =>           allocLambda(l, call, numGlb, numLcl, inMem, outputMem)
+      case l: Lambda =>           allocLambda(l, call, numGlb, numLcl, numPvt, inMem, outputMem)
 
       case MapGlb(_, _) |MapWrg(_,_) | Map(_)
-                               => allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
+                               => allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt, inMem, outputMem, maxLen)
       case MapLcl(_,_) | MapWarp(_)| MapLane(_) | MapSeq(_)
-                               => allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, inMem, outputMem, maxLen)
+                               =>
+        var privateMultiplier = call.asInstanceOf[MapCall].iterationCount
+        privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+        allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt * privateMultiplier, inMem, outputMem, maxLen)
 
-      case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, inMem, outputMem)
+      case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, numPvt, inMem, outputMem)
 
-      case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, inMem, outputMem)
+      case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, numPvt, inMem, outputMem)
 
       case Zip(_) | Tuple(_) =>   allocZipTuple(inMem)
       case f: Filter =>           allocFilter(f, numGlb, numLcl, inMem)
 
-      case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, inMem, outputMem, maxGlbOutSize)
-      case tl: toLocal =>         allocToLocal(tl,    numGlb, numLcl, inMem, outputMem, maxLclOutSize)
+      case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, numPvt, inMem, outputMem, maxGlbOutSize)
+      case tl: toLocal =>         allocToLocal(tl,    numGlb, numLcl, numPvt, inMem, outputMem, maxLclOutSize)
+      case tp: toPrivate =>       allocToPrivate(tp, numGlb, numLcl, numPvt, inMem, outputMem, maxPvtOutSize)
 
-      case g: Gather =>           allocGather(g, numGlb, numLcl, inMem, outputMem)
-      case s: Scatter =>          allocScatter(s, numGlb, numLcl, inMem, outputMem)
+      case g: Gather =>           allocGather(g, numGlb, numLcl, numPvt, inMem, outputMem)
+      case s: Scatter =>          allocScatter(s, numGlb, numLcl, numPvt, inMem, outputMem)
 
-      case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, inMem)
+      case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, numPvt, inMem)
 
       case Split(_) | Join() | ReorderStride(_) | asVector(_) |
            asScalar() | Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) =>
         inMem
       case uf: UserFunDef =>
-        allocUserFun(maxGlbOutSize, maxLclOutSize, outputMem, call.t, inMem)
+        allocUserFun(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, outputMem, call.t, inMem)
 
     }
   }
 
-  private def getInMFromArgs(call: FunCall, numGlb: ArithExpr, numLcl: ArithExpr): OpenCLMemory = {
+  private def getInMFromArgs(call: FunCall, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr): OpenCLMemory = {
     if (call.args.isEmpty) {
       OpenCLNullMemory
     } else if (call.args.length == 1) {
@@ -280,7 +286,8 @@ object OpenCLMemory {
     }
   }
 
-  private def allocLambda(l: Lambda, call: FunCall, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+  private def allocLambda(l: Lambda, call: FunCall, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
+                          inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     assert(call.args.nonEmpty)
     if (call.args.length == 1) {
       if (l.params.length != 1) throw new NumberOfArgumentsException
@@ -291,25 +298,26 @@ object OpenCLMemory {
 
       (l.params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
-    alloc(l.body, numGlb, numLcl, outputMem)
+    alloc(l.body, numGlb, numLcl, numPvt, outputMem)
   }
 
-  private def allocMapGlb(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr,
+  private def allocMapGlb(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {
     if (am.f.params.length != 1) throw new NumberOfArgumentsException
     am.f.params(0).mem = inMem
-    alloc(am.f.body, numGlb * maxLen, numLcl, outputMem)
+    alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, outputMem)
   }
 
 
-  private def allocMapLcl(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr,
+  private def allocMapLcl(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {
     if (am.f.params.length != 1) throw new NumberOfArgumentsException
     am.f.params(0).mem = inMem
-    alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, outputMem)
+    alloc(am.f.body, numGlb * maxLen, numLcl * maxLen, numPvt , outputMem)
   }
 
-  private def allocReduce(r: AbstractPartRed, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+  private def allocReduce(r: AbstractPartRed, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
+                          inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
         if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
@@ -318,24 +326,26 @@ object OpenCLMemory {
         if (r.f.params.length != 2) throw new NumberOfArgumentsException
         r.f.params(0).mem = initM
         r.f.params(1).mem = elemM
-        alloc(r.f.body, numGlb, numLcl, initM)
+        alloc(r.f.body, numGlb, numLcl, numPvt, initM)
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
 
-  private def allocGather(g: Gather, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+  private def allocGather(g: Gather, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
+                          inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     if (g.f.params.length != 1) throw new NumberOfArgumentsException
     g.f.params(0).mem = inMem
-    alloc(g.f.body, numGlb, numLcl, outputMem)
+    alloc(g.f.body, numGlb, numLcl, numPvt, outputMem)
   }
 
-  private def allocScatter(s: Scatter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
+  private def allocScatter(s: Scatter, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
+                           inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
     if (s.f.params.length != 1) throw new NumberOfArgumentsException
     s.f.params(0).mem = inMem
-    alloc(s.f.body, numGlb, numLcl, outputMem)
+    alloc(s.f.body, numGlb, numLcl, numPvt, outputMem)
   }
 
-  private def allocToGlobal(tg: toGlobal, numGlb: ArithExpr, numLcl: ArithExpr,
+  private def allocToGlobal(tg: toGlobal, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                             inMem: OpenCLMemory, outputMem: OpenCLMemory, maxGlbOutSize: ArithExpr): OpenCLMemory = {
     if (tg.f.params.length != 1) throw new NumberOfArgumentsException
     tg.f.params(0).mem = inMem
@@ -345,11 +355,11 @@ object OpenCLMemory {
     } else {
       outputMem
     }
-    // ... recurs with fresh allocated 'mem' set as output
-    alloc(tg.f.body, numGlb, numLcl, mem)
+    // ... recurse with fresh allocated 'mem' set as output
+    alloc(tg.f.body, numGlb, numLcl, numPvt, mem)
   }
 
-  private def allocToLocal(tl: toLocal, numGlb: ArithExpr, numLcl: ArithExpr,
+  private def allocToLocal(tl: toLocal, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                            inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLclOutSize: ArithExpr): OpenCLMemory = {
     if (tl.f.params.length != 1) throw new NumberOfArgumentsException
     tl.f.params(0).mem = inMem
@@ -359,11 +369,25 @@ object OpenCLMemory {
     } else {
       outputMem
     }
-    // ... recurs with fresh allocated 'mem' set as output
-    alloc(tl.f.body, numGlb, numLcl, mem)
+    // ... recurse with fresh allocated 'mem' set as output
+    alloc(tl.f.body, numGlb, numLcl, numPvt, mem)
   }
 
-  private def allocCompFunDef(cf: CompFunDef, numGlb: ArithExpr, numLcl: ArithExpr,
+  private def allocToPrivate(tp: toPrivate, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
+                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxPvtOutSize: ArithExpr): OpenCLMemory = {
+    if (tp.f.params.length != 1) throw new NumberOfArgumentsException
+    tp.f.params(0).mem = inMem
+
+    val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != PrivateMemory) {
+      allocPrivateMemory(maxPvtOutSize)
+    } else {
+      outputMem
+    }
+    // ... recurse with fresh allocated 'mem' set as output
+    alloc(tp.f.body, numGlb, numLcl, numPvt, mem)
+  }
+
+  private def allocCompFunDef(cf: CompFunDef, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                               inMem: OpenCLMemory, outMem: OpenCLMemory): OpenCLMemory = {
     // combine the parameter of the first function to call with the type inferred from the argument
 
@@ -376,9 +400,9 @@ object OpenCLMemory {
       if (f.params.length != 1) throw new NumberOfArgumentsException
       f.params(0).mem = mem
       if (f == lastConcrete) {
-        alloc(f.body, numGlb, numLcl, outMem)
+        alloc(f.body, numGlb, numLcl, numPvt, outMem)
       } else
-        alloc(f.body, numGlb, numLcl)
+        alloc(f.body, numGlb, numLcl, numPvt)
     })
   }
 
@@ -391,7 +415,7 @@ object OpenCLMemory {
     }
   }
 
-  private def allocIterate(it: Iterate, call: IterateCall, numGlb: ArithExpr, numLcl: ArithExpr,
+  private def allocIterate(it: Iterate, call: IterateCall, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                            inMem: OpenCLMemory): OpenCLMemory = {
     // get sizes in bytes necessary to hold the input and output of the function inside the iterate
     val inSize = getMaxSizeInBytes(call.argsType)
@@ -400,12 +424,12 @@ object OpenCLMemory {
     val largestSize = ArithExpr.max(inSize, outSize)
 
     // create a swap buffer
-    call.swapBuffer = allocMemory(largestSize, largestSize, inMem.addressSpace)
+    call.swapBuffer = allocMemory(largestSize, largestSize, largestSize, inMem.addressSpace)
 
     // recurs to allocate memory for the function(s) inside
     if (it.f.params.length != 1) throw new NumberOfArgumentsException
     it.f.params(0).mem = inMem
-    alloc(it.f.body, numGlb, numLcl)
+    alloc(it.f.body, numGlb, numLcl, numPvt)
   }
 
   private def allocFilter(f: Filter, numGlb: ArithExpr, numLcl: ArithExpr, inMem: OpenCLMemory): OpenCLMemory = {
@@ -417,7 +441,7 @@ object OpenCLMemory {
     }
   }
 
-  private def allocUserFun(maxGlbOutSize: ArithExpr, maxLclOutSize: ArithExpr,
+  private def allocUserFun(maxGlbOutSize: ArithExpr, maxLclOutSize: ArithExpr, maxPvtOutSize: ArithExpr,
                            outputMem: OpenCLMemory, outT: Type, inputMem: OpenCLMemory): OpenCLMemory = {
     if (outputMem == OpenCLNullMemory) {
       val addressSpace =
@@ -434,10 +458,10 @@ object OpenCLMemory {
 
         // TODO: could maybe allocated in private memory (need to change slightly the allocator and add toPrivate)
         case ScalarType(_, _) | VectorType(_, _) =>
-          allocMemory(maxGlbOutSize, maxLclOutSize, addressSpace)
+          allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, addressSpace)
 
         case _ =>
-          allocMemory(maxGlbOutSize, maxLclOutSize, addressSpace)
+          allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, addressSpace)
       }
     } else {
       outputMem

@@ -53,11 +53,19 @@ abstract class Expr {
   def addressSpace: OpenCLAddressSpace = OpenCLMemory.asOpenCLMemory(this.mem).addressSpace
 
   def containsLocal: Boolean = {
+    containsMemory(LocalMemory)
+  }
+
+  private def containsMemory(memType: OpenCLAddressSpace): Boolean = {
     this.mem match {
-      case coll: OpenCLMemoryCollection => coll.subMemories.exists(x => x.addressSpace == LocalMemory)
-      case m: OpenCLMemory => m.addressSpace == LocalMemory
+      case coll: OpenCLMemoryCollection => coll.subMemories.exists(x => x.addressSpace == memType)
+      case m: OpenCLMemory => m.addressSpace == memType
       case _ => false
     }
+  }
+
+  def containsPrivate: Boolean = {
+    containsMemory(PrivateMemory)
   }
 
   def copy: Expr

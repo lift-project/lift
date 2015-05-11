@@ -87,7 +87,7 @@ class TestReduce {
         Join() o MapSeq(
           MapSeq(MapSeq(id)) o
             ReduceSeq(fun((x, y) => MapSeq(add) $ Zip(x, y)),
-              toGlobal(MapSeq(id)) $ Value.apply(0.0f, ArrayType(Float, N)))
+              toGlobal(MapSeq(id)) $ Value(0.0f, ArrayType(Float, N)))
         ) o Split(M) $ in
       })
 

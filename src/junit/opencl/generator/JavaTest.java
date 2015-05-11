@@ -15,19 +15,7 @@ import java.util.stream.Collectors;
 
 public class JavaTest {
 
-    UserFunDef add = jUserFunDef.create(
-            "add",
-            jStringArray.create("x", "y"),
-            "{ return x+y; }",
-            jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton()),
-            jFloat.getSingleton());
-
-    UserFunDef plusOne = jUserFunDef.create(
-            "plusOne",
-            "x",
-            "{ return x+1; }",
-            jFloat.getSingleton(),
-            jFloat.getSingleton());
+    UserFunDef add = UserFunDef.add();
 
     UserFunDef pair = jUserFunDef.create(
             "pair",
@@ -36,14 +24,12 @@ public class JavaTest {
             jFloat.getSingleton(),
             jTupleType.create(jFloat.getSingleton(), jFloat.getSingleton()));
 
-    UserFunDef mult = jUserFunDef.create(
-            "mult",
-            jStringArray.create("x", "y"),
-            "{ return x*y}",
-            jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton()),
-            jFloat.getSingleton());
+    UserFunDef mult = UserFunDef.mult();
+    UserFunDef plusOne = UserFunDef.plusOne();
 
-    UserFunDef neg = jUserFunDef.create("neg", "x", "{ return -x; }", jFloat.getSingleton(), jFloat.getSingleton());
+    UserFunDef neg = UserFunDef.neg();
+    UserFunDef id = UserFunDef.id();
+    UserFunDef idFI = UserFunDef.idFI();
 
     UserFunDef distance = jUserFunDef.create("dist", jStringArray.create("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
     UserFunDef minimum = jUserFunDef.create("minimum", jStringArray.create("x", "y"), "{ return x._0 < y._0 ? x : y; }", jTypeArray.create(jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton())), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
@@ -66,25 +52,21 @@ public class JavaTest {
 
         Lambda1 negFun = jfun.create(
                 jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
-                (input) -> {
-                    return jJoin.comp(jfun.create((Param x1) -> {
-                        return jMapGlb.create(jfun.create((Param x2) -> {
-                            return jMapSeq.create(neg).call(x2);
-                        })).call(x1);
-                    })).comp(jfun.create((Param x) -> jSplit.create(4).call(x))).call(input);
-                });
+                (input) -> jJoin.comp(jfun.create((Param x1) -> {
+                    return jMapGlb.create(jfun.create((Param x2) -> {
+                        return jMapSeq.create(neg).call(x2);
+                    })).call(x1);
+                })).comp(jfun.create((Param x) -> jSplit.create(4).call(x))).call(input));
 
-        String code = Compile.apply(negFun);
+        Compile.apply(negFun);
 
         Lambda negFun2 = jfun.create(
                 jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
-                (input) -> {
-                    return jJoin.comp(jMapGlb.create(
-                                    jMapSeq.create(neg))
-                    ).comp(jSplit.create(4)).call(input);
-                });
+                (input) -> jJoin.comp(jMapGlb.create(
+                                jMapSeq.create(neg))
+                ).comp(jSplit.create(4)).call(input));
 
-        String code2 = Compile.apply(negFun2);
+        Compile.apply(negFun2);
     }
 
     @Test
@@ -106,13 +88,11 @@ public class JavaTest {
         Lambda multFun = jfun.create(
                 jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
                 jFloat.getSingleton(),
-                (input, alpha) -> {
-                    return jMapGlb.create(
-                            jfun.create((x) -> mult.call(alpha, x)))
-                            .call(input);
-                });
+                (input, alpha) -> jMapGlb.create(
+                        jfun.create((x) -> mult.call(alpha, x)))
+                        .call(input));
 
-        String code = Compile.apply(multFun);
+        Compile.apply(multFun);
     }
 
     @Test
@@ -131,7 +111,7 @@ public class JavaTest {
         MapGlb mg = MapGlb$.MODULE$.apply(multLambda);
 
 
-        Lambda f = new Lambda(params, mg.apply(JavaConversions.asScalaBuffer(Arrays.asList(params[0]))));
+        Lambda f = new Lambda(params, mg.apply(JavaConversions.asScalaBuffer(Collections.singletonList(params[0]))));
 
         Compile.apply(f);
     }
@@ -153,17 +133,17 @@ public class JavaTest {
                         jMapGlb.create(
                                 jfun.create(xy ->
                                                 jMapSeq.create(getSecond).comp(
-                                                        jReduceSeq.create(minimum, Value.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1))).comp(
+                                                        jToGlobal.create(jMapSeq.create(idFI)).comp(jReduceSeq.create(minimum, Value.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1))).comp(
                                                                 jMapSeq.create(jfun.create(abi -> distance.apply(
                                                                         JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(xy, 0), Get.apply(xy, 1),
                                                                                 Get.apply(abi, 0), Get.apply(abi, 1), Get.apply(abi, 2))))))
                                                         )
-                                                ).call(jZip.call(Arrays.asList(a, b, i)))
+                                                )).call(jZip.call(Arrays.asList(a, b, i)))
                                 )
                         ).call(jZip.call(x, y))
         );
 
-        String code1 = Compile.apply(fun);
+        Compile.apply(fun);
     }
 
     @Test
@@ -195,15 +175,16 @@ public class JavaTest {
 
         MapSeq map2 = jMapSeq.create(getSecond);
         Lambda1 reduce = jReduceSeq.create(minimum, Value.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1)));
+        toGlobal mapId = jToGlobal.create(jMapSeq.create(idFI));
 
-        FunCall f = map2.comp(reduce).comp(map1).call(zip3);
+        FunCall f = map2.comp(mapId).comp(reduce).comp(map1).call(zip3);
 
         Lambda1 l = new Lambda1(new Param[]{undef1}, f);
         MapGlb mg = MapGlb$.MODULE$.apply(l);
 
-        Lambda function = new Lambda(params.toArray(new Param[0]), mg.call(zip2));
+        Lambda function = new Lambda(params.toArray(new Param[params.size()]), mg.call(zip2));
 
-        String code2 = Compile.apply(function);
+        Compile.apply(function);
     }
 
     @Test
@@ -211,16 +192,14 @@ public class JavaTest {
 
         Lambda pairFun = jfun.create(
                 jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
-                (input) -> {
-                    return jJoin.comp(jMapWrg.create(
-                            jJoin.comp(jMapLcl.create(
-                                    jMapSeq.create(pair)
-                            )).comp(jSplit.create(4))
-                    )).comp(jSplit.create(1024)).call(input);
-                }
+                (input) -> jJoin.comp(jMapWrg.create(
+                        jJoin.comp(jMapLcl.create(
+                                jMapSeq.create(pair)
+                        )).comp(jSplit.create(4))
+                )).comp(jSplit.create(1024)).call(input)
         );
 
-        String code = Compile.apply(pairFun);
+        Compile.apply(pairFun);
     }
 
     @Test
@@ -250,9 +229,11 @@ public class JavaTest {
 
         Lambda1 reduce = jReduceSeq.create(add, Value.FloatToValue(0.0f));
 
+        Lambda mapId = Lambda.FunDefToLambda(jToGlobal.create(Lambda.FunDefToLambda(jMapSeq.create(id))));
+
         Expr zip2 = jZip.call(undef0, undef1);
 
-        FunCall f = reduce.comp(map).call(zip2);
+        FunCall f = mapId.comp(reduce.comp(map)).call(zip2);
 
         Lambda1 l = new Lambda1(new Param[]{undef1}, f);
         Lambda ms = Lambda.FunDefToLambda(jMapSeq.create(l));
@@ -261,7 +242,7 @@ public class JavaTest {
 
         Lambda mg = Lambda.FunDefToLambda(jMapGlb.create(l2));
 
-        Lambda function = new Lambda(params.toArray(new Param[0]), mg.call(params.get(0)));
+        Lambda function = new Lambda(params.toArray(new Param[params.size()]), mg.call(params.get(0)));
 
         Compile.apply(function);
 
@@ -272,9 +253,6 @@ public class JavaTest {
 
         Var M = jVar.create("M");
         Var K = jVar.create("K");
-
-        Lambda ff = jfun.create(
-                row -> jMapSeq.create(plusOne).call(row));
 
         Function<Param, Lambda> test = a -> jfun.create((r) -> add.call(r, a));
 
@@ -288,7 +266,7 @@ public class JavaTest {
                 test3
         );
 
-        String code = Compile.apply(f);
+        Compile.apply(f);
     }
 
     @Test
@@ -300,7 +278,7 @@ public class JavaTest {
                 jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
                 (input) -> jMapGlb.create(simpleComp).call(input));
 
-        String code = Compile.apply(negFun);
+        Compile.apply(negFun);
     }
 
     @Test
@@ -309,9 +287,9 @@ public class JavaTest {
         Lambda function = jfun.create(
                 jArrayType.create(jArrayType.create(jFloat.getSingleton(), jVar.create("M")), jVar.create("N")),
                 (input) -> jMapGlb.create(
-                        jfun.create(row -> jMapSeq.create(neg).comp(jReduceSeq.create(add, Value$.MODULE$.FloatToValue(0.0f))).call(row))
+                        jfun.create(row -> jMapSeq.create(neg).comp(jToGlobal.create(jMapSeq.create(id)).comp(jReduceSeq.create(add, Value.FloatToValue(0.0f)))).call(row))
                 ).call(input));
 
-        String code = Compile.apply(function);
+        Compile.apply(function);
     }
 }

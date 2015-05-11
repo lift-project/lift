@@ -4,7 +4,7 @@ import arithmetic.Var
 import benchmarks.MatrixMultiplication
 import opencl.executor._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test, Ignore}
+import org.junit.{AfterClass, BeforeClass, Test}
 import opencl.ir._
 import opencl.ir.CompositePatterns._
 import ir._
@@ -24,68 +24,6 @@ object TestMatrixMatrix {
 }
 
 class TestMatrixMatrix {
-
-  def matrixMatrixPatternMultiply(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
-    val Bt = B.transpose
-    A.map( Arow =>
-      Bt.map( Bcol => (Arow, Bcol).zipped.map(_ * _).sum )
-    )
-  }
-
-  def matrixMatrixPatternMultiply2(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
-    val Bt = B.transpose
-    A.map( Arow =>
-      Bt.map( Bcol => (Arow, Bcol).zipped )
-    ).map(_.map(_.map(_ * _).sum))
-  }
-
-  def matrixMatrixMultiply(A: Array[Array[Float]], B: Array[Array[Float]]) :  Array[Array[Float]] = {
-    val aCols = A(0).length
-    val aRows = A.length
-    val bCols = B(0).length
-    val res =  Array.ofDim[Float](aRows, bCols)
-
-    @inline def computeRow(row: Int) {
-      // while statements are much faster than for statements
-      var col = 0
-      while(col < bCols) { var i = 0; var sum = 0.0f
-        while(i < aCols) {
-          sum += A(row)(i) * B(i)(col)
-          i += 1
-        }
-
-        res(row)(col) = sum
-        col += 1
-      }
-    }
-
-    (0 until aRows).par.foreach( computeRow )
-
-    res
-  }
-
-  /*
-  @Test def TestScalaPatternImplementation(): Unit = {
-
-    val inputSize = 512
-    val matrixA = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    val matrixB = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-
-    val t0 = System.nanoTime()
-    val matrixC = matrixMatrixPatternMultiply(matrixA, matrixB)
-    val t1 = System.nanoTime()
-    val gold = matrixMatrixMultiply(matrixA, matrixB)
-    val t2 = System.nanoTime()
-
-    println("patterns: " + ((t1 - t0) * 1.0e-9) + "secs")
-    println("multiply: " + ((t2 - t1) * 1.0e-9) + "secs")
-
-    (gold, matrixC).zipped.map(
-      (goldRow, cRow) => (goldRow, cRow).zipped.map(assertEquals(_,_,0.0))
-    )
-
-  }
-  */
 
   @Test def MATRIX_MATRIX_SIMPLE() {
 
@@ -116,7 +54,7 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -150,704 +88,9 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0f)
-  }
-
-  @Ignore
-  @Test def MATRIX_MATRIX_Christophe() {
-
-    val Msize = 32
-    val Ksize = 32
-    val Nsize = 32
-    //val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    //val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => 1.0f)
-    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => 2.0f)
-
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
-
-    val r = 2 // number of rows a single workgroup computes
-    val c = 4 // number of columns a single workgroup computes
-    val d = 16 // chunk size
-
-    //val dotProd = fun(rowPair => ReduceSeq(multAndSumUp, 0.0f) o rowPair)
-    val dotProd = fun(rowPair => {
-      ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ rowPair
-    })
-
-    val f1 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Map(fun(rowA =>
-          Map(fun(colB =>
-            dotProd(Zip(rowA, colB))
-          )) $ B
-        )) $ A
-      }
-    )
-
-    val t1 = Type.check(f1.body)
-
-
-    // inline
-    val f12 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Map(fun(rowA =>
-          Map(fun(colB =>
-            ReduceSeq(add,0.0f) o MapSeq(fun(pair => {
-              mult(Get(pair,0),Get(pair,1))
-            })) $ Zip(rowA, colB)
-          )) $ B
-        )) $ A
-      }
-    )
-    val t12 = Type.check(f12.body)
-
-
-//    // partial reduction
-//    val f13 = fun(
-//      ArrayType(ArrayType(Float, K), M),
-//      ArrayType(ArrayType(Float, K), N), // this is already transposed
-//      (A, B) => {
-//        Map(fun(rowA =>
-//          Map(fun(colB =>
-//            ReduceSeq(add,0.0f) o Join() o Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) o Zip(rowA, colB)
-//          )) o B
-//        )) o A
-//      }
-//    )
-//    val t13 = Type.check(f13.body)
-
-    // map distribution
-    val f14 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add, 0.0f) $ x)) o
-          Map(fun(colB =>
-            MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-            //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-          )) $ B
-        )) $ A
-      }
-    )
-    val t14 = Type.check(f14.body)
-
-    // split-join
-    val f15 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
-          Join() o Map(fun(colsB =>
-            Map(fun(colB =>
-              MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-              //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-            )) $ colsB
-          )) o Split(c) $ B
-        )) $ A
-      }
-    )
-    val t15 = Type.check(f15.body)
-
-    // split-join
-    val f16 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
-            Join() o
-            Map(fun(colsB =>
-              Map(fun(colB =>
-                Join() o Map(fun(pairChunk =>
-                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
-                )) o Split(d) $ Zip(rowA, colB)
-                //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-              )) $ colsB
-            )) o Split(c) $ B
-        )) $ A
-      }
-    )
-    val t16 = Type.check(f16.body)
-
-    // map distribute
-    val f17 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
-            Join() o
-            Map(fun(colsB =>
-              Map(fun(y => Join() $ y)) o
-              Map(fun(colB =>
-                Map(fun(pairChunk =>
-                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
-                )) o Split(d) $ Zip(rowA, colB)
-                //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-              )) $ colsB
-            )) o Split(c) $ B
-        )) $ A
-      }
-    )
-    val t17 = Type.check(f17.body)
-
-    // map transposition
-    val f18 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Map(fun(rowA =>
-          Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
-            Join() o
-            Map(fun(colsB =>
-              Map(fun(y => Join() $ y)) o
-                Transpose() o
-                Map(fun(colB =>
-                  Map(fun(pairChunk =>
-                    MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
-                    // MapSeq(mult) $ pairChunk
-                  )) o Split(d) $ Zip(rowA, colB)
-                  //Map(fun(pairChunk => ReduceSeq(add,0.0f) o pairChunk )) o Split(d) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-                )) o
-                Transpose() $ colsB
-            )) o Split(c) $ B
-        )) $ A
-      }
-    )
-    val t18 = Type.check(f18.body)
-
-
-    val f21 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(rowsA =>
-          Map(fun(rowA =>
-            Map(fun(colB =>
-              dotProd(Zip(rowA, colB))
-            )) $ B
-          )) $ rowsA
-        )) o Split(r) $ A
-      }
-    )
-
-
-    val t21 = Type.check(f21.body)
-
-    // split-join
-    val f22 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(rowsA =>
-          Map(fun(rowA =>
-            Join() o Map(fun(colsB =>
-              Map(fun(colB =>
-                dotProd(Zip(rowA, colB))
-              )) $ colsB
-            )) o Split(c) $ B
-          )) $ rowsA
-        )) o Split(r) $ A
-      }
-    )
-
-    val t22 = Type.check(f22.body)
-
-    // map distribute
-    val f23 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(rowsA =>
-          Map(fun(x => Join() $ x)) o
-          Map(fun(rowA =>
-            Map(fun(colsB =>
-              Map(fun(colB =>
-                dotProd(Zip(rowA, colB))
-              )) $ colsB
-            )) o Split(c) $ B
-          )) $ rowsA
-        )) o Split(r) $ A
-      }
-    )
-    val t23 = Type.check(f23.body)
-
-    // map distribute
-    val f24 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Map(fun(rowA =>
-              Map(fun(colsB =>
-                Map(fun(colB =>
-                  dotProd(Zip(rowA, colB))
-                )) $ colsB
-              )) o Split(c) $ B
-            )) $ rowsA
-        )) o Split(r) $ A
-      }
-    )
-    val t24 = Type.check(f24.body)
-
-    // map interchange
-    val f25 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-            Map(fun(colsB =>
-
-              Map(fun(rowA =>
-                Map(fun(colB =>
-                  dotProd(Zip(rowA, colB))
-                )) $ colsB
-              )) $ rowsA
-
-            )) o Split(c) o  Transpose() $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t25 = Type.check(f25.body)
-
-
-
-
-    // inline
-    val f26 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-                Map(fun(rowA =>
-                  Map(fun(colB =>
-                    ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-                  )) $ colsB
-                )) $ rowsA
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t26 = Type.check(f26.body)
-
-    // Map distribution
-    val f26a1 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-
-                Map(fun(x =>
-                  Map(fun(y =>
-                    ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ y
-                  )) $ x
-                )) o
-
-                Map(fun(rowA =>
-                  Map(fun(colB =>
-                    Zip(rowA, colB)
-                  )) $ colsB
-                )) $ rowsA
-
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t26a1 = Type.check(f26a1.body)
-
-    // partial reduce
-    val f26a2 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-
-                Map(fun(x =>
-                  Map(fun(y =>
-                    ReduceSeq(add,0.0f) o Join() o Map(ReduceSeq(add,0.0f)) o Split(d) o
-                    MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ y
-                  )) $ x
-                )) o
-
-                  Map(fun(rowA =>
-                    Map(fun(colB =>
-                      Zip(rowA, colB)
-                    )) $ colsB
-                  )) $ rowsA
-
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t26a2 = Type.check(f26a2.body)
-
-    // split join (+ join-split deletion + map fusion)
-    val f26a3 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-
-                Map(fun(x =>
-                  Map(fun(y =>
-                    ReduceSeq(add,0.0f) o Join() o Map(ReduceSeq(add,0.0f) o
-                                                       MapSeq(fun(pair => {
-                                                         mult(Get(pair,0),Get(pair,1))
-                                                       }))) o Split(d) $ y
-                  )) $ x
-                )) o
-
-                  Map(fun(rowA =>
-                    Map(fun(colB =>
-                      Zip(rowA, colB)
-                    )) $ colsB
-                  )) $ rowsA
-
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t26a3 = Type.check(f26a3.body)
-
-
-
-    // map distribution
-    val f27 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-                Map(fun(rowA =>
-                  Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
-                  Map(fun(colB =>
-                     MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-                  )) $ colsB
-                )) $ rowsA
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t27 = Type.check(f27.body)
-
-    // split-join
-    val f28 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-
-                Map(fun(rowA =>
-                  Map(fun(x => ReduceSeq(add,0.0f) $ x)) o
-                    Map(fun(colB =>
-                      Join() o Map(fun(chunkPair =>
-                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
-                      )) o Split(r) $ Zip(rowA, colB)
-                    )) $ colsB
-                )) $ rowsA
-
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t28 = Type.check(f28.body)
-
-    // map distribution
-    val f29 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-
-                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) $ x)) $ y)) o
-
-                Map(fun(rowA =>
-                    Map(fun(colB =>
-                      Join() o Map(fun(chunkPair =>
-                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
-                      )) o Split(r) $ Zip(rowA, colB)
-                    )) $ colsB
-                )) $ rowsA
-
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t29 = Type.check(f29.body)
-
-    // map distribution
-    val f210 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-
-                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) $ x)) $ y)) o
-                Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-
-                  Map(fun(rowA =>
-                    Map(fun(colB =>
-                     Map(fun(chunkPair =>
-                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
-                      )) o Split(r) $ Zip(rowA, colB)
-                    )) $ colsB
-                  )) $ rowsA
-
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t210 = Type.check(f210.body)
-
-    // map distribution
-    val f211 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-
-                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) $ x)) $ y)) o
-                Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-
-                Map(fun(y => Map(fun(x =>
-                  Map(fun(chunkPair =>
-                    MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
-                  )) $ x)) $ y)) o
-
-
-                Map(fun(rowA =>
-                  Map(fun(colB =>
-                     Split(r) $ Zip(rowA, colB)
-                  )) $ colsB
-                )) $ rowsA
-
-              )) o Split(c) $  B
-          )) o Split(r) $ A
-      }
-    )
-    val t211 = Type.check(f211.body)
-
-    //
-    val f212 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-          Map(fun(rowsA =>
-            Transpose() o
-              Map(fun(colsB =>
-
-                Map(fun(y => Map(fun(x => ReduceSeq(add,0.0f) $ x)) $ y)) o
-                  Map(fun(y => Map(fun(x => Join() $ x)) $ y)) o
-
-                  Map(fun(y =>
-                    Map(fun(x =>
-                      Map(fun(chunkPair =>
-                        MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ chunkPair
-                      )) o Split(r) $ x)) $ y)) o
-
-                  Map(fun(rowA =>
-                    Map(fun(colB =>
-                      Zip(rowA, colB)
-                    )) $ colsB
-                  )) $ rowsA
-
-              )) o Split(c) $ B
-          )) o Split(r) $ A
-      }
-    )
-    val t212 = Type.check(f212.body)
-
-
-    // interchange
-    val f3 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(rowsA =>
-          Transpose() o Map(fun(colB =>
-            Map(fun(rowA =>
-              dotProd(Zip(rowA, colB))
-            )) $ rowsA
-          )) $ B
-        )) o Split(r) $ A
-      }
-    )
-
-
-    val t3 = Type.check(f3.body)
-
-
-    // split-join
-    val f4 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(rowsA =>
-          Transpose() o Join() o Map(fun(colsB =>
-            Map(fun(colB =>
-              Map(fun(rowA =>
-                dotProd(Zip(rowA, colB))
-              )) $ rowsA
-            )) $ colsB
-          ))  o Split(c) $ B
-        )) o Split(r) $ A
-      }
-    )
-
-    val t4 = Type.check(f4.body)
-
-
-    // inline
-    val f5 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(rowsA =>
-          Transpose() o Join() o Map(fun(colsB =>
-            Map(fun(colB =>
-              Map(fun(rowA =>
-                ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-              )) $ rowsA
-            )) $ colsB
-          ))  o Split(c) $ B
-        )) o Split(r) $ A
-      }
-    )
-
-    val t5 = Type.check(f5.body)
-
-
-    // split-join
-    val f6 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(rowsA =>
-          Transpose() o Join() o Map(fun(colsB =>
-            Map(fun(colB =>
-              Map(fun(rowA =>
-                ReduceSeq(add,0.0f) o Join() o Map(fun(pairChunk =>
-                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
-                )) o Split(d) $ Zip(rowA, colB)
-              )) $ rowsA
-            )) $ colsB
-          ))  o Split(c) $ B
-        )) o Split(r) $ A
-      }
-    )
-
-    val t6 = Type.check(f6.body)
-
-    // split-join
-    val f7 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o Map(fun(rowsA =>
-          Transpose() o Join() o Map(fun(colsB =>
-            Map(fun(colB =>
-              Map(fun(rowA =>
-                ReduceSeq(add,0.0f) o Join() o Map(fun(pairChunk =>
-                  MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ pairChunk
-                )) o Split(d) $ Zip(rowA, colB)
-              )) $ rowsA
-            )) $ colsB
-          ))  o Split(c) $ B
-        )) o Split(r) $ A
-      }
-    )
-
-    val t7 = Type.check(f7.body)
-
-
-    //
-    val fa = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o MapWrg(0)(fun(rowsA =>
-          Transpose() o Join() o MapWrg(1)(fun(colsB =>
-            Barrier() o MapLcl(0)(fun(colB =>
-              Barrier() o MapLcl(1)(fun(rowA =>
-                ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1)))) $ Zip(rowA, colB)
-              )) $ rowsA
-            )) $ colsB
-          ))  o Split(c) $ B
-        )) o Split(r) $ A
-      }
-    )
-
-    val ta = Type.check(fa.body)
-
-
-   /* val f6 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        MapWrg(0)(fun(rowsA =>
-          MapWrg(1)(fun(colsB =>
-            Barrier() o MapLcl(0)(fun(rowA =>
-              Barrier() o MapLcl(1)(fun(colB =>
-                ReduceSeq(add,0.0f) o MapSeq(fun(pair => mult(Get(pair,0),Get(pair,1))
-                )) o Zip(rowA, colB)
-              )) o colsB
-            )) o rowsA
-          )) o Split(c) o B
-        )) o Split(r) o A
-      }
-    )*/
-
-
-    val (output: Array[Float], runtime) = Execute(Msize * Nsize)(f5, matrixA, matrixB.transpose, Msize, Ksize, Nsize)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
-
-    (gold, output).zipped.map(assertEquals(_,_,0.0))
   }
 
   @Test def MATRIX_MATRIX_2D_GLOBAL_ID() {
@@ -878,11 +121,11 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N), // this is already transposed
       (A, B) => {
         MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
-        Map(fun( Arow =>
-          Map(fun( Bcol =>
-            Zip(Arow, Bcol)
-          )) $ B
-        )) $ A
+          Map(fun( Arow =>
+            Map(fun( Bcol =>
+              Zip(Arow, Bcol)
+            )) $ B
+          )) $ A
       })
 
     val (output: Array[Float], runtime) = Execute(Msize * Nsize)(f1, matrixA, matrixB.transpose)
@@ -891,7 +134,7 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.001f)
 
@@ -911,7 +154,7 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val transposedB = matrixB.transpose
 
@@ -964,6 +207,203 @@ class TestMatrixMatrix {
     val matrixC3 = tiledC3.map(_.transpose.map(_.flatten)).flatten.flatten
 
     assertArrayEquals(gold, matrixC3, 0.001f)
+
+    /*
+     * Below:
+     * Trying to reuse A
+     *
+     */
+
+    val matrixC4 = matrixA.map(rowA => (rowA, matrixB).zipped.map((elemA, rowB) => rowB.map(_*elemA)))
+      .transpose.fold(Array.ofDim[Float](16, 16))((a, b) =>  (a, b).zipped.map((a, b) => (a, b).zipped.map(_+_))).flatten
+
+    assertArrayEquals(gold, matrixC4, 0.001f)
+
+
+    val grouped = matrixB.transpose.grouped(4).toArray.map(_.transpose)
+
+    val matrixC5 = matrixA.map(rowA => grouped.map(columnsB => (rowA, columnsB).zipped.
+      foldLeft(Array.ofDim[Float](4))((acc, elemRowPair) => (elemRowPair._2.map(_*elemRowPair._1), acc).
+      zipped.map(_+_)))).map(_.flatten)
+
+    assertArrayEquals(gold, matrixC5.flatten, 0.001f)
+
+    /*
+     * Below:
+     * Trying to reuse B
+     */
+
+    val matrixC6 = matrixA.grouped(4).toArray.map(rowsA => matrixB.transpose.map(colB =>(rowsA.transpose, colB).zipped.
+      foldLeft(Array.ofDim[Float](4))((acc, rowElemPair) => (rowElemPair._1.map(_*rowElemPair._2), acc).
+      zipped.map(_+_)))).map(_.transpose).flatten
+
+    assertArrayEquals(gold, matrixC6.flatten, 0.001f)
+  }
+
+  @Test def mmReuseB(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val n = new Var("N")
+    val m = new Var("M")
+    val k = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, k), m),
+      ArrayType(ArrayType(Float, n), k),
+      (A, B) =>
+        Join() o Map(TransposeW()) o
+          MapGlb(fun( rowsA =>
+            MapSeq(fun( colB =>
+              toGlobal(MapSeq(id)) o Join() o ReduceSeq(fun((acc, rowElemPair) =>
+                MapSeq(add) o fun(rowElemPair => Zip(toPrivate(MapSeq(fun(a => mult.apply(a, Get(rowElemPair, 1))))) $ Get(rowElemPair, 0), acc)) $ rowElemPair
+              ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, tileSize))) $ Zip(Transpose() $ rowsA, colB)
+            )) o Transpose() $ B
+          )) o Split(tileSize) $ A
+    )
+
+    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test def mmReuseA(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val n = new Var("N")
+    val m = new Var("M")
+    val k = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, k), m),
+      ArrayType(ArrayType(Float, n), k),
+      (A, B) =>
+        Map(Join()) o
+          MapGlb(fun(rowA => MapSeq( fun(colsB =>
+            toGlobal(MapSeq(id)) o Join() o ReduceSeq(fun((acc, elemRowPair) =>
+              MapSeq(add) o fun(elemRowPair =>
+                Zip(toPrivate(MapSeq(fun(a => mult.apply(a, Get(elemRowPair, 0))))) $ Get(elemRowPair, 1), acc)
+              ) $ elemRowPair
+            ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, tileSize))) $ Zip(rowA, colsB)
+          )) o Map(Transpose()) o Split(tileSize) o Transpose() $ B
+        )) $ A
+    )
+
+    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test def mmTiledReuseB(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 8
+    val blockSize = 4
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val f = MatrixMultiplication.moreWorkPerThread(tileSize, blockSize)
+
+    val (output: Array[Float], _) = Execute(tileSize, tileSize / blockSize,
+      mSize, nSize / blockSize, (true, false))(f, matrixA, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test def mmTiledReuseA(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+    val blockSize = 2
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val N = new Var("N")
+    val M = new Var("M")
+    val K = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapWrg(1)(fun( aRows =>
+            MapWrg(0)(fun( bCols =>
+
+
+              toGlobal(MapLcl(1)(
+                Scatter(IndexFunction.reorderStride(blockSize))(MapLcl(0)(id))
+              )) o
+                Join() o
+
+                // Multiply all necessary combinations of tiles
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(pairOfTiles =>
+                    Barrier() o fun(partial =>
+                      MapLcl(1)(fun(pairOfRows =>
+                        MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
+                      )) $ Zip(acc, partial)
+                    ) o
+
+                      Map(Join()) o // This reorders elements and needs the scatter at the end
+                      MapLcl(1)( fun(rowA =>
+                        MapLcl(0)( fun( colsB =>
+                          Join() o ReduceSeq(fun((acc, elemRowPair) =>
+                            MapSeq(add) o fun(elemRowPair =>
+                              Zip(
+                                toPrivate(MapSeq(fun(a => mult.apply(a, Get(elemRowPair, 0))))) $ Get(elemRowPair, 1),
+                                acc
+                              )) $ elemRowPair
+                            ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, blockSize))
+                          ) $ Zip(rowA, colsB)
+
+                          )) o Map(Transpose()) o Split(blockSize) o Transpose() $ Get(pairOfTiles, 1)
+                      )) $ Get(pairOfTiles, 0)
+                  ) o
+
+                    // Copy tiles to local memory
+                    fun(pairOfTiles =>
+                      Tuple(
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                      )) $ pairOfTiles
+                )
+                  , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                ) $ Zip(aRows, bCols)
+
+            )) o Transpose() o Tile(tileSize) $ B
+            // Tile the matrices
+          )) o Tile(tileSize) $ A
+      })
+
+    val (output: Array[Float], _) = Execute(tileSize/blockSize, tileSize, mSize/blockSize, nSize, (true, false))(f, matrixA, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def tiledMatrixMultiply(): Unit = {
@@ -975,7 +415,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val n = new Var("N")
     val m = new Var("M")
@@ -1025,7 +465,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val n = new Var("N")
     val m = new Var("M")
@@ -1049,7 +489,8 @@ class TestMatrixMatrix {
                 toLocal(MapSeq(fun( tiles =>
                   Barrier() o MapLcl(0)( fun(aTile =>
                     MapLcl(1)( fun( bTile =>
-                      toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
+                      toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) =>
+                        multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
                     )) $ Get(tiles, 1)
                   )) $ Get(tiles, 0)
                 ) o
@@ -1085,7 +526,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val N = Var("N")
     val M = Var("M")
@@ -1149,11 +590,75 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapWrg(0)(fun( aRows =>
+            MapWrg(1)(fun( bCols =>
+
+              toGlobal(MapLcl(1)(MapLcl(0)(id))) o
+                Join() o
+
+                // Multiply all necessary combinations of tiles
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(pairOfTiles =>
+                    Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                      Map(Join()) o
+                      MapLcl(1)( fun(rowA =>
+                        MapLcl(0)( fun( colB =>
+                          toLocal(MapSeq(id) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)) $ Zip(rowA, colB)
+                        )) o Transpose() $ Get(pairOfTiles, 1)
+                      )) $ Get(pairOfTiles, 0)
+                  ) o
+
+                    // Copy tiles to local memory
+                    fun(pairOfTiles =>
+                      Tuple(
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                      )) $ pairOfTiles
+                )
+                  , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                ) $ Zip(aRows, bCols)
+
+            )) o Transpose() o Tile(tileSize) $ B
+            // Tile the matrices
+          )) o Tile(tileSize) $ A
+      })
+
+    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB)
+
+    println("output.size = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test def tiledMatrixMultiplyWithTransposeAndPrivate(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = MatrixMultiplication.tiled(tileSize)
 
-    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB)
+    val (output: Array[Float], runtime) = Execute(4, 4, mSize, nSize, (true, false))(f, matrixA, matrixB)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -1217,66 +722,12 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  // TODO: Gives incorrect result
-  @Ignore
-  @Test def MATRIX_MATRIX_2D_TESTS_1() {
-
-    val mSize = 32
-    val kSize = 32
-    val nSize = 32
-    //val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    //val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val matrixA = Array.tabulate(mSize, kSize)((r, c) => 1.0f)
-    val matrixB = Array.tabulate(kSize, nSize)((r, c) => 2.0f)
-
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
-
-    val r = 2 // number of rows a single workgroup computes
-    val c = 4 // number of columns a single workgroup computes
-    val d = 16 // chunk size
-
-    val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
-      (A, B) => {
-        Join() o MapWrg(0)(fun( aRows =>
-          Join() o MapWrg(1)(fun( bCols =>
-
-            Join() o MapSeq(fun( (zippedChunk) => //acc,
-
-              Barrier() o MapLcl(0)(fun( aRow =>
-                Barrier() o MapLcl(1)(fun( bCol =>
-
-                  toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
-
-                )) o Transpose() $ Get(zippedChunk, 1)
-              )) o Transpose() $ Get(zippedChunk, 0)
-
-            )) $ Zip(Split(d) o Transpose() $ aRows, Split(d) o Transpose() $ bCols) // ,0.0f*r*c
-
-          )) o Split(c) $ B
-        )) o Split(r) $ A
-      })
-
-    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
-
-    assertArrayEquals(gold, output, 0.0f)
-  }
-
-  @Test def MATRIX_MATRIX_2D_TESTS_2() {
+  @Test def MATRIX_MATRIX_2D_TEST() {
 
     val mSize = 8
     val kSize = 8
@@ -1314,7 +765,7 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     println("gold:")
     TestUtils.myPrint(gold, mSize)
