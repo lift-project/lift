@@ -362,6 +362,7 @@ object Type {
       case _: asScalar  =>        checkAsScalar(inT)
       case asVector(n) =>         checkAsVector(n, inT)
       case uf: UserFunDef =>      checkUserFunDef(uf, inT)
+      case tP: toPrivate =>       checkToPrivate(tP, inT, setType)
       case tL: toLocal =>         checkToLocal(tL, inT, setType)
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
       case i: Iterate =>          checkIterate(i, inT)
@@ -580,6 +581,12 @@ object Type {
     }
   }
 
+  private def checkToPrivate(tP: toPrivate, inT: Type, setType: Boolean): Type = {
+    if (tP.f.params.length != 1) throw new NumberOfArgumentsException
+    tP.f.params(0).t = inT
+    check(tP.f.body, setType)
+  }
+
   private def checkToLocal(tL: toLocal, inT: Type, setType: Boolean): Type = {
     if (tL.f.params.length != 1) throw new NumberOfArgumentsException
     tL.f.params(0).t = inT
@@ -648,14 +655,6 @@ object Type {
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
-
-//  private def checkIterateP(i: Iterate, inT: Type) : Type = {
-//    inT match{
-//      case at: ArrayType =>
-//        val
-//      case _ => throw new TypeException(inT, "ArrayType")
-//    }
-//  }
 
   def checkTranspose(t: Type): Type = {
     t match {

@@ -2,7 +2,7 @@ package opencl.executor
 
 import arithmetic.{Var, Cst, ArithExpr}
 import ir._
-import opencl.generator.{Verbose, OpenCLGenerator}
+import opencl.generator.{OpenCLGenerator}
 import opencl.ir._
 
 import scala.collection.immutable
@@ -286,7 +286,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
         outputData.asFloatArray()
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int) =>
         outputData.asIntArray()
-      case t => throw new IllegalArgumentException("Return type of the given lambda expression " +
+      case _ => throw new IllegalArgumentException("Return type of the given lambda expression " +
                                                    "not supported: " + t.toString)
     }
   }

@@ -53,11 +53,19 @@ abstract class Expr {
   def addressSpace: OpenCLAddressSpace = OpenCLMemory.asOpenCLMemory(this.mem).addressSpace
 
   def containsLocal: Boolean = {
+    containsMemory(LocalMemory)
+  }
+
+  private def containsMemory(memType: OpenCLAddressSpace): Boolean = {
     this.mem match {
-      case coll: OpenCLMemoryCollection => coll.subMemories.exists(x => x.addressSpace == LocalMemory)
-      case m: OpenCLMemory => m.addressSpace == LocalMemory
+      case coll: OpenCLMemoryCollection => coll.subMemories.exists(x => x.addressSpace == memType)
+      case m: OpenCLMemory => m.addressSpace == memType
       case _ => false
     }
+  }
+
+  def containsPrivate: Boolean = {
+    containsMemory(PrivateMemory)
   }
 
   def copy: Expr
@@ -327,19 +335,3 @@ case class IterateCall(override val f: Iterate, override val args: Expr*) extend
   var swapBuffer: Memory = UnallocatedMemory
   var indexVar = Var("i", RangeUnknown)
 }
-
-case class ConcreteHeadCall(override val f: ConcreteHead, override val args: Expr*) extends FunCall(f, args(0)) {
-  assert(args.length == 1)
-  def arg: Expr = args(0)
-}
-
-//
-//case class HeadCall(override val f: Head, override val args: Expr*) extends FunCall(f, args(0)) {
-//  assert(args.length == 1)
-//  def arg: Expr = args(0)
-//}
-//
-//case class TailCall(loopVar: Var, override val f: Tail, override val args: Expr*) extends FunCall(f, args(0)) {
-//  assert(args.length == 1)
-//  def arg: Expr = args(0)
-//}
