@@ -93,10 +93,8 @@ abstract class Benchmark(val name: String,
   }
 
   def runOpenCL(inputs: Any*): (Array[Float], Double) = {
-    val sizes: Seq[Int] = inputSizes()
 
     var realInputs = inputs
-    var realSizes = sizes
     val realGlobalSizes = globalSize
     var totalRuntime = 0.0
     var finalOutput = Array.emptyFloatArray
@@ -112,11 +110,10 @@ abstract class Benchmark(val name: String,
         realGlobalSizes(1),
         realGlobalSizes(2),
         (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-      )(lambdas(i), realInputs ++ realSizes:_*)
+      )(lambdas(i), realInputs:_*)
 
       // Adjust parameters for the next kernel, if any
       realInputs = Seq(output)
-      realSizes = Seq(output.length)
       realGlobalSizes(0) = output.length
       realGlobalSizes(1) = 1
       realGlobalSizes(2) = 1

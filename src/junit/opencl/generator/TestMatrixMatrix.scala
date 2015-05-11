@@ -321,67 +321,7 @@ class TestMatrixMatrix {
 
     val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = new Var("N")
-    val M = new Var("M")
-    val K = new Var("K")
-
-    val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
-      (A, B) => {
-        // Undo the tiling
-        Untile() o
-          MapWrg(0)(fun( aRows =>
-            MapWrg(1)(fun( bCols =>
-              Join() o Map(TransposeW()) o
-              toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(id)))) o
-                Join() o
-
-                // Multiply all necessary combinations of tiles
-                ReduceSeq(fun( (acc, pairOfTiles) =>
-
-                  fun(pairOfTiles =>
-                    Barrier() o fun(partial =>
-                      MapLcl(1)(fun(pairOfRows =>
-                        MapLcl(0)(fun(x => MapSeq(add) $ Zip(Get(x, 0), Get(x, 1))
-                        )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
-                      )) $ Zip(acc, partial)
-                    ) o
-
-                      MapLcl(1)( fun(rowsA =>
-                        MapLcl(0)( fun( colB =>
-                          Join() o ReduceSeq(fun((acc, rowElemPair) =>
-                            MapSeq(add) o fun(rowElemPair =>
-                              Zip(
-                                toPrivate(MapSeq(fun(a => mult.apply(a, Get(rowElemPair, 1)))
-                                )) $ Get(rowElemPair, 0),
-                                acc
-                              )
-                            ) $ rowElemPair
-                          ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, blockSize))
-                          ) $ Zip(Transpose() $ rowsA, colB)
-                        )) o Transpose() $ Get(pairOfTiles, 1)
-                      )) o Split(blockSize) $ Get(pairOfTiles, 0)
-
-                  ) o
-
-                    // Copy tiles to local memory
-                    fun(pairOfTiles =>
-                      Tuple(
-                        Join() o Barrier() o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
-                          o Split(tileSize/blockSize) $ Get(pairOfTiles, 0),
-                        Join() o Barrier() o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
-                          o Split(tileSize/blockSize) $ Get(pairOfTiles, 1)
-                      )) $ pairOfTiles
-                )
-                  , MapLcl(1)(MapLcl(0)(MapSeq(id))) $ Value(0.0f,
-                    ArrayType(ArrayType(ArrayType(Float, blockSize), tileSize), tileSize/blockSize))
-                ) $ Zip(aRows, bCols)
-
-            )) o Transpose() o Tile(tileSize) $ B
-            // Tile the matrices
-          )) o Tile(tileSize) $ A
-      })
+    val f = MatrixMultiplication.moreWorkPerThread(tileSize, blockSize)
 
     val (output: Array[Float], _) = Execute(tileSize, tileSize / blockSize,
       mSize, nSize / blockSize, (true, false))(f, matrixA, matrixB)
