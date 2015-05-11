@@ -111,6 +111,7 @@ object OpenCLMemory {
         case st: ScalarType => st.size
         case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
         case at: ArrayType => at.len * getSizeInBytes(at.elemT)
+        case mt: MatrixType => mt.dx * mt.dy * getSizeInBytes(mt.elemT)
         case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
         case _ => throw new TypeException(t, "??")
       }
@@ -260,6 +261,7 @@ object OpenCLMemory {
       case Split(_) | Join() | ReorderStride(_) | asVector(_) |
            asScalar() | Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) =>
         inMem
+      case Head() | Tail() => inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, outputMem, call.t, inMem)
 
@@ -307,7 +309,6 @@ object OpenCLMemory {
     am.f.params(0).mem = inMem
     alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, outputMem)
   }
-
 
   private def allocMapLcl(am: AbstractMap, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                           inMem: OpenCLMemory, outputMem: OpenCLMemory, maxLen: ArithExpr): OpenCLMemory = {

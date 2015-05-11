@@ -7,6 +7,7 @@ import opencl.ir._
 import scala.collection.immutable.Stack
 
 abstract class View(val t: Type = UndefType) {
+
   def replaced(oldExpr: ArithExpr, newExpr: ArithExpr): View = {
     val subst = new scala.collection.mutable.HashMap[ArithExpr,ArithExpr]()
     subst.put(oldExpr, newExpr)
@@ -24,7 +25,6 @@ abstract class View(val t: Type = UndefType) {
       case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(oldExpr, newExpr)), t)
       case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(oldExpr,newExpr), t)
       case group: ViewGroup => new ViewGroup(group.iv.replaced(oldExpr, newExpr), group.group, group.t)
-
       case  _ => this
     }
   }
@@ -93,6 +93,7 @@ abstract class View(val t: Type = UndefType) {
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
+//        new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
 }
 
 class ViewMem(val name: String, override val t: Type) extends View(t)
@@ -120,6 +121,10 @@ class ViewTupleComponent(val i: Int, val iv: View, override val t: Type) extends
 class ViewTuple(val ivs: Seq[View], override val t: Type) extends View(t)
 
 class ViewGroup(val iv: View, val group: Group, override val t: Type) extends View(t)
+
+class ViewHead(val iv: View, override val t: Type) extends View(t)
+
+class ViewTail(val iv: View, override val t: Type) extends View(t)
 
 object NoView extends View()
 
@@ -239,6 +244,18 @@ object ViewPrinter {
         val top = arrayAccessStack.top
         val newAAS = arrayAccessStack.pop.push((top._1 / asScalar.n, top._2)).map(x => (x._1, x._2 * asScalar.n))
         emitView(asScalar.iv, newAAS, tupleAccessStack)
+
+      case head: ViewHead =>
+        val newAAS = arrayAccessStack.pop
+        emitView(head.iv, newAAS,tupleAccessStack)
+
+      case tail: ViewTail =>
+        val (idx, stack) = arrayAccessStack.pop2
+        val newIdx = idx._1 + 1
+        val newLen = idx._2
+        val newAAS = stack.push((newIdx, newLen))
+        emitView(tail.iv,newAAS,tupleAccessStack)
+
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }

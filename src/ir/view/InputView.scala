@@ -56,6 +56,8 @@ object InputView {
           case _: asScalar => buildViewAsScalar(argView)
           case f: Filter => buildViewFilter(f, call, argView)
           case g: Group => buildViewGroup(g, call, argView)
+          case h: Head => buildViewHead(call, argView)
+          case h: Tail => buildViewTail(call, argView)
           //case uz: Unzip =>
           case _ => argView
         }
@@ -199,6 +201,17 @@ object InputView {
   private def buildViewScatter(scatter: Scatter, call: FunCall, argView: View): View = {
     scatter.f.params(0).view = argView
     visitAndBuildViews(scatter.f.body)
+  }
+
+  private def buildViewHead(head: FunCall, argView: View) : View = {
+//    head.f.params(0).view = argView
+//    visitAndBuildViews(head.f.body)
+//    throw new NotImplementedError("head view")
+    new ViewHead(argView.access(0), head.t)
+  }
+
+  private def buildViewTail(tail: FunCall, argView: View) : View = {
+    new ViewTail(argView, tail.t)
   }
 
 }

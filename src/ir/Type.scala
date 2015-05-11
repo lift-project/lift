@@ -35,6 +35,11 @@ case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
   override def toString = "Arr(" +elemT+","+len+ ")"
 }
 
+case class MatrixType(elemT: Type, dx: ArithExpr, dy: ArithExpr) extends Type {
+  override def toString = "Matrix("+elemT+","+dx+","+dy+")"
+  def len = dx*dy //is this an acceptable length calculation? Why do we want the length?
+}
+
 //case class UnboundArrayType(et: Type, te: TypeExpr) extends ArrayType(et)
 //case class BoundArrayType(et: Type, n: Int) extends ArrayType(et)
 
@@ -65,6 +70,7 @@ object Type {
       case vt: VectorType => vt.scalarT.name + vt.len.toString
       case tt: TupleType  => "Tuple_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
       case at: ArrayType  => "Array_" + Type.name(at.elemT)
+      case mt: MatrixType => "Matrix_"+ Type.name(mt.elemT)
     }
   }
 
@@ -84,6 +90,7 @@ object Type {
     var newT = pre(t)
     newT = newT match {
       case at: ArrayType => new ArrayType(visitRebuild(at.elemT, pre, post), at.len)
+      case mt: MatrixType => new MatrixType(visitRebuild(mt.elemT, pre, post),mt.dx, mt.dy)
       case vt: VectorType => new VectorType(visitRebuild(vt.scalarT, pre, post).asInstanceOf[ScalarType],vt.len)
       case tt: TupleType => new TupleType(tt.elemsT.map(et => visitRebuild(et,pre,post)):_*)
       case _ => newT // nothing to do
@@ -95,6 +102,7 @@ object Type {
     pre(t)
     t match {
       case at: ArrayType => visit(at.elemT, pre, post)
+      case mt: MatrixType => visit(mt.elemT, pre, post)
       case vt: VectorType => visit(vt.scalarT, pre, post)
       case tt: TupleType => tt.elemsT.foreach(et => visit(et,pre,post))
       case _ => // nothing to do
@@ -105,6 +113,7 @@ object Type {
   def getElemT(t: Type): Type = {
     t match {
       case at: ArrayType => at.elemT
+      case mt: MatrixType => mt.elemT
       case vt: VectorType => vt.scalarT
       case _ => throw new TypeException(t, "ArrayType")
     }
@@ -123,16 +132,38 @@ object Type {
   def getLength(t: Type) : ArithExpr = {
     t match {
       case at: ArrayType => at.len
+      case mt: MatrixType => mt.len
       case st: ScalarType => Cst(1)
       case vt: VectorType => getVectorSize(vt)
       case tt: TupleType => Cst(1)
       case _ => throw new TypeException(t, "ArrayType")
     }
   }
+  def getWidth(t: Type):ArithExpr = {
+    t match {
+      case at: ArrayType => at.len
+      case mt: MatrixType => mt.dx
+      case st: ScalarType => Cst(1)
+      case vt: VectorType => Cst(1)
+      case tt: TupleType => Cst(1)
+      case _ => throw new TypeException(t, "MatrixType")
+    }
+  }
+  def getHeight(t: Type):ArithExpr = {
+    t match {
+      case at: ArrayType => Cst(1)
+      case mt: MatrixType => mt.dy
+      case st: ScalarType => Cst(1)
+      case vt: VectorType => Cst(1)
+      case tt: TupleType => Cst(1)
+      case _ => throw new TypeException(t, "MatrixType")
+    }
+  }
 
   def getLengths(t: Type): Seq[ArithExpr] = {
     t match {
       case at: ArrayType => Seq(at.len) ++ getLengths(at.elemT)
+      case mt: MatrixType => Seq(mt.len) ++ getLengths(mt.elemT)
       case _ => Seq(getLength(t))
     }
   }
@@ -171,6 +202,7 @@ object Type {
   def length(t: Type, array: Array[ArithExpr] = Array.empty[ArithExpr]) : Array[ArithExpr] = {
     t match {
       case ArrayType(elemT, len) => Type.length(elemT, array :+ len)
+      case MatrixType(elemT, dx, dy) => Type.length(elemT, array :+ (dx*dy))
       case TupleType(_) => throw new TypeException(t, "ArrayType")
       case VectorType(_, len) => array :+ len
       //throw new TypeException(t, "ArrayType") // TODO: Think about what to do with vector types
@@ -239,7 +271,6 @@ object Type {
                 Pow(a, n)*tv
               }
               else throw new TypeException("Cannot infer closed form for iterate return type (only support x*a). inT = " + inT + " ouT = " + ouT)
-
             case _ => throw new TypeException("Cannot infer closed form for iterate return type. inT = " + inT + " ouT = " + ouT)
           }
         }
@@ -343,6 +374,8 @@ object Type {
       case f: Filter =>           checkFilter(f, inT, setType)
       case g: Group =>            checkGroup(g, inT)
       case _: Barrier =>          inT
+      case h: Head =>             checkHead(inT)
+      case t: Tail =>             checkTail(inT)
     }
   }
 
@@ -376,6 +409,13 @@ object Type {
         if (am.f.params.length != 1) throw new NumberOfArgumentsException
         am.f.params(0).t = getElemT(inT)
         ArrayType(check(am.f.body, setType), getLength(inT))
+      case mt: MatrixType =>
+        if (am.f.params.length != 1) throw new NumberOfArgumentsException
+        am.f.params(0).t = getElemT(inT)
+        //recursively check the type - this won't work on nested maps
+        //(e.g. mapWrg over rows, then mapLcl over elements)
+        //as it's not expecting to be passed to nested maps
+        MatrixType(check(am.f.body, setType), mt.dx, mt.dy)
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
@@ -383,14 +423,14 @@ object Type {
   private def checkReduce(ar: AbstractPartRed, inT: Type, setType: Boolean): Type = {
     inT match {
       case tt: TupleType =>
-        if (tt.elemsT.length != 2) throw new NumberOfArgumentsException
-        val initT = tt.elemsT.head
-        val elemT = getElemT(tt.elemsT(1))
-        if (ar.f.params.length != 2) throw new NumberOfArgumentsException
-        ar.f.params(0).t = initT
-        ar.f.params(1).t = elemT
-        check(ar.f.body, setType)
-        ArrayType(initT, new Cst(1))
+        if (tt.elemsT.length != 2) throw new NumberOfArgumentsException // get the input type to the reduction, got to be tuple of array + initial val
+        val initT = tt.elemsT.head //get the type of the initial value
+        val elemT = getElemT(tt.elemsT(1)) // get the type of the array values to the reduce
+        if (ar.f.params.length != 2) throw new NumberOfArgumentsException // make sure our function has two args
+        ar.f.params(0).t = initT // initial elem type
+        ar.f.params(1).t = elemT // array element type
+        check(ar.f.body, setType) // check the body - setting the type
+        ArrayType(initT, new Cst(1)) // return a constant length array
       case _ => throw new TypeException(inT, "TupleType")
     }
   }
@@ -471,11 +511,34 @@ object Type {
   }
 
   private def checkSplit(n: ArithExpr, inT: Type): Type = {
+    println(inT.toString())
     inT match {
       case at: ArrayType => ArrayType(ArrayType(at.elemT, n), at.len / n)
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
+
+  private def checkHead(inT: Type): Type = {
+    inT match {
+      case at: ArrayType =>
+        ArrayType(at.elemT, Cst(1))
+//        at.elemT
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
+  private def checkTail(inT: Type): Type = {
+    inT match {
+      case at: ArrayType =>
+        if(at.len == Cst(1)) {
+          ArrayType(at.elemT, Cst(1))
+        }else {
+          ArrayType(at.elemT, at.len - 1)
+        }
+      case _ => throw new TypeException(inT, "ArrayType")
+    }
+  }
+
 
   private def checkAsScalar(inT: Type): Type = {
     inT match {
@@ -539,6 +602,18 @@ object Type {
   private def checkIterate(i: Iterate, inT: Type): Type = {
     inT match {
       case at: ArrayType =>
+        //perform a simple (and hopefully quick!) check to see if the input/output types
+        //of the nested function match. If they do, we don't need to do the closed
+        //form iterate to work out the output type
+        i.f.params(0).t = inT
+        if(check(i.f.body, setType=false) == inT)
+        {
+          //if they match, check the body as normal, and return that type.
+          return check(i.f.body, setType=true)
+        }else{
+          //reset the input parameter to "UndefType" ready for closed form iterate checking
+          i.f.params(0).t = UndefType
+        }
         // substitute all the expression in the input type with type variables
         val tvMap = scala.collection.mutable.HashMap[TypeVar, ArithExpr]()
         var inputTypeWithTypeVar = visitRebuild(at, t => t, {
@@ -611,6 +686,7 @@ object Type {
       case vt: VectorType => vt.scalarT
       case tt: TupleType => TupleType( tt.elemsT.map( devectorize ):_* )
       case at: ArrayType => ArrayType(devectorize(at.elemT), at.len)
+      case mt: MatrixType => MatrixType(devectorize(mt.elemT), mt.dx, mt.dy)
       case _ => t
     }
   }

@@ -99,6 +99,32 @@ case class MapSeq(f: Lambda1) extends GenerableMap(f) {
   }
 }
 
+// Map over a matrix - more abstract, to please the typechecker
+
+case class MapMatrix(dim: Int, f: Lambda1) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapMatrix", Var("wg_id"), this, args(0))
+  }
+
+  override def $(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+
+object MapMatrix {
+  def apply(f: Lambda1) = new MapMatrix(0, f) // 0 is default
+
+  def apply(dim: Int) = (f: Lambda1) => new MapMatrix(dim, f)
+}
+
+object jMapMatrix {
+  def create(f: Lambda1) = MapMatrix(f)
+  def create(f: FunDecl) = MapMatrix(Lambda1.FunDefToLambda(f))
+}
+
+// Reductions
+
 case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
   override def apply(args: Expr*) : ReduceCall = {
     assert(args.length == 2)
@@ -235,6 +261,11 @@ case class Scatter(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](
 object Scatter {
   def apply(idx: IndexFunction) = (f: Lambda1) => new Scatter(idx, f)
 }
+
+case class Head() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
+case class Tail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*

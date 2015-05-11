@@ -130,6 +130,9 @@ class OpenCLPrinter {
       case ArrayType(elemT, _) =>
         val s = toOpenCL(elemT, seenArray=true)
         if (!seenArray) s + "*" else s
+      case MatrixType(elemT, _, _) =>
+        val s = toOpenCL(elemT, seenArray=true)
+        if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)
       case ScalarType(name, _) => name
       case tt: TupleType => Type.name(tt)
@@ -241,7 +244,6 @@ class OpenCLPrinter {
     }
   }
 
-
   def generateBarrier(mem : Memory) {
     mem match {
       case m : OpenCLMemory => generateBarrier(m)
@@ -260,6 +262,28 @@ class OpenCLPrinter {
     }
   }
 
+
+  //hacky iterator call to experiment with dropWhile primitive
+//  def generateIterate(conditionalBody: (() => Unit),printBody: (() => Unit)): Unit = {
+//    print("while(")
+//    conditionalBody()
+//    println(")")
+//    openCB()
+//    printBody()
+//    closeCB()
+//  }
+  def generateConditional(printConditional: (() => Unit), printIfBody: (() => Unit), printElseBody: (() => Unit)){
+    print("if(")
+    printConditional() // crappy hack - we've got to allow for conditionals that have function calls, so we can't use a string
+    print(")")
+    openCB()
+    printIfBody()
+    closeCB()
+    println("else")
+    openCB()
+    printElseBody()
+    closeCB()
+  }
 
   def generateLoop(indexVar: Var, printBody: () => Unit, iterationCount: ArithExpr = ?) {
     val range = indexVar.range.asInstanceOf[RangeAdd]
