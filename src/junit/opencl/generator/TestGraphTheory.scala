@@ -29,8 +29,9 @@ class TestGraphTheory {
 
   val add = UserFunDef("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
   val mult = UserFunDef("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
-  val or = UserFunDef("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
-  val and = UserFunDef("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  //boolean operations - odd names for compatibility on NVIDIA platforms
+  val or = UserFunDef("b_or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  val and = UserFunDef("b_and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
 
   @Test def DENSE_BFS_ITERATION(): Unit = {
     println("DENSE_BFS_ITERATION")
