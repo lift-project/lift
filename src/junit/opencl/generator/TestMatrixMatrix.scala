@@ -240,6 +240,88 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, matrixC6.flatten, 0.001f)
   }
 
+  @Test def rectangularTiles(): Unit = {
+    val mSize = 512
+    val kSize = 512
+    val nSize = 512
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val tileSizeM = 64
+    val tileSizeN = 64
+    val tileSizeK = 32
+    val workPerThread = 8
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), K), // Transposed
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapWrg(0)(fun( aRows =>
+            MapWrg(1)(fun( bCols =>
+              Join() o Map(TransposeW()) o
+                toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(id)))) o
+                Join() o
+
+                // Multiply all necessary combinations of tiles
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(pairOfTiles =>
+                    Barrier() o fun(partial =>
+                      MapLcl(1)(fun(pairOfRows =>
+                        MapLcl(0)(fun(x => MapSeq(add) $ Zip(Get(x, 0), Get(x, 1))
+                        )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
+                      )) $ Zip(acc, partial)
+                    ) o
+
+                      MapLcl(1)( fun(rowsA =>
+                        MapLcl(0)( fun( colB =>
+                          Join() o ReduceSeq(fun((acc, rowElemPair) =>
+                            MapSeq(add) o fun(rowElemPair =>
+                              Zip(
+                                toPrivate(MapSeq(fun(a => mult.apply(a, Get(rowElemPair, 1)))
+                                )) $ Get(rowElemPair, 0),
+                                acc
+                              )
+                            ) $ rowElemPair
+                          ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, workPerThread))
+                          ) $ Zip(Transpose() $ rowsA, colB)
+                        )) o Transpose()$ Get(pairOfTiles, 1)
+                      )) o Split(workPerThread) o Transpose() $ Get(pairOfTiles, 0)
+
+                  ) o
+
+                    // Copy tiles to local memory
+                    fun(pairOfTiles =>
+                      Tuple(
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+                          $ Get(pairOfTiles, 0),
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+                           $ Get(pairOfTiles, 1)
+                      )) $ pairOfTiles
+                )
+                  , MapLcl(1)(MapLcl(0)(MapSeq(id))) $ Value(0.0f,
+                    ArrayType(ArrayType(ArrayType(Float, workPerThread), tileSizeM), tileSizeN/workPerThread))
+                ) $ Zip(aRows, bCols)
+
+            )) o Transpose() o Tile(tileSizeK, tileSizeN) $ B
+            // Tile the matrices
+          )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
+      })
+
+    val (output: Array[Float], _) = Execute(tileSizeM, tileSizeN / workPerThread,
+      mSize, nSize / workPerThread, (true, true))(f, matrixA.transpose, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
   @Test def mmReuseB(): Unit = {
     val mSize = 16
     val kSize = 16
