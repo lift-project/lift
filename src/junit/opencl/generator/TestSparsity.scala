@@ -56,9 +56,9 @@ class TestSparsity {
     val gold = Array(vector.head)
 
     val f = fun (ArrayType(Float,Var("N")),(input) =>
-      MapSeq(id) o Head()$ input
+        MapSeq(id) o Join() o Head() o Split(2) $ input
     )
-    val (output:Array[Float], runtime) = Execute(1,1)(f,vector,vector.size)
+    val (output:Array[Float], runtime) = Execute(1,1)(f,vector)
 
 
     println("output(0) = "+output(0))
@@ -75,7 +75,7 @@ class TestSparsity {
     val f = fun (ArrayType(Float,Var("N")),(input) =>
       MapSeq(id) o Head() o Tail() $ input
     )
-    val (output: Array[Float], runtime) = Execute(vector.length)(f,vector,vector.size)
+    val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
 
     println("output(0) = "+output(0))
     println("vector = "+vector.toList.toString())

@@ -126,8 +126,6 @@ class ViewHead(val iv: View, override val t: Type) extends View(t)
 
 class ViewTail(val iv: View, override val t: Type) extends View(t)
 
-//class DynamicView(val iv: View, val viewVar: Var, override t:Type) extends View(t)
-
 object NoView extends View()
 
 object View {

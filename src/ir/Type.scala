@@ -373,7 +373,6 @@ object Type {
       case f: Filter =>           checkFilter(f, inT, setType)
       case g: Group =>            checkGroup(g, inT)
       case _: Barrier =>          inT
-//      case h: ConcreteHead =>     checkHead(inT)
       case h: Head =>             checkHead(inT)
       case t: Tail =>             checkTail(inT)
     }
@@ -520,9 +519,9 @@ object Type {
 
   private def checkHead(inT: Type): Type = {
     inT match {
-//      case at: ArrayType => at.elemT
       case at: ArrayType =>
         ArrayType(at.elemT, Cst(1))
+//        at.elemT
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
