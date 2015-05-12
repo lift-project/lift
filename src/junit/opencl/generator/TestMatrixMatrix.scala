@@ -356,7 +356,7 @@ class TestMatrixMatrix {
 
 
               toGlobal(MapLcl(1)(
-                Scatter(IndexFunction.reorderStride(blockSize))(MapLcl(0)(id))
+                Scatter(IndexFunction.reorderStride(blockSize)) o MapLcl(0)(id)
               )) o
                 Join() o
 

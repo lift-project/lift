@@ -5,28 +5,20 @@ import java.util.function.BiFunction
 import arithmetic.ArithExpr
 import ir._
 import opencl.ir._
+import opencl.ir.CompositePatterns._
 
 object jGather {
-  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: Lambda1) = {
-    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
-    Gather(idxLambda, f)
-  }
 
-  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: FunDecl) = {
+  def create(idx: BiFunction[ArithExpr, Type, ArithExpr]) = {
     val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
-    Gather(idxLambda, Lambda1.FunDefToLambda(f))
+    Gather(idxLambda)
   }
 }
 
 object jScatter {
-  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: Lambda1) = {
+  def create(idx: BiFunction[ArithExpr, Type, ArithExpr]) = {
     val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
-    Scatter(idxLambda, f)
-  }
-
-  def create(idx: BiFunction[ArithExpr, Type, ArithExpr], f: FunDecl) = {
-    val idxLambda = (a: ArithExpr, t: Type) => idx(a,t)
-    Scatter(idxLambda, Lambda1.FunDefToLambda(f))
+    Scatter(idxLambda)
   }
 }
 

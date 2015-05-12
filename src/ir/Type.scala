@@ -368,14 +368,11 @@ object Type {
       case i: Iterate =>          checkIterate(i, inT)
       case _: Transpose =>        checkTranspose(inT)
       case _: TransposeW =>       checkTranspose(inT)
-      case _: ReorderStride =>    inT
-      case g: Gather =>           checkGather(g, inT, setType)
-      case s: Scatter =>          checkScatter(s, inT, setType)
       case f: Filter =>           checkFilter(f, inT, setType)
       case g: Group =>            checkGroup(g, inT)
-      case _: Barrier =>          inT
       case h: Head =>             checkHead(inT)
       case t: Tail =>             checkTail(inT)
+      case Barrier() | Gather(_) | Scatter(_) => inT
     }
   }
 
@@ -511,7 +508,7 @@ object Type {
   }
 
   private def checkSplit(n: ArithExpr, inT: Type): Type = {
-    println(inT.toString())
+    println(inT.toString)
     inT match {
       case at: ArrayType => ArrayType(ArrayType(at.elemT, n), at.len / n)
       case _ => throw new TypeException(inT, "ArrayType")
@@ -557,18 +554,6 @@ object Type {
   private def checkUserFunDef(uf: UserFunDef, inT: Type): Type = {
     val substitutions = reify(uf.inT, inT)
     substitute(uf.outT, substitutions.toMap)
-  }
-
-  private def checkGather(g: Gather, inT: Type, setType: Boolean): Type = {
-    if (g.f.params.length != 1) throw new NumberOfArgumentsException
-    g.f.params(0).t = inT
-    check(g.f.body, setType)
-  }
-
-  private def checkScatter(s: Scatter, inT: Type, setType: Boolean): Type = {
-    if (s.f.params.length != 1) throw new NumberOfArgumentsException
-    s.f.params(0).t = inT
-    check(s.f.body, setType)
   }
 
   private def checkFilter(f: Filter, inT: Type, setType: Boolean): Type = {

@@ -1,10 +1,8 @@
 package ir
 
-import java.util.function
 import arithmetic.{Var, ArithExpr}
 import opencl.ir._
 
-import scala.collection.JavaConverters._
 import language.implicitConversions
 
 abstract class FunDecl(val params: Array[Param]) {

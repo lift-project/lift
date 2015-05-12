@@ -28,7 +28,6 @@ object OutputView {
           case _: Join => buildViewJoin(call, writeView)
           case uf: UserFunDef => buildViewUserFun(writeView, call)
           case s: Scatter => buildViewScatter(s, call, writeView)
-          case g: Gather => buildViewGather(g, call, writeView)
           case tP: toPrivate => buildViewToPrivate(tP, writeView)
           case tL: toLocal => buildViewToLocal(tL, writeView)
           case tG: toGlobal => buildViewToGlobal(tG, writeView)
@@ -160,13 +159,8 @@ object OutputView {
     }
   }
 
-  private def buildViewGather(gather: Gather, call: FunCall, writeView: View): View = {
-    visitAndBuildViews(gather.f.body, writeView)
-  }
-
   private def buildViewScatter(scatter: Scatter, call: FunCall, writeView: View): View = {
-    val reordered = writeView.reorder( (i:ArithExpr) => { scatter.idx.f(i, call.t) } )
-    visitAndBuildViews(scatter.f.body, reordered)
+    writeView.reorder( (i:ArithExpr) => { scatter.idx.f(i, call.t) } )
   }
 
   private def buildViewHead(head: Head, writeView: View) : View = {

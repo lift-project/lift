@@ -31,7 +31,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Scatter(reverse)(MapGlb(id)) $ in
+      in => Scatter(reverse) o MapGlb(id) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
@@ -50,7 +50,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapGlb(Scatter(reverse)(MapSeq(id))) $ in
+      in => MapGlb(Scatter(reverse) o MapSeq(id)) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -69,7 +69,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Scatter(reverse)(MapGlb(MapSeq(id))) $ in
+      in => Scatter(reverse) o MapGlb(MapSeq(id)) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -88,7 +88,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Scatter(reverse)(MapGlb(Scatter(reverse)(MapSeq(id)))) $ in
+      in => Scatter(reverse) o MapGlb(Scatter(reverse) o MapSeq(id)) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -106,7 +106,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Gather(reverse)(MapGlb(id)) $ in
+      in => MapGlb(id) o Gather(reverse) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
@@ -125,7 +125,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapGlb(Gather(reverse)(MapSeq(id))) $ in
+      in => MapGlb(MapSeq(id) o Gather(reverse)) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -144,7 +144,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(reverse)(MapGlb(MapSeq(id))) $ in
+      in => MapGlb(MapSeq(id)) o Gather(reverse) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -163,7 +163,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(reverse)(MapGlb(Gather(reverse)(MapSeq(id)))) $ in
+      in => MapGlb(MapSeq(id) o Gather(reverse)) o Gather(reverse) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -181,7 +181,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Gather(reverse)(MapWrg(id)) $ in
+      in => MapWrg(id) o Gather(reverse) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
@@ -200,7 +200,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapWrg(Gather(reverse)(Barrier() o MapLcl(id))) $ in
+      in => MapWrg(Barrier() o MapLcl(id) o Gather(reverse)) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -219,7 +219,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(reverse)(MapWrg(Barrier() o MapLcl(id))) $ in
+      in => MapWrg(Barrier() o MapLcl(id)) o Gather(reverse) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -238,7 +238,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => Gather(reverse)(MapWrg(Gather(reverse)(Barrier() o MapLcl(id)))) $ in
+      in => MapWrg(Barrier() o MapLcl(id) o Gather(reverse)) o Gather(reverse) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -258,7 +258,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Gather(reverse)(MapGlb(MapSeq(id))) o Split(splitSize) $ in
+      in => MapGlb(MapSeq(id)) o Gather(reverse) o Split(splitSize) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(1,Nsize)(f, vector)
@@ -278,7 +278,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapGlb(Gather(reverse)(MapSeq(id))) o Split(splitSize) $ in
+      in => MapGlb(MapSeq(id) o Gather(reverse)) o Split(splitSize) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
@@ -298,7 +298,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Scatter(reverse)(MapGlb(MapSeq(id))) o Split(splitSize) $ in
+      in => Scatter(reverse) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(1,Nsize)(f, vector)
@@ -318,7 +318,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapGlb(Scatter(reverse)(MapSeq(id))) o Split(splitSize) $ in
+      in => MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
@@ -338,7 +338,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapGlb(MapSeq(id) o Scatter(reverse)(MapSeq(id))) o Split(splitSize) $ in
+      in => MapGlb(MapSeq(id) o Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
