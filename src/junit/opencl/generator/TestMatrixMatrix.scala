@@ -10,6 +10,8 @@ import opencl.ir.CompositePatterns._
 import ir._
 import ir.UserFunDef._
 
+import scala.reflect.ClassTag
+
 object TestMatrixMatrix {
   @BeforeClass def before() {
     Executor.loadLibrary()
@@ -208,12 +210,7 @@ class TestMatrixMatrix {
 
     assertArrayEquals(gold, matrixC3, 0.001f)
 
-    /*
-     * Below:
-     * Trying to reuse A
-     *
-     */
-
+    // Trying to reuse A
     val matrixC4 = matrixA.map(rowA => (rowA, matrixB).zipped.map((elemA, rowB) => rowB.map(_*elemA)))
       .transpose.fold(Array.ofDim[Float](16, 16))((a, b) =>  (a, b).zipped.map((a, b) => (a, b).zipped.map(_+_))).flatten
 
@@ -228,16 +225,73 @@ class TestMatrixMatrix {
 
     assertArrayEquals(gold, matrixC5.flatten, 0.001f)
 
-    /*
-     * Below:
-     * Trying to reuse B
-     */
-
+    // Trying to reuse B
     val matrixC6 = matrixA.grouped(4).toArray.map(rowsA => matrixB.transpose.map(colB =>(rowsA.transpose, colB).zipped.
       foldLeft(Array.ofDim[Float](4))((acc, rowElemPair) => (rowElemPair._1.map(_*rowElemPair._2), acc).
       zipped.map(_+_)))).map(_.transpose).flatten
 
     assertArrayEquals(gold, matrixC6.flatten, 0.001f)
+
+    def reorder[T: ClassTag](array: Array[T], f: Int => Int): Array[T] = {
+      val newArray = Array.ofDim[T](array.length)
+
+      for (i <- 0 until array.length) {
+        newArray(i) = array(f(i))
+      }
+
+      newArray
+    }
+
+    val f: (Int) => Int = i => {
+      val s = 4
+      val n = matrixB.length / s
+      (i / n) + s * (i % n)
+    }
+
+     // Trying to reuse both
+     val matrixC7 = matrixA.grouped(4).toArray.map(rowsA =>
+       reorder(matrixB.transpose, f).grouped(4).toArray.map(colsB => (rowsA.transpose, colsB.transpose).zipped.
+         foldLeft(Array.ofDim[Float](4, 4))((acc, rowElemPair) => (rowElemPair._1.map(elem => rowElemPair._2.map(_ * elem)), acc).
+         zipped.map((a, b) => (a, b).zipped.map(_+_))))
+     ).map(_.map(_.transpose).flatten.transpose).flatten.map(reorder(_, f))
+
+    assertArrayEquals(gold, matrixC7.flatten, 0.001f)
+
+  }
+
+  @Test def mmReuseBoth(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val workPerThreadN = 4
+    val workPerThreadM = 4
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val n = new Var("N")
+    val m = new Var("M")
+    val k = new Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, k), m),
+      ArrayType(ArrayType(Float, n), k),
+      (A, B) =>
+        MapSeq(Scatter(IndexFunction.reorderStride(workPerThreadM))(MapSeq(id))) o Join() o Map(TransposeW() o Join() o Map(TransposeW())) o
+          MapGlb(fun( rowsA =>
+            MapSeq(fun( colsB =>
+              toGlobal(MapSeq(MapSeq(id))) o Join() o ReduceSeq(fun((acc, rowElemPair) =>
+                MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) o fun(rowElemPair => Zip(toPrivate(MapSeq(fun(a => MapSeq(fun(b => mult.apply(a, b))) $ Get(rowElemPair, 1)))) $ Get(rowElemPair, 0), acc)) $ rowElemPair
+              ), toPrivate(MapSeq(MapSeq(id))) $ Value("0.0f", ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN))) $ Zip(Transpose() $ rowsA, Transpose() $ colsB)
+            )) o Split(workPerThreadM) o ReorderStride(workPerThreadM) o Transpose() $ B
+          )) o Split(workPerThreadN) $ A
+    )
+
+    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def rectangularTiles(): Unit = {
