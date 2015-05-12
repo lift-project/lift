@@ -1,4 +1,4 @@
-package junit.opencl.generator
+package opencl.generator
 
 import arithmetic.Var
 import ir.UserFunDef._
