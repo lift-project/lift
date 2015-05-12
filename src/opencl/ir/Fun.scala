@@ -13,6 +13,8 @@ object CompositePatterns {
     Map(Map(Transpose()) o Split(y) o Transpose()) o Split(x)
 
   def Untile() = Join() o Map(Map(Join()) o TransposeW())
+
+  def ReorderStride(s: ArithExpr) = Gather(IndexFunction.reorderStride(s))
  }
 
 case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
@@ -164,9 +166,6 @@ case class toPrivate(f: Lambda1) extends Pattern(Array[Param](Param(UndefType)))
 case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   var valid = true
 }
-
-case class ReorderStride(s: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
-  //override def copy() = ReorderStride()
 
 case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 

@@ -4,6 +4,7 @@ import arithmetic.Var
 import ir.UserFunDef._
 import ir._
 import opencl.ir._
+import opencl.ir.CompositePatterns._
 
 class SumAbsoluteValues(override val name: String,
                  override val defaultInputSizes: Seq[Int],

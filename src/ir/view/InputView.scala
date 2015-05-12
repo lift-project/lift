@@ -43,7 +43,6 @@ object InputView {
           case Split(n) => buildViewSplit(n, argView)
           case _: Join => buildViewJoin(call, argView)
           case uf: UserFunDef => buildViewUserFunDef()
-          case ReorderStride(s) => buildViewReorderStride(s, call, argView)
           case g: Gather => buildViewGather(g, call, argView)
           case tP: toPrivate => buildViewToPrivate(tP, argView)
           case tL: toLocal => buildViewToLocal(tL, argView)
@@ -165,12 +164,6 @@ object InputView {
 
   private def buildViewUserFunDef(): View = {
     NoView
-  }
-
-  private def buildViewReorderStride(s: ArithExpr, call: FunCall, argView: View): View = {
-    val n = Type.getLength(call.argsType) / s
-
-    argView.reorder( (i:ArithExpr) => { (i div n) + s * ( i % n) } )
   }
 
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {

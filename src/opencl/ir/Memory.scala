@@ -255,7 +255,7 @@ object OpenCLMemory {
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, numPvt, inMem)
 
-      case Split(_) | Join() | ReorderStride(_) | asVector(_) | asScalar() |
+      case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) |
            Head() | Tail() | Gather(_) | Scatter(_)=>
         inMem

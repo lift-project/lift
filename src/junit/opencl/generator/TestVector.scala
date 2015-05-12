@@ -7,6 +7,7 @@ import ir._
 import opencl.executor.{Execute, Compile, Executor}
 import opencl.ir._
 import opencl.ir.IndexFunction.reverse
+import opencl.ir.CompositePatterns._
 import org.junit.Assert._
 import org.junit.{Test, AfterClass, BeforeClass}
 

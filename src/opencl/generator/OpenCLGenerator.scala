@@ -282,7 +282,7 @@ object OpenCLGenerator extends Generator {
         case fp: FPattern => generate(fp.f.body)
         case l: Lambda => generate(l.body)
         case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
-        case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | asVector(_) | asScalar() |
+        case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) =>
 

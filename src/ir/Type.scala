@@ -372,7 +372,7 @@ object Type {
       case g: Group =>            checkGroup(g, inT)
       case h: Head =>             checkHead(inT)
       case t: Tail =>             checkTail(inT)
-      case Barrier() | ReorderStride(_) | Gather(_) | Scatter(_) => inT
+      case Barrier() | Gather(_) | Scatter(_) => inT
     }
   }
 
