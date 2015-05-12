@@ -295,9 +295,9 @@ class TestMatrixMatrix {
   }
 
   @Test def rectangularTiles(): Unit = {
-    val mSize = 512
-    val kSize = 512
-    val nSize = 512
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
@@ -307,10 +307,10 @@ class TestMatrixMatrix {
     val M = Var("M")
     val K = Var("K")
 
-    val tileSizeM = 64
-    val tileSizeN = 64
-    val tileSizeK = 32
-    val workPerThread = 8
+    val tileSizeM = 8
+    val tileSizeN = 8
+    val tileSizeK = 4
+    val workPerThread = 2
 
     val f = fun(
       ArrayType(ArrayType(Float, M), K), // Transposed
