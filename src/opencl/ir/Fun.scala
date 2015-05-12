@@ -13,6 +13,8 @@ object CompositePatterns {
     Map(Map(Transpose()) o Split(y) o Transpose()) o Split(x)
 
   def Untile() = Join() o Map(Map(Join()) o TransposeW())
+
+  def ReorderStride(s: ArithExpr) = Gather(IndexFunction.reorderStride(s))
  }
 
 case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
@@ -99,6 +101,32 @@ case class MapSeq(f: Lambda1) extends GenerableMap(f) {
   }
 }
 
+// Map over a matrix - more abstract, to please the typechecker
+
+case class MapMatrix(dim: Int, f: Lambda1) extends GenerableMap(f) {
+  override def apply(args: Expr*) : MapCall = {
+    assert(args.length == 1)
+    new MapCall("MapMatrix", Var("wg_id"), this, args(0))
+  }
+
+  override def $(that: Expr) : MapCall = {
+    apply(that)
+  }
+}
+
+object MapMatrix {
+  def apply(f: Lambda1) = new MapMatrix(0, f) // 0 is default
+
+  def apply(dim: Int) = (f: Lambda1) => new MapMatrix(dim, f)
+}
+
+object jMapMatrix {
+  def create(f: Lambda1) = MapMatrix(f)
+  def create(f: FunDecl) = MapMatrix(Lambda1.FunDefToLambda(f))
+}
+
+// Reductions
+
 case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
   override def apply(args: Expr*) : ReduceCall = {
     assert(args.length == 2)
@@ -138,9 +166,6 @@ case class toPrivate(f: Lambda1) extends Pattern(Array[Param](Param(UndefType)))
 case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   var valid = true
 }
-
-case class ReorderStride(s: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
-  //override def copy() = ReorderStride()
 
 case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
@@ -199,17 +224,18 @@ object IndexFunction {
   implicit def apply(f: (ArithExpr, Type) => ArithExpr): IndexFunction = new IndexFunction(f)
 
   // predefined reorder functions ...
-  val transpose = (i: ArithExpr, t: Type) => {
-    val outerType = t match { case at: ArrayType => at }
-    val innerType = outerType.elemT match { case at: ArrayType => at }
-
-    val outerSize = outerType.len
-    val innerSize = innerType.len
-
+  val transposeFunction = (outerSize: ArithExpr, innerSize: ArithExpr) => (i: ArithExpr, t: Type) => {
     val col = (i % innerSize) * outerSize
     val row = i div innerSize
 
     row + col
+  }
+
+  val transpose = (i: ArithExpr, t: Type) => {
+    val outerType = t match { case at: ArrayType => at }
+    val innerType = outerType.elemT match { case at: ArrayType => at }
+
+    transposeFunction(outerType.len, innerType.len)(i, t)
   }
 
   val reverse = (i: ArithExpr, t: Type) => {
@@ -224,17 +250,14 @@ object IndexFunction {
   }
 }
 
-case class Gather(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+case class Gather(idx: IndexFunction) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-object Gather {
-  def apply(idx: IndexFunction) = (f: Lambda1) => new Gather(idx, f)
-}
+case class Scatter(idx: IndexFunction) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class Scatter(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+case class Head() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-object Scatter {
-  def apply(idx: IndexFunction) = (f: Lambda1) => new Scatter(idx, f)
-}
+case class Tail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part
 /*

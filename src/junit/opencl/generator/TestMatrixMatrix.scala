@@ -279,7 +279,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, k), m),
       ArrayType(ArrayType(Float, n), k),
       (A, B) =>
-        MapSeq(Scatter(IndexFunction.reorderStride(workPerThreadM))(MapSeq(id))) o Join() o Map(TransposeW() o Join() o Map(TransposeW())) o
+        MapSeq(Scatter(IndexFunction.reorderStride(workPerThreadM))) o Join() o Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( rowsA =>
             MapSeq(fun( colsB =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o ReduceSeq(fun((acc, rowElemPair) =>
@@ -492,7 +492,7 @@ class TestMatrixMatrix {
 
 
               toGlobal(MapLcl(1)(
-                Scatter(IndexFunction.reorderStride(blockSize))(MapLcl(0)(id))
+                Scatter(IndexFunction.reorderStride(blockSize)) o MapLcl(0)(id)
               )) o
                 Join() o
 

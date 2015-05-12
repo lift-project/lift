@@ -3,6 +3,8 @@ package ir
 import arithmetic.{Var, ArithExpr}
 import opencl.ir._
 
+import language.implicitConversions
+
 abstract class FunDecl(val params: Array[Param]) {
 
   def isGenerable = false
@@ -171,8 +173,6 @@ object PartRed {
   def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = PartRed(f)(init, expr)
 }
 
-
-
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
@@ -329,11 +329,22 @@ object UserFunDef {
 
 }
 
+object jUserFunDef {
+  def create(name: String, paramName: Any, body: String, inT: Type, outT: Type): UserFunDef = {
+    UserFunDef(name, paramName, body, inT, outT)
+  }
+
+  def create(name: String, paramNames: Array[Any], body: String, inTs: Array[Type], outT: Type): UserFunDef = {
+    UserFunDef(name, paramNames, body, inTs, outT)
+  }
+}
+
+
 case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
 
-  override def apply(args: Expr*) : IterateCall = iterateCall(args:_*)
+  override def apply(args: Expr*): IterateCall = iterateCall(args: _*)
 
-  override def $(that: Expr) : IterateCall = iterateCall(that)
+  override def $(that: Expr): IterateCall = iterateCall(that)
 
   private def iterateCall(args: Expr*): IterateCall = {
     assert(args.length == 1)

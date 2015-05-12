@@ -206,6 +206,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     // 3. create output OpenCL kernel argument
     val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
+
     val outputData = global(outputSize)
 
     // 4. create all OpenCL data kernel arguments
@@ -218,11 +219,18 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     val args: Array[KernelArg] = memArgs ++ sizes
 
     // 7. execute via JNI
+//    args.foreach({
+//      case g: GlobalArg => println(g.asFloatArray().toList.toString())
+//    })
+
     val runtime = Executor.execute(code, localSize1, localSize2, localSize3,
                                    globalSize1, globalSize2, globalSize3, args)
 
     // 8. cast the output accordingly to the output type
     val output = castToOutputType(f.body.t, outputData)
+//      case g: GlobalArg => println(g.asFloatArray().toList.toString())
+//    })
+
 
     // 9. release OpenCL objects
     args.foreach(_.dispose)
@@ -404,6 +412,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       def apply(array: Array[Float]) = GlobalArg.createInput(array)
 
       def apply(array: Array[Int]) = GlobalArg.createInput(array)
+//    def apply(array: Array[(Int,Float)]) = GlobalArg.createInput(array)
     }
 
     /**

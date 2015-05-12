@@ -6,7 +6,7 @@ import ir._
 import ir.UserFunDef._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.IndexFunction.transpose
+import opencl.ir.IndexFunction.transposeFunction
 
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -246,7 +246,7 @@ class TestTranspose {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapGlb(0)(MapGlb(1)(id)) o Gather(transpose)(Split(N)) o Join() $ matrix
+        MapGlb(0)(MapGlb(1)(id)) o Split(N) o Gather(transposeFunction(M, N)) o Join() $ matrix
       })
 
     val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
@@ -417,13 +417,13 @@ class TestTranspose {
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, K), M), N),
       (matrix) => {
-        Gather(transpose)(
+
           MapGlb(0)(
             MapGlb(1)(
               MapSeq(id)
             )
-          ) o Split(Nsize)
-        ) o Join() $ matrix
+          ) o Split(Nsize) o Gather(transposeFunction(M, N)) o
+         Join() $ matrix
       })
 
     val (output: Array[Float], runtime) = Execute(4, Nsize * Msize)(f, matrix)

@@ -7,6 +7,7 @@ import ir._
 import opencl.executor.{Execute, Compile, Executor}
 import opencl.ir._
 import opencl.ir.IndexFunction.reverse
+import opencl.ir.CompositePatterns._
 import org.junit.Assert._
 import org.junit.{Test, AfterClass, BeforeClass}
 
@@ -109,9 +110,9 @@ class TestVector {
 
     val negFun = fun(ArrayType(Float, Var("N")), (input) =>
 
-      Gather(reverse)(Join() o MapGlb(
+      Join() o MapGlb(
         MapSeq(neg)
-      ) o Split(4)) $ input
+      ) o Split(4) o Gather(reverse) $ input
     )
 
     val (output: Array[Float], runtime) = Execute(16, inputArray.length)(negFun, inputArray)

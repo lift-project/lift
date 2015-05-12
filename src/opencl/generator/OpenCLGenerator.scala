@@ -271,7 +271,9 @@ object OpenCLGenerator extends Generator {
         case _: ReduceSeq => generateReduceSeqCall(call)
         case _: ReduceHost => generateReduceSeqCall(call)
       }
+
       case call: IterateCall => generateIterateCall(call)
+
       case call: FunCall => call.f match {
         case cf: CompFunDef => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
 
@@ -280,8 +282,10 @@ object OpenCLGenerator extends Generator {
         case fp: FPattern => generate(fp.f.body)
         case l: Lambda => generate(l.body)
         case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
-        case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | asVector(_) | asScalar() |
-             Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() =>
+        case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
+             Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
+             Head() | Tail() | Scatter(_) | Gather(_) =>
+
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case v: Value => generateValue(v)
@@ -339,7 +343,7 @@ object OpenCLGenerator extends Generator {
         call.addressSpace == PrivateMemory)
     oclPrinter.commln("map_seq")
   }
-
+  
   // === Reduce ===
   private def generateReduceSeqCall(call: ReduceCall) {
 
@@ -348,6 +352,7 @@ object OpenCLGenerator extends Generator {
 
     generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
       call.arg1.containsPrivate)
+    //print an OpenCL/C declaration for our variable
 
     oclPrinter.commln("reduce_seq")
     oclPrinter.closeCB()
@@ -409,8 +414,10 @@ object OpenCLGenerator extends Generator {
     oclPrinter.print(outVStr + " : " + swapVStr)
     oclPrinter.println(" ;")
 
-    oclPrinter.println("#pragma unroll 1")
-    generateLoop(call.indexVar, () => {
+//    Removed the pragma temporarily as it was causing a (presumably) memory related bug on non NVIDIA and Intel CPU platforms
+//    TODO: implement a platform dependent system for inserting the pragma when legal
+//    oclPrinter.println("#pragma unroll 1")
+    oclPrinter.generateLoop(call.indexVar, () => {
 
       // modify the pointers to the memory before generating the body
       val oldInV = inputMem.variable
@@ -427,14 +434,14 @@ object OpenCLGenerator extends Generator {
 
       // tmp = tmp * outputLen / inputLen
       oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = " +
-        oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength)) +
-        ";")
+                         oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength))+
+                         ";")
 
       // tin = (tout == swap) ? swap : out
-      oclPrinter.println(tinVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + swapVStr + ":" + outVStr + ";")
+      oclPrinter.println(tinVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ swapVStr +":"+ outVStr+";")
       // tout = (tout == swap) ? out : swap
-      oclPrinter.println(toutVStr + " = ( " + toutVStr + "==" + swapVStr + " ) ? " + outVStr + ":" + swapVStr + ";")
-    }, call.iterationCount, call.arg.containsPrivate || call.addressSpace == PrivateMemory)
+      oclPrinter.println(toutVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ outVStr +":"+ swapVStr+";")
+    }, call.iterationCount)
 
     oclPrinter.closeCB()
   }

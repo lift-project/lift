@@ -302,7 +302,6 @@ sealed class FunCall(val f: FunDecl, val args: Expr*) extends Expr with Cloneabl
   }
 
 }
-
 // specific types of function calls ...
 
 case class MapCall(name: String, loopVar: Var,

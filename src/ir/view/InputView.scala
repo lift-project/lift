@@ -43,9 +43,7 @@ object InputView {
           case Split(n) => buildViewSplit(n, argView)
           case _: Join => buildViewJoin(call, argView)
           case uf: UserFunDef => buildViewUserFunDef()
-          case ReorderStride(s) => buildViewReorderStride(s, call, argView)
           case g: Gather => buildViewGather(g, call, argView)
-          case s: Scatter => buildViewScatter(s, call, argView)
           case tP: toPrivate => buildViewToPrivate(tP, argView)
           case tL: toLocal => buildViewToLocal(tL, argView)
           case tG: toGlobal => buildViewToGlobal(tG, argView)
@@ -56,6 +54,8 @@ object InputView {
           case _: asScalar => buildViewAsScalar(argView)
           case f: Filter => buildViewFilter(f, call, argView)
           case g: Group => buildViewGroup(g, call, argView)
+          case h: Head => buildViewHead(call, argView)
+          case h: Tail => buildViewTail(call, argView)
           //case uz: Unzip =>
           case _ => argView
         }
@@ -166,12 +166,6 @@ object InputView {
     NoView
   }
 
-  private def buildViewReorderStride(s: ArithExpr, call: FunCall, argView: View): View = {
-    val n = Type.getLength(call.argsType) / s
-
-    argView.reorder( (i:ArithExpr) => { (i div n) + s * ( i % n) } )
-  }
-
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
     call.t match {
       case ArrayType(ArrayType(typ, m), n) =>
@@ -192,13 +186,18 @@ object InputView {
   }
 
   private def buildViewGather(gather: Gather, call: FunCall, argView: View): View = {
-    gather.f.params(0).view = argView.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
-    visitAndBuildViews(gather.f.body)
+    argView.reorder( (i:ArithExpr) => { gather.idx.f(i, call.t) } )
   }
 
-  private def buildViewScatter(scatter: Scatter, call: FunCall, argView: View): View = {
-    scatter.f.params(0).view = argView
-    visitAndBuildViews(scatter.f.body)
+  private def buildViewHead(head: FunCall, argView: View) : View = {
+//    head.f.params(0).view = argView
+//    visitAndBuildViews(head.f.body)
+//    throw new NotImplementedError("head view")
+    new ViewHead(argView.access(0), head.t)
+  }
+
+  private def buildViewTail(tail: FunCall, argView: View) : View = {
+    new ViewTail(argView, tail.t)
   }
 
 }
