@@ -1,9 +1,7 @@
-package opencl.generator
+package opencl.executor
 
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-
-import opencl.executor._
 
 
 object TestEval {
