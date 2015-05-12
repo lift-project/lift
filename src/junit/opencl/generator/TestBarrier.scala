@@ -50,7 +50,7 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o MapLcl(id)
+          Barrier() o MapLcl(id) o Gather(reverse) o Barrier() o MapLcl(id)
         ) o Split(128) $ input
     )
 
@@ -71,7 +71,7 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o MapLcl(id) o Barrier() o Gather(reverse)(MapLcl(id))
+          Barrier() o MapLcl(id) o Barrier() o MapLcl(id) o Gather(reverse)
         ) o Split(128) $ input
     )
 
@@ -92,7 +92,7 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(MapLcl(id)) o Gather(reverse)
         ) o Split(128) $ input
     )
 
@@ -113,7 +113,7 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))
+          Barrier() o toGlobal(MapLcl(id)) o Gather(reverse) o Barrier() o toLocal(MapLcl(id))
         ) o Split(128) $ input
     )
 
@@ -134,7 +134,7 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o toGlobal(Scatter(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))
+          Barrier() o toGlobal(Scatter(reverse) o MapLcl(id)) o Barrier() o toLocal(MapLcl(id))
         ) o Split(128) $ input
     )
 
@@ -198,7 +198,7 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o toLocal(MapLcl(id)) o Gather(reverse)
         ) o Split(128) $ input
     )
 
@@ -219,7 +219,7 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o toLocal(MapLcl(id))
+          Barrier() o toGlobal(MapLcl(id)) o Gather(reverse) o Barrier() o toLocal(MapLcl(id))
         ) o Split(128) $ input
     )
 
@@ -240,8 +240,8 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o toGlobal(MapLcl(id)) o Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o
-          toLocal(Gather(reverse)(MapLcl(id)))
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o MapLcl(id) o Gather(reverse) o Barrier() o
+          toLocal(MapLcl(id)) o Gather(reverse)
         ) o Split(128) $ input
     )
 
@@ -262,8 +262,8 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o toGlobal(Gather(reverse)(MapLcl(id))) o Barrier() o
-          Gather(reverse)(MapLcl(id)) o Barrier() o toLocal(Gather(reverse)(MapLcl(id)))
+          Barrier() o toGlobal(MapLcl(id)) o Gather(reverse) o Barrier() o
+          MapLcl(id) o Gather(reverse) o Barrier() o toLocal(MapLcl(id)) o Gather(reverse)
         ) o Split(128) $ input
     )
 
@@ -284,8 +284,8 @@ class TestBarrier {
       ArrayType(Float, new Var("N")),
       input =>
         Join() o MapWrg(
-          Barrier() o toGlobal(MapLcl(id)) o Barrier() o Gather(reverse)(MapLcl(id)) o Barrier() o
-          toLocal(Gather(reverse)(MapLcl(id)))
+          Barrier() o toGlobal(MapLcl(id)) o Barrier() o MapLcl(id) o Gather(reverse) o Barrier() o
+          toLocal(MapLcl(id)) o Gather(reverse)
         ) o Split(128) $ input
     )
 

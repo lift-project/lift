@@ -283,9 +283,9 @@ object OpenCLGenerator extends Generator {
         case l: Lambda => generate(l.body)
         case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
         case Unzip() | ReorderStride(_) | Transpose() | TransposeW() | asVector(_) | asScalar() |
-             Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() =>
+             Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
+             Head() | Tail() | Scatter(_) | Gather(_) =>
 
-        case Head() | Tail() =>
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case v: Value => generateValue(v)

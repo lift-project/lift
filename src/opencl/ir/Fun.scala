@@ -225,17 +225,18 @@ object IndexFunction {
   implicit def apply(f: (ArithExpr, Type) => ArithExpr): IndexFunction = new IndexFunction(f)
 
   // predefined reorder functions ...
-  val transpose = (i: ArithExpr, t: Type) => {
-    val outerType = t match { case at: ArrayType => at }
-    val innerType = outerType.elemT match { case at: ArrayType => at }
-
-    val outerSize = outerType.len
-    val innerSize = innerType.len
-
+  val transposeFunction = (outerSize: ArithExpr, innerSize: ArithExpr) => (i: ArithExpr, t: Type) => {
     val col = (i % innerSize) * outerSize
     val row = i div innerSize
 
     row + col
+  }
+
+  val transpose = (i: ArithExpr, t: Type) => {
+    val outerType = t match { case at: ArrayType => at }
+    val innerType = outerType.elemT match { case at: ArrayType => at }
+
+    transposeFunction(outerType.len, innerType.len)(i, t)
   }
 
   val reverse = (i: ArithExpr, t: Type) => {
@@ -250,17 +251,9 @@ object IndexFunction {
   }
 }
 
-case class Gather(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+case class Gather(idx: IndexFunction) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-object Gather {
-  def apply(idx: IndexFunction) = (f: Lambda1) => new Gather(idx, f)
-}
-
-case class Scatter(idx: IndexFunction, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
-
-object Scatter {
-  def apply(idx: IndexFunction) = (f: Lambda1) => new Scatter(idx, f)
-}
+case class Scatter(idx: IndexFunction) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 case class Head() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 

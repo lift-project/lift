@@ -253,15 +253,12 @@ object OpenCLMemory {
       case tl: toLocal =>         allocToLocal(tl,    numGlb, numLcl, numPvt, inMem, outputMem, maxLclOutSize)
       case tp: toPrivate =>       allocToPrivate(tp, numGlb, numLcl, numPvt, inMem, outputMem, maxPvtOutSize)
 
-      case g: Gather =>           allocGather(g, numGlb, numLcl, numPvt, inMem, outputMem)
-      case s: Scatter =>          allocScatter(s, numGlb, numLcl, numPvt, inMem, outputMem)
-
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, numPvt, inMem)
 
-      case Split(_) | Join() | ReorderStride(_) | asVector(_) |
-           asScalar() | Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) =>
+      case Split(_) | Join() | ReorderStride(_) | asVector(_) | asScalar() |
+           Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) |
+           Head() | Tail() | Gather(_) | Scatter(_)=>
         inMem
-      case Head() | Tail() => inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, outputMem, call.t, inMem)
 
@@ -330,20 +327,6 @@ object OpenCLMemory {
         alloc(r.f.body, numGlb, numLcl, numPvt, initM)
       case _ => throw new IllegalArgumentException("PANIC")
     }
-  }
-
-  private def allocGather(g: Gather, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
-                          inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
-    if (g.f.params.length != 1) throw new NumberOfArgumentsException
-    g.f.params(0).mem = inMem
-    alloc(g.f.body, numGlb, numLcl, numPvt, outputMem)
-  }
-
-  private def allocScatter(s: Scatter, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
-                           inMem: OpenCLMemory, outputMem: OpenCLMemory): OpenCLMemory = {
-    if (s.f.params.length != 1) throw new NumberOfArgumentsException
-    s.f.params(0).mem = inMem
-    alloc(s.f.body, numGlb, numLcl, numPvt, outputMem)
   }
 
   private def allocToGlobal(tg: toGlobal, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,

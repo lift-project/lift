@@ -109,9 +109,9 @@ class TestVector {
 
     val negFun = fun(ArrayType(Float, Var("N")), (input) =>
 
-      Gather(reverse)(Join() o MapGlb(
+      Join() o MapGlb(
         MapSeq(neg)
-      ) o Split(4)) $ input
+      ) o Split(4) o Gather(reverse) $ input
     )
 
     val (output: Array[Float], runtime) = Execute(16, inputArray.length)(negFun, inputArray)
