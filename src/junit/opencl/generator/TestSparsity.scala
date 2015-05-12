@@ -1,4 +1,4 @@
-package junit.opencl.generator
+package opencl.generator
 
 import arithmetic._
 import opencl.executor._
