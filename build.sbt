@@ -2,13 +2,13 @@ name := "Apart"
 
 version := "1.0"
 
-scalaSource in Compile <<= baseDirectory(_ / "src")
+scalaSource in Compile <<= baseDirectory(_ / "srci/main")
 
-scalaSource in Test <<= baseDirectory(_ / "src/junit")
+scalaSource in Test <<= baseDirectory(_ / "src/test")
 
-javaSource in Compile <<= baseDirectory(_ / "src")
+javaSource in Compile <<= baseDirectory(_ / "src/main")
 
-javaSource in Test <<= baseDirectory(_ / "src/junit")
+javaSource in Test <<= baseDirectory(_ / "src/test")
 
 libraryDependencies += "junit" % "junit" % "4.11"
 
