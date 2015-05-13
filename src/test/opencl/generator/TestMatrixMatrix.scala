@@ -438,7 +438,11 @@ class TestMatrixMatrix {
                                   )) $ Get(rowElemPair, 0),
                                   acc
                                 )
-                            ) $ rowElemPair
+                            ) o fun(rowElemPair =>
+                              Tuple(
+                                Get(rowElemPair, 0),
+                                toPrivate(MapSeq(id)) $ Get(rowElemPair, 1)
+                            )) $ rowElemPair
                           ), toPrivate(MapSeq(MapSeq(id))) $ Value("0.0f", ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN))
                           ) $ Zip(Transpose() $ rowsA, Transpose() $ colsB)
 
