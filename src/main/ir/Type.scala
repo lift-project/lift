@@ -74,18 +74,6 @@ object Type {
     }
   }
 
-  /*def visitExpr(t: Type, pre: (Expr) => (Unit), post: (Expr) => (Unit)) : Unit = {    
-    t match {
-      case at: ArrayType => {
-        pre(at.len) 
-        visitExpr(at.elemT, pre, post)
-        post(at.len)
-      }
-      case tt: TupleType => tt.elemsT.map(et => visitExpr(et,pre,post))              
-      case _ => //throw new NotImplementedError()
-    }
-  } */
-
   def visitRebuild(t: Type, pre: (Type) => (Type), post: (Type) => (Type)) : Type = {
     var newT = pre(t)
     newT = newT match {
@@ -508,7 +496,6 @@ object Type {
   }
 
   private def checkSplit(n: ArithExpr, inT: Type): Type = {
-    println(inT.toString)
     inT match {
       case at: ArrayType => ArrayType(ArrayType(at.elemT, n), at.len / n)
       case _ => throw new TypeException(inT, "ArrayType")
@@ -519,7 +506,6 @@ object Type {
     inT match {
       case at: ArrayType =>
         ArrayType(at.elemT, Cst(1))
-//        at.elemT
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
@@ -535,7 +521,6 @@ object Type {
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
-
 
   private def checkAsScalar(inT: Type): Type = {
     inT match {
@@ -559,9 +544,7 @@ object Type {
   private def checkFilter(f: Filter, inT: Type, setType: Boolean): Type = {
     inT match {
       case TupleType(ArrayType(t, n), ArrayType(Int, m)) =>
-
         ArrayType(t, m)
-
       case _ => throw new TypeException(inT, "TupleType(ArrayType(_, _), ArrayType(Int, _))")
     }
   }
@@ -606,12 +589,6 @@ object Type {
             val tv = TypeVar()
             tvMap += tv -> at.len
             new ArrayType(at.elemT, tv)
-          /*
-          case vt: VectorType =>
-            val tv = TypeVar()
-            tvMap += tv -> vt.len
-            new VectorType(vt.scalarT, tv)
-          */
           case t: Type => t
         })
 
