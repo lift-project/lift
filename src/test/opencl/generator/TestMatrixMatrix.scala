@@ -279,7 +279,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, k), m),
       ArrayType(ArrayType(Float, n), k),
       (A, B) =>
-        MapSeq(Scatter(IndexFunction.reorderStride(workPerThreadM))) o Join() o Map(TransposeW() o Join() o Map(TransposeW())) o
+        Map(Scatter(IndexFunction.reorderStride(workPerThreadM))) o Join() o Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( rowsA =>
             MapSeq(fun( colsB =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o ReduceSeq(fun((acc, rowElemPair) =>
@@ -372,6 +372,101 @@ class TestMatrixMatrix {
 
     val (output: Array[Float], _) = Execute(tileSizeM, tileSizeN / workPerThread,
       mSize, nSize / workPerThread, (true, true))(f, matrixA.transpose, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test def mmTiledAndBlocked(): Unit = {
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val tileSizeM = 8
+    val tileSizeN = 8
+    val tileSizeK = 4
+    val workPerThreadN = 2
+    val workPerThreadM = 2
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), K), // Transposed
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapWrg(0)(fun( aRows =>
+            MapWrg(1)(fun( bCols =>
+
+              Map(Scatter(IndexFunction.reorderStride(workPerThreadM))) o Join() o
+                Map(TransposeW() o Join() o Map(TransposeW())) o
+
+                toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) o
+
+                Join() o
+
+                // Multiply all necessary combinations of tiles
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(pairOfTiles =>
+                    Barrier() o fun(partial =>
+                      MapLcl(1)(fun(pairOfRows =>
+                        MapLcl(0)(fun(x =>
+                          MapSeq(fun( y =>
+                            MapSeq(add) $ Zip(Get(y, 0), Get(y, 1))
+                          )) $ Zip(Get(x, 0), Get(x, 1))
+                        )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
+                      )) $ Zip(acc, partial)
+                    ) o
+
+                      MapLcl(1)( fun(rowsA =>
+                        MapLcl(0)( fun( colsB =>
+                          Join() o ReduceSeq(fun((acc, rowElemPair) =>
+                            MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) o
+                              fun(rowElemPair =>
+                                Zip(
+                                  toPrivate(MapSeq(fun(a =>
+                                    MapSeq(fun(b =>
+                                      mult.apply(a, b)
+                                    )) $ Get(rowElemPair, 1))
+                                  )) $ Get(rowElemPair, 0),
+                                  acc
+                                )
+                            ) $ rowElemPair
+                          ), toPrivate(MapSeq(MapSeq(id))) $ Value("0.0f", ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN))
+                          ) $ Zip(Transpose() $ rowsA, Transpose() $ colsB)
+
+                        ))o Split(workPerThreadM) o ReorderStride(workPerThreadM) o Transpose() $ Get(pairOfTiles, 1)
+                      )) o Split(workPerThreadN) o Transpose() $ Get(pairOfTiles, 0)
+
+                  ) o
+
+                    // Copy tiles to local memory
+                    fun(pairOfTiles =>
+                      Tuple(
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+                          $ Get(pairOfTiles, 0),
+                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+                          $ Get(pairOfTiles, 1)
+                      )) $ pairOfTiles
+                )
+                  , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
+                    ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
+                ) $ Zip(aRows, bCols)
+
+              // Tile the matrices
+            )) o Transpose() o Tile(tileSizeK, tileSizeN) $ B
+          )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
+      })
+
+    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
