@@ -433,11 +433,11 @@ class TestMatrixMatrix {
                             MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) o
                               fun(rowElemPair =>
                                 Zip(
-                                  toPrivate(MapSeq(fun(a =>
-                                    MapSeq(fun(b =>
-                                      mult.apply(a, b)
-                                    )) $ Get(rowElemPair, 1))
-                                  )) $ Get(rowElemPair, 0),
+                                  Join() o toPrivate(MapSeq(MapSeq(
+                                    fun(aArray => MapSeq(fun(b =>
+                                      mult.apply(aArray, b)
+                                    )) $ Get(rowElemPair, 1))) o toPrivate(MapSeq(id))
+                                  )) o Split(1) $ Get(rowElemPair, 0),
                                   acc
                                 )
                             ) o fun(rowElemPair =>
