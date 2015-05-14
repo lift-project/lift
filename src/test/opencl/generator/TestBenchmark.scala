@@ -133,30 +133,28 @@ class TestBenchmark {
         }
 
         (y * 255) / iterations
-        //        y.toFloat
       })
     }).flatten
 
     val md = UserFunDef("md", Array("i", "j", "niters", "size"),
       """|{
-         |  float space = 2.0f / size;
+         |  const float space = 2.0f / size;
          |  float Zr = 0.0f;
          |  float Zi = 0.0f;
          |  float Cr = (j * space - 1.5f);
          |  float Ci = (i * space - 1.0f);
-         |
-         |   float ZrN = 0;
-         |  float ZiN = 0;
          |  int y = 0;
          |
-         |  for (y = 0; y < niters && ZiN + ZrN <= 4.0f; y++) {
-         |    Zi = 2.0f * Zr * Zi + Ci;
+         |  for (y = 0; y < niters; y++) {
+         |    const float ZiN = Zi * Zi;
+         |    const float ZrN = Zr * Zr;
+         |    if(ZiN + ZrN > 4.0f) break;
+         |    Zi *= Zr;
+         |    Zi *= 2.0f;
+         |    Zi += Ci;
          |    Zr = ZrN - ZiN + Cr;
-         |    ZiN = Zi * Zi;
-         |    ZrN = Zr * Zr;
          |  }
          |  return ((y * 255) / niters);
-         |//        "  return (float) y;
          |}
          |""".stripMargin, Seq(Int, Int, Int, Int), Int)
 
