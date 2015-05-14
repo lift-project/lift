@@ -387,9 +387,9 @@ class TestMatrixMatrix {
   }
 
   @Test def mmTiledAndBlockedBInnermost(): Unit = {
-    val mSize = 16
-    val kSize = 16
-    val nSize = 16
+    val mSize = 512
+    val kSize = 512
+    val nSize = 512
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
@@ -399,11 +399,11 @@ class TestMatrixMatrix {
     val M = Var("M")
     val K = Var("K")
 
-    val tileSizeM = 8
-    val tileSizeN = 8
-    val tileSizeK = 4
-    val workPerThreadN = 2
-    val workPerThreadM = 2
+    val tileSizeM = 16
+    val tileSizeN = 16
+    val tileSizeK = 8
+    val workPerThreadN = 4
+    val workPerThreadM = 4
 
     val f = fun(
       ArrayType(ArrayType(Float, M), K), // Transposed
