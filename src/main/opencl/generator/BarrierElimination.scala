@@ -74,7 +74,8 @@ object BarrierElimination {
         if (groups.length > 1)
           !(barrierInHead && (finalReadMemory == GlobalMemory || finalReadMemory == LocalMemory && !insideLoop))
         else
-          groups.head.last.body.containsLocal && insideLoop
+          (groups.head.last.body.containsLocal ||
+            groups.head.last.params.foldLeft(false)((needsBarrier, param) => param.containsLocal || needsBarrier) ) && insideLoop
 
       groups.zipWithIndex.foreach(x => {
         val group = x._1
