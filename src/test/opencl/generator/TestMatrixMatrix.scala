@@ -491,7 +491,7 @@ class TestMatrixMatrix {
     val K = Var("K")
 
     val tileSizeM = 8
-    val tileSizeN = 8
+    val tileSizeN = tileSizeM
     val tileSizeK = 4
     val workPerThreadN = 2
     val workPerThreadM = 2
@@ -516,15 +516,7 @@ class TestMatrixMatrix {
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o fun(partial =>
-                      MapLcl(1)(fun(pairOfRows =>
-                        MapLcl(0)(fun(x =>
-                          MapSeq(fun( y =>
-                            MapSeq(add) $ Zip(Get(y, 0), Get(y, 1))
-                          )) $ Zip(Get(x, 0), Get(x, 1))
-                        )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
-                      )) $ Zip(acc, partial)
-                    ) o
+                    Barrier() o
 
                       MapLcl(1)( fun(rowsA =>
                         MapLcl(0)( fun( colsB =>
@@ -532,11 +524,11 @@ class TestMatrixMatrix {
                             MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) o
                               fun(rowElemPair =>
                                 Zip(
-                                  toPrivate(MapSeq(fun(a =>
-                                    MapSeq(fun(b =>
-                                      mult.apply(a, b)
-                                    )) $ Get(rowElemPair, 0))
-                                  )) $ Get(rowElemPair, 1),
+                                  Join() o toPrivate(MapSeq(MapSeq(
+                                    fun(aArray => MapSeq(fun(b =>
+                                      mult.apply(aArray, b)
+                                    )) $ Get(rowElemPair, 0))) o toPrivate(MapSeq(id))
+                                  )) o Split(1) $ Get(rowElemPair, 1),
                                   acc
                                 )
                               ) o fun(rowElemPair =>
@@ -544,11 +536,11 @@ class TestMatrixMatrix {
                                 toPrivate(MapSeq(id)) $ Get(rowElemPair, 0),
                                 Get(rowElemPair, 1)
                               )) $ rowElemPair
-                          ), toPrivate(MapSeq(MapSeq(id))) $ Value("0.0f", ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN))
-                          ) $ Zip(Transpose() $ rowsA, Transpose() $ colsB)
+                          ), Get(colsB, 1)
+                          ) $ Zip(Transpose() $ Get(rowsA, 0), Transpose() $ Get(colsB, 0))
 
-                        ))o Split(workPerThreadM) o ReorderStride(workPerThreadM) o Transpose() $ Get(pairOfTiles, 1)
-                      )) o Split(workPerThreadN) o Transpose() $ Get(pairOfTiles, 0)
+                        )) $ Zip(Split(workPerThreadM) o ReorderStride(workPerThreadM) o Transpose() $ Get(pairOfTiles, 1), Get(rowsA, 1))
+                      ))  $ Zip(Split(workPerThreadN) o Transpose() $ Get(pairOfTiles, 0), acc)
 
                   ) o
 
