@@ -12,7 +12,7 @@ public class Executor {
                                  int globalSize1, int globalSize2, int globalSize3,
                                  KernelArg[] args)
     {
-        return execute(kernelCode, "KERNEL", localSize1, localSize2, localSize3,
+        return execute(kernelCode, "KERNEL", "", localSize1, localSize2, localSize3,
                 globalSize1, globalSize2, globalSize3, args);
     }
 
@@ -33,12 +33,18 @@ public class Executor {
         System.loadLibrary("executor-jni");
     }
 
-    public native static double execute(String kernelCode, String kernelName,
+    public native static double execute(String kernelCode, String kernelName, String buildOptions,
                                         int localSize1, int localSize2, int localSize3,
                                         int globalSize1, int globalSize2, int globalSize3,
                                         KernelArg[] args);
 
     public native static void init(int platformId, int deviceId);
+
+    public native static String getPlatformName();
+
+    public native static String getDeviceName();
+
+    public native static String getDeviceType();
 
     public static void init() {
         String platform = System.getenv("APART_PLATFORM");
