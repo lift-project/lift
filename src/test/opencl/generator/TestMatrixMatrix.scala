@@ -414,7 +414,7 @@ class TestMatrixMatrix {
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
-              Map(Scatter(IndexFunction.reorderStride(workPerThreadM))) o Join() o
+              Map(Scatter(IndexFunction.reorderStride(tileSizeM/workPerThreadM))) o Join() o
                 Map(TransposeW() o Join() o Map(TransposeW())) o
 
                 toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) o
@@ -448,7 +448,7 @@ class TestMatrixMatrix {
                           ), Get(colsB, 1)
                           ) $ Zip(Transpose() $ Get(rowsA, 0), Transpose() $ Get(colsB, 0))
 
-                        )) $ Zip(Split(workPerThreadM) o ReorderStride(workPerThreadM) o Transpose() $ Get(pairOfTiles, 1), Get(rowsA, 1))
+                        )) $ Zip(Split(workPerThreadM) o ReorderStride(tileSizeM/workPerThreadM) o Transpose() $ Get(pairOfTiles, 1), Get(rowsA, 1))
                       ))  $ Zip(Split(workPerThreadN) o Transpose() $ Get(pairOfTiles, 0), acc)
 
                   ) o
@@ -505,7 +505,7 @@ class TestMatrixMatrix {
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
-              Map(Scatter(IndexFunction.reorderStride(workPerThreadM))) o Join() o
+              Map(Scatter(IndexFunction.reorderStride(tileSizeM/workPerThreadM))) o Join() o
                 Map(TransposeW() o Join()) o
 
                 toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) o
@@ -539,7 +539,7 @@ class TestMatrixMatrix {
                           ), Get(colsB, 1)
                           ) $ Zip(Transpose() $ Get(rowsA, 0), Transpose() $ Get(colsB, 0))
 
-                        )) $ Zip(Split(workPerThreadM) o ReorderStride(workPerThreadM) o Transpose() $ Get(pairOfTiles, 1), Get(rowsA, 1))
+                        )) $ Zip(Split(workPerThreadM) o ReorderStride(tileSizeM/workPerThreadM) o Transpose() $ Get(pairOfTiles, 1), Get(rowsA, 1))
                       ))  $ Zip(Split(workPerThreadN) o Transpose() $ Get(pairOfTiles, 0), acc)
 
                   ) o
