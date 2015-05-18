@@ -1,7 +1,7 @@
 package arithmetic
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import scala.util.Random
 
@@ -365,6 +365,14 @@ class TestExpr {
     assertTrue(ArithExpr.multipleOf(3 * n / 4, n / 8))
     assertFalse(ArithExpr.multipleOf(n / 8, n / 4))
     assertFalse(ArithExpr.multipleOf(n / 8, n))
+  }
+
+  @Ignore
+  @Test
+  def divisionSmallerThan(): Unit = {
+    val l = Var("l", GoesToRange(64))
+
+    assertTrue(ArithExpr.isSmaller(l div 16, 8))
   }
 
   @Test
