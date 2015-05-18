@@ -76,7 +76,6 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
-  @Ignore
   @Test
   def zipUnzip(): Unit = {
     val inputSize = 1024

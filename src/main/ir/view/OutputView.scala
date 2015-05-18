@@ -36,7 +36,8 @@ object OutputView {
           case t: Transpose => buildViewTranspose(t, call, writeView)
           case asVector(n) => buildViewAsVector(n, writeView)
           case _: asScalar => buildViewAsScalar(call, writeView)
-          case Zip(_) | Tuple(_) => buildViewZipTuple(call, writeView)
+          case Zip(_) => buildViewZip(call, writeView)
+          case Tuple(_) => buildViewTuple(call, writeView)
           case h: Head => buildViewHead(h, writeView)
           case t: Tail => buildViewTail(t, writeView)
           //case uz: Unzip =>
@@ -50,8 +51,14 @@ object OutputView {
     writeView
   }
 
-  private def buildViewZipTuple(call: FunCall, writeView: View): View = {
+  private def buildViewZip(call: FunCall, writeView: View): View = {
     call.args.map((expr: Expr) => visitAndBuildViews(expr, writeView))
+    writeView
+  }
+
+  private def buildViewTuple(call: FunCall, writeView: View): View = {
+    call.args.zipWithIndex.map({ case (e, i) => visitAndBuildViews(e,
+      View.initialiseNewView(e.t, e.inputDepth)) })
     writeView
   }
 

@@ -27,6 +27,11 @@ class BuildDepthInfo() {
       case call: MapCall => buildDepthInfoMapCall(call)
       case call: ReduceCall => buildDepthInfoReduceCall(call)
       case call: FunCall =>
+        val (readsLocal, readsPrivate) = readsLocalPrivate(call)
+        val (writesLocal, writesPrivate) = writesLocalPrivate(call)
+
+        setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
+
         call.f match {
           case l: Lambda => buildDepthInfoLambda(l)
           case cf: CompFunDef => buildDepthInfoCompFunDef(cf)
@@ -38,10 +43,15 @@ class BuildDepthInfo() {
   }
 
   private def buildDepthInfoMapCall(call: MapCall): Unit = {
-    val readsLocal = call.arg.containsLocal
-    val readsPrivate = call.arg.containsPrivate
+    val (readsLocal, readsPrivate) = readsLocalPrivate(call)
 
     buildDepthInfoPatternCall(call.f.f.body, call, call.loopVar, readsLocal, readsPrivate)
+  }
+
+  private def readsLocalPrivate(call: FunCall): (Boolean, Boolean) = {
+    val readsLocal = call.args(0).containsLocal
+    val readsPrivate = call.args(0).containsPrivate
+    (readsLocal, readsPrivate)
   }
 
   private def buildDepthInfoReduceCall(call: ReduceCall): Unit = {
@@ -54,8 +64,7 @@ class BuildDepthInfo() {
   private def buildDepthInfoPatternCall(expr: Expr, call: FunCall, index: ArithExpr,
                                         readsLocal: Boolean, readsPrivate: Boolean): Unit = {
     val tuple = (Type.getLength(call.t), index)
-    val writesLocal = OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == LocalMemory
-    val writesPrivate = OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
+    val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
     globalAccessInf = tuple :: globalAccessInf
     if (readsLocal || writesLocal)
@@ -71,8 +80,18 @@ class BuildDepthInfo() {
     if (readsPrivate || writesPrivate)
       privateAccessInf = privateAccessInf.tail
 
+    setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
+  }
+
+  private def setDepths(call: FunCall, readsLocal: Boolean, readsPrivate: Boolean, writesLocal: Boolean, writesPrivate: Boolean): Unit = {
     call.inputDepth = if (writesPrivate) privateAccessInf else if (writesLocal) localAccessInf else globalAccessInf
     call.outputDepth = if (readsPrivate) privateAccessInf else if (readsLocal) localAccessInf else globalAccessInf
+  }
+
+  private def writesLocalPrivate(call: FunCall): (Boolean, Boolean) = {
+    val writesLocal = OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == LocalMemory
+    val writesPrivate = OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
+    (writesLocal, writesPrivate)
   }
 
   private def buildDepthForArgs(call: FunCall): Unit = {
