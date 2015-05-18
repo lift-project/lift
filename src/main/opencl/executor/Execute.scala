@@ -2,7 +2,7 @@ package opencl.executor
 
 import arithmetic.{Var, Cst, ArithExpr}
 import ir._
-import opencl.generator.{OpenCLGenerator}
+import opencl.generator.OpenCLGenerator
 import opencl.ir._
 
 import scala.collection.immutable

@@ -76,6 +76,30 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
+  @Ignore
+  @Test
+  def zipUnzip(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize, inputSize)(util.Random.nextInt(5))
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(Int, N), N),
+      ArrayType(ArrayType(Int, N), N),
+      (A, B) =>
+        MapGlb(fun( tuple =>
+          fun(tuple => Tuple(Join() $ Get(tuple, 0), Join() $ Get(tuple, 1))) o Unzip() o MapSeq(fun( tuple =>
+            Tuple(MapSeq(idI) $ Get(tuple, 0), MapSeq(idI) $ Get(tuple, 1))
+          )) $ Zip(Split(1) $ Get(tuple, 0), Split(1) $ Get(tuple, 1))
+        )) $ Zip(A, B)
+    )
+
+    val (output: Array[Int], _) = Execute(inputSize)(f, inputData, inputData)
+
+    assertArrayEquals(inputData.flatten, output)
+  }
+
   @Test def vectorType(): Unit = {
     val inputSize = 1024
     val inputData = Array.tabulate(inputSize*4)(_.toFloat)
@@ -305,7 +329,7 @@ class TestMisc {
     val inputB = Array.tabulate(inputSize)(_.toFloat).reverse
     val gold = inputA.zip(inputB.map(_*5.0f)).map((t:(Float, Float)) => t match{ case (x:Float,y:Float) => x+y})
 
-    var N = Var("N")
+    val N = Var("N")
 
     val f = fun(
       ArrayType(Float, N),

@@ -39,7 +39,7 @@ object InputView {
         call.f match {
           case l: Lambda => buildViewLambda(l, call, argView)
           case cf: CompFunDef => buildViewCompFunDef(cf, call, argView)
-          case z: Zip => buildViewZip(z, call, argView)
+          case z: Zip => buildViewZip(call, argView)
           case Split(n) => buildViewSplit(n, argView)
           case _: Join => buildViewJoin(call, argView)
           case uf: UserFunDef => buildViewUserFunDef()
@@ -52,11 +52,11 @@ object InputView {
           case tw: TransposeW => buildViewTransposeW(tw, call, argView)
           case asVector(n) => buildViewAsVector(n, argView)
           case _: asScalar => buildViewAsScalar(argView)
-          case f: Filter => buildViewFilter(f, call, argView)
+          case f: Filter => buildViewFilter(call, argView)
           case g: Group => buildViewGroup(g, call, argView)
           case h: Head => buildViewHead(call, argView)
           case h: Tail => buildViewTail(call, argView)
-          //case uz: Unzip =>
+          case uz: Unzip => buildViewUnzip(call, argView)
           case _ => argView
         }
     }
@@ -133,11 +133,15 @@ object InputView {
     })
   }
 
-  private def buildViewZip(z: Zip, call: FunCall, argView: View): View = {
+  private def buildViewZip(call: FunCall, argView: View): View = {
     argView.zip()
   }
 
-  private def buildViewFilter(f: Filter, call: FunCall, argView: View): View = {
+  private def buildViewUnzip(call: FunCall, argView: View): View = {
+    argView.unzip()
+  }
+
+  private def buildViewFilter(call: FunCall, argView: View): View = {
     argView.get(0).filter(argView.get(1))
   }
 
@@ -190,9 +194,6 @@ object InputView {
   }
 
   private def buildViewHead(head: FunCall, argView: View) : View = {
-//    head.f.params(0).view = argView
-//    visitAndBuildViews(head.f.body)
-//    throw new NotImplementedError("head view")
     new ViewHead(argView.access(0), head.t)
   }
 

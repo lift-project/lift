@@ -16,6 +16,7 @@ abstract class View(val t: Type = UndefType) {
       case map: ViewMap => new ViewMap(map.iv.replaced(oldExpr,newExpr), map.itVar, t)
       case access: ViewAccess => new ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(oldExpr,newExpr), t)
       case zip: ViewZip => new ViewZip(zip.ivs.map(_.replaced(oldExpr,newExpr)), t)
+      case unzip: ViewUnzip => new ViewUnzip(unzip.iv.replaced(oldExpr, newExpr), t)
       case split: ViewSplit => new ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(oldExpr,newExpr), t)
       case join: ViewJoin => new ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(oldExpr,newExpr), t)
       case gather: ViewReorder => new ViewReorder(gather.f, gather.iv.replaced(oldExpr, newExpr), t)
@@ -86,6 +87,13 @@ abstract class View(val t: Type = UndefType) {
     }
   }
 
+  def unzip(): View = {
+    t match {
+      case ArrayType(TupleType(ts @ _*), len) => new ViewUnzip(this, TupleType(ts.map(ArrayType(_, len)):_*))
+      case other => throw new IllegalArgumentException("Can't unzip " + other.getClass)
+    }
+  }
+
   def group(g: Group): View = {
     this.t match {
       case ArrayType(elemT, len) =>
@@ -105,6 +113,8 @@ class ViewSplit(val n: ArithExpr, val iv: View, override val t: Type) extends Vi
 class ViewJoin(val n: ArithExpr, val iv: View, override val t: Type) extends View(t)
 
 class ViewZip(val ivs: Seq[View], override val t: Type) extends View(t)
+
+class ViewUnzip(val iv: View, override val t: Type) extends View(t)
 
 class ViewReorder(val f: ArithExpr => ArithExpr, val iv: View, override val t: Type) extends View(t)
 

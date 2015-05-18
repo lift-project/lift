@@ -294,6 +294,8 @@ object UserFunDef {
 
   val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
+  val idI = UserFunDef("id", "x", "{ return x; }", Int, Int)
+
   val idFI = UserFunDef("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
 
   val idFF = UserFunDef("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
@@ -389,10 +391,3 @@ object Zip {
 }
 
 case class Unzip() extends FunDecl(Array[Param](Param(UndefType))) with isGenerable
-
-object Unzip {
-  def apply(args: Expr*): FunCall = {
-    assert(args.length == 2)
-    Unzip()(args:_*)
-  }
-}
