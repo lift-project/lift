@@ -73,8 +73,15 @@ object OutputView {
   }
 
   private def buildViewMapCall(call: MapCall, writeView: View): View = {
+    var view = writeView
+
+    // TODO: Find a way to deal with this in one place instead of here and in buildViewCompFunDef
+    // If there was a zip, then the view could be wrong
+    if (writeView.t.isInstanceOf[TupleType])
+      view = View.initialiseNewView(call.t, call.inputDepth)
+
     // traverse into call.f
-    val innerView = visitAndBuildViews(call.f.f.body, writeView.access(call.loopVar))
+    val innerView = visitAndBuildViews(call.f.f.body, view.access(call.loopVar))
 
     if (call.isConcrete) {
       // create fresh view for following function
