@@ -94,11 +94,12 @@ object InputView {
     // traverse into call.f
     val innerView = visitAndBuildViews(call.f.f.body)
 
-    if (call.isConcrete) {
-      // create fresh input view for following function
-      View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
-    } else { // call.isAbstract and return input map view
-      new ViewMap(innerView, call.loopVar, call.t)
+    call.f.f.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFunDef] =>
+        // create fresh input view for following function
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+      case _ => // call.isAbstract and return input map view
+        new ViewMap(innerView, call.loopVar, call.t)
     }
   }
 

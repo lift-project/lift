@@ -9,24 +9,24 @@ import scala.collection.immutable.Stack
 abstract class View(val t: Type = UndefType) {
 
   def replaced(oldExpr: ArithExpr, newExpr: ArithExpr): View = {
-    val subst = new scala.collection.mutable.HashMap[ArithExpr,ArithExpr]()
+    val subst = new scala.collection.mutable.HashMap[ArithExpr, ArithExpr]()
     subst.put(oldExpr, newExpr)
 
     this match {
-      case map: ViewMap => new ViewMap(map.iv.replaced(oldExpr,newExpr), map.itVar, t)
-      case access: ViewAccess => new ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(oldExpr,newExpr), t)
-      case zip: ViewZip => new ViewZip(zip.ivs.map(_.replaced(oldExpr,newExpr)), t)
+      case map: ViewMap => new ViewMap(map.iv.replaced(oldExpr, newExpr), map.itVar, t)
+      case access: ViewAccess => new ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(oldExpr, newExpr), t)
+      case zip: ViewZip => new ViewZip(zip.ivs.map(_.replaced(oldExpr, newExpr)), t)
       case unzip: ViewUnzip => new ViewUnzip(unzip.iv.replaced(oldExpr, newExpr), t)
-      case split: ViewSplit => new ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(oldExpr,newExpr), t)
-      case join: ViewJoin => new ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(oldExpr,newExpr), t)
+      case split: ViewSplit => new ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(oldExpr, newExpr), t)
+      case join: ViewJoin => new ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(oldExpr, newExpr), t)
       case gather: ViewReorder => new ViewReorder(gather.f, gather.iv.replaced(oldExpr, newExpr), t)
       case asVector: ViewAsVector => new ViewAsVector(asVector.n, asVector.iv.replaced(oldExpr, newExpr), t)
       case asScalar: ViewAsScalar => new ViewAsScalar(asScalar.iv.replaced(oldExpr, newExpr), asScalar.n, t)
       case filter: ViewFilter => new ViewFilter(filter.iv.replaced(oldExpr, newExpr), filter.ids.replaced(oldExpr, newExpr), t)
       case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(oldExpr, newExpr)), t)
-      case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(oldExpr,newExpr), t)
+      case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(oldExpr, newExpr), t)
       case group: ViewGroup => new ViewGroup(group.iv.replaced(oldExpr, newExpr), group.group, group.t)
-      case  _ => this
+      case _ => this
     }
   }
 
@@ -34,7 +34,7 @@ abstract class View(val t: Type = UndefType) {
     new ViewAccess(idx, this, t.asInstanceOf[ArrayType].elemT)
   }
 
-  def split(chunkSize : ArithExpr): View = {
+  def split(chunkSize: ArithExpr): View = {
     this.t match {
       case ArrayType(elemT, n) => new ViewSplit(chunkSize, this,
         ArrayType(ArrayType(elemT, chunkSize), n div chunkSize))
@@ -44,7 +44,7 @@ abstract class View(val t: Type = UndefType) {
   def join(chunkSize: ArithExpr): View = {
     this.t match {
       case ArrayType(ArrayType(elemT, n), m) =>
-        new ViewJoin(chunkSize, this, ArrayType(elemT, n*m))
+        new ViewJoin(chunkSize, this, ArrayType(elemT, n * m))
     }
   }
 
@@ -81,7 +81,7 @@ abstract class View(val t: Type = UndefType) {
   def zip(): View = {
     this match {
       case tuple: ViewTuple =>
-        new ViewZip(tuple.ivs, ArrayType(TupleType(tuple.ivs.map(_.t.asInstanceOf[ArrayType].elemT):_*),
+        new ViewZip(tuple.ivs, ArrayType(TupleType(tuple.ivs.map(_.t.asInstanceOf[ArrayType].elemT): _*),
           tuple.ivs.head.t.asInstanceOf[ArrayType].len))
       case other => throw new IllegalArgumentException("Can't zip " + other.getClass)
     }
@@ -89,8 +89,8 @@ abstract class View(val t: Type = UndefType) {
 
   def unzip(): View = {
     t match {
-      case ArrayType(TupleType(ts @ _*), len) => new ViewUnzip(this, TupleType(ts.map(ArrayType(_, len)):_*))
-      case other => throw new IllegalArgumentException("Can't unzip " + other.getClass)
+      case ArrayType(TupleType(ts@_*), len) => new ViewUnzip(this, TupleType(ts.map(ArrayType(_, len)): _*))
+      case other => throw new IllegalArgumentException("Can't unzip " + other)
     }
   }
 
@@ -101,7 +101,8 @@ abstract class View(val t: Type = UndefType) {
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
-//        new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
+
+  // new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
 }
 
 class ViewMem(val name: String, override val t: Type) extends View(t)
@@ -139,10 +140,10 @@ class ViewTail(val iv: View, override val t: Type) extends View(t)
 object NoView extends View()
 
 object View {
-  /** create new view based on the given type*/
+  /** create new view based on the given type */
   def apply(t: Type, name: String): View = new ViewMem(name, t)
 
-  def tuple(ivs: View*) = new ViewTuple(ivs, TupleType(ivs.map(_.t):_*))
+  def tuple(ivs: View*) = new ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
 
   def visitAndBuildViews(expr: Expr): Unit = {
     BuildDepthInfo(expr)
@@ -165,40 +166,40 @@ object View {
 
 object ViewPrinter {
 
-  def emit(sv : View) : ArithExpr = {
+  def emit(sv: View): ArithExpr = {
     assert(!sv.t.isInstanceOf[ArrayType])
     emitView(sv, new Stack(), new Stack())
   }
 
-  private def emitView(sv : View,
-                       arrayAccessStack : Stack[(ArithExpr, ArithExpr)], // id, dimension size
-                       tupleAccessStack : Stack[Int]) : ArithExpr = {
+  private def emitView(sv: View,
+                       arrayAccessStack: Stack[(ArithExpr, ArithExpr)], // id, dimension size
+                       tupleAccessStack: Stack[Int]): ArithExpr = {
     sv match {
-      case mem : ViewMem =>
+      case mem: ViewMem =>
         assert(tupleAccessStack.isEmpty)
-        arrayAccessStack.map(x => (x._1*x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x+y).asInstanceOf[ArithExpr])
+        arrayAccessStack.map(x => (x._1 * x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x + y).asInstanceOf[ArithExpr])
 
-      case access : ViewAccess =>
+      case access: ViewAccess =>
         val length: ArithExpr = getLengthForArrayAccess(sv.t, tupleAccessStack)
         val newAAS = arrayAccessStack.push((access.i, length))
-        emitView(access.iv,newAAS, tupleAccessStack)
+        emitView(access.iv, newAAS, tupleAccessStack)
 
-      case map : ViewMap =>
+      case map: ViewMap =>
         val idx = arrayAccessStack.top._1
         val newAAS = arrayAccessStack.pop
         val newV = map.iv.replaced(map.itVar, idx)
-        emitView(newV,newAAS,tupleAccessStack)
+        emitView(newV, newAAS, tupleAccessStack)
 
-      case split : ViewSplit =>
-        val (chunkId,stack1) = arrayAccessStack.pop2
-        val (chunkElemId,stack2) = stack1.pop2
-        val newIdx = chunkId._1*split.n+chunkElemId._1
+      case split: ViewSplit =>
+        val (chunkId, stack1) = arrayAccessStack.pop2
+        val (chunkElemId, stack2) = stack1.pop2
+        val newIdx = chunkId._1 * split.n + chunkElemId._1
         val newAAS = stack2.push((newIdx, chunkElemId._2))
-        emitView(split.iv, newAAS,tupleAccessStack)
+        emitView(split.iv, newAAS, tupleAccessStack)
 
-      case ag : ViewGroup =>
-        val (outerId,stack1) = arrayAccessStack.pop2
-        val (innerId,stack2) = stack1.pop2
+      case ag: ViewGroup =>
+        val (outerId, stack1) = arrayAccessStack.pop2
+        val (innerId, stack2) = stack1.pop2
 
         ag.group.params(0).t match {
           case ArrayType(t, len) =>
@@ -208,22 +209,22 @@ object ViewPrinter {
           case _ => throw new IllegalArgumentException()
         }
 
-      case join : ViewJoin =>
-        val (idx,stack) = arrayAccessStack.pop2
+      case join: ViewJoin =>
+        val (idx, stack) = arrayAccessStack.pop2
         val chunkSize: ArithExpr = join.n
         val chunkId = idx._1 div chunkSize
         val chunkElemId = idx._1 % chunkSize
-        val newAS = stack.push((chunkElemId, Type.getLengths(sv.t.asInstanceOf[ArrayType].elemT).reduce(_*_))).
-          push((chunkId, Type.getLengths(join.t.asInstanceOf[ArrayType].elemT).reduce(_*_)*join.n))
-        emitView(join.iv,newAS,tupleAccessStack)
+        val newAS = stack.push((chunkElemId, Type.getLengths(sv.t.asInstanceOf[ArrayType].elemT).reduce(_ * _))).
+          push((chunkId, Type.getLengths(join.t.asInstanceOf[ArrayType].elemT).reduce(_ * _) * join.n))
+        emitView(join.iv, newAS, tupleAccessStack)
 
-      case gather : ViewReorder =>
-        val (idx,stack) = arrayAccessStack.pop2
+      case gather: ViewReorder =>
+        val (idx, stack) = arrayAccessStack.pop2
         val newIdx = gather.f(idx._1)
         val newAS = stack.push((newIdx, idx._2))
-        emitView(gather.iv,newAS,tupleAccessStack)
+        emitView(gather.iv, newAS, tupleAccessStack)
 
-      case filter : ViewFilter =>
+      case filter: ViewFilter =>
         val ((idx, len), stack) = arrayAccessStack.pop2
 
         val newIdx = emit(filter.ids.access(idx))
@@ -231,19 +232,22 @@ object ViewPrinter {
 
         emitView(filter.iv, stack.push((indirection, len)), tupleAccessStack)
 
-      case component : ViewTupleComponent =>
+      case component: ViewTupleComponent =>
         val newTAS = tupleAccessStack.push(component.i)
-        emitView(component.iv,arrayAccessStack,newTAS)
+        emitView(component.iv, arrayAccessStack, newTAS)
 
-      case zip : ViewZip =>
+      case zip: ViewZip =>
         val i = tupleAccessStack.top
         val newTAS = tupleAccessStack.pop
-        emitView(zip.ivs(i),arrayAccessStack,newTAS)
+        emitView(zip.ivs(i), arrayAccessStack, newTAS)
 
-      case tuple : ViewTuple =>
+      case unzip: ViewUnzip =>
+        emitView(unzip.iv, arrayAccessStack, tupleAccessStack)
+
+      case tuple: ViewTuple =>
         val i = tupleAccessStack.top
         val newTAS = tupleAccessStack.pop
-        emitView(tuple.ivs(i),arrayAccessStack,newTAS)
+        emitView(tuple.ivs(i), arrayAccessStack, newTAS)
 
       case asVector: ViewAsVector =>
         val top = arrayAccessStack.top
@@ -257,45 +261,44 @@ object ViewPrinter {
 
       case head: ViewHead =>
         val newAAS = arrayAccessStack.pop
-        emitView(head.iv, newAAS,tupleAccessStack)
+        emitView(head.iv, newAAS, tupleAccessStack)
 
       case tail: ViewTail =>
         val (idx, stack) = arrayAccessStack.pop2
         val newIdx = idx._1 + 1
         val newLen = idx._2
         val newAAS = stack.push((newIdx, newLen))
-        emitView(tail.iv,newAAS,tupleAccessStack)
-
+        emitView(tail.iv, newAAS, tupleAccessStack)
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }
   }
 
-  private def getInputAccess(sv : View, tupleAccessStack : Stack[Int] = new Stack()) : ViewMem = {
+  private def getInputAccess(sv: View, tupleAccessStack: Stack[Int] = new Stack()): ViewMem = {
     sv match {
-      case map : ViewMem => map
-      case access : ViewAccess => getInputAccess(access.iv, tupleAccessStack)
-      case map : ViewMap => getInputAccess(map.iv, tupleAccessStack)
-      case split : ViewSplit => getInputAccess(split.iv, tupleAccessStack)
-      case join : ViewJoin => getInputAccess(join.iv, tupleAccessStack)
-      case gather : ViewReorder => getInputAccess(gather.iv, tupleAccessStack)
-      case filter : ViewFilter => getInputAccess(filter.iv, tupleAccessStack)
+      case map: ViewMem => map
+      case access: ViewAccess => getInputAccess(access.iv, tupleAccessStack)
+      case map: ViewMap => getInputAccess(map.iv, tupleAccessStack)
+      case split: ViewSplit => getInputAccess(split.iv, tupleAccessStack)
+      case join: ViewJoin => getInputAccess(join.iv, tupleAccessStack)
+      case gather: ViewReorder => getInputAccess(gather.iv, tupleAccessStack)
+      case filter: ViewFilter => getInputAccess(filter.iv, tupleAccessStack)
       case asVector: ViewAsVector => getInputAccess(asVector.iv, tupleAccessStack)
       case asScalar: ViewAsScalar => getInputAccess(asScalar.iv, tupleAccessStack)
 
-      case component : ViewTupleComponent =>
+      case component: ViewTupleComponent =>
         val newTAS = tupleAccessStack.push(component.i)
         getInputAccess(component.iv, newTAS)
 
-      case zip : ViewZip =>
+      case zip: ViewZip =>
         val i = tupleAccessStack.top
         val newTAS = tupleAccessStack.pop
-        getInputAccess(zip.ivs(i),newTAS)
+        getInputAccess(zip.ivs(i), newTAS)
 
       case tuple: ViewTuple =>
         val i = tupleAccessStack.top
         val newTAS = tupleAccessStack.pop
-        getInputAccess(tuple.ivs(i),newTAS)
+        getInputAccess(tuple.ivs(i), newTAS)
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }
@@ -304,7 +307,7 @@ object ViewPrinter {
   private def getLengthForArrayAccess(t: Type, tupleAccesses: Stack[Int]): ArithExpr = {
 
     if (tupleAccesses.isEmpty) {
-      Type.getLengths(t).reduce(_*_)
+      Type.getLengths(t).reduce(_ * _)
     } else {
       t match {
         case tt: TupleType => getLengthForArrayAccess(Type.getTypeAtIndex(tt, tupleAccesses.top), tupleAccesses.pop)

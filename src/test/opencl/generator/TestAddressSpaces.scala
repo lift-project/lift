@@ -250,7 +250,7 @@ class TestAddressSpaces {
 
     val l = fun (ArrayType(Float, Var("N")), (in) => {
       Join() o MapWrg( fun(x =>
-        toGlobal(MapLcl(id)) o MapLcl(toPrivate(id)) $ Value("1.0f", ArrayType(Float, 4)))
+        toGlobal(MapLcl(id)) o toPrivate(MapLcl(id)) $ Value("1.0f", ArrayType(Float, 4)))
       ) o Split(4) $ in
     })
 
