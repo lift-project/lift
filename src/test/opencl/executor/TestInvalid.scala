@@ -8,7 +8,7 @@ import arithmetic.Var
 import ir._
 import opencl.ir.{MapGlb, Float}
 import org.junit.Assert._
-import org.junit.{Ignore, Test, AfterClass, BeforeClass}
+import org.junit._
 
 object TestInvalid {
   @BeforeClass def before() {
@@ -123,6 +123,19 @@ class TestInvalid {
 
     // explicit failure
     assert(assertion = false)
+  }
+
+  @Test(expected=classOf[IllegalArgumentException])
+  def NamesAndTypesDontMatchInUserFunDef(): Unit = {
+    UserFunDef("inc", Array("x", "y"),
+      " return x+1.0; ", Seq(Float), Float)
+  }
+
+
+  @Test(expected=classOf[IllegalArgumentException])
+  def NamesAndTypesDontMatchInUserFunDef2(): Unit = {
+    UserFunDef("inc", Array("x"),
+      " return x+1.0; ", Seq(Float, Float), Float)
   }
 
   @Ignore

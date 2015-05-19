@@ -239,7 +239,7 @@ case class UserFunDef(name: String, paramNames: Array[String], body: String,
     printAny(paramName)
   }
 
-  if (!namesAndTypesMatch())
+  if (paramNames.length != inTs.length || !namesAndTypesMatch())
     throw new IllegalArgumentException(s"Structure of parameter names ( $paramNamesString ) and the input type ( $inT ) doesn't match!")
 
   def hasUnexpandedTupleParam: Boolean = {
