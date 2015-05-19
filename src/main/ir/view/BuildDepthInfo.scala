@@ -89,8 +89,8 @@ class BuildDepthInfo() {
   }
 
   private def writesLocalPrivate(call: FunCall): (Boolean, Boolean) = {
-    val writesLocal = OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == LocalMemory
-    val writesPrivate = OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
+    val writesLocal = call.containsLocal
+    val writesPrivate = call.containsPrivate
     (writesLocal, writesPrivate)
   }
 

@@ -454,13 +454,12 @@ class TestMatrixMatrix {
                   ) o
 
                     // Copy tiles to local memory
-                    fun(pairOfTiles =>
-                      Tuple(
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
-                          $ Get(pairOfTiles, 0),
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
-                          $ Get(pairOfTiles, 1)
-                      )) $ pairOfTiles
+                    Unzip() o Barrier() o toLocal(MapLcl(1)(fun(pair =>
+                    fun(pair => Tuple(Join() $ Get(pair, 0), Join() $ Get(pair, 1))) o
+                      Unzip() o MapLcl(0)(fun( pair =>
+                      Tuple(MapSeq(id) $ Get(pair, 0), MapSeq(id) $ Get(pair, 1))
+                    )) $ Zip(Split(1) $ Get(pair, 0), Split(1) $ Get(pair, 1))
+                  ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
                 )
                   , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
                     ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
@@ -472,7 +471,7 @@ class TestMatrixMatrix {
       })
 
     val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
-      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
+      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))( f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }

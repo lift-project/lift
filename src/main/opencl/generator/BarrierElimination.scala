@@ -45,8 +45,38 @@ object BarrierElimination {
     !(ae == Cst(1) || ae == Cst(0) || ae == Fraction(1, ?))
   }
 
+  def getLambdas(e: Expr): List[Lambda] = {
+    e match {
+      case call: FunCall =>
+        val argLambdas = call.args.foldLeft(List[Lambda]())((ll, f) => ll ++ getLambdas(f))
+        call.f match {
+          case cf: CompFunDef => cf.funs.toList ++ argLambdas
+          case _ => argLambdas
+        }
+      case _ => List()
+    }
+  }
+
+  def flatten(compFunDef: CompFunDef) : List[Lambda] = {
+    compFunDef.funs.foldLeft(List[Lambda]())((ll, f) => {
+      f.body match {
+
+        case call: FunCall =>
+          val argLambdas = call.args.foldLeft(List[Lambda]())((ll, f) => ll ++ getLambdas(f))
+
+          call.f match {
+            case cf: CompFunDef => ll ++ flatten(cf) ++ argLambdas
+            case _ => ll :+ f
+          }
+        case _ => ll :+ f
+      }
+    })
+  }
+
   private def markFunCall(cf: CompFunDef, insideLoop: Boolean): Unit = {
-    val lambdas = cf.funs
+    // Flatten the CompFunDef, such that computations/reorders in
+    // zip/tuple operations appear as well
+    val lambdas = flatten(cf)
     val c = lambdas.count(_.body.isConcrete)
 
     var next = lambdas
@@ -125,39 +155,11 @@ object BarrierElimination {
   }
 
   private def isGather(l: Lambda): Boolean = {
-    l.body match {
-      case call: FunCall =>
-        call match {
-          case _: MapCall => false
-          case _: ReduceCall => false
-          case _: IterateCall => false
-          case _ =>
-            call.f match {
-              case _: Gather => true
-              case fp: FPattern => isGather(fp.f)
-              case _ => false
-            }
-        }
-      case _ => false
-    }
+    l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Gather]
   }
 
   private def isScatter(l: Lambda): Boolean = {
-    l.body match {
-      case call: FunCall =>
-        call match {
-          case _: MapCall => false
-          case _: ReduceCall => false
-          case _: IterateCall => false
-          case _ =>
-            call.f match {
-              case _: Scatter => true
-              case fp: FPattern => isScatter(fp.f)
-              case _ => false
-            }
-        }
-      case _ => false
-    }
+    l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Scatter]
   }
 
   private def isSplit(l: Lambda): Boolean = {
@@ -180,7 +182,7 @@ object BarrierElimination {
     }
   }
 
-  def readsFrom(lambda: Lambda): OpenCLAddressSpace = {
+  private def readsFrom(lambda: Lambda): OpenCLAddressSpace = {
     Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(lambda.body, (expr, addressSpace) => {
       expr match {
         case call: FunCall =>
