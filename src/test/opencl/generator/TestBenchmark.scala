@@ -11,7 +11,7 @@ import ir.UserFunDef._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 object TestBenchmark {
   @BeforeClass def before() {
@@ -419,6 +419,38 @@ class TestBenchmark {
 
     // execute
     val (output: Array[Float], runtime) = Execute(inputSize)(f, a, xs, ys)
+
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  // Simple 1D increment, used to check the syntax of unary UserFunDef
+  @Ignore
+  @Test def increment(): Unit = {
+    // domain size
+    val inputSize = 128
+    val N = Var("N")
+
+    // Input variables
+    val xs = Array.fill(inputSize)(util.Random.nextFloat())
+
+    // Cross validation
+    val gold = xs.map(_ + 1)
+
+    // user function
+    val fct = UserFunDef("inc", Array("x"),
+      " return x+1.0; ", Seq(Float), Float)
+
+    // Expression
+    val f = fun(
+      ArrayType(Float, N),
+      (xs) => MapGlb(
+        fun(x => fct(x))
+      ) $ xs
+    )
+
+    // execute
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, xs)
 
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.001f)

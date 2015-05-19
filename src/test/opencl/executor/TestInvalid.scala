@@ -7,7 +7,8 @@ package opencl.executor
 import arithmetic.Var
 import ir._
 import opencl.ir.{MapGlb, Float}
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.Assert._
+import org.junit.{Ignore, Test, AfterClass, BeforeClass}
 
 object TestInvalid {
   @BeforeClass def before() {
@@ -122,6 +123,37 @@ class TestInvalid {
 
     // explicit failure
     assert(assertion = false)
+  }
+
+  @Ignore
+  @Test def InvalidUserFunction(): Unit = {
+    // domain size
+    val inputSize = 128
+    val N = Var("N")
+
+    // Input variables
+    val xs = Array.fill(inputSize)(util.Random.nextFloat())
+
+    // Cross validation
+    val gold = xs.map(_ + 1)
+
+    // user function
+    val fct = UserFunDef("inc", "x",
+      " return x+1.0; ", Float, Float)
+
+    // Expression
+    val f = fun(
+      ArrayType(Float, N),
+      (xs) => MapGlb(
+        fun(x => fct(x))
+      ) $ xs
+    )
+
+    // execute
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, xs)
+
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.001f)
   }
 
   // TODO(tlutz): missing test cases:
