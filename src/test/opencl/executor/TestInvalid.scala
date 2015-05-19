@@ -8,7 +8,7 @@ import arithmetic.Var
 import ir._
 import opencl.ir.{MapGlb, Float}
 import org.junit.Assert._
-import org.junit.{Ignore, Test, AfterClass, BeforeClass}
+import org.junit._
 
 object TestInvalid {
   @BeforeClass def before() {
@@ -25,7 +25,7 @@ object TestInvalid {
 
 class TestInvalid {
   // Dummy user function
-  val fct = UserFunDef("afunc", "array", " return array * 2.0f; ", Seq(Float), Float)
+  val fct = UserFunDef("afunc", "array", " return array * 2.0f; ", Float, Float)
   // Dummy function
   val f = fun(ArrayType(Float, Var("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
 
@@ -125,35 +125,17 @@ class TestInvalid {
     assert(assertion = false)
   }
 
-  @Ignore
-  @Test def InvalidUserFunction(): Unit = {
-    // domain size
-    val inputSize = 128
-    val N = Var("N")
+  @Test(expected=classOf[IllegalArgumentException])
+  def NamesAndTypesDontMatchInUserFunDef(): Unit = {
+    UserFunDef("inc", Array("x", "y"),
+      " return x+1.0; ", Seq(Float), Float)
+  }
 
-    // Input variables
-    val xs = Array.fill(inputSize)(util.Random.nextFloat())
 
-    // Cross validation
-    val gold = xs.map(_ + 1)
-
-    // user function
-    val fct = UserFunDef("inc", "x",
-      " return x+1.0; ", Float, Float)
-
-    // Expression
-    val f = fun(
-      ArrayType(Float, N),
-      (xs) => MapGlb(
-        fun(x => fct(x))
-      ) $ xs
-    )
-
-    // execute
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, xs)
-
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.001f)
+  @Test(expected=classOf[IllegalArgumentException])
+  def NamesAndTypesDontMatchInUserFunDef2(): Unit = {
+    UserFunDef("inc", Array("x"),
+      " return x+1.0; ", Seq(Float, Float), Float)
   }
 
   // TODO(tlutz): missing test cases:

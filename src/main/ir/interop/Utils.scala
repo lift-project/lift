@@ -195,11 +195,11 @@ object jSplit {
 }
 
 object jUserFunDef {
-  def create(name: String, paramName: Any, body: String, inT: Type, outT: Type): UserFunDef = {
+  def create(name: String, paramName: String, body: String, inT: Type, outT: Type): UserFunDef = {
     UserFunDef(name, paramName, body, inT, outT)
   }
 
-  def create(name: String, paramNames: Array[Any], body: String, inTs: Array[Type], outT: Type): UserFunDef = {
+  def create(name: String, paramNames: Array[String], body: String, inTs: Array[Type], outT: Type): UserFunDef = {
     UserFunDef(name, paramNames, body, inTs, outT)
   }
 }
