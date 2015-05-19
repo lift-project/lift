@@ -36,7 +36,7 @@ abstract class View(val t: Type = UndefType) {
   def split(chunkSize : ArithExpr): View = {
     this.t match {
       case ArrayType(elemT, n) => new ViewSplit(chunkSize, this,
-        ArrayType(ArrayType(elemT, chunkSize), n div chunkSize))
+        ArrayType(ArrayType(elemT, chunkSize), n / chunkSize))
     }
   }
 
@@ -201,7 +201,7 @@ object ViewPrinter {
       case join : ViewJoin =>
         val (idx,stack) = arrayAccessStack.pop2
         val chunkSize: ArithExpr = join.n
-        val chunkId = idx._1 div chunkSize
+        val chunkId = idx._1 / chunkSize
         val chunkElemId = idx._1 % chunkSize
         val newAS = stack.push((chunkElemId, Type.getLengths(sv.t.asInstanceOf[ArrayType].elemT).reduce(_*_))).
           push((chunkId, Type.getLengths(join.t.asInstanceOf[ArrayType].elemT).reduce(_*_)*join.n))
@@ -237,12 +237,12 @@ object ViewPrinter {
 
       case asVector: ViewAsVector =>
         val top = arrayAccessStack.top
-        val newAAS = arrayAccessStack.pop.push((top._1 * asVector.n, top._2)).map(x => (x._1, x._2 / asVector.n))
+        val newAAS = arrayAccessStack.pop.push((top._1 * asVector.n, top._2)).map(x => (x._1, x._2 /^ asVector.n))
         emitView(asVector.iv, newAAS, tupleAccessStack)
 
       case asScalar: ViewAsScalar =>
         val top = arrayAccessStack.top
-        val newAAS = arrayAccessStack.pop.push((top._1 / asScalar.n, top._2)).map(x => (x._1, x._2 * asScalar.n))
+        val newAAS = arrayAccessStack.pop.push((top._1 /^ asScalar.n, top._2)).map(x => (x._1, x._2 * asScalar.n))
         emitView(asScalar.iv, newAAS, tupleAccessStack)
 
       case head: ViewHead =>

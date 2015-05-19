@@ -434,7 +434,7 @@ object OpenCLGenerator extends Generator {
 
       // tmp = tmp * outputLen / inputLen
       oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = " +
-                         oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength / innerInputLength))+
+                         oclPrinter.toOpenCL(ExprSimplifier.simplify(curOutLen * innerOutputLength /^ innerInputLength))+
                          ";")
 
       // tin = (tout == swap) ? swap : out

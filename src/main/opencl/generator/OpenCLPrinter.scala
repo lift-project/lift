@@ -65,11 +65,11 @@ class OpenCLPrinter {
     if (mem.mem.addressSpace != PrivateMemory) {
       val baseType = Type.getBaseType(mem.t)
       println(mem.mem.addressSpace + " " + toOpenCL(baseType) + " " +
-        toOpenCL(mem.mem.variable) + "[" + toOpenCL(mem.mem.size / Type.getSize(baseType)) + "];")
+        toOpenCL(mem.mem.variable) + "[" + toOpenCL(mem.mem.size /^ Type.getSize(baseType)) + "];")
     } else {
       if (mem.t.isInstanceOf[ArrayType]) {
         val baseType = Type.getBaseType(mem.t)
-        val length = (mem.mem.size / Type.getSize(baseType)).eval()
+        val length = (mem.mem.size /^ Type.getSize(baseType)).eval()
         for (i <- 0 until length)
           println(toOpenCL(baseType) + " " + toOpenCL(mem.mem.variable) +
             "_" + toOpenCL(i) + ";")
@@ -159,7 +159,7 @@ class OpenCLPrinter {
       case tv : TypeVar => "tv_"+tv.id
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
-      case Fraction(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
+      case IntDiv(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
       case gc: GroupCall =>
         val outerAe = if (Debug()) ExprSimplifier.simplify(gc.outerAe) else gc.outerAe
         val innerAe = if (Debug()) ExprSimplifier.simplify(gc.innerAe) else gc.innerAe
@@ -302,7 +302,7 @@ class OpenCLPrinter {
         printBody ()
         closeCB ()
 
-      case Fraction (Cst(1), ?) =>
+      case IntDiv (Cst(1), ?) =>
         // one or less iteration
         openCB ()
         println ("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
