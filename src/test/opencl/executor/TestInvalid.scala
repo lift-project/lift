@@ -138,37 +138,6 @@ class TestInvalid {
       " return x+1.0; ", Seq(Float, Float), Float)
   }
 
-  @Ignore
-  @Test def InvalidUserFunction(): Unit = {
-    // domain size
-    val inputSize = 128
-    val N = Var("N")
-
-    // Input variables
-    val xs = Array.fill(inputSize)(util.Random.nextFloat())
-
-    // Cross validation
-    val gold = xs.map(_ + 1)
-
-    // user function
-    val fct = UserFunDef("inc", "x",
-      " return x+1.0; ", Float, Float)
-
-    // Expression
-    val f = fun(
-      ArrayType(Float, N),
-      (xs) => MapGlb(
-        fun(x => fct(x))
-      ) $ xs
-    )
-
-    // execute
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, xs)
-
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.001f)
-  }
-
   // TODO(tlutz): missing test cases:
   // - invalid 2D volume
   // - invalid 3D volume
