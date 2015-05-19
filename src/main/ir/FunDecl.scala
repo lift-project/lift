@@ -209,7 +209,7 @@ object Vectorize {
   }
 }
 
-case class UserFunDef(name: String, paramNames: Any, body: String,
+case class UserFunDef(name: String, paramNames: Array[String], body: String,
                       inTs: Seq[Type], outT: Type)
   extends FunDecl(inTs.map(Param(_)).toArray) with isGenerable {
 
@@ -217,17 +217,17 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
 
     def checkParam(param: (Type, Any)): Boolean = {
       param match {
-        case (_:ScalarType, _:String) => true
-        case (_:VectorType, _:String) => true
-        case (_:TupleType, _:String)  => true
-        case (tt:TupleType, names: Array[Any]) =>
+        case (_:ScalarType, _: String) => true
+        case (_:VectorType, _: String) => true
+        case (_:TupleType, _: String)  => true
+        case (tt:TupleType, names: Array[String]) =>
           if (tt.elemsT.length != names.length) false
           else (tt.elemsT zip names).forall( {case (t,n) => checkParam( (t,n) )} )
         case _ => false
       }
     }
 
-    checkParam((inT, paramNames))
+    checkParam((inT, paramName))
   }
 
   def paramNamesString: String = {
@@ -236,10 +236,11 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
       case _ => arg.toString
     }
 
-    printAny(paramNames)
+    printAny(paramName)
   }
 
-  assert(namesAndTypesMatch(), s"Structure of parameter names ( $paramNamesString ) and the input type ( $inT ) doesn't match!")
+  if (!namesAndTypesMatch())
+    throw new IllegalArgumentException(s"Structure of parameter names ( $paramNamesString ) and the input type ( $inT ) doesn't match!")
 
   def hasUnexpandedTupleParam: Boolean = {
     def test(param: (Type, Any)): Boolean = {
@@ -247,11 +248,11 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
         case (_: TupleType, _: String) => true
         case (_: ScalarType, _: String) => false
         case (_: VectorType, _: String) => false
-        case (tt: TupleType, names: Array[Any]) =>
+        case (tt: TupleType, names: Array[String]) =>
           (tt.elemsT zip names).exists({ case (t, n) => test((t, n))})
       }
     }
-    test((inT, paramNames))
+    test((inT, paramName))
   }
 
   private def unexpandedParamTupleTypes: Seq[TupleType] = {
@@ -263,7 +264,7 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
         case _ => Seq()
       }
     }
-    emit((inT, paramNames))
+    emit((inT, paramName))
   }
 
   def unexpandedTupleTypes: Seq[TupleType] = {
@@ -274,13 +275,14 @@ case class UserFunDef(name: String, paramNames: Any, body: String,
   }
 
   def inT = if (inTs.size == 1) inTs.head else TupleType(inTs:_*)
+  def paramName = if (paramNames.length == 1) paramNames.head else paramNames
 
   override def toString = "UserFun("+ name + ")" // for debug purposes
 }
 
 object UserFunDef {
-  def apply(name: String, paramName: Any, body: String, inT: Type, outT: Type): UserFunDef = {
-    UserFunDef(name, paramName, body, Seq(inT), outT)
+  def apply(name: String, paramName: String, body: String, inT: Type, outT: Type): UserFunDef = {
+    UserFunDef(name, Array(paramName), body, Seq(inT), outT)
   }
 
   def vectorize(uf: UserFunDef, n: ArithExpr): UserFunDef = {
@@ -330,17 +332,6 @@ object UserFunDef {
     TupleType(Float, Float))
 
 }
-
-object jUserFunDef {
-  def create(name: String, paramName: Any, body: String, inT: Type, outT: Type): UserFunDef = {
-    UserFunDef(name, paramName, body, inT, outT)
-  }
-
-  def create(name: String, paramNames: Array[Any], body: String, inTs: Array[Type], outT: Type): UserFunDef = {
-    UserFunDef(name, paramNames, body, inTs, outT)
-  }
-}
-
 
 case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
 

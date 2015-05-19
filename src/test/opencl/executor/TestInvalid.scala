@@ -25,7 +25,7 @@ object TestInvalid {
 
 class TestInvalid {
   // Dummy user function
-  val fct = UserFunDef("afunc", "array", " return array * 2.0f; ", Seq(Float), Float)
+  val fct = UserFunDef("afunc", "array", " return array * 2.0f; ", Float, Float)
   // Dummy function
   val f = fun(ArrayType(Float, Var("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
 

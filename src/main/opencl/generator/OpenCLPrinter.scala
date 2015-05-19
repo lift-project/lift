@@ -184,7 +184,7 @@ class OpenCLPrinter {
 
   def toOpenCL(uf: UserFunDef) : String = {
     val typedefs = uf.unexpandedTupleTypes.map(createTypedef).fold("")(_+_)
-    val params = toOpenCL( (uf.inT, uf.paramNames) )
+    val params = toOpenCL( (uf.inT, uf.paramName) )
 
     typedefs +
       toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
