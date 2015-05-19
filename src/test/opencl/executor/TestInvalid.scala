@@ -98,6 +98,32 @@ class TestInvalid {
     assert(assertion = false)
   }
 
+  @Test(expected=classOf[IllegalArgumentException])
+  def WrongNumberOfArguments(): Unit = {
+    // Input Array
+    val inputSize = 128
+    val array = Array.fill(inputSize)(util.Random.nextFloat())
+
+    // execute
+    Execute(inputSize)(f, array, array, inputSize) // should throw
+
+    // explicit failure
+    assert(assertion = false)
+  }
+
+  @Test(expected=classOf[IllegalArgumentException])
+  def WrongArgumentType(): Unit = {
+    // Input Array
+    val inputSize = 128
+    val array = Array.fill(inputSize)(util.Random.nextInt())
+
+    // execute
+    Execute(inputSize)(f, array, inputSize) // should throw
+
+    // explicit failure
+    assert(assertion = false)
+  }
+
   // TODO(tlutz): missing test cases:
   // - invalid 2D volume
   // - invalid 3D volume
