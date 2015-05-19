@@ -258,15 +258,15 @@ object OpenCLMemory {
       case Zip(_) | Tuple(_) =>   allocZipTuple(inMem, outputMem)
       case f: Filter =>           allocFilter(f, numGlb, numLcl, inMem)
 
-      case tg: toGlobal =>        allocToGlobal(tg,   numGlb, numLcl, numPvt, inMem, outputMem, maxGlbOutSize)
-      case tl: toLocal =>         allocToLocal(tl,    numGlb, numLcl, numPvt, inMem, outputMem, maxLclOutSize)
+      case tg: toGlobal =>        allocToGlobal(tg, numGlb, numLcl, numPvt, inMem, outputMem, maxGlbOutSize)
+      case tl: toLocal =>         allocToLocal(tl, numGlb, numLcl, numPvt, inMem, outputMem, maxLclOutSize)
       case tp: toPrivate =>       allocToPrivate(tp, numGlb, numLcl, numPvt, inMem, outputMem, maxPvtOutSize)
 
       case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, numPvt, inMem)
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) |
-           Head() | Tail() | Gather(_) | Scatter(_)=>
+           Head() | Tail() | Gather(_) | Scatter(_) =>
         inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, outputMem, call.t, inMem)
@@ -280,7 +280,14 @@ object OpenCLMemory {
     } else if (call.args.length == 1) {
       alloc(call.args(0), numGlb, numLcl, numPvt, outputMem)
     } else {
-      val mems = call.args.map(alloc(_, numGlb, numLcl, numPvt, outputMem.copy()))
+
+      val mems = if (outputMem != OpenCLNullMemory)
+        call.args.map(arg => {
+          val maxSize = getMaxSizeInBytes(arg.t)
+          alloc(arg, numGlb, numLcl, numPvt, allocMemory(numGlb * maxSize, numLcl * maxSize, numPvt * maxSize, outputMem.addressSpace))
+        })
+      else
+        call.args.map(alloc(_, numGlb, numLcl, numPvt))
 
       call.f match {
         // TODO: not sure if this is necessary!!
@@ -447,15 +454,7 @@ object OpenCLMemory {
           coll.findCommonAddressSpace()
         }
 
-      outT match {
-
-        // TODO: could maybe allocated in private memory (need to change slightly the allocator and add toPrivate)
-        case ScalarType(_, _) | VectorType(_, _) =>
-          allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, addressSpace)
-
-        case _ =>
-          allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, addressSpace)
-      }
+      allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, addressSpace)
     } else {
       outputMem
     }
