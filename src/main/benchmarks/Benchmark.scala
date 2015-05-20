@@ -100,7 +100,7 @@ abstract class Benchmark(val name: String,
     var finalOutput = Array.emptyFloatArray
 
     val lambdas: Seq[Lambda] = f(variant)._2
-    for (i <- 0 until lambdas.length) {
+    for (i <- lambdas.indices) {
 
       val (output: Array[Float], runtime) = Execute(
         localSize(0),
@@ -178,7 +178,7 @@ abstract class Benchmark(val name: String,
         if (output.length != scalaResult.length)
           println("Output length is wrong, " + output.length + " vs " + scalaResult.length)
 
-        for (j <- 0 until scalaResult.length) {
+        for (j <- scalaResult.indices) {
           if (check(output(j), scalaResult(j))) {
             println("Output at position " + j + " differs more than " + delta + ". " + output(j) + " vs " + scalaResult(j))
 
@@ -238,7 +238,7 @@ abstract class Benchmark(val name: String,
       beforeBenchmark()
 
       if (all.value.getOrElse(false)) {
-        for (i <- 0 until f.length) {
+        for (i <- f.indices) {
           variant = i
           runBenchmark()
         }

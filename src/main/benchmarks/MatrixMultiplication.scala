@@ -16,8 +16,11 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
   val tileY = parser.option[Int](List("y", "tileY"), "size",
     "Tile size in the y dimension")
 
-  val registerBlock = parser.option[Int](List("b", "block"), "size",
-   "Register blocking factor")
+  val registerBlockM = parser.option[Int](List("bm", "blockM"), "size",
+   "Register blocking factor in M dimension")
+
+  val registerBlockN = parser.option[Int](List("bn", "blockN"), "size",
+    "Register blocking factor in N dimension")
 
   override def runScala(inputs: Any*): Array[Float] = {
     val A = inputs(0).asInstanceOf[Array[Array[Float]]]
@@ -69,7 +72,9 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
   override protected def beforeBenchmark() = {
     f(1)._2(0) = MatrixMultiplication.tiled(tileX.value.getOrElse(16))
     f(2)._2(0) = MatrixMultiplication.moreWorkPerThread(tileX.value.getOrElse(16),
-      registerBlock.value.getOrElse(4))
+      registerBlockM.value.getOrElse(4))
+    f(3)._2(0) = MatrixMultiplication.tiledAndBlockedBInnermost(tileX.value.getOrElse(16), tileX.value.getOrElse(16),
+      tileY.value.getOrElse(8), registerBlockN.value.getOrElse(4), registerBlockM.value.getOrElse(4))
   }
 
   override protected def printResults(time: Double): Unit = {
@@ -193,10 +198,77 @@ object MatrixMultiplication {
         )) o Tile(tileSize) $ A
     })
 
+  def tiledAndBlockedBInnermost(tileSizeN:Int, tileSizeM:Int, tileSizeK: Int,
+                                  workPerThreadN:Int, workPerThreadM:Int) = fun(
+    ArrayType(ArrayType(Float, M), K), // Transposed
+    ArrayType(ArrayType(Float, N), K),
+    (A, B) => {
+      // Undo the tiling
+      Untile() o
+        MapWrg(0)(fun( aRows =>
+          MapWrg(1)(fun( bCols =>
+
+            Map(Scatter(IndexFunction.reorderStride(tileSizeM/workPerThreadM))) o Join() o
+              Map(TransposeW() o Join() o Map(TransposeW())) o
+
+              toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) o
+
+              Join() o
+
+              // Multiply all necessary combinations of tiles
+              ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                fun(pairOfTiles =>
+                  Barrier() o
+
+                    MapLcl(1)( fun(rowsA =>
+                      MapLcl(0)( fun( colsB =>
+                        Join() o ReduceSeq(fun((acc, rowElemPair) =>
+                          MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) o
+                            fun(rowElemPair =>
+                              Zip(
+                                Join() o toPrivate(MapSeq(MapSeq(
+                                  fun(aArray => MapSeq(fun(b =>
+                                    mult.apply(aArray, b)
+                                  )) $ Get(rowElemPair, 1))) o toPrivate(MapSeq(id))
+                                )) o Split(1) $ Get(rowElemPair, 0),
+                                acc
+                              )
+                            ) o fun(rowElemPair =>
+                            Tuple(
+                              Get(rowElemPair, 0),
+                              toPrivate(MapSeq(id)) $ Get(rowElemPair, 1)
+                            )) $ rowElemPair
+                        ), Get(colsB, 1)
+                        ) $ Zip(Transpose() $ Get(rowsA, 0), Transpose() $ Get(colsB, 0))
+
+                      )) $ Zip(Split(workPerThreadM) o ReorderStride(tileSizeM/workPerThreadM) o Transpose() $ Get(pairOfTiles, 1), Get(rowsA, 1))
+                    ))  $ Zip(Split(workPerThreadN) o Transpose() $ Get(pairOfTiles, 0), acc)
+
+                ) o
+
+                  // Copy tiles to local memory
+                  Unzip() o Barrier() o toLocal(MapLcl(1)(fun(pair =>
+                  fun(pair => Tuple(Join() $ Get(pair, 0), Join() $ Get(pair, 1))) o
+                    Unzip() o MapLcl(0)(fun( pair =>
+                    Tuple(MapSeq(id) $ Get(pair, 0), MapSeq(id) $ Get(pair, 1))
+                  )) $ Zip(Split(1) $ Get(pair, 0), Split(1) $ Get(pair, 1))
+                ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
+              )
+                , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
+                  ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
+              ) $ Zip(aRows, bCols)
+
+            // Tile the matrices
+          )) o Transpose() o Tile(tileSizeK, tileSizeN) $ B
+        )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
+    })
+
   def apply() = new MatrixMultiplication(
     Seq(("naive", Array[Lambda](naive)),
       ("tiled", Array[Lambda](tiled(16))),
-      ("moreWorkPerThread", Array[Lambda](moreWorkPerThread(16, 4)))
+      ("moreWorkPerThread", Array[Lambda](moreWorkPerThread(16, 4))),
+      ("tiledAndBlockedBInnermost", Array[Lambda](tiledAndBlockedBInnermost(16, 16, 8, 4, 4)))
     ))
 
 
