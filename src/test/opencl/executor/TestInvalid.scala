@@ -7,7 +7,6 @@ package opencl.executor
 import arithmetic.Var
 import ir._
 import opencl.ir.{MapGlb, Float}
-import org.junit.Assert._
 import org.junit._
 
 object TestInvalid {

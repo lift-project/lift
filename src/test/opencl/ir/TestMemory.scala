@@ -67,6 +67,7 @@ class TestMemory {
       ExprSimplifier.simplify(subMemories(1).size))
   }
 
+  @Test
   def zipAllocation(): Unit = {
     val N = Var("N")
 
