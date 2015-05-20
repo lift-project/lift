@@ -75,8 +75,21 @@ abstract sealed class ArithExpr {
     Sum(thisExprs++thatExprs)
   }
 
-  def div(that: ArithExpr) = Fraction(this, that)
-  def /(that: ArithExpr) = this * Pow(that, Cst(-1))
+  /**
+   * Division operator in Natural set (ie int div like Scala): 1/2=0.
+   * @param that Right-hand side (divisor).
+   * @return An IntDiv object wrapping the operands.
+   */
+  def /(that: ArithExpr) = IntDiv(this, that)
+
+  /**
+   * Ordinal division operator.
+   * This prevents integer arithmetic simplification through exponentiation.
+   * @param that Right-hand side (divisor).
+   * @return The expression multiplied by the divisor exponent -1.
+   */
+  def /^(that: ArithExpr) = this * Pow(that, Cst(-1))
+
   def -(that: ArithExpr) = this + (that * Cst(-1))
 
   def %(that: ArithExpr) = Mod(this, that)
@@ -236,9 +249,9 @@ object ArithExpr {
         }
 
         false
-      case Fraction(n1, d1) =>
+      case IntDiv(n1, d1) =>
         that match {
-          case Fraction(n2, d2) =>
+          case IntDiv(n2, d2) =>
             multipleOf(d2, d1) && multipleOf(n1, n2)
           case _ => false
         }
@@ -289,7 +302,7 @@ object ArithExpr {
       case Pow(base, exp) =>
         visit(base, f)
         visit(exp, f)
-      case Fraction(n, d) =>
+      case IntDiv(n, d) =>
         visit(n, f)
         visit(d, f)
       case Mod(dividend, divisor) =>
@@ -314,7 +327,7 @@ object ArithExpr {
 
     newExpr = newExpr match {
       case Pow(l,r) => Pow(substitute(l,substitutions),substitute(r,substitutions))
-      case Fraction(n, d) => Fraction(substitute(n, substitutions), substitute(d, substitutions))
+      case IntDiv(n, d) => IntDiv(substitute(n, substitutions), substitute(d, substitutions))
       case Mod(dividend, divisor) => Mod(substitute(dividend, substitutions), substitute(divisor, substitutions))
       case Log(b,x) => Log(substitute(b, substitutions), substitute(x, substitutions))
       case And(l, r) => And(substitute(l, substitutions), substitute(r, substitutions))
@@ -332,7 +345,7 @@ object ArithExpr {
     case Cst(c) => c
     case Var(_,_) | ArithExprFunction(_) | ? => throw new NotEvaluableException(e.toString)
 
-    case Fraction(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
+    case IntDiv(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
 
     case Pow(base,exp) => scala.math.pow(evalDouble(base),evalDouble(exp))
     case Log(b,x) => scala.math.log(evalDouble(x)) / scala.math.log(evalDouble(b))
@@ -370,7 +383,7 @@ case object ? extends ArithExpr
 case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
 object jCst { def create(c: Int) = Cst(c) }
 
-case class Fraction(numer: ArithExpr, denom: ArithExpr) extends ArithExpr {
+case class IntDiv(numer: ArithExpr, denom: ArithExpr) extends ArithExpr {
   override def toString: String = "("+ numer + " div " + denom +")"
 }
 

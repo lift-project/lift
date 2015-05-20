@@ -137,7 +137,7 @@ object ExprSimplifier {
     }
   }
 
-  private def simplifyFraction(f: Fraction): ArithExpr = {
+  private def simplifyFraction(f: IntDiv): ArithExpr = {
     if (f.denom == Cst(1))
       return f.numer
 
@@ -151,23 +151,23 @@ object ExprSimplifier {
       return Cst(0)
 
     f match {
-      case Fraction(Cst(_), Cst(_)) => return f.eval()
-      case Fraction(Fraction(numer, denom1), denom2) => return Fraction(numer, simplify(denom1 * denom2))
-      case Fraction(numer, Pow(base, Cst(-1))) => return simplify(numer * base)
-      case Fraction(Sum(terms), denom) =>
+      case IntDiv(Cst(_), Cst(_)) => return f.eval()
+      case IntDiv(IntDiv(numer, denom1), denom2) => return IntDiv(numer, simplify(denom1 * denom2))
+      case IntDiv(numer, Pow(base, Cst(-1))) => return simplify(numer * base)
+      case IntDiv(Sum(terms), denom) =>
         var newTerms = List[ArithExpr]()
         var newFractions = List[ArithExpr]()
         for (term <- terms) {
           if (ArithExpr.multipleOf(term, denom))
-            newFractions = Fraction(term, denom) :: newFractions
+            newFractions = IntDiv(term, denom) :: newFractions
           else
             newTerms = term :: newTerms
         }
 
         if (newFractions.nonEmpty)
-          return simplify(Sum(newFractions) + Fraction(Sum(newTerms), denom))
+          return simplify(Sum(newFractions) + IntDiv(Sum(newTerms), denom))
 
-      case Fraction(Prod(factors), denom) =>
+      case IntDiv(Prod(factors), denom) =>
         // If denom or any part of denom is part of factors, eliminate
         denom match {
           case Prod(denomFactors) =>
@@ -175,7 +175,7 @@ object ExprSimplifier {
             if (common.nonEmpty){
               val newNumer = Prod(factors.diff(common))
               val newDenom = Prod(denomFactors.diff(common))
-              return simplify(Fraction(newNumer, newDenom))
+              return simplify(IntDiv(newNumer, newDenom))
             }
 
             simplifyFractionConstants(factors, denomFactors) match {
@@ -195,14 +195,14 @@ object ExprSimplifier {
               return simplify(Prod(factors.slice(0, index) ++ factors.slice(index+1, factors.length)))
             }
         }
-      case Fraction(_, denominator @ Var(_, _) ) =>
+      case IntDiv(_, denominator @ Var(_, _) ) =>
         val numeratorAtMax = f.numer.atMax
         val numeratorAtMin = f.numer.atMin
 
         if (ArithExpr.multipleOf(numeratorAtMax, denominator) && ArithExpr.multipleOf(numeratorAtMin, denominator)) {
           try {
-            if (simplify((numeratorAtMax - numeratorAtMin) div denominator).eval() == 1)
-              return simplify(numeratorAtMin div denominator).eval()
+            if (simplify((numeratorAtMax - numeratorAtMin) / denominator).eval() == 1)
+              return simplify(numeratorAtMin / denominator).eval()
           } catch {
             case e: NotEvaluableException =>
           }
@@ -218,15 +218,15 @@ object ExprSimplifier {
     val denomConstant = denomFactors.filter(_.isInstanceOf[Cst])
 
     if (denomConstant.nonEmpty && numerConstant.nonEmpty) {
-      val result = simplify(numerConstant.head / denomConstant.head)
+      val result = simplify(numerConstant.head /^ denomConstant.head)
       result match {
         case Pow(b, e) =>
           val numer = simplify(e * Cst(-1)) :: factors.diff(numerConstant)
           val denom = b :: denomFactors.diff(denomConstant)
-          return Some(simplify(Fraction(Prod(numer), Prod(denom))))
+          return Some(simplify(IntDiv(Prod(numer), Prod(denom))))
         case c: Cst =>
           val numer = c :: factors.diff(numerConstant)
-          return Some(simplify(Fraction(Prod(numer), Prod(denomFactors.diff(denomConstant)))))
+          return Some(simplify(IntDiv(Prod(numer), Prod(denomFactors.diff(denomConstant)))))
         case _ =>
       }
     }
@@ -273,11 +273,11 @@ object ExprSimplifier {
         // a = (a div d)*d + a mod d
         (ae, term) match {
           case (p: Prod, Mod(a, d)) =>
-            val term1 = (a div d) * d
+            val term1 = (a / d) * d
             if (p == term1)
               return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
           case (Mod(a, d), p: Prod) =>
-            val term1 = (a div d) * d
+            val term1 = (a / d) * d
             if (p == term1)
               return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
           // Constants
@@ -333,7 +333,7 @@ object ExprSimplifier {
   }
 
   private def tryToSimplifyTermPair(terms: List[ArithExpr], i: Int, ae: ArithExpr, k: Int, term: ArithExpr, v: ArithExpr): Option[Option[Sum]] = {
-    val simplified = simplify(ae / v + term / v)
+    val simplified = simplify(ae /^ v + term /^ v)
 
     var origHasMod = false
     var newHasMod = false
@@ -495,7 +495,7 @@ object ExprSimplifier {
       case And(l,r) => And(simplify(l),simplify(r))
       case Prod(factors) => Prod(factors.map(t => simplify(t)))
       case Sum(terms) => Sum(terms.map(t => simplify(t)))
-      case Fraction(n, d) => Fraction(simplify(n), simplify(d))
+      case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
       case _ => e
     }
 
@@ -504,7 +504,7 @@ object ExprSimplifier {
       case p: Prod => simplifyProd(p)
       case s: Sum => simplifySum(s)
       case m: Mod => simplifyMod(m)
-      case f: Fraction => simplifyFraction(f)
+      case f: IntDiv => simplifyFraction(f)
       case _ => result
     }
 

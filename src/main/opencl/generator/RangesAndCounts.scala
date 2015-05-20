@@ -68,7 +68,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
 
     gSize match {
       case Cst(c) =>
-        val numGroups = gSize / lSize
+        val numGroups = gSize /^ lSize
         val lengthSubst = ArithExpr.substitute(length, valueMap)
         start.range = ContinuousRange(0, numGroups)
         call.loopVar.range = RangeAdd(start, lengthSubst, numGroups)
@@ -103,9 +103,9 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
   }
 
   private def setRangeMapWarp(call: MapCall): Unit = {
-    call.loopVar.range = RangeAdd(new get_local_id(0) / OpenCL.warpSize,
+    call.loopVar.range = RangeAdd(new get_local_id(0) /^ OpenCL.warpSize,
       Type.getLength(call.arg.t),
-      Cst(Kernel.workGroupSize) / OpenCL.warpSize)
+      Cst(Kernel.workGroupSize) /^ OpenCL.warpSize)
     evaluateMapRange(call)
   }
 
@@ -176,7 +176,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
     if (condIsEvaluated && updateIsEvaluated)
       if (condEvaluated <= updateEvaluated) {
         // one or less iteration
-        return Cst(1) div ?
+        return Cst(1) / ?
       }
 
     ?

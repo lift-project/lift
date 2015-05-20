@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic.{Fraction, Cst, ?, ArithExpr}
+import arithmetic.{IntDiv, Cst, ?, ArithExpr}
 import ir._
 import opencl.ir._
 
@@ -42,7 +42,7 @@ object BarrierElimination {
   }
 
   private def isLoop(ae: ArithExpr): Boolean = {
-    !(ae == Cst(1) || ae == Cst(0) || ae == Fraction(1, ?))
+    !(ae == Cst(1) || ae == Cst(0) || ae == IntDiv(1, ?))
   }
 
   def getLambdas(e: Expr): List[Lambda] = {

@@ -185,8 +185,8 @@ class TestMatrixVector {
       ArrayType(Float, N),
       (matrix, vector) => {
         MapWrg(
-          Join() o Barrier() o toGlobal(MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(N / 32) o
-            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(32) o ReorderStride(N/32) o fun( r => Zip(vector, r) )
+          Join() o Barrier() o toGlobal(MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(N /^ 32) o
+            Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(32) o ReorderStride(N/^32) o fun( r => Zip(vector, r) )
         ) $ matrix
       })
 

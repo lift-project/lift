@@ -226,7 +226,7 @@ object IndexFunction {
   // predefined reorder functions ...
   val transposeFunction = (outerSize: ArithExpr, innerSize: ArithExpr) => (i: ArithExpr, t: Type) => {
     val col = (i % innerSize) * outerSize
-    val row = i div innerSize
+    val row = i / innerSize
 
     row + col
   }
@@ -245,8 +245,8 @@ object IndexFunction {
   }
 
   val reorderStride = (s:ArithExpr) => (i: ArithExpr, t:Type) => {
-    val n = Type.getLength(t) / s
-    (i div n) + s * (i % n)
+    val n = Type.getLength(t) /^ s
+    (i / n) + s * (i % n)
   }
 }
 
