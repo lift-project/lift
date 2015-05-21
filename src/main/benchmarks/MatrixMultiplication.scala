@@ -11,10 +11,10 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
   extends Benchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
 
   val tileX = parser.option[Int](List("x", "tileX"), "size",
-    "Tile size in the x dimension")
+    "Tile size in the M and N dimension")
 
   val tileY = parser.option[Int](List("y", "tileY"), "size",
-    "Tile size in the y dimension")
+    "Tile size in the K dimension")
 
   val registerBlockM = parser.option[Int](List("bm", "blockM"), "size",
    "Register blocking factor in M dimension")
@@ -75,6 +75,11 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
       registerBlockM.value.getOrElse(4))
     f(3)._2(0) = MatrixMultiplication.tiledAndBlockedBInnermost(tileX.value.getOrElse(16), tileX.value.getOrElse(16),
       tileY.value.getOrElse(8), registerBlockN.value.getOrElse(4), registerBlockM.value.getOrElse(4))
+  }
+
+  override protected def printParams(): Unit = {
+    println("Tile size: " + tileX.value.getOrElse(16) + " " + tileY.value.getOrElse(8))
+    println("Work per thread: " +registerBlockN.value.getOrElse(4) + " " + registerBlockM.value.getOrElse(4))
   }
 
   override protected def printResults(time: Double): Unit = {
