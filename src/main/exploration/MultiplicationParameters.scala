@@ -13,30 +13,31 @@ object MultiplicationParameters {
     val kSize = 1024
     val nSize = 1024
 
-    var tileSizeM = 2
-    var tileSizeN = tileSizeM
     var tileSizeK = 2
-    var workPerThreadN = 1
-    var workPerThreadM = 1
-
     while (tileSizeK <= 2048) {
+
+      var tileSizeM = 2
+      var tileSizeN = tileSizeM
       while (tileSizeM <= 2048) {
 
         if (tileSizeM*tileSizeK*2 <= 4096) {
 
+          var workPerThreadM = 1
           while(workPerThreadM <= 64) {
+
+            var workPerThreadN = 1
             while (workPerThreadN <= 64) {
 
               if (workPerThreadM * workPerThreadN <= 128 &&
                 tileSizeM >= workPerThreadM && tileSizeN >= workPerThreadN ) {
 
-                var globalSizeM = mSize / workPerThreadM
-                var globalSizeN = nSize / workPerThreadN
-
                 val localSizeM = tileSizeM / workPerThreadM
                 val localSizeN = tileSizeN / workPerThreadN
 
+                var globalSizeN = nSize / workPerThreadN
                 for (i <- 0 until 4) {
+
+                  var globalSizeM = mSize / workPerThreadM
                   for (i <- 0 until 4) {
 
                     if (globalSizeM >= localSizeM && globalSizeN >= localSizeN) {
