@@ -599,8 +599,8 @@ object Type {
         // find all the type variable in the output type
         val outputTvSet = scala.collection.mutable.HashSet[TypeVar]()
         visit(outputTypeWithTypeVar, t => {}, {
-          case at: ArrayType => outputTvSet ++= ArithExpr.getTypeVars(at.len)
-          case vt: VectorType => outputTvSet ++= ArithExpr.getTypeVars(vt.len)
+          case at: ArrayType => outputTvSet ++= TypeVar.getTypeVars(at.len)
+          case vt: VectorType => outputTvSet ++= TypeVar.getTypeVars(vt.len)
           case _ =>
         })
 

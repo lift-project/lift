@@ -260,7 +260,7 @@ case class UserFunDef(name: String, paramNames: Array[String], body: String,
       param match {
         case (tt: TupleType, _:String) => Seq(tt)
         case (tt: TupleType, names: Array[Any]) =>
-          (tt.elemsT zip names).map({ case (t,n) => emit(t, n)}).flatten
+          (tt.elemsT zip names).flatMap { case (t, n) => emit(t, n) }
         case _ => Seq()
       }
     }

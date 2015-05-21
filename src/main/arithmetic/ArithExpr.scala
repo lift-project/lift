@@ -192,15 +192,6 @@ object ArithExpr {
     }
   }
 
-  def getTypeVars(expr: ArithExpr) : Set[TypeVar] = {
-    val typeVars = scala.collection.mutable.HashSet[TypeVar]()
-    visit(expr, {
-      case tv: TypeVar => typeVars += tv
-      case _ =>
-    })
-    typeVars.toSet
-  }
-
   def contains(expr: ArithExpr, elem: ArithExpr) : Boolean = {
     var seen = false
     visit(expr, e => if (e==elem) seen=true)
@@ -482,13 +473,13 @@ object TypeVar {
     }
   }
 
-  def getTypeVars(e: ArithExpr) : Set[TypeVar] = {
-    e match {
-      case adds: Sum => adds.terms.foldLeft(new immutable.HashSet[TypeVar]())((set,expr) => set ++ getTypeVars(expr))
-      case muls: Prod => muls.factors.foldLeft(new immutable.HashSet[TypeVar]())((set,expr) => set ++ getTypeVars(expr))
-      case v: TypeVar => immutable.HashSet(v)
-      case _ => immutable.HashSet()
-    }
+  def getTypeVars(expr: ArithExpr) : Set[TypeVar] = {
+    val typeVars = scala.collection.mutable.HashSet[TypeVar]()
+    ArithExpr.visit(expr, {
+      case tv: TypeVar => typeVars += tv
+      case _ =>
+    })
+    typeVars.toSet
   }
 }
 

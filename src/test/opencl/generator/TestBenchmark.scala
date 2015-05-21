@@ -11,7 +11,7 @@ import ir.UserFunDef._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestBenchmark {
   @BeforeClass def before() {
@@ -112,7 +112,7 @@ class TestBenchmark {
 
     val input = Array.range(0, inputSize)
 
-    val gold = input.map(i => {
+    val gold = input.flatMap(i => {
       input.map(j => {
         val space = 2.0f / inputSize
 
@@ -134,7 +134,7 @@ class TestBenchmark {
 
         (y * 255) / iterations
       })
-    }).flatten
+    })
 
     val md = UserFunDef("md", Array("i", "j", "niters", "size"),
       """|{

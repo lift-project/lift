@@ -1,6 +1,6 @@
 package benchmarks
 
-import arithmetic.Var
+import arithmetic.{Cst, ArithExpr, Var}
 import ir.UserFunDef._
 import ir._
 import opencl.ir.CompositePatterns._
@@ -73,8 +73,9 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     f(1)._2(0) = MatrixMultiplication.tiled(tileX.value.getOrElse(16))
     f(2)._2(0) = MatrixMultiplication.moreWorkPerThread(tileX.value.getOrElse(16),
       registerBlockM.value.getOrElse(4))
-    f(3)._2(0) = MatrixMultiplication.tiledAndBlockedBInnermost(tileX.value.getOrElse(16), tileX.value.getOrElse(16),
-      tileY.value.getOrElse(8), registerBlockN.value.getOrElse(4), registerBlockM.value.getOrElse(4))
+    f(3)._2(0) = MatrixMultiplication.tiledAndBlockedBInnermost(Cst(tileX.value.getOrElse(16)),
+      Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
+      Cst(registerBlockM.value.getOrElse(4)))
   }
 
   override protected def printParams(): Unit = {
@@ -203,8 +204,8 @@ object MatrixMultiplication {
         )) o Tile(tileSize) $ A
     })
 
-  def tiledAndBlockedBInnermost(tileSizeN:Int, tileSizeM:Int, tileSizeK: Int,
-                                  workPerThreadN:Int, workPerThreadM:Int) = fun(
+  def tiledAndBlockedBInnermost(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
+                                  workPerThreadN: ArithExpr, workPerThreadM: ArithExpr) = fun(
     ArrayType(ArrayType(Float, M), K), // Transposed
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {

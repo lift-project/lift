@@ -273,7 +273,7 @@ sealed class FunCall(val f: FunDecl, val args: Expr*) extends Expr with Cloneabl
     } else {
       f.toString
     }
-    val argS = if (args.length > 0) args.map(_.toString).reduce(_ + ", " + _) else ""
+    val argS = if (args.nonEmpty) args.map(_.toString).reduce(_ + ", " + _) else ""
 
     fS + "(" + argS + ")"
   }

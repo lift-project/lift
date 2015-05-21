@@ -1,15 +1,15 @@
 package opencl.ir
 
-import arithmetic.{ArithExprFunction, Var, ArithExpr}
+import arithmetic.{Cst, ArithExprFunction, Var, ArithExpr}
 import ir._
 
 import language.implicitConversions
 
 object CompositePatterns {
 
-  def Tile(size: Int): CompFunDef = Tile(size, size)
+  def Tile(size: ArithExpr): CompFunDef = Tile(size, size)
 
-  def Tile(x: Int, y: Int) =
+  def Tile(x: ArithExpr, y: ArithExpr) =
     Map(Map(Transpose()) o Split(y) o Transpose()) o Split(x)
 
   def Untile() = Join() o Map(Map(Join()) o TransposeW())
