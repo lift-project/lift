@@ -20,7 +20,8 @@ object MultiplicationParameters {
       var tileSizeN = tileSizeM
       while (tileSizeM <= 2048) {
 
-        if (tileSizeM*tileSizeK*2 <= 4096) {
+        val totalElementsInLocal = tileSizeM * tileSizeK * 2
+        if (totalElementsInLocal <= 4096 && totalElementsInLocal >= 1024) {
 
           var workPerThreadM = 1
           while(workPerThreadM <= 64) {
