@@ -42,6 +42,11 @@ object jMapWarp {
   def create(f: FunDecl) = MapWarp(Lambda1.FunDefToLambda(f))
 }
 
+object jMapMatrix {
+  def create(f: Lambda1) = MapMatrix(f)
+  def create(f: FunDecl) = MapMatrix(Lambda1.FunDefToLambda(f))
+}
+
 object jMapLane {
   def create(f: Lambda1) = MapLane(f)
   def create(f: FunDecl) = MapLane(Lambda1.FunDefToLambda(f))

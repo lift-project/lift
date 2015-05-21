@@ -120,11 +120,6 @@ object MapMatrix {
   def apply(dim: Int) = (f: Lambda1) => new MapMatrix(dim, f)
 }
 
-object jMapMatrix {
-  def create(f: Lambda1) = MapMatrix(f)
-  def create(f: FunDecl) = MapMatrix(Lambda1.FunDefToLambda(f))
-}
-
 // Reductions
 
 case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {

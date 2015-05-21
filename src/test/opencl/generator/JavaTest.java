@@ -1,6 +1,7 @@
 package opencl.generator;
 
 import arithmetic.*;
+import arithmetic.interop.*;
 import ir.*;
 import ir.interop.*;
 import ir.interop.jUserFunDef;

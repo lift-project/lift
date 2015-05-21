@@ -372,7 +372,7 @@ object ArithExpr {
 case object ? extends ArithExpr
 
 case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
-object jCst { def create(c: Int) = Cst(c) }
+
 
 case class IntDiv(numer: ArithExpr, denom: ArithExpr) extends ArithExpr {
   override def toString: String = "("+ numer + " div " + denom +")"
@@ -508,10 +508,7 @@ case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extend
 
 }
 
-object jVar {
-  def create(name: String, range: arithmetic.Range) = Var(name, range)
-  def create(name: String) = Var(name)
-}
+
 
 object Var {
   var cnt: Int = -1
