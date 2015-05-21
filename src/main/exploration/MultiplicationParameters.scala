@@ -6,7 +6,7 @@ object MultiplicationParameters {
 
   def main(args: Array[String]) : Unit = {
     val platform = 1
-    val device = 1
+    val device = 0
     val variant = 3
 
     val mSize = 1024
@@ -35,34 +35,37 @@ object MultiplicationParameters {
                 val localSizeM = tileSizeM / workPerThreadM
                 val localSizeN = tileSizeN / workPerThreadN
 
-                var globalSizeN = nSize / workPerThreadN
-                for (i <- 0 until 4) {
+                if (localSizeM*localSizeN <= 1024) {
 
-                  var globalSizeM = mSize / workPerThreadM
+                  var globalSizeN = nSize / workPerThreadN
                   for (i <- 0 until 4) {
 
-                    if (globalSizeM >= localSizeM && globalSizeN >= localSizeN) {
+                    var globalSizeM = mSize / workPerThreadM
+                    for (i <- 0 until 4) {
 
-                      val parameters = Array("--il", "-p1", "-s" + mSize, "-s" + kSize, "-s" + nSize,
-                        "-p" + platform, "-d" + device, "-x" + tileSizeM, "-y" + tileSizeK,
-                        "--bm", workPerThreadM.toString, "--bn", workPerThreadN.toString,
-                        "-l" + localSizeM, "-l" + localSizeN,
-                        "--variant", variant.toString, "-g" + globalSizeM, "-g" + globalSizeN)
+                      if (globalSizeM >= localSizeM && globalSizeN >= localSizeN) {
 
-                      try {
-                        println(parameters.mkString(" "))
-                        MatrixMultiplication().run(parameters :+ "--ig")
-                        MatrixMultiplication().run(parameters)
-                      } catch {
-                        case e: Exception =>
-                          println("Invalid combination")
-                          println(e.printStackTrace())
+                        val parameters = Array("--il", "-p1", "-s" + mSize, "-s" + kSize, "-s" + nSize,
+                          "-p" + platform, "-d" + device, "-x" + tileSizeM, "-y" + tileSizeK,
+                          "--bm", workPerThreadM.toString, "--bn", workPerThreadN.toString,
+                          "-l" + localSizeM, "-l" + localSizeN,
+                          "--variant", variant.toString, "-g" + globalSizeM, "-g" + globalSizeN)
+
+                        try {
+                          println(parameters.mkString(" "))
+                          MatrixMultiplication().run(parameters :+ "--ig")
+                          MatrixMultiplication().run(parameters)
+                        } catch {
+                          case e: Exception =>
+                            println("Invalid combination")
+                            println(e.printStackTrace())
+                        }
                       }
-                    }
 
-                    globalSizeM /= 2
+                      globalSizeM /= 2
+                    }
+                    globalSizeN /= 2
                   }
-                  globalSizeN /= 2
                 }
 
               }
