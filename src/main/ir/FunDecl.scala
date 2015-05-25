@@ -250,6 +250,7 @@ case class UserFunDef(name: String, paramNames: Array[String], body: String,
         case (_: VectorType, _: String) => false
         case (tt: TupleType, names: Array[String]) =>
           (tt.elemsT zip names).exists({ case (t, n) => test((t, n))})
+        case _ => throw new IllegalArgumentException("Unexpected type in tuple expansion")
       }
     }
     test((inT, paramName))

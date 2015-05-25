@@ -38,6 +38,7 @@ abstract class View(val t: Type = UndefType) {
     this.t match {
       case ArrayType(elemT, n) => new ViewSplit(chunkSize, this,
         ArrayType(ArrayType(elemT, chunkSize), n / chunkSize))
+      case _ => throw new IllegalArgumentException("PANIC: split expects an array type")
     }
   }
 
@@ -45,6 +46,7 @@ abstract class View(val t: Type = UndefType) {
     this.t match {
       case ArrayType(ArrayType(elemT, n), m) =>
         new ViewJoin(chunkSize, this, ArrayType(elemT, n * m))
+      case _ => throw new IllegalArgumentException("PANIC: join expects an array type")
     }
   }
 
@@ -312,6 +314,7 @@ object ViewPrinter {
       t match {
         case tt: TupleType => getLengthForArrayAccess(Type.getTypeAtIndex(tt, tupleAccesses.top), tupleAccesses.pop)
         case ArrayType(elemT, n) => getLengthForArrayAccess(elemT, tupleAccesses) * n
+        case _ => throw new IllegalArgumentException("PANIC: cannot compute array access")
       }
     }
   }

@@ -74,6 +74,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
         call.loopVar.range = RangeAdd(start, lengthSubst, numGroups)
         evaluateMapRange(call)
       case ? =>
+      case _ => throw new IllegalArgumentException("Invalid global size type")
     }
 
     call.loopVar.range = RangeAdd(start, length, step)

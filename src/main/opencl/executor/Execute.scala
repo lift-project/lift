@@ -113,15 +113,11 @@ object Execute {
    */
   private def ValidateNDRange(globalSize: Int, localSize: Int, dim: Int): Unit = {
     if (localSize <= 0)
-      throw new InvalidLocalSizeException("Local size (" + localSize +
-                                          ") cannot be negative in dim " + dim)
+      throw new InvalidLocalSizeException(s"Local size (${localSize}) cannot be negative in dim ${dim}")
     if (globalSize <= 0)
-      throw new InvalidGlobalSizeException("Global size (" + localSize +
-                                           ") cannot be negative in dim " + dim)
+      throw new InvalidGlobalSizeException(s"Global size (${globalSize}) cannot be negative in dim ${dim}")
     if (globalSize % localSize != 0)
-      throw new InvalidIndexSpaceException("Global size (" + globalSize +
-                                           ") is not divisible by local size (" + localSize +
-                                           ") in dim " + dim)
+      throw new InvalidIndexSpaceException(s"Global size (${globalSize}) is not divisible by local size (${localSize}) in dim ${dim}")
   }
 }
 

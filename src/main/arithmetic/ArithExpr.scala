@@ -139,6 +139,7 @@ object ArithExpr {
         case _ => return None
       }
       case c: Cst => c
+      case _ => throw new IllegalArgumentException("upperBound expects a Var or a Cst")
     })).eval())
   }
 
@@ -149,6 +150,7 @@ object ArithExpr {
         case _ => return None
       }
       case c: Cst => c
+      case _ => throw new IllegalArgumentException("lowerBound expects a Var or a Cst")
     })).eval())
   }
 

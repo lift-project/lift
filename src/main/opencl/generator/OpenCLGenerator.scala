@@ -1,6 +1,7 @@
 package opencl.generator
 
 import arithmetic._
+import com.sun.javaws.exceptions.InvalidArgumentException
 import generator.Generator
 import ir._
 import ir.view.{ViewPrinter, View}
@@ -449,11 +450,58 @@ object OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFunDef, call: FunCall) = {
     assert(call.f == u)
 
-    oclPrinter.print(access(call) + " = ")
-
-    oclPrinter.generateFunCall(call, access(call.args:_*))
+    call.t match {
+      case VectorType(elemT, len) =>
+        // Handle vector assignments for vector types
+        generateStore(call)
+      case _ =>
+        // Use assignment operator otherwise
+        oclPrinter.print(access(call) + " = ")
+        oclPrinter.generateFunCall(call, access(call.args: _*))
+    }
 
     oclPrinter.println(";")
+  }
+
+  /**
+   * Generate a vector store.
+   * This function emits a store[n] if the LHS is an array of vectors or an assignment otherwise.
+   */
+  private def generateStore(arg: FunCall) = {
+    val oclMem = OpenCLMemory.asOpenCLMemory(arg.mem)
+    val view = arg.view
+
+    arg.t match {
+      case VectorType(elemT, len) =>
+        oclMem.addressSpace match {
+          case GlobalMemory | LocalMemory =>
+            oclPrinter.print(s"vstore${len}(")
+            oclPrinter.generateFunCall(arg, access(arg.args: _*))
+            oclPrinter.print(",")
+            oclPrinter.print(oclPrinter.toOpenCL(ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns) / len))
+            oclPrinter.print(s", " + oclPrinter.toOpenCL(oclMem.variable) + ")")
+
+          case PrivateMemory =>
+            /// TODO(tlutz) This assumes we never use arrays in the private address space
+            privateMems.find(m => m.mem.variable == oclMem.variable) match {
+              case None => oclPrinter.print(oclPrinter.toOpenCL(oclMem.variable))
+              case Some(typedMemory) =>
+                typedMemory.t match {
+                  case ArrayType(_, _) =>
+                    val index = ArithExpr.substitute(ViewPrinter.emit(view), replacements).eval()
+                    oclPrinter.print(
+                    oclPrinter.toOpenCL(oclMem.variable) + "_" +
+                      oclPrinter.toOpenCL(index))
+                  case _ => oclPrinter.print(oclPrinter.toOpenCL(oclMem.variable))
+                }
+            }
+            oclPrinter.print(" = ")
+            oclPrinter.generateFunCall(arg, access(arg.args: _*))
+
+          case _ => throw new NotImplementedError()
+        }
+    case _ => throw new NotImplementedError()
+    }
   }
 
   private def generateLoop(indexVar: Var, printBody: () => Unit, iterationCount: ArithExpr = ?, unroll: Boolean = false): Unit = {
@@ -492,6 +540,10 @@ object OpenCLGenerator extends Generator {
     fun + "(" + arg.reduce( _ + ", " + _) + ")"
   }
 
+  /**
+   * Emit code for array or variable access.
+   * If the array being accessed is a vector type, we generate vload[n] calls. Otherwise we use the assignment operator.
+   */
   private def access(arg: Expr): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(arg.mem)
     val t = arg.t
@@ -500,19 +552,30 @@ object OpenCLGenerator extends Generator {
     oclMem.addressSpace match {
       case GlobalMemory =>
 
-        "*((global " + oclPrinter.toOpenCL(t) + "*)&" +
-          oclPrinter.toOpenCL(oclMem.variable) +
-          "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns)) + "])"
+        t match {
+          case VectorType(_,len) =>
+            s"vload${len}(" + oclPrinter.toOpenCL( ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns) / len) + ", " +
+              oclPrinter.toOpenCL(oclMem.variable) + ")"
+          case _ =>
+            oclPrinter.toOpenCL(oclMem.variable) +
+              "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns)) + "]"
+        }
 
       case LocalMemory =>
 
-        "*((local " + oclPrinter.toOpenCL(t) + "*)&" +
-          oclPrinter.toOpenCL(oclMem.variable) +
-          "[" + oclPrinter.toOpenCL(
-          ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns)
-        ) + "])"
+        t match {
+          case VectorType(_,len) =>
+            s"vload${len}(" + oclPrinter.toOpenCL(
+              ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns) / len) + ", " +
+              oclPrinter.toOpenCL(oclMem.variable) + ")"
+          case _ =>
+            oclPrinter.toOpenCL(oclMem.variable) +
+              "[" + oclPrinter.toOpenCL(
+              ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns)) + "]"
+        }
 
       case PrivateMemory =>
+        // TODO(tlutz) We assume variable in the private memory space cannot be arrays
         privateMems.find(m => m.mem.variable == oclMem.variable) match {
           case None => oclPrinter.toOpenCL(oclMem.variable)
           case Some(typedMemory) =>
