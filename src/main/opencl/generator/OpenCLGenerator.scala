@@ -1,7 +1,6 @@
 package opencl.generator
 
 import arithmetic._
-import com.sun.javaws.exceptions.InvalidArgumentException
 import generator.Generator
 import ir._
 import ir.view.{ViewPrinter, View}
