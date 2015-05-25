@@ -469,6 +469,7 @@ object OpenCLGenerator extends Generator {
   private def generateStore(arg: FunCall) = {
     val oclMem = OpenCLMemory.asOpenCLMemory(arg.mem)
     val view = arg.view
+    val varname: String = oclPrinter.toOpenCL(oclMem.variable)
 
     arg.t match {
       case VectorType(elemT, len) =>
@@ -478,20 +479,18 @@ object OpenCLGenerator extends Generator {
             oclPrinter.generateFunCall(arg, access(arg.args: _*))
             oclPrinter.print(",")
             oclPrinter.print(oclPrinter.toOpenCL(ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns) / len))
-            oclPrinter.print(s", " + oclPrinter.toOpenCL(oclMem.variable) + ")")
+            oclPrinter.print(s", ${varname})")
 
           case PrivateMemory =>
             /// TODO(tlutz) This assumes we never use arrays in the private address space
             privateMems.find(m => m.mem.variable == oclMem.variable) match {
-              case None => oclPrinter.print(oclPrinter.toOpenCL(oclMem.variable))
+              case None => oclPrinter.print(varname)
               case Some(typedMemory) =>
                 typedMemory.t match {
                   case ArrayType(_, _) =>
                     val index = ArithExpr.substitute(ViewPrinter.emit(view), replacements).eval()
-                    oclPrinter.print(
-                    oclPrinter.toOpenCL(oclMem.variable) + "_" +
-                      oclPrinter.toOpenCL(index))
-                  case _ => oclPrinter.print(oclPrinter.toOpenCL(oclMem.variable))
+                    oclPrinter.print(s"${varname}_" + oclPrinter.toOpenCL(index))
+                  case _ => oclPrinter.print(varname)
                 }
             }
             oclPrinter.print(" = ")
@@ -547,43 +546,28 @@ object OpenCLGenerator extends Generator {
     val oclMem = OpenCLMemory.asOpenCLMemory(arg.mem)
     val t = arg.t
     val view = arg.view
+    val varname: String = oclPrinter.toOpenCL(oclMem.variable)
 
     oclMem.addressSpace match {
-      case GlobalMemory =>
+      case GlobalMemory | LocalMemory =>
 
+        val offset: ArithExpr = ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns)
         t match {
           case VectorType(_,len) =>
-            s"vload${len}(" + oclPrinter.toOpenCL( ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns) / len) + ", " +
-              oclPrinter.toOpenCL(oclMem.variable) + ")"
+            s"vload${len}( ${oclPrinter.toOpenCL(offset/len)}, ${varname} )"
           case _ =>
-            oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns)) + "]"
-        }
-
-      case LocalMemory =>
-
-        t match {
-          case VectorType(_,len) =>
-            s"vload${len}(" + oclPrinter.toOpenCL(
-              ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns) / len) + ", " +
-              oclPrinter.toOpenCL(oclMem.variable) + ")"
-          case _ =>
-            oclPrinter.toOpenCL(oclMem.variable) +
-              "[" + oclPrinter.toOpenCL(
-              ArithExpr.substitute(ExprSimplifier.simplify(ViewPrinter.emit(view)), replacementsWithFuns)) + "]"
+            s"${varname}[ ${oclPrinter.toOpenCL(offset)} ]"
         }
 
       case PrivateMemory =>
         // TODO(tlutz) We assume variable in the private memory space cannot be arrays
         privateMems.find(m => m.mem.variable == oclMem.variable) match {
-          case None => oclPrinter.toOpenCL(oclMem.variable)
+          case None => varname
           case Some(typedMemory) =>
             typedMemory.t match {
               case ArrayType(_, _) =>
                 val index = ArithExpr.substitute(ViewPrinter.emit(view), replacements).eval()
-
-                oclPrinter.toOpenCL(oclMem.variable) + "_" +
-                  oclPrinter.toOpenCL(index)
+                s"${varname}_" + oclPrinter.toOpenCL(index)
               case _ => oclPrinter.toOpenCL(oclMem.variable)
             }
         }

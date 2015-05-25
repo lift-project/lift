@@ -50,6 +50,7 @@ class OpenCLPrinter {
     if (newline)
       printSpace()
     sb ++= s
+    //System.out.println(sb.toString())
     newline = false
   }
 
