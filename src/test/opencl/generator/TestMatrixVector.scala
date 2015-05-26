@@ -142,6 +142,7 @@ class TestMatrixVector {
     assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
+  @Ignore
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
 
     val inputSize = 4096
