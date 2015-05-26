@@ -274,13 +274,18 @@ object Type {
   }
 
 
-  private def isEqual(l: Type, r: Type): Boolean = {
+  def isEqual(l: Type, r: Type): Boolean = {
     (l, r) match {
-      case (lst: ScalarType, rst: ScalarType) => lst.size == rst.size && lst.name == rst.name
+      case (lst: ScalarType, rst: ScalarType) => isEqual(lst, rst)
       case (ltt: TupleType, rtt: TupleType) => isEqual(ltt, rtt)
       case (lat: ArrayType, rat: ArrayType) => isEqual(lat, rat)
+      case (lvt: VectorType, rvt: VectorType) => isEqual(lvt, rvt)
       case _ => false
     }
+  }
+
+  private def isEqual(l: ScalarType, r: ScalarType): Boolean = {
+    l.size == r.size && l.name == r.name
   }
 
   private def isEqual(lt: TupleType, rt: TupleType): Boolean = {
@@ -290,9 +295,11 @@ object Type {
   }
 
   private def isEqual(l: ArrayType, r: ArrayType): Boolean = {
-    if (l.len != r.len) return false
+    l.len == r.len && isEqual(l.elemT, r.elemT)
+  }
 
-    isEqual(l.elemT, r.elemT)
+  private def isEqual(l: VectorType, r: VectorType): Boolean = {
+    l.len == r.len && isEqual(l.scalarT, r.scalarT)
   }
 
 

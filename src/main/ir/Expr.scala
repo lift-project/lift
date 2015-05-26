@@ -163,7 +163,7 @@ object Expr {
 
 /** Parameters to functions and lambdas, i.e.: x, y, ...
   */
-class Param() extends Expr {
+class Param() extends Expr with Cloneable {
   t = UndefType
 
   override def toString = "PARAM"

@@ -39,8 +39,8 @@ class TestAddressSpaces {
   }
 
   @Test def staticLocalMemory(): Unit = {
-    val orig = AllocateStatically()
-    AllocateStatically(allocateStatically = true)
+    val orig = AllocateLocalMemoryStatically()
+    AllocateLocalMemoryStatically(allocateStatically = true)
 
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
@@ -61,12 +61,12 @@ class TestAddressSpaces {
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(2, OpenCLGenerator.Kernel.memory.length)
 
-    AllocateStatically(orig)
+    AllocateLocalMemoryStatically(orig)
   }
 
   @Test def nonStaticLocalMemory(): Unit = {
-    val orig = AllocateStatically()
-    AllocateStatically(allocateStatically = false)
+    val orig = AllocateLocalMemoryStatically()
+    AllocateLocalMemoryStatically(allocateStatically = false)
 
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
@@ -87,7 +87,7 @@ class TestAddressSpaces {
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(3, OpenCLGenerator.Kernel.memory.length)
 
-    AllocateStatically(orig)
+    AllocateLocalMemoryStatically(orig)
   }
 
   @Test def privateGlobalMemory(): Unit = {

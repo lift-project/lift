@@ -12,6 +12,7 @@ object InputView {
     val result = expr match {
       case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
       case pr: ParamReference => pr.p.view.get(pr.i)
+      case vp: VectorParam => vp.p.view
       case p: Param => p.view
       case call: FunCall => buildViewFunCall(call)
     }
