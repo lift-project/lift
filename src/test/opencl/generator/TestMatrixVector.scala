@@ -142,9 +142,7 @@ class TestMatrixVector {
     assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
-  @Ignore
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
-    // TODO: Fails with CL_OUT_OF_RESOURCES
 
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)

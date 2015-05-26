@@ -105,9 +105,7 @@ object OpenCLGenerator extends Generator {
     if (Verbose()) {
       println("Memory:")
       printMemories(f.body)
-    }
 
-    if (Verbose()) {
       println("Allocated Memory:")
       TypedOpenCLMemory.getAllocatedMemory(f.body, f.params).foreach(m => println(m.toString))
       println("")
@@ -438,9 +436,9 @@ object OpenCLGenerator extends Generator {
                          ";")
 
       // tin = (tout == swap) ? swap : out
-      oclPrinter.println(tinVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ swapVStr +":"+ outVStr+";")
+      oclPrinter.println(s"${tinVStr} = ( ${toutVStr} == ${swapVStr} ) ? ${swapVStr} : ${outVStr} ;")
       // tout = (tout == swap) ? out : swap
-      oclPrinter.println(toutVStr + " = ( " + toutVStr+"=="+swapVStr+" ) ? "+ outVStr +":"+ swapVStr+";")
+      oclPrinter.println(s"${toutVStr} = ( ${toutVStr} == ${swapVStr} ) ? ${outVStr} : ${swapVStr} ;")
     }, call.iterationCount)
 
     oclPrinter.closeCB()
@@ -540,7 +538,7 @@ object OpenCLGenerator extends Generator {
 
   /**
    * Emit code for array or variable access.
-   * If the array being accessed is a vector type, we generate vload[n] calls. Otherwise we use the assignment operator.
+   * If the array being accessed is a vector type, we generate vload[n] calls. Otherwise we use the array subscript operator.
    */
   private def access(arg: Expr): String = {
     val oclMem = OpenCLMemory.asOpenCLMemory(arg.mem)
@@ -568,7 +566,7 @@ object OpenCLGenerator extends Generator {
               case ArrayType(_, _) =>
                 val index = ArithExpr.substitute(ViewPrinter.emit(view), replacements).eval()
                 s"${varname}_" + oclPrinter.toOpenCL(index)
-              case _ => oclPrinter.toOpenCL(oclMem.variable)
+              case _ => varname
             }
         }
 
