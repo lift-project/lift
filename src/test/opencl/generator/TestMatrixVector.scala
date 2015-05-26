@@ -142,10 +142,9 @@ class TestMatrixVector {
     assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
-  @Ignore
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
 
-    val inputSize = 4096
+    val inputSize = 2048
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
     val vector = Array.fill(inputSize)(2.0f)
 
