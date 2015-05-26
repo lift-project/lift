@@ -166,6 +166,18 @@ case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isG
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
+case class Pad(offset: Int, boundary: Pad.Boundary.Boundary)
+  extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
+object Pad {
+  object Boundary extends Enumeration {
+    type Boundary = Value
+    val CLAMP, MIRROR, BOUNCE, WRAP, CUSTOM = Value
+    protected case class Val(value: AnyVal) extends super.Val
+    def CONSTANT(value: AnyVal): Val = value.asInstanceOf[Val]
+  }
+}
+
 case class Group(relIndices: Array[Int],
                  negOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr,
                  posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {

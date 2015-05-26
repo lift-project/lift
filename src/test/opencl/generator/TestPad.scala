@@ -1,6 +1,11 @@
 package opencl.generator
 
+import arithmetic.Var
+import ir.UserFunDef._
+import ir.{Join, Split, ArrayType, fun}
 import opencl.executor._
+import opencl.ir._
+import org.junit.Assert._
 import org.junit._
 
 
@@ -47,15 +52,19 @@ object Feature {
 // --8<----8<----8<----8<----8<----8<--
 
 class TestPad {
+  import Pad.Boundary._
 
   // use letters instead of numbers
-  val next = { var n = 0f; () => { n = n + 1f; n } };
+  val next = { var n = 0f; () => { n = n + 1f; n } }
   val a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p = next()
   // same thing with uppercase to distinguish padding
-  val Next = { var n = 0f; () => { n = n + 1f; n } };
-  val A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P = Next()
+  val Next = { var n = 0f; () => { n = n + 1f; n } }
+  val A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P  = Next()
 
-  // constant padding
+  /// Input array
+  val input = Array(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p)
+
+  /// constant padding
   val X = 0f
 
   // *** STAGE 1: common usage/basic functionalities ***
@@ -75,7 +84,14 @@ class TestPad {
     val gold = Array(X,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,X)
     //               ^                                 ^
 
-    throw new RuntimeException("Test case not implemented")
+    val fct = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => MapGlb(id) o Pad(1, CONSTANT(X)) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(gold.length)(fct, input)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def PAD_1D_CONSTANT_Pos_2(): Unit = {
@@ -99,7 +115,17 @@ class TestPad {
       X, X, X, X, X, X) // <
     //^              ^
 
-    throw new RuntimeException("Test case not implemented")
+    val fct = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => Join() o MapGlb(id)
+        o Transpose() o Pad(1, CONSTANT(X))
+        o Transpose() o Pad(1, CONSTANT(X))
+        o Split(4) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(gold.length)(fct, input)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def PAD_2D_CONSTANT_Pos_2(): Unit = {
@@ -126,7 +152,14 @@ class TestPad {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
 
-    throw new RuntimeException("Test case not implemented")
+    val fct = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => MapGlb(id) o Pad(1, CLAMP) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(gold.length)(fct, input)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def PAD_1D_CLAMP_Pos_2(): Unit = {
@@ -216,7 +249,7 @@ class TestPad {
       O, N, m, n, o, p, O, N,
       K, J, I, J, K, L, K, J, // <
       G, F, E, F, G, H, G, F) // <
-    //^  ^              ^  ^              ^  ^
+    //^  ^              ^  ^
 
     throw new RuntimeException("Test case not implemented")
   }
