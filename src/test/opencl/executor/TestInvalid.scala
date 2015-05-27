@@ -226,4 +226,31 @@ class TestInvalid {
     // explicit failure
     assert(assertion = false)
   }
+
+  // Trigger an error in the executor in the executor and recover
+  @Test
+  def ExecutorFailureRecovery(): Unit = {
+    try {
+      Executor.execute("this is not a valid OpenCL Kernel and should crash the executor", 1, 1, 1, 1, 1, 1, Array())
+    } catch {
+      case ea: java.lang.RuntimeException =>
+        println("The executor crashed, restarting")
+        try {
+          Executor.shutdown()
+          Executor.init()
+        } catch {
+          case _ => println("Failed to restart the executor")
+        }
+      case e: Exception =>
+        assert(assertion = false)
+    }
+
+    // This should work
+    try {
+      println("Executing a valid kernel")
+      Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
+    } catch {
+      case _ => assert(assertion = false)
+    }
+  }
 }
