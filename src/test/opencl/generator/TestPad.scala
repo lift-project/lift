@@ -67,6 +67,39 @@ class TestPad {
   /// constant padding
   val X = 0f
 
+  /// Cross validate 1D Pad
+  /// @param gold Expected output
+  /// @param size Padding offset
+  /// @param boundary Boundary behavior
+  def validate1D(gold: Array[Float], size: Int, boundary: Pad.Boundary, input: Array[Float] = input) = {
+    val fct = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => MapGlb(id) o Pad(size, boundary) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(gold.length, gold.length)(fct, input)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  /// Cross validate 2D pad
+  /// @param gold Expected output
+  /// @param size Padding offset
+  /// @param boundary Boundary behavior
+  def validate2D(gold: Array[Float], size: Int, boundary: Pad.Boundary) = {
+    val fct = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => MapGlb(id) o Join()
+        o Transpose() o Pad(size, boundary)
+        o Transpose() o Pad(size, boundary)
+        o Split(4) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
   // *** STAGE 1: common usage/basic functionalities ***
 
   // === No effect ===
@@ -84,14 +117,7 @@ class TestPad {
     val gold = Array(X,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,X)
     //               ^                                 ^
 
-    val fct = fun(
-      ArrayType(Float, Var("N")),
-      (domain) => MapGlb(id) o Pad(1, CONSTANT(X)) $ domain
-    )
-
-    val (output: Array[Float],runtime) = Execute(gold.length)(fct, input)
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.0f)
+    validate1D(gold, 1, CONSTANT(X))
   }
 
   @Test def PAD_1D_CONSTANT_Pos_2(): Unit = {
@@ -100,7 +126,7 @@ class TestPad {
     val gold = Array(X,X,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,X,X)
     //               ^ ^                                 ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 2, CONSTANT(X))
   }
 
   @Test def PAD_2D_CONSTANT_Pos_1(): Unit = {
@@ -115,17 +141,7 @@ class TestPad {
       X, X, X, X, X, X) // <
     //^              ^
 
-    val fct = fun(
-      ArrayType(Float, Var("N")),
-      (domain) => Join() o MapGlb(id)
-        o Transpose() o Pad(1, CONSTANT(X))
-        o Transpose() o Pad(1, CONSTANT(X))
-        o Split(4) $ domain
-    )
-
-    val (output: Array[Float],runtime) = Execute(gold.length)(fct, input)
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.0f)
+    validate2D(gold, 1, CONSTANT(X))
   }
 
   @Test def PAD_2D_CONSTANT_Pos_2(): Unit = {
@@ -142,7 +158,7 @@ class TestPad {
       X, X, X, X, X, X, X, X) // <
     //^  ^              ^  ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 2, CONSTANT(X))
   }
 
   // === Test clamp boundary condition ===
@@ -152,14 +168,7 @@ class TestPad {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
 
-    val fct = fun(
-      ArrayType(Float, Var("N")),
-      (domain) => MapGlb(id) o Pad(1, CLAMP) $ domain
-    )
-
-    val (output: Array[Float],runtime) = Execute(gold.length)(fct, input)
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.0f)
+    validate1D(gold, 1, CLAMP)
   }
 
   @Test def PAD_1D_CLAMP_Pos_2(): Unit = {
@@ -168,7 +177,7 @@ class TestPad {
     val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
     //               ^ ^                                 ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 2, CLAMP)
   }
 
   @Test def PAD_2D_CLAMP_Pos_1(): Unit = {
@@ -183,7 +192,7 @@ class TestPad {
       M, M, N, O, P, P) // <
     //^              ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 1, CLAMP)
   }
 
   @Test def PAD_2D_CLAMP_Pos_2(): Unit = {
@@ -200,7 +209,7 @@ class TestPad {
       M, M, M, N, O, P, P, P) // <
     //^  ^              ^  ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 2, CLAMP)
   }
 
   // === Test bounce boundary condition ===
@@ -210,7 +219,7 @@ class TestPad {
     val gold = Array(B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O)
     //               ^                                 ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 1, BOUNCE)
   }
 
   @Test def PAD_1D_BOUNCE_Pos_2(): Unit = {
@@ -219,7 +228,7 @@ class TestPad {
     val gold = Array(C,B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O,N)
     //               ^ ^                                 ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 2, BOUNCE)
   }
 
   @Test def PAD_2D_BOUNCE_Pos_1(): Unit = {
@@ -234,7 +243,7 @@ class TestPad {
       J, I, J, K, L, K) // <
     //^              ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 1, BOUNCE)
   }
 
   @Test def PAD_2D_BOUNCE_Pos_2(): Unit = {
@@ -251,7 +260,7 @@ class TestPad {
       G, F, E, F, G, H, G, F) // <
     //^  ^              ^  ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 2, BOUNCE)
   }
 
   // === Test mirror boundary condition ===
@@ -261,7 +270,7 @@ class TestPad {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 1, MIRROR)
   }
 
   @Test def PAD_1D_MIRROR_Pos_2(): Unit = {
@@ -270,7 +279,7 @@ class TestPad {
     val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
     //               ^ ^                                 ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 1, MIRROR)
   }
 
   @Test def PAD_2D_MIRROR_Pos_1(): Unit = {
@@ -285,7 +294,7 @@ class TestPad {
       M, M, N, O, P, P) // <
     //^              ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 1, MIRROR)
   }
 
   @Test def PAD_2D_MIRROR_Pos_2(): Unit = {
@@ -302,7 +311,7 @@ class TestPad {
       M, I, I, J, K, L, L, K) // <
     //^  ^              ^  ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 2, MIRROR)
   }
 
   // === Test wrap boundary condition ===
@@ -312,7 +321,7 @@ class TestPad {
     val gold = Array(P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A)
     //               ^                                 ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 1, WRAP)
   }
 
   @Test def PAD_1D_WRAP_Pos_2(): Unit = {
@@ -321,7 +330,7 @@ class TestPad {
     val gold = Array(O,P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A,B)
     //               ^ ^                                 ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 2, WRAP)
   }
 
   @Test def PAD_2D_WRAP_Pos_1(): Unit = {
@@ -336,7 +345,7 @@ class TestPad {
       D, A, B, C, D, A) // <
     //^              ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 1, WRAP)
   }
 
   @Test def PAD_2D_WRAP_Pos_2(): Unit = {
@@ -353,7 +362,7 @@ class TestPad {
       G, H, E, F, G, H, E, F) // <
     //^  ^              ^  ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate2D(gold, 2, WRAP)
   }
 
   // === Test custom boundary condition ===
@@ -422,7 +431,7 @@ class TestPad {
     val gold  = Array(X,X,X,X,X,X,X,X,a,b,c,d,X,X,X,X,X,X,X,X)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 8, CONSTANT(X), input)
   }
 
   @Test def PAD_PadPadding_CLAMP(): Unit = {
@@ -432,7 +441,7 @@ class TestPad {
     val gold  = Array(A,A,A,A,A,A,A,A,a,b,c,d,D,D,D,D,D,D,D,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 8, CLAMP, input)
   }
 
   @Test def PAD_PadPadding_BOUNCE(): Unit = {
@@ -442,7 +451,7 @@ class TestPad {
     val gold  = Array(D,B,A,B,C,D,C,B,a,b,c,d,C,B,A,B,C,D,C,B)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 8, BOUNCE, input)
   }
 
   @Test def PAD_PadPadding_MIRROR(): Unit = {
@@ -452,7 +461,7 @@ class TestPad {
     val gold  = Array(A,B,C,D,D,C,B,A,a,b,c,d,D,C,B,A,A,B,C,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 8, MIRROR, input)
   }
 
   @Test def PAD_PadPadding_WRAP(): Unit = {
@@ -462,7 +471,7 @@ class TestPad {
     val gold  = Array(A,B,C,D,A,B,C,D,a,b,c,d,A,B,C,D,A,B,C,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    validate1D(gold, 8, WRAP, input)
   }
 
   // *** STAGE 3: invalid usages ***

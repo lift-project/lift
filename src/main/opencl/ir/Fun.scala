@@ -166,15 +166,23 @@ case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isG
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
-case class Pad(offset: Int, boundary: Pad.Boundary.Boundary)
+case class Pad(offset: Int, boundary: Pad.Boundary)
   extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 object Pad {
-  object Boundary extends Enumeration {
-    type Boundary = Value
-    val CLAMP, MIRROR, BOUNCE, WRAP, CUSTOM = Value
-    protected case class Val(value: AnyVal) extends super.Val
-    def CONSTANT(value: AnyVal): Val = value.asInstanceOf[Val]
+  sealed abstract class Boundary
+  case class ConstantBoundary(value: AnyVal) extends Boundary
+  case class CommonBoundary() extends Boundary
+
+  object Boundary {
+    object CLAMP extends Boundary
+    object MIRROR extends Boundary
+    object BOUNCE extends Boundary
+    object WRAP extends Boundary
+    object CUSTOM extends Boundary
+    def CONSTANT(value: AnyVal): ConstantBoundary = {
+      ConstantBoundary(value)
+    }
   }
 }
 

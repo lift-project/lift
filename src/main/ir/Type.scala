@@ -367,6 +367,7 @@ object Type {
       case g: Group =>            checkGroup(g, inT)
       case h: Head =>             checkHead(inT)
       case t: Tail =>             checkTail(inT)
+      case Pad(n,_) =>            checkPad(n, inT)
       case Barrier() | Gather(_) | Scatter(_) => inT
     }
   }
@@ -638,6 +639,13 @@ object Type {
           case _ => throw new TypeException(outer.elemT, "ArrayType")
         }
       case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
+
+  def checkPad(n: ArithExpr, inT: Type): Type = {
+    inT match {
+      case at: ArrayType => ArrayType(at.elemT, at.len + 2*n)
+      case _ => throw new TypeException(inT, "ArrayType")
     }
   }
 
