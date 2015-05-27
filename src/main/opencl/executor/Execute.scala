@@ -15,6 +15,9 @@ class InvalidGlobalSizeException(msg: String) extends Exception(msg)
 /** Thrown on negative or 0 local size */
 class InvalidLocalSizeException(msg: String) extends Exception(msg)
 
+/** Thrown when the device cannot execute the kernel */
+class DeviceCapabilityException(msg: String) extends RuntimeException(msg)
+
 /**
  * Interface for executing a lambda object in OpenCL via Java -> JNI -> SkelCL -> OpenCL
  */
@@ -67,7 +70,7 @@ object Execute {
 
   /**
    * Private helper functions.
-   * Create a map which maps variabels (e.g., N) to values (e.g, "1024")
+   * Create a map which maps variables (e.g., N) to values (e.g, "1024")
    */
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
     // just take the variables
@@ -200,31 +203,33 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     // given input sizes
     staticGroupCheck(f, valueMap)
 
-    // 3. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
+    // 3. make sure the device has enough memory to execute the kernel
+    validateMemorySizes(valueMap)
 
+    // 4. create output OpenCL kernel argument
+    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
     val outputData = global(outputSize)
 
-    // 4. create all OpenCL data kernel arguments
+    // 5. create all OpenCL data kernel arguments
     val memArgs = createMemArgs(f, outputData, valueMap, values:_*)
 
-    // 5. create OpenCL arguments reflecting the size information for the data arguments
+    // 6. create OpenCL arguments reflecting the size information for the data arguments
     val sizes = createSizeArgs(f, valueMap)
 
-    // 6. combine kernel arguments. first pointers and data, then the size information
+    // 7. combine kernel arguments. first pointers and data, then the size information
     val args: Array[KernelArg] = memArgs ++ sizes
 
-    // 7. execute via JNI
+    // 8. execute via JNI
     val runtime = Executor.execute(code, localSize1, localSize2, localSize3,
                                    globalSize1, globalSize2, globalSize3, args)
 
-    // 8. cast the output accordingly to the output type
+    // 9. cast the output accordingly to the output type
     val output = castToOutputType(f.body.t, outputData)
 
-    // 9. release OpenCL objects
+    // 10. release OpenCL objects
     args.foreach(_.dispose)
 
-    // 10. return output data and runtime as a tuple
+    // 11. return output data and runtime as a tuple
     (output, runtime)
   }
 
@@ -337,6 +342,31 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
         case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval())
       }
     })
+  }
+
+  private def validateMemorySizes(valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+    val (globalMemories, localMemories) =
+      (OpenCLGenerator.Kernel.memory ++ OpenCLGenerator.Kernel.staticLocalMemory).
+        partition(_.mem.addressSpace == GlobalMemory)
+
+    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval())
+    val totalSizeOfGlobal = globalSizes.sum
+    val totalSizeOfLocal = localMemories.map(mem =>
+      ArithExpr.substitute(mem.mem.size, valueMap).eval()).sum
+
+    globalSizes.foreach(size => {
+      val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
+      if (size > maxMemAllocSize)
+        throw new DeviceCapabilityException(s"Buffer size required ($size) cannot be larger than $maxMemAllocSize")
+    })
+
+    val globalMemSize = Executor.getDeviceGlobalMemSize
+    if (totalSizeOfGlobal > globalMemSize)
+      throw new DeviceCapabilityException(s"Global size required ($totalSizeOfGlobal) cannot be larger than $globalMemSize")
+
+    val localMemSize = Executor.getDeviceLocalMemSize
+    if (totalSizeOfLocal > localMemSize)
+      throw new DeviceCapabilityException(s"Local size required ($totalSizeOfLocal) cannot be larger than $localMemSize")
   }
 
   private def createSizeArgs(f: Lambda,

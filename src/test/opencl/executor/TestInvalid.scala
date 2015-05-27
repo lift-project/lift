@@ -6,7 +6,8 @@ package opencl.executor
 
 import arithmetic.Var
 import ir._
-import opencl.ir.{MapGlb, Float}
+import ir.UserFunDef._
+import opencl.ir._
 import org.junit._
 
 object TestInvalid {
@@ -225,5 +226,21 @@ class TestInvalid {
 
     // explicit failure
     assert(assertion = false)
+  }
+
+  @Test(expected = classOf[DeviceCapabilityException])
+  def TooMuchLocalMemoryRequired(): Unit = {
+    val localMemSize = Executor.getDeviceLocalMemSize
+
+    val inputSize = math.ceil((localMemSize + 4 ) / 4.0).toInt
+
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o MapWrg(toLocal(MapLcl(id))) o Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
   }
 }

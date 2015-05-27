@@ -179,6 +179,7 @@ object OpenCLGenerator extends Generator {
 
   object Kernel {
     var memory = Array.empty[TypedOpenCLMemory]
+    var staticLocalMemory = Array.empty[TypedOpenCLMemory]
     var workGroupSize = 128
   }
 
@@ -210,12 +211,17 @@ object OpenCLGenerator extends Generator {
     this.varDecls = this.varDecls ++
                     typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
 
-    val (staticLocal, rest) =
+    val partitioned =
       if (AllocateLocalMemoryStatically())
         Kernel.memory.partition(isFixedSizeLocalMemory)
-      else (Array.empty[TypedOpenCLMemory], Kernel.memory)
+      else
+        (Array.empty[TypedOpenCLMemory], Kernel.memory)
 
-    Kernel.memory = rest
+     partitioned match {
+      case (static, nonStatic) =>
+        Kernel.memory = nonStatic
+        Kernel.staticLocalMemory = static
+    }
 
     f.params.foreach(_.mem.readOnly = true)
 
@@ -249,7 +255,7 @@ object OpenCLGenerator extends Generator {
     // generate the body of the kernel
     oclPrinter.openCB()
     // Print declarations for non parameter private memories and fixed size local memories
-    staticLocal.foreach(oclPrinter.printVarDecl)
+    Kernel.staticLocalMemory.foreach(oclPrinter.printVarDecl)
     typedValueMems.foreach(m => oclPrinter.printVarDecl(Type.getValueType(m.t), m.mem.variable))
     privateMems.foreach(m => oclPrinter.printVarDecl(m))
     generate(expr)
