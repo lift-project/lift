@@ -233,14 +233,8 @@ class TestInvalid {
     try {
       Executor.execute("this is not a valid OpenCL Kernel and should crash the executor", 1, 1, 1, 1, 1, 1, Array())
     } catch {
-      case ea: java.lang.RuntimeException =>
-        println("The executor crashed, restarting")
-        try {
-          Executor.shutdown()
-          Executor.init()
-        } catch {
-          case _ => println("Failed to restart the executor")
-        }
+      case ea: Executor.ExecutorFailureException =>
+        ea.consume()
       case e: Exception =>
         assert(assertion = false)
     }
@@ -251,6 +245,22 @@ class TestInvalid {
       Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
     } catch {
       case _ => assert(assertion = false)
+    }
+  }
+
+  // Test allocating too much local memory
+  @Ignore
+  @Test def AllocateTooMuchLocalMemory(): Unit = {
+    try {
+      // Allocate 4 times the maximum
+      val arg = LocalArg.create(Executor.getDeviceMaxMemAllocSize().asInstanceOf[Int])
+      Executor.execute("kernel void KERNEL(local float* mem){}", 1, 1, 1, 1, 1, 1, Array(arg))
+    } catch {
+      case e: Executor.ExecutorFailureException =>
+        e.consume()
+        assert(assertion = false)
+      case _ =>
+      // This might be acceptable depending on how we handle insufficient ressources
     }
   }
 }
