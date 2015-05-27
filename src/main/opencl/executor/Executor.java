@@ -40,6 +40,12 @@ public class Executor {
 
     public native static void init(int platformId, int deviceId);
 
+    public native static long getDeviceLocalMemSize();
+
+    public native static long getDeviceGlobalMemSize();
+
+    public native static long getDeviceMaxMemAllocSize();
+
     public native static String getPlatformName();
 
     public native static String getDeviceName();
