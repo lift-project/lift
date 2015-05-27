@@ -142,7 +142,10 @@ class TestMatrixVector {
     assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
   }
 
+  @Ignore
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
+
+    // TODO(tlutz) This is a memory hungry test. It is disabled until we can query the device properties.
 
     val inputSize = 2048
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
