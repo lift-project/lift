@@ -243,4 +243,41 @@ class TestInvalid {
 
     Execute(1, inputSize)(f, input)
   }
+
+  // Trigger an error in the executor in the executor and recover
+  @Test
+  def ExecutorFailureRecovery(): Unit = {
+    try {
+      Executor.execute("this is not a valid OpenCL Kernel and should crash the executor", 1, 1, 1, 1, 1, 1, Array())
+    } catch {
+      case ea: Executor.ExecutorFailureException =>
+        ea.consume()
+      case e: Exception =>
+        assert(assertion = false)
+    }
+
+    // This should work
+    try {
+      println("Executing a valid kernel")
+      Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
+    } catch {
+      case _ => assert(assertion = false)
+    }
+  }
+
+  // Test allocating too much local memory
+  @Ignore
+  @Test def AllocateTooMuchLocalMemory(): Unit = {
+    try {
+      // Allocate 4 times the maximum
+      val arg = LocalArg.create(Executor.getDeviceMaxMemAllocSize().asInstanceOf[Int])
+      Executor.execute("kernel void KERNEL(local float* mem){}", 1, 1, 1, 1, 1, 1, Array(arg))
+    } catch {
+      case e: Executor.ExecutorFailureException =>
+        e.consume()
+        assert(assertion = false)
+      case _ =>
+      // This might be acceptable depending on how we handle insufficient ressources
+    }
+  }
 }
