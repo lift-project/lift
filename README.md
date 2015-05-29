@@ -1,38 +1,19 @@
 ### Setup ###
 
 1. Install mercurial and the latest Java SDK
-2. Cone the "apart" repository to a directory of you choice
+2. Clone the "apart" repository to a directory of you choice
 2. Download & Install IDEA IntelliJ (http://www.jetbrains.com/idea/)
 3. Launch IntelliJ. On the Welcome Screen select "Configure" and install the "Scala" Plugin form the Plugin Repository. After the installation restart IntelliJ.
 4. On the IntelliJ Welcome Screen select "Open Project" and select the "build.sbt" file in the "apart" folder you just checked out.
 
-To be able to execute computations in OpenCL you need to install the SkelCL library.
-Please clone the SkelCL repository from [bitbucket](https://bitbucket.org/skelcl/skelcl) or [github](https://github.com/skelcl/skelcl).
+To be able to execute computations in OpenCL you need to install the SkelCL library, which is embedded as a submodule.
 
-*  Clone the SkelCL repository: 
+The script `apart.sh` builds SkelCL and apart and runs the test
 ```
-#!bash
-
-git clone git@bitbucket.org:skelcl/skelcl.git
-```
-* Install dependencies with the ./installDependenciesUbuntu.sh script. Answer all questions with 'y'
-* Create a build directory, execute cmake and perform the build with make:
-```
-#!bash
-
-mkdir build
-cd build
-cmake ..
-make
-```
-* Execute all tests with 
-```
-#!bash
-
-make test
+./apart.sh
 ```
 
-You find more instructions to build &install SkelCL [here](https://github.com/skelcl/skelcl/wiki).
+You find more instructions to build &install SkelCL [here](https://github.com/skelcl/skelcl/wiki) if you want to do it manually.
 
 Finally add the SkelCL build directory to the Java library path:
 
@@ -55,3 +36,4 @@ Intel ![](http://pamina:8080/job/apart-intel/branch/default/badge/icon)
 AMD ![](http://pamina:8080/job/apart-amd/branch/default/badge/icon)
 
 NVIDIA ![](http://pamina:8080/job/apart-nvidia/branch/default/badge/icon)
+
