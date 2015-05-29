@@ -331,6 +331,40 @@ class TestExpr {
   }
 
   @Test
+  def minFunction(): Unit = {
+    // comparing 0 and 1
+    assertEquals(Cst(0), ExprSimplifier.simplify(Min(Cst(0),Cst(1))))
+    // negative number
+    assertEquals(Cst(-1), ExprSimplifier.simplify(Min(Cst(-1),Cst(1))))
+    assertEquals(Cst(-2), ExprSimplifier.simplify(Min(Cst(-1),Cst(-2))))
+
+    val n = Var("n")
+    // unknown var1
+    assertEquals(Min(n, Cst(0)), ExprSimplifier.simplify(Min(n, Cst(0))))
+    // unknown var2
+    assertEquals(Min(Cst(0),n), ExprSimplifier.simplify(Min(Cst(0),n)))
+    // equal values
+    assertEquals(n*10, ExprSimplifier.simplify(Min(n*10,n*10)))
+  }
+
+  @Test
+  def maxFunction(): Unit = {
+    // comparing 0 and 1
+    assertEquals(Cst(1), ExprSimplifier.simplify(Max(Cst(0),Cst(1))))
+    // negative number
+    assertEquals(Cst(1), ExprSimplifier.simplify(Max(Cst(-1),Cst(1))))
+    assertEquals(Cst(-1), ExprSimplifier.simplify(Max(Cst(-1),Cst(-2))))
+
+    val n = Var("n")
+    // unknown var1
+    assertEquals(Max(n, Cst(0)), ExprSimplifier.simplify(Max(n, Cst(0))))
+    // unknown var2
+    assertEquals(Max(Cst(0),n), ExprSimplifier.simplify(Max(Cst(0),n)))
+    // equal values
+    assertEquals(n*10, ExprSimplifier.simplify(Max(n*10,n*10)))
+  }
+
+  @Test
   def bugAIsSmaller(): Unit = {
     val i = Var("i", ContinuousRange(0, 2))
     val id = Var("id", ContinuousRange(0, 5))

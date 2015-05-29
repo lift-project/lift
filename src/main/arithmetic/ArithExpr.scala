@@ -307,6 +307,12 @@ object ArithExpr {
       case And(l, r) =>
         visit(l, f)
         visit(r, f)
+      case Min(var1, var2) =>
+        visit(var1, f)
+        visit(var2, f)
+      case Max(var1, var2) =>
+        visit(var1, f)
+        visit(var2, f)
       case Floor(expr) => visit(expr, f)
       case Sum(terms) => terms.foreach(t => visit(t, f))
       case Prod(terms) => terms.foreach(t => visit(t, f))
@@ -324,6 +330,8 @@ object ArithExpr {
       case Mod(dividend, divisor) => Mod(substitute(dividend, substitutions), substitute(divisor, substitutions))
       case Log(b,x) => Log(substitute(b, substitutions), substitute(x, substitutions))
       case And(l, r) => And(substitute(l, substitutions), substitute(r, substitutions))
+      case Min(var1, var2) => Min(substitute(var1, substitutions), substitute(var2, substitutions))
+      case Max(var1, var2) => Max(substitute(var1, substitutions), substitute(var2, substitutions))
       case Floor(expr) => Floor(substitute(expr, substitutions))
       case adds: Sum => Sum(adds.terms.map(t => substitute(t, substitutions)))
       case muls: Prod => Prod(muls.factors.map(t => substitute(t, substitutions)))
@@ -351,6 +359,16 @@ object ArithExpr {
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
 
     case Floor(expr) => scala.math.floor(evalDouble(expr))
+
+    case Min(var1, var2) =>
+      val v1 = var1.eval()
+      val v2 = var2.eval()
+      if (v1 > v2) v2 else v1
+
+    case Max(var1, var2) =>
+      val v1 = var1.eval()
+      val v2 = var2.eval()
+      if (v1 < v2) v2 else v1
   }
 
 
@@ -434,6 +452,14 @@ case class And(lhs: ArithExpr, rhs: ArithExpr) extends ArithExpr {
 
 case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
+}
+
+case class Min(var1 : ArithExpr, var2 : ArithExpr) extends ArithExpr {
+  override def toString: String = s"Min(${var1},${var2})"
+}
+
+case class Max(var1 : ArithExpr, var2 : ArithExpr) extends ArithExpr {
+  override def toString: String = s"Max(${var1},${var2})"
 }
 
 case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr

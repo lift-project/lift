@@ -482,6 +482,30 @@ object ExprSimplifier {
     result
   }
 
+  private def simplifyMin(m: Min): ArithExpr = {
+    (m.var1,m.var2) match {
+      case(Cst(a),Cst(b)) =>
+        Cst(if (a > b) b else a)
+      case (_,_) =>
+        if (m.var1 == m.var2)
+          m.var1
+        else
+          Min(m.var1,m.var2)
+    }
+  }
+
+  private def simplifyMax(m: Max): ArithExpr = {
+    (m.var1,m.var2) match {
+      case(Cst(a),Cst(b)) =>
+        Cst(if (a < b) b else a)
+      case (_,_) =>
+        if (m.var1 == m.var2)
+          m.var1
+        else
+          Max(m.var1,m.var2)
+    }
+  }
+
   def simplify(e: ArithExpr): ArithExpr = {
 
     // recurse inside first
@@ -496,6 +520,8 @@ object ExprSimplifier {
       case Prod(factors) => Prod(factors.map(t => simplify(t)))
       case Sum(terms) => Sum(terms.map(t => simplify(t)))
       case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
+      case Min(var1, var2) => Min(simplify(var1), simplify(var2))
+      case Max(var1, var2) => Max(simplify(var1), simplify(var2))
       case _ => e
     }
 
@@ -505,6 +531,8 @@ object ExprSimplifier {
       case s: Sum => simplifySum(s)
       case m: Mod => simplifyMod(m)
       case f: IntDiv => simplifyFraction(f)
+      case m: Min => simplifyMin(m)
+      case m: Max => simplifyMax(m)
       case _ => result
     }
 
