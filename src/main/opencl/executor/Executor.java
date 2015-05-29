@@ -2,6 +2,30 @@ package opencl.executor;
 
 public class Executor {
 
+    public static class ExecutorFailureException extends Exception {
+        public ExecutorFailureException(String message){
+            super(message);
+            System.err.println("Runtime error in the executor");
+        }
+
+        /// Consume the error. This restarts the Excutor
+        public void consume(){
+            System.err.print("Restarting the executor... ");
+
+            // Shutdown
+            try { Executor.shutdown(); }
+            catch( Exception e) { /* ignore shutdown errors */ }
+
+            // restart
+            try { Executor.init(); }
+            catch( Exception e) {
+                System.err.print("Catastrophic failure, cannot restart the executor");
+                throw new RuntimeException("Cannot start Execution engine");
+            }
+            System.err.println("[ok]");
+        }
+    }
+
     /** Execute the given kernel source code with the given global and local size and arguments.
       * Returns the runtime in milliseconds.
       *
@@ -39,6 +63,12 @@ public class Executor {
                                         KernelArg[] args);
 
     public native static void init(int platformId, int deviceId);
+
+    public native static long getDeviceLocalMemSize();
+
+    public native static long getDeviceGlobalMemSize();
+
+    public native static long getDeviceMaxMemAllocSize();
 
     public native static String getPlatformName();
 
