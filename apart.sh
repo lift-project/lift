@@ -22,6 +22,9 @@ function init(){
 #SkelCL config flags
 SKELCL_CMAKE_FLAGS=
 SKELCL_LLVM_PATH=
+
+# sbt options
+SBT_FLAGS=
 EOF
   fi
 
@@ -90,12 +93,12 @@ function build(){
   popd
 
   # Apart
-  sbt compile
+  sbt ${SBT_FLAGS} compile
 }
 
 function runtest(){
   check_command "sbt" 
-  LD_LIBRARY_PATH=`pwd`/lib/SkelCL/build/executor/ sbt test 
+  LD_LIBRARY_PATH=`pwd`/lib/SkelCL/build/executor/ sbt ${SBT_FLAGS} test 
 }
 
 init
