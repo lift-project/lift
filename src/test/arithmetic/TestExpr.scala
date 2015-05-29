@@ -345,6 +345,11 @@ class TestExpr {
     assertEquals(Min(Cst(0),n), ExprSimplifier.simplify(Min(Cst(0),n)))
     // equal values
     assertEquals(n*10, ExprSimplifier.simplify(Min(n*10,n*10)))
+
+    // unknown plus offset
+    assertEquals(n+5, ExprSimplifier.simplify(Min(n+5,n+10)))
+    // this should not simplify
+    assertEquals(Min(n,n*2), ExprSimplifier.simplify(Min(n,n*2)))
   }
 
   @Test
@@ -362,6 +367,11 @@ class TestExpr {
     assertEquals(Max(Cst(0),n), ExprSimplifier.simplify(Max(Cst(0),n)))
     // equal values
     assertEquals(n*10, ExprSimplifier.simplify(Max(n*10,n*10)))
+
+    // unknown plus offset
+    assertEquals(n+10, ExprSimplifier.simplify(Max(n+5,n+10)))
+    // this should not simplify
+    assertEquals(Max(n,n*2), ExprSimplifier.simplify(Max(n,n*2)))
   }
 
   @Test

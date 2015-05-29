@@ -482,28 +482,24 @@ object ExprSimplifier {
     result
   }
 
-  private def simplifyMin(m: Min): ArithExpr = {
-    (m.var1,m.var2) match {
-      case(Cst(a),Cst(b)) =>
-        Cst(if (a > b) b else a)
-      case (_,_) =>
-        if (m.var1 == m.var2)
-          m.var1
-        else
-          Min(m.var1,m.var2)
-    }
+  private def simplifyMin(m: Min): ArithExpr = (m.var1,m.var2) match {
+    case(Cst(a),Cst(b)) =>
+      Cst(if (a > b) b else a)
+    case _ =>
+      simplify(m.var1 - m.var2) match {
+        case Cst(v) => if (v > 0) m.var2 else m.var1
+        case _ => Min(m.var1,m.var2)
+      }
   }
 
-  private def simplifyMax(m: Max): ArithExpr = {
-    (m.var1,m.var2) match {
-      case(Cst(a),Cst(b)) =>
-        Cst(if (a < b) b else a)
-      case (_,_) =>
-        if (m.var1 == m.var2)
-          m.var1
-        else
-          Max(m.var1,m.var2)
-    }
+  private def simplifyMax(m: Max): ArithExpr = (m.var1,m.var2) match {
+    case(Cst(a),Cst(b)) =>
+      Cst(if (a < b) b else a)
+    case _ =>
+      simplify(m.var1 - m.var2) match {
+        case Cst(v) => if (v < 0) m.var2 else m.var1
+        case _ => Max(m.var1,m.var2)
+      }
   }
 
   def simplify(e: ArithExpr): ArithExpr = {
