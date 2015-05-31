@@ -8,6 +8,22 @@ import scala.util.Random
 
 class NotEvaluableException(msg: String) extends Exception(msg)
 
+case class Predicate(lhs: ArithExpr, rhs: ArithExpr, op: Predicate.Operator.Operator) {
+  override def toString: String = s"(${lhs} ${op} ${rhs})"
+}
+
+object Predicate {
+  class Operator
+  object Operator extends Enumeration {
+    type Operator = Value;
+    val < = Value("<")
+    val > = Value(">")
+    val <= = Value("<=")
+    val >= = Value(">=")
+    val!= = Value("!=")
+    val== = Value("==")
+  }
+}
 
 abstract sealed class ArithExpr {
 
@@ -96,6 +112,17 @@ abstract sealed class ArithExpr {
 
   def &(that: ArithExpr) = And(this, that)
 
+  def lt(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.<)
+
+  def gt(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.>)
+
+  def le(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.<=)
+
+  def ge(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.>=)
+
+  def eq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.==)
+
+  def neq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.!=)
 }
 
 
@@ -332,6 +359,9 @@ object ArithExpr {
       case And(l, r) => And(substitute(l, substitutions), substitute(r, substitutions))
       case Min(var1, var2) => Min(substitute(var1, substitutions), substitute(var2, substitutions))
       case Max(var1, var2) => Max(substitute(var1, substitutions), substitute(var2, substitutions))
+      case IfThenElse(i, t, e) =>
+        val cond = Predicate(substitute(i.lhs, substitutions), substitute(i.rhs, substitutions), i.op)
+        IfThenElse(cond, substitute(t, substitutions), substitute(e, substitutions))
       case Floor(expr) => Floor(substitute(expr, substitutions))
       case adds: Sum => Sum(adds.terms.map(t => substitute(t, substitutions)))
       case muls: Prod => Prod(muls.factors.map(t => substitute(t, substitutions)))
@@ -369,6 +399,9 @@ object ArithExpr {
       val v1 = var1.eval()
       val v2 = var2.eval()
       if (v1 < v2) v2 else v1
+
+    case _: IfThenElse =>
+      throw new NotEvaluableException(e.toString)
   }
 
 
@@ -460,6 +493,10 @@ case class Min(var1 : ArithExpr, var2 : ArithExpr) extends ArithExpr {
 
 case class Max(var1 : ArithExpr, var2 : ArithExpr) extends ArithExpr {
   override def toString: String = s"Max(${var1},${var2})"
+}
+
+case class IfThenElse(test: Predicate, t : ArithExpr, e : ArithExpr) extends ArithExpr {
+  override def toString: String = s"If(${test})Then(${t})Else(${e})"
 }
 
 case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr

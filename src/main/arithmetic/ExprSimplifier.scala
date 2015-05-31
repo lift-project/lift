@@ -502,6 +502,34 @@ object ExprSimplifier {
       }
   }
 
+  // Simplify IfThenElse objects
+  // Try to evaluate the condition, returns a single expression if the condition
+  // can be evaluated statically, or an IfThenElse statement otherwise.
+  private def simplifyIfThenElse(ite: IfThenElse): ArithExpr = {
+    // If both branches are the same, it doesn't matter which one we take
+    if (ite.e == ite.t)
+      ite.e
+    // otherwise try to evaluate the predicate
+    else {
+      val slhs = simplify(ite.test.lhs)
+      val srhs = simplify(ite.test.rhs)
+      simplify(ite.test.lhs - ite.test.rhs) match {
+        case Cst(v) =>
+          val op = ite.test.op
+          import Predicate.Operator
+          // true predicate
+          if ((v > 0 && (op == Operator.> || op == Operator.>=)) ||
+              (v < 0 && (op == Operator.< || op == Operator.<=)) ||
+              (v == 0 && (op == Operator.== || op == Operator.<= || op == Operator.>=)) ||
+              (v != 0 && op == Operator.!=))
+            ite.t
+          else
+            ite.e
+        case _ => IfThenElse(Predicate(slhs, srhs, ite.test.op), ite.t, ite.t)
+      }
+    }
+  }
+
   def simplify(e: ArithExpr): ArithExpr = {
 
     // recurse inside first
@@ -518,6 +546,7 @@ object ExprSimplifier {
       case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
       case Min(var1, var2) => Min(simplify(var1), simplify(var2))
       case Max(var1, var2) => Max(simplify(var1), simplify(var2))
+      case IfThenElse(i,t,e) => IfThenElse(i, simplify(t), simplify(e))
       case _ => e
     }
 
@@ -529,6 +558,7 @@ object ExprSimplifier {
       case f: IntDiv => simplifyFraction(f)
       case m: Min => simplifyMin(m)
       case m: Max => simplifyMax(m)
+      case ite: IfThenElse => simplifyIfThenElse(ite)
       case _ => result
     }
 

@@ -283,6 +283,14 @@ class TestExpr {
     assertEquals(l * n/^4, ExprSimplifier.simplify((l * n/^4) % n))
   }
 
+  // Test that the % operator is the same as C (ISO14882:2011(e) 5.6-4)
+  @Test def NegativeMod(): Unit = {
+    // -11 % 5 = -1
+    assertEquals(Cst(-1), ExprSimplifier.simplify(-11 % 5))
+    // 11 % -5 = 1
+    assertEquals(Cst(1), ExprSimplifier.simplify(11 % -5))
+  }
+
   @Test
   def divPlusModMultiplied(): Unit = {
     val a = Var("a")
@@ -372,6 +380,18 @@ class TestExpr {
     assertEquals(n+10, ExprSimplifier.simplify(Max(n+5,n+10)))
     // this should not simplify
     assertEquals(Max(n,n*2), ExprSimplifier.simplify(Max(n,n*2)))
+  }
+
+  @Test
+  def testIfThenElse(): Unit = {
+    val a = Var("a")
+    val b = Var("b")
+    val c = Var("c")
+
+    assertEquals(a, ExprSimplifier.simplify(IfThenElse(Cst(1) lt Cst(2),a,b)))
+    assertEquals(b, ExprSimplifier.simplify(IfThenElse(Cst(1) gt Cst(2),a,b)))
+    assertEquals(a, ExprSimplifier.simplify(IfThenElse(b neq c,a,a)))
+    assertEquals(c, ExprSimplifier.simplify(IfThenElse(b+Cst(2) gt b,c,b)))
   }
 
   @Test
