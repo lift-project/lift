@@ -99,8 +99,8 @@ object MatrixMultiplication {
     ArrayType(ArrayType(Float, K), M),
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
-      MapWrg(fun( Arow =>
-        Barrier() o MapLcl(fun( Bcol =>
+      MapGlb(1)(fun( Arow =>
+        MapGlb(0)(fun( Bcol =>
           toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
         )) o Transpose() $ B
       )) $ A

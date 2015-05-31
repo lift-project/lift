@@ -144,7 +144,7 @@ abstract class Benchmark(val name: String,
   }
 
   def runBenchmark(): Unit = {
-    val commit = "hg id -i".!!.dropRight(1)
+    val commit = "git rev-parse HEAD".!!.dropRight(1)
 
     println("Benchmark: " + name + " " + f(variant)._1)
     println("Size(s): " + inputSizes().mkString(", "))
@@ -160,8 +160,7 @@ abstract class Benchmark(val name: String,
     println("Machine: " + "hostname".!!.dropRight(1))
     println("finger".!!.dropRight(1))
     println("Commit: " + commit)
-    if (commit.last == '+')
-      println("Diff:\n" + "hg diff -X scripts".!!.dropRight(1))
+    println("Diff:\n" + "git diff".!!.dropRight(1))
 
     println()
 
