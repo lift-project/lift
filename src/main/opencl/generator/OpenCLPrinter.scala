@@ -163,7 +163,7 @@ class OpenCLPrinter {
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
       case IntDiv(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
-      case ite: IfThenElse => s"((${ite.test.lhs} ${ite.test.op} ${ite.test.rhs}) ? (${ite.t}) : (${ite.e}))"
+      case ite: IfThenElse => s"((${toOpenCL(ite.test.lhs)} ${ite.test.op} ${toOpenCL(ite.test.rhs)}) ? (${toOpenCL(ite.t)}) : (${toOpenCL(ite.e)}))"
       case gc: GroupCall =>
         val outerAe = if (Debug()) ExprSimplifier.simplify(gc.outerAe) else gc.outerAe
         val innerAe = if (Debug()) ExprSimplifier.simplify(gc.innerAe) else gc.innerAe

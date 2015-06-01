@@ -170,15 +170,25 @@ case class Pad(offset: Int, boundary: Pad.Boundary)
   extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 object Pad {
-  sealed abstract class Boundary
+  abstract class Boundary
   case class ConstantBoundary(value: AnyVal) extends Boundary
-  case class CommonBoundary() extends Boundary
+  abstract case class CommonBoundary() extends Boundary {
+    def reorder(idx: ArithExpr, len: ArithExpr): ArithExpr
+  }
 
   object Boundary {
-    object CLAMP extends Boundary
+    object WRAP extends CommonBoundary {
+      override def reorder(idx: ArithExpr, len: ArithExpr): ArithExpr = {
+        (idx % len + len) % len
+      }
+    }
+    object CLAMP extends CommonBoundary {
+      override def reorder(idx: ArithExpr, len: ArithExpr): ArithExpr = {
+        ArithExpr.Math.Clamp(idx, 0, len-1)
+      }
+    }
     object MIRROR extends Boundary
     object BOUNCE extends Boundary
-    object WRAP extends Boundary
     object CUSTOM extends Boundary
     def CONSTANT(value: AnyVal): ConstantBoundary = {
       ConstantBoundary(value)

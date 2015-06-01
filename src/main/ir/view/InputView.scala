@@ -58,6 +58,7 @@ object InputView {
           case h: Head => buildViewHead(call, argView)
           case h: Tail => buildViewTail(call, argView)
           case uz: Unzip => buildViewUnzip(call, argView)
+          case Pad(size,boundary) => buildViewPad(size, boundary, argView)
           case _ => argView
         }
     }
@@ -203,4 +204,7 @@ object InputView {
     new ViewTail(argView, tail.t)
   }
 
+  private def buildViewPad(size: Int, boundary: Pad.Boundary, argView: View) : View = {
+    argView.pad(size, boundary)
+  }
 }

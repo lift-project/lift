@@ -266,7 +266,7 @@ object OpenCLMemory {
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) |
-           Head() | Tail() | Gather(_) | Scatter(_) =>
+           Head() | Tail() | Gather(_) | Scatter(_) | Pad(_,_) =>
         inMem
       case uf: UserFunDef =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, outputMem, call.t, inMem)

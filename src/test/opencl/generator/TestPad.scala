@@ -22,35 +22,6 @@ object TestPad {
   }
 }
 
-// --8<----8<----8<----8<----8<----8<--
-// TODO(tlutz) delete this for master
-// feature implementation switches
-object Feature {
-  def requires(flag: Boolean) = {
-    Assume.assumeTrue("test disabled: Feature not yet implemented", flag)
-  }
-
-  // Array size
-  val ARRAY_1D = false
-  val ARRAY_2D = false
-
-  // Boundary conditions
-  val BOUNDARY_CONSTANT = false
-  val BOUNDARY_CLAMP = false
-  val BOUNDARY_BOUNCE = false
-  val BOUNDARY_MIRROR = false
-  val BOUNDARY_CUSTOM = false
-  val BOUNDARY_WRAP = false
-
-  // Corner cases
-  val OVERSIZED_PAD = false
-}
-
-// TODO(tlutz) missing tests
-// - negative padding
-
-// --8<----8<----8<----8<----8<----8<--
-
 class TestPad {
   import Pad.Boundary._
 
@@ -111,27 +82,24 @@ class TestPad {
   }
 
   // === Test constant boundary condition ===
+  @Ignore
   @Test def PAD_1D_CONSTANT_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CONSTANT & Feature.ARRAY_1D)
-
     val gold = Array(X,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,X)
     //               ^                                 ^
 
     validate1D(gold, 1, CONSTANT(X))
   }
 
+  @Ignore
   @Test def PAD_1D_CONSTANT_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CONSTANT & Feature.ARRAY_1D)
-
     val gold = Array(X,X,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,X,X)
     //               ^ ^                                 ^ ^
 
     validate1D(gold, 2, CONSTANT(X))
   }
 
+  @Ignore
   @Test def PAD_2D_CONSTANT_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CONSTANT & Feature.ARRAY_2D)
-
     val gold = Array(
       X, X, X, X, X, X, // <
       X, a, b, c, d, X,
@@ -144,9 +112,8 @@ class TestPad {
     validate2D(gold, 1, CONSTANT(X))
   }
 
+  @Ignore
   @Test def PAD_2D_CONSTANT_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CONSTANT & Feature.ARRAY_2D)
-    
     val gold = Array(
       X, X, X, X, X, X, X, X, // <
       X, X, X, X, X, X, X, X, // <
@@ -163,8 +130,6 @@ class TestPad {
 
   // === Test clamp boundary condition ===
   @Test def PAD_1D_CLAMP_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CLAMP & Feature.ARRAY_1D)
-    
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
 
@@ -172,17 +137,14 @@ class TestPad {
   }
 
   @Test def PAD_1D_CLAMP_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CLAMP & Feature.ARRAY_1D)
-
     val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
     //               ^ ^                                 ^ ^
 
     validate1D(gold, 2, CLAMP)
   }
 
+  @Ignore
   @Test def PAD_2D_CLAMP_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CLAMP & Feature.ARRAY_2D)
-
     val gold = Array(
       A, A, B, C, D, D, // <
       A, a, b, c, d, D,
@@ -195,9 +157,8 @@ class TestPad {
     validate2D(gold, 1, CLAMP)
   }
 
+  @Ignore
   @Test def PAD_2D_CLAMP_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CLAMP & Feature.ARRAY_2D)
-
     val gold = Array(
       A, A, A, B, C, D, D, D, // <
       A, A, A, B, C, D, D, D, // <
@@ -213,27 +174,24 @@ class TestPad {
   }
 
   // === Test bounce boundary condition ===
+  @Ignore
   @Test def PAD_1D_BOUNCE_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_BOUNCE & Feature.ARRAY_1D)
-
     val gold = Array(B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O)
     //               ^                                 ^
 
     validate1D(gold, 1, BOUNCE)
   }
 
+  @Ignore
   @Test def PAD_1D_BOUNCE_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_BOUNCE & Feature.ARRAY_1D)
-
     val gold = Array(C,B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O,N)
     //               ^ ^                                 ^ ^
 
     validate1D(gold, 2, BOUNCE)
   }
 
+  @Ignore
   @Test def PAD_2D_BOUNCE_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_BOUNCE & Feature.ARRAY_2D)
-
     val gold = Array(
       F, E, F, G, H, G, // <
       B, a, b, c, d, C,
@@ -246,9 +204,8 @@ class TestPad {
     validate2D(gold, 1, BOUNCE)
   }
 
+  @Ignore
   @Test def PAD_2D_BOUNCE_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_BOUNCE & Feature.ARRAY_2D)
-
     val gold = Array(
       K, J, I, J, K, L, K, J, // <
       G, F, E, F, G, H, G, F, // <
@@ -264,27 +221,24 @@ class TestPad {
   }
 
   // === Test mirror boundary condition ===
+  @Ignore
   @Test def PAD_1D_MIRROR_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_MIRROR & Feature.ARRAY_1D)
-
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
 
     validate1D(gold, 1, MIRROR)
   }
 
+  @Ignore
   @Test def PAD_1D_MIRROR_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_MIRROR & Feature.ARRAY_1D)
-
     val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
     //               ^ ^                                 ^ ^
 
     validate2D(gold, 1, MIRROR)
   }
 
+  @Ignore
   @Test def PAD_2D_MIRROR_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_MIRROR & Feature.ARRAY_2D)
-
     val gold = Array(
       A, A, B, C, D, D, // <
       A, a, b, c, d, D,
@@ -297,9 +251,8 @@ class TestPad {
     validate2D(gold, 1, MIRROR)
   }
 
+  @Ignore
   @Test def PAD_2D_MIRROR_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_MIRROR & Feature.ARRAY_2D)
-
     val gold = Array(
       F, E, E, F, G, H, H, G, // <
       B, A, A, B, C, D, D, C, // <
@@ -316,8 +269,6 @@ class TestPad {
 
   // === Test wrap boundary condition ===
   @Test def PAD_1D_WRAP_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_WRAP & Feature.ARRAY_1D)
-
     val gold = Array(P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A)
     //               ^                                 ^
 
@@ -325,17 +276,14 @@ class TestPad {
   }
 
   @Test def PAD_1D_WRAP_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_WRAP & Feature.ARRAY_1D)
-
     val gold = Array(O,P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A,B)
     //               ^ ^                                 ^ ^
 
     validate1D(gold, 2, WRAP)
   }
 
+  @Ignore
   @Test def PAD_2D_WRAP_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_WRAP & Feature.ARRAY_2D)
-
     val gold = Array(
       P, M, N, O, P, M, // <
       D, a, b, c, d, A,
@@ -348,9 +296,8 @@ class TestPad {
     validate2D(gold, 1, WRAP)
   }
 
+  @Ignore
   @Test def PAD_2D_WRAP_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_WRAP & Feature.ARRAY_2D)
-
     val gold = Array(
       K, L, I, J, K, L, I, J, // <
       O, P, M, N, O, P, M, N, // <
@@ -366,9 +313,8 @@ class TestPad {
   }
 
   // === Test custom boundary condition ===
+  @Ignore
   @Test def PAD_1D_CUSTOM_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CUSTOM & Feature.ARRAY_1D)
-
     val Y = 123f
     val gold = Array(Y,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,Y)
     //               ^                                 ^
@@ -376,9 +322,8 @@ class TestPad {
     throw new RuntimeException("Test case not implemented")
   }
 
+  @Ignore
   @Test def PAD_1D_CUSTOM_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CUSTOM & Feature.ARRAY_1D)
-
     val Y = 123f
     val gold = Array(Y,Y,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,Y,Y)
     //               ^ ^                                 ^ ^
@@ -386,9 +331,8 @@ class TestPad {
     throw new RuntimeException("Test case not implemented")
   }
 
+  @Ignore
   @Test def PAD_2D_CUSTOM_Pos_1(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CUSTOM & Feature.ARRAY_2D)
-
     val Y = 123f
     val gold = Array(
       Y, Y, Y, Y, Y, Y, // <
@@ -402,9 +346,8 @@ class TestPad {
     throw new RuntimeException("Test case not implemented")
   }
 
+  @Ignore
   @Test def PAD_2D_CUSTOM_Pos_2(): Unit = {
-    Feature.requires(Feature.BOUNDARY_CUSTOM & Feature.ARRAY_2D)
-
     val Y = 123f
     val gold = Array(
       Y, Y, Y, Y, Y, Y, Y, Y, // <
@@ -424,9 +367,8 @@ class TestPad {
 
   // Pad using padding elements when padding > n
   // testing with n = 4, padding = 8
+  @Ignore
   @Test def PAD_PadPadding_CONSTANT(): Unit = {
-    Feature.requires(Feature.OVERSIZED_PAD & Feature.BOUNDARY_CONSTANT & Feature.ARRAY_1D)
-
     val input = Array(a,b,c,d)
     val gold  = Array(X,X,X,X,X,X,X,X,a,b,c,d,X,X,X,X,X,X,X,X)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
@@ -434,9 +376,8 @@ class TestPad {
     validate1D(gold, 8, CONSTANT(X), input)
   }
 
+  @Ignore
   @Test def PAD_PadPadding_CLAMP(): Unit = {
-    Feature.requires(Feature.OVERSIZED_PAD & Feature.BOUNDARY_CLAMP & Feature.ARRAY_1D)
-
     val input = Array(a,b,c,d)
     val gold  = Array(A,A,A,A,A,A,A,A,a,b,c,d,D,D,D,D,D,D,D,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
@@ -444,9 +385,8 @@ class TestPad {
     validate1D(gold, 8, CLAMP, input)
   }
 
+  @Ignore
   @Test def PAD_PadPadding_BOUNCE(): Unit = {
-    Feature.requires(Feature.OVERSIZED_PAD & Feature.BOUNDARY_BOUNCE & Feature.ARRAY_1D)
-
     val input = Array(a,b,c,d)
     val gold  = Array(D,B,A,B,C,D,C,B,a,b,c,d,C,B,A,B,C,D,C,B)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
@@ -454,9 +394,8 @@ class TestPad {
     validate1D(gold, 8, BOUNCE, input)
   }
 
+  @Ignore
   @Test def PAD_PadPadding_MIRROR(): Unit = {
-    Feature.requires(Feature.OVERSIZED_PAD & Feature.BOUNDARY_MIRROR & Feature.ARRAY_1D)
-
     val input = Array(a,b,c,d)
     val gold  = Array(A,B,C,D,D,C,B,A,a,b,c,d,D,C,B,A,A,B,C,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
@@ -464,9 +403,8 @@ class TestPad {
     validate1D(gold, 8, MIRROR, input)
   }
 
+  @Ignore
   @Test def PAD_PadPadding_WRAP(): Unit = {
-    Feature.requires(Feature.OVERSIZED_PAD & Feature.BOUNDARY_WRAP & Feature.ARRAY_1D)
-
     val input = Array(a,b,c,d)
     val gold  = Array(A,B,C,D,A,B,C,D,a,b,c,d,A,B,C,D,A,B,C,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
