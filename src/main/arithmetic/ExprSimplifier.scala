@@ -95,6 +95,7 @@ object ExprSimplifier {
 
     m match {
       case Mod(Cst(_), Cst(_)) => m.eval()
+      /* TODO(tlutz): This is not true for negative integers
       case Mod(Sum(terms), d) =>
         // (A + B) mod C = (A mod C + B mod C) mod C
         val newDividend = simplify(Sum(terms.map(Mod(_, d))))
@@ -111,6 +112,7 @@ object ExprSimplifier {
         }
 
         m
+        */
       case Mod(Prod(dividendFactors), Prod(divisorFactors)) =>
         val common = dividendFactors.intersect(divisorFactors)
         val diff = dividendFactors.diff(divisorFactors)
@@ -348,13 +350,11 @@ object ExprSimplifier {
 
   /** Constant folding*/
   private def cstFolding(l : List[ArithExpr], op : ((Double,Double) => Double), neutral: Int) : List[ArithExpr] = {
-
     // fixed point iteration until everything has been folded
     var change = true
     var curLen = l.length
     var curResult = l
     while (change) {
-
       var cstVal : Int = neutral
       var newResult = List[ArithExpr]()
 
@@ -380,7 +380,6 @@ object ExprSimplifier {
     }
 
     curResult
-
   }
 
 
@@ -537,28 +536,28 @@ object ExprSimplifier {
       case ArithExprFunction(_) => e
       case Cst(_) => e
       case Var(_,_) => e
-      case Pow(base, exp) => Pow(simplify(base), simplify(exp))
-      case Log(b,x) => Log(simplify(b),simplify(x))
-      case Mod(dividend, divisor) => Mod(simplify(dividend),simplify(divisor))
-      case And(l,r) => And(simplify(l),simplify(r))
+      //case Pow(base, exp) => Pow(simplify(base), simplify(exp))
+      //case Log(b,x) => Log(simplify(b),simplify(x))
+      //case Mod(dividend, divisor) => Mod(simplify(dividend),simplify(divisor))
+      //case And(l,r) => And(simplify(l),simplify(r))
       case Prod(factors) => Prod(factors.map(t => simplify(t)))
       case Sum(terms) => Sum(terms.map(t => simplify(t)))
-      case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
-      case Min(var1, var2) => Min(simplify(var1), simplify(var2))
-      case Max(var1, var2) => Max(simplify(var1), simplify(var2))
-      case IfThenElse(i,t,e) => IfThenElse(i, simplify(t), simplify(e))
+      //case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
+      //case Min(var1, var2) => Min(simplify(var1), simplify(var2))
+      //case Max(var1, var2) => Max(simplify(var1), simplify(var2))
+      //case IfThenElse(i,t,e) => IfThenElse(i, simplify(t), simplify(e))
       case _ => e
     }
 
     result = result match {
-      case p: Pow => simplifyPow(p)
+      //case p: Pow => simplifyPow(p)
       case p: Prod => simplifyProd(p)
       case s: Sum => simplifySum(s)
-      case m: Mod => simplifyMod(m)
-      case f: IntDiv => simplifyFraction(f)
-      case m: Min => simplifyMin(m)
-      case m: Max => simplifyMax(m)
-      case ite: IfThenElse => simplifyIfThenElse(ite)
+      //case m: Mod => simplifyMod(m)
+      //case f: IntDiv => simplifyFraction(f)
+      //case m: Min => simplifyMin(m)
+      //case m: Max => simplifyMax(m)
+      //case ite: IfThenElse => simplifyIfThenElse(ite)
       case _ => result
     }
 

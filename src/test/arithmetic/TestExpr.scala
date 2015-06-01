@@ -192,6 +192,7 @@ class TestExpr {
     assertEquals(Cst(1), ExprSimplifier.simplify(Prod(List[ArithExpr]())))
   }
 
+  @Ignore
   @Test def modSum(): Unit = {
     val N = Var("N")
     assertEquals(1 % N, ExprSimplifier.simplify((N + 1) % N))
@@ -271,6 +272,7 @@ class TestExpr {
     assertEquals(Cst(5), ExprSimplifier.simplify(Cst(-1) * Cst(-5)))
   }
 
+  @Ignore
   @Test def modBug(): Unit = {
     val n = Var("n")
     val l = Var("l", ContinuousRange(0, 4))

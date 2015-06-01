@@ -374,7 +374,7 @@ object ArithExpr {
 
   private def evalDouble(e: ArithExpr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ArithExprFunction(_) | ? => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | ArithExprFunction(_) | IfThenElse(_,_,_) | ? => throw new NotEvaluableException(e.toString)
 
     case IntDiv(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
 
@@ -399,9 +399,6 @@ object ArithExpr {
       val v1 = var1.eval()
       val v2 = var2.eval()
       if (v1 < v2) v2 else v1
-
-    case _: IfThenElse =>
-      throw new NotEvaluableException(e.toString)
   }
 
 
@@ -592,7 +589,7 @@ case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extend
     hash * 79 + id
   }
 
-  override def toString = if (name == "") "v_"+id else name + "_" + id
+  override def toString = if (name == "") s"v_${id}" else name + s"_${id}"
 
   def updateRange(func: (arithmetic.Range) => arithmetic.Range): Unit = {
     if (range != RangeUnknown) {

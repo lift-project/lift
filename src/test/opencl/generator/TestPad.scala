@@ -221,7 +221,6 @@ class TestPad {
   }
 
   // === Test mirror boundary condition ===
-  @Ignore
   @Test def PAD_1D_MIRROR_Pos_1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
@@ -229,7 +228,6 @@ class TestPad {
     validate1D(gold, 1, MIRROR)
   }
 
-  @Ignore
   @Test def PAD_1D_MIRROR_Pos_2(): Unit = {
     val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
     //               ^ ^                                 ^ ^

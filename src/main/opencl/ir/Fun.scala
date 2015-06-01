@@ -1,6 +1,6 @@
 package opencl.ir
 
-import arithmetic.{Cst, ArithExprFunction, Var, ArithExpr}
+import arithmetic._
 import ir._
 
 import language.implicitConversions
@@ -187,7 +187,12 @@ object Pad {
         ArithExpr.Math.Clamp(idx, 0, len-1)
       }
     }
-    object MIRROR extends Boundary
+    object MIRROR extends CommonBoundary {
+      override def reorder(idx: ArithExpr, len: ArithExpr): ArithExpr = {
+        val id = IfThenElse(idx lt 0, -1-idx, idx) % (2*len)
+        IfThenElse(id ge len, len+len-id-1, id)
+      }
+    }
     object BOUNCE extends Boundary
     object CUSTOM extends Boundary
     def CONSTANT(value: AnyVal): ConstantBoundary = {
