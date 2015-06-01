@@ -8,6 +8,22 @@ import scala.util.Random
 
 class NotEvaluableException(msg: String) extends Exception(msg)
 
+case class Predicate(lhs: ArithExpr, rhs: ArithExpr, op: Predicate.Operator.Operator) {
+  override def toString: String = s"(${lhs} ${op} ${rhs})"
+}
+
+object Predicate {
+  class Operator
+  object Operator extends Enumeration {
+    type Operator = Value;
+    val < = Value("<")
+    val > = Value(">")
+    val <= = Value("<=")
+    val >= = Value(">=")
+    val!= = Value("!=")
+    val== = Value("==")
+  }
+}
 
 abstract sealed class ArithExpr {
 
@@ -96,6 +112,17 @@ abstract sealed class ArithExpr {
 
   def &(that: ArithExpr) = And(this, that)
 
+  def lt(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.<)
+
+  def gt(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.>)
+
+  def le(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.<=)
+
+  def ge(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.>=)
+
+  def eq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.==)
+
+  def neq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.!=)
 }
 
 
@@ -307,6 +334,12 @@ object ArithExpr {
       case And(l, r) =>
         visit(l, f)
         visit(r, f)
+      case Min(var1, var2) =>
+        visit(var1, f)
+        visit(var2, f)
+      case Max(var1, var2) =>
+        visit(var1, f)
+        visit(var2, f)
       case Floor(expr) => visit(expr, f)
       case Sum(terms) => terms.foreach(t => visit(t, f))
       case Prod(terms) => terms.foreach(t => visit(t, f))
@@ -324,6 +357,11 @@ object ArithExpr {
       case Mod(dividend, divisor) => Mod(substitute(dividend, substitutions), substitute(divisor, substitutions))
       case Log(b,x) => Log(substitute(b, substitutions), substitute(x, substitutions))
       case And(l, r) => And(substitute(l, substitutions), substitute(r, substitutions))
+      case Min(var1, var2) => Min(substitute(var1, substitutions), substitute(var2, substitutions))
+      case Max(var1, var2) => Max(substitute(var1, substitutions), substitute(var2, substitutions))
+      case IfThenElse(i, t, e) =>
+        val cond = Predicate(substitute(i.lhs, substitutions), substitute(i.rhs, substitutions), i.op)
+        IfThenElse(cond, substitute(t, substitutions), substitute(e, substitutions))
       case Floor(expr) => Floor(substitute(expr, substitutions))
       case adds: Sum => Sum(adds.terms.map(t => substitute(t, substitutions)))
       case muls: Prod => Prod(muls.factors.map(t => substitute(t, substitutions)))
@@ -351,6 +389,19 @@ object ArithExpr {
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
 
     case Floor(expr) => scala.math.floor(evalDouble(expr))
+
+    case Min(var1, var2) =>
+      val v1 = var1.eval()
+      val v2 = var2.eval()
+      if (v1 > v2) v2 else v1
+
+    case Max(var1, var2) =>
+      val v1 = var1.eval()
+      val v2 = var2.eval()
+      if (v1 < v2) v2 else v1
+
+    case _: IfThenElse =>
+      throw new NotEvaluableException(e.toString)
   }
 
 
@@ -369,6 +420,35 @@ object ArithExpr {
     }
   }
 
+  /**
+   * Math operations derived from the basic operations
+   */
+  object Math {
+
+    /// @brief Computes the minimal value between the two argument
+    /// @param x The first value
+    /// @param y The second value
+    /// @return The minimum between x and y
+    def Min(x: ArithExpr, y: ArithExpr) = IfThenElse(x le y, x, y)
+
+    /// @brief Computes the maximal value between the two argument
+    /// @param x The first value
+    /// @param y The second value
+    /// @return The maximum between x and y
+    def Max(x: ArithExpr, y: ArithExpr) = IfThenElse(x gt y, x, y)
+
+    /// @brief Clamps a value to a given range
+    /// @param x The input value
+    /// @param min Lower bound of the range
+    /// @param max Upper bound of the range
+    /// @return The value x clamped to the interval [min,max]
+    def Clamp(x: ArithExpr, min: ArithExpr, max: ArithExpr) = Min(Max(x,min),max)
+
+    /// @brief Computes the absolute value of the argument
+    /// @param x The input value
+    /// @return |x|
+    def Abs(x: ArithExpr) = IfThenElse(x lt 0, 0-x, x)
+  }
 }
 
 case object ? extends ArithExpr
@@ -434,6 +514,18 @@ case class And(lhs: ArithExpr, rhs: ArithExpr) extends ArithExpr {
 
 case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
+}
+
+case class Min(var1 : ArithExpr, var2 : ArithExpr) extends ArithExpr {
+  override def toString: String = s"Min(${var1},${var2})"
+}
+
+case class Max(var1 : ArithExpr, var2 : ArithExpr) extends ArithExpr {
+  override def toString: String = s"Max(${var1},${var2})"
+}
+
+case class IfThenElse(test: Predicate, t : ArithExpr, e : ArithExpr) extends ArithExpr {
+  override def toString: String = s"If(${test})Then(${t})Else(${e})"
 }
 
 case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr

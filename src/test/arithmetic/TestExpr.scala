@@ -283,6 +283,14 @@ class TestExpr {
     assertEquals(l * n/^4, ExprSimplifier.simplify((l * n/^4) % n))
   }
 
+  // Test that the % operator is the same as C (ISO14882:2011(e) 5.6-4)
+  @Test def NegativeMod(): Unit = {
+    // -11 % 5 = -1
+    assertEquals(Cst(-1), ExprSimplifier.simplify(-11 % 5))
+    // 11 % -5 = 1
+    assertEquals(Cst(1), ExprSimplifier.simplify(11 % -5))
+  }
+
   @Test
   def divPlusModMultiplied(): Unit = {
     val a = Var("a")
@@ -328,6 +336,67 @@ class TestExpr {
 
     // N <= i + N <= 2*N - 1 < 2*N
     assertEquals(Cst(1), ExprSimplifier.simplify((i+n) / n))
+  }
+
+  @Test
+  def minFunction(): Unit = {
+    import ArithExpr.Math._
+
+    // comparing 0 and 1
+    assertEquals(Cst(0), ExprSimplifier.simplify(Min(Cst(0),Cst(1))))
+    // negative number
+    assertEquals(Cst(-1), ExprSimplifier.simplify(Min(Cst(-1),Cst(1))))
+    assertEquals(Cst(-2), ExprSimplifier.simplify(Min(Cst(-1),Cst(-2))))
+
+    val n = Var("n")
+    // unknown var1
+    assertEquals(Min(n, Cst(0)), ExprSimplifier.simplify(Min(n, Cst(0))))
+    // unknown var2
+    assertEquals(Min(Cst(0),n), ExprSimplifier.simplify(Min(Cst(0),n)))
+    // equal values
+    assertEquals(n*10, ExprSimplifier.simplify(Min(n*10,n*10)))
+
+    // unknown plus offset
+    assertEquals(n+5, ExprSimplifier.simplify(Min(n+5,n+10)))
+    // this should not simplify
+    assertEquals(Min(n,n*2), ExprSimplifier.simplify(Min(n,n*2)))
+  }
+
+  @Test
+  def maxFunction(): Unit = {
+    import ArithExpr.Math._
+
+    // comparing 0 and 1
+    assertEquals(Cst(1), ExprSimplifier.simplify(Max(Cst(0),Cst(1))))
+    // negative number
+    assertEquals(Cst(1), ExprSimplifier.simplify(Max(Cst(-1),Cst(1))))
+    assertEquals(Cst(-1), ExprSimplifier.simplify(Max(Cst(-1),Cst(-2))))
+
+    val n = Var("n")
+    // unknown var1
+    assertEquals(Max(n, Cst(0)), ExprSimplifier.simplify(Max(n, Cst(0))))
+    // unknown var2
+    assertEquals(Max(Cst(0),n), ExprSimplifier.simplify(Max(Cst(0),n)))
+    // equal values
+    assertEquals(n*10, ExprSimplifier.simplify(Max(n*10,n*10)))
+
+    // unknown plus offset
+    assertEquals(n+10, ExprSimplifier.simplify(Max(n+5,n+10)))
+    // this should not simplify
+    assertEquals(Max(n,n*2), ExprSimplifier.simplify(Max(n,n*2)))
+  }
+
+  @Test
+  def testIfThenElse(): Unit = {
+    val a = Var("a")
+    val b = Var("b")
+    val c = Var("c")
+
+    assertEquals(a, ExprSimplifier.simplify(IfThenElse(Cst(1) lt Cst(2), a, b)))
+    assertEquals(b, ExprSimplifier.simplify(IfThenElse(Cst(1) gt Cst(2), a, b)))
+    assertEquals(a, ExprSimplifier.simplify(IfThenElse(b neq c, a, a)))
+    assertEquals(c, ExprSimplifier.simplify(IfThenElse(b+Cst(2) gt b, c, b)))
+    assertEquals(b, ExprSimplifier.simplify(IfThenElse(b+Cst(-2) gt b, c, b)))
   }
 
   @Test
