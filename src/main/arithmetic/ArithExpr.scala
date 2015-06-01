@@ -420,6 +420,35 @@ object ArithExpr {
     }
   }
 
+  /**
+   * Math operations derived from the basic operations
+   */
+  object Math {
+
+    /// @brief Computes the minimal value between the two argument
+    /// @param x The first value
+    /// @param y The second value
+    /// @return The minimum between x and y
+    def Min(x: ArithExpr, y: ArithExpr) = IfThenElse(x le y, x, y)
+
+    /// @brief Computes the maximal value between the two argument
+    /// @param x The first value
+    /// @param y The second value
+    /// @return The maximum between x and y
+    def Max(x: ArithExpr, y: ArithExpr) = IfThenElse(x gt y, x, y)
+
+    /// @brief Clamps a value to a given range
+    /// @param x The input value
+    /// @param min Lower bound of the range
+    /// @param max Upper bound of the range
+    /// @return The value x clamped to the interval [min,max]
+    def Clamp(x: ArithExpr, min: ArithExpr, max: ArithExpr) = Min(Max(x,min),max)
+
+    /// @brief Computes the absolute value of the argument
+    /// @param x The input value
+    /// @return |x|
+    def Abs(x: ArithExpr) = IfThenElse(x lt 0, 0-x, x)
+  }
 }
 
 case object ? extends ArithExpr

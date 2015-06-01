@@ -525,7 +525,7 @@ object ExprSimplifier {
             ite.t
           else
             ite.e
-        case _ => IfThenElse(Predicate(slhs, srhs, ite.test.op), ite.t, ite.t)
+        case _ => IfThenElse(Predicate(slhs, srhs, ite.test.op), ite.t, ite.e)
       }
     }
   }

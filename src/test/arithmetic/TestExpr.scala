@@ -340,6 +340,8 @@ class TestExpr {
 
   @Test
   def minFunction(): Unit = {
+    import ArithExpr.Math._
+
     // comparing 0 and 1
     assertEquals(Cst(0), ExprSimplifier.simplify(Min(Cst(0),Cst(1))))
     // negative number
@@ -362,6 +364,8 @@ class TestExpr {
 
   @Test
   def maxFunction(): Unit = {
+    import ArithExpr.Math._
+
     // comparing 0 and 1
     assertEquals(Cst(1), ExprSimplifier.simplify(Max(Cst(0),Cst(1))))
     // negative number
@@ -388,10 +392,11 @@ class TestExpr {
     val b = Var("b")
     val c = Var("c")
 
-    assertEquals(a, ExprSimplifier.simplify(IfThenElse(Cst(1) lt Cst(2),a,b)))
-    assertEquals(b, ExprSimplifier.simplify(IfThenElse(Cst(1) gt Cst(2),a,b)))
-    assertEquals(a, ExprSimplifier.simplify(IfThenElse(b neq c,a,a)))
-    assertEquals(c, ExprSimplifier.simplify(IfThenElse(b+Cst(2) gt b,c,b)))
+    assertEquals(a, ExprSimplifier.simplify(IfThenElse(Cst(1) lt Cst(2), a, b)))
+    assertEquals(b, ExprSimplifier.simplify(IfThenElse(Cst(1) gt Cst(2), a, b)))
+    assertEquals(a, ExprSimplifier.simplify(IfThenElse(b neq c, a, a)))
+    assertEquals(c, ExprSimplifier.simplify(IfThenElse(b+Cst(2) gt b, c, b)))
+    assertEquals(b, ExprSimplifier.simplify(IfThenElse(b+Cst(-2) gt b, c, b)))
   }
 
   @Test
