@@ -178,12 +178,20 @@ abstract class Benchmark(val name: String,
 
       if (checkResult && i == 0) {
 
-        if (output.length != scalaResult.length)
-          println("Output length is wrong, " + output.length + " vs " + scalaResult.length)
+        if (output.length != scalaResult.length) {
+          println(s"Output length is wrong, ${output.length}  vs ${scalaResult.length}")
 
-        for (j <- scalaResult.indices) {
-          if (check(output(j), scalaResult(j))) {
-            println("Output at position " + j + " differs more than " + delta + ". " + output(j) + " vs " + scalaResult(j))
+        } else {
+
+          for (j <- scalaResult.indices) {
+
+            var numErrors = 0
+
+            if (check(output(j), scalaResult(j)))
+              numErrors += 1
+
+            if (numErrors != 0)
+              println(s"Output differed in $numErrors positions!")
 
           }
         }
