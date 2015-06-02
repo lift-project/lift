@@ -129,6 +129,7 @@ class TestPad {
   }
 
   // === Test clamp boundary condition ===
+  @Ignore
   @Test def PAD_1D_CLAMP_Pos_1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
@@ -136,6 +137,7 @@ class TestPad {
     validate1D(gold, 1, CLAMP)
   }
 
+  @Ignore
   @Test def PAD_1D_CLAMP_Pos_2(): Unit = {
     val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
     //               ^ ^                                 ^ ^
@@ -221,6 +223,7 @@ class TestPad {
   }
 
   // === Test mirror boundary condition ===
+  @Ignore
   @Test def PAD_1D_MIRROR_Pos_1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
@@ -228,6 +231,8 @@ class TestPad {
     validate1D(gold, 1, MIRROR)
   }
 
+
+  @Ignore
   @Test def PAD_1D_MIRROR_Pos_2(): Unit = {
     val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
     //               ^ ^                                 ^ ^
@@ -266,6 +271,7 @@ class TestPad {
   }
 
   // === Test wrap boundary condition ===
+  @Ignore
   @Test def PAD_1D_WRAP_Pos_1(): Unit = {
     val gold = Array(P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A)
     //               ^                                 ^
@@ -273,6 +279,8 @@ class TestPad {
     validate1D(gold, 1, WRAP)
   }
 
+
+  @Ignore
   @Test def PAD_1D_WRAP_Pos_2(): Unit = {
     val gold = Array(O,P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A,B)
     //               ^ ^                                 ^ ^

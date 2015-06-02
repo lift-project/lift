@@ -95,7 +95,7 @@ object ExprSimplifier {
 
     m match {
       case Mod(Cst(_), Cst(_)) => m.eval()
-      /* TODO(tlutz): This is not true for negative integers
+      /* TODO(tlutz): This is not true for negative integers */
       case Mod(Sum(terms), d) =>
         // (A + B) mod C = (A mod C + B mod C) mod C
         val newDividend = simplify(Sum(terms.map(Mod(_, d))))
@@ -112,7 +112,6 @@ object ExprSimplifier {
         }
 
         m
-        */
       case Mod(Prod(dividendFactors), Prod(divisorFactors)) =>
         val common = dividendFactors.intersect(divisorFactors)
         val diff = dividendFactors.diff(divisorFactors)
@@ -481,26 +480,6 @@ object ExprSimplifier {
     result
   }
 
-  private def simplifyMin(m: Min): ArithExpr = (m.var1,m.var2) match {
-    case(Cst(a),Cst(b)) =>
-      Cst(if (a > b) b else a)
-    case _ =>
-      simplify(m.var1 - m.var2) match {
-        case Cst(v) => if (v > 0) m.var2 else m.var1
-        case _ => Min(m.var1,m.var2)
-      }
-  }
-
-  private def simplifyMax(m: Max): ArithExpr = (m.var1,m.var2) match {
-    case(Cst(a),Cst(b)) =>
-      Cst(if (a < b) b else a)
-    case _ =>
-      simplify(m.var1 - m.var2) match {
-        case Cst(v) => if (v < 0) m.var2 else m.var1
-        case _ => Max(m.var1,m.var2)
-      }
-  }
-
   // Simplify IfThenElse objects
   // Try to evaluate the condition, returns a single expression if the condition
   // can be evaluated statically, or an IfThenElse statement otherwise.
@@ -510,8 +489,6 @@ object ExprSimplifier {
       ite.e
     // otherwise try to evaluate the predicate
     else {
-      val slhs = simplify(ite.test.lhs)
-      val srhs = simplify(ite.test.rhs)
       simplify(ite.test.lhs - ite.test.rhs) match {
         case Cst(v) =>
           val op = ite.test.op
@@ -524,40 +501,42 @@ object ExprSimplifier {
             ite.t
           else
             ite.e
-        case _ => IfThenElse(Predicate(slhs, srhs, ite.test.op), ite.t, ite.e)
+        case _ =>
+          val slhs = simplify(ite.test.lhs)
+          val srhs = simplify(ite.test.rhs)
+          IfThenElse(Predicate(slhs, srhs, ite.test.op), ite.t, ite.e)
       }
     }
   }
 
-  def simplify(e: ArithExpr): ArithExpr = {
+  //var counter = 0
 
+  def simplify(e: ArithExpr): ArithExpr = {
+    //println(s"Simplify ${counter}")
+    //counter = counter + 1
     // recurse inside first
     var result = e match {
       case ArithExprFunction(_) => e
       case Cst(_) => e
-      case Var(_,_) => e
-      //case Pow(base, exp) => Pow(simplify(base), simplify(exp))
-      //case Log(b,x) => Log(simplify(b),simplify(x))
-      //case Mod(dividend, divisor) => Mod(simplify(dividend),simplify(divisor))
-      //case And(l,r) => And(simplify(l),simplify(r))
+      case Var(_, _) => e
+      case Pow(base, exp) => Pow(simplify(base), simplify(exp))
+      case Log(b,x) => Log(simplify(b),simplify(x))
+      case Mod(dividend, divisor) => Mod(simplify(dividend),simplify(divisor))
+      case And(l,r) => And(simplify(l),simplify(r))
       case Prod(factors) => Prod(factors.map(t => simplify(t)))
       case Sum(terms) => Sum(terms.map(t => simplify(t)))
-      //case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
-      //case Min(var1, var2) => Min(simplify(var1), simplify(var2))
-      //case Max(var1, var2) => Max(simplify(var1), simplify(var2))
-      //case IfThenElse(i,t,e) => IfThenElse(i, simplify(t), simplify(e))
+      case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
+      case IfThenElse(i,t,e) => IfThenElse(i, simplify(t), simplify(e))
       case _ => e
     }
 
     result = result match {
-      //case p: Pow => simplifyPow(p)
+      case p: Pow => simplifyPow(p)
       case p: Prod => simplifyProd(p)
       case s: Sum => simplifySum(s)
-      //case m: Mod => simplifyMod(m)
-      //case f: IntDiv => simplifyFraction(f)
-      //case m: Min => simplifyMin(m)
-      //case m: Max => simplifyMax(m)
-      //case ite: IfThenElse => simplifyIfThenElse(ite)
+      case m: Mod => simplifyMod(m)
+      case f: IntDiv => simplifyFraction(f)
+      case ite: IfThenElse => simplifyIfThenElse(ite)
       case _ => result
     }
 

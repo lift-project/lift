@@ -123,6 +123,8 @@ abstract sealed class ArithExpr {
   def eq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.==)
 
   def neq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.!=)
+
+  var simplified: Boolean = false
 }
 
 
@@ -334,12 +336,6 @@ object ArithExpr {
       case And(l, r) =>
         visit(l, f)
         visit(r, f)
-      case Min(var1, var2) =>
-        visit(var1, f)
-        visit(var2, f)
-      case Max(var1, var2) =>
-        visit(var1, f)
-        visit(var2, f)
       case Floor(expr) => visit(expr, f)
       case Sum(terms) => terms.foreach(t => visit(t, f))
       case Prod(terms) => terms.foreach(t => visit(t, f))
@@ -347,28 +343,29 @@ object ArithExpr {
     }
   }
 
-  def substitute(e: ArithExpr, substitutions: scala.collection.immutable.Map[ArithExpr,ArithExpr]) : ArithExpr = {
+  def substitute(e: ArithExpr, substitutions: scala.collection.immutable.Map[ArithExpr,ArithExpr], simplify: Boolean = true) : ArithExpr = {
 
     var newExpr = substitutions.getOrElse(e, e)
 
     newExpr = newExpr match {
-      case Pow(l,r) => Pow(substitute(l,substitutions),substitute(r,substitutions))
-      case IntDiv(n, d) => IntDiv(substitute(n, substitutions), substitute(d, substitutions))
-      case Mod(dividend, divisor) => Mod(substitute(dividend, substitutions), substitute(divisor, substitutions))
-      case Log(b,x) => Log(substitute(b, substitutions), substitute(x, substitutions))
-      case And(l, r) => And(substitute(l, substitutions), substitute(r, substitutions))
-      case Min(var1, var2) => Min(substitute(var1, substitutions), substitute(var2, substitutions))
-      case Max(var1, var2) => Max(substitute(var1, substitutions), substitute(var2, substitutions))
+      case Pow(l,r) => Pow(substitute(l,substitutions,false),substitute(r,substitutions,false))
+      case IntDiv(n, d) => IntDiv(substitute(n, substitutions,false), substitute(d, substitutions,false))
+      case Mod(dividend, divisor) => Mod(substitute(dividend, substitutions,false), substitute(divisor, substitutions,false))
+      case Log(b,x) => Log(substitute(b, substitutions,false), substitute(x, substitutions,false))
+      case And(l, r) => And(substitute(l, substitutions,false), substitute(r, substitutions,false))
       case IfThenElse(i, t, e) =>
-        val cond = Predicate(substitute(i.lhs, substitutions), substitute(i.rhs, substitutions), i.op)
-        IfThenElse(cond, substitute(t, substitutions), substitute(e, substitutions))
-      case Floor(expr) => Floor(substitute(expr, substitutions))
-      case adds: Sum => Sum(adds.terms.map(t => substitute(t, substitutions)))
-      case muls: Prod => Prod(muls.factors.map(t => substitute(t, substitutions)))
+        val cond = Predicate(substitute(i.lhs, substitutions,false), substitute(i.rhs, substitutions,false), i.op)
+        IfThenElse(cond, substitute(t, substitutions,false), substitute(e, substitutions,false))
+      case Floor(expr) => Floor(substitute(expr, substitutions,false))
+      case adds: Sum => Sum(adds.terms.map(t => substitute(t, substitutions,false)))
+      case muls: Prod => Prod(muls.factors.map(t => substitute(t, substitutions,false)))
       case _ => newExpr
     }
 
-    ExprSimplifier.simplify(newExpr)
+    if(simplify)
+      ExprSimplifier.simplify(newExpr)
+    else
+      newExpr
   }
 
 
@@ -389,16 +386,6 @@ object ArithExpr {
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
 
     case Floor(expr) => scala.math.floor(evalDouble(expr))
-
-    case Min(var1, var2) =>
-      val v1 = var1.eval()
-      val v2 = var2.eval()
-      if (v1 > v2) v2 else v1
-
-    case Max(var1, var2) =>
-      val v1 = var1.eval()
-      val v2 = var2.eval()
-      if (v1 < v2) v2 else v1
   }
 
 
@@ -511,14 +498,6 @@ case class And(lhs: ArithExpr, rhs: ArithExpr) extends ArithExpr {
 
 case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
-}
-
-case class Min(var1 : ArithExpr, var2 : ArithExpr) extends ArithExpr {
-  override def toString: String = s"Min(${var1},${var2})"
-}
-
-case class Max(var1 : ArithExpr, var2 : ArithExpr) extends ArithExpr {
-  override def toString: String = s"Max(${var1},${var2})"
 }
 
 case class IfThenElse(test: Predicate, t : ArithExpr, e : ArithExpr) extends ArithExpr {
@@ -634,13 +613,13 @@ object Var {
       newVars.map(v => {
         v.range match {
           case RangeAdd(start, stop, step) => v.range = RangeAdd(
-            ExprSimplifier.simplify(ArithExpr.substitute(start, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(stop, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(step, newSubsts.toMap)))
+            ArithExpr.substitute(start, newSubsts.toMap),
+            ArithExpr.substitute(stop, newSubsts.toMap),
+            ArithExpr.substitute(step, newSubsts.toMap))
           case RangeMul(start, stop, step) => v.range = RangeMul(
-            ExprSimplifier.simplify(ArithExpr.substitute(start, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(stop, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(step, substitutions.toMap)))
+            ArithExpr.substitute(start, newSubsts.toMap),
+            ArithExpr.substitute(stop, newSubsts.toMap),
+            ArithExpr.substitute(step, substitutions.toMap))
           case _ =>
         }
         v

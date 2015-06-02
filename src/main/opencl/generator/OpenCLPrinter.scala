@@ -156,8 +156,6 @@ class OpenCLPrinter {
       case Sum(es) => "(" + es.map(toOpenCL).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toOpenCL(a) + " % " + toOpenCL(n) + ")"
       case And(lhs, rhs) => "(" + toOpenCL(lhs) + " & " + toOpenCL(rhs) + ")"
-      case Min(var1, var2) => s"(min(${toOpenCL(var1)}), (${toOpenCL(var2)}))"
-      case Max(var1, var2) => s"(max(${toOpenCL(var1)}), (${toOpenCL(var2)}))"
       case of: OclFunction => of.toOCLString
       case tv : TypeVar => "tv_"+tv.id
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
