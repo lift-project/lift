@@ -27,13 +27,12 @@ Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. T
 
 ### Documentation ###
 
-[ScalaDoc](http://pamina:8080/job/apart-amd/branch/default/javadoc/#package)
+[ScalaDoc](http://pamina:8080/job/apart-amd/branch/master/javadoc/#package)
 
 ### Build Status ###
 
-Intel ![](http://pamina:8080/job/apart-intel/branch/default/badge/icon)
+Intel ![](http://pamina:8080/job/apart-intel/branch/master/badge/icon)
 
-AMD ![](http://pamina:8080/job/apart-amd/branch/default/badge/icon)
+AMD ![](http://pamina:8080/job/apart-amd/branch/master/badge/icon)
 
-NVIDIA ![](http://pamina:8080/job/apart-nvidia/branch/default/badge/icon)
-
+NVIDIA ![](http://pamina:8080/job/apart-nvidia/branch/master/badge/icon)
