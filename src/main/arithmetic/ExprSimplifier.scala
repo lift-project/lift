@@ -1,21 +1,21 @@
 package arithmetic
 
+import scala.annotation.tailrec
+
 object ExprSimplifier {
 
-  private def primeFactors(n: Int, i: Int =2) : List[Int] = {
-    if (i >= n)
-      return List(n)
+  private def primeFactors(n: Int, i: Int =2) : List[Int] = if (i*i > n) List(n) else
+    n % i match {
+      case 0 => i :: primeFactors(n / i, i)
+      case _ => primeFactors(n, i + 1)
+    }
 
-    if (n % i == 0)
-      i :: primeFactors(n/i, i)
-    else
-      primeFactors(n, i+1)
-  }
 
   private def simplifyPow(pow: Pow): ArithExpr = {
     pow match {
-      case Pow(Cst(0), Cst(0)) => throw new NotEvaluableException(pow.toString())
       case Pow(Cst(b), Cst(e)) =>
+        if(b == 0 && e == 0)
+          throw new NotEvaluableException(/*pow.toString()*/)
         val powDbl = scala.math.pow(b,e)
         if (powDbl.isValidInt)
           Cst(powDbl.toInt)
@@ -64,8 +64,6 @@ object ExprSimplifier {
 
       // x^log(x,b) => b
       case Pow(x1,Log(x2,b)) if x1 == x2 => b
-
-
 
       case _ => pow
     }
@@ -201,11 +199,14 @@ object ExprSimplifier {
         val numeratorAtMin = f.numer.atMin
 
         if (ArithExpr.multipleOf(numeratorAtMax, denominator) && ArithExpr.multipleOf(numeratorAtMin, denominator)) {
-          try {
-            if (simplify((numeratorAtMax - numeratorAtMin) / denominator).eval() == 1)
-              return simplify(numeratorAtMin / denominator).eval()
-          } catch {
-            case e: NotEvaluableException =>
+          val simplified = simplify((numeratorAtMax - numeratorAtMin) / denominator)
+          if(ArithExpr.canEval(simplified)) {
+            try {
+              if (simplified.eval() == 1)
+                return simplify(numeratorAtMin / denominator).eval()
+            } catch {
+              case e: NotEvaluableException =>
+            }
           }
         }
       case _ =>
@@ -349,8 +350,8 @@ object ExprSimplifier {
 
   /** Constant folding*/
   private def cstFolding(l : List[ArithExpr], op : ((Double,Double) => Double), neutral: Int) : List[ArithExpr] = {
-    // fixed point iteration until everything has been folded
-    var change = true
+    /*// fixed point iteration until everything has been folded
+    var change: Boolean = true
     var curLen = l.length
     var curResult = l
     while (change) {
@@ -379,6 +380,23 @@ object ExprSimplifier {
     }
 
     curResult
+    */
+    var newResult = l.filter(!_.isInstanceOf[Cst])
+
+    var cstVal : Int = neutral
+
+    l.filter(_.isInstanceOf[Cst]).foreach(e => {
+      val out = op(e.evalDbl(), cstVal)
+      if (out.isValidInt)
+        cstVal = op(e.evalDbl(), cstVal).toInt
+      else
+        newResult = e :: newResult
+    })
+
+    if(cstVal != neutral || newResult.length == 0)
+      newResult = cstVal :: newResult
+
+    newResult
   }
 
 
@@ -502,9 +520,7 @@ object ExprSimplifier {
           else
             ite.e
         case _ =>
-          val slhs = simplify(ite.test.lhs)
-          val srhs = simplify(ite.test.rhs)
-          IfThenElse(Predicate(slhs, srhs, ite.test.op), ite.t, ite.e)
+          IfThenElse(Predicate(simplify(ite.test.lhs), simplify(ite.test.rhs), ite.test.op), ite.t, ite.e)
       }
     }
   }

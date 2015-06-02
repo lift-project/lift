@@ -149,7 +149,7 @@ class OpenCLPrinter {
       case Log(b, x) => "(int)log"+b+"((float)"+toOpenCL(x)+")"
       case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
         s + (e match {
-          case Pow(b, Cst(-1)) => " / (" + toOpenCL(b) + ")"
+          case Pow(b, Cst(-1)) => " / " + toOpenCL(b) + ""
           case _ => " * " + toOpenCL(e)
         })
       } ).drop(4) /* drop "1 * " */ + ")"

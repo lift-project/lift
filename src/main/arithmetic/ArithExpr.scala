@@ -6,7 +6,10 @@ import scala.collection.immutable
 import scala.language.implicitConversions
 import scala.util.Random
 
-class NotEvaluableException(msg: String) extends Exception(msg)
+final class NotEvaluableException() extends Exception() {
+  // Control flow exception, disabling stack trace
+  override def fillInStackTrace(): Throwable = this
+}
 
 case class Predicate(lhs: ArithExpr, rhs: ArithExpr, op: Predicate.Operator.Operator) {
   override def toString: String = s"(${lhs} ${op} ${rhs})"
@@ -28,11 +31,12 @@ object Predicate {
 abstract sealed class ArithExpr {
 
   def eval(): Int = {
+    if(!ArithExpr.canEval(this)) throw new NotEvaluableException()
     val dblResult = ArithExpr.evalDouble(this)
     if (dblResult.isValidInt)
       dblResult.toInt
     else
-      throw new NotEvaluableException("Cannot evaluate " + this + " to int: "+ dblResult)
+      throw new NotEvaluableException()
   }
 
   def evalDbl(): Double = ArithExpr.evalDouble(this)
@@ -148,7 +152,7 @@ object ArithExpr {
     val m2 = v.range.max match { case Cst(max) => if (max <= c.c) Some((v, c)) else None }
     if (m2.isDefined) return m2.get
 
-    throw new NotEvaluableException("Cannot determine min/max of " + v + " and " + c)
+    throw new NotEvaluableException(/*"Cannot determine min/max of " + v + " and " + c*/)
   }
 
   def minmax(p: Prod, c: Cst): (ArithExpr, ArithExpr) = {
@@ -158,7 +162,7 @@ object ArithExpr {
     val ub = upperBound(p)
     if (ub.isDefined && ub.get <= c.c) return (p, c)
 
-    throw new NotEvaluableException("Cannot determine min/max of " + p + " and " + c)
+    throw new NotEvaluableException(/*"Cannot determine min/max of " + p + " and " + c*/)
   }
 
   private def upperBound(p: Prod): Option[Int] = {
@@ -196,7 +200,7 @@ object ArithExpr {
           case (c: Cst, p: Prod) => val m = minmax(p, c); (m._2, m._1)
 
           case _ =>
-            throw new NotEvaluableException("Cannot determine min/max of " + e1 + " and " + e2)
+            throw new NotEvaluableException(/*s"Cannot determine min/max of ${e1} and ${e2}"*/)
         }
     }
   }
@@ -219,7 +223,7 @@ object ArithExpr {
       case Pow(b, Cst(c)) => ( if (c>=0) Pow(min(b), Cst(c)) else Pow(max(b), Cst(c)),
                                if (c>=0) Pow(max(b), Cst(c)) else Pow(min(b), Cst(c)) )
 
-      case _ =>  throw new NotEvaluableException("Cannot determine min/max values for " + e)
+      case _ =>  throw new NotEvaluableException(/*"Cannot determine min/max values for " + e*/)
     }
   }
 
@@ -369,9 +373,35 @@ object ArithExpr {
   }
 
 
+  def canEval(e: ArithExpr) : Boolean = e match {
+    case Var(_,_) | ArithExprFunction(_) | IfThenElse(_,_,_) | ? => false
+
+    case Cst(c) => true
+
+    case IntDiv(n, d) => canEval(n) && canEval(d)
+
+    case Pow(base,exp) => canEval(base) && canEval(exp)
+    case Log(b,x) => canEval(x) && canEval(b)
+
+    case Mod(dividend, divisor) => true
+
+    case And(l,r) => true
+
+    case Sum(terms) =>
+      var flag = true
+      terms.foreach(e => flag = flag & canEval(e))
+      flag
+    case Prod(terms) =>
+      var flag = true
+      terms.foreach(e => flag = flag & canEval(e))
+      flag
+
+    case Floor(expr) => canEval(expr)
+  }
+
   private def evalDouble(e: ArithExpr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ArithExprFunction(_) | IfThenElse(_,_,_) | ? => throw new NotEvaluableException(e.toString)
+    case Var(_,_) | ArithExprFunction(_) | IfThenElse(_,_,_) | ? => throw new NotEvaluableException(/*e.toString*/)
 
     case IntDiv(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
 
@@ -393,7 +423,7 @@ object ArithExpr {
   def toInt(e: ArithExpr): Int = {
     ExprSimplifier.simplify(e) match {
       case Cst(i) => i
-      case _ => throw new NotEvaluableException(e.toString)
+      case _ => throw new NotEvaluableException(/*e.toString*/)
     }
   }
 
