@@ -30,30 +30,25 @@ object Predicate {
 
 abstract sealed class ArithExpr {
 
+  /**
+   * Evaluates an arithmetic expression.
+   * @return The Int value of the expression.
+   * @throws NotEvaluableException if the expression cannot be fully evaluated.
+   */
   def eval(): Int = {
-    if(!ArithExpr.canEval(this)) throw new NotEvaluableException()
+    // Evaluating is quite expensive, traverse the tree to check assess evaluability
+    if (!ArithExpr.canEval(this)) throw new NotEvaluableException()
     val dblResult = ArithExpr.evalDouble(this)
     if (dblResult.isValidInt)
       dblResult.toInt
-    else
-      throw new NotEvaluableException()
+    else throw new NotEvaluableException()
   }
 
   def evalDbl(): Double = ArithExpr.evalDouble(this)
 
-  def evalAtMax(): Int = {
-    atMax.eval()
-  }
+  def atMax: ArithExpr = atMax(constantMax = false)
 
-  def evalAtMin(): Int = {
-    atMin.eval()
-  }
-
-  def atMax: ArithExpr = {
-    atMax(constantMax = false)
-  }
-
-  def atMax(constantMax: Boolean): ArithExpr = {
+  def atMax(constantMax: Boolean = false): ArithExpr = {
     val vars = Var.getVars(this).filter(_.range.max != ?)
     val exprFunctions = ArithExprFunction.getArithExprFuns(this).filter(_.range.max != ?)
     var maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
@@ -110,7 +105,7 @@ abstract sealed class ArithExpr {
    */
   def /^(that: ArithExpr) = this * Pow(that, Cst(-1))
 
-  def -(that: ArithExpr) = this + (that * Cst(-1))
+  def -(that: ArithExpr) = ExprSimplifier.simplify(this + (that * Cst(-1)))
 
   def %(that: ArithExpr) = Mod(this, that)
 
@@ -343,7 +338,8 @@ object ArithExpr {
       case Floor(expr) => visit(expr, f)
       case Sum(terms) => terms.foreach(t => visit(t, f))
       case Prod(terms) => terms.foreach(t => visit(t, f))
-      case _ =>
+      case Var(_,_) |  Cst(_) | IfThenElse(_,_,_) | ArithExprFunction(_) | ? =>
+      case _ => throw new RuntimeException(s"Cannot visit expression ${e}")
     }
   }
 
@@ -372,31 +368,15 @@ object ArithExpr {
       newExpr
   }
 
-
-  def canEval(e: ArithExpr) : Boolean = e match {
-    case Var(_,_) | ArithExprFunction(_) | IfThenElse(_,_,_) | ? => false
-
-    case Cst(c) => true
-
-    case IntDiv(n, d) => canEval(n) && canEval(d)
-
-    case Pow(base,exp) => canEval(base) && canEval(exp)
-    case Log(b,x) => canEval(x) && canEval(b)
-
-    case Mod(dividend, divisor) => true
-
-    case And(l,r) => true
-
-    case Sum(terms) =>
-      var flag = true
-      terms.foreach(e => flag = flag & canEval(e))
-      flag
-    case Prod(terms) =>
-      var flag = true
-      terms.foreach(e => flag = flag & canEval(e))
-      flag
-
-    case Floor(expr) => canEval(expr)
+  def canEval(e: ArithExpr) : Boolean = {
+    var evaluable = true
+    visit (e, x => {
+      evaluable &= !(x == ? |
+          x.isInstanceOf[ArithExprFunction] |
+          x.isInstanceOf[Var] |
+          x.isInstanceOf[IfThenElse])
+    } )
+    evaluable
   }
 
   private def evalDouble(e: ArithExpr) : Double = e match {
@@ -439,28 +419,36 @@ object ArithExpr {
    */
   object Math {
 
-    /// @brief Computes the minimal value between the two argument
-    /// @param x The first value
-    /// @param y The second value
-    /// @return The minimum between x and y
+    /**
+     * @brief Computes the minimal value between the two argument
+     * @param x The first value
+     * @param y The second value
+     * @return The minimum between x and y
+     */
     def Min(x: ArithExpr, y: ArithExpr) = IfThenElse(x le y, x, y)
 
-    /// @brief Computes the maximal value between the two argument
-    /// @param x The first value
-    /// @param y The second value
-    /// @return The maximum between x and y
+    /**
+     * @brief Computes the maximal value between the two argument
+     * @param x The first value
+     * @param y The second value
+     * @return The maximum between x and y
+     */
     def Max(x: ArithExpr, y: ArithExpr) = IfThenElse(x gt y, x, y)
 
-    /// @brief Clamps a value to a given range
-    /// @param x The input value
-    /// @param min Lower bound of the range
-    /// @param max Upper bound of the range
-    /// @return The value x clamped to the interval [min,max]
+    /**
+     * @brief Clamps a value to a given range
+     * @param x The input value
+     * @param min Lower bound of the range
+     * @param max Upper bound of the range
+     * @return The value x clamped to the interval [min,max]
+     */
     def Clamp(x: ArithExpr, min: ArithExpr, max: ArithExpr) = Min(Max(x,min),max)
 
-    /// @brief Computes the absolute value of the argument
-    /// @param x The input value
-    /// @return |x|
+    /**
+     * @brief Computes the absolute value of the argument
+     * @param x The input value
+     * @return |x|
+     */
     def Abs(x: ArithExpr) = IfThenElse(x lt 0, 0-x, x)
   }
 }
@@ -654,9 +642,6 @@ object Var {
         }
         v
       })
-
-
-
     } while (changed)
 
     substitutions
@@ -671,7 +656,7 @@ object Var {
       case at: ArrayType => getVars(at.elemT) ++ getVars(at.len)
       case vt: VectorType => getVars(vt.len)
       case tt: TupleType => tt.elemsT.foldLeft(Seq[Var]())((set,inT) => set ++ getVars(inT))
-      case _ => Seq[Var]().distinct
+      case _ => Seq[Var]()//.distinct
     }
   }
 

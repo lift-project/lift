@@ -32,6 +32,8 @@ class TestSparsity {
   val or = UserFunDef("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
   val and = UserFunDef("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
 
+  // Debug switch: show input and output
+  val printArrays: Boolean = false
 
 
   @Test def TAIL_TEST (): Unit = {
@@ -45,8 +47,10 @@ class TestSparsity {
     val (output:Array[Float], runtime) = Execute(1, 1)(f,vector)
 
     println("output(0) = "+output(0))
-    println("vector = " + vector.toList.toString())
-    println("output = " + output.toList.toString())
+    if (printArrays) {
+      println("vector = " + vector.toList.toString())
+      println("output = " + output.toList.toString())
+    }
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -62,8 +66,10 @@ class TestSparsity {
 
 
     println("output(0) = "+output(0))
-    println("vector = "+vector.toList.toString())
-    println("output = "+ output.toList.toString())
+    if (printArrays) {
+      println("vector = " + vector.toList.toString())
+      println("output = " + output.toList.toString())
+    }
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -78,8 +84,10 @@ class TestSparsity {
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
 
     println("output(0) = "+output(0))
-    println("vector = "+vector.toList.toString())
-    println("output = "+ output.toList.toString())
+    if (printArrays) {
+      println("vector = " + vector.toList.toString())
+      println("output = " + output.toList.toString())
+    }
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -94,8 +102,10 @@ class TestSparsity {
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
 
     println("output(0) = "+output(0))
-    println("vector = "+vector.toList.toString())
-    println("output = "+ output.toList.toString())
+    if (printArrays) {
+      println("vector = " + vector.toList.toString())
+      println("output = " + output.toList.toString())
+    }
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -110,8 +120,10 @@ class TestSparsity {
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
 
     println("output(0) = "+output(0))
-    println("vector = "+vector.toList.toString())
-    println("output = "+ output.toList.toString())
+    if (printArrays) {
+      println("vector = " + vector.toList.toString())
+      println("output = " + output.toList.toString())
+    }
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -183,8 +195,10 @@ class TestSparsity {
 
 
     println("output(0) = " + output(0))
-    println(inputVector.toList)
-    println(output.toList)
+    if (printArrays) {
+      println(inputVector.toList)
+      println(output.toList)
+    }
     println("runtime = " + runtime)
   }
 
@@ -212,8 +226,10 @@ class TestSparsity {
     val (output:Array[(Float,Float)], runtime) = Execute(inputVector.length)(scalFun, inputVector, alpha)
 
     println("output(0) = " + output(0))
-    println("input = " + inputVector.toList)
-    println("output = " + output.toList)
+    if (printArrays) {
+      println("input = " + inputVector.toList)
+      println("output = " + output.toList)
+    }
     println("runtime = " + runtime)
   }
 
@@ -259,8 +275,7 @@ class TestSparsity {
   }
 
   def generateSparseArray(length:Int) : Array[(Int,Float)] = {
-    var a = 0;
-    var baseArray = Array.fill(length)((util.Random.nextInt(5) + 1), (util.Random.nextInt(5).toFloat))
+    val baseArray = Array.fill(length)((util.Random.nextInt(5) + 1), (util.Random.nextInt(5).toFloat))
     for (a <- 1 to length - 1) {
       //for each element, append our random index to find our true index
       baseArray(a) = (baseArray(a - 1)._1 + baseArray(a)._1, baseArray(a)._2)

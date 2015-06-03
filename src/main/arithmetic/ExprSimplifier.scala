@@ -1,7 +1,5 @@
 package arithmetic
 
-import scala.annotation.tailrec
-
 object ExprSimplifier {
 
   private def primeFactors(n: Int, i: Int =2) : List[Int] = if (i*i > n) List(n) else
@@ -348,43 +346,19 @@ object ExprSimplifier {
     None
   }
 
-  /** Constant folding*/
+  /**
+   * Apply an operator on the constant parts of the expression and return a simplified expression.
+   * @param l Argument list for the postfix operator.
+   * @param op The postfix operator. The function assumes the operator is associative and commutative.
+   * @param neutral The initial element (most likely neutral)
+   * @return a simplified expression.
+   */
   private def cstFolding(l : List[ArithExpr], op : ((Double,Double) => Double), neutral: Int) : List[ArithExpr] = {
-    /*// fixed point iteration until everything has been folded
-    var change: Boolean = true
-    var curLen = l.length
-    var curResult = l
-    while (change) {
-      var cstVal : Int = neutral
-      var newResult = List[ArithExpr]()
-
-      curResult.foreach(e =>
-        try {
-          val cstValDbl : Double = op(e.evalDbl(),cstVal)
-          if (cstValDbl.isValidInt)
-            cstVal = cstValDbl.toInt
-          else
-            newResult = e :: newResult
-        } catch {
-          case nee : NotEvaluableException => newResult = e :: newResult
-        })
-
-      newResult = if (cstVal != neutral || (cstVal == neutral && newResult.length == 0))
-        cstVal :: newResult
-      else
-        newResult
-
-      change = newResult.length != curLen
-      curLen = newResult.length
-      curResult = newResult
-    }
-
-    curResult
-    */
+    // extract everything which is not a constant
     var newResult = l.filter(!_.isInstanceOf[Cst])
 
+    // Evaluate the rest
     var cstVal : Int = neutral
-
     l.filter(_.isInstanceOf[Cst]).foreach(e => {
       val out = op(e.evalDbl(), cstVal)
       if (out.isValidInt)
@@ -393,6 +367,7 @@ object ExprSimplifier {
         newResult = e :: newResult
     })
 
+    // concatenate the new constant, if any
     if(cstVal != neutral || newResult.length == 0)
       newResult = cstVal :: newResult
 
@@ -414,9 +389,9 @@ object ExprSimplifier {
 
     prod.factors.foreach(factor => {
 
-      val (base:ArithExpr,exp:ArithExpr) = factor match {
-        case Pow(b, e) => (b,e)
-        case _ =>  (factor,Cst(1)) // implicit exponent (1)
+      val (base: ArithExpr, exp: ArithExpr) = factor match {
+        case Pow(b, e) => (b, e)
+        case _ => (factor, Cst(1)) // implicit exponent (1)
       }
 
       base match {
@@ -431,9 +406,7 @@ object ExprSimplifier {
 
         case _ => powMap += base -> (powMap.getOrElse(base, Sum(List(0))) + exp)
       }
-
-    }
-  )
+    })
 
     Prod(powMap.map({case (e, s) => simplifyPow(Pow(e,simplifySum(s)))}).toList)
   }
@@ -460,7 +433,7 @@ object ExprSimplifier {
 
     sums = sums :+ Sum(List(prodRest))
 
-    simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
+    simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.flatMap(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))))))
   }
 
   private def flattenProd(prod: Prod) : Prod = {
@@ -525,11 +498,8 @@ object ExprSimplifier {
     }
   }
 
-  //var counter = 0
-
   def simplify(e: ArithExpr): ArithExpr = {
-    //println(s"Simplify ${counter}")
-    //counter = counter + 1
+
     // recurse inside first
     var result = e match {
       case ArithExprFunction(_) => e
