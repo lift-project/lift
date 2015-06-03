@@ -1,6 +1,6 @@
 package exploration
 
-import benchmarks.MatrixMultiplication
+import sys.process._
 
 object MultiplicationParameters {
 
@@ -45,21 +45,17 @@ object MultiplicationParameters {
 
                       if (globalSizeM >= localSizeM && globalSizeN >= localSizeN) {
 
-                        val parameters = Array("--il", "-p1", "-s" + mSize, "-s" + kSize, "-s" + nSize,
+                        val parameters = Array("--il", "-s" + mSize, "-s" + kSize, "-s" + nSize,
                           "-p" + platform, "-d" + device, "-x" + tileSizeM, "-y" + tileSizeK,
                           "--bm", workPerThreadM.toString, "--bn", workPerThreadN.toString,
                           "-l" + localSizeM, "-l" + localSizeN,
-                          "--variant", variant.toString, "-g" + globalSizeM, "-g" + globalSizeN)
+                          "--variant", variant.toString, "-g" + globalSizeM, "-g" + globalSizeN, "-c").mkString(" ")
 
-                        try {
-                          println(parameters.mkString(" "))
-                          MatrixMultiplication().run(parameters :+ "--ig")
-                          MatrixMultiplication().run(parameters)
-                        } catch {
-                          case e: Exception =>
-                            println("Invalid combination")
-                            println(e.printStackTrace())
-                        }
+                        println("------------------------------")
+                        println(parameters)
+                        ("scripts/MatrixMultiplication " + parameters).!
+                        println("------------------------------")
+                        ("scripts/MatrixMultiplication " + parameters + " --ig").!
                       }
 
                       globalSizeM /= 2
