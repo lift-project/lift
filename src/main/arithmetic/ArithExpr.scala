@@ -28,7 +28,11 @@ object Predicate {
   }
 }
 
-abstract sealed class ArithExpr {
+trait Simplified {
+  var simplified: Boolean = false
+}
+
+abstract sealed class ArithExpr extends Simplified {
 
   /**
    * Evaluates an arithmetic expression.
@@ -65,6 +69,9 @@ abstract sealed class ArithExpr {
     val maxLens = vars.map(_.range.min) ++ exprFunctions.map(_.range.min)
     ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
   }
+
+
+  /* === Arithmetic operators === */
 
   def *(that: ArithExpr): Prod = {
     val thisExprs = this match {
@@ -105,7 +112,7 @@ abstract sealed class ArithExpr {
    */
   def /^(that: ArithExpr) = this * Pow(that, Cst(-1))
 
-  def -(that: ArithExpr) = ExprSimplifier.simplify(this + (that * Cst(-1)))
+  def -(that: ArithExpr) = this + (that * Cst(-1))
 
   def %(that: ArithExpr) = Mod(this, that)
 
@@ -122,8 +129,6 @@ abstract sealed class ArithExpr {
   def eq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.==)
 
   def neq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.!=)
-
-  var simplified: Boolean = false
 }
 
 
@@ -420,7 +425,7 @@ object ArithExpr {
   object Math {
 
     /**
-     * @brief Computes the minimal value between the two argument
+     * Computes the minimal value between the two argument
      * @param x The first value
      * @param y The second value
      * @return The minimum between x and y
@@ -428,7 +433,7 @@ object ArithExpr {
     def Min(x: ArithExpr, y: ArithExpr) = IfThenElse(x le y, x, y)
 
     /**
-     * @brief Computes the maximal value between the two argument
+     * Computes the maximal value between the two argument
      * @param x The first value
      * @param y The second value
      * @return The maximum between x and y
@@ -436,7 +441,7 @@ object ArithExpr {
     def Max(x: ArithExpr, y: ArithExpr) = IfThenElse(x gt y, x, y)
 
     /**
-     * @brief Clamps a value to a given range
+     * Clamps a value to a given range
      * @param x The input value
      * @param min Lower bound of the range
      * @param max Upper bound of the range
@@ -445,7 +450,7 @@ object ArithExpr {
     def Clamp(x: ArithExpr, min: ArithExpr, max: ArithExpr) = Min(Max(x,min),max)
 
     /**
-     * @brief Computes the absolute value of the argument
+     * Computes the absolute value of the argument
      * @param x The input value
      * @return |x|
      */

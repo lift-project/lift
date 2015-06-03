@@ -499,34 +499,37 @@ object ExprSimplifier {
   }
 
   def simplify(e: ArithExpr): ArithExpr = {
+    if(e.simplified)
+      e
+    else {
+      // recurse inside first
+      var result = e match {
+        case ArithExprFunction(_) | Cst(_) | Var(_,_) => e
+        case Pow(base, exp) => Pow(simplify(base), simplify(exp))
+        case Log(b, x) => Log(simplify(b), simplify(x))
+        case Mod(dividend, divisor) => Mod(simplify(dividend), simplify(divisor))
+        case And(l, r) => And(simplify(l), simplify(r))
+        case Prod(factors) => Prod(factors.map(t => simplify(t)))
+        case Sum(terms) => Sum(terms.map(t => simplify(t)))
+        case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
+        case IfThenElse(i, t, e) => IfThenElse(i, simplify(t), simplify(e))
+        case _ => throw new RuntimeException(s"Simplify cannot handle the expression ${e}")
+      }
 
-    // recurse inside first
-    var result = e match {
-      case ArithExprFunction(_) => e
-      case Cst(_) => e
-      case Var(_, _) => e
-      case Pow(base, exp) => Pow(simplify(base), simplify(exp))
-      case Log(b,x) => Log(simplify(b),simplify(x))
-      case Mod(dividend, divisor) => Mod(simplify(dividend),simplify(divisor))
-      case And(l,r) => And(simplify(l),simplify(r))
-      case Prod(factors) => Prod(factors.map(t => simplify(t)))
-      case Sum(terms) => Sum(terms.map(t => simplify(t)))
-      case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
-      case IfThenElse(i,t,e) => IfThenElse(i, simplify(t), simplify(e))
-      case _ => e
+      result = result match {
+        case p: Pow => simplifyPow(p)
+        case p: Prod => simplifyProd(p)
+        case s: Sum => simplifySum(s)
+        case m: Mod => simplifyMod(m)
+        case f: IntDiv => simplifyFraction(f)
+        case ite: IfThenElse => simplifyIfThenElse(ite)
+        case _ => result
+      }
+
+      if(result.asInstanceOf[AnyRef].eq(e))
+        result.simplified = true
+      result
     }
-
-    result = result match {
-      case p: Pow => simplifyPow(p)
-      case p: Prod => simplifyProd(p)
-      case s: Sum => simplifySum(s)
-      case m: Mod => simplifyMod(m)
-      case f: IntDiv => simplifyFraction(f)
-      case ite: IfThenElse => simplifyIfThenElse(ite)
-      case _ => result
-    }
-
-    result
   }
 
 }
