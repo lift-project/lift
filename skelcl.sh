@@ -2,7 +2,7 @@
 
 set -e
 
-CONFIG_FILE=apart.conf
+CONFIG_FILE=skelcl.conf
 SKELCL_CMAKE_COMMON_FLAGS="-DBUILD_EXECUTOR=ON -DTHROW_ON_FAILURE=ON"
 
 function check_command(){
@@ -22,9 +22,6 @@ function init(){
 #SkelCL config flags
 SKELCL_CMAKE_FLAGS=
 SKELCL_LLVM_PATH=
-
-# sbt options
-SBT_FLAGS=
 EOF
   fi
 
@@ -34,7 +31,6 @@ EOF
 
 function update(){
   check_command "git"
-  git pull 
   git submodule init
   git submodule update
 }
@@ -56,34 +52,39 @@ function configure(){
   if [ ! -e libraries/stooling/libraries/llvm ]; then
     llvm_found=false
     set +e
-    if type "llvm-config" > /dev/null; then
-      llvm-config --bindir
-      if [ "$?" = 0 ]; then
-        llvm_path=$(llvm-config --bindir)
-        echo "LLVM install path found in ${llvm_path}/.., so you want to use it?"
-        echo "(y)es or (n)o "
-        read ANSWER
-        if [[ "$ANSWER" == 'y' ]]; then
-          ln -s "${llvm_path}/.." libraries/stooling/libraries/llvm
-          llvm_found=true
+
+    if [ -z "$SKELCL_LLVM_PATH" ]; then
+      if type "llvm-config" > /dev/null; then
+        llvm-config --bindir
+        if [ "$?" = 0 ]; then
+          llvm_path=$(llvm-config --bindir)
+          echo "LLVM install path found in ${llvm_path}/.., so you want to use it?"
+          echo "(y)es or (n)o "
+          read ANSWER
+          if [[ "$ANSWER" == 'y' ]]; then
+            ln -s "${llvm_path}/.." libraries/stooling/libraries/llvm
+            llvm_found=true
+          fi
         fi
       fi
-    fi
-    set -e
-    if [ "${llvm_found}" = false ]; then
-      echo "[error] Cannot find LLVM. You need to configure LLVM for SkelCL manually" >&2 
-      exit -1
-    fi
-  fi 
+      set -e
+      if [ "${llvm_found}" = false ]; then
+        echo "[error] Cannot find LLVM. You need to configure LLVM for SkelCL manually" >&2 
+        exit -1
+      fi
+    else
+      echo "Using LLVM path ${SKELCL_LLVM_PATH} set in ${CONFIG_FILE}"
+      ln -s "${SKELCL_LLVM_PATH}" libraries/stooling/libraries/llvm
+      set -e
+      fi
+  fi
+
+
   (cd build && cmake ${SKELCL_CMAKE_COMMON_FLAGS} ${SKELCL_CMAKE_FLAGS} ..)
   popd
-
-
-  # Apart
 }
 
 function build(){
-  check_command "sbt"
   check_command "g++"
   check_command "cmake"
 
@@ -91,18 +92,9 @@ function build(){
   pushd lib/SkelCL/build
   make
   popd
-
-  # Apart
-  sbt ${SBT_FLAGS} compile
-}
-
-function runtest(){
-  check_command "sbt" 
-  LD_LIBRARY_PATH=`pwd`/lib/SkelCL/build/executor/ sbt ${SBT_FLAGS} test 
 }
 
 init
 update
 configure
 build
-runtest
