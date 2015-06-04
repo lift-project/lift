@@ -55,7 +55,9 @@ object MultiplicationParameters {
                         println(parameters)
                         ("scripts/MatrixMultiplication " + parameters).!
                         println("------------------------------")
-                        ("scripts/MatrixMultiplication " + parameters + " --ig").!
+                        val s = parameters + " --ig"
+                        println(s)
+                        ("scripts/MatrixMultiplication " + s).!
                       }
 
                       globalSizeM /= 2
