@@ -373,9 +373,6 @@ object ArithExpr {
       case Log(b,x) =>
         visit(b, f)
         visit(x, f)
-      case And(l, r) =>
-        visit(l, f)
-        visit(r, f)
       case Floor(expr) => visit(expr, f)
       case Sum(terms) => terms.foreach(t => visit(t, f))
       case Prod(terms) => terms.foreach(t => visit(t, f))
@@ -393,7 +390,6 @@ object ArithExpr {
       case IntDiv(n, d) => IntDiv(substitute(n, substitutions,false), substitute(d, substitutions,false))
       case Mod(dividend, divisor) => Mod(substitute(dividend, substitutions,false), substitute(divisor, substitutions,false))
       case Log(b,x) => Log(substitute(b, substitutions,false), substitute(x, substitutions,false))
-      case And(l, r) => And(substitute(l, substitutions,false), substitute(r, substitutions,false))
       case IfThenElse(i, t, e) =>
         val cond = Predicate(substitute(i.lhs, substitutions,false), substitute(i.rhs, substitutions,false), i.op)
         IfThenElse(cond, substitute(t, substitutions,false), substitute(e, substitutions,false))
@@ -430,8 +426,6 @@ object ArithExpr {
     case Log(b,x) => scala.math.log(evalDouble(x)) / scala.math.log(evalDouble(b))
 
     case Mod(dividend, divisor) => dividend.eval % divisor.eval
-
-    case And(l,r) => l.eval & r.eval
 
     case Sum(terms) => terms.foldLeft(0.0)((result,expr) => result+evalDouble(expr))
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
@@ -552,10 +546,6 @@ case class Sum(terms: List[ArithExpr]) extends ArithExpr {
 
 case class Mod(dividend: ArithExpr, divisor: ArithExpr) extends ArithExpr {
   override def toString: String = "(" + dividend + " % " + divisor + ")"
-}
-
-case class And(lhs: ArithExpr, rhs: ArithExpr) extends ArithExpr {
-  override def toString: String = "(" + lhs + " & " + rhs + ")"
 }
 
 case class Floor(ae : ArithExpr) extends ArithExpr {
