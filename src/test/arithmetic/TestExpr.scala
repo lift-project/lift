@@ -394,10 +394,15 @@ class TestExpr {
     val b = Var("b")
     val c = Var("c")
 
+    // True condition
     assertEquals(a, ExprSimplifier.simplify(IfThenElse(Cst(1) lt Cst(2), a, b)))
+    // False condition
     assertEquals(b, ExprSimplifier.simplify(IfThenElse(Cst(1) gt Cst(2), a, b)))
-    assertEquals(a, ExprSimplifier.simplify(IfThenElse(b neq c, a, a)))
+    // Identical branches
+    assertEquals(a, ExprSimplifier.simplify(IfThenElse(b ne c, a, a)))
+    // Unevaluable predicate with positive offset on the LHS
     assertEquals(c, ExprSimplifier.simplify(IfThenElse(b+Cst(2) gt b, c, b)))
+    // Unevaluable predicate with positive offset on the RHS
     assertEquals(b, ExprSimplifier.simplify(IfThenElse(b+Cst(-2) gt b, c, b)))
   }
 

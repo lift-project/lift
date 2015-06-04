@@ -6,32 +6,47 @@ import scala.collection.immutable
 import scala.language.implicitConversions
 import scala.util.Random
 
+/**
+ * Control flow exception used to abort arithmetic expression evaluation on unknown terms.
+ */
 final class NotEvaluableException() extends Exception() {
   // Control flow exception, disabling stack trace
   override def fillInStackTrace(): Throwable = this
 }
 
+/**
+ * Predicate object. Stores two arithmetic expressions and an operator
+ */
 case class Predicate(lhs: ArithExpr, rhs: ArithExpr, op: Predicate.Operator.Operator) {
   override def toString: String = s"(${lhs} ${op} ${rhs})"
 }
-
 object Predicate {
   class Operator
+
+  /**
+   * List of comparison operators
+   */
   object Operator extends Enumeration {
     type Operator = Value;
     val < = Value("<")
     val > = Value(">")
     val <= = Value("<=")
     val >= = Value(">=")
-    val!= = Value("!=")
-    val== = Value("==")
+    val != = Value("!=")
+    val == = Value("==")
   }
 }
 
+/**
+ * Trait to mark an arithmetic expression as being simplified
+ */
 trait Simplified {
   var simplified: Boolean = false
 }
 
+/**
+ * Class ArithExpr is the base class for arithmetic expression trees.
+ */
 abstract sealed class ArithExpr extends Simplified {
 
   /**
@@ -98,7 +113,7 @@ abstract sealed class ArithExpr extends Simplified {
   }
 
   /**
-   * Division operator in Natural set (ie int div like Scala): 1/2=0.
+   * Division operator in Natural set (ie int div like Scala): `1/2=0`.
    * @param that Right-hand side (divisor).
    * @return An IntDiv object wrapping the operands.
    */
@@ -116,19 +131,53 @@ abstract sealed class ArithExpr extends Simplified {
 
   def %(that: ArithExpr) = Mod(this, that)
 
+  @deprecated
   def &(that: ArithExpr) = And(this, that)
 
+  /* === Comparison operators === */
+  /**
+   * Lower than comparison operator.
+   * @param that Right-hand side of the comparison
+   * @return A Predicate object
+   */
   def lt(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.<)
 
+  /**
+   * Greater than comparison operator.
+   * @param that Right-hand side of the comparison
+   * @return A Predicate object
+   */
   def gt(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.>)
 
+  /**
+   * Lower-or-equal comparison operator.
+   * @param that Right-hand side of the comparison
+   * @return A Predicate object
+   */
   def le(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.<=)
 
+  /**
+   * Greater-or-equal comparison operator.
+   * @param that Right-hand side of the comparison
+   * @return A Predicate object
+   */
   def ge(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.>=)
 
+  /**
+   * Equality comparison operator.
+   * @note Silently overrides the reference comparison operator `AnyRef.eq`
+   * @param that Right-hand side of the comparison
+   * @return A Predicate object
+   */
   def eq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.==)
 
-  def neq(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.!=)
+  /**
+   * Inequality comparison operator.
+   * @note Silently overrides the reference comparison operator `AnyRef.ne`
+   * @param that Right-hand side of the comparison
+   * @return A Predicate object
+   */
+  def ne(that: ArithExpr) = new Predicate(this, that, Predicate.Operator.!=)
 }
 
 
@@ -137,13 +186,9 @@ object ArithExpr {
 
   implicit def IntToCst(i: Int): Cst = Cst(i)
 
-  def max(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
-    minmax(e1, e2)._2
-  }
+  def max(e1: ArithExpr, e2: ArithExpr) : ArithExpr = minmax(e1, e2)._2
 
-  def min(e1: ArithExpr, e2: ArithExpr) : ArithExpr = {
-    minmax(e1, e2)._1
-  }
+  def min(e1: ArithExpr, e2: ArithExpr) : ArithExpr = minmax(e1, e2)._1
 
   def minmax(v: Var, c: Cst): (ArithExpr, ArithExpr) = {
     val m1 = v.range.min match { case Cst(min) => if (min >= c.c) Some((c, v)) else None }
@@ -526,6 +571,12 @@ case class Floor(ae : ArithExpr) extends ArithExpr {
   override def toString: String = "Floor(" + ae + ")"
 }
 
+/**
+ * Conditional operator. Behaves like the `?:` operator in C.
+ * @param test A Predicate object.
+ * @param t The 'then' block.
+ * @param e The 'else block.
+ */
 case class IfThenElse(test: Predicate, t : ArithExpr, e : ArithExpr) extends ArithExpr {
   override def toString: String = s"If(${test})Then(${t})Else(${e})"
 }
