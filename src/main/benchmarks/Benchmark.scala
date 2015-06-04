@@ -5,7 +5,7 @@ import java.io.File
 import scala.sys.process._
 
 import ir.Lambda
-import opencl.executor.{Execute, Executor}
+import opencl.executor._
 import opencl.generator.Verbose
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
@@ -22,6 +22,7 @@ abstract class Benchmark(val name: String,
   var inputs = Seq[Any]()
   var scalaResult = Array.emptyFloatArray
   var runtimes = Array.emptyDoubleArray
+  var generatedCode = Array.empty[String]
 
   // Parser options
   val parser = new ArgotParser(name)
@@ -100,7 +101,27 @@ abstract class Benchmark(val name: String,
     var finalOutput = Array.emptyFloatArray
 
     val lambdas: Seq[Lambda] = f(variant)._2
+    var generateKernels = false
+
+
+    if (generatedCode.length == 0) {
+      generateKernels = true
+      generatedCode = Array.ofDim(lambdas.length)
+    }
+
+
     for (i <- lambdas.indices) {
+
+      if (generateKernels)
+        generatedCode(i) = Utils.compile(lambdas(i),
+          realInputs,
+          localSize(0),
+          localSize(1),
+          localSize(2),
+          realGlobalSizes(0),
+          realGlobalSizes(1),
+          realGlobalSizes(2),
+          (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false)))
 
       val (output: Array[Float], runtime) = Execute(
         localSize(0),
@@ -110,7 +131,7 @@ abstract class Benchmark(val name: String,
         realGlobalSizes(1),
         realGlobalSizes(2),
         (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-      )(lambdas(i), realInputs:_*)
+      )(generatedCode(i), lambdas(i), realInputs:_*)
 
       // Adjust parameters for the next kernel, if any
       realInputs = Seq(output)

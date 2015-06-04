@@ -4,7 +4,7 @@ import arithmetic.Var
 import benchmarks.MatrixTransposition
 import ir.UserFunDef._
 import ir._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Utils, Execute, Executor}
 import opencl.ir._
 import opencl.ir.CompositePatterns._
 import org.junit.Assert._
@@ -34,7 +34,7 @@ class TestTiling {
     val gold   = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -53,13 +53,13 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("tile: ")
-    TestUtils.myPrint(gold(0)(0))
+    Utils.myPrint(gold(0)(0))
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten.flatten.flatten, 8)
+    Utils.myPrint(gold.flatten.flatten.flatten, 8)
 
     println("output: ")
-    TestUtils.myPrint(output, Msize)
+    Utils.myPrint(output, Msize)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
   }
@@ -72,7 +72,7 @@ class TestTiling {
     val gold   = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -94,13 +94,13 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("tile: ")
-    TestUtils.myPrint(gold(0)(0))
+    Utils.myPrint(gold(0)(0))
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten.flatten.flatten, 8)
+    Utils.myPrint(gold.flatten.flatten.flatten, 8)
 
     println("output: ")
-    TestUtils.myPrint(output, Msize)
+    Utils.myPrint(output, Msize)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
   }
@@ -113,7 +113,7 @@ class TestTiling {
     val gold = tiled.map(_.transpose.map(_.flatten)).flatten
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -135,10 +135,10 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten, 8)
+    Utils.myPrint(gold.flatten, 8)
 
     println("output: ")
-    TestUtils.myPrint(output, Msize)
+    Utils.myPrint(output, Msize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -151,7 +151,7 @@ class TestTiling {
     val gold = tiled.map(_.transpose.map(_.flatten)).flatten
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -176,10 +176,10 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten, 8)
+    Utils.myPrint(gold.flatten, 8)
 
     println("output: ")
-    TestUtils.myPrint(output, Msize)
+    Utils.myPrint(output, Msize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -192,7 +192,7 @@ class TestTiling {
                                               .toArray.map(_.transpose)).map(_.map(_.transpose))
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -210,16 +210,16 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("tile: 0,0 ")
-    TestUtils.myPrint(gold(0)(0))
+    Utils.myPrint(gold(0)(0))
 
     println("tile: 0,1 ")
-    TestUtils.myPrint(gold(0)(1))
+    Utils.myPrint(gold(0)(1))
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten.flatten.flatten, 8)
+    Utils.myPrint(gold.flatten.flatten.flatten, 8)
 
     println("output: ")
-    TestUtils.myPrint(output, Msize)
+    Utils.myPrint(output, Msize)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
   }
@@ -232,7 +232,7 @@ class TestTiling {
                                               .toArray.map(_.transpose)).map(_.map(_.transpose))
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -252,16 +252,16 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("tile: 0,0 ")
-    TestUtils.myPrint(gold(0)(0))
+    Utils.myPrint(gold(0)(0))
 
     println("tile: 0,1 ")
-    TestUtils.myPrint(gold(0)(1))
+    Utils.myPrint(gold(0)(1))
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten.flatten.flatten, 8)
+    Utils.myPrint(gold.flatten.flatten.flatten, 8)
 
     println("output: ")
-    TestUtils.myPrint(output, Msize)
+    Utils.myPrint(output, Msize)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
   }
@@ -275,7 +275,7 @@ class TestTiling {
 
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -294,16 +294,16 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("tile: 0,0 ")
-    TestUtils.myPrint(gold(0)(0))
+    Utils.myPrint(gold(0)(0))
 
     println("tile: 0,1 ")
-    TestUtils.myPrint(gold(0)(1))
+    Utils.myPrint(gold(0)(1))
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten.flatten.flatten, Nsize)
+    Utils.myPrint(gold.flatten.flatten.flatten, Nsize)
 
     println("output: ")
-    TestUtils.myPrint(output, Nsize)
+    Utils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
   }
@@ -318,7 +318,7 @@ class TestTiling {
     val gold = tiledTransposed.map(_.transpose.map(_.flatten)).flatten
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val N = Var("N")
     val M = Var("M")
@@ -342,10 +342,10 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten, Nsize)
+    Utils.myPrint(gold.flatten, Nsize)
 
     println("output: ")
-    TestUtils.myPrint(output, Nsize)
+    Utils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -360,7 +360,7 @@ class TestTiling {
     val gold = tiledTransposed.map(_.transpose.map(_.flatten)).flatten
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val (output: Array[Float], runtime) =
       Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(), matrix)
@@ -370,10 +370,10 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten, Nsize)
+    Utils.myPrint(gold.flatten, Nsize)
 
     println("output: ")
-    TestUtils.myPrint(output, Nsize)
+    Utils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
@@ -388,7 +388,7 @@ class TestTiling {
     val gold = tiledTransposed.map(_.transpose.map(_.flatten)).flatten
 
     println("matrix: ")
-    TestUtils.myPrint(matrix)
+    Utils.myPrint(matrix)
 
     val (output: Array[Float], runtime) =
       Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(4,8), matrix)
@@ -398,10 +398,10 @@ class TestTiling {
     println("runtime = " + runtime)
 
     println("gold: ")
-    TestUtils.myPrint(gold.flatten, Nsize)
+    Utils.myPrint(gold.flatten, Nsize)
 
     println("output: ")
-    TestUtils.myPrint(output, Nsize)
+    Utils.myPrint(output, Nsize)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
   }

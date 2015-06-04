@@ -3,7 +3,7 @@ package opencl.generator
 import arithmetic.Var
 import ir.UserFunDef._
 import ir._
-import opencl.executor.{Executor, Execute}
+import opencl.executor.{Utils, Executor, Execute}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test, Ignore}
@@ -704,7 +704,7 @@ class TestMatrixMatrixChristophe {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
   }

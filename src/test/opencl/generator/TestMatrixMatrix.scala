@@ -56,7 +56,7 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -90,7 +90,7 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -136,7 +136,7 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.001f)
 
@@ -156,7 +156,7 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val transposedB = matrixB.transpose
 
@@ -279,7 +279,7 @@ class TestMatrixMatrix {
     val workPerThreadN = 4
     val workPerThreadM = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val n = new Var("N")
     val m = new Var("M")
@@ -311,7 +311,7 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val N = Var("N")
     val M = Var("M")
@@ -393,7 +393,7 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val tileSizeM = 16
     val tileSizeN = tileSizeM
@@ -416,7 +416,7 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val N = Var("N")
     val M = Var("M")
@@ -509,7 +509,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val n = new Var("N")
     val m = new Var("M")
@@ -543,7 +543,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val n = new Var("N")
     val m = new Var("M")
@@ -579,7 +579,7 @@ class TestMatrixMatrix {
     val tileSize = 8
     val blockSize = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = MatrixMultiplication.moreWorkPerThread(tileSize, blockSize)
 
@@ -599,7 +599,7 @@ class TestMatrixMatrix {
     val tileSize = 4
     val blockSize = 2
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val N = new Var("N")
     val M = new Var("M")
@@ -675,7 +675,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val n = new Var("N")
     val m = new Var("M")
@@ -725,7 +725,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val n = new Var("N")
     val m = new Var("M")
@@ -786,7 +786,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val N = Var("N")
     val M = Var("M")
@@ -850,7 +850,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val N = Var("N")
     val M = Var("M")
@@ -914,7 +914,7 @@ class TestMatrixMatrix {
 
     val tileSize = 4
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = MatrixMultiplication.tiled(tileSize)
 
@@ -982,7 +982,7 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -1025,12 +1025,12 @@ class TestMatrixMatrix {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    val gold = TestUtils.matrixMatrixMultiply(matrixA, matrixB).flatten
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     println("gold:")
-    TestUtils.myPrint(gold, mSize)
+    Utils.myPrint(gold, mSize)
     println("output:")
-    TestUtils.myPrint(output, mSize)
+    Utils.myPrint(output, mSize)
 
     assertArrayEquals(gold,output,0.0f)
 
