@@ -89,27 +89,21 @@ abstract sealed class ArithExpr extends Simplified {
   /* === Arithmetic operators === */
 
   def *(that: ArithExpr): Prod = {
-    val thisExprs = this match {
-      case p:Prod => p.factors
-      case _ => List(this)
+    (this,that) match {
+      case (p1:Prod, p2:Prod) => Prod(p1.factors ++ p2.factors)
+      case (p:Prod, x) => Prod(x :: p.factors)
+      case (x, p:Prod) => Prod(x :: p.factors)
+      case (x, y) => Prod(List(x,y))
     }
-    val thatExprs = that match {
-      case p:Prod => p.factors
-      case _ => List(that)
-    }
-    Prod(thisExprs++thatExprs)
   }
 
   def +(that: ArithExpr): Sum = {
-    val thisExprs = this match {
-      case s:Sum => s.terms
-      case _ => List(this)
+    (this,that) match {
+      case (s1:Sum, s2:Sum) => Sum(s1.terms ++ s2.terms)
+      case (s:Sum, x) => Sum(x :: s.terms)
+      case (x, s:Sum) => Sum(x :: s.terms)
+      case (x, y) => Sum(List(x,y))
     }
-    val thatExprs = that match {
-      case s:Sum => s.terms
-      case _ => List(that)
-    }
-    Sum(thisExprs++thatExprs)
   }
 
   /**
