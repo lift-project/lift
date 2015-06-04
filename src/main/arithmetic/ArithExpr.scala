@@ -709,20 +709,23 @@ object Var {
   }
 
   def getVars(t: Type) : Seq[Var] = {
-    t match {
-      case at: ArrayType => getVars(at.elemT) ++ getVars(at.len)
-      case vt: VectorType => getVars(vt.len)
-      case tt: TupleType => tt.elemsT.foldLeft(Seq[Var]())((set,inT) => set ++ getVars(inT))
-      case _ => Seq[Var]()//.distinct
+    def gV(t: Type, l: List[Var] = List[Var]()) : List[Var] = {
+      t match {
+        case at: ArrayType => getVars(at.len, gV(at.elemT, l))
+        case vt: VectorType => getVars(vt.len)
+        case tt: TupleType => tt.elemsT.foldLeft(l)((set,inT) => gV(inT, l))
+        case _ => l
+      }
     }
+    gV(t)
   }
 
-  def getVars(e: ArithExpr) : Seq[Var] = {
+  def getVars(e: ArithExpr, l: List[Var] = List[Var]()) : List[Var] = {
     e match {
-      case adds: Sum => adds.terms.foldLeft(Seq[Var]())((set,expr) => set ++ getVars(expr))
-      case muls: Prod => muls.factors.foldLeft(Seq[Var]())((set,expr) => set ++ getVars(expr))
-      case v: Var => Seq(v)
-      case _ => Seq[Var]()
+      case adds: Sum => adds.terms.foldLeft(l)((acc,expr) => getVars(expr, acc))
+      case muls: Prod => muls.factors.foldLeft(l)((acc,expr) => getVars(expr, acc))
+      case v: Var => v :: l
+      case _ => l
     }
   }
 }

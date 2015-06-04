@@ -564,7 +564,6 @@ object OpenCLGenerator extends Generator {
     
     mem.addressSpace match {
       case LocalMemory | GlobalMemory =>
-        ExprPrinter.dump(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns))
         // both types match => no vload necessary ...
         // generate: var[index]
         varname +
