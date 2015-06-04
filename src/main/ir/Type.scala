@@ -71,6 +71,7 @@ object Type {
       case tt: TupleType  => "Tuple_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
       case at: ArrayType  => "Array_" + Type.name(at.elemT)
       case mt: MatrixType => "Matrix_"+ Type.name(mt.elemT)
+      case _ => ???
     }
   }
 
@@ -388,7 +389,7 @@ object Type {
       if (l.params.length != 1) throw new NumberOfArgumentsException
       l.params(0).t = inT
     } else {
-      val tt = inT match { case tt: TupleType => tt }
+      val tt = inT match { case tt: TupleType => tt; case _ => ??? }
       if (l.params.length != tt.elemsT.length) throw new NumberOfArgumentsException
 
       (l.params zip tt.elemsT).foreach({case (p,t) => p.t = t })

@@ -262,8 +262,8 @@ object IndexFunction {
   }
 
   val transpose = (i: ArithExpr, t: Type) => {
-    val outerType = t match { case at: ArrayType => at }
-    val innerType = outerType.elemT match { case at: ArrayType => at }
+    val outerType = t match { case at: ArrayType => at; case _ => ??? }
+    val innerType = outerType.elemT match { case at: ArrayType => at; case _ => ??? }
 
     transposeFunction(outerType.len, innerType.len)(i, t)
   }

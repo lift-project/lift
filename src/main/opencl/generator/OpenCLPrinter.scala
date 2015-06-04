@@ -96,6 +96,7 @@ class OpenCLPrinter {
         val const = if (mem.mem.readOnly) "const " else ""
         val restrict = if (mem.mem.readOnly) "restrict " else ""
         const + mem.mem.addressSpace + " " + toOpenCL(Type.devectorize(mem.t)) + " " + restrict + toOpenCL(mem.mem.variable)
+      case _ => ???
     }
   }
 
@@ -138,6 +139,7 @@ class OpenCLPrinter {
       case ScalarType(name, _) => name
       case tt: TupleType => Type.name(tt)
       case UndefType => "void"
+      case _ => ???
     }
   }
 
@@ -146,7 +148,7 @@ class OpenCLPrinter {
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
-      case Log(b, x) => "(int)log"+b+"((float)"+toOpenCL(x)+")"
+      case Log(b, x) => s"(int)log${b}((float)"+toOpenCL(x)+")"
       case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
         s + (e match {
           case Pow(b, Cst(-1)) => " / " + toOpenCL(b) + ""
@@ -154,13 +156,22 @@ class OpenCLPrinter {
         })
       } ).drop(4) /* drop "1 * " */ + ")"
       case Sum(es) => "(" + es.map(toOpenCL).reduce( _ + " + " + _  ) + ")"
-      case Mod(a,n) => "(" + toOpenCL(a) + " % " + toOpenCL(n) + ")"
-      case And(lhs, rhs) => "(" + toOpenCL(lhs) + " & " + toOpenCL(rhs) + ")"
+      case Mod(a,n) =>
+        // If the divisor is a power of 2, generate a bitmask, otherwise use a modulo
+        n match {
+          case Cst(n) if (n > 0 && (n & (n - 1)) == 0) => "(" + toOpenCL(a) + s" & ${n-1} )"
+          case _ => "(" + toOpenCL(a) + " % " + toOpenCL(n) + ")"
+        }
       case of: OclFunction => of.toOCLString
       case tv : TypeVar => "tv_"+tv.id
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
-      case IntDiv(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
+      case IntDiv(n, d) =>
+        // If the divisor is a power of 2, generate a bitshift, otherwise use a division
+        d match {
+          //case Cst(d) if (d > 0 && (d & (d - 1)) == 0) => "(" + toOpenCL(n) + s" >> ${(math.log(d)/math.log(2)).toInt} )"
+          case _ => s"(${toOpenCL(n)} / ${toOpenCL(d)})"
+        }
       case ite: IfThenElse => s"((${toOpenCL(ite.test.lhs)} ${ite.test.op} ${toOpenCL(ite.test.rhs)}) ? (${toOpenCL(ite.t)}) : (${toOpenCL(ite.e)}))"
       case gc: GroupCall =>
         val outerAe = if (Debug()) ExprSimplifier.simplify(gc.outerAe) else gc.outerAe

@@ -190,7 +190,7 @@ class TestSparsity {
        MapSeq(negElem)  $ input
     )
 
-    val (output:Array[(Float,Float)], runtime) = Execute(inputSize)(f, inputVector)
+    val (output:Array[(Float,Float)] @unchecked, runtime) = Execute(inputSize)(f, inputVector)
 
 
 
@@ -223,7 +223,7 @@ class TestSparsity {
         ) $ input
     )
 
-    val (output:Array[(Float,Float)], runtime) = Execute(inputVector.length)(scalFun, inputVector, alpha)
+    val (output:Array[(Float,Float)] @unchecked, runtime) = Execute(inputVector.length)(scalFun, inputVector, alpha)
 
     println("output(0) = " + output(0))
     if (printArrays) {

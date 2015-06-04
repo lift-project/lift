@@ -131,9 +131,6 @@ abstract sealed class ArithExpr extends Simplified {
 
   def %(that: ArithExpr) = Mod(this, that)
 
-  @deprecated
-  def &(that: ArithExpr) = And(this, that)
-
   /* === Comparison operators === */
   /**
    * Lower than comparison operator.
@@ -191,10 +188,10 @@ object ArithExpr {
   def min(e1: ArithExpr, e2: ArithExpr) : ArithExpr = minmax(e1, e2)._1
 
   def minmax(v: Var, c: Cst): (ArithExpr, ArithExpr) = {
-    val m1 = v.range.min match { case Cst(min) => if (min >= c.c) Some((c, v)) else None }
+    val m1 = v.range.min match { case Cst(min) => if (min >= c.c) Some((c, v)) else None; case _ => ??? }
     if (m1.isDefined) return m1.get
 
-    val m2 = v.range.max match { case Cst(max) => if (max <= c.c) Some((v, c)) else None }
+    val m2 = v.range.max match { case Cst(max) => if (max <= c.c) Some((v, c)) else None; case _ => ??? }
     if (m2.isDefined) return m2.get
 
     throw new NotEvaluableException(/*"Cannot determine min/max of " + v + " and " + c*/)

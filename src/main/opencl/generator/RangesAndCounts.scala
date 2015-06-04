@@ -111,7 +111,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
   }
 
   private def setRangeMapLane(call: MapCall): Unit = {
-    call.loopVar.range = RangeAdd(new get_local_id(0) & (OpenCL.warpSize - Cst(1)), Type.getLength(call.arg.t), OpenCL.warpSize)
+    call.loopVar.range = RangeAdd(new get_local_id(0) % OpenCL.warpSize, Type.getLength(call.arg.t), OpenCL.warpSize)
     evaluateMapRange(call)
   }
 

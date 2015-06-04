@@ -519,7 +519,9 @@ object OpenCLGenerator extends Generator {
           case at: ArrayType  if    at.len == Cst(1)
                                  && Type.isEqual(at.elemT, vt.scalarT)  =>
             vstore(mem, vt, view, valueGenerator)
+          case _ => ???
         }
+        case _ => ???
       }
     }
   }
@@ -562,6 +564,7 @@ object OpenCLGenerator extends Generator {
     
     mem.addressSpace match {
       case LocalMemory | GlobalMemory =>
+        ExprPrinter.dump(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns))
         // both types match => no vload necessary ...
         // generate: var[index]
         varname +

@@ -161,6 +161,7 @@ object OutputView {
           join(m).
           reorder((i:ArithExpr) => { IndexFunction.transpose(i, ArrayType(ArrayType(typ, n), m)) }).
           split(n)
+      case _ => ???
     }
   }
 
@@ -170,6 +171,7 @@ object OutputView {
         writeView.
           join(m).
           split(n)
+      case _ => ???
     }
   }
 

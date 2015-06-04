@@ -180,6 +180,7 @@ object InputView {
           join(n).
           reorder((i:ArithExpr) => { IndexFunction.transpose(i, call.t) }).
           split(m)
+      case _ => ???
     }
   }
 
@@ -189,6 +190,7 @@ object InputView {
         argView.
           join(n).
           split(m)
+      case _ => ???
     }
   }
 
