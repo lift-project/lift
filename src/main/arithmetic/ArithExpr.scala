@@ -458,9 +458,12 @@ object ArithExpr {
   }
 }
 
-case object ? extends ArithExpr
+case object ? extends ArithExpr { simplified = true }
 
-case class Cst(c: Int) extends ArithExpr { override  def toString = c.toString }
+case class Cst(c: Int) extends ArithExpr {
+  simplified = true
+  override  def toString = c.toString
+}
 
 
 case class IntDiv(numer: ArithExpr, denom: ArithExpr) extends ArithExpr {
@@ -527,7 +530,7 @@ case class IfThenElse(test: Predicate, t : ArithExpr, e : ArithExpr) extends Ari
   override def toString: String = s"If(${test})Then(${t})Else(${e})"
 }
 
-case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr
+case class ArithExprFunction(var range: arithmetic.Range = RangeUnknown) extends ArithExpr { simplified = true }
 
 object ArithExprFunction {
 
@@ -577,6 +580,7 @@ object TypeVar {
 }
 
 case class Var(name: String, var range : arithmetic.Range = RangeUnknown) extends ArithExpr {
+  simplified = true
 
   Var.cnt += 1
   val id: Int = Var.cnt

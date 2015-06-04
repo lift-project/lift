@@ -504,8 +504,7 @@ object ExprSimplifier {
     else {
       // recurse inside first
       var result = e match {
-        case ArithExprFunction(_) | Cst(_) | Var(_,_) => e
-        case Pow(base, exp) => Pow(simplify(base), simplify(exp))
+        case Pow(base, exp) => Pow(simplify(base), simplify(exp)).asInstanceOf[ArithExpr]
         case Log(b, x) => Log(simplify(b), simplify(x))
         case Mod(dividend, divisor) => Mod(simplify(dividend), simplify(divisor))
         case And(l, r) => And(simplify(l), simplify(r))
@@ -513,6 +512,7 @@ object ExprSimplifier {
         case Sum(terms) => Sum(terms.map(t => simplify(t)))
         case IntDiv(n, d) => IntDiv(simplify(n), simplify(d))
         case IfThenElse(i, t, e) => IfThenElse(i, simplify(t), simplify(e))
+        //case ArithExprFunction(_) | Cst(_) | Var(_,_) =>
         case _ => throw new RuntimeException(s"Simplify cannot handle the expression ${e}")
       }
 
@@ -526,8 +526,7 @@ object ExprSimplifier {
         case _ => result
       }
 
-      if(result.asInstanceOf[AnyRef].eq(e))
-        result.simplified = true
+      result.simplified = true
       result
     }
   }
