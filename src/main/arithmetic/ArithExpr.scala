@@ -121,7 +121,7 @@ abstract sealed class ArithExpr extends Simplified {
    */
   def /^(that: ArithExpr) = this * Pow(that, Cst(-1))
 
-  def -(that: ArithExpr) = this + (that * Cst(-1))
+  def -(that: ArithExpr) = this + (Cst(-1) * that)
 
   def %(that: ArithExpr) = Mod(this, that)
 
@@ -418,7 +418,6 @@ object ArithExpr {
 
   private def evalDouble(e: ArithExpr) : Double = e match {
     case Cst(c) => c
-    case Var(_,_) | ArithExprFunction(_) | IfThenElse(_,_,_) | ? => throw new NotEvaluableException(/*e.toString*/)
 
     case IntDiv(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
 
@@ -431,22 +430,21 @@ object ArithExpr {
     case Prod(terms) => terms.foldLeft(1.0)((result,expr) => result*evalDouble(expr))
 
     case Floor(expr) => scala.math.floor(evalDouble(expr))
+
+    case _ => throw new NotEvaluableException(/*e.toString*/)
   }
 
 
 
-  def toInt(e: ArithExpr): Int = {
-    ExprSimplifier.simplify(e) match {
-      case Cst(i) => i
-      case _ => throw new NotEvaluableException(/*e.toString*/)
-    }
+  def toInt(e: ArithExpr): Int = ExprSimplifier.simplify(e) match {
+    case Cst(i) => i
+    case _ => throw new NotEvaluableException(/*e.toString*/)
   }
 
-  def asCst(e: ArithExpr) = {
-    ExprSimplifier.simplify(e) match {
-      case c:Cst => c
-      case _ => throw new IllegalArgumentException
-    }
+
+  def asCst(e: ArithExpr) = ExprSimplifier.simplify(e) match {
+    case c:Cst => c
+    case _ => throw new IllegalArgumentException
   }
 
   /**
@@ -460,7 +458,12 @@ object ArithExpr {
      * @param y The second value
      * @return The minimum between x and y
      */
-    def Min(x: ArithExpr, y: ArithExpr) = IfThenElse(x le y, x, y)
+    def Min(x: ArithExpr, y: ArithExpr) = {
+      // Since Min duplicates the expression, we simplify it in place to point to the same node
+      val sx = ExprSimplifier.simplify(x)
+      val sy = ExprSimplifier.simplify(y)
+      IfThenElse(sx le sy, sx, sy)
+    }
 
     /**
      * Computes the maximal value between the two argument
@@ -468,7 +471,12 @@ object ArithExpr {
      * @param y The second value
      * @return The maximum between x and y
      */
-    def Max(x: ArithExpr, y: ArithExpr) = IfThenElse(x gt y, x, y)
+    def Max(x: ArithExpr, y: ArithExpr) = {
+      // Since Max duplicates the expression, we simplify it in place to point to the same node
+      val sx = ExprSimplifier.simplify(x)
+      val sy = ExprSimplifier.simplify(y)
+      IfThenElse(sx gt sy, sx, sy)
+    }
 
     /**
      * Clamps a value to a given range
