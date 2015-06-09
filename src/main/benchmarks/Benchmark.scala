@@ -1,6 +1,6 @@
 package benchmarks
 
-import java.io.File
+import java.io._
 
 import scala.sys.process._
 
@@ -35,6 +35,12 @@ abstract class Benchmark(val name: String,
 
   val device = parser.option[Int](List("d", "device"), "devId",
     "Id of the OpenCL device to use (Default: 0)")
+
+  val saveOutput = parser.option[String](List("saveOutput"), "filename",
+    "Save the gold result of the computation to a file")
+
+  val loadOutput = parser.option[String](List("loadOutput"), "filename",
+    "Load the gold result of the computation from a file. Takes precedence over saveOutput")
 
   val localSizeOpt = parser.multiOption[Int](List("l", "localSize"), "lclSize",
     "Local size(s) to use (Defaults: " + defaultLocalSizes.mkString(", ") + ")")
@@ -259,9 +265,22 @@ abstract class Benchmark(val name: String,
       inputs = generateInputs()
       runtimes = Array.ofDim[Double](iterations)
 
-
       if (checkResult) {
-        scalaResult = runScala(inputs:_*)
+        if (loadOutput.value.isEmpty) {
+          scalaResult = runScala(inputs:_*)
+
+          if (saveOutput.value.isDefined) {
+            val oos = new ObjectOutputStream(new FileOutputStream(saveOutput.value.get))
+            oos.writeObject(scalaResult)
+            oos.close()
+          }
+
+        } else {
+          val ois = new ObjectInputStream(new FileInputStream(loadOutput.value.get))
+          val readResult = ois.readObject()
+          ois.close()
+          scalaResult = readResult.asInstanceOf[Array[Float]]
+        }
       }
 
       beforeBenchmark()
