@@ -64,6 +64,35 @@ class TestGraphTheory {
     assertArrayEquals(gold, output, 0.0f)
   }
 
+  @Test def DENSE_PAGERANK_ITERATION(): Unit = {
+    println("DENSE_PAGERANK_ITERATION")
+    val inputSize = 1024;
+    val graph = buildPageRankMatrix(Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>20) 0 else 1).toFloat))
+    val ranks = Array.fill(inputSize)(1.0f/inputSize.toFloat)
+    val N = Var("N")
+    val densePageRankIteration = fun(
+      ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
+      ArrayType(Float, N),
+      (graph, ranks) => {
+        fun((fr) =>
+          Join() o MapWrg(
+             MapLcl( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(fr,r)))
+          ) o Split(128) $ graph
+        ) $ ranks
+      }
+    )
+    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(densePageRankIteration, graph, ranks)
+    val gold:Array[Float] = scalaDotProductIteration(graph,ranks)
+    println(ranks.toList)
+    println("Fringe sum = "+ (ranks.reduce(_+_)))
+    println(gold.toList)
+    println("Gold sum = "+ (gold.reduce(_+_)))
+    println(output.toList)
+    println("Output sum = "+ (output.reduce(_+_)))
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
   @Test def DENSE_BFS_ITERATION_FIXED_SIZE(): Unit = {
     println("DENSE_BFS_ITERATION_FIXED_SIZE")
     val inputSize = 1024
@@ -127,6 +156,37 @@ class TestGraphTheory {
 
   }
 
+  @Test def DENSE_PAGERANK_MULTI_ITERATION(): Unit = {
+    println("DENSE_PAGERANK_MULTI_ITERATION")
+    val inputSize = 1024;
+    val graph = buildPageRankMatrix(Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>20) 0 else 1).toFloat))
+    val ranks = Array.fill(inputSize)(1.0f/inputSize.toFloat)
+    val N = Var("N")
+
+    val pageRankMultiIteration = fun(
+      ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
+      ArrayType(Float, N),
+      (graph, pageRanks) => {
+        Iterate(1)( fun((fr) =>
+          Join() o MapWrg(
+            Join() o MapLcl(
+              fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(fr,r))
+            )) o Split(128) $ graph
+        )) $ pageRanks
+      })
+
+    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(pageRankMultiIteration, graph, ranks)
+    val gold = scalaIterateDotProduct(1,graph,ranks)
+    println(ranks.toList)
+    println("Fringe sum = "+ (ranks.reduce(_+_)))
+    println(gold.toList)
+    println("Gold sum = "+ (gold.reduce(_+_)))
+    println(output.toList)
+    println("Output sum = "+ (output.reduce(_+_)))
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
   @Test def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
     println("DENSE_BFS_MULTI_ITERATION_FIXED_SIZE")
     val inputSize = 64
@@ -159,6 +219,7 @@ class TestGraphTheory {
   def scalaIterateDotProduct(iterations: Int,matrix:Array[Array[Float]],vector:Array[Float]) : Array[Float] = {
     var tVector = vector
     for(i:Int <- 0 until iterations){
+      println("Iteration!")
       tVector = scalaDotProductIteration(matrix,tVector)
     }
     tVector
@@ -185,6 +246,26 @@ class TestGraphTheory {
         if(a>0.0f || b>0.0f) 1.0f else 0.0f
         )
     )
+  }
+
+  def buildPageRankMatrix(graph: Array[Array[Float]]) = {
+    /* take a matrix with a boolean edge graph, and transform it to a weighted edge graph */
+    /* First, transpose the matrix so rows hold the "out" edge information, instead of columns */
+    var tGraph = graph.transpose
+    /* For each row, calculate the number of edges, and divide each weight by that number */
+    tGraph = tGraph.map {
+      case (row: Array[Float]) => {
+        val edge_count = row.sum
+        if(edge_count>0) {
+          row.map((x: Float) => x / edge_count)
+        }else{
+          row
+        }
+      }
+    }
+    /* Transpose the graph back, so we can work with it using standard linear algebra stuff */
+    tGraph = tGraph.transpose
+    tGraph
   }
 
   def printDFSDotFile(graph:Array[Array[Float]], fringe:Array[Float], gold: Array[Float], init: Array[Float]) : Unit = {
