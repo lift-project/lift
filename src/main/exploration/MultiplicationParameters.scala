@@ -13,6 +13,12 @@ object MultiplicationParameters {
     val kSize = 1024
     val nSize = 1024
 
+    val threshold = 16
+    var counter = 0
+
+    val baseline = "--il -s1024 -s1024 -s1024 -p0 -d0 -x128 -y16 --bm 8 --bn 8 -l16 -l16 --variant 3 -g128 -g128 -c"
+    val script = "scripts/MatrixMultiplication"
+
     var tileSizeK = 2
     while (tileSizeK <= 2048) {
 
@@ -51,13 +57,22 @@ object MultiplicationParameters {
                           "-l" + localSizeM, "-l" + localSizeN,
                           "--variant", variant.toString, "-g" + globalSizeM, "-g" + globalSizeN, "-c").mkString(" ")
 
+                        if (counter % threshold == 0) {
+                          counter = threshold
+                          println("------------------------------")
+                          println("baseline")
+                          (script + " " + baseline).!
+                        }
+
+                        counter += 1
+
                         println("------------------------------")
                         println(parameters)
-                        ("scripts/MatrixMultiplication " + parameters).!
+                        (script + " " + parameters).!
                         println("------------------------------")
                         val s = parameters + " --ig"
                         println(s)
-                        ("scripts/MatrixMultiplication " + s).!
+                        (script + " " + s).!
                       }
 
                       globalSizeM /= 2
