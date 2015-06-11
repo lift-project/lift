@@ -5,7 +5,7 @@ import sys.process._
 object MultiplicationParameters {
 
   def main(args: Array[String]) : Unit = {
-    val platform = 1
+    val platform = 0
     val device = 0
     val variant = 3
 
@@ -16,7 +16,7 @@ object MultiplicationParameters {
     val threshold = 16
     var counter = 0
 
-    val baseline = "--il -s1024 -s1024 -s1024 -p0 -d0 -x128 -y16 --bm 8 --bn 8 -l16 -l16 --variant 3 -g128 -g128 -c"
+    val baseline = s"--il -s $nSize -s $mSize -s $kSize -p $platform -d $device -x128 -y16 --bm 8 --bn 8 -l16 -l16 --variant 3 -g128 -g128 -c"
     val script = "scripts/MatrixMultiplication"
 
     var tileSizeK = 2
