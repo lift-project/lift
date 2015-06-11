@@ -82,10 +82,11 @@ object ExprSimplifier {
     if (m.dividend == Cst(0) && m.divisor != Cst(0) || ArithExpr.multipleOf(m.dividend, m.divisor))
       return Cst(0)
 
+    // (A mod C) mod C = A mod C
     m.dividend match {
       case Mod(dividend, divisor) =>
         if (divisor == m.divisor)
-          return Mod(dividend, divisor)
+          return simplifyMod(Mod(dividend, divisor))
       case _ =>
     }
 
@@ -105,7 +106,7 @@ object ExprSimplifier {
                 case Mod(dividend, m.divisor) => dividend
                 case t => t
               })
-              return Mod(Sum(removedMods), d)
+              return simplify(Mod(Sum(removedMods), d))
             }
           case _ => return simplify(Mod(newDividend, d))
         }
@@ -128,7 +129,7 @@ object ExprSimplifier {
                   case Mod(dividend, m.divisor) => dividend
                   case t => t
                 })
-                return Mod(Prod(removedMods), d)
+                return simplify(Mod(Prod(removedMods), d))
               }
             case _ => return simplify(Mod(newDividend, d))
           }
@@ -152,7 +153,7 @@ object ExprSimplifier {
 
     f match {
       case IntDiv(Cst(_), Cst(_)) => return f.eval()
-      case IntDiv(IntDiv(numer, denom1), denom2) => return IntDiv(numer, simplify(denom1 * denom2))
+      case IntDiv(IntDiv(numer, denom1), denom2) => return simplify(IntDiv(numer, denom1 * denom2))
       case IntDiv(numer, Pow(base, Cst(-1))) => return simplify(numer * base)
       case IntDiv(Sum(terms), denom) =>
         var newTerms = List[ArithExpr]()
@@ -165,7 +166,7 @@ object ExprSimplifier {
         }
 
         if (newFractions.nonEmpty)
-          return simplify(Sum(newFractions) + IntDiv(Sum(newTerms), denom))
+          return simplify(Sum(IntDiv(Sum(newTerms), denom) :: newFractions))
 
       case IntDiv(Prod(factors), denom) =>
         // If denom or any part of denom is part of factors, eliminate
@@ -179,13 +180,13 @@ object ExprSimplifier {
             }
 
             simplifyFractionConstants(factors, denomFactors) match {
-              case Some(toReturn) => return toReturn
+              case Some(toReturn) => return simplify(toReturn)
               case None =>
             }
 
           case c: Cst =>
             simplifyFractionConstants(factors, List(c)) match {
-              case Some(toReturn) => return toReturn
+              case Some(toReturn) => return simplify(toReturn)
               case None =>
             }
 
@@ -270,16 +271,17 @@ object ExprSimplifier {
       for (k <- i + 1 until terms.length) {
         val term = terms(k)
 
-        // a = (a div d)*d + a mod d
         (ae, term) match {
+          // a = (a div d)*d + a mod d
           case (p: Prod, Mod(a, d)) =>
             val term1 = (a / d) * d
             if (p == term1)
-              return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+              return flattenSumTerm(terms, i, k, a)
           case (Mod(a, d), p: Prod) =>
             val term1 = (a / d) * d
             if (p == term1)
-              return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+              return flattenSumTerm(terms, i, k, a)
+
           // Constants
           case (p1: Prod, p2: Prod) =>
             val cst1 = p1.factors.find(_.isInstanceOf[Cst])
@@ -303,22 +305,21 @@ object ExprSimplifier {
           case _ =>
         }
 
-        for (j <- 0 until vars.length) {
+        for (j <- vars.indices) {
           val v = vars(j)
 
-          if (ArithExpr.contains(term, v)) {
+          if (ArithExpr.contains(term, v))
             tryToSimplifyTermPair(terms, i, ae, k, term, v) match {
               case Some(toReturn) => return toReturn
               case None =>
             }
 
-          }
         }
       }
       None
     }
 
-    for (i <- 0 until terms.length) {
+    for (i <- terms.indices) {
       terms(i) match {
         case term @ (Var(_,_) | Prod(_) | Mod(_, _)) =>
           simplifyTerm(i, term) match {
@@ -332,17 +333,28 @@ object ExprSimplifier {
     sum
   }
 
-  private def tryToSimplifyTermPair(terms: List[ArithExpr], i: Int, ae: ArithExpr, k: Int, term: ArithExpr, v: ArithExpr): Option[Option[Sum]] = {
-    val simplified = simplify(ae /^ v + term /^ v)
+  private def flattenSumTerm(terms: List[ArithExpr], i: Int, k: Int, expr: ArithExpr): Option[Sum] = {
+    expr match {
+      case Sum(termsInsideNewTerm) =>
+        // Flatten the sum
+        Some(simplifySumTerms(Sum(termsInsideNewTerm ++ terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+      case _ =>
+        Some(simplifySumTerms(Sum(expr :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+    }
+  }
+
+  private def tryToSimplifyTermPair(terms: List[ArithExpr], i: Int, expr: ArithExpr, k: Int, term: ArithExpr, v: ArithExpr): Option[Option[Sum]] = {
+    val simplified = simplify(expr /^ v + term /^ v)
 
     var origHasMod = false
     var newHasMod = false
 
     ArithExpr.visit(simplified, origHasMod |= _.isInstanceOf[Mod])
-    ArithExpr.visit(ae + term, newHasMod |= _.isInstanceOf[Mod])
+    ArithExpr.visit(expr + term, newHasMod |= _.isInstanceOf[Mod])
 
     if (!simplified.isInstanceOf[Sum] | (origHasMod != newHasMod))
-      return Some(Some(simplifySumTerms(Sum(ExprSimplifier.simplify(v * simplified) :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length)))))
+      return Some(flattenSumTerm(terms, i, k, ExprSimplifier.simplify(v * simplified)))
+
     None
   }
 
@@ -369,7 +381,7 @@ object ExprSimplifier {
           case nee : NotEvaluableException => newResult = e :: newResult
         })
 
-      newResult = if (cstVal != neutral || (cstVal == neutral && newResult.length == 0))
+      newResult = if (cstVal != neutral || (cstVal == neutral && newResult.isEmpty))
         cstVal :: newResult
       else
         newResult
@@ -380,7 +392,6 @@ object ExprSimplifier {
     }
 
     curResult
-
   }
 
 
@@ -444,7 +455,7 @@ object ExprSimplifier {
 
     sums = sums :+ Sum(List(prodRest))
 
-    simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.map(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))).flatten)))
+    simplifySum(sums.reduce((s1, s2) => Sum(s1.terms.flatMap(t1 => s2.terms.map(t2 => simplifyProd(t1 * t2))))))
   }
 
   private def flattenProd(prod: Prod) : Prod = {
@@ -509,6 +520,10 @@ object ExprSimplifier {
     }
 
     result
+  }
+
+  def apply(expr: ArithExpr): ArithExpr = {
+    simplify(expr)
   }
 
 }

@@ -192,6 +192,36 @@ class TestExpr {
     assertEquals(Cst(1), ExprSimplifier.simplify(Prod(List[ArithExpr]())))
   }
 
+  @Test def modNotSimplifying(): Unit = {
+    val v_M_1 = Var("v_M_1")
+    val v_K_2 = Var("v_K_2")
+    val v_wg_id_39 = Var("v_wg_id_39", GoesToRange(v_M_1 /^ 16))
+    val v_l_id_30 = Var("v_l_id_30", GoesToRange(8))
+    val v_l_id_29 = Var("v_l_id_29", GoesToRange(16))
+    val v_i_27 = Var("v_i_27", GoesToRange(1))
+    val v_i_35 = Var("v_i_35", GoesToRange(v_K_2 /^ 8))
+
+    val expr = ((((((((v_wg_id_39 * 16) + (((((v_l_id_30 * 16) + (v_l_id_29 * 1) + v_i_27) / 16)
+      + ((((v_l_id_30 * 16) + (v_l_id_29 * 1) + v_i_27) % 16) * 8)) / 8)) * 8)
+      + (((((v_l_id_30 * 16) + (v_l_id_29 * 1) + v_i_27) / 16) + ((((v_l_id_30 * 16)
+      + (v_l_id_29 * 1) + v_i_27) % 16) * 8)) % 8)) / 8) + ((((((v_wg_id_39 * 16)
+      + (((((v_l_id_30 * 16) + (v_l_id_29 * 1) + v_i_27) / 16) + ((((v_l_id_30 * 16)
+      + (v_l_id_29 * 1) + v_i_27) % 16) * 8)) / 8)) * 8) + (((((v_l_id_30 * 16)
+      + (v_l_id_29 * 1) + v_i_27) / 16) + ((((v_l_id_30 * 16) + (v_l_id_29 * 1)
+      + v_i_27) % 16) * 8)) % 8)) % 8) * v_M_1)) % v_M_1) * 1) + 0 + (((v_i_35 * 8)
+      + (((((((v_wg_id_39 * 16) + (((((v_l_id_30 * 16) + (v_l_id_29 * 1) + v_i_27) / 16)
+      + ((((v_l_id_30 * 16) + (v_l_id_29 * 1) + v_i_27) % 16) * 8)) / 8)) * 8)
+      + (((((v_l_id_30 * 16) + (v_l_id_29 * 1) + v_i_27) / 16) + ((((v_l_id_30 * 16)
+      + (v_l_id_29 * 1) + v_i_27) % 16) * 8)) % 8)) / 8) + ((((((v_wg_id_39 * 16)
+      + (((((v_l_id_30 * 16) + (v_l_id_29 * 1) + v_i_27) / 16) + ((((v_l_id_30 * 16)
+      + (v_l_id_29 * 1) + v_i_27) % 16) * 8)) / 8)) * 8) + (((((v_l_id_30 * 16)
+      + (v_l_id_29 * 1) + v_i_27) / 16) + ((((v_l_id_30 * 16) + (v_l_id_29 * 1)
+      + v_i_27) % 16) * 8)) % 8)) % 8) * v_M_1)) / v_M_1)) * 1 * v_M_1)
+
+    assertEquals(16 * v_wg_id_39 + v_l_id_29 + v_l_id_30 * v_M_1 + 8 * v_i_35 * v_M_1,
+      ExprSimplifier(expr))
+  }
+
   @Test def modSum(): Unit = {
     val N = Var("N")
     assertEquals(1 % N, ExprSimplifier.simplify((N + 1) % N))
