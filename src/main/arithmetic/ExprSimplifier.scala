@@ -138,7 +138,7 @@ object ExprSimplifier {
     }
   }
 
-  private def simplifyFraction(f: IntDiv): ArithExpr = {
+  private def simplifyIntDiv(f: IntDiv): ArithExpr = {
     if (f.denom == Cst(1))
       return f.numer
 
@@ -156,17 +156,18 @@ object ExprSimplifier {
       case IntDiv(IntDiv(numer, denom1), denom2) => return simplify(IntDiv(numer, denom1 * denom2))
       case IntDiv(numer, Pow(base, Cst(-1))) => return simplify(numer * base)
       case IntDiv(Sum(terms), denom) =>
+        // Multiples of the denominator in the numerator can be taken out of the division
         var newTerms = List[ArithExpr]()
-        var newFractions = List[ArithExpr]()
+        var newIntDivs = List[ArithExpr]()
         for (term <- terms) {
           if (ArithExpr.multipleOf(term, denom))
-            newFractions = IntDiv(term, denom) :: newFractions
+            newIntDivs = IntDiv(term, denom) :: newIntDivs
           else
             newTerms = term :: newTerms
         }
 
-        if (newFractions.nonEmpty)
-          return simplify(Sum(IntDiv(Sum(newTerms), denom) :: newFractions))
+        if (newIntDivs.nonEmpty)
+          return simplify(Sum(IntDiv(Sum(newTerms), denom) :: newIntDivs))
 
       case IntDiv(Prod(factors), denom) =>
         // If denom or any part of denom is part of factors, eliminate
@@ -179,13 +180,13 @@ object ExprSimplifier {
               return simplify(IntDiv(newNumer, newDenom))
             }
 
-            simplifyFractionConstants(factors, denomFactors) match {
+            simplifyIntDivConstants(factors, denomFactors) match {
               case Some(toReturn) => return simplify(toReturn)
               case None =>
             }
 
           case c: Cst =>
-            simplifyFractionConstants(factors, List(c)) match {
+            simplifyIntDivConstants(factors, List(c)) match {
               case Some(toReturn) => return simplify(toReturn)
               case None =>
             }
@@ -214,7 +215,7 @@ object ExprSimplifier {
     f
   }
 
-  private def simplifyFractionConstants(factors: List[ArithExpr], denomFactors: List[ArithExpr]): Option[ArithExpr] = {
+  private def simplifyIntDivConstants(factors: List[ArithExpr], denomFactors: List[ArithExpr]): Option[ArithExpr] = {
     val numerConstant = factors.filter(_.isInstanceOf[Cst])
     val denomConstant = denomFactors.filter(_.isInstanceOf[Cst])
 
@@ -515,7 +516,7 @@ object ExprSimplifier {
       case p: Prod => simplifyProd(p)
       case s: Sum => simplifySum(s)
       case m: Mod => simplifyMod(m)
-      case f: IntDiv => simplifyFraction(f)
+      case f: IntDiv => simplifyIntDiv(f)
       case _ => result
     }
 

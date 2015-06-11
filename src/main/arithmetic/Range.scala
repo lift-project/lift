@@ -11,7 +11,7 @@ class RangeUnknownException(msg: String) extends Exception(msg)
 
 case class StartFromRange(start: ArithExpr) extends Range {
   override def *(e: ArithExpr): Range = {
-    StartFromRange(ExprSimplifier.simplify(start * e))
+    StartFromRange(ExprSimplifier(start * e))
   }
   override def min = start
   override def max = ?
@@ -19,7 +19,7 @@ case class StartFromRange(start: ArithExpr) extends Range {
 
 case class GoesToRange(end: ArithExpr) extends Range {
   override def *(e: ArithExpr): Range = {
-    GoesToRange(ExprSimplifier.simplify(end * e))
+    GoesToRange(ExprSimplifier(end * e))
   }
   override def min = ?
   override def max = end
@@ -27,7 +27,7 @@ case class GoesToRange(end: ArithExpr) extends Range {
 
 case class RangeAdd(start: ArithExpr, stop: ArithExpr, step: ArithExpr) extends Range {
   override def *(e: ArithExpr): Range = {
-    RangeAdd(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), step)
+    RangeAdd(ExprSimplifier(start * e), ExprSimplifier(stop * e), step)
   }
   override def min = start
   override def max = stop
@@ -35,7 +35,7 @@ case class RangeAdd(start: ArithExpr, stop: ArithExpr, step: ArithExpr) extends 
 
 case class RangeMul(start: ArithExpr, stop: ArithExpr, mul: ArithExpr) extends Range {
   override def *(e: ArithExpr): Range = {
-    RangeMul(ExprSimplifier.simplify(start * e), ExprSimplifier.simplify(stop * e), mul)
+    RangeMul(ExprSimplifier(start * e), ExprSimplifier(stop * e), mul)
   }
   override def min = start
   override def max = stop

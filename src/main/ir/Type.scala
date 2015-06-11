@@ -232,8 +232,8 @@ object Type {
     (inT,ouT) match {
       case (inAT : ArrayType, outAT : ArrayType) =>
         val closedFormLen = {
-          val inLen = ExprSimplifier.simplify(inAT.len)
-          val outLen = ExprSimplifier.simplify(outAT.len)
+          val inLen = ExprSimplifier(inAT.len)
+          val outLen = ExprSimplifier(outAT.len)
 
           inLen match {
             case tv: TypeVar =>
@@ -246,12 +246,12 @@ object Type {
                 return ouT
 
               // recognises outLen*tv
-              val a = ExprSimplifier.simplify(outLen /^ tv)
+              val a = ExprSimplifier(outLen /^ tv)
               if (!ArithExpr.contains(a, tv)) {
 
                 // fix the range for tv
                 // TODO: Pow(a, n) or Pow(a, n-1)???
-                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier.simplify(Pow(a, n)*tvMap.get(tv).get))
+                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier(Pow(a, n)*tvMap.get(tv).get))
                 // TODO: deal with growing output size
                 tv.range = ContinuousRange(min,max)
 
@@ -322,7 +322,7 @@ object Type {
     }
 
     inferredOuT = inferredOuT match {
-      case ArrayType(et, len) => ArrayType(et, ExprSimplifier.simplify(len))
+      case ArrayType(et, len) => ArrayType(et, ExprSimplifier(len))
       case _ => inferredOuT
     }
 
@@ -484,7 +484,7 @@ object Type {
   private def checkJoin(inT: Type): Type = {
     inT match {
       case at0: ArrayType => at0.elemT match {
-        case at1: ArrayType => ArrayType(at1.elemT, ExprSimplifier.simplify(at0.len * at1.len))
+        case at1: ArrayType => ArrayType(at1.elemT, ExprSimplifier(at0.len * at1.len))
         case _ => throw new TypeException(at0.elemT, "ArrayType")
       }
       case _ => throw new TypeException(inT, "ArrayType")

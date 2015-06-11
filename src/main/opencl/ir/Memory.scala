@@ -115,7 +115,7 @@ object OpenCLMemory {
   }
 
   private def getSizeInBytes(t: Type): ArithExpr = {
-    ExprSimplifier.simplify(
+    ExprSimplifier(
       t match {
         case st: ScalarType => st.size
         case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)

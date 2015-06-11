@@ -155,7 +155,7 @@ object ArithExpr {
   }
 
   def minmax(e1: ArithExpr, e2: ArithExpr): (ArithExpr, ArithExpr) = {
-    val diff = ExprSimplifier.simplify(e1 - e2)
+    val diff = ExprSimplifier(e1 - e2)
     diff match {
       case Cst(c) => if (c < 0) (e1, e2) /* e1 is smaller than e2 */ else (e2, e1) /* e2 is smaller than e1*/
       case _ =>
@@ -201,7 +201,7 @@ object ArithExpr {
   }
   
   def multipleOf(expr: ArithExpr, that: ArithExpr) : Boolean = {
-    ExprSimplifier.simplify(expr) match {
+    ExprSimplifier(expr) match {
       case Prod(terms) =>
         that match {
           case Prod(otherTerms) =>
@@ -275,7 +275,7 @@ object ArithExpr {
 
       atMax match {
         case Prod(factors) if hasDivision(factors) =>
-          val newProd = ExprSimplifier.simplify(Prod(factors.filter(!isDivision(_))))
+          val newProd = ExprSimplifier(Prod(factors.filter(!isDivision(_))))
           if (newProd == ae2)
             return true
         case _ =>
@@ -330,7 +330,7 @@ object ArithExpr {
       case _ => newExpr
     }
 
-    ExprSimplifier.simplify(newExpr)
+    ExprSimplifier(newExpr)
   }
 
 
@@ -356,14 +356,14 @@ object ArithExpr {
 
 
   def toInt(e: ArithExpr): Int = {
-    ExprSimplifier.simplify(e) match {
+    ExprSimplifier(e) match {
       case Cst(i) => i
       case _ => throw new NotEvaluableException(e.toString)
     }
   }
 
   def asCst(e: ArithExpr) = {
-    ExprSimplifier.simplify(e) match {
+    ExprSimplifier(e) match {
       case c:Cst => c
       case _ => throw new IllegalArgumentException
     }
@@ -545,13 +545,13 @@ object Var {
       newVars.map(v => {
         v.range match {
           case RangeAdd(start, stop, step) => v.range = RangeAdd(
-            ExprSimplifier.simplify(ArithExpr.substitute(start, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(stop, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(step, newSubsts.toMap)))
+            ExprSimplifier(ArithExpr.substitute(start, newSubsts.toMap)),
+            ExprSimplifier(ArithExpr.substitute(stop, newSubsts.toMap)),
+            ExprSimplifier(ArithExpr.substitute(step, newSubsts.toMap)))
           case RangeMul(start, stop, step) => v.range = RangeMul(
-            ExprSimplifier.simplify(ArithExpr.substitute(start, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(stop, newSubsts.toMap)),
-            ExprSimplifier.simplify(ArithExpr.substitute(step, substitutions.toMap)))
+            ExprSimplifier(ArithExpr.substitute(start, newSubsts.toMap)),
+            ExprSimplifier(ArithExpr.substitute(stop, newSubsts.toMap)),
+            ExprSimplifier(ArithExpr.substitute(step, substitutions.toMap)))
           case _ =>
         }
         v

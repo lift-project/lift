@@ -32,10 +32,10 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(LocalMemory, subMemories(0).addressSpace)
     assertEquals(LocalMemory, subMemories(1).addressSpace)
-    assertEquals(ExprSimplifier.simplify(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier.simplify(subMemories(0).size))
-    assertEquals(ExprSimplifier.simplify(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier.simplify(subMemories(1).size))
+    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
+      ExprSimplifier(subMemories(0).size))
+    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
+      ExprSimplifier(subMemories(1).size))
   }
 
   @Test
@@ -61,10 +61,10 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(ExprSimplifier.simplify(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier.simplify(subMemories(0).size))
-    assertEquals(ExprSimplifier.simplify(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier.simplify(subMemories(1).size))
+    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
+      ExprSimplifier(subMemories(0).size))
+    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
+      ExprSimplifier(subMemories(1).size))
   }
 
   @Test
@@ -90,9 +90,9 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(ExprSimplifier.simplify(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier.simplify(subMemories(0).size))
-    assertEquals(ExprSimplifier.simplify(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier.simplify(subMemories(1).size))
+    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
+      ExprSimplifier(subMemories(0).size))
+    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
+      ExprSimplifier(subMemories(1).size))
   }
 }

@@ -142,9 +142,9 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
   }
 
   private def evaluateRangeForCount(range: RangeAdd): ArithExpr = {
-    val init = ExprSimplifier.simplify(range.start)
-    val cond = ExprSimplifier.simplify(range.stop)
-    val update = ExprSimplifier.simplify(range.step)
+    val init = ExprSimplifier(range.start)
+    val cond = ExprSimplifier(range.stop)
+    val update = ExprSimplifier(range.step)
 
     // eval expression. if successful return true and the value, otherwise return false
     def evalExpr = (e: ArithExpr) => {try { (true, e.evalAtMax())} catch { case _ : Throwable => (false, 0) } }

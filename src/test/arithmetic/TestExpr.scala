@@ -37,7 +37,7 @@ class TestExpr {
       val re = rndExpr(3)
 
       val oriEval = re.evalDbl()
-      val sim = ExprSimplifier.simplify(re)
+      val sim = ExprSimplifier(re)
 
       val simEval = sim.evalDbl()
       assertTrue(oriEval+" != "+simEval, math.abs(oriEval-simEval) <= 1.0/1000000.0)
@@ -52,11 +52,11 @@ class TestExpr {
     val c10 = Cst(10)
     val e = (c0+c1)*(c10+c2)+(c10/^c2)
 
-    ExprSimplifier.simplify(e).eval()
+    ExprSimplifier(e).eval()
 
-    assertEquals(e.eval(), ExprSimplifier.simplify(e).eval())
+    assertEquals(e.eval(), ExprSimplifier(e).eval())
 
-    val result = ExprSimplifier.simplify(e)
+    val result = ExprSimplifier(e)
 
     assertEquals(Cst(17),result)
   }
@@ -64,57 +64,57 @@ class TestExpr {
   @Test def Division(): Unit = {
     val i = Var("i")
     val M = Var("M")
-    assertEquals(i + i % M, ExprSimplifier.simplify(i /^ M * M + i % M))
+    assertEquals(i + i % M, ExprSimplifier(i /^ M * M + i % M))
   }
 
   @Test def Fraction(): Unit = {
     val i = Var("i")
     val M = Var("M")
-    assertEquals((i / M) * M, ExprSimplifier.simplify((i / M) * M))
+    assertEquals((i / M) * M, ExprSimplifier((i / M) * M))
   }
 
   @Test def remainderAndModulo(): Unit = {
     val a = Var("x")
     val d = Var("d")
-    assertEquals(a, ExprSimplifier.simplify((a / d) * d + a % d))
+    assertEquals(a, ExprSimplifier((a / d) * d + a % d))
   }
 
   @Test def modOfVarWithVarRange(): Unit = {
     val M = Var("M")
     val i = Var(GoesToRange(M))
-    assertEquals(i, ExprSimplifier.simplify(i % M))
+    assertEquals(i, ExprSimplifier(i % M))
   }
 
   @Test def modOfVarWithConstantRange(): Unit = {
     val c =  Cst(10)
     val i = Var(GoesToRange(c))
-    assertEquals(i, ExprSimplifier.simplify(i % c))
+    assertEquals(i, ExprSimplifier(i % c))
   }
 
   @Test def DivModOfVarWithConstantRange(): Unit = {
     val c =  Cst(10)
     val i = Var(GoesToRange(c))
 
-    assertEquals(Cst(0), ExprSimplifier.simplify((i % c) / Cst(20)))
+    assertEquals(Cst(0), ExprSimplifier((i % c) / Cst(20)))
   }
 
   @Test def modOfVarWithConstantRange2(): Unit = {
     val i = Var(GoesToRange(Cst(10)))
-    assertEquals(i, ExprSimplifier.simplify(i % Cst(128)))
+    assertEquals(i, ExprSimplifier(i % Cst(128)))
   }
 
   @Test def modSameDividendDivisor(): Unit = {
     val N = Var("N")
-    assertEquals(Cst(0), ExprSimplifier.simplify(N % N))
+    assertEquals(Cst(0), ExprSimplifier(N % N))
   }
 
   @Test def modDivisorZero(): Unit = {
     val N = Var("N")
-    assertEquals(Cst(0), ExprSimplifier.simplify(0 % N))
+    assertEquals(Cst(0), ExprSimplifier(0 % N))
   }
 
   @Test def modConstants(): Unit = {
-    assertEquals(Cst(1), ExprSimplifier.simplify(Cst(11) % Cst(2)))
+    assertEquals(Cst(1), ExprSimplifier(Cst(11) % Cst(2)))
   }
 
   @Test def prodMultipleOfVar(): Unit = {
@@ -131,35 +131,35 @@ class TestExpr {
   }
 
   @Test def divConstants(): Unit = {
-    assertEquals(Cst(2), ExprSimplifier.simplify(Cst(4) / Cst(2)))
+    assertEquals(Cst(2), ExprSimplifier(Cst(4) / Cst(2)))
   }
 
   @Test def divPrecedence(): Unit = {
-    assertEquals(Cst(0), ExprSimplifier.simplify(Cst(1) / Cst(5) * Cst(5)))
-    assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) /^ Cst(5) * Cst(5)))
+    assertEquals(Cst(0), ExprSimplifier(Cst(1) / Cst(5) * Cst(5)))
+    assertEquals(Cst(1), ExprSimplifier(Cst(1) /^ Cst(5) * Cst(5)))
   }
 
   @Test def prodDivConstant(): Unit = {
     val N = Var("N")
-    assertEquals(Cst(2) * N, ExprSimplifier.simplify(Cst(4) * N / Cst(2)))
+    assertEquals(Cst(2) * N, ExprSimplifier(Cst(4) * N / Cst(2)))
   }
 
   @Test def prodDivProdWithConstants(): Unit = {
     val N = Var("N")
     val M = Var("M")
-    assertEquals(Cst(2) * N / M, ExprSimplifier.simplify(Cst(4) * N / (Cst(2) * M)))
+    assertEquals(Cst(2) * N / M, ExprSimplifier(Cst(4) * N / (Cst(2) * M)))
   }
 
   @Test def prodDivProdWithConstants2(): Unit = {
     val N = Var("N")
     val M = Var("M")
-    assertEquals(N / (M * Cst(2)), ExprSimplifier.simplify(Cst(2) * N / (Cst(4) * M)))
+    assertEquals(N / (M * Cst(2)), ExprSimplifier(Cst(2) * N / (Cst(4) * M)))
   }
 
   @Test def prodDivProdWithConstants3(): Unit = {
     val N = Var("N")
     val M = Var("M")
-    assertEquals((N * Cst(2)) / (M * Cst(3)), ExprSimplifier.simplify(Cst(2) * N / (Cst(3) * M)))
+    assertEquals((N * Cst(2)) / (M * Cst(3)), ExprSimplifier(Cst(2) * N / (Cst(3) * M)))
   }
 
   @Test def prodNotMultipleOfProd(): Unit = {
@@ -179,17 +179,17 @@ class TestExpr {
 
   @Test def varWithConstantRangeDivConstant(): Unit = {
     val i = Var(RangeAdd(Cst(0), Cst(4), Cst(1)))
-    assertEquals(Cst(0), ExprSimplifier.simplify(i / Cst(4)))
+    assertEquals(Cst(0), ExprSimplifier(i / Cst(4)))
   }
 
   @Test def sumVarsDivConstant(): Unit = {
     val i = Var(GoesToRange(Cst(4)))
     val j = Var(GoesToRange(Var("M")))
-    assertEquals(Cst(4) * j, ExprSimplifier.simplify((i + Cst(16) * j ) / Cst(4)))
+    assertEquals(Cst(4) * j, ExprSimplifier((i + Cst(16) * j ) / Cst(4)))
   }
 
   @Test def simplifyProdEmpty(): Unit = {
-    assertEquals(Cst(1), ExprSimplifier.simplify(Prod(List[ArithExpr]())))
+    assertEquals(Cst(1), ExprSimplifier(Prod(List[ArithExpr]())))
   }
 
   @Test def modNotSimplifying(): Unit = {
@@ -224,49 +224,49 @@ class TestExpr {
 
   @Test def modSum(): Unit = {
     val N = Var("N")
-    assertEquals(1 % N, ExprSimplifier.simplify((N + 1) % N))
+    assertEquals(1 % N, ExprSimplifier((N + 1) % N))
   }
 
   @Test def modProd(): Unit = {
     val N = Var("N")
     val M = Var("M")
-    assertEquals(Cst(0), ExprSimplifier.simplify((N * M) % N))
+    assertEquals(Cst(0), ExprSimplifier((N * M) % N))
   }
 
   @Test def OneByOne() {
-    assertEquals(Cst(1), ExprSimplifier.simplify(Cst(1) /^ Cst(1)))
+    assertEquals(Cst(1), ExprSimplifier(Cst(1) /^ Cst(1)))
   }
 
   @Test def NByN() {
     val N = Var("N")
-    assertEquals(Cst(1), ExprSimplifier.simplify(N /^ N))
+    assertEquals(Cst(1), ExprSimplifier(N /^ N))
   }
 
   @Test def zeroTimesVar(): Unit = {
     val N = Var("N")
-    assertEquals(Cst(0), ExprSimplifier.simplify(Cst(0) * N))
+    assertEquals(Cst(0), ExprSimplifier(Cst(0) * N))
   }
 
   @Test def zeroTimesTwo(): Unit = {
-    assertEquals(Cst(0), ExprSimplifier.simplify(Cst(0) * Cst(2)))
+    assertEquals(Cst(0), ExprSimplifier(Cst(0) * Cst(2)))
   }
 
   @Test def simplifySumTwoMinusTwo(): Unit ={
-    assertEquals(Cst(0), ExprSimplifier.simplify(Cst(2) - Cst(2)))
+    assertEquals(Cst(0), ExprSimplifier(Cst(2) - Cst(2)))
   }
 
   @Test def simplifySumNMinusN(): Unit ={
     val N = Var("N")
-    assertEquals(Cst(0), ExprSimplifier.simplify(N - N))
+    assertEquals(Cst(0), ExprSimplifier(N - N))
   }
 
   @Test def simplifySumZeroProducts(): Unit ={
     val N = Var("N")
-    assertEquals(Cst(0), ExprSimplifier.simplify(4*N - 4*N))
+    assertEquals(Cst(0), ExprSimplifier(4*N - 4*N))
   }
 
   @Test def simplifySumTwoPlusFive(): Unit ={
-    assertEquals(Cst(7), ExprSimplifier.simplify(Cst(2) + Cst(5)))
+    assertEquals(Cst(7), ExprSimplifier(Cst(2) + Cst(5)))
   }
 
   @Test def prodEqualsConstants(): Unit = {
@@ -294,11 +294,11 @@ class TestExpr {
   @Test def powSimplify(): Unit = {
     val N = Var("N")
     val expr = Pow( 1*1*Pow(2, -1), Log(2, N) + (1  * -1) ) * N
-    assertEquals(Cst(2), ExprSimplifier.simplify(expr))
+    assertEquals(Cst(2), ExprSimplifier(expr))
   }
 
   @Test def minusOneTimesMinusFive(): Unit = {
-    assertEquals(Cst(5), ExprSimplifier.simplify(Cst(-1) * Cst(-5)))
+    assertEquals(Cst(5), ExprSimplifier(Cst(-1) * Cst(-5)))
   }
 
   @Test def modBug(): Unit = {
@@ -306,11 +306,11 @@ class TestExpr {
     val l = Var("l", ContinuousRange(0, 4))
     val wg = Var("wg", ContinuousRange(0, n/^4))
 
-    assertEquals(Cst(0), ExprSimplifier.simplify((l * n/^4) % (n/^4)))
-    assertEquals(wg, ExprSimplifier.simplify(wg % (n/^4)))
-    assertEquals(wg, ExprSimplifier.simplify((wg + l * n/^4) % (n/^4)))
-    assertEquals(wg, ExprSimplifier.simplify(wg % n))
-    assertEquals(l * n/^4, ExprSimplifier.simplify((l * n/^4) % n))
+    assertEquals(Cst(0), ExprSimplifier((l * n/^4) % (n/^4)))
+    assertEquals(wg, ExprSimplifier(wg % (n/^4)))
+    assertEquals(wg, ExprSimplifier((wg + l * n/^4) % (n/^4)))
+    assertEquals(wg, ExprSimplifier(wg % n))
+    assertEquals(l * n/^4, ExprSimplifier((l * n/^4) % n))
   }
 
   @Test
@@ -319,7 +319,7 @@ class TestExpr {
     val d = Var("d")
     val x = Var("x")
 
-    assertEquals(x*a, ExprSimplifier.simplify(x * (a / d) * d + x * (a % d)))
+    assertEquals(x*a, ExprSimplifier(x * (a / d) * d + x * (a % d)))
   }
 
   @Test
@@ -328,7 +328,7 @@ class TestExpr {
     val d = Cst(2)
     val x = Cst(8)
 
-    assertEquals(x*a, ExprSimplifier.simplify(x * (a / d) * d + x * (a % d)))
+    assertEquals(x*a, ExprSimplifier(x * (a / d) * d + x * (a % d)))
   }
 
   @Test
@@ -337,8 +337,8 @@ class TestExpr {
     val id = Var("id", ContinuousRange(0, 4))
 
     // 0 <= id + 4*i <= 7 < 8
-    assertEquals(Cst(0), ExprSimplifier.simplify((id + 4*i) / 8))
-    assertEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
+    assertEquals(Cst(0), ExprSimplifier((id + 4*i) / 8))
+    assertEquals(id + 4*i, ExprSimplifier((id + 4*i) % 8))
   }
 
   @Test
@@ -348,7 +348,7 @@ class TestExpr {
     val d = Cst(2)
     val x = Cst(8)
 
-    assertEquals(x*a + x*b, ExprSimplifier.simplify(x * ((a + b) / d) * d + x * ((a + b) % d)))
+    assertEquals(x*a + x*b, ExprSimplifier(x * ((a + b) / d) * d + x * ((a + b) % d)))
   }
 
   @Test
@@ -357,7 +357,7 @@ class TestExpr {
     val i = Var("i", ContinuousRange(0, n))
 
     // N <= i + N <= 2*N - 1 < 2*N
-    assertEquals(Cst(1), ExprSimplifier.simplify((i+n) / n))
+    assertEquals(Cst(1), ExprSimplifier((i+n) / n))
   }
 
   @Test
@@ -366,8 +366,8 @@ class TestExpr {
     val id = Var("id", ContinuousRange(0, 5))
 
     // 0 <= id + 4*i <= 8 < 9
-    assertNotEquals(Cst(0), ExprSimplifier.simplify((id + 4*i) / 8))
-    assertNotEquals(id + 4*i, ExprSimplifier.simplify((id + 4*i) % 8))
+    assertNotEquals(Cst(0), ExprSimplifier((id + 4*i) / 8))
+    assertNotEquals(id + 4*i, ExprSimplifier((id + 4*i) % 8))
   }
 
   @Test
@@ -414,7 +414,7 @@ class TestExpr {
   def modOfDivisionMultiple(): Unit = {
     val n = Var("N")
 
-    assertEquals(Cst(0), ExprSimplifier.simplify((n /^ 4) % (n /^ 8)))
-//    assertEquals(n / 8, ExprSimplifier.simplify((n / 8) % (n / 4)))
+    assertEquals(Cst(0), ExprSimplifier((n /^ 4) % (n /^ 8)))
+//    assertEquals(n / 8, ExprSimplifier((n / 8) % (n / 4)))
   }
 }
