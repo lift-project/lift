@@ -64,7 +64,7 @@ function configure(){
         ;;
       "O" | "o" ) 
         echo "Using OSX installation script"
-        ./installDependenciesOSX.sh
+        ./installDependenciesOSX.command
         ;;
       "S" | "s" ) 
         echo "Using SUSE installation script"
