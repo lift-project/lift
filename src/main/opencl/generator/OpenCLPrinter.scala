@@ -149,12 +149,33 @@ class OpenCLPrinter {
       case Cst(c) => c.toString
       case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
       case Log(b, x) => s"(int)log${b}((float)"+toOpenCL(x)+")"
-      case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
-        s + (e match {
-          case Pow(b, Cst(-1)) => " / " + toOpenCL(b) + ""
-          case _ => " * " + toOpenCL(e)
+      case Prod(es) =>
+        // To conserve maximum precision when converting to int logic, we do all the multiplications
+        // first and then the division. The relative ordering of the terms above and below one doesn't
+        // matter.
+        val (mults, divs) = es.partition( _ match {
+          case Pow(x, Cst(y)) => y > 0
+          case Pow(x, y) =>
+            // If we find other types of POW, throw an exception.
+            // The expression is most likely fine but the logic needs to be double checked
+            throw new NotPrintableExpression( "Int expression cannot have undefined POW" )
+          case _ => true
         })
-      } ).drop(4) /* drop "1 * " */ + ")"
+
+        // Stringify the terms
+        val string = (mults ++ divs).foldLeft("1")( (s: String, e: ArithExpr) => {
+          s + (e match {
+            case Pow(b, Cst(-1)) => " / " + toOpenCL(b) + ""
+            case _ => " * " + toOpenCL(e)
+          })
+        })
+
+        // If there is no terms above 1, we need to insert a neutral element for the divisions
+        if (mults.isEmpty)
+          s"(${string})"
+        else // otherwise we can trim it
+          s"(${string.drop(4)})"
+
       case Sum(es) => "(" + es.map(toOpenCL).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) =>
         // If the divisor is a power of 2, generate a bitmask, otherwise use a modulo

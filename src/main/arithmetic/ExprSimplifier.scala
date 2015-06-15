@@ -379,15 +379,10 @@ object ExprSimplifier {
     })
 
     // concatenate the new constant, if any
-    if(cstVal != neutral || newResult.isEmpty) {
-      // We need to append if the first term is a division, otherwise prepend
-      if (newResult.nonEmpty && newResult(0).isInstanceOf[Pow])
-        newResult = newResult :+ Cst(cstVal)
-      else
-        newResult = cstVal :: newResult
-    }
-
-    newResult
+    if(cstVal != neutral || newResult.isEmpty)
+      cstVal :: newResult
+    else
+      newResult
   }
 
 

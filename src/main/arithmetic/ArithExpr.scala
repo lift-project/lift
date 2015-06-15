@@ -91,7 +91,6 @@ abstract sealed class ArithExpr extends Simplified {
   def *(that: ArithExpr): Prod = {
     (this,that) match {
       case (p1:Prod, p2:Prod) => Prod(p1.factors ++ p2.factors)
-      case (p:Prod, d: Pow) => Prod(p.factors ++ List(d)) // Division is not commutative
       case (p:Prod, x) => Prod(x :: p.factors)
       case (x, p:Prod) => Prod(x :: p.factors)
       case (x, y) => Prod(List(x,y))
