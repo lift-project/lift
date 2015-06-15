@@ -4,7 +4,17 @@ version := "1.0"
 
 scalaVersion := "2.11.6"
 
-scalaSource in Compile <<= baseDirectory(_ / "srci/main")
+compile <<= (compile in Compile) dependsOn compileSkelcl
+
+lazy val compileSkelcl = taskKey[Unit]("Updates and builds the SkelCL submodule.")
+
+compileSkelcl := {
+  import language.postfixOps
+  import scala.sys.process._
+  "echo y" #| "./skelcl.sh" !
+}
+
+scalaSource in Compile <<= baseDirectory(_ / "src/main")
 
 scalaSource in Test <<= baseDirectory(_ / "src/test")
 
@@ -29,7 +39,3 @@ ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v")
 
 fork := true
-
-
-// To run tests from the command line, uncomment and replace with the proper path form your system
-//javaOptions in Test += "-Djava.library.path=/path-to-the-skelcl-folder/build/executor"

@@ -7,7 +7,7 @@ object ExprSimplifier {
       case 0 => i :: primeFactors(n / i, i)
       case _ => primeFactors(n, i + 1)
     }
-
+  
 
   private def simplifyPow(pow: Pow): ArithExpr = {
     pow match {
@@ -62,7 +62,7 @@ object ExprSimplifier {
 
       // x^log(x,b) => b
       case Pow(x1,Log(x2,b)) if x1 == x2 => b
-
+        
       case _ => pow
     }
   }
@@ -78,10 +78,11 @@ object ExprSimplifier {
     if (m.dividend == Cst(0) && m.divisor != Cst(0) || ArithExpr.multipleOf(m.dividend, m.divisor))
       return Cst(0)
 
+    // (A mod C) mod C = A mod C
     m.dividend match {
       case Mod(dividend, divisor) =>
         if (divisor == m.divisor)
-          return Mod(dividend, divisor)
+          return simplifyMod(Mod(dividend, divisor))
       case _ =>
     }
 
@@ -91,7 +92,6 @@ object ExprSimplifier {
 
     m match {
       case Mod(Cst(_), Cst(_)) => m.eval()
-      /* TODO(tlutz): This is not true for negative integers */
       case Mod(Sum(terms), d) =>
         // (A + B) mod C = (A mod C + B mod C) mod C
         val newDividend = simplify(Sum(terms.map(Mod(_, d))))
@@ -102,7 +102,7 @@ object ExprSimplifier {
                 case Mod(dividend, m.divisor) => dividend
                 case t => t
               })
-              return Mod(Sum(removedMods), d)
+              return simplify(Mod(Sum(removedMods), d))
             }
           case _ => return simplify(Mod(newDividend, d))
         }
@@ -125,7 +125,7 @@ object ExprSimplifier {
                   case Mod(dividend, m.divisor) => dividend
                   case t => t
                 })
-                return Mod(Prod(removedMods), d)
+                return simplify(Mod(Prod(removedMods), d))
               }
             case _ => return simplify(Mod(newDividend, d))
           }
@@ -134,7 +134,7 @@ object ExprSimplifier {
     }
   }
 
-  private def simplifyFraction(f: IntDiv): ArithExpr = {
+  private def simplifyIntDiv(f: IntDiv): ArithExpr = {
     if (f.denom == Cst(1))
       return f.numer
 
@@ -149,20 +149,21 @@ object ExprSimplifier {
 
     f match {
       case IntDiv(Cst(_), Cst(_)) => return f.eval()
-      case IntDiv(IntDiv(numer, denom1), denom2) => return IntDiv(numer, simplify(denom1 * denom2))
+      case IntDiv(IntDiv(numer, denom1), denom2) => return simplify(IntDiv(numer, denom1 * denom2))
       case IntDiv(numer, Pow(base, Cst(-1))) => return simplify(numer * base)
       case IntDiv(Sum(terms), denom) =>
+        // Multiples of the denominator in the numerator can be taken out of the division
         var newTerms = List[ArithExpr]()
-        var newFractions = List[ArithExpr]()
+        var newIntDivs = List[ArithExpr]()
         for (term <- terms) {
           if (ArithExpr.multipleOf(term, denom))
-            newFractions = IntDiv(term, denom) :: newFractions
+            newIntDivs = IntDiv(term, denom) :: newIntDivs
           else
             newTerms = term :: newTerms
         }
 
-        if (newFractions.nonEmpty)
-          return simplify(Sum(newFractions) + IntDiv(Sum(newTerms), denom))
+        if (newIntDivs.nonEmpty)
+          return simplify(Sum(IntDiv(Sum(newTerms), denom) :: newIntDivs))
 
       case IntDiv(Prod(factors), denom) =>
         // If denom or any part of denom is part of factors, eliminate
@@ -175,14 +176,14 @@ object ExprSimplifier {
               return simplify(IntDiv(newNumer, newDenom))
             }
 
-            simplifyFractionConstants(factors, denomFactors) match {
-              case Some(toReturn) => return toReturn
+            simplifyIntDivConstants(factors, denomFactors) match {
+              case Some(toReturn) => return simplify(toReturn)
               case None =>
             }
 
           case c: Cst =>
-            simplifyFractionConstants(factors, List(c)) match {
-              case Some(toReturn) => return toReturn
+            simplifyIntDivConstants(factors, List(c)) match {
+              case Some(toReturn) => return simplify(toReturn)
               case None =>
             }
 
@@ -213,7 +214,7 @@ object ExprSimplifier {
     f
   }
 
-  private def simplifyFractionConstants(factors: List[ArithExpr], denomFactors: List[ArithExpr]): Option[ArithExpr] = {
+  private def simplifyIntDivConstants(factors: List[ArithExpr], denomFactors: List[ArithExpr]): Option[ArithExpr] = {
     val numerConstant = factors.filter(_.isInstanceOf[Cst])
     val denomConstant = denomFactors.filter(_.isInstanceOf[Cst])
 
@@ -270,16 +271,17 @@ object ExprSimplifier {
       for (k <- i + 1 until terms.length) {
         val term = terms(k)
 
-        // a = (a div d)*d + a mod d
         (ae, term) match {
+          // a = (a div d)*d + a mod d
           case (p: Prod, Mod(a, d)) =>
             val term1 = (a / d) * d
             if (p == term1)
-              return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+              return flattenSumTerm(terms, i, k, a)
           case (Mod(a, d), p: Prod) =>
             val term1 = (a / d) * d
             if (p == term1)
-              return Some(simplifySumTerms(Sum(a :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+              return flattenSumTerm(terms, i, k, a)
+
           // Constants
           case (p1: Prod, p2: Prod) =>
             val cst1 = p1.factors.find(_.isInstanceOf[Cst])
@@ -303,10 +305,10 @@ object ExprSimplifier {
           case _ =>
         }
 
-        for (j <- 0 until vars.length) {
+        for (j <- vars.indices) {
           val v = vars(j)
 
-          if (ArithExpr.contains(term, v)) {
+          if (ArithExpr.contains(term, v))
             tryToSimplifyTermPair(terms, i, ae, k, term, v) match {
               case Some(toReturn) => return toReturn
               case None =>
@@ -318,7 +320,7 @@ object ExprSimplifier {
       None
     }
 
-    for (i <- 0 until terms.length) {
+    for (i <- terms.indices) {
       terms(i) match {
         case term @ (Var(_,_) | Prod(_) | Mod(_, _)) =>
           simplifyTerm(i, term) match {
@@ -332,17 +334,28 @@ object ExprSimplifier {
     sum
   }
 
-  private def tryToSimplifyTermPair(terms: List[ArithExpr], i: Int, ae: ArithExpr, k: Int, term: ArithExpr, v: ArithExpr): Option[Option[Sum]] = {
-    val simplified = simplify(ae /^ v + term /^ v)
+  private def flattenSumTerm(terms: List[ArithExpr], i: Int, k: Int, expr: ArithExpr): Option[Sum] = {
+    expr match {
+      case Sum(termsInsideNewTerm) =>
+        // Flatten the sum
+        Some(simplifySumTerms(Sum(termsInsideNewTerm ++ terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+      case _ =>
+        Some(simplifySumTerms(Sum(expr :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length))))
+    }
+  }
+
+  private def tryToSimplifyTermPair(terms: List[ArithExpr], i: Int, expr: ArithExpr, k: Int, term: ArithExpr, v: ArithExpr): Option[Option[Sum]] = {
+    val simplified = simplify(expr /^ v + term /^ v)
 
     var origHasMod = false
     var newHasMod = false
 
     ArithExpr.visit(simplified, origHasMod |= _.isInstanceOf[Mod])
-    ArithExpr.visit(ae + term, newHasMod |= _.isInstanceOf[Mod])
+    ArithExpr.visit(expr + term, newHasMod |= _.isInstanceOf[Mod])
 
     if (!simplified.isInstanceOf[Sum] | (origHasMod != newHasMod))
-      return Some(Some(simplifySumTerms(Sum(ExprSimplifier.simplify(v * simplified) :: terms.slice(0, i) ++ terms.slice(i + 1, k) ++ terms.slice(k + 1, terms.length)))))
+      return Some(flattenSumTerm(terms, i, k, ExprSimplifier.simplify(v * simplified)))
+
     None
   }
 

@@ -3,7 +3,7 @@ package opencl.generator
 import arithmetic.Var
 import ir.UserFunDef._
 import ir._
-import opencl.executor.{Execute, Executor, Compile}
+import opencl.executor.{Utils, Execute, Executor, Compile}
 import opencl.ir._
 import opencl.ir.IndexFunction._
 import org.junit.Assert._
@@ -182,7 +182,7 @@ class TestBarrier {
     )
 
     val inputs = Seq(input)
-    val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
+    val (output, _, code) = Utils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -203,7 +203,7 @@ class TestBarrier {
     )
 
     val inputs = Seq(input)
-    val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
+    val (output, _, code) = Utils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(0, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -224,7 +224,7 @@ class TestBarrier {
     )
 
     val inputs = Seq(input)
-    val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
+    val (output, _, code) = Utils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -246,7 +246,7 @@ class TestBarrier {
     )
 
     val inputs = Seq(input)
-    val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
+    val (output, _, code) = Utils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)
@@ -268,7 +268,7 @@ class TestBarrier {
     )
 
     val inputs = Seq(input)
-    val (output, _, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
+    val (output, _, code) = Utils.execute(f, inputs, 128, inputSize, (true, true))
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.0f)

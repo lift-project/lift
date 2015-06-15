@@ -8,9 +8,9 @@
 
 To be able to execute computations in OpenCL you need to install the SkelCL library, which is embedded as a submodule.
 
-The script `apart.sh` builds SkelCL and apart and runs the test
+The script `skelcl.sh` builds SkelCL. The script is also called by sbt when running `sbt compile`
 ```
-./apart.sh
+./skelcl.sh
 ```
 
 You find more instructions to build &install SkelCL [here](https://github.com/skelcl/skelcl/wiki) if you want to do it manually.
@@ -27,13 +27,12 @@ Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. T
 
 ### Documentation ###
 
-[ScalaDoc](http://pamina:8080/job/apart-amd/branch/default/javadoc/#package)
+[ScalaDoc](http://pamina:8080/job/apart-amd/branch/master/javadoc/#package)
 
 ### Build Status ###
 
-Intel ![](http://pamina:8080/job/apart-intel/branch/default/badge/icon)
+Intel ![](http://pamina:8080/job/apart-intel/branch/master/badge/icon)
 
-AMD ![](http://pamina:8080/job/apart-amd/branch/default/badge/icon)
+AMD ![](http://pamina:8080/job/apart-amd/branch/master/badge/icon)
 
-NVIDIA ![](http://pamina:8080/job/apart-nvidia/branch/default/badge/icon)
-
+NVIDIA ![](http://pamina:8080/job/apart-nvidia/branch/master/badge/icon)

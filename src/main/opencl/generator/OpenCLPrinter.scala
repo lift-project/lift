@@ -144,7 +144,7 @@ class OpenCLPrinter {
   }
 
   def toOpenCL(e: ArithExpr) : String = {
-    val me = if(Debug()) e else ExprSimplifier.simplify(e)
+    val me = if(Debug()) e else ExprSimplifier(e)
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
@@ -174,9 +174,9 @@ class OpenCLPrinter {
         }
       case ite: IfThenElse => s"((${toOpenCL(ite.test.lhs)} ${ite.test.op} ${toOpenCL(ite.test.rhs)}) ? (${toOpenCL(ite.t)}) : (${toOpenCL(ite.e)}))"
       case gc: GroupCall =>
-        val outerAe = if (Debug()) ExprSimplifier.simplify(gc.outerAe) else gc.outerAe
-        val innerAe = if (Debug()) ExprSimplifier.simplify(gc.innerAe) else gc.innerAe
-        val len = if (Debug()) ExprSimplifier.simplify(gc.len) else gc.len
+        val outerAe = if (Debug()) ExprSimplifier(gc.outerAe) else gc.outerAe
+        val innerAe = if (Debug()) ExprSimplifier(gc.innerAe) else gc.innerAe
+        val len = if (Debug()) ExprSimplifier(gc.len) else gc.len
         "groupComp" + gc.group.id + "(" + toOpenCL(outerAe) + ", " +
           toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
@@ -301,9 +301,9 @@ class OpenCLPrinter {
   def generateLoop(indexVar: Var, printBody: () => Unit, iterationCount: ArithExpr = ?) {
     val range = indexVar.range.asInstanceOf[RangeAdd]
 
-    val init = ExprSimplifier.simplify(range.start)
-    val cond = ExprSimplifier.simplify(range.stop)
-    val update = ExprSimplifier.simplify(range.step)
+    val init = ExprSimplifier(range.start)
+    val cond = ExprSimplifier(range.stop)
+    val update = ExprSimplifier(range.step)
 
     iterationCount match {
       case Cst(0) =>

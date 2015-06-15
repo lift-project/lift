@@ -1,11 +1,11 @@
 package benchmarks
 
-import java.io.File
+import java.io._
 
 import scala.sys.process._
 
 import ir.Lambda
-import opencl.executor.{Execute, Executor}
+import opencl.executor._
 import opencl.generator.Verbose
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
@@ -22,6 +22,7 @@ abstract class Benchmark(val name: String,
   var inputs = Seq[Any]()
   var scalaResult = Array.emptyFloatArray
   var runtimes = Array.emptyDoubleArray
+  var generatedCode = Array.empty[String]
 
   // Parser options
   val parser = new ArgotParser(name)
@@ -34,6 +35,12 @@ abstract class Benchmark(val name: String,
 
   val device = parser.option[Int](List("d", "device"), "devId",
     "Id of the OpenCL device to use (Default: 0)")
+
+  val saveOutput = parser.option[String](List("saveOutput"), "filename",
+    "Save the gold result of the computation to a file")
+
+  val loadOutput = parser.option[String](List("loadOutput"), "filename",
+    "Load the gold result of the computation from a file. Takes precedence over saveOutput")
 
   val localSizeOpt = parser.multiOption[Int](List("l", "localSize"), "lclSize",
     "Local size(s) to use (Defaults: " + defaultLocalSizes.mkString(", ") + ")")
@@ -100,7 +107,27 @@ abstract class Benchmark(val name: String,
     var finalOutput = Array.emptyFloatArray
 
     val lambdas: Seq[Lambda] = f(variant)._2
+    var generateKernels = false
+
+
+    if (generatedCode.length == 0) {
+      generateKernels = true
+      generatedCode = Array.ofDim(lambdas.length)
+    }
+
+
     for (i <- lambdas.indices) {
+
+      if (generateKernels)
+        generatedCode(i) = Utils.compile(lambdas(i),
+          realInputs,
+          localSize(0),
+          localSize(1),
+          localSize(2),
+          realGlobalSizes(0),
+          realGlobalSizes(1),
+          realGlobalSizes(2),
+          (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false)))
 
       val (output: Array[Float], runtime) = Execute(
         localSize(0),
@@ -110,7 +137,7 @@ abstract class Benchmark(val name: String,
         realGlobalSizes(1),
         realGlobalSizes(2),
         (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-      )(lambdas(i), realInputs:_*)
+      )(generatedCode(i), lambdas(i), realInputs:_*)
 
       // Adjust parameters for the next kernel, if any
       realInputs = Seq(output)
@@ -144,7 +171,7 @@ abstract class Benchmark(val name: String,
   }
 
   def runBenchmark(): Unit = {
-    val commit = "hg id -i".!!.dropRight(1)
+    val commit = "git rev-parse HEAD".!!.dropRight(1)
 
     println("Benchmark: " + name + " " + f(variant)._1)
     println("Size(s): " + inputSizes().mkString(", "))
@@ -160,8 +187,7 @@ abstract class Benchmark(val name: String,
     println("Machine: " + "hostname".!!.dropRight(1))
     println("finger".!!.dropRight(1))
     println("Commit: " + commit)
-    if (commit.last == '+')
-      println("Diff:\n" + "hg diff -X scripts".!!.dropRight(1))
+    println("Diff:\n" + "git diff".!!.dropRight(1))
 
     println()
 
@@ -179,14 +205,19 @@ abstract class Benchmark(val name: String,
 
       if (checkResult && i == 0) {
 
-        if (output.length != scalaResult.length)
-          println("Output length is wrong, " + output.length + " vs " + scalaResult.length)
+        if (output.length != scalaResult.length) {
+          println(s"Output length is wrong, ${output.length} vs ${scalaResult.length}")
 
-        for (j <- scalaResult.indices) {
-          if (check(output(j), scalaResult(j))) {
-            println("Output at position " + j + " differs more than " + delta + ". " + output(j) + " vs " + scalaResult(j))
+        } else {
+          var numErrors = 0
 
+          for (j <- scalaResult.indices) {
+            if (check(output(j), scalaResult(j)))
+              numErrors += 1
           }
+
+          if (numErrors != 0)
+            println(s"Output differed in $numErrors positions!")
         }
       }
     }
@@ -234,9 +265,22 @@ abstract class Benchmark(val name: String,
       inputs = generateInputs()
       runtimes = Array.ofDim[Double](iterations)
 
-
       if (checkResult) {
-        scalaResult = runScala(inputs:_*)
+        if (loadOutput.value.isEmpty) {
+          scalaResult = runScala(inputs:_*)
+
+          if (saveOutput.value.isDefined) {
+            val oos = new ObjectOutputStream(new FileOutputStream(saveOutput.value.get))
+            oos.writeObject(scalaResult)
+            oos.close()
+          }
+
+        } else {
+          val ois = new ObjectInputStream(new FileInputStream(loadOutput.value.get))
+          val readResult = ois.readObject()
+          ois.close()
+          scalaResult = readResult.asInstanceOf[Array[Float]]
+        }
       }
 
       beforeBenchmark()

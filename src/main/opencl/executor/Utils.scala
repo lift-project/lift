@@ -1,9 +1,8 @@
-package opencl.generator
+package opencl.executor
 
 import ir.Lambda
-import opencl.executor.{Compile, Execute}
 
-object TestUtils {
+object Utils {
 
   /*
    * Matrix printing methods
@@ -103,23 +102,31 @@ object TestUtils {
               localSize1: Int, localSize2: Int, localSize3: Int,
               globalSize1: Int,  globalSize2: Int, globalSize3: Int,
               injectSizes: (Boolean, Boolean)): (Array[Float], Double, String) = {
-    val valueMap = Execute.createValueMap(f, values:_*)
 
-    var code = ""
-
-    if (injectSizes._1)
-      if (injectSizes._2)
-        code = Compile(f, localSize1, localSize2, localSize3,
-          globalSize1, globalSize2, globalSize3, valueMap)
-      else
-        code = Compile(f, localSize1, localSize2, localSize3)
-    else
-      code = Compile(f)
+    val code = compile(f, values, localSize1, localSize2, localSize3,
+      globalSize1, globalSize2, globalSize3,
+      injectSizes)
 
     val (output: Array[Float], runtime) = Execute(localSize1, localSize2, localSize3,
                                                   globalSize1, globalSize2, globalSize3,
                                                   injectSizes)(code, f, values:_*)
 
     (output, runtime, code)
+  }
+
+  def compile(f: Lambda, values: Seq[Any],
+              localSize1: Int, localSize2: Int, localSize3: Int,
+              globalSize1: Int,  globalSize2: Int, globalSize3: Int,
+              injectSizes: (Boolean, Boolean)) : String = {
+    val valueMap = Execute.createValueMap(f, values:_*)
+
+    if (injectSizes._1)
+      if (injectSizes._2)
+        Compile(f, localSize1, localSize2, localSize3,
+          globalSize1, globalSize2, globalSize3, valueMap)
+      else
+        Compile(f, localSize1, localSize2, localSize3)
+    else
+      Compile(f)
   }
 }

@@ -3,7 +3,7 @@ package opencl.generator
 import arithmetic.Var
 import ir.UserFunDef._
 import ir._
-import opencl.executor.Executor
+import opencl.executor.{Utils, Executor}
 import opencl.ir.{Barrier, MapLcl, MapWrg, Float}
 import org.junit.Assert._
 import org.junit.{Test, AfterClass, BeforeClass}
@@ -32,7 +32,7 @@ class TestInject {
     )
 
     val inputs = Seq(input)
-    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
+    val (output, runtime, code) = Utils.execute(f, inputs, 128, inputSize, (true, false))
 
 
     println("output.size = " + output.length)
@@ -54,7 +54,7 @@ class TestInject {
     )
 
     val inputs = Seq(input)
-    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
+    val (output, runtime, code) = Utils.execute(f, inputs, 128, inputSize, (true, false))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -75,7 +75,7 @@ class TestInject {
     )
 
     val inputs = Seq(input)
-    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, false))
+    val (output, runtime, code) = Utils.execute(f, inputs, 128, inputSize, (true, false))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -96,7 +96,7 @@ class TestInject {
     )
 
     val inputs = Seq(input)
-    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
+    val (output, runtime, code) = Utils.execute(f, inputs, 128, inputSize, (true, true))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -117,7 +117,7 @@ class TestInject {
     )
 
     val inputs = Seq(input)
-    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize*2, (true, true))
+    val (output, runtime, code) = Utils.execute(f, inputs, 128, inputSize*2, (true, true))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -138,7 +138,7 @@ class TestInject {
     )
 
     val inputs = Seq(input)
-    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize/2, (true, true))
+    val (output, runtime, code) = Utils.execute(f, inputs, 128, inputSize/2, (true, true))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -159,7 +159,7 @@ class TestInject {
     )
 
     val inputs = Seq(input)
-    val (output, runtime, code) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
+    val (output, runtime, code) = Utils.execute(f, inputs, 128, inputSize, (true, true))
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -169,7 +169,7 @@ class TestInject {
     assertEquals(0, "if".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
 
-    val (output2, runtime2, code2) = TestUtils.execute(f, inputs, 128, inputSize, (true, true))
+    val (output2, runtime2, code2) = Utils.execute(f, inputs, 128, inputSize, (true, true))
 
     println("output.size = " + output2.length)
     println("output(0) = " + output2(0))

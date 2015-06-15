@@ -1,6 +1,0 @@
-syntax: glob
-bin/*
-target/
-.idea
-.cache
-apart.iml
