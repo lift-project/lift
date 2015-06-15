@@ -91,7 +91,8 @@ abstract sealed class ArithExpr extends Simplified {
   def *(that: ArithExpr): Prod = {
     (this,that) match {
       case (p1:Prod, p2:Prod) => Prod(p1.factors ++ p2.factors)
-      case (p:Prod, x) => Prod(p.factors ++ List(x))
+      case (p:Prod, d: Pow) => Prod(p.factors ++ List(d)) // Division is not commutative
+      case (p:Prod, x) => Prod(x :: p.factors)
       case (x, p:Prod) => Prod(x :: p.factors)
       case (x, y) => Prod(List(x,y))
     }
@@ -400,7 +401,7 @@ object ArithExpr {
     }
 
     if(simplify)
-      ExprSimplifier.simplify(newExpr)
+      ExprSimplifier(newExpr)
     else
       newExpr
   }
@@ -460,8 +461,8 @@ object ArithExpr {
      */
     def Min(x: ArithExpr, y: ArithExpr) = {
       // Since Min duplicates the expression, we simplify it in place to point to the same node
-      val sx = ExprSimplifier.simplify(x)
-      val sy = ExprSimplifier.simplify(y)
+      val sx = ExprSimplifier(x)
+      val sy = ExprSimplifier(y)
       IfThenElse(sx le sy, sx, sy)
     }
 
@@ -473,8 +474,8 @@ object ArithExpr {
      */
     def Max(x: ArithExpr, y: ArithExpr) = {
       // Since Max duplicates the expression, we simplify it in place to point to the same node
-      val sx = ExprSimplifier.simplify(x)
-      val sy = ExprSimplifier.simplify(y)
+      val sx = ExprSimplifier(x)
+      val sy = ExprSimplifier(y)
       IfThenElse(sx gt sy, sx, sy)
     }
 
@@ -525,7 +526,7 @@ case class Prod(factors: List[ArithExpr]) extends ArithExpr {
   }
 
   override def toString : String = {
-    val m = if (factors.nonEmpty) factors.map((t) => t.toString).reduce((s1, s2) => s1 + "*" + s2) else {""}
+    val m = if (factors.nonEmpty) factors.mkString("*") else {""}
     "(" + m +")"
   }
 
@@ -547,7 +548,7 @@ case class Sum(terms: List[ArithExpr]) extends ArithExpr {
   }
 
   override def toString: String = {
-    val m = if (terms.nonEmpty) terms.map((t) => t.toString).reduce((s1, s2) => s1 + "+" + s2) else {""}
+    val m = if (terms.nonEmpty) terms.mkString("+") else {""}
     "(" + m +")"
   }
 }

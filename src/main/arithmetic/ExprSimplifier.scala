@@ -313,8 +313,6 @@ object ExprSimplifier {
               case Some(toReturn) => return toReturn
               case None =>
             }
-
-          }
         }
       }
       None
@@ -381,8 +379,13 @@ object ExprSimplifier {
     })
 
     // concatenate the new constant, if any
-    if(cstVal != neutral || newResult.length == 0)
-      newResult = cstVal :: newResult
+    if(cstVal != neutral || newResult.isEmpty) {
+      // We need to append if the first term is a division, otherwise prepend
+      if (newResult.nonEmpty && newResult(0).isInstanceOf[Pow])
+        newResult = newResult :+ cstVal
+      else
+        newResult = cstVal :: newResult
+    }
 
     newResult
   }
@@ -480,7 +483,6 @@ object ExprSimplifier {
     // distributivity
     val result = distribute(resultProd)
 
-
     result
   }
 
@@ -532,7 +534,7 @@ object ExprSimplifier {
         case p: Prod => simplifyProd(p)
         case s: Sum => simplifySum(s)
         case m: Mod => simplifyMod(m)
-        case f: IntDiv => simplifyFraction(f)
+        case f: IntDiv => simplifyIntDiv(f)
         case ite: IfThenElse => simplifyIfThenElse(ite)
         case _ => result
       }
@@ -540,6 +542,10 @@ object ExprSimplifier {
       result.simplified = true
       result
     }
+  }
+
+  def apply(expr: ArithExpr): ArithExpr = {
+    simplify(expr)
   }
 
 }
