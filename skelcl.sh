@@ -4,6 +4,19 @@ set -e
 
 CONFIG_FILE=skelcl.conf
 SKELCL_CMAKE_COMMON_FLAGS="-DBUILD_EXECUTOR=ON -DTHROW_ON_FAILURE=ON"
+INTERACTIVE=false
+
+while getopts ":i" opt; do 
+  case $opt in
+    i)
+      echo "Running in interactive mode"
+      INTERACTIVE=true
+      ;;
+    \?)
+      INTERACTIVE=false
+      ;;
+  esac
+done
 
 function check_command(){
   echo -ne "Checking for ${1}... "
@@ -42,10 +55,9 @@ function configure(){
   # SkelCL
   mkdir -p lib/SkelCL/build
   pushd lib/SkelCL
-  echo "Use platform specific dependency installation script?"
-  echo "(y)es or (n)o "
-  read DEP_ANSWER
-  if [[ "$DEP_ANSWER" == "y" ]]; then 
+
+  if $INTERACTIVE ; then 
+    echo "Script running in interactive mode."
     echo "Please select platform: "
     echo "(a)rch linux, (u)buntu linux, (c)entOS, (o)sx or (s)use"
     read PLATFORM_ANSWER
@@ -113,8 +125,6 @@ function configure(){
       fi
     fi
   fi
-  
-
 
   (cd build && cmake ${SKELCL_CMAKE_COMMON_FLAGS} ${SKELCL_CMAKE_FLAGS} ..)
   popd

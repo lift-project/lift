@@ -14,6 +14,8 @@ compileSkelcl := {
   "echo y" #| "./skelcl.sh" !
 }
 
+javaOptions += "-Djava.library.path=./lib/SkelCL/build/executor"
+
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
 
 scalaSource in Test <<= baseDirectory(_ / "src/test")
