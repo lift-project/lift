@@ -382,7 +382,7 @@ object ExprSimplifier {
     if(cstVal != neutral || newResult.isEmpty) {
       // We need to append if the first term is a division, otherwise prepend
       if (newResult.nonEmpty && newResult(0).isInstanceOf[Pow])
-        newResult = newResult :+ cstVal
+        newResult = newResult :+ Cst(cstVal)
       else
         newResult = cstVal :: newResult
     }
