@@ -44,7 +44,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         MapWrg(fun( Arow =>
-          Barrier() o MapLcl(fun( Bcol =>
+          Join() o Barrier() o MapLcl(fun( Bcol =>
             toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
@@ -187,7 +187,7 @@ class TestMatrixMatrix {
     val tiledC2 = tiledA.map(aRows => {
       tiledB.map(bCols => {
         (aRows, bCols).zipped.map((aTile, bTile) => aTile.map(aRow => bTile.map(bRow => (aRow, bRow).zipped.map(_ * _).sum))).
-          reduce((acc, tile) => {
+          foldLeft(Array.ofDim[Float](tileSize, tileSize))((acc, tile) => {
 
           (tile, acc).zipped.map((x, y) => (x, y).zipped.map(_+_))
         })
@@ -217,7 +217,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, matrixC4, 0.001f)
 
 
-    val grouped = matrixB.transpose.grouped(4).toArray.map(_.transpose)
+    val grouped = transposedB.grouped(4).toArray.map(_.transpose)
 
     val matrixC5 = matrixA.map(rowA => grouped.map(columnsB => (rowA, columnsB).zipped.
       foldLeft(Array.ofDim[Float](4))((acc, elemRowPair) => (elemRowPair._2.map(_*elemRowPair._1), acc).
@@ -226,7 +226,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, matrixC5.flatten, 0.001f)
 
     // Trying to reuse B
-    val matrixC6 = matrixA.grouped(4).toArray.map(rowsA => matrixB.transpose.map(colB =>(rowsA.transpose, colB).zipped.
+    val matrixC6 = matrixA.grouped(4).toArray.map(rowsA => transposedB.map(colB =>(rowsA.transpose, colB).zipped.
       foldLeft(Array.ofDim[Float](4))((acc, rowElemPair) => (rowElemPair._1.map(_*rowElemPair._2), acc).
       zipped.map(_+_)))).map(_.transpose).flatten
 
