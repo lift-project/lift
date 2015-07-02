@@ -76,6 +76,9 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     f(3)._2(0) = MatrixMultiplication.tiledAndBlockedBInnermost(Cst(tileX.value.getOrElse(16)),
       Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
       Cst(registerBlockM.value.getOrElse(4)))
+    f(4)._2(0) = MatrixMultiplication.vectorLoads(Cst(tileX.value.getOrElse(16)),
+      Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
+      Cst(registerBlockM.value.getOrElse(4)))
   }
 
   override protected def printParams(): Unit = {
