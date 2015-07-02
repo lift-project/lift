@@ -515,9 +515,8 @@ object OpenCLGenerator extends Generator {
           case st: ScalarType if Type.isEqual(st, vt.scalarT) =>
             vstore(mem, vt, view, valueGenerator)
 
-          // originally an array of size 1, but now a vector type => vstore
-          case at: ArrayType  if    at.len == Cst(1)
-                                 && Type.isEqual(at.elemT, vt.scalarT)  =>
+          // originally an array, but now a vector type => vstore
+          case at: ArrayType  if Type.isEqual(at.elemT, vt.scalarT)  =>
             vstore(mem, vt, view, valueGenerator)
         }
       }
@@ -544,9 +543,8 @@ object OpenCLGenerator extends Generator {
           case st: ScalarType if Type.isEqual(st, vt.scalarT) =>
                vload (mem, vt, view)
 
-          // originally an array of size 1, but now a vector type => vstore
-          case at: ArrayType  if    at.len == Cst(1)
-                                 && Type.isEqual(at.elemT, vt.scalarT)  =>
+          // originally an array, but now a vector type => vstore
+          case at: ArrayType  if Type.isEqual(at.elemT, vt.scalarT)  =>
             vload (mem, vt, view)
         }
         case (st:ScalarType, vt:VectorType)  if Type.isEqual(st, vt.scalarT) => {

@@ -409,6 +409,29 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
+  @Test def mmVectorLoads(): Unit = {
+    val mSize = 512
+    val kSize = 512
+    val nSize = 512
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val tileSizeM = 16
+    val tileSizeN = tileSizeM
+    val tileSizeK = 8
+    val workPerThreadN = 4
+    val workPerThreadM = 4
+
+    val f = MatrixMultiplication.vectorLoads(tileSizeN, tileSizeM, tileSizeK, workPerThreadN, workPerThreadM)
+
+    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
   @Test def mmTiledAndBlockedAInnermost(): Unit = {
     val mSize = 16
     val kSize = 16
