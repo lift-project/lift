@@ -340,7 +340,8 @@ object MatrixMultiplication {
     Seq(("naive", Array[Lambda](naive)),
       ("tiled", Array[Lambda](tiled(16))),
       ("moreWorkPerThread", Array[Lambda](moreWorkPerThread(16, 4))),
-      ("tiledAndBlockedBInnermost", Array[Lambda](tiledAndBlockedBInnermost(16, 16, 8, 4, 4)))
+      ("tiledAndBlockedBInnermost", Array[Lambda](tiledAndBlockedBInnermost(16, 16, 8, 4, 4))),
+      ("vectorLoads", Array[Lambda](vectorLoads(16, 16, 8, 4, 4)))
     ))
 
 
