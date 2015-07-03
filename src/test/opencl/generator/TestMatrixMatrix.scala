@@ -424,7 +424,8 @@ class TestMatrixMatrix {
     val workPerThreadN = 4
     val workPerThreadM = 4
 
-    val f = MatrixMultiplication.vectorLoads(tileSizeN, tileSizeM, tileSizeK, workPerThreadN, workPerThreadM)
+    val f = MatrixMultiplication.vectorLoads(tileSizeN, tileSizeM, tileSizeK,
+      workPerThreadN, workPerThreadM, 8)
 
     val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
       mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)

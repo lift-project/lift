@@ -22,6 +22,9 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
   val registerBlockN = parser.option[Int](List("bn", "blockN"), "size",
     "Register blocking factor in N dimension")
 
+  val vectorWidth = parser.option[Int](List("vw", "vectorWidth"), "width",
+    "Vector width for loading valus")
+
   override def runScala(inputs: Any*): Array[Float] = {
     val A = inputs(0).asInstanceOf[Array[Array[Float]]]
     val B = inputs(1).asInstanceOf[Array[Array[Float]]]
@@ -78,7 +81,7 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
       Cst(registerBlockM.value.getOrElse(4)))
     f(4)._2(0) = MatrixMultiplication.vectorLoads(Cst(tileX.value.getOrElse(16)),
       Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
-      Cst(registerBlockM.value.getOrElse(4)))
+      Cst(registerBlockM.value.getOrElse(4)), Cst(vectorWidth.value.getOrElse(4)))
   }
 
   override protected def printParams(): Unit = {
@@ -274,7 +277,8 @@ object MatrixMultiplication {
     })
 
   def vectorLoads(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
-                                workPerThreadN: ArithExpr, workPerThreadM: ArithExpr) = fun(
+                                workPerThreadN: ArithExpr, workPerThreadM: ArithExpr,
+                   vectorWidth: ArithExpr) = fun(
     ArrayType(ArrayType(Float, M), K), // Transposed
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
@@ -326,8 +330,8 @@ object MatrixMultiplication {
                   Unzip() o Barrier() o toLocal(MapLcl(1)(fun(pair =>
                   fun(pair => Tuple(asScalar() o Join() $ Get(pair, 0), asScalar() o Join() $ Get(pair, 1))) o
                     Unzip() o MapLcl(0)(fun( pair =>
-                    Tuple(MapSeq(Vectorize(4)(id)) $ Get(pair, 0), MapSeq(Vectorize(4)(id)) $ Get(pair, 1))
-                  )) $ Zip(Split(1) o asVector(4) $ Get(pair, 0), Split(1) o asVector(4) $ Get(pair, 1))
+                    Tuple(MapSeq(Vectorize(vectorWidth)(id)) $ Get(pair, 0), MapSeq(Vectorize(vectorWidth)(id)) $ Get(pair, 1))
+                  )) $ Zip(Split(1) o asVector(vectorWidth) $ Get(pair, 0), Split(1) o asVector(vectorWidth) $ Get(pair, 1))
                 ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
               )
                 , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
@@ -344,7 +348,7 @@ object MatrixMultiplication {
       ("tiled", Array[Lambda](tiled(16))),
       ("moreWorkPerThread", Array[Lambda](moreWorkPerThread(16, 4))),
       ("tiledAndBlockedBInnermost", Array[Lambda](tiledAndBlockedBInnermost(16, 16, 8, 4, 4))),
-      ("vectorLoads", Array[Lambda](vectorLoads(16, 16, 8, 4, 4)))
+      ("vectorLoads", Array[Lambda](vectorLoads(16, 16, 8, 4, 4, 4)))
     ))
 
 
