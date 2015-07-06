@@ -1,3 +1,6 @@
 [submodule "lib/SkelCL"]
 	path = lib/SkelCL
 	url = git@bitbucket.org:skelcl/skelcl.git
+[submodule "lib/ArithExpr"]
+	path = lib/ArithExpr
+	url = git@bitbucket.org:cdubach/arithexpr.git
