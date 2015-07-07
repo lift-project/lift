@@ -26,8 +26,12 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     "Vector width for loading values")
 
   override def runScala(inputs: Any*): Array[Float] = {
-    val A = inputs(0).asInstanceOf[Array[Array[Float]]]
+    var A = inputs(0).asInstanceOf[Array[Array[Float]]]
     val B = inputs(1).asInstanceOf[Array[Array[Float]]]
+
+    val variant = variantOpt.value.getOrElse(0)
+    if (variant == 3 || variant == 4)
+      A = A.transpose
 
     val aCols = A(0).length
     val aRows = A.length

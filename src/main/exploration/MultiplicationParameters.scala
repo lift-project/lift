@@ -19,8 +19,12 @@ object MultiplicationParameters {
     val threshold = 16
     var counter = 0
 
-    val baseline = s"--ig --il -s $nSize -s $mSize -s $kSize -p $platform -d $device -x128 -y16 --bm 8 --bn 8 -l16 -l16 --variant 3 -g128 -g128 -c"
+    val baseline = s"--ig --il -s $nSize -s $mSize -s $kSize -p $platform -d $device -x128 -y16 --bm 8 --bn 8 -l16 -l16 --variant $variant -g128 -g128 -c"
     val script = "scripts/MatrixMultiplication"
+
+    // Save the required output to a file
+    val resultFile = s"${mSize}_${kSize}_${nSize}_multiplicationResult"
+    (script + " " + baseline + " --saveOutput " + resultFile).!
 
     var doRecovery = false
     var filename = ""
@@ -84,7 +88,7 @@ object MultiplicationParameters {
                           "-x" + tileSizeM, "-y" + tileSizeK,
                           "--bm", workPerThreadM.toString, "--bn", workPerThreadN.toString,
                           "-l" + localSizeM, "-l" + localSizeN,
-                          "-g" + globalSizeM, "-g" + globalSizeN).mkString(" ")
+                          "-g" + globalSizeM, "-g" + globalSizeN, "--loadOutput", resultFile).mkString(" ")
 
                         if (counter % threshold == 0) {
                           counter = threshold
