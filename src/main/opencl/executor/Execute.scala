@@ -116,11 +116,11 @@ object Execute {
    */
   private def ValidateNDRange(globalSize: Int, localSize: Int, dim: Int): Unit = {
     if (localSize <= 0)
-      throw new InvalidLocalSizeException(s"Local size (${localSize}) cannot be negative in dim ${dim}")
+      throw new InvalidLocalSizeException(s"Local size ($localSize) cannot be negative in dim $dim")
     if (globalSize <= 0)
-      throw new InvalidGlobalSizeException(s"Global size (${globalSize}) cannot be negative in dim ${dim}")
+      throw new InvalidGlobalSizeException(s"Global size ($globalSize) cannot be negative in dim $dim")
     if (globalSize % localSize != 0)
-      throw new InvalidIndexSpaceException(s"Global size (${globalSize}) is not divisible by local size (${localSize}) in dim ${dim}")
+      throw new InvalidIndexSpaceException(s"Global size ($globalSize) is not divisible by local size ($localSize) in dim $dim")
   }
 }
 
@@ -148,31 +148,41 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   }
 
   /**
-   * Given a lambda: compile it and the execute it
+   * Given a lambda: compile it and then execute it
    */
   def apply(f: Lambda, values: Any*): (Any, Double) = {
+    val code = compile(f, values:_*)
 
+    execute(code, f, values: _*)
+  }
+
+  /**
+   * Given a lambda: compile it and then execute it <code>iterations</code> times
+   */
+  def apply(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
+    val code = compile(f, values:_*)
+
+    benchmark(iterations, timeout, code, f, values:_*)
+  }
+
+  private def compile(f: Lambda, values: Any*) : String = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
       // ... build map of values mapping size information to arithmetic expressions, e.g., ???
       val valueMap = Execute.createValueMap(f, values: _*)
       // ... compile with all information provided
-      val code = Compile(f, localSize1, localSize2, localSize3,
-                         globalSize1, globalSize2, globalSize3, valueMap)
-      // .. finally execute
-      return execute(code, f, values: _*)
+      return Compile(f, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, valueMap)
     }
 
     // 2.choice: local size should be injected into the OpenCL kernel ...
     if (injectLocalSize) {
       // ... compile with providing local size information
-      val code = Compile(f, localSize1, localSize2, localSize3)
-      // .. finally execute
-      return execute(code, f, values: _*)
+      return Compile(f, localSize1, localSize2, localSize3)
     }
 
-    // 3.choice: nothing should we injected into the OpenCL kernel ... just compile and execute
-    execute(Compile(f), f, values: _*)
+    // 3.choice: nothing should we injected into the OpenCL kernel ... just compile
+    Compile(f)
   }
 
   /**
@@ -192,6 +202,36 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
    * component
    */
   def execute(code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+
+    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (code, localSize1, localSize2, localSize3,
+       globalSize1, globalSize2, globalSize3, args) =>
+        Executor.execute(code, localSize1, localSize2, localSize3,
+          globalSize1, globalSize2, globalSize3, args)
+
+    execute(executeFunction, code, f, values:_*)
+  }
+
+  /**
+   * Execute given source code, which was compiled for the given lambda, with the given runtime
+   * values <code>iterations</code> times. If the kernel takes longer than <code>timeout</code> ms,
+   * it is executed only once.
+   * Returns a pair consisting of the computed values as its first and the median runtime as its second
+   * component
+   */
+  def benchmark(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+
+    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (code, localSize1, localSize2, localSize3,
+         globalSize1, globalSize2, globalSize3, args) =>
+      Executor.benchmark(code, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, args, iterations, timeout)
+
+    execute(executeFunction, code, f, values:_*)
+  }
+
+  private def execute(executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
+                       code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
     // check that the given values match with the given lambda expression
     checkParamsWithValues(f.params, values)
@@ -220,8 +260,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     val args: Array[KernelArg] = memArgs ++ sizes
 
     // 8. execute via JNI
-    val runtime = Executor.execute(code, localSize1, localSize2, localSize3,
-                                   globalSize1, globalSize2, globalSize3, args)
+    val runtime = executeFunction(code, localSize1, localSize2, localSize3,
+      globalSize1, globalSize2, globalSize3, args)
 
     // 9. cast the output accordingly to the output type
     val output = castToOutputType(f.body.t, outputData)
