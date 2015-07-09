@@ -1,8 +1,7 @@
 package benchmarks
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import ir._
-import opencl.ir._
 import java.io._
 
 class GraphTheory(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Graph theory", Seq(4096), f, 0.01f) {
