@@ -104,7 +104,7 @@ abstract class View(val t: Type = UndefType) {
     }
   }
 
-  def pad(offset: Int, boundary: Pad.Boundary): View = {
+  def pad(offset: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr): View = {
     this.t match {
       case ArrayType(elemT, len) =>
         new ViewPad(this, offset, boundary, ArrayType(elemT, len + 2 * offset))
@@ -148,7 +148,7 @@ class ViewHead(val iv: View, override val t: Type) extends View(t)
 
 class ViewTail(val iv: View, override val t: Type) extends View(t)
 
-class ViewPad(val iv: View, val size: Int, val fct: Pad.Boundary, override val t: Type) extends View(t)
+class ViewPad(val iv: View, val size: Int, val fct: (ArithExpr, ArithExpr) => ArithExpr, override val t: Type) extends View(t)
 
 object NoView extends View()
 
@@ -284,15 +284,11 @@ object ViewPrinter {
         emitView(tail.iv, newAAS, tupleAccessStack)
 
       case pad: ViewPad =>
-        pad.fct match {
-          case reorder : Pad.CommonBoundary =>
-            val (idx, stack) = arrayAccessStack.pop2
-            val newIdx = reorder.reorder(idx._1 - pad.size, pad.iv.t.asInstanceOf[ArrayType].len)
-            val newLen = idx._2
-            val newAAS = stack.push ((newIdx, newLen) )
-            emitView (pad.iv, newAAS, tupleAccessStack)
-          case _ => throw new NotImplementedError("Unsupported boundary condition in Pad")
-        }
+        val (idx, stack) = arrayAccessStack.pop2
+        val newIdx = pad.fct(idx._1 - pad.size, pad.iv.t.asInstanceOf[ArrayType].len)
+        val newLen = idx._2
+        val newAAS = stack.push ((newIdx, newLen) )
+        emitView (pad.iv, newAAS, tupleAccessStack)
 
 
       case op => throw new NotImplementedError(op.getClass.toString)

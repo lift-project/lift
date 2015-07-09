@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic.Var
+import apart.arithmetic.{Cst, ArithExpr, Var}
 import ir.UserFunDef._
 import ir.{Join, Split, ArrayType, fun}
 import opencl.executor._
@@ -42,7 +42,7 @@ class TestPad {
   /// @param gold Expected output
   /// @param size Padding offset
   /// @param boundary Boundary behavior
-  def validate1D(gold: Array[Float], size: Int, boundary: Pad.Boundary, input: Array[Float] = input) = {
+  def validate1D(gold: Array[Float], size: Int, boundary: Pad.BoundaryFct, input: Array[Float] = input) = {
     val fct = fun(
       ArrayType(Float, Var("N")),
       (domain) => MapGlb(id) o Pad(size, boundary) $ domain
@@ -57,7 +57,7 @@ class TestPad {
   /// @param gold Expected output
   /// @param size Padding offset
   /// @param boundary Boundary behavior
-  def validate2D(gold: Array[Float], size: Int, boundary: Pad.Boundary) = {
+  def validate2D(gold: Array[Float], size: Int, boundary: Pad.BoundaryFct) = {
     val fct = fun(
       ArrayType(Float, Var("N")),
       (domain) => MapGlb(id) o Join()
@@ -82,7 +82,7 @@ class TestPad {
   }
 
   // === Test constant boundary condition ===
-  @Ignore
+  /*@Ignore
   @Test def PAD_1D_CONSTANT_Pos_1(): Unit = {
     val gold = Array(X,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,X)
     //               ^                                 ^
@@ -126,26 +126,23 @@ class TestPad {
     //^  ^              ^  ^
 
     validate2D(gold, 2, CONSTANT(X))
-  }
+  }*/
 
   // === Test clamp boundary condition ===
-  @Ignore
   @Test def PAD_1D_CLAMP_Pos_1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
 
-    validate1D(gold, 1, CLAMP)
+    validate1D(gold, 1, Clamp)
   }
 
-  @Ignore
   @Test def PAD_1D_CLAMP_Pos_2(): Unit = {
     val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
     //               ^ ^                                 ^ ^
 
-    validate1D(gold, 2, CLAMP)
+    validate1D(gold, 2, Clamp)
   }
 
-  @Ignore
   @Test def PAD_2D_CLAMP_Pos_1(): Unit = {
     val gold = Array(
       A, A, B, C, D, D, // <
@@ -156,10 +153,9 @@ class TestPad {
       M, M, N, O, P, P) // <
     //^              ^
 
-    validate2D(gold, 1, CLAMP)
+    validate2D(gold, 1, Clamp)
   }
 
-  @Ignore
   @Test def PAD_2D_CLAMP_Pos_2(): Unit = {
     val gold = Array(
       A, A, A, B, C, D, D, D, // <
@@ -172,7 +168,7 @@ class TestPad {
       M, M, M, N, O, P, P, P) // <
     //^  ^              ^  ^
 
-    validate2D(gold, 2, CLAMP)
+    validate2D(gold, 2, Clamp)
   }
 
   // === Test bounce boundary condition ===
@@ -181,7 +177,7 @@ class TestPad {
     val gold = Array(B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O)
     //               ^                                 ^
 
-    validate1D(gold, 1, BOUNCE)
+    validate1D(gold, 1, Bounce)
   }
 
   @Ignore
@@ -189,7 +185,7 @@ class TestPad {
     val gold = Array(C,B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O,N)
     //               ^ ^                                 ^ ^
 
-    validate1D(gold, 2, BOUNCE)
+    validate1D(gold, 2, Bounce)
   }
 
   @Ignore
@@ -203,7 +199,7 @@ class TestPad {
       J, I, J, K, L, K) // <
     //^              ^
 
-    validate2D(gold, 1, BOUNCE)
+    validate2D(gold, 1, Bounce)
   }
 
   @Ignore
@@ -219,28 +215,25 @@ class TestPad {
       G, F, E, F, G, H, G, F) // <
     //^  ^              ^  ^
 
-    validate2D(gold, 2, BOUNCE)
+    validate2D(gold, 2, Bounce)
   }
 
   // === Test mirror boundary condition ===
-  @Ignore
   @Test def PAD_1D_MIRROR_Pos_1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     //               ^                                 ^
 
-    validate1D(gold, 1, MIRROR)
+    validate1D(gold, 1, Mirror)
   }
 
 
-  @Ignore
   @Test def PAD_1D_MIRROR_Pos_2(): Unit = {
     val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
     //               ^ ^                                 ^ ^
 
-    validate2D(gold, 1, MIRROR)
+    validate1D(gold, 2, Mirror)
   }
 
-  @Ignore
   @Test def PAD_2D_MIRROR_Pos_1(): Unit = {
     val gold = Array(
       A, A, B, C, D, D, // <
@@ -251,10 +244,9 @@ class TestPad {
       M, M, N, O, P, P) // <
     //^              ^
 
-    validate2D(gold, 1, MIRROR)
+    validate2D(gold, 1, Mirror)
   }
 
-  @Ignore
   @Test def PAD_2D_MIRROR_Pos_2(): Unit = {
     val gold = Array(
       F, E, E, F, G, H, H, G, // <
@@ -264,31 +256,28 @@ class TestPad {
       J, I, i, j, k, l, L, K,
       N, M, m, n, o, p, P, O,
       N, M, M, N, O, P, P, O, // <
-      M, I, I, J, K, L, L, K) // <
+      J, I, I, J, K, L, L, K) // <
     //^  ^              ^  ^
 
-    validate2D(gold, 2, MIRROR)
+    validate2D(gold, 2, Mirror)
   }
 
   // === Test wrap boundary condition ===
-  @Ignore
   @Test def PAD_1D_WRAP_Pos_1(): Unit = {
     val gold = Array(P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A)
     //               ^                                 ^
 
-    validate1D(gold, 1, WRAP)
+    validate1D(gold, 1, Wrap)
   }
 
 
-  @Ignore
   @Test def PAD_1D_WRAP_Pos_2(): Unit = {
     val gold = Array(O,P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A,B)
     //               ^ ^                                 ^ ^
 
-    validate1D(gold, 2, WRAP)
+    validate1D(gold, 2, Wrap)
   }
 
-  @Ignore
   @Test def PAD_2D_WRAP_Pos_1(): Unit = {
     val gold = Array(
       P, M, N, O, P, M, // <
@@ -299,10 +288,9 @@ class TestPad {
       D, A, B, C, D, A) // <
     //^              ^
 
-    validate2D(gold, 1, WRAP)
+    validate2D(gold, 1, Wrap)
   }
 
-  @Ignore
   @Test def PAD_2D_WRAP_Pos_2(): Unit = {
     val gold = Array(
       K, L, I, J, K, L, I, J, // <
@@ -315,31 +303,35 @@ class TestPad {
       G, H, E, F, G, H, E, F) // <
     //^  ^              ^  ^
 
-    validate2D(gold, 2, WRAP)
+    validate2D(gold, 2, Wrap)
   }
 
   // === Test custom boundary condition ===
   @Ignore
   @Test def PAD_1D_CUSTOM_Pos_1(): Unit = {
-    val Y = 123f
+    val Y = i
     val gold = Array(Y,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,Y)
     //               ^                                 ^
 
-    throw new RuntimeException("Test case not implemented")
+    // The custom function replaces the elements outside the domain by the middle of the domain
+    validate1D(gold, 1, (idx: ArithExpr, len: ArithExpr) =>
+      (idx lt Cst(0)) ?? (len / 2) !! ((idx ge len) ?? (len / 2) !! idx))
   }
 
   @Ignore
   @Test def PAD_1D_CUSTOM_Pos_2(): Unit = {
-    val Y = 123f
+    val Y = i
     val gold = Array(Y,Y,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,Y,Y)
     //               ^ ^                                 ^ ^
 
-    throw new RuntimeException("Test case not implemented")
+    // The custom function replaces the elements outside the domain by the middle of the domain
+    validate1D(gold, 2, (idx: ArithExpr, len: ArithExpr) =>
+      (idx lt Cst(0)) ?? (len / 2) !! ((idx ge len) ?? (len / 2) !! idx))
   }
 
   @Ignore
   @Test def PAD_2D_CUSTOM_Pos_1(): Unit = {
-    val Y = 123f
+    val Y = i
     val gold = Array(
       Y, Y, Y, Y, Y, Y, // <
       Y, a, b, c, d, Y,
@@ -349,7 +341,9 @@ class TestPad {
       Y, Y, Y, Y, Y, Y) // <
     //^              ^
 
-    throw new RuntimeException("Test case not implemented")
+    // The custom function replaces the elements outside the domain by the middle of the domain
+    validate2D(gold, 1, (idx: ArithExpr, len: ArithExpr) =>
+      (idx lt Cst(0)) ?? (len / 2) !! ((idx ge len) ?? (len / 2) !! idx))
   }
 
   @Ignore
@@ -373,22 +367,21 @@ class TestPad {
 
   // Pad using padding elements when padding > n
   // testing with n = 4, padding = 8
-  @Ignore
+  /*@Ignore
   @Test def PAD_PadPadding_CONSTANT(): Unit = {
     val input = Array(a,b,c,d)
     val gold  = Array(X,X,X,X,X,X,X,X,a,b,c,d,X,X,X,X,X,X,X,X)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
     validate1D(gold, 8, CONSTANT(X), input)
-  }
+  }*/
 
-  @Ignore
   @Test def PAD_PadPadding_CLAMP(): Unit = {
     val input = Array(a,b,c,d)
     val gold  = Array(A,A,A,A,A,A,A,A,a,b,c,d,D,D,D,D,D,D,D,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    validate1D(gold, 8, CLAMP, input)
+    validate1D(gold, 8, Clamp, input)
   }
 
   @Ignore
@@ -397,25 +390,23 @@ class TestPad {
     val gold  = Array(D,B,A,B,C,D,C,B,a,b,c,d,C,B,A,B,C,D,C,B)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    validate1D(gold, 8, BOUNCE, input)
+    validate1D(gold, 8, Bounce, input)
   }
 
-  @Ignore
   @Test def PAD_PadPadding_MIRROR(): Unit = {
     val input = Array(a,b,c,d)
     val gold  = Array(A,B,C,D,D,C,B,A,a,b,c,d,D,C,B,A,A,B,C,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    validate1D(gold, 8, MIRROR, input)
+    validate1D(gold, 8, Mirror, input)
   }
 
-  @Ignore
   @Test def PAD_PadPadding_WRAP(): Unit = {
     val input = Array(a,b,c,d)
     val gold  = Array(A,B,C,D,A,B,C,D,a,b,c,d,A,B,C,D,A,B,C,D)
     //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
 
-    validate1D(gold, 8, WRAP, input)
+    validate1D(gold, 8, Wrap, input)
   }
 
   // *** STAGE 3: invalid usages ***

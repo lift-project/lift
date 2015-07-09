@@ -1,6 +1,7 @@
 package opencl.ir
 
 import apart.arithmetic.{Cst, ArithExprFunction, Var, ArithExpr}
+import ir.UserFunDef._
 import ir._
 
 import language.implicitConversions
@@ -166,6 +167,28 @@ case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isG
 
 case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
+case class Pad(offset: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr)
+  extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+
+object Pad {
+  type BoundaryFct = (ArithExpr, ArithExpr) => ArithExpr
+
+  object Boundary {
+    val Wrap: BoundaryFct = (idx: ArithExpr, len: ArithExpr) => (idx % len + len) % len
+
+    val Clamp: BoundaryFct = (idx: ArithExpr, len: ArithExpr) => ArithExpr.Math.Clamp(idx, 0, len-1)
+
+    val Mirror: BoundaryFct = (idx: ArithExpr, len: ArithExpr) => {
+      val id = ((idx lt 0) ?? (-1-idx) !! idx) % (2*len)
+      (id ge len) ?? (len+len-id-1) !! id
+    }
+
+    val Bounce: BoundaryFct = (idx: ArithExpr, len: ArithExpr) => {
+      throw new NotImplementedError("Not Implemented")
+    }
+  }
+}
+
 case class Group(relIndices: Array[Int],
                  negOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr,
                  posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
@@ -227,8 +250,8 @@ object IndexFunction {
   }
 
   val transpose = (i: ArithExpr, t: Type) => {
-    val outerType = t match { case at: ArrayType => at }
-    val innerType = outerType.elemT match { case at: ArrayType => at }
+    val outerType = t match { case at: ArrayType => at; case _ => ??? }
+    val innerType = outerType.elemT match { case at: ArrayType => at; case _ => ??? }
 
     transposeFunction(outerType.len, innerType.len)(i, t)
   }
