@@ -740,6 +740,60 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
+  @Test def tiledMatrixMultiply2(): Unit = {
+    // Basic tiled matrix multiply without local memory
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 4
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapWrg(0)(fun( aRows =>
+            MapWrg(1)(fun( bCols =>
+
+              toGlobal(MapLcl(1)(MapLcl(0)(id))) o
+                Join() o
+
+                // Multiply all necessary combinations of tiles
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(pairOfTiles =>
+                    Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                      Map(Join()) o
+                      MapLcl(1)( fun(rowA =>
+                        MapLcl(0)( fun( colB =>
+                          toGlobal(MapSeq(id) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)) $ Zip(rowA, colB)
+                        )) $ Get(pairOfTiles, 1)
+                      )) $ Get(pairOfTiles, 0)
+                  ) $ pairOfTiles
+                )
+                  , toGlobal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                ) $ Zip(aRows, bCols)
+
+              // Tile the matrices
+            )) o Tile(tileSize) $ B
+          )) o Tile(tileSize) $ A
+      })
+
+    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
   @Test def tiledMatrixMultiplyLocalMemory(): Unit = {
     val mSize = 16
     val kSize = 16

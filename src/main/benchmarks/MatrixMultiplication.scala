@@ -23,7 +23,7 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     "Register blocking factor in N dimension")
 
   val vectorWidth = parser.option[Int](List("vw", "vectorWidth"), "width",
-    "Vector width for loading valus")
+    "Vector width for loading values")
 
   override def runScala(inputs: Any*): Array[Float] = {
     val A = inputs(0).asInstanceOf[Array[Array[Float]]]
@@ -210,6 +210,7 @@ object MatrixMultiplication {
         )) o Tile(tileSize) $ A
     })
 
+  // Currently the best for NVIDIA
   def tiledAndBlockedBInnermost(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                   workPerThreadN: ArithExpr, workPerThreadM: ArithExpr) = fun(
     ArrayType(ArrayType(Float, M), K), // Transposed
@@ -276,6 +277,7 @@ object MatrixMultiplication {
         )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
     })
 
+  // Currently the best for AMD
   def vectorLoads(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                 workPerThreadN: ArithExpr, workPerThreadM: ArithExpr,
                    vectorWidth: ArithExpr) = fun(

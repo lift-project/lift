@@ -60,6 +60,9 @@ abstract class Benchmark(val name: String,
   val all = parser.flag[Boolean](List("a", "all"),
     "Run all variants, takes precedence over the variant option.")
 
+  val timeoutOpt = parser.option[Int](List("t", "timeout"), "time",
+    "If the kernel execution is longer than time, ignore any remaining iterations.")
+
   val checkResultOpt = parser.flag[Boolean](List("c", "check"),
     "Check the result")
 
@@ -171,8 +174,8 @@ abstract class Benchmark(val name: String,
   }
 
   def runBenchmark(): Unit = {
-    val commit = "git rev-parse HEAD".!!.dropRight(1)
 
+    print("date".!!)
     println("Benchmark: " + name + " " + f(variant)._1)
     println("Size(s): " + inputSizes().mkString(", "))
     println("Total iterations: " + iterations)
@@ -184,53 +187,79 @@ abstract class Benchmark(val name: String,
     println("Platform: " + Executor.getPlatformName)
     println("Device: " + Executor.getDeviceName)
     printParams()
-    println("Machine: " + "hostname".!!.dropRight(1))
-    println("finger".!!.dropRight(1))
-    println("Commit: " + commit)
-    println("Diff:\n" + "git diff".!!.dropRight(1))
+    print("Machine: " + "hostname".!!)
+    print("finger".!!)
+    print("Commit: " + "git rev-parse HEAD".!!)
+    print("Diff:\n" + "git diff".!!)
 
     println()
 
-    for (i <- 0 until iterations) {
+    val lambdas = f(variant)._2
+    if (lambdas.length == 1) {
+      // Just one kernel, iterate inside SkelCL
 
-      if (i == 1)
-        Verbose.verbose = false
+      val timeout = if (timeoutOpt.value.isDefined) timeoutOpt.value.get.toDouble else Double.MaxValue
 
-      println("Iteration: " + i)
+      val (output: Array[Float], runtime) = Execute(
+        localSize(0),
+        localSize(1),
+        localSize(2),
+        globalSize(0),
+        globalSize(1),
+        globalSize(2),
+        (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
+      )(iterations, timeout, lambdas.head, inputs:_*)
 
-      val (output, runtime) = runOpenCL(inputs:_*)
+      if (checkResult)
+        checkResult(output)
 
-      runtimes(i) = runtime
-      println("Runtime: " + runtime + " ms")
+      println("MEDIAN: " + runtime + " ms")
+      printResults(runtime)
 
-      if (checkResult && i == 0) {
+    } else {
+      for (i <- 0 until iterations) {
 
-        if (output.length != scalaResult.length) {
-          println(s"Output length is wrong, ${output.length} vs ${scalaResult.length}")
+        if (i == 1)
+          Verbose.verbose = false
 
-        } else {
-          var numErrors = 0
+        println("Iteration: " + i)
 
-          for (j <- scalaResult.indices) {
-            if (check(output(j), scalaResult(j)))
-              numErrors += 1
-          }
+        val (output, runtime) = runOpenCL(inputs: _*)
 
-          if (numErrors != 0)
-            println(s"Output differed in $numErrors positions!")
-        }
+        runtimes(i) = runtime
+        println("Runtime: " + runtime + " ms")
+
+        if (checkResult && i == 0)
+          checkResult(output)
       }
+
+      val sorted = runtimes.sorted
+
+      println()
+      println("MIN: " + sorted(0) + " ms")
+      println("MAX: " + sorted(iterations - 1) + " ms")
+      val medianTime = median(sorted)
+      println("MEDIAN: " + medianTime + " ms")
+      printResults(medianTime)
+      println()
     }
+  }
 
-    val sorted = runtimes.sorted
+  private def checkResult(output: Array[Float]): Unit = {
+    if (output.length != scalaResult.length) {
+      println(s"Output length is wrong, ${output.length} vs ${scalaResult.length}")
 
-    println()
-    println("MIN: " + sorted(0) + " ms")
-    println("MAX: " + sorted(iterations-1) + " ms")
-    val medianTime = median(sorted)
-    println("MEDIAN: " + medianTime + " ms")
-    printResults(medianTime)
-    println()
+    } else {
+      var numErrors = 0
+
+      for (j <- scalaResult.indices) {
+        if (check(output(j), scalaResult(j)))
+          numErrors += 1
+      }
+
+      if (numErrors != 0)
+        println(s"Output differed in $numErrors positions!")
+    }
   }
 
   protected def bandwidth(time: Double): Double = {
