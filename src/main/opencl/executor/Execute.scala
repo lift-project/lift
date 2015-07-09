@@ -1,6 +1,6 @@
 package opencl.executor
 
-import arithmetic.{Var, Cst, ArithExpr}
+import apart.arithmetic.{Var, Cst, ArithExpr}
 import ir._
 import opencl.generator.{Verbose, OpenCLGenerator}
 import opencl.ir._
@@ -81,10 +81,10 @@ object Execute {
       case ArrayType(ArrayType(tt: TupleType, _), _) => tt.elemsT.length
       case ArrayType(tt: TupleType, _) => tt.elemsT.length
       case tt: TupleType => tt.elemsT.length
-      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval()
-      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval()
-      case ArrayType(vt: VectorType, _) => vt.len.eval()
-      case vt: VectorType => vt.len.eval()
+      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval
+      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval
+      case ArrayType(vt: VectorType, _) => vt.len.eval
+      case vt: VectorType => vt.len.eval
       case _ => 1
     })
 
@@ -116,11 +116,11 @@ object Execute {
    */
   private def ValidateNDRange(globalSize: Int, localSize: Int, dim: Int): Unit = {
     if (localSize <= 0)
-      throw new InvalidLocalSizeException(s"Local size (${localSize}) cannot be negative in dim ${dim}")
+      throw new InvalidLocalSizeException(s"Local size ($localSize) cannot be negative in dim $dim")
     if (globalSize <= 0)
-      throw new InvalidGlobalSizeException(s"Global size (${globalSize}) cannot be negative in dim ${dim}")
+      throw new InvalidGlobalSizeException(s"Global size ($globalSize) cannot be negative in dim $dim")
     if (globalSize % localSize != 0)
-      throw new InvalidIndexSpaceException(s"Global size (${globalSize}) is not divisible by local size (${localSize}) in dim ${dim}")
+      throw new InvalidIndexSpaceException(s"Global size ($globalSize) is not divisible by local size ($localSize) in dim $dim")
   }
 }
 
@@ -148,31 +148,41 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   }
 
   /**
-   * Given a lambda: compile it and the execute it
+   * Given a lambda: compile it and then execute it
    */
   def apply(f: Lambda, values: Any*): (Any, Double) = {
+    val code = compile(f, values:_*)
 
+    execute(code, f, values: _*)
+  }
+
+  /**
+   * Given a lambda: compile it and then execute it <code>iterations</code> times
+   */
+  def apply(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
+    val code = compile(f, values:_*)
+
+    benchmark(iterations, timeout, code, f, values:_*)
+  }
+
+  private def compile(f: Lambda, values: Any*) : String = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
       // ... build map of values mapping size information to arithmetic expressions, e.g., ???
       val valueMap = Execute.createValueMap(f, values: _*)
       // ... compile with all information provided
-      val code = Compile(f, localSize1, localSize2, localSize3,
-                         globalSize1, globalSize2, globalSize3, valueMap)
-      // .. finally execute
-      return execute(code, f, values: _*)
+      return Compile(f, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, valueMap)
     }
 
     // 2.choice: local size should be injected into the OpenCL kernel ...
     if (injectLocalSize) {
       // ... compile with providing local size information
-      val code = Compile(f, localSize1, localSize2, localSize3)
-      // .. finally execute
-      return execute(code, f, values: _*)
+      return Compile(f, localSize1, localSize2, localSize3)
     }
 
-    // 3.choice: nothing should we injected into the OpenCL kernel ... just compile and execute
-    execute(Compile(f), f, values: _*)
+    // 3.choice: nothing should we injected into the OpenCL kernel ... just compile
+    Compile(f)
   }
 
   /**
@@ -193,6 +203,36 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
    */
   def execute(code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
+    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (code, localSize1, localSize2, localSize3,
+       globalSize1, globalSize2, globalSize3, args) =>
+        Executor.execute(code, localSize1, localSize2, localSize3,
+          globalSize1, globalSize2, globalSize3, args)
+
+    execute(executeFunction, code, f, values:_*)
+  }
+
+  /**
+   * Execute given source code, which was compiled for the given lambda, with the given runtime
+   * values <code>iterations</code> times. If the kernel takes longer than <code>timeout</code> ms,
+   * it is executed only once.
+   * Returns a pair consisting of the computed values as its first and the median runtime as its second
+   * component
+   */
+  def benchmark(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+
+    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (code, localSize1, localSize2, localSize3,
+         globalSize1, globalSize2, globalSize3, args) =>
+      Executor.benchmark(code, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, args, iterations, timeout)
+
+    execute(executeFunction, code, f, values:_*)
+  }
+
+  private def execute(executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
+                       code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+
     // check that the given values match with the given lambda expression
     checkParamsWithValues(f.params, values)
 
@@ -207,7 +247,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     validateMemorySizes(valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
+    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments
@@ -220,8 +260,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     val args: Array[KernelArg] = memArgs ++ sizes
 
     // 8. execute via JNI
-    val runtime = Executor.execute(code, localSize1, localSize2, localSize3,
-                                   globalSize1, globalSize2, globalSize3, args)
+    val runtime = executeFunction(code, localSize1, localSize2, localSize3,
+      globalSize1, globalSize2, globalSize3, args)
 
     // 9. cast the output accordingly to the output type
     val output = castToOutputType(f.body.t, outputData)
@@ -249,14 +289,14 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
       g.params(0).t match {
         case ArrayType(_, lenExpr) =>
-          val length = ArithExpr.substitute(lenExpr, valueMap).eval()
+          val length = ArithExpr.substitute(lenExpr, valueMap).eval
 
           for (relIdx <- allIndices) {
             var newIdx = 0
             if (relIdx < 0) {
-              newIdx = g.negOutOfBoundsF(relIdx, length).eval()
+              newIdx = g.negOutOfBoundsF(relIdx, length).eval
             } else if (relIdx > 0) {
-              newIdx = g.posOutOfBoundsF(relIdx, length).eval()
+              newIdx = g.posOutOfBoundsF(relIdx, length).eval
             }
 
             if (newIdx < 0 || newIdx >= length) {
@@ -338,8 +378,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       else if (m == f.body.mem) outputData
       // ... else create a fresh local or global object argument
       else m.addressSpace match {
-        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval())
-        case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval())
+        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval)
+        case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval)
       }
     })
   }
@@ -349,10 +389,10 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       (OpenCLGenerator.Kernel.memory ++ OpenCLGenerator.Kernel.staticLocalMemory).
         partition(_.mem.addressSpace == GlobalMemory)
 
-    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval())
+    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
     val totalSizeOfGlobal = globalSizes.sum
     val totalSizeOfLocal = localMemories.map(mem =>
-      ArithExpr.substitute(mem.mem.size, valueMap).eval()).sum
+      ArithExpr.substitute(mem.mem.size, valueMap).eval).sum
 
     globalSizes.foreach(size => {
       val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
@@ -373,7 +413,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
                              valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
     // get the variables from the memory objects associated with the generated kernel
     val allVars = OpenCLGenerator.Kernel.memory.map(mem => {
-      Var.getVars(mem.mem.size)
+      mem.mem.size.varList
     } ).filter(_.nonEmpty).flatten.distinct
     // select the variables which are not (internal) iteration variables
     val (vars, _) = allVars.partition(_.name != Iterate.varName)
@@ -381,10 +421,10 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     // go through all size variables associated with the kernel
     vars.map( v => {
       // look for the variable in the parameter list ...
-      val i = f.params.indexWhere( p => Var.getVars(p.t).contains(v) )
+      val i = f.params.indexWhere( p => p.t.varList.contains(v) )
       // ... if found look up the runtime value in the valueMap and create kernel argument ...
       if (i != -1) {
-        val s = valueMap(v).eval()
+        val s = valueMap(v).eval
         if (Verbose())
           println(s)
         Option(arg(s))

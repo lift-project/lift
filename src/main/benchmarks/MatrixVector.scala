@@ -1,6 +1,6 @@
 package benchmarks
 
-import arithmetic.SizeVar
+import apart.arithmetic.SizeVar
 import ir.UserFunDef._
 import ir._
 import opencl.ir._

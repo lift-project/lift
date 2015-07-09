@@ -1,7 +1,7 @@
 package exploration
 
 
-import arithmetic.{Var, Cst, RangeUnknown, RangeMul}
+import apart.arithmetic.{Var, Cst, RangeUnknown, RangeMul}
 
 import scala.collection.Seq
 import ir._

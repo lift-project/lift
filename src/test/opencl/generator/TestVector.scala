@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import benchmarks.VectorScaling
 import ir.UserFunDef._
 import ir._

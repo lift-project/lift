@@ -1,6 +1,6 @@
 package ir
 
-import arithmetic.{Var, ArithExpr}
+import apart.arithmetic.{Var, ArithExpr}
 import opencl.ir._
 
 import language.implicitConversions

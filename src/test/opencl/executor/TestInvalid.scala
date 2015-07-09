@@ -4,7 +4,7 @@
 
 package opencl.executor
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import ir._
 import ir.UserFunDef._
 import opencl.ir._

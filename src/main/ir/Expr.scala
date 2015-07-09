@@ -1,6 +1,6 @@
 package ir
 
-import arithmetic.{Var, ?, ArithExpr, RangeUnknown}
+import apart.arithmetic.{Var, ?, ArithExpr, RangeUnknown}
 import ir.view.{NoView, View}
 import opencl.ir._
 

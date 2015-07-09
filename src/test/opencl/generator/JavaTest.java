@@ -1,6 +1,6 @@
 package opencl.generator;
 
-import arithmetic.*;
+import apart.arithmetic.*;
 import arithmetic.interop.*;
 import ir.*;
 import ir.interop.*;

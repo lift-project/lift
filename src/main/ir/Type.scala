@@ -1,6 +1,8 @@
 package ir
 
-import arithmetic._
+import apart.arithmetic._
+import apart.arithmetic.simplifier.ExprSimplifier
+import arithmetic.TypeVar
 import opencl.ir._
 import scala.collection.mutable
 import scala.collection.immutable
@@ -18,7 +20,14 @@ case class NumberOfArgumentsException(msg: String) extends Exception(msg) {
 }
 
 
-sealed abstract class Type
+sealed abstract class Type {
+  lazy val varList : Seq[Var] = this match {
+    case at: ArrayType => at.elemT.varList ++ at.len.varList
+    case vt: VectorType => vt.len.varList.to[Seq]
+    case tt: TupleType => tt.elemsT.foldLeft(Seq[Var]())((set,inT) => set ++ inT.varList)
+    case _ => Seq[Var]().distinct
+  }
+}
 
 case class ScalarType(name: String, size: ArithExpr) extends Type {
   override def toString = name

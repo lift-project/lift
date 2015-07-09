@@ -1,6 +1,6 @@
 package opencl.executor
 
-import arithmetic.{ArithExpr, ?}
+import apart.arithmetic.{ArithExpr, ?}
 import ir.{Type, Lambda}
 import opencl.generator.{Verbose, OpenCLGenerator}
 

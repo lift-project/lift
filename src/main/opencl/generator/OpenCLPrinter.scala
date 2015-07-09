@@ -1,6 +1,8 @@
 package opencl.generator
 
-import arithmetic._
+import apart.arithmetic._
+import apart.arithmetic.simplifier.ExprSimplifier
+import arithmetic.TypeVar
 import ir._
 import opencl.ir._
 
@@ -70,7 +72,7 @@ class OpenCLPrinter {
     } else {
       if (mem.t.isInstanceOf[ArrayType]) {
         val baseType = Type.getBaseType(mem.t)
-        val length = (mem.mem.size /^ Type.getSize(baseType)).eval()
+        val length = (mem.mem.size /^ Type.getSize(baseType)).eval
         for (i <- 0 until length)
           println(toOpenCL(baseType) + " " + toOpenCL(mem.mem.variable) +
             "_" + toOpenCL(i) + ";")
@@ -139,7 +141,6 @@ class OpenCLPrinter {
       case ScalarType(name, _) => name
       case tt: TupleType => Type.name(tt)
       case UndefType => "void"
-      case _ => ???
     }
   }
 
@@ -147,20 +148,22 @@ class OpenCLPrinter {
     val me = if(Debug()) e else ExprSimplifier(e)
     me match {
       case Cst(c) => c.toString
+      // promote pow by integer to multiplications to avoid casts
+      case Pow(b, Cst(x)) if x > 0 => s"($b)" + s"*($b)" * (x-1)
       case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
       case Log(b, x) => s"(int)log${b}((float)"+toOpenCL(x)+")"
       case Prod(es) =>
         // To conserve maximum precision when converting to int logic, we do all the multiplications
         // first and then the division. The relative ordering of the terms above and below one doesn't
         // matter.
-        val (mults, divs) = es.partition( _ match {
+        val (mults, divs) = es.partition {
           case Pow(x, Cst(y)) => y > 0
           case Pow(x, y) =>
             // If we find other types of POW, throw an exception.
             // The expression is most likely fine but the logic needs to be double checked
-            throw new NotPrintableExpression( "Int expression cannot have undefined POW" )
+            throw new NotPrintableExpression("Int expression cannot have undefined POW")
           case _ => true
-        })
+        }
 
         // Stringify the terms
         val string = (mults ++ divs).foldLeft("1")( (s: String, e: ArithExpr) => {
@@ -180,7 +183,7 @@ class OpenCLPrinter {
       case Mod(a,n) =>
         // If the divisor is a power of 2, generate a bitmask, otherwise use a modulo
         n match {
-          case Cst(n) if (n > 0 && (n & (n - 1)) == 0) => "(" + toOpenCL(a) + s" & ${n-1} )"
+          case Cst(n) if n > 0 && (n & (n - 1)) == 0 => "(" + toOpenCL(a) + s" & ${n-1} )"
           case _ => "(" + toOpenCL(a) + " % " + toOpenCL(n) + ")"
         }
       case of: OclFunction => of.toOCLString

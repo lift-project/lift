@@ -14,6 +14,8 @@ compileSkelcl := {
   "echo y" #| "./skelcl.sh" !
 }
 
+javaOptions += "-Djava.library.path=./lib/SkelCL/build/executor"
+
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
 
 scalaSource in Test <<= baseDirectory(_ / "src/test")
@@ -33,6 +35,10 @@ libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
 
 scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
+
+unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/ArithExpr/src/main/"
+
+unmanagedSourceDirectories in Test += baseDirectory.value / "lib/ArithExpr/src/main/"
 
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*"
 

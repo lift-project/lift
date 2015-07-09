@@ -1,7 +1,7 @@
 package opencl.executor
 
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 
 object TestEval {
@@ -19,6 +19,7 @@ object TestEval {
 
 class TestEval {
 
+  @Ignore
   @Test def VECTOR_ADD_SIMPLE_STRING() {
     val inputSize = 1024
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)

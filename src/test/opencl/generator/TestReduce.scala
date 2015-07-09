@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import benchmarks.SumAbsoluteValues
 import org.junit._
 import org.junit.Assert._

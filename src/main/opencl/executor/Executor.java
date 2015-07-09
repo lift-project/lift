@@ -62,6 +62,25 @@ public class Executor {
                                         int globalSize1, int globalSize2, int globalSize3,
                                         KernelArg[] args);
 
+    /** Execute the given kernel source code with the given global and local size and arguments
+     * <code>iterations</code> times.
+     * Returns the median runtime in milliseconds.
+     *
+     * @return The median runtime of the kernel in milliseconds.
+     */
+    public static double benchmark(String kernelCode,
+                                   int localSize1, int localSize2, int localSize3,
+                                   int globalSize1, int globalSize2, int globalSize3,
+                                   KernelArg[] args, int iterations, double timeout) {
+        return benchmark(kernelCode, "KERNEL", "", localSize1, localSize2, localSize3,
+                globalSize1, globalSize2, globalSize3, args, iterations, timeout);
+    }
+
+    public native static double benchmark(String kernelCode, String kernelName, String buildOptions,
+                                          int localSize1, int localSize2, int localSize3,
+                                          int globalSize1, int globalSize2, int globalSize3,
+                                          KernelArg[] args, int iterations, double timeOut);
+
     public native static void init(int platformId, int deviceId);
 
     public native static long getDeviceLocalMemSize();
