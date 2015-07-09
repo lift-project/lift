@@ -1,8 +1,9 @@
 package arithmetic
 
-/**
- * Created by tlutz on 06/07/15.
- */
-class SizeVar {
+import apart.arithmetic.{Cst, StartFromRange, Var}
 
+object SizeVar {
+  def apply(name: String): Var = {
+    Var(name, StartFromRange(Cst(1)))
+  }
 }

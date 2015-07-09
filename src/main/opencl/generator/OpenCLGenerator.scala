@@ -1,6 +1,7 @@
 package opencl.generator
 
-import arithmetic._
+import apart.arithmetic._
+import arithmetic.TypeVar
 import generator.Generator
 import ir._
 import ir.view.{ViewPrinter, View}
@@ -12,7 +13,9 @@ class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
 
 // hacky class to store function name
-class OclFunction(name: String, param: Int) extends ArithExprFunction {def toOCLString = name+"("+param+")"}
+class OclFunction(name: String, param: Int) extends ArithExprFunction(name) {
+  lazy val toOCLString = s"$name($param)"
+}
 
 class get_global_id(param: Int) extends OclFunction("get_global_id", param)
 class get_local_id(param: Int) extends OclFunction("get_local_id", param)
@@ -169,7 +172,7 @@ object OpenCLGenerator extends Generator {
 
   private def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
     mem => try {
-      mem.mem.size.eval()
+      mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
       case _: NotEvaluableException =>
@@ -228,7 +231,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.printAsParameterDecl(Kernel.memory)
 
     // array of all unique vars (like N, iterSize, etc. )
-    val allVars = Kernel.memory.map(mem => Var.getVars(mem.mem.size)).filter(_.nonEmpty).flatten.distinct
+    val allVars = Kernel.memory.map(mem => mem.mem.size.varList).filter(_.nonEmpty).flatten.distinct
     // partition into iteration variables and all others variables
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
@@ -449,9 +452,14 @@ object OpenCLGenerator extends Generator {
       inputMem.variable = oldInV
       outputMem.variable = oldOutV
 
+      System.out.println(s">>>>> $curOutLen * $innerOutputLength /^ $innerInputLength")
+      System.out.println(s">>>>> ${curOutLen * innerOutputLength} /^ $innerInputLength")
+      System.out.println(s">>>>> ${ArithExpr.gcd(curOutLen * innerOutputLength, innerInputLength)}")
+      System.out.println(s">>>>> ${curOutLen * innerOutputLength /^ innerInputLength}")
+
       // tmp = tmp * outputLen / inputLen
       oclPrinter.println(oclPrinter.toOpenCL(curOutLen) + " = " +
-                         oclPrinter.toOpenCL(ExprSimplifier(curOutLen * innerOutputLength /^ innerInputLength))+
+                         oclPrinter.toOpenCL(curOutLen * innerOutputLength /^ innerInputLength)+
                          ";")
 
       // tin = (tout == swap) ? swap : out
@@ -482,7 +490,7 @@ object OpenCLGenerator extends Generator {
       val range = indexVar.range.asInstanceOf[RangeAdd]
       val step = range.step
 
-      for (i <- 0 until iterationCount.eval()) {
+      for (i <- 0 until iterationCount.eval) {
         replacements = replacements.updated(indexVar, i)
         if (range.min.isInstanceOf[OclFunction])
           replacementsWithFuns = replacementsWithFuns.updated(indexVar, range.min + step*i)
@@ -574,7 +582,7 @@ object OpenCLGenerator extends Generator {
             typedMemory.t match {
               // if the allocated memory was originally an index, compute the index and append it
               case _:ArrayType =>
-                val index = ArithExpr.substitute(ViewPrinter.emit(view), replacements).eval()
+                val index = ArithExpr.substitute(ViewPrinter.emit(view), replacements).eval
                 s"${varname}_" + oclPrinter.toOpenCL(index)
               case _ => varname
             }

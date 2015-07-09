@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic._
+import apart.arithmetic._
 import ir.UserFunDef._
 import ir._
 import opencl.executor.{Executor, Compile, Execute}

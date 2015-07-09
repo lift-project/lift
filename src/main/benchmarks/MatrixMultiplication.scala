@@ -1,6 +1,6 @@
 package benchmarks
 
-import arithmetic.{Cst, ArithExpr, Var}
+import apart.arithmetic.{Cst, ArithExpr, Var}
 import ir.UserFunDef._
 import ir._
 import opencl.ir.CompositePatterns._

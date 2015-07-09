@@ -2,7 +2,7 @@ package opencl.ir.interop
 
 import java.util.function.BiFunction
 
-import arithmetic.ArithExpr
+import apart.arithmetic.ArithExpr
 import ir._
 import opencl.ir._
 import opencl.ir.CompositePatterns._

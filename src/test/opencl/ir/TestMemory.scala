@@ -1,6 +1,7 @@
 package opencl.ir
 
-import arithmetic.{ExprSimplifier, Var}
+import apart.arithmetic.Var
+import apart.arithmetic.simplifier.ExprSimplifier
 import ir.UserFunDef._
 import ir._
 import opencl.executor.Compile

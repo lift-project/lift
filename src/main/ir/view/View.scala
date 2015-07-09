@@ -1,6 +1,6 @@
 package ir.view
 
-import arithmetic._
+import apart.arithmetic._
 import ir._
 import opencl.ir._
 

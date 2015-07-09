@@ -1,6 +1,7 @@
 package opencl.generator
 
-import arithmetic._
+import apart.arithmetic._
+import apart.arithmetic.simplifier.ExprSimplifier
 import ir._
 import opencl.generator.OpenCLGenerator.Kernel
 import opencl.ir._
@@ -111,7 +112,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
   }
 
   private def setRangeMapLane(call: MapCall): Unit = {
-    call.loopVar.range = RangeAdd(new get_local_id(0) & (OpenCL.warpSize - Cst(1)), Type.getLength(call.arg.t), OpenCL.warpSize)
+    call.loopVar.range = RangeAdd(new get_local_id(0) % (OpenCL.warpSize - Cst(1)), Type.getLength(call.arg.t), OpenCL.warpSize)
     evaluateMapRange(call)
   }
 
@@ -147,8 +148,8 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
     val update = ExprSimplifier(range.step)
 
     // eval expression. if successful return true and the value, otherwise return false
-    def evalExpr = (e: ArithExpr) => {try { (true, e.evalAtMax())} catch { case _ : Throwable => (false, 0) } }
-    def evalExprMinMax = (e: ArithExpr) => {try { (true, e.evalAtMin(), e.evalAtMax())} catch { case _ : Throwable => (false, 0, 0) } }
+    def evalExpr = (e: ArithExpr) => {try { (true, e.atMax.eval)} catch { case _ : Throwable => (false, 0) } }
+    def evalExprMinMax = (e: ArithExpr) => {try { (true, e.atMin.eval, e.atMax.eval)} catch { case _ : Throwable => (false, 0, 0) } }
 
     // try to directly evaluate
     val (initIsEvaluated, initMinEvaluated, initMaxEvaluated) = evalExprMinMax(init)

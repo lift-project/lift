@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic.{IntDiv, Cst, ?, ArithExpr}
+import apart.arithmetic.{IntDiv, Cst, ?, ArithExpr}
 import ir._
 import opencl.ir._
 

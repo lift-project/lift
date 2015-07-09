@@ -1,6 +1,6 @@
 package exploration
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import ir.UserFunDef._
 import ir._
 import opencl.executor.{Execute, Executor}

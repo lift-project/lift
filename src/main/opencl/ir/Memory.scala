@@ -1,6 +1,8 @@
 package opencl.ir
 
-import arithmetic._
+import apart.arithmetic._
+import apart.arithmetic.simplifier.ExprSimplifier
+import arithmetic.TypeVar
 
 import scala.collection.mutable
 
@@ -36,7 +38,7 @@ class OpenCLMemory(var variable: Var, val size: ArithExpr, val addressSpace: Ope
 
   // size cannot be 0 unless it is the null memory
   try {
-    if (size.eval() == 0)
+    if (size.eval == 0)
       throw new IllegalArgumentException
   } catch {
     case _: NotEvaluableException => // nothing to do
