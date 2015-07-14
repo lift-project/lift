@@ -12,17 +12,31 @@ import org.junit.{AfterClass, BeforeClass, Test}
 object TestDerivingMatrixReuse {
   @BeforeClass def before() {
     Executor.loadLibrary()
-    println("Initialize the executor")
     Executor.init()
   }
 
   @AfterClass def after() {
-    println("Shutdown the executor")
     Executor.shutdown()
   }
 }
 
 class TestDerivingMatrixReuse {
+
+  val mSize = 16
+  val kSize = mSize
+  val nSize = mSize
+
+  val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+  val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+  val transposedMatrixB = matrixB.transpose
+
+  val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+  val N = Var("N")
+  val M = Var("M")
+  val K = Var("K")
+
+  val chunkSize = 4
 
   @Test
   def ruleTest(): Unit = {
@@ -30,10 +44,9 @@ class TestDerivingMatrixReuse {
     val a = Array.fill(size)(util.Random.nextInt(5))
     val b = Array.fill(size)(util.Random.nextInt(5))
 
+    // Split $ Zip( ... ) => Zip( Split $ ... )
     val gold = (a, b).zipped.map(_ * _)
-
     val test = (a, b).zipped.toArray.grouped(16).map(_.map(x => x._1 * x._2)).flatten.toArray
-
     val test2 = (a.grouped(16).toArray, b.grouped(16).toArray).zipped.map((x, y) => (x, y).zipped.map(_*_)).flatten
 
     assertArrayEquals(gold, test)
@@ -41,24 +54,20 @@ class TestDerivingMatrixReuse {
 
     val A = Array.fill(size, size)(util.Random.nextInt(5))
 
-    val gold1 = A.map(_.sum)
-
-    val test3 = A.grouped(16).toArray.flatMap(_.map(_.sum))
-
-    assertArrayEquals(gold1, test3)
-
+    // Reduce => Reduce() o Reduce( ... $ Zip( ... ) )
     val gold2 = a.sum
-
     val test4 = a.grouped(16).toArray.reduce((x, y) => (x, y).zipped.map(_+_)).sum
 
     assertEquals(gold2, test4, 0.0f)
 
+    // Reorder $ Zip( ... ) => Zip( Reorder $ ... )
     val goldReorderZip = (a, b).zipped.toArray.reverse
     val testReorderZip = (a.reverse, b.reverse).zipped.toArray
 
     assertArrayEquals(goldReorderZip.map(_._1), testReorderZip.map(_._1))
     assertArrayEquals(goldReorderZip.map(_._2), testReorderZip.map(_._2))
 
+    // Map-Reduce interchange
     val goldSwapMapReduce = A.map(_.sum)
     val testSwapMapReduce = A.transpose.reduce((x, y) => (x, y).zipped.map(_+_))
 
@@ -67,20 +76,6 @@ class TestDerivingMatrixReuse {
 
   @Test
   def deriveReuseA(): Unit = {
-    val mSize = 16
-    val kSize = mSize
-    val nSize = mSize
-
-    val chunkSize = 4
-    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val transposedMatrixB = matrixB.transpose
-
-    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
-
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
 
     // Starting expression
     val f = fun(
@@ -219,20 +214,6 @@ class TestDerivingMatrixReuse {
 
   @Test
   def deriveReuseB(): Unit = {
-    val mSize = 16
-    val kSize = mSize
-    val nSize = mSize
-
-    val chunkSize = 4
-    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val transposedMatrixB = matrixB.transpose
-
-    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
-
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
 
     // Starting expression
     val f = fun(
@@ -377,21 +358,8 @@ class TestDerivingMatrixReuse {
 
   @Test
   def deriveReuseBothBInnermost(): Unit = {
-    val mSize = 16
-    val kSize = mSize
-    val nSize = mSize
-
     val chunkSizeN = 4
     val chunkSizeM = 4
-    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val transposedMatrixB = matrixB.transpose
-
-    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
-
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
 
     // Starting expression
     val f = fun(
