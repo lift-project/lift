@@ -72,6 +72,24 @@ class TestDerivingMatrixReuse {
     val testSwapMapReduce = A.transpose.reduce((x, y) => (x, y).zipped.map(_+_))
 
     assertArrayEquals(goldSwapMapReduce, testSwapMapReduce)
+
+    // Map-Map transpose, pulling zip out
+    val goldMapMapPullZip = A.map(a => (a, b).zipped.map(_*_))
+    val testMapMapPullZip = (A.transpose, b).zipped.map((a, bElem) => a.map(_ * bElem)).transpose
+
+    assertArrayEquals(goldMapMapPullZip.flatten, testMapMapPullZip.flatten)
+
+    // Map-Map transpose, pushing zip in
+    val goldMapMapPushZip = (A, b).zipped.map((a, bElem) => a.map(_ * bElem))
+    val testMapMapPushZip = A.transpose.map(a => (a, b).zipped.map(_ * _)).transpose
+
+    assertArrayEquals(goldMapMapPushZip.flatten, testMapMapPushZip.flatten)
+
+    // map(split) o transpose => transpose o map(transpose) o split
+    val goldMapSplitTranspose = A.transpose.map(_.grouped(16).toArray)
+    val testMapSplitTranspose = A.grouped(16).toArray.map(_.transpose).transpose
+
+    assertArrayEquals(goldMapSplitTranspose.flatten.flatten, testMapSplitTranspose.flatten.flatten)
   }
 
   @Test
@@ -135,7 +153,7 @@ class TestDerivingMatrixReuse {
           Join() o MapSeq(fun( bCols =>
             toGlobal(MapSeq(MapSeq(id))) o
               ReduceSeq(fun((acc, c) =>
-                MapSeq(add) $ Zip(acc, c)
+                  MapSeq(add) $ Zip(acc, c)
               ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize))) o Transpose()
               o MapSeq(fun(bCol => MapSeq(mult) $ Zip(aRow, bCol)
             )) $ bCols
