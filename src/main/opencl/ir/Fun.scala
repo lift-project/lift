@@ -51,6 +51,15 @@ object MapWrg {
   def apply(dim: Int) = (f: Lambda1) => new MapWrg(dim, f)
 }
 
+/**
+ *
+ * Applicable rules:
+ *  - MapLcl(f) => toGlobal(MapLcl(f))
+ *  - MapLcl(f) => toLocal(MapLcl(f))
+ *
+ * @param dim
+ * @param f
+ */
 case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
   override def apply(args: Expr*) : MapCall = {
     assert(args.length == 1)
@@ -61,6 +70,7 @@ case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
     apply(that)
   }
 }
+
 
 object MapLcl {
   def apply(f: Lambda1) = new MapLcl(0, f) // o is default

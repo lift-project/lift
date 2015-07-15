@@ -122,6 +122,22 @@ trait FPattern {
 
 abstract class AbstractMap(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
 
+/**
+ * Apply the lambda <code>f</code> to every element of the input
+ *
+ * Applicable rules:
+ *  - Map(f) => Join() o Map(Map(f)) o Split(I)
+ *  - Map(f) o Map(g) => Map(f o g)
+ *  - Map(f) => asScalar() o Map(Vectorize(k)(f)) o asVector(k) (input a multiple of k)
+ *  - Map(f) => MapGlb(f)
+ *  - Map(f) => MapWrg(f)
+ *  - Map(f) => Barrier() o MapLcl(f)
+ *  - Map(f) => MapWarp(f)
+ *  - Map(f) => MapLane(f)
+ *  - Map(f) => MapSeq(f)
+ *
+ * @param f Lambda to apply to every element of the input
+ */
 case class Map(f:Lambda1) extends AbstractMap(f) {
   override def apply(args: Expr*): MapCall = mapCall(args:_*)
 
@@ -147,6 +163,15 @@ abstract class AbstractPartRed(f:Lambda2) extends Pattern(Array[Param](Param(Und
 
 abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
 
+/**
+ * Perform a reduction on the input.
+ *
+ * Applicable rules:
+ *  - Reduce(f) => Reduce(f) o PartRed(f)
+ *  - Reduce(f) => ReduceSeq(f)
+ *
+ * @param f The lambda to apply to the next element and partial result
+ */
 case class Reduce(f: Lambda2) extends AbstractReduce(f) {
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
@@ -160,6 +185,15 @@ object Reduce {
   def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = Reduce(f)(init, expr)
 }
 
+/**
+ * Applicable rules:
+ *  - PartRed(f) => Reduce(f)
+ *  - PartRed(f) => PartRed(f) o Reorder
+ *  - PartRed(f) => Iterate(k, PartRed(f)) (input a multiple of k)
+ *  - PartRed(f) => Join() o Map(PartRed(f)) o Split(k) (input a multiple of k)
+ *
+ * @param f The lambda to apply to the next element and partial result
+ */
 case class PartRed(f: Lambda2) extends AbstractPartRed(f) with FPattern {
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
@@ -173,12 +207,36 @@ object PartRed {
   def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = PartRed(f)(init, expr)
 }
 
+/**
+ * Applicable rules:
+ *  - Join() o Split(chunkSize) | Split(chunkSize) o Join(chunkSize) => id
+ */
 case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
+/**
+ * Splits the input into chunks of <code>chunkSize</code>.
+ *
+ * Applicable rules:
+ *  - Join() o Split(chunkSize) | Split(chunkSize) o Join(chunkSize) => id
+ *
+ * @param chunkSize Size of the chunks the input will be split into
+ */
 case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
+/**
+ *
+ * Applicable rules:
+ *  - asScalar() o asVector(len) | asVector(len) o asScalar(len) => id
+ */
 case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
+/**
+ *
+ * Applicable rules:
+ *  - asScalar() o asVector(len) | asVector(len) o asScalar(len) => id
+ *
+ * @param len Vector length
+ */
 case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
 
 /*
@@ -334,6 +392,16 @@ object UserFunDef {
 
 }
 
+/**
+ * Iterate the lambda <code>f</code> <code>n</code> such that the output of one iteration is the input
+ * for the next.
+ *
+ * Applicable rules:
+ *  - Iterate(n+m, f) => Iterate(n, f) o Iterate(m, f)
+ *
+ * @param n Number of times to iterate
+ * @param f Lamda to use for iteration
+ */
 case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
 
   override def apply(args: Expr*): IterateCall = iterateCall(args: _*)
