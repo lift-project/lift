@@ -83,6 +83,16 @@ object Rules {
           result = result :+ MapLcl(inF)
         }
 
+        // warp
+        if (call.context.mapDepth == 1 && call.context.inMapLcl && !call.context.inMapWarp  && !call.context.inMapLane) {
+          result = result :+ MapWarp(inF)
+        }
+
+        // lane
+        if (call.context.mapDepth == 1 && (call.context.inMapLcl || call.context.inMapWarp) && !call.context.inMapLane) {
+          result = result :+ MapLane(inF)
+        }
+
         // split-join
         if (call.context.mapDepth+1 < c.maxMapDepth && !c.converge)
           result = result :+ (Join() o Map(Map(inF)) o Split(Var(validOSplitRange(call.argsType))))

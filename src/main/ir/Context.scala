@@ -3,11 +3,14 @@ package ir
 import opencl.ir._
 
 class Context extends Cloneable {
-  
+
+  // TODO(tlutz) keep a stack to track current dim
   var mapDepth : Int = 0
   var inMapGlb = false
   var inMapWrg = false
   var inMapLcl = false
+  var inMapWarp = false
+  var inMapLane = false
   var inSeq = false
        
   def incMapDepth() : Context = {
@@ -31,6 +34,18 @@ class Context extends Cloneable {
    def setInMapLcl() : Context = {
     val c = this.copy()
     c.inMapLcl = true
+    c
+  }
+
+  def setInMapWarp() : Context = {
+    val c = this.copy()
+    c.inMapWarp = true
+    c
+  }
+
+  def setInMapLane() : Context = {
+    val c = this.copy()
+    c.inMapLane = true
     c
   }
 
@@ -68,6 +83,8 @@ object Context {
           case MapGlb(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapGlb())
           case MapWrg(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapWrg())
           case MapLcl(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapLcl())
+          case MapWarp(inF) => updateContext(inF.body, ctx.incMapDepth().setInMapWarp())
+          case MapLane(inF) => updateContext(inF.body, ctx.incMapDepth().setInMapLane())
           case ReduceSeq(inF) => updateContext(inF.body, ctx.setInSeq())
 
           case fp: FPattern => updateContext(fp.f.body, ctx.copy())
