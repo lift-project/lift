@@ -46,13 +46,13 @@ object Map {
   }
 }
 
-abstract class GenerableMap(f:Lambda) extends AbstractMap(f) with isGenerable
+abstract class GenerableMap(f:Lambda1) extends AbstractMap(f) with isGenerable
 
-abstract class AbstractPartRed(f:Lambda) extends Pattern(arity = 2) with FPattern {
+abstract class AbstractPartRed(f:Lambda1) extends Pattern(arity = 2) with FPattern {
   def init: Value = params(0) match { case v: Value => v}
 }
 
-abstract class AbstractReduce(f:Lambda) extends AbstractPartRed(f)
+abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
 
 /**
  * Perform a reduction on the input.
