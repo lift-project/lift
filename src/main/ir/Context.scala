@@ -1,5 +1,6 @@
 package ir
 
+import ir.ast._
 import opencl.ir._
 
 class Context extends Cloneable {

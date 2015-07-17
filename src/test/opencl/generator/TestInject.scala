@@ -1,12 +1,13 @@
 package opencl.generator
 
 import arithmetic.Var
-import ir.UserFunDef._
 import ir._
-import opencl.executor.{Utils, Executor}
-import opencl.ir.{Barrier, MapLcl, MapWrg, Float}
+import ir.ast._
+import ir.ast.UserFunDef._
+import opencl.executor.{Executor, Utils}
+import opencl.ir.{Barrier, Float, MapLcl, MapWrg}
 import org.junit.Assert._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestInject {
   @BeforeClass def before() {

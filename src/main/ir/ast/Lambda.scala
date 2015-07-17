@@ -1,6 +1,8 @@
-package ir
+package ir.ast
 
-import language.implicitConversions
+import ir._
+
+import scala.language.implicitConversions
 
 class Lambda(override val params: Array[Param], val body: Expr) extends FunDecl(params) with isGenerable {
   override def toString = "Lambda(" + params.map(_.toString).reduce(_ + ", " + _) + "){ " + body.toString + " }"

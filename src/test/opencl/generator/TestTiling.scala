@@ -2,13 +2,14 @@ package opencl.generator
 
 import arithmetic.Var
 import benchmarks.MatrixTransposition
-import ir.UserFunDef._
 import ir._
-import opencl.executor.{Utils, Execute, Executor}
-import opencl.ir._
+import ir.ast._
+import ir.ast.UserFunDef._
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir.CompositePatterns._
+import opencl.ir._
 import org.junit.Assert._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 
 object TestTiling {

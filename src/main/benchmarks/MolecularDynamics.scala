@@ -2,7 +2,8 @@ package benchmarks
 
 import arithmetic.Var
 import ir._
-import ir.UserFunDef._
+import ir.ast.UserFunDef._
+import ir.ast._
 import opencl.ir._
 
 class MolecularDynamics(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Molecular Dynamics (md)", Seq(1024, 128), f, 0.1f) {

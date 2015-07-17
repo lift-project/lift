@@ -1,6 +1,6 @@
 package arithmetic.interop
 
-import arithmetic.{Var, Cst}
+import arithmetic.{Cst, Var}
 
 object jCst { def create(c: Int) = Cst(c) }
 

@@ -3,11 +3,11 @@ package opencl.generator
 import arithmetic.Var
 import benchmarks.MatrixTransposition
 import ir._
-import ir.UserFunDef._
-import opencl.executor.{Utils, Execute, Executor}
+import ir.ast._
+import ir.ast.UserFunDef._
+import ir.ast.IndexFunction.transposeFunction
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
-import opencl.ir.IndexFunction.transposeFunction
-
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 

@@ -1,12 +1,13 @@
 package opencl.generator
 
 import arithmetic.Var
-import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import ir._
+import ir.ast._
+import ir.ast.UserFunDef._
 import opencl.executor._
 import opencl.ir._
-import ir._
-import ir.UserFunDef._
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 
 object TestMisc {

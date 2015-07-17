@@ -1,11 +1,12 @@
 package exploration
 
 
-import arithmetic.{Var, Cst, RangeUnknown, RangeMul}
+import arithmetic.{Cst, RangeMul, RangeUnknown, Var}
+import ir._
+import ir.ast._
+import opencl.ir._
 
 import scala.collection.Seq
-import ir._
-import opencl.ir._
 
 
 

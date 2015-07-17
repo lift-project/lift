@@ -1,8 +1,11 @@
 package ir.interop
 
+import java.util.function._
+
 import arithmetic.ArithExpr
 import ir._
-import java.util.function._
+import ir.ast._
+
 import scala.collection.JavaConverters._
 
 object jTypeArray {

@@ -3,7 +3,8 @@ package opencl.generator
 import arithmetic._
 import generator.Generator
 import ir._
-import ir.view.{ViewPrinter, View}
+import ir.ast._
+import ir.view.{View, ViewPrinter}
 import opencl.ir._
 
 import scala.collection.immutable

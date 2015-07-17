@@ -1,8 +1,9 @@
 package opencl.ir
 
 import arithmetic.{ExprSimplifier, Var}
-import ir.UserFunDef._
 import ir._
+import ir.ast._
+import ir.ast.UserFunDef._
 import opencl.executor.Compile
 import org.junit.Assert._
 import org.junit.Test

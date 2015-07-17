@@ -1,13 +1,14 @@
 package opencl.generator
 
 import java.awt.image.BufferedImage
-import java.io.{IOException, File}
+import java.io.{File, IOException}
 import javax.imageio.ImageIO
 
 import arithmetic.Var
-import benchmarks.{MolecularDynamics, BlackScholes}
+import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
-import ir.UserFunDef._
+import ir.ast._
+import ir.ast.UserFunDef._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.Assert._

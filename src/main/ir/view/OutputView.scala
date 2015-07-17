@@ -1,7 +1,8 @@
 package ir.view
 
-import arithmetic.{Cst, ArithExpr}
+import arithmetic.{ArithExpr, Cst}
 import ir._
+import ir.ast._
 import opencl.ir._
 
 object OutputView {

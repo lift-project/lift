@@ -1,10 +1,7 @@
 package generator
 
+import ir.ast._
 import opencl.executor.Executor
-import opencl.generator.OpenCLGenerator
-import opencl.ir._
-
-import ir._
 
 object Dispatcher {
 

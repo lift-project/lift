@@ -1,12 +1,13 @@
 package opencl.generator
 
 import arithmetic.Var
-import ir.UserFunDef._
 import ir._
-import opencl.executor.{Utils, Executor, Execute}
+import ir.ast._
+import ir.ast.UserFunDef._
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test, Ignore}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestMatrixMatrixChristophe {
   @BeforeClass def before() {

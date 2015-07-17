@@ -1,9 +1,10 @@
 package ir
 
 import arithmetic._
+import ir.ast._
 import opencl.ir._
-import scala.collection.mutable
-import scala.collection.immutable
+
+import scala.collection.{immutable, mutable}
 
 
 case class TypeException(msg: String) extends Exception(msg) {

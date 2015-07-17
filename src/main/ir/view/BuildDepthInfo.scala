@@ -1,8 +1,8 @@
 package ir.view
 
-import arithmetic.{Cst, ArithExpr}
+import arithmetic.{ArithExpr, Cst}
 import ir._
-import opencl.ir._
+import ir.ast._
 
 object BuildDepthInfo {
   def apply(expr: Expr): Unit = (new BuildDepthInfo).visitAndBuildDepthInfo(expr)

@@ -1,11 +1,10 @@
 package opencl.ir
 
 import arithmetic._
+import ir._
+import ir.ast._
 
 import scala.collection.mutable
-
-import ir._
-import ir.FunCall
 
 /** Represents OpenCL address spaces either: local or global; UndefAddressSpace should be used in case of errors */
 abstract class OpenCLAddressSpace

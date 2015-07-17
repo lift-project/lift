@@ -2,14 +2,15 @@ package opencl.generator
 
 import arithmetic.Var
 import benchmarks.VectorScaling
-import ir.UserFunDef._
 import ir._
-import opencl.executor.{Execute, Compile, Executor}
-import opencl.ir._
-import opencl.ir.IndexFunction.reverse
+import ir.ast._
+import ir.ast.UserFunDef._
+import ir.ast.IndexFunction.reverse
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir.CompositePatterns._
+import opencl.ir._
 import org.junit.Assert._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestVector {
   @BeforeClass def before() {

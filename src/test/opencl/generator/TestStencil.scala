@@ -1,13 +1,14 @@
 package opencl.generator
 
-import ir.UserFunDef._
+import arithmetic._
+import ir._
+import ir.ast._
+import ir.ast.UserFunDef._
 import opencl.executor._
-import opencl.ir.Group._
+import ir.ast.Group._
+import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir._
-import ir._
-import arithmetic._
 
 import scala.util.Random
 

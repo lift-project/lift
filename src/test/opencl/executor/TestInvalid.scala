@@ -6,7 +6,8 @@ package opencl.executor
 
 import arithmetic.Var
 import ir._
-import ir.UserFunDef._
+import ir.ast.UserFunDef._
+import ir.ast._
 import opencl.ir._
 import org.junit._
 

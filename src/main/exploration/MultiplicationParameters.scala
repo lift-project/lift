@@ -1,6 +1,6 @@
 package exploration
 
-import sys.process._
+import scala.sys.process._
 
 object MultiplicationParameters {
 

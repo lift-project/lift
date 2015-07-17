@@ -1,6 +1,7 @@
 package arithmetic
 
 import ir._
+import ir.ast.Expr
 
 import scala.collection.immutable
 import scala.language.implicitConversions

@@ -1,8 +1,9 @@
 package opencl.executor
 
-import arithmetic.{Var, Cst, ArithExpr}
+import arithmetic.{ArithExpr, Cst, Var}
 import ir._
-import opencl.generator.{Verbose, OpenCLGenerator}
+import ir.ast._
+import opencl.generator.{OpenCLGenerator, Verbose}
 import opencl.ir._
 
 import scala.collection.immutable

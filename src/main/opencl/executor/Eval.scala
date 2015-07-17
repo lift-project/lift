@@ -1,6 +1,7 @@
 package opencl.executor
 
-import ir.Lambda
+import ir.ast.Lambda
+
 import scala.reflect.runtime._
 import scala.tools.reflect.ToolBox
 

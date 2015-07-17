@@ -1,11 +1,12 @@
 package opencl.generator
 
 import arithmetic._
-import opencl.executor._
-import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
-import opencl.ir._
 import ir._
+import ir.ast._
+import opencl.executor._
+import opencl.ir._
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestSparsity {
   @BeforeClass def TestMatrixBasic() {

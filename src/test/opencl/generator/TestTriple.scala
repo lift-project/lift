@@ -1,9 +1,9 @@
 package opencl.generator
 
 import arithmetic.Var
-import ir.UserFunDef._
 import ir._
-import opencl.executor.{Execute, Executor, Compile}
+import ir.ast._
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}

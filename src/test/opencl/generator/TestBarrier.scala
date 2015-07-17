@@ -1,11 +1,12 @@
 package opencl.generator
 
 import arithmetic.Var
-import ir.UserFunDef._
 import ir._
-import opencl.executor.{Utils, Execute, Executor, Compile}
+import ir.ast.UserFunDef._
+import ir.ast.IndexFunction._
+import ir.ast._
+import opencl.executor.{Compile, Execute, Executor, Utils}
 import opencl.ir._
-import opencl.ir.IndexFunction._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 

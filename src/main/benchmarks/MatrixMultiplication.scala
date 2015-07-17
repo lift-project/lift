@@ -1,8 +1,9 @@
 package benchmarks
 
-import arithmetic.{Cst, ArithExpr, Var}
-import ir.UserFunDef._
+import arithmetic.{ArithExpr, Cst, Var}
 import ir._
+import ir.ast.UserFunDef._
+import ir.ast._
 import opencl.ir.CompositePatterns._
 import opencl.ir._
 import org.clapper.argot.ArgotConverters._

@@ -2,13 +2,14 @@ package opencl.generator
 
 import arithmetic.Var
 import benchmarks.MatrixMultiplication
+import ir._
+import ir.ast._
+import ir.ast.UserFunDef._
 import opencl.executor._
+import opencl.ir.CompositePatterns._
+import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir._
-import opencl.ir.CompositePatterns._
-import ir._
-import ir.UserFunDef._
 
 import scala.reflect.ClassTag
 

@@ -1,18 +1,25 @@
 package opencl.generator;
 
-import arithmetic.*;
-import arithmetic.interop.*;
-import ir.*;
+import arithmetic.Var;
+import arithmetic.interop.jVar;
+import ir.Type;
+import ir.UndefType$;
+import ir.ast.*;
 import ir.interop.*;
-import ir.interop.jUserFunDef;
-import opencl.executor.*;
+import opencl.executor.Compile;
+import opencl.executor.Executor;
 import opencl.ir.*;
 import opencl.ir.interop.*;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import scala.collection.JavaConversions;
 
-import java.util.*;
-import java.util.function.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class JavaTest {

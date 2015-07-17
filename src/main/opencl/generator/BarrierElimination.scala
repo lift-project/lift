@@ -1,7 +1,7 @@
 package opencl.generator
 
-import arithmetic.{IntDiv, Cst, ?, ArithExpr}
-import ir._
+import arithmetic.{?, ArithExpr, Cst, IntDiv}
+import ir.ast._
 import opencl.ir._
 
 object BarrierElimination {

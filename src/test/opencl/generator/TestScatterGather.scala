@@ -2,13 +2,13 @@ package opencl.generator
 
 import arithmetic.Var
 import ir._
-import ir.UserFunDef._
+import ir.ast._
+import ir.ast.UserFunDef._
 import opencl.executor.{Execute, Executor}
+import ir.ast.IndexFunction.reverse
 import opencl.ir._
-import opencl.ir.IndexFunction.reverse
-
 import org.junit.Assert._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestScatterGather {
   @BeforeClass def before() {

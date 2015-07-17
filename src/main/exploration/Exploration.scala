@@ -1,9 +1,10 @@
 package exploration
 
 import generator.Dispatcher
+import ir._
+import ir.ast._
 
 import scala.util.Random
-import ir._
 
 case class UngenerableException(msg: String) extends Exception(msg) {
   def this(f: FunCall) = this("impossible to generate "+f)

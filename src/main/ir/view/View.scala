@@ -2,6 +2,7 @@ package ir.view
 
 import arithmetic._
 import ir._
+import ir.ast._
 import opencl.ir._
 
 import scala.collection.immutable.Stack

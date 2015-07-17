@@ -2,6 +2,7 @@ package opencl.generator
 
 import arithmetic._
 import ir._
+import ir.ast._
 import opencl.generator.OpenCLGenerator.Kernel
 import opencl.ir._
 

@@ -1,9 +1,8 @@
 package benchmarks
 
-import arithmetic.Var
-import ir._
-import opencl.ir._
 import java.io._
+
+import ir.ast._
 
 class GraphTheory(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Graph theory", Seq(4096), f, 0.01f) {
   val graphData = parser.option[File](List("f","file"), "Data", "Data file to read from"){

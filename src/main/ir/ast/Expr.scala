@@ -1,10 +1,11 @@
-package ir
+package ir.ast
 
-import arithmetic.{Var, ?, ArithExpr, RangeUnknown}
+import arithmetic.{?, ArithExpr, RangeUnknown, Var}
+import ir._
 import ir.view.{NoView, View}
 import opencl.ir._
 
-import language.implicitConversions
+import scala.language.implicitConversions
 
 abstract class ExprVisitor {
   def accept(expr: Expr)

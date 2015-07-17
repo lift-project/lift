@@ -1,14 +1,17 @@
 package opencl.generator
 
+import java.io._
+
 import arithmetic.Var
-import ir.UserFunDef._
+import ir._
+import ir.ast._
+import ir.ast.UserFunDef._
 import opencl.executor._
+import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir._
-import ir._
-import sys.process._
-import java.io._
+
+import scala.sys.process._
 
 object TestGraphTheory {
   @BeforeClass def TestMatrixBasic() {

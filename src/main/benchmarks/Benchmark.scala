@@ -2,13 +2,13 @@ package benchmarks
 
 import java.io._
 
-import scala.sys.process._
-
-import ir.Lambda
+import ir.ast.Lambda
 import opencl.executor._
 import opencl.generator.Verbose
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
+
+import scala.sys.process._
 
 abstract class Benchmark(val name: String,
                          val defaultInputSizes: Seq[Int],

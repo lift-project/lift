@@ -1,10 +1,11 @@
 package benchmarks
 
 import arithmetic.Var
-import ir.UserFunDef._
 import ir._
-import opencl.ir._
+import ir.ast.UserFunDef._
+import ir.ast._
 import opencl.ir.CompositePatterns._
+import opencl.ir._
 import org.clapper.argot.ArgotConverters._
 
 class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
