@@ -1,6 +1,8 @@
 package ir.ast
 
+import arithmetic.{ArithExpr, Var}
 import ir._
+import opencl.ir._
 
 import scala.language.implicitConversions
 
