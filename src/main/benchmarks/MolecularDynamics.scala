@@ -2,7 +2,7 @@ package benchmarks
 
 import arithmetic.Var
 import ir._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import ir.ast._
 import opencl.ir._
 import opencl.ir.ast._
@@ -63,7 +63,7 @@ class MolecularDynamics(override val f: Seq[(String, Array[Lambda])]) extends Be
 }
 
 object MolecularDynamics {
-  val mdCompute = UserFunDef("updateF",
+  val mdCompute = UserFun("updateF",
     Array("f", "ipos", "jpos", "cutsq", "lj1", "lj2"),
     """|{
        |  // Calculate distance

@@ -363,7 +363,7 @@ object Type {
       case l: Lambda =>           checkLambda(l, call, inT, setType)
       case am: AbstractMap =>     checkMap(am, inT, setType)
       case ar: AbstractPartRed => checkReduce(ar, inT, setType)
-      case cf: CompFunDef =>      checkCompFunDef(cf, inT, setType)
+      case cf: CompFun =>      checkCompFunDef(cf, inT, setType)
       case z: Zip =>              checkZip(z, inT, setType)
       case t: Tuple =>            checkTuple(t, inT, setType)
       case uz: Unzip =>           checkUnzip(uz, inT, setType)
@@ -371,7 +371,7 @@ object Type {
       case _: Join =>             checkJoin(inT)
       case _: asScalar  =>        checkAsScalar(inT)
       case asVector(n) =>         checkAsVector(n, inT)
-      case uf: UserFunDef =>      checkUserFunDef(uf, inT)
+      case uf: UserFun =>      checkUserFunDef(uf, inT)
       case tP: toPrivate =>       checkToPrivate(tP, inT, setType)
       case tL: toLocal =>         checkToLocal(tL, inT, setType)
       case tG: toGlobal =>        checkToGlobal(tG, inT, setType)
@@ -442,7 +442,7 @@ object Type {
     }
   }
 
-  private def checkCompFunDef(cf: CompFunDef, inT: Type, setType: Boolean): Type = {
+  private def checkCompFunDef(cf: CompFun, inT: Type, setType: Boolean): Type = {
     // combine the parameter of the first function to call with the type inferred from the argument
 
     cf.funs.foldRight(inT)((f, inputT) => {
@@ -558,7 +558,7 @@ object Type {
     }
   }
 
-  private def checkUserFunDef(uf: UserFunDef, inT: Type): Type = {
+  private def checkUserFunDef(uf: UserFun, inT: Type): Type = {
     val substitutions = reify(uf.inT, inT)
     substitute(uf.outT, substitutions.toMap)
   }

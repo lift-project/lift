@@ -7,7 +7,7 @@ import scala.language.implicitConversions
 
 object CompositePatterns {
 
-  def Tile(size: ArithExpr): CompFunDef = Tile(size, size)
+  def Tile(size: ArithExpr): CompFun = Tile(size, size)
 
   def Tile(x: ArithExpr, y: ArithExpr) =
     Map(Map(Transpose()) o Split(y) o Transpose()) o Split(x)

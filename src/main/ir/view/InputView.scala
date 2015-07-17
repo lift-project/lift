@@ -41,11 +41,11 @@ object InputView {
       case call: FunCall =>
         call.f match {
           case l: Lambda => buildViewLambda(l, call, argView)
-          case cf: CompFunDef => buildViewCompFunDef(cf, call, argView)
+          case cf: CompFun => buildViewCompFunDef(cf, call, argView)
           case z: Zip => buildViewZip(call, argView)
           case Split(n) => buildViewSplit(n, argView)
           case _: Join => buildViewJoin(call, argView)
-          case uf: UserFunDef => buildViewUserFunDef()
+          case uf: UserFun => buildViewUserFunDef()
           case g: Gather => buildViewGather(g, call, argView)
           case tP: toPrivate => buildViewToPrivate(tP, argView)
           case tL: toLocal => buildViewToLocal(tL, argView)
@@ -98,7 +98,7 @@ object InputView {
     val innerView = visitAndBuildViews(call.f.f.body)
 
     call.f.f.body match {
-      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFunDef] =>
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
         // create fresh input view for following function
         View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
       case _ => // call.isAbstract and return input map view
@@ -127,7 +127,7 @@ object InputView {
     visitAndBuildViews(l.body)
   }
 
-  private def buildViewCompFunDef(cf: CompFunDef, call: FunCall, argView: View): View = {
+  private def buildViewCompFunDef(cf: CompFun, call: FunCall, argView: View): View = {
 
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException

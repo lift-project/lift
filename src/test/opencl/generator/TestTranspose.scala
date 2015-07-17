@@ -4,7 +4,7 @@ import arithmetic.Var
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import ir.ast.IndexFunction.transposeFunction
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._

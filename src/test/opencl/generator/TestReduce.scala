@@ -4,7 +4,7 @@ import arithmetic.Var
 import benchmarks.SumAbsoluteValues
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir.ast.CompositePatterns._
 import opencl.ir.ast._

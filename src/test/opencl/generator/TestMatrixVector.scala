@@ -4,7 +4,7 @@ import arithmetic.{Log, SizeVar, Var}
 import benchmarks.MatrixVector
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir.ast.CompositePatterns._
 import opencl.ir.ast._

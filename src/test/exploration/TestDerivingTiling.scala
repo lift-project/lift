@@ -2,7 +2,7 @@ package exploration
 
 import arithmetic.Var
 import ir._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import ir.ast._
 import opencl.executor._
 import opencl.ir.ast.CompositePatterns._

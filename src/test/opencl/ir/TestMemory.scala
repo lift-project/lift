@@ -3,7 +3,7 @@ package opencl.ir
 import arithmetic.{ExprSimplifier, Var}
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor.Compile
 import opencl.ir.ast._
 import org.junit.Assert._

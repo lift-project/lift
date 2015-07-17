@@ -16,9 +16,9 @@ object Rules {
   private def composedDerivations(l: Lambda, c: Constraints, level: Int): Seq[Lambda] = {
     l.body match {
       case call: FunCall => call.f match {
-        case cf: CompFunDef =>
+        case cf: CompFun =>
           val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
-          Utils.listPossiblities(cf.funs, optionsList).map(funs => new Lambda(cf.params,(new CompFunDef(cf.params,funs: _*))(call.args:_*)))
+          Utils.listPossiblities(cf.funs, optionsList).map(funs => new Lambda(cf.params,(new CompFun(cf.params,funs: _*))(call.args:_*)))
       }
     }
   }
@@ -43,7 +43,7 @@ object Rules {
   def derivsWithOneRule(l: Lambda, c: Constraints, level: Int): Seq[Lambda] =  {
       l.body match {
         case call: FunCall => call.f match {
-            case cf: CompFunDef => composedDerivations(cf, c, level)
+            case cf: CompFun => composedDerivations(cf, c, level)
             case fp: FPattern if level==0 => derivePatFunCall(call,c).map(c => new Lambda(l.params, c))
             case fp: FPattern if level>0 => innerDerivations(fp,c,level-1)
             case p: Pattern if level==0  => derivePatFunCall(call, c).map(c => new Lambda(l.params, c))

@@ -20,7 +20,7 @@ object BarrierElimination {
       case call: IterateCall =>
         apply(call.f.f.body, insideLoop || isLoop(call.iterationCount))
       case call: FunCall => call.f match {
-        case cf: CompFunDef =>
+        case cf: CompFun =>
           markFunCall(cf, insideLoop)
           cf.funs.foreach( (l:Lambda) => apply(l.body, insideLoop) )
         case f: FPattern => apply(f.f.body, insideLoop)
@@ -51,14 +51,14 @@ object BarrierElimination {
       case call: FunCall =>
         val argLambdas = call.args.foldLeft(List[Lambda]())((ll, f) => ll ++ getLambdas(f))
         call.f match {
-          case cf: CompFunDef => cf.funs.toList ++ argLambdas
+          case cf: CompFun => cf.funs.toList ++ argLambdas
           case _ => argLambdas
         }
       case _ => List()
     }
   }
 
-  def flatten(compFunDef: CompFunDef) : List[Lambda] = {
+  def flatten(compFunDef: CompFun) : List[Lambda] = {
     compFunDef.funs.foldLeft(List[Lambda]())((ll, f) => {
       f.body match {
 
@@ -66,7 +66,7 @@ object BarrierElimination {
           val argLambdas = call.args.foldLeft(List[Lambda]())((ll, f) => ll ++ getLambdas(f))
 
           call.f match {
-            case cf: CompFunDef => ll ++ flatten(cf) ++ argLambdas
+            case cf: CompFun => ll ++ flatten(cf) ++ argLambdas
             case _ => ll :+ f
           }
         case _ => ll :+ f
@@ -74,7 +74,7 @@ object BarrierElimination {
     })
   }
 
-  private def markFunCall(cf: CompFunDef, insideLoop: Boolean): Unit = {
+  private def markFunCall(cf: CompFun, insideLoop: Boolean): Unit = {
     // Flatten the CompFunDef, such that computations/reorders in
     // zip/tuple operations appear as well
     val lambdas = flatten(cf)
@@ -188,7 +188,7 @@ object BarrierElimination {
       expr match {
         case call: FunCall =>
           call.f match {
-            case uf: UserFunDef =>
+            case uf: UserFun =>
               if (addressSpace == UndefAddressSpace)
                 OpenCLMemory.asOpenCLMemory(call.args(0).mem).addressSpace
               else

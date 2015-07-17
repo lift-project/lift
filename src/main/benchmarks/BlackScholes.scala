@@ -73,7 +73,7 @@ object BlackScholes {
   }
 
   val blackScholesComp =
-    UserFunDef("blackScholesComp", "inRand",
+    UserFun("blackScholesComp", "inRand",
       """|{
          |  #define S_LOWER_LIMIT 10.0f
          |  #define S_UPPER_LIMIT 100.0f

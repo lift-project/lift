@@ -8,7 +8,7 @@ import arithmetic.Var
 import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.ast._
@@ -60,9 +60,9 @@ class TestBenchmark {
     val centresY = Array.fill(k)(util.Random.nextFloat())
     val indices = Array.range(0, k)
 
-    val distance = UserFunDef("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
-    val minimum = UserFunDef("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
-    val getSecond = UserFunDef("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
+    val distance = UserFun("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
+    val minimum = UserFun("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
+    val getSecond = UserFun("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
 
     val points = pointsX zip pointsY
     val centres = (centresX, centresY, indices).zipped
@@ -138,7 +138,7 @@ class TestBenchmark {
       })
     })
 
-    val md = UserFunDef("md", Array("i", "j", "niters", "size"),
+    val md = UserFun("md", Array("i", "j", "niters", "size"),
       """|{
          |  const float space = 2.0f / size;
          |  float Zr = 0.0f;
@@ -238,7 +238,7 @@ class TestBenchmark {
       (x._1 + px.toFloat, x._2 + py.toFloat, x._3 + pz.toFloat, x._4 + acceleration._1.toFloat * deltaT, x._5 + acceleration._2.toFloat * deltaT, x._6 + acceleration._3.toFloat * deltaT, x._7)
     }).map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val calcAcc = UserFunDef("calcAcc", Array("x1", "y1", "z1", "x2", "y2", "z2", "mass", "espSqr"),
+    val calcAcc = UserFun("calcAcc", Array("x1", "y1", "z1", "x2", "y2", "z2", "mass", "espSqr"),
       """|{
          |  float4 r = (x1 - x2, y1 - y2, z1 - z2, 0.0f);
          |  float distSqr = r.x + r.y + r.z;
@@ -249,8 +249,8 @@ class TestBenchmark {
          |  return acc;
          |}
          | """.stripMargin, Seq(Float, Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float, Float))
-    val reduce = UserFunDef("reduce", Array("x", "y"), "{ Tuple t = {x._0 + y._0, x._1 + y._1, x._2 + y._2}; return t;}", Seq(TupleType(Float, Float, Float), TupleType(Float, Float, Float)), TupleType(Float, Float, Float))
-    val update = UserFunDef("update", Array("x", "y", "z", "velX", "velY", "velZ", "mass", "deltaT", "acceleration"),
+    val reduce = UserFun("reduce", Array("x", "y"), "{ Tuple t = {x._0 + y._0, x._1 + y._1, x._2 + y._2}; return t;}", Seq(TupleType(Float, Float, Float), TupleType(Float, Float, Float)), TupleType(Float, Float, Float))
+    val update = UserFun("update", Array("x", "y", "z", "velX", "velY", "velZ", "mass", "deltaT", "acceleration"),
       """|{
          |  float px = velX * deltaT + 0.5f * acceleration._0 * deltaT * deltaT;
          |  float py = velY * deltaT + 0.5f * acceleration._1 * deltaT * deltaT;
@@ -403,7 +403,7 @@ class TestBenchmark {
     val gold = (xs.map(_ * a), ys).zipped map (_ + _)
 
     // user function
-    val fct = UserFunDef("saxpy", Array("a", "x", "y"),
+    val fct = UserFun("saxpy", Array("a", "x", "y"),
       " return a * x + y; ",
       Seq(Float, Float, Float), Float)
 

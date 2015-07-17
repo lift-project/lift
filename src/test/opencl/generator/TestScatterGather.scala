@@ -3,7 +3,7 @@ package opencl.generator
 import arithmetic.Var
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor.{Execute, Executor}
 import ir.ast.IndexFunction.reverse
 import opencl.ir._

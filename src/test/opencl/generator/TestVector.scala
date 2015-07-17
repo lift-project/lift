@@ -4,7 +4,7 @@ import arithmetic.Var
 import benchmarks.VectorScaling
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import ir.ast.IndexFunction.reverse
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir.ast.CompositePatterns._

@@ -34,7 +34,7 @@ class BuildDepthInfo() {
 
         call.f match {
           case l: Lambda => buildDepthInfoLambda(l)
-          case cf: CompFunDef => buildDepthInfoCompFunDef(cf)
+          case cf: CompFun => buildDepthInfoCompFunDef(cf)
           case fp: FPattern => buildDepthInfoFPattern(fp)
           case _ =>
         }
@@ -100,7 +100,7 @@ class BuildDepthInfo() {
 
   private def buildDepthInfoLambda(l: Lambda): Unit = visitAndBuildDepthInfo(l.body)
 
-  private def buildDepthInfoCompFunDef(cf: CompFunDef): Unit = cf.funs.foreach(f => visitAndBuildDepthInfo(f.body))
+  private def buildDepthInfoCompFunDef(cf: CompFun): Unit = cf.funs.foreach(f => visitAndBuildDepthInfo(f.body))
 
   private def buildDepthInfoFPattern(fp: FPattern): Unit = visitAndBuildDepthInfo(fp.f.body)
 }

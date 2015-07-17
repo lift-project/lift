@@ -2,7 +2,7 @@ package benchmarks
 
 import arithmetic.SizeVar
 import ir._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import ir.ast._
 import opencl.ir._
 import opencl.ir.ast._

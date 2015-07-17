@@ -89,7 +89,7 @@ object Context {
           case ReduceSeq(inF) => updateContext(inF.body, ctx.setInSeq())
 
           case fp: FPattern => updateContext(fp.f.body, ctx.copy())
-          case cf: CompFunDef => cf.funs.foreach(inF => updateContext(inF.body, ctx.copy()))
+          case cf: CompFun => cf.funs.foreach(inF => updateContext(inF.body, ctx.copy()))
           case _ =>
         }
         case _ =>

@@ -3,7 +3,7 @@ package opencl.generator
 import arithmetic._
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor._
 import ir.ast.Group._
 import opencl.ir._
@@ -28,8 +28,8 @@ object TestStencil {
 
 class TestStencil {
 
-  val sumUp = UserFunDef("sumUp", Array("x", "y"), "{ return x + y; }", Seq(Float, Float), Float)
-  val mult = UserFunDef("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
+  val sumUp = UserFun("sumUp", Array("x", "y"), "{ return x + y; }", Seq(Float, Float), Float)
+  val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
   def scala1DNeighbours(data: Array[Float], relIndices: Array[Int], idx: Int) = {
     relIndices.map(x => {

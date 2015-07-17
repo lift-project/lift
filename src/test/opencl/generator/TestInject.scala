@@ -3,7 +3,7 @@ package opencl.generator
 import arithmetic.Var
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor.{Executor, Utils}
 import opencl.ir.Float
 import opencl.ir.ast.{Barrier, MapLcl, MapWrg}

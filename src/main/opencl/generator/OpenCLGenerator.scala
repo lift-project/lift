@@ -133,10 +133,10 @@ object OpenCLGenerator extends Generator {
 
   /** Traversals f and print all user functions using oclPrinter */
   def generateUserFunction(expr: Expr): Unit = {
-    val userFuns = Expr.visit(Set[UserFunDef]())(expr, (expr, set) =>
+    val userFuns = Expr.visit(Set[UserFun]())(expr, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
-          case uf: UserFunDef => set + uf
+          case uf: UserFun => set + uf
           //case vec: Vectorize => set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
           case _ => set
         }
@@ -292,9 +292,9 @@ object OpenCLGenerator extends Generator {
       case call: IterateCall => generateIterateCall(call)
 
       case call: FunCall => call.f match {
-        case cf: CompFunDef => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
+        case cf: CompFun => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
 
-        case u : UserFunDef =>generateUserFunCall(u, call)
+        case u : UserFun =>generateUserFunCall(u, call)
 
         case fp: FPattern => generate(fp.f.body)
         case l: Lambda => generate(l.body)
@@ -465,7 +465,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.closeCB()
   }
 
-  private def generateUserFunCall(u: UserFunDef, call: FunCall): Unit = {
+  private def generateUserFunCall(u: UserFun, call: FunCall): Unit = {
     assert(call.f == u)
 
     // Handle vector assignments for vector types

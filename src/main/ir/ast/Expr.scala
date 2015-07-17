@@ -45,7 +45,7 @@ sealed abstract class Expr {
       e match {
         case call: FunCall =>
           call.f match {
-            case _: UserFunDef => true
+            case _: UserFun => true
             case _ => b
           }
         case _ => b
@@ -81,9 +81,9 @@ sealed abstract class Expr {
 
         call.f match {
           case fp: FPattern => fp.f.body.visit(visitor)
-          case cf: CompFunDef => cf.funs.foreach(_.body.visit(visitor))
+          case cf: CompFun => cf.funs.foreach(_.body.visit(visitor))
           case l: Lambda => l.body.visit(visitor)
-          case f: UserFunDef =>
+          case f: UserFun =>
         }
       case p:Param =>
     }
@@ -109,7 +109,7 @@ object Expr {
         // do the rest ...
         call.f match {
           case fp: FPattern => visit(newResult)(fp.f.body, visitFun)
-          case cf: CompFunDef => cf.funs.foldRight(newResult)((inF, x) => visit(x)(inF.body, visitFun))
+          case cf: CompFun => cf.funs.foldRight(newResult)((inF, x) => visit(x)(inF.body, visitFun))
           case l: Lambda => visit(newResult)(l.body, visitFun)
           case _ => newResult
         }
@@ -142,8 +142,8 @@ object Expr {
       case call: FunCall =>
         val newArgs = call.args.map((arg) => visit(arg, pre, post))
         call.f match {
-          case cf: CompFunDef =>
-            CompFunDef(cf.funs.map(inF => new Lambda(inF.params, visit(inF.body, pre, post))): _*).apply(newArgs: _*)
+          case cf: CompFun =>
+            CompFun(cf.funs.map(inF => new Lambda(inF.params, visit(inF.body, pre, post))): _*).apply(newArgs: _*)
 
           case ar: AbstractPartRed =>
             ar.getClass.getConstructor(classOf[Lambda], classOf[Value])
@@ -172,7 +172,7 @@ object Expr {
         call.f match {
           case fp: FPattern => visit(fp.f.body, pre, post)
           case l: Lambda => visit(l.body, pre, post)
-          case cf: CompFunDef => cf.funs.reverseMap(inF => visit(inF.body, pre, post))
+          case cf: CompFun => cf.funs.reverseMap(inF => visit(inF.body, pre, post))
           case _ =>
         }
       case _ =>

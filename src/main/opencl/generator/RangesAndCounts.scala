@@ -48,7 +48,7 @@ class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr
         evaluateIterateRange(call)
         apply(call.f.f.body)
       case call: FunCall => call.f match {
-        case cf: CompFunDef => cf.funs.foreach( (l:Lambda) => apply(l.body) )
+        case cf: CompFun => cf.funs.foreach( (l:Lambda) => apply(l.body) )
         case f: FPattern => apply(f.f.body)
         case l: Lambda => apply(l.body)
         case Zip(_) | Tuple(_) => call.args.foreach(apply)

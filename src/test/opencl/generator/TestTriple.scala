@@ -24,8 +24,8 @@ object TestTriple {
 
 class TestTriple {
   val inputSize = 1024
-  val add3Tuple = UserFunDef("add3", "t", "{ return t._0+t._1+t._2; }", TupleType(Float, Float, Float), Float)
-  val add3 = UserFunDef("add3", Array("x", "y", "z"), "{ return x+y+z; }", Seq(Float, Float, Float), Float)
+  val add3Tuple = UserFun("add3", "t", "{ return t._0+t._1+t._2; }", TupleType(Float, Float, Float), Float)
+  val add3 = UserFun("add3", Array("x", "y", "z"), "{ return x+y+z; }", Seq(Float, Float, Float), Float)
   val inputArray1 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
   val inputArray2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
   val inputArray3 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)

@@ -253,7 +253,7 @@ object OpenCLMemory {
 
       case r: AbstractPartRed =>  allocReduce(r, numGlb, numLcl, numPvt, inMem, outputMem)
 
-      case cf: CompFunDef =>      allocCompFunDef(cf, numGlb, numLcl, numPvt, inMem, outputMem)
+      case cf: CompFun =>      allocCompFunDef(cf, numGlb, numLcl, numPvt, inMem, outputMem)
 
       case Zip(_) | Tuple(_) =>   allocZipTuple(inMem, outputMem)
       case f: Filter =>           allocFilter(f, numGlb, numLcl, inMem)
@@ -268,7 +268,7 @@ object OpenCLMemory {
            Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) |
            Head() | Tail() | Gather(_) | Scatter(_) =>
         inMem
-      case uf: UserFunDef =>
+      case uf: UserFun =>
         allocUserFun(maxGlbOutSize, maxLclOutSize, maxPvtOutSize, outputMem, call.t, inMem)
 
     }
@@ -387,7 +387,7 @@ object OpenCLMemory {
     alloc(tp.f.body, numGlb, numLcl, numPvt, mem)
   }
 
-  private def allocCompFunDef(cf: CompFunDef, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
+  private def allocCompFunDef(cf: CompFun, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                               inMem: OpenCLMemory, outMem: OpenCLMemory): OpenCLMemory = {
     // combine the parameter of the first function to call with the type inferred from the argument
 

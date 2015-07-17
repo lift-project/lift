@@ -26,13 +26,13 @@ object TestSparsity {
 class TestSparsity {
 
 
-  val id = UserFunDef("id", "i", "return i;", Float, Float)
-  val double = UserFunDef("times2", "i", "return (i+i);", Float, Float)
-  val square = UserFunDef("sq","i", "return (i*i);", Float,Float)
-  val add = UserFunDef("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
-  val mult = UserFunDef("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
-  val or = UserFunDef("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
-  val and = UserFunDef("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  val id = UserFun("id", "i", "return i;", Float, Float)
+  val double = UserFun("times2", "i", "return (i+i);", Float, Float)
+  val square = UserFun("sq","i", "return (i*i);", Float,Float)
+  val add = UserFun("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
+  val mult = UserFun("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
+  val or = UserFun("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  val and = UserFun("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
 
 
 
@@ -121,22 +121,22 @@ class TestSparsity {
   //TODO: Clean up below tests
   @Ignore
   @Test def SPARSE_VECTOR_DOT_PRODUCT() {
-    val sum = UserFunDef("sum", Array("acc","v"),
+    val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
     )
 
-    val matchIndicies = UserFunDef("matchIndicies", Array("acc", "v"),
+    val matchIndicies = UserFun("matchIndicies", Array("acc", "v"),
       "{return (v != 0)?v:acc;}",
       Seq(Int,Int), Int
     )
 
-    val eqMult = UserFunDef("eqMult", Array("a","b"),
+    val eqMult = UserFun("eqMult", Array("a","b"),
       "{if(a._0 == b._0){ return (a._1)*(b._1); }else{ return 0; }}",
       Array(TupleType(Int,Int),TupleType(Int,Int)), Int
     )
 
-    val intId = UserFunDef("intId", "i", "return i;", Int,Int)
+    val intId = UserFun("intId", "i", "return i;", Int,Int)
 
     val vectA = List((1, 9),(3, 3),(8, 4),(16,7),(19,1),(20,2),(21,3), (24,10)).toArray.map((t) => Array(t._1, t._2)).flatten
     val vectB = List((1, 9),(2, 3),(8, 4),(15,7),(19,1),(20,2),(22,3), (24,10)).toArray.map((t) => Array(t._1, t._2)).flatten
@@ -173,7 +173,7 @@ class TestSparsity {
 
     val gold = rawVector.map((vi) => (vi._1, -vi._2)).map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
 
-    val negElem = UserFunDef("negElem", "x", "{ x._0 = x._0; x._1 = -(x._1); return x; }",
+    val negElem = UserFun("negElem", "x", "{ x._0 = x._0; x._1 = -(x._1); return x; }",
       TupleType(Float, Float), TupleType(Float, Float))
 
     val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
@@ -196,7 +196,7 @@ class TestSparsity {
   @Ignore
   @Test def SPARSE_VECTOR_SCAL() {
 
-    val sparseElemMult = UserFunDef("sem", Array("x","s"), "{ x._0 = x._0; x._1 = s*x._1; return x; }",
+    val sparseElemMult = UserFun("sem", Array("x","s"), "{ x._0 = x._0; x._1 = s*x._1; return x; }",
       Seq(TupleType(Float, Float),Float), TupleType(Float, Float))
 
     val rawVector = generateSparseArray(1024)

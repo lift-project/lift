@@ -3,7 +3,7 @@ package opencl.generator
 import arithmetic.Var
 import ir._
 import ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.ast._
@@ -39,7 +39,7 @@ class TestMisc {
     val gold = xs.map(_ + 1)
 
     // user function
-    val fct = UserFunDef("inc", Array("x"),
+    val fct = UserFun("inc", Array("x"),
       " return x+1.0; ", Seq(Float), Float)
 
     // Expression

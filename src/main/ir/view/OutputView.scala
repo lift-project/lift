@@ -25,10 +25,10 @@ object OutputView {
       case call: FunCall =>
         call.f match {
           case l: Lambda => buildViewLambda(l, call, writeView)
-          case cf: CompFunDef => buildViewCompFunDef(cf, writeView)
+          case cf: CompFun => buildViewCompFunDef(cf, writeView)
           case Split(n) => buildViewSplit(n, writeView)
           case _: Join => buildViewJoin(call, writeView)
-          case uf: UserFunDef => buildViewUserFun(writeView, call)
+          case uf: UserFun => buildViewUserFun(writeView, call)
           case s: Scatter => buildViewScatter(s, call, writeView)
           case tP: toPrivate => buildViewToPrivate(tP, writeView)
           case tL: toLocal => buildViewToLocal(tL, writeView)
@@ -113,7 +113,7 @@ object OutputView {
     visitAndBuildViews(l.body, writeView)
   }
 
-  private def buildViewCompFunDef(cf: CompFunDef, writeView: View): View = {
+  private def buildViewCompFunDef(cf: CompFun, writeView: View): View = {
     cf.funs.foldLeft(writeView)((v, f) => {
       val resultView = visitAndBuildViews(f.body, v)
 

@@ -24,25 +24,25 @@ import java.util.stream.Collectors;
 
 public class JavaTest {
 
-    UserFunDef add = UserFunDef.add();
+    UserFun add = UserFun.add();
 
-    UserFunDef pair = jUserFunDef.create(
+    UserFun pair = jUserFunDef.create(
             "pair",
             "x",
             "{ Tuple t = {x, x}; return t; }",
             jFloat.getSingleton(),
             jTupleType.create(jFloat.getSingleton(), jFloat.getSingleton()));
 
-    UserFunDef mult = UserFunDef.mult();
-    UserFunDef plusOne = UserFunDef.plusOne();
+    UserFun mult = UserFun.mult();
+    UserFun plusOne = UserFun.plusOne();
 
-    UserFunDef neg = UserFunDef.neg();
-    UserFunDef id = UserFunDef.id();
-    UserFunDef idFI = UserFunDef.idFI();
+    UserFun neg = UserFun.neg();
+    UserFun id = UserFun.id();
+    UserFun idFI = UserFun.idFI();
 
-    UserFunDef distance = jUserFunDef.create("dist", jStringArray.create("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
-    UserFunDef minimum = jUserFunDef.create("minimum", jStringArray.create("x", "y"), "{ return x._0 < y._0 ? x : y; }", jTypeArray.create(jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton())), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
-    UserFunDef getSecond = jUserFunDef.create("getSecond", "x", "{ return (float) x._1; }", jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jFloat.getSingleton());
+    UserFun distance = jUserFunDef.create("dist", jStringArray.create("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
+    UserFun minimum = jUserFunDef.create("minimum", jStringArray.create("x", "y"), "{ return x._0 < y._0 ? x : y; }", jTypeArray.create(jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton())), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
+    UserFun getSecond = jUserFunDef.create("getSecond", "x", "{ return (float) x._1; }", jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jFloat.getSingleton());
 
 
     @BeforeClass

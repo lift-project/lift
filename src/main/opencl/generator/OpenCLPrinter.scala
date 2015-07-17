@@ -109,7 +109,7 @@ class OpenCLPrinter {
   def generateFunCall(expr: Expr, args: String*) {
     expr match {
       case call: FunCall => call.f match {
-        case uf: UserFunDef => generateFunCall(uf, args:_*)
+        case uf: UserFun => generateFunCall(uf, args:_*)
         //case vf: Vectorize => generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun], vf.n), args:_*)
         case l: Lambda => generateFunCall(l.body, args:_*)
         case _ => throw new NotImplementedError()
@@ -118,7 +118,7 @@ class OpenCLPrinter {
     }
   }
 
-  def generateFunCall(f: UserFunDef, args: String*) {
+  def generateFunCall(f: UserFun, args: String*) {
     print(f.name+"(")
     if (args.length > 0)
       print(args.reduceLeft((result, a) => result + "," + a))
@@ -186,13 +186,13 @@ class OpenCLPrinter {
     }
   }
 
-  def toOpenCL(uf: UserFunDef) : String = {
-    val typedefs = uf.unexpandedTupleTypes.map(createTypedef).fold("")(_+_)
+  def toOpenCL(uf: UserFun) : String = {
+    val typedefs = uf.tupleTypes.map(createTypedef).fold("")(_+_)
     val params = toOpenCL( (uf.inT, uf.paramName) )
 
     typedefs +
       toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
-      createTupleAlias(uf.unexpandedTupleTypes) +
+      createTupleAlias(uf.tupleTypes) +
       uf.body + "}"
   }
 
