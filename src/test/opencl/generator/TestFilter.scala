@@ -6,6 +6,7 @@ import ir.ast._
 import ir.ast.UserFunDef._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 

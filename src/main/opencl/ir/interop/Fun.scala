@@ -5,8 +5,9 @@ import java.util.function.BiFunction
 import arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.CompositePatterns._
+import opencl.ir.ast.CompositePatterns._
 import opencl.ir._
+import opencl.ir.ast._
 
 object jGather {
 

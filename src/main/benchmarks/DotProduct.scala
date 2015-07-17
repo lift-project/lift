@@ -4,8 +4,9 @@ import arithmetic.Var
 import ir._
 import ir.ast.UserFunDef._
 import ir.ast._
-import opencl.ir.CompositePatterns._
 import opencl.ir._
+import opencl.ir.ast._
+import opencl.ir.ast.CompositePatterns._
 
 class DotProduct(override val name: String,
                  override val defaultInputSizes: Seq[Int],

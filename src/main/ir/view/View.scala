@@ -4,6 +4,7 @@ import arithmetic._
 import ir._
 import ir.ast._
 import opencl.ir._
+import opencl.ir.ast._
 
 import scala.collection.immutable.Stack
 

@@ -5,7 +5,8 @@ import ir._
 import ir.ast._
 import ir.ast.UserFunDef._
 import opencl.executor.{Executor, Utils}
-import opencl.ir.{Barrier, Float, MapLcl, MapWrg}
+import opencl.ir.Float
+import opencl.ir.ast.{Barrier, MapLcl, MapWrg}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 

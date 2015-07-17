@@ -8,7 +8,7 @@ import ir.ast.*;
 import ir.interop.*;
 import opencl.executor.Compile;
 import opencl.executor.Executor;
-import opencl.ir.*;
+import opencl.ir.ast.*;
 import opencl.ir.interop.*;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

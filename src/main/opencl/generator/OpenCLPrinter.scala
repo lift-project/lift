@@ -5,6 +5,7 @@ import ir._
 import ir.ast._
 import ir.view.AccessVar
 import opencl.ir._
+import opencl.ir.ast._
 
 
 class OpenCLPrinter {

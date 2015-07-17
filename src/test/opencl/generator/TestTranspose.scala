@@ -8,6 +8,7 @@ import ir.ast.UserFunDef._
 import ir.ast.IndexFunction.transposeFunction
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
+import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 

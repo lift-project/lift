@@ -6,6 +6,7 @@ import ir._
 import ir.ast._
 import ir.view.{View, ViewPrinter}
 import opencl.ir._
+import opencl.ir.ast._
 
 import scala.collection.immutable
 

@@ -5,8 +5,9 @@ import ir._
 import ir.ast.UserFunDef._
 import ir.ast._
 import opencl.executor._
-import opencl.ir.CompositePatterns._
+import opencl.ir.ast.CompositePatterns._
 import opencl.ir._
+import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 

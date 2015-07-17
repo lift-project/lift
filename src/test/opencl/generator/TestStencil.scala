@@ -7,6 +7,7 @@ import ir.ast.UserFunDef._
 import opencl.executor._
 import ir.ast.Group._
 import opencl.ir._
+import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 

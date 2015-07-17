@@ -4,6 +4,7 @@ import arithmetic.Var
 import ir._
 import ir.ast._
 import opencl.ir._
+import opencl.ir.ast._
 
 class BlackScholes(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Black-Scholes", Seq(4096), f, 0.01f) {
   override def runScala(inputs: Any*): Array[Float] = {
