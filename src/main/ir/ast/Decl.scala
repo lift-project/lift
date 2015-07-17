@@ -268,7 +268,7 @@ abstract class AbstractReduce(f:Lambda) extends AbstractPartRed(f)
  *
  * @param f The lambda to apply to the next element and partial result
  */
-case class Reduce(f: Lambda) extends AbstractReduce(f) {
+case class Reduce(f: Lambda2) extends AbstractReduce(f) {
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
   private def reduceCall(args: Expr*): ReduceCall = {
