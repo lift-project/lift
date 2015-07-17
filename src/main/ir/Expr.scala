@@ -6,6 +6,10 @@ import opencl.ir._
 
 import language.implicitConversions
 
+abstract class ExprVisitor {
+  def accept(expr: Expr)
+}
+
 /** Base class for all expressions, ie.
   *
   * - function calls: map(f, x), zip(x,y), ...
@@ -14,7 +18,7 @@ import language.implicitConversions
   *
   * - values: 4, 128, ...
   */
-abstract class Expr {
+sealed abstract class Expr {
   var context: Context = null
 
   // type information
@@ -67,6 +71,23 @@ abstract class Expr {
   def containsPrivate: Boolean = {
     containsMemory(PrivateMemory)
   }
+
+  def visit(visitor: ExprVisitor) {
+    visitor.accept(this)
+    this match {
+      case call: FunCall =>
+        call.args.foreach(_.visit(visitor))
+
+        call.f match {
+          case fp: FPattern => fp.f.body.visit(visitor)
+          case cf: CompFunDef => cf.funs.foreach(_.body.visit(visitor))
+          case l: Lambda => l.body.visit(visitor)
+          case f: UserFunDef =>
+        }
+      case p:Param =>
+    }
+  }
+
 
   def copy: Expr
 }
@@ -166,6 +187,16 @@ object Expr {
 class Param() extends Expr with Cloneable {
   t = UndefType
 
+  /**
+   * Vectorize the current parameter
+   * @param n The vector width
+   * @return A vectorized parameter
+   */
+  def vectorize(n: ArithExpr): Param = this match {
+    case v:VectorParam => throw new TypeException("Cannot vectorize a vectorized parameter")
+    case x => new VectorParam(x, n)
+  }
+
   override def toString = "PARAM"
 
   override def copy: Param = this.clone().asInstanceOf[Param]
@@ -180,14 +211,13 @@ object Param {
     p
   }
 
-  def vectorize(p: Param, n: ArithExpr): Param = {
-    new VectorParam(p, n)
-  }
+  @deprecated("used Param.vectorize(n)")
+  def vectorize(p: Param, n: ArithExpr): Param = p.vectorize(n)
 }
 
 /** A vectorized parameter*/
 class VectorParam(val p: Param, n: ArithExpr) extends Param {
-  t = Type.vectorize(p.t, n)
+  t = p.t.vectorize(n)
 }
 
 /** A reference to a parameter wrapped in a tupel possibly produced by a zip.*/
@@ -206,6 +236,13 @@ case class Value(var value: String) extends Param {
   override def copy: Value = this.clone().asInstanceOf[Value]
 
   override def toString = "VALUE"
+
+  /**
+   * Vectorize the current value.
+   * @param n The vector width
+   * @return A vectorized value
+   */
+  override def vectorize(n: ArithExpr): Value = Value(value, t.vectorize(n))
 }
 
 object Value {
@@ -249,9 +286,10 @@ object Value {
     v
   }
 
-  def vectorize(v: Value, n: ArithExpr): Value = {
-    Value(v.value, Type.vectorize(v.t, n))
-  }
+  def apply(v: Value) = v
+
+  @deprecated("Replaced by Value.vectorize(n)")
+  def vectorize(v: Value, n: ArithExpr): Value = v.vectorize(n)
 }
 
 

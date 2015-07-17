@@ -53,7 +53,7 @@ object VectorScaling {
   val scalINTEL = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
       Join() o Barrier() o MapLcl(MapSeq(
-        fun( x => Vectorize(4)(mult).apply(Vectorize(4)(alpha), x) )
+        fun( x => mult.vectorize(4).apply(alpha.vectorize(4), x) )
       )) o Split(128) o asVector(4)
     ) o Split(4*128*128) $ input
   )

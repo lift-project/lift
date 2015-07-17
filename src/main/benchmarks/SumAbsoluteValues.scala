@@ -27,7 +27,7 @@ object SumAbsoluteValues {
   val intelDerivedNoWarp1 = fun(ArrayType(Float, Var("N")), (in) => {
     Join() o MapWrg(
       asScalar() o Join() o Barrier() o MapLcl(
-        toGlobal(MapSeq(Vectorize(4)(id))) o ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f))
+        toGlobal(MapSeq(id.vectorize(4))) o ReduceSeq(absAndSumUp.vectorize(4), Value(0.0f).vectorize(4))
       ) o Split(8192) o asVector(4)
     ) o Split(32768) $ in
   })
@@ -59,7 +59,7 @@ object SumAbsoluteValues {
   val amdDerived1 = fun(ArrayType(Float, Var("N")), (in) => {
     Join() o MapWrg(
       asScalar() o Join() o
-        Barrier() o MapLcl(toGlobal(MapSeq(Vectorize(2)(id))) o ReduceSeq(Vectorize(2)(add), Vectorize(2)(0.0f)))
+        Barrier() o MapLcl(toGlobal(MapSeq(id.vectorize(2))) o ReduceSeq(add.vectorize(2), Value(0.0f).vectorize(2)))
         o Split(2048) o ReorderStride(64) o asVector(2)
     ) o Split(4096*128) $ in
   })

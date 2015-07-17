@@ -7,7 +7,13 @@ import language.implicitConversions
 
 abstract class FunDecl(val params: Array[Param]) {
 
-  def isGenerable = false
+  /**
+   * Secondary constructor to initialize a FunDecl with the given number of undefined parameters.
+   * @param arity Number of parameters
+   */
+  def this(arity: Int) = this(Array.fill(arity)(Param(UndefType)))
+
+  val isGenerable = false
 
   def comp(that: Lambda) : CompFunDef = {
     val thisFuns = this match {
@@ -21,28 +27,33 @@ abstract class FunDecl(val params: Array[Param]) {
     val allFuns = thisFuns ++ thatFuns
     CompFunDef(allFuns:_*)
   }
+
+  /**
+   * Compose with a FunDecl (convert it to a Lambda).
+   * @param f A FunDecl object.
+   * @return A composed function wrapper object
+   */
   def comp(f: FunDecl): CompFunDef = comp(Lambda.FunDefToLambda(f))
 
+  /**
+   * Composition Operator.
+   * @param f
+   * @return
+   */
   def o(f: Lambda): CompFunDef = comp(f)
 
   def call(arg: Expr) = apply(arg)
   def call(arg0: Expr, arg1: Expr) = apply(arg0, arg1)
   def call(arg0: Expr, arg1: Expr, arg2: Expr) = apply(arg0, arg1, arg2)
 
-  def $(that: Expr) : FunCall = {
-    apply(that)
-  }
+
+  def $(that: Expr) : FunCall = apply(that)
 
 
   def apply(args : Expr*) : FunCall = {
     assert (args.length == params.length)
     new FunCall(this, args:_*)
   }
-
-}
-
-trait isGenerable extends FunDecl {
-  override def isGenerable = true
 }
 
 object FunDecl {
@@ -69,6 +80,10 @@ object FunDecl {
 
     post(new Lambda(f.params, newBodyFunDef))
   }
+}
+
+trait isGenerable extends FunDecl {
+  override val isGenerable = true
 }
 
 object CompFunDef {
@@ -114,13 +129,15 @@ case class CompFunDef(override val params : Array[Param], funs: Lambda*) extends
 // Here are just the algorithmic patterns
 // For opencl specific patterns see the opencl.ir package
 
-abstract class Pattern(override val params: Array[Param]) extends FunDecl(params)
+abstract class Pattern(override val params: Array[Param]) extends FunDecl(params) {
+  def this(arity: Int) = this(Array.fill(arity)(Param(UndefType)))
+}
 
 trait FPattern {
   def f: Lambda
 }
 
-abstract class AbstractMap(f:Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern
+abstract class AbstractMap(f:Lambda) extends Pattern(arity = 1) with FPattern
 
 /**
  * Apply the lambda <code>f</code> to every element of the input
@@ -155,13 +172,13 @@ object Map {
   }
 }
 
-abstract class GenerableMap(f:Lambda1) extends AbstractMap(f) with isGenerable
+abstract class GenerableMap(f:Lambda) extends AbstractMap(f) with isGenerable
 
-abstract class AbstractPartRed(f:Lambda2) extends Pattern(Array[Param](Param(UndefType), Param(UndefType))) with FPattern {
+abstract class AbstractPartRed(f:Lambda) extends Pattern(arity = 2) with FPattern {
   def init: Value = params(0) match { case v: Value => v}
 }
 
-abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
+abstract class AbstractReduce(f:Lambda) extends AbstractPartRed(f)
 
 /**
  * Perform a reduction on the input.
@@ -172,7 +189,7 @@ abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
  *
  * @param f The lambda to apply to the next element and partial result
  */
-case class Reduce(f: Lambda2) extends AbstractReduce(f) {
+case class Reduce(f: Lambda) extends AbstractReduce(f) {
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
   private def reduceCall(args: Expr*): ReduceCall = {
@@ -186,7 +203,9 @@ object Reduce {
 }
 
 /**
- * Applicable rules:
+ * Partial reduction
+ *
+ * Applicable re-write rules:
  *  - PartRed(f) => Reduce(f)
  *  - PartRed(f) => PartRed(f) o Reorder
  *  - PartRed(f) => Iterate(k, PartRed(f)) (input a multiple of k)
@@ -211,7 +230,7 @@ object PartRed {
  * Applicable rules:
  *  - Join() o Split(chunkSize) | Split(chunkSize) o Join(chunkSize) => id
  */
-case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+case class Join() extends Pattern(arity = 1) with isGenerable
 
 /**
  * Splits the input into chunks of <code>chunkSize</code>.
@@ -221,14 +240,14 @@ case class Join() extends Pattern(Array[Param](Param(UndefType))) with isGenerab
  *
  * @param chunkSize Size of the chunks the input will be split into
  */
-case class Split(chunkSize: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1) with isGenerable
 
 /**
  *
  * Applicable rules:
  *  - asScalar() o asVector(len) | asVector(len) o asScalar(len) => id
  */
-case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+case class asScalar() extends Pattern(arity = 1) with isGenerable
 
 /**
  *
@@ -237,7 +256,7 @@ case class asScalar() extends Pattern(Array[Param](Param(UndefType))) with isGen
  *
  * @param len Vector length
  */
-case class asVector(len: ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+case class asVector(len: ArithExpr) extends Pattern(arity = 1) with isGenerable
 
 /*
 // TODO: discuss if this should be a Fun again (if so, this has to be replaced in the very first pass before type checking)
@@ -249,22 +268,15 @@ case class Vectorize(n: Expr, f: Fun) extends FPattern {
 
 object Vectorize {
   class Helper(n: ArithExpr) {
-    def apply(uf: UserFunDef): UserFunDef = {
-      UserFunDef.vectorize(uf, n)
-    }
+    def apply(uf: UserFunDef): UserFunDef = uf.vectorize(n)
 
-    def apply(v: Value): Value = {
-      Value.vectorize(v, n)
-    }
+    def apply(v: Value): Value = v.vectorize(n)
 
-    def apply(p: Param): Param = {
-      Param.vectorize(p, n)
-    }
+    def apply(p: Param): Param = p.vectorize(n)
   }
 
-  def apply(n: ArithExpr): Helper = {
-    new Helper(n)
-  }
+  @deprecated("Use function.vectorize(ArithExpr) instead")
+  def apply(n: ArithExpr): Helper = new Helper(n)
 }
 
 case class UserFunDef(name: String, paramNames: Array[String], body: String,
@@ -288,7 +300,7 @@ case class UserFunDef(name: String, paramNames: Array[String], body: String,
     checkParam((inT, paramName))
   }
 
-  def paramNamesString: String = {
+  lazy val paramNamesString: String = {
     def printAny(arg: Any): String = arg match {
       case a: Array[Any] => "Array(" + a.map(printAny).reduce(_+", "+_) + ")"
       case _ => arg.toString
@@ -337,6 +349,13 @@ case class UserFunDef(name: String, paramNames: Array[String], body: String,
   def paramName = if (paramNames.length == 1) paramNames.head else paramNames
 
   override def toString = "UserFun("+ name + ")" // for debug purposes
+
+  /**
+   * Vectorize the current function
+   * @param n The vector width
+   * @return
+   */
+  def vectorize(n: ArithExpr): UserFunDef = new UserFunDef(s"$name$n", paramNames, body, inTs.map(_.vectorize(n)), outT.vectorize(n))
 }
 
 object UserFunDef {
@@ -344,14 +363,8 @@ object UserFunDef {
     UserFunDef(name, Array(paramName), body, Seq(inT), outT)
   }
 
-  def vectorize(uf: UserFunDef, n: ArithExpr): UserFunDef = {
-    val name = uf.name + n
-    val expectedInT = uf.inTs.map(Type.vectorize(_, n))
-    val expectedOutT = Type.vectorize(uf.outT, n)
-
-    // create new user fun
-    UserFunDef(name, uf.paramNames, uf.body, expectedInT, expectedOutT)
-  }
+  @deprecated("replaced by UserFunDef.vectorize(n)")
+  def vectorize(uf: UserFunDef, n: ArithExpr): UserFunDef = uf.vectorize(n)
 
   val id = UserFunDef("id", "x", "{ return x; }", Float, Float)
 
@@ -402,7 +415,7 @@ object UserFunDef {
  * @param n Number of times to iterate
  * @param f Lamda to use for iteration
  */
-case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable {
+case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(arity = 1) with FPattern with isGenerable {
 
   override def apply(args: Expr*): IterateCall = iterateCall(args: _*)
 
@@ -417,14 +430,10 @@ case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(Array[Param](Param(
 object Iterate {
   def apply(n: ArithExpr): ((Lambda1) => Iterate)  = (f: Lambda1) => Iterate(n ,f)
 
-  def varName(): String = {
-    "iterSize"
-  }
+  def varName(): String = "iterSize"
 }
 
-class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
-
-case class Filter() extends FunDecl(Array(Param(UndefType), Param(UndefType))) with isGenerable
+case class Filter() extends FunDecl(arity = 2) with isGenerable
 
 object Filter {
   def apply(input: Param, ids: Param): FunCall = {
@@ -432,7 +441,7 @@ object Filter {
   }
 }
 
-case class Tuple(n: Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable
+case class Tuple(n: Int) extends FunDecl(arity = n) with isGenerable
 
 object Tuple {
   def apply(args : Expr*) : FunCall = {
@@ -441,7 +450,7 @@ object Tuple {
   }
 }
 
-case class Zip(n : Int) extends FunDecl(Array.fill(n)(Param(UndefType))) with isGenerable
+case class Zip(n : Int) extends FunDecl(arity = n) with isGenerable
 
 object Zip {
   def apply(args : Expr*) : FunCall = {
@@ -450,4 +459,4 @@ object Zip {
   }
 }
 
-case class Unzip() extends FunDecl(Array[Param](Param(UndefType))) with isGenerable
+case class Unzip() extends FunDecl(arity = 1) with isGenerable

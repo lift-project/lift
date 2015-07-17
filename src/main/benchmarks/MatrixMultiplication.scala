@@ -332,7 +332,7 @@ object MatrixMultiplication {
                   Unzip() o Barrier() o toLocal(MapLcl(1)(fun(pair =>
                   fun(pair => Tuple(asScalar() o Join() $ Get(pair, 0), asScalar() o Join() $ Get(pair, 1))) o
                     Unzip() o MapLcl(0)(fun( pair =>
-                    Tuple(MapSeq(Vectorize(vectorWidth)(id)) $ Get(pair, 0), MapSeq(Vectorize(vectorWidth)(id)) $ Get(pair, 1))
+                    Tuple(MapSeq(id.vectorize(vectorWidth)) $ Get(pair, 0), MapSeq(id.vectorize(vectorWidth)) $ Get(pair, 1))
                   )) $ Zip(Split(1) o asVector(vectorWidth) $ Get(pair, 0), Split(1) o asVector(vectorWidth) $ Get(pair, 1))
                 ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
               )

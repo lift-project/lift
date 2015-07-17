@@ -140,7 +140,7 @@ class TestMisc {
     val f = fun(
       ArrayType(Float4, N),
       (input) =>
-        MapGlb(Vectorize(4)(id)) $ input
+        MapGlb(id.vectorize(4)) $ input
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
@@ -200,7 +200,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => asScalar() o MapGlb(Vectorize(4)(plusOne)) o asVector(4) $ in
+      in => asScalar() o MapGlb(plusOne.vectorize(4)) o asVector(4) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)

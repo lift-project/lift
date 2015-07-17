@@ -18,7 +18,28 @@ case class NumberOfArgumentsException(msg: String) extends Exception(msg) {
 }
 
 
-sealed abstract class Type
+sealed abstract class Type {
+  private def asVector(at0: ArrayType, len: ArithExpr): Type = {
+    at0.elemT match {
+      case pt:ScalarType => new ArrayType(new VectorType(pt,len), at0.len/^len)
+      case at1:ArrayType => new ArrayType(asVector(at1,len), at0.len)
+      case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
+    }
+  }
+
+  /**
+   * Vectorize the current type
+   * @param n The vectori width
+   * @return A vectorized type
+   */
+  def vectorize(n: ArithExpr): Type = this match {
+    case sT: ScalarType => new VectorType(sT, n)
+    case tT: TupleType => new TupleType( tT.elemsT.map( _.vectorize(n) ):_* )
+    case aT: ArrayType => asVector(aT, n)
+    case v: VectorType => v
+    case _ => throw new TypeException(this, "anything else")
+  }
+}
 
 case class ScalarType(name: String, size: ArithExpr) extends Type {
   override def toString = name
@@ -176,14 +197,6 @@ object Type {
       case vt:VectorType => new ArrayType(vt.scalarT,at0.len*vt.len)
       case at:ArrayType =>  new ArrayType(asScalar(at),at0.len)
       case _ => throw new TypeException(at0.elemT , "ArrayType or VectorType")
-    }
-  }
-
-  private def asVector(at0: ArrayType, len: ArithExpr): Type = {
-    at0.elemT match {
-      case pt:ScalarType => new ArrayType(new VectorType(pt,len), at0.len/^len)
-      case at1:ArrayType => new ArrayType(asVector(at1,len), at0.len)
-      case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
     }
   }
 
@@ -538,7 +551,7 @@ object Type {
 
   private def checkAsVector(n: ArithExpr, inT: Type): Type = {
     inT match {
-      case at: ArrayType => asVector(at, n)
+      case at: ArrayType => at.vectorize(n)
       case _ => throw new TypeException(inT, "ArrayType")
     }
   }
@@ -641,14 +654,8 @@ object Type {
     }
   }
 
-  def vectorize(t: Type, n: ArithExpr): Type = {
-    t match {
-      case sT: ScalarType => new VectorType(sT, n)
-      case tT: TupleType => new TupleType( tT.elemsT.map( vectorize(_, n) ):_* )
-      case aT: ArrayType => asVector(aT, n)
-      case _ => t // throw new TypeException(t, "anything else")
-    }
-  }
+  @deprecated("replaced by Type.vectorize(n)")
+  def vectorize(t: Type, n: ArithExpr): Type = t.vectorize(n)
 
   def devectorize(t: Type): Type = {
     t match {

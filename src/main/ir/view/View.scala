@@ -6,6 +6,13 @@ import opencl.ir._
 
 import scala.collection.immutable.Stack
 
+/**
+ * Placeholder for filter view.
+ * @param array
+ * @param idx
+ */
+class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
+
 abstract class View(val t: Type = UndefType) {
 
   def replaced(oldExpr: ArithExpr, newExpr: ArithExpr): View = {

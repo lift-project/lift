@@ -419,14 +419,13 @@ class TestReduce {
         fun(ArrayType(Float, Var("N")), (in) => {
 
           Join() o MapWrg( asScalar() o
-            Join() o Barrier() o toGlobal(MapLcl(MapSeq(Vectorize(4)(id)))) o Split(1) o
+            Join() o Barrier() o toGlobal(MapLcl(MapSeq(id.vectorize(4)))) o Split(1) o
             Iterate(8)(
-              Join() o Barrier() o MapLcl(toLocal(MapSeq(Vectorize(4)(id))) o
-                                          ReduceSeq(Vectorize(4)(add), Vectorize(4)(0.0f))) o
+              Join() o Barrier() o MapLcl(toLocal(MapSeq(id.vectorize(4))) o
+                                          ReduceSeq(add.vectorize(4), Value(0.0f).vectorize(4))) o
               Split(2)
-            ) o Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(Vectorize(4)(id))) o
-                                                    ReduceSeq(Vectorize(4)(add),
-                                                              Vectorize(4)(0.0f)))) o
+            ) o Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id.vectorize(4))) o
+                                                    ReduceSeq(add.vectorize(4), Value(0.0f).vectorize(4)))) o
             Split(2) o asVector(4)
           ) o Split(2048) $ in
 
@@ -537,8 +536,8 @@ class TestReduce {
 
           Join() o MapWrg(
             asScalar() o Join() o Join() o MapWarp(
-              MapLane( toGlobal(MapSeq(Vectorize(4)(id))) o
-                       ReduceSeq(Vectorize(4)(absAndSumUp), Vectorize(4)(0.0f)) )
+              MapLane( toGlobal(MapSeq(id.vectorize(4))) o
+                       ReduceSeq(absAndSumUp.vectorize(4), Value(0.0f).vectorize(4)) )
             ) o Split(1) o Split(8192) o asVector(4)
           ) o Split(32768) $ in
 

@@ -2,6 +2,7 @@ package opencl.generator
 
 import arithmetic._
 import ir._
+import ir.view.AccessVar
 import opencl.ir._
 
 

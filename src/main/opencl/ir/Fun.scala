@@ -162,27 +162,36 @@ object ReduceHost {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceHost(f)(init, x))
 }
 
-case class toGlobal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+// TODO(tlutz) remove lambda and use composition operator
+case class toGlobal(f: Lambda1) extends Pattern(arity = 1) with FPattern with isGenerable
 
-case class toLocal(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+// TODO(tlutz) remove lambda and use composition operator
+case class toLocal(f: Lambda1) extends Pattern(arity = 1) with FPattern with isGenerable
 
-case class toPrivate(f: Lambda1) extends Pattern(Array[Param](Param(UndefType))) with FPattern with isGenerable
+// TODO(tlutz) remove lambda and use composition operator
+case class toPrivate(f: Lambda1) extends Pattern(arity = 1) with FPattern with isGenerable
 
-case class Barrier() extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+case class Barrier() extends Pattern(arity = 1) with isGenerable {
   var valid = true
 }
 
-case class TransposeW() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+// TODO(tlutz) move to ir package
+/// Tranpose on output
+case class TransposeW() extends Pattern(arity = 1) with isGenerable
 
-case class Transpose() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+/// Tranpose on input
+case class Transpose() extends Pattern(arity = 1) with isGenerable
 
+
+// TODO(tlutz) remove to ir package
 case class Group(relIndices: Array[Int],
                  negOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr,
-                 posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+                 posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(arity = 1) with isGenerable {
   Group.cnt += 1
   val id = Group.cnt
 }
 
+// TODO(tlutz) remove to ir package
 object Group {
   var cnt: Int = -1
 
@@ -195,6 +204,7 @@ object Group {
   val wrapPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => idx - 1
 }
 
+// TODO(tlutz) remove to ir package
 object Group2D {
   def apply(relColumns: Array[Int],
             relRows: Array[Int],
@@ -208,6 +218,7 @@ object Group2D {
   }
 }
 
+// TODO(tlutz) remove to ir package or view?
 class GroupCall(val group: Group, val outerAe: ArithExpr, val innerAe: ArithExpr, val len: ArithExpr) extends ArithExprFunction {
   "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
 }
@@ -223,6 +234,7 @@ object jGroupConstant {
 }
 */
 
+// TODO(tlutz) move to ir package
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
 
 object IndexFunction {
@@ -255,13 +267,17 @@ object IndexFunction {
   }
 }
 
-case class Gather(idx: IndexFunction) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+// TODO(tlutz) move to ir package
+case class Gather(idx: IndexFunction) extends Pattern(arity = 1) with isGenerable
 
-case class Scatter(idx: IndexFunction) extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+// TODO(tlutz) move to ir package
+case class Scatter(idx: IndexFunction) extends Pattern(arity = 1) with isGenerable
 
-case class Head() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+// TODO(tlutz) move to ir package
+case class Head() extends Pattern(arity = 1) with isGenerable
 
-case class Tail() extends Pattern(Array[Param](Param(UndefType))) with isGenerable
+// TODO(tlutz) move to ir package
+case class Tail() extends Pattern(arity = 1) with isGenerable
 
 
 // TODO: find a way for splitting the Fun.visit() function between non-opencl and opencl part

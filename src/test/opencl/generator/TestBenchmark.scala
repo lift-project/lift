@@ -319,7 +319,7 @@ class TestBenchmark {
       Float,
       (particles, neighbourIds, cutsq, lj1, lj2) =>
         MapGlb(fun(p =>
-          toGlobal(MapSeq(Vectorize(4)(id))) o
+          toGlobal(MapSeq(id.vectorize(4))) o
             ReduceSeq(fun((force, n) =>
               MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
             ), Value(0.0f, Float4)) $ Filter(particles, Get(p, 1))
