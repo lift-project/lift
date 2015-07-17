@@ -4,7 +4,7 @@ import arithmetic.Var
 import ir._
 import ir.ast._
 import opencl.ir.ast._
-import ir.ast.UserFunDef._
+import ir.ast.UserFun._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.{Test, AfterClass, BeforeClass}
@@ -38,7 +38,7 @@ object TestRewrite {
         lambda.body match {
           case call: FunCall =>
             call.f match {
-              case uf: UserFunDef =>
+              case uf: UserFun =>
 
                 // Map(f) => asScalar() o Map(Vectorize(k)(f)) o asVector(k)
                 val comp = asScalar() o MapGlb(uf.vectorize(4)) o asVector(4)
@@ -63,7 +63,7 @@ object TestRewrite {
                 lambdaList = reduceSeqLambda :: lambdaList
             }
 
-          case cf: CompFunDef =>
+          case cf: CompFun =>
           // Rules with multiple things on the left hand side
           // + recurse
           case _ =>
