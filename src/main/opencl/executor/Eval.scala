@@ -18,8 +18,10 @@ object Eval {
     val tree = tb.parse(s"""
                           |import arithmetic._
                           |import ir._
+                          |import ir.ast._
                           |import opencl.ir._
-                          |${code}
+                          |import opencl.ir.ast._
+                          |$code
                          """.stripMargin)
     tb.eval(tree).asInstanceOf[Lambda]
   }
