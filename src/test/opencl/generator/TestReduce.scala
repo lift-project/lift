@@ -131,7 +131,7 @@ class TestReduce {
       in => {
         Join() o MapWrg(
           Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)) o
-                                      ReduceSeq(add, id(Value.FloatToValue(0.0f)))) o Split(4)
+                                      ReduceSeq(add, id(0.0f))) o Split(4)
         ) o Split(128) $ in
       })
 

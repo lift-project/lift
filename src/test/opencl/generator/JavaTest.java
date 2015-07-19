@@ -10,6 +10,7 @@ import opencl.executor.Compile;
 import opencl.executor.Executor;
 import opencl.ir.ast.*;
 import opencl.ir.interop.*;
+import opencl.ir.package$;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -131,6 +132,8 @@ public class JavaTest {
         Var n = jVar.create("N");
         Var k = jVar.create("K");
 
+
+
         // @formatter:off
         Lambda fun = jfun.create(
                 jArrayType.create(jFloat.getSingleton(), n),
@@ -142,12 +145,12 @@ public class JavaTest {
                         jMapGlb.create(
                                 jfun.create(xy ->
                                                 jMapSeq.create(getSecond).comp(
-                                                        jToGlobal.create(jMapSeq.create(idFI)).comp(jReduceSeq.create(minimum, Value.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1))).comp(
-                                                                jMapSeq.create(jfun.create(abi -> distance.apply(
-                                                                        JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(xy, 0), Get.apply(xy, 1),
-                                                                                Get.apply(abi, 0), Get.apply(abi, 1), Get.apply(abi, 2))))))
-                                                        )
-                                                )).call(jZip.call(Arrays.asList(a, b, i)))
+                                                        jToGlobal.create(jMapSeq.create(idFI)).comp(jReduceSeq.create(minimum, package$.MODULE$.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1))).comp(
+                                                                        jMapSeq.create(jfun.create(abi -> distance.apply(
+                                                                                JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(xy, 0), Get.apply(xy, 1),
+                                                                                        Get.apply(abi, 0), Get.apply(abi, 1), Get.apply(abi, 2))))))
+                                                                )
+                                                        )).call(jZip.call(Arrays.asList(a, b, i)))
                                 )
                         ).call(jZip.call(x, y))
         );
@@ -183,7 +186,7 @@ public class JavaTest {
 
 
         MapSeq map2 = jMapSeq.create(getSecond);
-        Lambda1 reduce = jReduceSeq.create(minimum, Value.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1)));
+        Lambda1 reduce = jReduceSeq.create(minimum, package$.MODULE$.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1)));
         toGlobal mapId = jToGlobal.create(jMapSeq.create(idFI));
 
         FunCall f = map2.comp(mapId).comp(reduce).comp(map1).call(zip3);
@@ -236,7 +239,7 @@ public class JavaTest {
         Lambda1 multLambda = new Lambda1(new Param[]{undef2}, multExpr);
         Lambda map = Lambda.FunDefToLambda(jMapSeq.create(multLambda));
 
-        Lambda1 reduce = jReduceSeq.create(add, Value.FloatToValue(0.0f));
+        Lambda1 reduce = jReduceSeq.create(add, package$.MODULE$.FloatToValue(0.0f));
 
         Lambda mapId = Lambda.FunDefToLambda(jToGlobal.create(Lambda.FunDefToLambda(jMapSeq.create(id))));
 
@@ -296,7 +299,7 @@ public class JavaTest {
         Lambda function = jfun.create(
                 jArrayType.create(jArrayType.create(jFloat.getSingleton(), jVar.create("M")), jVar.create("N")),
                 (input) -> jMapGlb.create(
-                        jfun.create(row -> jMapSeq.create(neg).comp(jToGlobal.create(jMapSeq.create(id)).comp(jReduceSeq.create(add, Value.FloatToValue(0.0f)))).call(row))
+                        jfun.create(row -> jMapSeq.create(neg).comp(jToGlobal.create(jMapSeq.create(id)).comp(jReduceSeq.create(add, package$.MODULE$.FloatToValue(0.0f)))).call(row))
                 ).call(input));
 
         Compile.apply(function);

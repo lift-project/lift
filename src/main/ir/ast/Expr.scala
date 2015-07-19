@@ -1,17 +1,12 @@
 package ir.ast
 
-import arithmetic.{?, ArithExpr, RangeUnknown, Var}
+import arithmetic.ArithExpr
 import ir._
 import ir.view.{NoView, View}
-import opencl.ir._
 
 import scala.language.implicitConversions
 
-abstract class ExprVisitor {
-  def accept(expr: Expr)
-}
-
-/** Base class for all expressions, ie.
+/** Abstract class representing all kinds of expressions, i.e.,
   *
   * - function calls: map(f, x), zip(x,y), ...
   *
@@ -19,29 +14,46 @@ abstract class ExprVisitor {
   *
   * - values: 4, 128, ...
   */
-sealed abstract class Expr {
-  var context: Context = null
-
-  // type information
+abstract class Expr {
+  /**
+   * The type of the expression
+   */
   var t: Type = UndefType
 
-  // memory information
+  /**
+   * The memory object representing the storage of the value computed by this
+   * expression
+   */
   var mem: Memory = UnallocatedMemory
 
-  // view explaining how to access the memory
+  /**
+   * The view of this expression explaining how to access the memory object
+   */
   var view: View = NoView
 
+  /**
+   * The context keeps track where this expression is inside a bigger
+   * expression for checking (possible) constrains on nesting expression.
+   */
+  var context: Context = null
+
+  /**
+   * TODO: describe (@Toomas?)
+   */
   var inputDepth: List[(ArithExpr, ArithExpr)] = List()
+
+  /**
+   * TODO: describe (@Toomas?)
+   */
   var outputDepth: List[(ArithExpr, ArithExpr)] = List()
 
-  def setContext(ctx: Context): Expr = {
-    if (ctx != null)
-      this.context = ctx
-    this
-  }
-
+  /**
+   * Checks if the expression eventually writes to memory, i.e., it contains a
+   * user function.
+   * @return Returns `true` iff the expression eventually writes to memory.
+   */
   def isConcrete: Boolean = {
-    Expr.visit(false)(this, (e: Expr, b: Boolean) => {
+    Expr.visitWithState(false)(this, (e: Expr, b: Boolean) => {
       e match {
         case call: FunCall =>
           call.f match {
@@ -53,64 +65,89 @@ sealed abstract class Expr {
     })
   }
 
+  /**
+   * Checks if the expression never writes to memory, i.e., it contains no user
+   * function. For expressions where this method returns `true` the `view`
+   * influences how following `concrete` functions will access memory.
+   * @return Returns `true` iff the expression never writes to memory
+   */
   def isAbstract: Boolean = !isConcrete
 
-  def addressSpace: OpenCLAddressSpace = OpenCLMemory.asOpenCLMemory(this.mem).addressSpace
-
-  def containsLocal: Boolean = {
-    containsMemory(LocalMemory)
-  }
-
-  private def containsMemory(memType: OpenCLAddressSpace): Boolean = {
-    this.mem match {
-      case coll: OpenCLMemoryCollection => coll.subMemories.exists(x => x.addressSpace == memType)
-      case m: OpenCLMemory => m.addressSpace == memType
-      case _ => false
-    }
-  }
-
-  def containsPrivate: Boolean = {
-    containsMemory(PrivateMemory)
-  }
-
-  def visit(visitor: ExprVisitor) {
-    visitor.accept(this)
-    this match {
-      case call: FunCall =>
-        call.args.foreach(_.visit(visitor))
-
-        call.f match {
-          case fp: FPattern => fp.f.body.visit(visitor)
-          case cf: CompFun => cf.funs.foreach(_.body.visit(visitor))
-          case l: Lambda => l.body.visit(visitor)
-          case f: UserFun =>
-        }
-      case p:Param =>
-    }
-  }
-
-
+  /**
+   * Perform a deep copy of the expression.
+   * @return A copy of `this`
+   */
   def copy: Expr
 }
 
 object Expr {
 
-  def replace(e: Expr, oldE: Expr, newE: Expr): Expr =
-    visit(e, (e: Expr) => if (e.eq(oldE)) newE else oldE, (e: Expr) => e)
+  /**
+   * Visit the given expression `expr` by recursively traversing it.
+   *
+   * Invoking the given function `pre` on a given expression before recursively
+   * traversing it.
+   * Invoking the given function `post` on a given expression after recursively
+   * traversing it.
+   *
+   * This function returns nothing. Therefore, `pre` or `post` usually have a
+   * side effect (e.g. printing a given expression).
+   *
+   * @param expr The expression to be visited.
+   * @param pre The function to be invoked before traversing a given expression
+   * @param post The function to be invoked after traversing a given expression
+   */
+  def visit(expr: Expr, pre: Expr => Unit, post: Expr => Unit): Unit = {
+    pre(expr)
+    expr match {
+      case call: FunCall =>
+        call.args.foreach((arg) => visit(arg, pre, post))
 
+        call.f match {
+          case fp: FPattern => visit(fp.f.body, pre, post)
+          case l: Lambda => visit(l.body, pre, post)
+          case cf: CompFun =>
+            cf.funs.reverseMap(inF => visit(inF.body, pre, post))
+          case _ =>
+        }
+      case _ =>
+    }
+    post(expr)
+  }
 
-  def visit[T](z: T)(expr: Expr, visitFun: (Expr, T) => T): T = {
+  /**
+   * Returns an aggregated state computed by visiting the given expression
+   * `expr` by recursively traversing it and calling the given `visitFun` on the
+   * visited sub expressions.
+   *
+   * @param z The initial state of type `T`
+   * @param expr The expression to be visited.
+   * @param visitFun The function to be invoked with the current expression to
+   *                 visit and the current state computing an updated state.
+   *                 This function is invoked before the current expression is
+   *                 recursively visited.
+   * @tparam T The type of the state
+   * @return The computed state after visiting the expression `expr` with the
+   *         initial state `z`.
+   */
+  def visitWithState[T](z: T)(expr: Expr, visitFun: (Expr, T) => T): T = {
     val result = visitFun(expr, z)
     expr match {
       case call: FunCall =>
         // visit args first
-        val newResult = call.args.foldRight(result)((arg, x) => visit(x)(arg, visitFun))
+        val newResult =
+          call.args.foldRight(result)((arg, x) => {
+            visitWithState(x)(arg, visitFun)
+          })
 
         // do the rest ...
         call.f match {
-          case fp: FPattern => visit(newResult)(fp.f.body, visitFun)
-          case cf: CompFun => cf.funs.foldRight(newResult)((inF, x) => visit(x)(inF.body, visitFun))
-          case l: Lambda => visit(newResult)(l.body, visitFun)
+          case fp: FPattern => visitWithState(newResult)(fp.f.body, visitFun)
+          case cf: CompFun =>
+            cf.funs.foldRight(newResult)((inF, x) => {
+              visitWithState(x)(inF.body, visitFun)
+            })
+          case l: Lambda => visitWithState(newResult)(l.body, visitFun)
           case _ => newResult
         }
       case _ => result
@@ -118,40 +155,49 @@ object Expr {
   }
 
   /**
-   * Visit the expression of function f (recursively) and rebuild along the way
+   * This function returns a new expression which has been constructed from the
+   * given expression `expr` by recursively visiting it and applying `pre` and
+   * `post` which return new expressions for a given expression.
+   *
+   * The visiting works as follows:
+   * 1. for the given expression `expr` the function `pre` is invoked
+   * 2. the return value of `pre(expr)` is recursively visited
+   * 3. on the return value from the recursive visit the function `post` is
+   *    invoked and its return value is returned from this function
+   *
+   * @param expr The 'source' expression to be visited
+   * @param pre The function to be invoked on a given expression before it is
+   *            recursively visited. The return value of this function is then
+   *            recursively visited.
+   * @param post The function to be invoked on a given expression after it has
+   *             been recursively visited.
+   * @return The rebuild expression after recursively applying `pre` and `post`
+   *         to `expr`.
    */
-  def visitArithExpr(expr: Expr, exprF: (ArithExpr) => (ArithExpr)): Expr = {
-    visit(expr, {
-      case call: FunCall =>
-        call.f match {
-          case Split(e) => Split(exprF(e))(call.args: _*)
-          case asVector(e) => asVector(exprF(e))(call.args: _*)
-          case _ => call
-        }
-      case inExpr => inExpr
-    },
-    (inExpr: Expr) => inExpr)
-  }
-
-  /**
-   * Visit the function f recursively and rebuild along the way
-   */
-  def visit(expr: Expr, pre: (Expr) => (Expr), post: (Expr) => (Expr)): Expr = {
+  def visitAndRebuild(expr: Expr,
+                      pre:  Expr => Expr,
+                      post: Expr => Expr): Expr = {
     var newExpr = pre(expr)
     newExpr = newExpr match {
       case call: FunCall =>
-        val newArgs = call.args.map((arg) => visit(arg, pre, post))
+        val newArgs = call.args.map((arg) => visitAndRebuild(arg, pre, post))
         call.f match {
           case cf: CompFun =>
-            CompFun(cf.funs.map(inF => new Lambda(inF.params, visit(inF.body, pre, post))): _*).apply(newArgs: _*)
+            CompFun(
+              cf.funs.map(
+                inF => new Lambda(inF.params,
+                  visitAndRebuild(inF.body, pre, post))): _*)
+              .apply(newArgs: _*)
 
           case ar: AbstractPartRed =>
             ar.getClass.getConstructor(classOf[Lambda], classOf[Value])
-              .newInstance(visit(ar.f.body, pre, post), ar.init).apply(newArgs: _*)
+              .newInstance(visitAndRebuild(ar.f.body, pre, post), ar.init)
+              .apply(newArgs: _*)
 
           case fp: FPattern =>
             fp.getClass.getConstructor(classOf[Expr])
-              .newInstance(visit(fp.f.body, pre, post)).apply(newArgs: _*)
+              .newInstance(visitAndRebuild(fp.f.body, pre, post))
+              .apply(newArgs: _*)
 
           case _ => newExpr.copy
         }
@@ -161,216 +207,16 @@ object Expr {
   }
 
   /**
-   * Visit the function f recursively
+   * Convenient function for replacing a single expression (`oldE`) with a given
+   * new expression (`newE`) in an expression to be recursively visited (`e`).
+   *
+   * @param e The 'source' expression to be visited
+   * @param oldE The expression to be replaced in `e`
+   * @param newE The expression to replace `oldE`
+   * @return The rebuild expression from `e` where `oldE` has be replaced with
+   *         `newE`
    */
-  def visit(expr: Expr, pre: (Expr) => (Unit), post: (Expr) => (Unit)): Unit = {
-    pre(expr)
-    expr match {
-      case call: FunCall =>
-        call.args.foreach((arg) => visit(arg, pre, post))
-
-        call.f match {
-          case fp: FPattern => visit(fp.f.body, pre, post)
-          case l: Lambda => visit(l.body, pre, post)
-          case cf: CompFun => cf.funs.reverseMap(inF => visit(inF.body, pre, post))
-          case _ =>
-        }
-      case _ =>
-    }
-    post(expr)
-  }
-
-}
-
-
-/** Parameters to functions and lambdas, i.e.: x, y, ...
-  */
-class Param() extends Expr with Cloneable {
-  t = UndefType
-
-  /**
-   * Vectorize the current parameter
-   * @param n The vector width
-   * @return A vectorized parameter
-   */
-  def vectorize(n: ArithExpr): Param = this match {
-    case v:VectorParam => throw new TypeException("Cannot vectorize a vectorized parameter")
-    case x => new VectorParam(x, n)
-  }
-
-  override def toString = "PARAM"
-
-  override def copy: Param = this.clone().asInstanceOf[Param]
-}
-
-object Param {
-  def apply(): Param = new Param
-
-  def apply(outT: Type): Param = {
-    val p = Param()
-    p.t = outT
-    p
-  }
-
-  @deprecated("used Param.vectorize(n)")
-  def vectorize(p: Param, n: ArithExpr): Param = p.vectorize(n)
-}
-
-/** A vectorized parameter*/
-class VectorParam(val p: Param, n: ArithExpr) extends Param {
-  t = p.t.vectorize(n)
-}
-
-/** A reference to a parameter wrapped in a tupel possibly produced by a zip.*/
-class ParamReference(val p: Param, val i: Int) extends Param {
-  override def toString = "PARAM REF"
-}
-
-/** Shortcut to access parameter in a tuple, i.e., fun( p => Get(p, 0) ) $ Zip(x, y) == x*/
-object Get {
-  def apply(p: Param, i: Int): ParamReference = new ParamReference(p, i)
-}
-
-
-/** Values, i.e.: 4, 128, ...*/
-case class Value(var value: String) extends Param {
-  override def copy: Value = this.clone().asInstanceOf[Value]
-
-  override def toString = "VALUE"
-
-  /**
-   * Vectorize the current value.
-   * @param n The vector width
-   * @return A vectorized value
-   */
-  override def vectorize(n: ArithExpr): Value = Value(value, t.vectorize(n))
-}
-
-object Value {
-
-  // implicit conversions from int, float, and tuples
-  implicit def IntToValue(i: Int): Value = Value(i.toString, opencl.ir.Int)
-
-  implicit def FloatToValue(f: Float): Value = Value(f.toString + "f", opencl.ir.Float)
-
-  implicit def Tuple2ToValue[T1, T2](t: (T1, T2)): Value = {
-    val tupleType = TupleType(getType(t._1), getType(t._2))
-    Value(t.toString().replace('(', '{').replace(')', '}'), tupleType)
-  }
-
-  implicit def Tuple3ToValue[T1, T2, T3](t: (T1, T2, T3)): Value = {
-    val tupleType = TupleType(getType(t._1), getType(t._2), getType(t._3))
-    Value(t.toString().replace('(', '{').replace(')', '}'), tupleType)
-  }
-
-  private def getType(a: Any): Type = a match {
-    case _: Float => Float
-    case _: Int => Int
-    case _ => throw new IllegalArgumentException
-  }
-
-  /** Factory methods for creating values */
-  def apply(outT: Type): Value = {
-    val v = Value("")
-    v.t = outT
-    v
-  }
-
-  def apply(value: String, outT: Type): Value = {
-    val v = Value(value)
-    v.t = outT
-    v
-  }
-
-  def apply(v:Value, outT: Type): Value = {
-    v.t = outT
-    v
-  }
-
-  def apply(v: Value) = v
-
-  @deprecated("Replaced by Value.vectorize(n)")
-  def vectorize(v: Value, n: ArithExpr): Value = v.vectorize(n)
-}
-
-
-/** Function calls, ie.: map(f, x), zip(x, y), ...
-  *
-  * Refers back to the function decl (e.g. map(f)) and the arguments (e.g. x)
-  */
-sealed class FunCall(val f: FunDecl, val args: Expr*) extends Expr with Cloneable {
-
-  assert(if (f.isInstanceOf[Iterate]) {
-    this.isInstanceOf[IterateCall]
-  } else {
-    true
-  })
-
-  override def toString = {
-    val fS = if (f == null) {
-      "null"
-    } else {
-      f.toString
-    }
-    val argS = if (args.nonEmpty) args.map(_.toString).reduce(_ + ", " + _) else ""
-
-    fS + "(" + argS + ")"
-  }
-
-  override def copy: FunCall = {
-    this.clone().asInstanceOf[FunCall]
-  }
-
-  def apply(args: Expr*): FunCall = {
-    val oldArgs = this.args
-    val newArgs = oldArgs ++ args
-    assert(newArgs.length <= f.params.length)
-
-    new FunCall(f, newArgs: _*)
-  }
-
-  /** One type for all arguments (i.e. a tuple if there are more than one args)*/
-  def argsType: Type = {
-    if (args.length == 1) args(0).t
-    else TupleType(args.map(_.t): _*)
-  }
-
-  def argsMemory: Memory = {
-    if (args.length == 1) args(0).mem
-    else OpenCLMemoryCollection(UndefAddressSpace, args.map(_.mem.asInstanceOf[OpenCLMemory]): _*)
-  }
-
-}
-// specific types of function calls ...
-
-case class MapCall(name: String, loopVar: Var,
-                   override val f: AbstractMap, override val args: Expr*) extends FunCall(f, args.head) {
-  assert(args.length == 1)
-
-  var iterationCount: ArithExpr = ?
-
-  def arg: Expr = args(0)
-}
-
-case class ReduceCall(loopVar: Var,
-                      override val f: AbstractPartRed,
-                      override val args: Expr*) extends FunCall(f, args.head, args(1)) {
-  assert(args.length == 2)
-
-  var iterationCount: ArithExpr = ?
-
-  def arg0: Expr = args(0)
-
-  def arg1: Expr = args(1)
-}
-
-case class IterateCall(override val f: Iterate, override val args: Expr*) extends FunCall(f, args.head) {
-  assert(args.length == 1)
-
-  def arg: Expr = args(0)
-
-  var iterationCount: ArithExpr = ?
-
-  var swapBuffer: Memory = UnallocatedMemory
-  var indexVar = Var("i", RangeUnknown)
+  def replace(e: Expr, oldE: Expr, newE: Expr): Expr =
+    visitAndRebuild(e, (e: Expr) => if (e.eq(oldE)) newE else oldE,
+                       (e: Expr) => e)
 }

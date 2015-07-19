@@ -5,7 +5,7 @@ import ir.{TupleType, VectorType, ScalarType, Type}
 import opencl.ir.{Int, Float}
 
 /**
- * Representation of a "user function" usually operating on scala values.
+ * Representation of a "user function" declaration which usually operates on scala values.
  * @param name The name of the function. This has to follow standard C naming conventions.
  * @param paramNames The array of parameter names.
  * @param body The body of the function as a string. The body currently must be valid OpenCL C code.

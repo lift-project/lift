@@ -101,12 +101,33 @@ class GlobalAllocator {
 
 }
 /** Represents the NULL OpenCL memory object */
-object OpenCLNullMemory extends OpenCLMemory(Var("NULL"), Cst(-1), UndefAddressSpace)
+object OpenCLNullMemory
+  extends OpenCLMemory(Var("NULL"), Cst(-1), UndefAddressSpace)
 
 
 object OpenCLMemory {
 
-  def apply(variable: Var, size: ArithExpr, addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+  def containsAddressSpace(mem: Memory,
+                           memType: OpenCLAddressSpace): Boolean = {
+    mem match {
+      case coll: OpenCLMemoryCollection =>
+        coll.subMemories.exists(x => x.addressSpace == memType)
+      case m: OpenCLMemory => m.addressSpace == memType
+      case _ => false
+    }
+  }
+
+  def containsGlobalMemory(mem: Memory): Boolean =
+    containsAddressSpace(mem, GlobalMemory)
+
+  def containsLocalMemory(mem: Memory): Boolean =
+    containsAddressSpace(mem, LocalMemory)
+
+  def containsPrivateMemory(mem: Memory): Boolean =
+    containsAddressSpace(mem, PrivateMemory)
+
+  def apply(variable: Var, size: ArithExpr,
+            addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     new OpenCLMemory(variable, size, addressSpace)
   }
 
@@ -483,7 +504,7 @@ object TypedOpenCLMemory {
   def getAllocatedMemory(expr: Expr, params: Array[Param], includePrivate: Boolean = false): Array[TypedOpenCLMemory] = {
 
     // recursively visit all functions and collect input and output (and swap buffer for the iterate)
-    val result = Expr.visit(Array[TypedOpenCLMemory]())(expr, (exp, arr) =>
+    val result = Expr.visitWithState(Array[TypedOpenCLMemory]())(expr, (exp, arr) =>
       exp match {
         case call: FunCall =>
           call.f match {

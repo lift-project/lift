@@ -276,7 +276,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
   /** Check that all possible indices returned by Group calls are in-bounds */
   private def staticGroupCheck(f: Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
-    val groupFuns = Expr.visit(Set[Group]())(f.body, (expr, set) =>
+    val groupFuns = Expr.visitWithState(Set[Group]())(f.body, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
           case group: Group => set + group

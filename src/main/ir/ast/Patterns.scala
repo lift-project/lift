@@ -3,101 +3,198 @@ package ir.ast
 import arithmetic.{ArithExpr, Var}
 import ir.{ArrayType, Type, UndefType}
 
-abstract class Pattern(override val params: Array[Param]) extends FunDecl(params) {
+/**
+ * Abstract base class for all patterns (i.e., primitives defined in our
+ * language)
+ *
+ * @param params The parameters of the function declaration.
+ */
+abstract class Pattern(override val params: Array[Param])
+  extends FunDecl(params) {
+
   def this(arity: Int) = this(Array.fill(arity)(Param(UndefType)))
 }
 
+/**
+ * Trait for all patterns which have a nested lambda (e.g., Map or Reduce)
+ */
 trait FPattern {
   def f: Lambda
 }
 
-abstract class AbstractMap(f:Lambda) extends Pattern(arity = 1) with FPattern
 
 /**
- * Apply the lambda <code>f</code> to every element of the input
+ * Abstract class for map patterns.
  *
- * Applicable rules:
- *  - Map(f) => Join() o Map(Map(f)) o Split(I)
- *  - Map(f) o Map(g) => Map(f o g)
- *  - Map(f) => asScalar() o Map(Vectorize(k)(f)) o asVector(k) (input a multiple of k)
- *  - Map(f) => MapGlb(f)
- *  - Map(f) => MapWrg(f)
- *  - Map(f) => Barrier() o MapLcl(f)
- *  - Map(f) => MapWarp(f)
- *  - Map(f) => MapLane(f)
- *  - Map(f) => MapSeq(f)
+ * An object of the map pattern has to be instantiated with a given lambda `f`,
+ * therefore, it is not possible to have a term like `Map()`.
  *
- * @param f Lambda to apply to every element of the input
+ * @param f A lambda to be applied to every element of the input array
  */
-case class Map(f:Lambda1) extends AbstractMap(f) {
+abstract class AbstractMap(f: Lambda1) extends Pattern(arity = 1) with FPattern
+
+/**
+ * Concrete class for the map pattern.
+ * No code can be generated for this class.
+ *
+ * The map pattern has the following high-level semantics:
+ *   `Map(f) $ [x,,1,,, ..., x,,n,,] = [f(x,,1,,), ..., f(x,,n,,)]`
+ *
+ * The map pattern has to following type:
+ *  `Map(f) : [a],,i,, -> [b],,i,,`
+ * where `f: a -> b`.
+ *
+ * We know the following algorithmic rewrite rules for the map pattern (so far):
+ *  - Map(f)          => Join() o Map(Map(f)) o Split(I)
+ *  - Map(f) o Map(g) => Map(f o g)
+ *
+ * Lower level rewrite rules are described for the corresponding low-level
+ * patterns.
+ *
+ * @param f A lambda to be applied to every element of the input array
+ */
+case class Map(f: Lambda1) extends AbstractMap(f) {
+  /**
+   * Function call. This method returns an object representing the function call
+   * of `this` with `args`.
+   * This method will fail at runtime if the number of given `args` is `!= 1`.
+   * @param args The arguments to call the function (`this`) with.
+   * @return An object (of type MapCall) representing the function call of
+   *         `this` with `args`.
+   */
   override def apply(args: Expr*): MapCall = mapCall(args:_*)
 
-  override def $(that: Expr): MapCall = mapCall(that)
+  /**
+   * Alternative function call operator syntax. Calls `this.apply(arg)`.
+   * @param arg The argument to call the function with.
+   * @return An object (of type MapCall) representing the function call of
+   *         `this` with `arg`.
+   */
+  override def $(arg: Expr): MapCall = mapCall(arg)
 
+  // helper method creating a MapCall instance linked to this
   private def mapCall(args: Expr*): MapCall = {
     assert(args.length == 1)
     new MapCall("Map", Var(""), this, args(0))
   }
 }
 
-object Map {
-  def apply(f: Lambda1, expr: Expr): MapCall = {
-    Map(f).mapCall(expr)
-  }
+
+/**
+ * Abstract class for the partial reduce pattern.
+ *
+ * An object of the partial reduce pattern has to be instantiated with a given
+ * lambda `f`, therefore, it is not possible to have a like `PartRed()`.
+ *
+ * @param f A lambda to be applied in the partial reduction
+ */
+abstract class AbstractPartRed(f: Lambda2) extends Pattern(arity = 2)
+  with FPattern {
+
+  /**
+   * Shortcut to access the initial value of the reduction
+   * @return
+   */
+  def init: Value = params(0) match { case v: Value => v }
 }
 
-abstract class GenerableMap(f:Lambda1) extends AbstractMap(f) with isGenerable
-
-abstract class AbstractPartRed(f:Lambda1) extends Pattern(arity = 2) with FPattern {
-  def init: Value = params(0) match { case v: Value => v}
-}
-
+/**
+ * Abstract class for the (full) reduce pattern.
+ *
+ * The full reduction is modeled as a special case of the parital reduction,
+ * therefore, this class inherits from the AbstractPartRed class.
+ *
+ * An object of the reduce pattern has to be instantiated with a given
+ * lambda `f`, therefore, it is not possible to have a like `Red()`.
+ *
+ * @param f A lambda to be applied in the partial reduction
+ */
 abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
 
 /**
- * Perform a reduction on the input.
+ * Concrete class for the reduce pattern.
+ * No code can be generated for this class.
  *
- * Applicable rules:
+ * The reduce pattern has the following high-level semantics:
+ *   `Reduce(f)( id, [x,,1,,, ..., x,,n,,] ) =
+ *      id f (x,,1,, f (... ( ... f x,,n,,) ...))`
+ * where `f` is written in infix notation.
+ *
+ * The reduce pattern has the following type:
+ *   `Reduce(f) : a -> [a],,i,, -> [a],,1,,`
+ * where `f : (a x a) -> a`.
+ *
+ * We know the following algorithmic rewrite rules for the reduce pattern
+ * (so far):
  *  - Reduce(f) => Reduce(f) o PartRed(f)
- *  - Reduce(f) => ReduceSeq(f)
  *
- * @param f The lambda to apply to the next element and partial result
+ * @param f A lambda to be applied as the binary reduction operator in the
+ *          reduction
  */
-case class Reduce(f: Lambda) extends AbstractReduce(f) {
+case class Reduce(f: Lambda2) extends AbstractReduce(f) {
+  /**
+   * Function call. This method returns an object representing the function call
+   * of `this` with `args`.
+   * This method will fail at runtime if the number of given `args` is != 2.
+   * @param args The arguments to call the function (`this`) with.
+   * @return An object (of type FunCall) representing the function call of
+   *         `this` with `args`.
+   */
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
+  // helper method creating a ReduceCall instance linked to this
   private def reduceCall(args: Expr*): ReduceCall = {
     assert(args.length == 2)
     new ReduceCall(Var("i"), this, args(0), args(1))
   }
 }
+
 object Reduce {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => Reduce(f)(init, x))
-  def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = Reduce(f)(init, expr)
 }
 
 /**
- * Partial reduction
+ * Concreate class for the partial reduce pattern.
+ * No code can be generated for this class.
  *
- * Applicable re-write rules:
+ * The partial reduce pattern has the following high-level semantics:
+ *   `PartRed(f)( id, [x,,1,,, ..., x,,n,,] ) = ` TODO (fill this out)
+ * where `f` is written in infix notation.
+ *
+ * TODO: Currently this has NOT this type. fix this.
+ * The partial reduce pattern has the following type:
+ *   `PartRed(f) : a -> n -> [a],,i,, -> [a],,n,,`
+ * where `f: (a x a) -> a`.
+ *
+ * We know the following algorithmic rewrite rules for the partial reduce
+ * pattern (so far):
  *  - PartRed(f) => Reduce(f)
  *  - PartRed(f) => PartRed(f) o Reorder
- *  - PartRed(f) => Iterate(k, PartRed(f)) (input a multiple of k)
- *  - PartRed(f) => Join() o Map(PartRed(f)) o Split(k) (input a multiple of k)
+ *  - PartRed(f) => Iterate(k, PartRed(f))
+ *  - PartRed(f) => Join() o Map(PartRed(f)) o Split(k)
  *
- * @param f The lambda to apply to the next element and partial result
+ * @param f A lambda to be applied as the binary reduction operator in the
+ *          partial reduction
  */
 case class PartRed(f: Lambda2) extends AbstractPartRed(f) with FPattern {
   override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
 
+  /**
+   * Function call. This method returns an object representing the function call
+   * of `this` with `args`.
+   * This method will fail at runtime if the number of given `args` is != 2.
+   * @param args The arguments to call the function (`this`) with.
+   * @return An object (of type FunCall) representing the function call of
+   *         `this` with `args`.
+   */
   private def reduceCall(args: Expr*): ReduceCall = {
     assert(args.length == 2)
     new ReduceCall(Var("i"), this, args(0), args(1))
   }
 }
+
 object PartRed {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => PartRed(f)(init, x))
-  def apply(f: Lambda2, init: Value, expr: Expr): ReduceCall = PartRed(f)(init, expr)
 }
 
 /**

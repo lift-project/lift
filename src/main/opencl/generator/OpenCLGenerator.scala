@@ -133,7 +133,7 @@ object OpenCLGenerator extends Generator {
 
   /** Traversals f and print all user functions using oclPrinter */
   def generateUserFunction(expr: Expr): Unit = {
-    val userFuns = Expr.visit(Set[UserFun]())(expr, (expr, set) =>
+    val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
           case uf: UserFun => set + uf
@@ -150,7 +150,7 @@ object OpenCLGenerator extends Generator {
 
   /** Traverses f and print all group functions using oclPrinter */
   def generateGroupFunction(expr: Expr) {
-    val groupFuns = Expr.visit(Set[Group]())(expr, (expr, set) =>
+    val groupFuns = Expr.visitWithState(Set[Group]())(expr, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
           case group: Group => set + group
@@ -193,7 +193,7 @@ object OpenCLGenerator extends Generator {
     // generate kernel function signature
     oclPrinter.print("kernel void KERNEL(")
 
-    val valMems = Expr.visit(Set[Memory]())(expr, (expr, set) =>
+    val valMems = Expr.visitWithState(Set[Memory]())(expr, (expr, set) =>
       expr match {
         case value: Value => set + value.mem
         case _ => set
@@ -337,8 +337,8 @@ object OpenCLGenerator extends Generator {
   // MapLcl
   private def generateMapLclCall(call: MapCall): Unit = {
     generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
-      (call.arg.containsPrivate && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
-        call.addressSpace == PrivateMemory)
+      (OpenCLMemory.containsPrivateMemory(call.arg.mem) && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
+        OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory)
   }
 
   // MapWarp
@@ -356,8 +356,8 @@ object OpenCLGenerator extends Generator {
   private def generateMapSeqCall(call: MapCall): Unit = {
     oclPrinter.commln("map_seq")
     generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
-      (call.arg.containsPrivate && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
-        call.addressSpace == PrivateMemory)
+      (OpenCLMemory.containsPrivateMemory(call.arg.mem) && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
+        OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory)
     oclPrinter.commln("map_seq")
   }
   
@@ -368,7 +368,7 @@ object OpenCLGenerator extends Generator {
     oclPrinter.commln("reduce_seq")
 
     generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
-      call.arg1.containsPrivate)
+      OpenCLMemory.containsPrivateMemory(call.arg1.mem))
     //print an OpenCL/C declaration for our variable
 
     oclPrinter.commln("reduce_seq")

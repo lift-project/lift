@@ -163,7 +163,7 @@ class TestMisc {
     val f = fun(
       ArrayType(Float, N),
       (input) =>
-        MapGlb(fun(x => add(x, Value.FloatToValue(3.0f)))) $ input
+        MapGlb(fun(x => add(x, 3.0f))) $ input
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)

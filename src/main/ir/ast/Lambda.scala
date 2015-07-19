@@ -2,24 +2,57 @@ package ir.ast
 
 import ir._
 
-import scala.language.implicitConversions
-
+/**
+ * Instances of this class represent declarations (and definition) of anonymous functions (a.k.a., lambda expressions).
+ * This class allows for an arbitrary number of parameters.
+ * Use one of the provided subclasses to get a (runtime) checking of the number of arguments when constructing an
+ * instance of such a subclass.
+ *
+ * @param params The parameters of the lambda expression.
+ * @param body The body of the lambda expression.
+ */
 class Lambda(override val params: Array[Param], val body: Expr) extends FunDecl(params) with isGenerable {
+  /**
+   * Debug string representation
+   */
   override def toString = "Lambda(" + params.map(_.toString).reduce(_ + ", " + _) + "){ " + body.toString + " }"
 }
 
 object Lambda {
+  /**
+   * Implicitly wrap a given function declaration `f` into a lambda.
+   *
+   * @param f A given function declaration
+   * @return A lambda with the same arity as `f` which immediately calls `f` in its body.
+   */
   implicit def FunDefToLambda(f: FunDecl): Lambda = {
     val params = f.params.map(_ => Param(UndefType))
     new Lambda(params, f(params:_*))
   }
 }
 
+/**
+ * A lambda expression of arity 1.
+ * @param params The parameters of the lambda expression.
+ * @param body The body of the lambda expression.
+ */
 class Lambda1(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 1)
 }
 
 object Lambda1 {
+  /**
+   * Implicitly wrap a given function declaration `f` into a lambda.
+   *
+   * If `f` has arity  1 the returned lambda immediately calls `f` in its body.
+   *
+   * If `f` has arity >1 the returned lambda will unpack (or, 'uncurry') its single parameter
+   * (under the assumption that this is a tuple) and pass all components of the tuple as separate parameters to the
+   * function `f`.
+   *
+   * @param f A given function declaration of arity >=1.
+   * @return A lambda with arity 1 which calls `f` in its body.
+   */
   implicit def FunDefToLambda(f: FunDecl): Lambda1 = {
     assert(f.params.nonEmpty)
     if (f.params.length == 1) {
@@ -30,9 +63,20 @@ object Lambda1 {
   }
 }
 
+/**
+ * A lambda expression of arity 2.
+ * @param params The parameters of the lambda expression.
+ * @param body The body of the lambda expression.
+ */
 class Lambda2(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 2)
 
+  /**
+   * Returns a curried lambda expression, i.e.,  lambda expression of arity 1, where the first argument of `this` is
+   * bound with `arg`.
+   * @param arg The argument to be bound to the first parameter
+   * @return A lambda expression of arity 1 immediately calling `this` where the first parameter is bound to `arg`
+   */
   def apply(arg: Expr): Lambda1 = {
     fun( tmp => super.apply(arg, tmp) )
   }

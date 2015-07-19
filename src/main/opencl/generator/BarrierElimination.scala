@@ -105,8 +105,10 @@ object BarrierElimination {
         if (groups.length > 1)
           !(barrierInHead && (finalReadMemory == GlobalMemory || finalReadMemory == LocalMemory && !insideLoop))
         else
-          (groups.head.last.body.containsLocal ||
-            groups.head.last.params.foldLeft(false)((needsBarrier, param) => param.containsLocal || needsBarrier) ) && insideLoop
+          (OpenCLMemory.containsLocalMemory(groups.head.last.body.mem) ||
+            groups.head.last.params.foldLeft(false)((needsBarrier, param) => {
+              OpenCLMemory.containsLocalMemory(param.mem) || needsBarrier
+            }) ) && insideLoop
 
       groups.zipWithIndex.foreach(x => {
         val group = x._1
@@ -118,7 +120,7 @@ object BarrierElimination {
 
           // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (group.last.body.containsLocal && id > 1 && insideLoop &&
+          if (OpenCLMemory.containsLocalMemory(group.last.body.mem) && id > 1 && insideLoop &&
             !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
@@ -130,7 +132,7 @@ object BarrierElimination {
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (group.last.body.containsLocal && id > 1 && insideLoop &&
+          if (OpenCLMemory.containsLocalMemory(group.last.body.mem) && id > 1 && insideLoop &&
             !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
@@ -184,7 +186,7 @@ object BarrierElimination {
   }
 
   private def readsFrom(lambda: Lambda): OpenCLAddressSpace = {
-    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(lambda.body, (expr, addressSpace) => {
+    Expr.visitWithState[OpenCLAddressSpace](UndefAddressSpace)(lambda.body, (expr, addressSpace) => {
       expr match {
         case call: FunCall =>
           call.f match {

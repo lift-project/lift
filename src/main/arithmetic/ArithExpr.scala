@@ -464,7 +464,7 @@ object TypeVar {
   }
 
   def getTypeVars(expr: Expr) : Set[TypeVar] = {
-    Expr.visit(immutable.HashSet[TypeVar]())(expr, (inExpr, set) => set ++ getTypeVars(inExpr.t))
+    Expr.visitWithState(immutable.HashSet[TypeVar]())(expr, (inExpr, set) => set ++ getTypeVars(inExpr.t))
   }
 
   def getTypeVars(t: Type) : Set[TypeVar] = {
@@ -566,7 +566,7 @@ object Var {
   }
 
   def getVars(expr: Expr) : Seq[Var] = {
-    Expr.visit(Seq[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.t))
+    Expr.visitWithState(Seq[Var]())(expr, (inExpr, set) => set ++ getVars(inExpr.t))
   }
 
   def getVars(t: Type) : Seq[Var] = {

@@ -3,6 +3,7 @@ package ir.view
 import arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
+import opencl.ir.OpenCLMemory
 
 object BuildDepthInfo {
   def apply(expr: Expr): Unit = (new BuildDepthInfo).visitAndBuildDepthInfo(expr)
@@ -49,14 +50,14 @@ class BuildDepthInfo() {
   }
 
   private def readsLocalPrivate(call: FunCall): (Boolean, Boolean) = {
-    val readsLocal = call.args(0).containsLocal
-    val readsPrivate = call.args(0).containsPrivate
+    val readsLocal = OpenCLMemory.containsLocalMemory(call.args(0).mem)
+    val readsPrivate = OpenCLMemory.containsPrivateMemory(call.args(0).mem)
     (readsLocal, readsPrivate)
   }
 
   private def buildDepthInfoReduceCall(call: ReduceCall): Unit = {
-    val readsLocal = call.arg1.containsLocal
-    val readsPrivate = call.arg1.containsPrivate
+    val readsLocal = OpenCLMemory.containsLocalMemory(call.arg1.mem)
+    val readsPrivate = OpenCLMemory.containsPrivateMemory(call.arg1.mem)
 
     buildDepthInfoPatternCall(call.f.f.body, call, Cst(0), readsLocal, readsPrivate)
   }
@@ -89,8 +90,8 @@ class BuildDepthInfo() {
   }
 
   private def writesLocalPrivate(call: FunCall): (Boolean, Boolean) = {
-    val writesLocal = call.containsLocal
-    val writesPrivate = call.containsPrivate
+    val writesLocal = OpenCLMemory.containsLocalMemory(call.mem)
+    val writesPrivate = OpenCLMemory.containsPrivateMemory(call.mem)
     (writesLocal, writesPrivate)
   }
 
