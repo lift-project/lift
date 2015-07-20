@@ -3,15 +3,13 @@ package ir.view
 import arithmetic._
 import ir._
 import ir.ast._
-import opencl.ir._
 import opencl.ir.ast._
 
-import scala.collection.immutable.Stack
-
 /**
- * Placeholder for filter view.
- * @param array
- * @param idx
+ * An arithmetic expression that performs an access to `array[idx]`
+ *
+ * @param array Array name
+ * @param idx Index to access in the array
  */
 class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
 
@@ -179,12 +177,12 @@ object ViewPrinter {
 
   def emit(sv: View): ArithExpr = {
     assert(!sv.t.isInstanceOf[ArrayType])
-    emitView(sv, new Stack(), new Stack())
+    emitView(sv, List(), List())
   }
 
   private def emitView(sv: View,
-                       arrayAccessStack: Stack[(ArithExpr, ArithExpr)], // id, dimension size
-                       tupleAccessStack: Stack[Int]): ArithExpr = {
+                       arrayAccessStack: List[(ArithExpr, ArithExpr)], // id, dimension size
+                       tupleAccessStack: List[Int]): ArithExpr = {
     sv match {
       case mem: ViewMem =>
         assert(tupleAccessStack.isEmpty)
@@ -192,100 +190,108 @@ object ViewPrinter {
 
       case access: ViewAccess =>
         val length: ArithExpr = getLengthForArrayAccess(sv.t, tupleAccessStack)
-        val newAAS = arrayAccessStack.push((access.i, length))
+        val newAAS = (access.i, length) :: arrayAccessStack
         emitView(access.iv, newAAS, tupleAccessStack)
 
       case map: ViewMap =>
-        val idx = arrayAccessStack.top._1
-        val newAAS = arrayAccessStack.pop
+        val idx = arrayAccessStack.head._1
+        val newAAS = arrayAccessStack.tail
         val newV = map.iv.replaced(map.itVar, idx)
         emitView(newV, newAAS, tupleAccessStack)
 
       case split: ViewSplit =>
-        val (chunkId, stack1) = arrayAccessStack.pop2
-        val (chunkElemId, stack2) = stack1.pop2
+        val chunkId = arrayAccessStack.head
+        val stack1 = arrayAccessStack.tail
+        val chunkElemId = stack1.head
+        val stack2 = stack1.tail
         val newIdx = chunkId._1 * split.n + chunkElemId._1
-        val newAAS = stack2.push((newIdx, chunkElemId._2))
+        val newAAS = (newIdx, chunkElemId._2) :: stack2
         emitView(split.iv, newAAS, tupleAccessStack)
 
       case ag: ViewGroup =>
-        val (outerId, stack1) = arrayAccessStack.pop2
-        val (innerId, stack2) = stack1.pop2
+        val outerId = arrayAccessStack.head
+        val stack1 = arrayAccessStack.tail
+        val innerId = stack1.head
+        val stack2 = stack1.tail
 
         ag.group.params(0).t match {
           case ArrayType(t, len) =>
             val newIdx = new GroupCall(ag.group, outerId._1, innerId._1, len)
-            val newAAS = stack2.push((newIdx, innerId._2))
+            val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()
         }
 
       case join: ViewJoin =>
-        val (idx, stack) = arrayAccessStack.pop2
+        val idx = arrayAccessStack.head
+        val stack = arrayAccessStack.tail
         val chunkSize: ArithExpr = join.n
         val chunkId = idx._1 / chunkSize
         val chunkElemId = idx._1 % chunkSize
-        val newAS = stack.push((chunkElemId, Type.getLengths(sv.t.asInstanceOf[ArrayType].elemT).reduce(_ * _))).
-          push((chunkId, Type.getLengths(join.t.asInstanceOf[ArrayType].elemT).reduce(_ * _) * join.n))
+        val newAS = stack.::((chunkElemId, Type.getLengths(sv.t.asInstanceOf[ArrayType].elemT).reduce(_ * _))).
+          ::((chunkId, Type.getLengths(join.t.asInstanceOf[ArrayType].elemT).reduce(_ * _) * join.n))
         emitView(join.iv, newAS, tupleAccessStack)
 
       case gather: ViewReorder =>
-        val (idx, stack) = arrayAccessStack.pop2
+        val idx = arrayAccessStack.head
+        val stack = arrayAccessStack.tail
         val newIdx = gather.f(idx._1)
-        val newAS = stack.push((newIdx, idx._2))
+        val newAS = (newIdx, idx._2) :: stack
         emitView(gather.iv, newAS, tupleAccessStack)
 
       case filter: ViewFilter =>
-        val ((idx, len), stack) = arrayAccessStack.pop2
+        val (idx, len) = arrayAccessStack.head
+        val stack = arrayAccessStack.tail
 
         val newIdx = emit(filter.ids.access(idx))
         val indirection = new AccessVar(getInputAccess(filter.ids).name, newIdx)
 
-        emitView(filter.iv, stack.push((indirection, len)), tupleAccessStack)
+        emitView(filter.iv, (indirection, len) :: stack, tupleAccessStack)
 
       case component: ViewTupleComponent =>
-        val newTAS = tupleAccessStack.push(component.i)
+        val newTAS = component.i :: tupleAccessStack
         emitView(component.iv, arrayAccessStack, newTAS)
 
       case zip: ViewZip =>
-        val i = tupleAccessStack.top
-        val newTAS = tupleAccessStack.pop
+        val i = tupleAccessStack.head
+        val newTAS = tupleAccessStack.tail
         emitView(zip.ivs(i), arrayAccessStack, newTAS)
 
       case unzip: ViewUnzip =>
         emitView(unzip.iv, arrayAccessStack, tupleAccessStack)
 
       case tuple: ViewTuple =>
-        val i = tupleAccessStack.top
-        val newTAS = tupleAccessStack.pop
+        val i = tupleAccessStack.head
+        val newTAS = tupleAccessStack.tail
         emitView(tuple.ivs(i), arrayAccessStack, newTAS)
 
       case asVector: ViewAsVector =>
-        val top = arrayAccessStack.top
-        val newAAS = arrayAccessStack.pop.push((top._1 * asVector.n, top._2)).map(x => (x._1, x._2 /^ asVector.n))
+        val top = arrayAccessStack.head
+        val newAAS = ((top._1 * asVector.n, top._2) :: arrayAccessStack.tail).map(x => (x._1, x._2 /^ asVector.n))
         emitView(asVector.iv, newAAS, tupleAccessStack)
 
       case asScalar: ViewAsScalar =>
-        val top = arrayAccessStack.top
-        val newAAS = arrayAccessStack.pop.push((top._1 /^ asScalar.n, top._2)).map(x => (x._1, x._2 * asScalar.n))
+        val top = arrayAccessStack.head
+        val newAAS = ((top._1 /^ asScalar.n, top._2) :: arrayAccessStack.tail).map(x => (x._1, x._2 * asScalar.n))
         emitView(asScalar.iv, newAAS, tupleAccessStack)
 
       case head: ViewHead =>
-        val newAAS = arrayAccessStack.pop
+        val newAAS = arrayAccessStack.tail
         emitView(head.iv, newAAS, tupleAccessStack)
 
       case tail: ViewTail =>
-        val (idx, stack) = arrayAccessStack.pop2
+        val idx = arrayAccessStack.head
+        val stack = arrayAccessStack.tail
         val newIdx = idx._1 + 1
         val newLen = idx._2
-        val newAAS = stack.push((newIdx, newLen))
+        val newAAS = (newIdx, newLen) :: stack
         emitView(tail.iv, newAAS, tupleAccessStack)
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }
   }
 
-  private def getInputAccess(sv: View, tupleAccessStack: Stack[Int] = new Stack()): ViewMem = {
+  private def getInputAccess(sv: View, tupleAccessStack: List[Int] = List()): ViewMem = {
     sv match {
       case map: ViewMem => map
       case access: ViewAccess => getInputAccess(access.iv, tupleAccessStack)
@@ -298,30 +304,30 @@ object ViewPrinter {
       case asScalar: ViewAsScalar => getInputAccess(asScalar.iv, tupleAccessStack)
 
       case component: ViewTupleComponent =>
-        val newTAS = tupleAccessStack.push(component.i)
+        val newTAS = tupleAccessStack.::(component.i)
         getInputAccess(component.iv, newTAS)
 
       case zip: ViewZip =>
-        val i = tupleAccessStack.top
-        val newTAS = tupleAccessStack.pop
+        val i = tupleAccessStack.head
+        val newTAS = tupleAccessStack.tail
         getInputAccess(zip.ivs(i), newTAS)
 
       case tuple: ViewTuple =>
-        val i = tupleAccessStack.top
-        val newTAS = tupleAccessStack.pop
+        val i = tupleAccessStack.head
+        val newTAS = tupleAccessStack.tail
         getInputAccess(tuple.ivs(i), newTAS)
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }
   }
 
-  private def getLengthForArrayAccess(t: Type, tupleAccesses: Stack[Int]): ArithExpr = {
+  private def getLengthForArrayAccess(t: Type, tupleAccesses: List[Int]): ArithExpr = {
 
     if (tupleAccesses.isEmpty) {
       Type.getLengths(t).reduce(_ * _)
     } else {
       t match {
-        case tt: TupleType => getLengthForArrayAccess(Type.getTypeAtIndex(tt, tupleAccesses.top), tupleAccesses.pop)
+        case tt: TupleType => getLengthForArrayAccess(Type.getTypeAtIndex(tt, tupleAccesses.head), tupleAccesses.tail)
         case ArrayType(elemT, n) => getLengthForArrayAccess(elemT, tupleAccesses) * n
         case _ => throw new IllegalArgumentException("PANIC: cannot compute array access")
       }
