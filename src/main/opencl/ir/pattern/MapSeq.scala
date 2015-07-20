@@ -1,16 +1,8 @@
 package opencl.ir.pattern
 
 import arithmetic.Var
-import ir.ast.{MapCall, Expr, Lambda1}
+import ir.ast.Lambda1
 import opencl.ir.ast.GenerableMap
 
-case class MapSeq(f: Lambda1) extends GenerableMap(f) {
-  override def apply(args: Expr*) : MapCall = {
-    assert(args.length == 1)
-    new MapCall("MapSeq", Var("i"), this, args(0))
-  }
-
-  override def $(that: Expr) : MapCall = {
-    apply(that)
-  }
-}
+case class MapSeq(override val f: Lambda1) extends GenerableMap(f, "MapSeq",
+                                                                Var("i"))
