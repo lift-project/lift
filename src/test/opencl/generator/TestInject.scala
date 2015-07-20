@@ -3,9 +3,8 @@ package opencl.generator
 import arithmetic.Var
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor.{Executor, Utils}
-import opencl.ir.Float
+import opencl.ir._
 import opencl.ir.ast.{Barrier, MapLcl, MapWrg}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
