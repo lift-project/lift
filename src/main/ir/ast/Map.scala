@@ -24,8 +24,8 @@ abstract class AbstractMap(f: Lambda1) extends Pattern(arity = 1) with FPattern
  * where `f: a -> b`.
  *
  * We know the following algorithmic rewrite rules for the map pattern (so far):
- *  - Map(f)          => Join() o Map(Map(f)) o Split(I)
- *  - Map(f) o Map(g) => Map(f o g)
+ *  - `Map(f)          => Join() o Map(Map(f)) o Split(I)`
+ *  - `Map(f) o Map(g) => Map(f o g)`
  *
  * Lower level rewrite rules are described for the corresponding low-level
  * patterns.

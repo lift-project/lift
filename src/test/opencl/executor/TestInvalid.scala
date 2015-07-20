@@ -263,7 +263,7 @@ class TestInvalid {
       println("Executing a valid kernel")
       Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
     } catch {
-      case _ => assert(assertion = false)
+      case _: Throwable => assert(assertion = false)
     }
   }
 
@@ -278,7 +278,7 @@ class TestInvalid {
       case e: Executor.ExecutorFailureException =>
         e.consume()
         assert(assertion = false)
-      case _ =>
+      case _: Throwable =>
       // This might be acceptable depending on how we handle insufficient ressources
     }
   }
