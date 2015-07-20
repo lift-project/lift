@@ -2,6 +2,7 @@ package ir.ast
 
 import arithmetic.ArithExpr
 import ir.{ArrayType, Type, UndefType}
+import scala.language.implicitConversions
 
 /**
  * Abstract base class for all patterns (i.e., primitives defined in our
