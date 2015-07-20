@@ -20,10 +20,10 @@ object OutputView {
 
   private def buildViewFunCall(call: FunCall, writeView: View): View = {
     call match {
-      case call: MapCall => buildViewMapCall(call, writeView)
-      case call: ReduceCall => buildViewReduceCall(call, writeView)
       case call: FunCall =>
         call.f match {
+          case m: AbstractMap => buildViewMap(m, call, writeView)
+          case r: AbstractPartRed => buildViewReduce(r, call, writeView)
           case l: Lambda => buildViewLambda(l, call, writeView)
           case cf: CompFun => buildViewCompFunDef(cf, writeView)
           case Split(n) => buildViewSplit(n, writeView)
@@ -81,7 +81,7 @@ object OutputView {
     visitAndBuildViews(tP.f.body, writeView)
   }
 
-  private def buildViewMapCall(call: MapCall, writeView: View): View = {
+  private def buildViewMap(m: AbstractMap, call: FunCall, writeView: View): View = {
     var view = writeView
 
     // TODO: Find a way to deal with this in one place instead of here and in buildViewCompFunDef
@@ -90,23 +90,25 @@ object OutputView {
       view = View.initialiseNewView(call.t, call.inputDepth)
 
     // traverse into call.f
-    val innerView = visitAndBuildViews(call.f.f.body, view.access(call.loopVar))
+    val innerView = visitAndBuildViews(m.f.body, view.access(m.loopVar))
 
     if (call.isConcrete) {
       // create fresh view for following function
-      View.initialiseNewView(call.arg.t, call.outputDepth, call.mem.variable.name)
+      View.initialiseNewView(call.args(0).t, call.outputDepth, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
-      new ViewMap(innerView, call.loopVar, call.arg.t)
+      new ViewMap(innerView, m.loopVar, call.args(0).t)
     }
   }
 
-  private def buildViewReduceCall(call: ReduceCall, writeView: View): View = {
-    visitAndBuildViews(call.arg0,
-      View.initialiseNewView(call.arg0.t, call.inputDepth, call.arg0.mem.variable.name))
+  private def buildViewReduce(r: AbstractPartRed,
+                              call: FunCall, writeView: View): View = {
+    visitAndBuildViews(call.args(0),
+      View.initialiseNewView(call.args(0).t, call.inputDepth, call.args(0).mem.variable.name))
     // traverse into call.f
-    visitAndBuildViews(call.f.f.body, writeView.access(Cst(0)))
+    visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
     // create fresh input view for following function
-    View.initialiseNewView(call.arg1.t, call.outputDepth, call.mem.variable.name)
+    View.initialiseNewView(call.args(1).t, call.outputDepth,
+                           call.mem.variable.name)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {

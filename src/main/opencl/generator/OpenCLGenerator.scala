@@ -275,23 +275,20 @@ object OpenCLGenerator extends Generator {
     }
 
     expr match {
-      case call: MapCall => call.f match {
-        case _: MapWrg => generateMapWrgCall(call)
-        case _: MapGlb => generateMapGlbCall(call)
-        case _: MapLcl => generateMapLclCall(call)
-        case _: MapWarp => generateMapWarpCall(call)
-        case _: MapLane => generateMapLaneCall(call)
-        case _: MapSeq => generateMapSeqCall(call)
-        case _: Map =>
-      }
-      case call: ReduceCall => call.f match {
-        case _: ReduceSeq => generateReduceSeqCall(call)
-        case _: ReduceHost => generateReduceSeqCall(call)
-      }
-
-      case call: IterateCall => generateIterateCall(call)
-
       case call: FunCall => call.f match {
+        case m: MapWrg => generateMapWrgCall(m, call)
+        case m: MapGlb => generateMapGlbCall(m, call)
+        case m: MapLcl => generateMapLclCall(m, call)
+        case m: MapWarp => generateMapWarpCall(m, call)
+        case m: MapLane => generateMapLaneCall(m, call)
+        case m: MapSeq => generateMapSeqCall(m, call)
+        case _: Map =>
+
+        case r: ReduceSeq => generateReduceSeqCall(r, call)
+        case r: ReduceHost => generateReduceSeqCall(r, call)
+
+        case i: Iterate => generateIterateCall(i, call)
+
         case cf: CompFun => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
 
         case u : UserFun =>generateUserFunCall(u, call)
@@ -313,9 +310,10 @@ object OpenCLGenerator extends Generator {
   // === Maps ===
 
   // MapWrg
-  private def generateMapWrgCall(call: MapCall): Unit = {
+  private def generateMapWrgCall(m : MapWrg, call: FunCall): Unit = {
 
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
+    oclPrinter.generateLoop(m.loopVar,
+                            () => generate(m.f.body), m.iterationCount)
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
     // if (m.dim == 0) {
@@ -324,9 +322,10 @@ object OpenCLGenerator extends Generator {
   }
 
   // MapGlb
-  private def generateMapGlbCall(call: MapCall): Unit = {
+  private def generateMapGlbCall(m: MapGlb, call: FunCall): Unit = {
 
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
+    oclPrinter.generateLoop(m.loopVar,
+                            () => generate(m.f.body), m.iterationCount)
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
     // if (m.dim == 0) {
@@ -335,40 +334,44 @@ object OpenCLGenerator extends Generator {
   }
 
   // MapLcl
-  private def generateMapLclCall(call: MapCall): Unit = {
-    generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
-      (OpenCLMemory.containsPrivateMemory(call.arg.mem) && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
+  private def generateMapLclCall(m: MapLcl, call: FunCall): Unit = {
+    generateLoop(m.loopVar, () => generate(m.f.body), m.iterationCount,
+      (   OpenCLMemory.containsPrivateMemory(call.args(0).mem)
+       && privateMems.exists(_.mem == call.args(0).mem)) || // Don't unroll just for value
         OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory)
   }
 
   // MapWarp
-  private def generateMapWarpCall(call: MapCall): Unit = {
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
+  private def generateMapWarpCall(m: MapWarp, call: FunCall): Unit = {
+    oclPrinter.generateLoop(m.loopVar,
+                            () => generate(m.f.body), m.iterationCount)
     oclPrinter.generateBarrier(call.mem)
   }
 
   // MapLane
-  private def generateMapLaneCall(call: MapCall): Unit = {
-    oclPrinter.generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount)
+  private def generateMapLaneCall(m: MapLane, call: FunCall): Unit = {
+    oclPrinter.generateLoop(m.loopVar,
+                            () => generate(m.f.body), m.iterationCount)
   }
 
   // MapSeq
-  private def generateMapSeqCall(call: MapCall): Unit = {
+  private def generateMapSeqCall(m: MapSeq, call: FunCall): Unit = {
     oclPrinter.commln("map_seq")
-    generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
-      (OpenCLMemory.containsPrivateMemory(call.arg.mem) && privateMems.exists(_.mem == call.arg.mem)) || // Don't unroll just for value
+    generateLoop(m.loopVar, () => generate(m.f.body), m.iterationCount,
+      (   OpenCLMemory.containsPrivateMemory(call.args(0).mem)
+       && privateMems.exists(_.mem == call.args(0).mem)) || // Don't unroll just for value
         OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory)
     oclPrinter.commln("map_seq")
   }
   
   // === Reduce ===
-  private def generateReduceSeqCall(call: ReduceCall): Unit = {
+  private def generateReduceSeqCall(r: AbstractReduce, call: FunCall): Unit = {
 
     oclPrinter.openCB()
     oclPrinter.commln("reduce_seq")
 
-    generateLoop(call.loopVar, () => generate(call.f.f.body), call.iterationCount,
-      OpenCLMemory.containsPrivateMemory(call.arg1.mem))
+    generateLoop(r.loopVar, () => generate(r.f.body), r.iterationCount,
+      OpenCLMemory.containsPrivateMemory(call.args(1).mem))
     //print an OpenCL/C declaration for our variable
 
     oclPrinter.commln("reduce_seq")
@@ -382,15 +385,15 @@ object OpenCLGenerator extends Generator {
   }
 
   // === Iterate ===
-  private def generateIterateCall(call: IterateCall): Unit = {
+  private def generateIterateCall(i: Iterate, call: FunCall): Unit = {
 
-    val inputMem = OpenCLMemory.asOpenCLMemory(call.arg.mem)
+    val inputMem = OpenCLMemory.asOpenCLMemory(call.args(0).mem)
     val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
-    val swapMem = OpenCLMemory.asOpenCLMemory(call.swapBuffer)
+    val swapMem = OpenCLMemory.asOpenCLMemory(i.swapBuffer)
 
     assert (inputMem.addressSpace == outputMem.addressSpace)
 
-    val funCall = call.f.f.body match { case call: FunCall => call }
+    val funCall = i.f.body match { case call: FunCall => call }
     val innerInputLength = Type.getLength(funCall.argsType)
     val innerOutputLength = Type.getLength(funCall.t)
 
@@ -422,7 +425,7 @@ object OpenCLGenerator extends Generator {
     val outVStr = oclPrinter.toOpenCL(outputMem.variable)
     val swapVStr = oclPrinter.toOpenCL(swapMem.variable)
 
-    val range = call.indexVar.range.asInstanceOf[RangeAdd]
+    val range = i.indexVar.range.asInstanceOf[RangeAdd]
 
     // ADDRSPC TYPE tin = in;
     oclPrinter.println(outputMem.addressSpace + " " + oclPrinter.toOpenCL(Type.devectorize(call.t)) + " " + tinVStr + " = " + inVStr+";")
@@ -436,7 +439,7 @@ object OpenCLGenerator extends Generator {
 //    Removed the pragma temporarily as it was causing a (presumably) memory related bug on non NVIDIA and Intel CPU platforms
 //    TODO: implement a platform dependent system for inserting the pragma when legal
 //    oclPrinter.println("#pragma unroll 1")
-    oclPrinter.generateLoop(call.indexVar, () => {
+    oclPrinter.generateLoop(i.indexVar, () => {
 
       // modify the pointers to the memory before generating the body
       val oldInV = inputMem.variable
@@ -460,7 +463,7 @@ object OpenCLGenerator extends Generator {
       oclPrinter.println(s"${tinVStr} = ( ${toutVStr} == ${swapVStr} ) ? ${swapVStr} : ${outVStr} ;")
       // tout = (tout == swap) ? out : swap
       oclPrinter.println(s"${toutVStr} = ( ${toutVStr} == ${swapVStr} ) ? ${outVStr} : ${swapVStr} ;")
-    }, call.iterationCount)
+    }, i.iterationCount)
 
     oclPrinter.closeCB()
   }

@@ -1,6 +1,6 @@
 package ir.ast
 
-import arithmetic.Var
+import arithmetic.{?, ArithExpr, Var}
 
 /**
  * Abstract class for the partial reduce pattern.
@@ -10,9 +10,11 @@ import arithmetic.Var
  *
  * @param f A lambda to be applied in the partial reduction
  */
-abstract class AbstractPartRed(f: Lambda2) extends Pattern(arity = 2)
-  with FPattern {
+abstract class AbstractPartRed(val f: Lambda2,
+                               val loopVar: Var) extends Pattern(arity = 2)
+                                                         with FPattern {
 
+  var iterationCount: ArithExpr = ?
   /**
    * Shortcut to access the initial value of the reduction
    * @return
@@ -43,22 +45,7 @@ abstract class AbstractPartRed(f: Lambda2) extends Pattern(arity = 2)
  * @param f A lambda to be applied as the binary reduction operator in the
  *          partial reduction
  */
-case class PartRed(f: Lambda2) extends AbstractPartRed(f) with FPattern {
-  override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
-
-  /**
-   * Function call. This method returns an object representing the function call
-   * of `this` with `args`.
-   * This method will fail at runtime if the number of given `args` is != 2.
-   * @param args The arguments to call the function (`this`) with.
-   * @return An object (of type FunCall) representing the function call of
-   *         `this` with `args`.
-   */
-  private def reduceCall(args: Expr*): ReduceCall = {
-    assert(args.length == 2)
-    new ReduceCall(Var("i"), this, args(0), args(1))
-  }
-}
+case class PartRed(override val f: Lambda2) extends AbstractPartRed(f, Var(""))
 
 object PartRed {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => PartRed(f)(init, x))

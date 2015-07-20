@@ -4,7 +4,6 @@ import arithmetic.Var
 import ir._
 import ir.ast._
 import opencl.ir.ast._
-import ir.ast.UserFun._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.{Test, AfterClass, BeforeClass}
@@ -24,48 +23,62 @@ object TestRewrite {
     var lambdaList = List[Lambda]()
 
     expr.body match {
-      case MapCall(name, loopVar, Map(lambda), args) =>
-        // Map(f) => MapGlb(f)
-        val mapGlbLambda = new Lambda(expr.params, new MapCall(name, loopVar, MapGlb(lambda), args))
-        lambdaList = mapGlbLambda :: lambdaList
-
-        // Map(f) => Join() o Map(Map(f)) o Split(I)
-        val splitComp = Join() o MapGlb(MapSeq(lambda)) o Split(4)
-
-        val splitJoinLambda = new Lambda(expr.params, splitComp.apply(expr.params:_*))
-        lambdaList = splitJoinLambda :: lambdaList
-
-        lambda.body match {
-          case call: FunCall =>
-            call.f match {
-              case uf: UserFun =>
-
-                // Map(f) => asScalar() o Map(Vectorize(k)(f)) o asVector(k)
-                val comp = asScalar() o MapGlb(uf.vectorize(4)) o asVector(4)
-
-                val vectorizeLambda = new Lambda(expr.params, comp.apply(expr.params:_*))
-                lambdaList = vectorizeLambda :: lambdaList
-
-              case _  =>
-            }
-          case _=>
-        }
-
       case call: FunCall =>
         call.f match {
+          case m: Map =>
+
+            // Map(f) => MapGlb(f)
+            val mapGlb = MapGlb(m.f)
+
+            val mapGlbLambda =
+              new Lambda(expr.params, mapGlb(call.args:_*))
+            lambdaList = mapGlbLambda :: lambdaList
+
+            // Map(f) => Join() o Map(Map(f)) o Split(I)
+            val splitComp = Join() o MapGlb(MapSeq(m.f)) o Split(4)
+
+            val splitJoinLambda =
+              new Lambda(expr.params, splitComp(expr.params:_*))
+            lambdaList = splitJoinLambda :: lambdaList
+
+            m.f.body match {
+              case call: FunCall =>
+                call.f match {
+                  case uf: UserFun =>
+
+                    // Map(f) => asScalar() o Map(Vectorize(k)(f)) o asVector(k)
+                    val comp = asScalar() o MapGlb(uf.vectorize(4)) o asVector(4)
+
+                    val vectorizeLambda =
+                      new Lambda(expr.params, comp(expr.params:_*))
+                    lambdaList = vectorizeLambda :: lambdaList
+
+                  case _  =>
+                }
+              case _=>
+            }
+
           case l: Lambda =>
             l.body match {
-              case ReduceCall(loopVar, Reduce(lambda), init, param) =>
+              case call: FunCall =>
+                //case ReduceCall(loopVar, Reduce(lambda), init, param) =>
+                call.f match {
+                  case r: Reduce =>
 
-                // Reduce(f) => ReduceSeq(f)
-                val reduceSeqLambda = new Lambda(expr.params, new FunCall(new Lambda(l.params, new ReduceCall(loopVar, new ReduceSeq(lambda), init, param)), call.args:_*))
+                    val reduceSeq = ReduceSeq(r.f)
 
-                lambdaList = reduceSeqLambda :: lambdaList
+                    // Reduce(f) => ReduceSeq(f)
+                    val reduceSeqLambda =
+                      new Lambda(expr.params, reduceSeq(call.args:_*))
+
+                    lambdaList = reduceSeqLambda :: lambdaList
+                }
             }
 
           case cf: CompFun =>
           // Rules with multiple things on the left hand side
           // + recurse
+
           case _ =>
         }
 

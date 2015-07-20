@@ -2,6 +2,8 @@ package ir.ast
 
 import ir._
 
+import scala.language.implicitConversions
+
 /**
  * Instances of this class represent declarations (and definition) of anonymous functions (a.k.a., lambda expressions).
  * This class allows for an arbitrary number of parameters.

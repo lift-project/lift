@@ -3,7 +3,6 @@ package ir.view
 import arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir._
 import opencl.ir.ast._
 
 object InputView {
@@ -36,10 +35,10 @@ object InputView {
     val argView = getViewFromArgs(call)
 
     call match {
-      case call: MapCall => buildViewMapCall(call, argView)
-      case call: ReduceCall => buildViewReduceCall(call, argView)
       case call: FunCall =>
         call.f match {
+          case m: AbstractMap => buildViewMap(m, call, argView)
+          case r: AbstractPartRed => buildViewReduce(r, call, argView)
           case l: Lambda => buildViewLambda(l, call, argView)
           case cf: CompFun => buildViewCompFunDef(cf, call, argView)
           case z: Zip => buildViewZip(call, argView)
@@ -90,28 +89,30 @@ object InputView {
     visitAndBuildViews(tP.f.body)
   }
 
-  private def buildViewMapCall(call: MapCall, argView: View): View = {
+  private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {
+
     // pass down input view
-    call.f.f.params(0).view = argView.access(call.loopVar)
+    m.f.params(0).view = argView.access(m.loopVar)
 
     // traverse into call.f
-    val innerView = visitAndBuildViews(call.f.f.body)
+    val innerView = visitAndBuildViews(m.f.body)
 
-    call.f.f.body match {
+    m.f.body match {
       case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
         // create fresh input view for following function
         View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
       case _ => // call.isAbstract and return input map view
-        new ViewMap(innerView, call.loopVar, call.t)
+        new ViewMap(innerView, m.loopVar, call.t)
     }
   }
 
-  private def buildViewReduceCall(call: ReduceCall, argView: View): View = {
+  private def buildViewReduce(r: AbstractPartRed,
+                              call: FunCall, argView: View): View = {
     // pass down input view
-    call.f.f.params(0).view = argView.get(0)
-    call.f.f.params(1).view = argView.get(1).access(call.loopVar)
+    r.f.params(0).view = argView.get(0)
+    r.f.params(1).view = argView.get(1).access(r.loopVar)
     // traverse into call.f
-    visitAndBuildViews(call.f.f.body)
+    visitAndBuildViews(r.f.body)
     // create fresh input view for following function
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }

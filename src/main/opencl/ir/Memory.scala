@@ -268,7 +268,7 @@ object OpenCLMemory {
                                => allocMapGlb(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt, inMem, outputMem, maxLen)
       case MapLcl(_,_) | MapWarp(_)| MapLane(_) | MapSeq(_)
                                =>
-        var privateMultiplier = call.asInstanceOf[MapCall].iterationCount
+        var privateMultiplier = call.f.asInstanceOf[GenerableMap].iterationCount
         privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
         allocMapLcl(call.f.asInstanceOf[AbstractMap], numGlb, numLcl, numPvt * privateMultiplier, inMem, outputMem, maxLen)
 
@@ -283,7 +283,7 @@ object OpenCLMemory {
       case tl: toLocal =>         allocToLocal(tl, numGlb, numLcl, numPvt, inMem, outputMem, maxLclOutSize)
       case tp: toPrivate =>       allocToPrivate(tp, numGlb, numLcl, numPvt, inMem, outputMem, maxPvtOutSize)
 
-      case it: Iterate =>         allocIterate(it, call.asInstanceOf[IterateCall], numGlb, numLcl, numPvt, inMem)
+      case it: Iterate =>         allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) |
@@ -436,7 +436,7 @@ object OpenCLMemory {
     }
   }
 
-  private def allocIterate(it: Iterate, call: IterateCall, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
+  private def allocIterate(it: Iterate, call: FunCall, numGlb: ArithExpr, numLcl: ArithExpr, numPvt: ArithExpr,
                            inMem: OpenCLMemory): OpenCLMemory = {
     // get sizes in bytes necessary to hold the input and output of the function inside the iterate
     val inSize = getMaxSizeInBytes(call.argsType)
@@ -445,7 +445,7 @@ object OpenCLMemory {
     val largestSize = ArithExpr.max(inSize, outSize)
 
     // create a swap buffer
-    call.swapBuffer = allocMemory(largestSize, largestSize, largestSize, inMem.addressSpace)
+    it.swapBuffer = allocMemory(largestSize, largestSize, largestSize, inMem.addressSpace)
 
     // recurs to allocate memory for the function(s) inside
     if (it.f.params.length != 1) throw new NumberOfArgumentsException
@@ -509,11 +509,10 @@ object TypedOpenCLMemory {
         case call: FunCall =>
           call.f match {
             case it: Iterate =>
-              val fIter = call.asInstanceOf[IterateCall]
               arr :+
-              TypedOpenCLMemory(fIter.arg.mem, fIter.arg.t) :+
-              TypedOpenCLMemory(fIter.mem, fIter.t) :+
-              TypedOpenCLMemory(fIter.swapBuffer, ArrayType(fIter.arg.t, ?))
+              TypedOpenCLMemory(call.args(0).mem, call.args(0).t) :+
+              TypedOpenCLMemory(call.mem, call.t) :+
+              TypedOpenCLMemory(it.swapBuffer, ArrayType(call.args(0).t, ?))
 
             case r: AbstractPartRed =>
               // exclude the iniT (TODO: only if it is already allocated ...)

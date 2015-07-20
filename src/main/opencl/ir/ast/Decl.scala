@@ -17,7 +17,8 @@ object CompositePatterns {
   def ReorderStride(s: ArithExpr) = Gather(IndexFunction.reorderStride(s))
 }
 
-abstract class GenerableMap(f:Lambda1) extends AbstractMap(f) with isGenerable
+abstract class GenerableMap(f: Lambda1, name: String, loopVar: Var)
+  extends AbstractMap(f, name, loopVar) with isGenerable
 
 /**
  * Apply the lambda <code>f</code> to every element of the input
@@ -36,16 +37,8 @@ abstract class GenerableMap(f:Lambda1) extends AbstractMap(f) with isGenerable
  * @param f Lambda to apply to every element of the input
  */
 
-case class MapGlb(dim: Int, f: Lambda1) extends GenerableMap(f){
-  override def apply(args: Expr*) : MapCall = {
-    assert(args.length == 1)
-    new MapCall("MapGlbl", Var("gl_id"), this, args(0))
-  }
-
-  override def $(that: Expr) : MapCall = {
-    apply(that)
-  }
-}
+case class MapGlb(dim: Int, override val f: Lambda1)
+  extends GenerableMap(f, "MapGlbl", Var("gl_id"))
 
 object MapGlb {
   def apply(f: Lambda1) = new MapGlb(0, f) // 0 is default
@@ -53,16 +46,8 @@ object MapGlb {
   def apply(dim: Int) = (f: Lambda) => new MapGlb(dim, f)
 }
 
-case class MapWrg(dim: Int, f: Lambda1) extends GenerableMap(f) {
-  override def apply(args: Expr*) : MapCall = {
-    assert(args.length == 1)
-    new MapCall("MapWrg", Var("wg_id"), this, args(0))
-  }
-
-  override def $(that: Expr) : MapCall = {
-    apply(that)
-  }
-}
+case class MapWrg(dim: Int, override val f: Lambda1)
+  extends GenerableMap(f, "MapWrg", Var("wg_id"))
 
 object MapWrg {
   def apply(f: Lambda1) = new MapWrg(0, f) // 0 is default
@@ -79,17 +64,8 @@ object MapWrg {
  * @param dim
  * @param f
  */
-case class MapLcl(dim: Int, f: Lambda1) extends GenerableMap(f) {
-  override def apply(args: Expr*) : MapCall = {
-    assert(args.length == 1)
-    new MapCall("MapLcl", Var("l_id"), this, args(0))
-  }
-
-  override def $(that: Expr) : MapCall = {
-    apply(that)
-  }
-}
-
+case class MapLcl(dim: Int, override val f: Lambda1)
+  extends GenerableMap(f, "MapLcl", Var("l_id"))
 
 object MapLcl {
   def apply(f: Lambda1) = new MapLcl(0, f) // o is default
@@ -97,98 +73,42 @@ object MapLcl {
   def apply(dim: Int) = (f: Lambda1) => new MapLcl(dim, f)
 }
 
-case class MapWarp(f: Lambda1) extends GenerableMap(f) {
-  override def apply(args: Expr*) : MapCall = {
-    assert(args.length == 1)
-    new MapCall("MapWarp", Var("warp_id"), this, args(0))
-  }
+case class MapWarp(override val f: Lambda1)
+  extends GenerableMap(f, "MapWarp", Var("warp_id"))
 
-  override def $(that: Expr) : MapCall = {
-    apply(that)
-  }
-}
+case class MapLane(override val f: Lambda1)
+  extends GenerableMap(f, "MapLane", Var("lane_id"))
 
-case class MapLane(f: Lambda1) extends GenerableMap(f) {
-  override def apply(args: Expr*) : MapCall = {
-    assert(args.length == 1)
-    new MapCall("MapLane", Var("lane_id"), this, args(0))
-  }
-
-  override def $(that: Expr) : MapCall = {
-    apply(that)
-  }
-}
-
-case class MapSeq(f: Lambda1) extends GenerableMap(f) {
-  override def apply(args: Expr*) : MapCall = {
-    assert(args.length == 1)
-    new MapCall("MapSeq", Var("i"), this, args(0))
-  }
-
-  override def $(that: Expr) : MapCall = {
-    apply(that)
-  }
-}
-
-// Map over a matrix - more abstract, to please the typechecker
-
-case class MapMatrix(dim: Int, f: Lambda1) extends GenerableMap(f) {
-  override def apply(args: Expr*) : MapCall = {
-    assert(args.length == 1)
-    new MapCall("MapMatrix", Var("wg_id"), this, args(0))
-  }
-
-  override def $(that: Expr) : MapCall = {
-    apply(that)
-  }
-}
-
-object MapMatrix {
-  def apply(f: Lambda1) = new MapMatrix(0, f) // 0 is default
-
-  def apply(dim: Int) = (f: Lambda1) => new MapMatrix(dim, f)
-}
+case class MapSeq(override val f: Lambda1) extends GenerableMap(f, "MapSeq",
+                                                                Var("i"))
 
 // Reductions
 
-case class ReduceSeq(f: Lambda2) extends AbstractReduce(f) with isGenerable {
-  override def apply(args: Expr*) : ReduceCall = {
-    assert(args.length == 2)
-    new ReduceCall(Var("i"), this, args(0), args(1))
-  }
-
-  override def $(that: Expr) : ReduceCall = {
-    apply(that)
-  }
-}
+case class ReduceSeq(override val f: Lambda2)
+  extends AbstractReduce(f, Var("i")) with isGenerable
 
 object ReduceSeq {
-  def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
   def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
 }
 
-case class ReduceHost(f: Lambda2) extends AbstractReduce(f) with isGenerable  {
-  override def apply(args: Expr*) : ReduceCall = {
-    assert(args.length == 2)
-    new ReduceCall(Var("i"), this, args(0), args(1))
-  }
+case class ReduceHost(override val f: Lambda2)
+  extends AbstractReduce(f, Var("i")) with isGenerable
 
-  override def $(that: Expr) : ReduceCall = {
-    apply(that)
-  }
-}
 object ReduceHost {
-  def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => ReduceHost(f)(init, x))
+  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ReduceHost(f)(init, x))
 }
 
 // TODO(tlutz) remove lambda and use composition operator
-case class toGlobal(f: Lambda1) extends Pattern(arity = 1) with FPattern with isGenerable
+case class toGlobal(f: Lambda1) extends Pattern(arity = 1)
+                                        with FPattern with isGenerable
 
 // TODO(tlutz) remove lambda and use composition operator
-case class toLocal(f: Lambda1) extends Pattern(arity = 1) with FPattern with isGenerable
+case class toLocal(f: Lambda1) extends Pattern(arity = 1)
+                                       with FPattern with isGenerable
 
 // TODO(tlutz) remove lambda and use composition operator
-case class toPrivate(f: Lambda1) extends Pattern(arity = 1) with FPattern with isGenerable
+case class toPrivate(f: Lambda1) extends Pattern(arity = 1)
+                                         with FPattern with isGenerable
 
 case class Barrier() extends Pattern(arity = 1) with isGenerable {
   var valid = true

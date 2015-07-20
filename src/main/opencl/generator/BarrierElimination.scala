@@ -13,18 +13,24 @@ object BarrierElimination {
 
   private def apply(expr: Expr, insideLoop: Boolean): Unit = {
     expr match {
-      case call: MapCall =>
-        apply(call.f.f.body, insideLoop || isLoop(call.iterationCount))
-      case call: ReduceCall =>
-        apply(call.f.f.body, insideLoop || isLoop(call.iterationCount))
-      case call: IterateCall =>
-        apply(call.f.f.body, insideLoop || isLoop(call.iterationCount))
       case call: FunCall => call.f match {
+        case m: AbstractMap =>
+          apply(m.f.body, insideLoop || isLoop(m.iterationCount))
+
+        case r: AbstractPartRed =>
+          apply(r.f.body, insideLoop || isLoop(r.iterationCount))
+
+        case i: Iterate =>
+          apply(i.f.body, insideLoop || isLoop(i.iterationCount))
+
         case cf: CompFun =>
           markFunCall(cf, insideLoop)
           cf.funs.foreach( (l:Lambda) => apply(l.body, insideLoop) )
+
         case f: FPattern => apply(f.f.body, insideLoop)
+
         case l: Lambda => apply(l.body, insideLoop)
+
         case Zip(_) | Tuple(_) =>
           val numAddressSpaces =
             call.args.map(m => OpenCLMemory.asOpenCLMemory(m.mem).addressSpace).

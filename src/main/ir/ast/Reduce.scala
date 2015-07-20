@@ -13,7 +13,9 @@ import arithmetic.Var
  *
  * @param f A lambda to be applied in the partial reduction
  */
-abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
+abstract class AbstractReduce(override val f: Lambda2,
+                              override val loopVar: Var)
+  extends AbstractPartRed(f, loopVar)
 
 /**
  * Concrete class for the reduce pattern.
@@ -35,23 +37,7 @@ abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
  * @param f A lambda to be applied as the binary reduction operator in the
  *          reduction
  */
-case class Reduce(f: Lambda2) extends AbstractReduce(f) {
-  /**
-   * Function call. This method returns an object representing the function call
-   * of `this` with `args`.
-   * This method will fail at runtime if the number of given `args` is != 2.
-   * @param args The arguments to call the function (`this`) with.
-   * @return An object (of type FunCall) representing the function call of
-   *         `this` with `args`.
-   */
-  override def apply(args: Expr*) : ReduceCall = reduceCall(args:_*)
-
-  // helper method creating a ReduceCall instance linked to this
-  private def reduceCall(args: Expr*): ReduceCall = {
-    assert(args.length == 2)
-    new ReduceCall(Var("i"), this, args(0), args(1))
-  }
-}
+case class Reduce(override val f: Lambda2) extends AbstractReduce(f, Var(""))
 
 object Reduce {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => Reduce(f)(init, x))

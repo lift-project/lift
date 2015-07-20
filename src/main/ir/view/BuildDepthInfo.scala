@@ -25,28 +25,31 @@ class BuildDepthInfo() {
     buildDepthForArgs(call)
 
     call match {
-      case call: MapCall => buildDepthInfoMapCall(call)
-      case call: ReduceCall => buildDepthInfoReduceCall(call)
       case call: FunCall =>
-        val (readsLocal, readsPrivate) = readsLocalPrivate(call)
-        val (writesLocal, writesPrivate) = writesLocalPrivate(call)
-
-        setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
-
         call.f match {
-          case l: Lambda => buildDepthInfoLambda(l)
-          case cf: CompFun => buildDepthInfoCompFunDef(cf)
-          case fp: FPattern => buildDepthInfoFPattern(fp)
+          case m: AbstractMap => buildDepthInfoMapCall(m, call)
+          case r: AbstractPartRed => buildDepthInfoReduceCall(r, call)
           case _ =>
+            val (readsLocal, readsPrivate) = readsLocalPrivate(call)
+            val (writesLocal, writesPrivate) = writesLocalPrivate(call)
+
+            setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
+
+            call.f match {
+              case l: Lambda => buildDepthInfoLambda(l)
+              case cf: CompFun => buildDepthInfoCompFunDef(cf)
+              case fp: FPattern => buildDepthInfoFPattern(fp)
+              case _ =>
+            }
         }
       case _ =>
     }
   }
 
-  private def buildDepthInfoMapCall(call: MapCall): Unit = {
+  private def buildDepthInfoMapCall(m: AbstractMap, call: FunCall): Unit = {
     val (readsLocal, readsPrivate) = readsLocalPrivate(call)
 
-    buildDepthInfoPatternCall(call.f.f.body, call, call.loopVar, readsLocal, readsPrivate)
+    buildDepthInfoPatternCall(m.f.body, call, m.loopVar, readsLocal, readsPrivate)
   }
 
   private def readsLocalPrivate(call: FunCall): (Boolean, Boolean) = {
@@ -55,11 +58,11 @@ class BuildDepthInfo() {
     (readsLocal, readsPrivate)
   }
 
-  private def buildDepthInfoReduceCall(call: ReduceCall): Unit = {
-    val readsLocal = OpenCLMemory.containsLocalMemory(call.arg1.mem)
-    val readsPrivate = OpenCLMemory.containsPrivateMemory(call.arg1.mem)
+  private def buildDepthInfoReduceCall(r: AbstractPartRed, call: FunCall): Unit = {
+    val readsLocal = OpenCLMemory.containsLocalMemory(call.args(1).mem)
+    val readsPrivate = OpenCLMemory.containsPrivateMemory(call.args(1).mem)
 
-    buildDepthInfoPatternCall(call.f.f.body, call, Cst(0), readsLocal, readsPrivate)
+    buildDepthInfoPatternCall(r.f.body, call, Cst(0), readsLocal, readsPrivate)
   }
 
   private def buildDepthInfoPatternCall(expr: Expr, call: FunCall, index: ArithExpr,

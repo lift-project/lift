@@ -1,6 +1,6 @@
 package ir.ast
 
-import arithmetic.Var
+import arithmetic.{?, ArithExpr, Var}
 
 /**
  * Abstract class for map patterns.
@@ -10,7 +10,12 @@ import arithmetic.Var
  *
  * @param f A lambda to be applied to every element of the input array
  */
-abstract class AbstractMap(f: Lambda1) extends Pattern(arity = 1) with FPattern
+abstract class AbstractMap(val f: Lambda1,
+                           val name: String,
+                           val loopVar: Var) extends Pattern(arity = 1)
+                                                     with FPattern {
+  var iterationCount: ArithExpr = ?
+}
 
 /**
  * Concrete class for the map pattern.
@@ -32,28 +37,4 @@ abstract class AbstractMap(f: Lambda1) extends Pattern(arity = 1) with FPattern
  *
  * @param f A lambda to be applied to every element of the input array
  */
-case class Map(f: Lambda1) extends AbstractMap(f) {
-  /**
-   * Function call. This method returns an object representing the function call
-   * of `this` with `args`.
-   * This method will fail at runtime if the number of given `args` is `!= 1`.
-   * @param args The arguments to call the function (`this`) with.
-   * @return An object (of type MapCall) representing the function call of
-   *         `this` with `args`.
-   */
-  override def apply(args: Expr*): MapCall = mapCall(args:_*)
-
-  /**
-   * Alternative function call operator syntax. Calls `this.apply(arg)`.
-   * @param arg The argument to call the function with.
-   * @return An object (of type MapCall) representing the function call of
-   *         `this` with `arg`.
-   */
-  override def $(arg: Expr): MapCall = mapCall(arg)
-
-  // helper method creating a MapCall instance linked to this
-  private def mapCall(args: Expr*): MapCall = {
-    assert(args.length == 1)
-    new MapCall("Map", Var(""), this, args(0))
-  }
-}
+case class Map(override val f: Lambda1) extends AbstractMap(f, "Map", Var(""))

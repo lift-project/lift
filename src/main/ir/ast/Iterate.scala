@@ -1,6 +1,7 @@
 package ir.ast
 
-import arithmetic.ArithExpr
+import arithmetic.{RangeUnknown, Var, ?, ArithExpr}
+import ir.{UnallocatedMemory, Memory}
 
 /**
  * Iterate pattern.
@@ -21,36 +22,19 @@ import arithmetic.ArithExpr
  * @param n Number of times to iterate
  * @param f Lambda to be iterated
  */
-case class Iterate(n: ArithExpr, f: Lambda1)
-  extends Pattern(arity = 1) with FPattern with isGenerable {
+case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(arity = 1)
+                                                     with FPattern
+                                                     with isGenerable {
+  var iterationCount: ArithExpr = ?
 
-  /**
-   * Function call. This method returns an object representing the function call
-   * of `this` with `args`.
-   * This method will fail at runtime if the number of given `args` is `!= 1`.
-   * @param args The arguments to call the function (`this`) with.
-   * @return An object (of type IterateCall) representing the function call of
-   *         `this` with `args`.
-   */
-  override def apply(args: Expr*): IterateCall = iterateCall(args: _*)
+  var swapBuffer: Memory = UnallocatedMemory
 
-  /**
-   * Alternative function call operator syntax. Calls `this.apply(arg)`.
-   * @param arg The argument to call the function with.
-   * @return An object (of type IterateCall) representing the function call of
-   *         `this` with `arg`.
-   */
-  override def $(arg: Expr): IterateCall = iterateCall(arg)
-
-  // helper method creating an IterateCall linked to this
-  private def iterateCall(args: Expr*): IterateCall = {
-    assert(args.length == 1)
-    new IterateCall(this, args(0))
-  }
+  var indexVar = Var("i", RangeUnknown)
 }
 
 object Iterate {
-  def apply(n: ArithExpr): ((Lambda1) => Iterate)  = (f: Lambda1) => Iterate(n ,f)
+  def apply(n: ArithExpr): ((Lambda1) => Iterate) =
+    (f: Lambda1) => Iterate(n ,f)
 
   def varName(): String = "iterSize"
 }
