@@ -19,7 +19,7 @@ abstract class AbstractPartRed(val f: Lambda2,
    * Shortcut to access the initial value of the reduction
    * @return
    */
-  def init: Value = params(0) match { case v: Value => v }
+  def init: Expr = params(0)
 }
 
 /**
