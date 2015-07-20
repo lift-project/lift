@@ -15,7 +15,7 @@ import arithmetic.ArithExpr
  *
  * We know the following algorithmic rewrite rules for the split pattern
  * (so far):
- * - Join() o Split(chunkSize) | Split(chunkSize) o Join() => id
+ *  - `Join() o Split(chunkSize) | Split(chunkSize) o Join() => id`
  *
  * @param chunkSize The size of chunks the input array should be split in.
  *                  The size of the input array must be a multiple of

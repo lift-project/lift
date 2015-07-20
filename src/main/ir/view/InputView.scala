@@ -4,12 +4,24 @@ import arithmetic.ArithExpr
 import ir._
 import ir.ast._
 import opencl.ir.ast._
+import opencl.ir.pattern._
 
+/**
+ * A helper object for constructing views.
+ *
+ * Visits the expressions right to left and builds the views for all
+ * sub-expressions that read to memory.
+ */
 object InputView {
 
+  /**
+   * Build input views for the expression.
+   *
+   * @param expr Expression to build views for
+   */
   def apply(expr: Expr): Unit = visitAndBuildViews(expr)
 
-  def visitAndBuildViews(expr: Expr): View = {
+  private def visitAndBuildViews(expr: Expr): View = {
     val result = expr match {
       case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
       case pr: ParamReference => pr.p.view.get(pr.i)

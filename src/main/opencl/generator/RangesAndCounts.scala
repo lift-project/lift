@@ -8,19 +8,27 @@ import opencl.ir._
 import opencl.ir.ast._
 
 import scala.collection.immutable
+import opencl.ir.pattern._
 
 object RangesAndCounts {
-  def apply(f: Lambda, localSizes: Array[ArithExpr],
-            globalSizes: Array[ArithExpr],
+  /**
+   * Add ranges to the iteration variables of Map, Reduce and Iterate calls and if
+   * possible, determine the number of iterations of the corresponding loops.
+   * 
+   * @param lambda Input lambda.
+   * @param localSizes Array containing the local sizes of the ND-Range.
+   * @param globalSizes Array containing the global sizes of the ND-Range.
+   * @param valueMap The map from variables to lengths.
+   */
+  def apply(lambda: Lambda, localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr],
             valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
-    new RangesAndCounts(localSizes, globalSizes, valueMap)(f.body)
+    new RangesAndCounts(localSizes, globalSizes, valueMap)(lambda.body)
   }
 }
 
-class RangesAndCounts(localSizes: Array[ArithExpr],
-                      globalSizes: Array[ArithExpr],
+private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr],
                       valueMap: immutable.Map[ArithExpr, ArithExpr]) {
-  def apply(expr: Expr): Unit = {
+  private def apply(expr: Expr): Unit = {
     expr match {
       case call: FunCall => call.f match {
         case m: AbstractMap =>

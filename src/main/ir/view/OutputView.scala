@@ -3,14 +3,25 @@ package ir.view
 import arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir._
-import opencl.ir.ast._
 
+import opencl.ir.pattern._
+
+/**
+ * A helper object for constructing views.
+ *
+ * Visits the expressions left to right and builds the views for all
+ * sub-expressions that write to memory.
+ */
 object OutputView {
 
+  /**
+   * Build output views for the expression.
+   *
+   * @param expr Expression to build views for
+   */
   def apply(expr: Expr): Unit = visitAndBuildViews(expr, View(expr.t, ""))
 
-  def visitAndBuildViews(expr: Expr, writeView: View): View = {
+  private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
       case pr: ParamReference => pr.p.view.get(pr.i)
       case p: Param => p.view

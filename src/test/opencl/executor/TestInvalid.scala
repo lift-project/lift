@@ -11,6 +11,7 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.ast._
 import org.junit._
+import opencl.ir.pattern._
 
 object TestInvalid {
   @BeforeClass def before() {
@@ -263,7 +264,7 @@ class TestInvalid {
       println("Executing a valid kernel")
       Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
     } catch {
-      case _ => assert(assertion = false)
+      case _: Throwable => assert(assertion = false)
     }
   }
 
@@ -278,7 +279,7 @@ class TestInvalid {
       case e: Executor.ExecutorFailureException =>
         e.consume()
         assert(assertion = false)
-      case _ =>
+      case _: Throwable =>
       // This might be acceptable depending on how we handle insufficient ressources
     }
   }

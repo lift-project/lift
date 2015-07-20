@@ -5,16 +5,36 @@ import ir._
 import ir.ast._
 import opencl.ir.OpenCLMemory
 
+/**
+ * Helper object for building views.
+ *
+ * Determine the dimensionality and length of each dimension of all global,
+ * local and private arrays, as well as the iteration/access variables in all
+ * dimensions.
+ *
+ * Needs to be done separately for input and output, as an e.g. expression can read
+ * from global memory and write to private.
+ *
+ * The tuples contain the variable in the first position and the length in
+ * the second.
+ *
+ */
 object BuildDepthInfo {
+
+  /**
+   * Determine the dimensions, variables and lengths.
+   *
+   * @param expr Starting expression.
+   */
   def apply(expr: Expr): Unit = (new BuildDepthInfo).visitAndBuildDepthInfo(expr)
 }
 
-class BuildDepthInfo() {
+private class BuildDepthInfo() {
   var privateAccessInf = List[(ArithExpr, ArithExpr)]()
   var localAccessInf = List[(ArithExpr, ArithExpr)]()
   var globalAccessInf = List[(ArithExpr, ArithExpr)]()
 
-  def visitAndBuildDepthInfo(expr: Expr): Unit = {
+  private def visitAndBuildDepthInfo(expr: Expr): Unit = {
     expr match {
       case call: FunCall => buildDepthInfoFunCall(call)
       case _ =>

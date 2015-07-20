@@ -6,7 +6,7 @@ import opencl.ir._
 import opencl.ir.ast._
 
 import scala.collection.{immutable, mutable}
-
+import opencl.ir.pattern._
 
 case class TypeException(msg: String) extends Exception(msg) {
   def this() = this("")

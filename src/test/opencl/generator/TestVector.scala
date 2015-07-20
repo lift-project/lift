@@ -12,6 +12,7 @@ import opencl.ir.ast._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import opencl.ir.pattern._
 
 object TestVector {
   @BeforeClass def before() {

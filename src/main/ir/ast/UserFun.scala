@@ -66,7 +66,7 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
    * Combine the type of the parameters and their name to figure out what names are mapping to
    * tuples and what are mapping to scalar values.
    *
-   * @return A sequence of tuple types refered to in the parameter types.
+   * @return A sequence of tuple types referred to in the parameter types.
    */
   private def inTAsTupleType: Seq[TupleType] = {
     def emit(param: (Type, Any)): Seq[TupleType] = {
