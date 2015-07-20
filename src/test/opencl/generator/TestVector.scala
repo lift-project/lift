@@ -4,11 +4,8 @@ import arithmetic.Var
 import benchmarks.VectorScaling
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import ir.ast.IndexFunction.reverse
 import opencl.executor.{Compile, Execute, Executor}
-import opencl.ir.ast.CompositePatterns._
-import opencl.ir.ast._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}

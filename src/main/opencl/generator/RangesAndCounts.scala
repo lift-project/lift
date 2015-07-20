@@ -143,7 +143,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     i.indexVar.range = ContinuousRange(Cst(0), i.n)
   }
 
-  private def evaluateMapRange(m: GenerableMap): Unit = {
+  private def evaluateMapRange(m: AbstractMap): Unit = {
     m.iterationCount =
       evaluateRangeForCount(m.loopVar.range.asInstanceOf[RangeAdd])
   }

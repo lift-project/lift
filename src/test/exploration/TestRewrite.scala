@@ -3,7 +3,6 @@ package exploration
 import arithmetic.Var
 import ir._
 import ir.ast._
-import opencl.ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.{Test, AfterClass, BeforeClass}
@@ -62,7 +61,6 @@ object TestRewrite {
           case l: Lambda =>
             l.body match {
               case call: FunCall =>
-                //case ReduceCall(loopVar, Reduce(lambda), init, param) =>
                 call.f match {
                   case r: Reduce =>
 

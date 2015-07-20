@@ -4,10 +4,7 @@ import arithmetic.Var
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor.{Execute, Executor, Utils}
-import opencl.ir.ast.CompositePatterns._
-import opencl.ir.ast._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
