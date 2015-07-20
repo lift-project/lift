@@ -63,7 +63,6 @@ object TestRewrite {
               case callInner: FunCall =>
                 callInner.f match {
                   case r: Reduce =>
-
                     // Reduce(f) => toGlobal(MapSeq(id) ReduceSeq(f)
                     val reduceSeqLambda =
                       new Lambda(l.params, ReduceSeq(r.f)(callInner.args:_*))

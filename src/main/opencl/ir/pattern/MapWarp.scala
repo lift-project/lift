@@ -1,8 +1,8 @@
 package opencl.ir.pattern
 
 import arithmetic.Var
-import ir.ast.Lambda1
-import opencl.ir.ast.GenerableMap
+import ir.ast.{isGenerable, AbstractMap, Lambda1}
 
-case class MapWarp(override val f: Lambda1)
-extends GenerableMap(f, "MapWarp", Var("warp_id"))
+case class MapWarp(override val f: Lambda1) extends AbstractMap(f, "MapWarp",
+                                                                Var("warp_id"))
+                                                    with isGenerable

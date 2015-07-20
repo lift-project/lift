@@ -5,7 +5,6 @@ import ir._
 import ir.ast.UserFun._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
-import opencl.ir.ast.CompositePatterns._
 import opencl.ir._
 import opencl.ir.ast._
 import org.junit.Assert._
