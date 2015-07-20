@@ -6,6 +6,7 @@ import ir.ast._
 import opencl.ir.ast._
 
 import scala.collection.mutable
+import opencl.ir.pattern._
 
 /** Represents OpenCL address spaces either: local or global; UndefAddressSpace should be used in case of errors */
 abstract class OpenCLAddressSpace

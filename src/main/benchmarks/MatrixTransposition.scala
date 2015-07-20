@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.ast.CompositePatterns._
 import org.clapper.argot.ArgotConverters._
+import opencl.ir.pattern._
 
 class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
   extends Benchmark("Matrix Transposition", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {

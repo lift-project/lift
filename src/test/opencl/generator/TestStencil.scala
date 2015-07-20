@@ -12,6 +12,7 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.util.Random
+import opencl.ir.pattern._
 
 object TestStencil {
   @BeforeClass def before() {

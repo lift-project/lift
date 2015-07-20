@@ -7,8 +7,7 @@ import ir.ast._
 import opencl.ir.ast._
 
 import scala.collection.Seq
-
-
+import opencl.ir.pattern._
 
 object Rules {
    

@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.ast._
 
 import scala.collection.immutable
+import opencl.ir.pattern._
 
 object RangesAndCounts {
   def apply(f: Lambda, localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr],

@@ -6,6 +6,7 @@ import ir.ast.UserFun._
 import ir.ast._
 import opencl.ir._
 import opencl.ir.ast._
+import opencl.ir.pattern._
 
 class VectorScaling(override val name: String,
                     override val defaultInputSizes: Seq[Int],

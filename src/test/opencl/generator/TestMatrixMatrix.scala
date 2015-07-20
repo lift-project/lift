@@ -9,10 +9,12 @@ import opencl.executor._
 import opencl.ir.ast.CompositePatterns._
 import opencl.ir._
 import opencl.ir.ast._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.reflect.ClassTag
+import opencl.ir.pattern
 
 object TestMatrixMatrix {
   @BeforeClass def before() {

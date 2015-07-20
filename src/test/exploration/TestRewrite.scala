@@ -9,6 +9,7 @@ import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import org.junit.{Test, AfterClass, BeforeClass}
 import org.junit.Assert._
+import opencl.ir.pattern._
 
 object TestRewrite {
   @BeforeClass def before() {

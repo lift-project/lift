@@ -13,6 +13,7 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.sys.process._
+import opencl.ir.pattern._
 
 object TestGraphTheory {
   @BeforeClass def TestMatrixBasic() {

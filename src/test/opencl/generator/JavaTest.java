@@ -8,9 +8,10 @@ import ir.ast.*;
 import ir.interop.*;
 import opencl.executor.Compile;
 import opencl.executor.Executor;
-import opencl.ir.ast.*;
+import opencl.ir.package$.*;
 import opencl.ir.interop.*;
 import opencl.ir.package$;
+import opencl.ir.pattern.*;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -25,7 +26,7 @@ import java.util.stream.Collectors;
 
 public class JavaTest {
 
-    UserFun add = UserFun.add();
+    UserFun add = package$.MODULE$.add();
 
     UserFun pair = jUserFunDef.create(
             "pair",
@@ -34,12 +35,12 @@ public class JavaTest {
             jFloat.getSingleton(),
             jTupleType.create(jFloat.getSingleton(), jFloat.getSingleton()));
 
-    UserFun mult = UserFun.mult();
-    UserFun plusOne = UserFun.plusOne();
+    UserFun mult = package$.MODULE$.mult();
+    UserFun plusOne = package$.MODULE$.plusOne();
 
-    UserFun neg = UserFun.neg();
-    UserFun id = UserFun.id();
-    UserFun idFI = UserFun.idFI();
+    UserFun neg = package$.MODULE$.neg();
+    UserFun id = package$.MODULE$.id();
+    UserFun idFI = package$.MODULE$.idFI();
 
     UserFun distance = jUserFunDef.create("dist", jStringArray.create("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
     UserFun minimum = jUserFunDef.create("minimum", jStringArray.create("x", "y"), "{ return x._0 < y._0 ? x : y; }", jTypeArray.create(jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton())), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));

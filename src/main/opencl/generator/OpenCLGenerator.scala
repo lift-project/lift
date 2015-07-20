@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.ast._
 
 import scala.collection.immutable
+import opencl.ir.pattern._
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)

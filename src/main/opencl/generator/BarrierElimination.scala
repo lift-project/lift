@@ -4,6 +4,7 @@ import arithmetic.{?, ArithExpr, Cst, IntDiv}
 import ir.ast._
 import opencl.ir._
 import opencl.ir.ast._
+import opencl.ir.pattern._
 
 object BarrierElimination {
 
