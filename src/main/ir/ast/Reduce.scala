@@ -30,7 +30,7 @@ abstract class AbstractReduce(f:Lambda2) extends AbstractPartRed(f)
  *
  * We know the following algorithmic rewrite rules for the reduce pattern
  * (so far):
- *  - Reduce(f) => Reduce(f) o PartRed(f)
+ *  - `Reduce(f) => Reduce(f) o PartRed(f)``
  *
  * @param f A lambda to be applied as the binary reduction operator in the
  *          reduction

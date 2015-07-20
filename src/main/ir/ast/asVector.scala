@@ -11,11 +11,11 @@ import arithmetic.ArithExpr
  *      [ <x,,1,,, ..., x,,n,,>, ..., <x,,m-n+1,,, ..., x,,m,,> ]`
  *
  * The asVector pattern has the following type:
- *   `asVector(n) : [ a ],,n x j,, -> [ <a>,,n,, ],,j,,`
+ *   `asVector(n) : [ a ],,n x j,, -> [ < a >,,n,, ],,j,,`
  *
  * We know the following algorithmic rewrite rules for the asVector pattern
  * (so far):
- * - asScalar() o asVector(n) | asVector(n) o asScalar() => id
+ *  - `asScalar() o asVector(n) | asVector(n) o asScalar() => id`
  *
  * @param len The vector length used to split the input array in to.
  *            The size of the input array must be a multiple of `len`.
