@@ -8,6 +8,7 @@ import opencl.executor.Compile
 import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.Test
+import opencl.ir.pattern._
 
 class TestMemory {
 

@@ -11,6 +11,7 @@ import opencl.ir.ast._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit._
+import opencl.ir.pattern._
 
 object TestReduce {
   @BeforeClass def before() {

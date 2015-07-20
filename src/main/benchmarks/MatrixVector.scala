@@ -7,6 +7,7 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.ast.CompositePatterns._
+import opencl.ir.pattern._
 
 class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Matrix Vector Multiplication (gemv)", Seq(4096, 4096), f, 0.0f) {
 

@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import opencl.ir.pattern._
 
 object TestTuple {
   @BeforeClass def before() {
