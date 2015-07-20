@@ -3,13 +3,28 @@ package opencl.generator
 import arithmetic.{?, ArithExpr, Cst, IntDiv}
 import ir.ast._
 import opencl.ir._
-import opencl.ir.ast._
 import opencl.ir.pattern._
 
+/**
+ * A pass for eliminating unnecessary barriers.
+ *
+ * Barriers are only necessary when the same memory locations get reused (they are in
+ * a loop) or if different threads try to read memory locations other threads write to.
+ *
+ * The pass visits all sub-expressions and determines where splits, joins and reorders
+ * take place (they cause threads to interact) and whether the sub-expressions appear
+ * inside loops (causes reuse of memory locations).
+ *
+ */
 object BarrierElimination {
 
-  def apply(l: Lambda): Unit = {
-    apply(l.body, insideLoop = false)
+  /**
+   * Visit the lambda and determine which barriers can be eliminated.
+   *
+   * @param lambda The starting lambda.
+   */
+  def apply(lambda: Lambda): Unit = {
+    apply(lambda.body, insideLoop = false)
   }
 
   private def apply(expr: Expr, insideLoop: Boolean): Unit = {
@@ -47,7 +62,7 @@ object BarrierElimination {
     !(ae == Cst(1) || ae == Cst(0) || ae == IntDiv(1, ?))
   }
 
-  def getLambdas(e: Expr): List[Lambda] = {
+  private def getLambdas(e: Expr): List[Lambda] = {
     e match {
       case call: FunCall =>
         val argLambdas = call.args.foldLeft(List[Lambda]())((ll, f) => ll ++ getLambdas(f))
@@ -59,7 +74,7 @@ object BarrierElimination {
     }
   }
 
-  def flatten(compFunDef: CompFun) : List[Lambda] = {
+  private def flatten(compFunDef: CompFun) : List[Lambda] = {
     compFunDef.funs.foldLeft(List[Lambda]())((ll, f) => {
       f.body match {
 
