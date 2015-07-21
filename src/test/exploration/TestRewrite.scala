@@ -75,27 +75,16 @@ object TestRewrite {
       case _ =>
     }
 
+    // Map(f) => asScalar() o MapGlb(f.vectorize(4)) o asVector(4)
+    expr match {
+      case Lambda(params, FunCall(Map(Lambda(innerParams, FunCall(uf: UserFun, innerArg))), arg)) =>
+        lambdaList = Lambda(params, (asScalar() o MapGlb(uf.vectorize(4)) o asVector(4))(arg)) :: lambdaList
+      case _ =>
+    }
+
     expr.body match {
       case call: FunCall =>
         call.f match {
-          case m: Map =>
-            m.f.body match {
-              case callInner: FunCall =>
-                callInner.f match {
-                  case uf: UserFun =>
-
-                    // Map(f) => asScalar() o Map(Vectorize(k)(f)) o asVector(k)
-                    val comp = asScalar() o MapGlb(new Lambda(m.f.params, uf.vectorize(4)(callInner.args:_*))) o asVector(4)
-
-                    val vectorizeLambda =
-                      new Lambda(expr.params, comp(call.args:_*))
-//                    lambdaList = vectorizeLambda :: lambdaList
-
-                  case _  =>
-                }
-              case _=>
-            }
-
           case cf: CompFun =>
           // Rules with multiple things on the left hand side
           // + recurse

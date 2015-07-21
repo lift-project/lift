@@ -10,10 +10,12 @@ import arithmetic.{?, ArithExpr, Var}
  *
  * @param f A lambda to be applied to every element of the input array
  */
-abstract class AbstractMap(val f: Lambda1,
+abstract class AbstractMap(val f: Lambda,
                            val name: String,
                            val loopVar: Var) extends Pattern(arity = 1)
                                                      with FPattern {
+  assert(f.params.length == 1)
+
   var iterationCount: ArithExpr = ?
 }
 
@@ -37,4 +39,4 @@ abstract class AbstractMap(val f: Lambda1,
  *
  * @param f A lambda to be applied to every element of the input array
  */
-case class Map(override val f: Lambda1) extends AbstractMap(f, "Map", Var(""))
+case class Map(override val f: Lambda) extends AbstractMap(f, "Map", Var(""))
