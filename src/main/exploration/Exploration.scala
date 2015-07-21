@@ -36,7 +36,7 @@ object Exploration {
       if (!seen.contains(rndFun)) {
         seen += rndFun
 
-        Type.check(rndFun.body)
+        TypeChecker.check(rndFun.body)
         Context.updateContext(rndFun.body, f.body.context)
 
         // generate code for the function
@@ -103,7 +103,7 @@ object Exploration {
           val f = FunDecl.replace(rndFun, oriF, choice)
           val funCall = topF.body match { case call: FunCall => call }
           f.params(0).t = funCall.argsType
-          Type.check(f.body)
+          TypeChecker.check(f.body)
           Context.updateContext(f.body, topF.body.context)
           try{
             val perf = evalPerf(f, inputs, c)
@@ -151,7 +151,7 @@ object Exploration {
 
     assert (choices.contains(choice))
 
-    Type.check(choice)
+    TypeChecker.check(choice)
     Context.updateContext(choice, f.context)
 
     choice
@@ -192,7 +192,7 @@ object Exploration {
 
         val choice = choose(topF, call, choices, inputs, c, depth)
 
-        Type.check(choice)
+        TypeChecker.check(choice)
         Context.updateContext(choice, call.context)
 
         if (choice != call) {
@@ -200,7 +200,7 @@ object Exploration {
           val newTopF = FunDecl.replace(topF, call, choice)
           val funCall = topF.body match { case call: FunCall => call }
           newTopF.params(0).t = funCall.argsType
-          Type.check(newTopF.body)
+          TypeChecker.check(newTopF.body)
           Context.updateContext(newTopF.body, topF.body.context)
 
           deriveFunCall(newTopF, choice, inputs, c, depth+1)
@@ -214,7 +214,7 @@ object Exploration {
     val newTopF = FunDecl.replace(topF, call, bestChoice)
     val funCall = topF.body match { case call: FunCall => call }
     newTopF.params(0).t = funCall.argsType
-    Type.check(newTopF.body)
+    TypeChecker.check(newTopF.body)
     Context.updateContext(newTopF.body, topF.body.context)
 
     bestChoice match {

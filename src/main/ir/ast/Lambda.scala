@@ -72,16 +72,16 @@ object Lambda1 {
  */
 class Lambda2(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 2)
-
-  /**
-   * Returns a curried lambda expression, i.e.,  lambda expression of arity 1, where the first argument of `this` is
-   * bound with `arg`.
-   * @param arg The argument to be bound to the first parameter
-   * @return A lambda expression of arity 1 immediately calling `this` where the first parameter is bound to `arg`
-   */
-  def apply(arg: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg, tmp) )
-  }
+//
+//  /**
+//   * Returns a curried lambda expression, i.e.,  lambda expression of arity 1, where the first argument of `this` is
+//   * bound with `arg`.
+//   * @param arg The argument to be bound to the first parameter
+//   * @return A lambda expression of arity 1 immediately calling `this` where the first parameter is bound to `arg`
+//   */
+//  def apply(arg: Expr): Lambda1 = {
+//    fun( tmp => super.apply(arg, tmp) )
+//  }
 }
 
 object Lambda2 {
@@ -94,101 +94,101 @@ object Lambda2 {
 class Lambda3(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 3)
 
-  def apply(arg0: Expr, arg1: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, tmp) )
-  }
-
-  def apply(arg: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg, tmp0, tmp1) )
-  }
+//  def apply(arg0: Expr, arg1: Expr): Lambda1 = {
+//    fun( tmp => super.apply(arg0, arg1, tmp) )
+//  }
+//
+//  def apply(arg: Expr): Lambda2 = {
+//    fun( (tmp0, tmp1) => super.apply(arg, tmp0, tmp1) )
+//  }
 }
 
 class Lambda4(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 4)
 
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, arg2, tmp) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, tmp0, tmp1) )
-  }
-
-  def apply(arg: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg, tmp0, tmp1, tmp2) )
-  }
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda1 = {
+//    fun( tmp => super.apply(arg0, arg1, arg2, tmp) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr): Lambda2 = {
+//    fun( (tmp0, tmp1) => super.apply(arg0, arg1, tmp0, tmp1) )
+//  }
+//
+//  def apply(arg: Expr): Lambda3 = {
+//    fun( (tmp0, tmp1, tmp2) => super.apply(arg, tmp0, tmp1, tmp2) )
+//  }
 }
 
 class Lambda5(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 5)
 
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, arg2, arg3, tmp) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, tmp0, tmp1) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, tmp0, tmp1, tmp2) )
-  }
-
-  def apply(arg: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg, tmp0, tmp1, tmp2, tmp3) )
-  }
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda1 = {
+//    fun( tmp => super.apply(arg0, arg1, arg2, arg3, tmp) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda2 = {
+//    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, tmp0, tmp1) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr): Lambda3 = {
+//    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, tmp0, tmp1, tmp2) )
+//  }
+//
+//  def apply(arg: Expr): Lambda4 = {
+//    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg, tmp0, tmp1, tmp2, tmp3) )
+//  }
 }
 
 class Lambda6(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 6)
 
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda1 = {
-    fun( tmp => super.apply(arg0, arg1, arg2, arg3, arg4, tmp) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3) )
-  }
-
-  def apply(arg: Expr): Lambda5 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4) )
-  }
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda1 = {
+//    fun( tmp => super.apply(arg0, arg1, arg2, arg3, arg4, tmp) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda2 = {
+//    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda3 = {
+//    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr): Lambda4 = {
+//    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3) )
+//  }
+//
+//  def apply(arg: Expr): Lambda5 = {
+//    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4) )
+//  }
 }
 
 class Lambda7(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 7)
 
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda1 = {
-    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5,  tmp0) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda2 = {
-    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda3 = {
-    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda4 = {
-    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3) )
-  }
-
-  def apply(arg0: Expr, arg1: Expr): Lambda5 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4) )
-  }
-
-  def apply(arg: Expr): Lambda6 = {
-    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
-  }
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda1 = {
+//    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5,  tmp0) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda2 = {
+//    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda3 = {
+//    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda4 = {
+//    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3) )
+//  }
+//
+//  def apply(arg0: Expr, arg1: Expr): Lambda5 = {
+//    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4) )
+//  }
+//
+//  def apply(arg: Expr): Lambda6 = {
+//    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
+//  }
 }
 
 class Lambda8(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {

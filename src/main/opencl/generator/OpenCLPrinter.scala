@@ -134,9 +134,9 @@ class OpenCLPrinter {
       case ArrayType(elemT, _) =>
         val s = toOpenCL(elemT, seenArray=true)
         if (!seenArray) s + "*" else s
-      case MatrixType(elemT, _, _) =>
-        val s = toOpenCL(elemT, seenArray=true)
-        if (!seenArray) s + "*" else s
+//      case MatrixType(elemT, _, _) =>
+//        val s = toOpenCL(elemT, seenArray=true)
+//        if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toOpenCL(elemT, seenArray) + toOpenCL(len)
       case ScalarType(name, _) => name
       case tt: TupleType => Type.name(tt)

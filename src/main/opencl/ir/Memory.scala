@@ -142,7 +142,7 @@ object OpenCLMemory {
         case st: ScalarType => st.size
         case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
         case at: ArrayType => at.len * getSizeInBytes(at.elemT)
-        case mt: MatrixType => mt.dx * mt.dy * getSizeInBytes(mt.elemT)
+//        case mt: MatrixType => mt.dx * mt.dy * getSizeInBytes(mt.elemT)
         case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
         case _ => throw new TypeException(t, "??")
       }

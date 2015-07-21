@@ -213,7 +213,7 @@ class TestRewrite {
       input => MapGlb(id) o Join() o Split(8) $ input
     )
 
-    Type.check(f.body)
+    TypeChecker.check(f.body)
 
     val lambdaOptions = TestRewrite.rewrite(f)
     lambdaOptions.zipWithIndex.foreach(l => {

@@ -1,7 +1,7 @@
 package opencl.executor
 
 import arithmetic.{?, ArithExpr}
-import ir.Type
+import ir.TypeChecker
 import ir.ast.Lambda
 import opencl.generator.{OpenCLGenerator, Verbose}
 
@@ -41,7 +41,7 @@ object Compile {
             globalSize1: ArithExpr, globalSize2: ArithExpr, globalSize3: ArithExpr,
             valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
     // 1. type check
-    Type.check(f.body)
+    TypeChecker.check(f.body)
 
     // 2. generate OpenCL kernel
     val kernelCode = OpenCLGenerator.generate(f,

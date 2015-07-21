@@ -59,7 +59,7 @@ class TestMatrixMatrixChristophe {
       }
     )
 
-    val t1 = Type.check(f1.body)
+    val t1 = TypeChecker.check(f1.body)
 
 
     // inline
@@ -74,7 +74,7 @@ class TestMatrixMatrixChristophe {
         )) $ A
       }
     )
-    val t12 = Type.check(f12.body)
+    val t12 = TypeChecker.check(f12.body)
 
 
     //    // partial reduction
@@ -105,7 +105,7 @@ class TestMatrixMatrixChristophe {
         )) $ A
       }
     )
-    val t14 = Type.check(f14.body)
+    val t14 = TypeChecker.check(f14.body)
 
     // split-join
     val f15 = fun(
@@ -123,7 +123,7 @@ class TestMatrixMatrixChristophe {
         )) $ A
       }
     )
-    val t15 = Type.check(f15.body)
+    val t15 = TypeChecker.check(f15.body)
 
     // split-join
     val f16 = fun(
@@ -144,7 +144,7 @@ class TestMatrixMatrixChristophe {
         )) $ A
       }
     )
-    val t16 = Type.check(f16.body)
+    val t16 = TypeChecker.check(f16.body)
 
     // map distribute
     val f17 = fun(
@@ -166,7 +166,7 @@ class TestMatrixMatrixChristophe {
         )) $ A
       }
     )
-    val t17 = Type.check(f17.body)
+    val t17 = TypeChecker.check(f17.body)
 
     // map transposition
     val f18 = fun(
@@ -191,7 +191,7 @@ class TestMatrixMatrixChristophe {
         )) $ A
       }
     )
-    val t18 = Type.check(f18.body)
+    val t18 = TypeChecker.check(f18.body)
 
 
     val f21 = fun(
@@ -209,7 +209,7 @@ class TestMatrixMatrixChristophe {
     )
 
 
-    val t21 = Type.check(f21.body)
+    val t21 = TypeChecker.check(f21.body)
 
     // split-join
     val f22 = fun(
@@ -228,7 +228,7 @@ class TestMatrixMatrixChristophe {
       }
     )
 
-    val t22 = Type.check(f22.body)
+    val t22 = TypeChecker.check(f22.body)
 
     // map distribute
     val f23 = fun(
@@ -247,7 +247,7 @@ class TestMatrixMatrixChristophe {
         )) o Split(r) $ A
       }
     )
-    val t23 = Type.check(f23.body)
+    val t23 = TypeChecker.check(f23.body)
 
     // map distribute
     val f24 = fun(
@@ -266,7 +266,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t24 = Type.check(f24.body)
+    val t24 = TypeChecker.check(f24.body)
 
     // map interchange
     val f25 = fun(
@@ -288,7 +288,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t25 = Type.check(f25.body)
+    val t25 = TypeChecker.check(f25.body)
 
 
 
@@ -311,7 +311,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t26 = Type.check(f26.body)
+    val t26 = TypeChecker.check(f26.body)
 
     // Map distribution
     val f26a1 = fun(
@@ -339,7 +339,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t26a1 = Type.check(f26a1.body)
+    val t26a1 = TypeChecker.check(f26a1.body)
 
     // partial reduce
     val f26a2 = fun(
@@ -367,7 +367,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t26a2 = Type.check(f26a2.body)
+    val t26a2 = TypeChecker.check(f26a2.body)
 
     // split join (+ join-split deletion + map fusion)
     val f26a3 = fun(
@@ -395,7 +395,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t26a3 = Type.check(f26a3.body)
+    val t26a3 = TypeChecker.check(f26a3.body)
 
 
 
@@ -418,7 +418,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t27 = Type.check(f27.body)
+    val t27 = TypeChecker.check(f27.body)
 
     // split-join
     val f28 = fun(
@@ -443,7 +443,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t28 = Type.check(f28.body)
+    val t28 = TypeChecker.check(f28.body)
 
     // map distribution
     val f29 = fun(
@@ -469,7 +469,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t29 = Type.check(f29.body)
+    val t29 = TypeChecker.check(f29.body)
 
     // map distribution
     val f210 = fun(
@@ -496,7 +496,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t210 = Type.check(f210.body)
+    val t210 = TypeChecker.check(f210.body)
 
     // map distribution
     val f211 = fun(
@@ -527,7 +527,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t211 = Type.check(f211.body)
+    val t211 = TypeChecker.check(f211.body)
 
     //
     val f212 = fun(
@@ -558,7 +558,7 @@ class TestMatrixMatrixChristophe {
           )) o Split(r) $ A
       }
     )
-    val t212 = Type.check(f212.body)
+    val t212 = TypeChecker.check(f212.body)
 
 
     // interchange
@@ -577,7 +577,7 @@ class TestMatrixMatrixChristophe {
     )
 
 
-    val t3 = Type.check(f3.body)
+    val t3 = TypeChecker.check(f3.body)
 
 
     // split-join
@@ -597,7 +597,7 @@ class TestMatrixMatrixChristophe {
       }
     )
 
-    val t4 = Type.check(f4.body)
+    val t4 = TypeChecker.check(f4.body)
 
 
     // inline
@@ -617,7 +617,7 @@ class TestMatrixMatrixChristophe {
       }
     )
 
-    val t5 = Type.check(f5.body)
+    val t5 = TypeChecker.check(f5.body)
 
 
     // split-join
@@ -639,7 +639,7 @@ class TestMatrixMatrixChristophe {
       }
     )
 
-    val t6 = Type.check(f6.body)
+    val t6 = TypeChecker.check(f6.body)
 
     // split-join
     val f7 = fun(
@@ -660,7 +660,7 @@ class TestMatrixMatrixChristophe {
       }
     )
 
-    val t7 = Type.check(f7.body)
+    val t7 = TypeChecker.check(f7.body)
 
 
     //
@@ -680,7 +680,7 @@ class TestMatrixMatrixChristophe {
       }
     )
 
-    val ta = Type.check(fa.body)
+    val ta = TypeChecker.check(fa.body)
 
 
     /* val f6 = fun(
