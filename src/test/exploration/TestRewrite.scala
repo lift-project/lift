@@ -82,35 +82,18 @@ object TestRewrite {
       case _ =>
     }
 
-    expr.body match {
-      case call: FunCall =>
-        call.f match {
-          case cf: CompFun =>
-          // Rules with multiple things on the left hand side
-          // + recurse
+    // Join() o Split(_) => id
+    expr match {
+      case Lambda(lambdaParams, FunCall(CompFun(params, funs @ _*), arg)) =>
+        funs.sliding(2).foreach {
+          case list@List(Lambda(_, FunCall(Join(), _)), Lambda(_, FunCall(Split(_), _))) =>
+            val newList = funs.patch(funs.indexOfSlice(list), Seq(), 2)
+            // TODO: get rid of cf and extra lambda if just one left
+            val newCfLambda = Lambda(lambdaParams, CompFun(params, newList: _*).apply(arg))
+            lambdaList = newCfLambda :: lambdaList
 
-            val funs = cf.funs
-
-            funs.sliding(2).foreach(list => {
-              list.head.body match {
-                case call1: FunCall if call1.f.isInstanceOf[Join]=>
-
-                  list.last.body match {
-                    case call2: FunCall if call2.f.isInstanceOf[Split] =>
-
-                      val newList = funs.patch(funs.indexOfSlice(list), List(), 2)
-                      // TODO: get rid of cf and extra lambda if just one left
-                      val newCfLambda = new Lambda(expr.params, new CompFun(cf.params, newList: _*).apply(call.args: _*))
-                      lambdaList = newCfLambda :: lambdaList
-
-                    case _ =>
-                  }
-                case _ =>
-              }
-            })
           case _ =>
         }
-
       case _ =>
     }
 
@@ -190,6 +173,9 @@ class TestRewrite {
     Type.check(f.body)
 
     val lambdaOptions = TestRewrite.rewrite(f)
+
+    assertTrue(lambdaOptions.nonEmpty)
+
     lambdaOptions.zipWithIndex.foreach(l => {
       val (result: Array[Float], _) = Execute(128)(l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
@@ -211,6 +197,8 @@ class TestRewrite {
     val lambdaOptions = TestRewrite.rewrite(f)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+
+    assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
       val (result: Array[Float], _) = Execute(1, 1)(l, A)
