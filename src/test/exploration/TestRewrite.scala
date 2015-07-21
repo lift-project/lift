@@ -10,7 +10,11 @@ import org.junit.Assert._
 import opencl.ir.pattern._
 
 abstract class RewriteRule {
-  def apply(expr: Lambda): Lambda
+  def apply(expr: Lambda): Lambda = {
+    Lambda(expr.params, actOn(expr.body))
+  }
+
+  protected def actOn(expr: Expr): Expr
 }
 
 // rewrites:
@@ -20,25 +24,23 @@ object MapToMapGlb extends RewriteRule {
   val pattern = "Map"
   val actOn = (m: Map) => MapGlb(m.f)
 
-  override def apply(expr: Lambda): Lambda = {
+  override protected def actOn(expr: Expr): Expr =
     expr match {
-      case Lambda(params, FunCall(Map(l), args)) =>
-        Lambda(params, MapGlb(l)(args))
+      case FunCall(Map(l), args) =>
+        MapGlb(l)(args)
       case _ => expr
     }
-  }
 }
 
 // rewrites:
 // fun(x => Map(f)(x)) into fun(x => (Join() o Map(Map(f)) o Split(I))(x))
 object MapToSplitMapMapJoin extends RewriteRule {
-  override def apply(expr: Lambda): Lambda = {
+  override protected def actOn(expr: Expr): Expr =
     expr match {
-      case Lambda(params, FunCall(Map(l), args)) =>
-        Lambda(params, (Join() o MapGlb(MapSeq(l)) o Split(4))(args))
+      case FunCall(Map(l), args) =>
+        (Join() o MapGlb(MapSeq(l)) o Split(4))(args)
       case _ => expr
     }
-  }
 }
 
 object TestRewrite {
@@ -68,7 +70,7 @@ object TestRewrite {
       case _ =>
     }
 
-    // Reduce(f) = >toGlobal(MapSeq(id)) ReduceSeq(f)
+    // Reduce(f) => toGlobal(MapSeq(id)) ReduceSeq(f)
     expr match {
       case Lambda(params, FunCall(Lambda(innerParams, FunCall(Reduce(l), innerArgs @ _*)) , arg)) =>
         lambdaList = Lambda(params, FunCall(toGlobal(MapSeq(id)) o Lambda(innerParams, ReduceSeq(l)(innerArgs:_*)), arg)) :: lambdaList
@@ -78,26 +80,70 @@ object TestRewrite {
     // Map(f) => asScalar() o MapGlb(f.vectorize(4)) o asVector(4)
     expr match {
       case Lambda(params, FunCall(Map(Lambda(innerParams, FunCall(uf: UserFun, innerArg))), arg)) =>
-        lambdaList = Lambda(params, (asScalar() o MapGlb(uf.vectorize(4)) o asVector(4))(arg)) :: lambdaList
+        val vectorWidth = 4
+        lambdaList = Lambda(params, (asScalar() o MapGlb(uf.vectorize(vectorWidth)) o asVector(vectorWidth))(arg)) :: lambdaList
       case _ =>
     }
 
-    // Join() o Split(_) => id
     expr match {
-      case Lambda(lambdaParams, FunCall(CompFun(params, funs @ _*), arg)) =>
-        funs.sliding(2).foreach {
-          case list@List(Lambda(_, FunCall(Join(), _)), Lambda(_, FunCall(Split(_), _))) =>
-            val newList = funs.patch(funs.indexOfSlice(list), Seq(), 2)
-            // TODO: get rid of cf and extra lambda if just one left
-            val newCfLambda = Lambda(lambdaParams, CompFun(params, newList: _*).apply(arg))
+      case Lambda(lambdaParams, FunCall(CompFun(params, functions @ _*), arg)) =>
+
+        functions.sliding(2).foreach {
+
+          // Join() o Split(_) => id
+          case list @ List(Lambda(_, FunCall(Join(), _)), Lambda(_, FunCall(Split(_), _))) =>
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list)
             lambdaList = newCfLambda :: lambdaList
 
+          // Split(n) o Join(n) => id
+          case list @ List(Lambda(_, FunCall(Split(splitChunkSize), _)), Lambda(_, FunCall(Join(), joinArg))) =>
+            joinArg.t match {
+              case ArrayType(ArrayType(_, joinChunkSize), _) =>
+                if (joinChunkSize == splitChunkSize) {
+                  val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list)
+                  lambdaList = newCfLambda :: lambdaList
+                }
+              case _ =>
+            }
+
+          // joinVec o splitVec => id
+          case list @ List(Lambda(_, FunCall(asScalar(), _)), Lambda(_, FunCall(asVector(_), _))) =>
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list)
+            lambdaList = newCfLambda :: lambdaList
+
+          // splitVec(n) o joinVec(n) => id
+          case list @ List(Lambda(_, FunCall(asVector(splitVectorWidth), _)), Lambda(_, FunCall(asScalar(), joinArg))) =>
+            joinArg.t match {
+              case ArrayType(VectorType(_, joinVectorWidth), _) =>
+                if (joinVectorWidth == splitVectorWidth) {
+                  val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list)
+                  lambdaList = newCfLambda :: lambdaList
+                }
+              case _ =>
+            }
+
+          // ReduceSeq o MapSeq fusion. just for UserFun? need zip otherwise?
+          case list @ List(Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, _*))), reduceArgs @ _*)),
+          Lambda(mapParams, FunCall(MapSeq(Lambda(mapParam, FunCall(mapFun, _))), mapArg))) =>
+
+            val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(accNew(0), mapFun(accNew(1)))))(reduceArgs:_*)))
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list, replacement)
+
+            lambdaList = newCfLambda :: lambdaList
           case _ =>
+
         }
       case _ =>
     }
 
     lambdaList
+  }
+
+  def applyCompFunRule(lambdaParams: Array[Param], params: Array[Param], funs: Seq[Lambda],
+                       arg: Expr, list: Seq[Lambda] with List[Any], seq: Seq[Lambda] = Seq()): Lambda = {
+    val newList = funs.patch(funs.indexOfSlice(list), seq, 2)
+    // TODO: get rid of cf and extra lambda if just one left
+    Lambda(lambdaParams, CompFun(params, newList: _*).apply(arg))
   }
 }
 
@@ -131,7 +177,7 @@ class TestRewrite {
     assertArrayEquals(l + " failed", gold, result, 0.0f)
 
   }
-  
+
   @Test
   def slightlyMoreComplexMap(): Unit = {
     val goldF = fun(
@@ -157,7 +203,7 @@ class TestRewrite {
   }
 
   @Test
-  def splitJoin(): Unit = {
+  def joinSplit(): Unit = {
     val goldF = fun(
       ArrayType(Float, N),
       input => MapGlb(id) $ input
@@ -175,9 +221,89 @@ class TestRewrite {
     val lambdaOptions = TestRewrite.rewrite(f)
 
     assertTrue(lambdaOptions.nonEmpty)
+    lambdaOptions.zipWithIndex.foreach(l => {
+      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      assertArrayEquals(l + " failed", gold, result, 0.0f)
+    })
+  }
+
+  @Test
+  def splitJoin(): Unit = {
+    val A = Array.fill[Float](128, 4)(0.5f)
+
+    val goldF = fun(
+      ArrayType(ArrayType(Float, 4), N),
+      input => MapGlb(MapSeq(id)) $ input
+    )
+
+    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, 4), N),
+      input => MapGlb(MapSeq(id)) o Split(4) o Join() $ input
+    )
+
+    TypeChecker.check(f.body)
+
+    val lambdaOptions = TestRewrite.rewrite(f)
+
+    assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.zipWithIndex.foreach(l => {
       val (result: Array[Float], _) = Execute(128)(l._1, A)
+      assertArrayEquals(l + " failed", gold, result, 0.0f)
+    })
+  }
+
+  @Test
+  def asScalarAsVector(): Unit = {
+    val goldF = fun(
+      ArrayType(Float, N),
+      input => MapGlb(id) $ input
+    )
+
+    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => MapGlb(id) o asScalar() o asVector(8) $ input
+    )
+
+    TypeChecker.check(f.body)
+
+    val lambdaOptions = TestRewrite.rewrite(f)
+
+    assertTrue(lambdaOptions.nonEmpty)
+    lambdaOptions.zipWithIndex.foreach(l => {
+      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      assertArrayEquals(l + " failed", gold, result, 0.0f)
+    })
+  }
+
+  @Test
+  def asVectorAsScalar(): Unit = {
+    val A = Array.fill[Float](128, 4)(0.5f)
+
+    val goldF = fun(
+      ArrayType(ArrayType(Float, 4), N),
+      input => MapGlb(MapSeq(id)) $ input
+    )
+
+    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+
+    val f = fun(
+      ArrayType(VectorType(Float, 4), N),
+      input => MapGlb(id.vectorize(4)) o asVector(4) o asScalar() $ input
+    )
+
+    TypeChecker.check(f.body)
+
+    val lambdaOptions = TestRewrite.rewrite(f)
+
+    assertTrue(lambdaOptions.nonEmpty)
+
+    lambdaOptions.zipWithIndex.foreach(l => {
+      val (result: Array[Float], _) = Execute(128)(l._1, A.flatten)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -192,6 +318,30 @@ class TestRewrite {
     val f = fun(
       ArrayType(Float, N),
       input => Reduce(add, 0.0f) $ input
+    )
+
+    val lambdaOptions = TestRewrite.rewrite(f)
+
+    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+
+    assertTrue(lambdaOptions.nonEmpty)
+
+    lambdaOptions.foreach(l => {
+      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      assertArrayEquals(l + " failed", gold, result, 0.0f)
+    })
+  }
+
+  @Test
+  def ReduceSeqMapSeq(): Unit = {
+    val goldF = fun(
+      ArrayType(Float, N),
+      input => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, plusOne(newValue))), 0.0f) $ input
+    )
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(plusOne) $ input
     )
 
     val lambdaOptions = TestRewrite.rewrite(f)

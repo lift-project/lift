@@ -3,7 +3,7 @@ package opencl.ir.pattern
 import apart.arithmetic.Var
 import ir.ast._
 
-case class ReduceSeq(override val f: Lambda2)
+case class ReduceSeq(override val f: Lambda)
 extends AbstractReduce(f, Var("i")) with isGenerable
 
 object ReduceSeq {

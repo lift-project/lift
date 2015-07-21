@@ -10,9 +10,10 @@ import apart.arithmetic.{?, ArithExpr, Var}
  *
  * @param f A lambda to be applied in the partial reduction
  */
-abstract class AbstractPartRed(val f: Lambda2,
+abstract class AbstractPartRed(val f: Lambda,
                                val loopVar: Var) extends Pattern(arity = 2)
                                                          with FPattern {
+  assert(f.params.length == 2)
 
   var iterationCount: ArithExpr = ?
   /**

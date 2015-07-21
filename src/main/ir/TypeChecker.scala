@@ -69,7 +69,7 @@ object TypeChecker {
     if (call.args.isEmpty) {
       NoType
     } else if (call.args.length == 1) {
-      check(call.args(0), setType)
+      check(call.args.head, setType)
     } else {
       TupleType( call.args.map(check(_, setType)):_* )
     }
