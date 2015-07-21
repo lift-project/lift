@@ -1,7 +1,6 @@
 package opencl.ir
 
 import apart.arithmetic.Var
-import apart.arithmetic.simplifier.ExprSimplifier
 import ir._
 import ir.ast._
 import ir.ast.UserFun._
@@ -36,10 +35,8 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(LocalMemory, subMemories(0).addressSpace)
     assertEquals(LocalMemory, subMemories(1).addressSpace)
-    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier(subMemories(0).size))
-    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier(subMemories(1).size))
+    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(0).size)
+    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(1).size)
   }
 
   @Test
@@ -65,10 +62,8 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier(subMemories(0).size))
-    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier(subMemories(1).size))
+    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(0).size)
+    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(1).size)
   }
 
   @Test
@@ -94,9 +89,7 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier(subMemories(0).size))
-    assertEquals(ExprSimplifier(OpenCLMemory.getMaxSizeInBytes(arrayType)),
-      ExprSimplifier(subMemories(1).size))
+    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(0).size)
+    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(1).size)
   }
 }

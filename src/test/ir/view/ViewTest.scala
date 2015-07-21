@@ -1,7 +1,6 @@
 package ir.view
 
 import apart.arithmetic._
-import apart.arithmetic.simplifier.ExprSimplifier
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -31,8 +30,8 @@ class ViewTest {
     val map_mapf0 = map_mapf.get(0)
     val map_mapf1 = map_mapf.get(1)
 
-    assertEquals(var_k, ExprSimplifier(ViewPrinter.emit(map_mapf0)))
-    assertEquals(var_j*8 + var_k, ExprSimplifier(ViewPrinter.emit(map_mapf1)))
+    assertEquals(var_k, ViewPrinter.emit(map_mapf0))
+    assertEquals(var_j*8 + var_k, ViewPrinter.emit(map_mapf1))
   }
 
   @Test
@@ -67,8 +66,8 @@ class ViewTest {
     val map_map_map_f0 = map_map_map_f.get(0)
     val map_map_map_f1 = map_map_map_f.get(1)
 
-    assertEquals(8*var_k + 9, ExprSimplifier(ViewPrinter.emit(map_map_map_f0)))
-    assertEquals(8*var_l + 9, ExprSimplifier(ViewPrinter.emit(map_map_map_f1)))
+    assertEquals(8*var_k + 9, ViewPrinter.emit(map_map_map_f0))
+    assertEquals(8*var_l + 9, ViewPrinter.emit(map_map_map_f1))
   }
 
   @Test
@@ -89,8 +88,8 @@ class ViewTest {
     val zip_ab_3_1 = zip_ab_3.get(1)
 
 
-    assertEquals(8*var_i + 3, ExprSimplifier(ViewPrinter.emit(zip_ab_3_0)))
-    assertEquals(8*var_j + 3, ExprSimplifier(ViewPrinter.emit(zip_ab_3_1)))
+    assertEquals(8*var_i + 3, ViewPrinter.emit(zip_ab_3_0))
+    assertEquals(8*var_j + 3, ViewPrinter.emit(zip_ab_3_1))
   }
 
   @Test
@@ -106,7 +105,7 @@ class ViewTest {
     val split2A_i = split2A.access(var_i)
     val split2A_i_j = split2A_i.access(var_j)
 
-    assertEquals(ExprSimplifier(2*var_i + var_j), ExprSimplifier(ViewPrinter.emit(split2A_i_j)))
+    assertEquals(2*var_i + var_j, ViewPrinter.emit(split2A_i_j))
   }
 
   @Test
@@ -123,7 +122,7 @@ class ViewTest {
     val reorder_split_reorder_A_1 = split_reorder_A.access(1)
     val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.access(3)
 
-    assertEquals(Cst(33), ExprSimplifier(ViewPrinter.emit(reorder_split_reorder_A_1_3)))
+    assertEquals(Cst(33), ViewPrinter.emit(reorder_split_reorder_A_1_3))
   }
 
   @Test
@@ -144,8 +143,7 @@ class ViewTest {
     val reality = View(transposedArray, "").join(N).
       reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).access(j)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(reality)))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(reality))
   }
 
   @Test
@@ -167,8 +165,7 @@ class ViewTest {
     val view = View(finalArray, "").
       reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).access(j)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(view)))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
   }
 
   @Test
@@ -191,8 +188,7 @@ class ViewTest {
       split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(view)))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
   }
 
   @Test
@@ -215,8 +211,7 @@ class ViewTest {
       join(N).split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(view)))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
   }
 
   @Test
@@ -248,10 +243,8 @@ class ViewTest {
       join(M).reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
       access(j).access(k)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(midGoal)),
-      ExprSimplifier(ViewPrinter.emit(midPoint)))
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(view)))
+    assertEquals(ViewPrinter.emit(midGoal), ViewPrinter.emit(midPoint))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
 
   }
 }
