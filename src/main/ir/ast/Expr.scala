@@ -38,12 +38,18 @@ abstract class Expr {
   var context: Context = null
 
   /**
-   * TODO: describe (@Toomas?)
+   * A list storing variable, length pairs that describe the full type and loop variables
+   * of the expression (i.e. the outer part not included in `this`).
+   *
+   * Used for constructing input views.
    */
   var inputDepth: List[(ArithExpr, ArithExpr)] = List()
 
   /**
-   * TODO: describe (@Toomas?)
+   * A list storing variable, length pairs that describe the full type and loop variables
+   * of the expression (i.e. the outer part not included in `this`).
+   *
+   * Used for constructing output views.
    */
   var outputDepth: List[(ArithExpr, ArithExpr)] = List()
 
