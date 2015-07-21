@@ -68,10 +68,10 @@ object TestRewrite {
       case _ =>
     }
 
-    // Reduce(f) =>
-    // Lambda won't match Lambda1
+    // Reduce(f) = >toGlobal(MapSeq(id)) ReduceSeq(f)
     expr match {
-      case Lambda(params, FunCall(Lambda(innerParams, FunCall(Reduce(l), innerArgs)), args)) =>
+      case Lambda(params, FunCall(Lambda(innerParams, FunCall(Reduce(l), innerArgs @ _*)) , arg)) =>
+        lambdaList = Lambda(params, FunCall(toGlobal(MapSeq(id)) o Lambda(innerParams, ReduceSeq(l)(innerArgs:_*)), arg)) :: lambdaList
       case _ =>
     }
 
@@ -94,21 +94,6 @@ object TestRewrite {
                   case _  =>
                 }
               case _=>
-            }
-
-          case l: Lambda =>
-            l.body match {
-              case callInner: FunCall =>
-                callInner.f match {
-                  case r: Reduce =>
-                    // Reduce(f) => toGlobal(MapSeq(id) ReduceSeq(f)
-                    val reduceSeqLambda =
-                      new Lambda(l.params, ReduceSeq(r.f)(callInner.args:_*))
-
-                    val reduce = new Lambda(expr.params, (toGlobal(MapSeq(id)) o reduceSeqLambda)(call.args:_*))
-
-                    lambdaList = reduce :: lambdaList
-                }
             }
 
           case cf: CompFun =>
