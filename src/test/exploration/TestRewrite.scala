@@ -86,17 +86,10 @@ object TestRewrite {
                   list.last.body match {
                     case call2: FunCall if call2.f.isInstanceOf[Split] =>
 
-                      call1.args.head.t match {
-                        case ArrayType(ArrayType(_, len), _) =>
-                          if (len == call2.f.asInstanceOf[Split].chunkSize) {
-
-                            val newList = funs.patch(funs.indexOfSlice(list), List(), 2)
-                            // TODO: get rid of cf and extra lambda if just one left
-                            lambdaList = new Lambda(expr.params, new CompFun(cf.params, newList:_*).apply(call.args:_*)) :: lambdaList
-                          }
-
-                        case _ =>
-                      }
+                      val newList = funs.patch(funs.indexOfSlice(list), List(), 2)
+                      // TODO: get rid of cf and extra lambda if just one left
+                      val newCfLambda = new Lambda(expr.params, new CompFun(cf.params, newList: _*).apply(call.args: _*))
+                      lambdaList = newCfLambda :: lambdaList
 
                     case _ =>
                   }
