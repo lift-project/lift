@@ -13,7 +13,7 @@ import scala.language.implicitConversions
  * @param params The parameters of the lambda expression.
  * @param body The body of the lambda expression.
  */
-class Lambda(override val params: Array[Param], val body: Expr) extends FunDecl(params) with isGenerable {
+case class Lambda(override val params: Array[Param], body: Expr) extends FunDecl(params) with isGenerable {
   /**
    * Debug string representation
    */

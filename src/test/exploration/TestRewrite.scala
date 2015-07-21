@@ -21,24 +21,11 @@ object MapToMapGlb extends RewriteRule {
   val actOn = (m: Map) => MapGlb(m.f)
 
   override def apply(expr: Lambda): Lambda = {
-    val body = expr.body match {
-      case FunCall(p, args) => {
-        if (p.toString.startsWith(pattern))
-          actOn(p.asInstanceOf[Map])(args)
-        else
-          p(args)
-        /*p match {
-          case Map(f) => {
-            val m = p.asInstanceOf[Map]
-
-            println(p.toString)
-            MapGlb(f)(args)
-          }
-        }*/
-      }
-      case _ => expr.body
+    expr match {
+      case Lambda(params, FunCall(Map(l), args)) =>
+        Lambda(params, MapGlb(l)(args))
+      case _ => expr
     }
-    new Lambda(expr.params, body)
   }
 }
 
@@ -46,9 +33,9 @@ object MapToMapGlb extends RewriteRule {
 // fun(x => Map(f)(x)) into fun(x => (Join() o Map(Map(f)) o Split(I))(x))
 object MapToSplitMapMapJoin extends RewriteRule {
   override def apply(expr: Lambda): Lambda = {
-    expr.body match {
-      case FunCall(Map(f), args) =>
-        new Lambda(expr.params, (Join() o MapGlb(MapSeq(f)) o Split(4))(args))
+    expr match {
+      case Lambda(params, FunCall(Map(l), args)) =>
+        Lambda(params, (Join() o MapGlb(MapSeq(l)) o Split(4))(args))
       case _ => expr
     }
   }
@@ -67,25 +54,31 @@ object TestRewrite {
   private def rewrite(expr: Lambda): List[Lambda] = {
     var lambdaList = List[Lambda]()
 
+    // Map(f) => MapGlb(f)
+    expr match {
+      case Lambda(params, FunCall(Map(l), args)) =>
+        lambdaList = Lambda(params, MapGlb(l)(args)) :: lambdaList
+      case _ =>
+    }
+
+    // Map(f) => Join() o Map(Map(f)) o Split(I)
+    expr match {
+      case Lambda(params, FunCall(Map(l), args)) =>
+        lambdaList = Lambda(params, (Join() o MapGlb(MapSeq(l)) o Split(4))(args)) :: lambdaList
+      case _ =>
+    }
+
+    // Reduce(f) =>
+    // Lambda won't match Lambda1
+    expr match {
+      case Lambda(params, FunCall(Lambda(innerParams, FunCall(Reduce(l), innerArgs)), args)) =>
+      case _ =>
+    }
+
     expr.body match {
       case call: FunCall =>
         call.f match {
           case m: Map =>
-
-            // Map(f) => MapGlb(f)
-            val mapGlb = MapGlb(m.f)
-
-            val mapGlbLambda =
-              new Lambda(expr.params, mapGlb(call.args:_*))
-            lambdaList = mapGlbLambda :: lambdaList
-
-            // Map(f) => Join() o Map(Map(f)) o Split(I)
-            val splitComp = Join() o MapGlb(MapSeq(m.f)) o Split(4)
-
-            val splitJoinLambda =
-              new Lambda(expr.params, splitComp(call.args:_*))
-            lambdaList = splitJoinLambda :: lambdaList
-
             m.f.body match {
               case callInner: FunCall =>
                 callInner.f match {
@@ -176,9 +169,9 @@ class TestRewrite {
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
 
-//    val l = MapToMapGlb(f)
-//    val (result: Array[Float], _) = Execute(128)(l, A)
-//    assertArrayEquals(l + " failed", gold, result, 0.0f)
+    val l = MapToMapGlb(f)
+    val (result: Array[Float], _) = Execute(128)(l, A)
+    assertArrayEquals(l + " failed", gold, result, 0.0f)
 
   }
   
@@ -240,8 +233,6 @@ class TestRewrite {
       ArrayType(Float, N),
       input => Reduce(add, 0.0f) $ input
     )
-
-    println(goldF)
 
     val lambdaOptions = TestRewrite.rewrite(f)
 
