@@ -1,6 +1,6 @@
 package ir.ast
 
-import arithmetic.{RangeUnknown, Var, ?, ArithExpr}
+import apart.arithmetic.{RangeUnknown, Var, ?, ArithExpr}
 import ir.{UnallocatedMemory, Memory}
 
 /**

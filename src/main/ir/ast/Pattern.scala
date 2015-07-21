@@ -1,6 +1,6 @@
 package ir.ast
 
-import arithmetic.ArithExpr
+import apart.arithmetic.ArithExpr
 import ir.{ArrayType, Type, UndefType}
 import scala.language.implicitConversions
 

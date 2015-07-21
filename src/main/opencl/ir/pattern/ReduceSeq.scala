@@ -1,6 +1,6 @@
 package opencl.ir.pattern
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import ir.ast._
 
 case class ReduceSeq(override val f: Lambda2)

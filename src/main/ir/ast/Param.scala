@@ -1,6 +1,6 @@
 package ir.ast
 
-import arithmetic.ArithExpr
+import apart.arithmetic.ArithExpr
 import ir.{Type, TypeException}
 
 

@@ -1,6 +1,7 @@
 package opencl.generator
 
-import arithmetic._
+import apart.arithmetic._
+import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import ir.view.AccessVar
@@ -73,7 +74,7 @@ class OpenCLPrinter {
     } else {
       if (mem.t.isInstanceOf[ArrayType]) {
         val baseType = Type.getBaseType(mem.t)
-        val length = (mem.mem.size /^ Type.getSize(baseType)).eval()
+        val length = (mem.mem.size /^ Type.getSize(baseType)).eval
         for (i <- 0 until length)
           println(toOpenCL(baseType) + " " + toOpenCL(mem.mem.variable) +
             "_" + toOpenCL(i) + ";")
@@ -145,7 +146,7 @@ class OpenCLPrinter {
   }
 
   def toOpenCL(e: ArithExpr) : String = {
-    val me = if(Debug()) e else ExprSimplifier(e)
+    val me = e
     me match {
       case Cst(c) => c.toString
       case Pow(b, ex) => "(int)pow((float)" + toOpenCL(b) + ", " + toOpenCL(ex) + ")"
@@ -158,16 +159,15 @@ class OpenCLPrinter {
       } ).drop(4) /* drop "1 * " */ + ")"
       case Sum(es) => "(" + es.map(toOpenCL).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toOpenCL(a) + " % " + toOpenCL(n) + ")"
-      case And(lhs, rhs) => "(" + toOpenCL(lhs) + " & " + toOpenCL(rhs) + ")"
       case of: OclFunction => of.toOCLString
       case tv : TypeVar => "tv_"+tv.id
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
       case v: Var => "v_"+v.name+"_"+v.id
       case IntDiv(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
       case gc: GroupCall =>
-        val outerAe = if (Debug()) ExprSimplifier(gc.outerAe) else gc.outerAe
-        val innerAe = if (Debug()) ExprSimplifier(gc.innerAe) else gc.innerAe
-        val len = if (Debug()) ExprSimplifier(gc.len) else gc.len
+        val outerAe = gc.outerAe
+        val innerAe = gc.outerAe
+        val len = gc.len
         "groupComp" + gc.group.id + "(" + toOpenCL(outerAe) + ", " +
           toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
@@ -292,9 +292,9 @@ class OpenCLPrinter {
   def generateLoop(indexVar: Var, printBody: () => Unit, iterationCount: ArithExpr = ?) {
     val range = indexVar.range.asInstanceOf[RangeAdd]
 
-    val init = ExprSimplifier(range.start)
-    val cond = ExprSimplifier(range.stop)
-    val update = ExprSimplifier(range.step)
+    val init = range.start
+    val cond = range.stop
+    val update = range.step
 
     iterationCount match {
       case Cst(0) =>
@@ -306,7 +306,7 @@ class OpenCLPrinter {
         printBody ()
         closeCB ()
 
-      case IntDiv (Cst(1), ?) =>
+      case IntDiv (Cst(1), x) if x.getClass == ?.getClass =>
         // one or less iteration
         openCB ()
         println ("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")

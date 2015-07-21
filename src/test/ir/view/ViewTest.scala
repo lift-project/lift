@@ -1,6 +1,7 @@
 package ir.view
 
-import arithmetic._
+import apart.arithmetic._
+import apart.arithmetic.simplifier.ExprSimplifier
 import ir._
 import ir.ast._
 import opencl.ir._

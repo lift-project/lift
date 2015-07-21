@@ -27,6 +27,7 @@ class TestEval {
     val gold = (leftInputData, rightInputData).zipped.map(_+_)
 
     val addFun = """
+      import apart.arithmetic._
       val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
 
       val N = Var("N")

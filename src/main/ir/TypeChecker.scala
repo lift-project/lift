@@ -1,5 +1,6 @@
 package ir
 
+import apart.arithmetic.{ContinuousRange, Cst, ArithExpr}
 import arithmetic._
 import ir.ast._
 import opencl.ir._
@@ -15,7 +16,7 @@ object TypeChecker {
     }
 
     inferredOuT = inferredOuT match {
-      case ArrayType(et, len) => ArrayType(et, ExprSimplifier(len))
+      case ArrayType(et, len) => ArrayType(et, len)
       case _ => inferredOuT
     }
 
@@ -177,7 +178,7 @@ object TypeChecker {
   private def checkJoin(inT: Type): Type = {
     inT match {
       case at0: ArrayType => at0.elemT match {
-        case at1: ArrayType => ArrayType(at1.elemT, ExprSimplifier(at0.len * at1.len))
+        case at1: ArrayType => ArrayType(at1.elemT, at0.len * at1.len)
         case _ => throw new TypeException(at0.elemT, "ArrayType")
       }
       case _ => throw new TypeException(inT, "ArrayType")
@@ -338,8 +339,8 @@ object TypeChecker {
     (inT,ouT) match {
       case (inAT : ArrayType, outAT : ArrayType) =>
         val closedFormLen = {
-          val inLen = ExprSimplifier(inAT.len)
-          val outLen = ExprSimplifier(outAT.len)
+          val inLen = inAT.len
+          val outLen = outAT.len
 
           inLen match {
             case tv: TypeVar =>
@@ -352,17 +353,17 @@ object TypeChecker {
                 return ouT
 
               // recognises outLen*tv
-              val a = ExprSimplifier(outLen /^ tv)
+              val a = outLen /^ tv
               if (!ArithExpr.contains(a, tv)) {
 
                 // fix the range for tv
                 // TODO: Pow(a, n) or Pow(a, n-1)???
-                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, ExprSimplifier(Pow(a, n)*tvMap.get(tv).get))
+                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get, (a pow n)*tvMap.get(tv).get)
                 // TODO: deal with growing output size
                 tv.range = ContinuousRange(min,max)
 
                 // we have outLen*tv where tv is not present inside outLen
-                Pow(a, n)*tv
+                (a pow n)*tv
               }
               else throw new TypeException("Cannot infer closed form for iterate return type (only support x*a). inT = " + inT + " ouT = " + ouT)
             case _ => throw new TypeException("Cannot infer closed form for iterate return type. inT = " + inT + " ouT = " + ouT)

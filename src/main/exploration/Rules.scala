@@ -1,7 +1,7 @@
 package exploration
 
 
-import arithmetic.{Cst, RangeMul, RangeUnknown, Var}
+import apart.arithmetic.{Cst, RangeMul, RangeUnknown, Var}
 import ir._
 import ir.ast._
 import opencl.ir.ast._

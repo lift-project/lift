@@ -4,7 +4,7 @@ import java.awt.image.BufferedImage
 import java.io.{File, IOException}
 import javax.imageio.ImageIO
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
 import ir.ast._

@@ -1,6 +1,7 @@
 package opencl.ir
 
-import arithmetic._
+import apart.arithmetic._
+import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import opencl.ir.ast._
@@ -37,7 +38,7 @@ class OpenCLMemory(var variable: Var, val size: ArithExpr, val addressSpace: Ope
 
   // size cannot be 0 unless it is the null memory
   try {
-    if (size.eval() == 0)
+    if (size.eval == 0)
       throw new IllegalArgumentException
   } catch {
     case _: NotEvaluableException => // nothing to do
@@ -136,17 +137,13 @@ object OpenCLMemory {
     ArithExpr.max(getSizeInBytes(t))
   }
 
-  private def getSizeInBytes(t: Type): ArithExpr = {
-    ExprSimplifier(
-      t match {
-        case st: ScalarType => st.size
-        case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
-        case at: ArrayType => at.len * getSizeInBytes(at.elemT)
+  private def getSizeInBytes(t: Type): ArithExpr = t match {
+    case st: ScalarType => st.size
+    case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
+    case at: ArrayType => at.len * getSizeInBytes(at.elemT)
 //        case mt: MatrixType => mt.dx * mt.dy * getSizeInBytes(mt.elemT)
-        case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
-        case _ => throw new TypeException(t, "??")
-      }
-    )
+    case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
+    case _ => throw new TypeException(t, "??")
   }
 
   def asOpenCLMemory(m: Memory): OpenCLMemory = {

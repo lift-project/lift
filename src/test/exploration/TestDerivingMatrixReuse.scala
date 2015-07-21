@@ -1,6 +1,6 @@
 package exploration
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import ir._
 import ir.ast.UserFun._
 import ir.ast._

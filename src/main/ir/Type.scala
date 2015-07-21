@@ -1,6 +1,7 @@
 package ir
 
-import arithmetic._
+import apart.arithmetic.{Var, Cst, ArithExpr}
+import arithmetic.TypeVar
 
 import scala.collection.{immutable, mutable}
 
@@ -19,6 +20,13 @@ import scala.collection.{immutable, mutable}
  *
  */
 sealed abstract class Type {
+  lazy val varList : Seq[Var] = this match {
+    case at: ArrayType => at.elemT.varList ++ at.len.varList
+    case vt: VectorType => vt.len.varList.to[Seq]
+    case tt: TupleType => tt.elemsT.foldLeft(Seq[Var]())((set,inT) => set ++ inT.varList)
+    case _ => Seq[Var]().distinct
+  }
+
   /**
    * Vectorize the current type:
    * - For a scalar type a vectorized type is returned.

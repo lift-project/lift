@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic._
+import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.Kernel
@@ -86,8 +86,8 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
         start.range = ContinuousRange(0, numGroups)
         m.loopVar.range = RangeAdd(start, lengthSubst, numGroups)
         evaluateMapRange(m)
-      case ? =>
-      case _ => throw new IllegalArgumentException("Invalid global size type")
+      case x if x.getClass == ?.getClass =>
+      case x => throw new IllegalArgumentException(s"Invalid global size type: $x (${x.getClass})")
     }
 
     m.loopVar.range = RangeAdd(start, length, step)
@@ -124,7 +124,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   }
 
   private def setRangeMapLane(m: MapLane, call: FunCall): Unit = {
-    m.loopVar.range = RangeAdd(new get_local_id(0) & (OpenCL.warpSize - Cst(1)),
+    m.loopVar.range = RangeAdd(new get_local_id(0) % OpenCL.warpSize,
                                Type.getLength(call.args(0).t), OpenCL.warpSize)
     evaluateMapRange(m)
   }
@@ -159,13 +159,13 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   }
 
   private def evaluateRangeForCount(range: RangeAdd): ArithExpr = {
-    val init = ExprSimplifier(range.start)
-    val cond = ExprSimplifier(range.stop)
-    val update = ExprSimplifier(range.step)
+    val init = range.start
+    val cond = range.stop
+    val update = range.step
 
     // eval expression. if successful return true and the value, otherwise return false
-    def evalExpr = (e: ArithExpr) => {try { (true, e.evalAtMax())} catch { case _ : Throwable => (false, 0) } }
-    def evalExprMinMax = (e: ArithExpr) => {try { (true, e.evalAtMin(), e.evalAtMax())} catch { case _ : Throwable => (false, 0, 0) } }
+    def evalExpr = (e: ArithExpr) => {try { (true, e.atMax.eval)} catch { case _ : Throwable => (false, 0) } }
+    def evalExprMinMax = (e: ArithExpr) => {try { (true, e.atMin.eval, e.atMax.eval)} catch { case _ : Throwable => (false, 0, 0) } }
 
     // try to directly evaluate
     val (initIsEvaluated, initMinEvaluated, initMaxEvaluated) = evalExprMinMax(init)

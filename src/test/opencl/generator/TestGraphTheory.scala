@@ -2,7 +2,7 @@ package opencl.generator
 
 import java.io._
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import ir._
 import ir.ast._
 import ir.ast.UserFun._

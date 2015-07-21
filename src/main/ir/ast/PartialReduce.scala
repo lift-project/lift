@@ -1,6 +1,6 @@
 package ir.ast
 
-import arithmetic.{?, ArithExpr, Var}
+import apart.arithmetic.{?, ArithExpr, Var}
 
 /**
  * Abstract class for the partial reduce pattern.

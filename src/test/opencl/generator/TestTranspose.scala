@@ -1,6 +1,6 @@
 package opencl.generator
 
-import arithmetic.Var
+import apart.arithmetic.Var
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._

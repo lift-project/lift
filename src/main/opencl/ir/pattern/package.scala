@@ -1,6 +1,6 @@
 package opencl.ir
 
-import arithmetic.ArithExpr
+import apart.arithmetic.ArithExpr
 import ir.ast._
 
 package object pattern {

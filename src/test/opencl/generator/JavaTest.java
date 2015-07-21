@@ -1,6 +1,6 @@
 package opencl.generator;
 
-import arithmetic.Var;
+import apart.arithmetic.Var;
 import arithmetic.interop.jVar;
 import ir.Type;
 import ir.UndefType$;

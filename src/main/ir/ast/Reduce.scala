@@ -1,6 +1,6 @@
 package ir.ast
 
-import arithmetic.Var
+import apart.arithmetic.Var
 
 /**
  * Abstract class for the (full) reduce pattern.

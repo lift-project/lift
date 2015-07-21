@@ -1,6 +1,6 @@
 package ir.view
 
-import arithmetic.{ArithExpr, Cst}
+import apart.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
 import opencl.ir.OpenCLMemory

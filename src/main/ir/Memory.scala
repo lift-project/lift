@@ -1,6 +1,6 @@
 package ir
 
-import arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic.{ArithExpr, Cst, Var}
 
 abstract class Memory {  
   def variable : Var

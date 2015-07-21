@@ -1,5 +1,7 @@
 package arithmetic
 
+import apart.arithmetic.simplifier.ExprSimplifier
+import apart.arithmetic._
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 
@@ -36,10 +38,10 @@ class TestExpr {
     for (a <- 1 to 10) {
       val re = rndExpr(3)
 
-      val oriEval = re.evalDbl()
-      val sim = ExprSimplifier(re)
+      val oriEval = re.evalDbl
+      val sim = re
 
-      val simEval = sim.evalDbl()
+      val simEval = sim.evalDbl
       assertTrue(oriEval+" != "+simEval, math.abs(oriEval-simEval) <= 1.0/1000000.0)
     }
   }
@@ -52,9 +54,9 @@ class TestExpr {
     val c10 = Cst(10)
     val e = (c0+c1)*(c10+c2)+(c10/^c2)
 
-    ExprSimplifier(e).eval()
+    ExprSimplifier(e).eval
 
-    assertEquals(e.eval(), ExprSimplifier(e).eval())
+    assertEquals(e.eval, ExprSimplifier(e).eval)
 
     val result = ExprSimplifier(e)
 
@@ -188,9 +190,9 @@ class TestExpr {
     assertEquals(Cst(4) * j, ExprSimplifier((i + Cst(16) * j ) / Cst(4)))
   }
 
-  @Test def simplifyProdEmpty(): Unit = {
+  /*@Test def simplifyProdEmpty(): Unit = {
     assertEquals(Cst(1), ExprSimplifier(Prod(List[ArithExpr]())))
-  }
+  }*/
 
   @Test def modNotSimplifying(): Unit = {
     val v_M_1 = Var("v_M_1")
@@ -416,5 +418,22 @@ class TestExpr {
 
     assertEquals(Cst(0), ExprSimplifier((n /^ 4) % (n /^ 8)))
 //    assertEquals(n / 8, ExprSimplifier((n / 8) % (n / 4)))
+  }
+
+  @Test def expr8(): Unit = {
+    val a = Var("a")
+    assertEquals(a /^ 2048, a * 128 * 1 /^ 262144)
+
+    assertEquals(IntDiv(a, 2), a / 2)
+  }
+
+  @Test def expr9(): Unit = {
+    val a = Var("a")
+    assertEquals(a /^ 2, a * (a*1/^(2)) /^ a)
+  }
+
+  @Test def expr10(): Unit = {
+    val a = Var("a")
+    assertNotEquals(a * (a*1/^(2)),  a * -1)
   }
 }

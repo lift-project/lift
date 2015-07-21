@@ -2,7 +2,7 @@ package ir.interop
 
 import java.util.function._
 
-import arithmetic.ArithExpr
+import apart.arithmetic.ArithExpr
 import ir._
 import ir.ast._
 

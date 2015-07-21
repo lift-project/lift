@@ -1,6 +1,7 @@
 package opencl.executor
 
-import arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic.{ArithExpr, Cst, Var}
+import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import opencl.generator.{OpenCLGenerator, Verbose}
@@ -82,10 +83,10 @@ object Execute {
       case ArrayType(ArrayType(tt: TupleType, _), _) => tt.elemsT.length
       case ArrayType(tt: TupleType, _) => tt.elemsT.length
       case tt: TupleType => tt.elemsT.length
-      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval()
-      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval()
-      case ArrayType(vt: VectorType, _) => vt.len.eval()
-      case vt: VectorType => vt.len.eval()
+      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval
+      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval
+      case ArrayType(vt: VectorType, _) => vt.len.eval
+      case vt: VectorType => vt.len.eval
       case _ => 1
     })
 
@@ -248,7 +249,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     validateMemorySizes(valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval()
+    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments
@@ -290,14 +291,14 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
       g.params(0).t match {
         case ArrayType(_, lenExpr) =>
-          val length = ArithExpr.substitute(lenExpr, valueMap).eval()
+          val length = ArithExpr.substitute(lenExpr, valueMap).eval
 
           for (relIdx <- allIndices) {
             var newIdx = 0
             if (relIdx < 0) {
-              newIdx = g.negOutOfBoundsF(relIdx, length).eval()
+              newIdx = g.negOutOfBoundsF(relIdx, length).eval
             } else if (relIdx > 0) {
-              newIdx = g.posOutOfBoundsF(relIdx, length).eval()
+              newIdx = g.posOutOfBoundsF(relIdx, length).eval
             }
 
             if (newIdx < 0 || newIdx >= length) {
@@ -379,8 +380,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       else if (m == f.body.mem) outputData
       // ... else create a fresh local or global object argument
       else m.addressSpace match {
-        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval())
-        case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval())
+        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval)
+        case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval)
       }
     })
   }
@@ -390,10 +391,10 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       (OpenCLGenerator.Kernel.memory ++ OpenCLGenerator.Kernel.staticLocalMemory).
         partition(_.mem.addressSpace == GlobalMemory)
 
-    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval())
+    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
     val totalSizeOfGlobal = globalSizes.sum
     val totalSizeOfLocal = localMemories.map(mem =>
-      ArithExpr.substitute(mem.mem.size, valueMap).eval()).sum
+      ArithExpr.substitute(mem.mem.size, valueMap).eval).sum
 
     globalSizes.foreach(size => {
       val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
@@ -414,7 +415,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
                              valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
     // get the variables from the memory objects associated with the generated kernel
     val allVars = OpenCLGenerator.Kernel.memory.map(mem => {
-      Var.getVars(mem.mem.size)
+      mem.mem.size.varList
     } ).filter(_.nonEmpty).flatten.distinct
     // select the variables which are not (internal) iteration variables
     val (vars, _) = allVars.partition(_.name != Iterate.varName)
@@ -422,10 +423,10 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     // go through all size variables associated with the kernel
     vars.map( v => {
       // look for the variable in the parameter list ...
-      val i = f.params.indexWhere( p => Var.getVars(p.t).contains(v) )
+      val i = f.params.indexWhere( p => p.t.varList.contains(v) )
       // ... if found look up the runtime value in the valueMap and create kernel argument ...
       if (i != -1) {
-        val s = valueMap(v).eval()
+        val s = valueMap(v).eval
         if (Verbose())
           println(s)
         Option(arg(s))

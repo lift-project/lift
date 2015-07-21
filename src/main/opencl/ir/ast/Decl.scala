@@ -1,6 +1,6 @@
 package opencl.ir.ast
 
-import arithmetic.{ArithExpr, ArithExprFunction, Var}
+import apart.arithmetic.{ArithExpr, ArithExprFunction, Var}
 import ir.ast._
 
 /**
@@ -23,6 +23,6 @@ import ir.ast._
 class GroupCall(val group: Group,
                 val outerAe: ArithExpr,
                 val innerAe: ArithExpr,
-                val len: ArithExpr) extends ArithExprFunction {
+                val len: ArithExpr) extends ArithExprFunction("group") {
   "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
 }

@@ -1,6 +1,6 @@
 package ir.ast
 
-import arithmetic.ArithExpr
+import apart.arithmetic.ArithExpr
 
 /*
 // TODO: discuss if this should be a Pattern again
