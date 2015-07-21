@@ -124,9 +124,9 @@ object TestRewrite {
 
           // ReduceSeq o MapSeq fusion. just for UserFun? need zip otherwise?
           case list @ List(Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, _*))), reduceArgs @ _*)),
-          Lambda(mapParams, FunCall(MapSeq(Lambda(mapParam, FunCall(mapFun, _))), mapArg))) =>
+          Lambda(mapParams, FunCall(MapSeq(mapLambda), mapArg))) =>
 
-            val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(accNew(0), mapFun(accNew(1)))))(reduceArgs:_*)))
+            val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(accNew(0), mapLambda(accNew(1)))))(reduceArgs:_*)))
             val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list, replacement)
 
             lambdaList = newCfLambda :: lambdaList
@@ -195,6 +195,8 @@ class TestRewrite {
     val a = 1.0f
     val (gold: Array[Float], _) = Execute(128)(goldF, A, a)
     val lambdaOptions = TestRewrite.rewrite(f)
+
+    assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.zipWithIndex.foreach(l => {
       val (result: Array[Float], _) = Execute(128)(l._1, A, a)
@@ -355,5 +357,34 @@ class TestRewrite {
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
+
+  @Test
+  def moreComplexReduceSeqMapSeq(): Unit = {
+    val goldF = fun(
+      ArrayType(Float, N),
+      Float,
+      (input, a) => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, add(newValue, a))), 0.0f) $ input
+    )
+
+    val f = fun(
+      ArrayType(Float, N),
+      Float,
+      (input, a) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(fun(x => add(x, a))) $ input
+    )
+
+    val a = 2.0f
+
+    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A, a)
+
+    val lambdaOptions = TestRewrite.rewrite(f)
+
+    assertTrue(lambdaOptions.nonEmpty)
+
+    lambdaOptions.foreach(l => {
+      val (result: Array[Float], _) = Execute(1, 1)(l, A, a)
+      assertArrayEquals(l + " failed", gold, result, 0.0f)
+    })
+  }
+
 
 }
