@@ -9,6 +9,51 @@ import org.junit.{Test, AfterClass, BeforeClass}
 import org.junit.Assert._
 import opencl.ir.pattern._
 
+abstract class RewriteRule {
+  def apply(expr: Lambda): Lambda
+}
+
+// rewrites:
+// fun(x => Map(f)(x)) into fun(x => MapGlb(f)(x))
+object MapToMapGlb extends RewriteRule {
+
+  val pattern = "Map"
+  val actOn = (m: Map) => MapGlb(m.f)
+
+  override def apply(expr: Lambda): Lambda = {
+    val body = expr.body match {
+      case FunCall(p, args) => {
+        if (p.toString.startsWith(pattern))
+          actOn(p.asInstanceOf[Map])(args)
+        else
+          p(args)
+        /*p match {
+          case Map(f) => {
+            val m = p.asInstanceOf[Map]
+
+            println(p.toString)
+            MapGlb(f)(args)
+          }
+        }*/
+      }
+      case _ => expr.body
+    }
+    new Lambda(expr.params, body)
+  }
+}
+
+// rewrites:
+// fun(x => Map(f)(x)) into fun(x => (Join() o Map(Map(f)) o Split(I))(x))
+object MapToSplitMapMapJoin extends RewriteRule {
+  override def apply(expr: Lambda): Lambda = {
+    expr.body match {
+      case FunCall(Map(f), args) =>
+        new Lambda(expr.params, (Join() o MapGlb(MapSeq(f)) o Split(4))(args))
+      case _ => expr
+    }
+  }
+}
+
 object TestRewrite {
   @BeforeClass def before() {
     Executor.loadLibrary()
@@ -137,6 +182,11 @@ class TestRewrite {
       val (result: Array[Float], _) = Execute(128)(l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
+
+//    val l = MapToMapGlb(f)
+//    val (result: Array[Float], _) = Execute(128)(l, A)
+//    assertArrayEquals(l + " failed", gold, result, 0.0f)
+
   }
   
   @Test
