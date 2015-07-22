@@ -161,59 +161,6 @@ object Expr {
   }
 
   /**
-   * This function returns a new expression which has been constructed from the
-   * given expression `expr` by recursively visiting it and applying `pre` and
-   * `post` which might return new expressions for a given expression.
-   *
-   * The visiting works as follows:
-   * 1. for the given expression `expr` the function `pre` is invoked
-   * 2. the return value of `pre(expr)` is recursively visited
-   * 3. on the return value from the recursive visit the function `post` is
-   *    invoked and its return value is returned from this function
-   *
-   * @param expr The 'source' expression to be visited
-   * @param pre The function to be invoked on a given expression before it is
-   *            recursively visited. The return value of this function is then
-   *            recursively visited.
-   * @param post The function to be invoked on a given expression after it has
-   *             been recursively visited.
-   * @return The rebuild expression after recursively applying `pre` and `post`
-   *         to `expr`.
-   */
-  def visitAndApply(expr: Expr,
-                      pre:  Expr => Expr,
-                      post: Expr => Expr): Expr = {
-    var newExpr = pre(expr)
-
-    newExpr = newExpr match {
-      case call: FunCall =>
-        val newArgs = call.args.map((arg) => visitAndApply(arg, pre, post))
-        call.f match {
-          case cf: CompFun =>
-            CompFun(
-              cf.funs.map(
-                inF => new Lambda(inF.params,
-                  visitAndApply(inF.body, pre, post))): _*)
-              .apply(newArgs: _*)
-
-          case ar: AbstractPartRed =>
-            ar.getClass.getConstructor(classOf[Lambda], classOf[Value])
-              .newInstance(visitAndApply(ar.f.body, pre, post), ar.init)
-              .apply(newArgs: _*)
-
-          case fp: FPattern =>
-            fp.getClass.getConstructor(classOf[Expr])
-              .newInstance(visitAndApply(fp.f.body, pre, post))
-              .apply(newArgs: _*)
-
-          case _ => FunCall(call.f, newArgs:_*)
-        }
-      case _ => newExpr
-    }
-    post(newExpr)
-  }
-
-  /**
    * Convenient function for replacing a single expression (`oldE`) with a given
    * new expression (`newE`) in an expression to be recursively visited (`e`).
    *
@@ -223,7 +170,67 @@ object Expr {
    * @return The rebuild expression from `e` where `oldE` has be replaced with
    *         `newE`
    */
-  def replace(e: Expr, oldE: Expr, newE: Expr): Expr =
-    visitAndApply(e, (e: Expr) => e,
-                       (e: Expr) => if (e.eq(oldE)) newE else e)
+  def replace(e: Expr, oldE: Expr, newE: Expr): Expr = {
+    if (e.eq(oldE)) {
+      newE
+    } else {
+      e match {
+        case call: FunCall =>
+          val newArgs = call.args.map((arg) => replace(arg, oldE, newE))
+
+          val newCall = call.f match {
+            case cf: CompFun =>
+
+              val functions = cf.funs.map(inF => {
+                val replaced = replace(inF.body, oldE, newE)
+
+                // If replacement didn't occur return inF
+                // else instantiate the updated lambda
+                if (replaced.eq(inF.body))
+                  inF
+                else
+                  Lambda(inF.params, replaced)
+              })
+
+              // If any of the functions got replaced instantiate a new CompFun
+              // Else return cf
+              if (functions != cf.funs)
+                CompFun(cf.params, functions: _*)
+              else
+                cf
+
+            case fp: FPattern =>
+              // Try to do the replacement in the body
+              val replaced = replace(fp.f.body, oldE, newE)
+
+              // If replacement didn't occur return fp
+              // else instantiate a new pattern with the updated lambda
+              if (fp.f.body.eq(replaced))
+                fp
+              else
+                fp.copy(Lambda(fp.f.params, replaced))
+
+            case l: Lambda =>
+              // Try to do the replacement in the body
+              val replaced = replace(l.body, oldE, newE)
+
+              // If replacement didn't occur return l
+              // else instantiate the updated lambda
+              if (l.body.eq(replaced))
+                l
+              else
+                Lambda(l.params, replaced)
+
+            case other => other
+          }
+
+          if (!newCall.eq(call.f) || newArgs != call.args)
+            FunCall(newCall, newArgs: _*) // Instantiate a new FunCall if anything has changed
+          else
+            e // Otherwise return the same FunCall object
+
+        case _ => e
+      }
+    }
+  }
 }

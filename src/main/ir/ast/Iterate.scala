@@ -30,6 +30,8 @@ case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(arity = 1)
   var swapBuffer: Memory = UnallocatedMemory
 
   var indexVar = Var("i", RangeUnknown)
+
+  override def copy(f: Lambda): Pattern = Iterate(n, f)
 }
 
 object Iterate {

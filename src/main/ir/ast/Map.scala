@@ -39,4 +39,6 @@ abstract class AbstractMap(val f: Lambda,
  *
  * @param f A lambda to be applied to every element of the input array
  */
-case class Map(override val f: Lambda) extends AbstractMap(f, "Map", Var(""))
+case class Map(override val f: Lambda) extends AbstractMap(f, "Map", Var("")) {
+  override def copy(f: Lambda): Pattern = Map(f)
+}

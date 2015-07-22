@@ -21,6 +21,7 @@ abstract class Pattern(override val params: Array[Param])
  */
 trait FPattern {
   def f: Lambda
+  def copy(f: Lambda): Pattern
 }
 
 class IndexFunction(val f: (ArithExpr, Type) => ArithExpr)
