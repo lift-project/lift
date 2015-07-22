@@ -163,7 +163,7 @@ object Expr {
   /**
    * This function returns a new expression which has been constructed from the
    * given expression `expr` by recursively visiting it and applying `pre` and
-   * `post` which return new expressions for a given expression.
+   * `post` which might return new expressions for a given expression.
    *
    * The visiting works as follows:
    * 1. for the given expression `expr` the function `pre` is invoked
@@ -180,34 +180,35 @@ object Expr {
    * @return The rebuild expression after recursively applying `pre` and `post`
    *         to `expr`.
    */
-  def visitAndRebuild(expr: Expr,
+  def visitAndApply(expr: Expr,
                       pre:  Expr => Expr,
                       post: Expr => Expr): Expr = {
     var newExpr = pre(expr)
+
     newExpr = newExpr match {
       case call: FunCall =>
-        val newArgs = call.args.map((arg) => visitAndRebuild(arg, pre, post))
+        val newArgs = call.args.map((arg) => visitAndApply(arg, pre, post))
         call.f match {
           case cf: CompFun =>
             CompFun(
               cf.funs.map(
                 inF => new Lambda(inF.params,
-                  visitAndRebuild(inF.body, pre, post))): _*)
+                  visitAndApply(inF.body, pre, post))): _*)
               .apply(newArgs: _*)
 
           case ar: AbstractPartRed =>
             ar.getClass.getConstructor(classOf[Lambda], classOf[Value])
-              .newInstance(visitAndRebuild(ar.f.body, pre, post), ar.init)
+              .newInstance(visitAndApply(ar.f.body, pre, post), ar.init)
               .apply(newArgs: _*)
 
           case fp: FPattern =>
             fp.getClass.getConstructor(classOf[Expr])
-              .newInstance(visitAndRebuild(fp.f.body, pre, post))
+              .newInstance(visitAndApply(fp.f.body, pre, post))
               .apply(newArgs: _*)
 
-          case _ => newExpr.copy
+          case _ => FunCall(call.f, newArgs:_*)
         }
-      case _ => newExpr.copy
+      case _ => newExpr
     }
     post(newExpr)
   }
@@ -223,6 +224,6 @@ object Expr {
    *         `newE`
    */
   def replace(e: Expr, oldE: Expr, newE: Expr): Expr =
-    visitAndRebuild(e, (e: Expr) => if (e.eq(oldE)) newE else oldE,
-                       (e: Expr) => e)
+    visitAndApply(e, (e: Expr) => e,
+                       (e: Expr) => if (e.eq(oldE)) newE else e)
 }

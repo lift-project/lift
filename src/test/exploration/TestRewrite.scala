@@ -122,11 +122,12 @@ object TestRewrite {
               case _ =>
             }
 
-          // ReduceSeq o MapSeq fusion. just for UserFun? need zip otherwise?
-          case list @ List(Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, _*))), reduceArgs @ _*)),
-          Lambda(mapParams, FunCall(MapSeq(mapLambda), mapArg))) =>
+          // ReduceSeq o MapSeq fusion
+          case list @ List(Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, redFunArgs @ _*))), reduceArgs @ _*)),
+          Lambda(_, FunCall(MapSeq(mapLambda), _))) =>
 
-            val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(accNew(0), mapLambda(accNew(1)))))(reduceArgs:_*)))
+            val newReduceFunArgs = redFunArgs.map(Expr.replace(_, accNew(1), mapLambda(accNew(1))))
+            val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(newReduceFunArgs: _*)))(reduceArgs:_*)))
             val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list, replacement)
 
             lambdaList = newCfLambda :: lambdaList
@@ -356,6 +357,67 @@ class TestRewrite {
       val (result: Array[Float], _) = Execute(1, 1)(l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
+  }
+
+
+  @Test
+  def ReduceSeqMapSeqChangesType(): Unit = {
+
+    val userFun = UserFun("idIntToFloat", "x", "{ return x; }", Int, Float)
+
+    val goldF = fun(
+      ArrayType(Int, N),
+      input => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, userFun(newValue))), 0.0f) $ input
+    )
+
+    val f = fun(
+      ArrayType(Int, N),
+      input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(userFun) $ input
+    )
+
+    val A = Array.tabulate(128)(i => i)
+
+    val lambdaOptions = TestRewrite.rewrite(f)
+
+    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+
+    assertTrue(lambdaOptions.nonEmpty)
+
+    lambdaOptions.foreach(l => {
+      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      assertArrayEquals(l + " failed", gold, result, 0.0f)
+    })
+  }
+
+  @Test
+  def ReduceSeqMapSeqArray(): Unit = {
+
+    val A = Array.fill[Float](128, 4)(0.5f)
+
+    val goldF = fun(
+      ArrayType(ArrayType(Float, 4), N),
+      input => toGlobal(MapSeq(MapSeq(id))) o
+        ReduceSeq(fun((acc, elem) => MapSeq(add) o fun(elem => Zip(acc, MapSeq(plusOne) $ elem)) $ elem),
+          Value(0.0f, ArrayType(Float, 4))) $ input
+    )
+
+    val f = fun(
+      ArrayType(ArrayType(Float, 4), N),
+      input => toGlobal(MapSeq(MapSeq(id))) o
+        ReduceSeq(fun((acc, elem) => MapSeq(add) $ Zip(acc, elem)),
+          Value(0.0f, ArrayType(Float, 4))) o MapSeq(MapSeq(plusOne)) $ input
+    )
+
+    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+
+    val lambdaOptions = TestRewrite.rewrite(f)
+
+    assertTrue(lambdaOptions.nonEmpty)
+
+//    lambdaOptions.foreach(l => {
+//      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+//      assertArrayEquals(l + " failed", gold, result, 0.0f)
+//    })
   }
 
   @Test
