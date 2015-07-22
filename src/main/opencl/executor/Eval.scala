@@ -17,6 +17,7 @@ object Eval {
     val tb = mirror.mkToolBox()
     val tree = tb.parse(s"""
                           |import arithmetic._
+                          |import apart.arithmetic._
                           |import ir._
                           |import ir.ast._
                           |import opencl.ir._
