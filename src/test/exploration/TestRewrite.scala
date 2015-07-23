@@ -567,10 +567,10 @@ class TestRewrite {
 
     assertTrue(lambdaOptions.nonEmpty)
 
-//    lambdaOptions.foreach(l => {
-//      val (result: Array[Float], _) = Execute(1, 1)(l, A)
-//      assertArrayEquals(l + " failed", gold, result, 0.0f)
-//    })
+    lambdaOptions.foreach(l => {
+      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      assertArrayEquals(l + " failed", gold, result, 0.0f)
+    })
   }
 
   @Test
