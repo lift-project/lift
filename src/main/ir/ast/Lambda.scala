@@ -13,11 +13,13 @@ import scala.language.implicitConversions
  * @param params The parameters of the lambda expression.
  * @param body The body of the lambda expression.
  */
-case class Lambda(override val params: Array[Param], body: Expr) extends FunDecl(params) with isGenerable {
+case class Lambda(override val params: Array[Param],
+                  body: Expr) extends FunDecl(params) with isGenerable {
   /**
    * Debug string representation
    */
-  override def toString = "Lambda(" + params.map(_.toString).reduce(_ + ", " + _) + "){ " + body.toString + " }"
+  override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
+                          " -> " + body.toString + ")"
 }
 
 object Lambda {

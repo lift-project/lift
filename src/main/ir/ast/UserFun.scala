@@ -110,7 +110,7 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
   }
 
   // for debug purposes
-  override def toString = "UserFun("+ name + ")"
+  override def toString = name
 }
 
 object UserFun {

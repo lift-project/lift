@@ -14,7 +14,7 @@ case class Value(var value: String) extends Param {
   /**
    * Debug string representation
    */
-  override def toString = s"VALUE ($value)"
+  override def toString = value
 
   /**
    * Perform a copy of `this`
