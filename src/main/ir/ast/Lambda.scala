@@ -13,8 +13,8 @@ import scala.language.implicitConversions
  * @param params The parameters of the lambda expression.
  * @param body The body of the lambda expression.
  */
-case class Lambda(override val params: Array[Param],
-                  body: Expr) extends FunDecl(params) with isGenerable {
+case class Lambda(params: Array[Param],
+                  body: Expr) extends FunDecl(params.length) with isGenerable {
   /**
    * Debug string representation
    */
@@ -30,7 +30,7 @@ object Lambda {
    * @return A lambda with the same arity as `f` which immediately calls `f` in its body.
    */
   implicit def FunDefToLambda(f: FunDecl): Lambda = {
-    val params = f.params.map(_ => Param(UndefType))
+    val params = Array.fill(f.arity)(Param(UndefType))
     new Lambda(params, f(params:_*))
   }
 }
@@ -58,15 +58,16 @@ object Lambda1 {
    * @return A lambda with arity 1 which calls `f` in its body.
    */
   implicit def FunDefToLambda(f: FunDecl): Lambda1 = {
-    assert(f.params.nonEmpty)
-    if (f.params.length == 1) {
+    assert(f.arity >= 1)
+    if (f.arity == 1) {
       f match {
         case Lambda(params, body) =>
           // Don't wrap unnecessarily
           new Lambda1(params, body)
         case _ => fun(f(_))
       }    } else {
-      fun( x => f( f.params.zipWithIndex.map({ case (_,i) => Get(x, i) }):_* ) )
+
+      fun( x => f( (0 until f.arity).map( Get(x, _) ):_* ) )
     }
   }
 }
@@ -92,7 +93,7 @@ class Lambda2(override val params: Array[Param], override val body: Expr) extend
 
 object Lambda2 {
   implicit def FunDefToLambda(f: FunDecl): Lambda2 = {
-    assert(f.params.length == 2)
+    assert(f.arity == 2)
     f match {
       // Don't wrap unnecessarily
       case Lambda(params, body) => new Lambda2(params, body)

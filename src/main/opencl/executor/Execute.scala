@@ -289,7 +289,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     for (g <- groupFuns) {
       val allIndices = g.relIndices.min to g.relIndices.max
 
-      g.params(0).t match {
+      g.paramType match {
         case ArrayType(_, lenExpr) =>
           val length = ArithExpr.substitute(lenExpr, valueMap).eval
 

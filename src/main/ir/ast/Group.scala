@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
+import ir.{UndefType, Type}
 
 
 /**
@@ -21,6 +22,8 @@ case class Group(relIndices: Array[Int],
                  posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(arity = 1) with isGenerable {
   Group.cnt += 1
   val id = Group.cnt
+
+  var paramType: Type = UndefType
 }
 
 object Group {

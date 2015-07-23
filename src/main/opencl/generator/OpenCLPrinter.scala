@@ -197,7 +197,7 @@ class OpenCLPrinter {
   }
 
   def toOpenCL(group: Group) : String = {
-    group.params(0).t match {
+    group.paramType match {
       case ArrayType(t, len) =>
         val lenVar = Var("length")
         val newIdx = Var("newIdx")

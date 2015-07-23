@@ -188,9 +188,9 @@ object TypeChecker {
   private def checkGroup(group: Group, inT: Type): Type = {
     inT match {
       case at: ArrayType =>
-        assert(group.params.length == 1)
-        group.params(0).t = ArrayType(ArrayType(at.elemT, group.relIndices.length), at.len)
-        group.params(0).t
+        assert(group.arity == 1)
+        group.paramType = ArrayType(ArrayType(at.elemT, group.relIndices.length), at.len)
+        group.paramType
 
       case _ => throw new TypeException(inT, "ArrayType")
     }

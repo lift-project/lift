@@ -138,7 +138,7 @@ object TestRewrite {
 
     println(s">>> Rewriting $expr")
     val lambdas: List[Lambda] = expr match {
-      case Lambda(_, FunCall(CompFun(_, functions@_*), _)) => functions.toList
+      case Lambda(_, FunCall(CompFun(functions@_*), _)) => functions.toList
       case l@Lambda(_, FunCall(_, _)) => List(l)
       case _ => List()
     }
@@ -182,12 +182,12 @@ object TestRewrite {
     }
 
     expr match {
-      case Lambda(lambdaParams, FunCall(CompFun(params, functions @ _*), arg)) =>
+      case Lambda(lambdaParams, FunCall(CompFun(functions @ _*), arg)) =>
 
         def traverse(list: Seq[Lambda]): Unit = list match {
           // Join() o Split(_) => id
           case Pattern(Join()) :: Pattern(Split(_)) :: xs =>
-            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list.slice(0,2))
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, functions, arg, list.slice(0,2))
             lambdaList = newCfLambda :: lambdaList
             traverse(xs)
 
@@ -196,7 +196,7 @@ object TestRewrite {
             joinArg.t match {
               case ArrayType(ArrayType(_, joinChunkSize), _) =>
                 if (joinChunkSize == splitChunkSize) {
-                  val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list.slice(0,2))
+                  val newCfLambda: Lambda = applyCompFunRule(lambdaParams, functions, arg, list.slice(0,2))
                   lambdaList = newCfLambda :: lambdaList
                   traverse(xs)
                 }
@@ -205,7 +205,7 @@ object TestRewrite {
 
           // joinVec o splitVec => id
           case Pattern(asScalar()) :: Pattern(asVector(_)) :: xs =>
-            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list.slice(0,2))
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, functions, arg, list.slice(0,2))
             lambdaList = newCfLambda :: lambdaList
             traverse(xs)
 
@@ -214,7 +214,7 @@ object TestRewrite {
             joinArg.t match {
               case ArrayType(VectorType(_, joinVectorWidth), _) =>
                 if (joinVectorWidth == splitVectorWidth) {
-                  val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list.slice(0,2))
+                  val newCfLambda: Lambda = applyCompFunRule(lambdaParams, functions, arg, list.slice(0,2))
                   lambdaList = newCfLambda :: lambdaList
                   traverse(xs)
                 }
@@ -226,7 +226,7 @@ object TestRewrite {
 
             val newReduceFunArgs = redFunArgs.map(Expr.replace(_, accNew(1), mapLambda(accNew(1))))
             val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(newReduceFunArgs: _*)))(reduceArgs:_*)))
-            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list, replacement)
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, functions, arg, list, replacement)
 
             lambdaList = newCfLambda :: lambdaList
             traverse(xs)
@@ -293,11 +293,11 @@ object TestRewrite {
     lambdaList
   }
 
-  def applyCompFunRule(lambdaParams: Array[Param], params: Array[Param], funs: Seq[Lambda],
+  def applyCompFunRule(lambdaParams: Array[Param], funs: Seq[Lambda],
                        arg: Expr, list: Seq[Lambda], seq: Seq[Lambda] = Seq()): Lambda = {
     val newList = funs.patch(funs.indexOfSlice(list), seq, 2)
     // TODO: get rid of cf and extra lambda if just one left
-    Lambda(lambdaParams, CompFun(params, newList: _*).apply(arg))
+    Lambda(lambdaParams, CompFun(newList: _*).apply(arg))
   }
 }
 

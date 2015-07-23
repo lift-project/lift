@@ -431,7 +431,7 @@ object ViewPrinter {
         val innerId = stack1.head
         val stack2 = stack1.tail
 
-        ag.group.params(0).t match {
+        ag.group.paramType match {
           case ArrayType(t, len) =>
             val newIdx = new GroupCall(ag.group, outerId._1, innerId._1, len)
             val newAAS = (newIdx, innerId._2) :: stack2

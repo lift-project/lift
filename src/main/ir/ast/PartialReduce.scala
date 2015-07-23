@@ -16,11 +16,6 @@ abstract class AbstractPartRed(val f: Lambda,
   assert(f.params.length == 2)
 
   var iterationCount: ArithExpr = ?
-  /**
-   * Shortcut to access the initial value of the reduction
-   * @return
-   */
-  def init: Expr = params(0)
 }
 
 /**

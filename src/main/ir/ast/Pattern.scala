@@ -7,14 +7,8 @@ import scala.language.implicitConversions
 /**
  * Abstract base class for all patterns (i.e., primitives defined in our
  * language)
- *
- * @param params The parameters of the function declaration.
  */
-abstract class Pattern(override val params: Array[Param])
-  extends FunDecl(params) {
-
-  def this(arity: Int) = this(Array.fill(arity)(Param(UndefType)))
-}
+abstract class Pattern(override val arity: Int) extends FunDecl(arity)
 
 object Pattern {
   def unapply(l: Lambda): Option[(Pattern)] = l match {
