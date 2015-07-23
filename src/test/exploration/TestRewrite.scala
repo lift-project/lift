@@ -56,6 +56,102 @@ object TestRewrite {
   private def rewrite(expr: Lambda): List[Lambda] = {
     var lambdaList = List[Lambda]()
 
+    type RewriteRule = PartialFunction[List[Lambda],List[Lambda]]
+    case class Rule(desc: String, fct: PartialFunction[List[Lambda],List[Lambda]]) {
+      def apply(expr: List[Lambda]): List[Lambda] = {
+        if(fct.isDefinedAt(expr)) {
+          System.out.println(s"Rule '$desc' is applicable to '$expr'")
+          fct.apply(expr)
+        } else expr
+      }
+    }
+
+    val rules:Seq[Rule] = Seq(
+      // === SIMPLIFICATION RULES ===
+
+      Rule("joinVec o splitVec => id", {
+        case Pattern(asScalar()) :: Pattern(asVector(_)) :: xs => xs }),
+
+      Rule("Join() o Split(_) => id", {
+        case Pattern(Join()) :: Pattern(Split(_)) :: xs => xs }),
+
+      Rule("splitVec(n) o joinVec(n) => id", {
+        case Pattern(asVector(splitVectorWidth)) :: FunCallInst(asScalar(), joinArg) :: xs =>  xs }),
+
+      Rule("Split(n) o Join(n) => id", {
+        case l1@(Pattern(Split(splitChunkSize)) :: FunCallInst(Join(),joinArg) :: xs) =>
+          joinArg.t match {
+            case ArrayType(ArrayType(_, joinChunkSize), _) if joinChunkSize == splitChunkSize => xs
+            case _ => l1
+          }
+        }),
+
+      // == NONCONTRACTING RULES ==
+
+      Rule("Map(f) => MapGlb(f)", {
+        case Lambda(params, FunCall(Map(l), args)) :: xs => lambdaList = Lambda(params, MapGlb(l)(args)) :: lambdaList ; xs }),
+
+      Rule("Map(f) => MapWrg(f)", {
+        case Lambda(params, FunCall(Map(l), args)) :: xs => lambdaList = Lambda(params, MapWrg(l)(args)) :: lambdaList ; xs }),
+
+      Rule("Map(f) => MapLcl(f)", {
+        case Lambda(params, FunCall(Map(l), args)) :: xs => lambdaList = Lambda(params, MapLcl(l)(args)) :: lambdaList ; xs }),
+
+      Rule("Map(f) => MapSeq(f)", {
+        case Lambda(params, FunCall(Map(l), args)) :: xs => lambdaList = Lambda(params, MapSeq(l)(args)) :: lambdaList ; xs }),
+
+      Rule("Map(f) => MapLane(f)", {
+        case Lambda(params, FunCall(Map(l), args)) :: xs => lambdaList = Lambda(params, MapLane(l)(args)) :: lambdaList ; xs }),
+
+      Rule("Map(f) => MapWarp(f)", {
+        case Lambda(params, FunCall(Map(l), args)) :: xs => lambdaList = Lambda(params, MapWarp(l)(args)) :: lambdaList ; xs }),
+
+      Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {case Lambda(params, FunCall(Map(l), args)) :: xs =>
+        lambdaList = Lambda(params, (Join() o MapGlb(MapSeq(l)) o Split(4))(args)) :: lambdaList
+        xs
+      }),
+
+      Rule("Reduce(f) => toGlobal(MapSeq(id)) ReduceSeq(f)", {
+        case Lambda(params, FunCall(Lambda(innerParams, FunCall(Reduce(l), innerArgs @ _*)) , arg)) :: xs =>
+          lambdaList = Lambda(params, FunCall(toGlobal(MapSeq(id)) o Lambda(innerParams, ReduceSeq(l)(innerArgs:_*)), arg)) :: lambdaList
+          xs
+        }),
+
+      Rule("Map(f) => asScalar() o MapGlb(f.vectorize(4)) o asVector(4)", {
+        case Lambda(params, FunCall(Map(Lambda(innerParams, FunCall(uf: UserFun, innerArg))), arg)) :: xs =>
+          val vectorWidth = 4
+          lambdaList = Lambda(params, (asScalar() o MapGlb(uf.vectorize(vectorWidth)) o asVector(vectorWidth))(arg)) :: lambdaList
+          xs
+        }),
+
+      // ReduceSeq o MapSeq fusion. just for UserFun? need zip otherwise?
+      Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
+        case Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, redFunArgs @ _*))), reduceArgs @ _*)) :: Lambda(_, FunCall(MapSeq(mapLambda), _)) :: xs =>
+          val newReduceFunArgs = redFunArgs.map(Expr.replace(_, accNew(1), mapLambda(accNew(1))))
+          val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(newReduceFunArgs: _*)))(reduceArgs:_*)))
+          //lambdaList = newCfLambda :: lambdaList
+          xs
+        })
+
+      // === CONTRACTING RULES ===
+    )
+
+    println(s">>> Rewriting $expr")
+    val lambdas: List[Lambda] = expr match {
+      case Lambda(_, FunCall(CompFun(_, functions@_*), _)) => functions.toList
+      case l@Lambda(_, FunCall(_, _)) => List(l)
+      case _ => List()
+    }
+
+    def visit(expr:Lambda, lambdas: List[Lambda]) {
+      if(lambdas.nonEmpty) {
+        rules.foreach(_(lambdas))
+        visit(expr, lambdas.tail)
+      }
+    }
+
+    visit(expr, lambdas)
+
     // Map(f) => MapGlb(f)
     expr match {
       case Lambda(params, FunCall(Map(l), args)) =>
@@ -88,15 +184,72 @@ object TestRewrite {
     expr match {
       case Lambda(lambdaParams, FunCall(CompFun(params, functions @ _*), arg)) =>
 
-        functions.sliding(2).foreach {
+        def traverse(list: Seq[Lambda]): Unit = list match {
+          // Join() o Split(_) => id
+          case Pattern(Join()) :: Pattern(Split(_)) :: xs =>
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list.slice(0,2))
+            lambdaList = newCfLambda :: lambdaList
+            traverse(xs)
+
+          // Split(n) o Join(n) => id
+          case Pattern(Split(splitChunkSize)) :: FunCallInst(Join(),joinArg) :: xs =>
+            joinArg.t match {
+              case ArrayType(ArrayType(_, joinChunkSize), _) =>
+                if (joinChunkSize == splitChunkSize) {
+                  val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list.slice(0,2))
+                  lambdaList = newCfLambda :: lambdaList
+                  traverse(xs)
+                }
+              case _ =>
+            }
+
+          // joinVec o splitVec => id
+          case Pattern(asScalar()) :: Pattern(asVector(_)) :: xs =>
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list.slice(0,2))
+            lambdaList = newCfLambda :: lambdaList
+            traverse(xs)
+
+          // splitVec(n) o joinVec(n) => id
+          case Pattern(asVector(splitVectorWidth)) :: FunCallInst(asScalar(), joinArg) :: xs =>
+            joinArg.t match {
+              case ArrayType(VectorType(_, joinVectorWidth), _) =>
+                if (joinVectorWidth == splitVectorWidth) {
+                  val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list.slice(0,2))
+                  lambdaList = newCfLambda :: lambdaList
+                  traverse(xs)
+                }
+              case _ =>
+            }
+
+          case Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, redFunArgs @ _*))), reduceArgs @ _*)) ::
+            Lambda(_, FunCall(MapSeq(mapLambda), _)) :: xs =>
+
+            val newReduceFunArgs = redFunArgs.map(Expr.replace(_, accNew(1), mapLambda(accNew(1))))
+            val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(newReduceFunArgs: _*)))(reduceArgs:_*)))
+            val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list, replacement)
+
+            lambdaList = newCfLambda :: lambdaList
+            traverse(xs)
+
+          case x :: xs => traverse(xs)
+
+          case _ =>
+        }
+
+        traverse(functions)
+
+        /*functions.sliding(2).foreach {
 
           // Join() o Split(_) => id
-          case list @ List(Lambda(_, FunCall(Join(), _)), Lambda(_, FunCall(Split(_), _))) =>
+          //case list @ List(Lambda(_, FunCall(Join(), _)), Lambda(_, FunCall(Split(_), _))) =>
+          case list @ List(CallPat(Join()), CallPat(Split(_))) =>
             val newCfLambda: Lambda = applyCompFunRule(lambdaParams, params, functions, arg, list)
             lambdaList = newCfLambda :: lambdaList
 
           // Split(n) o Join(n) => id
-          case list @ List(Lambda(_, FunCall(Split(splitChunkSize), _)), Lambda(_, FunCall(Join(), joinArg))) =>
+          //case list @ List(Lambda(_, FunCall(Split(splitChunkSize), _)), Lambda(_, FunCall(Join(), joinArg))) =>
+          //case list @ List(SplitCall(Split(splitChunkSize),_), JoinCall(_,joinArg)) =>
+          case list @ List(CallPat(Split(splitChunkSize)), CallArgs(Join(),joinArg)) =>
             joinArg.t match {
               case ArrayType(ArrayType(_, joinChunkSize), _) =>
                 if (joinChunkSize == splitChunkSize) {
@@ -133,7 +286,7 @@ object TestRewrite {
             lambdaList = newCfLambda :: lambdaList
           case _ =>
 
-        }
+        }*/
       case _ =>
     }
 
@@ -141,7 +294,7 @@ object TestRewrite {
   }
 
   def applyCompFunRule(lambdaParams: Array[Param], params: Array[Param], funs: Seq[Lambda],
-                       arg: Expr, list: Seq[Lambda] with List[Any], seq: Seq[Lambda] = Seq()): Lambda = {
+                       arg: Expr, list: Seq[Lambda], seq: Seq[Lambda] = Seq()): Lambda = {
     val newList = funs.patch(funs.indexOfSlice(list), seq, 2)
     // TODO: get rid of cf and extra lambda if just one left
     Lambda(lambdaParams, CompFun(params, newList: _*).apply(arg))

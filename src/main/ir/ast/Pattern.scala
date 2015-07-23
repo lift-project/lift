@@ -16,6 +16,13 @@ abstract class Pattern(override val params: Array[Param])
   def this(arity: Int) = this(Array.fill(arity)(Param(UndefType)))
 }
 
+object Pattern {
+  def unapply(l: Lambda): Option[(Pattern)] = l match {
+    case Lambda(_, FunCall(x, _)) if x.isInstanceOf[Pattern] => Some(x.asInstanceOf[Pattern])
+    case _ => None
+  }
+}
+
 /**
  * Trait for all patterns which have a nested lambda (e.g., Map or Reduce)
  */

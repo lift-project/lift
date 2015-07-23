@@ -49,7 +49,6 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
         case r: AbstractPartRed =>
           r match {
             case r: ReduceSeq => setRangeReduceSeq(r, call)
-            case r: ReduceHost => setRangeReduceSeq(r, call)
           }
           evaluateReduceRange(r)
           apply(call.args(0))

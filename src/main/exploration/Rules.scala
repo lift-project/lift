@@ -107,9 +107,6 @@ object Rules {
         if (!call.context.inSeq && (call.context.inMapGlb || call.context.inMapLcl))
           result = result :+ ReduceSeq(inF)
 
-        if (!call.context.inMapGlb && !call.context.inMapLcl && !call.context.inMapWrg)
-          result = result :+ ReduceHost(inF)
-
         result
 
       case PartRed(inF) =>
