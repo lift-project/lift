@@ -60,8 +60,12 @@ object Lambda1 {
   implicit def FunDefToLambda(f: FunDecl): Lambda1 = {
     assert(f.params.nonEmpty)
     if (f.params.length == 1) {
-      fun(f(_))
-    } else {
+      f match {
+        case Lambda(params, body) =>
+          // Don't wrap unnecessarily
+          new Lambda1(params, body)
+        case _ => fun(f(_))
+      }    } else {
       fun( x => f( f.params.zipWithIndex.map({ case (_,i) => Get(x, i) }):_* ) )
     }
   }
@@ -89,7 +93,11 @@ class Lambda2(override val params: Array[Param], override val body: Expr) extend
 object Lambda2 {
   implicit def FunDefToLambda(f: FunDecl): Lambda2 = {
     assert(f.params.length == 2)
-    fun(f(_, _))
+    f match {
+      // Don't wrap unnecessarily
+      case Lambda(params, body) => new Lambda2(params, body)
+      case _ => fun(f(_, _))
+    }
   }
 }
 

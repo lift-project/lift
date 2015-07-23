@@ -3,8 +3,6 @@ package ir.view
 import apart.arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.ast._
-import opencl.ir.pattern._
 
 /**
  * A helper object for constructing views.
@@ -37,7 +35,7 @@ object InputView {
     if (call.args.isEmpty) {
       NoView
     } else if (call.args.length == 1) {
-      visitAndBuildViews(call.args(0))
+      visitAndBuildViews(call.args.head)
     } else {
       View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
     }
@@ -46,33 +44,28 @@ object InputView {
   private def buildViewFunCall(call: FunCall): View = {
     val argView = getViewFromArgs(call)
 
-    call match {
-      case call: FunCall =>
-        call.f match {
-          case m: AbstractMap => buildViewMap(m, call, argView)
-          case r: AbstractPartRed => buildViewReduce(r, call, argView)
-          case l: Lambda => buildViewLambda(l, call, argView)
-          case cf: CompFun => buildViewCompFunDef(cf, call, argView)
-          case z: Zip => buildViewZip(call, argView)
-          case Split(n) => buildViewSplit(n, argView)
-          case _: Join => buildViewJoin(call, argView)
-          case uf: UserFun => buildViewUserFunDef()
-          case g: Gather => buildViewGather(g, call, argView)
-          case tP: toPrivate => buildViewToPrivate(tP, argView)
-          case tL: toLocal => buildViewToLocal(tL, argView)
-          case tG: toGlobal => buildViewToGlobal(tG, argView)
-          case i: Iterate => buildViewIterate(i, call, argView)
-          case t: Transpose => buildViewTranspose(t, call, argView)
-          case tw: TransposeW => buildViewTransposeW(tw, call, argView)
-          case asVector(n) => buildViewAsVector(n, argView)
-          case _: asScalar => buildViewAsScalar(argView)
-          case f: Filter => buildViewFilter(call, argView)
-          case g: Group => buildViewGroup(g, call, argView)
-          case h: Head => buildViewHead(call, argView)
-          case h: Tail => buildViewTail(call, argView)
-          case uz: Unzip => buildViewUnzip(call, argView)
-          case _ => argView
-        }
+    call.f match {
+      case m: AbstractMap => buildViewMap(m, call, argView)
+      case r: AbstractPartRed => buildViewReduce(r, call, argView)
+      case l: Lambda => buildViewLambda(l, call, argView)
+      case cf: CompFun => buildViewCompFunDef(cf, call, argView)
+      case z: Zip => buildViewZip(call, argView)
+      case Split(n) => buildViewSplit(n, argView)
+      case _: Join => buildViewJoin(call, argView)
+      case uf: UserFun => buildViewUserFunDef()
+      case g: Gather => buildViewGather(g, call, argView)
+      case i: Iterate => buildViewIterate(i, call, argView)
+      case t: Transpose => buildViewTranspose(t, call, argView)
+      case tw: TransposeW => buildViewTransposeW(tw, call, argView)
+      case asVector(n) => buildViewAsVector(n, argView)
+      case _: asScalar => buildViewAsScalar(argView)
+      case f: Filter => buildViewFilter(call, argView)
+      case g: Group => buildViewGroup(g, call, argView)
+      case h: Head => buildViewHead(call, argView)
+      case h: Tail => buildViewTail(call, argView)
+      case uz: Unzip => buildViewUnzip(call, argView)
+      case fp: FPattern => buildViewToFPattern(fp, argView)
+      case _ => argView
     }
   }
 
@@ -86,19 +79,9 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth)
   }
 
-  private def buildViewToGlobal(tG: toGlobal, argView: View): View = {
-    tG.f.params(0).view = argView
-    visitAndBuildViews(tG.f.body)
-  }
-
-  private def buildViewToLocal(tL: toLocal, argView: View): View = {
-    tL.f.params(0).view = argView
-    visitAndBuildViews(tL.f.body)
-  }
-
-  private def buildViewToPrivate(tP: toPrivate, argView: View): View = {
-    tP.f.params(0).view = argView
-    visitAndBuildViews(tP.f.body)
+  private def buildViewToFPattern(fp: FPattern, argView: View): View = {
+    fp.f.params(0).view = argView
+    visitAndBuildViews(fp.f.body)
   }
 
   private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {

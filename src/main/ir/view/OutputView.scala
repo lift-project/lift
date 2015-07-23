@@ -4,8 +4,6 @@ import apart.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
 
-import opencl.ir.pattern._
-
 /**
  * A helper object for constructing views.
  *
@@ -30,33 +28,33 @@ object OutputView {
   }
 
   private def buildViewFunCall(call: FunCall, writeView: View): View = {
-    call match {
-      case call: FunCall =>
-        call.f match {
-          case m: AbstractMap => buildViewMap(m, call, writeView)
-          case r: AbstractPartRed => buildViewReduce(r, call, writeView)
-          case l: Lambda => buildViewLambda(l, call, writeView)
-          case cf: CompFun => buildViewCompFunDef(cf, writeView)
-          case Split(n) => buildViewSplit(n, writeView)
-          case _: Join => buildViewJoin(call, writeView)
-          case uf: UserFun => buildViewUserFun(writeView, call)
-          case s: Scatter => buildViewScatter(s, call, writeView)
-          case tP: toPrivate => buildViewToPrivate(tP, writeView)
-          case tL: toLocal => buildViewToLocal(tL, writeView)
-          case tG: toGlobal => buildViewToGlobal(tG, writeView)
-          case i: Iterate => buildViewIterate(i, call, writeView)
-          case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
-          case t: Transpose => buildViewTranspose(t, call, writeView)
-          case asVector(n) => buildViewAsVector(n, writeView)
-          case _: asScalar => buildViewAsScalar(call, writeView)
-          case Zip(_) => buildViewZip(call, writeView)
-          case Tuple(_) => buildViewTuple(call, writeView)
-          case h: Head => buildViewHead(h, writeView)
-          case t: Tail => buildViewTail(t, writeView)
-          //case uz: Unzip =>
-          case _ => writeView
-        }
+    val result = call.f match {
+      case m: AbstractMap => buildViewMap(m, call, writeView)
+      case r: AbstractPartRed => buildViewReduce(r, call, writeView)
+      case l: Lambda => buildViewLambda(l, call, writeView)
+      case cf: CompFun => buildViewCompFunDef(cf, writeView)
+      case Split(n) => buildViewSplit(n, writeView)
+      case _: Join => buildViewJoin(call, writeView)
+      case uf: UserFun => buildViewUserFun(writeView, call)
+      case s: Scatter => buildViewScatter(s, call, writeView)
+      case i: Iterate => buildViewIterate(i, call, writeView)
+      case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
+      case t: Transpose => buildViewTranspose(t, call, writeView)
+      case asVector(n) => buildViewAsVector(n, writeView)
+      case _: asScalar => buildViewAsScalar(call, writeView)
+      case Zip(_) | Tuple(_) => buildViewZipTuple(call, writeView)
+      case h: Head => buildViewHead(h, writeView)
+      case t: Tail => buildViewTail(t, writeView)
+      case fp: FPattern => buildViewFPattern(fp, writeView)
+      case _ => writeView
     }
+
+    call.args.foreach {
+      case arg @ (FunCall(Zip(_), _*) | FunCall(Tuple(_), _*)) => visitAndBuildViews(arg, result)
+      case _ =>
+    }
+
+    result
   }
 
   private def buildViewUserFun(writeView: View, call: FunCall): View = {
@@ -64,14 +62,8 @@ object OutputView {
     writeView
   }
 
-  private def buildViewZip(call: FunCall, writeView: View): View = {
-    call.args.map((expr: Expr) => visitAndBuildViews(expr, writeView))
-    writeView
-  }
-
-  private def buildViewTuple(call: FunCall, writeView: View): View = {
-    call.args.zipWithIndex.map({ case (e, i) => visitAndBuildViews(e,
-      View.initialiseNewView(e.t, e.inputDepth)) })
+  private def buildViewZipTuple(call: FunCall, writeView: View): View = {
+    call.args.map(e => visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth)))
     writeView
   }
 
@@ -80,16 +72,8 @@ object OutputView {
     View.initialiseNewView(call.t, call.outputDepth)
   }
 
-  private def buildViewToGlobal(tG: toGlobal, writeView: View): View = {
-    visitAndBuildViews(tG.f.body, writeView)
-  }
-
-  private def buildViewToLocal(tL: toLocal, writeView: View): View = {
-    visitAndBuildViews(tL.f.body, writeView)
-  }
-
-  private def buildViewToPrivate(tP: toPrivate, writeView: View): View = {
-    visitAndBuildViews(tP.f.body, writeView)
+  private def buildViewFPattern(fp: FPattern, writeView: View): View = {
+    visitAndBuildViews(fp.f.body, writeView)
   }
 
   private def buildViewMap(m: AbstractMap, call: FunCall, writeView: View): View = {
@@ -105,16 +89,16 @@ object OutputView {
 
     if (call.isConcrete) {
       // create fresh view for following function
-      View.initialiseNewView(call.args(0).t, call.outputDepth, call.mem.variable.name)
+      View.initialiseNewView(call.args.head.t, call.outputDepth, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
-      new ViewMap(innerView, m.loopVar, call.args(0).t)
+      new ViewMap(innerView, m.loopVar, call.args.head.t)
     }
   }
 
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
-    visitAndBuildViews(call.args(0),
-      View.initialiseNewView(call.args(0).t, call.inputDepth, call.args(0).mem.variable.name))
+    visitAndBuildViews(call.args.head,
+      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable.name))
     // traverse into call.f
     visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
     // create fresh input view for following function
@@ -163,7 +147,7 @@ object OutputView {
   }
 
   private def buildViewAsScalar(call: FunCall, writeView: View): View = {
-    call.args(0).t match {
+    call.args.head.t match {
       case ArrayType(VectorType(_, n), _) => writeView.asVector(n)
       case _ => throw new IllegalArgumentException
     }

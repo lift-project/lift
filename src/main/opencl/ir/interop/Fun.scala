@@ -52,11 +52,6 @@ object jMapSeq {
   def create(f: FunDecl) = MapSeq(Lambda1.FunDefToLambda(f))
 }
 
-object jReduceHost {
-  def create(f: Lambda2, init: Value) = ReduceHost(f, init)
-  def create(f: FunDecl, init: Value) = ReduceHost(Lambda1.FunDefToLambda(f), init)
-}
-
 object jReduceSeq {
   def create(f: Lambda2, init: Value) = ReduceSeq(f, init)
   def create(f: FunDecl, init: Value) = ReduceSeq(Lambda2.FunDefToLambda(f), init)

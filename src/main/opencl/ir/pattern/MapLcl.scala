@@ -1,7 +1,7 @@
 package opencl.ir.pattern
 
 import apart.arithmetic.Var
-import ir.ast.{isGenerable, AbstractMap, Lambda1}
+import ir.ast._
 
 /**
  *
@@ -13,7 +13,9 @@ import ir.ast.{isGenerable, AbstractMap, Lambda1}
  * @param f
  */
 case class MapLcl(dim: Int, override val f: Lambda1)
-extends AbstractMap(f, "MapLcl", Var("l_id")) with isGenerable
+extends AbstractMap(f, "MapLcl", Var("l_id")) with isGenerable {
+  override def copy(f: Lambda): Pattern = MapLcl(dim, f)
+}
 
 object MapLcl {
   def apply(f: Lambda1) = new MapLcl(0, f) // o is default

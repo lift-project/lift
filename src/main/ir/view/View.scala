@@ -403,7 +403,7 @@ object ViewPrinter {
     sv match {
       case mem: ViewMem =>
         assert(tupleAccessStack.isEmpty)
-        arrayAccessStack.map(x => (x._1 * x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x + y).asInstanceOf[ArithExpr])
+        arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => x + y)
 
       case access: ViewAccess =>
         val length: ArithExpr = getLengthForArrayAccess(sv.t, tupleAccessStack)

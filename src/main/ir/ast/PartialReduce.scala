@@ -46,7 +46,9 @@ abstract class AbstractPartRed(val f: Lambda,
  * @param f A lambda to be applied as the binary reduction operator in the
  *          partial reduction
  */
-case class PartRed(override val f: Lambda2) extends AbstractPartRed(f, Var(""))
+case class PartRed(override val f: Lambda2) extends AbstractPartRed(f, Var("")) {
+  override def copy(f: Lambda): Pattern = PartRed(f)
+}
 
 object PartRed {
   def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => PartRed(f)(init, x))

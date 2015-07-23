@@ -27,13 +27,13 @@ class get_local_size(param: Int) extends OclFunction("get_local_size", param)
 
 
 object Debug {
-  var debug = false
+  var debug = System.getenv("APART_DEBUG") != null
   def apply() = debug
   def apply(debug: Boolean) = { this.debug = debug }
 }
 
 object Verbose {
-  var verbose = true
+  var verbose = System.getenv("APART_VERBOSE") != null
   def apply() = verbose
   def apply(verbose: Boolean) = { this.verbose = verbose }
 }
@@ -287,7 +287,6 @@ object OpenCLGenerator extends Generator {
         case _: Map =>
 
         case r: ReduceSeq => generateReduceSeqCall(r, call)
-        case r: ReduceHost => generateReduceSeqCall(r, call)
 
         case i: Iterate => generateIterateCall(i, call)
 

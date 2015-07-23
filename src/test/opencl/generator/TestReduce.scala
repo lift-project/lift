@@ -201,26 +201,6 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-
-  @Test def REDUCE_HOST() {
-
-
-    val inputSize = 128
-    //val inputData = Array.fill(inputSize)(1.0f)
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-
-    val (output: Array[Float], runtime) = opencl.executor.Execute(1, inputData.length)(
-      fun(ArrayType(Float, Var("N")), (in) => {
-        toGlobal(MapSeq(id)) o ReduceHost(add, 0.0f) $ in
-      }), inputData)
-
-    assertEquals(inputData.sum, output.sum, 0.0)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-  }
-
-
   @Test def NVIDIA_A() {
 
     // for input size of 16777216 the first kernel has to be executed 3 times and the second
