@@ -56,7 +56,6 @@ object TestRewrite {
   private def rewrite(expr: Lambda): List[Lambda] = {
     var lambdaList = List[Lambda]()
 
-    type RewriteRule = PartialFunction[List[Lambda],List[Lambda]]
     case class Rule(desc: String, fct: PartialFunction[List[Lambda],List[Lambda]]) {
       def apply(expr: List[Lambda]): List[Lambda] = {
         if(fct.isDefinedAt(expr)) {
@@ -68,6 +67,15 @@ object TestRewrite {
 
     val rules:Seq[Rule] = Seq(
       // === SIMPLIFICATION RULES ===
+
+      Rule("Epsilon() o x => x", {
+        case Pattern(Epsilon()) :: Lambda(_, f@FunCall(_, _)) :: xs => /* emit f */ xs }),
+
+      Rule("x o Epsilon() => x", {
+        case Lambda(_, f@FunCall(_, _)) :: Pattern(Epsilon()) :: xs => /* emit f */ xs }),
+
+      Rule("Map(Epsilon()) => Epsilon()", {
+        case Lambda(_, FunCall(Map(Lambda(_, FunCall(Epsilon(), _))), _)) :: xs => /* Emit Epsilon */ xs }),
 
       Rule("joinVec o splitVec => id", {
         case Pattern(asScalar()) :: Pattern(asVector(_)) :: xs => xs }),

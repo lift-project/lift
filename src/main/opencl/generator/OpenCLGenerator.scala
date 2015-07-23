@@ -58,16 +58,16 @@ object OpenCLGenerator extends Generator {
   var varDecls: immutable.Map[Var, Type] = immutable.Map()
 
   private def printTypes(expr: Expr): Unit = {
-    Expr.visit(expr, (e: Expr) => e match {
-      case call: FunCall => println(e + "\n    " + e.t + " <- " + call.argsType + "\n")
-      case _ => println(e + "\n    " + e.t + "\n")
+    Expr.visit(expr, {
+      case e@(call: FunCall) => println(e + "\n    " + e.t + " <- " + call.argsType + "\n")
+      case e => println(e + "\n    " + e.t + "\n")
     }, (e: Expr) => {})
   }
 
   private def printMemories(expr: Expr): Unit = {
-    Expr.visit(expr, (e: Expr) => e match {
-      case call: FunCall => println(e + "\n    " + e.mem.toString + " <- " + call.argsMemory.toString + "\n")
-      case _ => println(e + "\n    " + e.mem.toString + "\n")
+    Expr.visit(expr, {
+      case e@(call: FunCall) => println(e + "\n    " + e.mem.toString + " <- " + call.argsMemory.toString + "\n")
+      case e => println(e + "\n    " + e.mem.toString + "\n")
     }, (f: Expr) => {})
   }
 
@@ -299,7 +299,7 @@ object OpenCLGenerator extends Generator {
         case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) =>
+             Head() | Tail() | Scatter(_) | Gather(_) | Epsilon() =>
 
         case _ => oclPrinter.print("__" + call.toString + "__")
       }
