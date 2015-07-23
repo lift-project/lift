@@ -28,6 +28,7 @@ object OutputView {
   }
 
   private def buildViewFunCall(call: FunCall, writeView: View): View = {
+    // first handle body
     val result = call.f match {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
@@ -42,16 +43,30 @@ object OutputView {
       case t: Transpose => buildViewTranspose(t, call, writeView)
       case asVector(n) => buildViewAsVector(n, writeView)
       case _: asScalar => buildViewAsScalar(call, writeView)
-      case Zip(_) | Tuple(_) => buildViewZipTuple(call, writeView)
       case h: Head => buildViewHead(h, writeView)
       case t: Tail => buildViewTail(t, writeView)
       case fp: FPattern => buildViewFPattern(fp, writeView)
       case _ => writeView
     }
 
-    call.args.foreach {
-      case arg @ (FunCall(Zip(_), _*) | FunCall(Tuple(_), _*)) => visitAndBuildViews(arg, result)
+    // then handle arguments
+    val argResult = call.f match {
+      case Zip(_) | Tuple(_) =>
+        call.args.foreach(e =>
+          visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth)))
+        // TODO: PROPRABLY WRONG!
+        result
+      case r: AbstractPartRed =>
+        val e = call.args.head
+        visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth))
+        visitAndBuildViews(call.args(1), result)
       case _ =>
+        if (call.args.length == 1)
+          visitAndBuildViews(call.args.head, result)
+        else
+          call.args.foreach(arg => visitAndBuildViews(arg, result))
+          // TODO: DEFINETLY WRONG!
+          result
     }
 
     result
@@ -59,11 +74,6 @@ object OutputView {
 
   private def buildViewUserFun(writeView: View, call: FunCall): View = {
     call.view = writeView
-    writeView
-  }
-
-  private def buildViewZipTuple(call: FunCall, writeView: View): View = {
-    call.args.map(e => visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth)))
     writeView
   }
 
