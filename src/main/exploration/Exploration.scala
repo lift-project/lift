@@ -231,7 +231,7 @@ object Exploration {
               derive(newTopF, newFuns(0), inputs, c, depth + 1)
             else {
               val newLambdas = newFuns.zip(cf.funs).map({ case (e,l) => new Lambda(l.params,e) })
-              (new CompFun(cf.params, newLambdas: _*))(call.args: _*)
+              (new CompFun(newLambdas: _*))(call.args: _*)
             }
 
 

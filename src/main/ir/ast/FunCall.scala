@@ -25,14 +25,6 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
     this.clone().asInstanceOf[FunCall]
   }
 
-  def apply(args: Expr*): FunCall = {
-    val oldArgs = this.args
-    val newArgs = oldArgs ++ args
-    assert(newArgs.length <= f.params.length)
-
-    new FunCall(f, newArgs: _*)
-  }
-
   /**
    * One type for all arguments (i.e. a tuple if there are more than one args
    * */

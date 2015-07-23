@@ -1,7 +1,5 @@
 package ir.ast
 
-import ir._
-
 import scala.language.implicitConversions
 
 /**
@@ -17,22 +15,15 @@ abstract class Decl
  * The type of the declared function is implemented in the type checker and not
  * here.
  *
- * @param params The parameters of the function declaration.
+ * @param arity The arity of the declared function
  */
-abstract class FunDecl(val params: Array[Param]) extends Decl {
+abstract class FunDecl(val arity: Int) extends Decl {
 
   /**
    * Indicating if it is possible to generate code for this function declaration.
    * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
    */
   val isGenerable = false
-
-  /**
-   * Secondary constructor to initialize a FunDecl with the given number of
-   * undefined parameters.
-   * @param arity Number of parameters
-   */
-  def this(arity: Int) = this(Array.fill(arity)(Param(UndefType)))
 
 
   /**
@@ -83,7 +74,7 @@ abstract class FunDecl(val params: Array[Param]) extends Decl {
    *         `this` with `args`.
    */
   def apply(args : Expr*) : FunCall = {
-    assert (args.length == params.length)
+    assert (args.length == arity)
     new FunCall(this, args:_*)
   }
 
@@ -171,12 +162,11 @@ object FunDecl {
           new Lambda(l.params,
                      visitAndRebuild(l, pre, post)(call.args:_*) ).body
         case cfd : CompFun =>
-          ( new CompFun(cfd.params,
-                        cfd.funs.map(f => visitAndRebuild(f, pre, post)):_*)
+          (new CompFun(cfd.funs.map(f => visitAndRebuild(f, pre, post)):_*)
             )(call.args:_*)
         case ar: AbstractPartRed =>
           ar.getClass.getConstructor(classOf[Lambda],classOf[Value])
-            .newInstance(visitAndRebuild(ar.f, pre, post),ar.init)(call.args:_*)
+            .newInstance(visitAndRebuild(ar.f, pre, post),call.args.head)(call.args.tail:_*)
         case fp: FPattern =>
           fp.getClass.getConstructor(classOf[Lambda])
             .newInstance(visitAndRebuild(fp.f, pre, post))(call.args:_*)
@@ -199,11 +189,10 @@ trait isGenerable extends FunDecl {
 /**
  * An object representing a function defining a sequential composition of
  * functions.
- * @param params The parameters of the overall function declaration.
  * @param funs The sequentially composed functions.
  */
-case class CompFun(override val params : Array[Param],
-                   funs: Lambda*) extends FunDecl(params) with isGenerable {
+case class CompFun(funs: Lambda*) extends FunDecl(funs.last.params.length)
+                                          with isGenerable {
 
   /**
    * String representation of function composition.
@@ -223,17 +212,4 @@ case class CompFun(override val params : Array[Param],
       case cf : CompFun => funs.seq.equals(cf.funs)
       case _ => false
     }
-}
-
-object CompFun {
-  /**
-   * Constructor for creating CompFunDef instances.
-   * @param funs The lambdas to sequentially compose.
-   * @return An instance of CompFunDef which represents the sequential
-   *         composition of `funs`
-   */
-  def apply(funs: Lambda*) : CompFun = {
-    // The parameters of the composition are the parameters of the last lambda
-    new CompFun(funs.last.params, funs:_*)
-  }
 }

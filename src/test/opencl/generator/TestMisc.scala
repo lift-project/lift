@@ -395,6 +395,54 @@ class TestMisc {
         toLocal(MapLcl(id))) o Split(16) $ in
     )
 
+    val f_nested = fun(
+      ArrayType(Float, Var("N")),
+      in => fun(x1 => Join()(MapWrg(
+        fun(x2 =>
+          fun(x3 =>
+            fun(x4 => Barrier()(toGlobal(MapLcl(id))(x4)))(
+              Iterate(5)(fun(x5 => Barrier()(MapLcl(plusOne)(x5))))(x3)))(
+                toLocal(MapLcl(id))(x2)))
+          )(x1)))(Split(16)(in))
+    )
+
+    val f_nested2 = fun(
+      ArrayType(Float, Var("N")),
+      in => Join()(MapWrg(fun(x2 =>
+        fun(x3 =>
+          fun(x4 => Barrier()(toGlobal(MapLcl(id))(x4)))(
+            Iterate(5)(fun(x5 => Barrier()(MapLcl(plusOne)(x5))))(x3)))(
+              toLocal(MapLcl(id))(x2)))
+              )(Split(16)(in)))
+    )
+
+    val f_nested3 = fun(
+      ArrayType(Float, Var("N")),
+      in => Join()(MapWrg(fun(x2 =>
+        fun(x4 => Barrier()(toGlobal(MapLcl(id))(x4)))(
+          Iterate(5)(fun(x5 => Barrier()(MapLcl(plusOne)(x5))))(
+            toLocal(MapLcl(id))(x2)))
+              ))(Split(16)(in)))
+      )
+
+    val f_nested4 = fun(
+      ArrayType(Float, Var("N")),
+      in => Join()(MapWrg(fun(x2 =>
+        Barrier()(toGlobal(MapLcl(id))(
+          Iterate(5)(fun(x5 => Barrier()(MapLcl(plusOne)(x5))))(
+            toLocal(MapLcl(id))(x2))))
+              ))(Split(16)(in)))
+    )
+
+    val f_full = fun(
+      ArrayType(Float, Var("N")),
+      in => Join()(MapWrg(fun(x0 =>
+        Barrier()(toGlobal(MapLcl(id))(
+          Iterate(5)(fun(x1 => Barrier()(MapLcl(plusOne)(x1))))(
+            toLocal(MapLcl(id))(x0))))
+              ))(Split(16)(in)))
+    )
+
     val (output: Array[Float], runtime) = Execute(inputSize)(f, input)
 
     println("output.size = " + output.length)

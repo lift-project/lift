@@ -12,7 +12,7 @@ import ir.{TupleType, VectorType, ScalarType, Type}
  * @param outT The return type of the user function.
  */
 case class UserFun(name: String, paramNames: Array[String], body: String,
-                   inTs: Seq[Type], outT: Type) extends FunDecl(inTs.map(Param(_)).toArray)
+                   inTs: Seq[Type], outT: Type) extends FunDecl(inTs.length)
                                                         with isGenerable {
 
   // enforce at runtime that types and names match
@@ -110,7 +110,7 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
   }
 
   // for debug purposes
-  override def toString = "UserFun("+ name + ")"
+  override def toString = name
 }
 
 object UserFun {

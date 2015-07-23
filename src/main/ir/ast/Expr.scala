@@ -195,7 +195,7 @@ object Expr {
               // If any of the functions got replaced instantiate a new CompFun
               // Else return cf
               if (functions != cf.funs)
-                CompFun(cf.params, functions: _*)
+                CompFun(functions: _*)
               else
                 cf
 

@@ -4,7 +4,6 @@ package exploration
 import apart.arithmetic.{Cst, RangeMul, RangeUnknown, Var}
 import ir._
 import ir.ast._
-import opencl.ir.ast._
 
 import scala.collection.Seq
 import opencl.ir.pattern._
@@ -17,7 +16,8 @@ object Rules {
       case call: FunCall => call.f match {
         case cf: CompFun =>
           val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
-          Utils.listPossiblities(cf.funs, optionsList).map(funs => new Lambda(cf.params,(new CompFun(cf.params,funs: _*))(call.args:_*)))
+          // TODO: unsure here ...
+          Utils.listPossiblities(cf.funs, optionsList).map(funs => fun( _ => (new CompFun(funs: _*))(call.args:_*)))
       }
     }
   }
@@ -27,7 +27,7 @@ object Rules {
        case call: FunCall => call.f match {
          case fpat: FPattern =>
            val newCalleeList = derivsWithOneRule(fpat.f, c, level).map((f) => call.f match {
-             case ar: AbstractPartRed => ar.getClass.getConstructor(classOf[Lambda],classOf[Value]).newInstance(f, ar.init)
+             case ar: AbstractPartRed => ar.getClass.getConstructor(classOf[Lambda],classOf[Value]).newInstance(f, call.args.head)
              case fpat: FPattern => fpat.getClass.getConstructor(classOf[Lambda]).newInstance(f)
            } )
            newCalleeList.map(c => new Lambda(fpat.f.params, c(call.args: _*)))

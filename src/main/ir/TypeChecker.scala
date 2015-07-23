@@ -61,7 +61,7 @@ object TypeChecker {
       case g: Group =>            checkGroup(g, inT)
       case h: Head =>             checkHead(inT)
       case t: Tail =>             checkTail(inT)
-      case Barrier() | Gather(_) | Scatter(_) => inT
+      case Barrier() | Gather(_) | Scatter(_) | Epsilon() => inT
     }
   }
 
@@ -188,9 +188,9 @@ object TypeChecker {
   private def checkGroup(group: Group, inT: Type): Type = {
     inT match {
       case at: ArrayType =>
-        assert(group.params.length == 1)
-        group.params(0).t = ArrayType(ArrayType(at.elemT, group.relIndices.length), at.len)
-        group.params(0).t
+        assert(group.arity == 1)
+        group.paramType = ArrayType(ArrayType(at.elemT, group.relIndices.length), at.len)
+        group.paramType
 
       case _ => throw new TypeException(inT, "ArrayType")
     }

@@ -12,7 +12,7 @@ class Param() extends Expr with Cloneable {
   /**
    * Debug string representation
    */
-  override def toString = "PARAM"
+  override def toString = "p" + (hashCode() & 0xff)
 
   /**
    * Perform a copy of `this`
@@ -62,14 +62,14 @@ object Param {
  */
 class VectorParam(val p: Param, n: ArithExpr) extends Param {
   t = p.t.vectorize(n) // set the type
-  override def toString = "VECTOR PARAM"
+  override def toString = "v" + p.toString + "_" + n
 }
 
 /**
  * A reference to a parameter wrapped in a tuple (possibly produced by a zip)
  */
 class ParamReference(val p: Param, val i: Int) extends Param {
-  override def toString = "PARAM REF"
+  override def toString = p.toString + "_" + i
 }
 
 /**
