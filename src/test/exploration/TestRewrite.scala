@@ -26,7 +26,7 @@ object TestRewrite {
     case class Rule(desc: String, fct: PartialFunction[List[Lambda],(Seq[Lambda], Seq[Lambda])]) {
       def apply(expr: List[Lambda]): Option[(Seq[Lambda], Seq[Lambda])] = {
         if(fct.isDefinedAt(expr)) {
-          System.out.println(s"Rule '$desc' is applicable to '$expr'")
+          //System.out.println(s"Rule '$desc' is applicable to '$expr'")
           Some(fct.apply(expr))
         } else None
       }
@@ -129,6 +129,12 @@ object TestRewrite {
         })
 
       // === CONTRACTING RULES ===
+      /*Rule("Map(M) o Map(N) => Map(M o N)", {
+        case Lambda(args1,FunCall(Map(l1),cargs1@_*)) :: Lambda(args2,FunCall(Map(l2),cargs2@_*)) :: xs
+        if args1 sameElements cargs1.toArray =>
+          val replacement = Seq(Lambda(args2, FunCall(Map(l1 o l2),cargs2)))
+          xs
+        })*/
     )
 
     println(s">>> Rewriting $expr")
@@ -138,17 +144,86 @@ object TestRewrite {
       case _ => List()
     }
 
-    def visit(expr:Lambda, lambdas: List[Lambda]) {
+    def visit(expr:Lambda, lambdas: List[Lambda], pos: Int = 0) {
       if(lambdas.nonEmpty) {
         rules.foreach(rule => rule(lambdas) match{
           case Some(newReplacement) => replacements = newReplacement :: replacements
           case None =>
         })
-        visit(expr, lambdas.tail)
+        visit(expr, lambdas.tail, pos+1)
       }
     }
 
+    // Type alias for a replacement list.
+    // A replacement set represents one transformation: it consumes n patterns from s and emits m replacements
+    type ReplacementSet = (Int, Seq[Lambda], Seq[Lambda])
+    type RewriteList = List[ReplacementSet]
+
+    // List all the replacements applicable to the current list, for all positions.
+    def listReplacements(lambdas: List[Lambda], pos: Int = 0, replacements: RewriteList = List.empty): RewriteList = {
+      if(lambdas.nonEmpty) {
+        // The list of transformations which are applicable to the current cursor
+        var current: RewriteList = List.empty
+        rules.foreach(rule => rule(lambdas) match{
+          case Some(out) => current = (pos, out._1, out._2) :: current
+          case None =>
+        })
+        // move the cursor by 1 and recurse
+        listReplacements(lambdas.tail, pos+1, current ++ replacements)
+      } else replacements
+    }
+
+    // Detect a collision betseen replacement sets
+    def testChangeCollision(a:ReplacementSet, b:ReplacementSet): Boolean = {
+      val a_start = a._1
+      val b_start = b._1
+      val a_end = a_start + a._2.length
+      a_start <= b_start && b_start <= a_end
+    }
+
+    var counter = 0
+
+    // list all the possible re-write for a given depth in the tree
+    def listAllRewrite(expr: Lambda, depth: Int): Unit = {
+      // test for max depth
+      counter = counter +1
+      if(depth == 0) println(s"Max depth reached. Not expanding $expr")
+
+      // extract the list of lambdas
+      val lambdas: List[Lambda] = expr match {
+        case Lambda(_, FunCall(CompFun(functions@_*), _)) => functions.toList
+        case l@Lambda(_, FunCall(_, _)) => List(l)
+        case _ => List()
+      }
+
+      // List all the possible rewrite with a single traversal
+      val list:RewriteList = listReplacements(lambdas)
+      println(s"Found ${list.length} possible re-write")
+
+      // apply all the change set combinations, if they do not collide
+      // for all elements in the transformation powerset
+      /*for {
+        len <- 1 to list.length
+        changecomb <- list combinations len
+        if changecomb.nonEmpty
+      } yield {
+        //val collide = changecomb.combinations(2).forall((x,y) => testChangeCollision(x,y) == false)
+        // look for collisions
+        println(changecomb.combinations(2).toList)
+      }*/
+
+      list.foreach((x) => {
+        val newLambda = FunDecl.replace(expr, x._2, x._3)
+        System.out.println(s"New lambda: $newLambda")
+        listAllRewrite(newLambda, depth-1)
+      })
+    }
+
+    listAllRewrite(expr, 5)
+
     visit(expr, lambdas)
+
+    println(s"Total of $counter new lambdas generated")
 
     val result = replacements.map(pair => {
       val toReplace = pair._1
