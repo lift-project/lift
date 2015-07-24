@@ -187,7 +187,10 @@ object TestRewrite {
     def listAllRewrite(expr: Lambda, depth: Int): Unit = {
       // test for max depth
       counter = counter +1
-      if(depth == 0) println(s"Max depth reached. Not expanding $expr")
+      if(depth == 0){
+        println(s"Max depth reached. Not expanding $expr")
+        return
+      }
 
       // extract the list of lambdas
       val lambdas: List[Lambda] = expr match {
@@ -219,7 +222,7 @@ object TestRewrite {
       })
     }
 
-    listAllRewrite(expr, 5)
+    listAllRewrite(expr, 1)
 
     visit(expr, lambdas)
 

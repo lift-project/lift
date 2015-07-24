@@ -152,8 +152,8 @@ object FunDecl {
         return newL.head
       else if (newL.isEmpty)
         return Lambda(toVisit.params, Epsilon()(toVisit.body.asInstanceOf[FunCall].args:_*))
-      else {// If replaced by several, instantiate CompFun {
-        val reduce = newL.reduce((a, b) => a o b)
+      else {// If replaced by several, instantiate CompFun
+        val reduce = CompFun(newL:_*)
         return Lambda(toVisit.params, reduce(toVisit.body.asInstanceOf[FunCall].args:_*))
       }
     }
@@ -206,10 +206,8 @@ object FunDecl {
         if (Seq(fp.f) == oldL) {
 
           // Attempt to replace
-          val reduce: Lambda = newL.reduceOption((a, b) => a o b) match {
-            case Some(x) => x
-            case _ => Epsilon()
-          }
+          val reduce: Lambda = if (newL.isEmpty) Epsilon() else if (newL.length == 1) newL.head
+            else CompFun(newL:_*)
 
           // If replacement didn't occur return toVisit
           // else instantiate the updated lambda
