@@ -121,6 +121,28 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
+  /** @see Issue #21 */
+  @Ignore
+  @Test def reduceIterate(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (ArrayType(Float, Var("N")),
+      Float,
+      (in, init) => {
+        Join() o MapWrg(
+          Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)) o Iterate(1,ReduceSeq(add, id(init)))) o Split(4)
+        ) o Split(128) $ in
+      })
+
+    val (output: Array[Float], runtime) = Execute(inputData.length)(l, inputData, 0.0f)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def reduceIdValueInitial(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)

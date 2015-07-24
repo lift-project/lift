@@ -67,6 +67,11 @@ object TestRewrite {
 
     val rules:Seq[Rule] = Seq(
       // === SIMPLIFICATION RULES ===
+      Rule("Iterate(0, _) => Epsilon", {
+        case Pattern(Iterate(n,_)) :: xs if n.eval == 0 => /* Emit Epsilon */ xs }),
+
+      Rule("Iterate(1, x) => x", {
+        case Pattern(Iterate(n,Lambda(_, f@FunCall(_, _)))) :: xs if n.eval == 1 => /* Emit f */ xs }),
 
       Rule("Epsilon() o x => x", {
         case Pattern(Epsilon()) :: Lambda(_, f@FunCall(_, _)) :: xs => /* emit f */ xs }),
