@@ -22,7 +22,7 @@ import ir.{UnallocatedMemory, Memory}
  * @param n Number of times to iterate
  * @param f Lambda to be iterated
  */
-case class Iterate(n: ArithExpr, f: Lambda1) extends Pattern(arity = 1)
+case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
                                                      with FPattern
                                                      with isGenerable {
   var iterationCount: ArithExpr = ?
