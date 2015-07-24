@@ -323,6 +323,11 @@ class TestScatterGather {
       in => MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
+    val f_broken = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(fun(x => Scatter(reverse)(MapSeq(id)(x))))(Split(splitSize)(in))
+    )
+
     val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
 
     println("output.size = " + output.length)
