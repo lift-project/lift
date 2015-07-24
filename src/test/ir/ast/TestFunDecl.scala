@@ -215,14 +215,36 @@ class TestFunDecl {
 
     val result = FunDecl.replace(lambda, Seq(toBeReplaced), Seq(toReplace))
 
-    val (newNotToBeReplaced1, newNotToBeReplaced2, newToBeReplaced) = lambda match {
+    val (newNotToBeReplaced1, newNotToBeReplaced2, newToBeReplaced) = result match {
       case Lambda(_, FunCall(CompFun(other, Lambda(_, FunCall(Map(Lambda(_, FunCall(CompFun(one, two), _))), _))), _)) => (other, one, two)
     }
 
     assertNotSame(lambda, result)
-    assertSame(toBeReplaced, newToBeReplaced)
+    assertSame(toReplace, newToBeReplaced)
     assertSame(notToBeReplaced1, newNotToBeReplaced1)
     assertSame(notToBeReplaced2, newNotToBeReplaced2)
+  }
+
+  @Test
+  def replaceWithSeveralInCompFun(): Unit = {
+    val lambda: Lambda = fun(x => Map(id) o Map(id) $ x)
+
+    val (notToBeReplaced, toBeReplaced) = lambda match {
+      case Lambda(_, FunCall(CompFun(one,  two), _)) => (one, two)
+    }
+
+    val toReplace = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
+
+    val result = FunDecl.replace(lambda, Seq(toBeReplaced), Seq(toReplace, toReplace))
+
+    val (newNotToBeReplaced, newReplaced1, newReplaced2) = result match {
+      case Lambda(_, FunCall(CompFun(one,  two, three), _)) => (one, two, three)
+    }
+
+    assertNotSame(lambda, result)
+    assertSame(notToBeReplaced, newNotToBeReplaced)
+    assertSame(toReplace, newReplaced1)
+    assertSame(toReplace, newReplaced2)
   }
 
   @Test

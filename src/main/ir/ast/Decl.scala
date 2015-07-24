@@ -151,9 +151,11 @@ object FunDecl {
       if (newL.length == 1)
         return newL.head
       else if (newL.isEmpty)
-        return Lambda(toVisit.params, Epsilon()(toVisit.params:_*))
-      else // If replaced by several, instantiate CompFun
-        return Lambda(toVisit.params, newL.reduce((a, b) => a o b)(toVisit.params:_*))
+        return Lambda(toVisit.params, Epsilon()(toVisit.body.asInstanceOf[FunCall].args:_*))
+      else {// If replaced by several, instantiate CompFun {
+        val reduce = newL.reduce((a, b) => a o b)
+        return Lambda(toVisit.params, reduce(toVisit.body.asInstanceOf[FunCall].args:_*))
+      }
     }
 
     toVisit.body match {

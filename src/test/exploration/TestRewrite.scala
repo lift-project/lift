@@ -106,7 +106,7 @@ object TestRewrite {
 
       Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
         case List(outer @ Lambda(params, FunCall(Map(l), args)), _*) =>
-          (Seq(outer), Seq(Lambda(params, (Join() o MapGlb(MapSeq(l)) o Split(4))(args))))
+          (Seq(outer), Seq(Join(), MapGlb(MapSeq(l)), Split(4)))
       }),
 
       Rule("Reduce(f) => toGlobal(MapSeq(id)) ReduceSeq(f)", {
@@ -117,7 +117,7 @@ object TestRewrite {
       Rule("Map(f) => asScalar() o MapGlb(f.vectorize(4)) o asVector(4)", {
         case List(outer @ Lambda(params, FunCall(Map(Lambda(innerParams, FunCall(uf: UserFun, innerArg))), arg)), _*) =>
           val vectorWidth = 4
-          (Seq(outer), Seq(Lambda(params, (asScalar() o MapGlb(uf.vectorize(vectorWidth)) o asVector(vectorWidth))(arg))))
+          (Seq(outer), Seq(asScalar(), MapGlb(uf.vectorize(vectorWidth)), asVector(vectorWidth)))
         }),
 
       Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
