@@ -35,32 +35,32 @@ object TestRewrite {
     val rules:Seq[Rule] = Seq[Rule](
       // === SIMPLIFICATION RULES ===
       Rule("Iterate(0, _) => Epsilon", {
-        case List(l @ Pattern(Iterate(n,_)), _*) if n.eval == 0 => (Seq(l), Seq()) }),
+        case (l @ Pattern(Iterate(n,_))) :: xs if n.eval == 0 => (Seq(l), Seq()) }),
 
       Rule("Iterate(1, x) => x", {
-        case List(l @ Pattern(Iterate(n,Lambda(_, f@FunCall(_, _)))), _*) if n.eval == 1 => (Seq(l), Seq()) }),
+        case (l @ Pattern(Iterate(n,Lambda(_, f:FunCall)))) :: xs if n.eval == 1 => (Seq(l), Seq()) }),
 
       Rule("Epsilon() o x => x", {
-        case List(Pattern(Epsilon()), l @ Lambda(_, _), _*) => (Seq(l), Seq()) }),
+        case Pattern(Epsilon()) :: (l:Lambda) :: xs => (Seq(l), Seq()) }),
 
       Rule("x o Epsilon() => x", {
-        case List(l @ Lambda(_,_), Pattern(Epsilon()), _*) => (Seq(l), Seq()) }),
+        case (l:Lambda) :: Pattern(Epsilon()) :: xs => (Seq(l), Seq()) }),
 
       Rule("Map(Epsilon()) => Epsilon()", {
-        case List(l @ Lambda(_, FunCall(Map(Lambda(_, FunCall(Epsilon(), _))), _)), _*) => (Seq(l), Seq()) }),
+        case (l @ Lambda(_, FunCall(Map(Lambda(_, FunCall(Epsilon(), _))), _))) :: xs => (Seq(l), Seq()) }),
 
       Rule("joinVec o splitVec => id", {
-        case List(one @ Pattern(asScalar()), two @ Pattern(asVector(_)), xs @ _*) =>
+        case (one @ Pattern(asScalar())) :: (two @ Pattern(asVector(_))) :: xs =>
           (Seq(one, two), Seq())
       }),
 
       Rule("Join() o Split(_) => id", {
-        case List(one @ Pattern(Join()), two @ Pattern(Split(_)), _*) =>
+        case (one @ Pattern(Join())) :: (two @ Pattern(Split(_))) :: xs =>
           (Seq(one, two), Seq())
       }),
 
       Rule("splitVec(n) o joinVec(n) => id", {
-        case List(one@Pattern(asVector(splitVectorWidth)), two@FunCallInst(asScalar(), joinArg), _*) =>
+        case (one @ Pattern(asVector(splitVectorWidth))) :: (two @ FunCallInst(asScalar(), joinArg)) :: xs =>
           joinArg.t match {
             case ArrayType(VectorType(_, joinVectorWidth), _) if joinVectorWidth == splitVectorWidth =>
                 (Seq(one, two), Seq())
@@ -69,7 +69,7 @@ object TestRewrite {
       }),
 
       Rule("Split(n) o Join(n) => id", {
-        case List(one @ Pattern(Split(splitChunkSize)), two @ FunCallInst(Join(),joinArg), _*) =>
+        case (one @ Pattern(Split(splitChunkSize))) :: (two @ FunCallInst(Join(),joinArg)) :: xs =>
           joinArg.t match {
             case ArrayType(ArrayType(_, joinChunkSize), _) if joinChunkSize == splitChunkSize =>
               (Seq(one, two), Seq())
@@ -80,49 +80,49 @@ object TestRewrite {
       // == NONCONTRACTING RULES ==
 
       Rule("Map(f) => MapGlb(f)", {
-        case List(outer @ Lambda(params, FunCall(Map(l), args)), _*) =>
+        case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Lambda(params, FunCall(MapGlb(l), args))))
       }),
 
       Rule("Map(f) => MapWrg(f)", {
-        case List( outer @ Lambda(params, FunCall(Map(l), args)), _*) =>
+        case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Lambda(params, MapWrg(l)(args)))) }),
 
       Rule("Map(f) => MapLcl(f)", {
-        case List(outer @ Lambda(params, FunCall(Map(l), args)), _*) =>
+        case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Lambda(params, MapLcl(l)(args)))) }),
 
       Rule("Map(f) => MapSeq(f)", {
-        case List(outer @ Lambda(params, FunCall(Map(l), args)), _*) =>
+        case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Lambda(params, MapSeq(l)(args)))) }),
 
       Rule("Map(f) => MapLane(f)", {
-        case List(outer @ Lambda(params, FunCall(Map(l), args)), _*) =>
+        case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Lambda(params, MapLane(l)(args)))) }),
 
       Rule("Map(f) => MapWarp(f)", {
-        case List(outer @ Lambda(params, FunCall(Map(l), args)), _*) =>
+        case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Lambda(params, MapWarp(l)(args)))) }),
 
       Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
-        case List(outer @ Lambda(params, FunCall(Map(l), args)), _*) =>
+        case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Join(), MapGlb(MapSeq(l)), Split(4)))
       }),
 
       Rule("Reduce(f) => toGlobal(MapSeq(id)) ReduceSeq(f)", {
-        case List(outer @ Lambda(params, FunCall(Lambda(innerParams, FunCall(Reduce(l), innerArgs @ _*)) , arg)), _*) =>
+        case (outer @ Lambda(params, FunCall(Lambda(innerParams, FunCall(Reduce(l), innerArgs @ _*)) , arg))) :: xs =>
           (Seq(outer), Seq(Lambda(params, FunCall(toGlobal(MapSeq(id)) o Lambda(innerParams, ReduceSeq(l)(innerArgs:_*)), arg))))
         }),
 
       Rule("Map(f) => asScalar() o MapGlb(f.vectorize(4)) o asVector(4)", {
-        case List(outer @ Lambda(params, FunCall(Map(Lambda(innerParams, FunCall(uf: UserFun, innerArg))), arg)), _*) =>
+        case (outer @ Lambda(params, FunCall(Map(Lambda(innerParams, FunCall(uf: UserFun, innerArg))), arg))) :: xs =>
           val vectorWidth = 4
           (Seq(outer), Seq(asScalar(), MapGlb(uf.vectorize(vectorWidth)), asVector(vectorWidth)))
         }),
 
       Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
-        case List(reduce @ Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, redFunArgs @ _*))), reduceArgs @ _*)),
-        map @ Lambda(_, FunCall(MapSeq(mapLambda), _)), _*) =>
+        case (reduce @ Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, redFunArgs @ _*))), reduceArgs @ _*))) ::
+          (map @ Lambda(_, FunCall(MapSeq(mapLambda), _))) :: xs =>
           val newReduceFunArgs = redFunArgs.map(Expr.replace(_, accNew(1), mapLambda(accNew(1))))
           val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(newReduceFunArgs: _*)))(reduceArgs:_*)))
           (Seq(reduce, map), replacement)
