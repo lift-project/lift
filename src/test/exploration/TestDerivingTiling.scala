@@ -105,7 +105,6 @@ class TestDerivingTiling {
   }
 
   @Test
-  @Ignore // TODO: Can Remove @Ignore once the new simplifier is integrated
   def mmSquareTiles(): Unit = {
     val nSize = 16
     val mSize = 16

@@ -63,12 +63,14 @@ object OutputView {
       case _ =>
         if (call.args.length == 1)
           visitAndBuildViews(call.args.head, result)
-        else
+        else {
           call.args.foreach(arg => visitAndBuildViews(arg, result))
           // TODO: DEFINETLY WRONG!
           result
+        }
     }
 
+    // argResult // TODO: Maybe this is the first step to happiness ...
     result
   }
 

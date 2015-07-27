@@ -26,6 +26,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
   val isGenerable = false
 
 
+
   /**
    * Method to sequentially compose this instance with a given lambda expression
    * (which is also a form of function declaration).
@@ -127,55 +128,109 @@ object FunDecl {
    *         replaced with `newE`
    */
   def replace(l: Lambda, oldE: Expr, newE: Expr) : Lambda = {
-    visitAndRebuild(l, (l: Lambda) => {
-      if (l.body.eq(oldE)) new Lambda(l.params, newE) else l
-    }, (l: Lambda) => l)
+    val newBody = Expr.replace(l.body, oldE, newE)
+
+    if (newBody.eq(l.body))
+      l
+    else
+      Lambda(l.params, newBody)
   }
 
   /**
-   * This function returns a new lambda which bas been constructed from the
-   * given lambda  `f` by recursively visiting it and applying `pre` and `post`
-   * which return new lambda for a given lambda.
-   *
-   * The visiting works as follows:
-   * 1. for a given lambda `f` the function `pre` is invoked
-   * 2. the body of the return value of `pre(f)` is recursively visited calling
-   *    `visitAndRebuild` on callees of every function call
-   * 3. from the return value of the recursive visit a lambda is constructed and
-   *    the function `post` is invoked on it.
-   * 4. the return value of this invokation is returned from this function
-   *
-   * @param f The lambda to be visited
-   * @param pre The function to apply before visiting a given (sub-) lambda
-   * @param post The function to apply after visiting a given (sub-) lambda
-   * @return A Lambda expression rewritten based on the functions `pre` and
-   *         `post`
+   * Recursively visit the given lambda expression `l`, searching for `oldL`,
+   * and replacing every occurrences with `newL`.
+   * @param toVisit The lambda expression to visit
+   * @param oldL The sequence of expressions to look for and replace
+   * @param newL The sequence of expressions to replace the `oldL` with
+   * @return The lambda expression `l` where the occurrence of `oldL` is
+   *         replaced with `newL`
    */
-  def visitAndRebuild(f: Lambda,
-                      pre: Lambda => Lambda,
-                      post: Lambda => Lambda) : Lambda = {
-    val newF = pre(f)
+  def replace(toVisit: Lambda, oldL: Seq[Lambda], newL: Seq[Lambda]) : Lambda = {
 
-    val newBodyFunDef : Expr = newF.body match {
-      case call: FunCall => call.f match {
-        case l : Lambda =>
-          new Lambda(l.params,
-                     visitAndRebuild(l, pre, post)(call.args:_*) ).body
-        case cfd : CompFun =>
-          (new CompFun(cfd.funs.map(f => visitAndRebuild(f, pre, post)):_*)
-            )(call.args:_*)
-        case ar: AbstractPartRed =>
-          ar.getClass.getConstructor(classOf[Lambda],classOf[Value])
-            .newInstance(visitAndRebuild(ar.f, pre, post),call.args.head)(call.args.tail:_*)
-        case fp: FPattern =>
-          fp.getClass.getConstructor(classOf[Lambda])
-            .newInstance(visitAndRebuild(fp.f, pre, post))(call.args:_*)
-        case _ => newF.body.copy
+    if (oldL.length == 1 && toVisit.eq(oldL.head)) {
+      if (newL.length == 1)
+        return newL.head
+      else if (newL.isEmpty)
+        return Lambda(toVisit.params, Epsilon()(toVisit.body.asInstanceOf[FunCall].args:_*))
+      else {// If replaced by several, instantiate CompFun
+        val reduce = CompFun(newL:_*)
+        return Lambda(toVisit.params, reduce(toVisit.body.asInstanceOf[FunCall].args:_*))
       }
-      case _ => newF.body.copy
     }
 
-    post(new Lambda(f.params, newBodyFunDef))
+    toVisit.body match {
+      case FunCall(CompFun(functions @ _*), args @ _*) =>
+
+        val indexOfSlice = functions.indexOfSlice(oldL)
+
+        if (indexOfSlice == -1) {
+
+          // Not found on this level, recurse
+          val newFunctions = functions.map(cfLambda => {
+            // Attempt to replace
+            val replaced = replace(cfLambda, oldL, newL)
+
+            // If replacement didn't occur return toVisit
+            // else instantiate the updated lambda
+            if (replaced.eq(cfLambda))
+              cfLambda
+            else
+              replaced
+          })
+
+          // If replacement didn't occur return toVisit
+          // else instantiate the updated lambda
+          if (newFunctions == functions)
+            toVisit
+          else
+            Lambda(toVisit.params, FunCall(CompFun(newFunctions:_*) , args:_*))
+
+        } else {
+
+          // Attempt to replace
+          val newFunctions = functions.patch(indexOfSlice, newL, oldL.length)
+
+          if (newFunctions == functions) // If replacement didn't occur return toVisit
+            toVisit
+          else if (newFunctions.length > 1) // Instantiate new CompFun if left with several functions
+            Lambda(toVisit.params, FunCall(CompFun(newFunctions: _*), args: _*))
+          else if (newFunctions.length == 1) // Eliminate CompFun, if left with one function
+            newFunctions.head
+          else // Insert epsilon, if left with no functions
+            Lambda(toVisit.params, FunCall(Epsilon(), args: _*))
+        }
+
+
+      case FunCall(fp: FPattern, args @ _*) =>
+
+        if (Seq(fp.f) == oldL) {
+
+          // Attempt to replace
+          val reduce: Lambda = if (newL.isEmpty) Epsilon() else if (newL.length == 1) newL.head
+            else CompFun(newL:_*)
+
+          // If replacement didn't occur return toVisit
+          // else instantiate the updated lambda
+          if (reduce == fp.f)
+            toVisit
+          else
+            Lambda(toVisit.params, fp.copy(reduce)(args: _*))
+
+        } else {
+          // Recurse
+          val replaced = FunDecl.replace(fp.f, oldL, newL)
+
+          // If replacement didn't occur return toVisit
+          // else instantiate the updated lambda
+          if (replaced.eq(fp.f))
+            toVisit
+          else
+            Lambda(toVisit.params, FunCall(fp.copy(replaced), args:_*))
+
+        }
+
+      case _ => toVisit
+    }
   }
 }
 

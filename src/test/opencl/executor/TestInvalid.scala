@@ -269,18 +269,26 @@ class TestInvalid {
   }
 
   // Test allocating too much local memory
-  @Ignore
   @Test def AllocateTooMuchLocalMemory(): Unit = {
     try {
       // Allocate 4 times the maximum
-      val arg = LocalArg.create(Executor.getDeviceMaxMemAllocSize().asInstanceOf[Int])
+      val arg = LocalArg.create(Executor.getDeviceMaxMemAllocSize.asInstanceOf[Int])
       Executor.execute("kernel void KERNEL(local float* mem){}", 1, 1, 1, 1, 1, 1, Array(arg))
     } catch {
       case e: Executor.ExecutorFailureException =>
         e.consume()
-        assert(assertion = false)
+
       case _: Throwable =>
       // This might be acceptable depending on how we handle insufficient ressources
+        assert(assertion = false)
+    }
+
+    // This should work
+    try {
+      println("Executing a valid kernel")
+      Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
+    } catch {
+      case _: Throwable => assert(assertion = false)
     }
   }
 }
