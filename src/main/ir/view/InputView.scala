@@ -33,6 +33,7 @@ object InputView {
 
   private def getViewFromArgs(call: FunCall): View = {
     if (call.args.isEmpty) {
+      assert(false)
       NoView
     } else if (call.args.length == 1) {
       visitAndBuildViews(call.args.head)
@@ -52,7 +53,7 @@ object InputView {
       case z: Zip => buildViewZip(call, argView)
       case Split(n) => buildViewSplit(n, argView)
       case _: Join => buildViewJoin(call, argView)
-      case uf: UserFun => buildViewUserFunDef()
+      case uf: UserFun => buildViewUserFunDef(call)
       case g: Gather => buildViewGather(g, call, argView)
       case i: Iterate => buildViewIterate(i, call, argView)
       case t: Transpose => buildViewTranspose(t, call, argView)
@@ -127,7 +128,7 @@ object InputView {
 
     cf.funs.foldRight(argView)((f, v) => {
       if (f.params.length != 1) throw new NumberOfArgumentsException
-      f.params(0).view = if (v != NoView) v else View.initialiseNewView(f.params(0).t, call.inputDepth)
+      f.params(0).view = v
 
       visitAndBuildViews(f.body)
     })
@@ -166,8 +167,8 @@ object InputView {
     argView.asScalar()
   }
 
-  private def buildViewUserFunDef(): View = {
-    NoView
+  private def buildViewUserFunDef(call: FunCall): View = {
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {

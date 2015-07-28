@@ -24,8 +24,7 @@ object TestMisc {
 
 class TestMisc {
 
-  // Issue #22
-  @Test def wrongKernelArgument(): Unit = {
+  @Test def issue22(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
@@ -47,6 +46,25 @@ class TestMisc {
       })
 
     val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+  }
+
+  // Issue #23
+  @Test def issue23(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (ArrayType(Float, Var("N")),
+      in => {
+        Join() o MapWrg(
+          Join() o Barrier() o MapLcl(
+            fun( x4 => toGlobal(MapSeq(id))(ReduceSeq(add, id(0.0f))(x4)))
+          ) o Split(4)
+        ) o Split(128) $ in
+      })
+
+    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
