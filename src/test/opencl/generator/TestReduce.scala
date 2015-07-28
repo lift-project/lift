@@ -596,49 +596,4 @@ class TestReduce {
     }
 
   }
-
-  /*
-    @Test def SEQ_TEST() {
-
-      /*
-       // this is working fine
-      val kernel = Join() o MapWrg(
-        Join() o Barrier() o MapLcl(MapSeq(id)) o Barrier() o MapLcl(ReduceSeq(sumUp, 0.0f)) o Split(1024)
-      ) o Split(1024) o input
-      */
-
-      /* // triggers wrong allocation ...
-      val kernel = Join() o MapWrg(
-        Join() o Barrier() o MapLcl(MapSeq(id)) o Split(1024)
-      ) o Split(1024) o input
-      */
-
-
-      // triggers generation of wrong code (the indices are broken)
-      val kernel = Join() o MapWrg(
-        Join() o Barrier() o MapLcl(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o Split(1024)
-      ) o Split(1024) o input
-
-
-      val inputSize = 4194304
-      //val inputData = Array.fill(inputSize)(1.0f)
-      val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-
-      val (output, runtime) = {
-        val outputSize = inputSize / 1024
-
-        val (output, runtime) = execute(kernel, inputData, outputSize)
-
-        println("output size = " + output.size)
-        println("first output(0) = " + output(0))
-        println("first runtime = " + runtime)
-
-        assertEquals(inputData.sum, output.sum, 0.0)
-
-        (output, runtime)
-      }
-
-    }
-    */
-
 }
