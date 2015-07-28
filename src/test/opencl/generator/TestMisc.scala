@@ -50,7 +50,6 @@ class TestMisc {
     assertEquals(inputData.sum, output.sum, 0.0)
   }
 
-  // Issue #23
   @Test def issue23(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -67,6 +66,23 @@ class TestMisc {
     val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
+  }
+
+  @Test def issue24(): Unit = {
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      input => MapWrg(
+        fun( x0 => Barrier()(toGlobal(MapLcl(MapSeq(id)))(x0)) ) o
+          Transpose() o TransposeW() o
+          Barrier() o toLocal(MapLcl(MapSeq(id)))
+      ) $ input
+    )
+
+    val (output: Array[Float], _) = Execute(4, 4)(f, input)
+
+    assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
 
   // Simple 1D increment, used to check the syntax of unary UserFunDef
@@ -425,6 +441,7 @@ class TestMisc {
 
     assertArrayEquals(gold, output, 0.0f)
   }
+
   @Test def iterateLocalOnly(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)

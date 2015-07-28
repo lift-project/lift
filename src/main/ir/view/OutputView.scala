@@ -21,8 +21,8 @@ object OutputView {
 
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
-      case pr: ParamReference => pr.p.view.get(pr.i)
-      case p: Param => p.view
+      case pr: ParamReference => pr.p.view.get(pr.i) // TODO: is this correct?
+      case p: Param => writeView
       case call: FunCall => buildViewFunCall(call, writeView)
     }
   }
@@ -54,7 +54,7 @@ object OutputView {
       case Zip(_) | Tuple(_) =>
         call.args.foreach(e =>
           visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth)))
-        // TODO: PROPRABLY WRONG!
+        // TODO: PROBABLY WRONG!
         result
       case r: AbstractPartRed =>
         val e = call.args.head
@@ -65,13 +65,12 @@ object OutputView {
           visitAndBuildViews(call.args.head, result)
         else {
           call.args.foreach(arg => visitAndBuildViews(arg, result))
-          // TODO: DEFINETLY WRONG!
+          // TODO: DEFINITELY WRONG!
           result
         }
     }
 
-    // argResult // TODO: Maybe this is the first step to happiness ...
-    result
+     argResult
   }
 
   private def buildViewUserFun(writeView: View, call: FunCall): View = {
