@@ -19,7 +19,6 @@ object GlobalMemory extends OpenCLAddressSpace {
   override def toString = "global"
 }
 
-// TODO: This currently is used only for scalar values!!!
 object PrivateMemory extends OpenCLAddressSpace {
   override def toString = "private"
 }
@@ -77,7 +76,9 @@ class OpenCLMemoryCollection(val subMemories: Array[OpenCLMemory], override val 
   def findCommonAddressSpace(): OpenCLAddressSpace = {
     // try to find common address space which is not the private memory ...
     val noPrivateMem = this.subMemories.filterNot(_.addressSpace == PrivateMemory)
-    assert(noPrivateMem.nonEmpty)
+    if (noPrivateMem.isEmpty) { // everything is in private memory
+      return PrivateMemory
+    }
 
     val addessSpaces = noPrivateMem.map({
       case coll: OpenCLMemoryCollection => coll.findCommonAddressSpace()
@@ -368,11 +369,7 @@ object OpenCLMemory {
     if (tg.f.params.length != 1) throw new NumberOfArgumentsException
     tg.f.params(0).mem = inMem
 
-    val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != GlobalMemory) {
-      allocGlobalMemory(maxGlbOutSize)
-    } else {
-      outputMem
-    }
+    val mem = allocGlobalMemory(maxGlbOutSize)
     // ... recurse with the freshly allocated 'mem' set as output
     alloc(tg.f.body, numGlb, numLcl, numPvt, mem)
   }
@@ -382,11 +379,7 @@ object OpenCLMemory {
     if (tl.f.params.length != 1) throw new NumberOfArgumentsException
     tl.f.params(0).mem = inMem
 
-    val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != LocalMemory) {
-      allocLocalMemory(maxLclOutSize)
-    } else {
-      outputMem
-    }
+    val mem = allocLocalMemory(maxLclOutSize)
     // ... recurse with the  freshly allocated 'mem' set as output
     alloc(tl.f.body, numGlb, numLcl, numPvt, mem)
   }
@@ -396,11 +389,7 @@ object OpenCLMemory {
     if (tp.f.params.length != 1) throw new NumberOfArgumentsException
     tp.f.params(0).mem = inMem
 
-    val mem = if (outputMem == OpenCLNullMemory || outputMem.addressSpace != PrivateMemory) {
-      allocPrivateMemory(maxPvtOutSize)
-    } else {
-      outputMem
-    }
+    val mem = allocPrivateMemory(maxPvtOutSize)
     // ... recurse with the freshly allocated 'mem' set as output
     alloc(tp.f.body, numGlb, numLcl, numPvt, mem)
   }
