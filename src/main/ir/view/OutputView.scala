@@ -98,7 +98,7 @@ object OutputView {
     // traverse into call.f
     val innerView = visitAndBuildViews(m.f.body, view.access(m.loopVar))
 
-    if (call.isConcrete) {
+    if (m.f.body.isConcrete) {
       // create fresh view for following function
       View.initialiseNewView(call.args.head.t, call.outputDepth, call.mem.variable.name)
     } else { // call.isAbstract and return input map view
