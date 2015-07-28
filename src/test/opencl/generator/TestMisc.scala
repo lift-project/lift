@@ -3,14 +3,11 @@ package opencl.generator
 import apart.arithmetic.Var
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
-import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import opencl.ir.pattern._
-
 
 object TestMisc {
   @BeforeClass def before() {
@@ -26,6 +23,33 @@ object TestMisc {
 }
 
 class TestMisc {
+
+  // Issue #22
+  @Test def wrongKernelArgument(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (
+      ArrayType(Float, Var("N")),
+      Float,
+      (in, init) => {
+        fun( x0 => Join()(MapWrg(
+          fun(x1 =>
+            fun(x2 =>
+              fun( x3 => Join()(Barrier()(x3))
+              )(MapLcl(
+                fun( x4 => toGlobal(MapSeq(id))(ReduceSeq(add, init)(x4)))
+              )(x2)
+                )
+            )(Split(4)(x1))
+          ))(x0))
+        )(Split(128)(in))
+      })
+
+    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+  }
 
   // Simple 1D increment, used to check the syntax of unary UserFunDef
   @Test def increment(): Unit = {

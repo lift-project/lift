@@ -4,7 +4,6 @@ import apart.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.ast._
-import opencl.ir.ast._
 
 import scala.collection.mutable
 import opencl.ir.pattern._
@@ -297,7 +296,7 @@ object OpenCLMemory {
     if (call.args.isEmpty) {
       OpenCLNullMemory
     } else if (call.args.length == 1) {
-      alloc(call.args(0), numGlb, numLcl, numPvt, outputMem)
+      alloc(call.args.head, numGlb, numLcl, numPvt, outputMem)
     } else {
 
       val mems = if (outputMem != OpenCLNullMemory)
@@ -508,9 +507,9 @@ object TypedOpenCLMemory {
           call.f match {
             case it: Iterate =>
               arr :+
-              TypedOpenCLMemory(call.args(0).mem, call.args(0).t) :+
+              TypedOpenCLMemory(call.args.head.mem, call.args.head.t) :+
               TypedOpenCLMemory(call.mem, call.t) :+
-              TypedOpenCLMemory(it.swapBuffer, ArrayType(call.args(0).t, ?))
+              TypedOpenCLMemory(it.swapBuffer, ArrayType(call.args.head.t, ?))
 
             case r: AbstractPartRed =>
               // exclude the iniT (TODO: only if it is already allocated ...)
@@ -529,11 +528,11 @@ object TypedOpenCLMemory {
         case p: Param => arr :+ TypedOpenCLMemory(p.mem, p.t)
       })
 
-    val resultWithoutCollections = result.map(tm => tm.mem match {
+    val resultWithoutCollections = result.flatMap(tm => tm.mem match {
       case coll: OpenCLMemoryCollection =>
-        coll.subMemories.zipWithIndex.map({ case (m, i) => TypedOpenCLMemory(m, Type.getTypeAtIndex(tm.t, i))})
+        coll.subMemories.zipWithIndex.map({ case (m, i) => TypedOpenCLMemory(m, Type.getTypeAtIndex(tm.t, i)) })
       case ocl: OpenCLMemory => Array(tm)
-    }).flatten
+    })
 
     val seen = mutable.HashSet[OpenCLMemory]()
     // remove null memory and duplicates while preserving the original order
@@ -545,12 +544,15 @@ object TypedOpenCLMemory {
 
           // m is in private memory but not an parameter => trow away
           || (   m.addressSpace == PrivateMemory
-              && params.find(p => p.mem == m) == None)
+              && !params.exists(p => p.mem == m))
               && !includePrivate) {
         arr
       } else {
         seen += m
-        arr :+ mem
+        params.find(param => m == param.mem) match {
+          case Some(param) => arr :+ TypedOpenCLMemory(m, param.t)
+          case _ => arr :+ mem
+        }
       }
     })
   }
