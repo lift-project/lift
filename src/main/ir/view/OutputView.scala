@@ -46,6 +46,7 @@ object OutputView {
       case h: Head => buildViewHead(h, writeView)
       case t: Tail => buildViewTail(t, writeView)
       case fp: FPattern => buildViewFPattern(fp, writeView)
+      case _: Zip => buildViewZip(writeView)
       case _ => writeView
     }
 
@@ -71,6 +72,10 @@ object OutputView {
     }
 
      argResult
+  }
+
+  private def buildViewZip(writeView: View): View = {
+    writeView.unzip()
   }
 
   private def buildViewUserFun(writeView: View, call: FunCall): View = {
