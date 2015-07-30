@@ -131,21 +131,21 @@ object FunDecl {
    *         replaced with `newL`
    */
   def replace(toVisit: Lambda, oldL: Seq[Lambda], newL: Seq[Lambda]) : Lambda = {
-    toVisit
-  }
-//
-//    if (oldL.length == 1 && toVisit.eq(oldL.head)) {
-//      if (newL.length == 1)
-//        return newL.head
-//      else if (newL.isEmpty)
-//        return Lambda(toVisit.params, Epsilon()(toVisit.body.asInstanceOf[FunCall].args:_*))
-//      else {// If replaced by several, instantiate CompFun
-//        val reduce = CompFun(newL:_*)
-//        return Lambda(toVisit.params, reduce(toVisit.body.asInstanceOf[FunCall].args:_*))
-//      }
-//    }
-//
-//    toVisit.body match {
+
+    if (oldL.length == 1 && toVisit.eq(oldL.head)) {
+      if (newL.length == 1)
+        return newL.head
+      else if (newL.isEmpty)
+        return Lambda(toVisit.params,
+                      Epsilon()(toVisit.body.asInstanceOf[FunCall].args:_*))
+      else {// If replaced by several, compose lambdas
+        val lambdaCompositon = newL.foldLeft(fun(x => x))((lhs, l) => lhs o l)
+        return Lambda(toVisit.params,
+                      lambdaCompositon(toVisit.body.asInstanceOf[FunCall].args:_*))
+      }
+    }
+
+    toVisit.body match {
 //      case FunCall(CompFun(functions @ _*), args @ _*) =>
 //
 //        val indexOfSlice = functions.indexOfSlice(oldL)
@@ -186,8 +186,8 @@ object FunDecl {
 //          else // Insert epsilon, if left with no functions
 //            Lambda(toVisit.params, FunCall(Epsilon(), args: _*))
 //        }
-//
-//
+
+
 //      case FunCall(fp: FPattern, args @ _*) =>
 //
 //        if (Seq(fp.f) == oldL) {
@@ -215,10 +215,10 @@ object FunDecl {
 //            Lambda(toVisit.params, FunCall(fp.copy(replaced), args:_*))
 //
 //        }
-//
-//      case _ => toVisit
-//    }
-//  }
+
+      case _ => toVisit
+    }
+  }
 }
 
 /**

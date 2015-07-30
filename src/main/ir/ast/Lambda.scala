@@ -90,8 +90,8 @@ object Lambda1 {
           // Don't wrap unnecessarily
           new Lambda1(params, body)
         case _ => fun(f(_))
-      }    } else {
-
+      }
+    } else {
       fun( x => f( (0 until f.arity).map( Get(x, _) ):_* ) )
     }
   }

@@ -61,7 +61,7 @@ class TestExpr {
     val lambda: Lambda = fun(x => Reduce(add, 0.0f) $ x)
 
     val userFunCall = lambda match {
-      case Lambda(_, FunCall(Lambda(_, FunCall(Reduce(l), _*)), _*)) => l.body
+      case Lambda(_, FunCall(Reduce(l), _*)) => l.body
     }
 
     val replacementFunCall = FunCall(mult, Param(), Param())
@@ -69,7 +69,7 @@ class TestExpr {
     val result = Expr.replace(lambda.body, userFunCall, replacementFunCall)
 
     val newFunCall = result match {
-      case FunCall(Lambda(_, FunCall(Reduce(l), _*)), _*) => l.body
+      case FunCall(Reduce(l), _*) => l.body
     }
 
     assertNotSame(lambda.body, result)
@@ -96,39 +96,39 @@ class TestExpr {
     assertSame(replacementArg, newArg)
   }
 
-//  @Test
-//  def replaceInCompFun(): Unit = {
-//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
-//
-//    val (nestedLambda, call) = lambda match {
-//      case Lambda(_, FunCall(CompFun(other, Lambda(_, c)), _)) => (other, c)
-//    }
-//
-//    val replacementFunCall = FunCall(Map(plusOne), Param())
-//
-//    val result = Expr.replace(lambda.body, call, replacementFunCall)
-//
-//    val (newNestedLambda, newCall) = result match {
-//      case FunCall(CompFun(other, Lambda(_, c)), _) => (other, c)
-//    }
-//
-//    assertNotSame(lambda.body, result)
-//    assertSame(replacementFunCall, newCall)
-//    assertSame(nestedLambda, newNestedLambda)
-//  }
+  @Test
+  def replaceInCompFun(): Unit = {
+    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
 
-//  @Test
-//  def replaceSameInCompFun(): Unit = {
-//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
-//
-//    val call = lambda match {
-//      case Lambda(_, FunCall(CompFun(_, Lambda(_, c)), _)) => c
-//    }
-//
-//    val result = Expr.replace(lambda.body, call, call)
-//
-//    assertSame(lambda.body, result)
-//  }
+    val (firstFun, call) = lambda match {
+      case Lambda(_, FunCall(f, c)) => (f, c)
+    }
+
+    val replacementFunCall = FunCall(Map(plusOne), Param())
+
+    val result = Expr.replace(lambda.body, call, replacementFunCall)
+
+    val (newFirstFun, newCall) = result match {
+      case FunCall(f, c) => (f, c)
+    }
+
+    assertNotSame(lambda.body, result)
+    assertSame(replacementFunCall, newCall)
+    assertSame(firstFun, newFirstFun)
+  }
+
+  @Test
+  def replaceSameInCompFun(): Unit = {
+    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+
+    val call = lambda match {
+      case Lambda(_, FunCall(_, c)) => c
+    }
+
+    val result = Expr.replace(lambda.body, call, call)
+
+    assertSame(lambda.body, result)
+  }
 
   @Test
   def replaceArgWithSame(): Unit = {

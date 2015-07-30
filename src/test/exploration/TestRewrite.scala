@@ -104,10 +104,19 @@ object TestRewrite {
         case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Lambda(params, MapWarp(l)(args)))) }),
 
+//      Rule("Map(f) => MapWarp(f)", {
+//        case call @ FunCall(Map(l), args) =>
+//          (call, MapWarp(l)(args)) }),
+
       Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
         case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
           (Seq(outer), Seq(Join(), MapGlb(MapSeq(l)), Split(4)))
       }),
+
+//      Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
+//        case call @ FunCall(Map(l), args) =>
+//          (call, Join() $ MapGlb(MapSeq(l)) $ Split(4) $ args )
+//      }),
 
       Rule("Reduce(f) => toGlobal(MapSeq(id)) ReduceSeq(f)", {
         case (outer @ Lambda(params, FunCall(Lambda(innerParams, FunCall(Reduce(l), innerArgs @ _*)) , arg))) :: xs =>
@@ -127,6 +136,18 @@ object TestRewrite {
           val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(newReduceFunArgs: _*)))(reduceArgs:_*)))
           (Seq(reduce, map), replacement)
         })
+
+//      Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
+//        case (all @ FunCall(ReduceSeq(f @ Lambda(_, _)), init, FunCall(MapSeq(g @ Lambda(_, _)), arg))) =>
+//          (all, ReduceSeq(fun( (acc, x) => f(acc, g(x))))(init, arg))
+//
+//
+//        case (reduce @ Lambda(reduceParams, FunCall(ReduceSeq(Lambda(accNew, FunCall(redFun, redFunArgs @ _*))), reduceArgs @ _*))) ::
+//             (map @ Lambda(_, FunCall(MapSeq(mapLambda), _))) :: xs =>
+//          val newReduceFunArgs = redFunArgs.map(Expr.replace(_, accNew(1), mapLambda(accNew(1))))
+//          val replacement = Seq(Lambda(reduceParams, ReduceSeq(Lambda(accNew, redFun(newReduceFunArgs: _*)))(reduceArgs:_*)))
+//          (Seq(reduce, map), replacement)
+//      })
 
       // === CONTRACTING RULES ===
       /*Rule("Map(M) o Map(N) => Map(M o N)", {
@@ -246,6 +267,16 @@ class TestRewrite {
 
   @Test
   def simpleMapTest(): Unit = {
+
+//    Rule("Map(f) => MapGlb(f)", {
+//      case (outer @ Lambda(params, FunCall(Map(l), args))) :: xs =>
+//        (Seq(outer), Seq(Lambda(params, FunCall(MapGlb(l), args))))
+//    })
+
+//
+//    def rewrite(lambda: Lambda): Lambda = {
+//
+//    }
 
     def f = fun(
       ArrayType(Float, N),
