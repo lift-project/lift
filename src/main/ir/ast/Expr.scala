@@ -111,9 +111,7 @@ object Expr {
 
         call.f match {
           case fp: FPattern => visit(fp.f.body, pre, post)
-          case l: Lambda => visit(l.body, pre, post)
-          case cf: CompFun =>
-            cf.funs.reverseMap(inF => visit(inF.body, pre, post))
+          case l: Lambda =>    visit(l.body, pre, post)
           case _ =>
         }
       case _ =>
@@ -148,12 +146,8 @@ object Expr {
 
         // do the rest ...
         call.f match {
-          case fp: FPattern => visitWithState(newResult)(fp.f.body, visitFun)
-          case cf: CompFun =>
-            cf.funs.foldRight(newResult)((inF, x) => {
-              visitWithState(x)(inF.body, visitFun)
-            })
-          case l: Lambda => visitWithState(newResult)(l.body, visitFun)
+          case fp: FPattern =>  visitWithState(newResult)(fp.f.body, visitFun)
+          case l: Lambda =>     visitWithState(newResult)(l.body, visitFun)
           case _ => newResult
         }
       case _ => result
@@ -179,26 +173,6 @@ object Expr {
           val newArgs = call.args.map((arg) => replace(arg, oldE, newE))
 
           val newCall = call.f match {
-            case cf: CompFun =>
-
-              val functions = cf.funs.map(inF => {
-                val replaced = replace(inF.body, oldE, newE)
-
-                // If replacement didn't occur return inF
-                // else instantiate the updated lambda
-                if (replaced.eq(inF.body))
-                  inF
-                else
-                  Lambda(inF.params, replaced)
-              })
-
-              // If any of the functions got replaced instantiate a new CompFun
-              // Else return cf
-              if (functions != cf.funs)
-                CompFun(functions: _*)
-              else
-                cf
-
             case fp: FPattern =>
               // Try to do the replacement in the body
               val replaced = replace(fp.f.body, oldE, newE)

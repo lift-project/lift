@@ -11,7 +11,7 @@ object TypeChecker {
   def check(expr: Expr, setType: Boolean = true): Type = {
 
     var inferredOuT = expr match {
-      case param: Param => checkParam(param)
+      case param: Param => param.t
       case call: FunCall => checkFunCall(call, setType)
     }
 
@@ -26,13 +26,6 @@ object TypeChecker {
     inferredOuT
   }
 
-  private def checkParam(param: Param): Type = {
-    param match {
-      case pr: ParamReference => Type.getTypeAtIndex(pr.p.t, pr.i)
-      case p: Param => p.t
-    }
-  }
-
   private def checkFunCall(call: FunCall, setType: Boolean): Type = {
     assert(call.f != null)
 
@@ -42,10 +35,10 @@ object TypeChecker {
       case l: Lambda =>           checkLambda(l, call, inT, setType)
       case am: AbstractMap =>     checkMap(am, inT, setType)
       case ar: AbstractPartRed => checkReduce(ar, inT, setType)
-      case cf: CompFun =>         checkCompFunDef(cf, inT, setType)
       case z: Zip =>              checkZip(z, inT, setType)
-      case t: Tuple =>            checkTuple(t, inT, setType)
       case uz: Unzip =>           checkUnzip(uz, inT, setType)
+      case t: Tuple =>            checkTuple(t, inT, setType)
+      case g: Get =>              checkGet(g, inT, setType)
       case Split(n) =>            checkSplit(n, inT)
       case _: Join =>             checkJoin(inT)
       case _: asScalar  =>        checkAsScalar(inT)
@@ -121,16 +114,6 @@ object TypeChecker {
     }
   }
 
-  private def checkCompFunDef(cf: CompFun, inT: Type, setType: Boolean): Type = {
-    // combine the parameter of the first function to call with the type inferred from the argument
-
-    cf.funs.foldRight(inT)((f, inputT) => {
-      if (f.params.length != 1) throw new NumberOfArgumentsException
-      f.params(0).t = inputT
-      check(f.body, setType)
-    })
-  }
-
   private def checkZip(z: Zip, inT: Type, setType: Boolean): Type = {
     inT match {
       case tt: TupleType =>
@@ -158,6 +141,13 @@ object TypeChecker {
         if (tt.elemsT.length < 2) throw new NumberOfArgumentsException
 
         tt
+      case _ => throw new TypeException(inT, "TupleType")
+    }
+  }
+
+  private def checkGet(g: Get, inT: Type, setType: Boolean): Type = {
+    inT match {
+      case tt: TupleType => tt.elemsT(g.n)
       case _ => throw new TypeException(inT, "TupleType")
     }
   }

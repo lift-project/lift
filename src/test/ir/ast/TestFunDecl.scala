@@ -126,137 +126,137 @@ class TestFunDecl {
     assertSame(lambda, result)
   }
 
-  @Test
-  def replaceInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//  @Test
+//  def replaceInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//
+//    val (nestedLambda, call) = lambda match {
+//      case Lambda(_, FunCall(CompFun(other, c), _)) => (other, c)
+//    }
+//
+//    val replacementFunCall = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
+//
+//    val result = FunDecl.replace(lambda, Seq(call), Seq(replacementFunCall))
+//
+//    val (newNestedLambda, newCall) = result match {
+//      case Lambda(_, FunCall(CompFun(other,c), _)) => (other, c)
+//    }
+//
+//    assertNotSame(lambda, result)
+//    assertSame(replacementFunCall, newCall)
+//    assertSame(nestedLambda, newNestedLambda)
+//  }
 
-    val (nestedLambda, call) = lambda match {
-      case Lambda(_, FunCall(CompFun(other, c), _)) => (other, c)
-    }
+//  @Test
+//  def replaceSameInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//
+//    val call = lambda match {
+//      case Lambda(_, FunCall(CompFun(_, c), _)) => c
+//    }
+//
+//    val result = FunDecl.replace(lambda, Seq(call), Seq(call))
+//
+//    assertSame(lambda, result)
+//  }
 
-    val replacementFunCall = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
+//  @Test
+//  def replaceBothInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//
+//    val (nestedLambda, call) = lambda match {
+//      case Lambda(_, FunCall(CompFun(other, c), _)) => (other, c)
+//    }
+//
+//    val replacementFunCall = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
+//
+//    val result = FunDecl.replace(lambda, Seq(nestedLambda, call), Seq(replacementFunCall))
+//
+//    assertNotSame(lambda, result)
+//    assertSame(replacementFunCall, result)
+//  }
 
-    val result = FunDecl.replace(lambda, Seq(call), Seq(replacementFunCall))
-
-    val (newNestedLambda, newCall) = result match {
-      case Lambda(_, FunCall(CompFun(other,c), _)) => (other, c)
-    }
-
-    assertNotSame(lambda, result)
-    assertSame(replacementFunCall, newCall)
-    assertSame(nestedLambda, newNestedLambda)
-  }
-
-  @Test
-  def replaceSameInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
-
-    val call = lambda match {
-      case Lambda(_, FunCall(CompFun(_, c), _)) => c
-    }
-
-    val result = FunDecl.replace(lambda, Seq(call), Seq(call))
-
-    assertSame(lambda, result)
-  }
-
-  @Test
-  def replaceBothInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
-
-    val (nestedLambda, call) = lambda match {
-      case Lambda(_, FunCall(CompFun(other, c), _)) => (other, c)
-    }
-
-    val replacementFunCall = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
-
-    val result = FunDecl.replace(lambda, Seq(nestedLambda, call), Seq(replacementFunCall))
-
-    assertNotSame(lambda, result)
-    assertSame(replacementFunCall, result)
-  }
-
-  @Test
-  def replaceBothWithNoneInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
-
-    val (nestedLambda, call) = lambda match {
-      case Lambda(_, FunCall(CompFun(other, c), _)) => (other, c)
-    }
-
-    val result = FunDecl.replace(lambda, Seq(nestedLambda, call), Seq())
-
-    assertNotSame(lambda, result)
-    assertTrue(result.body.asInstanceOf[FunCall].f.isInstanceOf[Epsilon])
-  }
-
-  @Test
-  def replaceBothWithSameInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
-
-    val (nestedLambda, call) = lambda match {
-      case Lambda(_, FunCall(CompFun(other, c), _)) => (other, c)
-    }
-
-    val result = FunDecl.replace(lambda, Seq(nestedLambda, call), Seq(nestedLambda, call))
-
-    assertSame(lambda, result)
-  }
-
-  @Test
-  def replaceNestedInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => Map(id) o Map(Map(id) o Map(id)) $ x)
-
-    val (notToBeReplaced1, notToBeReplaced2, toBeReplaced) = lambda match {
-      case Lambda(_, FunCall(CompFun(other, Lambda(_, FunCall(Map(Lambda(_, FunCall(CompFun(one, two), _))), _))), _)) => (other, one, two)
-    }
-
-    val toReplace = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
-
-    val result = FunDecl.replace(lambda, Seq(toBeReplaced), Seq(toReplace))
-
-    val (newNotToBeReplaced1, newNotToBeReplaced2, newToBeReplaced) = result match {
-      case Lambda(_, FunCall(CompFun(other, Lambda(_, FunCall(Map(Lambda(_, FunCall(CompFun(one, two), _))), _))), _)) => (other, one, two)
-    }
-
-    assertNotSame(lambda, result)
-    assertSame(toReplace, newToBeReplaced)
-    assertSame(notToBeReplaced1, newNotToBeReplaced1)
-    assertSame(notToBeReplaced2, newNotToBeReplaced2)
-  }
-
-  @Test
-  def replaceWithSeveralInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => Map(id) o Map(id) $ x)
-
-    val (notToBeReplaced, toBeReplaced) = lambda match {
-      case Lambda(_, FunCall(CompFun(one,  two), _)) => (one, two)
-    }
-
-    val toReplace = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
-
-    val result = FunDecl.replace(lambda, Seq(toBeReplaced), Seq(toReplace, toReplace))
-
-    val (newNotToBeReplaced, newReplaced1, newReplaced2) = result match {
-      case Lambda(_, FunCall(CompFun(one,  two, three), _)) => (one, two, three)
-    }
-
-    assertNotSame(lambda, result)
-    assertSame(notToBeReplaced, newNotToBeReplaced)
-    assertSame(toReplace, newReplaced1)
-    assertSame(toReplace, newReplaced2)
-  }
-
-  @Test
-  def replaceNestedInCompFunWithSame(): Unit = {
-    val lambda: Lambda = fun(x => Map(id) o Map(Map(id) o Map(id)) $ x)
-
-    val notToBeReplaced = lambda match {
-      case Lambda(_, FunCall(CompFun(other, Lambda(_, FunCall(Map(Lambda(_, FunCall(CompFun(one, two), _))), _))), _)) => two
-    }
-
-    val result = FunDecl.replace(lambda, Seq(notToBeReplaced), Seq(notToBeReplaced))
-
-    assertSame(lambda, result)
-  }
+//  @Test
+//  def replaceBothWithNoneInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//
+//    val (nestedLambda, call) = lambda match {
+//      case Lambda(_, FunCall(CompFun(other, c), _)) => (other, c)
+//    }
+//
+//    val result = FunDecl.replace(lambda, Seq(nestedLambda, call), Seq())
+//
+//    assertNotSame(lambda, result)
+//    assertTrue(result.body.asInstanceOf[FunCall].f.isInstanceOf[Epsilon])
+//  }
+//
+//  @Test
+//  def replaceBothWithSameInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//
+//    val (nestedLambda, call) = lambda match {
+//      case Lambda(_, FunCall(CompFun(other, c), _)) => (other, c)
+//    }
+//
+//    val result = FunDecl.replace(lambda, Seq(nestedLambda, call), Seq(nestedLambda, call))
+//
+//    assertSame(lambda, result)
+//  }
+//
+//  @Test
+//  def replaceNestedInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => Map(id) o Map(Map(id) o Map(id)) $ x)
+//
+//    val (notToBeReplaced1, notToBeReplaced2, toBeReplaced) = lambda match {
+//      case Lambda(_, FunCall(CompFun(other, Lambda(_, FunCall(Map(Lambda(_, FunCall(CompFun(one, two), _))), _))), _)) => (other, one, two)
+//    }
+//
+//    val toReplace = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
+//
+//    val result = FunDecl.replace(lambda, Seq(toBeReplaced), Seq(toReplace))
+//
+//    val (newNotToBeReplaced1, newNotToBeReplaced2, newToBeReplaced) = result match {
+//      case Lambda(_, FunCall(CompFun(other, Lambda(_, FunCall(Map(Lambda(_, FunCall(CompFun(one, two), _))), _))), _)) => (other, one, two)
+//    }
+//
+//    assertNotSame(lambda, result)
+//    assertSame(toReplace, newToBeReplaced)
+//    assertSame(notToBeReplaced1, newNotToBeReplaced1)
+//    assertSame(notToBeReplaced2, newNotToBeReplaced2)
+//  }
+//
+//  @Test
+//  def replaceWithSeveralInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => Map(id) o Map(id) $ x)
+//
+//    val (notToBeReplaced, toBeReplaced) = lambda match {
+//      case Lambda(_, FunCall(CompFun(one,  two), _)) => (one, two)
+//    }
+//
+//    val toReplace = Lambda(Array(Param()), FunCall(Map(plusOne), Param()))
+//
+//    val result = FunDecl.replace(lambda, Seq(toBeReplaced), Seq(toReplace, toReplace))
+//
+//    val (newNotToBeReplaced, newReplaced1, newReplaced2) = result match {
+//      case Lambda(_, FunCall(CompFun(one,  two, three), _)) => (one, two, three)
+//    }
+//
+//    assertNotSame(lambda, result)
+//    assertSame(notToBeReplaced, newNotToBeReplaced)
+//    assertSame(toReplace, newReplaced1)
+//    assertSame(toReplace, newReplaced2)
+//  }
+//
+//  @Test
+//  def replaceNestedInCompFunWithSame(): Unit = {
+//    val lambda: Lambda = fun(x => Map(id) o Map(Map(id) o Map(id)) $ x)
+//
+//    val notToBeReplaced = lambda match {
+//      case Lambda(_, FunCall(CompFun(other, Lambda(_, FunCall(Map(Lambda(_, FunCall(CompFun(one, two), _))), _))), _)) => two
+//    }
+//
+//    val result = FunDecl.replace(lambda, Seq(notToBeReplaced), Seq(notToBeReplaced))
+//
+//    assertSame(lambda, result)
+//  }
 }

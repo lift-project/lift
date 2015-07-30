@@ -148,8 +148,8 @@ public class JavaTest {
                                                 jMapSeq.create(getSecond).comp(
                                                         jToGlobal.create(jMapSeq.create(idFI)).comp(jReduceSeq.create(minimum, package$.MODULE$.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1))).comp(
                                                                         jMapSeq.create(jfun.create(abi -> distance.apply(
-                                                                                JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(xy, 0), Get.apply(xy, 1),
-                                                                                        Get.apply(abi, 0), Get.apply(abi, 1), Get.apply(abi, 2))))))
+                                                                                JavaConversions.asScalaBuffer(Arrays.asList(jGet.create(xy, 0), jGet.create(xy, 1),
+                                                                                        jGet.create(abi, 0), jGet.create(abi, 1), jGet.create(abi, 2))))))
                                                                 )
                                                         )).call(jZip.call(Arrays.asList(a, b, i)))
                                 )
@@ -178,8 +178,8 @@ public class JavaTest {
         Param undef1 = Param.apply(UndefType$.MODULE$);
         Param undef2 = Param.apply(UndefType$.MODULE$);
 
-        Expr distExpr = distance.apply(JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(undef1, 0), Get.apply(undef1, 1),
-                Get.apply(undef2, 0), Get.apply(undef2, 1), Get.apply(undef2, 2))));
+        Expr distExpr = distance.apply(JavaConversions.asScalaBuffer(Arrays.asList(jGet.create(undef1, 0), jGet.create(undef1, 1),
+                jGet.create(undef2, 0), jGet.create(undef2, 1), jGet.create(undef2, 2))));
 
         Lambda1 lmap1 = new Lambda1(new Param[]{undef2}, distExpr);
 
@@ -190,7 +190,7 @@ public class JavaTest {
         Lambda1 reduce = jReduceSeq.create(minimum, package$.MODULE$.Tuple2ToValue(new scala.Tuple2<>(java.lang.Float.MAX_VALUE, -1)));
         toGlobal mapId = jToGlobal.create(jMapSeq.create(idFI));
 
-        FunCall f = map2.comp(mapId).comp(reduce).comp(map1).call(zip3);
+        Expr f = map2.comp(mapId).comp(reduce).comp(map1).call(zip3);
 
         Lambda1 l = new Lambda1(new Param[]{undef1}, f);
         MapGlb mg = MapGlb$.MODULE$.apply(l);
@@ -236,7 +236,7 @@ public class JavaTest {
         Param undef1 = Param.apply();
         Param undef2 = Param.apply();
 
-        Expr multExpr = mult.apply(JavaConversions.asScalaBuffer(Arrays.asList(Get.apply(undef2, 0), Get.apply(undef2, 1))));
+        Expr multExpr = mult.apply(JavaConversions.asScalaBuffer(Arrays.asList(jGet.create(undef2, 0), jGet.create(undef2, 1))));
         Lambda1 multLambda = new Lambda1(new Param[]{undef2}, multExpr);
         Lambda map = Lambda.FunDefToLambda(jMapSeq.create(multLambda));
 
@@ -246,7 +246,7 @@ public class JavaTest {
 
         Expr zip2 = jZip.call(undef0, undef1);
 
-        FunCall f = mapId.comp(reduce.comp(map)).call(zip2);
+        Expr f = mapId.comp(reduce.comp(map)).call(zip2);
 
         Lambda1 l = new Lambda1(new Param[]{undef1}, f);
         Lambda ms = Lambda.FunDefToLambda(jMapSeq.create(l));

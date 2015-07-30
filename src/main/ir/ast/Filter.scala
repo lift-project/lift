@@ -21,7 +21,7 @@ object Filter {
    * @param ids An array of indices that specify which elements to extract.
    * @return Extracted elements specified by `ids`
    */
-  def apply(input: Param, ids: Param): FunCall = {
+  def apply(input: Param, ids: Expr): Expr = {
     Filter()(input, ids)
   }
 }

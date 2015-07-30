@@ -1,5 +1,7 @@
 package ir.ast
 
+import ir.UndefType
+
 import scala.language.implicitConversions
 
 /**
@@ -27,26 +29,6 @@ abstract class FunDecl(val arity: Int) extends Decl {
 
 
 
-  /**
-   * Method to sequentially compose this instance with a given lambda expression
-   * (which is also a form of function declaration).
-   * @param that The lambda expression to sequentially compose with.
-   * @return An object representing the sequential function composition of
-   *         `this` and `that`.
-   */
-  def comp(that: Lambda) : CompFun = {
-    // unify the representation and turn `this` in to a (sequence of) lambdas.
-    // Prevent CompFunDef objects to be nested, therefore, unpack here and
-    // create a new one later
-    val thisFs = this match {
-      case cf : CompFun => cf.funs
-      case l : Lambda => Seq(l)
-      case _ => Seq(Lambda.FunDefToLambda(this))
-    }
-    // create a function composition object with the `that` lambda appended to
-    // all the other lambdas
-    CompFun( thisFs :+ that:_* )
-  }
 
   /**
    * Sequentially compose with a FunDecl (convert it to a Lambda).
@@ -54,7 +36,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
    * @return An object representing the sequential composition of `this` and `f`
    *         (wrapped in a lambda)
    */
-  def comp(f: FunDecl): CompFun = comp(Lambda.FunDefToLambda(f))
+  def comp(f: FunDecl): Lambda = this o f
 
   /**
    * Sequential composition operator syntax. Calls `this.comp(f)`.
@@ -62,7 +44,10 @@ abstract class FunDecl(val arity: Int) extends Decl {
    * @return An object representing the sequential function composition of
    *         `this` and `f`.
    */
-  def o(f: Lambda): CompFun = comp(f)
+  def o(f: FunDecl): Lambda = {
+    val params = Array.fill(f.arity)(Param(UndefType))
+    Lambda(params, this(f(params:_*)))
+  }
 
 
   /**
@@ -74,7 +59,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
    * @return An object (of type FunCall) representing the function call of
    *         `this` with `args`.
    */
-  def apply(args : Expr*) : FunCall = {
+  def apply(args : Expr*) : Expr = {
     assert (args.length == arity)
     new FunCall(this, args:_*)
   }
@@ -85,7 +70,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
    * @return An object (of type FunCall) representing the function call of
    *         `this` with `arg`.
    */
-  def $(arg: Expr) : FunCall = apply(arg)
+  def $(arg: Expr) : Expr = apply(arg)
 
   /**
    * Alternative function call method. Used by the Java bindings. Calls
@@ -146,92 +131,94 @@ object FunDecl {
    *         replaced with `newL`
    */
   def replace(toVisit: Lambda, oldL: Seq[Lambda], newL: Seq[Lambda]) : Lambda = {
-
-    if (oldL.length == 1 && toVisit.eq(oldL.head)) {
-      if (newL.length == 1)
-        return newL.head
-      else if (newL.isEmpty)
-        return Lambda(toVisit.params, Epsilon()(toVisit.body.asInstanceOf[FunCall].args:_*))
-      else {// If replaced by several, instantiate CompFun
-        val reduce = CompFun(newL:_*)
-        return Lambda(toVisit.params, reduce(toVisit.body.asInstanceOf[FunCall].args:_*))
-      }
-    }
-
-    toVisit.body match {
-      case FunCall(CompFun(functions @ _*), args @ _*) =>
-
-        val indexOfSlice = functions.indexOfSlice(oldL)
-
-        if (indexOfSlice == -1) {
-
-          // Not found on this level, recurse
-          val newFunctions = functions.map(cfLambda => {
-            // Attempt to replace
-            val replaced = replace(cfLambda, oldL, newL)
-
-            // If replacement didn't occur return toVisit
-            // else instantiate the updated lambda
-            if (replaced.eq(cfLambda))
-              cfLambda
-            else
-              replaced
-          })
-
-          // If replacement didn't occur return toVisit
-          // else instantiate the updated lambda
-          if (newFunctions == functions)
-            toVisit
-          else
-            Lambda(toVisit.params, FunCall(CompFun(newFunctions:_*) , args:_*))
-
-        } else {
-
-          // Attempt to replace
-          val newFunctions = functions.patch(indexOfSlice, newL, oldL.length)
-
-          if (newFunctions == functions) // If replacement didn't occur return toVisit
-            toVisit
-          else if (newFunctions.length > 1) // Instantiate new CompFun if left with several functions
-            Lambda(toVisit.params, FunCall(CompFun(newFunctions: _*), args: _*))
-          else if (newFunctions.length == 1) // Eliminate CompFun, if left with one function
-            newFunctions.head
-          else // Insert epsilon, if left with no functions
-            Lambda(toVisit.params, FunCall(Epsilon(), args: _*))
-        }
-
-
-      case FunCall(fp: FPattern, args @ _*) =>
-
-        if (Seq(fp.f) == oldL) {
-
-          // Attempt to replace
-          val reduce: Lambda = if (newL.isEmpty) Epsilon() else if (newL.length == 1) newL.head
-            else CompFun(newL:_*)
-
-          // If replacement didn't occur return toVisit
-          // else instantiate the updated lambda
-          if (reduce == fp.f)
-            toVisit
-          else
-            Lambda(toVisit.params, fp.copy(reduce)(args: _*))
-
-        } else {
-          // Recurse
-          val replaced = FunDecl.replace(fp.f, oldL, newL)
-
-          // If replacement didn't occur return toVisit
-          // else instantiate the updated lambda
-          if (replaced.eq(fp.f))
-            toVisit
-          else
-            Lambda(toVisit.params, FunCall(fp.copy(replaced), args:_*))
-
-        }
-
-      case _ => toVisit
-    }
+    toVisit
   }
+//
+//    if (oldL.length == 1 && toVisit.eq(oldL.head)) {
+//      if (newL.length == 1)
+//        return newL.head
+//      else if (newL.isEmpty)
+//        return Lambda(toVisit.params, Epsilon()(toVisit.body.asInstanceOf[FunCall].args:_*))
+//      else {// If replaced by several, instantiate CompFun
+//        val reduce = CompFun(newL:_*)
+//        return Lambda(toVisit.params, reduce(toVisit.body.asInstanceOf[FunCall].args:_*))
+//      }
+//    }
+//
+//    toVisit.body match {
+//      case FunCall(CompFun(functions @ _*), args @ _*) =>
+//
+//        val indexOfSlice = functions.indexOfSlice(oldL)
+//
+//        if (indexOfSlice == -1) {
+//
+//          // Not found on this level, recurse
+//          val newFunctions = functions.map(cfLambda => {
+//            // Attempt to replace
+//            val replaced = replace(cfLambda, oldL, newL)
+//
+//            // If replacement didn't occur return toVisit
+//            // else instantiate the updated lambda
+//            if (replaced.eq(cfLambda))
+//              cfLambda
+//            else
+//              replaced
+//          })
+//
+//          // If replacement didn't occur return toVisit
+//          // else instantiate the updated lambda
+//          if (newFunctions == functions)
+//            toVisit
+//          else
+//            Lambda(toVisit.params, FunCall(CompFun(newFunctions:_*) , args:_*))
+//
+//        } else {
+//
+//          // Attempt to replace
+//          val newFunctions = functions.patch(indexOfSlice, newL, oldL.length)
+//
+//          if (newFunctions == functions) // If replacement didn't occur return toVisit
+//            toVisit
+//          else if (newFunctions.length > 1) // Instantiate new CompFun if left with several functions
+//            Lambda(toVisit.params, FunCall(CompFun(newFunctions: _*), args: _*))
+//          else if (newFunctions.length == 1) // Eliminate CompFun, if left with one function
+//            newFunctions.head
+//          else // Insert epsilon, if left with no functions
+//            Lambda(toVisit.params, FunCall(Epsilon(), args: _*))
+//        }
+//
+//
+//      case FunCall(fp: FPattern, args @ _*) =>
+//
+//        if (Seq(fp.f) == oldL) {
+//
+//          // Attempt to replace
+//          val reduce: Lambda = if (newL.isEmpty) Epsilon() else if (newL.length == 1) newL.head
+//            else CompFun(newL:_*)
+//
+//          // If replacement didn't occur return toVisit
+//          // else instantiate the updated lambda
+//          if (reduce == fp.f)
+//            toVisit
+//          else
+//            Lambda(toVisit.params, fp.copy(reduce)(args: _*))
+//
+//        } else {
+//          // Recurse
+//          val replaced = FunDecl.replace(fp.f, oldL, newL)
+//
+//          // If replacement didn't occur return toVisit
+//          // else instantiate the updated lambda
+//          if (replaced.eq(fp.f))
+//            toVisit
+//          else
+//            Lambda(toVisit.params, FunCall(fp.copy(replaced), args:_*))
+//
+//        }
+//
+//      case _ => toVisit
+//    }
+//  }
 }
 
 /**
@@ -239,32 +226,4 @@ object FunDecl {
  */
 trait isGenerable extends FunDecl {
   override val isGenerable = true
-}
-
-/**
- * An object representing a function defining a sequential composition of
- * functions.
- * @param funs The sequentially composed functions.
- */
-case class CompFun(funs: Lambda*) extends FunDecl(funs.last.params.length)
-                                          with isGenerable {
-
-  /**
-   * String representation of function composition.
-   * @return A string representation of the function composition
-   */
-  override def toString: String =
-    funs.map((f) =>f.toString()).reduce((s1, s2) => s1 + " o " + s2)
-
-  /**
-   * Check if the given object `that` is equal to `this`
-   * @param that The given object to compare with
-   * @return True iff `this` and `that` are both of type CompFunDef and their
-   *         `funs` are equal
-   */
-  override def equals(that: Any) =
-    that match {
-      case cf : CompFun => funs.seq.equals(cf.funs)
-      case _ => false
-    }
 }

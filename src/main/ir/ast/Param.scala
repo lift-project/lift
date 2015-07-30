@@ -64,18 +64,3 @@ class VectorParam(val p: Param, n: ArithExpr) extends Param {
   t = p.t.vectorize(n) // set the type
   override def toString = "v" + p.toString + "_" + n
 }
-
-/**
- * A reference to a parameter wrapped in a tuple (possibly produced by a zip)
- */
-class ParamReference(val p: Param, val i: Int) extends Param {
-  override def toString = p.toString + "_" + i
-}
-
-/**
- * Shortcut for creating a parameter reference for accessing a parameter in a
- * tuple, i.e., fun( p => Get(p, 0) ) $ Zip(x, y) == x
- */
-object Get {
-  def apply(p: Param, i: Int): ParamReference = new ParamReference(p, i)
-}

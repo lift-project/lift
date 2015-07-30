@@ -87,3 +87,7 @@ object jGroup2D {
   def create(relColumns: Array[Int], relRows: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
              posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(relColumns, relRows, negOOB, posOOB)
 }
+
+object jGet {
+  def create(e: Expr, n: Int) = Get(e, n)
+}

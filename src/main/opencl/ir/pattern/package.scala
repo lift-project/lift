@@ -4,7 +4,7 @@ import apart.arithmetic.ArithExpr
 import ir.ast._
 
 package object pattern {
-  def Tile(size: ArithExpr): CompFun = Tile(size, size)
+  def Tile(size: ArithExpr): Lambda = Tile(size, size)
 
   def Tile(x: ArithExpr, y: ArithExpr) =
     Map(Map(Transpose()) o Split(y) o Transpose()) o Split(x)
