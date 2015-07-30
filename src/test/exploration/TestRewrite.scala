@@ -139,7 +139,7 @@ object TestRewrite {
 
     println(s">>> Rewriting $expr")
     val lambdas: List[Lambda] = expr match {
-      case Lambda(_, FunCall(CompFun(functions@_*), _)) => functions.toList
+//      case Lambda(_, FunCall(CompFun(functions@_*), _)) => functions.toList
       case l@Lambda(_, FunCall(_, _)) => List(l)
       case _ => List()
     }
@@ -194,7 +194,7 @@ object TestRewrite {
 
       // extract the list of lambdas
       val lambdas: List[Lambda] = expr match {
-        case Lambda(_, FunCall(CompFun(functions@_*), _)) => functions.toList
+//        case Lambda(_, FunCall(CompFun(functions@_*), _)) => functions.toList
         case l@Lambda(_, FunCall(_, _)) => List(l)
         case _ => List()
       }

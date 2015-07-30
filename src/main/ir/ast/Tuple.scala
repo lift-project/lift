@@ -25,7 +25,7 @@ object Tuple {
    * @param args The elements to be combined with the tuple pattern.
    * @return An instance of the tuple pattern combining the elements given by `args`
    */
-  def apply(args : Expr*) : FunCall = {
+  def apply(args : Expr*) : Expr = {
     assert(args.length >= 2)
     Tuple(args.length)(args:_*)
   }

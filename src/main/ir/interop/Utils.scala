@@ -179,8 +179,8 @@ object jIterate {
 object jJoin {
   def create = Join()
 
-  def comp(f: Lambda): CompFun = create.comp(f)
-  def comp(f: FunDecl): CompFun = create.comp(Lambda.FunDefToLambda(f))
+  def comp(f: Lambda): Lambda = create.comp(f)
+  def comp(f: FunDecl): Lambda = create.comp(Lambda.FunDefToLambda(f))
 }
 
 object jMap {

@@ -21,7 +21,6 @@ object OutputView {
 
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
-      case pr: ParamReference => pr.p.view.get(pr.i) // TODO: is this correct?
       case p: Param => writeView
       case call: FunCall => buildViewFunCall(call, writeView)
     }
@@ -33,7 +32,6 @@ object OutputView {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case l: Lambda => buildViewLambda(l, call, writeView)
-      case cf: CompFun => buildViewCompFunDef(cf, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
       case uf: UserFun => buildViewUserFun(writeView, call)
@@ -126,24 +124,24 @@ object OutputView {
     visitAndBuildViews(l.body, writeView)
   }
 
-  private def buildViewCompFunDef(cf: CompFun, writeView: View): View = {
-    cf.funs.foldLeft(writeView)((v, f) => {
-      val resultView = visitAndBuildViews(f.body, v)
-
-      f.body match {
-        case call: FunCall =>
-          if (call.args.exists({
-            case call: FunCall => call.f.isInstanceOf[Zip] ||
-              call.f.isInstanceOf[Tuple]
-            case _ => false
-          }))
-            View.initialiseNewView(f.params.head.t, f.body.outputDepth)
-          else
-            resultView
-        case _ => resultView
-      }
-    })
-  }
+//  private def buildViewCompFunDef(cf: CompFun, writeView: View): View = {
+//    cf.funs.foldLeft(writeView)((v, f) => {
+//      val resultView = visitAndBuildViews(f.body, v)
+//
+//      f.body match {
+//        case call: FunCall =>
+//          if (call.args.exists({
+//            case call: FunCall => call.f.isInstanceOf[Zip] ||
+//              call.f.isInstanceOf[Tuple]
+//            case _ => false
+//          }))
+//            View.initialiseNewView(f.params.head.t, f.body.outputDepth)
+//          else
+//            resultView
+//        case _ => resultView
+//      }
+//    })
+//  }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
     val chunkSize = call.argsType match {

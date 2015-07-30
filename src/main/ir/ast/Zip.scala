@@ -26,7 +26,7 @@ object Zip {
    * @param args The arrays to be combined with the zip pattern.
    * @return An instance of the zip pattern combining the arrays given by `args`
    */
-  def apply(args : Expr*) : FunCall = {
+  def apply(args : Expr*) : Expr = {
     assert(args.length >= 2)
     Zip(args.length)(args:_*)
   }

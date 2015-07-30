@@ -96,39 +96,39 @@ class TestExpr {
     assertSame(replacementArg, newArg)
   }
 
-  @Test
-  def replaceInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//  @Test
+//  def replaceInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//
+//    val (nestedLambda, call) = lambda match {
+//      case Lambda(_, FunCall(CompFun(other, Lambda(_, c)), _)) => (other, c)
+//    }
+//
+//    val replacementFunCall = FunCall(Map(plusOne), Param())
+//
+//    val result = Expr.replace(lambda.body, call, replacementFunCall)
+//
+//    val (newNestedLambda, newCall) = result match {
+//      case FunCall(CompFun(other, Lambda(_, c)), _) => (other, c)
+//    }
+//
+//    assertNotSame(lambda.body, result)
+//    assertSame(replacementFunCall, newCall)
+//    assertSame(nestedLambda, newNestedLambda)
+//  }
 
-    val (nestedLambda, call) = lambda match {
-      case Lambda(_, FunCall(CompFun(other, Lambda(_, c)), _)) => (other, c)
-    }
-
-    val replacementFunCall = FunCall(Map(plusOne), Param())
-
-    val result = Expr.replace(lambda.body, call, replacementFunCall)
-
-    val (newNestedLambda, newCall) = result match {
-      case FunCall(CompFun(other, Lambda(_, c)), _) => (other, c)
-    }
-
-    assertNotSame(lambda.body, result)
-    assertSame(replacementFunCall, newCall)
-    assertSame(nestedLambda, newNestedLambda)
-  }
-
-  @Test
-  def replaceSameInCompFun(): Unit = {
-    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
-
-    val call = lambda match {
-      case Lambda(_, FunCall(CompFun(_, Lambda(_, c)), _)) => c
-    }
-
-    val result = Expr.replace(lambda.body, call, call)
-
-    assertSame(lambda.body, result)
-  }
+//  @Test
+//  def replaceSameInCompFun(): Unit = {
+//    val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
+//
+//    val call = lambda match {
+//      case Lambda(_, FunCall(CompFun(_, Lambda(_, c)), _)) => c
+//    }
+//
+//    val result = Expr.replace(lambda.body, call, call)
+//
+//    assertSame(lambda.body, result)
+//  }
 
   @Test
   def replaceArgWithSame(): Unit = {

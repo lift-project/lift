@@ -11,16 +11,16 @@ import opencl.ir.pattern._
 object Rules {
    
 
-  private def composedDerivations(l: Lambda, c: Constraints, level: Int): Seq[Lambda] = {
-    l.body match {
-      case call: FunCall => call.f match {
-        case cf: CompFun =>
-          val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
-          // TODO: unsure here ...
-          Utils.listPossiblities(cf.funs, optionsList).map(funs => fun( _ => (new CompFun(funs: _*))(call.args:_*)))
-      }
-    }
-  }
+//  private def composedDerivations(l: Lambda, c: Constraints, level: Int): Seq[Lambda] = {
+//    l.body match {
+//      case call: FunCall => call.f match {
+//        case cf: CompFun =>
+//          val optionsList = cf.funs.map(f => derivsWithOneRule(f,c, level))
+//          // TODO: unsure here ...
+//          Utils.listPossiblities(cf.funs, optionsList).map(funs => fun( _ => (new CompFun(funs: _*))(call.args:_*)))
+//      }
+//    }
+//  }
    
    private def innerDerivations(l: Lambda, c: Constraints, level: Int): Seq[Lambda] = {
      l.body match {
@@ -42,7 +42,7 @@ object Rules {
   def derivsWithOneRule(l: Lambda, c: Constraints, level: Int): Seq[Lambda] =  {
       l.body match {
         case call: FunCall => call.f match {
-            case cf: CompFun => composedDerivations(cf, c, level)
+//            case cf: CompFun => composedDerivations(cf, c, level)
             case fp: FPattern if level==0 => derivePatFunCall(call,c).map(c => new Lambda(l.params, c))
             case fp: FPattern if level>0 => innerDerivations(fp,c,level-1)
             case p: Pattern if level==0  => derivePatFunCall(call, c).map(c => new Lambda(l.params, c))

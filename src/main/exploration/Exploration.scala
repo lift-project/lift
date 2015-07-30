@@ -225,14 +225,14 @@ object Exploration {
         // now try to go inside
         call.f match {
           case fp: FPattern => deriveFunCall(newTopF, call, inputs, c, depth + 1)
-          case cf: CompFun =>
-            val newFuns = cf.funs.map(inF => derive(newTopF, inF.body, inputs, c, depth + 1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
-            if (newFuns.length == 1)
-              derive(newTopF, newFuns(0), inputs, c, depth + 1)
-            else {
-              val newLambdas = newFuns.zip(cf.funs).map({ case (e,l) => new Lambda(l.params,e) })
-              (new CompFun(newLambdas: _*))(call.args: _*)
-            }
+//          case cf: CompFun =>
+//            val newFuns = cf.funs.map(inF => derive(newTopF, inF.body, inputs, c, depth + 1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
+//            if (newFuns.length == 1)
+//              derive(newTopF, newFuns(0), inputs, c, depth + 1)
+//            else {
+//              val newLambdas = newFuns.zip(cf.funs).map({ case (e,l) => new Lambda(l.params,e) })
+//              (new CompFun(newLambdas: _*))(call.args: _*)
+//            }
 
 
           case _ => bestChoice

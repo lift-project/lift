@@ -212,7 +212,7 @@ object OpenCLGenerator extends Generator {
     this.varDecls = TypedOpenCLMemory.getAllocatedMemory(f.body, f.params, includePrivate = true)
                       .map(tm => (tm.mem.variable, Type.devectorize(tm.t))).toMap
 
-    // ... besides the these variables which use the value types (i.e., possibly a vectyor type)
+    // ... besides the these variables which use the value types (i.e., possibly a vector type)
     this.varDecls = this.varDecls ++
                     typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
 
@@ -291,15 +291,13 @@ object OpenCLGenerator extends Generator {
 
         case i: Iterate => generateIterateCall(i, call)
 
-        case cf: CompFun => cf.funs.reverseMap( (l:Lambda) => generate(l.body) )
-
         case u : UserFun =>generateUserFunCall(u, call)
 
         case fp: FPattern => generate(fp.f.body)
         case l: Lambda => generate(l.body)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Epsilon() =>
+             Head() | Tail() | Scatter(_) | Gather(_) | Epsilon() | Get(_) =>
 
         case _ => oclPrinter.print("__" + call.toString + "__")
       }

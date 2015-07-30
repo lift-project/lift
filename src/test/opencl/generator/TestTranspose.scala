@@ -15,7 +15,7 @@ object TestTranspose {
   @BeforeClass def before() {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init(1,0)
+    Executor.init()
   }
 
   @AfterClass def after() {

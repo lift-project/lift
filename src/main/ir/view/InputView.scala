@@ -22,7 +22,6 @@ object InputView {
   private def visitAndBuildViews(expr: Expr): View = {
     val result = expr match {
       case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
-      case pr: ParamReference => pr.p.view.get(pr.i)
       case vp: VectorParam => vp.p.view
       case p: Param => p.view
       case call: FunCall => buildViewFunCall(call)
@@ -49,8 +48,10 @@ object InputView {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
-      case cf: CompFun => buildViewCompFunDef(cf, call, argView)
       case z: Zip => buildViewZip(call, argView)
+      case uz: Unzip => buildViewUnzip(call, argView)
+      case t: Tuple => buildViewTuple(argView)
+      case Get(n) => buildViewGet(n, argView)
       case Split(n) => buildViewSplit(n, argView)
       case _: Join => buildViewJoin(call, argView)
       case uf: UserFun => buildViewUserFunDef(call)
@@ -64,10 +65,19 @@ object InputView {
       case g: Group => buildViewGroup(g, call, argView)
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
-      case uz: Unzip => buildViewUnzip(call, argView)
       case fp: FPattern => buildViewToFPattern(fp, argView)
       case _ => argView
     }
+  }
+
+  private def buildViewTuple(argView: View): View = {
+    assert(argView.isInstanceOf[ViewTuple])
+    // argView must already be a tuple
+    argView
+  }
+
+  private def buildViewGet(n: Int, argView: View): View = {
+    argView.get(n)
   }
 
   private def buildViewGroup(g: Group, call: FunCall, argView: View): View = {
@@ -122,16 +132,6 @@ object InputView {
       l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.access(i) })
     }
     visitAndBuildViews(l.body)
-  }
-
-  private def buildViewCompFunDef(cf: CompFun, call: FunCall, argView: View): View = {
-
-    cf.funs.foldRight(argView)((f, v) => {
-      if (f.params.length != 1) throw new NumberOfArgumentsException
-      f.params(0).view = v
-
-      visitAndBuildViews(f.body)
-    })
   }
 
   private def buildViewZip(call: FunCall, argView: View): View = {

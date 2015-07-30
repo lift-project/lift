@@ -42,7 +42,7 @@ object Group2D {
   def apply(relColumns: Array[Int],
             relRows: Array[Int],
             negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-            posOOB: (ArithExpr, ArithExpr) => ArithExpr): CompFun = {
+            posOOB: (ArithExpr, ArithExpr) => ArithExpr): Lambda = {
     Map(
       Map(
         Transpose()
