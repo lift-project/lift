@@ -42,7 +42,7 @@ class TestVector {
       ArrayType(Float, N),
       (left, right) =>
         Join() o MapWrg(
-          Join() o Barrier() o MapLcl(MapSeq(add)) o Split(4)
+          Join() o  MapLcl(MapSeq(add)) o Split(4)
         ) o Split(1024) $ Zip(left, right)
     )
 
@@ -66,7 +66,7 @@ class TestVector {
     val negFun = fun(ArrayType(Float, Var("N")), (input) =>
 
       Join() o MapWrg(
-        Join() o Barrier() o MapLcl(MapSeq(neg)) o Split(4)
+        Join() o  MapLcl(MapSeq(neg)) o Split(4)
       ) o Split(1024) $ input
 
     )
@@ -200,7 +200,7 @@ class TestVector {
 
     val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
       Join() o MapWrg(
-        Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(
+        Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(
           fun( x => mult(alpha, x) )
         )) o Split(4)
       ) o Split(1024) $ input
@@ -226,10 +226,10 @@ class TestVector {
       ArrayType(Float, Var("N")),
       (input) => {
         Join() o MapWrg(
-          Join() o Barrier() o toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
+          Join() o  toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
           Iterate(5)(
-            Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
-          ) o Join() o Barrier() o
+            Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
+          ) o Join() o 
           toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(doubleItAndSumUp, 0.0f))) o Split(32) o
           ReorderStride(1024/32)
         ) o Split(1024) $ input

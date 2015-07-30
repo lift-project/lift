@@ -2,10 +2,8 @@ package benchmarks
 
 import apart.arithmetic.Var
 import ir._
-import ir.ast.UserFun._
 import ir.ast._
 import opencl.ir._
-import opencl.ir.ast._
 import opencl.ir.pattern._
 
 class VectorScaling(override val name: String,
@@ -31,7 +29,7 @@ object VectorScaling {
 
   val vectorScal = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
-      Join() o Barrier() o MapLcl(MapSeq(
+      Join() o MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
       )) o Split(4)
     ) o Split(1024) $ input
@@ -39,7 +37,7 @@ object VectorScaling {
 
   val scalAMD = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
-      Join() o Barrier() o MapLcl(MapSeq(
+      Join() o  MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
       )) o Split(1)
     ) o Split(128) $ input
@@ -47,7 +45,7 @@ object VectorScaling {
 
   val scalNVIDIA = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
-      Join() o Barrier() o MapLcl(MapSeq(
+      Join() o  MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
       )) o Split(1)
     ) o Split(2048) $ input
@@ -55,7 +53,7 @@ object VectorScaling {
 
   val scalINTEL = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
-      Join() o Barrier() o MapLcl(MapSeq(
+      Join() o  MapLcl(MapSeq(
         fun( x => mult.vectorize(4).apply(alpha.vectorize(4), x) )
       )) o Split(128) o asVector(4)
     ) o Split(4*128*128) $ input

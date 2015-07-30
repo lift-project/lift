@@ -61,7 +61,7 @@ object TypeChecker {
       case g: Group =>            checkGroup(g, inT)
       case h: Head =>             checkHead(inT)
       case t: Tail =>             checkTail(inT)
-      case Barrier() | Gather(_) | Scatter(_) | Epsilon() => inT
+      case Gather(_) | Scatter(_) | Epsilon() => inT
     }
   }
 

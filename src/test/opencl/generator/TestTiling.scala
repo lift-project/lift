@@ -41,7 +41,7 @@ class TestTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)))) o
+        MapWrg(0)(MapWrg(1)( MapLcl(0)(MapLcl(1)(id)))) o
           Tile(4) $ matrix
       })
 
@@ -80,13 +80,13 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(
-          Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
-            Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id)))
+           toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+             toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], runtime) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -161,14 +161,14 @@ class TestTiling {
         // Merge the tiles
         Untile() o
         MapWrg(0)(MapWrg(1)(
-          Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
-          Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id)))
+           toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+           toLocal(MapLcl(0)(MapLcl(1)(id)))
         )) o
           // Tile the matrix
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], runtime) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -199,7 +199,7 @@ class TestTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)) o Transpose())) o Tile(4) $ matrix
+        MapWrg(0)(MapWrg(1)( MapLcl(0)(MapLcl(1)(id)) o Transpose())) o Tile(4) $ matrix
       })
 
     val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
@@ -240,11 +240,11 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(
-          Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(id))) o
-            TransposeW() o Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))))) o Tile(4) $ matrix
+           toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+            TransposeW() o  toLocal(MapLcl(0)(MapLcl(1)(id))))) o Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], runtime) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -282,7 +282,7 @@ class TestTiling {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
-        MapWrg(0)(MapWrg(1)(Barrier() o MapLcl(0)(MapLcl(1)(id)))) o Transpose() o
+        MapWrg(0)(MapWrg(1)( MapLcl(0)(MapLcl(1)(id)))) o Transpose() o
           Tile(4) $ matrix
       })
 

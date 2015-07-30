@@ -4,16 +4,13 @@ import apart.arithmetic.Var
 import benchmarks.MatrixMultiplication
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
-import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.reflect.ClassTag
-import opencl.ir.pattern
 
 object TestMatrixMatrix {
   @BeforeClass def before() {
@@ -47,7 +44,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         MapWrg(fun( Arow =>
-          Join() o Barrier() o MapLcl(fun( Bcol =>
+          Join() o  MapLcl(fun( Bcol =>
             toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
@@ -341,7 +338,7 @@ class TestMatrixMatrix {
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o fun(partial =>
+                     fun(partial =>
                       MapLcl(1)(fun(pairOfRows =>
                         MapLcl(0)(fun(x => MapSeq(add) $ Zip(Get(x, 0), Get(x, 1))
                         )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
@@ -368,9 +365,9 @@ class TestMatrixMatrix {
                     // Copy tiles to local memory
                     fun(pairOfTiles =>
                       Tuple(
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+                         toLocal(MapLcl(1)(MapLcl(0)(id)))
                           $ Get(pairOfTiles, 0),
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+                         toLocal(MapLcl(1)(MapLcl(0)(id)))
                            $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
@@ -475,7 +472,6 @@ class TestMatrixMatrix {
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o
 
                       MapLcl(1)( fun(rowsA =>
                         MapLcl(0)( fun( colsB =>
@@ -506,9 +502,9 @@ class TestMatrixMatrix {
                     // Copy tiles to local memory
                     fun(pairOfTiles =>
                       Tuple(
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+                        toLocal(MapLcl(1)(MapLcl(0)(id)))
                           $ Get(pairOfTiles, 0),
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+                        toLocal(MapLcl(1)(MapLcl(0)(id)))
                           $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
@@ -651,7 +647,7 @@ class TestMatrixMatrix {
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o fun(partial =>
+                     fun(partial =>
                       MapLcl(1)(fun(pairOfRows =>
                         MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
                       )) $ Zip(acc, partial)
@@ -676,8 +672,8 @@ class TestMatrixMatrix {
                     // Copy tiles to local memory
                     fun(pairOfTiles =>
                       Tuple(
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                         toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                         toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
                   , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
@@ -718,11 +714,11 @@ class TestMatrixMatrix {
           MapWrg(1)(fun( bCols =>
 
             // Reduce the partial results (matrices), so that the reduce is innermost
-            Barrier() o MapLcl(0)(Join() o MapLcl(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join()) o Transpose()) o Transpose() o
+             MapLcl(0)(Join() o MapLcl(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join()) o Transpose()) o Transpose() o
 
             // Multiply all necessary combinations of tiles
             MapSeq(fun( tiles =>
-              Barrier() o MapLcl(0)( fun(aTile =>
+               MapLcl(0)( fun(aTile =>
                 MapLcl(1)( fun( bTile =>
                   toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
                 )) $ Get(tiles, 1)
@@ -775,7 +771,7 @@ class TestMatrixMatrix {
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                     fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
                       Map(Join()) o
                       MapLcl(1)( fun(rowA =>
                         MapLcl(0)( fun( colB =>
@@ -823,12 +819,12 @@ class TestMatrixMatrix {
 
               Map(Join()) o
               // Reduce the partial results (matrices), so that the reduce is innermost
-              Barrier() o toGlobal(MapLcl(0)(MapLcl(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)))) o
+               toGlobal(MapLcl(0)(MapLcl(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)))) o
               Map(Map(Join()) o Transpose()) o Transpose() o
 
                 // Multiply all necessary combinations of tiles
                 toLocal(MapSeq(fun( tiles =>
-                  Barrier() o MapLcl(0)( fun(aTile =>
+                   MapLcl(0)( fun(aTile =>
                     MapLcl(1)( fun( bTile =>
                       toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) =>
                         multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aTile, bTile)
@@ -839,8 +835,8 @@ class TestMatrixMatrix {
                 // Copy tiles to local memory
                 fun(tiles =>
                   Tuple(
-                    Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 0),
-                    Barrier() o toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 1)
+                     toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 0),
+                     toLocal(MapLcl(0)(MapLcl(1)(id))) $ Get(tiles, 1)
                   ))
                 )) $ Zip(aRows, bCols)
 
@@ -849,7 +845,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], runtime) = Execute(4, 4, mSize, nSize, (false, false))(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -889,7 +885,7 @@ class TestMatrixMatrix {
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                     fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
                       Map(Join()) o
                       MapLcl(1)( fun(rowA =>
                         MapLcl(0)( fun( colB =>
@@ -901,8 +897,8 @@ class TestMatrixMatrix {
                     // Copy tiles to local memory
                     fun(pairOfTiles =>
                       Tuple(
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                         toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                         toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
                   , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
@@ -953,7 +949,7 @@ class TestMatrixMatrix {
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                    Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                     fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
                       Map(Join()) o
                       MapLcl(1)( fun(rowA =>
                         MapLcl(0)( fun( colB =>
@@ -965,8 +961,8 @@ class TestMatrixMatrix {
                     // Copy tiles to local memory
                     fun(pairOfTiles =>
                       Tuple(
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
-                        Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                         toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                         toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
                   , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
@@ -1091,8 +1087,8 @@ class TestMatrixMatrix {
       (A, B) => {
         Join() o MapWrg(0)(fun( aRows =>
           TransposeW() o Join() o MapWrg(1)(fun( bCols =>
-            Barrier() o MapLcl(0)(fun( bCol =>
-              Barrier() o MapLcl(1)(fun( aRow =>
+             MapLcl(0)(fun( bCol =>
+               MapLcl(1)(fun( aRow =>
                 toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(aRow, bCol)
               )) $ aRows
             )) $ bCols

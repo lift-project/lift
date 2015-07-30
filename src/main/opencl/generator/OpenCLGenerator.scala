@@ -7,8 +7,9 @@ import ir._
 import ir.ast._
 import ir.view.{View, ViewPrinter}
 import opencl.ir._
-import scala.collection.immutable
 import opencl.ir.pattern._
+
+import scala.collection.immutable
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
@@ -296,7 +297,6 @@ object OpenCLGenerator extends Generator {
 
         case fp: FPattern => generate(fp.f.body)
         case l: Lambda => generate(l.body)
-        case b : Barrier => if (b.valid) oclPrinter.generateBarrier(call.mem)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Epsilon() =>
@@ -337,9 +337,12 @@ object OpenCLGenerator extends Generator {
   // MapLcl
   private def generateMapLclCall(m: MapLcl, call: FunCall): Unit = {
     generateLoop(m.loopVar, () => generate(m.f.body), m.iterationCount,
-      (   OpenCLMemory.containsPrivateMemory(call.args(0).mem)
-       && privateMems.exists(_.mem == call.args(0).mem)) || // Don't unroll just for value
+      (   OpenCLMemory.containsPrivateMemory(call.args.head.mem)
+       && privateMems.exists(_.mem == call.args.head.mem)) || // Don't unroll just for value
         OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory)
+
+    if (m.emitBarrier)
+      oclPrinter.generateBarrier(call.mem)
   }
 
   // MapWarp
@@ -359,8 +362,8 @@ object OpenCLGenerator extends Generator {
   private def generateMapSeqCall(m: MapSeq, call: FunCall): Unit = {
     oclPrinter.commln("map_seq")
     generateLoop(m.loopVar, () => generate(m.f.body), m.iterationCount,
-      (   OpenCLMemory.containsPrivateMemory(call.args(0).mem)
-       && privateMems.exists(_.mem == call.args(0).mem)) || // Don't unroll just for value
+      (   OpenCLMemory.containsPrivateMemory(call.args.head.mem)
+       && privateMems.exists(_.mem == call.args.head.mem)) || // Don't unroll just for value
         OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory)
     oclPrinter.commln("map_seq")
   }
@@ -388,7 +391,7 @@ object OpenCLGenerator extends Generator {
   // === Iterate ===
   private def generateIterateCall(i: Iterate, call: FunCall): Unit = {
 
-    val inputMem = OpenCLMemory.asOpenCLMemory(call.args(0).mem)
+    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
     val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
     val swapMem = OpenCLMemory.asOpenCLMemory(i.swapBuffer)
 
@@ -461,9 +464,9 @@ object OpenCLGenerator extends Generator {
                          ";")
 
       // tin = (tout == swap) ? swap : out
-      oclPrinter.println(s"${tinVStr} = ( ${toutVStr} == ${swapVStr} ) ? ${swapVStr} : ${outVStr} ;")
+      oclPrinter.println(s"$tinVStr = ( $toutVStr == $swapVStr ) ? $swapVStr : $outVStr ;")
       // tout = (tout == swap) ? out : swap
-      oclPrinter.println(s"${toutVStr} = ( ${toutVStr} == ${swapVStr} ) ? ${outVStr} : ${swapVStr} ;")
+      oclPrinter.println(s"$toutVStr = ( $toutVStr == $swapVStr ) ? $outVStr : $swapVStr ;")
     }, i.iterationCount)
 
     oclPrinter.closeCB()
@@ -553,10 +556,9 @@ object OpenCLGenerator extends Generator {
           case at: ArrayType  if Type.isEqual(at.elemT, vt.scalarT)  =>
             vload (mem, vt, view)
         }
-        case (st:ScalarType, vt:VectorType)  if Type.isEqual(st, vt.scalarT) => {
+        case (st:ScalarType, vt:VectorType)  if Type.isEqual(st, vt.scalarT) =>
           // create (float4) var
           s"(${oclPrinter.toOpenCL(st)}) ${oclPrinter.toOpenCL(mem.variable)}"
-        }
       }
     }
   }
@@ -599,7 +601,7 @@ object OpenCLGenerator extends Generator {
 
   private def vstore(mem: OpenCLMemory, t: VectorType, view: View, valueGenerator: () => Unit): Unit = {
     val len = t.len
-    oclPrinter.print(s"vstore${len}(")
+    oclPrinter.print(s"vstore$len(")
     valueGenerator.apply()
     oclPrinter.print(",")
     oclPrinter.print(

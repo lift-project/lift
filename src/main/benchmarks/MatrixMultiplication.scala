@@ -128,7 +128,7 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                   fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
                     Map(Join()) o
                     MapLcl(1)( fun(rowA =>
                       MapLcl(0)( fun( colB =>
@@ -140,8 +140,8 @@ object MatrixMultiplication {
                   // Copy tiles to local memory
                   fun(pairOfTiles =>
                     Tuple(
-                      Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
-                      Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                       toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                       toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
                 , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
@@ -168,7 +168,7 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o fun(partial =>
+                   fun(partial =>
                     MapLcl(1)(fun(pairOfRows =>
                       MapLcl(0)(fun(x => MapSeq(add) $ Zip(Get(x, 0), Get(x, 1))
                       )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
@@ -195,9 +195,9 @@ object MatrixMultiplication {
                   // Copy tiles to local memory
                   fun(pairOfTiles =>
                     Tuple(
-                      Join() o Barrier() o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
+                      Join() o  toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
                         o Split(tileSize/workPerThread) $ Get(pairOfTiles, 0),
-                      Join() o Barrier() o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
+                      Join() o  toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
                         o Split(tileSize/workPerThread) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
@@ -232,7 +232,6 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o
 
                     MapLcl(1)( fun(rowsA =>
                       MapLcl(0)( fun( colsB =>
@@ -261,7 +260,7 @@ object MatrixMultiplication {
                 ) o
 
                   // Copy tiles to local memory
-                  Unzip() o Barrier() o toLocal(MapLcl(1)(fun(pair =>
+                  Unzip() o toLocal(MapLcl(1)(fun(pair =>
                   fun(pair => Tuple(Join() $ Get(pair, 0), Join() $ Get(pair, 1))) o
                     Unzip() o MapLcl(0)(fun( pair =>
                     Tuple(MapSeq(id) $ Get(pair, 0), MapSeq(id) $ Get(pair, 1))
@@ -300,7 +299,7 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o
+                  
 
                     MapLcl(1)( fun(rowsA =>
                       MapLcl(0)( fun( colsB =>
@@ -329,7 +328,7 @@ object MatrixMultiplication {
                 ) o
 
                   // Copy tiles to local memory
-                  Unzip() o Barrier() o toLocal(MapLcl(1)(fun(pair =>
+                  Unzip() o  toLocal(MapLcl(1)(fun(pair =>
                   fun(pair => Tuple(asScalar() o Join() $ Get(pair, 0), asScalar() o Join() $ Get(pair, 1))) o
                     Unzip() o MapLcl(0)(fun( pair =>
                     Tuple(MapSeq(id.vectorize(vectorWidth)) $ Get(pair, 0), MapSeq(id.vectorize(vectorWidth)) $ Get(pair, 1))

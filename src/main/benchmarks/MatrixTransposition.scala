@@ -67,9 +67,9 @@ object MatrixTransposition {
       // Merge the tiles
       Untile() o
       MapWrg(0)(MapWrg(1)(
-        Barrier() o toGlobal(MapLcl(1)(MapLcl(0)(id))) o
+         toGlobal(MapLcl(1)(MapLcl(0)(id))) o
         // Transpose the tiles and then the insides of tiles
-        TransposeW() o Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+        TransposeW() o  toLocal(MapLcl(1)(MapLcl(0)(id)))
       )) o Transpose() o
         // Tile the matrix
         Tile(x, y) $ matrix

@@ -3,11 +3,12 @@ package opencl.generator
 import apart.arithmetic.Var
 import ir._
 import ir.ast._
+import ir.ast.IndexFunction._
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
-import opencl.ir.pattern._
 
 object TestMisc {
   @BeforeClass def before() {
@@ -35,7 +36,7 @@ class TestMisc {
         fun( x0 => Join()(MapWrg(
           fun(x1 =>
             fun(x2 =>
-              fun( x3 => Join()(Barrier()(x3))
+              fun( x3 => Join()(x3)
               )(MapLcl(
                 fun( x4 => toGlobal(MapSeq(id))(ReduceSeq(add, init)(x4)))
               )(x2)
@@ -57,7 +58,7 @@ class TestMisc {
     val l = fun (ArrayType(Float, Var("N")),
       in => {
         Join() o MapWrg(
-          Join() o Barrier() o MapLcl(
+          Join() o  MapLcl(
             fun( x4 => toGlobal(MapSeq(id))(ReduceSeq(add, id(0.0f))(x4)))
           ) o Split(4)
         ) o Split(128) $ in
@@ -74,9 +75,9 @@ class TestMisc {
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
       input => MapWrg(
-        fun( x0 => Barrier()(toGlobal(MapLcl(MapSeq(id)))(x0)) ) o
+        fun( x0 => toGlobal(MapLcl(MapSeq(id)))(x0) ) o
           Transpose() o TransposeW() o
-          Barrier() o toLocal(MapLcl(MapSeq(id)))
+           toLocal(MapLcl(MapSeq(id)))
       ) $ input
     )
 
@@ -449,8 +450,8 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o
-        Iterate(5)(Barrier() o MapLcl(plusOne)) o
+      in => Join() o MapWrg( toGlobal(MapLcl(id)) o
+        Iterate(5)( MapLcl(plusOne)) o
         toLocal(MapLcl(id))) o Split(16) $ in
     )
 
@@ -459,8 +460,8 @@ class TestMisc {
       in => fun(x1 => Join()(MapWrg(
         fun(x2 =>
           fun(x3 =>
-            fun(x4 => Barrier()(toGlobal(MapLcl(id))(x4)))(
-              Iterate(5)(fun(x5 => Barrier()(MapLcl(plusOne)(x5))))(x3)))(
+            fun(x4 => toGlobal(MapLcl(id))(x4))(
+              Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(x3)))(
                 toLocal(MapLcl(id))(x2)))
           )(x1)))(Split(16)(in))
     )
@@ -469,8 +470,8 @@ class TestMisc {
       ArrayType(Float, Var("N")),
       in => Join()(MapWrg(fun(x2 =>
         fun(x3 =>
-          fun(x4 => Barrier()(toGlobal(MapLcl(id))(x4)))(
-            Iterate(5)(fun(x5 => Barrier()(MapLcl(plusOne)(x5))))(x3)))(
+          fun(x4 => toGlobal(MapLcl(id))(x4))(
+            Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(x3)))(
               toLocal(MapLcl(id))(x2)))
               )(Split(16)(in)))
     )
@@ -478,8 +479,8 @@ class TestMisc {
     val f_nested3 = fun(
       ArrayType(Float, Var("N")),
       in => Join()(MapWrg(fun(x2 =>
-        fun(x4 => Barrier()(toGlobal(MapLcl(id))(x4)))(
-          Iterate(5)(fun(x5 => Barrier()(MapLcl(plusOne)(x5))))(
+        fun(x4 => toGlobal(MapLcl(id))(x4))(
+          Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
             toLocal(MapLcl(id))(x2)))
               ))(Split(16)(in)))
       )
@@ -487,18 +488,18 @@ class TestMisc {
     val f_nested4 = fun(
       ArrayType(Float, Var("N")),
       in => Join()(MapWrg(fun(x2 =>
-        Barrier()(toGlobal(MapLcl(id))(
-          Iterate(5)(fun(x5 => Barrier()(MapLcl(plusOne)(x5))))(
-            toLocal(MapLcl(id))(x2))))
+        toGlobal(MapLcl(id))(
+          Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
+            toLocal(MapLcl(id))(x2)))
               ))(Split(16)(in)))
     )
 
     val f_full = fun(
       ArrayType(Float, Var("N")),
       in => Join()(MapWrg(fun(x0 =>
-        Barrier()(toGlobal(MapLcl(id))(
-          Iterate(5)(fun(x1 => Barrier()(MapLcl(plusOne)(x1))))(
-            toLocal(MapLcl(id))(x0))))
+        toGlobal(MapLcl(id))(
+          Iterate(5)(fun(x1 => MapLcl(plusOne)(x1)))(
+            toLocal(MapLcl(id))(x0)))
               ))(Split(16)(in)))
     )
 

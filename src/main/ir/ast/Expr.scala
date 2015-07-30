@@ -58,7 +58,15 @@ abstract class Expr {
    * user function.
    * @return Returns `true` iff the expression eventually writes to memory.
    */
-  def isConcrete: Boolean = {
+  def isConcrete: Boolean = isConcrete(true)
+
+  /**
+   * Checks if the expression eventually writes to memory, i.e., it contains a
+   * user function.
+   * @param visitArgs Should arguments be checked as well
+   * @return Returns `true` iff the expression eventually writes to memory.
+   */
+  def isConcrete(visitArgs: Boolean): Boolean = {
     Expr.visitWithState(false)(this, (e: Expr, b: Boolean) => {
       e match {
         case call: FunCall =>
@@ -68,7 +76,7 @@ abstract class Expr {
           }
         case _ => b
       }
-    })
+    }, visitArgs)
   }
 
   /**
@@ -78,6 +86,15 @@ abstract class Expr {
    * @return Returns `true` iff the expression never writes to memory
    */
   def isAbstract: Boolean = !isConcrete
+
+  /**
+   * Checks if the expression never writes to memory, i.e., it contains no user
+   * function. For expressions where this method returns `true` the `view`
+   * influences how following `concrete` functions will access memory.
+   * @param visitArgs Should arguments be checked as well
+   * @return Returns `true` iff the expression never writes to memory
+   */
+  def isAbstract(visitArgs: Boolean): Boolean = !isConcrete(visitArgs)
 
   /**
    * Perform a deep copy of the expression.
@@ -132,19 +149,20 @@ object Expr {
    *                 visit and the current state computing an updated state.
    *                 This function is invoked before the current expression is
    *                 recursively visited.
+   * @param visitArgs Should the arguments be visited
    * @tparam T The type of the state
    * @return The computed state after visiting the expression `expr` with the
    *         initial state `z`.
    */
-  def visitWithState[T](z: T)(expr: Expr, visitFun: (Expr, T) => T): T = {
+  def visitWithState[T](z: T)(expr: Expr, visitFun: (Expr, T) => T, visitArgs: Boolean = true): T = {
     val result = visitFun(expr, z)
     expr match {
       case call: FunCall =>
         // visit args first
-        val newResult =
+        val newResult = if (visitArgs)
           call.args.foldRight(result)((arg, x) => {
             visitWithState(x)(arg, visitFun)
-          })
+          }) else result
 
         // do the rest ...
         call.f match {

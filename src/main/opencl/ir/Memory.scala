@@ -284,7 +284,7 @@ object OpenCLMemory {
       case it: Iterate =>         allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
 
       case Split(_) | Join() | asVector(_) | asScalar() |
-           Transpose() | Unzip() | TransposeW() | Barrier() | Group(_,_,_) |
+           Transpose() | Unzip() | TransposeW() | Group(_,_,_) |
            Head() | Tail() | Gather(_) | Scatter(_) | Epsilon() =>
         inMem
       case uf: UserFun =>

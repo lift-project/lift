@@ -148,12 +148,12 @@ object BlackScholes {
 
   val blackScholes = fun(
     ArrayType(Float, Var("N")),
-    inRand => Join() o MapWrg(Barrier() o MapLcl(blackScholesComp)) o Split(8192) $ inRand
+    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(8192) $ inRand
   )
 
   val blackScholesAMD = fun(
     ArrayType(Float, Var("N")),
-    inRand => Join() o MapWrg(Barrier() o MapLcl(blackScholesComp)) o Split(256) $ inRand
+    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(256) $ inRand
   )
 
   def apply() = new BlackScholes(

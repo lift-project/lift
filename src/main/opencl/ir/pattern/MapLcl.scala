@@ -15,6 +15,7 @@ import ir.ast._
 case class MapLcl(dim: Int, override val f: Lambda1)
 extends AbstractMap(f, "MapLcl", Var("l_id")) with isGenerable {
   override def copy(f: Lambda): Pattern = MapLcl(dim, f)
+  var emitBarrier = true
 }
 
 object MapLcl {

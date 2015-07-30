@@ -26,7 +26,7 @@ object SumAbsoluteValues {
 
   val intelDerivedNoWarp1 = fun(ArrayType(Float, Var("N")), (in) => {
     Join() o MapWrg(
-      asScalar() o Join() o Barrier() o MapLcl(
+      asScalar() o Join() o  MapLcl(
         toGlobal(MapSeq(id.vectorize(4))) o ReduceSeq(absAndSumUp.vectorize(4), Value(0.0f).vectorize(4))
       ) o Split(8192) o asVector(4)
     ) o Split(32768) $ in
@@ -34,7 +34,7 @@ object SumAbsoluteValues {
 
   val intelDerived2 = fun(ArrayType(Float, Var("N")), (in) => {
     Join() o MapWrg(
-      Join() o Barrier() o MapLcl(
+      Join() o  MapLcl(
         toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)
       ) o Split(2048)
     ) o Split(2048) $ in
@@ -43,23 +43,23 @@ object SumAbsoluteValues {
   val nvidiaDerived1 = fun(ArrayType(Float, Var("N")), (in) => {
     // the original derived one does not generate correct code ...
     Join() o MapWrg( Join() o
-      Barrier() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2048) o ReorderStride(128)
-      //Barrier() o toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o ReduceSeq(sumUp, 0.0f))) o ReorderStride()
+       MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2048) o ReorderStride(128)
+      // toGlobal(MapLcl(Iterate(7)(MapSeq(id) o ReduceSeq(sumUp, 0.0f)) o ReduceSeq(sumUp, 0.0f))) o ReorderStride()
     ) o Split(2048*128) $ in
   })
 
   val amdNvidiaDerived2 = fun(ArrayType(Float, Var("N")), (in) => {
     Join() o MapWrg(
-      Join() o Barrier() o toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-        Iterate(6)( Join() o Barrier() o MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
-        Join() o Barrier() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(128)
+      Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+        Iterate(6)( Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
+        Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(128)
     ) o Split(8192) $ in
   })
   
   val amdDerived1 = fun(ArrayType(Float, Var("N")), (in) => {
     Join() o MapWrg(
       asScalar() o Join() o
-        Barrier() o MapLcl(toGlobal(MapSeq(id.vectorize(2))) o ReduceSeq(add.vectorize(2), Value(0.0f).vectorize(2)))
+         MapLcl(toGlobal(MapSeq(id.vectorize(2))) o ReduceSeq(add.vectorize(2), Value(0.0f).vectorize(2)))
         o Split(2048) o ReorderStride(64) o asVector(2)
     ) o Split(4096*128) $ in
   })

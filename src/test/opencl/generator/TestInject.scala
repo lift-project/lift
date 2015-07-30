@@ -29,7 +29,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
@@ -51,7 +51,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(64) $ in
+      in => MapWrg( MapLcl(id)) o Split(64) $ in
     )
 
     val inputs = Seq(input)
@@ -72,7 +72,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(256) $ in
+      in => MapWrg( MapLcl(id)) o Split(256) $ in
     )
 
     val inputs = Seq(input)
@@ -93,7 +93,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
@@ -114,7 +114,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
@@ -135,7 +135,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
@@ -156,7 +156,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
