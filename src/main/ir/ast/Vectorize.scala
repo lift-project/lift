@@ -21,6 +21,6 @@ object Vectorize {
     def apply(p: Param): Param = p.vectorize(n)
   }
 
-  @deprecated("Use function.vectorize(ArithExpr) instead")
+  //@deprecated("Use function.vectorize(ArithExpr) instead")
   def apply(n: ArithExpr): Helper = new Helper(n)
 }

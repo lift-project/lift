@@ -225,4 +225,57 @@ object Expr {
       }
     }
   }
+
+  /**
+   * Replace function which applies a given rewrite rule to every sub-expression
+   * where the rule fires.
+   *
+   * @param e The expression to be recursively visited and rewritten
+   * @param rule The rewrite rule to be applied
+   * @return A rewritten expression where the rewrite rule has been applied to
+   *         all matching subexpressions
+   */
+  def replace(e: Expr, rule: PartialFunction[Expr, Expr]): Expr = {
+    if(rule.isDefinedAt(e)) {
+      rule(e)
+    } else {
+      e match {
+        case call: FunCall =>
+          val newArgs = call.args.map((arg) => replace(arg, rule))
+
+          val newCall = call.f match {
+            case fp: FPattern =>
+              // Try to do the replacement in the body
+              val replaced = replace(fp.f.body, rule)
+
+              // If replacement didn't occur return fp
+              // else instantiate a new pattern with the updated lambda
+              if (fp.f.body.eq(replaced))
+                fp
+              else
+                fp.copy(Lambda(fp.f.params, replaced))
+
+            case l: Lambda =>
+              // Try to do the replacement in the body
+              val replaced = replace(l.body, rule)
+
+              // If replacement didn't occur return l
+              // else instantiate the updated lambda
+              if (l.body.eq(replaced))
+                l
+              else
+                Lambda(l.params, replaced)
+
+            case other => other
+          }
+
+          if (!newCall.eq(call.f) || newArgs != call.args)
+            FunCall(newCall, newArgs: _*) // Instantiate a new FunCall if anything has changed
+          else
+            e // Otherwise return the same FunCall object
+
+        case _ => e
+      }
+    }
+  }
 }
