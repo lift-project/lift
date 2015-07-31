@@ -110,11 +110,11 @@ object BarrierElimination {
       val needsBarrier = Array.fill(groups.length)(false)
 
       val barrierInHead = groups.head.exists(c => isMapLcl(c.f))
-      val finalReadMemory = readsFrom(groups.head.last)
+      val finalReadMemory = readsFromLocal(groups.head.last)
       needsBarrier(0) =
         if (groups.length > 1)
-          !(barrierInHead && (finalReadMemory == GlobalMemory
-            || finalReadMemory == LocalMemory && !insideLoop))
+          !(barrierInHead && (!finalReadMemory
+            || finalReadMemory && !insideLoop))
         else
           (OpenCLMemory.containsLocalMemory(groups.head.last.mem) ||
             groups.head.last.args.foldLeft(false)((needsBarrier, arg) => {
@@ -127,6 +127,10 @@ object BarrierElimination {
 
         if (possibleSharing(group.last) && id < groups.length - 1) {
           needsBarrier(id + 1) = true
+
+          if (OpenCLMemory.containsLocalMemory(group.last.argsMemory))
+            needsBarrier(id) = true
+
         }
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
@@ -159,7 +163,7 @@ object BarrierElimination {
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (readsFrom(group.last) == LocalMemory && id > 0 && insideLoop &&
+          if (readsFromLocal(group.last) && id > 0 && insideLoop &&
             !groups.slice(0, id).map(_.exists(c => isMapLcl(c.f))).reduce(_ || _))
             needsBarrier(id) = true
         }
@@ -230,14 +234,14 @@ object BarrierElimination {
     })
   }
 
-  private def readsFrom(call: FunCall): OpenCLAddressSpace = {
-    val result = Expr.visitWithState[OpenCLAddressSpace](UndefAddressSpace)(call, (expr, addressSpace) => {
+  private def readsFromLocal(call: FunCall): Boolean = {
+    val result = Expr.visitWithState(false)(call, (expr, addressSpace) => {
       expr match {
         case call: FunCall =>
           call.f match {
             case uf: UserFun =>
-              if (addressSpace == UndefAddressSpace)
-                OpenCLMemory.asOpenCLMemory(call.args.head.mem).addressSpace
+              if (OpenCLMemory.containsLocalMemory(call.argsMemory))
+                true
               else
                 addressSpace
             case _ => addressSpace
