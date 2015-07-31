@@ -610,4 +610,46 @@ class TestBarrier {
     assertArrayEquals(gold.flatten, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
   }
+
+  @Test
+  def doubleNestedMapLcl(): Unit = {
+    val inputSize = 32
+    val input = Array.fill(inputSize, inputSize, inputSize,
+      inputSize)(util.Random.nextInt(5).toFloat)
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+        toLocal(MapLcl(0)(MapLcl(1)(id)))
+      )) $ input
+    )
+
+    val code = Compile(f)
+    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
+      (false, false))(code, f, input)
+
+    assertArrayEquals(input.flatten.flatten.flatten, output, 0.0f)
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Test
+  def tripleNestedMapLcl(): Unit = {
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(MapWrg(2)(
+        toGlobal(MapLcl(0)(MapLcl(1)(MapLcl(2)(id)))) o
+          toLocal(MapLcl(0)(MapLcl(1)(MapLcl(2)(id))))
+      ))) $ input
+    )
+
+    val code = Compile(f)
+
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
 }
