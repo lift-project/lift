@@ -110,11 +110,11 @@ object BarrierElimination {
       val needsBarrier = Array.fill(groups.length)(false)
 
       val barrierInHead = groups.head.exists(c => isMapLcl(c.f))
-      val finalReadMemory = readsFromLocal(groups.head.last)
+      val finalReadFromLocal = readsFromLocal(groups.head.last)
       needsBarrier(0) =
         if (groups.length > 1)
-          !(barrierInHead && (!finalReadMemory
-            || finalReadMemory && !insideLoop))
+          !(barrierInHead && (!finalReadFromLocal
+            || finalReadFromLocal && !insideLoop))
         else
           (OpenCLMemory.containsLocalMemory(groups.head.last.mem) ||
             groups.head.last.args.foldLeft(false)((needsBarrier, arg) => {
@@ -169,7 +169,8 @@ object BarrierElimination {
         }
       })
 
-      (groups, needsBarrier).zipped.foreach((group, valid) => if (!valid) invalidateBarrier(group))
+      (groups, needsBarrier).zipped.foreach((group, valid) =>
+        if (!valid) invalidateBarrier(group))
     }
   }
 
@@ -183,9 +184,8 @@ object BarrierElimination {
           case Lambda(params, FunCall(_, args @ _*))
             if !params.sameElements(args) =>
 
-            !Expr.visitWithState(false)(args.head, (e, b) => {
-              if (e.eq(params.head)) true else b
-            } )
+            !Expr.visitWithState(false)(args.head, (e, b) =>
+              if (e.eq(params.head)) true else b)
 
           case _ => false
         }

@@ -652,4 +652,73 @@ class TestBarrier {
 
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
   }
+
+  @Test
+  def tripleNestedMapLclWithScatter(): Unit = {
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(MapWrg(2)(
+        toGlobal(MapLcl(0)(MapLcl(1)(MapLcl(2)(id)))) o
+          toLocal(MapLcl(0)(MapLcl(1)(Scatter(reverse) o MapLcl(2)(id))))
+      ))) $ input
+    )
+
+    val code = Compile(f)
+
+    assertEquals(2, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Ignore
+  @Test
+  def doubleNestedMapLclWithReorder(): Unit = {
+    val inputSize = 32
+    val input = Array.fill(inputSize, inputSize, inputSize,
+      inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = input.map(_.map(_.map(_.reverse)))
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+          Map(Gather(reverse)) o
+          toLocal(MapLcl(0)(MapLcl(1)(id)))
+      )) $ input
+    )
+
+    val code = Compile(f)
+    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
+      (false, false))(code, f, input)
+
+    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+    assertEquals(2, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Ignore
+  @Test def reorderInLocalButSequential(): Unit = {
+    val inputSize = 1024
+    val input = Array.tabulate(inputSize)(_.toFloat)
+    val gold = input.grouped(128).map(_.grouped(16).map(_.reverse)).
+      flatten.flatten.toArray
+
+     // First barrier should be eliminated
+     val f = fun(
+       ArrayType(Float, new Var("N")),
+       input =>
+         Join() o MapWrg(
+           Join() o toGlobal(MapLcl(MapSeq(id))) o Map(Gather(reverse))
+           o toLocal(MapLcl(MapSeq(id))) o Split(16)
+         ) o Split(128) $ input
+     )
+
+    val code = Compile(f)
+    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
+
+    assertArrayEquals(gold, output, 0.0f)
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
 }
