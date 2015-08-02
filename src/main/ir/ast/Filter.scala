@@ -1,5 +1,8 @@
 package ir.ast
 
+import ir.{TypeException, ArrayType, TupleType, Type}
+import opencl.ir.Int
+
 /**
  * Filter pattern.
  * Code for this pattern can be generated.
@@ -11,7 +14,21 @@ package ir.ast
  * `Filter() : [a],,I,, -> [Int],,J,, -> [a],,J,,`
  *
  */
-case class Filter() extends FunDecl(arity = 2) with isGenerable
+case class Filter() extends FunDecl(arity = 2) with isGenerable {
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case TupleType(ArrayType(t, n), ArrayType(Int, m)) =>
+        ArrayType(t, m)
+
+      case _ =>
+        throw new TypeException(argType,
+                                "TupleType(ArrayType(_, _), ArrayType(Int, _))")
+    }
+  }
+
+}
 
 object Filter {
   /**

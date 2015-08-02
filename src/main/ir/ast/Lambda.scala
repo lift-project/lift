@@ -21,6 +21,19 @@ case class Lambda(params: Array[Param],
   override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
                           " -> " + body.toString + ")"
 
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    if (arity == 1) {
+      params(0).t = argType
+    } else {
+      val tt = argType match { case tt: TupleType => tt }
+      if (arity != tt.elemsT.length) throw new NumberOfArgumentsException
+
+      (params zip tt.elemsT).foreach({case (p,t) => p.t = t })
+    }
+    TypeChecker.check(body, setType)
+  }
+
   override def apply(args : Expr*) : Expr = {
     assert (args.length == arity)
 

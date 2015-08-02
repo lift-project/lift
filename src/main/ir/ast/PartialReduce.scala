@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.{?, ArithExpr, Var}
+import ir._
 
 /**
  * Abstract class for the partial reduce pattern.
@@ -16,6 +17,20 @@ abstract class AbstractPartRed(val f: Lambda,
   assert(f.params.length == 2)
 
   var iterationCount: ArithExpr = ?
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case TupleType(initT, ArrayType(elemT, _)) =>
+        f.params(0).t = initT // initial elem type
+        f.params(1).t = elemT // array element typ
+        TypeChecker.check(f.body, setType) // check the body
+
+        ArrayType(initT, 1)
+
+      case _ => throw new TypeException(argType, "TupleType(_, _)")
+    }
+  }
 }
 
 /**
@@ -41,7 +56,7 @@ abstract class AbstractPartRed(val f: Lambda,
  * @param f A lambda to be applied as the binary reduction operator in the
  *          partial reduction
  */
-case class PartRed(override val f: Lambda2) extends AbstractPartRed(f, Var("")) {
+case class PartRed(override val f: Lambda) extends AbstractPartRed(f, Var("")) {
   override def copy(f: Lambda): Pattern = PartRed(f)
 }
 

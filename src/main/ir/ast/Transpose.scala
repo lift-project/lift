@@ -1,5 +1,7 @@
 package ir.ast
 
+import ir.{TypeException, ArrayType, Type}
+
 /**
  * Transpose pattern. Performs the transpose on the next read.
  * Code for this pattern can be generated.
@@ -13,4 +15,14 @@ package ir.ast
  * The transpose pattern has the following type:
  * `Transpose() : [ [a],,I,, ],,J,, -> [ [a],,J,, ],,I,,`
  */
-case class Transpose() extends Pattern(arity = 1) with isGenerable
+case class Transpose() extends Pattern(arity = 1) with isGenerable {
+
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case ArrayType(ArrayType(t, n), m) => ArrayType(ArrayType(t, m), n)
+      case _ => throw new TypeException(argType, "ArrayType(ArrayType(_,_),_)")
+    }
+  }
+}

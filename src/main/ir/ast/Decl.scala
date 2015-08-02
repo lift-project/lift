@@ -1,6 +1,6 @@
 package ir.ast
 
-import ir.UndefType
+import ir.{Type, UndefType}
 
 import scala.language.implicitConversions
 
@@ -28,6 +28,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
   val isGenerable = false
 
 
+  def checkType(argType: Type, setType: Boolean): Type
 
 
   /**
