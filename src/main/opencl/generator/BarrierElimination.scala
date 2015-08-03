@@ -103,7 +103,7 @@ object BarrierElimination {
         next = next.drop(prefixLength + 1)
       }
 
-      // If it is not concrete, then there can't be a barrier
+      // If the last group it is not concrete, then there can't be a barrier
       if (groups.last.last.isAbstract)
         groups = groups.init
 
@@ -130,11 +130,11 @@ object BarrierElimination {
 
           if (OpenCLMemory.containsLocalMemory(group.last.argsMemory))
             needsBarrier(id) = true
-
         }
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
-        if (group.exists(l => l.f.isInstanceOf[Split] || l.f.isInstanceOf[Join] && id > 0)) {
+        if (group.init.exists(call => isPattern(call, classOf[Split]) || isPattern(call, classOf[Join])
+           || isPattern(call, classOf[asVector]) || isPattern(call, classOf[asScalar])) && id > 0) {
           needsBarrier(id) = true
 
           // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
@@ -146,8 +146,8 @@ object BarrierElimination {
 
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
-        if (group.exists(_.f.isInstanceOf[Scatter]) || group.init.exists(_.f.isInstanceOf[Gather])
-          || group.exists(c => c.f.isInstanceOf[Transpose] || c.f.isInstanceOf[TransposeW])) {
+        if (group.init.exists(call => isPattern(call, classOf[Scatter]) || isPattern(call, classOf[Gather])
+          || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW])) && id > 0) {
           needsBarrier(id) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
@@ -158,7 +158,7 @@ object BarrierElimination {
         }
 
         // Gather in last affects the reading of this group
-        if (group.last.f.isInstanceOf[Gather] && id < groups.length - 1) {
+        if (isPattern(group.last, classOf[Gather]) && id < groups.length - 1) {
           needsBarrier(id + 1) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
@@ -191,6 +191,15 @@ object BarrierElimination {
         }
       case _ => false
     }
+  }
+
+  private def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
+    Expr.visitWithState(false)(funCall, (expr, contains) => {
+      expr match {
+        case FunCall(declaration, _*) => declaration.getClass == patternClass
+        case _ => contains
+      }
+    }, visitArgs = false)
   }
 
   private def isMapLcl(funDecl: FunDecl): Boolean = {

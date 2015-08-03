@@ -607,7 +607,7 @@ class TestMatrixMatrix {
     val f = MatrixMultiplication.moreWorkPerThread(tileSize, blockSize)
 
     val (output: Array[Float], _) = Execute(tileSize, tileSize / blockSize,
-      mSize, nSize / blockSize, (true, false))(f, matrixA, matrixB)
+      mSize, nSize / blockSize, (true, true))(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -730,7 +730,7 @@ class TestMatrixMatrix {
         )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], runtime) = Execute(4, 4, mSize, nSize, (false, false))(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -845,7 +845,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], runtime) = Execute(4, 4, mSize, nSize, (false, false))(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], runtime) = Execute(4, 4, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -909,7 +909,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], runtime) = Execute(4, 4, mSize, nSize, (false, false))(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], runtime) = Execute(4, 4, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -973,7 +973,8 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], runtime) = Execute(mSize * nSize)(f, matrixA, matrixB)
+    val (output: Array[Float], runtime) = Execute(tileSize, tileSize, mSize, nSize,
+      (true, true))(f, matrixA, matrixB)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))

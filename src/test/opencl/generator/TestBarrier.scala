@@ -671,7 +671,6 @@ class TestBarrier {
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
   }
 
-  @Ignore
   @Test
   def doubleNestedMapLclWithReorder(): Unit = {
     val inputSize = 32
