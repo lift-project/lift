@@ -698,6 +698,55 @@ class TestBarrier {
   }
 
   @Ignore
+  @Test
+  def tail(): Unit = {
+    val inputSize = 512
+    val input = Array.tabulate(inputSize)(i => i.toFloat)
+
+    val gold = input.grouped(128).map(_.tail).flatten.toArray
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Join() o MapWrg(
+          MapLcl(id) o Tail() o MapLcl(id)
+        ) o Split(128) $ input
+    )
+
+    val code = Compile(f)
+    val (result: Array[Float], _) = Execute(inputSize)(code, f, input)
+
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+    assertArrayEquals(gold, result, 0.0f)
+  }
+
+  @Test
+  def tailInLocal(): Unit = {
+    val inputSize = 512
+    val input = Array.tabulate(inputSize)(i => i.toFloat)
+
+    val gold = input.grouped(128).map(_.tail).flatten.toArray
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o Tail() o toLocal(MapLcl(id))
+        ) o Split(128) $ input
+    )
+
+    val code = Compile(f)
+    val (result: Array[Float], _) = Execute(inputSize)(code, f, input)
+
+    assertEquals(2, "barrier".r.findAllMatchIn(code).length)
+    assertArrayEquals(gold, result, 0.0f)
+  }
+
+  @Ignore
   @Test def reorderInLocalButSequential(): Unit = {
     val inputSize = 1024
     val input = Array.tabulate(inputSize)(_.toFloat)

@@ -147,7 +147,9 @@ object BarrierElimination {
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
         if (group.init.exists(call => isPattern(call, classOf[Scatter]) || isPattern(call, classOf[Gather])
-          || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW])) && id > 0) {
+          || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW])
+          || isPattern(call, classOf[Tail])) && id > 0) {
+
           needsBarrier(id) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
