@@ -101,6 +101,14 @@ abstract class Expr {
    * @return A copy of `this`
    */
   def copy: Expr
+
+  def contains(pattern: PartialFunction[Expr, Unit]): Boolean = {
+    Expr.visitWithState(false)(this, (e, s) => {
+      if (pattern.isDefinedAt(e)) {
+        true
+      } else s
+    })
+  }
 }
 
 object Expr {
@@ -152,7 +160,9 @@ object Expr {
    * @return The computed state after visiting the expression `expr` with the
    *         initial state `z`.
    */
-  def visitWithState[T](z: T)(expr: Expr, visitFun: (Expr, T) => T, visitArgs: Boolean = true): T = {
+  def visitWithState[T](z: T)(expr: Expr,
+                              visitFun: (Expr, T) => T,
+                              visitArgs: Boolean = true): T = {
     val result = visitFun(expr, z)
     expr match {
       case call: FunCall =>
@@ -216,9 +226,10 @@ object Expr {
             case other => other
           }
 
-          if (!newCall.eq(call.f) || newArgs != call.args)
-            FunCall(newCall, newArgs: _*) // Instantiate a new FunCall if anything has changed
-          else
+          if (!newCall.eq(call.f) || newArgs != call.args) {
+            // Instantiate a new FunCall if anything has changed
+            FunCall(newCall, newArgs: _*)
+          } else
             e // Otherwise return the same FunCall object
 
         case _ => e
@@ -235,18 +246,18 @@ object Expr {
    * @return A rewritten expression where the rewrite rule has been applied to
    *         all matching subexpressions
    */
-  def replace(e: Expr, rule: PartialFunction[Expr, Expr]): Expr = {
-    if(rule.isDefinedAt(e)) {
+  def replace(e: Expr, oldE: Expr, rule: PartialFunction[Expr, Expr]): Expr = {
+    if (e.eq(oldE)) {
       rule(e)
     } else {
       e match {
         case call: FunCall =>
-          val newArgs = call.args.map((arg) => replace(arg, rule))
+          val newArgs = call.args.map((arg) => replace(arg, oldE, rule))
 
           val newCall = call.f match {
             case fp: FPattern =>
               // Try to do the replacement in the body
-              val replaced = replace(fp.f.body, rule)
+              val replaced = replace(fp.f.body, oldE, rule)
 
               // If replacement didn't occur return fp
               // else instantiate a new pattern with the updated lambda
@@ -257,7 +268,7 @@ object Expr {
 
             case l: Lambda =>
               // Try to do the replacement in the body
-              val replaced = replace(l.body, rule)
+              val replaced = replace(l.body, oldE, rule)
 
               // If replacement didn't occur return l
               // else instantiate the updated lambda
@@ -269,9 +280,10 @@ object Expr {
             case other => other
           }
 
-          if (!newCall.eq(call.f) || newArgs != call.args)
-            FunCall(newCall, newArgs: _*) // Instantiate a new FunCall if anything has changed
-          else
+          if (!newCall.eq(call.f) || newArgs != call.args) {
+            // Instantiate a new FunCall if anything has changed
+            FunCall(newCall, newArgs: _*)
+          } else
             e // Otherwise return the same FunCall object
 
         case _ => e

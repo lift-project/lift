@@ -8,12 +8,13 @@ class Context extends Cloneable {
 
   // TODO(tlutz) keep a stack to track current dim
   var mapDepth : Int = 0
-  var inMapGlb = false
-  var inMapWrg = false
-  var inMapLcl = false
+  var inMapGlb  = false
+  var inMapWrg  = false
+  var inMapLcl  = false
   var inMapWarp = false
   var inMapLane = false
-  var inSeq = false
+  var inMapSeq  = false
+  var inReduceSeq = false
        
   def incMapDepth() : Context = {
     val c = this.copy()
@@ -51,9 +52,15 @@ class Context extends Cloneable {
     c
   }
 
-  def setInSeq() : Context = {
+  def setInMapSeq() : Context = {
     val c = this.copy()
-    c.inSeq = true
+    c.inMapSeq = true
+    c
+  }
+
+  def setInReduceSeq() : Context = {
+    val c = this.copy()
+    c.inReduceSeq = true
     c
   }
 
@@ -78,22 +85,35 @@ object Context {
     if (ctx != null) {
       expr.context = ctx
       expr match {
-        case call: FunCall => call.f match {
+        case call: FunCall =>
+          call.args.foreach(arg => updateContext(arg, ctx.copy()))
 
-          case Map(inF)    => updateContext(inF.body, ctx.incMapDepth())
-          case MapSeq(inF) => updateContext(inF.body, ctx.incMapDepth().setInSeq())
-          case MapGlb(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapGlb())
-          case MapWrg(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapWrg())
-          case MapLcl(_,inF) => updateContext(inF.body, ctx.incMapDepth().setInMapLcl())
-          case MapWarp(inF) => updateContext(inF.body, ctx.incMapDepth().setInMapWarp())
-          case MapLane(inF) => updateContext(inF.body, ctx.incMapDepth().setInMapLane())
-          case ReduceSeq(inF) => updateContext(inF.body, ctx.setInSeq())
+          call.f match {
+            case Map(inF)      =>
+              updateContext(inF.body, ctx.incMapDepth())
+            case MapSeq(inF)   =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapSeq())
+            case MapGlb(_,inF) =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapGlb())
+            case MapWrg(_,inF) =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapWrg())
+            case MapLcl(_,inF) =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapLcl())
+            case MapWarp(inF)  =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapWarp())
+            case MapLane(inF)  =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapLane())
+            case ReduceSeq(inF) =>
+              updateContext(inF.body, ctx.setInReduceSeq())
 
-          case fp: FPattern => updateContext(fp.f.body, ctx.copy())
-          case _ =>
-        }
+            case fp: FPattern => updateContext(fp.f.body, ctx.copy())
+
+            case l: Lambda => updateContext(l.body, ctx.copy())
+
+            case _ =>
+          }
         case _ =>
       }
-    }    
+    }
   }
 }

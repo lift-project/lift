@@ -39,6 +39,13 @@ abstract class AbstractReduce(override val f: Lambda,
  */
 case class Reduce(override val f: Lambda) extends AbstractReduce(f, Var("")) {
   override def copy(f: Lambda): Pattern = Reduce(f)
+
+  /**
+   * Indicating if it is possible to generate code for this function
+   * declaration.
+   * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
+   */
+  override def isGenerable: Boolean = false
 }
 
 object Reduce {

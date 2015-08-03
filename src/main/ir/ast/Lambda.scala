@@ -14,7 +14,7 @@ import scala.language.implicitConversions
  * @param body The body of the lambda expression.
  */
 case class Lambda(params: Array[Param],
-                  body: Expr) extends FunDecl(params.length) with isGenerable {
+                  body: Expr) extends FunDecl(params.length) {
   /**
    * Debug string representation
    */
@@ -57,6 +57,15 @@ case class Lambda(params: Array[Param],
         case (e, (p, a)) => Expr.replace(e, p, a)
       }
     }
+  }
+
+  override lazy val isGenerable: Boolean = {
+    Expr.visitWithState(true)(body, (e, s) => {
+      e match {
+        case call: FunCall if !call.f.isGenerable => false
+        case _ => s
+      }
+    })
   }
 }
 
