@@ -506,7 +506,7 @@ object Type {
     inT match {
       case at: ArrayType =>
         assert(group.params.length == 1)
-        group.params(0).t = ArrayType(ArrayType(at.elemT, group.relIndices.length), at.len)
+        group.params(0).t = ArrayType(ArrayType(at.elemT, group.relIndices.length), at.len - group.relIndices.max)
         group.params(0).t
 
       case _ => throw new TypeException(inT, "ArrayType")

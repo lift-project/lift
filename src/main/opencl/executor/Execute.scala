@@ -241,7 +241,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     // 2. check all group functions (introduced for stencil support) are valid arguments for the
     // given input sizes
-    staticGroupCheck(f, valueMap)
+    staticPadCheck(f, valueMap)
 
     // 3. make sure the device has enough memory to execute the kernel
     validateMemorySizes(valueMap)
@@ -274,11 +274,11 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   }
 
   /** Check that all possible indices returned by Group calls are in-bounds */
-  private def staticGroupCheck(f: Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
-    val groupFuns = Expr.visit(Set[Group]())(f.body, (expr, set) =>
+  private def staticPadCheck(f: Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+    /*val groupFuns = Expr.visit(Set[Pad]())(f.body, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
-          case group: Group => set + group
+          case pad: Pad => set + pad
           case _ => set
         }
         case _ => set
@@ -307,7 +307,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
           }
         case _ => throw new IllegalArgumentException("Expect parameter to be of ArrayType")
       }
-    }
+    }*/
   }
 
   private def castToOutputType(t: Type, outputData: GlobalArg): Array[_] = {

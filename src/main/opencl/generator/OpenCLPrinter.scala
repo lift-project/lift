@@ -200,9 +200,8 @@ class OpenCLPrinter {
       case gc: GroupCall =>
         val outerAe = if (Debug()) ExprSimplifier(gc.outerAe) else gc.outerAe
         val innerAe = if (Debug()) ExprSimplifier(gc.innerAe) else gc.innerAe
-        val len = if (Debug()) ExprSimplifier(gc.len) else gc.len
-        "groupComp" + gc.group.id + "(" + toOpenCL(outerAe) + ", " +
-          toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
+        "groupComp(" + toOpenCL(outerAe) + ", " +
+          toOpenCL(innerAe) + ")"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
@@ -237,19 +236,10 @@ class OpenCLPrinter {
         val newIdxStr = toOpenCL(newIdx)
 
         s"""
-           |int groupComp${group.id}(int j, int i, int ${toOpenCL(lenVar)}){
+           |int groupComp(int j, int i){
            |  // Compute new index
            |  int relIndices[] = {${group.relIndices.deep.mkString(", ")}};
-           |  int $newIdxStr = j + relIndices[i];
-           |
-           |  // Boundary check
-           |  if ($newIdxStr < 0) {
-           |    return ${toOpenCL(group.negOutOfBoundsF(newIdx, lenVar))};
-           |  } else if ($newIdxStr >= ${toOpenCL(lenVar)}) {
-           |    return ${toOpenCL(group.posOutOfBoundsF(newIdx - lenVar + 1, lenVar))};
-           |  } else {
-           |    return $newIdxStr;
-           |  }
+           |  return j + relIndices[i];
            |}
          """.stripMargin
       case _ => throw new IllegalArgumentException

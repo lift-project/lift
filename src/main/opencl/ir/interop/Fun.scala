@@ -90,10 +90,10 @@ object jToLocal {
 
 object jGroup {
   def create(relIndices: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group(relIndices, negOOB, posOOB)
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group(relIndices)
 }
 
 object jGroup2D {
   def create(relColumns: Array[Int], relRows: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(relColumns, relRows, negOOB, posOOB)
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(relColumns, relRows)
 }

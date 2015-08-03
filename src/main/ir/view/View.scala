@@ -99,7 +99,7 @@ abstract class View(val t: Type = UndefType) {
   def group(g: Group): View = {
     this.t match {
       case ArrayType(elemT, len) =>
-        new ViewGroup(this, g, ArrayType(ArrayType(elemT, g.relIndices.length), len))
+        new ViewGroup(this, g, ArrayType(ArrayType(elemT, g.relIndices.length), len - g.relIndices.map(Math.abs).max))
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
@@ -190,7 +190,7 @@ object ViewPrinter {
     sv match {
       case mem: ViewMem =>
         assert(tupleAccessStack.isEmpty)
-        arrayAccessStack.map(x => (x._1 * x._2).asInstanceOf[ArithExpr]).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => (x + y).asInstanceOf[ArithExpr])
+        arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0).asInstanceOf[ArithExpr])(_ + _)
 
       case access: ViewAccess =>
         val length: ArithExpr = getLengthForArrayAccess(sv.t, tupleAccessStack)
@@ -209,18 +209,6 @@ object ViewPrinter {
         val newIdx = chunkId._1 * split.n + chunkElemId._1
         val newAAS = stack2.push((newIdx, chunkElemId._2))
         emitView(split.iv, newAAS, tupleAccessStack)
-
-      case ag: ViewGroup =>
-        val (outerId, stack1) = arrayAccessStack.pop2
-        val (innerId, stack2) = stack1.pop2
-
-        ag.group.params(0).t match {
-          case ArrayType(t, len) =>
-            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1, len)
-            val newAAS = stack2.push((newIdx, innerId._2))
-            emitView(ag.iv, newAAS, tupleAccessStack)
-          case _ => throw new IllegalArgumentException()
-        }
 
       case join: ViewJoin =>
         val (idx, stack) = arrayAccessStack.pop2
@@ -283,13 +271,24 @@ object ViewPrinter {
         val newAAS = stack.push((newIdx, newLen))
         emitView(tail.iv, newAAS, tupleAccessStack)
 
+      case ag: ViewGroup =>
+        val (outerId, stack1) = arrayAccessStack.pop2
+        val (innerId, stack2) = stack1.pop2
+
+        ag.group.params(0).t match {
+          case ArrayType(t, len) =>
+            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1)
+            val newAAS = stack2.push((newIdx, innerId._2))
+            emitView(ag.iv, newAAS, tupleAccessStack)
+          case _ => throw new IllegalArgumentException()
+        }
+
       case pad: ViewPad =>
         val (idx, stack) = arrayAccessStack.pop2
         val newIdx = pad.fct(idx._1 - pad.size, pad.iv.t.asInstanceOf[ArrayType].len)
         val newLen = idx._2
-        val newAAS = stack.push ((newIdx, newLen) )
+        val newAAS = stack.push ((newIdx, newLen))
         emitView (pad.iv, newAAS, tupleAccessStack)
-
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }

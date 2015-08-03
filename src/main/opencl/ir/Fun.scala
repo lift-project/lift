@@ -189,40 +189,61 @@ object Pad {
   }
 }
 
-case class Group(relIndices: Array[Int],
-                 negOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr,
-                 posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
+object Pad2D {
+  def apply(offset: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr): CompFunDef = {
+    Transpose() o Pad(offset, boundary) o Transpose() o Pad(offset, boundary)
+  }
+}
+
+case class Group(relIndices: Array[Int]) extends Pattern(Array[Param](Param(UndefType))) with isGenerable {
   Group.cnt += 1
   val id = Group.cnt
 }
 
 object Group {
   var cnt: Int = -1
-
-  // Predefined out-of-boundary cases
-  val edgeNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => 0
-  val edgePos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - 1
-  val reflectNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => -1 - idx
-  val reflectPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - idx
-  val wrapNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len + idx
-  val wrapPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => idx - 1
 }
 
 object Group2D {
-  def apply(relColumns: Array[Int],
-            relRows: Array[Int],
-            negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-            posOOB: (ArithExpr, ArithExpr) => ArithExpr): CompFunDef = {
+  /** Symmetrical grouping */
+  def apply(neighbors: Array[Int]): CompFunDef = {
     Map(
       Map(
         Transpose()
-      ) o Group(relColumns, negOOB, posOOB) o Transpose()
-    ) o Group(relRows, negOOB, posOOB)
+      ) o Group(neighbors) o Transpose()
+    ) o Group(neighbors)
+  }
+
+  /** Asymmetrical grouping */
+  def apply(relColumns: Array[Int],
+            relRows: Array[Int]): CompFunDef = {
+    Map(
+      Map(
+        Transpose()
+      ) o Group(relColumns) o Transpose()
+    ) o Group(relRows)
   }
 }
 
-class GroupCall(val group: Group, val outerAe: ArithExpr, val innerAe: ArithExpr, val len: ArithExpr) extends ArithExprFunction(s"groupComp${group.id}") {
-  "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ", " + len + ")"
+/**
+ * Create a stencil from an array of offsets and a boundary condition. This effectively create a Pad and Group
+ * to compensate for out-of-bound elements
+ */
+object Stencil {
+  def apply(neighbors: Array[Int], boundary: (ArithExpr, ArithExpr) => ArithExpr): CompFunDef = {
+    Group(neighbors.map(_+neighbors.map(Math.abs).max)) o Pad(neighbors.map(Math.abs).max, boundary)
+  }
+}
+
+object Stencil2D {
+  def apply(neighbors: Array[Int], boundary: (ArithExpr, ArithExpr) => ArithExpr): CompFunDef = {
+    Group2D(neighbors.map(_+neighbors.map(Math.abs).max)) o Pad2D(neighbors.map(Math.abs).max, boundary)
+  }
+}
+
+class GroupCall(val group: Group, val outerAe: ArithExpr, val innerAe: ArithExpr) extends ArithExprFunction(s"groupComp${group.id}") {
+  "groupComp(" + outerAe + ", " + innerAe + ")"
+  //"groupComp" + group.id + "(" + outerAe + ", " + innerAe + ")"
 }
 
 /*
