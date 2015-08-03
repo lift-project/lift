@@ -41,8 +41,8 @@ object OutputView {
       case t: Transpose => buildViewTranspose(t, call, writeView)
       case asVector(n) => buildViewAsVector(n, writeView)
       case _: asScalar => buildViewAsScalar(call, writeView)
-      case h: Head => buildViewHead(h, writeView)
-      case t: Tail => buildViewTail(t, writeView)
+      case h: Head => buildViewHead(call, writeView)
+      case t: Tail => buildViewTail(call, writeView)
       case fp: FPattern => buildViewFPattern(fp, writeView)
       case _: Zip => buildViewZip(writeView)
       case _ => writeView
@@ -124,25 +124,6 @@ object OutputView {
     visitAndBuildViews(l.body, writeView)
   }
 
-//  private def buildViewCompFunDef(cf: CompFun, writeView: View): View = {
-//    cf.funs.foldLeft(writeView)((v, f) => {
-//      val resultView = visitAndBuildViews(f.body, v)
-//
-//      f.body match {
-//        case call: FunCall =>
-//          if (call.args.exists({
-//            case call: FunCall => call.f.isInstanceOf[Zip] ||
-//              call.f.isInstanceOf[Tuple]
-//            case _ => false
-//          }))
-//            View.initialiseNewView(f.params.head.t, f.body.outputDepth)
-//          else
-//            resultView
-//        case _ => resultView
-//      }
-//    })
-//  }
-
   private def buildViewJoin(call: FunCall, writeView: View): View = {
     val chunkSize = call.argsType match {
       case ArrayType(ArrayType(_, n), _) => n
@@ -190,13 +171,17 @@ object OutputView {
     writeView.reorder( (i:ArithExpr) => { scatter.idx.f(i, call.t) } )
   }
 
-  private def buildViewHead(head: Head, writeView: View) : View = {
-    // TODO: Check with Toomas!!!!!!!!
-    writeView
+  private def buildViewHead(funCall: FunCall, writeView: View) : View = {
+    // Head returns a primitive, not an array, so initialise a view
+    // for the original array
+    View.initialiseNewView(funCall.args.head.t, funCall.outputDepth,
+      funCall.mem.variable.name)
   }
 
-  private def buildViewTail(tail: Tail, writeView: View) : View = {
-    //TODO: Check with Toomas!!!!!!!!
-    writeView
+  private def buildViewTail(funCall: FunCall, writeView: View) : View = {
+    // TODO: Not right. See TestTail.tailBetweenMapsScatterAfter and
+    // TODO: TestTail.tailBetweenMapsScatterBeforeAndAfter. Not sure how to fix.
+    View.initialiseNewView(funCall.args.head.t, funCall.outputDepth,
+      funCall.mem.variable.name)
   }
 }

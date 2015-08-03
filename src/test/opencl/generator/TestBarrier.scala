@@ -697,7 +697,6 @@ class TestBarrier {
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
   }
 
-  @Ignore
   @Test
   def tail(): Unit = {
     val inputSize = 512

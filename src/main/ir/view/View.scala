@@ -461,7 +461,7 @@ object ViewPrinter {
         val stack = arrayAccessStack.tail
 
         val newIdx = emit(filter.ids.access(idx))
-        val indirection = new AccessVar(getInputAccess(filter.ids).name, newIdx)
+        val indirection = new AccessVar(getViewMem(filter.ids).name, newIdx)
 
         emitView(filter.iv, (indirection, len) :: stack, tupleAccessStack)
 
@@ -508,31 +508,31 @@ object ViewPrinter {
     }
   }
 
-  private def getInputAccess(sv: View, tupleAccessStack: List[Int] = List()): ViewMem = {
+  private def getViewMem(sv: View, tupleAccessStack: List[Int] = List()): ViewMem = {
     sv match {
       case map: ViewMem => map
-      case access: ViewAccess => getInputAccess(access.iv, tupleAccessStack)
-      case map: ViewMap => getInputAccess(map.iv, tupleAccessStack)
-      case split: ViewSplit => getInputAccess(split.iv, tupleAccessStack)
-      case join: ViewJoin => getInputAccess(join.iv, tupleAccessStack)
-      case gather: ViewReorder => getInputAccess(gather.iv, tupleAccessStack)
-      case filter: ViewFilter => getInputAccess(filter.iv, tupleAccessStack)
-      case asVector: ViewAsVector => getInputAccess(asVector.iv, tupleAccessStack)
-      case asScalar: ViewAsScalar => getInputAccess(asScalar.iv, tupleAccessStack)
+      case access: ViewAccess => getViewMem(access.iv, tupleAccessStack)
+      case map: ViewMap => getViewMem(map.iv, tupleAccessStack)
+      case split: ViewSplit => getViewMem(split.iv, tupleAccessStack)
+      case join: ViewJoin => getViewMem(join.iv, tupleAccessStack)
+      case gather: ViewReorder => getViewMem(gather.iv, tupleAccessStack)
+      case filter: ViewFilter => getViewMem(filter.iv, tupleAccessStack)
+      case asVector: ViewAsVector => getViewMem(asVector.iv, tupleAccessStack)
+      case asScalar: ViewAsScalar => getViewMem(asScalar.iv, tupleAccessStack)
 
       case component: ViewTupleComponent =>
         val newTAS = tupleAccessStack.::(component.i)
-        getInputAccess(component.iv, newTAS)
+        getViewMem(component.iv, newTAS)
 
       case zip: ViewZip =>
         val i = tupleAccessStack.head
         val newTAS = tupleAccessStack.tail
-        getInputAccess(zip.ivs(i), newTAS)
+        getViewMem(zip.ivs(i), newTAS)
 
       case tuple: ViewTuple =>
         val i = tupleAccessStack.head
         val newTAS = tupleAccessStack.tail
-        getInputAccess(tuple.ivs(i), newTAS)
+        getViewMem(tuple.ivs(i), newTAS)
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }
