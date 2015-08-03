@@ -9,6 +9,8 @@ import opencl.ir.{OpenCLMemory, UndefAddressSpace, OpenCLMemoryCollection}
   * Refers back to the function decl (e.g. map(f)) and the arguments (e.g. x)
   */
 case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
+  assert(f != null)
+
   override def toString = {
     val fS = if (f == null) {
       "null"

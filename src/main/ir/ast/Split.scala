@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
+import ir.{TypeException, ArrayType, Type}
 
 /**
  * Split pattern.
@@ -22,4 +23,15 @@ import apart.arithmetic.ArithExpr
  *                  `chunkSize`.
  */
 case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
-  with isGenerable
+  with isGenerable {
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case ArrayType(t, n) =>
+        ArrayType(ArrayType(t, chunkSize), n /^ chunkSize)
+
+      case _ => throw new TypeException(argType, "ArrayType")
+    }
+  }
+}

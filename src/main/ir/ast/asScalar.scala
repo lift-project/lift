@@ -1,5 +1,7 @@
 package ir.ast
 
+import ir.{TypeException, ArrayType, Type}
+
 /**
  * asScalar pattern. (a.k.a., joinVec).
  * Code for this pattern can be generated.
@@ -15,4 +17,14 @@ package ir.ast
  * (so far):
  *  - `asScalar() o asVector(n) | asVector(n) o asScalar() => id`
  */
-case class asScalar() extends Pattern(arity = 1) with isGenerable
+case class asScalar() extends Pattern(arity = 1) with isGenerable {
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case at: ArrayType => Type.asScalarType(at)
+      case _ => throw new TypeException(argType, "ArrayType")
+    }
+  }
+
+}

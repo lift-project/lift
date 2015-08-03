@@ -1,7 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
-import ir.{UndefType, Type}
+import ir.{TypeException, ArrayType, UndefType, Type}
 
 
 /**
@@ -24,6 +24,18 @@ case class Group(relIndices: Array[Int],
   val id = Group.cnt
 
   var paramType: Type = UndefType
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case ArrayType(t, n) =>
+        paramType = ArrayType(ArrayType(t, relIndices.length), n)
+        paramType
+
+      case _ => throw new TypeException(argType, "ArrayType")
+    }
+  }
+
 }
 
 object Group {

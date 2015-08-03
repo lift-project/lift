@@ -32,17 +32,30 @@ object BarrierElimination {
       case call: FunCall =>
 
         val calls = getCallsAtLevel(call)
-        markLevel(calls, insideLoop)
 
-        calls.foreach(call => call.f match {
-          case m: AbstractMap => apply(m.f.body, insideLoop || isLoop(m.iterationCount))
-          case r: AbstractPartRed => apply(r.f.body, insideLoop || isLoop(r.iterationCount))
-          case i: Iterate => apply(i.f.body, insideLoop || isLoop(i.iterationCount))
-          case toLocal(f) => apply(insideLoop, f)
-          case toGlobal(f) => apply(insideLoop, f)
-          case toPrivate(f) => apply(insideLoop, f)
-          case fp: FPattern => apply(fp.f.body, insideLoop)
-          case _ =>
+        calls.foreach(call => {
+          call.f match {
+            case m: AbstractMap => apply(m.f.body, insideLoop || isLoop(m.iterationCount))
+            case r: AbstractPartRed => apply(r.f.body, insideLoop || isLoop(r.iterationCount))
+            case i: Iterate => apply(i.f.body, insideLoop || isLoop(i.iterationCount))
+            case toLocal(f) => apply(insideLoop, f)
+            case toGlobal(f) => apply(insideLoop, f)
+            case toPrivate(f) => apply(insideLoop, f)
+            case l: Lambda => apply(l.body, insideLoop)
+            case fp: FPattern => apply(fp.f.body, insideLoop)
+            case _ =>
+          }
+
+          markLevel(calls, insideLoop)
+
+          val mapLcl = getMapLcl(call.f)
+          if (mapLcl.isDefined) {
+            mapLcl.get.f.body match {
+              case FunCall(innerMapLcl @ MapLcl(_,_), _) =>
+                innerMapLcl.emitBarrier = false
+              case _ =>
+            }
+          }
         })
 
       case _ =>
@@ -62,7 +75,10 @@ object BarrierElimination {
   private def getCallsAtLevel(expr: Expr): Seq[FunCall] = {
     expr match {
       case call: FunCall =>
-        call +: call.args.reverse.flatMap(getCallsAtLevel)
+        call.f match {
+          case Lambda(_, body) => getCallsAtLevel(body) ++ call.args.reverse.flatMap(getCallsAtLevel)
+          case _ => call +: call.args.reverse.flatMap(getCallsAtLevel)
+        }
       case _ => Seq()
     }
   }
@@ -94,10 +110,11 @@ object BarrierElimination {
       val needsBarrier = Array.fill(groups.length)(false)
 
       val barrierInHead = groups.head.exists(c => isMapLcl(c.f))
-      val finalReadMemory = readsFrom(groups.head.last)
+      val finalReadFromLocal = readsFromLocal(groups.head.last)
       needsBarrier(0) =
         if (groups.length > 1)
-          !(barrierInHead && (finalReadMemory == GlobalMemory || finalReadMemory == LocalMemory && !insideLoop))
+          !(barrierInHead && (!finalReadFromLocal
+            || finalReadFromLocal && !insideLoop))
         else
           (OpenCLMemory.containsLocalMemory(groups.head.last.mem) ||
             groups.head.last.args.foldLeft(false)((needsBarrier, arg) => {
@@ -107,6 +124,14 @@ object BarrierElimination {
       groups.zipWithIndex.foreach(x => {
         val group = x._1
         val id = x._2
+
+        if (possibleSharing(group.last) && id < groups.length - 1) {
+          needsBarrier(id + 1) = true
+
+          if (OpenCLMemory.containsLocalMemory(group.last.argsMemory))
+            needsBarrier(id) = true
+
+        }
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
         if (group.exists(l => l.f.isInstanceOf[Split] || l.f.isInstanceOf[Join] && id > 0)) {
@@ -138,13 +163,33 @@ object BarrierElimination {
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (readsFrom(group.last) == LocalMemory && id > 0 && insideLoop &&
+          if (readsFromLocal(group.last) && id > 0 && insideLoop &&
             !groups.slice(0, id).map(_.exists(c => isMapLcl(c.f))).reduce(_ || _))
             needsBarrier(id) = true
         }
       })
 
-      (groups, needsBarrier).zipped.foreach((group, valid) => if (!valid) invalidateBarrier(group))
+      (groups, needsBarrier).zipped.foreach((group, valid) =>
+        if (!valid) invalidateBarrier(group))
+    }
+  }
+
+  // If a map calls its function with something other than
+  // the parameter from its lambda or containing that
+  // there can possibly be threads reading different elements
+  private def possibleSharing(call: FunCall): Boolean = {
+    call.f match {
+      case m: AbstractMap =>
+        m.f match {
+          case Lambda(params, FunCall(_, args @ _*))
+            if !params.sameElements(args) =>
+
+            !Expr.visitWithState(false)(args.head, (e, b) =>
+              if (e.eq(params.head)) true else b)
+
+          case _ => false
+        }
+      case _ => false
     }
   }
 
@@ -165,37 +210,38 @@ object BarrierElimination {
     }
   }
 
-  private def invalidateBarrier(group: Seq[FunCall]): Unit = {
-    group.find(c => isMapLcl(c.f)) match {
-      case Some(b) => invalidateBarrier(b.f)
-      case None =>
-    }
-  }
-
-  private def invalidateBarrier(declaration: FunDecl): Unit = {
-    def invalidateInToAddress(f: Lambda1): Unit = {
+  private def getMapLcl(funDecl: FunDecl): Option[MapLcl] = {
+    def getMapLclLambda(f: Lambda1): Option[MapLcl] = {
       f.body match {
-        case call: FunCall => invalidateBarrier(Seq(call))
-        case _ =>
+        case call: FunCall => getMapLcl(call.f)
+        case _ => None
       }
     }
-    declaration match {
-      case ml: MapLcl => ml.emitBarrier = false
-      case toGlobal(f) => invalidateInToAddress(f)
-      case toLocal(f) => invalidateInToAddress(f)
-      case toPrivate(f) => invalidateInToAddress(f)
-      case _ =>
+
+    funDecl match {
+      case m: MapLcl => Some(m)
+      case toLocal(f) => getMapLclLambda(f)
+      case toGlobal(f) => getMapLclLambda(f)
+      case toPrivate(f) => getMapLclLambda(f)
+      case _ => None
     }
   }
 
-  private def readsFrom(call: FunCall): OpenCLAddressSpace = {
-    val result = Expr.visitWithState[OpenCLAddressSpace](UndefAddressSpace)(call, (expr, addressSpace) => {
+  private def invalidateBarrier(group: Seq[FunCall]): Unit = {
+    group.foreach(c => getMapLcl(c.f) match {
+      case Some(b) => b.emitBarrier = false
+      case None =>
+    })
+  }
+
+  private def readsFromLocal(call: FunCall): Boolean = {
+    val result = Expr.visitWithState(false)(call, (expr, addressSpace) => {
       expr match {
         case call: FunCall =>
           call.f match {
             case uf: UserFun =>
-              if (addressSpace == UndefAddressSpace)
-                OpenCLMemory.asOpenCLMemory(call.args.head.mem).addressSpace
+              if (OpenCLMemory.containsLocalMemory(call.argsMemory))
+                true
               else
                 addressSpace
             case _ => addressSpace

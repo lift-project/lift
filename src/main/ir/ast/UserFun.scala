@@ -40,8 +40,9 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
    * @param n The vector width
    * @return
    */
-  def vectorize(n: ArithExpr): UserFun = new UserFun(s"$name$n", paramNames, body,
-                                                     inTs.map(_.vectorize(n)), outT.vectorize(n))
+  def vectorize(n: ArithExpr): UserFun =
+    new UserFun(s"$name$n", paramNames, body,
+                inTs.map(_.vectorize(n)), outT.vectorize(n))
 
   /**
    * Get all unique tuple types from the types of this user function.
@@ -49,6 +50,12 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
    */
   def tupleTypes: Seq[TupleType] = {
     (inTAsTupleType ++ outTAsTupleType).distinct
+  }
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    val substitutions = Type.reify(inT, argType)
+    Type.substitute(outT, substitutions.toMap)
   }
 
   /**

@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.{?, ArithExpr, Var}
+import ir._
 
 /**
  * Abstract class for map patterns.
@@ -17,6 +18,17 @@ abstract class AbstractMap(val f: Lambda,
   assert(f.params.length == 1)
 
   var iterationCount: ArithExpr = ?
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case ArrayType(t, n) =>
+        f.params(0).t = t
+        ArrayType(TypeChecker.check(f.body, setType), n)
+
+      case _ => throw new TypeException(argType, "ArrayType")
+    }
+  }
 }
 
 /**
