@@ -259,12 +259,11 @@ object TestRewrite {
 //    result
 //  }
 
-  private def rewrite(lambda: Lambda): Seq[Lambda] = {
+  case class Rule(desc: String,
+                  rewrite: PartialFunction[Expr, Expr])
 
-    case class Rule(desc: String,
-                    rewrite: PartialFunction[Expr, Expr])
-
-    val rules: Seq[Rule] = Seq(
+  val rules: Seq[Rule] =
+    Seq(
       Rule("Iterate(0, _) => Epsilon", {
         case FunCall(Iterate(n, _), arg) if n.eval == 0 => arg
       }),
@@ -291,8 +290,10 @@ object TestRewrite {
 
       Rule("splitVec(_) o joinVec() => id", {
         case FunCall(asVector(n), FunCall(asScalar(), arg))
-          if n == arg.t.asInstanceOf[ArrayType]
-            .elemT.asInstanceOf[VectorType].len => arg
+          if (arg.t match {
+            case ArrayType(VectorType(_, m), _) => n == m
+            case _ => false
+          }) => arg
       }),
 
       Rule("Join() o Split(_) => id", {
@@ -301,8 +302,10 @@ object TestRewrite {
 
       Rule("Split(_) o Join() => id", {
         case FunCall(Split(n), FunCall(Join(), arg))
-          if n == arg.t.asInstanceOf[ArrayType]
-                     .elemT.asInstanceOf[ArrayType].len => arg
+          if (arg.t match {
+            case ArrayType(ArrayType(_, m), _) => n == m
+            case _ => false
+          }) => arg
       }),
 
       Rule("Map(f) => MapGlb(f)", {
@@ -339,7 +342,7 @@ object TestRewrite {
           toGlobal(MapSeq(id)) o ReduceSeq(f, init) $ arg
       }),
 
-      Rule("Map(f) => asScalar() o MapGlb(f.vectorize(4)) o asVector(4)", {
+      Rule("Map(uf) => asScalar() o MapGlb(Vectorize(4)(uf)) o asVector(4)", {
         case FunCall(Map(Lambda(_, FunCall(uf: UserFun, _))), arg) =>
           asScalar() o Map(Vectorize(4)(uf)) o asVector(4) $ arg
       }),
@@ -355,11 +358,95 @@ object TestRewrite {
       })
     )
 
-    // 1. try to apply every rule once
-    // 2. filter out the once which didn't change anything
-    rules.map(rule =>
-      Lambda(lambda.params, Expr.replace(lambda.body, rule.rewrite))
-    ).filterNot( l => l.body.eq(lambda.body) )
+  def listAllPossibleRewritesForAllRules(lambda: Lambda): Seq[(Int, Rule)] = {
+    rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
+  }
+
+  def listAllPossibleRewrites(lambda: Lambda,
+                              rule: Rule): Seq[(Int, Rule)] = {
+    TypeChecker.check(lambda.body)
+
+    var option = 0
+    Expr.visitWithState(Seq[(Int, Rule)]())( lambda.body, (e, s) => {
+      if (rule.rewrite.isDefinedAt(e)) {
+        val newS = s :+ (option, rule)
+        option = option + 1
+        newS
+      } else s
+    })
+  }
+
+  def replace(where: Int) = {
+    var where_ = where
+    new {
+      def apply(e: Expr, rule: PartialFunction[Expr, Expr]): Expr = {
+        if (rule.isDefinedAt(e)) {
+          if (where_ == 0)
+            return rule(e)
+          else
+            where_ = where_ - 1
+        }
+
+        e match {
+          case call: FunCall =>
+            val newArgs = call.args.map((arg) => apply(arg, rule))
+
+            val newCall = call.f match {
+              case fp: FPattern =>
+                // Try to do the replacement in the body
+                val replaced = apply(fp.f.body, rule)
+
+                // If replacement didn't occur return fp
+                // else instantiate a new pattern with the updated lambda
+                if (fp.f.body.eq(replaced))
+                  fp
+                else
+                  fp.copy(Lambda(fp.f.params, replaced))
+
+              case l: Lambda =>
+                // Try to do the replacement in the body
+                val replaced = apply(l.body, rule)
+
+                // If replacement didn't occur return l
+                // else instantiate the updated lambda
+                if (l.body.eq(replaced))
+                  l
+                else
+                  Lambda(l.params, replaced)
+
+              case other => other
+            }
+
+            if (!newCall.eq(call.f) || newArgs != call.args)
+              FunCall(newCall, newArgs: _*)
+            // Instantiate a new FunCall if anything has changed
+
+            else
+              e // Otherwise return the same FunCall object
+
+          case _ => e
+        }
+      }
+    }
+  }
+
+  def applyRuleAt(lambda: Lambda, ruleAt: (Int, Rule)): Lambda = {
+    val where = ruleAt._1
+    val rule  = ruleAt._2
+    Lambda(lambda.params, replace(where)(lambda.body, rule.rewrite))
+  }
+
+  private def rewrite(lambda: Lambda): Seq[Lambda] = {
+    TypeChecker.check(lambda.body)
+
+    val allRulesAt = TestRewrite.listAllPossibleRewritesForAllRules(lambda)
+    allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt))
+
+//    // 1. try to apply every rule once
+//    // 2. filter out the once which didn't change anything
+//    rules.map(rule =>
+//      Lambda(lambda.params, Expr.replace(lambda.body, rule.rewrite))
+//    ).filterNot( l => l.body.eq(lambda.body) )
   }
 }
 
@@ -372,13 +459,17 @@ class TestRewrite {
 
     def f = fun(
       ArrayType(Float, N),
-      input => Map(id) $ input
+      input => Map(id) o Map(id) $ input
     )
 
     def goldF = fun(
       ArrayType(Float, N),
       input => MapGlb(id) $ input
     )
+
+    val all = TestRewrite.listAllPossibleRewritesForAllRules(f)
+
+    val f2 = TestRewrite.applyRuleAt(f, all(11))
 
     val lambdaOptions = TestRewrite.rewrite(f)
     val (gold: Array[Float], _) = Execute(128)(goldF, A)
