@@ -1,5 +1,7 @@
 package ir.ast
 
+import ir.{TypeException, ArrayType, Type}
+
 /**
  * Join pattern.
  * Code for this pattern can be generated.
@@ -15,4 +17,16 @@ package ir.ast
  * (so far):
  *  - `Join() o Split(chunkSize) | Split(chunkSize) o Join() => id`
  */
-case class Join() extends Pattern(arity = 1) with isGenerable
+case class Join() extends Pattern(arity = 1) with isGenerable {
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case ArrayType(ArrayType(t, m), n) =>
+        ArrayType(t, n * m)
+
+      case _ => throw new TypeException(argType, "ArrayType(ArrayType(_, _), _)")
+    }
+  }
+
+}

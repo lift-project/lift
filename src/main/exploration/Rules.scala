@@ -69,7 +69,7 @@ object Rules {
         var result = List[FunDecl]()
 
         // sequential
-        if (!call.context.inSeq && (call.context.inMapGlb || call.context.inMapLcl))
+//        if (!call.context.inMapSeq && (call.context.inMapGlb || call.context.inMapLcl))
           result = result :+ MapSeq(inF)
 
         // global, workgroup
@@ -104,7 +104,7 @@ object Rules {
         if (!c.converge)
           result = result :+ (Reduce(inF) o PartRed(inF))
 
-        if (!call.context.inSeq && (call.context.inMapGlb || call.context.inMapLcl))
+//        if (!call.context.inSeq && (call.context.inMapGlb || call.context.inMapLcl))
           result = result :+ ReduceSeq(inF)
 
         result

@@ -4,7 +4,7 @@ import apart.arithmetic.Var
 import ir.ast._
 
 case class MapGlb(dim: Int, override val f: Lambda1)
-  extends AbstractMap(f, "MapGlbl", Var("gl_id")) with isGenerable {
+  extends AbstractMap(f, "MapGlbl", Var("gl_id")) {
   override def copy(f: Lambda): Pattern = MapGlb(dim, f)
 }
 

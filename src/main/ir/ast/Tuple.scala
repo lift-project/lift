@@ -1,5 +1,7 @@
 package ir.ast
 
+import ir.{TypeException, NumberOfArgumentsException, TupleType, Type}
+
 /**
  * Tuple pattern.
  * Code for this pattern can be generated.
@@ -14,7 +16,21 @@ package ir.ast
  *
  * @param n The number of elements which are combined. Must be >= 2
  */
-case class Tuple(n: Int) extends FunDecl(arity = n) with isGenerable
+case class Tuple(n: Int) extends FunDecl(arity = n) with isGenerable {
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case tt: TupleType =>
+        if (tt.elemsT.length != n) throw new NumberOfArgumentsException
+
+        tt // the arguments are already grouped in a tuple
+
+      case _ => throw new TypeException(argType, "TupleType")
+    }
+  }
+
+}
 
 object Tuple {
   /**

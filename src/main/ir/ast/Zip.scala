@@ -1,5 +1,7 @@
 package ir.ast
 
+import ir._
+
 /**
  * Zip pattern.
  * Code for this pattern can be generated.
@@ -15,7 +17,34 @@ package ir.ast
  *
  * @param n The number of arrays which are combined. Must be >= 2.
  */
-case class Zip(n : Int) extends FunDecl(arity = n) with isGenerable
+case class Zip(n : Int) extends FunDecl(arity = n) with isGenerable {
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    argType match {
+      case tt: TupleType =>
+        if (tt.elemsT.length != n) throw new NumberOfArgumentsException
+
+        // make sure all arguments are array types
+        tt.elemsT.map({
+          case at: ArrayType => at
+          case t => throw new TypeException(t, "ArrayType")
+        })
+        val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType])
+
+        // make sure all arguments have the same size
+        if (arrayTypes.map(_.len).distinct.length != 1) {
+          Console.err.println("Warning: can not statically prove that sizes (" +
+            tt.elemsT.mkString(", ") + ") match!")
+          // throw TypeException("sizes do not match")
+        }
+
+        ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.len)
+
+      case _ => throw new TypeException(argType, "TupleType")
+    }
+  }
+}
 
 object Zip {
   /**

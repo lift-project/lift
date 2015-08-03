@@ -14,12 +14,25 @@ import scala.language.implicitConversions
  * @param body The body of the lambda expression.
  */
 case class Lambda(params: Array[Param],
-                  body: Expr) extends FunDecl(params.length) with isGenerable {
+                  body: Expr) extends FunDecl(params.length) {
   /**
    * Debug string representation
    */
   override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
                           " -> " + body.toString + ")"
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    if (arity == 1) {
+      params(0).t = argType
+    } else {
+      val tt = argType match { case tt: TupleType => tt }
+      if (arity != tt.elemsT.length) throw new NumberOfArgumentsException
+
+      (params zip tt.elemsT).foreach({case (p,t) => p.t = t })
+    }
+    TypeChecker.check(body, setType)
+  }
 
   override def apply(args : Expr*) : Expr = {
     assert (args.length == arity)
@@ -44,6 +57,15 @@ case class Lambda(params: Array[Param],
         case (e, (p, a)) => Expr.replace(e, p, a)
       }
     }
+  }
+
+  override lazy val isGenerable: Boolean = {
+    Expr.visitWithState(true)(body, (e, s) => {
+      e match {
+        case call: FunCall if !call.f.isGenerable => false
+        case _ => s
+      }
+    })
   }
 }
 

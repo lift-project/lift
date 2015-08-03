@@ -1,5 +1,7 @@
 package ir.ast
 
+import ir.Type
+
 /**
  * Empty pattern (Epsilon).
  * Code for this pattern can be generated.
@@ -16,4 +18,8 @@ package ir.ast
  *  - `x o Epsilon() => x`
  *  - `Map(Epsilon()) => Epsilon()`
  */
-case class Epsilon() extends Pattern(arity = 1) with isGenerable
+case class Epsilon() extends Pattern(arity = 1) with isGenerable {
+
+  override def checkType(argType: Type, setType: Boolean): Type = argType
+
+}

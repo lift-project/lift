@@ -86,6 +86,24 @@ class TestMisc {
     assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
 
+  @Ignore
+  @Test
+  def issue25(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun(ArrayType(Float, Var("N")),
+      in => {
+        MapSeq(id o id) $ in
+      })
+
+    println(l)
+
+    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+
+    assertArrayEquals(inputData, output, 0.0f)
+  }
+
   // Simple 1D increment, used to check the syntax of unary UserFunDef
   @Test def increment(): Unit = {
     // domain size
