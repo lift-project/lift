@@ -1,7 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
-import ir.{ArrayType, Type, UndefType}
+import ir.{ArrayType, Type}
 import scala.language.implicitConversions
 
 /**
@@ -39,10 +39,11 @@ object IndexFunction {
   }
 
   val transpose = (i: ArithExpr, t: Type) => {
-    val outerType = t match { case at: ArrayType => at }
-    val innerType = outerType.elemT match { case at: ArrayType => at }
-
-    transposeFunction(outerType.len, innerType.len)(i, t)
+    t match {
+      case ArrayType(ArrayType(_, n), m) =>
+        transposeFunction(m, n)(i, t)
+      case _ => throw new IllegalArgumentException
+    }
   }
 
   val reverse = (i: ArithExpr, t: Type) => {
