@@ -5,7 +5,7 @@ import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{Ignore, Test, AfterClass, BeforeClass}
 import org.junit.Assert._
 import opencl.ir.pattern._
 
@@ -206,11 +206,15 @@ object TestRewrite {
           if p2.contains({ case a => a eq p1.head})
         =>
           Map(fun1) o Map(Lambda(p1, fun2(p2))) $ arg
+        case FunCall(Map(Lambda(p1, FunCall(Reduce(fun1), init, FunCall(fun2, p2)))), arg)
+          if p2.contains({ case a => a eq p1.head})
+        =>
+          Map(Reduce(fun1, init)) o Map(Lambda(p1, fun2(p2))) $ arg
       }),
 
-      Rule("Reduce(f) => toGlobal(MapSeq(id)) ReduceSeq(f)", {
+      Rule("Reduce(f) => ReduceSeq(f)", {
         case FunCall(Reduce(f), init, arg) =>
-          toGlobal(MapSeq(id)) o ReduceSeq(f, init) $ arg
+          ReduceSeq(f, init) $ arg
       }),
 
       Rule("Reduce(f) => Reduce(f) o PartRed(f)", {
@@ -229,7 +233,9 @@ object TestRewrite {
       }),
 
       Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
-        case FunCall(ReduceSeq(f), init, FunCall(MapSeq(g), arg)) =>
+        case FunCall(ReduceSeq(f), init, FunCall(MapSeq(g), arg))
+          if g.isGenerable
+        =>
           ReduceSeq(fun( (acc, x) => f(acc, g(x))), init) $ arg
       }),
 
@@ -282,6 +288,129 @@ class TestRewrite {
   val A = Array.fill[Float](128)(0.5f)
 
   @Test
+  def mmReuseA(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // Already transposed
+      (A, B) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)) )) $ Zip(aRow, bCol)
+          )) $ B
+        )) $ A
+      })
+
+    TypeChecker.check(f.body)
+
+    val splitJoin = f.body match {
+      case FunCall(Map(Lambda(_, call @ FunCall(_, _))), _) => call
+    }
+
+    val splitJoinRewrite = TestRewrite.rules(16).rewrite
+    assertTrue(splitJoinRewrite.isDefinedAt(splitJoin))
+
+    val f1 = FunDecl.replace(f, splitJoin, splitJoinRewrite(splitJoin))
+    TypeChecker.check(f1.body)
+
+    val mapFission = f1.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
+    }
+
+    val mapFissionRewrite = TestRewrite.rules(19).rewrite
+    assertTrue(mapFissionRewrite.isDefinedAt(mapFission))
+
+    val f2 = FunDecl.replace(f1, mapFission, mapFissionRewrite(mapFission))
+    TypeChecker.check(f2.body)
+
+    val mapReduceInterchange = f2.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
+    }
+
+    val mapReduceInterchangeRewrite = TestRewrite.rules(17).rewrite
+    assertTrue(mapReduceInterchangeRewrite.isDefinedAt(mapReduceInterchange))
+
+    val f3 = FunDecl.replace(f2, mapReduceInterchange, mapReduceInterchangeRewrite(mapReduceInterchange))
+    TypeChecker.check(f3.body)
+
+    val mapMapTranspose = f3.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, FunCall(_, call)))), _)))), _) => call
+    }
+
+    val mapMapTransposeRewrite = TestRewrite.rules(18).rewrite
+    assertTrue(mapMapTransposeRewrite.isDefinedAt(mapMapTranspose))
+
+    val f4 = FunDecl.replace(f3, mapMapTranspose, mapMapTransposeRewrite(mapMapTranspose))
+    TypeChecker.check(f4.body)
+
+    val transposeTranspose = f4.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, call))), _)))), _) => call
+    }
+
+    val transposeTransposeRewrite = TestRewrite.rules(7).rewrite
+    assertTrue(transposeTransposeRewrite.isDefinedAt(transposeTranspose))
+
+    val f5 = FunDecl.replace(f4, transposeTranspose, transposeTransposeRewrite(transposeTranspose))
+    TypeChecker.check(f5.body)
+
+
+    val mapToMapSeq = f5.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, FunCall(Map(Lambda(_, call)), _)))), _)))), _) => call
+    }
+
+    val mapToMapSeqRewrite = TestRewrite.rules(10).rewrite
+    assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq))
+
+    val f6 = FunDecl.replace(f5, mapToMapSeq, mapToMapSeqRewrite(mapToMapSeq))
+    TypeChecker.check(f6.body)
+
+    val mapToMapSeq2 = f6.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, call)), _, _))), _)))), _) => call
+    }
+
+    assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq2))
+
+    val f7 = FunDecl.replace(f6, mapToMapSeq2, mapToMapSeqRewrite(mapToMapSeq2))
+    TypeChecker.check(f7.body)
+
+    val reduceToReduceSeq = f7.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
+    }
+
+    val reduceToReduceSeqRewrite = TestRewrite.rules(20).rewrite
+    assertTrue(reduceToReduceSeqRewrite.isDefinedAt(reduceToReduceSeq))
+
+    val f8 = FunDecl.replace(f7, reduceToReduceSeq, reduceToReduceSeqRewrite(reduceToReduceSeq))
+    TypeChecker.check(f8.body)
+
+
+    val mapToMapSeq3 = f8.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, call))), _)))), _) => call
+    }
+
+    assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq3))
+
+    val f9 = FunDecl.replace(f8, mapToMapSeq3, mapToMapSeqRewrite(mapToMapSeq3))
+    TypeChecker.check(f9.body)
+
+
+    val fusion = f9.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
+    }
+
+    val fusionRewrite = TestRewrite.rules(24).rewrite
+    assertTrue(fusionRewrite.isDefinedAt(fusion))
+
+    val f10 = FunDecl.replace(f9, fusion, fusionRewrite(fusion))
+    TypeChecker.check(f10.body)
+
+    println(f10)
+  }
+
+  @Test
   def mapFission(): Unit = {
     val N = Var("N")
 
@@ -297,8 +426,10 @@ class TestRewrite {
 
     val g = fun(
       ArrayType(ArrayType(Float, M), N),
-      input => Map(fun(x => Map(id) o Map(id) $ Zip(x, x))) $ input
+      input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ Zip(x, x))) $ input
     )
+
+    println(g)
 
     assertTrue(TestRewrite.rules(19).rewrite.isDefinedAt(g.body))
     println(Lambda(g.params, TestRewrite.rules(19).rewrite(g.body)))
@@ -502,6 +633,9 @@ class TestRewrite {
     })
   }
 
+  // TODO: ReduceSeq rule is broken, can't have Reduce(f) => toGlobal(MapSeq(id)) o ReduceSeq(f)
+  // TODO: as the result of reduce could be multidimensional
+  @Ignore
   @Test
   def simpleReduceTest(): Unit = {
     val goldF = fun(
