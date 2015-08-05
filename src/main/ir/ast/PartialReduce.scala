@@ -68,5 +68,5 @@ case class PartRed(override val f: Lambda) extends AbstractPartRed(f, Var("")) {
 }
 
 object PartRed {
-  def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => PartRed(f)(init, x))
+  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => PartRed(f)(init, x))
 }

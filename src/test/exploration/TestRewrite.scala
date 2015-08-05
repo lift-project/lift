@@ -57,6 +57,10 @@ object TestRewrite {
           }) => arg
       }),
 
+      Rule("Transpose() o Transpose() => id", {
+        case FunCall(Transpose(), FunCall(Transpose(), arg)) => arg
+      }),
+
       Rule("Join() o Split(_) => id", {
         case FunCall(Join(), FunCall(Split(_), arg)) => arg
       }),
@@ -144,9 +148,79 @@ object TestRewrite {
           Join() o Map(Map(f)) o Split(4) $ arg
       }),
 
+      Rule("Map(Reduce(f)) => Reduce(Map(f)) o Transpose()", {
+        case FunCall(Map(Lambda(lambdaParams, FunCall(Reduce(f), init: Value, arg))), mapArg)
+          if lambdaParams.head eq arg
+        =>
+          val newInit = Value(init.value, ArrayType(init.t, Type.getLength(mapArg.t)))
+          Reduce(fun((acc, c) => Map(fun(x => f(Get(x, 0), Get(x, 1)))) $ Zip(acc, c)),
+            newInit) o Transpose() $ mapArg
+      }),
+
+      Rule("Map(fun(a => Map() $ Zip(..., a, ...)) $ A => Transpose() o Map(Map(fun(a => ))) $ Zip(..., Transpose() $ A, ...) ", {
+        case FunCall(Map(
+          Lambda(outerLambdaParam, FunCall(Map(
+            Lambda(innerLambdaParam, expr
+            )), FunCall(Zip(_), zipArgs @ _*))
+          )), arg)
+          if zipArgs.contains(outerLambdaParam.head)
+        =>
+          // Find all Get patterns that refer to the an element from the zipped array
+          // and have to be replaced in expr
+          val gets = Expr.visitWithState(List[FunCall]())(expr, (e, s) => {
+            e match {
+              case get @ FunCall(Get(_), getParam) if getParam eq innerLambdaParam.head  => get :: s
+              case _ => s
+            }
+          })
+
+          // Find which Get pattern corresponds to the component containing an element of 'a'
+          val zipToReplace = zipArgs.zipWithIndex.find(e => e._1 eq outerLambdaParam.head).get
+
+          // Create the new Get patterns with a new parameter
+          val newParam = Param()
+          val getPairs =  gets zip gets.map(get => Get(newParam, get.f.asInstanceOf[Get].n))
+
+          // Separate the Get pattern containing an element of 'a', as it will now refer
+          // to the component containing an element of 'A'
+          val (one, two) = getPairs.partition(_._1.f.asInstanceOf[Get].n == zipToReplace._2)
+
+          // Replace most of the old Get patterns with new ones
+          val newExpr = two.foldRight(expr)((get, e) => Expr.replace(e, get._1, get._2))
+
+          // Create a new parameter for an element of 'a' and replace for the Get referring
+          // an element of 'a'
+          val secondNewParam = Param()
+          val finalNewExpr = Expr.replace(newExpr, one.head._1, secondNewParam)
+
+          // Create the arguments for the zip, replacing 'a' with 'Transpose() $ A'
+          val newZipArgs = zipArgs.updated(zipToReplace._2, Transpose() $ arg)
+
+          // Construct the final expression
+          val lambda = Lambda(Array(secondNewParam), finalNewExpr)
+          Transpose() o Map(Lambda(Array(newParam), Map(lambda) $ one.head._2)) $ Zip(newZipArgs:_*)
+      }),
+
+      Rule("Map(f o g) => Map(f) o Map(g)", {
+        case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2)))), arg)
+          if p2.contains({ case a => a eq p1.head})
+        =>
+          Map(fun1) o Map(Lambda(p1, fun2(p2))) $ arg
+      }),
+
       Rule("Reduce(f) => toGlobal(MapSeq(id)) ReduceSeq(f)", {
         case FunCall(Reduce(f), init, arg) =>
           toGlobal(MapSeq(id)) o ReduceSeq(f, init) $ arg
+      }),
+
+      Rule("Reduce(f) => Reduce(f) o PartRed(f)", {
+        case FunCall(Reduce(f), init, arg) =>
+          Reduce(f, init) o PartRed(f, init) $ arg
+      }),
+
+      Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
+        case FunCall(PartRed(f), init, arg) =>
+          Join() o Map(PartRed(f, init)) o Split(4) $ arg
       }),
 
       Rule("Map(uf) => asScalar() o MapGlb(Vectorize(4)(uf)) o asVector(4)", {
@@ -184,7 +258,7 @@ object TestRewrite {
     val rule = ruleAt._1
     val oldE = ruleAt._2
     // same as FunDecl.replace( ... )
-    Lambda(lambda.params, Expr.replace(lambda.body, oldE, rule.rewrite))
+    Lambda(lambda.params, Expr.replace(lambda.body, oldE, rule.rewrite(oldE)))
   }
 
   def rewrite(lambda: Lambda, levels: Int = 1): Seq[Lambda] = {
@@ -206,6 +280,69 @@ object TestRewrite {
 class TestRewrite {
   val N = Var("N")
   val A = Array.fill[Float](128)(0.5f)
+
+  @Test
+  def mapFission(): Unit = {
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => Map(id o id) $ input
+    )
+
+    assertTrue(TestRewrite.rules(19).rewrite.isDefinedAt(f.body))
+    println(Lambda(f.params, TestRewrite.rules(19).rewrite(f.body)))
+
+    val M = Var("M")
+
+    val g = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input => Map(fun(x => Map(id) o Map(id) $ Zip(x, x))) $ input
+    )
+
+    assertTrue(TestRewrite.rules(19).rewrite.isDefinedAt(g.body))
+    println(Lambda(g.params, TestRewrite.rules(19).rewrite(g.body)))
+  }
+
+  @Test
+  def transposeTransposeId(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input => Transpose() o Transpose() $ input
+    )
+
+    assertTrue(TestRewrite.rules(7).rewrite.isDefinedAt(f.body))
+    assertSame(f.params.head, TestRewrite.rules(7).rewrite(f.body))
+  }
+
+  @Test
+  def mapReduceInterchange(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(Reduce(add, 0.0f)) $ input
+    )
+
+    assertTrue(TestRewrite.rules(17).rewrite.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapMapTransposeWithZip(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+                ArrayType(Float, M),
+      (in1, in2) => Map(fun(x => Map(fun(x => add(Get(x, 0), Get(x, 1)))) $ Zip(in2, x))) $ in1
+    )
+
+    assertTrue(TestRewrite.rules(18).rewrite.isDefinedAt(f.body))
+    println(TestRewrite.rules(18).rewrite(f.body))
+  }
 
   @Test
   def simpleMapTest(): Unit = {

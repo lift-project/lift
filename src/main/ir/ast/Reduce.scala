@@ -49,5 +49,5 @@ case class Reduce(override val f: Lambda) extends AbstractReduce(f, Var("")) {
 }
 
 object Reduce {
-  def apply(f: Lambda2, init: Value): Lambda1 = fun((x) => Reduce(f)(init, x))
+  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => Reduce(f)(init, x))
 }
