@@ -5,9 +5,9 @@ import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import org.junit.{Ignore, Test, AfterClass, BeforeClass}
-import org.junit.Assert._
 import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestRewrite {
   @BeforeClass def before() {
@@ -214,7 +214,18 @@ object TestRewrite {
 
       Rule("Reduce(f) => ReduceSeq(f)", {
         case FunCall(Reduce(f), init, arg) =>
-          ReduceSeq(f, init) $ arg
+
+          // Construct id functions using the type of init
+          var idFunction: FunDecl = id
+          var idFunction2: FunDecl = id
+          Type.visit(init.t, t => if(t.isInstanceOf[ArrayType]) {
+            idFunction = Map(idFunction)
+            idFunction2 = Map(idFunction2)
+          }, t => Unit)
+
+          val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
+
+          toGlobal(MapSeq(idFunction2)) o ReduceSeq(f, newInit) $ arg
       }),
 
       Rule("Reduce(f) => Reduce(f) o PartRed(f)", {
@@ -376,29 +387,27 @@ class TestRewrite {
     val f7 = FunDecl.replace(f6, mapToMapSeq2, mapToMapSeqRewrite(mapToMapSeq2))
     TypeChecker.check(f7.body)
 
-    val reduceToReduceSeq = f7.body match {
+    val mapToMapSeq3 = f7.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, call))), _)))), _) => call
+    }
+
+    assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq3))
+
+    val f8 = FunDecl.replace(f7, mapToMapSeq3, mapToMapSeqRewrite(mapToMapSeq3))
+    TypeChecker.check(f8.body)
+
+    val reduceToReduceSeq = f8.body match {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
     }
 
     val reduceToReduceSeqRewrite = TestRewrite.rules(20).rewrite
     assertTrue(reduceToReduceSeqRewrite.isDefinedAt(reduceToReduceSeq))
 
-    val f8 = FunDecl.replace(f7, reduceToReduceSeq, reduceToReduceSeqRewrite(reduceToReduceSeq))
-    TypeChecker.check(f8.body)
-
-
-    val mapToMapSeq3 = f8.body match {
-      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, call))), _)))), _) => call
-    }
-
-    assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq3))
-
-    val f9 = FunDecl.replace(f8, mapToMapSeq3, mapToMapSeqRewrite(mapToMapSeq3))
+    val f9 = FunDecl.replace(f8, reduceToReduceSeq, reduceToReduceSeqRewrite(reduceToReduceSeq))
     TypeChecker.check(f9.body)
 
-
     val fusion = f9.body match {
-      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, call))), _)))), _) => call
     }
 
     val fusionRewrite = TestRewrite.rules(24).rewrite
@@ -633,9 +642,6 @@ class TestRewrite {
     })
   }
 
-  // TODO: ReduceSeq rule is broken, can't have Reduce(f) => toGlobal(MapSeq(id)) o ReduceSeq(f)
-  // TODO: as the result of reduce could be multidimensional
-  @Ignore
   @Test
   def simpleReduceTest(): Unit = {
     val goldF = fun(

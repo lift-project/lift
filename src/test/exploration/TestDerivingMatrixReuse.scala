@@ -769,15 +769,6 @@ class TestDerivingMatrixReuse {
     val (output16: Array[Float], _) = Execute(1, mSize)(f16, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output16, 0.0f)
 
-    /*
-    MapSeq(fun( rowPair =>
-      MapSeq(fun(a =>
-        MapSeq(fun(bElem => mult.apply(bElem, a)
-        )) $ Get(rowPair, 1)
-      )) $ Get(rowPair, 0)
-    )
-    */
-
     // ReduceSeq-MapSeq fusion
     val f17 = fun(
       ArrayType(ArrayType(Float, K), M),
