@@ -153,11 +153,13 @@ object TestRewrite {
           if lambdaParams.head eq arg
         =>
           val newInit = Value(init.value, ArrayType(init.t, Type.getLength(mapArg.t)))
+
           Reduce(fun((acc, c) => Map(fun(x => f(Get(x, 0), Get(x, 1)))) $ Zip(acc, c)),
             newInit) o Transpose() $ mapArg
       }),
 
-      Rule("Map(fun(a => Map() $ Zip(..., a, ...)) $ A => Transpose() o Map(Map(fun(a => ))) $ Zip(..., Transpose() $ A, ...) ", {
+      Rule("Map(fun(a => Map() $ Zip(..., a, ...)) $ A => " +
+           "Transpose() o Map(Map(fun(a => ))) $ Zip(..., Transpose() $ A, ...) ", {
         case FunCall(Map(
           Lambda(outerLambdaParam, FunCall(Map(
             Lambda(innerLambdaParam, expr
@@ -167,12 +169,7 @@ object TestRewrite {
         =>
           // Find all Get patterns that refer to the an element from the zipped array
           // and have to be replaced in expr
-          val gets = Expr.visitWithState(List[FunCall]())(expr, (e, s) => {
-            e match {
-              case get @ FunCall(Get(_), getParam) if getParam eq innerLambdaParam.head  => get :: s
-              case _ => s
-            }
-          })
+          val gets = findGets(expr, innerLambdaParam.head)
 
           // Find which Get pattern corresponds to the component containing an element of 'a'
           val zipToReplace = zipArgs.zipWithIndex.find(e => e._1 eq outerLambdaParam.head).get
@@ -206,6 +203,7 @@ object TestRewrite {
           if p2.contains({ case a => a eq p1.head})
         =>
           Map(fun1) o Map(Lambda(p1, fun2(p2))) $ arg
+
         case FunCall(Map(Lambda(p1, FunCall(Reduce(fun1), init, FunCall(fun2, p2)))), arg)
           if p2.contains({ case a => a eq p1.head})
         =>
@@ -253,8 +251,86 @@ object TestRewrite {
       Rule("Map(f) o Map(g) => Map(f o g)", {
         case FunCall(Map(f), FunCall(Map(g), arg)) =>
           Map(f o g) $ arg
+      }),
+
+      Rule("Map(fun(a => Map(fun( b => ... ) $ B) $ A => " +
+           "Transpose() o Map(fun(b => Map(fun( a => ... ) $ A) $ B", {
+        case FunCall(Map(Lambda(a, FunCall(Map(Lambda(b, expr)), bArg))), aArg)
+          if !(a.head eq bArg)
+        =>
+          TransposeW() o Map(Lambda(b, FunCall(Map(Lambda(a, expr)), aArg))) $ bArg
+      }),
+
+      Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
+        case FunCall(map @ Map(_), arg) =>
+          Scatter(reorderStride(4)) o map o Gather(reorderStride(4)) $ arg
+      }),
+
+      Rule("Map(fun(a => ... $ a)) $ A => " +
+           "Transpose() o Map(fun(a =>... $ a)) o Transpose() $ A  ", {
+        case outerCall @ FunCall(Map(Lambda(lambdaArg, innerCall @ FunCall(f, funCallArg))), arg)
+          if (lambdaArg.head eq funCallArg) // TODO: Too strict, the final arg at this level should be the same
+            && (outerCall.t match {
+              case ArrayType(ArrayType(_, _), _) => true
+              case _ => false
+            })
+            && (arg.t match {
+             case ArrayType(ArrayType(_, _), _) => true
+             case _ => false
+            })
+            && !innerCall.contains({
+              case FunCall(Split(_), _) =>
+              case FunCall(Join(), _) => // TODO: ok, if to get rid of length 1 array from reduce?
+                                         // TODO: Map( Join() o Map(Reduce()))
+            })
+        =>
+          TransposeW() o Map(f) o Transpose() $ arg
+      }),
+
+      Rule("Map(fun(x => Map(fun(a => )) $ Get(n, ) $ Zip(..., A, ...)  => " +
+           "Transpose() o Map(fun(a => Map() $ Zip(..., a, ...)) o Transpose() $ A", {
+        case c @ FunCall(Map(Lambda(outerLambdaParam ,
+          FunCall(Map(Lambda(innerLambdaParam,
+            expr
+          )), getCall @ FunCall(Get(n), getParam))
+        )), FunCall(Zip(_), zipArgs@_*))
+
+          if getParam eq outerLambdaParam.head
+        =>
+
+          // Find all Get patterns that refer to the an element from the zipped array
+          // and have to be replaced in expr
+          val gets = findGets(expr, outerLambdaParam.head)
+
+          // Find 'A'
+          val newArg = zipArgs(n)
+
+          // Construct new Get patterns and replace them for the old ones
+          val newParam = Param()
+          val newGets = gets zip gets.map(get => Get(newParam, get.f.asInstanceOf[Get].n))
+          val newExpr =  newGets.foldRight(expr)((get, e) => Expr.replace(e, get._1, get._2))
+
+          // Create a get pattern for an element 'a'
+          val finalNewExpr = Expr.replace(newExpr, innerLambdaParam.head, Get(n)(newParam))
+
+          // Replace 'a' with a new parameter to create the new arguments for zip
+          val secondNewParam = Param()
+          val newZipArgs = zipArgs.updated(n, secondNewParam)
+
+          Transpose() o Map(Lambda(Array(secondNewParam),
+            Map(Lambda(Array(newParam), finalNewExpr)) $ Zip(newZipArgs:_*)
+          )) o Transpose() $ newArg
       })
     )
+
+  private def findGets(expr: Expr, tupleParam: Expr): List[FunCall] = {
+    Expr.visitWithState(List[FunCall]())(expr, (e, s) => {
+      e match {
+        case get@FunCall(Get(_), getParam) if getParam eq tupleParam => get :: s
+        case _ => s
+      }
+    })
+  }
 
   private def listAllPossibleRewritesForAllRules(lambda: Lambda): Seq[(Rule, Expr)] = {
     rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
@@ -438,8 +514,6 @@ class TestRewrite {
       input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ Zip(x, x))) $ input
     )
 
-    println(g)
-
     assertTrue(TestRewrite.rules(19).rewrite.isDefinedAt(g.body))
     println(Lambda(g.params, TestRewrite.rules(19).rewrite(g.body)))
   }
@@ -471,7 +545,35 @@ class TestRewrite {
   }
 
   @Test
-  def mapMapTransposeWithZip(): Unit = {
+  def transposeBothSides(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(Map(plusOne)) $ input
+    )
+
+    TypeChecker.check(f.body)
+
+    assertTrue(TestRewrite.rules(28).rewrite.isDefinedAt(f.body))
+
+    val g = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(Map(Map(plusOne)) o Split(2)) $ input
+    )
+
+    TypeChecker.check(g.body)
+    assertFalse(TestRewrite.rules(28).rewrite.isDefinedAt(g.body))
+
+    val h = fun(ArrayType(ArrayType(ArrayType(Float, 2), M), N),
+      input => Map(Join() o Map(Map(plusOne))) $ input
+    )
+
+    TypeChecker.check(h.body)
+    assertTrue(TestRewrite.rules(28).rewrite.isDefinedAt(h.body))
+  }
+
+  @Test
+  def mapMapTransposeWithZipInside(): Unit = {
     val N = Var("N")
     val M = Var("M")
 
@@ -482,6 +584,20 @@ class TestRewrite {
 
     assertTrue(TestRewrite.rules(18).rewrite.isDefinedAt(f.body))
     println(TestRewrite.rules(18).rewrite(f.body))
+  }
+
+  @Test
+  def mapMapTransposeWithZipOutside(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, M),
+      (in1, in2) => Map(fun(x => Map(fun(y => add(y, Get(x, 1)))) $ Get(x, 0))) $ Zip(in1, in2)
+    )
+
+    assertTrue(TestRewrite.rules(29).rewrite.isDefinedAt(f.body))
+    println(TestRewrite.rules(29).rewrite(f.body))
   }
 
   @Test
