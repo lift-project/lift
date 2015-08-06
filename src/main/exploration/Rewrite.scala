@@ -2,11 +2,50 @@ package exploration
 
 import ir._
 import ir.ast._
+import Rules._
 
 object Rewrite {
 
+  private val rules =
+    Seq(
+      iterateId,
+      iterate1,
+      gatherToScatter,
+      scatterToGather,
+      partialReduceToReduce,
+      partialReduceReorder,
+      epsilonComposition,
+      epsilonComposition2,
+      mapEpsilon,
+      asScalarAsVectorId,
+      asVectorAsScalarId,
+      transposeTransposeId,
+      joinSplitId,
+      splitJoinId,
+      mapSeq,
+      mapGlb,
+      mapWrg,
+      mapLcl,
+      mapWarp,
+      mapLane,
+      splitJoin,
+      mapReduceInterchange,
+      mapMapTransposeZipInside,
+      mapFission,
+      reduceSeq,
+      partialReduce,
+      partialReduceSplitJoin,
+      vectorize,
+      mapReduceFusion,
+      mapFusion,
+      mapMapInterchange,
+      reorderBothSides,
+      transposeBothSides,
+      mapMapTransposeZipOutside
+    )
+
   private def listAllPossibleRewritesForAllRules(lambda: Lambda): Seq[(Rule, Expr)] = {
-    Rules.rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
+    rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
   }
 
   private def listAllPossibleRewrites(lambda: Lambda,

@@ -47,7 +47,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, call @ FunCall(_, _))), _) => call
     }
 
-    val splitJoinRewrite = Rules.rules(16).rewrite
+    val splitJoinRewrite = Rules.splitJoin.rewrite
     assertTrue(splitJoinRewrite.isDefinedAt(splitJoin))
 
     val f1 = FunDecl.replace(f, splitJoin, splitJoinRewrite(splitJoin))
@@ -57,7 +57,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
     }
 
-    val mapFissionRewrite = Rules.rules(19).rewrite
+    val mapFissionRewrite = Rules.mapFission.rewrite
     assertTrue(mapFissionRewrite.isDefinedAt(mapFission))
 
     val f2 = FunDecl.replace(f1, mapFission, mapFissionRewrite(mapFission))
@@ -67,7 +67,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
     }
 
-    val mapReduceInterchangeRewrite = Rules.rules(17).rewrite
+    val mapReduceInterchangeRewrite = Rules.mapReduceInterchange.rewrite
     assertTrue(mapReduceInterchangeRewrite.isDefinedAt(mapReduceInterchange))
 
     val f3 = FunDecl.replace(f2, mapReduceInterchange, mapReduceInterchangeRewrite(mapReduceInterchange))
@@ -77,7 +77,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, FunCall(_, call)))), _)))), _) => call
     }
 
-    val mapMapTransposeRewrite = Rules.rules(18).rewrite
+    val mapMapTransposeRewrite = Rules.transposeBothSides.rewrite
     assertTrue(mapMapTransposeRewrite.isDefinedAt(mapMapTranspose))
 
     val f4 = FunDecl.replace(f3, mapMapTranspose, mapMapTransposeRewrite(mapMapTranspose))
@@ -87,7 +87,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, call))), _)))), _) => call
     }
 
-    val transposeTransposeRewrite = Rules.rules(7).rewrite
+    val transposeTransposeRewrite = Rules.transposeTransposeId.rewrite
     assertTrue(transposeTransposeRewrite.isDefinedAt(transposeTranspose))
 
     val f5 = FunDecl.replace(f4, transposeTranspose, transposeTransposeRewrite(transposeTranspose))
@@ -98,7 +98,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, FunCall(Map(Lambda(_, call)), _)))), _)))), _) => call
     }
 
-    val mapToMapSeqRewrite = Rules.rules(10).rewrite
+    val mapToMapSeqRewrite = Rules.mapSeq.rewrite
     assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq))
 
     val f6 = FunDecl.replace(f5, mapToMapSeq, mapToMapSeqRewrite(mapToMapSeq))
@@ -126,7 +126,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
     }
 
-    val reduceToReduceSeqRewrite = Rules.rules(20).rewrite
+    val reduceToReduceSeqRewrite = Rules.reduceSeq.rewrite
     assertTrue(reduceToReduceSeqRewrite.isDefinedAt(reduceToReduceSeq))
 
     val f9 = FunDecl.replace(f8, reduceToReduceSeq, reduceToReduceSeqRewrite(reduceToReduceSeq))
@@ -136,7 +136,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, call))), _)))), _) => call
     }
 
-    val fusionRewrite = Rules.rules(24).rewrite
+    val fusionRewrite = Rules.mapReduceFusion.rewrite
     assertTrue(fusionRewrite.isDefinedAt(fusion))
 
     val f10 = FunDecl.replace(f9, fusion, fusionRewrite(fusion))
@@ -154,8 +154,8 @@ class TestRewrite {
       input => Map(id o id) $ input
     )
 
-    assertTrue(Rules.rules(19).rewrite.isDefinedAt(f.body))
-    println(Lambda(f.params, Rules.rules(19).rewrite(f.body)))
+    assertTrue(Rules.mapFission.rewrite.isDefinedAt(f.body))
+    println(Lambda(f.params, Rules.mapFission.rewrite(f.body)))
 
     val M = Var("M")
 
@@ -164,8 +164,8 @@ class TestRewrite {
       input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ Zip(x, x))) $ input
     )
 
-    assertTrue(Rules.rules(19).rewrite.isDefinedAt(g.body))
-    println(Lambda(g.params, Rules.rules(19).rewrite(g.body)))
+    assertTrue(Rules.mapFission.rewrite.isDefinedAt(g.body))
+    println(Lambda(g.params, Rules.mapFission.rewrite(g.body)))
   }
 
   @Test
@@ -178,8 +178,8 @@ class TestRewrite {
       input => Transpose() o Transpose() $ input
     )
 
-    assertTrue(Rules.rules(7).rewrite.isDefinedAt(f.body))
-    assertSame(f.params.head, Rules.rules(7).rewrite(f.body))
+    assertTrue(Rules.transposeTransposeId.rewrite.isDefinedAt(f.body))
+    assertSame(f.params.head, Rules.transposeTransposeId.rewrite(f.body))
   }
 
   @Test
@@ -191,7 +191,7 @@ class TestRewrite {
       input => Map(Reduce(add, 0.0f)) $ input
     )
 
-    assertTrue(Rules.rules(17).rewrite.isDefinedAt(f.body))
+    assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
   }
 
   @Test
@@ -205,21 +205,21 @@ class TestRewrite {
 
     TypeChecker.check(f.body)
 
-    assertTrue(Rules.rules(28).rewrite.isDefinedAt(f.body))
+    assertTrue(Rules.transposeBothSides.rewrite.isDefinedAt(f.body))
 
     val g = fun(ArrayType(ArrayType(Float, M), N),
       input => Map(Map(Map(plusOne)) o Split(2)) $ input
     )
 
     TypeChecker.check(g.body)
-    assertFalse(Rules.rules(28).rewrite.isDefinedAt(g.body))
+    assertFalse(Rules.transposeBothSides.rewrite.isDefinedAt(g.body))
 
     val h = fun(ArrayType(ArrayType(ArrayType(Float, 2), M), N),
       input => Map(Join() o Map(Map(plusOne))) $ input
     )
 
     TypeChecker.check(h.body)
-    assertTrue(Rules.rules(28).rewrite.isDefinedAt(h.body))
+    assertTrue(Rules.transposeBothSides.rewrite.isDefinedAt(h.body))
   }
 
   @Test
@@ -232,8 +232,8 @@ class TestRewrite {
       (in1, in2) => Map(fun(x => Map(fun(x => add(Get(x, 0), Get(x, 1)))) $ Zip(in2, x))) $ in1
     )
 
-    assertTrue(Rules.rules(18).rewrite.isDefinedAt(f.body))
-    println(Rules.rules(18).rewrite(f.body))
+    assertTrue(Rules.mapMapTransposeZipInside.rewrite.isDefinedAt(f.body))
+    println(Rules.mapMapTransposeZipInside.rewrite(f.body))
   }
 
   @Test
@@ -246,8 +246,8 @@ class TestRewrite {
       (in1, in2) => Map(fun(x => Map(fun(y => add(y, Get(x, 1)))) $ Get(x, 0))) $ Zip(in1, in2)
     )
 
-    assertTrue(Rules.rules(29).rewrite.isDefinedAt(f.body))
-    println(Rules.rules(29).rewrite(f.body))
+    assertTrue(Rules.mapMapTransposeZipOutside.rewrite.isDefinedAt(f.body))
+    println(Rules.mapMapTransposeZipOutside.rewrite(f.body))
   }
 
   @Test
