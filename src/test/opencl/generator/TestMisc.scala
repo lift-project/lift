@@ -3,7 +3,6 @@ package opencl.generator
 import apart.arithmetic.Var
 import ir._
 import ir.ast._
-import ir.ast.IndexFunction._
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._

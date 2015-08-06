@@ -229,12 +229,16 @@ object Rules {
   })
 
   val mapReduceInterchange = Rule("Map(Reduce(f)) => Reduce(Map(f)) o Transpose()", {
-    case FunCall(Map(Lambda(lambdaParams, FunCall(Reduce(f), init: Value, arg))), mapArg)
+    case FunCall(Map(Lambda(lambdaParams, FunCall(Reduce(Lambda(innerParams, expr)), init: Value, arg))), mapArg)
       if lambdaParams.head eq arg
     =>
       val newInit = Value(init.value, ArrayType(init.t, Type.getLength(mapArg.t)))
 
-      Reduce(fun((acc, c) => Map(fun(x => f(Get(x, 0), Get(x, 1)))) $ Zip(acc, c)),
+      val newMapParam = Param()
+      val newExpr = innerParams.zipWithIndex.foldLeft(expr)((e, pair) =>
+                        Expr.replace(e, pair._1, Get(pair._2)(newMapParam)))
+
+      Reduce(fun((acc, c) => Map(Lambda(Array(newMapParam), newExpr)) $ Zip(acc, c)),
         newInit) o Transpose() $ mapArg
   })
 
@@ -314,7 +318,6 @@ object Rules {
 
       if getParam eq outerLambdaParam.head
     =>
-
       // Find all Get patterns that refer to the an element from the zipped array
       // and have to be replaced in expr
       val gets = findGets(expr, outerLambdaParam.head)
