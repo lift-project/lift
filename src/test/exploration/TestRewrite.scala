@@ -77,7 +77,7 @@ class TestRewrite {
       case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, FunCall(_, call)))), _)))), _) => call
     }
 
-    val mapMapTransposeRewrite = Rules.transposeBothSides.rewrite
+    val mapMapTransposeRewrite = Rules.mapMapTransposeZipInside.rewrite
     assertTrue(mapMapTransposeRewrite.isDefinedAt(mapMapTranspose))
 
     val f4 = FunDecl.replace(f3, mapMapTranspose, mapMapTransposeRewrite(mapMapTranspose))
@@ -213,13 +213,6 @@ class TestRewrite {
 
     TypeChecker.check(g.body)
     assertFalse(Rules.transposeBothSides.rewrite.isDefinedAt(g.body))
-
-    val h = fun(ArrayType(ArrayType(ArrayType(Float, 2), M), N),
-      input => Map(Join() o Map(Map(plusOne))) $ input
-    )
-
-    TypeChecker.check(h.body)
-    assertTrue(Rules.transposeBothSides.rewrite.isDefinedAt(h.body))
   }
 
   @Test
