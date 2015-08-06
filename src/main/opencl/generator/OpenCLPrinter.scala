@@ -37,16 +37,16 @@ class OpenCLPrinter {
   }
 
   def commln(comment: String) {
-    println("/* "+comment+" */")
+    println(s"/* $comment */")
   }
 
   private def printSpace() {
-    1 to tab foreach { _ => sb ++= " "}
+    sb ++= " " * tab
   }
 
   def println(s: String = "") {
     print(s)
-    sb ++=  "\n"
+    sb +=  '\n'
     newline = true
   }
 
@@ -94,7 +94,8 @@ class OpenCLPrinter {
 */
   private def toParameterDecl(mem: TypedOpenCLMemory) : String = {
     mem.t match {
-      case ScalarType(_,_) | VectorType(_,_) => toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
+      case ScalarType(_,_) | VectorType(_,_) =>
+        toOpenCL(Type.devectorize(mem.t)) + " " + toOpenCL(mem.mem.variable)
       case ArrayType(_,_) =>
         // Const restricted pointers to read-only global memory. See issue #2.
         val const = if (mem.mem.readOnly) "const " else ""
@@ -104,7 +105,7 @@ class OpenCLPrinter {
   }
 
   def printAsParameterDecl(mems: Array[TypedOpenCLMemory]) {
-    print(mems.map( mem => toParameterDecl(mem) ).reduce(separateByComma))
+    print(mems.map( mem => toParameterDecl(mem) ).mkString(", "))
   }
 
   def generateFunCall(expr: Expr, args: String*) {
@@ -121,13 +122,9 @@ class OpenCLPrinter {
 
   def generateFunCall(f: UserFun, args: String*) {
     print(f.name+"(")
-    if (args.length > 0)
-      print(args.reduceLeft((result, a) => result + "," + a))
+    if (args.nonEmpty)
+      print(args.mkString(","))
     print(")")
-  }
-
-  def separateByComma(lhs: Any, rhs: Any) = {
-    lhs + ", " + rhs
   }
 
   def toOpenCL(t: Type, seenArray: Boolean = false) : String = {
@@ -181,7 +178,7 @@ class OpenCLPrinter {
       case (tt: TupleType, name: String) => toOpenCL(tt) + " " + name
       case (tt: TupleType, names: Array[Any]) =>
         assert(tt.elemsT.length == names.length)
-        (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).reduce(separateByComma)
+        (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).mkString(", ")
       case _ => throw new NotPrintableExpression( param.toString() )
     }
   }
@@ -244,7 +241,7 @@ class OpenCLPrinter {
     if (tts.size == 1) "typedef " + Type.name(tts.head) + " Tuple; "
     else {
       // TODO: think about this one ...
-      tts.zipWithIndex.map({case (tt, i) => "typedef " + Type.name(tt) + s" Tuple$i;"}).reduce(_+" "+_)
+      tts.zipWithIndex.map({case (tt, i) => "typedef " + Type.name(tt) + s" Tuple$i;"}).mkString(" ")
     }
   }
 
@@ -255,39 +252,12 @@ class OpenCLPrinter {
     }
   }
 
-  def generateBarrier(mem : OpenCLMemory) {
-    if (mem.addressSpace == GlobalMemory) {
-      println("barrier(CLK_GLOBAL_MEM_FENCE);")
-    } else
-    if (mem.addressSpace == LocalMemory) {
-      println("barrier(CLK_LOCAL_MEM_FENCE);")
-    } else {
-      println("barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);")
-    }
-  }
+  def generateBarrier(mem : OpenCLMemory) = println (mem.addressSpace match {
+    case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
+    case LocalMemory => "barrier(CLK_LOCAL_MEM_FENCE);"
+    case x => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
+  })
 
-
-  //hacky iterator call to experiment with dropWhile primitive
-//  def generateIterate(conditionalBody: (() => Unit),printBody: (() => Unit)): Unit = {
-//    print("while(")
-//    conditionalBody()
-//    println(")")
-//    openCB()
-//    printBody()
-//    closeCB()
-//  }
-  def generateConditional(printConditional: (() => Unit), printIfBody: (() => Unit), printElseBody: (() => Unit)){
-    print("if(")
-    printConditional() // crappy hack - we've got to allow for conditionals that have function calls, so we can't use a string
-    print(")")
-    openCB()
-    printIfBody()
-    closeCB()
-    println("else")
-    openCB()
-    printElseBody()
-    closeCB()
-  }
 
   def generateLoop(indexVar: Var, printBody: () => Unit, iterationCount: ArithExpr = ?) {
     val range = indexVar.range.asInstanceOf[RangeAdd]
@@ -302,6 +272,7 @@ class OpenCLPrinter {
       case Cst(1) =>
         // exactly one iteration
         openCB ()
+        System.err.println("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
         println ("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
         printBody ()
         closeCB ()
