@@ -3,7 +3,6 @@ package opencl.generator
 import apart.arithmetic.Var
 import benchmarks.MatrixTransposition
 import ir._
-import ir.ast.IndexFunction.transposeFunction
 import ir.ast._
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._

@@ -2,7 +2,6 @@ package opencl.generator
 
 import apart.arithmetic.Var
 import ir._
-import ir.ast.IndexFunction.reverse
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
