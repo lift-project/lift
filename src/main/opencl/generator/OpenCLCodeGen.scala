@@ -75,12 +75,15 @@ object OpenCLCodeGen {
     case v: VarDecl => generateVarDecl(v)
     case v: VarRef => generate(v)
     case p: ParamDecl => generate(p)
-    case t: TypeDef => generateTypedef(t)
     case b: Barrier => generate(b)
     case l: Loop =>    generate(l)
     case e: Expression => print(toOpenCL(e.content))
     case a: Assignment => generate(a)
     case f: FunctionCall => generate(f)
+    case l: Load => generate(l)
+    case s: Store => generate(s)
+    case t: TypeDef => generate(t)
+    case a: TupleAlias => generate(a)
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
   }
@@ -102,11 +105,43 @@ object OpenCLCodeGen {
 
 
 
+  def generate(t: TypeDef): Unit = t.t match {
+    case tt: TupleType =>
+      val name = Type.name(tt)
+      val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
+      print(s"""#ifndef ${name}_DEFINED
+        |#define ${name}_DEFINED
+        |typedef struct {
+        |  ${fields.reduce(_+";\n  "+_)};
+        |} $name;
+        |#endif
+        |""".stripMargin)
+    case _ =>
+  }
 
+  def generate(alias: TupleAlias): Unit = alias.t match {
+    case tt: TupleType =>
+      println("typedef " + Type.name(tt) + " Tuple; ")
+    case _ =>
+  }
 
+  def generate(l: Load): Unit = {
+    print(s"vload${l.t.len}(")
+    visit(l.offset)
+    print(",")
+    visit(l.v)
+    print(")")
+  }
 
-
-
+  def generate(s: Store): Unit = {
+    print(s"vstore${s.t.len}(")
+    visit(s.value)
+    print(",")
+    visit(s.offset)
+    print(",")
+    visit(s.v)
+    print(");")
+  }
 
   def generate(f: FunctionCall) = {
     print(f.name + "(")
@@ -128,7 +163,7 @@ object OpenCLCodeGen {
 
   def generate(f: Function): Unit = {
     if(f.kernel) sb ++= "kernel void"
-    else sb ++= f.ret.toString
+    else sb ++= toOpenCL(f.ret)
     sb ++= s" ${f.name}("
     f.params.foreach(x => {
       visit(x, statement = false)
@@ -147,35 +182,42 @@ object OpenCLCodeGen {
   }
 
   def generate(p: ParamDecl) = p.t match {
-    case ScalarType(_,_) | VectorType(_,_) =>
-      print(toOpenCL(Type.devectorize(p.t)) + " " + p.name)
-
     case ArrayType(_,_) =>
       // Const restricted pointers to read-only global memory. See issue #2.
       val (const, restrict) = if (p.const) ("const ", "restrict ") else ("","")
       print(const + p.addressSpace + " " + toOpenCL(Type.devectorize(p.t)) + " " + restrict + p.name)
+
+    case x =>
+      print(toOpenCL(p.t) + " " + p.name)
   }
 
-  def generateVarDecl(v: VarDecl) {
-    if (v.addressSpace != PrivateMemory && v.addressSpace != UndefAddressSpace) {
-      val baseType = Type.getBaseType(v.t)
-      println(s"${v.addressSpace} ${toOpenCL(baseType)} ${v.name}[${v.length}];")
-    }
-    else {
-      v.t match {
-        case a: ArrayType =>
+  def generateVarDecl(v: VarDecl) = v.t match {
+    case a: ArrayType =>
+      v.addressSpace match {
+        case PrivateMemory =>
           for (i <- 0 until v.length)
             println(toOpenCL(Type.getBaseType(v.t)) + " " + v.name + "_" + toOpenCL(i) + ";")
-
-        case x =>
-          print(toOpenCL(v.t)+" "+v.name)
+        case LocalMemory if v.length != 0 =>
+          val baseType = Type.getBaseType(v.t)
+          println(s"${v.addressSpace} ${toOpenCL(baseType)} ${v.name}[${v.length}];")
+        case x => {
+          val baseType = Type.getBaseType(v.t)
+          print(s"${v.addressSpace} ${toOpenCL(baseType)} *${v.name}")
           if(v.init != null) {
             print(s" = ")
             visit(v.init)
           }
           println(";")
+        }
       }
-    }
+
+    case x =>
+      print(toOpenCL(v.t)+" "+v.name)
+      if(v.init != null) {
+        print(s" = ")
+        visit(v.init)
+      }
+      println(";")
   }
 
   def generateFunCall(expr: Expr, args: String*) {
@@ -227,9 +269,9 @@ object OpenCLCodeGen {
       case Sum(es) => "(" + es.map(toOpenCL).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toOpenCL(a) + " % " + toOpenCL(n) + ")"
       case of: OclFunction => of.toOCLString
-      case tv : TypeVar => "tv_"+tv.id
       case ai: AccessVar => ai.array + "[" + toOpenCL(ai.idx) + "]"
-      case v: Var => "v_"+v.name+"_"+v.id
+      case v: Var => v.toString
+      case tv : TypeVar => tv.toString
       case IntDiv(n, d) => "(" + toOpenCL(n) + " / " + toOpenCL(d) + ")"
       case gc: GroupCall =>
         val outerAe = gc.outerAe
@@ -237,6 +279,7 @@ object OpenCLCodeGen {
         val len = gc.len
         "groupComp" + gc.group.id + "(" + toOpenCL(outerAe) + ", " +
           toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
+      case i: IfThenElse => i.toString
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
@@ -250,48 +293,6 @@ object OpenCLCodeGen {
         assert(tt.elemsT.length == names.length)
         (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).mkString(", ")
       case _ => throw new NotPrintableExpression( param.toString() )
-    }
-  }
-
-  def toOpenCL(uf: UserFun) : String = {
-    val typedefs = uf.tupleTypes.map(generateTypedef).fold("")(_+_)
-    val params = toOpenCL( (uf.inT, uf.paramName) )
-
-    typedefs +
-      toOpenCL(uf.outT) + " " + uf.name + "(" + params + ") {" +
-      createTupleAlias(uf.tupleTypes) +
-      uf.body + "}"
-  }
-
-  def generateTypedef(t: Type): String = {
-    t match {
-      case tt: TupleType =>
-        val name = Type.name(tt)
-        val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
-        s"""#ifndef ${name}_DEFINED
-          |#define ${name}_DEFINED
-          |typedef struct {
-          |  ${fields.reduce(_+";\n  "+_)};
-          |} $name;
-          |#endif
-          |""".stripMargin
-      case _ => ""
-    }
-  }
-
-  def generateTypedef(t: TypeDef): String = {
-    t.t match {
-      case tt: TupleType =>
-        val name = Type.name(tt)
-        val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
-        s"""#ifndef ${name}_DEFINED
-          |#define ${name}_DEFINED
-          |typedef struct {
-          |  ${fields.reduce(_+";\n  "+_)};
-          |} $name;
-          |#endif
-          |""".stripMargin
-      case _ => ""
     }
   }
 
@@ -330,12 +331,35 @@ object OpenCLCodeGen {
     val cond = range.stop
     val update = range.step
 
-    // as the default print of the default loop
-    print ("for (int " + toOpenCL (l.indexVar) + " = " + toOpenCL (init) + "; " +
-      toOpenCL (l.indexVar) + " < " + toOpenCL (cond) + "; " +
-      toOpenCL (l.indexVar) + " += " + toOpenCL (update) + ") ")
-    block {
-      visit(l.body)
+    l.iter match {
+      case Cst(0) =>
+
+      case Cst(1) =>
+        // exactly one iteration
+        block {
+          System.err.println("int " + toOpenCL(l.indexVar) + " = " + toOpenCL(init) + ";")
+          println("int " + toOpenCL(l.indexVar) + " = " + toOpenCL(init) + ";")
+          visit(l.body)
+        }
+
+      case IntDiv (Cst(1), x) if x.getClass == ?.getClass =>
+        // one or less iteration
+        block {
+          println("int " + toOpenCL(l.indexVar) + " = " + toOpenCL(init) + ";")
+          print("if (" + toOpenCL(l.indexVar) + " < (" + toOpenCL(cond) + ")) ")
+          block {
+            visit(l.body)
+          }
+        }
+
+      case _ =>
+        // as the default print of the default loop
+        print ("for (int " + toOpenCL (l.indexVar) + " = " + toOpenCL (init) + "; " +
+          toOpenCL (l.indexVar) + " < " + toOpenCL (cond) + "; " +
+          toOpenCL (l.indexVar) + " += " + toOpenCL (update) + ") ")
+        block {
+          visit(l.body)
+        }
     }
   }
 }

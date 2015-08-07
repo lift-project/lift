@@ -1,5 +1,7 @@
 package opencl.generator
 
+import java.io.{BufferedWriter, File, FileWriter}
+
 import apart.arithmetic._
 import arithmetic.TypeVar
 import generator.Generator
@@ -94,6 +96,8 @@ object OpenCLGenerator extends Generator {
   // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
+    ast = new OpenCLAST.Block(List.empty, true)
+    cur_block = ast
 
     assert(localSize.length == 3)
     assert(globalSize.length == 3)
@@ -141,11 +145,27 @@ object OpenCLGenerator extends Generator {
     // pass 3: generate the kernel
     generateKernel(f)
 
+    val old_code = oclPrinter.code
+
     OpenCLAST.SimpleDot(ast)
-    println(Console.BLUE + OpenCLCodeGen(ast) + Console.RESET)
+    val code = OpenCLCodeGen(ast)
+    println(code)
+
+    {
+      val file = new File("OLD.cl")
+      val bw = new BufferedWriter(new FileWriter(file))
+      bw.write(old_code)
+      bw.close()
+    }
+    {
+      val file = new File("NEW.cl")
+      val bw = new BufferedWriter(new FileWriter(file))
+      bw.write(code)
+      bw.close()
+    }
 
     // return the code generated
-    oclPrinter.code
+    old_code
   }
 
   /** Traversals f and print all user functions using oclPrinter */
@@ -160,6 +180,14 @@ object OpenCLGenerator extends Generator {
         case _ => set
       })
     userFuns.foreach(uf => {
+      uf.tupleTypes.foreach(tup => {
+        cur_block += OpenCLAST.TypeDef(tup)
+      })
+
+      if(uf.tupleTypes.length == 1) {
+        cur_block += OpenCLAST.TupleAlias(uf.tupleTypes.head, "Tuple")
+      }
+
       /** ASTNODE */
       cur_block += OpenCLAST.Function(
         name = uf.name,
@@ -553,11 +581,6 @@ object OpenCLGenerator extends Generator {
 //    Removed the pragma temporarily as it was causing a (presumably) memory related bug on non NVIDIA and Intel CPU platforms
 //    TODO: implement a platform dependent system for inserting the pragma when legal
 //    oclPrinter.println("#pragma unroll 1")
-    val LoopBlock = OpenCLAST.Block()
-    val oldBlocl = cur_block
-
-    cur_block += OpenCLAST.Loop(i.indexVar, i.iterationCount, LoopBlock)
-    cur_block = LoopBlock
 
     generateLoop(i.indexVar, () => {
 
@@ -596,8 +619,6 @@ object OpenCLGenerator extends Generator {
         OpenCLAST.Expression((tout eq swapMem.variable) ?? outputMem.variable !! swapMem.variable))
     }, i.iterationCount)
 
-    cur_block = oldBlocl
-
     oclPrinter.closeCB()
   }
 
@@ -625,57 +646,17 @@ object OpenCLGenerator extends Generator {
       oclPrinter.commln("end unroll")
       cur_block += OpenCLAST.Comment("end unroll")
     } else /* the loop is not unrolled */{
+      // Generate an for-loop
       val newblock = OpenCLAST.Block(List.empty)
+      // add it to the current node:
+      cur_block += OpenCLAST.Loop(indexVar, iterationCount, body = newblock)
+      // swap to inner block
       val oldblock = cur_block
       cur_block = newblock
-
-      iterationCount match {
-        case Cst(0) => // nothing
-
-        case Cst(1) => // exactly one iteration
-          // Generate an if statement: create a then block
-          val newblock = OpenCLAST.Block(List.empty)
-          val oldblock = cur_block
-          cur_block = newblock
-
-          cur_block += OpenCLAST.VarDecl(indexVar.toString, Int,
-            init = OpenCLAST.Expression(init))
-          // FIXME: explore body
-          oclPrinter.generateLoop(indexVar, printBody, iterationCount)
-
-          // restore block
-          cur_block = oldblock
-          cur_block += newblock
-
-        case IntDiv (Cst(1), x) if x.getClass == ?.getClass => // one or less iteration
-          // Generate an if statement: create a then block
-          val newblock = OpenCLAST.Block(List.empty)
-          // add it to the current node:
-          cur_block += OpenCLAST.Selection(indexVar lt cond, newblock)
-          // swap the curent block
-          val oldblock = cur_block
-          cur_block = newblock
-          // FIXME: explore body
-          oclPrinter.generateLoop(indexVar, printBody, iterationCount)
-          // swap to parent block
-          cur_block = oldblock
-
-        case _ =>
-          // Generate an for-loop
-          val newblock = OpenCLAST.Block(List.empty)
-          // add it to the current node:
-          cur_block += OpenCLAST.Loop(indexVar, iterationCount, body = newblock)
-          // swap to inner block
-          val oldblock = cur_block
-          cur_block = newblock
-          // FIXME: explore body
-          oclPrinter.generateLoop(indexVar, printBody, iterationCount)
-          // swap to parent block
-          cur_block = oldblock
-      }
-      // restore block
+      // FIXME: explore body
+      oclPrinter.generateLoop(indexVar, printBody, iterationCount)
+      // swap to parent block
       cur_block = oldblock
-      cur_block += newblock
     }
   }
 
@@ -753,14 +734,14 @@ object OpenCLGenerator extends Generator {
           // originally a scalar type, but now a vector type => vstore
           case st: ScalarType if Type.isEqual(st, vt.scalarT) =>
             OpenCLAST.Store(
-              OpenCLAST.VarRef(mem.variable.name), vt,
+              OpenCLAST.VarRef(mem.variable.toString), vt,
               value = valueGenerator(),
               offset = OpenCLAST.Expression(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns) / vt.len))
 
           // originally an array, but now a vector type => vstore
           case at: ArrayType  if Type.isEqual(at.elemT, vt.scalarT)  =>
             OpenCLAST.Store(
-              OpenCLAST.VarRef(mem.variable.name), vt,
+              OpenCLAST.VarRef(mem.variable.toString), vt,
               value = valueGenerator(),
               offset = OpenCLAST.Expression(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns) / vt.len))
         }
@@ -824,14 +805,14 @@ object OpenCLGenerator extends Generator {
           // originally a scalar type, but now a vector type => vload
           case st: ScalarType if Type.isEqual(st, vt.scalarT) =>
             OpenCLAST.Load(
-              OpenCLAST.VarRef(v.name), vt,
+              OpenCLAST.VarRef(v.toString), vt,
               offset = OpenCLAST.Expression(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns) / vt.len)
             )
 
           // originally an array, but now a vector type => vstore
           case at: ArrayType  if Type.isEqual(at.elemT, vt.scalarT)  =>
             OpenCLAST.Load(
-              OpenCLAST.VarRef(v.name), vt,
+              OpenCLAST.VarRef(v.toString), vt,
               offset = OpenCLAST.Expression(ArithExpr.substitute(ViewPrinter.emit(view), replacementsWithFuns) / vt.len)
             )
         }

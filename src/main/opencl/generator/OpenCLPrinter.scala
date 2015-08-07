@@ -272,7 +272,6 @@ class OpenCLPrinter {
       case Cst(1) =>
         // exactly one iteration
         openCB ()
-        System.err.println("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
         println ("int " + toOpenCL (indexVar) + " = " + toOpenCL (init) + ";")
         printBody ()
         closeCB ()

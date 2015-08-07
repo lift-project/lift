@@ -3,7 +3,7 @@ package opencl.generator
 import java.io._
 
 import apart.arithmetic.{Predicate, IfThenElse, ArithExpr, Var}
-import ir.Type
+import ir.{TupleType, VectorType, Type}
 import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
 
 object OpenCLAST {
@@ -63,20 +63,22 @@ object OpenCLAST {
     override def toString = "Typedef"
   }
 
+  case class TupleAlias(t: Type, name: String) extends OclAstNode
+
   case class VarDecl(name: String,
                      t: Type,
                      init: OclAstNode = null,
                      addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                     length: Int = 1) extends OclAstNode {
+                     length: Int = 0) extends OclAstNode {
     override def toString = "VarDecl"
   }
 
   case class Load(v: VarRef,
-                  t: Type,
+                  t: VectorType,
                   offset: Expression) extends OclAstNode
 
   case class Store(v: VarRef,
-                   t: Type,
+                   t: VectorType,
                    value: OclAstNode,
                    offset: Expression) extends OclAstNode
 

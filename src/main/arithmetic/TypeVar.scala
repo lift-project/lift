@@ -9,7 +9,7 @@ import scala.language.implicitConversions
 
 /** a special variable that should only be used for defining function type*/
 class TypeVar private(range : Range) extends Var("", range) {
-  override lazy val toString = "t" + id
+  override lazy val toString = "t" + super.toString()
 }
 
 object TypeVar {
