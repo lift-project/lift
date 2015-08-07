@@ -19,7 +19,7 @@ case class Lambda(params: Array[Param],
    * Debug string representation
    */
   override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
-                          " -> " + body.toString + ")"
+      " -> \n" + body.toString.split("\n").map("  " + _ + "\n").mkString + ")"
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

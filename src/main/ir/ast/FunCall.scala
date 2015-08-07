@@ -17,10 +17,8 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
     } else {
       f.toString
     }
-    val argS =
-      if (args.nonEmpty) args.map(_.toString).reduce(_ + ", " + _) else ""
 
-    fS + "(" + argS + ")"
+    fS + "(" + args.mkString(", ") + ")"
   }
 
   override def copy: FunCall = {
