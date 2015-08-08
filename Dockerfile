@@ -18,7 +18,15 @@ RUN (echo "deb http://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.lis
 
 ADD . lift_src/
 
-ADD deploymentKey /root/.ssh/id_rsa
+RUN mkdir /root/.ssh/
+
+ADD id_rsa /root/.ssh/id_rsa
+
+RUN chmod 0600 /root/.ssh/id_rsa
+
+RUN touch /root/.ssh/known_hosts
+
+RUN ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts
 
 RUN cd lift_src && git submodule init && git submodule update
 
