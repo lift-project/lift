@@ -99,7 +99,6 @@ object Rules {
 
   val mapReduceFusion = Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
     case FunCall(ReduceSeq(f), init, FunCall(MapSeq(g), arg))
-      if g.isGenerable
     =>
       ReduceSeq(fun((acc, x) => f(acc, g(x))), init) $ arg
   })
@@ -199,6 +198,14 @@ object Rules {
       toGlobal(MapSeq(idFunction2)) o ReduceSeq(f, newInit) $ arg
   })
 
+  /* Stride accesses or normal accesses */
+
+  // TODO
+
+  /* Address space rules */
+
+  // TODO
+
   /* Vectorization rule */
 
   val vectorize = Rule("Map(uf) => asScalar() o MapGlb(Vectorize(4)(uf)) o asVector(4)", {
@@ -247,10 +254,18 @@ object Rules {
       Scatter(reorderStride(4)) o map o Gather(reorderStride(4)) $ arg
   })
 
+  def getFinalArg(expr: Expr): Expr = {
+    expr match {
+      case FunCall(_, arg) => getFinalArg(arg)
+      case FunCall(r : AbstractPartRed, _, arg) => arg
+      case _ => expr
+    }
+  }
+
   val transposeBothSides = Rule("Map(fun(a => ... $ a)) $ A => " +
     "Transpose() o Map(fun(a =>... $ a)) o Transpose() $ A  ", {
-    case outerCall@FunCall(Map(Lambda(lambdaArg, innerCall@FunCall(f, funCallArg))), arg)
-      if (lambdaArg.head eq funCallArg) // TODO: Too strict, the final arg at this level should be the same
+    case outerCall@FunCall(Map(f@Lambda(lambdaArg, innerCall@FunCall(_,_))), arg)
+      if (lambdaArg.head eq getFinalArg(innerCall))
         && (outerCall.t match {
         case ArrayType(ArrayType(_, _), _) => true
         case _ => false
@@ -261,8 +276,11 @@ object Rules {
       })
         && !innerCall.contains({
         case FunCall(Split(_), _) =>
-        case FunCall(Join(), _) => // TODO: ok, if to get rid of length 1 array from reduce?
-        // TODO: Map( Join() o Map(Reduce()))
+        case c @ FunCall(Join(), _)
+          if (c.args.head.t match {
+          case ArrayType(ArrayType(_, len), _) => len != Cst(1)
+          case _ => true
+        }) =>
       })
     =>
       TransposeW() o Map(f) o Transpose() $ arg
@@ -340,6 +358,26 @@ object Rules {
       Transpose() o Map(Lambda(Array(secondNewParam),
         Map(Lambda(Array(newParam), finalNewExpr)) $ Zip(newZipArgs: _*)
       )) o Transpose() $ newArg
+  })
+
+  val mapSplitTranspose = Rule("Map(Split(n)) o Transpose()" +
+                               "Transpose() o Map(Transpose()) o Split(n)", {
+    case FunCall(Map(Lambda(_, FunCall(Split(n), _))), FunCall(Transpose(), arg)) =>
+      Transpose() o Map(Transpose()) o Split(n) $ arg
+  })
+
+  val splitZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
+                      "Map(x => Map() $ Zip(Get(n, x) ... ) $ Zip(Split $ ...)", {
+    case FunCall(Map(Lambda(lambdaParam, FunCall(Map(mapLambda), mapArg))), FunCall(Split(n), FunCall(Zip(_), zipArgs@_*)))
+      if lambdaParam.head eq mapArg
+    =>
+      val newZipArgs = zipArgs.map(arg => Split(n) $ arg)
+
+      val newLambdaParam = Param()
+
+      val innerZipArgs = zipArgs.indices.map(Get(_)(newLambdaParam))
+
+      Map(Lambda(Array(newLambdaParam), Map(mapLambda) $ Zip(innerZipArgs:_*))) $ Zip(newZipArgs:_*)
   })
 
   val iterate1 = Rule("Iterate(1, x) => x", {
