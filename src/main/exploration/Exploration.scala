@@ -246,6 +246,6 @@ object Exploration {
   }
   
   def search(f: Lambda, inputs: Seq[Any], c: Constraints = new Constraints(3, false), depth:Int=0) : Lambda =
-    new Lambda(f.params,derive(f,f.body,inputs,c,depth))
+    Lambda(f.params,derive(f,f.body,inputs,c,depth))
 
 }

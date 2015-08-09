@@ -88,7 +88,7 @@ public class JavaTest {
 
         Param p = Param.apply(arrayType);
 
-        Lambda f = new Lambda(new Param[]{p}, mg.call(p));
+        Lambda f = Lambda$.MODULE$.apply(new Param[]{p}, mg.call(p));
 
         Compile.apply(f);
     }
@@ -122,7 +122,7 @@ public class JavaTest {
         MapGlb mg = MapGlb$.MODULE$.apply(multLambda);
 
 
-        Lambda f = new Lambda(params, mg.apply(JavaConversions.asScalaBuffer(Collections.singletonList(params[0]))));
+        Lambda f = Lambda$.MODULE$.apply(params, mg.apply(JavaConversions.asScalaBuffer(Collections.singletonList(params[0]))));
 
         Compile.apply(f);
     }
@@ -195,7 +195,7 @@ public class JavaTest {
         Lambda1 l = new Lambda1(new Param[]{undef1}, f);
         MapGlb mg = MapGlb$.MODULE$.apply(l);
 
-        Lambda function = new Lambda(params.toArray(new Param[params.size()]), mg.call(zip2));
+        Lambda function = Lambda$.MODULE$.apply(params.toArray(new Param[params.size()]), mg.call(zip2));
 
         Compile.apply(function);
     }
@@ -255,7 +255,7 @@ public class JavaTest {
 
         Lambda mg = Lambda.FunDefToLambda(jMapGlb.create(l2));
 
-        Lambda function = new Lambda(params.toArray(new Param[params.size()]), mg.call(params.get(0)));
+        Lambda function = Lambda$.MODULE$.apply(params.toArray(new Param[params.size()]), mg.call(params.get(0)));
 
         Compile.apply(function);
 
