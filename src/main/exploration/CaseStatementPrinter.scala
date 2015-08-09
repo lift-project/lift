@@ -1,6 +1,7 @@
 package exploration
 
 import ir.ast._
+import opencl.ir.pattern.{toGlobal, ReduceSeq, MapSeq}
 
 object CaseStatementPrinter {
 
@@ -16,9 +17,12 @@ object CaseStatementPrinter {
     funDecl match {
       case lambda: Lambda => s"Lambda(_, ${apply(lambda.body)})"
       case map: Map => s"Map(${apply(map.f)})"
+      case mapSeq: MapSeq => s"MapSeq(_)"
       case split: Split => s"Split(_)"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
+      case reduceSeq: ReduceSeq => s"ReduceSeq(_)"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
+      case toGlobal: toGlobal => s"toGlobal(_)"
       case uf: UserFun => "_"
       case _ => funDecl.toString
     }
