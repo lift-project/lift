@@ -31,7 +31,7 @@ class TestRewrite {
   val N = Var("N")
   val A = Array.fill[Float](128)(0.5f)
 
-  @Test
+  /*@Test
   def mmReuseA(): Unit = {
     val N = Var("N")
     val M = Var("M")
@@ -150,9 +150,9 @@ class TestRewrite {
     TypeChecker.check(f10.body)
 
     println(f10)
-  }
+  }*/
 
-  @Test
+  /*@Test
   def mmReuseBoth(): Unit = {
     val N = Var("N")
     val M = Var("M")
@@ -234,7 +234,7 @@ class TestRewrite {
 
     val expr21 = f21 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(toGlobal(_), call@FunCall(ReduceSeq(_), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _))), _))), _), FunCall(MapSeq(_), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _))))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
     val f22 = applyRule(f21, expr21, Rules.mapReduceFusion)
-  }
+  }*/
 
   @Test
   def mapFission(): Unit = {

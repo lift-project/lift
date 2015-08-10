@@ -165,7 +165,7 @@ object OpenCLGenerator extends Generator {
     }
 
     // return the code generated
-    old_code
+    code
   }
 
   /** Traversals f and print all user functions using oclPrinter */
@@ -184,16 +184,21 @@ object OpenCLGenerator extends Generator {
         cur_block += OpenCLAST.TypeDef(tup)
       })
 
-      if(uf.tupleTypes.length == 1) {
-        cur_block += OpenCLAST.TupleAlias(uf.tupleTypes.head, "Tuple")
-      }
+      val block = OpenCLAST.Block()
+      if(uf.tupleTypes.length == 1)
+        block += OpenCLAST.TupleAlias(uf.tupleTypes.head, "Tuple")
+      else uf.tupleTypes.zipWithIndex.foreach({ case (x, i) =>
+        // TODO: think about this one ...
+        block += OpenCLAST.TupleAlias(x, s"Tuple$i")
+      })
+      block += OpenCLAST.Inline(uf.body)
 
       /** ASTNODE */
       cur_block += OpenCLAST.Function(
         name = uf.name,
         ret = uf.outT,
         params = (uf.inTs, uf.paramNames).zipped.map((t,n) => OpenCLAST.ParamDecl(n,t)).toList,
-        body = OpenCLAST.Block(List(OpenCLAST.Inline(uf.body))))
+        body = block)
       /** ASTNODE */
       oclPrinter.print(oclPrinter.toOpenCL(uf))
       oclPrinter.println()
@@ -369,8 +374,7 @@ object OpenCLGenerator extends Generator {
     cur_block += OpenCLAST.Comment("Typed Value memory")
     typedValueMems.foreach(x =>
       cur_block += OpenCLAST.VarDecl(x.mem.variable.toString, Type.getValueType(x.t),
-        addressSpace = x.mem.addressSpace,
-        length = (x.mem.size /^ Type.getSize(Type.getBaseType(x.t))).eval))
+        addressSpace = x.mem.addressSpace))
     cur_block += OpenCLAST.Comment("Private Memory")
     privateMems.foreach(x =>
       cur_block += OpenCLAST.VarDecl(x.mem.variable.toString, x.t,
@@ -818,7 +822,7 @@ object OpenCLGenerator extends Generator {
         }
         case (st:ScalarType, vt:VectorType)  if Type.isEqual(st, vt.scalarT) => {
           // create (float4) var
-          OpenCLAST.Cast(OpenCLAST.VarRef(v.name), st)
+          OpenCLAST.Cast(OpenCLAST.VarRef(v.toString), st)
         }
       }
     }

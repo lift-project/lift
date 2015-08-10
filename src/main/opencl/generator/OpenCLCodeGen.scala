@@ -84,6 +84,7 @@ object OpenCLCodeGen {
     case s: Store => generate(s)
     case t: TypeDef => generate(t)
     case a: TupleAlias => generate(a)
+    case c: Cast => generate(c)
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
   }
@@ -103,7 +104,19 @@ object OpenCLCodeGen {
 
 
 
+  def createTupleAlias(tts: Seq[TupleType]): String = {
+    if (tts.isEmpty) return ""
+    if (tts.size == 1) "typedef " + Type.name(tts.head) + " Tuple; "
+    else {
+      // TODO: think about this one ...
+      tts.zipWithIndex.map({case (tt, i) => "typedef " + Type.name(tt) + s" Tuple$i;"}).mkString(" ")
+    }
+  }
 
+  def generate(c: Cast): Unit = {
+    print(s"(${c.t})")
+    visit(c.v)
+  }
 
   def generate(t: TypeDef): Unit = t.t match {
     case tt: TupleType =>
@@ -121,7 +134,7 @@ object OpenCLCodeGen {
 
   def generate(alias: TupleAlias): Unit = alias.t match {
     case tt: TupleType =>
-      println("typedef " + Type.name(tt) + " Tuple; ")
+      println(s"typedef ${Type.name(tt)} ${alias.name};")
     case _ =>
   }
 
@@ -279,7 +292,10 @@ object OpenCLCodeGen {
         val len = gc.len
         "groupComp" + gc.group.id + "(" + toOpenCL(outerAe) + ", " +
           toOpenCL(innerAe) + ", " + toOpenCL(len) + ")"
-      case i: IfThenElse => i.toString
+      case i: IfThenElse =>
+        // we can't rely on the toString method here since calls to math functions are ambiguous
+        s"( (${toOpenCL(i.test.lhs)} ${i.test.op} ${toOpenCL(i.test.rhs)}) ? " +
+          s"${toOpenCL(i.t)} : ${toOpenCL(i.e)} )"
       case _ => throw new NotPrintableExpression(me.toString)
     }
   }
@@ -293,15 +309,6 @@ object OpenCLCodeGen {
         assert(tt.elemsT.length == names.length)
         (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).mkString(", ")
       case _ => throw new NotPrintableExpression( param.toString() )
-    }
-  }
-
-  def createTupleAlias(tts: Seq[TupleType]): String = {
-    if (tts.isEmpty) return ""
-    if (tts.size == 1) "typedef " + Type.name(tts.head) + " Tuple; "
-    else {
-      // TODO: think about this one ...
-      tts.zipWithIndex.map({case (tt, i) => "typedef " + Type.name(tt) + s" Tuple$i;"}).mkString(" ")
     }
   }
 

@@ -17,15 +17,10 @@ object OpenCLAST {
       OclAstNode.counter
     }
   }
-  object OclAstNode {
-    var counter = 0
-  }
+  object OclAstNode { var counter = 0 }
 
   case class Block(var content: List[OclAstNode] = List.empty, global: Boolean = false) extends OclAstNode{
-    def +=(node: OclAstNode) = {
-      content = content :+ node
-      this
-    }
+    def +=(node: OclAstNode): Unit = content = content :+ node
 
     override def toString = "Block"
   }
