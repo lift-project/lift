@@ -97,14 +97,6 @@ case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
   override def toString = "Arr(" +elemT+","+len+ ")"
 }
 
-/*
-case class MatrixType(elemT: Type, dx: ArithExpr, dy: ArithExpr) extends Type {
-  override def toString = "Matrix("+elemT+","+dx+","+dy+")"
-  def len = dx*dy
-    // is this an acceptable length calculation? Why do we want the length?
-}
-*/
-
 /**
  * This instance indicates that a type has not been determined yet, e.g., prior
  * to type checking
@@ -133,7 +125,7 @@ object Type {
       case vt: VectorType => vt.scalarT.name + vt.len.toString
       case tt: TupleType  => "Tuple_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
       case at: ArrayType  => "Array_" + Type.name(at.elemT)
-//      case mt: MatrixType => "Matrix_"+ Type.name(mt.elemT)
+      case _ => throw new IllegalArgumentException
     }
   }
 
@@ -158,7 +150,6 @@ object Type {
       case vt: VectorType => visit(vt.scalarT, pre, post)
       case tt: TupleType  => tt.elemsT.foreach(et => visit(et,pre,post))
       case at: ArrayType  => visit(at.elemT, pre, post)
-      //    case mt: MatrixType => visit(mt.elemT, pre, post)
       case _ => // nothing to do
     }
     post(t)
@@ -199,8 +190,6 @@ object Type {
       case at: ArrayType =>
         new ArrayType(visitAndRebuild(at.elemT, pre, post), at.len)
 
-//    case mt: MatrixType =>
-//      new MatrixType(visitRebuild(mt.elemT, pre, post),mt.dx, mt.dy)
       case _ => newT // nothing to do
     }
     post(newT)
@@ -253,7 +242,6 @@ object Type {
     t match {
       case vt: VectorType => vt.scalarT
       case at: ArrayType  => at.elemT
-//    case mt: MatrixType => mt.elemT
       case _ => throw new TypeException(t, "ArrayType or VectorType")
     }
   }
@@ -306,6 +294,7 @@ object Type {
       case vt: VectorType => vt.scalarT.size * vt.len
       case tt: TupleType  => tt.elemsT.map(getSize).reduce(_+_)
       case at: ArrayType  => at.len * getSize(at.elemT)
+      case _ => throw new IllegalArgumentException
     }
   }
 
@@ -321,30 +310,9 @@ object Type {
       case vt: VectorType => vt.len
       case tt: TupleType  => Cst(1)
       case at: ArrayType  => at.len
-//    case mt: MatrixType => mt.len
+      case _ => throw new IllegalArgumentException
     }
   }
-
-//  def getWidth(t: Type):ArithExpr = {
-//    t match {
-//      case at: ArrayType => at.len
-////      case mt: MatrixType => mt.dx
-//      case st: ScalarType => Cst(1)
-//      case vt: VectorType => Cst(1)
-//      case tt: TupleType => Cst(1)
-//      case _ => throw new TypeException(t, "MatrixType")
-//    }
-//  }
-//  def getHeight(t: Type):ArithExpr = {
-//    t match {
-//      case at: ArrayType => Cst(1)
-////      case mt: MatrixType => mt.dy
-//      case st: ScalarType => Cst(1)
-//      case vt: VectorType => Cst(1)
-//      case tt: TupleType => Cst(1)
-//      case _ => throw new TypeException(t, "MatrixType")
-//    }
-//  }
 
   /**
    * Returns a list of lengths for the given type.
@@ -360,22 +328,9 @@ object Type {
   def getLengths(t: Type): Seq[ArithExpr] = {
     t match {
       case at: ArrayType => Seq(getLength(at)) ++ getLengths(at.elemT)
-//      case mt: MatrixType => Seq(mt.len) ++ getLengths(mt.elemT)
       case _ => Seq(getLength(t))
     }
   }
-
-//  def length(t: Type,
-//             array: Array[ArithExpr] = Array.empty[ArithExpr]) : Array[ArithExpr] = {
-//    t match {
-//      case ArrayType(elemT, len) => Type.length(elemT, array :+ len)
-////      case MatrixType(elemT, dx, dy) => Type.length(elemT, array :+ (dx*dy))
-//      case TupleType(_) => throw new TypeException(t, "ArrayType")
-//      case VectorType(_, len) => array :+ len
-//      //throw new TypeException(t, "ArrayType") // TODO: Think about what to do with vector types
-//      case _ => array
-//    }
-//  }
 
   /**
    * TODO: document (christophe?)
@@ -495,7 +450,6 @@ object Type {
       case vt: VectorType => vt.scalarT
       case tt: TupleType  => TupleType( tt.elemsT.map( devectorize ):_* )
       case at: ArrayType  => ArrayType(devectorize(at.elemT), at.len)
-//      case mt: MatrixType => MatrixType(devectorize(mt.elemT), mt.dx, mt.dy)
       case _ => t
     }
   }

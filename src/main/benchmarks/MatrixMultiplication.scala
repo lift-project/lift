@@ -212,7 +212,7 @@ object MatrixMultiplication {
 
   // Currently the best for NVIDIA
   def tiledAndBlockedBInnermost(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
-                                  workPerThreadN: ArithExpr, workPerThreadM: ArithExpr) = fun(
+                                  workPerThreadN: ArithExpr, workPerThreadM: ArithExpr): Lambda = fun(
     ArrayType(ArrayType(Float, M), K), // Transposed
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
@@ -221,7 +221,7 @@ object MatrixMultiplication {
         MapWrg(0)(fun( aRows =>
           MapWrg(1)(fun( bCols =>
 
-            Map(Scatter(IndexFunction.reorderStride(tileSizeM/workPerThreadM))) o Join() o
+            Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
               Map(TransposeW() o Join() o Map(TransposeW())) o
 
               toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) o
@@ -279,7 +279,7 @@ object MatrixMultiplication {
   // Currently the best for AMD
   def vectorLoads(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                 workPerThreadN: ArithExpr, workPerThreadM: ArithExpr,
-                   vectorWidth: ArithExpr) = fun(
+                   vectorWidth: ArithExpr): Lambda = fun(
     ArrayType(ArrayType(Float, M), K), // Transposed
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
@@ -288,7 +288,7 @@ object MatrixMultiplication {
         MapWrg(0)(fun( aRows =>
           MapWrg(1)(fun( bCols =>
 
-            Map(Scatter(IndexFunction.reorderStride(tileSizeM/workPerThreadM))) o Join() o
+            Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
               Map(TransposeW() o Join() o Map(TransposeW())) o
 
               toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) o

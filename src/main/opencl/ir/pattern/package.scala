@@ -11,5 +11,5 @@ package object pattern {
 
   def Untile() = Join() o Map(Map(Join()) o TransposeW())
 
-  def ReorderStride(s: ArithExpr) = Gather(IndexFunction.reorderStride(s))
+  def ReorderStride(s: ArithExpr) = Gather(reorderStride(s))
 }

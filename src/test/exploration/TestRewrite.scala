@@ -5,9 +5,9 @@ import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import org.junit.{Test, AfterClass, BeforeClass}
-import org.junit.Assert._
 import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestRewrite {
   @BeforeClass def before() {
@@ -18,194 +18,321 @@ object TestRewrite {
   @AfterClass def after() {
     Executor.shutdown()
   }
-
-  case class Rule(desc: String,
-                  rewrite: PartialFunction[Expr, Expr],
-                  isValid: Context => Boolean = _ => true)
-
-  val rules: Seq[Rule] =
-    Seq(
-      Rule("Iterate(0, _) => Epsilon", {
-        case FunCall(Iterate(n, _), arg) if n.eval == 0 => arg
-      }),
-
-      Rule("Iterate(1, x) => x", {
-        case FunCall(Iterate(n, f), arg) if n.eval == 1 => f(arg)
-      }),
-
-      Rule("Epsilon() o x => x", {
-        case FunCall(Epsilon(), arg) => arg
-      }),
-
-      Rule("x o Epsilon() => x", {
-        case FunCall(f, FunCall(Epsilon(), arg)) => f(arg)
-      }),
-
-      Rule("Map(Epsilon()) => Epsilon()", {
-        case FunCall(Map(Lambda(_, FunCall(Epsilon(), _))), arg) => arg
-      }),
-
-      Rule("joinVec o splitVec => id", {
-        case FunCall(asScalar(), FunCall(asVector(_), arg)) => arg
-      }),
-
-      Rule("splitVec(_) o joinVec() => id", {
-        case FunCall(asVector(n), FunCall(asScalar(), arg))
-          if (arg.t match {
-            case ArrayType(VectorType(_, m), _) => n == m
-            case _ => false
-          }) => arg
-      }),
-
-      Rule("Join() o Split(_) => id", {
-        case FunCall(Join(), FunCall(Split(_), arg)) => arg
-      }),
-
-      Rule("Split(_) o Join() => id", {
-        case FunCall(Split(n), FunCall(Join(), arg))
-          if (arg.t match {
-            case ArrayType(ArrayType(_, m), _) => n == m
-            case _ => false
-          }) => arg
-      }),
-
-      Rule("Map(f) => MapSeq(f)", {
-        case FunCall(Map(f), arg) => MapSeq(f)(arg)
-      }),
-
-      Rule("Map(f) => MapGlb(f)", {
-        case FunCall(Map(f), arg)
-          // check that none of these are nested inside
-          if !f.body.contains({
-              case FunCall(_:MapGlb, _) =>
-              case FunCall(_:MapWrg, _) =>
-              case FunCall(_:MapLcl, _) =>
-              case FunCall(_:MapWarp, _) =>
-              case FunCall(_:MapLane, _) =>
-            })
-          => MapGlb(f)(arg)
-
-      }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp)),
-
-      Rule("Map(f) => MapWrg(f)", {
-        case FunCall(Map(f), arg)
-          // check that there is a nested map inside ...
-          if f.body.contains({
-                case FunCall(_:Map, _) =>
-              }) &&
-          // and that none of these are nested inside
-             !f.body.contains({
-                case FunCall(_:MapGlb, _) =>
-                case FunCall(_:MapWrg, _) =>
-              })
-          => MapWrg(f)(arg)
-
-      }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp)),
-
-      Rule("Map(f) => MapLcl(f)", {
-        case FunCall(Map(f), arg)
-          // check that none of these are nested inside
-          if !f.body.contains({
-              case FunCall(_:MapLcl, _) =>
-              case FunCall(_:MapWarp, _) =>
-              case FunCall(_:MapLane, _) =>
-             })
-          => MapLcl(f)(arg)
-      }, c => c.inMapWrg && !c.inMapLcl),
-
-      Rule("Map(f) => MapWarp(f)", {
-        case FunCall(Map(f), arg)
-          // check if there is a nested map inside
-          if f.body.contains({
-              case FunCall(_:Map, _) =>
-            }) &&
-          // and that none of these are nested inside
-            !f.body.contains({
-              case FunCall(_:MapGlb, _) =>
-              case FunCall(_:MapWrg, _) =>
-              case FunCall(_:MapLcl, _) =>
-              case FunCall(_:MapWarp, _) =>
-              case FunCall(_:MapLane, _) =>
-            })
-          => MapWarp(f)(arg)
-      }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp)),
-
-      Rule("Map(f) => MapLane(f)", {
-        case FunCall(Map(f), arg)
-          // check that none of these are nested inside
-          if !f.body.contains({
-              case FunCall(_:MapLane) =>
-            })
-          => MapLane(f)(arg)
-      }, c => c.inMapWarp && !c.inMapLane),
-
-      Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
-        case FunCall(Map(f), arg) =>
-          Join() o Map(Map(f)) o Split(4) $ arg
-      }),
-
-      Rule("Reduce(f) => toGlobal(MapSeq(id)) ReduceSeq(f)", {
-        case FunCall(Reduce(f), init, arg) =>
-          toGlobal(MapSeq(id)) o ReduceSeq(f, init) $ arg
-      }),
-
-      Rule("Map(uf) => asScalar() o MapGlb(Vectorize(4)(uf)) o asVector(4)", {
-        case FunCall(Map(Lambda(_, FunCall(uf: UserFun, _))), arg) =>
-          asScalar() o Map(Vectorize(4)(uf)) o asVector(4) $ arg
-      }),
-
-      Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
-        case FunCall(ReduceSeq(f), init, FunCall(MapSeq(g), arg)) =>
-          ReduceSeq(fun( (acc, x) => f(acc, g(x))), init) $ arg
-      }),
-
-      Rule("Map(f) o Map(g) => Map(f o g)", {
-        case FunCall(Map(f), FunCall(Map(g), arg)) =>
-          Map(f o g) $ arg
-      })
-    )
-
-  private def listAllPossibleRewritesForAllRules(lambda: Lambda): Seq[(Rule, Expr)] = {
-    rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
-  }
-
-  private def listAllPossibleRewrites(lambda: Lambda,
-                              rule: Rule): Seq[(Rule, Expr)] = {
-    Context.updateContext(lambda.body, new Context)
-
-    Expr.visitWithState(Seq[(Rule, Expr)]())( lambda.body, (e, s) => {
-      if (rule.rewrite.isDefinedAt(e) && rule.isValid(e.context)) {
-        s :+ (rule, e)
-      } else s
-    })
-  }
-
-  private def applyRuleAt(lambda: Lambda, ruleAt: (Rule, Expr)): Lambda = {
-    val rule = ruleAt._1
-    val oldE = ruleAt._2
-    // same as FunDecl.replace( ... )
-    Lambda(lambda.params, Expr.replace(lambda.body, oldE, rule.rewrite))
-  }
-
-  def rewrite(lambda: Lambda, levels: Int = 1): Seq[Lambda] = {
-    TypeChecker.check(lambda.body)
-
-    val allRulesAt = TestRewrite.listAllPossibleRewritesForAllRules(lambda)
-    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt))
-
-    val (g, notG) = rewritten.partition( _.isGenerable )
-
-    if (levels == 1) {
-      g
-    } else {
-      g ++ notG.flatMap( l => rewrite(l, levels-1))
-    }
-  }
 }
 
 class TestRewrite {
+
+  def applyRule(lambda: Lambda, expr: Expr, rule: Rule) = {
+    TypeChecker.check(lambda.body)
+    val newLambda = FunDecl.replace(lambda, expr, rule.rewrite(expr))
+    newLambda
+  }
+
   val N = Var("N")
   val A = Array.fill[Float](128)(0.5f)
+
+  /*@Test
+  def mmReuseA(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // Already transposed
+      (A, B) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)) )) $ Zip(aRow, bCol)
+          )) $ B
+        )) $ A
+      })
+
+    TypeChecker.check(f.body)
+
+    val splitJoin = f.body match {
+      case FunCall(Map(Lambda(_, call @ FunCall(_, _))), _) => call
+    }
+
+    val splitJoinRewrite = Rules.splitJoin.rewrite
+    assertTrue(splitJoinRewrite.isDefinedAt(splitJoin))
+
+    val f1 = FunDecl.replace(f, splitJoin, splitJoinRewrite(splitJoin))
+    TypeChecker.check(f1.body)
+
+    val mapFission = f1.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
+    }
+
+    val mapFissionRewrite = Rules.mapFission.rewrite
+    assertTrue(mapFissionRewrite.isDefinedAt(mapFission))
+
+    val f2 = FunDecl.replace(f1, mapFission, mapFissionRewrite(mapFission))
+    TypeChecker.check(f2.body)
+
+    val mapReduceInterchange = f2.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
+    }
+
+    val mapReduceInterchangeRewrite = Rules.mapReduceInterchange.rewrite
+    assertTrue(mapReduceInterchangeRewrite.isDefinedAt(mapReduceInterchange))
+
+    val f3 = FunDecl.replace(f2, mapReduceInterchange, mapReduceInterchangeRewrite(mapReduceInterchange))
+    TypeChecker.check(f3.body)
+
+    val mapMapTranspose = f3.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, FunCall(_, call)))), _)))), _) => call
+    }
+
+    val mapMapTransposeRewrite = Rules.mapMapTransposeZipInside.rewrite
+    assertTrue(mapMapTransposeRewrite.isDefinedAt(mapMapTranspose))
+
+    val f4 = FunDecl.replace(f3, mapMapTranspose, mapMapTransposeRewrite(mapMapTranspose))
+    TypeChecker.check(f4.body)
+
+    val transposeTranspose = f4.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, call))), _)))), _) => call
+    }
+
+    val transposeTransposeRewrite = Rules.transposeTransposeId.rewrite
+    assertTrue(transposeTransposeRewrite.isDefinedAt(transposeTranspose))
+
+    val f5 = FunDecl.replace(f4, transposeTranspose, transposeTransposeRewrite(transposeTranspose))
+    TypeChecker.check(f5.body)
+
+
+    val mapToMapSeq = f5.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, FunCall(Map(Lambda(_, call)), _)))), _)))), _) => call
+    }
+
+    val mapToMapSeqRewrite = Rules.mapSeq.rewrite
+    assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq))
+
+    val f6 = FunDecl.replace(f5, mapToMapSeq, mapToMapSeqRewrite(mapToMapSeq))
+    TypeChecker.check(f6.body)
+
+    val mapToMapSeq2 = f6.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, call)), _, _))), _)))), _) => call
+    }
+
+    assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq2))
+
+    val f7 = FunDecl.replace(f6, mapToMapSeq2, mapToMapSeqRewrite(mapToMapSeq2))
+    TypeChecker.check(f7.body)
+
+    val mapToMapSeq3 = f7.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, _, call))), _)))), _) => call
+    }
+
+    assertTrue(mapToMapSeqRewrite.isDefinedAt(mapToMapSeq3))
+
+    val f8 = FunDecl.replace(f7, mapToMapSeq3, mapToMapSeqRewrite(mapToMapSeq3))
+    TypeChecker.check(f8.body)
+
+    val reduceToReduceSeq = f8.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, call)), _)))), _) => call
+    }
+
+    val reduceToReduceSeqRewrite = Rules.reduceSeq.rewrite
+    assertTrue(reduceToReduceSeqRewrite.isDefinedAt(reduceToReduceSeq))
+
+    val f9 = FunDecl.replace(f8, reduceToReduceSeq, reduceToReduceSeqRewrite(reduceToReduceSeq))
+    TypeChecker.check(f9.body)
+
+    val fusion = f9.body match {
+      case FunCall(Map(Lambda(_, FunCall(_, FunCall(Map(Lambda(_, FunCall(_, call))), _)))), _) => call
+    }
+
+    val fusionRewrite = Rules.mapReduceFusion.rewrite
+    assertTrue(fusionRewrite.isDefinedAt(fusion))
+
+    val f10 = FunDecl.replace(f9, fusion, fusionRewrite(fusion))
+    TypeChecker.check(f10.body)
+
+    println(f10)
+  }*/
+
+  /*@Test
+  def mmReuseBoth(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f: Lambda = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // Already transposed
+      (A, B) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)) )) $ Zip(aRow, bCol)
+          )) $ B
+        )) $ A
+      })
+
+    val expr = f match { case Lambda(_, FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _))))), _))), _)) => call }
+    val f1 = applyRule(f, expr, Rules.reorderBothSides)
+
+    val expr1 = f1 match { case Lambda(_, call@FunCall(Map(Lambda(_, FunCall(Scatter(_), FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _))))), FunCall(Gather(_), _))))), _)) => call }
+    val f2 = applyRule(f1, expr1, Rules.mapFission)
+
+    val expr2 = f2 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), call@FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _))))), FunCall(Gather(_), _)))), _))) => call }
+    val f3 = applyRule(f2, expr2, Rules.splitJoin)
+
+    val expr3 = f3 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _))))), FunCall(Gather(_), _)))), _))), FunCall(Split(_), _))))) => call }
+    val f4 = applyRule(f3, expr3, Rules.mapMapInterchange)
+
+    val expr4 = f4 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), call@FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _))))), _))), FunCall(Gather(_), _))))), FunCall(Split(_), _))))) => call }
+    val f5 = applyRule(f4, expr4, Rules.splitJoin)
+
+    val expr5 = f5 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _))))), _))), _))), FunCall(Split(_), FunCall(Gather(_), _))))))), FunCall(Split(_), _))))) => call }
+    val f6 = applyRule(f5, expr5, Rules.mapMapInterchange)
+
+    val expr6 = f6 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), call@FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _))))), _))), _)))), FunCall(Split(_), FunCall(Gather(_), _))))))), FunCall(Split(_), _))))) => call }
+    val f7 = applyRule(f6, expr6, Rules.mapFission)
+
+    val expr7 = f7 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _))))), _))), _))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f8 = applyRule(f7, expr7, Rules.mapFission)
+
+    val expr8 = f8 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(_, _, _))), _, _))), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _)))), _)))), _))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f9 = applyRule(f8, expr8, Rules.mapReduceInterchange)
+
+    val expr9 = f9 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _)))), _, FunCall(Transpose(), call@FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _)))), _))))), _))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f10 = applyRule(f9, expr9, Rules.mapMapTransposeZipInside)
+
+    val expr10 = f10 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _)))), _, call@FunCall(Transpose(), FunCall(Transpose(), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), _))), FunCall(Get(1), _)))), FunCall(Zip(2), _, FunCall(Transpose(), _)))))))), _))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f11 = applyRule(f10, expr10, Rules.transposeTransposeId)
+
+    val expr11 = f11 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _)))), _, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), _))), FunCall(Get(1), _)))), FunCall(Zip(2), _, FunCall(Transpose(), _)))))), _))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f12 = applyRule(f11, expr11, Rules.mapFission)
+
+    val expr12 = f12 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), _, _)))), _, _))), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), _))), FunCall(Get(1), _)))), FunCall(Zip(2), _, FunCall(Transpose(), _))))), _)))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f13 = applyRule(f12, expr12, Rules.mapReduceInterchange)
+
+    val expr13 = f13 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), FunCall(Get(0), _), FunCall(Get(1), _))))), FunCall(Zip(2), _, _)))), _, FunCall(Transpose(), call@FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), _))), FunCall(Get(1), _)))), FunCall(Zip(2), _, FunCall(Transpose(), _))))), _))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f14 = applyRule(f13, expr13, Rules.mapMapTransposeZipInside)
+
+    val expr14 = f14 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), FunCall(Get(0), _), FunCall(Get(1), _))))), FunCall(Zip(2), _, _)))), _, call@FunCall(Transpose(), FunCall(Transpose(), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _, _))), FunCall(Get(1), _)))), FunCall(Get(0), _)))), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _)))))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f15 = applyRule(f14, expr14, Rules.transposeTransposeId)
+
+    val expr15 = f15 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(_, FunCall(Get(0), _), FunCall(Get(1), _)))), FunCall(Zip(2), FunCall(Get(0), _), FunCall(Get(1), _))))), FunCall(Zip(2), _, _)))), _, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _, _))), FunCall(Get(1), _)))), FunCall(Get(0), _)))), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _)))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f16 = applyRule(f15, expr15, Rules.mapSeq)
+
+    val expr16 = f16 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(Reduce(Lambda(_, call@FunCall(Map(_), FunCall(Zip(2), _, _)))), _, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _, _))), FunCall(Get(1), _)))), FunCall(Get(0), _)))), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _)))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f17 = applyRule(f16, expr16, Rules.mapSeq)
+
+    val expr17 = f17 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, call @ FunCall(Reduce(_), _, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _, _))), FunCall(Get(1), _)))), FunCall(Get(0), _)))), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _)))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f18 = applyRule(f17, expr17, Rules.reduceSeq)
+
+    val expr18 = f18 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(toGlobal(_), FunCall(ReduceSeq(_), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _))), _))), _), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(_, _, _))), FunCall(Get(1), _)))), FunCall(Get(0), _)))), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _))))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f19 = applyRule(f18, expr18, Rules.mapSeq)
+
+    val expr19 = f19 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(toGlobal(_), FunCall(ReduceSeq(_), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _))), _))), _), FunCall(Map(Lambda(_, call@FunCall(Map(Lambda(_, FunCall(MapSeq(_), FunCall(Get(1), _)))), FunCall(Get(0), _)))), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _))))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f20 = applyRule(f19, expr19, Rules.mapSeq)
+
+    val expr20 = f20 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(toGlobal(_), FunCall(ReduceSeq(_), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _))), _))), _), call@FunCall(Map(Lambda(_, FunCall(MapSeq(_), FunCall(Get(0), _)))), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _))))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f21 = applyRule(f20, expr20, Rules.mapSeq)
+
+    val expr21 = f21 match { case Lambda(_, FunCall(Map(Lambda(_, FunCall(Scatter(_), _))), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), FunCall(Join(), FunCall(Map(Lambda(_, FunCall(TransposeW(), _))), FunCall(Map(Lambda(_, FunCall(toGlobal(_), call@FunCall(ReduceSeq(_), FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(_, _))), _))), _), FunCall(MapSeq(_), FunCall(Zip(2), FunCall(Transpose(), _), FunCall(Transpose(), _))))))), FunCall(Split(_), FunCall(Gather(_), _)))))))), FunCall(Split(_), _))))) => call }
+    val f22 = applyRule(f21, expr21, Rules.mapReduceFusion)
+  }*/
+
+  @Test
+  def mapFission(): Unit = {
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => Map(id o id) $ input
+    )
+
+    assertTrue(Rules.mapFission.rewrite.isDefinedAt(f.body))
+    println(Lambda(f.params, Rules.mapFission.rewrite(f.body)))
+
+    val M = Var("M")
+
+    val g = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ Zip(x, x))) $ input
+    )
+
+    assertTrue(Rules.mapFission.rewrite.isDefinedAt(g.body))
+    println(Lambda(g.params, Rules.mapFission.rewrite(g.body)))
+  }
+
+  @Test
+  def transposeTransposeId(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input => Transpose() o Transpose() $ input
+    )
+
+    assertTrue(Rules.transposeTransposeId.rewrite.isDefinedAt(f.body))
+    assertSame(f.params.head, Rules.transposeTransposeId.rewrite(f.body))
+  }
+
+  @Test
+  def mapReduceInterchange(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(Reduce(add, 0.0f)) $ input
+    )
+
+    assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
+  }
+
+  @Test
+  def transposeBothSides(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(Map(plusOne)) $ input
+    )
+
+    TypeChecker.check(f.body)
+
+    assertTrue(Rules.transposeBothSides.rewrite.isDefinedAt(f.body))
+
+    val g = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(Map(Map(plusOne)) o Split(2)) $ input
+    )
+
+    TypeChecker.check(g.body)
+    assertFalse(Rules.transposeBothSides.rewrite.isDefinedAt(g.body))
+  }
+
+  @Test
+  def mapMapTransposeWithZipInside(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+                ArrayType(Float, M),
+      (in1, in2) => Map(fun(x => Map(fun(x => add(Get(x, 0), Get(x, 1)))) $ Zip(in2, x))) $ in1
+    )
+
+    assertTrue(Rules.mapMapTransposeZipInside.rewrite.isDefinedAt(f.body))
+    println(Rules.mapMapTransposeZipInside.rewrite(f.body))
+  }
+
+  @Test
+  def mapMapTransposeWithZipOutside(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, M),
+      (in1, in2) => Map(fun(x => Map(fun(y => add(y, Get(x, 1)))) $ Get(x, 0))) $ Zip(in1, in2)
+    )
+
+    assertTrue(Rules.mapMapTransposeZipOutside.rewrite.isDefinedAt(f.body))
+    println(Rules.mapMapTransposeZipOutside.rewrite(f.body))
+  }
 
   @Test
   def simpleMapTest(): Unit = {
@@ -221,7 +348,7 @@ class TestRewrite {
       input => MapGlb(id) $ input
     )
 
-    val options = TestRewrite.rewrite(f, levels = 1)
+    val options = Rewrite.rewrite(f, levels = 1)
     val (gold: Array[Float], _) = Execute(128)(goldF, A)
 
     assertTrue(options.nonEmpty)
@@ -249,7 +376,7 @@ class TestRewrite {
 
     val a = 1.0f
     val (gold: Array[Float], _) = Execute(128)(goldF, A, a)
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -275,7 +402,7 @@ class TestRewrite {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
@@ -302,7 +429,7 @@ class TestRewrite {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -328,7 +455,7 @@ class TestRewrite {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
@@ -355,7 +482,7 @@ class TestRewrite {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -377,7 +504,7 @@ class TestRewrite {
       input => Reduce(add, 0.0f) $ input
     )
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
@@ -401,7 +528,7 @@ class TestRewrite {
       input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(plusOne) $ input
     )
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
@@ -431,7 +558,7 @@ class TestRewrite {
 
     val A = Array.tabulate(128)(i => i)
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
@@ -464,7 +591,7 @@ class TestRewrite {
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -492,7 +619,7 @@ class TestRewrite {
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A, a)
 
-    val lambdaOptions = TestRewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f)
 
     assertTrue(lambdaOptions.nonEmpty)
 

@@ -400,7 +400,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
-          Scatter(IndexFunction.reorderStride(chunkSizeM)) o MapSeq(fun( bCol =>
+          Scatter(reorderStride(chunkSizeM)) o MapSeq(fun( bCol =>
             toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(aRow, bCol)
           )) o ReorderStride(chunkSizeM) $ B
         )) $ A
@@ -414,7 +414,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o
+        Map(Scatter(reorderStride(chunkSizeM))) o
           MapGlb(fun( aRow =>
             MapSeq(fun( bCol =>
               toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(aRow, bCol)
@@ -430,7 +430,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           MapGlb(fun( aRows =>
             MapSeq(fun( aRow =>
               MapSeq(fun( bCol =>
@@ -448,7 +448,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           MapGlb(fun( aRows =>
             TransposeW() o MapSeq(fun( bCol =>
               MapSeq(fun( aRow =>
@@ -466,7 +466,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           MapGlb(fun( aRows =>
             TransposeW() o Join() o
               MapSeq(fun( bCols =>
@@ -487,7 +487,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           MapGlb(fun( aRows =>
             TransposeW() o Join() o
               MapSeq(fun( bCols =>
@@ -508,7 +508,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -529,7 +529,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -551,7 +551,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -577,7 +577,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -603,7 +603,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -630,7 +630,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -659,7 +659,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -688,7 +688,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -717,7 +717,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -746,7 +746,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -769,21 +769,12 @@ class TestDerivingMatrixReuse {
     val (output16: Array[Float], _) = Execute(1, mSize)(f16, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output16, 0.0f)
 
-    /*
-    MapSeq(fun( rowPair =>
-      MapSeq(fun(a =>
-        MapSeq(fun(bElem => mult.apply(bElem, a)
-        )) $ Get(rowPair, 1)
-      )) $ Get(rowPair, 0)
-    )
-    */
-
     // ReduceSeq-MapSeq fusion
     val f17 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -810,7 +801,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>
@@ -837,7 +828,7 @@ class TestDerivingMatrixReuse {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Map(Scatter(IndexFunction.reorderStride(chunkSizeM))) o Join() o
+        Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
             MapSeq(fun( bCols =>

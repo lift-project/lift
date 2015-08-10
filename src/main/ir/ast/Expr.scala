@@ -226,7 +226,7 @@ object Expr {
             case other => other
           }
 
-          if (!newCall.eq(call.f) || newArgs != call.args) {
+          if (!newCall.eq(call.f) || (newArgs, call.args).zipped.exists( (e1, e2) => !e1.eq(e2)) ) {
             // Instantiate a new FunCall if anything has changed
             FunCall(newCall, newArgs: _*)
           } else

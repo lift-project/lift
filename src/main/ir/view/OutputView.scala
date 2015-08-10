@@ -153,7 +153,7 @@ object OutputView {
       case ArrayType(ArrayType(typ, m), n) =>
         writeView.
           join(m).
-          reorder((i:ArithExpr) => { IndexFunction.transpose(i, ArrayType(ArrayType(typ, n), m)) }).
+          reorder((i:ArithExpr) => { transpose(i, ArrayType(ArrayType(typ, n), m)) }).
           split(n)
     }
   }

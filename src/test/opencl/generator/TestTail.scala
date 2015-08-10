@@ -2,7 +2,6 @@ package opencl.generator
 
 import apart.arithmetic.Var
 import ir.ArrayType
-import ir.ast.IndexFunction._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._

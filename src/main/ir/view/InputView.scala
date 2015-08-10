@@ -176,7 +176,7 @@ object InputView {
       case ArrayType(ArrayType(typ, m), n) =>
         argView.
           join(n).
-          reorder((i:ArithExpr) => { IndexFunction.transpose(i, call.t) }).
+          reorder((i:ArithExpr) => { transpose(i, call.t) }).
           split(m)
     }
   }
