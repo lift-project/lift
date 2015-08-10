@@ -8,21 +8,15 @@ import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
 
 object OpenCLAST {
 
-  /**
-   * Base class for all OpenCL AST nodes
-   */
-  abstract class OclAstNode {
-    val id = {
-      OclAstNode.counter += 1
-      OclAstNode.counter
-    }
-  }
-  object OclAstNode { var counter = 0 }
+  /** Base class for all OpenCL AST nodes.*/
+  abstract class OclAstNode
 
+  /** List of nodes enclosed in a bock. This behaves like (and emits) a C block. */
   case class Block(var content: List[OclAstNode] = List.empty, global: Boolean = false) extends OclAstNode{
+    /** Append a sub-node. Could be any node, including a sub-block.
+      * @param node The node to add to this block.
+      */
     def +=(node: OclAstNode): Unit = content = content :+ node
-
-    override def toString = "Block"
   }
 
   /** A function declaration
@@ -31,32 +25,23 @@ object OpenCLAST {
     * @param params List of parameter declaration.
     * @param body Body of the function.
     * @param kernel Flag set if the function is a kernel
-    *
-    * @note The type system does not have a `void` type, a return type set to `null` represents a `void` type.
     */
-  case class Function(name: String, ret: Type, params: List[ParamDecl], body: Block, kernel: Boolean = false) extends OclAstNode {
-    override def toString = "Function"
-  }
+  case class Function(name: String,
+                      ret: Type, params: List[ParamDecl],
+                      body: Block,
+                      kernel: Boolean = false) extends OclAstNode
 
-  case class FunctionCall(name: String, params: List[OpenCLAST.OclAstNode]) extends OclAstNode {
-    override def toString = "FunctionCall"
-  }
+  case class FunctionCall(name: String,
+                          params: List[OpenCLAST.OclAstNode]) extends OclAstNode
 
-  case class Loop(indexVar: Var, iter: ArithExpr, body: Block, unrollHint: Boolean = false) extends OclAstNode {
-    override def toString = "Loop"
-  }
+  case class Loop(indexVar: Var,
+                  iter: ArithExpr,
+                  body: Block,
+                  unrollHint: Boolean = false) extends OclAstNode
 
-  case class Selection(condition: Predicate, then_block: Block, else_block: Block = null) extends OclAstNode {
-    override def toString = "Selection"
-  }
+  case class Barrier(mem: OpenCLMemory) extends OclAstNode
 
-  case class Barrier(mem: OpenCLMemory) extends OclAstNode {
-    override def toString = "Barrier"
-  }
-
-  case class TypeDef(t: Type) extends OclAstNode {
-    override def toString = "Typedef"
-  }
+  case class TypeDef(t: Type) extends OclAstNode
 
   case class TupleAlias(t: Type, name: String) extends OclAstNode
 
@@ -64,9 +49,7 @@ object OpenCLAST {
                      t: Type,
                      init: OclAstNode = null,
                      addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                     length: Int = 0) extends OclAstNode {
-    override def toString = "VarDecl"
-  }
+                     length: Int = 0) extends OclAstNode
 
   case class Load(v: VarRef,
                   t: VectorType,
@@ -77,103 +60,47 @@ object OpenCLAST {
                    value: OclAstNode,
                    offset: Expression) extends OclAstNode
 
+  /** Force a cast of a variable to the given type. This is used to
+    *
+    * @param v A referenced variable.
+    * @param t The type to cast the variable into.
+    */
   case class Cast(v: VarRef, t: Type) extends OclAstNode
 
-  /**
-   * Parameter declaration. These have to be separated from variable declaration since the
-   * vectorization has to be handled differently
-   */
+  /** Parameter declaration. These have to be separated from variable declaration since the
+    * vectorization has to be handled differently
+    */
   case class ParamDecl(name: String, t: Type,
-                       init: OclAstNode = null,
                        addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                       const: Boolean = false)
-    extends OclAstNode
-  {
-    override def toString = "VarDecl"
-  }
+                       const: Boolean = false) extends OclAstNode
 
-  case class VarRef(name: String, offset: Expression = null) extends OclAstNode {
-    override def toString = "Function"
-  }
+  /** A reference to a declared variable
+    * @param name The name of the variable referenced.
+    * @param offset Offset used to index from pointers, if any.
+    * @note This uses a String instead of a Var because some nodes (like user
+    *       functions), inject variables from string.
+    */
+  case class VarRef(name: String, offset: Expression = null) extends OclAstNode
 
-  case class Assignment(to: OclAstNode, value: OclAstNode) extends OclAstNode {
-    override def toString = "Assignment"
-  }
+  /** Represent an assignment.
+    * @param to Left-hand side.
+    * @param value Right-hand side.
+    * @note Vectors are using Store instead of assignment.
+    */
+  case class Assignment(to: OclAstNode, value: OclAstNode) extends OclAstNode
 
   /** Inline native code block. Used mainly for UserFun, which are currently represented as strings
+    * @param code Native code to insert
     */
-  case class Inline(code: String) extends OclAstNode {
-    override def toString = "Inline"
-  }
+  case class Inline(code: String) extends OclAstNode
 
-  case class Comment(content: String) extends OclAstNode {
-    override def toString = "/*...*/"
-  }
+  /** Inline comment block
+    * @param content Comment string
+    */
+  case class Comment(content: String) extends OclAstNode
 
-  case class Expression(content: ArithExpr) extends OclAstNode {
-    override def toString = "Expression"
-  }
-
-  object SimpleDot {
-    var dotcount = 0
-    var count = 0
-    var bw: BufferedWriter = null
-
-    def addNode(label: String, shape: String = "ellipse"): Int = {
-      count += 1
-      val id = count
-      bw.write(
-        s"""  $id [label = "$label", shape = "$shape"]
-         """.stripMargin)
-      id
-    }
-
-    def addLink(from: Int, to: Int, label: String = ""): Unit = {
-      if(from >= 0 && to >= 0)
-        bw.write(
-          s"""  $from -> $to [label = "$label", dir=back]
-           """.stripMargin)
-    }
-
-    def visit(node: OclAstNode): Int = {
-      // Current node
-      val id = node match {
-        case c: Comment => return -1
-        case l: Loop => addNode(s"{Loop|ind. var: ${l.indexVar}\\niter: ${l.iter}}", shape = "record")
-        case f: Function => addNode(s"{Function${if(f.kernel) " (K)" else ""}|name: ${f.name}}", shape = "record")
-        case v: VarDecl => addNode(s"{${v.toString}|name: ${v.name}\\ntype: ${v.t}}", shape = "record")
-        case x => addNode(x.toString)
-      }
-
-      // Traverse
-      node match {
-        case l: Loop =>
-          addLink(id, visit(l.body))
-        case f: Function =>
-          f.params.foreach(x => {
-            addLink(id, visit(x), "param")
-          })
-          addLink(id, visit(f.body), "body")
-        case b: Block => b.content.foreach(x => {
-          addLink(id, visit(x))
-        })
-        case x =>
-      }
-      id
-    }
-
-    def apply(node: OclAstNode): Unit = {
-      count = 0
-      dotcount += 1
-      val file = new File(s"PLOT$dotcount.dot")
-      bw = new BufferedWriter(new FileWriter(file))
-      bw.write("""digraph {
-          |  edge [fontsize = "10"]
-          |  node [fontsize = "10", shape = "box", style="filled", fillcolor="aquamarine"];
-        """.stripMargin)
-      visit(node)
-      bw.write("}\n")
-      bw.close()
-    }
-  }
+  /** Wrapper for arithmetic expression
+    * @param content The arithmetic expression.
+    */
+  case class Expression(content: ArithExpr) extends OclAstNode
 }

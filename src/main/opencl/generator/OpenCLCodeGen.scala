@@ -300,7 +300,7 @@ object OpenCLCodeGen {
     }
   }
 
-  def toOpenCL(param: (Type, Any)): String = {
+  /*def toOpenCL(param: (Type, Any)): String = {
     param match {
       case (st: ScalarType, name: String) => toOpenCL(st) + " " + name
       case (vt: VectorType, name: String) => toOpenCL(vt) + " " + name
@@ -310,7 +310,7 @@ object OpenCLCodeGen {
         (tt.elemsT zip names).map( {case (t,n) => toOpenCL( (t, n) ) }).mkString(", ")
       case _ => throw new NotPrintableExpression( param.toString() )
     }
-  }
+  }*/
 
   /**
    * Generate a barrier for the given address space scope.
@@ -344,7 +344,6 @@ object OpenCLCodeGen {
       case Cst(1) =>
         // exactly one iteration
         block {
-          System.err.println("int " + toOpenCL(l.indexVar) + " = " + toOpenCL(init) + ";")
           println("int " + toOpenCL(l.indexVar) + " = " + toOpenCL(init) + ";")
           visit(l.body)
         }
