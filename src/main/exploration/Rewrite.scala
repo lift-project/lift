@@ -35,13 +35,16 @@ object Rewrite {
       reduceSeq,
       partialReduce,
       partialReduceSplitJoin,
+      partialReduceReorder,
+      partialReduceToReduce,
       vectorize,
       mapReduceFusion,
       mapFusion,
       mapMapInterchange,
       reorderBothSides,
       transposeBothSides,
-      mapMapTransposeZipOutside
+      mapMapTransposeZipOutside,
+      splitZip
     )
 
   private def listAllPossibleRewritesForAllRules(lambda: Lambda): Seq[(Rule, Expr)] = {
