@@ -52,7 +52,7 @@ class TestDerivingMatrixReuse {
     assertArrayEquals(gold, test)
     assertArrayEquals(gold, test2)
 
-    val A = Array.fill(size, size)(util.Random.nextInt(5))
+    val A = Array.tabulate(size, size)((x, y) => x*size + y)
 
     // Reduce => Reduce() o Reduce( ... $ Zip( ... ) )
     val gold2 = a.sum
@@ -90,6 +90,34 @@ class TestDerivingMatrixReuse {
     val testMapSplitTranspose = A.grouped(16).toArray.map(_.transpose).transpose
 
     assertArrayEquals(goldMapSplitTranspose.flatten.flatten, testMapSplitTranspose.flatten.flatten)
+
+    // map(transpose) o split =>  transpose o map(split) o transpose
+    val miscGold = A.grouped(16).toArray.map(_.transpose)
+    val miscTest = A.transpose.map(_.grouped(16).toArray).transpose
+
+    assertArrayEquals(miscGold.flatten.flatten, miscTest.flatten.flatten)
+
+    // transpose o map(split) => map(transpose) o split o transpose
+    val miscGold2 = A.map(_.grouped(16).toArray).transpose
+    val miscTest2 = A.transpose.grouped(16).toArray.map(_.transpose)
+
+    assertArrayEquals(miscGold2.flatten.flatten, miscTest2.flatten.flatten)
+
+    // split o transpose => map(transpose) o transpose o map(split)
+    val miscGold3 = A.transpose.grouped(16).toArray
+    val miscTest3 = A.map(_.grouped(16).toArray).transpose.map(_.transpose)
+
+    assertArrayEquals(miscGold3.flatten.flatten, miscTest3.flatten.flatten)
+
+    // split o map(split()) => map(map(split)) o split()
+    val miscGold4 = A.map(_.grouped(16).toArray).grouped(16).toArray
+    val miscTest4 = A.grouped(16).toArray.map(_.map(_.grouped(16).toArray))
+
+    assertArrayEquals(miscGold4.flatten.flatten.flatten, miscTest4.flatten.flatten.flatten)
+
+    // split o map(transpose) =>
+
+    // transpose o split =>
   }
 
   @Test
