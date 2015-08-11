@@ -6,6 +6,26 @@ import Rules._
 
 object Rewrite {
 
+  def getExprForId(lambda: Lambda, id: Int): Option[Expr] = {
+    var expr: Option[Expr] = None
+
+    Expr.visitWithState(0)(lambda.body, (e, count) => {
+
+      if (count == id)
+        expr = Some(e)
+
+      count + 1
+    })
+
+    expr
+  }
+
+  def applyRuleAtId(lambda: Lambda, id: Int, rule: Rule): Lambda = {
+    TypeChecker.check(lambda.body)
+    val expr = getExprForId(lambda, id).get
+    FunDecl.replace(lambda, expr, rule.rewrite(expr))
+  }
+
   private val rules =
     Seq(
       iterateId,
