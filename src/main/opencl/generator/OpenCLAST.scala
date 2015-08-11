@@ -17,7 +17,13 @@ object OpenCLAST {
     /** Append a sub-node. Could be any node, including a sub-block.
       * @param node The node to add to this block.
       */
-    def +=(node: OclAstNode): Unit = content = content :+ node
+    def +=(node: OclAstNode): Unit = {
+      content = content :+ node
+    }
+
+    def ::(node: OclAstNode): Unit = {
+      content = node :: content
+    }
   }
 
   /** A function declaration
@@ -33,7 +39,7 @@ object OpenCLAST {
                       kernel: Boolean = false) extends OclAstNode
 
   case class FunctionCall(name: String,
-                          params: List[OpenCLAST.OclAstNode]) extends OclAstNode
+                          args: List[OpenCLAST.OclAstNode]) extends OclAstNode
 
   case class Loop(indexVar: Var,
                   iter: ArithExpr,
@@ -77,11 +83,11 @@ object OpenCLAST {
 
   /** A reference to a declared variable
     * @param name The name of the variable referenced.
-    * @param offset Offset used to index from pointers, if any.
+    * @param index Offset used to index from pointers, if any.
     * @note This uses a String instead of a Var because some nodes (like user
     *       functions), inject variables from string.
     */
-  case class VarRef(name: String, offset: Expression = null) extends OclAstNode
+  case class VarRef(name: String, index: Expression = null) extends OclAstNode
 
   /** Represent an assignment.
     * @param to Left-hand side.
@@ -94,7 +100,7 @@ object OpenCLAST {
     * represented as strings
     * @param code Native code to insert
     */
-  case class Inline(code: String) extends OclAstNode
+  case class OpenCLCode(code: String) extends OclAstNode
 
   /** Inline comment block
     * @param content Comment string
@@ -104,5 +110,39 @@ object OpenCLAST {
   /** Wrapper for arithmetic expression
     * @param content The arithmetic expression.
     */
-  case class Expression(content: ArithExpr) extends OclAstNode
+  case class Expression(var content: ArithExpr) extends OclAstNode
+
+  def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
+
+    block.content.foreach(visitExpression)
+
+    def visitExpression(node: OclAstNode): Unit = {
+      node match {
+        case e: Expression => fun(e)
+        case v: VarRef if v.index != null => visitExpression(v.index)
+        case v: VarDecl if v.init != null => visitExpression(v.init)
+        case l: Load => fun(l.offset)
+        case s: Store =>
+          visitExpression(s.value)
+          fun(s.offset)
+        case f: FunctionCall => f.args.foreach(visitExpression)
+        case c: Cast => visitExpression(c.v)
+        case a: Assignment =>
+          visitExpression(a.value)
+          visitExpression(a.to)
+        case _ =>
+      }
+    }
+  }
+
+  def visitBlocks(node: OclAstNode, fun: Block => Unit): Unit = {
+    node match {
+      case b: Block =>
+        fun(b)
+        b.content.foreach(visitBlocks(_, fun))
+      case f: Function => visitBlocks(f.body, fun)
+      case l: Loop => visitBlocks(l.body, fun)
+      case _ =>
+    }
+  }
 }

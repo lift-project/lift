@@ -122,7 +122,7 @@ object OpenCLCodeGen {
       else printBlock { b.content.foreach(print) }
 
     case f: Function      => print(f)
-    case i: Inline        => sb ++= i.code
+    case i: OpenCLCode    => sb ++= i.code
     case c: Comment       => println(s"/* ${c.content} */")
     case v: VarDecl       => print(v)
     case v: VarRef        => print(v)
@@ -186,18 +186,18 @@ object OpenCLCodeGen {
 
   private def print(f: FunctionCall): Unit = {
     print(f.name + "(")
-    f.params.foreach(x => {
+    f.args.foreach(x => {
       print(x)
-      if(x != f.params.last) print(", ")
+      if(x != f.args.last) print(", ")
     })
     print(")")
   }
 
   private def print(v: VarRef): Unit = {
     print(v.name)
-    if(v.offset != null) {
+    if(v.index != null) {
       print("[")
-      print(v.offset)
+      print(v.index)
       print("]")
     }
   }
