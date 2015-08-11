@@ -195,10 +195,8 @@ object MatrixMultiplication {
                   // Copy tiles to local memory
                   fun(pairOfTiles =>
                     Tuple(
-                      Join() o  toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
-                        o Split(tileSize/workPerThread) $ Get(pairOfTiles, 0),
-                      Join() o  toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
-                        o Split(tileSize/workPerThread) $ Get(pairOfTiles, 1)
+                      toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                      toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
                 , MapLcl(1)(MapLcl(0)(MapSeq(id))) $ Value(0.0f,
@@ -261,10 +259,9 @@ object MatrixMultiplication {
 
                   // Copy tiles to local memory
                   Unzip() o toLocal(MapLcl(1)(fun(pair =>
-                  fun(pair => Tuple(Join() $ Get(pair, 0), Join() $ Get(pair, 1))) o
                     Unzip() o MapLcl(0)(fun( pair =>
-                    Tuple(MapSeq(id) $ Get(pair, 0), MapSeq(id) $ Get(pair, 1))
-                  )) $ Zip(Split(1) $ Get(pair, 0), Split(1) $ Get(pair, 1))
+                    Tuple(id $ Get(pair, 0), id $ Get(pair, 1))
+                  )) $ Zip(Get(pair, 0), Get(pair, 1))
                 ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
               )
                 , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
@@ -328,11 +325,11 @@ object MatrixMultiplication {
                 ) o
 
                   // Copy tiles to local memory
-                  Unzip() o  toLocal(MapLcl(1)(fun(pair =>
-                  fun(pair => Tuple(asScalar() o Join() $ Get(pair, 0), asScalar() o Join() $ Get(pair, 1))) o
+                  Unzip() o toLocal(MapLcl(1)(fun(pair =>
+                  fun(pair => Tuple(asScalar() $ Get(pair, 0), asScalar() $ Get(pair, 1))) o
                     Unzip() o MapLcl(0)(fun( pair =>
-                    Tuple(MapSeq(id.vectorize(vectorWidth)) $ Get(pair, 0), MapSeq(id.vectorize(vectorWidth)) $ Get(pair, 1))
-                  )) $ Zip(Split(1) o asVector(vectorWidth) $ Get(pair, 0), Split(1) o asVector(vectorWidth) $ Get(pair, 1))
+                    Tuple(id.vectorize(vectorWidth) $ Get(pair, 0), id.vectorize(vectorWidth) $ Get(pair, 1))
+                  )) $ Zip(asVector(vectorWidth) $ Get(pair, 0), asVector(vectorWidth) $ Get(pair, 1))
                 ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
               )
                 , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
