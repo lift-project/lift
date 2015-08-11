@@ -33,9 +33,11 @@ object Rules {
 
   /* Split-join rule */
 
-  val splitJoin = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
+  val splitJoin: Rule = splitJoin(4)
+
+  def splitJoin(split: Int) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
     case FunCall(Map(f), arg) =>
-      Join() o Map(Map(f)) o Split(4) $ arg
+      Join() o Map(Map(f)) o Split(split) $ arg
   })
 
   /* Reduce rules */
@@ -128,7 +130,7 @@ object Rules {
 
   }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp))
 
-  val mapWrg = Rule("Map(f) => MapWrg(f)", {
+  def mapWrg(dim: Int): Rule = Rule("Map(f) => MapWrg(f)", {
     case FunCall(Map(f), arg)
       // check that there is a nested map inside ...
       if f.body.contains({
@@ -139,11 +141,15 @@ object Rules {
           case FunCall(_: MapGlb, _) =>
           case FunCall(_: MapWrg, _) =>
         })
-    => MapWrg(f)(arg)
+    =>
+      println(arg)
+      MapWrg(dim)(f)(arg)
 
   }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp))
 
-  val mapLcl = Rule("Map(f) => MapLcl(f)", {
+  val mapWrg: Rule = mapWrg(0)
+
+  def mapLcl(dim: Int): Rule = Rule("Map(f) => MapLcl(f)", {
     case FunCall(Map(f), arg)
       // check that none of these are nested inside
       if !f.body.contains({
@@ -151,8 +157,10 @@ object Rules {
         case FunCall(_: MapWarp, _) =>
         case FunCall(_: MapLane, _) =>
       })
-    => MapLcl(f)(arg)
+    => MapLcl(dim)(f)(arg)
   }, c => c.inMapWrg && !c.inMapLcl)
+
+  val mapLcl: Rule = mapLcl(0)
 
   val mapWarp = Rule("Map(f) => MapWarp(f)", {
     case FunCall(Map(f), arg)
@@ -204,7 +212,26 @@ object Rules {
 
   /* Address space rules */
 
-  // TODO
+  val privateMemory = Rule("Map(f) => toPrivate(Map(f))", {
+    case FunCall(f: AbstractMap, arg)
+      if f.isInstanceOf[MapLcl] || f.isInstanceOf[MapSeq]
+    =>
+      toPrivate(f) $ arg
+  })
+
+  val localMemory = Rule("Map(f) => toLocal(Map(f))", {
+    case FunCall(f: AbstractMap, arg)
+      if f.isInstanceOf[MapLcl] || f.isInstanceOf[MapSeq]
+    =>
+      toLocal(f) $ arg
+  })
+
+  val globalMemory = Rule("Map(f) => toGlobal(Map(f))", {
+    case FunCall(f: AbstractMap, arg)
+      if f.isInstanceOf[MapLcl] || f.isInstanceOf[MapSeq]
+    =>
+      toGlobal(f) $ arg
+  })
 
   /* Vectorization rule */
 
@@ -366,6 +393,12 @@ object Rules {
       Transpose() o Map(Transpose()) o Split(n) $ arg
   })
 
+  val splitTranspose = Rule("Split(n) o Transpose()" +
+        "Map(Transpose()) o Transpose() o Map(Split(n))", {
+        case FunCall(Split(n), FunCall(Transpose(), arg)) =>
+          Map(Transpose()) o Transpose() o Map(Split(n)) $ arg
+  })
+
   val splitZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
                       "Map(x => Map() $ Zip(Get(n, x) ... ) $ Zip(Split $ ...)", {
     case FunCall(Map(Lambda(lambdaParam, FunCall(Map(mapLambda), mapArg))), FunCall(Split(n), FunCall(Zip(_), zipArgs@_*)))
@@ -397,6 +430,11 @@ object Rules {
   val implementId = Rule("Id() => ", {
     case c@FunCall(Id(), arg) =>
       generateId(c.t) $ arg
+  })
+
+  val addId = Rule("f => f o Id()", {
+    case FunCall(f, arg) =>
+      f o Id() $ arg
   })
 
   val tupleMap = Rule("Tuple(Map(f) $ .. , Map(g) $ .., ...) => " +

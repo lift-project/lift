@@ -5,7 +5,6 @@ import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -26,6 +25,54 @@ class TestRewriteMatrixMatrix {
     TypeChecker.check(lambda.body)
     val newLambda = FunDecl.replace(lambda, expr, rule.rewrite(expr))
     newLambda
+  }
+
+  @Test
+  def tiledTransposeWithLocalMemory(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input => Map(Map(id)) o Transpose() $ input
+    )
+
+    val x = 8
+    val y = 4
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(x))
+    val f2 = Rewrite.applyRuleAtId(f1, 5, Rules.transposeBothSides)
+    val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.splitJoin(y))
+    val f4 = Rewrite.applyRuleAtId(f3, 11, Rules.transposeBothSides)
+    val f5 = Rewrite.applyRuleAtId(f4, 2, Rules.splitTranspose)
+    val f6 = Rewrite.applyRuleAtId(f5, 1, Rules.mapFusion)
+    val f7 = Rewrite.applyRuleAtId(f6, 11, Rules.transposeTransposeId)
+    val f8 = Rewrite.applyRuleAtId(f7, 1, Rules.mapFission)
+    val f9 = Rewrite.applyRuleAtId(f8, 2, Rules.mapFission)
+    val f10 = Rewrite.applyRuleAtId(f9, 3, Rules.mapFission)
+    // TODO: Required to get ids right. Not simplifying?
+    val f11 = Rewrite.applyRuleAtId(f10, 4, Rules.mapSplitTranspose)
+    val f12 = Rewrite.applyRuleAtId(f11, 17, Rules.addId)
+    val f13 = Rewrite.applyRuleAtId(f12, 18, Rules.implementId)
+
+    val fw0 = Rewrite.applyRuleAtId(f13, 3, Rules.mapWrg(0))
+    val fw1 = Rewrite.applyRuleAtId(fw0, 13, Rules.mapWrg(1))
+    val fl1 = Rewrite.applyRuleAtId(fw1, 16, Rules.mapLcl(1))
+    val fl0 = Rewrite.applyRuleAtId(fl1, 24, Rules.mapLcl(0))
+    val fl01 = Rewrite.applyRuleAtId(fl0, 18, Rules.mapLcl(1))
+    val fl00 = Rewrite.applyRuleAtId(fl01, 20, Rules.mapLcl(0))
+
+    val f14 = Rewrite.applyRuleAtId(fl00, 16, Rules.globalMemory)
+    val f15 = Rewrite.applyRuleAtId(f14, 18, Rules.localMemory)
+
+    val nSize = 12
+    val mSize = 8
+    val matrix = Array.tabulate(nSize, mSize)((r, c) => c * 1.0f + r * 8.0f)
+    val gold = matrix.transpose
+
+    val (output: Array[Float], _) =
+      Execute(y, x, nSize, mSize, (false, false))(f15, matrix)
+    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
 /*
