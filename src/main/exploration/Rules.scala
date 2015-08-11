@@ -388,16 +388,11 @@ object Rules {
     case FunCall(Iterate(n, _), arg) if n.eval == 0 => arg
   })
 
-  val epsilonComposition = Rule("Epsilon() o x => x", {
-    case FunCall(Epsilon(), arg) => arg
-  })
-
-  val epsilonComposition2 = Rule("x o Epsilon() => x", {
-    case FunCall(f, FunCall(Epsilon(), arg)) => f(arg)
-  })
-
-  val mapEpsilon = Rule("Map(Epsilon()) => Epsilon()", {
-    case FunCall(Map(Lambda(_, FunCall(Epsilon(), _))), arg) => arg
+  val removeEmptyMap = Rule("Map(fun(x => x)) $ a => a", {
+    case FunCall(Map(Lambda(params, body)), arg)
+      if params.head eq body
+    =>
+      arg
   })
 
   private def findGets(expr: Expr, tupleParam: Expr): List[FunCall] = {
