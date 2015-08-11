@@ -1,13 +1,13 @@
 package exploration
 
 import apart.arithmetic.Var
-import ir.{VectorType, TypeChecker, ArrayType}
 import ir.ast._
+import ir.{ArrayType, TypeChecker, VectorType}
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{ReduceSeq, toGlobal, MapSeq, MapGlb}
+import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestRules {
   @BeforeClass def before() {
@@ -21,6 +21,12 @@ object TestRules {
 }
 
 class TestRules {
+
+  def applyRule(lambda: Lambda, expr: Expr, rule: Rule) = {
+    TypeChecker.check(lambda.body)
+    val newLambda = FunDecl.replace(lambda, expr, rule.rewrite(expr))
+    newLambda
+  }
 
   val N = Var("N")
   val A = Array.fill[Float](128)(0.5f)
@@ -417,5 +423,47 @@ class TestRules {
       val (result: Array[Float], _) = Execute(1, 1)(l, A, a)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
+  }
+
+  @Test
+  def simpleId(): Unit = {
+    val f: Lambda = fun(
+      ArrayType(Float, N),
+      input => Map(Id()) $ input
+    )
+
+    val e = f match {
+      case Lambda(_, FunCall(Map(Lambda(_, c)), _)) => c
+    }
+
+    println(applyRule(f, e, Rules.implementId))
+  }
+
+  @Test
+  def arrayId(): Unit = {
+    val f: Lambda = fun(
+      ArrayType(Float, N),
+      input => Map(id) o Id() $ input
+    )
+
+    val e = f match {
+      case Lambda(_, FunCall(_, c)) => c
+    }
+
+    println(applyRule(f, e, Rules.implementId))
+  }
+
+  @Test
+  def zipId(): Unit = {
+    val f: Lambda = fun(
+      ArrayType(Float, N),
+      input => Map(idFF) o Id() $ Zip(input, input)
+    )
+
+    val e = f match {
+      case Lambda(_, FunCall(_, c)) => c
+    }
+
+    println(applyRule(f, e, Rules.implementId))
   }
 }

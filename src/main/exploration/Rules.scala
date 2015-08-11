@@ -380,6 +380,46 @@ object Rules {
       Map(Lambda(Array(newLambdaParam), Map(mapLambda) $ Zip(innerZipArgs:_*))) $ Zip(newZipArgs:_*)
   })
 
+
+  private def generateId(t: Type): FunDecl = {
+    t match {
+      case TupleType(tt@_*) =>
+        val newParam = Param()
+        val argSequence = tt.zipWithIndex.map(p => generateId(p._1) $ Get(newParam, p._2))
+        Lambda(Array(newParam), Tuple(argSequence:_*))
+      case ArrayType(elemT, _) =>
+        Map(generateId(elemT))
+      case ScalarType(_, _) | VectorType(_, _) =>
+        UserFun("id" + t, "x", "{ return x; }", t, t)
+    }
+  }
+
+  val implementId = Rule("Id() => ", {
+    case c@FunCall(Id(), arg) =>
+      generateId(c.t) $ arg
+  })
+
+  val tupleMap = Rule("Tuple(Map(f) $ .. , Map(g) $ .., ...) => " +
+    "Unzip() o Map(x => Tuple(f $ Get(x, 0), g $ Get(x, 1), ...) $ Zip(...) ", {
+    case FunCall(Tuple(_), args@_*)
+      if args.forall({
+        case arg@FunCall(Map(_), _) => arg.t.isInstanceOf[ArrayType]
+        case _ => false
+      }) && args.map(_.t.asInstanceOf[ArrayType].len).distinct.length == 1
+    =>
+      val zipArgs = args.map({
+        case FunCall(_, mapArgs) => mapArgs
+      })
+
+      val lambdaParam = Param()
+
+      val maps = args.zipWithIndex.map({
+        case (FunCall(f, _), n) => f $ Get(lambdaParam, n)
+      })
+
+      Unzip() o Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)
+  })
+
   val iterate1 = Rule("Iterate(1, x) => x", {
     case FunCall(Iterate(n, f), arg) if n.eval == 1 => f(arg)
   })

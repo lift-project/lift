@@ -95,7 +95,11 @@ object Lambda {
    */
   implicit def FunDefToLambda(f: FunDecl): Lambda = {
     val params = Array.fill(f.arity)(Param(UndefType))
-    Lambda(params, f(params: _*))
+    f match {
+      case lambda@Lambda(ps, _)
+        if ps.length == params.length => lambda
+      case _ => Lambda(params, f(params: _*))
+    }
   }
 }
 

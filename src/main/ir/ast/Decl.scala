@@ -100,6 +100,17 @@ abstract class FunDecl(val arity: Int) extends Decl {
    *         `this` with `arg0`, `arg1` and `arg2`.
    */
   def call(arg0: Expr, arg1: Expr, arg2: Expr) = apply(arg0, arg1, arg2)
+
+  override def equals(other: Any): Boolean = other match {
+    case that: FunDecl =>
+      arity == that.arity
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(arity)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }
 
 object FunDecl {

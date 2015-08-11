@@ -118,6 +118,22 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
 
   // for debug purposes
   override def toString = name
+
+  override def hashCode(): Int = {
+    val state = Seq(name, paramNamesString, body, inTs, outT, super.hashCode())
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
+
+  override def equals(other: Any): Boolean = other match {
+    case that: UserFun =>
+      super.equals(that) &&
+        that.name == this.name &&
+        that.paramNames.sameElements(this.paramNames) &&
+        that.body == this.body &&
+        that.inTs == this.inTs &&
+        that.outT == outT
+    case _ => false
+  }
 }
 
 object UserFun {
