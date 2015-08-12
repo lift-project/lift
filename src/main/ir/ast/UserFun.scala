@@ -126,7 +126,6 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
 
   override def equals(other: Any): Boolean = other match {
     case that: UserFun =>
-      super.equals(that) &&
         that.name == this.name &&
         that.paramNames.sameElements(this.paramNames) &&
         that.body == this.body &&
