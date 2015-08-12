@@ -823,9 +823,14 @@ object OpenCLGenerator extends Generator {
                            .filter(!_._1.isInstanceOf[Var])
                            .filter(!_._1.isInstanceOf[Cst])
                            .filter(!_._1.isInstanceOf[OclFunction])
-        // TODO: don't know why ...
-        // figure out why this fixes a bug in mmSquareTiles:
-                           .filter(!_._1.isInstanceOf[Pow])
+                           .filter(_._1 match {
+                              // don't choose pow(b, -1), as this might be
+                              // printed as "/b" inside of a product
+                              case Pow(_, Cst(-1)) => false
+                              case _ => true
+                            })
+
+      // Pow(b, Cst(-1))
 
       val substitutions = mutable.Map[ArithExpr, ArithExpr]()
 

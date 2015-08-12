@@ -49,13 +49,12 @@ object OpenCLCodeGen {
           case Pow(b, Cst(-1)) => " / (" + print(b) + ")"
           case _ => " * " + print(e)
         })
-      } ).drop(4) + ")"
+      } ).drop(4) + ")" // drop(4) removes the initial "1 * "
       case Sum(es) => "(" + es.map(print).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + print(a) + " % " + print(n) + ")"
       case of: OclFunction => of.toOCLString
       case ai: AccessVar => ai.array + "[" + print(ai.idx) + "]"
       case v: Var => v.toString
-      case tv : TypeVar => tv.toString
       case IntDiv(n, d) => "(" + print(n) + " / " + print(d) + ")"
       case gc: GroupCall =>
         val outerAe = gc.outerAe
