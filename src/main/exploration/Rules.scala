@@ -413,6 +413,41 @@ object Rules {
       Map(Lambda(Array(newLambdaParam), Map(mapLambda) $ Zip(innerZipArgs:_*))) $ Zip(newZipArgs:_*)
   })
 
+  val mapFissionWithZip = Rule("Map(fun(x => ... Zip(..., f $ x, ...))) " +
+                               "Map(fun(y => ... Zip(..., y, ...))) o Map(f)", {
+    case FunCall(Map(Lambda(lambdaParam, body)), arg)
+      if Expr.visitWithState(0)(body, (e, count) => {
+        e match {
+          case FunCall(Zip(_), args@_*)
+            if args.count(containsParam(_, lambdaParam.head)) == 1 => count + 1
+          case _ => count
+        }
+      }) == 1
+    =>
+      var exprToReplaceInZip: Option[Expr] = None
+
+      Expr.visit(body, {
+        case FunCall(Zip(_), args@_*) =>
+          args.find(containsParam(_, lambdaParam.head)) match {
+            case e: Some[Expr] => exprToReplaceInZip = e
+            case _ =>
+          }
+        case _ =>
+      }, _ => Unit)
+
+      val newLambdaParam = Param()
+      val newBody = Expr.replace(body, exprToReplaceInZip.get, newLambdaParam)
+
+      val newMapLambdaParam = Param()
+      val newExpr = Expr.replace(exprToReplaceInZip.get, lambdaParam.head, newMapLambdaParam)
+
+      Map(Lambda(Array(newLambdaParam), newBody)) o Map(Lambda(Array(newMapLambdaParam), newExpr)) $ arg
+  })
+
+  def containsParam(expr: Expr, param: Param): Boolean =
+    expr.contains({
+      case FunCall(_, p: Param) if p eq param =>
+    })
 
   private def generateId(t: Type): FunDecl = {
     t match {

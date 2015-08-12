@@ -115,8 +115,51 @@ class TestRules {
   }
 
   @Test
+  def pullingExpressionsOutOfZip(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(Float, N), N),
+      ArrayType(ArrayType(Float, N), N),
+      (in1, in2) => MapGlb(fun(x =>
+        MapSeq(fun(y =>
+          MapSeq(fun(a => add(Get(a, 0), Get(a,1)))) $ Zip(Gather(reverse) $ x, Gather(reverse) $ y)
+        )) $ in2
+      )) $ in1
+    )
+
+    val fP = fun(
+      ArrayType(ArrayType(Float, N), N),
+      ArrayType(ArrayType(Float, N), N),
+      (in1, in2) => Map(fun(x =>
+        Map(fun(y =>
+          MapSeq(fun(a => add(Get(a, 0), Get(a,1)))) $ Zip(Gather(reverse) $ x, Gather(reverse) $ y)
+        )) $ in2
+      )) $ in1
+    )
+
+    val size = 128
+
+    val A = Array.tabulate(size, size)((x, y) => x*size + y.toFloat)
+
+    val (result: Array[Float], _) = Execute(size)(f, A, A)
+
+    val g0 = Rewrite.applyRuleAtId(fP, 2, Rules.mapFissionWithZip)
+    val g1 = Rewrite.applyRuleAtId(g0, 0, Rules.mapGlb)
+    val g2 = Rewrite.applyRuleAtId(g1, 2, Rules.mapSeq)
+
+    val (resultG: Array[Float], _) = Execute(size)(g2, A, A)
+
+    val h0 = Rewrite.applyRuleAtId(fP, 0, Rules.mapFissionWithZip)
+    val h1 = Rewrite.applyRuleAtId(h0, 0, Rules.mapGlb)
+    val h2 = Rewrite.applyRuleAtId(h1, 5, Rules.mapSeq)
+
+    val (resultH: Array[Float], _) = Execute(size)(h2, A, A)
+
+    assertArrayEquals(result, resultG, 0.0f)
+    assertArrayEquals(result, resultH, 0.0f)
+  }
+
+  @Test
   def mapFission(): Unit = {
-    val N = Var("N")
 
     val f = fun(
       ArrayType(Float, N),
