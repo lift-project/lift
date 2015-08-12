@@ -37,8 +37,7 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
 
   def argsMemory: Memory = {
     if (args.length == 1) args(0).mem
-    else OpenCLMemoryCollection(UndefAddressSpace,
-                                args.map(_.mem.asInstanceOf[OpenCLMemory]): _*)
+    else OpenCLMemoryCollection(args.map(_.mem.asInstanceOf[OpenCLMemory]))
   }
 }
 

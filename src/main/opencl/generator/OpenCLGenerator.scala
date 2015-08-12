@@ -236,7 +236,7 @@ object OpenCLGenerator extends Generator {
   }
 
   def allocateMemory(f: Lambda): Unit = {
-    OpenCLMemory.alloc(f.body)
+    OpenCLMemoryAllocator.alloc(f.body)
     Kernel.memory = TypedOpenCLMemory.getAllocatedMemory(f.body, f.params)
   }
 
