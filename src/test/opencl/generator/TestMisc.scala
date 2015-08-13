@@ -85,7 +85,6 @@ class TestMisc {
     assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
 
-  @Ignore
   @Test
   def issue25(): Unit = {
     val inputSize = 1024

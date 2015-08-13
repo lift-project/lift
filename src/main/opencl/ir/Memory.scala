@@ -4,8 +4,7 @@ import apart.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.ast._
-
-import scala.collection.mutable
+import opencl.ir.pattern._
 
 /** Represents OpenCL address spaces either: local or global;
   * UndefAddressSpace should be used in case of errors */
@@ -87,10 +86,9 @@ class OpenCLMemory(var variable: Var,
   override def toString: String = {
     this match {
       case coll: OpenCLMemoryCollection =>
-        "coll(" + coll.subMemories.map(_.toString).reduce(_ + ", " + _) +
-        " | " + coll.addressSpace + ")"
+        "[" + coll.subMemories.map(_.toString).reduce(_ + ", " + _) + "]"
       case _ =>
-        "size: " + size + "; addressspace: " + addressSpace
+        "{" + variable + "; " + addressSpace + "; " + size + "}"
     }
   }
 }
@@ -204,90 +202,133 @@ object OpenCLMemory {
   * @param t The type associated with the memory object
   */
 case class TypedOpenCLMemory(mem: OpenCLMemory, t: Type) {
-  override def toString = "(" + mem.toString +"; " + t.toString + ")"
+  override def toString = "(" + mem.toString +": " + t.toString + ")"
 }
 
 object TypedOpenCLMemory {
-  def apply(mem: Memory, t: Type): TypedOpenCLMemory =
+  def apply(expr: Expr): TypedOpenCLMemory = {
+    new TypedOpenCLMemory(OpenCLMemory.asOpenCLMemory(expr.mem), expr.t)
+  }
+
+  def apply(mem: Memory, t: Type): TypedOpenCLMemory = {
     new TypedOpenCLMemory(OpenCLMemory.asOpenCLMemory(mem), t)
+  }
 
-  /** Gathers all allocated memory objects of the given Fun f.
-    *
-    * @param expr Expression for witch the allocated memory objects should be
-    *             gathered.
-    * @return All memory objects which have been allocated for f.
-    */
-  def getAllocatedMemory(expr: Expr,
-                         params: Array[Param],
-                         includePrivate: Boolean = false
-                        ): Array[TypedOpenCLMemory] = {
+  def get(expr: Expr,
+          params: Seq[Param],
+          includePrivate: Boolean = false): Seq[TypedOpenCLMemory] = {
 
-    // recursively visit all functions and collect input and output
-    // (and swap buffer for the iterate)
-    val result = Expr.visitWithState(Array[TypedOpenCLMemory]())(expr,
-                                                                 (exp, arr) =>
-      exp match {
-        case call: FunCall =>
-          call.f match {
-            case it: Iterate =>
-              arr :+
-              TypedOpenCLMemory(call.args.head.mem, call.args.head.t) :+
-              TypedOpenCLMemory(call.mem, call.t) :+
-              TypedOpenCLMemory(it.swapBuffer, ArrayType(call.args.head.t, ?))
+    // nested functions so that `params` and `includePrivate` are in scope
 
-            case r: AbstractPartRed =>
-              // exclude the iniT (TODO: only if it is already allocated ...)
+    def collect(expr: Expr): Seq[TypedOpenCLMemory] = {
+      expr match {
+        case v: Value => collectValue(v)
+        case p: Param => Seq()
+        case call: FunCall => collectFunCall(call)
+      }
+    }
 
-              val inMem = TypedOpenCLMemory( call.args(1).mem, call.args(1).t )
+    def collectValue(v: Value): Seq[TypedOpenCLMemory] = {
+      if (includePrivate) {
+        Seq(TypedOpenCLMemory(v))
+      } else {
+        Seq()
+      }
+    }
 
-              arr :+ inMem
+    def collectFunCall(call: FunCall): Seq[TypedOpenCLMemory] = {
+      val argMems: Seq[TypedOpenCLMemory] = call.args.length match {
+        case 0 => Seq()
+        case 1 => collect(call.args.head)
+        case _ => call.args.map(collect).reduce(_ ++ _)
+      }
 
-            case z: Zip =>
-              arr ++ call.args.map( e => TypedOpenCLMemory(e.mem, e.t) )
+      val adaptedArgMems = call.f match {
+        case s: asScalar => adaptArgMemsAsScalar(argMems)
+        case v: asVector => adaptArgsMemsAsVector(v, argMems)
+        case _           => argMems
+      }
 
-            case f: Filter =>
-              arr ++ call.args.map( e => TypedOpenCLMemory(e.mem, e.t) )
+      val bodyMems = call.f match {
+        case uf: UserFun    => collectUserFun(call)
+        case l: Lambda      => collect(l.body)
+        case m: AbstractMap => collectMap(call.t, m)
+        case r: AbstractPartRed => collectReduce(r, adaptedArgMems)
+        case i: Iterate     => collectIterate(call, i)
+        case fp: FPattern   => collect(fp.f.body)
+        case _              => Seq()
+      }
 
-            case uf: UserFun =>
-              arr :+
-              TypedOpenCLMemory(call.argsMemory, call.argsType) :+
-              TypedOpenCLMemory(call.mem, call.t)
+      adaptedArgMems ++ bodyMems
+    }
 
-            case _ =>
-              arr :+ TypedOpenCLMemory(call.mem, call.t)
+    def adaptArgMemsAsScalar(mems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      if (mems.isEmpty) {
+        mems
+      } else {
+        val tm = mems.last
+        val at = tm.t.asInstanceOf[ArrayType]
+        mems.init :+ TypedOpenCLMemory(tm.mem, Type.asScalarType(at))
+      }
+    }
+
+    def adaptArgsMemsAsVector(v: asVector,
+                              mems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      if (mems.isEmpty) {
+        mems
+      } else {
+        val tm = mems.last
+        mems.init :+ TypedOpenCLMemory(tm.mem, tm.t.vectorize(v.len))
+      }
+    }
+
+    def collectUserFun(call: FunCall): Seq[TypedOpenCLMemory] = {
+      call.mem match {
+        case m: OpenCLMemory =>
+          if (!includePrivate && m.addressSpace == PrivateMemory) {
+            Seq()
+          } else {
+            Seq(TypedOpenCLMemory(call))
           }
-        case p: Param => arr :+ TypedOpenCLMemory(p.mem, p.t)
+      }
+    }
+
+    def collectMap(t: Type,
+                   m: AbstractMap): Seq[TypedOpenCLMemory] = {
+      val mems = collect(m.f.body)
+
+      // change types
+      mems.map( tm => tm.mem.addressSpace match {
+        case GlobalMemory | PrivateMemory =>
+          TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
+
+        case LocalMemory =>
+          m match {
+            case _: MapGlb | _: MapWrg  | _: Map =>
+              tm
+            case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
+              TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
+          }
       })
+    }
 
-    val resultWithoutCollections = result.flatMap(tm => tm.mem match {
-      case coll: OpenCLMemoryCollection =>
-        coll.subMemories.zipWithIndex.map({
-          case (m, i) => TypedOpenCLMemory(m, Type.getTypeAtIndex(tm.t, i))
-        })
-      case ocl: OpenCLMemory => Array(tm)
-    })
+    def collectReduce(r: AbstractPartRed,
+                      argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      val mems = collect(r.f.body)
 
-    val seen = mutable.HashSet[OpenCLMemory]()
-    // remove null memory and duplicates while preserving the original order
-    resultWithoutCollections.foldLeft(Array[TypedOpenCLMemory]())(
-      (arr, mem) => {
-        val m = mem.mem
-        if (   seen.contains(m)
-            || m == OpenCLNullMemory
-            || m.isInstanceOf[OpenCLMemoryCollection]
+      mems.filter(m => {
+        val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
+        val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
 
-            // m is in private memory but not an parameter => trow away
-            || (   m.addressSpace == PrivateMemory
-                && !params.exists(p => p.mem == m))
-                && !includePrivate) {
-          arr
-        } else {
-          seen += m
-          params.find(param => m == param.mem) match {
-            case Some(param) => arr :+ TypedOpenCLMemory(m, param.t)
-            case _ => arr :+ mem
-          }
-        }
-    })
+        !isAlreadyInArgs && !isAlreadyInParams
+      })
+    }
+
+    def collectIterate(call: FunCall, i: Iterate): Seq[TypedOpenCLMemory] = {
+      TypedOpenCLMemory(i.swapBuffer, ArrayType(call.args.head.t, ?)) +: collect(i.f.body)
+    }
+
+    // actual function impl
+    params.map(TypedOpenCLMemory(_)) ++ collect(expr)
   }
 }

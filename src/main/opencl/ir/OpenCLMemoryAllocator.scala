@@ -39,7 +39,9 @@ object OpenCLMemoryAllocator {
 
   private def allocValue(v: Value): OpenCLMemory = {
     if (v.mem != UnallocatedMemory) {
-      OpenCLMemory.asOpenCLMemory(v.mem)
+      val oclMem = OpenCLMemory.asOpenCLMemory(v.mem)
+      assert(oclMem.addressSpace == PrivateMemory)
+      oclMem
     } else {
       OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
     }
@@ -110,13 +112,11 @@ object OpenCLMemoryAllocator {
                              numLcl: ArithExpr,
                              numPvt: ArithExpr,
                              addressSpace: OpenCLAddressSpace): OpenCLMemory = {
-    if (call.args.isEmpty) {
-      OpenCLNullMemory
-    } else if (call.args.length == 1) {
-      alloc(call.args.head, numGlb, numLcl, numPvt, addressSpace)
-    } else {
-      OpenCLMemoryCollection(
-                              call.args.map(alloc(_, numGlb, numLcl, numPvt, addressSpace)))
+    call.args.length match {
+      case 0 => OpenCLNullMemory
+      case 1 => alloc(call.args.head, numGlb, numLcl, numPvt, addressSpace)
+      case _ => OpenCLMemoryCollection(
+                  call.args.map(alloc(_, numGlb, numLcl, numPvt, addressSpace)))
     }
   }
 
@@ -158,14 +158,14 @@ object OpenCLMemoryAllocator {
                           numPvt: ArithExpr,
                           inMem: OpenCLMemory,
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
-    if (l.params.length == 1) {
-      l.params(0).mem = inMem
-    } else {
-      val coll = inMem match { case coll: OpenCLMemoryCollection => coll}
-      if (l.params.length != coll.subMemories.length)
-        throw new NumberOfArgumentsException
+    l.params.length match {
+      case 1 => l.params.head.mem = inMem
+      case _ =>
+        val coll = inMem match { case coll: OpenCLMemoryCollection => coll}
+        if (l.params.length != coll.subMemories.length)
+          throw new NumberOfArgumentsException
 
-      (l.params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
+        (l.params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
     alloc(l.body, numGlb, numLcl, numPvt, addressSpace)
   }
