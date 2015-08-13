@@ -76,6 +76,18 @@ abstract class View(val t: Type = UndefType) {
     }
   }
 
+  def pack(): View = {
+    ViewMap(this, Var("i"), ArrayType(this.t, 1))
+
+  }
+
+  def unpack(): View = {
+    this.t match {
+      case ArrayType(elemT, Cst(1)) => ViewAccess(0, this, elemT)
+      case _ => throw new IllegalArgumentException("PANIC: unpack expects an array type of length 1")
+    }
+  }
+
   /**
    * Construct a view for joining the current view.
    *

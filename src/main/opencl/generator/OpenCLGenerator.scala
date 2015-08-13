@@ -63,7 +63,6 @@ object OpenCLGenerator extends Generator {
 
   var varDecls: SymbolTable = immutable.Map.empty
 
-
   private def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, {
       case e@(call: FunCall) => println(e + "\n    " +
@@ -391,7 +390,7 @@ object OpenCLGenerator extends Generator {
         case l: Lambda => generate(l.body, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) =>
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Unpack() =>
                 block
 
         //case _ => oclPrinter.print("__" + call.toString + "__")

@@ -45,6 +45,7 @@ object OutputView {
       case t: Tail => buildViewTail(call, writeView)
       case fp: FPattern => buildViewFPattern(fp, writeView)
       case _: Zip => buildViewZip(writeView)
+      case Unpack() => buildViewUnpack(writeView)
       case _ => writeView
     }
 
@@ -70,6 +71,10 @@ object OutputView {
     }
 
      argResult
+  }
+
+  private def buildViewUnpack(writeView: View): View = {
+   writeView.pack()
   }
 
   private def buildViewZip(writeView: View): View = {
@@ -172,10 +177,8 @@ object OutputView {
   }
 
   private def buildViewHead(funCall: FunCall, writeView: View) : View = {
-    // Head returns a primitive, not an array, so initialise a view
-    // for the original array
-    View.initialiseNewView(funCall.args.head.t, funCall.outputDepth,
-      funCall.mem.variable.name)
+    // TODO: Not sure about this
+    writeView
   }
 
   private def buildViewTail(funCall: FunCall, writeView: View) : View = {

@@ -322,7 +322,7 @@ object OpenCLMemory {
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Group(_,_,_) |
-           Head() | Tail() | Gather(_) | Scatter(_) =>
+           Head() | Tail() | Gather(_) | Scatter(_) | Unpack() =>
         inMem
 
       case uf: UserFun =>
