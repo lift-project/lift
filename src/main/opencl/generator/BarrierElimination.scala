@@ -67,6 +67,7 @@ object BarrierElimination {
     f.body match {
       case call: FunCall => call.f match {
         case fp: FPattern => apply(fp.f.body, insideLoop)
+        case _ =>
       }
       case _ =>
     }

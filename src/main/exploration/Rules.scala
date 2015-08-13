@@ -139,10 +139,9 @@ object Rules {
         // and that none of these are nested inside
         !f.body.contains({
           case FunCall(_: MapGlb, _) =>
-          case FunCall(_: MapWrg, _) =>
+          case FunCall(MapWrg(dimNested, _), _) if  dim == dimNested =>
         })
     =>
-      println(arg)
       MapWrg(dim)(f)(arg)
 
   }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp))
@@ -153,7 +152,7 @@ object Rules {
     case FunCall(Map(f), arg)
       // check that none of these are nested inside
       if !f.body.contains({
-        case FunCall(_: MapLcl, _) =>
+        case FunCall(MapLcl(dimNested, _), _) if dim == dimNested =>
         case FunCall(_: MapWarp, _) =>
         case FunCall(_: MapLane, _) =>
       })
@@ -393,6 +392,12 @@ object Rules {
       Transpose() o Map(Transpose()) o Split(n) $ arg
   })
 
+  val mapTransposeSplit = Rule("Map(Transpose()) o Split(n)" +
+    "Transpose() o Map(Split(n)) o Transpose()", {
+    case FunCall(Map(Lambda(_, FunCall(Transpose(), _))), FunCall(Split(n), arg)) =>
+      Transpose() o Map(Split(n)) o Transpose() $ arg
+  })
+
   val splitTranspose = Rule("Split(n) o Transpose()" +
         "Map(Transpose()) o Transpose() o Map(Split(n))", {
         case FunCall(Split(n), FunCall(Transpose(), arg)) =>
@@ -441,7 +446,7 @@ object Rules {
       val newMapLambdaParam = Param()
       val newExpr = Expr.replace(exprToReplaceInZip.get, lambdaParam.head, newMapLambdaParam)
 
-      Map(Lambda(Array(newLambdaParam), newBody)) o Map(Lambda(Array(newMapLambdaParam), newExpr)) $ arg
+      FunCall(Map(Lambda(Array(newLambdaParam), newBody)), FunCall(Map(Lambda(Array(newMapLambdaParam), newExpr)), arg))
   })
 
   def containsParam(expr: Expr, param: Param): Boolean =
