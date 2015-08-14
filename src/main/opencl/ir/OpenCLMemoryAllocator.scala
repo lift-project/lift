@@ -158,15 +158,7 @@ object OpenCLMemoryAllocator {
                           numPvt: ArithExpr,
                           inMem: OpenCLMemory,
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
-    l.params.length match {
-      case 1 => l.params.head.mem = inMem
-      case _ =>
-        val coll = inMem match { case coll: OpenCLMemoryCollection => coll}
-        if (l.params.length != coll.subMemories.length)
-          throw new NumberOfArgumentsException
-
-        (l.params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
-    }
+    setMemInParams(l.params, inMem)
     alloc(l.body, numGlb, numLcl, numPvt, addressSpace)
   }
 
@@ -177,7 +169,6 @@ object OpenCLMemoryAllocator {
                           numPvt: ArithExpr,
                           inMem: OpenCLMemory,
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
-    if (am.f.params.length != 1) throw new NumberOfArgumentsException
     am.f.params(0).mem = inMem
 
     val maxLen = ArithExpr.max(Type.getLength(outT))
@@ -191,7 +182,6 @@ object OpenCLMemoryAllocator {
                           numPvt: ArithExpr,
                           inMem: OpenCLMemory,
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
-    if (am.f.params.length != 1) throw new NumberOfArgumentsException
     am.f.params(0).mem = inMem
 
     val maxLen = ArithExpr.max(Type.getLength(outT))
@@ -210,7 +200,6 @@ object OpenCLMemoryAllocator {
                           inMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
-        if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
         val initM = coll.subMemories(0)
         r.f.params(0).mem = initM
         r.f.params(1).mem = coll.subMemories(1)
@@ -242,7 +231,6 @@ object OpenCLMemoryAllocator {
                                inMem.addressSpace)
 
     // recurs to allocate memory for the function(s) inside
-    if (it.f.params.length != 1) throw new NumberOfArgumentsException
     it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl, numPvt)
   }
@@ -252,8 +240,7 @@ object OpenCLMemoryAllocator {
                             numLcl: ArithExpr,
                             numPvt: ArithExpr,
                             inMem: OpenCLMemory): OpenCLMemory = {
-    if (tg.f.params.length != 1) throw new NumberOfArgumentsException
-    tg.f.params(0).mem = inMem
+    setMemInParams(tg.f.params, inMem)
 
     alloc(tg.f.body, numGlb, numLcl, numPvt, GlobalMemory)
   }
@@ -263,8 +250,7 @@ object OpenCLMemoryAllocator {
                            numLcl: ArithExpr,
                            numPvt: ArithExpr,
                            inMem: OpenCLMemory): OpenCLMemory = {
-    if (tl.f.params.length != 1) throw new NumberOfArgumentsException
-    tl.f.params(0).mem = inMem
+    setMemInParams(tl.f.params, inMem)
 
     alloc(tl.f.body, numGlb, numLcl, numPvt, LocalMemory)
   }
@@ -274,8 +260,7 @@ object OpenCLMemoryAllocator {
                              numLcl: ArithExpr,
                              numPvt: ArithExpr,
                              inMem: OpenCLMemory): OpenCLMemory = {
-    if (tp.f.params.length != 1) throw new NumberOfArgumentsException
-    tp.f.params(0).mem = inMem
+    setMemInParams(tp.f.params, inMem)
 
     alloc(tp.f.body, numGlb, numLcl, numPvt, PrivateMemory)
   }
@@ -307,6 +292,15 @@ object OpenCLMemoryAllocator {
         if (coll.subMemories.length != 2) throw new NumberOfArgumentsException
         coll.subMemories(0)
       case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def setMemInParams(params: Array[Param], mem: OpenCLMemory ): Unit = {
+    params.length match {
+      case 1 => params.head.mem = mem
+      case _ =>
+        val coll = mem match { case coll: OpenCLMemoryCollection => coll}
+        (params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
   }
 

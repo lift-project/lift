@@ -40,7 +40,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
   def comp(f: FunDecl): Lambda = this o f
 
   /**
-   * Sequential composition operator syntax. Calls `this.comp(f)`.
+   * Sequential composition operator syntax.
    * @param f The lambda expression to sequentially compose with.
    * @return An object representing the sequential function composition of
    *         `this` and `f`.
@@ -49,6 +49,21 @@ abstract class FunDecl(val arity: Int) extends Decl {
     val params = Array.fill(f.arity)(Param(UndefType))
     Lambda(params, this(f(params:_*)))
   }
+
+  /**
+   * Reverse function composition. I.e. g >>> f == f o g
+   * @param f The function to compose with (from the right).
+   * @return `f o this`
+   */
+  def >>>(f: FunDecl): Lambda = f o this
+
+  /**
+   * Alternative syntax for function composition.
+   * I.e. g <<< f = g o f
+   * @param f The function to compose with (from the left).
+   * @return `this o f`
+   */
+  def <<<(f: FunDecl): Lambda = this o f
 
 
   /**
@@ -71,6 +86,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
    * @return An object (of type FunCall) representing the function call of
    *         `this` with `arg`.
    */
+  @deprecated("Use `<<:` function instead, as this is right-associative")
   def $(arg: Expr) : Expr = apply(arg)
 
   /**
