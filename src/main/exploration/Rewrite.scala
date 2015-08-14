@@ -64,7 +64,7 @@ object Rewrite {
       partialReduceReorder,
       partialReduceToReduce,
       vectorize,
-      mapReduceFusion,
+      reduceSeqMapSeqFusion,
       mapFusion,
       mapMapInterchange,
       reorderBothSides,

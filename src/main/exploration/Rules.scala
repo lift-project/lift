@@ -1,6 +1,5 @@
 package exploration
 
-
 import apart.arithmetic.{Cst, RangeMul, RangeUnknown, Var}
 import ir._
 import ir.ast._
@@ -99,16 +98,16 @@ object Rules {
 
   /* Fusion Rules */
 
-  val mapReduceFusion = Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
+  val reduceSeqMapSeqFusion = Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
     case FunCall(ReduceSeq(f), init, FunCall(MapSeq(g), arg))
     =>
       ReduceSeq(fun((acc, x) => f(acc, g(x))), init) $ arg
   })
 
   val mapFusion = Rule("Map(f) o Map(g) => Map(f o g)", {
-    case FunCall(Map(f), FunCall(Map(g), arg)) =>
-      // TODO: Sometimes still leaves lambdas between f and g if arg is a zip
-      Map(f o g) $ arg
+    case FunCall(Map(Lambda(p1, f)), FunCall(Map(Lambda(p2, g)), arg)) =>
+      val newLambda = Lambda(p2, Expr.replace(f, p1.head, g))
+      Map(newLambda) $ arg
   })
 
   /* Map rules */
@@ -470,6 +469,7 @@ object Rules {
         Map(generateId(elemT))
       case ScalarType(_, _) | VectorType(_, _) =>
         UserFun("id" + t, "x", "{ return x; }", t, t)
+      case _ => throw TypeException(s"Can't generate id function for $t")
     }
   }
 
@@ -576,6 +576,23 @@ object Rules {
         e3
     })
 
+  val finishTilingInput: Int => Rule = x =>
+    Rule("Map(x => Map(y => Map() $ Get(x, ...) Get$(x, ...) $ Zip(...)", {
+      case funCall @
+        FunCall(Map(Lambda(p,
+          FunCall(Map(Lambda(_,
+            FunCall(Map(_), FunCall(Get(_), a2)))),
+          FunCall(Get(_), a1)))),
+        FunCall(Zip(_), _*))
+        if (p.head eq a1) && (p.head eq a2)
+      =>
+        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 0, splitJoin(x))
+        val e1 = Rewrite.applyRuleAtId(e0, 1, splitZip)
+        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, mapMapTransposeZipOutside)
+        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 4, mapMapTransposeZipOutside)
+        e3
+    })
+
   val moveTransposeInsideTiling =
     Rule("Map(Split(n) o Transpose()) o Split(m) o Transpose() => " +
          "Transpose() o Map(Transpose()) o Split(n) o Map(Split(m))", {
@@ -606,6 +623,15 @@ object Rules {
         val e4 = Rewrite.applyRuleAtId(e3, 1, transposeTransposeId)
         e4
     })
+
+  val reduceMapFusion = Rule("Reduce o Map => ReduceSeq(fused)", {
+    case funCall @ FunCall(Reduce(_), _, FunCall(Map(_), _))
+    =>
+      val e0 = Rewrite.applyRuleAtId(funCall, 1, mapSeq)
+      val e1 = Rewrite.applyRuleAtId(e0, 0, reduceSeq)
+      val e2 = Rewrite.applyRuleAtId(e1, 1, reduceSeqMapSeqFusion)
+      e2
+  })
 
   private def findGets(expr: Expr, tupleParam: Expr): List[FunCall] = {
     Expr.visitWithState(List[FunCall]())(expr, (e, s) => {
