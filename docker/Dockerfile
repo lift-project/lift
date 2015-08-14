@@ -16,20 +16,17 @@ RUN (echo "deb http://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.lis
      wget \
      zlib1g-dev
 
-ADD . lift_src/
-
 RUN mkdir /root/.ssh/
 
 ADD id_rsa /root/.ssh/id_rsa
 
-RUN chmod 0600 /root/.ssh/id_rsa
+RUN chmod 0600 /root/.ssh/id_rsa && \
+    touch /root/.ssh/known_hosts && \
+    ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts
 
-RUN touch /root/.ssh/known_hosts
+ADD ./lift_clean/ lift_src/
 
-RUN ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts
-
-RUN cd lift_src && git submodule init && git submodule update
-
+# Install dependencies, including skelcl:
 RUN cd lift_src && (export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 && echo y | ./skelcl.sh)
 
 RUN cd lift_src && sbt compile
