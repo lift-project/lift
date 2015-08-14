@@ -35,6 +35,9 @@ object NumberExpression {
 object NumberPrinter {
   def apply(lambda: Lambda): String =
     (new NumberPrinter(NumberExpression.breadthFirst(lambda)))(lambda)
+
+  def apply(expr: Expr): String =
+    (new NumberPrinter(NumberExpression.breadthFirst(expr)))(expr)
 }
 
 object DepthFirstNumberPrinter {

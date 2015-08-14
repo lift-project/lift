@@ -107,6 +107,7 @@ object Rules {
 
   val mapFusion = Rule("Map(f) o Map(g) => Map(f o g)", {
     case FunCall(Map(f), FunCall(Map(g), arg)) =>
+      // TODO: Sometimes still leaves lambdas between f and g if arg is a zip
       Map(f o g) $ arg
   })
 
@@ -516,7 +517,7 @@ object Rules {
   /* Macro rules */
 
   val mapFissionAtPosition: Int => Rule = position => Rule("", {
-    case funCall @ FunCall(Map(_), _) => mapFissionAtPosition(position, funCall)
+    case funCall @ FunCall(Map(Lambda(_, FunCall(_, _*))), _) => mapFissionAtPosition(position, funCall)
   })
 
   def mapFissionAtPosition(position: Int, expr: Expr): Expr = {
@@ -575,18 +576,36 @@ object Rules {
         e3
     })
 
-  val moveTransposeInsideTiling = Rule("Map(Split(n) o Transpose()) o Split(m) o Transpose()", {
-    case funCall @
-      FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _)))),
-      FunCall(Split(_), FunCall(Transpose(), _)))
-    =>
-      val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 4, splitTranspose)
-      val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 0, mapFusion)
-      val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, transposeTransposeId)
-      val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 0, mapSplitTranspose)
+  val moveTransposeInsideTiling =
+    Rule("Map(Split(n) o Transpose()) o Split(m) o Transpose() => " +
+         "Transpose() o Map(Transpose()) o Split(n) o Map(Split(m))", {
+      case funCall @
+        FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _)))),
+        FunCall(Split(_), FunCall(Transpose(), _)))
+      =>
+        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 4, splitTranspose)
+        val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 0, mapFusion)
+        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, transposeTransposeId)
+        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 0, mapSplitTranspose)
+        e3
+    })
 
-      e3
-  })
+  val transposeBothSidesWithSplit =
+    Rule("Transpose() o Map( ... o ... o Split(n) ) o Transpose() => " +
+         "Map( ... ) o Map(Transpose) o Split(n)", {
+      case funCall @
+        FunCall(Transpose(),
+        FunCall(Map(Lambda(p, FunCall(_, FunCall(_, FunCall(Split(_), a))))),
+        FunCall(Transpose(), _)))
+        if p.head eq a
+      =>
+        val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapFissionAtPosition(1))
+        val e1 = Rewrite.applyRuleAtId(e0, 2, mapSplitTranspose)
+        val e2 = Rewrite.applyRuleAtId(e1, 1, transposeBothSides)
+        val e3 = Rewrite.applyRuleAtId(e2, 0, transposeTransposeId)
+        val e4 = Rewrite.applyRuleAtId(e3, 1, transposeTransposeId)
+        e4
+    })
 
   private def findGets(expr: Expr, tupleParam: Expr): List[FunCall] = {
     Expr.visitWithState(List[FunCall]())(expr, (e, s) => {
