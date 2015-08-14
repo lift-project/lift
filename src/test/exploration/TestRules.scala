@@ -62,10 +62,10 @@ class TestRules {
     assertArrayEquals(goldReorderZip.map(_._2), testReorderZip.map(_._2))
 
     // Map-Reduce interchange
-    val goldSwapMapReduce = A.map(_.sum)
-    val testSwapMapReduce = A.transpose.reduce((x, y) => (x, y).zipped.map(_+_))
+    val goldSwapMapReduce = A.map(row => Array(row.sum))
+    val testSwapMapReduce = Array(A.transpose.reduce((x, y) => (x, y).zipped.map(_+_))).transpose
 
-    assertArrayEquals(goldSwapMapReduce, testSwapMapReduce)
+    assertArrayEquals(goldSwapMapReduce.flatten, testSwapMapReduce.flatten)
 
     // Map-Map transpose, pulling zip out
     val goldMapMapPullZip = A.map(a => (a, b).zipped.map(_*_))
@@ -112,6 +112,15 @@ class TestRules {
     // split o map(transpose) =>
 
     // transpose o split =>
+  }
+
+  @Test
+  def fissionAtPosition(): Unit = {
+    val f = fun(a => Map(plusOne o Reduce(add, 0.0f) o plusOne o plusOne) $ a)
+
+    Rules.mapFissionAtPosition(0, f.body)
+    Rules.mapFissionAtPosition(1, f.body)
+    Rules.mapFissionAtPosition(2, f.body)
   }
 
   @Test
@@ -554,41 +563,41 @@ class TestRules {
   def simpleId(): Unit = {
     val f: Lambda = fun(
       ArrayType(Float, N),
-      input => Map(Id()) $ input
+      input => Map(plusOne) $ input
     )
 
     val e = f match {
       case Lambda(_, FunCall(Map(Lambda(_, c)), _)) => c
     }
 
-    println(applyRule(f, e, Rules.implementId))
+    println(applyRule(f, e, Rules.addId))
   }
 
   @Test
   def arrayId(): Unit = {
     val f: Lambda = fun(
       ArrayType(Float, N),
-      input => Map(id) o Id() $ input
+      input => Map(id) $ input
     )
 
     val e = f match {
-      case Lambda(_, FunCall(_, c)) => c
+      case Lambda(_, c@FunCall(_, _)) => c
     }
 
-    println(applyRule(f, e, Rules.implementId))
+    println(applyRule(f, e, Rules.addId))
   }
 
   @Test
   def zipId(): Unit = {
     val f: Lambda = fun(
       ArrayType(Float, N),
-      input => Map(idFF) o Id() $ Zip(input, input)
+      input => Map(idFF) $ Zip(input, input)
     )
 
     val e = f match {
-      case Lambda(_, FunCall(_, c)) => c
+      case Lambda(_, c@FunCall(_, _)) => c
     }
 
-    println(applyRule(f, e, Rules.implementId))
+    println(applyRule(f, e, Rules.addId))
   }
 }

@@ -6,24 +6,33 @@ import Rules._
 
 object Rewrite {
 
-  def getExprForId(lambda: Lambda, id: Int): Option[Expr] = {
-    var expr: Option[Expr] = None
+  def getExprForId(expr: Expr, id: Int, idMap: collection.Map[Expr, Int]): Option[Expr] = {
+    var foundExpr: Option[Expr] = None
 
-    Expr.visitWithState(0)(lambda.body, (e, count) => {
+    Expr.visit(expr, e => {
+      if (idMap.isDefinedAt(e))
+        if (idMap(e) == id)
+          foundExpr = Some(e)
+    }, _ => Unit)
 
-      if (count == id)
-        expr = Some(e)
-
-      count + 1
-    })
-
-    expr
+    foundExpr
   }
 
   def applyRuleAtId(lambda: Lambda, id: Int, rule: Rule): Lambda = {
-    TypeChecker.check(lambda.body)
-    val expr = getExprForId(lambda, id).get
-    FunDecl.replace(lambda, expr, rule.rewrite(expr))
+    val replacement = applyRuleAtId(lambda.body, id, rule)
+    Lambda(lambda.params, replacement)
+  }
+
+  def applyRuleAtId(expr: Expr, id: Int, rule: Rule): Expr = {
+    TypeChecker.check(expr)
+    val toBeReplaced = getExprForId(expr, id, NumberExpression.breadthFirst(expr)).get
+    Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
+  }
+
+  def depthFirstApplyRuleAtId(expr:Expr, id: Int, rule: Rule): Expr = {
+    TypeChecker.check(expr)
+    val toBeReplaced = getExprForId(expr, id, NumberExpression.depthFirst(expr)).get
+    Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
   }
 
   private val rules =
