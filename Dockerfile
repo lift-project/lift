@@ -25,7 +25,7 @@ RUN chmod 0600 /root/.ssh/id_rsa && \
     touch /root/.ssh/known_hosts && \
     ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts
 
-ADD lift_clean/ lift_src/
+ADD . lift_src/
 
 # Install dependencies, including skelcl:
 RUN cd lift_src && (export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 && echo y | ./skelcl.sh)
