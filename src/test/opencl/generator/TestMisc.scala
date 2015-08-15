@@ -12,14 +12,14 @@ import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestMisc {
   @BeforeClass def before() {
-    Executor.loadLibrary()
+//    Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init()
+//    Executor.init()
   }
 
   @AfterClass def after() {
     println("Shutdown the executor")
-    Executor.shutdown()
+//    Executor.shutdown()
   }
 }
 
@@ -46,7 +46,9 @@ class TestMisc {
         )(Split(128)(in))
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
+    val output = Interpreter(l, inputData, 0.0f).asFloatSeq
+
+//    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -64,7 +66,8 @@ class TestMisc {
         ) o Split(128) $ in
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+//    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val output = Interpreter(l, inputData).asFloatSeq
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -142,15 +145,11 @@ class TestMisc {
         MapSeq(id o id) $ in
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+//    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val output = Interpreter(l, inputData).asFloatSeq
 
-    val o2 = Interpreter(l, inputData)
+    assertArrayEquals(inputData, output.toArray, 0.0f)
 
-    val o2areray = o2.asInstanceOf[Array[Float]]
-
-    assertArrayEquals(inputData, output, 0.0f)
-
-    assertArrayEquals(inputData, o2areray, 0.0f)
   }
 
   @Ignore

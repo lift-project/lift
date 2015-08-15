@@ -28,6 +28,6 @@ case class asScalar() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
-  override def eval(valueMap: ValueMap, args: Any*): Array[_] =
+  override def eval(valueMap: ValueMap, args: Any*): Any =
     Join().eval(valueMap, args:_*)
 }

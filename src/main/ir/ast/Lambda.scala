@@ -62,13 +62,13 @@ case class Lambda(params: Array[Param],
     })
   }
 
-  def eval(valueMap: ValueMap, args: Any*): Array[_] = {
+  def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     val updatedMap =
       (params zip args).
         foldLeft(valueMap)((m, kv) => m updated (kv._1, kv._2))
 
-    body.eval(updatedMap).asInstanceOf[Array[_]]
+    body.eval(updatedMap)
   }
 }
 

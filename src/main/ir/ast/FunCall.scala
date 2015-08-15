@@ -44,12 +44,7 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   override def eval(valueMap: ValueMap): Any = {
     val argValues = args.map(_.eval(valueMap))
     f match {
-      case l: Lambda =>
-        val updateMap =
-          (l.params zip argValues).
-            foldLeft(valueMap)((m, kv) => m updated (kv._1, kv._2))
-
-        l.eval(updateMap)
+      case l: Lambda  => l.eval(valueMap, argValues:_*)
 
       case p: Pattern => p.eval(valueMap, argValues:_*)
 

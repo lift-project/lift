@@ -38,17 +38,24 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
-    args.head match {
-      case a: Array[Any] => split(chunkSize.eval, a)
-    }
 
-    def split(n: Int, a: Array[Any]): Array[Array[Any]] = {
+    def split(n: Int, a: Seq[_]): Seq[Seq[_]] = {
       val (firstChunk, rest) = a.splitAt(n)
       if (rest.isEmpty) {
-        Array.apply[Array[Any]]( firstChunk )
+        Array(firstChunk)
       } else {
         firstChunk +: split(n, rest)
       }
     }
+
+    val t0 = System.nanoTime()
+
+    val res = args.head match {
+      case a: Seq[_] => split(chunkSize.eval, a)
+    }
+
+    val t1 = System.nanoTime()
+    println("split: " + (t1 - t0) + "ns")
+    res
   }
 }

@@ -13,14 +13,20 @@ import ir.{TupleType, VectorType, ScalarType, Type}
  * @param outT The return type of the user function.
  */
 case class UserFun(name: String, paramNames: Array[String], body: String,
-                   inTs: Seq[Type], outT: Type) extends FunDecl(inTs.length)
-                                                        with isGenerable {
+                   inTs: Seq[Type], outT: Type)
+  extends FunDecl(inTs.length) with isGenerable {
 
   // enforce at runtime that types and names match
   if (paramNames.length != inTs.length || !namesAndTypesMatch())
     throw new IllegalArgumentException(s"Structure of parameter names ( $paramNamesString ) " +
                                        s"and the input type ( $inT ) doesn't match!")
 
+  var scalaFun: Seq[Any] => Any = null
+
+  def setScalaFun(f: Seq[Any] => Any): UserFun = {
+    scalaFun = f
+    this
+  }
 
   /**
    * Represent the types of the parameters as a single type.
@@ -60,8 +66,8 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
   }
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
-    if (name == "id" && arity == 1) {
-      args.head
+    if (scalaFun != null) {
+      scalaFun(Seq(args:_*))
     } else {
       throw new NotImplementedError()
     }
@@ -142,7 +148,8 @@ object UserFun {
    * @param outT The return type of the user function.
    * @return
    */
-  def apply(name: String, paramName: String, body: String, inT: Type, outT: Type): UserFun = {
+  def apply(name: String, paramName: String, body: String,
+            inT: Type, outT: Type): UserFun = {
     UserFun(name, Array(paramName), body, Seq(inT), outT)
   }
 

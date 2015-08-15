@@ -30,10 +30,16 @@ case class Join() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
-  override def eval(valueMap: ValueMap, args: Any*): Array[_] = {
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
-    args.head match {
-      case a: Array[Array[Any]] => a.flatten
+    val t0 = System.nanoTime()
+
+    val res = args.head match {
+      case a: Seq[Seq[_]] => a.flatten
     }
+
+    val t1 = System.nanoTime()
+    println("join: " + (t1 - t0) + "ns")
+    res
   }
 }

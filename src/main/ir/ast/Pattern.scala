@@ -7,7 +7,7 @@ import ir.interpreter.Interpreter.ValueMap
  * language)
  */
 abstract class Pattern(override val arity: Int) extends FunDecl(arity) {
-  def eval(valueMap: ValueMap, args: Any*): Array[_]
+  def eval(valueMap: ValueMap, args: Any*): Any
 }
 
 object Pattern {

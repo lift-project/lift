@@ -8,7 +8,8 @@ import scala.language.implicitConversions
 package object ir {
   // commonly used user functions
 
-  val id = UserFun("id", "x", "{ return x; }", Float, Float)
+  val id = UserFun("id", "x", "{ return x; }", Float, Float).
+    setScalaFun(x => x.head)
 
   val idI = UserFun("id", "x", "{ return x; }", Int, Int)
 
@@ -19,7 +20,8 @@ package object ir {
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)
 
-  val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
+  val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).
+    setScalaFun( xs => xs(0).asInstanceOf[Float] + xs(1).asInstanceOf[Float] )
 
   val plusOne = UserFun("plusOne", "x", "{ return x+1; }", Float, Float)
 
