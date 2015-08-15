@@ -3,6 +3,7 @@ package opencl.generator
 import apart.arithmetic.Var
 import ir._
 import ir.ast._
+import ir.interpreter.Interpreter
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -143,7 +144,13 @@ class TestMisc {
 
     val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
 
+    val o2 = Interpreter(l, inputData)
+
+    val o2areray = o2.asInstanceOf[Array[Float]]
+
     assertArrayEquals(inputData, output, 0.0f)
+
+    assertArrayEquals(inputData, o2areray, 0.0f)
   }
 
   @Ignore

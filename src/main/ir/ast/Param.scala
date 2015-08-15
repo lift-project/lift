@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
+import ir.interpreter.Interpreter.ValueMap
 import ir.{Type, TypeException}
 
 
@@ -28,6 +29,12 @@ class Param() extends Expr with Cloneable {
     case v:VectorParam =>
       throw new TypeException("Cannot vectorize a vectorized parameter")
     case x => new VectorParam(x, n)
+  }
+
+  override def eval(valueMap: ValueMap): Any = {
+    valueMap get this match {
+      case Some(x) => x
+    }
   }
 }
 

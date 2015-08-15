@@ -1,5 +1,6 @@
 package ir.ast
 
+import ir.interpreter.Interpreter._
 import ir.{TypeException, ArrayType, Type}
 
 /**
@@ -23,4 +24,10 @@ case class Head() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Array[_] => a.head
+    }
+  }
 }

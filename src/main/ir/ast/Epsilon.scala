@@ -1,6 +1,7 @@
 package ir.ast
 
 import ir.Type
+import ir.interpreter.Interpreter._
 
 /**
  * Empty pattern (Epsilon).
@@ -22,4 +23,8 @@ case class Epsilon() extends Pattern(arity = 1) with isGenerable {
 
   override def checkType(argType: Type, setType: Boolean): Type = argType
 
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == 1)
+    args.head
+  }
 }

@@ -2,6 +2,10 @@ package ir.ast
 
 import apart.arithmetic.ArithExpr
 import ir.Type
+import ir.interpreter.Interpreter.ValueMap
+
+import scala.reflect.runtime._
+import scala.tools.reflect.ToolBox
 
 /**
  * Values, i.e.: 4, 128, ...
@@ -27,6 +31,11 @@ case class Value(var value: String) extends Param {
    * @return A vectorized value
    */
   override def vectorize(n: ArithExpr): Value = Value(value, t.vectorize(n))
+
+  override def eval(valueMap: ValueMap): Any = {
+    val tb = universe.runtimeMirror(getClass.getClassLoader).mkToolBox()
+    tb.eval(tb.parse(value))
+  }
 }
 
 object Value {

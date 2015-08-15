@@ -1,7 +1,9 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
+import ir.interpreter.Interpreter._
 import ir.{TypeException, ArrayType, UndefType, Type}
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 
 /**
@@ -36,6 +38,14 @@ case class Group(relIndices: Array[Int],
     }
   }
 
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    throw new NotImplementedException()
+//    args.head match {
+//      case a: Array[_] =>
+//      case _ =>
+//    }
+  }
 }
 
 object Group {

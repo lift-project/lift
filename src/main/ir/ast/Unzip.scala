@@ -1,5 +1,6 @@
 package ir.ast
 
+import ir.interpreter.Interpreter.ValueMap
 import ir.{TypeException, TupleType, ArrayType, Type}
 
 /**
@@ -14,7 +15,7 @@ import ir.{TypeException, TupleType, ArrayType, Type}
  * `Unzip() : [a x b],,i,, -> ([a],,i,,, [b],,i,,)`
  * The definitions for `n > 2` are accordingly.
  */
-case class Unzip() extends FunDecl(arity = 1) with isGenerable {
+case class Unzip() extends Pattern(arity = 1) with isGenerable {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -26,5 +27,13 @@ case class Unzip() extends FunDecl(arity = 1) with isGenerable {
     }
   }
 
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Array[(_, _)] => a.unzip[Any, Any]
+      case a: Array[(_, _, _)] => a.unzip3[Any, Any, Any]
+      case _ => throw new NotImplementedError()
+    }
+  }
 }
 

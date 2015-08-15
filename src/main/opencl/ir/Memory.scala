@@ -278,7 +278,7 @@ object TypedOpenCLMemory {
         mems
       } else {
         val tm = mems.last
-        mems.init :+ TypedOpenCLMemory(tm.mem, tm.t.vectorize(v.len))
+        mems.init :+ TypedOpenCLMemory(tm.mem, tm.t.vectorize(v.n))
       }
     }
 

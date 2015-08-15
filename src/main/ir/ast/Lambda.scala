@@ -1,6 +1,7 @@
 package ir.ast
 
 import ir._
+import ir.interpreter.Interpreter.ValueMap
 
 import scala.language.implicitConversions
 
@@ -59,6 +60,15 @@ case class Lambda(params: Array[Param],
         case _ => s
       }
     })
+  }
+
+  def eval(valueMap: ValueMap, args: Any*): Array[_] = {
+    assert(args.length == arity)
+    val updatedMap =
+      (params zip args).
+        foldLeft(valueMap)((m, kv) => m updated (kv._1, kv._2))
+
+    body.eval(updatedMap).asInstanceOf[Array[_]]
   }
 }
 

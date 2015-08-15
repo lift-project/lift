@@ -1,5 +1,6 @@
 package ir.ast
 
+import ir.interpreter.Interpreter._
 import ir.{TypeException, ArrayType, Type}
 
 /**
@@ -29,4 +30,10 @@ case class Join() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
+  override def eval(valueMap: ValueMap, args: Any*): Array[_] = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Array[Array[Any]] => a.flatten
+    }
+  }
 }

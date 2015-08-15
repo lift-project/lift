@@ -1,5 +1,6 @@
 package ir.ast
 
+import ir.interpreter.Interpreter._
 import ir.Type
 
 /**
@@ -19,5 +20,13 @@ case class Gather(idx: IndexFunction) extends Pattern(arity = 1)
 
   override def checkType(argType: Type, setType: Boolean): Type = argType
 
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+
+    args.head match {
+      case a: Array[_] =>
+        (0 to a.length).map(i => a(idx.f(i, Type.fromAny(a)).eval))
+    }
+  }
 }
 

@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
+import ir.interpreter.Interpreter._
 import ir.{TupleType, VectorType, ScalarType, Type}
 
 /**
@@ -56,6 +57,14 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
                          setType: Boolean): Type = {
     val substitutions = Type.reify(inT, argType)
     Type.substitute(outT, substitutions.toMap)
+  }
+
+  def eval(valueMap: ValueMap, args: Any*): Any = {
+    if (name == "id" && arity == 1) {
+      args.head
+    } else {
+      throw new NotImplementedError()
+    }
   }
 
   /**

@@ -2,6 +2,7 @@ package ir.ast
 
 import apart.arithmetic.{?, ArithExpr, Var}
 import ir._
+import ir.interpreter.Interpreter.ValueMap
 
 /**
  * Abstract class for the partial reduce pattern.
@@ -30,6 +31,13 @@ abstract class AbstractPartRed(val f: Lambda,
 
       case _ => throw new TypeException(argType, "TupleType(_, _)")
     }
+  }
+
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    val init = args.head
+    val input = args(1) match { case a: Array[_] => a }
+    input.foldLeft(init)( (acc, x) => f.eval(valueMap, acc, x) )
   }
 }
 

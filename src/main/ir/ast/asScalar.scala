@@ -1,5 +1,6 @@
 package ir.ast
 
+import ir.interpreter.Interpreter.ValueMap
 import ir.{TypeException, ArrayType, Type}
 
 /**
@@ -27,4 +28,6 @@ case class asScalar() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
+  override def eval(valueMap: ValueMap, args: Any*): Array[_] =
+    Join().eval(valueMap, args:_*)
 }

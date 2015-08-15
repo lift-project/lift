@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
+import ir.interpreter.Interpreter._
 import ir.{TypeException, ArrayType, Type}
 
 /**
@@ -32,6 +33,22 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
         ArrayType(ArrayType(t, chunkSize), n /^ chunkSize)
 
       case _ => throw new TypeException(argType, "ArrayType")
+    }
+  }
+
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Array[Any] => split(chunkSize.eval, a)
+    }
+
+    def split(n: Int, a: Array[Any]): Array[Array[Any]] = {
+      val (firstChunk, rest) = a.splitAt(n)
+      if (rest.isEmpty) {
+        Array.apply[Array[Any]]( firstChunk )
+      } else {
+        firstChunk +: split(n, rest)
+      }
     }
   }
 }

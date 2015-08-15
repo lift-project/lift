@@ -3,6 +3,7 @@ package ir.ast
 import apart.arithmetic.ArithExpr
 import ir._
 import ir.view.{NoView, View}
+import ir.interpreter.Interpreter.ValueMap
 
 import scala.language.implicitConversions
 
@@ -126,6 +127,8 @@ abstract class Expr {
    * @return `f.apply(this)`
    */
   def <<:(f: FunDecl) = f.apply(this)
+
+  def eval(valueMap: ValueMap): Any
 }
 
 object Expr {
