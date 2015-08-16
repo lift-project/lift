@@ -47,9 +47,12 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
    * @param n The vector width
    * @return
    */
-  def vectorize(n: ArithExpr): UserFun =
-    new UserFun(s"$name$n", paramNames, body,
-                inTs.map(_.vectorize(n)), outT.vectorize(n))
+  def vectorize(n: ArithExpr): UserFun = {
+    val uf = new UserFun(s"$name$n", paramNames, body,
+                 inTs.map(_.vectorize(n)), outT.vectorize(n))
+    //uf.setScalaFun(xs => xs.transpose[Any].map(scalaFun))
+    uf.setScalaFun(scalaFun)
+  }
 
   /**
    * Get all unique tuple types from the types of this user function.

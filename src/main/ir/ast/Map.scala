@@ -33,15 +33,9 @@ abstract class AbstractMap(val f: Lambda,
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
-    val t0 = System.nanoTime()
-
-    val res = args.head match {
+    args.head match {
       case a: Seq[_] => a.map(f.eval(valueMap, _))
     }
-
-    val t1 = System.nanoTime()
-    println(s"$name: " + (t1 - t0) + "ns")
-    res
   }
 
   override def isGenerable: Boolean = f.isGenerable

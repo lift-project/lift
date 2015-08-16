@@ -35,16 +35,9 @@ abstract class AbstractPartRed(val f: Lambda,
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
-    val t0 = System.nanoTime()
-
-
     val init = args.head
     val input = args(1) match { case a: Seq[_] => a }
-    val res = Seq( input.foldLeft(init)( (acc, x) => f.eval(valueMap, acc, x) ))
-
-    val t1 = System.nanoTime()
-    println("reduce: " + (t1 - t0) + "ns")
-    res
+    Seq( input.foldLeft(init)( (acc, x) => f.eval(valueMap, acc, x) ))
   }
 }
 

@@ -49,7 +49,7 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     (n, args) match {
-      case (2, Seq(a: Array[_], b: Array[_])) => a zip b
+      case (2, Seq(a: Seq[_], b: Seq[_])) => a zip b
 //      case (3, a, b, c) =>
       case _ => throw new NotImplementedError()
     }

@@ -23,7 +23,8 @@ package object ir {
   val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).
     setScalaFun( xs => xs(0).asInstanceOf[Float] + xs(1).asInstanceOf[Float] )
 
-  val plusOne = UserFun("plusOne", "x", "{ return x+1; }", Float, Float)
+  val plusOne = UserFun("plusOne", "x", "{ return x+1; }", Float, Float).
+    setScalaFun( xs => xs(0).asInstanceOf[Float] + 1.0f )
 
   val doubleItAndSumUp = UserFun("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }",
                                  Seq(Float, Float), Float)
@@ -32,7 +33,8 @@ package object ir {
 
   val abs = UserFun("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
-  val neg = UserFun("neg", "x", "{ return -x; }", Float, Float)
+  val neg = UserFun("neg", "x", "{ return -x; }", Float, Float).
+    setScalaFun( x => - x.head.asInstanceOf[Float] )
 
   val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 

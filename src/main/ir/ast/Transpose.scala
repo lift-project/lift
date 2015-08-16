@@ -30,7 +30,7 @@ case class Transpose() extends Pattern(arity = 1) with isGenerable {
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     args.head match {
-      case a: Array[Array[_]] => a.transpose
+      case a: Seq[Seq[_]] => a.transpose
     }
   }
 }

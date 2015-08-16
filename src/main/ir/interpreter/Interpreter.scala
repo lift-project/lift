@@ -9,25 +9,22 @@ object Interpreter {
 
   def apply(f: Lambda, args: Any*) = new {
 
-    val argsNoArray = args.map({
-      case a: Array[_] => a: Seq[_]
-      case a: Any => a
-    })
+    def argsArrayToSeq(argsWithArrays: Seq[Any]): Seq[Any] =
+      argsWithArrays.map(arrayToSeq)
 
-    def compute: Seq[_] = {
-      val t0 = System.nanoTime()
-      val res = f.eval(Map[Param, Any](), argsNoArray: _*).asInstanceOf[Seq[_]]
-      val t1 = System.nanoTime()
-      println("compute: " + (t1 - t0) + "ns")
-      res
+    def arrayToSeq(arg: Any): Any = {
+      arg match {
+        case a: Array[_] => a.map(arrayToSeq): Seq[_]
+        case a: Any => a
+      }
     }
 
-    def asFloatSeq: Seq[Float] = {
-      compute.map(_.asInstanceOf[Float])
+    def compute: Any = {
+      f.eval(Map[Param, Any](), argsArrayToSeq(args):_*)
     }
 
-    def asIntSeq: Seq[Int] = {
-      compute.map(_.asInstanceOf[Int])
+    def asSeq[T]: Seq[T] = {
+      compute.asInstanceOf[Seq[_]].map(_.asInstanceOf[T])
     }
   }
 

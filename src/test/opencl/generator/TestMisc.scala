@@ -46,9 +46,8 @@ class TestMisc {
         )(Split(128)(in))
       })
 
-    val output = Interpreter(l, inputData, 0.0f).asFloatSeq
-
 //    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
+    val output = Interpreter(l, inputData, 0.0f).asSeq[Float]
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -67,7 +66,7 @@ class TestMisc {
       })
 
 //    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
-    val output = Interpreter(l, inputData).asFloatSeq
+    val output = Interpreter(l, inputData).asSeq[Float]
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -90,7 +89,8 @@ class TestMisc {
            Join()
          })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+//    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val output = Interpreter(l, inputData).asSeq[Float]
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -113,13 +113,14 @@ class TestMisc {
             in
           })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+//    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val output = Interpreter(l, inputData).asSeq[Float]
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
 
   @Test def issue24(): Unit = {
-    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+    val input = Seq.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
@@ -130,9 +131,12 @@ class TestMisc {
       ) $ input
     )
 
-    val (output: Array[Float], _) = Execute(4, 4)(f, input)
+//    val (output: Array[Float], _) = Execute(4, 4)(f, input)
+    val output = Interpreter(f, input).compute.asInstanceOf[Seq[Seq[Seq[Float]]]]
 
-    assertArrayEquals(input.flatten.flatten, output, 0.0f)
+    assertEquals(input, output)
+
+//    assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
 
   @Test
@@ -146,9 +150,9 @@ class TestMisc {
       })
 
 //    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
-    val output = Interpreter(l, inputData).asFloatSeq
+    val output = Interpreter(l, inputData).asSeq[Float].toArray
 
-    assertArrayEquals(inputData, output.toArray, 0.0f)
+    assertArrayEquals(inputData, output, 0.0f)
 
   }
 
@@ -182,7 +186,8 @@ class TestMisc {
 
     // user function
     val fct = UserFun("inc", Array("x"),
-      " return x+1.0; ", Seq(Float), Float)
+      " return x+1.0; ", Seq(Float), Float).
+      setScalaFun( xs => xs.head.asInstanceOf[Float]+1.0f )
 
     // Expression
     val f = fun(
@@ -193,9 +198,10 @@ class TestMisc {
     )
 
     // execute
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, xs)
+//    val (output: Array[Float], runtime) = Execute(inputSize)(f, xs)
+    val output = Interpreter(f, xs).asSeq[Float].toArray
 
-    println("runtime = " + runtime)
+//    println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.001f)
   }
 
@@ -214,18 +220,19 @@ class TestMisc {
         MapGlb(composition) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(compFun, inputData)
+//    val (output: Array[Float], runtime) = Execute(inputSize)(compFun, inputData)
+    val output = Interpreter(compFun, inputData).asSeq[Float].toArray
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+//    println("runtime = " + runtime)
   }
 
   @Test def accessingMultidimArrayAfterZip(): Unit = {
     val Nsize = 8
     val Msize = 4
     val Ksize = 2
-    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+    val matrix = Seq.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
     val vector = Array.fill(Nsize)(1.0f)
 
     val N = Var("N")
@@ -242,17 +249,20 @@ class TestMisc {
       )) $ Zip(matrix, vector)
     )
 
-    val (output: Array[Float], runtime) = Execute(4, Nsize)(f, matrix, vector)
-    assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
+//    val (output: Array[Float], runtime) = Execute(4, Nsize)(f, matrix, vector)
+    val output = Interpreter(f, matrix, vector).compute.asInstanceOf[Seq[Seq[Seq[Float]]]]
+//    assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
+
+    assertEquals(matrix, output)
 
     println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+//    println("runtime = " + runtime)
   }
 
   @Test
   def zipUnzip(): Unit = {
     val inputSize = 1024
-    val inputData = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
+    val inputData = Seq.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
 
     val N = Var("N")
 
@@ -268,14 +278,17 @@ class TestMisc {
         )) $ Zip(A, B)
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData, inputData)
+//    val (output: Array[Float], _) = Execute(inputSize)(f, inputData, inputData)
+    val output = Interpreter(f, inputData, inputData).compute.asInstanceOf[Seq[Seq[Float]]]
 
-    assertArrayEquals(inputData.flatten.map(_ + 1), output, 0.0f)
+    assertEquals(inputData.map(_.map(_ + 1)), output)
+
+//    assertArrayEquals(inputData.flatten.map(_ + 1), output, 0.0f)
   }
 
   @Test def vectorType(): Unit = {
     val inputSize = 1024
-    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+    val inputData = Seq.tabulate(inputSize*4)(_.toFloat)
 
     val N = Var("N")
 
@@ -285,11 +298,14 @@ class TestMisc {
         MapGlb(id.vectorize(4)) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
-    assertArrayEquals(inputData, output, 0.0f)
+//    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
+//    assertArrayEquals(inputData, output, 0.0f)
+    val output = Interpreter(f, inputData).compute.asInstanceOf[Seq[Float]]
+
+    assertEquals(inputData, output)
 
     println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+//    println("runtime = " + runtime)
   }
 
   @Test def mapValueArg(): Unit = {

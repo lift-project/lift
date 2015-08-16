@@ -33,6 +33,21 @@ case class Value(var value: String) extends Param {
   override def vectorize(n: ArithExpr): Value = Value(value, t.vectorize(n))
 
   override def eval(valueMap: ValueMap): Any = {
+         if (toFloat.isDefined) { toFloat.get }
+    else if (toInt.isDefined)   { toInt.get   }
+    else toAny
+  }
+
+  private lazy val toFloat =
+    try   { Some(value.toFloat) }
+    catch { case _: java.lang.NumberFormatException => None}
+
+  private lazy val toInt =
+    try   { Some(value.toInt) }
+    catch { case _: java.lang.NumberFormatException => None }
+
+  private lazy val toAny = {
+    println("Warning: expensive function for evaluating a Value object called")
     val tb = universe.runtimeMirror(getClass.getClassLoader).mkToolBox()
     tb.eval(tb.parse(value))
   }

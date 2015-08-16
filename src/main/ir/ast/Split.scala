@@ -48,14 +48,8 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
       }
     }
 
-    val t0 = System.nanoTime()
-
-    val res = args.head match {
+    args.head match {
       case a: Seq[_] => split(chunkSize.eval, a)
     }
-
-    val t1 = System.nanoTime()
-    println("split: " + (t1 - t0) + "ns")
-    res
   }
 }
