@@ -139,7 +139,7 @@ object Rules {
         // and that none of these are nested inside
         !f.body.contains({
           case FunCall(_: MapGlb, _) =>
-          case FunCall(MapWrg(dimNested, _), _) if  dim == dimNested =>
+          case FunCall(MapWrg(dimNested, _), _) if dim == dimNested =>
         })
     =>
       MapWrg(dim)(f)(arg)
