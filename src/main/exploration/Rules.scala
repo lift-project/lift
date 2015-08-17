@@ -58,10 +58,13 @@ object Rules {
 
   // TODO: iterate
 
-  val partialReduceSplitJoin = Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
-    case FunCall(PartRed(f), init, arg) =>
-      Join() o Map(PartRed(f, init)) o Split(4) $ arg
-  })
+  val partialReduceSplitJoin: Rule = partialReduceSplitJoin(4)
+
+  def partialReduceSplitJoin(x: Int): Rule =
+    Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
+      case FunCall(PartRed(f), init, arg) =>
+        Join() o Map(PartRed(f, init)) o Split(x) $ arg
+    })
 
   /* Cancellation rules */
 
@@ -256,12 +259,19 @@ object Rules {
       if p2.contains({ case a => a eq p1.head })
     =>
       Map(fun1) o Map(Lambda(p1, Reduce(fun2, init)(p2))) $ arg
+
+    case FunCall(Map(Lambda(p1, FunCall(Reduce(fun1), init1, FunCall(Reduce(fun2), init2, p2)))), arg)
+      if p2.contains({ case a => a eq p1.head })
+    =>
+      Map(Reduce(fun1, init1)) o Map(Lambda(p1, Reduce(fun2, init2)(p2))) $ arg
   })
 
   val mapMapInterchange = Rule("Map(fun(a => Map(fun( b => ... ) $ B) $ A => " +
     "Transpose() o Map(fun(b => Map(fun( a => ... ) $ A) $ B", {
     case FunCall(Map(Lambda(a, FunCall(Map(Lambda(b, expr)), bArg))), aArg)
-      if !(a.head eq bArg)
+      if !bArg.contains({
+        case e if e eq a.head =>
+      })
     =>
       TransposeW() o Map(Lambda(b, FunCall(Map(Lambda(a, expr)), aArg))) $ bArg
   })
