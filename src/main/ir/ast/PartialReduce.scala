@@ -36,8 +36,8 @@ abstract class AbstractPartRed(val f: Lambda,
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     val init = args.head
-    val input = args(1) match { case a: Seq[_] => a }
-    Seq( input.foldLeft(init)( (acc, x) => f.eval(valueMap, acc, x) ))
+    val input = args(1) match { case a: Iterator[_] => a }
+    Iterator( input.foldLeft(init)( (acc, x) => f.eval(valueMap, acc, x) ))
   }
 }
 

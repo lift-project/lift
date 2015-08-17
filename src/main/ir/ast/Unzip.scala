@@ -30,8 +30,14 @@ case class Unzip() extends Pattern(arity = 1) with isGenerable {
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     args.head match {
-      case a: Seq[(_, _)] => a.unzip[Any, Any]
-      case a: Seq[(_, _, _)] => a.unzip3[Any, Any, Any]
+      case i: Iterator[(_, _)]    =>
+        val vec = i.toVector.unzip[Any, Any]
+        (vec._1.iterator, vec._2.iterator): (Iterator[_], Iterator[_])
+
+      case i: Iterator[(_, _, _)] =>
+        val vec = i.toVector.unzip3[Any, Any, Any]
+        (vec._1.iterator, vec._2.iterator, vec._3.iterator): (Iterator[_], Iterator[_], Iterator[_])
+
       case _ => throw new NotImplementedError()
     }
   }

@@ -30,10 +30,10 @@ case class Join() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
-  override def eval(valueMap: ValueMap, args: Any*): Any = {
+  override def eval(valueMap: ValueMap, args: Any*): Iterator[_] = {
     assert(args.length == arity)
     args.head match {
-      case a: Seq[Seq[_]] => a.flatten
+      case a: Iterator[Iterator[_]] => a.toVector.flatten.iterator
     }
   }
 }

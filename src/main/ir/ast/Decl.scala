@@ -86,7 +86,6 @@ abstract class FunDecl(val arity: Int) extends Decl {
    * @return An object (of type FunCall) representing the function call of
    *         `this` with `arg`.
    */
-  @deprecated("Use `<<:` function instead, as this is right-associative")
   def $(arg: Expr) : Expr = apply(arg)
 
   /**
