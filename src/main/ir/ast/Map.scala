@@ -31,10 +31,10 @@ abstract class AbstractMap(val f: Lambda,
     }
   }
 
-  override def eval(valueMap: ValueMap, args: Any*): Iterator[_] = {
+  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
     args.head match {
-      case a: Iterator[_] => a.map(f.eval(valueMap, _))
+      case a: Vector[_] => a.map(f.eval(valueMap, _))
     }
   }
 

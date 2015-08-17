@@ -118,7 +118,7 @@ object Type {
     a match {
       case f: Float => ScalarType("float", 4)
       case i: Int => ScalarType("int", 4)
-      case a: Array[_] if !a.isEmpty => ArrayType(fromAny(a.head), a.length)
+      case a: Seq[_] if a.nonEmpty => ArrayType(fromAny(a.head), a.length)
       case t: (_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2)):_*)
       case t: (_,_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2), fromAny(t._3)):_*)
       case _ => throw new NotImplementedError()

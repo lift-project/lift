@@ -47,7 +47,7 @@ class TestMisc {
       })
 
 //    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
-    val output = Interpreter(l).->[Iterator[Float]].run(inputData, 0.0f)
+    val output = Interpreter(l).->[Vector[Float]].run(inputData, 0.0f)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -66,7 +66,7 @@ class TestMisc {
       })
 
 //    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
-    val output = Interpreter(l).->[Iterator[Float]].run(inputData)
+    val output = Interpreter(l).->[Vector[Float]].run(inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -90,7 +90,7 @@ class TestMisc {
          })
 
 //    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
-    val output = Interpreter(l).->[Iterator[Float]].runAndFlatten(inputData).toArray[Float]
+    val output = Interpreter(l).->[Vector[Float]].runAndFlatten(inputData).toArray[Float]
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -114,7 +114,7 @@ class TestMisc {
           })
 
 //    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
-    val output = Interpreter(l).->[Iterator[Float]].run(inputData)
+    val output = Interpreter(l).->[Vector[Float]].run(inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -132,7 +132,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], _) = Execute(4, 4)(f, input)
-    val output = Interpreter(f).->[Iterator[Iterator[Iterator[Float]]]].runAndFlatten(input).toArray[Float]
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(input).toArray[Float]
 
     assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
@@ -148,7 +148,7 @@ class TestMisc {
       })
 
 //    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
-    val output = Interpreter(l).->[Iterator[Float]].run(inputData).toArray
+    val output = Interpreter(l).->[Vector[Float]].run(inputData).toArray
 
     assertArrayEquals(inputData, output, 0.0f)
 
@@ -166,7 +166,7 @@ class TestMisc {
       })
 
 //    val (output: Array[Float], _) = Execute(inputSize)(l, inputData)
-    val output = Interpreter(l).->[Iterator[Float]].run(inputData).toArray
+    val output = Interpreter(l).->[Vector[Float]].run(inputData).toArray
 
     assertEquals(inputData.sum + 1, output.head, 0.0f)
   }
@@ -198,7 +198,7 @@ class TestMisc {
 
     // execute
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, xs)
-    val output = Interpreter(f).->[Iterator[Float]].run(xs).toArray
+    val output = Interpreter(f).->[Vector[Float]].run(xs).toArray
 
 //    println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.001f)
@@ -220,7 +220,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(inputSize)(compFun, inputData)
-    val output = Interpreter(compFun).->[Iterator[Float]].run(inputData).toArray
+    val output = Interpreter(compFun).->[Vector[Float]].run(inputData).toArray
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -250,7 +250,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(4, Nsize)(f, matrix, vector)
-    val output = Interpreter(f).->[Iterator[Iterator[Iterator[Float]]]].runAndFlatten(matrix, vector).toArray[Float]
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(matrix, vector).toArray[Float]
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -278,7 +278,7 @@ class TestMisc {
 
 //    val (output: Array[Float], _) = Execute(inputSize)(f, inputData, inputData)
     val output = Interpreter(f)
-                    .->[Iterator[Iterator[Float]]]
+                    .->[Vector[Vector[Float]]]
                     .runAndFlatten(inputData, inputData)
                     .toArray[Float]
 
@@ -298,7 +298,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
-    val output = Interpreter(f).->[Iterator[Float]].run(inputData).toArray[Float]
+    val output = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(inputData.grouped(4).toArray).toArray[Float]
 
     assertArrayEquals(inputData, output, 0.0f)
 
@@ -321,7 +321,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
-    val output = Interpreter(f).->[Iterator[Float]].run(inputData).toArray
+    val output = Interpreter(f).->[Vector[Float]].run(inputData).toArray
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -341,7 +341,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(Nsize * Msize)(function, matrix)
-    val output = Interpreter(function).->[Iterator[Iterator[Float]]].runAndFlatten(matrix).toArray[Float]
+    val output = Interpreter(function).->[Vector[Vector[Float]]].runAndFlatten(matrix).toArray[Float]
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -362,7 +362,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
-    val output = Interpreter(f).->[Iterator[Float]].run(inputData).toArray
+    val output = Interpreter(f).->[Vector[Float]].run(inputData).toArray
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -383,7 +383,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
-    val output = Interpreter(f).->[Iterator[Float]].run(inputData).toArray
+    val output = Interpreter(f).->[Vector[Float]].run(inputData).toArray
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -408,7 +408,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
-    val output = Interpreter(f).->[Iterator[Iterator[Float]]].runAndFlatten(matrix).toArray[Float]
+    val output = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(matrix).toArray[Float]
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -435,7 +435,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
-    val output = Interpreter(f).->[Iterator[Iterator[Iterator[Float]]]].runAndFlatten(matrix).toArray[Float]
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(matrix).toArray[Float]
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -462,7 +462,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
-    val output = Interpreter(f).->[Iterator[Iterator[Iterator[Float]]]].runAndFlatten(matrix).toArray[Float]
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(matrix).toArray[Float]
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -490,7 +490,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
-    val output = Interpreter(f).->[Iterator[Iterator[Iterator[Float]]]].runAndFlatten(matrix).toArray[Float]
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(matrix).toArray[Float]
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -510,7 +510,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, input)
-    val output = Interpreter(f).->[Iterator[Float]].run(input).toArray
+    val output = Interpreter(f).->[Vector[Float]].run(input).toArray
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -539,7 +539,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputA, inputB)
-    val output = Interpreter(f).->[Iterator[Float]].run(inputA, inputB).toArray
+    val output = Interpreter(f).->[Vector[Float]].run(inputA, inputB).toArray
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -609,7 +609,7 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, input)
-    val output = Interpreter(f).->[Iterator[Float]].run(input).toArray
+    val output = Interpreter(f).->[Vector[Float]].run(input).toArray
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -638,11 +638,9 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], runtime) = Execute(nSize)(f, A, B)
-    val outputIter = Interpreter(f).->[Iterator[Iterator[Iterator[Float]]]].run(A,B) //AndFlatten(A, B).toArray[Float]
+    val outputVec = Interpreter(f).->[Vector[Vector[Vector[Float]]]].run(A,B) //AndFlatten(A, B).toArray[Float]
 
-    val outputSeq : Vector[Vector[Vector[Float]]] = outputIter.toVector.map(_.toVector.map(_.toVector))
-
-    val output = outputSeq.flatten.flatten.toArray
+    val output = outputVec.flatten.flatten.toArray
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))

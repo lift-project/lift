@@ -40,8 +40,8 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     args.head match {
-      case i: Iterator[_] =>
-        (1 to n.eval).foldLeft[Any](i)((a, _) => {
+      case v: Vector[_] =>
+        (1 to n.eval).foldLeft[Any](v)((a, _) => {
           f.eval(valueMap, a)
         })
     }

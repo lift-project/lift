@@ -9,29 +9,20 @@ object Interpreter {
 
   def apply(f: Lambda) = new {
 
-    private def argsArrayToSeq(argsWithArrays: Seq[Any]): Seq[Any] =
-      argsWithArrays.map(arrayToSeq)
+    private def argsArrayToVector(argsWithArrays: Seq[Any]): Seq[Any] =
+      argsWithArrays.map(arrayToVector)
 
-    private def arrayToSeq(arg: Any): Any = {
+    private def arrayToVector(arg: Any): Any = {
       arg match {
-        case a: Array[_] => a.map(arrayToSeq): Seq[_]
-        case a: Any => a
-      }
-    }
-
-    private def argsArrayToIterator(argsWithArrays: Seq[Any]): Seq[Any] =
-      argsWithArrays.map(arrayToIterator)
-
-    private def arrayToIterator(arg: Any): Any = {
-      arg match {
-        case a: Array[_] => a.map(arrayToIterator).iterator : Iterator[_]
+        case a: Array[_] => a.map(arrayToVector).toVector : Vector[_]
         case a: Any => a
       }
     }
 
     def ->[R] = new {
       def run(args: Any*): R = {
-        f.eval(Map[Param, Any](), argsArrayToIterator(args): _*).asInstanceOf[R]
+        val res = f.eval(Map[Param, Any](), argsArrayToVector(args): _*).asInstanceOf[R]
+        res
       }
 
       def runAndFlatten(args: Any*)(implicit can: CanFlatten[R]): Seq[can.Elem] = {
@@ -41,44 +32,24 @@ object Interpreter {
   }
 
   sealed trait InnerMost {
-    implicit def innerSeq[A]: CanFlatten[Iterator[A]] { type Elem = A } =
-      new CanFlatten[Iterator[A]] {
+    implicit def innerSeq[A]: CanFlatten[Vector[A]] { type Elem = A } =
+      new CanFlatten[Vector[A]] {
         type Elem = A
-        def flatten(iter: Iterator[A]): Seq[A] = iter.toVector
+        def flatten(v: Vector[A]): Vector[A] = v.toVector
       }
   }
   object CanFlatten extends InnerMost {
     implicit def nestedI[A](implicit inner: CanFlatten[A])
-    : CanFlatten[Iterator[A]] { type Elem = inner.Elem } =
-      new CanFlatten[Iterator[A]] {
+    : CanFlatten[Vector[A]] { type Elem = inner.Elem } =
+      new CanFlatten[Vector[A]] {
         type Elem = inner.Elem
-        def flatten(iter: Iterator[A]) : Seq[inner.Elem] = iter.toVector.flatMap(a => inner.flatten(a))
+        def flatten(v: Vector[A]) : Vector[inner.Elem] = v.toVector.flatMap(vi => inner.flatten(vi))
       }
   }
   sealed trait CanFlatten[-A] {
     type Elem
-    def flatten(iter: A): Seq[Elem]
+    def flatten(v: A): Vector[Elem]
   }
-
-//  sealed trait InnerMost {
-//    implicit def innerSeq[A]: CanFlatten[Seq[A]] { type Elem = A } =
-//      new CanFlatten[Seq[A]] {
-//        type Elem = A
-//        def flatten(seq: Seq[A]): Seq[A] = seq
-//      }
-//  }
-//  object CanFlatten extends InnerMost {
-//    implicit def nestedSeq[A](implicit inner: CanFlatten[A])
-//    : CanFlatten[Seq[A]] { type Elem = inner.Elem } =
-//      new CanFlatten[Seq[A]] {
-//        type Elem = inner.Elem
-//        def flatten(seq: Seq[A]) : Seq[inner.Elem] = seq.flatMap(a => inner.flatten(a))
-//      }
-//  }
-//  sealed trait CanFlatten[-A] {
-//    type Elem
-//    def flatten(seq: A): Seq[Elem]
-//  }
 
 }
 

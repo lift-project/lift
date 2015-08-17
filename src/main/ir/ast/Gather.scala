@@ -20,13 +20,12 @@ case class Gather(idx: IndexFunction) extends Pattern(arity = 1)
 
   override def checkType(argType: Type, setType: Boolean): Type = argType
 
-  override def eval(valueMap: ValueMap, args: Any*): Iterator[_] = {
+  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
 
     args.head match {
-      case a: Iterator[_] =>
-        val vec = a.toVector
-        (0 to a.length).map(i => vec(idx.f(i, Type.fromAny(a)).eval)).iterator
+      case vec: Vector[_] =>
+        (0 to vec.length).map(i => vec(idx.f(i, Type.fromAny(vec)).eval)).toVector
     }
   }
 }

@@ -4,8 +4,6 @@ import apart.arithmetic.ArithExpr
 import ir.interpreter.Interpreter._
 import ir.{TypeException, ArrayType, Type}
 
-import scala.annotation.tailrec
-
 /**
  * Split pattern.
  * Code for this pattern can be generated.
@@ -38,22 +36,11 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
     }
   }
 
-  override def eval(valueMap: ValueMap, args: Any*): Iterator[Iterator[_]] = {
+  override def eval(valueMap: ValueMap, args: Any*): Vector[Vector[_]] = {
     assert(args.length == arity)
 
-//    @tailrec
-//    def split(n: Int, input: Seq[_], result: Seq[Seq[_]] = Seq()): Seq[Seq[_]] = {
-//      if (input.isEmpty) {
-//        result
-//      } else {
-//        val (firstChunk, rest) = input.splitAt(n)
-//        split(n, rest, result :+ firstChunk)
-//      }
-//    }
-
     args.head match {
-      case a: Iterator[_] => a.grouped(chunkSize.eval).map(_.iterator)
-      //split(chunkSize.eval, a)
+      case v: Vector[_] => v.grouped(chunkSize.eval).toVector
     }
   }
 }

@@ -50,8 +50,9 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
   def vectorize(n: ArithExpr): UserFun = {
     val uf = new UserFun(s"$name$n", paramNames, body,
                  inTs.map(_.vectorize(n)), outT.vectorize(n))
-    //uf.setScalaFun(xs => xs.transpose[Any].map(scalaFun))
-    uf.setScalaFun(scalaFun)
+    uf.setScalaFun(xs => {
+      xs.asInstanceOf[Seq[Vector[Any]]].transpose.map(scalaFun).toVector
+    })
   }
 
   /**
