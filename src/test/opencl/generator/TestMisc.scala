@@ -12,14 +12,14 @@ import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestMisc {
   @BeforeClass def before() {
-//    Executor.loadLibrary()
+    Executor.loadLibrary()
     println("Initialize the executor")
-//    Executor.init()
+    Executor.init()
   }
 
   @AfterClass def after() {
     println("Shutdown the executor")
-//    Executor.shutdown()
+    Executor.shutdown()
   }
 }
 
@@ -90,7 +90,7 @@ class TestMisc {
          })
 
 //    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
-    val output = Interpreter(l, inputData).asSeq[Float]
+    val output = Interpreter(l, inputData).asSeqFrom[Seq[Float]]
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -120,7 +120,7 @@ class TestMisc {
   }
 
   @Test def issue24(): Unit = {
-    val input = Seq.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
@@ -132,11 +132,14 @@ class TestMisc {
     )
 
 //    val (output: Array[Float], _) = Execute(4, 4)(f, input)
-    val output = Interpreter(f, input).compute.asInstanceOf[Seq[Seq[Seq[Float]]]]
+//    val outputI = Interpreter(f, input).compute.asInstanceOf[Seq[Seq[Seq[Float]]]]
 
-    assertEquals(input, output)
+//    val output = Interpreter.flattenAll(outputI)
+    val output = Interpreter(f, input).asSeqFrom[Seq[Seq[Seq[Float]]]].toArray
 
-//    assertArrayEquals(input.flatten.flatten, output, 0.0f)
+//    assertEquals(input.flatten.flatten, output)
+
+    assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
 
   @Test
