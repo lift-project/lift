@@ -4,7 +4,6 @@ import apart.arithmetic.Var
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
-import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -61,6 +60,28 @@ class TestRewriteMatrixMatrix {
     val f10 = Rewrite.applyRuleAtId(f9, 35, Rules.mapMapTransposeZipInside)
 
     // Input's good
+
+    val f11 = Rewrite.applyRuleAtId(f10, 53, Rules.partialReduce)
+    val f12 = Rewrite.applyRuleAtId(f11, 54, Rules.partialReduceSplitJoin(tileSizeK))
+    val f13 = Rewrite.applyRuleAtId(f12, 11, Rules.splitJoin(workPerThreadN))
+    val f14 = Rewrite.applyRuleAtId(f13, 52, Rules.mapFission)
+    val f15 = Rewrite.applyRuleAtId(f14, 52, Rules.transposeBothSides)
+    val f16 = Rewrite.applyRuleAtId(f15, 12, Rules.mapFission)
+
+    val f17 = Rewrite.applyRuleAtId(f16, 59, Rules.mapFission)
+    val f18 = Rewrite.applyRuleAtId(f17, 59, Rules.mapReduceInterchange)
+    val f19 = Rewrite.applyRuleAtId(f18, 53, Rules.mapFission)
+    val f20 = Rewrite.applyRuleAtId(f19, 53, Rules.mapReduceInterchange)
+    val f21 = Rewrite.applyRuleAtId(f20, 13, Rules.mapFission)
+    val f22 = Rewrite.applyRuleAtId(f21, 13, Rules.mapReduceInterchange)
+
+    // Output seems good
+
+    println(NumberPrinter(f22))
+    println(f22)
+    println(ScalaPrinter(f22))
+
+
   }
 
   @Test

@@ -109,6 +109,13 @@ class TestRules {
 
     assertArrayEquals(miscGold4.flatten.flatten.flatten, miscTest4.flatten.flatten.flatten)
 
+    val B = Array.fill(size, size, size)(util.Random.nextInt(size))
+
+    val gold5 = B.map(_.map(_.grouped(16).toArray.map(_.sum).sum))
+    val test5 = B.transpose.map(_.map(_.grouped(16).toArray.map(_.sum).sum)).transpose
+
+    assertArrayEquals(gold5.flatten, test5.flatten)
+
     // split o map(transpose) =>
 
     // transpose o split =>

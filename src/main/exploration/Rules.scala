@@ -316,7 +316,9 @@ object Rules {
         case _ => false
       })
         && !innerCall.contains({
-        case FunCall(Split(_), _) =>
+        case splitCall@FunCall(Split(_), _)
+          if NumberExpression.byDepth(outerCall)(splitCall) < 2
+        =>
         case c @ FunCall(Join(), _)
           if (c.args.head.t match {
           case ArrayType(ArrayType(_, len), _) => len != Cst(1)
