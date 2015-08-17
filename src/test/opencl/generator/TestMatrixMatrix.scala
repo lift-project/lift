@@ -320,7 +320,7 @@ class TestMatrixMatrix {
     val tileSizeM = 16
     val tileSizeN = tileSizeM
     val tileSizeK = 8
-    val workPerThread = 4
+    val workPerThread = 2
 
     val f = fun(
       ArrayType(ArrayType(Float, M), K), // Transposed
@@ -331,8 +331,8 @@ class TestMatrixMatrix {
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
               Join() o Map(TransposeW()) o
-                toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(id)))) o
                 Join() o
+                toGlobal(MapSeq(MapLcl(1)(MapLcl(0)(MapSeq(id))))) o
 
                 // Multiply all necessary combinations of tiles
                 ReduceSeq(fun( (acc, pairOfTiles) =>

@@ -4,6 +4,7 @@ import apart.arithmetic.Var
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
+import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -41,9 +42,25 @@ class TestRewriteMatrixMatrix {
 
     val tileSizeMN = 16
     val tileSizeK = 8
-    val workPerThreadN = 4
+    val workPerThreadN = 2
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.tileOutput(tileSizeMN))
+
+    val f2 = Rewrite.applyRuleAtId(f1, 13, Rules.mapFission)
+    val f3 = Rewrite.applyRuleAtId(f2, 14, Rules.mapMapTransposeZipInside)
+    val f4 = Rewrite.applyRuleAtId(f3, 11, Rules.mapFissionAtPosition(1))
+    val f5 = Rewrite.applyRuleAtId(f4, 12, Rules.mapMapTransposeZipInside)
+
+    val f6 = Rewrite.applyRuleAtId(f5, 13, Rules.finishTilingInput(tileSizeK))
+
+    // Experimenting from here on
+
+    val f7 = Rewrite.applyRuleAtId(f6, 23, Rules.splitJoin(workPerThreadN))
+    val f8 = Rewrite.applyRuleAtId(f7, 29, Rules.mapFission)
+    val f9 = Rewrite.applyRuleAtId(f8, 30, Rules.mapMapInterchange)
+    val f10 = Rewrite.applyRuleAtId(f9, 35, Rules.mapMapTransposeZipInside)
+
+    // Input's good
   }
 
   @Test
@@ -158,8 +175,6 @@ class TestRewriteMatrixMatrix {
     val f16 = Rewrite.applyRuleAtId(f15, 39, Rules.localMemory)
     val f17 = Rewrite.applyRuleAtId(f16, 32, Rules.localMemory)
 
-    println(f17)
-
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -193,7 +208,7 @@ class TestRewriteMatrixMatrix {
 
     println(h8)
 
-    // The rest same as before
+    // The copy for transpose + rest same as before
   }
 
   @Test
