@@ -12,13 +12,13 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   assert(f != null)
 
   override def toString = {
-    val fS = if (f == null) {
-      "null"
-    } else {
-      f.toString
-    }
+    val fS = f.toString
 
-    fS + "(" + args.mkString(", ") + ")"
+    this match {
+      case FunCall(Reduce(_), init, argCall@FunCall(_, _*)) => fS + s"($init) o " + argCall
+      case FunCall(_, argCall@FunCall(_, _*)) => fS + " o " + argCall
+      case _ => fS + "(" + args.mkString(", ") + ")"
+    }
   }
 
   override def copy: FunCall = {
