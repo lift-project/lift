@@ -15,6 +15,10 @@ object NumberExpression {
     breadthFirst(lambda.body)
   }
 
+  def byDepth(lambda: Lambda): collection.Map[Expr, Int] = byDepth(lambda.body)
+
+  def byDepth(expr: Expr): collection.Map[Expr, Int] = (new NumberByDepth)(expr)
+
   def breadthFirst(expr: Expr): collection.Map[Expr, Int] = {
     number(expr, (a, b) =>
       Expr.visitWithState(0)(a, b, visitArgs = true))
@@ -29,6 +33,46 @@ object NumberExpression {
     })
 
     idMap
+  }
+}
+
+class NumberByDepth {
+
+  var idMap = collection.Map[Expr, Int]()
+  var currentDepth = 0
+
+  def apply(lambda: Lambda): collection.Map[Expr, Int] =
+    apply(lambda.body)
+
+  def apply(expr: Expr): collection.Map[Expr, Int] = {
+    number(expr)
+    idMap
+  }
+
+  private def number(expr: Expr): Unit = {
+    idMap += (expr -> currentDepth)
+    expr match {
+      case call: FunCall =>
+        number(call.f)
+        call.args.foreach(number)
+      case _ =>
+    }
+  }
+
+  private def number(funDecl: FunDecl): Unit = {
+    funDecl match {
+      case map: AbstractMap =>
+        currentDepth += 1
+        number(map.f)
+        currentDepth -= 1
+      case reduce: AbstractPartRed =>
+        currentDepth += 1
+        number(reduce.f)
+        currentDepth -= 1
+      case lambda: Lambda => number(lambda.body)
+      case fp: FPattern => number(fp.f)
+      case _ =>
+    }
   }
 }
 
@@ -48,7 +92,7 @@ object DepthFirstNumberPrinter {
     (new NumberPrinter(NumberExpression.depthFirst(expr)))(expr)
 }
 
-private class NumberPrinter(idMap: scala.collection.Map[Expr, Int]) {
+class NumberPrinter(idMap: scala.collection.Map[Expr, Int]) {
 
   private[exploration] def apply(expr: Expr): String = {
     val prefix = if (idMap.isDefinedAt(expr)) idMap(expr) + "_" else ""
