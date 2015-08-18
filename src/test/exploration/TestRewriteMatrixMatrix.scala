@@ -77,10 +77,29 @@ class TestRewriteMatrixMatrix {
 
     // Output seems good
 
-    println(NumberPrinter(f22))
-    println(f22)
-    println(ScalaPrinter(f22))
+    val f23 = Rewrite.applyRuleAtId(f22, 63, Rules.mapFissionAtPosition(1))
+    val f24 = Rewrite.applyRuleAtId(f23, 63, Rules.transposeBothSides)
+    val f25 = Rewrite.applyRuleAtId(f24, 62, Rules.transposeTransposeId)
+    val f26 = Rewrite.applyRuleAtId(f25, 63, Rules.transposeMapSplit)
+    val f27 = Rewrite.applyRuleAtId(f26, 62, Rules.mapFusion)
+    val f28 = Rewrite.applyRuleAtId(f27, 56, Rules.mapFission)
+    val f29 = Rewrite.applyRuleAtId(f28, 57, Rules.mapFission)
+    val f30 = Rewrite.applyRuleAtId(f29, 58, Rules.mapTransposeTransposeMapTranspose)
+    val f31 = Rewrite.applyRuleAtId(f30, 57, Rules.mapSplitTranspose)
+    val f32 = Rewrite.applyRuleAtId(f31, 56, Rules.transposeBothSides)
+    val f33 = Rewrite.applyRuleAtId(f32, 55, Rules.transposeTransposeId)
+    val f34 = Rewrite.applyRuleAtId(f33, 56, Rules.transposeTransposeId)
 
+    // maybe a better way?
+    val f35 = Rewrite.applyRuleAtId(f34, 15, Rules.mapFission)
+    val f36 = Rewrite.applyRuleAtId(f35, 15, Rules.transposeBothSides)
+    val f37 = Rewrite.applyRuleAtId(f36, 14, Rules.transposeTransposeId)
+
+    // Now there's a massive bunch of transposes, splits and joins, which are id.
+    // Can comment out and runs fine. Otherwise good.
+
+    println(NumberPrinter(f37))
+    println(f37)
 
   }
 

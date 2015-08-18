@@ -405,20 +405,43 @@ object Rules {
 
   val mapSplitTranspose = Rule("Map(Split(n)) o Transpose()" +
                                "Transpose() o Map(Transpose()) o Split(n)", {
-    case FunCall(Map(Lambda(_, FunCall(Split(n), _))), FunCall(Transpose(), arg)) =>
+    case FunCall(Map(Lambda(param, FunCall(Split(n), a))), FunCall(Transpose(), arg))
+      if param.head eq a
+    =>
       Transpose() o Map(Transpose()) o Split(n) $ arg
   })
 
   val mapTransposeSplit = Rule("Map(Transpose()) o Split(n)" +
     "Transpose() o Map(Split(n)) o Transpose()", {
-    case FunCall(Map(Lambda(_, FunCall(Transpose(), _))), FunCall(Split(n), arg)) =>
+    case FunCall(Map(Lambda(param, FunCall(Transpose(), a))), FunCall(Split(n), arg))
+      if param.head eq a
+    =>
       Transpose() o Map(Split(n)) o Transpose() $ arg
+  })
+
+  val transposeMapSplit = Rule("Transpose() o Map(Split(n))" +
+    "Map(Transpose()) o Split(n) o Transpose()", {
+    case FunCall(Transpose(), FunCall(Map(Lambda(param, FunCall(Split(n), a))), arg))
+      if param.head eq a
+    =>
+      Map(Transpose()) o Split(n) o Transpose() $ arg
   })
 
   val splitTranspose = Rule("Split(n) o Transpose()" +
         "Map(Transpose()) o Transpose() o Map(Split(n))", {
         case FunCall(Split(n), FunCall(Transpose(), arg)) =>
           Map(Transpose()) o Transpose() o Map(Split(n)) $ arg
+  })
+
+  val mapTransposeTransposeMapTranspose =
+    Rule("Map(Transpose()) o Transpose() o Map(Transpose())) => " +
+         "Transpose() o Map(Transpose()) o Transpose()", {
+      case c @ FunCall(Map(Lambda(param1, FunCall(Transpose(), a1))),
+            FunCall(Transpose(),
+            FunCall(Map(Lambda(param2, FunCall(Transpose(), a2))), arg)))
+        if (param1.head eq a1) && (param2.head eq a2)
+      =>
+        Transpose() o Map(Transpose()) o Transpose() $ arg
   })
 
   val splitZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +

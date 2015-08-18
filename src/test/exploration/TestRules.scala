@@ -116,6 +116,12 @@ class TestRules {
 
     assertArrayEquals(gold5.flatten, test5.flatten)
 
+    // map(transpose) o transpose o map(transpose) == transpose o map(transpose) o transpose
+    val gold6 = B.transpose.map(_.transpose).transpose
+    val test6 = B.map(_.transpose).transpose.map(_.transpose)
+
+    assertArrayEquals(gold6.flatten.flatten, test6.flatten.flatten)
+
     // split o map(transpose) =>
 
     // transpose o split =>
