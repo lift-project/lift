@@ -103,6 +103,7 @@ class TestRules {
 
     assertArrayEquals(miscGold3.flatten.flatten, miscTest3.flatten.flatten)
 
+    // macro rule join-split and split-join-id
     // split o map(split()) => map(map(split)) o split()
     val miscGold4 = A.map(_.grouped(16).toArray).grouped(16).toArray
     val miscTest4 = A.grouped(16).toArray.map(_.map(_.grouped(16).toArray))

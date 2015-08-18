@@ -436,13 +436,20 @@ object Rules {
   val mapTransposeTransposeMapTranspose =
     Rule("Map(Transpose()) o Transpose() o Map(Transpose())) => " +
          "Transpose() o Map(Transpose()) o Transpose()", {
-      case c @ FunCall(Map(Lambda(param1, FunCall(Transpose(), a1))),
+      case FunCall(Map(Lambda(param1, FunCall(Transpose(), a1))),
             FunCall(Transpose(),
             FunCall(Map(Lambda(param2, FunCall(Transpose(), a2))), arg)))
         if (param1.head eq a1) && (param2.head eq a2)
       =>
         Transpose() o Map(Transpose()) o Transpose() $ arg
-  })
+
+      case FunCall(Map(Lambda(param1, FunCall(Transpose(), a1))),
+          FunCall(TransposeW(),
+          FunCall(Map(Lambda(param2, FunCall(Transpose(), a2))), arg)))
+        if (param1.head eq a1) && (param2.head eq a2)
+      =>
+        Transpose() o Map(Transpose()) o Transpose() $ arg
+    })
 
   val splitZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
                       "Map(x => Map() $ Zip(Get(n, x) ... ) $ Zip(Split $ ...)", {
@@ -550,6 +557,21 @@ object Rules {
   })
 
   /* Macro rules */
+
+  // transpose both sides + id
+  val transposeMapMapTranspose =
+    Rule("Transpose() o Map(Map(Transpose())) => " +
+      "Map(Map(Transpose())) o Transpose()", {
+      case FunCall(Transpose(),
+        FunCall(Map(Lambda(p1,
+          FunCall(Map(Lambda(p2,
+            FunCall(Transpose(), a2))
+           ), a1))
+         ), arg))
+        if (p1.head eq a1) && (p2.head eq a2)
+      =>
+        Map(Map(Transpose())) o Transpose() $ arg
+    })
 
   val mapFissionAtPosition: Int => Rule = position => Rule("", {
     case funCall @ FunCall(Map(Lambda(_, FunCall(_, _*))), _) => mapFissionAtPosition(position, funCall)

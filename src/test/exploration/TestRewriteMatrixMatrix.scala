@@ -90,7 +90,6 @@ class TestRewriteMatrixMatrix {
     val f33 = Rewrite.applyRuleAtId(f32, 55, Rules.transposeTransposeId)
     val f34 = Rewrite.applyRuleAtId(f33, 56, Rules.transposeTransposeId)
 
-    // maybe a better way?
     val f35 = Rewrite.applyRuleAtId(f34, 15, Rules.mapFission)
     val f36 = Rewrite.applyRuleAtId(f35, 15, Rules.transposeBothSides)
     val f37 = Rewrite.applyRuleAtId(f36, 14, Rules.transposeTransposeId)
@@ -98,9 +97,57 @@ class TestRewriteMatrixMatrix {
     // Now there's a massive bunch of transposes, splits and joins, which are id.
     // Can comment out and runs fine. Otherwise good.
 
-    println(NumberPrinter(f37))
-    println(f37)
+    val f38 = Rewrite.applyRuleAtId(f37, 16, Rules.mapFission)
+    val f39 = Rewrite.applyRuleAtId(f38, 15, Rules.transposeMapMapTranspose)
+    val f40 = Rewrite.applyRuleAtId(f39, 17, Rules.mapFission)
+    val f41 = Rewrite.applyRuleAtId(f40, 18, Rules.mapFission)
+    val f42 = Rewrite.applyRuleAtId(f41, 19, Rules.mapTransposeSplit)
+    val f43 = Rewrite.applyRuleAtId(f42, 21, Rules.transposeTransposeId)
+    val f44 = Rewrite.applyRuleAtId(f43, 16, Rules.transposeMapSplit)
+    val f45 = Rewrite.applyRuleAtId(f44, 18, Rules.transposeMapMapTranspose)
+    val f46 = Rewrite.applyRuleAtId(f45, 19, Rules.transposeTransposeId)
+    val f47 = Rewrite.applyRuleAtId(f46, 18, Rules.splitJoin(8))
+    val f48 = Rewrite.applyRuleAtId(f47, 17, Rules.splitJoinId)
+    val f49 = Rewrite.applyRuleAtId(f48, 19, Rules.splitJoin(8))
+    val f50 = Rewrite.applyRuleAtId(f49, 18, Rules.splitJoinId)
+    val f51 = Rewrite.applyRuleAtId(f50, 19, Rules.splitJoinId)
 
+    // Splits & joins eliminated, just transposes left
+
+    val f52 = Rewrite.applyRuleAtId(f51, 18, Rules.mapFusion)
+    val f53 = Rewrite.applyRuleAtId(f52, 26, Rules.mapSplitTranspose)
+    val f54 = Rewrite.applyRuleAtId(f53, 28, Rules.splitJoinId)
+    val f55 = Rewrite.applyRuleAtId(f54, 15, Rules.mapFusion)
+    val f56 = Rewrite.applyRuleAtId(f55, 15, Rules.mapFusion)
+    val f57 = Rewrite.applyRuleAtId(f56, 15, Rules.mapFusion)
+    val f58 = Rewrite.applyRuleAtId(f57, 24, Rules.transposeMapMapTranspose)
+    val f59 = Rewrite.applyRuleAtId(f58, 25, Rules.transposeTransposeId)
+    val f60 = Rewrite.applyRuleAtId(f59, 23, Rules.mapFusion)
+    val f61 = Rewrite.applyRuleAtId(f60, 23, Rules.mapFusion)
+    val f62 = Rewrite.applyRuleAtId(f61, 31, Rules.mapFission)
+    val f63 = Rewrite.applyRuleAtId(f62, 29, Rules.mapTransposeTransposeMapTranspose)
+    val f64 = Rewrite.applyRuleAtId(f63, 23, Rules.mapFusion)
+    val f65 = Rewrite.applyRuleAtId(f64, 30, Rules.transposeTransposeId)
+    val f66 = Rewrite.applyRuleAtId(f65, 29, Rules.mapFusion)
+    val f67 = Rewrite.applyRuleAtId(f66, 47, Rules.transposeTransposeId)
+    val f68 = Rewrite.applyRuleAtId(f67, 29, Rules.removeEmptyMap)
+    val f69 = Rewrite.applyRuleAtId(f68, 28, Rules.transposeTransposeId)
+
+    // Most transposes eliminated, just one left
+
+    val f70 = Rewrite.applyRuleAtId(f69, 52, Rules.partialReduceToReduce)
+    val f71 = Rewrite.applyRuleAtId(f70, 49, Rules.mapReduceInterchange)
+    val f72 = Rewrite.applyRuleAtId(f71, 50, Rules.transposeTransposeId)
+
+    // All unwanted transposes eliminated, start fusing
+
+    val f73 = Rewrite.applyRuleAtId(f72, 14, Rules.mapFusion)
+    val f74 = Rewrite.applyRuleAtId(f73, 22, Rules.mapFusion)
+    val f75 = Rewrite.applyRuleAtId(f74, 27, Rules.mapFusion)
+    val f76 = Rewrite.applyRuleAtId(f75, 32, Rules.reduceMapFusion)
+    val f77 = Rewrite.applyRuleAtId(f76, 13, Rules.reduceMapFusion)
+
+    println(f77)
   }
 
   @Test
