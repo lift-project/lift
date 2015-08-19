@@ -313,6 +313,24 @@ object Rules {
         newInit) o Transpose() $ mapArg
   })
 
+  val mapReducePartialReduce =
+    Rule("Map(Reduce(f, init) o Join() o Map(PartRed(f, init2)) ) => " +
+      "Transpose() o Reduce((acc, a) => Map(x => PartRed(f, Get(x, 0)) $ Get(x, 1)) $ Zip(acc, a) , Array(init)) o Transpose()", {
+      case c@ FunCall(Map(Lambda(p1,
+      FunCall(Reduce(f1), init: Value, FunCall(Join(), FunCall(Map(Lambda(p2,
+        FunCall(PartRed(f2), _, a2))), a1)))
+      )), arg)
+        if (p1.head eq a1) && (p2.head eq a2)
+      =>
+        val newInit = Value(init.value, ArrayType(init.t, Type.getLength(arg.t)))
+
+        TransposeW() o Reduce(fun((acc, a) =>
+          Join() o Map(fun(x =>
+            PartRed(f1, Get(x, 0)) $ Get(x,1)
+          )) $ Zip(acc, a)
+        ), newInit) o Transpose() $ arg
+    })
+
   val reorderBothSides = Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
     case FunCall(map@Map(_), arg) =>
       Scatter(reorderStride(4)) o map o Gather(reorderStride(4)) $ arg

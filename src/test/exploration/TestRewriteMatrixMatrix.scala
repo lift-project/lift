@@ -81,29 +81,22 @@ class TestRewriteMatrixMatrix {
     val f25 = Rewrite.applyRuleAtId(f24, 78, Rules.partialReduce)
     val f26 = Rewrite.applyRuleAtId(f25, 79, Rules.partialReduceSplitJoin(tileSizeK))
 
-    val f27 = Rewrite.applyRuleAtId(f26, 76, Rules.mapFission)
-    val f28 = Rewrite.applyRuleAtId(f27, 76, Rules.mapReduceInterchangeBroken)
-    val f29 = Rewrite.applyRuleAtId(f28, 73, Rules.mapFission)
-    val f30 = Rewrite.applyRuleAtId(f29, 73, Rules.mapReduceInterchangeBroken)
-    val f31 = Rewrite.applyRuleAtId(f30, 65, Rules.mapFission)
-    val f32 = Rewrite.applyRuleAtId(f31, 65, Rules.mapReduceInterchangeBroken)
-    val f33 = Rewrite.applyRuleAtId(f32, 14, Rules.mapFission)
-    val f34 = Rewrite.applyRuleAtId(f33, 14, Rules.mapReduceInterchangeBroken)
+    val f27 = Rewrite.applyRuleAtId(f26, 76, Rules.mapFissionAtPosition(2))
+    val f28 = Rewrite.applyRuleAtId(f27, 76, Rules.mapReducePartialReduce)
+    val f29 = Rewrite.applyRuleAtId(f28, 73, Rules.mapFissionAtPosition(1))
+    val f30 = Rewrite.applyRuleAtId(f29, 73, Rules.mapFission)
+    val f31 = Rewrite.applyRuleAtId(f30, 74, Rules.mapReduceInterchange)
+    val f32 = Rewrite.applyRuleAtId(f31, 65, Rules.mapFissionAtPosition(2))
+    val f33 = Rewrite.applyRuleAtId(f32, 65, Rules.mapFissionAtPosition(1))
+    val f34 = Rewrite.applyRuleAtId(f33, 66, Rules.mapReduceInterchange)
+    val f35 = Rewrite.applyRuleAtId(f34, 14, Rules.mapFissionAtPosition(2))
+    val f36 = Rewrite.applyRuleAtId(f35, 14, Rules.mapFissionAtPosition(1))
+    val f37 = Rewrite.applyRuleAtId(f36, 15, Rules.mapReduceInterchange)
 
-    // Output's good
+    // Output's good, nested reduces use same memory
 
-    val f35 = Rewrite.applyRuleAtId(f34, 81, Rules.mapFissionAtPosition(1))
-    val f36 = Rewrite.applyRuleAtId(f35, 81, Rules.transposeBothSides)
-    val f37 = Rewrite.applyRuleAtId(f36, 80, Rules.transposeTransposeId)
-    val f38 = Rewrite.applyRuleAtId(f37, 81, Rules.transposeMapSplit)
-    val f39 = Rewrite.applyRuleAtId(f38, 80, Rules.mapFusion)
-    val f40 = Rewrite.applyRuleAtId(f39, 88, Rules.partialReduceToReduce)
-    val f41 = Rewrite.applyRuleAtId(f40, 85, Rules.mapReduceInterchangeBroken)
-    val f42 = Rewrite.applyRuleAtId(f41, 86, Rules.transposeTransposeId)
-
-    val f43 = Rewrite.applyRuleAtId(f42, 80, Rules.mapFission)
-    val f44 = Rewrite.applyRuleAtId(f43, 81, Rules.mapReduceInterchange)
-    val f45 = Rewrite.applyRuleAtId(f44, 77, Rules.mapFissionAtPosition(2))
+    println(NumberPrinter(f37))
+    println(f37)
   }
 
   @Test

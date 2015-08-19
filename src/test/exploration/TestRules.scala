@@ -123,9 +123,24 @@ class TestRules {
 
     assertArrayEquals(gold6.flatten.flatten, test6.flatten.flatten)
 
+    // map(reduce(f, init) o join o map(reduce(f, init2)) =>
+    // reduce(acc, a => map(acc, a => reduce(f, acc) $ a ) o zip(acc, a) , array(init)) o transpose
+    val gold7 = B.map(_.map(_.sum).sum)
+    val misc7 = B.transpose.foldLeft(Array.fill(size)(0))((acc, a) => (acc, a).zipped.map((acc, a) => a.foldLeft(acc)((a, b) => a+b)))
+    assertArrayEquals(gold7, misc7)
+
     // split o map(transpose) =>
 
     // transpose o split =>
+  }
+
+  @Test
+  def nestPartialReduceInReduce(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, 16), 16), 16),
+      a => Map( Reduce(add, 0.0f) o Join() o Map(PartRed(fun((x, y) => add(x, y)), 0.0f)) ) $ a)
+
+    println(Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce))
   }
 
   @Test
