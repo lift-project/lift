@@ -99,6 +99,8 @@ object Rules {
       }) => arg
   })
 
+  // TODO: Reorder-Reorder id
+
   /* Fusion Rules */
 
   val reduceSeqMapSeqFusion = Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
@@ -276,8 +278,12 @@ object Rules {
       TransposeW() o Map(Lambda(b, FunCall(Map(Lambda(a, expr)), aArg))) $ bArg
   })
 
-  val mapReduceInterchange = Rule("Map(Reduce(f)) => Reduce(Map(f)) o Transpose()", {
-    case FunCall(Map(Lambda(lambdaParams, FunCall(Reduce(Lambda(innerParams, expr)), init: Value, arg))), mapArg)
+  // TODO: Remove once everything is replaced with the correct one (below)
+  @deprecated
+  val mapReduceInterchangeBroken = Rule("Map(Reduce(f)) => Reduce(Map(f)) o Transpose()", {
+    case FunCall(Map(Lambda(lambdaParams,
+          FunCall(Reduce(Lambda(innerParams, expr)), init: Value, arg)
+         )), mapArg)
       if lambdaParams.head eq arg
     =>
       val newInit = Value(init.value, ArrayType(init.t, Type.getLength(mapArg.t)))
@@ -287,6 +293,22 @@ object Rules {
                         Expr.replace(e, pair._1, Get(pair._2)(newMapParam)))
 
       Reduce(fun((acc, c) => Map(Lambda(Array(newMapParam), newExpr)) $ Zip(acc, c)),
+        newInit) o Transpose() $ mapArg
+  })
+
+  val mapReduceInterchange = Rule("Map(Reduce(f)) => Transpose() o Reduce(Map(f)) o Transpose()", {
+    case FunCall(Map(Lambda(lambdaParams,
+          FunCall(Reduce(Lambda(innerParams, expr)), init: Value, arg)
+         )), mapArg)
+      if lambdaParams.head eq arg
+    =>
+      val newInit = Value(init.value, ArrayType(init.t, Type.getLength(mapArg.t)))
+
+      val newMapParam = Param()
+      val newExpr = innerParams.zipWithIndex.foldLeft(expr)((e, pair) =>
+        Expr.replace(e, pair._1, Get(pair._2)(newMapParam)))
+
+      TransposeW() o Reduce(fun((acc, c) => Map(Lambda(Array(newMapParam), newExpr)) $ Zip(acc, c)),
         newInit) o Transpose() $ mapArg
   })
 
@@ -303,6 +325,7 @@ object Rules {
     }
   }
 
+  // TODO: restrict to Map(Map(f)) and create a special case for Map(Reduce)?
   val transposeBothSides = Rule("Map(fun(a => ... $ a)) $ A => " +
     "Transpose() o Map(fun(a =>... $ a)) o Transpose() $ A  ", {
     case outerCall@FunCall(Map(f@Lambda(lambdaArg, innerCall@FunCall(_,_))), arg)
@@ -321,7 +344,8 @@ object Rules {
         =>
         case c @ FunCall(Join(), _)
           if (c.args.head.t match {
-          case ArrayType(ArrayType(_, len), _) => len != Cst(1)
+          case ArrayType(ArrayType(_, lenInner), lenOuter) =>
+            lenInner != Cst(1) && lenOuter != Cst(1)
           case _ => true
         }) =>
       })
