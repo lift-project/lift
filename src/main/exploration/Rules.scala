@@ -207,6 +207,7 @@ object Rules {
 
       val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
 
+      // TODO: address space
       toGlobal(MapSeq(idFunction2)) o ReduceSeq(f, newInit) $ arg
   })
 

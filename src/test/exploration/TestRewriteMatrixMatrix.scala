@@ -323,30 +323,31 @@ class TestRewriteMatrixMatrix {
     val M = Var("M")
     val K = Var("K")
 
-    val f0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, K), N), (p951880373, p1752203484) => FunCall(Join(), FunCall(Map(fun((p243745864) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p699780352) => FunCall(Unpack() o toGlobal(fun((p1613255205) => FunCall(MapSeq(fun((p1897115967) => FunCall(Map(fun((p1166151249) => FunCall(Map(fun((p1121453612) => FunCall(id, p1121453612))), p1166151249))), p1897115967))), p1613255205))), FunCall(ReduceSeq(fun((p2619171, p1728790703) => FunCall(Map(fun((p1227074340) => FunCall(Map(fun((p1154002927) => FunCall(add, FunCall(Get(0), p1154002927), FunCall(Get(1), p1154002927)))), FunCall(Zip(2), FunCall(Get(0), p1227074340), FunCall(Get(1), p1227074340))))), FunCall(Zip(2), p2619171, FunCall(fun((p2070529722) => FunCall(Map(fun((p1188753216) => FunCall(Join(), FunCall(Map(fun((p317986356) => FunCall(toPrivate(fun((p331510866) => FunCall(MapSeq(fun((p640363654) => FunCall(id, p640363654))), p331510866))), FunCall(ReduceSeq(fun((p924477420, p99451533) => FunCall(add, p924477420, FunCall(fun((p84739718) => FunCall(mult, FunCall(Get(0), p84739718), FunCall(Get(1), p84739718))), p99451533)))), FunCall(toPrivate(id), Value(0.0f, Float)), FunCall(Zip(2), p317986356, p1188753216))))), FunCall(Transpose(), FunCall(Get(0), p2070529722)))))), FunCall(Transpose(), FunCall(Get(1), p2070529722)))), p1728790703))))), FunCall(toPrivate(Map(fun((p2050835901) => FunCall(Map(fun((p511473681) => FunCall(id, p511473681))), p2050835901)))), Value(0.0f, ArrayType(ArrayType(Float, 4), 4))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p243745864)), FunCall(Split(4), FunCall(Transpose(), p699780352))))))), FunCall(Split(4), p1752203484)))))), FunCall(Split(4), p951880373))))
+    val f0 =  fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, K), N), (p662736689, p1897115967) => FunCall(Join(), FunCall(Map(fun((p140799417) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p926370398) => FunCall(TransposeW(), FunCall(Map(fun((p1391942103) => FunCall(TransposeW(), p1391942103))), FunCall(TransposeW(), FunCall(toGlobal(fun((p17037394) => FunCall(MapSeq(fun((p1484531981) => FunCall(Map(fun((p1159114532) => FunCall(Map(fun((p1256728724) => FunCall(id, p1256728724))), p1159114532))), p1484531981))), p17037394))), FunCall(ReduceSeq(fun((p183284570, p1607305514) => FunCall(Map(fun((p1453128758) => FunCall(Map(fun((p1122805102) => FunCall(add, FunCall(Get(0), p1122805102), FunCall(Get(1), p1122805102)))), FunCall(Zip(2), FunCall(Get(0), p1453128758), FunCall(Get(1), p1453128758))))), FunCall(Zip(2), p183284570, FunCall(fun((p668210649) => FunCall(Map(fun((p188576144) => FunCall(Join(), FunCall(Map(fun((p282432134) => FunCall(toPrivate(fun((p999609945) => FunCall(MapSeq(fun((p615634843) => FunCall(id, p615634843))), p999609945))), FunCall(ReduceSeq(fun((p1758386724, p673068808) => FunCall(add, p1758386724, FunCall(fun((p266437232) => FunCall(mult, FunCall(Get(0), p266437232), FunCall(Get(1), p266437232))), p673068808)))), FunCall(id, Value(0.0f, Float)), FunCall(Zip(2), p188576144, p282432134))))), FunCall(Transpose(), FunCall(Get(1), p668210649)))))), FunCall(Transpose(), FunCall(Get(0), p668210649)))), p1607305514))))), FunCall(Map(fun((p900008524) => FunCall(Map(fun((p520232556) => FunCall(id, p520232556))), p900008524))), Value(0.0f, ArrayType(ArrayType(Float, 4), 4))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p140799417)), FunCall(Split(4), FunCall(Transpose(), p926370398)))))))))), FunCall(Split(4), p1897115967)))))), FunCall(Split(4), p662736689))))
 
     // Add a copy
-    val f1 = Rewrite.applyRuleAtId(f0, 28, Rules.addId)
+    val f1 = Rewrite.applyRuleAtId(f0, 29, Rules.addId)
 
     // Lower to OpenCL execution model
     val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.mapWrg(0))
     val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.mapWrg(1))
-    val f4 = Rewrite.applyRuleAtId(f3, 94, Rules.mapLcl(1))
-    val f5 = Rewrite.applyRuleAtId(f4, 96, Rules.mapLcl(0))
-    val f6 = Rewrite.applyRuleAtId(f5, 26, Rules.mapLcl(1))
-    val f7 = Rewrite.applyRuleAtId(f6, 78, Rules.mapLcl(0))
-    val f8 = Rewrite.applyRuleAtId(f7, 46, Rules.mapLcl(1))
-    val f9 = Rewrite.applyRuleAtId(f8, 51, Rules.mapLcl(0))
-    val f10 = Rewrite.applyRuleAtId(f9, 39, Rules.mapLcl(1))
-    val f11 = Rewrite.applyRuleAtId(f10, 42, Rules.mapLcl(0))
-    val f12 = Rewrite.applyRuleAtId(f11, 32, Rules.mapLcl(1))
-    val f13 = Rewrite.applyRuleAtId(f12, 35, Rules.mapLcl(0))
-    val f14 = Rewrite.applyRuleAtId(f13, 20, Rules.mapLcl(1))
-    val f15 = Rewrite.applyRuleAtId(f14, 22, Rules.mapLcl(0))
+
+    val f4 = Rewrite.applyRuleAtId(f3, 90, Rules.mapLcl(1))
+    val f5 = Rewrite.applyRuleAtId(f4, 92, Rules.mapLcl(0))
+    val f6 = Rewrite.applyRuleAtId(f5, 27, Rules.mapLcl(1))
+    val f7 = Rewrite.applyRuleAtId(f6, 77, Rules.mapLcl(0))
+    val f8 = Rewrite.applyRuleAtId(f7, 47, Rules.mapLcl(1))
+    val f9 = Rewrite.applyRuleAtId(f8, 52, Rules.mapLcl(0))
+    val f10 = Rewrite.applyRuleAtId(f9, 40, Rules.mapLcl(1))
+    val f11 = Rewrite.applyRuleAtId(f10, 43, Rules.mapLcl(0))
+    val f12 = Rewrite.applyRuleAtId(f11, 33, Rules.mapLcl(1))
+    val f13 = Rewrite.applyRuleAtId(f12, 36, Rules.mapLcl(0))
+    val f14 = Rewrite.applyRuleAtId(f13, 21, Rules.mapLcl(1))
+    val f15 = Rewrite.applyRuleAtId(f14, 23, Rules.mapLcl(0))
 
     // Lower to OpenCL memory model
-    val f16 = Rewrite.applyRuleAtId(f15, 39, Rules.localMemory)
-    val f17 = Rewrite.applyRuleAtId(f16, 32, Rules.localMemory)
+    val f16 = Rewrite.applyRuleAtId(f15, 40, Rules.localMemory)
+    val f17 = Rewrite.applyRuleAtId(f16, 33, Rules.localMemory)
 
     val mSize = 16
     val kSize = 16
@@ -403,10 +404,10 @@ class TestRewriteMatrixMatrix {
 
     val f1 = Rewrite.applyRuleAtId(f0, 2, Rules.splitJoin)
     val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission)
-    val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.mapReduceInterchangeBroken)
-    val f4 = Rewrite.applyRuleAtId(f3, 8, Rules.mapMapTransposeZipInside)
-    val f5 = Rewrite.applyRuleAtId(f4, 7, Rules.transposeTransposeId)
-    val f6 = Rewrite.applyRuleAtId(f5, 6, Rules.reduceMapFusion)
+    val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.mapReduceInterchange)
+    val f4 = Rewrite.applyRuleAtId(f3, 9, Rules.mapMapTransposeZipInside)
+    val f5 = Rewrite.applyRuleAtId(f4, 8, Rules.transposeTransposeId)
+    val f6 = Rewrite.applyRuleAtId(f5, 7, Rules.reduceMapFusion)
 
     println(f6)
   }
@@ -434,16 +435,17 @@ class TestRewriteMatrixMatrix {
       val f5 = Rewrite.applyRuleAtId(f4, 6, Rules.splitJoin)
       val f6 = Rewrite.applyRuleAtId(f5, 11, Rules.mapMapInterchange)
       val f7 = Rewrite.applyRuleAtId(f6, 14, Rules.mapFission)
-      val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.mapReduceInterchangeBroken)
-      val f9 = Rewrite.applyRuleAtId(f8, 16, Rules.mapMapTransposeZipInside)
-      val f10 = Rewrite.applyRuleAtId(f9, 15, Rules.transposeTransposeId)
+      val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.mapReduceInterchange)
+      val f9 = Rewrite.applyRuleAtId(f8, 17, Rules.mapMapTransposeZipInside)
+      val f10 = Rewrite.applyRuleAtId(f9, 16, Rules.transposeTransposeId)
       val f11 = Rewrite.applyRuleAtId(f10, 12, Rules.mapFission)
-      val f12 = Rewrite.applyRuleAtId(f11, 12, Rules.mapReduceInterchangeBroken)
-      val f13 = Rewrite.applyRuleAtId(f12, 14, Rules.mapMapTransposeZipInside)
-      val f14 = Rewrite.applyRuleAtId(f13, 13, Rules.transposeTransposeId)
-      val f15 = Rewrite.applyRuleAtId(f14, 12, Rules.reduceMapFusion)
+      val f12 = Rewrite.applyRuleAtId(f11, 13, Rules.mapFission)
+      val f13 = Rewrite.applyRuleAtId(f12, 13, Rules.mapReduceInterchange)
+      val f14 = Rewrite.applyRuleAtId(f13, 16, Rules.mapMapTransposeZipInside)
+      val f15 = Rewrite.applyRuleAtId(f14, 15, Rules.transposeTransposeId)
+      val f16 = Rewrite.applyRuleAtId(f15, 14, Rules.reduceMapFusion)
 
-      println(f15)
+      println(f16)
     }
 
 
@@ -475,36 +477,38 @@ class TestRewriteMatrixMatrix {
 
     // Pull out the last one
     val f4 = Rewrite.applyRuleAtId(f3, 12, Rules.mapFission)
-    val f5 = Rewrite.applyRuleAtId(f4, 12, Rules.mapReduceInterchangeBroken)
+    val f5 = Rewrite.applyRuleAtId(f4, 12, Rules.mapReduceInterchange)
     val f6 = Rewrite.applyRuleAtId(f5, 10, Rules.mapFission)
-    val f7 = Rewrite.applyRuleAtId(f6, 10, Rules.mapReduceInterchangeBroken)
+    val f7 = Rewrite.applyRuleAtId(f6, 11, Rules.mapFission)
+    val f8 = Rewrite.applyRuleAtId(f7, 11, Rules.mapReduceInterchange)
+
 
     // Pull Zip outside
-    val f8 = Rewrite.applyRuleAtId(f7, 15, Rules.mapFissionAtPosition(2))
-    val f9 = Rewrite.applyRuleAtId(f8, 16, Rules.mapMapTransposeZipInside)
-    val f10 = Rewrite.applyRuleAtId(f9, 12, Rules.mapFissionAtPosition(2))
-    val f12 = Rewrite.applyRuleAtId(f10, 13, Rules.mapMapTransposeZipInside)
+    val f9 = Rewrite.applyRuleAtId(f8, 17, Rules.mapFissionAtPosition(2))
+    val f10 = Rewrite.applyRuleAtId(f9, 18, Rules.mapMapTransposeZipInside)
+    val f11 = Rewrite.applyRuleAtId(f10, 14, Rules.mapFissionAtPosition(2))
+    val f12 = Rewrite.applyRuleAtId(f11, 15, Rules.mapMapTransposeZipInside)
 
-    val f13 = Rewrite.applyRuleAtId(f12, 14, Rules.finishTilingInput(tileSizeK))
+    val f13 = Rewrite.applyRuleAtId(f12, 16, Rules.finishTilingInput(tileSizeK))
 
     // Move split from partial reduce out and eliminate transposes on the left hand side
-    val f14 = Rewrite.applyRuleAtId(f13, 42, Rules.transposeBothSidesWithSplit)
-    val f15 = Rewrite.applyRuleAtId(f14, 11, Rules.transposeBothSidesWithSplit)
-    val f16 = Rewrite.applyRuleAtId(f15, 13, Rules.splitJoinId)
+    val f14 = Rewrite.applyRuleAtId(f13, 44, Rules.transposeBothSidesWithSplit)
+    val f15 = Rewrite.applyRuleAtId(f14, 13, Rules.transposeBothSidesWithSplit)
+    val f16 = Rewrite.applyRuleAtId(f15, 15, Rules.splitJoinId)
 
     // Fuse maps and get rid of transposes in between Reduce(add) and Map(mult)
-    val f17 = Rewrite.applyRuleAtId(f16, 12, Rules.mapFusion)
-    val f18 = Rewrite.applyRuleAtId(f17, 20, Rules.transposeTransposeId)
-    val f19 = Rewrite.applyRuleAtId(f18, 11, Rules.mapFusion)
-    val f20 = Rewrite.applyRuleAtId(f19, 20, Rules.mapFusion)
-    val f21 = Rewrite.applyRuleAtId(f20, 24, Rules.transposeTransposeId)
-    val f22 = Rewrite.applyRuleAtId(f21, 19, Rules.mapFusion)
-    val f23 = Rewrite.applyRuleAtId(f22, 24, Rules.mapFusion)
+    val f17 = Rewrite.applyRuleAtId(f16, 14, Rules.mapFusion)
+    val f18 = Rewrite.applyRuleAtId(f17, 22, Rules.transposeTransposeId)
+    val f19 = Rewrite.applyRuleAtId(f18, 13, Rules.mapFusion)
+    val f20 = Rewrite.applyRuleAtId(f19, 22, Rules.mapFusion)
+    val f21 = Rewrite.applyRuleAtId(f20, 26, Rules.transposeTransposeId)
+    val f22 = Rewrite.applyRuleAtId(f21, 21, Rules.mapFusion)
+    val f23 = Rewrite.applyRuleAtId(f22, 26, Rules.mapFusion)
 
     // ReduceSeq o MapSeq fusion x2
-    val f24 = Rewrite.applyRuleAtId(f23, 28, Rules.partialReduceToReduce)
-    val f25 = Rewrite.applyRuleAtId(f24, 28, Rules.reduceMapFusion)
-    val f26 = Rewrite.applyRuleAtId(f25, 10, Rules.reduceMapFusion)
+    val f24 = Rewrite.applyRuleAtId(f23, 30, Rules.partialReduceToReduce)
+    val f25 = Rewrite.applyRuleAtId(f24, 30, Rules.reduceMapFusion)
+    val f26 = Rewrite.applyRuleAtId(f25, 12, Rules.reduceMapFusion)
 
     println(f26)
   }
