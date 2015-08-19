@@ -34,8 +34,8 @@ case class Zip(n : Int) extends FunDecl(arity = n) with isGenerable {
 
         // make sure all arguments have the same size
         if (arrayTypes.map(_.len).distinct.length != 1) {
-          Console.err.println("Warning: can not statically prove that sizes (" +
-            tt.elemsT.mkString(", ") + ") match!")
+          throw new TypeException("Warning: can not statically prove that sizes (" +
+            tt.elemsT.mkString(", ") + ") match!\n")
           // throw TypeException("sizes do not match")
         }
 
