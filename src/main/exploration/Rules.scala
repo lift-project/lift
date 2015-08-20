@@ -53,7 +53,7 @@ object Rules {
 
   val partialReduceReorder = Rule("PartRed(f) => PartRed(f) o Reorder", {
     case FunCall(PartRed(f), init, arg) =>
-      PartRed(f, init) o Gather(reorderStride(4)) $ arg
+      PartRed(f, init) o Gather(ReorderWithStride(4)) $ arg
   })
 
   // TODO: iterate
@@ -99,7 +99,17 @@ object Rules {
       }) => arg
   })
 
-  // TODO: Reorder-Reorder id
+  val scatterGatherId = Rule("Scatter(f) o Gather(f) => id", {
+    case FunCall(Scatter(f1), FunCall(Gather(f2), arg))
+      if f1 == f2
+    => arg
+  })
+
+  val gatherScatterId = Rule("Gather(f) o Scatter(f) => id", {
+    case FunCall(Gather(f1), FunCall(Scatter(f2), arg))
+      if f1 == f2
+    => arg
+  })
 
   /* Fusion Rules */
 
@@ -333,7 +343,7 @@ object Rules {
 
   val reorderBothSides = Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
     case FunCall(map@Map(_), arg) =>
-      Scatter(reorderStride(4)) o map o Gather(reorderStride(4)) $ arg
+      Scatter(ReorderWithStride(4)) o map o Gather(ReorderWithStride(4)) $ arg
   })
 
   def getFinalArg(expr: Expr): Expr = {

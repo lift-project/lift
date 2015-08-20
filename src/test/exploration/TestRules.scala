@@ -129,9 +129,36 @@ class TestRules {
     val misc7 = B.transpose.foldLeft(Array.fill(size)(0))((acc, a) => (acc, a).zipped.map((acc, a) => a.foldLeft(acc)((a, b) => a+b)))
     assertArrayEquals(gold7, misc7)
 
+    val gold8 = A.reverse.transpose
+    val test8 = A.transpose.map(_.reverse)
+
+    assertArrayEquals(gold8.flatten, test8.flatten)
+
+    val gold9 = B.transpose.map(_.transpose.reverse)
+    val test9 = B.map(_.map(_.reverse)).transpose.map(_.transpose)
+
+    assertArrayEquals(gold9.flatten.flatten, test9.flatten.flatten)
+
     // split o map(transpose) =>
 
     // transpose o split =>
+  }
+
+  @Test
+  def scatterGatherId(): Unit = {
+
+    val f = fun(
+      ArrayType(Float, 16),
+      in => Gather(ReorderWithStride(16)) o Scatter(ReorderWithStride(16)) $ in
+    )
+
+    val g = fun(
+      ArrayType(Float, 16),
+      in => Scatter(ReorderWithStride(16)) o Gather(ReorderWithStride(16)) $ in
+    )
+
+    assertTrue(Rules.gatherScatterId.rewrite.isDefinedAt(f.body))
+    assertTrue(Rules.scatterGatherId.rewrite.isDefinedAt(g.body))
   }
 
   @Test

@@ -94,6 +94,8 @@ class TestRewriteMatrixMatrix {
     val f37 = Rewrite.applyRuleAtId(f36, 15, Rules.mapReduceInterchange)
 
     // Output's good, nested reduces use same memory
+    // Can be brought into a form, where a large chunk (splits, joins, transposes and reorders)
+    // can be commented out and runs fine.
 
     println(NumberPrinter(f37))
     println(f37)
