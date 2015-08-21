@@ -75,12 +75,13 @@ object Lambda {
   def apply(params: Array[Param],
             body: Expr): Lambda = {
     body match {
-      case FunCall(funDecl, FunCall(Lambda(lambdaParams,lambdaBody), _*))
-        if lambdaParams.length == params.length
+      case FunCall(funDecl, FunCall(Lambda(lambdaParams,lambdaBody), args@_*))
+        if lambdaParams.length == params.length && (lambdaParams, args).zipped.forall((a, b) => a eq b)
       =>
 
         val a = (lambdaParams, params).zipped.foldLeft(lambdaBody)(
-          (e: Expr, pair: (Param, Param)) => Expr.replace(e, pair._1, pair._2))
+            (e: Expr, pair: (Param, Param)) => Expr.replace(e, pair._1, pair._2))
+
         new Lambda(params, FunCall(funDecl, a)) {}
       case _ => new Lambda(params, body) {}
     }

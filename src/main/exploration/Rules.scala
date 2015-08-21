@@ -733,6 +733,29 @@ object Rules {
       Unzip() o Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)
   })
 
+  val tupleFission =
+    Rule("Tuple(f $... , g $ ..., ...) => " +
+         "Tuple(f $ Get( , 0), g $ Get( , 1), ...) o Tuple(...)", {
+    case call@FunCall(Tuple(_), args@_*)
+      if args.forall({
+        case FunCall(_, FunCall(_, _)) => true
+        case _ => false
+      })
+    =>
+
+      val param = Param()
+
+      val firsts = args.zipWithIndex.map({
+        case (FunCall(f, _), i) => f $ Get(param, i)
+      })
+
+      val seconds = args.map({
+        case FunCall(_, f) => f
+      })
+
+      FunCall(Lambda(Array(param), Tuple(firsts:_*)), Tuple(seconds:_*))
+  })
+
   val iterate1 = Rule("Iterate(1, x) => x", {
     case FunCall(Iterate(n, f), arg) if n.eval == 1 => f(arg)
   })
@@ -889,13 +912,6 @@ object Rules {
         case _ => s
       }
     })
-  }
-
-  private def findGets(funDecl: FunDecl, tupleParam: Expr): List[FunCall] = {
-    funDecl match {
-      case fp: FPattern => findGets(fp.f.body, tupleParam)
-      case _ => List()
-    }
   }
 
   private def validOSplitRange(t: Type) = {
