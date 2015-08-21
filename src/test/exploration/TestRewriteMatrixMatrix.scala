@@ -44,6 +44,9 @@ class TestRewriteMatrixMatrix {
     val workPerThreadN = 8
     val workPerThreadM = 8
 
+    val tileTranspositionM = 32
+    val tileTranspositionK = 32
+
     val stride = tileSizeMN/workPerThreadM
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.tileOutput(tileSizeMN))
@@ -133,7 +136,14 @@ class TestRewriteMatrixMatrix {
     val h14 = Rewrite.applyRuleAtId(h13, 3, Rules.mapTransposeSplit)
     val h15 = Rewrite.applyRuleAtId(h14, 2, Rules.mapSplitTranspose)
 
-    println(h15)
+    // Tile the transposition
+
+    val h16 = Rewrite.applyRuleAtId(h15, 5, Rules.addCopy)
+    val h17 = Rewrite.applyRuleAtId(h16, 6, Rules.tileMapMap(tileTranspositionM, tileTranspositionK))
+    val h18 = Rewrite.applyRuleAtId(h17, 7, Rules.mapFissionAtPosition(2))
+    val h19 = Rewrite.applyRuleAtId(h18, 8, Rules.moveTransposeInsideTiling)
+
+    println(NumberPrinter(h19))
   }
 
   @Test
@@ -373,45 +383,6 @@ class TestRewriteMatrixMatrix {
     val (output: Array[Float], _) =
       Execute(y, x, nSize, mSize, (false, false))(f12, matrix)
     assertArrayEquals(gold.flatten, output, 0.0f)
-  }
-
-  @Test
-  def transposeBothSidesWithSplit(): Unit = {
-
-    val tileSize = 4
-    val N = Var("N")
-
-    val f0 = fun( ArrayType(ArrayType(ArrayType(Float, tileSize), tileSize), N),
-      input =>
-        Transpose() o
-          Map(
-            Transpose() o
-              Map(
-                Join() o
-                Map(ReduceSeq(add, 0.0f)) o
-                Split(tileSize)
-              ) o
-              Transpose()
-          ) o
-          Transpose() $ input)
-
-    val f1 = Rewrite.applyRuleAtId(f0, 4, Rules.transposeBothSidesWithSplit)
-    val f2 = Rewrite.applyRuleAtId(f1, 0, Rules.transposeBothSidesWithSplit)
-
-    println(f2)
-
-    val h0 = fun( ArrayType(ArrayType(ArrayType(Float, tileSize), tileSize), N),
-      input =>
-        Transpose() o
-          Map(
-            Map(Join() o Map(ReduceSeq(add, 0.0f))) o
-              Map(Transpose()) o
-              Split(tileSize)) o
-          Transpose() $ input)
-
-    val h1 = Rewrite.applyRuleAtId(h0, 0, Rules.transposeBothSidesWithSplit)
-
-    println(h1)
   }
 
   @Test
