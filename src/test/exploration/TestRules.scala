@@ -626,7 +626,7 @@ class TestRules {
       case Lambda(_, FunCall(Map(Lambda(_, c)), _)) => c
     }
 
-    println(applyRule(f, e, Rules.addId))
+    println(applyRule(f, e, Rules.addCopy))
   }
 
   @Test
@@ -640,7 +640,7 @@ class TestRules {
       case Lambda(_, c@FunCall(_, _)) => c
     }
 
-    println(applyRule(f, e, Rules.addId))
+    println(applyRule(f, e, Rules.addCopy))
   }
 
   @Test
@@ -654,6 +654,6 @@ class TestRules {
       case Lambda(_, c@FunCall(_, _)) => c
     }
 
-    println(applyRule(f, e, Rules.addId))
+    println(applyRule(f, e, Rules.addCopy))
   }
 }

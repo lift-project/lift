@@ -647,23 +647,83 @@ object Rules {
       case FunCall(_, p: Param) if p eq param =>
     })
 
+  private def generateCopy(t: Type): FunDecl = {
+    t match {
+      case TupleType(tt@_*) =>
+        val newParam = Param()
+        val argSequence = tt.zipWithIndex.map(p => generateCopy(p._1) $ Get(newParam, p._2))
+        Lambda(Array(newParam), Tuple(argSequence:_*))
+      case ArrayType(elemT, _) =>
+        Map(generateCopy(elemT))
+      case _ => generateId(t)
+    }
+  }
+
   private def generateId(t: Type): FunDecl = {
     t match {
       case TupleType(tt@_*) =>
         val newParam = Param()
-        val argSequence = tt.zipWithIndex.map(p => generateId(p._1) $ Get(newParam, p._2))
+        val argSequence = tt.zipWithIndex.map(p => Id() $ Get(newParam, p._2))
         Lambda(Array(newParam), Tuple(argSequence:_*))
       case ArrayType(elemT, _) =>
-        Map(generateId(elemT))
+        Map(Id())
       case ScalarType(_, _) | VectorType(_, _) =>
         UserFun("id" + t, "x", "{ return x; }", t, t)
       case _ => throw TypeException(s"Can't generate id function for $t")
     }
   }
 
+  val dropId = Rule("Id() => Epsilon()", {
+    case FunCall(Id(), arg) =>
+      arg
+  })
+
+  val implementOneLevelOfId = Rule("Id() => ", {
+    case FunCall(Id(), arg) =>
+      generateId(arg.t) $ arg
+  })
+
+  val implementIdAsDeepCopy = Rule("Id() => ", {
+    case FunCall(Id(), arg) =>
+      generateCopy(arg.t) $ arg
+  })
+
   val addId = Rule("f => f o Id()", {
     case FunCall(f, arg) =>
-      f o generateId(arg.t) $ arg
+      f o Id() $ arg
+  })
+
+  val wrapInLambdaAndAddId = Rule("", {
+    case call@FunCall(f, arg) =>
+      val newParam = Param()
+
+      val finalArg = getFinalArg(call)
+
+      println(finalArg)
+
+      val newCall = Expr.replace(call, finalArg, newParam)
+
+      Lambda(Array(newParam), newCall) o Id() $ finalArg
+  })
+
+  val addIdForCurrentValueInReduce = Rule("", {
+    case call@FunCall(ReduceSeq(l), _, _) =>
+      val params = l.params
+      val body = l.body
+      val newParam = Param()
+
+      val paramForCurrent = params(1)
+
+      val tempBody = Expr.replace(body, paramForCurrent, newParam)
+
+      val newBody = Lambda(Array(newParam), tempBody) o Id() $ paramForCurrent
+
+      Expr.replace(call, body, newBody)
+  })
+
+  val addCopy = Rule("f => f o Id()", {
+    case FunCall(f, arg) =>
+      f o generateCopy(arg.t) $ arg
   })
 
   val tupleMap = Rule("Tuple(Map(f) $ .. , Map(g) $ .., ...) => " +
@@ -681,7 +741,7 @@ object Rules {
       val lambdaParam = Param()
 
       val maps = args.zipWithIndex.map({
-        case (FunCall(f, _), n) => f $ Get(lambdaParam, n)
+        case (FunCall(Map(f), _), n) => f $ Get(lambdaParam, n)
       })
 
       Unzip() o Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)

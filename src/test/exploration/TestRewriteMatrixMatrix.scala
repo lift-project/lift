@@ -39,10 +39,10 @@ class TestRewriteMatrixMatrix {
         )) $ A
       })
 
-    val tileSizeMN = 16
-    val tileSizeK = 8
-    val workPerThreadN = 2
-    val workPerThreadM = 4
+    val tileSizeMN = 128
+    val tileSizeK = 16
+    val workPerThreadN = 8
+    val workPerThreadM = 8
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.tileOutput(tileSizeMN))
 
@@ -108,7 +108,7 @@ class TestRewriteMatrixMatrix {
     // TODO: Find missing derivation
     // Continuing from where the splits, joins, transposes and reorders have been eliminated.
     // Obviously possible, don't yet know how to.
-    val h0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K),(p1418385211, p1282811396) => FunCall(Join(), FunCall(Map(fun((p789219251) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p832279283) => FunCall(TransposeW(), FunCall(Map(fun((p265119009) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p265119009))), FunCall(Join(), FunCall(Map(fun((p2050404090) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p388043093) => FunCall(TransposeW(), p388043093))), p2050404090))))), FunCall(Map(fun((p188576144) => FunCall(Map(fun((p1608230649) => FunCall(Map(fun((p282432134) => FunCall(TransposeW(), p282432134))), FunCall(TransposeW(), p1608230649)))), FunCall(TransposeW(), p188576144)))), FunCall(TransposeW(), FunCall(Reduce(fun((p266437232, p1873859565) => FunCall(Map(fun((p1843289228) => FunCall(Map(fun((p1361289747) => FunCall(Map(fun((p1381128261) => FunCall(Join(), FunCall(Transpose(), p1381128261)))), FunCall(Transpose(), FunCall(Reduce(fun((p999609945, p615634843) => FunCall(Map(fun((p1758386724) => FunCall(Map(fun((p673068808) => FunCall(add, FunCall(Get(0), p673068808), FunCall(Get(1), p673068808)))), FunCall(Zip(2), FunCall(Get(0), p1758386724), FunCall(Get(1), p1758386724))))), FunCall(Zip(2), p999609945, p615634843)))), FunCall(Get(0), p1361289747), FunCall(Transpose(), FunCall(Map(fun((p900008524) => FunCall(Transpose(), p900008524))), FunCall(Get(1), p1361289747)))))))), FunCall(Zip(2), FunCall(Get(0), p1843289228), FunCall(Get(1), p1843289228))))), FunCall(Zip(2), p266437232, p1873859565)))), FunCall(Map(fun((p520232556) => FunCall(Map(fun((p17037394) => FunCall(Map(fun((p1484531981) => FunCall(Map(fun((p1159114532) => FunCall(id, p1159114532))), p1484531981))), p17037394))), p520232556))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, 4), 2), 4), 8))), FunCall(Map(fun((p1256728724) => FunCall(Map(fun((p1412925683) => FunCall(Map(fun((p1832580921) => FunCall(Map(fun((p497359413) => FunCall(TransposeW(), p497359413))), FunCall(TransposeW(), p1832580921)))), FunCall(Map(fun((p369241501) => FunCall(Map(fun((p2124046270) => FunCall(Map(fun((p1151593579) => FunCall(Map(fun((p1902260856) => FunCall(mult, p1151593579, p1902260856))), FunCall(Get(1), p2124046270)))), FunCall(Get(0), p2124046270)))), FunCall(Zip(2), FunCall(Transpose(), p1412925683), FunCall(Transpose(), p369241501))))), FunCall(Split(4), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p1256728724)))))))), FunCall(Split(2), FunCall(Transpose(), FunCall(Get(0), p1256728724)))))), FunCall(Zip(2), FunCall(Split(8), FunCall(Transpose(), p789219251)), FunCall(Split(8), FunCall(Transpose(), p832279283))))))))))))), FunCall(Split(16), FunCall(Transpose(), p1282811396))))))), FunCall(Split(16), p1418385211))))
+    val h0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K),(p1418385211, p1282811396) => FunCall(Join(), FunCall(Map(fun((p789219251) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p832279283) => FunCall(TransposeW(), FunCall(Map(fun((p265119009) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p265119009))), FunCall(Join(), FunCall(Map(fun((p2050404090) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p388043093) => FunCall(TransposeW(), p388043093))), p2050404090))))), FunCall(Map(fun((p188576144) => FunCall(Map(fun((p1608230649) => FunCall(Map(fun((p282432134) => FunCall(TransposeW(), p282432134))), FunCall(TransposeW(), p1608230649)))), FunCall(TransposeW(), p188576144)))), FunCall(TransposeW(), FunCall(Reduce(fun((p266437232, p1873859565) => FunCall(Map(fun((p1843289228) => FunCall(Map(fun((p1361289747) => FunCall(Map(fun((p1381128261) => FunCall(Join(), FunCall(Transpose(), p1381128261)))), FunCall(Transpose(), FunCall(Reduce(fun((p999609945, p615634843) => FunCall(Map(fun((p1758386724) => FunCall(Map(fun((p673068808) => FunCall(add, FunCall(Get(0), p673068808), FunCall(Get(1), p673068808)))), FunCall(Zip(2), FunCall(Get(0), p1758386724), FunCall(Get(1), p1758386724))))), FunCall(Zip(2), p999609945, p615634843)))), FunCall(Get(0), p1361289747), FunCall(Transpose(), FunCall(Map(fun((p900008524) => FunCall(Transpose(), p900008524))), FunCall(Get(1), p1361289747)))))))), FunCall(Zip(2), FunCall(Get(0), p1843289228), FunCall(Get(1), p1843289228))))), FunCall(Zip(2), p266437232, p1873859565)))), FunCall(Map(fun((p520232556) => FunCall(Map(fun((p17037394) => FunCall(Map(fun((p1484531981) => FunCall(Map(fun((p1159114532) => FunCall(id, p1159114532))), p1484531981))), p17037394))), p520232556))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Map(fun((p1256728724) => FunCall(Map(fun((p1412925683) => FunCall(Map(fun((p1832580921) => FunCall(Map(fun((p497359413) => FunCall(TransposeW(), p497359413))), FunCall(TransposeW(), p1832580921)))), FunCall(Map(fun((p369241501) => FunCall(Map(fun((p2124046270) => FunCall(Map(fun((p1151593579) => FunCall(Map(fun((p1902260856) => FunCall(mult, p1151593579, p1902260856))), FunCall(Get(1), p2124046270)))), FunCall(Get(0), p2124046270)))), FunCall(Zip(2), FunCall(Transpose(), p1412925683), FunCall(Transpose(), p369241501))))), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p1256728724)))))))), FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p1256728724)))))), FunCall(Zip(2), FunCall(Split(tileSizeK), FunCall(Transpose(), p789219251)), FunCall(Split(tileSizeK), FunCall(Transpose(), p832279283))))))))))))), FunCall(Split(tileSizeMN), FunCall(Transpose(), p1282811396))))))), FunCall(Split(tileSizeMN), p1418385211))))
 
     val h1 = Rewrite.applyRuleAtId(h0, 16, Rules.reduceMapFusion)
     val h2 = Rewrite.applyRuleAtId(h1, 35, Rules.mapFusionWithZip)
@@ -120,7 +120,85 @@ class TestRewriteMatrixMatrix {
     val h8 = Rewrite.applyRuleAtId(h7, 42, Rules.mapFusionWithZip)
     val h9 = Rewrite.applyRuleAtId(h8, 53, Rules.reduceMapFusion)
 
-    println(h9)
+
+    // Final steps, move transpose inside tiling + tiling (kernel) for A
+    val h10 = Rewrite.applyRuleAtId(h9, 6, Rules.mapFissionWithZipInside)
+
+    val h11 = Rewrite.applyRuleAtId(h10, 7, Rules.moveTransposeInsideTiling)
+
+    val h12 = Rewrite.applyRuleAtId(h11, 1, Rules.mapFissionWithZipInside)
+    val h13 = Rewrite.applyRuleAtId(h12, 2, Rules.mapFission)
+    val h14 = Rewrite.applyRuleAtId(h13, 3, Rules.mapTransposeSplit)
+    val h15 = Rewrite.applyRuleAtId(h14, 2, Rules.mapSplitTranspose)
+
+    println(h15)
+  }
+
+  @Test
+  def loweringTiledAndBlockedBInnermost(): Unit = {
+    val tileSizeMN = 16
+    val tileSizeK = 8
+    val workPerThreadN = 2
+    val workPerThreadM = 4
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K),(p450003680, p2134991632) => FunCall(Join(), FunCall(Map(fun((p756185697) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1237598030) => FunCall(TransposeW(), FunCall(Map(fun((p660879561) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p660879561))), FunCall(Join(), FunCall(Map(fun((p376416077) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1089504328) => FunCall(TransposeW(), p1089504328))), p376416077))))), FunCall(Map(fun((p294184992) => FunCall(Map(fun((p793315160) => FunCall(Map(fun((p270397815) => FunCall(TransposeW(), p270397815))), FunCall(TransposeW(), p793315160)))), FunCall(TransposeW(), p294184992)))), FunCall(TransposeW(), FunCall(toGlobal(fun((p1485697819) => FunCall(MapSeq(fun((p867398280) => FunCall(Map(fun((p2007331442) => FunCall(Map(fun((p1904324159) => FunCall(Map(fun((p1176735295) => FunCall(Map(fun((p1848415041) => FunCall(id, p1848415041))), p1176735295))), p1904324159))), p2007331442))), p867398280))), p1485697819))), FunCall(ReduceSeq(fun((p1032000752, p843467284) => FunCall(Map(fun((p124407148) => FunCall(Map(fun((p1825027294) => FunCall(Map(fun((p19986569) => FunCall(Join(), FunCall(Transpose(), p19986569)))), FunCall(Transpose(), FunCall(toPrivate(fun((p852445367) => FunCall(MapSeq(fun((p1738236591) => FunCall(Map(fun((p1558021762) => FunCall(Map(fun((p225290371) => FunCall(id, p225290371))), p1558021762))), p1738236591))), p852445367))), FunCall(ReduceSeq(fun((p1004095028, p1169146729) => FunCall(Map(fun((p1948863195) => FunCall(Map(fun((p1890187342) => FunCall(add, FunCall(Get(0), p1890187342), FunCall(Get(1), p1890187342)))), FunCall(Zip(2), FunCall(Get(0), p1948863195), FunCall(Get(1), p1948863195))))), FunCall(Zip(2), p1004095028, FunCall(Map(fun((p876213901) => FunCall(Map(fun((p230528013) => FunCall(mult, p876213901, p230528013))), FunCall(Get(1), p1169146729)))), FunCall(Get(0), p1169146729)))))), FunCall(Get(0), p1825027294), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p124407148)), FunCall(Transpose(), FunCall(Get(1), p1825027294))))))))), FunCall(Zip(2), FunCall(Get(0), p124407148), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p843467284)))))))), FunCall(Zip(2), p1032000752, FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p843467284))))))), FunCall(Map(fun((p1822383117) => FunCall(Map(fun((p233021551) => FunCall(Map(fun((p1991313236) => FunCall(Map(fun((p736778932) => FunCall(id, p736778932))), p1991313236))), p233021551))), p1822383117))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Zip(2), p756185697, p1237598030))))))))))), FunCall(Transpose(), FunCall(Map(fun((p24606376) => FunCall(Transpose(), p24606376))), FunCall(Split(tileSizeK), FunCall(Map(fun((p302155142) => FunCall(Split(tileSizeMN), p302155142))), p2134991632))))))))), FunCall(Transpose(), FunCall(Map(fun((p1891546521) => FunCall(Transpose(), p1891546521))), FunCall(Split(tileSizeK), FunCall(Map(fun((p297927961) => FunCall(Split(tileSizeMN), p297927961))), FunCall(Transpose(), p450003680))))))))
+
+    // Add and simplify copies
+    val f1 = Rewrite.applyRuleAtId(f0, 64, Rules.addIdForCurrentValueInReduce)
+    val f2 = Rewrite.applyRuleAtId(f1, 31, Rules.addIdForCurrentValueInReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 46, Rules.implementIdAsDeepCopy)
+    val f4 = Rewrite.applyRuleAtId(f3, 93, Rules.implementOneLevelOfId)
+    val f5 = Rewrite.applyRuleAtId(f4, 99, Rules.dropId)
+    val f6 = Rewrite.applyRuleAtId(f5, 96, Rules.implementIdAsDeepCopy)
+    val f7 = Rewrite.applyRuleAtId(f6, 105, Rules.addCopy)
+    val f8 = Rewrite.applyRuleAtId(f7, 48, Rules.tupleMap)
+    val f9 = Rewrite.applyRuleAtId(f8, 55, Rules.tupleMap)
+
+    // Lower to OpenCL execution model
+    val f10 = Rewrite.applyRuleAtId(f9, 1, Rules.mapWrg(0))
+    val f11 = Rewrite.applyRuleAtId(f10, 14, Rules.mapWrg(1))
+    val f12 = Rewrite.applyRuleAtId(f11, 148, Rules.mapLcl(1))
+    val f13 = Rewrite.applyRuleAtId(f12, 150, Rules.mapLcl(0))
+    val f14 = Rewrite.applyRuleAtId(f13, 152, Rules.mapSeq)
+    val f15 = Rewrite.applyRuleAtId(f14, 154, Rules.mapSeq)
+    val f16 = Rewrite.applyRuleAtId(f15, 69, Rules.mapLcl(1))
+    val f17 = Rewrite.applyRuleAtId(f16, 76, Rules.mapLcl(0))
+    val f18 = Rewrite.applyRuleAtId(f17, 137, Rules.mapSeq)
+    val f19 = Rewrite.applyRuleAtId(f18, 139, Rules.mapSeq)
+    val f20 = Rewrite.applyRuleAtId(f19, 109, Rules.mapSeq)
+    val f21 = Rewrite.applyRuleAtId(f20, 124, Rules.mapSeq)
+    val f22 = Rewrite.applyRuleAtId(f21, 111, Rules.mapSeq)
+    val f23 = Rewrite.applyRuleAtId(f22, 117, Rules.mapSeq)
+    val f25 = Rewrite.applyRuleAtId(f23, 112, Rules.mapSeq)
+    val f26 = Rewrite.applyRuleAtId(f25, 102, Rules.mapSeq)
+    val f27 = Rewrite.applyRuleAtId(f26, 49, Rules.mapLcl(1))
+    val f28 = Rewrite.applyRuleAtId(f27, 56, Rules.mapLcl(0))
+    val f29 = Rewrite.applyRuleAtId(f28, 35, Rules.mapLcl(1))
+    val f30 = Rewrite.applyRuleAtId(f29, 37, Rules.mapLcl(0))
+    val f31 = Rewrite.applyRuleAtId(f30, 39, Rules.mapSeq)
+    val f32 = Rewrite.applyRuleAtId(f31, 41, Rules.mapSeq)
+
+    // Lower to OpenCL memory model
+    val f33 = Rewrite.applyRuleAtId(f32, 49, Rules.localMemory)
+    val f34 = Rewrite.applyRuleAtId(f33, 114, Rules.privateMemory)
+    val f35 = Rewrite.applyRuleAtId(f34, 104, Rules.privateMemory)
+
+    val mSize = 256
+    val kSize = 256
+    val nSize = 256
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val (output: Array[Float], _) = Execute(tileSizeMN / workPerThreadM, tileSizeMN / workPerThreadN,
+      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f35, matrixA, matrixB)
+
+    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
+
+    assertArrayEquals(gold.flatten, output, 0.0001f)
   }
 
   @Test
@@ -271,7 +349,7 @@ class TestRewriteMatrixMatrix {
     val f3 = Rewrite.applyRuleAtId(f2, 2, Rules.moveTransposeInsideTiling)
 
     // Add the copy
-    val f4 = Rewrite.applyRuleAtId(f3, 17, Rules.addId)
+    val f4 = Rewrite.applyRuleAtId(f3, 17, Rules.addCopy)
 
     // Lower to OpenCL execution model
     val fw0 = Rewrite.applyRuleAtId(f4, 1, Rules.mapWrg(0))
@@ -343,7 +421,7 @@ class TestRewriteMatrixMatrix {
     val f0 =  fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, K), N), (p662736689, p1897115967) => FunCall(Join(), FunCall(Map(fun((p140799417) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p926370398) => FunCall(TransposeW(), FunCall(Map(fun((p1391942103) => FunCall(TransposeW(), p1391942103))), FunCall(TransposeW(), FunCall(toGlobal(fun((p17037394) => FunCall(MapSeq(fun((p1484531981) => FunCall(Map(fun((p1159114532) => FunCall(Map(fun((p1256728724) => FunCall(id, p1256728724))), p1159114532))), p1484531981))), p17037394))), FunCall(ReduceSeq(fun((p183284570, p1607305514) => FunCall(Map(fun((p1453128758) => FunCall(Map(fun((p1122805102) => FunCall(add, FunCall(Get(0), p1122805102), FunCall(Get(1), p1122805102)))), FunCall(Zip(2), FunCall(Get(0), p1453128758), FunCall(Get(1), p1453128758))))), FunCall(Zip(2), p183284570, FunCall(fun((p668210649) => FunCall(Map(fun((p188576144) => FunCall(Join(), FunCall(Map(fun((p282432134) => FunCall(toPrivate(fun((p999609945) => FunCall(MapSeq(fun((p615634843) => FunCall(id, p615634843))), p999609945))), FunCall(ReduceSeq(fun((p1758386724, p673068808) => FunCall(add, p1758386724, FunCall(fun((p266437232) => FunCall(mult, FunCall(Get(0), p266437232), FunCall(Get(1), p266437232))), p673068808)))), FunCall(id, Value(0.0f, Float)), FunCall(Zip(2), p188576144, p282432134))))), FunCall(Transpose(), FunCall(Get(1), p668210649)))))), FunCall(Transpose(), FunCall(Get(0), p668210649)))), p1607305514))))), FunCall(Map(fun((p900008524) => FunCall(Map(fun((p520232556) => FunCall(id, p520232556))), p900008524))), Value(0.0f, ArrayType(ArrayType(Float, 4), 4))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p140799417)), FunCall(Split(4), FunCall(Transpose(), p926370398)))))))))), FunCall(Split(4), p1897115967)))))), FunCall(Split(4), p662736689))))
 
     // Add a copy
-    val f1 = Rewrite.applyRuleAtId(f0, 29, Rules.addId)
+    val f1 = Rewrite.applyRuleAtId(f0, 29, Rules.addCopy)
 
     // Lower to OpenCL execution model
     val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.mapWrg(0))
