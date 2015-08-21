@@ -124,9 +124,11 @@ class TestMatrixVector {
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
     val vector = Array.fill(inputSize)(2.0f)
 
+    val N = Var("N")
+
     val f = fun(
-      ArrayType(ArrayType(Float, Var("N1")), Var("M")),
-      ArrayType(Float, Var("N2")),
+      ArrayType(ArrayType(Float, N), Var("M")),
+      ArrayType(Float, N),
       (matrix, vector) => {
         Join() o MapWrg(
            MapLcl( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )

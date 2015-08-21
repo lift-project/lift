@@ -158,19 +158,17 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
-  @Test def accessingMultidimArrayAfterZip(): Unit = {
+  @Test def accessingMultiDimArrayAfterZip(): Unit = {
     val Nsize = 8
-    val Msize = 4
     val Ksize = 2
-    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+    val matrix = Array.tabulate(Nsize, Nsize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
     val vector = Array.fill(Nsize)(1.0f)
 
     val N = Var("N")
-    val M = Var("M")
     val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayType(ArrayType(ArrayType(Float, K), N), N),
       ArrayType(Float, N),
       (matrix, vector) => MapGlb(fun(r =>
         MapSeq(fun(t =>

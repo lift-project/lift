@@ -221,12 +221,11 @@ public class JavaTest {
         Var N = jVar.create("N");
         Var M = jVar.create("M");
         Var K = jVar.create("K");
-        Var L = jVar.create("L");
 
 
         Type[] types = {
-                jArrayType.create((jArrayType.create(jFloat.getSingleton(), M)), N),
-                jArrayType.create((jArrayType.create(jFloat.getSingleton(), K)), L)
+                jArrayType.create((jArrayType.create(jFloat.getSingleton(), K)), N),
+                jArrayType.create((jArrayType.create(jFloat.getSingleton(), K)), M)
         };
 
         List<Expr> params = Arrays.asList(types).stream().map(Param::apply).collect(Collectors.toList());
