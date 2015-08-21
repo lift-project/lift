@@ -67,7 +67,7 @@ object Rewrite {
       reduceSeqMapSeqFusion,
       mapFusion,
       mapMapInterchange,
-      reorderBothSides,
+      reorderBothSidesWithStride,
       transposeBothSides,
       mapMapTransposeZipOutside,
       splitZip

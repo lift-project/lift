@@ -293,24 +293,6 @@ object Rules {
       TransposeW() o Map(Lambda(b, FunCall(Map(Lambda(a, expr)), aArg))) $ bArg
   })
 
-  // TODO: Remove once everything is replaced with the correct one (below)
-  @deprecated
-  val mapReduceInterchangeBroken = Rule("Map(Reduce(f)) => Reduce(Map(f)) o Transpose()", {
-    case FunCall(Map(Lambda(lambdaParams,
-          FunCall(Reduce(Lambda(innerParams, expr)), init: Value, arg)
-         )), mapArg)
-      if lambdaParams.head eq arg
-    =>
-      val newInit = Value(init.value, ArrayType(init.t, Type.getLength(mapArg.t)))
-
-      val newMapParam = Param()
-      val newExpr = innerParams.zipWithIndex.foldLeft(expr)((e, pair) =>
-                        Expr.replace(e, pair._1, Get(pair._2)(newMapParam)))
-
-      Reduce(fun((acc, c) => Map(Lambda(Array(newMapParam), newExpr)) $ Zip(acc, c)),
-        newInit) o Transpose() $ mapArg
-  })
-
   val mapReduceInterchange = Rule("Map(Reduce(f)) => Transpose() o Reduce(Map(f)) o Transpose()", {
     case FunCall(Map(Lambda(lambdaParams,
           FunCall(Reduce(Lambda(innerParams, expr)), init: Value, arg)
@@ -368,10 +350,14 @@ object Rules {
         ), newInit) o Transpose() $ arg
     })
 
-  val reorderBothSides = Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
-    case FunCall(map@Map(_), arg) =>
-      Scatter(ReorderWithStride(4)) o map o Gather(ReorderWithStride(4)) $ arg
-  })
+  val reorderBothSidesWithStride: Rule = reorderBothSidesWithStride(4)
+
+  def reorderBothSidesWithStride(stride: Int): Rule = {
+    Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
+      case FunCall(map@Map(_), arg) =>
+        Scatter(ReorderWithStride(stride)) o map o Gather(ReorderWithStride(stride)) $ arg
+    })
+  }
 
   def getFinalArg(expr: Expr): Expr = {
     expr match {
