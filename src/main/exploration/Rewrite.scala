@@ -157,6 +157,31 @@ object Rewrite {
     })
   }
 
+  def lowerByLevels(lambda: Lambda): List[Lambda] = {
+
+    Context.updateContext(lambda.body)
+
+    val nextToLower = (new FindNextToLower)(lambda)
+
+    if (nextToLower.nonEmpty) {
+
+      val applicableRules = mapLoweringRules.filter(rule => {
+        nextToLower.map(expr => rule.rewrite.isDefinedAt(expr) && rule.isValid(expr.context)).reduce(_&&_)
+      }).toList
+
+      val newLambdas = applicableRules.map(rule => {
+        nextToLower.foldLeft(lambda)((l, e) => FunDecl.replace(l, e, rule.rewrite(e)))
+      })
+
+      if (applicableRules.isEmpty)
+        throw new RuntimeException
+
+      newLambdas.map(lowerByLevels).reduce(_++_)
+    } else {
+      List(lambda)
+    }
+  }
+
   def rewrite(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] = {
     TypeChecker.check(lambda.body)
 
@@ -175,4 +200,39 @@ object Rewrite {
   def rewrite(lambda: Lambda, levels: Int = 1): Seq[Lambda] =
     rewrite(lambda, rules, levels)
 
+}
+
+class FindNextToLower {
+
+  var expressions = List[Expr]()
+
+  def apply(lambda: Lambda): List[Expr] =
+    apply(lambda.body)
+
+  def apply(expr: Expr): List[Expr] = {
+    find(expr)
+    expressions
+  }
+
+  private def find(expr: Expr): Unit = {
+    expr match {
+      case call: FunCall =>
+        
+        call.f match {
+          case Map(f) if f.body.isConcrete => expressions = call +: expressions
+          case _ => find(call.f)
+        }
+
+        call.args.foreach(find)
+      case _ =>
+    }
+  }
+
+  private def find(funDecl: FunDecl): Unit = {
+    funDecl match {
+      case lambda: Lambda => find(lambda.body)
+      case fp: FPattern => find(fp.f)
+      case _ =>
+    }
+  }
 }
