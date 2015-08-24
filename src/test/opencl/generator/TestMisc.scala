@@ -68,6 +68,52 @@ class TestMisc {
     assertEquals(inputData.sum, output.sum, 0.0)
   }
 
+  @Test def issue23ForwardStyle(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l =
+      fun (ArrayType(Float, Var("N")),
+         in => {
+           in :>>
+           Split(128) :>>
+           MapWrg(
+             Split(4) >>>
+             MapLcl(
+               ReduceSeq(add, id(0.0f)) >>>
+               toGlobal(MapSeq(id)) ) >>>
+             Join() ) :>>
+           Join()
+         })
+
+    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+  }
+
+  @Test def issue23BackwardStyle(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l =
+      fun (ArrayType(Float, Var("N")),
+          in => {
+            Join() <<:
+            MapWrg(
+              Join() o
+              MapLcl(
+                toGlobal(MapSeq(id)) o
+                ReduceSeq(add, id(0.0f)) ) o
+              Split(4) ) <<:
+            Split(128) <<:
+            in
+          })
+
+    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+  }
+
   @Test def issue24(): Unit = {
     val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
@@ -95,11 +141,25 @@ class TestMisc {
         MapSeq(id o id) $ in
       })
 
-    println(l)
-
     val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
 
     assertArrayEquals(inputData, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def issue28(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun(ArrayType(Float, Var("N")),
+      in => {
+        in :>> ReduceSeq(add, toPrivate(add)(0.0f, 1.0f)) :>> toGlobal(MapSeq(id))
+      })
+
+    val (output: Array[Float], _) = Execute(inputSize)(l, inputData)
+
+    assertEquals(inputData.sum + 1, output.head, 0.0f)
   }
 
   // Simple 1D increment, used to check the syntax of unary UserFunDef
@@ -133,9 +193,7 @@ class TestMisc {
     assertArrayEquals(gold, output, 0.001f)
   }
 
-  @Ignore
   @Test def compositionTest(): Unit = {
-    // TODO: Crashes the VM, compilation fails on the native side
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 

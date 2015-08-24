@@ -14,6 +14,8 @@ compileSkelcl := {
   "echo y" #| "./skelcl.sh" !
 }
 
+scalacOptions ++= Seq("-Xmax-classfile-name", "100")
+
 javaOptions += "-Djava.library.path=./lib/SkelCL/build/executor"
 
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
