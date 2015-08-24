@@ -183,7 +183,7 @@ object Exploration {
       
       case p: Pattern =>
       
-        var choices = Rules.derivePatFunCall(call, c)
+        var choices = List[FunCall]()
         if (p.isGenerable)
           choices = choices :+ call
          

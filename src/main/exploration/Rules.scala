@@ -1,12 +1,10 @@
 package exploration
 
-import apart.arithmetic.{Cst, RangeMul, RangeUnknown, Var}
+import apart.arithmetic.{Cst, RangeMul, RangeUnknown}
 import ir._
 import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
-
-import scala.collection.Seq
 
 // TODO: Move isValid inside the case statement?
 case class Rule(desc: String,
@@ -871,6 +869,17 @@ object Rules {
         e3
     })
 
+  val tileTranspose: (Int, Int) => Rule = (x, y) =>
+    Rule("Map(Map(f)) o Transpose() => tiled", {
+      case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), FunCall(Transpose(), _))
+        if lambdaParam.head eq arg
+      =>
+        val e1 = Rewrite.applyRuleAtId(funCall, 0, Rules.tileMapMap(x, y))
+        val e2 = Rewrite.applyRuleAtId(e1, 1, Rules.mapFissionAtPosition(2))
+        val e3 = Rewrite.applyRuleAtId(e2, 2, Rules.moveTransposeInsideTiling)
+        e3
+    })
+
   val transposeBothSidesWithSplit =
     Rule("Transpose() o Map( ... o ... o Split(n) ) o Transpose() => " +
          "Map( ... ) o Map(Transpose) o Split(n)", {
@@ -911,62 +920,5 @@ object Rules {
       case ArrayType(_, len) => RangeMul(Cst(1), len, Cst(2))
       case _ => RangeUnknown // Error
     }
-  }
-
-  def derivePatFunCall(call: FunCall, c: Constraints): Seq[FunCall] = {
-
-    val newCalleeList = call.f match {
-
-      case Map(inF) =>
-        var result = List[FunDecl]()
-
-        // global, workgroup
-        if (call.context.mapDepth == 0 && !call.context.inMapGlb.reduce(_ || _) && !call.context.inMapWrg.reduce(_ || _)) {
-          result = result :+ MapGlb(inF)
-          result = result :+ MapWrg(inF)
-        }
-
-        // local
-        if (call.context.mapDepth == 1 && call.context.inMapWrg.reduce(_ || _) && !call.context.inMapGlb.reduce(_ || _) && !call.context.inMapLcl.reduce(_ || _)) {
-          result = result :+ MapLcl(inF)
-        }
-
-        // warp
-        if (call.context.mapDepth == 1 && call.context.inMapLcl.reduce(_ || _) && !call.context.inMapWarp  && !call.context.inMapLane) {
-          result = result :+ MapWarp(inF)
-        }
-
-        // lane
-        if (call.context.mapDepth == 1 && (call.context.inMapLcl.reduce(_ || _) || call.context.inMapWarp) && !call.context.inMapLane) {
-          result = result :+ MapLane(inF)
-        }
-
-        // split-join
-        if (call.context.mapDepth+1 < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(Map(inF)) o Split(Var(validOSplitRange(call.argsType))))
-
-        result
-
-      case Reduce(inF) =>
-        var result = List[FunDecl]()
-        if (!c.converge)
-          result = result :+ (Reduce(inF) o PartRed(inF))
-
-          result = result :+ ReduceSeq(inF)
-
-        result
-
-      case PartRed(inF) =>
-        var result = List[FunDecl]()
-        result = result :+ Reduce(inF)
-        if (call.context.mapDepth < c.maxMapDepth && !c.converge)
-          result = result :+ (Join() o Map(PartRed(inF)) o Split(Var(validOSplitRange(call.argsType))))
-        result
-
-      case _ => List[FunDecl]() // all the terminals end up here
-
-    }
-
-    newCalleeList.map(fd => new FunCall(fd,call.args:_*))
   }
 }

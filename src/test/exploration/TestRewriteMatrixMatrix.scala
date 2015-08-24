@@ -139,11 +139,9 @@ class TestRewriteMatrixMatrix {
     // Tile the transposition
 
     val h16 = Rewrite.applyRuleAtId(h15, 5, Rules.addCopy)
-    val h17 = Rewrite.applyRuleAtId(h16, 6, Rules.tileMapMap(tileTranspositionM, tileTranspositionK))
-    val h18 = Rewrite.applyRuleAtId(h17, 7, Rules.mapFissionAtPosition(2))
-    val h19 = Rewrite.applyRuleAtId(h18, 8, Rules.moveTransposeInsideTiling)
+    val h17 = Rewrite.applyRuleAtId(h16, 6, Rules.tileTranspose(tileTranspositionM, tileTranspositionK))
 
-    println(h19)
+    println(h17)
   }
 
   @Test
@@ -368,12 +366,10 @@ class TestRewriteMatrixMatrix {
     val x = 8
     val y = 4
 
-    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.tileMapMap(x, y))
-    val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.mapFissionAtPosition(2))
-    val f3 = Rewrite.applyRuleAtId(f2, 2, Rules.moveTransposeInsideTiling)
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.tileTranspose(x, y))
 
     // Add the copy
-    val f4 = Rewrite.applyRuleAtId(f3, 17, Rules.addCopy)
+    val f4 = Rewrite.applyRuleAtId(f1, 17, Rules.addCopy)
 
     // Lower to OpenCL execution model
     val fw0 = Rewrite.lowerNextLevelWithRule(f4, Rules.mapWrg(0))
@@ -550,7 +546,6 @@ class TestRewriteMatrixMatrix {
     val f6 = Rewrite.applyRuleAtId(f5, 10, Rules.mapFission)
     val f7 = Rewrite.applyRuleAtId(f6, 11, Rules.mapFission)
     val f8 = Rewrite.applyRuleAtId(f7, 11, Rules.mapReduceInterchange)
-
 
     // Pull Zip outside
     val f9 = Rewrite.applyRuleAtId(f8, 17, Rules.mapFissionAtPosition(2))
