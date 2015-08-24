@@ -1,8 +1,8 @@
 package exploration
 
+import exploration.Rules._
 import ir._
 import ir.ast._
-import Rules._
 
 object Rewrite {
 
@@ -35,78 +35,143 @@ object Rewrite {
     Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
   }
 
-  private val rules =
+  val mapLoweringRules =
     Seq(
-      iterateId,
-      iterate1,
-      gatherToScatter,
-      scatterToGather,
-      partialReduceToReduce,
-      partialReduceReorder,
-      asScalarAsVectorId,
-      asVectorAsScalarId,
-      transposeTransposeId,
-      joinSplitId,
-      splitJoinId,
       mapSeq,
       mapGlb,
       mapWrg,
       mapLcl,
       mapWarp,
-      mapLane,
-      splitJoin,
-      mapReduceInterchange,
-      mapMapTransposeZipInside,
-      mapFission,
-      reduceSeq,
+      mapLane
+    )
+
+  val reduceLoweringRule = reduceSeq
+
+  val addressSpaceRules =
+    Seq(
+      privateMemory,
+      localMemory,
+      globalMemory
+    )
+
+  val simplificationRules =
+    Seq(
+      iterateId,
+      iterate1,
+      asScalarAsVectorId,
+      asVectorAsScalarId,
+      transposeTransposeId,
+      joinSplitId,
+      splitJoinId,
+      removeEmptyMap
+    )
+
+  val reduceRules =
+    Seq(
+      partialReduceToReduce,
+      partialReduceReorder,
       partialReduce,
       partialReduceSplitJoin,
       partialReduceReorder,
-      partialReduceToReduce,
-      vectorize,
-      reduceSeqMapSeqFusion,
-      mapFusion,
-      mapMapInterchange,
-      reorderBothSidesWithStride,
-      transposeBothSides,
-      mapMapTransposeZipOutside,
-      splitZip
+      partialReduceToReduce
     )
 
-  private def listAllPossibleRewritesForAllRules(lambda: Lambda): Seq[(Rule, Expr)] = {
+  val fusionRules =
+    Seq(
+      mapFusion,
+      mapFusionWithZip,
+      reduceMapFusion,
+      reduceSeqMapSeqFusion
+    )
+
+  val fissionRules =
+    Seq(
+      mapFission,
+      mapFissionWithZipInside,
+      mapFissionWithZipOutside
+    )
+
+  val interchangeRules =
+    Seq(
+      mapReduceInterchange,
+      mapReduceInterchangeWithZip,
+      mapReducePartialReduce,
+      mapMapTransposeZipInside,
+      mapMapTransposeZipOutside,
+      mapMapInterchange,
+      transposeBothSides
+    )
+
+  val idRules =
+    Seq(
+      addId,
+      addIdForCurrentValueInReduce,
+      addCopy,
+      implementOneLevelOfId,
+      implementIdAsDeepCopy,
+      dropId
+    )
+
+  val transposeRules =
+    Seq(
+      mapSplitTranspose,
+      mapTransposeSplit,
+      transposeMapSplit,
+      splitTranspose,
+      mapTransposeTransposeMapTranspose
+    )
+
+  val tupleRules =
+    Seq(
+      tupleMap,
+      tupleFission
+    )
+
+  val rules =
+    Seq(
+      gatherToScatter,
+      scatterToGather,
+      splitJoin,
+      vectorize,
+      reorderBothSidesWithStride,
+      splitZip
+    ) ++ tupleRules ++ idRules ++ interchangeRules ++
+      fissionRules ++ fusionRules++ reduceRules ++
+      simplificationRules ++ addressSpaceRules ++ mapLoweringRules :+ reduceLoweringRule
+
+  private def listAllPossibleRewritesForRules(lambda: Lambda, rules: Seq[Rule]): Seq[(Rule, Int)] = {
     rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
   }
 
   private def listAllPossibleRewrites(lambda: Lambda,
-                                      rule: Rule): Seq[(Rule, Expr)] = {
+                                      rule: Rule): Seq[(Rule, Int)] = {
     Context.updateContext(lambda.body, new Context)
 
-    Expr.visitWithState(Seq[(Rule, Expr)]())( lambda.body, (e, s) => {
+    val numbering = NumberExpression.breadthFirst(lambda)
+
+    Expr.visitWithState(Seq[(Rule, Int)]())( lambda.body, (e, s) => {
       if (rule.rewrite.isDefinedAt(e) && rule.isValid(e.context)) {
-        s :+ (rule, e)
+        s :+ (rule, numbering(e))
       } else s
     })
   }
 
-  private def applyRuleAt(lambda: Lambda, ruleAt: (Rule, Expr)): Lambda = {
-    val rule = ruleAt._1
-    val oldE = ruleAt._2
-    // same as FunDecl.replace( ... )
-    Lambda(lambda.params, Expr.replace(lambda.body, oldE, rule.rewrite(oldE)))
-  }
-
-  def rewrite(lambda: Lambda, levels: Int = 1): Seq[Lambda] = {
+  def rewrite(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] = {
     TypeChecker.check(lambda.body)
 
-    val allRulesAt = listAllPossibleRewritesForAllRules(lambda)
-    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt))
+    val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
+    val rewritten = allRulesAt.map(ruleAt => applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
 
     val (g, notG) = rewritten.partition( _.isGenerable )
 
     if (levels == 1) {
       g
     } else {
-      g ++ notG.flatMap( l => rewrite(l, levels-1))
+      g ++ notG.flatMap( l => rewrite(l, rules, levels-1))
     }
   }
+
+  def rewrite(lambda: Lambda, levels: Int = 1): Seq[Lambda] =
+    rewrite(lambda, rules, levels)
+
 }

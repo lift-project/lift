@@ -132,7 +132,9 @@ object Rules {
   /* Map rules */
 
   val mapSeq = Rule("Map(f) => MapSeq(f)", {
-    case FunCall(Map(f), arg) => MapSeq(f)(arg)
+    case FunCall(Map(f), arg)
+      if f.body.isConcrete
+    => MapSeq(f)(arg)
   })
 
   val mapGlb = Rule("Map(f) => MapGlb(f)", {
@@ -144,7 +146,7 @@ object Rules {
         case FunCall(_: MapLcl, _) =>
         case FunCall(_: MapWarp, _) =>
         case FunCall(_: MapLane, _) =>
-      })
+      }) && f.body.isConcrete
     => MapGlb(f)(arg)
 
   }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp))
@@ -159,7 +161,7 @@ object Rules {
         !f.body.contains({
           case FunCall(_: MapGlb, _) =>
           case FunCall(MapWrg(dimNested, _), _) if dim == dimNested =>
-        })
+        }) && f.body.isConcrete
     =>
       MapWrg(dim)(f)(arg)
 
@@ -174,7 +176,7 @@ object Rules {
         case FunCall(MapLcl(dimNested, _), _) if dim == dimNested =>
         case FunCall(_: MapWarp, _) =>
         case FunCall(_: MapLane, _) =>
-      })
+      }) && f.body.isConcrete
     => MapLcl(dim)(f)(arg)
   }, c => c.inMapWrg && !c.inMapLcl)
 
@@ -193,7 +195,7 @@ object Rules {
           case FunCall(_: MapLcl, _) =>
           case FunCall(_: MapWarp, _) =>
           case FunCall(_: MapLane, _) =>
-        })
+        }) && f.body.isConcrete
     => MapWarp(f)(arg)
   }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp))
 
@@ -202,7 +204,7 @@ object Rules {
       // check that none of these are nested inside
       if !f.body.contains({
         case FunCall(_: MapLane) =>
-      })
+      }) && f.body.isConcrete
     => MapLane(f)(arg)
   }, c => c.inMapWarp && !c.inMapLane)
 
@@ -677,19 +679,6 @@ object Rules {
   val addId = Rule("f => f o Id()", {
     case FunCall(f, arg) =>
       f o Id() $ arg
-  })
-
-  val wrapInLambdaAndAddId = Rule("", {
-    case call@FunCall(f, arg) =>
-      val newParam = Param()
-
-      val finalArg = getFinalArg(call)
-
-      println(finalArg)
-
-      val newCall = Expr.replace(call, finalArg, newParam)
-
-      Lambda(Array(newParam), newCall) o Id() $ finalArg
   })
 
   val addIdForCurrentValueInReduce = Rule("", {
