@@ -390,7 +390,7 @@ object OpenCLGenerator extends Generator {
         case l: Lambda => generate(l.body, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Unpack() =>
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) =>
                 block
 
         //case _ => oclPrinter.print("__" + call.toString + "__")

@@ -66,13 +66,8 @@ object InputView {
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case fp: FPattern => buildViewToFPattern(fp, argView)
-      case Unpack() => buildViewUnpack(argView)
       case _ => argView
     }
-  }
-
-  private def buildViewUnpack(argView: View): View = {
-    argView.unpack()
   }
 
   private def buildViewTuple(argView: View): View = {

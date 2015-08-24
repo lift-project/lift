@@ -45,7 +45,6 @@ object OutputView {
       case t: Tail => buildViewTail(call, writeView)
       case fp: FPattern => buildViewFPattern(fp, writeView)
       case _: Zip => buildViewZip(writeView)
-      case Unpack() => buildViewUnpack(writeView)
       case _ => writeView
     }
 
@@ -71,10 +70,6 @@ object OutputView {
     }
 
      argResult
-  }
-
-  private def buildViewUnpack(writeView: View): View = {
-   writeView.pack()
   }
 
   private def buildViewZip(writeView: View): View = {
