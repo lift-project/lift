@@ -8,6 +8,7 @@ import opencl.ir.pattern._
 
 import scala.collection.Seq
 
+// TODO: Move isValid inside the case statement?
 case class Rule(desc: String,
                 rewrite: PartialFunction[Expr, Expr],
                 isValid: Context => Boolean = _ => true)

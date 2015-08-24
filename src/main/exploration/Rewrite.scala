@@ -161,24 +161,48 @@ object Rewrite {
 
     Context.updateContext(lambda.body)
 
-    val nextToLower = (new FindNextToLower)(lambda)
+    val nextToLower = FindNextToLower()(lambda)
 
     if (nextToLower.nonEmpty) {
 
-      val applicableRules = mapLoweringRules.filter(rule => {
-        nextToLower.map(expr => rule.rewrite.isDefinedAt(expr) && rule.isValid(expr.context)).reduce(_&&_)
-      }).toList
+      val idMap = NumberExpression.breadthFirst(lambda)
 
-      val newLambdas = applicableRules.map(rule => {
-        nextToLower.foldLeft(lambda)((l, e) => FunDecl.replace(l, e, rule.rewrite(e)))
+      val applicableRules = mapLoweringRules.toList.filter(rule => {
+        nextToLower.map(id => {
+          val expr = getExprForId(lambda.body, id, idMap).get
+          rule.rewrite.isDefinedAt(expr) && rule.isValid(expr.context)
+        }).reduce(_&&_)
       })
 
-      if (applicableRules.isEmpty)
-        throw new RuntimeException
+      val newLambdas = applicableRules.map(applyRuleToExpressions(lambda, nextToLower, _))
 
       newLambdas.map(lowerByLevels).reduce(_++_)
     } else {
       List(lambda)
+    }
+  }
+
+  def applyRuleToExpressions(lambda: Lambda, nextToLower: List[Int], rule: Rule): Lambda =
+    nextToLower.foldLeft(lambda)((l, e) => applyRuleAtId(l, e, rule))
+
+  def lowerNextLevelWithRule(lambda: Lambda, rule: Rule) = {
+    val nextToLower = FindNextToLower()(lambda)
+    applyRuleToExpressions(lambda, nextToLower, rule)
+  }
+
+  def simplifyAndFuse(lambda: Lambda): Lambda = {
+    val rules = simplificationRules ++ fusionRules
+
+    TypeChecker.check(lambda.body)
+
+    val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
+
+    if (allRulesAt.isEmpty)
+      lambda
+    else {
+      val ruleAt = allRulesAt.head
+
+      simplifyAndFuse(applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
     }
   }
 
@@ -202,14 +226,20 @@ object Rewrite {
 
 }
 
+object FindNextToLower {
+  def apply() = new FindNextToLower
+}
+
 class FindNextToLower {
 
-  var expressions = List[Expr]()
+  var expressions = List[Int]()
+  var idMap = collection.Map[Expr, Int]()
 
-  def apply(lambda: Lambda): List[Expr] =
+  def apply(lambda: Lambda): List[Int] =
     apply(lambda.body)
 
-  def apply(expr: Expr): List[Expr] = {
+  def apply(expr: Expr): List[Int] = {
+    idMap = NumberExpression.breadthFirst(expr)
     find(expr)
     expressions
   }
@@ -219,7 +249,7 @@ class FindNextToLower {
       case call: FunCall =>
         
         call.f match {
-          case Map(f) if f.body.isConcrete => expressions = call +: expressions
+          case Map(f) if f.body.isConcrete => expressions = idMap(call) +: expressions
           case _ => find(call.f)
         }
 
