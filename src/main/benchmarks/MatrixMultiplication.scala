@@ -118,8 +118,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
             toGlobal(MapLcl(1)(MapLcl(0)(id))) o
               Join() o
@@ -158,8 +158,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
             Join() o Map(TransposeW()) o
               toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(id)))) o
               Join() o
@@ -218,8 +218,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
             Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
               Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -285,8 +285,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
             Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
               Map(TransposeW() o Join() o Map(TransposeW())) o
