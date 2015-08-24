@@ -127,15 +127,16 @@ object Rewrite {
       tupleFission
     )
 
+  val otherRules = Seq(
+    gatherToScatter,
+    scatterToGather,
+    splitJoin,
+    vectorize,
+    reorderBothSidesWithStride,
+    splitZip
+  )
   val rules =
-    Seq(
-      gatherToScatter,
-      scatterToGather,
-      splitJoin,
-      vectorize,
-      reorderBothSidesWithStride,
-      splitZip
-    ) ++ tupleRules ++ idRules ++ interchangeRules ++
+    otherRules ++ tupleRules ++ idRules ++ interchangeRules ++
       fissionRules ++ fusionRules++ reduceRules ++
       simplificationRules ++ addressSpaceRules ++ mapLoweringRules :+ reduceLoweringRule
 
