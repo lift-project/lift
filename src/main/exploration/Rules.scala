@@ -855,6 +855,31 @@ object Rules {
         e3
     })
 
+  val tileInputAndOutput: (Int, Int) => Rule = (x, y) =>
+    Rule("Tile the input and output of a computation in the form " +
+         "Map(fun(x => Map(fun(y => Reduce(g) o Map(f) $ Zip(x, y) )) $ ... )) $ ...", {
+      case funCall @ FunCall(Map(Lambda(lambdaParam1,
+                      FunCall(Map(Lambda(lambdaParam2,
+                        FunCall(Reduce(_), _, FunCall(Map(Lambda(_, FunCall(_: UserFun, _*))),
+                        FunCall(Zip(_), zipArgs@_*)))
+                      )), arg)
+                     )), _)
+        if !(lambdaParam1.head eq arg)
+          && zipArgs.contains(lambdaParam1.head)
+          && zipArgs.contains(lambdaParam2.head)
+      =>
+        val e1 = Rewrite.applyRuleAtId(funCall, 0, Rules.tileOutput(x))
+
+        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 7, Rules.mapFission)
+        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 14, Rules.mapMapTransposeZipInside)
+        val e4 = Rewrite.depthFirstApplyRuleAtId(e3, 6, Rules.mapFissionAtPosition(1))
+        val e5 = Rewrite.depthFirstApplyRuleAtId(e4, 16, Rules.mapMapTransposeZipInside)
+
+        val e6 = Rewrite.depthFirstApplyRuleAtId(e5, 17, Rules.finishTilingInput(y))
+
+        e6
+    })
+
   val moveTransposeInsideTiling =
     Rule("Map(Split(n) o Transpose()) o Split(m) o Transpose() => " +
          "Transpose() o Map(Transpose()) o Split(n) o Map(Split(m))", {
