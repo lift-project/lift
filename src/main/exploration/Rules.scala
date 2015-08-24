@@ -137,11 +137,13 @@ object Rules {
     => MapSeq(f)(arg)
   })
 
-  val mapGlb = Rule("Map(f) => MapGlb(f)", {
+  val mapGlb: Rule = mapGlb(0)
+
+  def mapGlb(dim: Int): Rule =  Rule("Map(f) => MapGlb(f)", {
     case FunCall(Map(f), arg)
       // check that none of these are nested inside
       if !f.body.contains({
-        case FunCall(_: MapGlb, _) =>
+        case FunCall(MapGlb(dimNested, _), _) if dim == dimNested =>
         case FunCall(_: MapWrg, _) =>
         case FunCall(_: MapLcl, _) =>
         case FunCall(_: MapWarp, _) =>
@@ -149,7 +151,7 @@ object Rules {
       }) && f.body.isConcrete
     => MapGlb(f)(arg)
 
-  }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp))
+  }, c => !(c.inMapGlb(dim) || c.inMapWrg.reduce(_ || _) || c.inMapWarp))
 
   def mapWrg(dim: Int): Rule = Rule("Map(f) => MapWrg(f)", {
     case FunCall(Map(f), arg)
@@ -165,7 +167,7 @@ object Rules {
     =>
       MapWrg(dim)(f)(arg)
 
-  }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp))
+  }, c => !(c.inMapGlb.reduce(_ || _) || c.inMapWrg(dim) || c.inMapWarp))
 
   val mapWrg: Rule = mapWrg(0)
 
@@ -178,7 +180,7 @@ object Rules {
         case FunCall(_: MapLane, _) =>
       }) && f.body.isConcrete
     => MapLcl(dim)(f)(arg)
-  }, c => c.inMapWrg && !c.inMapLcl)
+  }, c => c.inMapWrg(dim) && !c.inMapLcl(dim))
 
   val mapLcl: Rule = mapLcl(0)
 
@@ -197,7 +199,7 @@ object Rules {
           case FunCall(_: MapLane, _) =>
         }) && f.body.isConcrete
     => MapWarp(f)(arg)
-  }, c => !(c.inMapGlb || c.inMapWrg || c.inMapWarp))
+  }, c => !(c.inMapGlb.reduce(_ || _) || c.inMapWrg.reduce(_ || _) || c.inMapWarp))
 
   val mapLane = Rule("Map(f) => MapLane(f)", {
     case FunCall(Map(f), arg)
@@ -223,7 +225,7 @@ object Rules {
 
       val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
 
-      // TODO: address space
+      // TODO: address space and copy, use id
       toGlobal(MapSeq(idFunction2)) o ReduceSeq(f, newInit) $ arg
   })
 
@@ -917,28 +919,24 @@ object Rules {
       case Map(inF) =>
         var result = List[FunDecl]()
 
-        // sequential
-//        if (!call.context.inMapSeq && (call.context.inMapGlb || call.context.inMapLcl))
-          result = result :+ MapSeq(inF)
-
         // global, workgroup
-        if (call.context.mapDepth == 0 && !call.context.inMapGlb && !call.context.inMapWrg) {
+        if (call.context.mapDepth == 0 && !call.context.inMapGlb.reduce(_ || _) && !call.context.inMapWrg.reduce(_ || _)) {
           result = result :+ MapGlb(inF)
           result = result :+ MapWrg(inF)
         }
 
         // local
-        if (call.context.mapDepth == 1 && call.context.inMapWrg && !call.context.inMapGlb && !call.context.inMapLcl) {
+        if (call.context.mapDepth == 1 && call.context.inMapWrg.reduce(_ || _) && !call.context.inMapGlb.reduce(_ || _) && !call.context.inMapLcl.reduce(_ || _)) {
           result = result :+ MapLcl(inF)
         }
 
         // warp
-        if (call.context.mapDepth == 1 && call.context.inMapLcl && !call.context.inMapWarp  && !call.context.inMapLane) {
+        if (call.context.mapDepth == 1 && call.context.inMapLcl.reduce(_ || _) && !call.context.inMapWarp  && !call.context.inMapLane) {
           result = result :+ MapWarp(inF)
         }
 
         // lane
-        if (call.context.mapDepth == 1 && (call.context.inMapLcl || call.context.inMapWarp) && !call.context.inMapLane) {
+        if (call.context.mapDepth == 1 && (call.context.inMapLcl.reduce(_ || _) || call.context.inMapWarp) && !call.context.inMapLane) {
           result = result :+ MapLane(inF)
         }
 
