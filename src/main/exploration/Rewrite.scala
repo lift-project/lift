@@ -42,7 +42,7 @@ object Rewrite {
       mapLane
     )
 
-  val reduceLoweringRule = reduceSeq
+  val reduceLoweringRule = Seq(reduceSeq)
 
   val addressSpaceRules =
     Seq(
@@ -137,7 +137,7 @@ object Rewrite {
   val rules =
     otherRules ++ tupleRules ++ idRules ++ interchangeRules ++
       fissionRules ++ fusionRules++ reduceRules ++
-      simplificationRules ++ addressSpaceRules ++ mapLoweringRules :+ reduceLoweringRule
+      simplificationRules ++ addressSpaceRules ++ mapLoweringRules ++ reduceLoweringRule
 
   private def listAllPossibleRewritesForRules(lambda: Lambda, rules: Seq[Rule]): Seq[(Rule, Int)] = {
     rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
@@ -211,6 +211,7 @@ object Rewrite {
     val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
     val rewritten = allRulesAt.map(ruleAt => applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
 
+    // TODO: Not all generable kernels are valid...
     val (g, notG) = rewritten.partition( _.isGenerable )
 
     if (levels == 1) {

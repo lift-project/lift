@@ -529,16 +529,15 @@ class TestRules {
       input => Reduce(add, 0.0f) $ input
     )
 
-    val lambdaOptions = Rewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewrite(f,
+      Seq(Rules.reduceSeq, Rules.implementIdAsDeepCopy, Rules.globalMemory), 3)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
     assertTrue(lambdaOptions.nonEmpty)
 
-    lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+      val (result: Array[Float], _) = Execute(1, 1)(lambdaOptions(1), A)
+      assertArrayEquals(lambdaOptions(1) + " failed", gold, result, 0.0f)
   }
 
   @Test

@@ -242,7 +242,7 @@ object Rules {
       val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
 
       // TODO: address space if last?
-      Id() o ReduceSeq(f, newInit) $ arg
+      MapSeq(Id()) o ReduceSeq(f, newInit) $ arg
   })
 
   /* Stride accesses or normal accesses */
