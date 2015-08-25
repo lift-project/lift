@@ -6,10 +6,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-// TODO: Move isValid inside the case statement?
 case class Rule(desc: String,
-                rewrite: PartialFunction[Expr, Expr],
-                isValid: Context => Boolean = _ => true)
+                rewrite: PartialFunction[Expr, Expr])
 
 object Rules {
 
@@ -139,75 +137,94 @@ object Rules {
   val mapGlb: Rule = mapGlb(0)
 
   def mapGlb(dim: Int): Rule =  Rule("Map(f) => MapGlb(f)", {
-    case FunCall(Map(f), arg)
+    case call@FunCall(Map(f), arg)
       // check that none of these are nested inside
       if !f.body.contains({
-        case FunCall(MapGlb(dimNested, _), _) if dim == dimNested =>
-        case FunCall(_: MapWrg, _) =>
-        case FunCall(_: MapLcl, _) =>
-        case FunCall(_: MapWarp, _) =>
-        case FunCall(_: MapLane, _) =>
-      }) && f.body.isConcrete
-    => MapGlb(f)(arg)
-
-  }, c => !(c.inMapGlb(dim) || c.inMapWrg.reduce(_ || _) || c.inMapWarp))
+          case FunCall(MapGlb(dimNested, _), _) if dim == dimNested =>
+          case FunCall(_: MapWrg, _) =>
+          case FunCall(_: MapLcl, _) =>
+          case FunCall(_: MapWarp, _) =>
+          case FunCall(_: MapLane, _) =>
+        })
+        && f.body.isConcrete
+        && !(call.context.inMapGlb(dim) ||
+             call.context.inMapWrg.reduce(_ || _) ||
+             call.context.inMapWarp)
+    =>
+      MapGlb(f)(arg)
+  })
 
   def mapWrg(dim: Int): Rule = Rule("Map(f) => MapWrg(f)", {
-    case FunCall(Map(f), arg)
+    case call@FunCall(Map(f), arg)
       // check that there is a nested map inside ...
       if f.body.contains({
         case FunCall(_: Map, _) =>
-      }) &&
+        })
         // and that none of these are nested inside
-        !f.body.contains({
+        && !f.body.contains({
           case FunCall(_: MapGlb, _) =>
           case FunCall(MapWrg(dimNested, _), _) if dim == dimNested =>
-        }) && f.body.isConcrete
+        })
+        && f.body.isConcrete
+        && !(call.context.inMapGlb.reduce(_ || _) ||
+             call.context.inMapWrg(dim) ||
+             call.context.inMapWarp)
     =>
       MapWrg(dim)(f)(arg)
-
-  }, c => !(c.inMapGlb.reduce(_ || _) || c.inMapWrg(dim) || c.inMapWarp))
+  })
 
   val mapWrg: Rule = mapWrg(0)
 
   def mapLcl(dim: Int): Rule = Rule("Map(f) => MapLcl(f)", {
-    case FunCall(Map(f), arg)
+    case call@FunCall(Map(f), arg)
       // check that none of these are nested inside
       if !f.body.contains({
-        case FunCall(MapLcl(dimNested, _), _) if dim == dimNested =>
-        case FunCall(_: MapWarp, _) =>
-        case FunCall(_: MapLane, _) =>
-      }) && f.body.isConcrete
-    => MapLcl(dim)(f)(arg)
-  }, c => c.inMapWrg(dim) && !c.inMapLcl(dim))
+          case FunCall(MapLcl(dimNested, _), _) if dim == dimNested =>
+          case FunCall(_: MapWarp, _) =>
+          case FunCall(_: MapLane, _) =>
+        })
+        && f.body.isConcrete
+        && call.context.inMapWrg(dim)
+        && !call.context.inMapLcl(dim)
+    =>
+      MapLcl(dim)(f)(arg)
+  })
 
   val mapLcl: Rule = mapLcl(0)
 
   val mapWarp = Rule("Map(f) => MapWarp(f)", {
-    case FunCall(Map(f), arg)
+    case call@FunCall(Map(f), arg)
       // check if there is a nested map inside
       if f.body.contains({
-        case FunCall(_: Map, _) =>
-      }) &&
+          case FunCall(_: Map, _) =>
+        })
         // and that none of these are nested inside
-        !f.body.contains({
+        && !f.body.contains({
           case FunCall(_: MapGlb, _) =>
           case FunCall(_: MapWrg, _) =>
           case FunCall(_: MapLcl, _) =>
           case FunCall(_: MapWarp, _) =>
           case FunCall(_: MapLane, _) =>
-        }) && f.body.isConcrete
+        })
+        && f.body.isConcrete
+        && !(call.context.inMapGlb.reduce(_ || _) ||
+             call.context.inMapWrg.reduce(_ || _) ||
+             call.context.inMapWarp)
     => MapWarp(f)(arg)
-  }, c => !(c.inMapGlb.reduce(_ || _) || c.inMapWrg.reduce(_ || _) || c.inMapWarp))
+  })
 
   val mapLane = Rule("Map(f) => MapLane(f)", {
-    case FunCall(Map(f), arg)
+    case call@FunCall(Map(f), arg)
       // check that none of these are nested inside
       if !f.body.contains({
         case FunCall(_: MapLane) =>
-      }) && f.body.isConcrete
-    => MapLane(f)(arg)
-  }, c => c.inMapWarp && !c.inMapLane)
+        })
+        && f.body.isConcrete
+        && call.context.inMapWarp
+        && !call.context.inMapLane
+    =>
+      MapLane(f)(arg)
+  })
 
   /* Reduce Rule */
 

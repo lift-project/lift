@@ -24,14 +24,20 @@ object Rewrite {
   }
 
   def applyRuleAtId(expr: Expr, id: Int, rule: Rule): Expr = {
-    TypeChecker.check(expr)
-    val toBeReplaced = getExprForId(expr, id, NumberExpression.breadthFirst(expr)).get
-    Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
+    val numbering = NumberExpression.breadthFirst(expr)
+    applyRuleAtId(expr, id, rule, numbering)
+
   }
 
   def depthFirstApplyRuleAtId(expr:Expr, id: Int, rule: Rule): Expr = {
+    val numbering = NumberExpression.depthFirst(expr)
+    applyRuleAtId(expr, id, rule, numbering)
+  }
+
+  def applyRuleAtId(expr: Expr, id: Int, rule: Rule, numbering: collection.Map[Expr, Int]): Expr = {
     TypeChecker.check(expr)
-    val toBeReplaced = getExprForId(expr, id, NumberExpression.depthFirst(expr)).get
+    Context.updateContext(expr)
+    val toBeReplaced = getExprForId(expr, id, numbering).get
     Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
   }
 
@@ -63,6 +69,8 @@ object Rewrite {
       transposeTransposeId,
       joinSplitId,
       splitJoinId,
+      gatherScatterId,
+      scatterGatherId,
       removeEmptyMap
     )
 
@@ -146,12 +154,12 @@ object Rewrite {
 
   private def listAllPossibleRewrites(lambda: Lambda,
                                       rule: Rule): Seq[(Rule, Int)] = {
-    Context.updateContext(lambda.body, new Context)
+    Context.updateContext(lambda.body)
 
     val numbering = NumberExpression.breadthFirst(lambda)
 
     Expr.visitWithState(Seq[(Rule, Int)]())( lambda.body, (e, s) => {
-      if (rule.rewrite.isDefinedAt(e) && rule.isValid(e.context)) {
+      if (rule.rewrite.isDefinedAt(e)) {
         s :+ (rule, numbering(e))
       } else s
     })
@@ -170,7 +178,7 @@ object Rewrite {
       val applicableRules = mapLoweringRules.toList.filter(rule => {
         nextToLower.map(id => {
           val expr = getExprForId(lambda.body, id, idMap).get
-          rule.rewrite.isDefinedAt(expr) && rule.isValid(expr.context)
+          rule.rewrite.isDefinedAt(expr)
         }).reduce(_&&_)
       })
 

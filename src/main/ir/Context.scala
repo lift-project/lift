@@ -6,9 +6,9 @@ import opencl.ir.pattern._
 class Context extends Cloneable {
 
   var mapDepth : Int = 0
-  var inMapGlb  = Array(false, false, false)
-  var inMapWrg  = Array(false, false, false)
-  var inMapLcl  = Array(false, false, false)
+  var inMapGlb  = Seq(false, false, false)
+  var inMapWrg  = Seq(false, false, false)
+  var inMapLcl  = Seq(false, false, false)
   var inMapWarp = false
   var inMapLane = false
   var inMapSeq  = false
@@ -22,19 +22,19 @@ class Context extends Cloneable {
   
   def setInMapGlb(dim: Int) : Context = {
     val c = this.copy()
-    c.inMapGlb(dim) = true
+    c.inMapGlb = c.inMapGlb.updated(dim, true)
     c
   }  
   
   def setInMapWrg(dim: Int) : Context = {
     val c = this.copy()
-    c.inMapWrg(dim) = true
+    c.inMapWrg = c.inMapWrg.updated(dim, true)
     c
   }
    
    def setInMapLcl(dim: Int) : Context = {
     val c = this.copy()
-    c.inMapLcl(dim) = true
+    c.inMapLcl = c.inMapLcl.updated(dim, true)
     c
   }
 
@@ -61,13 +61,9 @@ class Context extends Cloneable {
     c.inReduceSeq = true
     c
   }
-
-
-  /*override def toString(): String = {
-    "Contex[mapDepth="+mapDepth+"]"
-  }*/
   
-  def copy() = this.clone().asInstanceOf[Context]
+  def copy() =
+    this.clone().asInstanceOf[Context]
 }
 
 object Context {
