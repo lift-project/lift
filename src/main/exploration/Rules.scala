@@ -3,7 +3,6 @@ package exploration
 import apart.arithmetic._
 import ir._
 import ir.ast._
-import opencl.ir._
 import opencl.ir.pattern._
 
 case class Rule(desc: String,
@@ -238,17 +237,12 @@ object Rules {
     case FunCall(Reduce(f), init, arg) =>
 
       // Construct id functions using the type of init
-      var idFunction: FunDecl = id
-      var idFunction2: FunDecl = id
-      Type.visit(init.t, t => if (t.isInstanceOf[ArrayType]) {
-        idFunction = Map(idFunction)
-        idFunction2 = Map(idFunction2)
-      }, t => Unit)
+      val idFunction: FunDecl = generateId(init.t)
 
       val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
 
-      // TODO: address space and copy, use id
-      toGlobal(MapSeq(idFunction2)) o ReduceSeq(f, newInit) $ arg
+      // TODO: address space if last?
+      Id() o ReduceSeq(f, newInit) $ arg
   })
 
   /* Stride accesses or normal accesses */

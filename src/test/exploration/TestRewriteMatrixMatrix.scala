@@ -118,7 +118,6 @@ class TestRewriteMatrixMatrix {
     val h8 = Rewrite.applyRuleAtId(h7, 42, Rules.mapFusionWithZip)
     val h9 = Rewrite.applyRuleAtId(h8, 53, Rules.reduceMapFusion)
 
-
     // Final steps, move transpose inside tiling + tiling (kernel) for A
     val h10 = Rewrite.applyRuleAtId(h9, 6, Rules.mapFissionWithZipInside)
 
