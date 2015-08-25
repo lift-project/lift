@@ -6,17 +6,8 @@ import ir.ast._
 
 object Rewrite {
 
-  def getExprForId(expr: Expr, id: Int, idMap: collection.Map[Expr, Int]): Option[Expr] = {
-    var foundExpr: Option[Expr] = None
-
-    Expr.visit(expr, e => {
-      if (idMap.isDefinedAt(e))
-        if (idMap(e) == id)
-          foundExpr = Some(e)
-    }, _ => Unit)
-
-    foundExpr
-  }
+  def getExprForId(expr: Expr, id: Int, idMap: collection.Map[Expr, Int]): Expr =
+    idMap.find(pair => pair._2 == id).get._1
 
   def applyRuleAtId(lambda: Lambda, id: Int, rule: Rule): Lambda = {
     val replacement = applyRuleAtId(lambda.body, id, rule)
@@ -37,7 +28,7 @@ object Rewrite {
   def applyRuleAtId(expr: Expr, id: Int, rule: Rule, numbering: collection.Map[Expr, Int]): Expr = {
     TypeChecker.check(expr)
     Context.updateContext(expr)
-    val toBeReplaced = getExprForId(expr, id, numbering).get
+    val toBeReplaced = getExprForId(expr, id, numbering)
     Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
   }
 
@@ -177,7 +168,7 @@ object Rewrite {
 
       val applicableRules = mapLoweringRules.toList.filter(rule => {
         nextToLower.map(id => {
-          val expr = getExprForId(lambda.body, id, idMap).get
+          val expr = getExprForId(lambda.body, id, idMap)
           rule.rewrite.isDefinedAt(expr)
         }).reduce(_&&_)
       })

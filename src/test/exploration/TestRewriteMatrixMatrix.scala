@@ -91,7 +91,8 @@ class TestRewriteMatrixMatrix {
     val f36 = Rewrite.applyRuleAtId(f35, 14, Rules.mapFissionAtPosition(1))
     val f37 = Rewrite.applyRuleAtId(f36, 15, Rules.mapReduceInterchange)
 
-    // Output's good, nested reduces use same memory
+    // Output's good, nested reduces use same memory, performance drops by a third for NVIDIA and
+    // half for AMD if not.
     // Can be brought into a form, where a large chunk (splits, joins, transposes and reorders)
     // can be commented out and runs fine.
 
@@ -119,14 +120,8 @@ class TestRewriteMatrixMatrix {
     val h9 = Rewrite.applyRuleAtId(h8, 53, Rules.reduceMapFusion)
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
-    val h10 = Rewrite.applyRuleAtId(h9, 6, Rules.mapFissionWithZipInside)
 
-    val h11 = Rewrite.applyRuleAtId(h10, 7, Rules.moveTransposeInsideTiling)
-
-    val h12 = Rewrite.applyRuleAtId(h11, 1, Rules.mapFissionWithZipInside)
-    val h13 = Rewrite.applyRuleAtId(h12, 2, Rules.mapFission)
-    val h14 = Rewrite.applyRuleAtId(h13, 3, Rules.mapTransposeSplit)
-    val h15 = Rewrite.applyRuleAtId(h14, 2, Rules.mapSplitTranspose)
+    val h15 = Rewrite.applyRuleAtId(h9, 1, Rules.finishRectangularTiles)
 
     // Tile the transposition
 
@@ -421,16 +416,9 @@ class TestRewriteMatrixMatrix {
     // Derivation the same, except split on the zip is different than the others
     val h0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K), (p951880373, p1752203484) => FunCall(Join(), FunCall(Map(fun((p243745864) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p699780352) => FunCall(toGlobal(fun((p1613255205) => FunCall(MapSeq(fun((p1897115967) => FunCall(Map(fun((p1166151249) => FunCall(Map(fun((p1121453612) => FunCall(id, p1121453612))), p1166151249))), p1897115967))), p1613255205))), FunCall(ReduceSeq(fun((p2619171, p1728790703) => FunCall(Map(fun((p1227074340) => FunCall(Map(fun((p1154002927) => FunCall(add, FunCall(Get(0), p1154002927), FunCall(Get(1), p1154002927)))), FunCall(Zip(2), FunCall(Get(0), p1227074340), FunCall(Get(1), p1227074340))))), FunCall(Zip(2), p2619171, FunCall(fun((p2070529722) => FunCall(Map(fun((p1188753216) => FunCall(Join(), FunCall(Map(fun((p317986356) => FunCall(toPrivate(fun((p331510866) => FunCall(MapSeq(fun((p640363654) => FunCall(id, p640363654))), p331510866))), FunCall(ReduceSeq(fun((p924477420, p99451533) => FunCall(add, p924477420, FunCall(fun((p84739718) => FunCall(mult, FunCall(Get(0), p84739718), FunCall(Get(1), p84739718))), p99451533)))), FunCall(toPrivate(id), Value(0.0f, Float)), FunCall(Zip(2), p317986356, p1188753216))))), FunCall(Transpose(), FunCall(Get(0), p2070529722)))))), FunCall(Transpose(), FunCall(Get(1), p2070529722)))), p1728790703))))), FunCall(toPrivate(Map(fun((p2050835901) => FunCall(Map(fun((p511473681) => FunCall(id, p511473681))), p2050835901)))), Value(0.0f, ArrayType(ArrayType(Float, 8), 8))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p243745864)), FunCall(Split(4), FunCall(Transpose(), p699780352))))))), FunCall(Split(8), FunCall(Transpose(), p1752203484))))))), FunCall(Split(8), p951880373))))
 
-    val h1 = Rewrite.applyRuleAtId(h0, 6, Rules.mapFissionWithZipInside)
+    val h1 = Rewrite.applyRuleAtId(h0, 1, Rules.finishRectangularTiles)
 
-    val h4 = Rewrite.applyRuleAtId(h1, 7, Rules.moveTransposeInsideTiling)
-
-    val h5 = Rewrite.applyRuleAtId(h4, 1, Rules.mapFissionWithZipInside)
-    val h6 = Rewrite.applyRuleAtId(h5, 2, Rules.mapFission)
-    val h7 = Rewrite.applyRuleAtId(h6, 3, Rules.mapTransposeSplit)
-    val h8 = Rewrite.applyRuleAtId(h7, 2, Rules.mapSplitTranspose)
-
-    println(h8)
+    println(h1)
 
     // The copy for transpose + rest same as before
   }

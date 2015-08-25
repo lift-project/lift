@@ -912,6 +912,26 @@ object Rules {
         e3
     })
 
+  val finishRectangularTiles =
+    Rule("", {
+      case funCall@FunCall(Map(Lambda(_,
+             FunCall(TransposeW(), FunCall(Join(),
+             FunCall(Map(_), FunCall(Split(_), FunCall(Transpose(), _)))))
+           )), FunCall(Split(_), _:Param))
+        if mapFissionWithZipInside.rewrite.isDefinedAt(funCall)
+          && mapFissionWithZipInside.rewrite.isDefinedAt(
+            Rewrite.getExprForId(funCall, 5, NumberExpression.breadthFirst(funCall)))
+      =>
+        val e1 = Rewrite.applyRuleAtId(funCall, 5, Rules.mapFissionWithZipInside)
+        val e4 = Rewrite.applyRuleAtId(e1, 6, Rules.moveTransposeInsideTiling)
+        val e5 = Rewrite.applyRuleAtId(e4, 0, Rules.mapFissionWithZipInside)
+        val e6 = Rewrite.applyRuleAtId(e5, 1, Rules.mapFission)
+        val e7 = Rewrite.applyRuleAtId(e6, 2, Rules.mapTransposeSplit)
+        val e8 = Rewrite.applyRuleAtId(e7, 1, Rules.mapSplitTranspose)
+
+        e8
+    })
+
   val tileTranspose: (Int, Int) => Rule = (x, y) =>
     Rule("Map(Map(f)) o Transpose() => tiled", {
       case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), FunCall(Transpose(), _))
