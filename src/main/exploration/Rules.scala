@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.{Cst, RangeMul, RangeUnknown}
+import apart.arithmetic.{ArithExpr, Cst, RangeMul, RangeUnknown}
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -31,7 +31,7 @@ object Rules {
 
   val splitJoin: Rule = splitJoin(4)
 
-  def splitJoin(split: Int) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
+  def splitJoin(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
     case FunCall(Map(f), arg) =>
       Join() o Map(Map(f)) o Split(split) $ arg
   })
@@ -57,7 +57,7 @@ object Rules {
 
   val partialReduceSplitJoin: Rule = partialReduceSplitJoin(4)
 
-  def partialReduceSplitJoin(x: Int): Rule =
+  def partialReduceSplitJoin(x: ArithExpr): Rule =
     Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
       case FunCall(PartRed(f), init, arg) =>
         Join() o Map(PartRed(f, init)) o Split(x) $ arg
@@ -372,7 +372,7 @@ object Rules {
 
   val reorderBothSidesWithStride: Rule = reorderBothSidesWithStride(4)
 
-  def reorderBothSidesWithStride(stride: Int): Rule = {
+  def reorderBothSidesWithStride(stride: ArithExpr): Rule = {
     Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
       case FunCall(map@Map(_), arg) =>
         Scatter(ReorderWithStride(stride)) o map o Gather(ReorderWithStride(stride)) $ arg
@@ -957,7 +957,7 @@ object Rules {
     })
   }
 
-  private def validOSplitRange(t: Type) = {
+  private def validSplitRange(t: Type) = {
     t match {
       case ArrayType(_, len) => RangeMul(Cst(1), len, Cst(2))
       case _ => RangeUnknown // Error
