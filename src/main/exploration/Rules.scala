@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.{ArithExpr, Cst, RangeMul, RangeUnknown}
+import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -29,11 +29,12 @@ object Rules {
 
   /* Split-join rule */
 
-  val splitJoin: Rule = splitJoin(4)
+  val splitJoin: Rule = splitJoin(?)
 
   def splitJoin(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
     case FunCall(Map(f), arg) =>
-      Join() o Map(Map(f)) o Split(split) $ arg
+      val chunkSize = if (split == ?) validSplitVariable(arg.t) else split
+      Join() o Map(Map(f)) o Split(chunkSize) $ arg
   })
 
   /* Reduce rules */
@@ -48,19 +49,24 @@ object Rules {
       Reduce(f, init) $ arg
   })
 
-  val partialReduceReorder = Rule("PartRed(f) => PartRed(f) o Reorder", {
-    case FunCall(PartRed(f), init, arg) =>
-      PartRed(f, init) o Gather(ReorderWithStride(4)) $ arg
-  })
+  val partialReduceReorder: Rule = partialReduceReorder(?)
+
+  def partialReduceReorder(s: ArithExpr): Rule =
+    Rule("PartRed(f) => PartRed(f) o Reorder", {
+      case FunCall(PartRed(f), init, arg) =>
+        val stride = if (s == ?) validSplitVariable(arg.t) else s
+        PartRed(f, init) o Gather(ReorderWithStride(stride)) $ arg
+    })
 
   // TODO: iterate
 
-  val partialReduceSplitJoin: Rule = partialReduceSplitJoin(4)
+  val partialReduceSplitJoin: Rule = partialReduceSplitJoin(?)
 
-  def partialReduceSplitJoin(x: ArithExpr): Rule =
+  def partialReduceSplitJoin(split: ArithExpr): Rule =
     Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
       case FunCall(PartRed(f), init, arg) =>
-        Join() o Map(PartRed(f, init)) o Split(x) $ arg
+        val chunkSize = if (split == ?) validSplitVariable(arg.t) else split
+        Join() o Map(PartRed(f, init)) o Split(chunkSize) $ arg
     })
 
   /* Cancellation rules */
@@ -370,12 +376,13 @@ object Rules {
         ), newInit) o Transpose() $ arg
     })
 
-  val reorderBothSidesWithStride: Rule = reorderBothSidesWithStride(4)
+  val reorderBothSidesWithStride: Rule = reorderBothSidesWithStride(?)
 
   def reorderBothSidesWithStride(stride: ArithExpr): Rule = {
     Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
       case FunCall(map@Map(_), arg) =>
-        Scatter(ReorderWithStride(stride)) o map o Gather(ReorderWithStride(stride)) $ arg
+        val s = if (stride == ?) validSplitVariable(arg.t) else stride
+        Scatter(ReorderWithStride(stride)) o map o Gather(ReorderWithStride(s)) $ arg
     })
   }
 
@@ -957,10 +964,10 @@ object Rules {
     })
   }
 
-  private def validSplitRange(t: Type) = {
+  private def validSplitVariable(t: Type): ArithExpr = {
     t match {
-      case ArrayType(_, len) => RangeMul(Cst(1), len, Cst(2))
-      case _ => RangeUnknown // Error
+      case ArrayType(_, len) => Var(RangeMul(Cst(1), len, Cst(2)))
+      case _ => throw new TypeException(t, "ArrayType")
     }
   }
 }
