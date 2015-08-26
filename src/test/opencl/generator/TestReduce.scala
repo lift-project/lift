@@ -624,4 +624,29 @@ class TestReduce {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
   }
+
+  @Test def issue_31(): Unit = {
+    val inputSize = 512
+    val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inputArray.sum
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      (input) => {
+        Join() o MapWrg(
+          Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+            Iterate((scala.math.log(inputSize)/scala.math.log(2)).toInt)(
+              Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
+            ) o Join() o toLocal(MapLcl(toGlobal(MapSeq(id)))) o Split(1)
+        ) o Split(inputSize) $ input
+      })
+
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+
+    assertEquals(gold, output(0), 0.1)
+    assertEquals(1, output.length)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
 }
