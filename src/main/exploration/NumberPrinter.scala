@@ -52,6 +52,13 @@ class NumberByDepth {
   private def number(expr: Expr): Unit = {
     idMap += (expr -> currentDepth)
     expr match {
+      case FunCall(f: AbstractPartRed, init, arg) =>
+        number(f)
+        number(arg)
+        currentDepth += 1
+        number(init)
+        currentDepth -= 1
+
       case call: FunCall =>
         number(call.f)
         call.args.foreach(number)

@@ -156,7 +156,7 @@ object Rules {
              call.context.inMapWrg.reduce(_ || _) ||
              call.context.inMapWarp)
     =>
-      MapGlb(f)(arg)
+      MapGlb(dim)(f)(arg)
   })
 
   def mapWrg(dim: Int): Rule = Rule("Map(f) => MapWrg(f)", {
@@ -241,7 +241,6 @@ object Rules {
 
       val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
 
-      // TODO: address space if last?
       MapSeq(Id()) o ReduceSeq(f, newInit) $ arg
   })
 
@@ -259,16 +258,14 @@ object Rules {
   })
 
   val localMemory = Rule("Map(f) => toLocal(Map(f))", {
-    case FunCall(f: AbstractMap, arg)
-      if f.isInstanceOf[MapLcl] || f.isInstanceOf[MapSeq]
+    case call@FunCall(f: AbstractMap, arg)
+      if call.context.inMapWrg.reduce(_ || _)
     =>
       toLocal(f) $ arg
   })
 
   val globalMemory = Rule("Map(f) => toGlobal(Map(f))", {
-    case FunCall(f: AbstractMap, arg)
-      if f.isInstanceOf[MapLcl] || f.isInstanceOf[MapSeq]
-    =>
+    case FunCall(f: AbstractMap, arg) =>
       toGlobal(f) $ arg
   })
 

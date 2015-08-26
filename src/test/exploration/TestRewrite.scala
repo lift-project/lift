@@ -28,7 +28,7 @@ class TestRewrite {
     val f = fun(ArrayType(ArrayType(ArrayType(Float, N), N), N),
         input => Map(Map(Map(id))) $ input)
 
-    val newLambdas = Rewrite.lowerByLevels(f)
+    val newLambdas = Lower.lowerByLevels(f)
 
     assertTrue(newLambdas.nonEmpty)
     assertTrue(newLambdas.forall(_.isGenerable))

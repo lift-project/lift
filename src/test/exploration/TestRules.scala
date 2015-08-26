@@ -427,7 +427,7 @@ class TestRules {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewrite(f, Rewrite.simplificationRules, 1)
+    val lambdaOptions = Rewrite.rewrite(f, simplificationRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
@@ -454,7 +454,7 @@ class TestRules {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewrite(f, Rewrite.simplificationRules, 1)
+    val lambdaOptions = Rewrite.rewrite(f, simplificationRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -480,7 +480,7 @@ class TestRules {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewrite(f, Rewrite.simplificationRules, 1)
+    val lambdaOptions = Rewrite.rewrite(f, simplificationRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
@@ -507,7 +507,7 @@ class TestRules {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewrite(f, Rewrite.simplificationRules, 1)
+    val lambdaOptions = Rewrite.rewrite(f, simplificationRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -552,7 +552,7 @@ class TestRules {
       input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(plusOne) $ input
     )
 
-    val lambdaOptions = Rewrite.rewrite(f, Rewrite.fusionRules, 1)
+    val lambdaOptions = Rewrite.rewrite(f, fusionRules, 1)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
@@ -582,7 +582,7 @@ class TestRules {
 
     val A = Array.tabulate(128)(i => i)
 
-    val lambdaOptions = Rewrite.rewrite(f, Rewrite.fusionRules, 1)
+    val lambdaOptions = Rewrite.rewrite(f, fusionRules, 1)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
@@ -615,7 +615,7 @@ class TestRules {
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
-    val lambdaOptions = Rewrite.rewrite(f, Rewrite.fusionRules, 1)
+    val lambdaOptions = Rewrite.rewrite(f, fusionRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -643,7 +643,7 @@ class TestRules {
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A, a)
 
-    val lambdaOptions = Rewrite.rewrite(f, Rewrite.fusionRules, 1)
+    val lambdaOptions = Rewrite.rewrite(f, fusionRules, 1)
 
     println(lambdaOptions)
 
