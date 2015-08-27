@@ -2,7 +2,7 @@ package exploration
 
 import ir.{Context, TypeChecker}
 import ir.ast._
-import opencl.ir.pattern.{MapSeq, ReduceSeq}
+import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq}
 
 object Lower {
   def apply(lambda: Lambda) = {
@@ -15,9 +15,46 @@ object Lower {
 
     val reduceToGlobal = lastWriteToGlobal(reducesLowered)
 
-    // ids + memory, after zip inside map/red copy to local?
+    val removeOtherIds = dropIds(reduceToGlobal)
 
-    lowerMaps(reduceToGlobal)
+    val copiesAdded = addAndImplementIds(removeOtherIds)
+
+    println(copiesAdded)
+
+    val mapsLowered = simpleMapLoweringStrategy(copiesAdded)
+
+    val assignedAddressSpaces = simpleAddressSpaceStrategy(mapsLowered)
+
+    assignedAddressSpaces
+  }
+
+  def dropIds(lambda: Lambda) =
+    lowerPatternWithRule(lambda, {case FunCall(Id(), _) =>}, Rules.dropId)
+
+  def addAndImplementIds(lambda: Lambda) = {
+    val at = Rules.addIdForCurrentValueInReduce.isDefinedAt _
+
+    val reduceSeqs = findAll(lambda, at)
+
+    val idsAdded = reduceSeqs.foldRight(lambda)((expr, currentLambda) =>
+      FunDecl.replace(currentLambda, expr, Rules.addIdForCurrentValueInReduce.rewrite(expr)))
+
+    val idsImplemented = lowerPatternWithRule(idsAdded,
+      {case FunCall(Id(), _) =>}, Rules.implementIdAsDeepCopy)
+
+    TypeChecker.check(idsImplemented.body)
+
+    lowerPatternWithRule(idsImplemented, { case e if Rules.tupleMap.isDefinedAt(e) => },
+       Rules.tupleMap)
+  }
+
+  def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] = {
+    Expr.visitWithState(List[Expr]())(lambda.body, (current, collected) => {
+      if (at(current))
+        current +: collected
+      else
+        collected
+    })
   }
 
   def lowerMaps(lambda: Lambda): Lambda = {
@@ -40,8 +77,6 @@ object Lower {
       // 2 dims have been split
     }
 
-    println(maxDepth)
-
     lambda
     // Reduce level gets seq
     // depth 2: Glb(1), Glb(0)
@@ -49,6 +84,56 @@ object Lower {
     // 3, the one that was split gets Wrg and Lcl, other Glb other dim?
     // 4 Wrg, Lcl,
 
+  }
+
+  def simpleMapLoweringStrategy(lambda: Lambda) = {
+    val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
+    val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
+    val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
+    val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(0))
+
+    var lambdaN = lambda4
+
+    while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+    lambdaN
+  }
+
+  def simpleAddressSpaceStrategy(lambda: Lambda) = {
+    val tupleMaps = findAll(lambda, {
+      case FunCall(Tuple(_), args@_*) if args.forall({
+        case FunCall(Map(_), _) => true
+        case _ => false
+        }) => true
+      case _ => false
+    })
+
+    val mapTuples = findAll(lambda, {
+      case FunCall(m: AbstractMap, _) if (m.f.body match {
+        case FunCall(Tuple(_), _*) => true
+        case _ => false
+      }) => true
+      case _ => false
+    })
+
+    val localMemories = mapTuples.foldRight(lambda)((expr, currentLambda) => {
+      expr match {
+        case FunCall(MapLcl(_, _), _) =>
+          Context.updateContext(currentLambda.body)
+          FunDecl.replace(currentLambda, expr, Rules.localMemory.rewrite(expr))
+        case _ => currentLambda
+      }
+    })
+
+    tupleMaps.foldRight(localMemories)((expr, currentLambda) => {
+      expr match {
+        case FunCall(MapSeq(_), _) =>
+          Context.updateContext(currentLambda.body)
+          FunDecl.replace(currentLambda, expr, Rules.privateMemory.rewrite(expr))
+        case _ => currentLambda
+      }
+    })
   }
 
   def lastWriteToGlobal(lambda: Lambda): Lambda = {
@@ -63,10 +148,10 @@ object Lower {
 
       TypeChecker.check(lambda.body)
 
-      val implementedId = Rules.implementIdAsDeepCopy.rewrite.apply(idToImplement)
+      val implementedId = Rules.implementIdAsDeepCopy.rewrite(idToImplement)
       val idReplaced = Expr.replace(mapSeqForId, idToImplement, implementedId)
 
-      val idToGlobal = Rules.globalMemory.rewrite.apply(idReplaced)
+      val idToGlobal = Rules.globalMemory.rewrite(idReplaced)
       FunDecl.replace(lambda, mapSeqForId, idToGlobal)
     } else {
 
@@ -93,10 +178,11 @@ object Lower {
     lowerPatternWithRule(lambda, { case FunCall(Reduce(_), _, _) => }, Rules.reduceSeq)
 
   def lowerPatternWithRule(lambda: Lambda, pattern: PartialFunction[Expr, Unit], rule: Rule): Lambda = {
+    TypeChecker.check(lambda.body)
+
     if (lambda.body.contains(pattern)) {
 
       val next = findExpressionForPattern(lambda, pattern).get
-
       val replaced = FunDecl.replace(lambda, next, rule.rewrite(next))
 
       lowerPatternWithRule(replaced, pattern, rule)
@@ -160,7 +246,6 @@ object Lower {
       lambda
     else {
       val ruleAt = allRulesAt.head
-
       simplifyAndFuse(Rewrite.applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
     }
   }

@@ -6,7 +6,10 @@ import ir.ast._
 import opencl.ir.pattern._
 
 case class Rule(desc: String,
-                rewrite: PartialFunction[Expr, Expr])
+                rewrite: PartialFunction[Expr, Expr]) {
+
+  def isDefinedAt(expr: Expr) = rewrite.isDefinedAt(expr)
+}
 
 object Rules {
 

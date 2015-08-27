@@ -34,6 +34,8 @@ class InferNDRange {
   private var mapWrg = Map[Int, ArithExpr]()
 
   def apply(lambda: Lambda): (NDRange, NDRange) = {
+    TypeChecker.check(lambda.body)
+
     var mapGlobals = List[(Int, ArithExpr)]()
     var mapLocals = List[(Int, ArithExpr)]()
     var mapWorkGroups = List[(Int, ArithExpr)]()
