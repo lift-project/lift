@@ -194,8 +194,12 @@ class TestRewriteMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val (output: Array[Float], _) = Execute(tileSizeMN / workPerThreadM, tileSizeMN / workPerThreadN,
-      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f18, matrixA, matrixB)
+    val values = Seq(matrixA, matrixB)
+
+    val (localRange, globalRange) = InferNDRange(f18, values:_*)
+
+    val (output: Array[Float], _) = Execute(localRange(0).eval, localRange(1).eval,
+      globalRange(0).eval, globalRange(1).eval, (true, true))(f18, values:_*)
 
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
 
