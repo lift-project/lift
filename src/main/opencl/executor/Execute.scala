@@ -1,8 +1,10 @@
 package opencl.executor
 
-import apart.arithmetic.{Var, Cst, ArithExpr}
+import apart.arithmetic.{ArithExpr, Cst, Var}
+import arithmetic.TypeVar
 import ir._
-import opencl.generator.{Verbose, OpenCLGenerator}
+import ir.ast._
+import opencl.generator.{OpenCLGenerator, Verbose}
 import opencl.ir._
 
 import scala.collection.immutable

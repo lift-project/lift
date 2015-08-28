@@ -4,8 +4,8 @@ import java.util.function.BiFunction
 
 import apart.arithmetic.ArithExpr
 import ir._
-import opencl.ir._
-import opencl.ir.CompositePatterns._
+import ir.ast._
+import opencl.ir.pattern._
 
 object jGather {
 
@@ -42,11 +42,6 @@ object jMapWarp {
   def create(f: FunDecl) = MapWarp(Lambda1.FunDefToLambda(f))
 }
 
-object jMapMatrix {
-  def create(f: Lambda1) = MapMatrix(f)
-  def create(f: FunDecl) = MapMatrix(Lambda1.FunDefToLambda(f))
-}
-
 object jMapLane {
   def create(f: Lambda1) = MapLane(f)
   def create(f: FunDecl) = MapLane(Lambda1.FunDefToLambda(f))
@@ -55,11 +50,6 @@ object jMapLane {
 object jMapSeq {
   def create(f: Lambda1) = MapSeq(f)
   def create(f: FunDecl) = MapSeq(Lambda1.FunDefToLambda(f))
-}
-
-object jReduceHost {
-  def create(f: Lambda2, init: Value) = ReduceHost(f, init)
-  def create(f: FunDecl, init: Value) = ReduceHost(Lambda1.FunDefToLambda(f), init)
 }
 
 object jReduceSeq {
@@ -96,4 +86,8 @@ object jGroup {
 object jGroup2D {
   def create(relColumns: Array[Int], relRows: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
              posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(relColumns, relRows)
+}
+
+object jGet {
+  def create(e: Expr, n: Int) = Get(e, n)
 }

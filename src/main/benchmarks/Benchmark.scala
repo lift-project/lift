@@ -2,13 +2,13 @@ package benchmarks
 
 import java.io._
 
-import scala.sys.process._
-
-import ir.Lambda
+import ir.ast.Lambda
 import opencl.executor._
 import opencl.generator.Verbose
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
+
+import scala.sys.process._
 
 abstract class Benchmark(val name: String,
                          val defaultInputSizes: Seq[Int],
@@ -47,6 +47,9 @@ abstract class Benchmark(val name: String,
 
   val globalSizeOpt = parser.multiOption[Int](List("g", "globalSize"), "glbSize",
     "Global size(s) to use")
+
+  val loadKernel = parser.option[String](List("loadKernel"), "filename",
+    "Load an OpenCL kernel source file")
 
   val size = parser.multiOption[Int](List("s", "size"), "inputSize",
     "Size of the input to use, expecting " + defaultInputSizes.length + " sizes.")
@@ -200,21 +203,53 @@ abstract class Benchmark(val name: String,
 
       val timeout = if (timeoutOpt.value.isDefined) timeoutOpt.value.get.toDouble else Double.MaxValue
 
-      val (output: Array[Float], runtime) = Execute(
-        localSize(0),
-        localSize(1),
-        localSize(2),
-        globalSize(0),
-        globalSize(1),
-        globalSize(2),
-        (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-      )(iterations, timeout, lambdas.head, inputs:_*)
+      if (loadKernel.value.isDefined) {
+        Execute(
+          localSize(0),
+          localSize(1),
+          localSize(2),
+          globalSize(0),
+          globalSize(1),
+          globalSize(2),
+          (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
+        )(iterations, timeout, lambdas.head, inputs:_*)
+        
+        val code = scala.io.Source.fromFile(loadKernel.value.get).mkString
 
-      if (checkResult)
-        checkResult(output)
+        val (output: Array[Float], runtime) = Execute(
+          localSize(0),
+          localSize(1),
+          localSize(2),
+          globalSize(0),
+          globalSize(1),
+          globalSize(2),
+          (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
+        ).benchmark(iterations, timeout, code, lambdas.head, inputs:_*)
 
-      println("MEDIAN: " + runtime + " ms")
-      printResults(runtime)
+        if (checkResult)
+          checkResult(output)
+
+        println("MEDIAN: " + runtime + " ms")
+        printResults(runtime)
+
+      }
+      else {
+        val (output: Array[Float], runtime) = Execute(
+          localSize(0),
+          localSize(1),
+          localSize(2),
+          globalSize(0),
+          globalSize(1),
+          globalSize(2),
+          (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
+        )(iterations, timeout, lambdas.head, inputs:_*)
+
+        if (checkResult)
+          checkResult(output)
+
+        println("MEDIAN: " + runtime + " ms")
+        printResults(runtime)
+      }
 
     } else {
       for (i <- 0 until iterations) {

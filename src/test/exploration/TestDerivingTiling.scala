@@ -2,12 +2,12 @@ package exploration
 
 import apart.arithmetic.Var
 import ir._
-import ir.UserFunDef._
+import ir.ast._
 import opencl.executor._
-import opencl.ir.CompositePatterns._
 import opencl.ir._
-import org.junit.{Test, AfterClass, BeforeClass, Ignore}
 import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import opencl.ir.pattern._
 
 object TestDerivingTiling {
   @BeforeClass def before() {
@@ -105,7 +105,6 @@ class TestDerivingTiling {
   }
 
   @Test
-  @Ignore // TODO: Can Remove @Ignore once the new simplifier is integrated
   def mmSquareTiles(): Unit = {
     val nSize = 16
     val mSize = 16

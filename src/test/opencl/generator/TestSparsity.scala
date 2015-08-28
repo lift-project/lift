@@ -1,11 +1,14 @@
 package opencl.generator
 
 import apart.arithmetic._
-import opencl.executor._
-import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
-import opencl.ir._
 import ir._
+import ir.ast._
+import opencl.executor._
+import opencl.ir._
+import opencl.ir.ast._
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import opencl.ir.pattern._
 
 object TestSparsity {
   @BeforeClass def TestMatrixBasic() {
@@ -24,16 +27,14 @@ object TestSparsity {
 class TestSparsity {
 
 
-  val id = UserFunDef("id", "i", "return i;", Float, Float)
-  val double = UserFunDef("times2", "i", "return (i+i);", Float, Float)
-  val square = UserFunDef("sq","i", "return (i*i);", Float,Float)
-  val add = UserFunDef("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
-  val mult = UserFunDef("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
-  val or = UserFunDef("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
-  val and = UserFunDef("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  val id = UserFun("id", "i", "return i;", Float, Float)
+  val double = UserFun("times2", "i", "return (i+i);", Float, Float)
+  val square = UserFun("sq","i", "return (i*i);", Float,Float)
+  val add = UserFun("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
+  val mult = UserFun("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
+  val or = UserFun("or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  val and = UserFun("and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
 
-  // Debug switch: show input and output
-  val printArrays: Boolean = false
 
 
   @Test def TAIL_TEST (): Unit = {
@@ -47,10 +48,8 @@ class TestSparsity {
     val (output:Array[Float], runtime) = Execute(1, 1)(f,vector)
 
     println("output(0) = "+output(0))
-    if (printArrays) {
-      println("vector = " + vector.toList.toString())
-      println("output = " + output.toList.toString())
-    }
+    println("vector = " + vector.toList.toString())
+    println("output = " + output.toList.toString())
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -66,10 +65,8 @@ class TestSparsity {
 
 
     println("output(0) = "+output(0))
-    if (printArrays) {
-      println("vector = " + vector.toList.toString())
-      println("output = " + output.toList.toString())
-    }
+    println("vector = "+vector.toList.toString())
+    println("output = "+ output.toList.toString())
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -84,10 +81,8 @@ class TestSparsity {
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
 
     println("output(0) = "+output(0))
-    if (printArrays) {
-      println("vector = " + vector.toList.toString())
-      println("output = " + output.toList.toString())
-    }
+    println("vector = "+vector.toList.toString())
+    println("output = "+ output.toList.toString())
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -102,10 +97,8 @@ class TestSparsity {
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
 
     println("output(0) = "+output(0))
-    if (printArrays) {
-      println("vector = " + vector.toList.toString())
-      println("output = " + output.toList.toString())
-    }
+    println("vector = "+vector.toList.toString())
+    println("output = "+ output.toList.toString())
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -120,10 +113,8 @@ class TestSparsity {
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
 
     println("output(0) = "+output(0))
-    if (printArrays) {
-      println("vector = " + vector.toList.toString())
-      println("output = " + output.toList.toString())
-    }
+    println("vector = "+vector.toList.toString())
+    println("output = "+ output.toList.toString())
     println("runtime = " + runtime)
     assertArrayEquals(gold,output,0.0f)
   }
@@ -131,22 +122,22 @@ class TestSparsity {
   //TODO: Clean up below tests
   @Ignore
   @Test def SPARSE_VECTOR_DOT_PRODUCT() {
-    val sum = UserFunDef("sum", Array("acc","v"),
+    val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
     )
 
-    val matchIndicies = UserFunDef("matchIndicies", Array("acc", "v"),
+    val matchIndicies = UserFun("matchIndicies", Array("acc", "v"),
       "{return (v != 0)?v:acc;}",
       Seq(Int,Int), Int
     )
 
-    val eqMult = UserFunDef("eqMult", Array("a","b"),
+    val eqMult = UserFun("eqMult", Array("a","b"),
       "{if(a._0 == b._0){ return (a._1)*(b._1); }else{ return 0; }}",
       Array(TupleType(Int,Int),TupleType(Int,Int)), Int
     )
 
-    val intId = UserFunDef("intId", "i", "return i;", Int,Int)
+    val intId = UserFun("intId", "i", "return i;", Int,Int)
 
     val vectA = List((1, 9),(3, 3),(8, 4),(16,7),(19,1),(20,2),(21,3), (24,10)).toArray.map((t) => Array(t._1, t._2)).flatten
     val vectB = List((1, 9),(2, 3),(8, 4),(15,7),(19,1),(20,2),(22,3), (24,10)).toArray.map((t) => Array(t._1, t._2)).flatten
@@ -183,22 +174,20 @@ class TestSparsity {
 
     val gold = rawVector.map((vi) => (vi._1, -vi._2)).map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
 
-    val negElem = UserFunDef("negElem", "x", "{ x._0 = x._0; x._1 = -(x._1); return x; }",
+    val negElem = UserFun("negElem", "x", "{ x._0 = x._0; x._1 = -(x._1); return x; }",
       TupleType(Float, Float), TupleType(Float, Float))
 
     val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
        MapSeq(negElem)  $ input
     )
 
-    val (output:Array[(Float,Float)] @unchecked, runtime) = Execute(inputSize)(f, inputVector)
+    val (output:Array[(Float,Float)], runtime) = Execute(inputSize)(f, inputVector)
 
 
 
     println("output(0) = " + output(0))
-    if (printArrays) {
-      println(inputVector.toList)
-      println(output.toList)
-    }
+    println(inputVector.toList)
+    println(output.toList)
     println("runtime = " + runtime)
   }
 
@@ -208,7 +197,7 @@ class TestSparsity {
   @Ignore
   @Test def SPARSE_VECTOR_SCAL() {
 
-    val sparseElemMult = UserFunDef("sem", Array("x","s"), "{ x._0 = x._0; x._1 = s*x._1; return x; }",
+    val sparseElemMult = UserFun("sem", Array("x","s"), "{ x._0 = x._0; x._1 = s*x._1; return x; }",
       Seq(TupleType(Float, Float),Float), TupleType(Float, Float))
 
     val rawVector = generateSparseArray(1024)
@@ -223,13 +212,11 @@ class TestSparsity {
         ) $ input
     )
 
-    val (output:Array[(Float,Float)] @unchecked, runtime) = Execute(inputVector.length)(scalFun, inputVector, alpha)
+    val (output:Array[(Float,Float)], runtime) = Execute(inputVector.length)(scalFun, inputVector, alpha)
 
     println("output(0) = " + output(0))
-    if (printArrays) {
-      println("input = " + inputVector.toList)
-      println("output = " + output.toList)
-    }
+    println("input = " + inputVector.toList)
+    println("output = " + output.toList)
     println("runtime = " + runtime)
   }
 
@@ -275,7 +262,8 @@ class TestSparsity {
   }
 
   def generateSparseArray(length:Int) : Array[(Int,Float)] = {
-    val baseArray = Array.fill(length)((util.Random.nextInt(5) + 1), (util.Random.nextInt(5).toFloat))
+    var a = 0;
+    var baseArray = Array.fill(length)((util.Random.nextInt(5) + 1), (util.Random.nextInt(5).toFloat))
     for (a <- 1 to length - 1) {
       //for each element, append our random index to find our true index
       baseArray(a) = (baseArray(a - 1)._1 + baseArray(a)._1, baseArray(a)._2)

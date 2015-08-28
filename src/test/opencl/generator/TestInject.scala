@@ -1,12 +1,13 @@
 package opencl.generator
 
 import apart.arithmetic.Var
-import ir.UserFunDef._
 import ir._
-import opencl.executor.{Utils, Executor}
-import opencl.ir.{Barrier, MapLcl, MapWrg, Float}
+import ir.ast._
+import opencl.executor.{Executor, Utils}
+import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestInject {
   @BeforeClass def before() {
@@ -28,7 +29,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
@@ -50,7 +51,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(64) $ in
+      in => MapWrg( MapLcl(id)) o Split(64) $ in
     )
 
     val inputs = Seq(input)
@@ -71,7 +72,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(256) $ in
+      in => MapWrg( MapLcl(id)) o Split(256) $ in
     )
 
     val inputs = Seq(input)
@@ -92,7 +93,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
@@ -113,7 +114,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
@@ -134,7 +135,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)
@@ -155,7 +156,7 @@ class TestInject {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Split(128) $ in
+      in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
     val inputs = Seq(input)

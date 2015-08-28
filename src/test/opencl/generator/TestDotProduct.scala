@@ -5,6 +5,7 @@ import benchmarks.DotProduct
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import opencl.ir.pattern._
 
 object TestDotProduct {
   @BeforeClass def before() {

@@ -1,8 +1,8 @@
 package ir.view
 
 import apart.arithmetic._
-import apart.arithmetic.simplifier.ExprSimplifier
 import ir._
+import ir.ast._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
@@ -30,8 +30,8 @@ class ViewTest {
     val map_mapf0 = map_mapf.get(0)
     val map_mapf1 = map_mapf.get(1)
 
-    assertEquals(var_k, ExprSimplifier(ViewPrinter.emit(map_mapf0)))
-    assertEquals(var_j*8 + var_k, ExprSimplifier(ViewPrinter.emit(map_mapf1)))
+    assertEquals(var_k, ViewPrinter.emit(map_mapf0))
+    assertEquals(var_j*8 + var_k, ViewPrinter.emit(map_mapf1))
   }
 
   @Test
@@ -66,8 +66,8 @@ class ViewTest {
     val map_map_map_f0 = map_map_map_f.get(0)
     val map_map_map_f1 = map_map_map_f.get(1)
 
-    assertEquals(8*var_k + 9, ExprSimplifier(ViewPrinter.emit(map_map_map_f0)))
-    assertEquals(8*var_l + 9, ExprSimplifier(ViewPrinter.emit(map_map_map_f1)))
+    assertEquals(8*var_k + 9, ViewPrinter.emit(map_map_map_f0))
+    assertEquals(8*var_l + 9, ViewPrinter.emit(map_map_map_f1))
   }
 
   @Test
@@ -88,8 +88,8 @@ class ViewTest {
     val zip_ab_3_1 = zip_ab_3.get(1)
 
 
-    assertEquals(8*var_i + 3, ExprSimplifier(ViewPrinter.emit(zip_ab_3_0)))
-    assertEquals(8*var_j + 3, ExprSimplifier(ViewPrinter.emit(zip_ab_3_1)))
+    assertEquals(8*var_i + 3, ViewPrinter.emit(zip_ab_3_0))
+    assertEquals(8*var_j + 3, ViewPrinter.emit(zip_ab_3_1))
   }
 
   @Test
@@ -105,7 +105,7 @@ class ViewTest {
     val split2A_i = split2A.access(var_i)
     val split2A_i_j = split2A_i.access(var_j)
 
-    assertEquals(ExprSimplifier(2*var_i + var_j), ExprSimplifier(ViewPrinter.emit(split2A_i_j)))
+    assertEquals(2*var_i + var_j, ViewPrinter.emit(split2A_i_j))
   }
 
   @Test
@@ -122,12 +122,12 @@ class ViewTest {
     val reorder_split_reorder_A_1 = split_reorder_A.access(1)
     val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.access(3)
 
-    assertEquals(Cst(33), ExprSimplifier(ViewPrinter.emit(reorder_split_reorder_A_1_3)))
+    assertEquals(Cst(33), ViewPrinter.emit(reorder_split_reorder_A_1_3))
   }
 
   @Test
   def transposeWrite(): Unit = {
-    // Map(Map(g)) o Split() o Scatter(IndexFunction.transpose) o Join() o Map(Map(f))
+    // Map(Map(g)) o Split() o Scatter(transpose) o Join() o Map(Map(f))
     // Write view for f
     val N = new Var("N")
     val M = new Var("M")
@@ -141,10 +141,9 @@ class ViewTest {
     val goal = View(transposedArray, "").access(j).access(i)
 
     val reality = View(transposedArray, "").join(N).
-      reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).access(j)
+      reorder(i => transpose(i, origArray)).split(M).access(i).access(j)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(reality)))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(reality))
   }
 
   @Test
@@ -164,15 +163,14 @@ class ViewTest {
     val goal = View(transposedArray, "").access(j).access(i)
 
     val view = View(finalArray, "").
-      reorder(i => IndexFunction.transpose(i, origArray)).split(M).access(i).access(j)
+      reorder(i => transpose(i, origArray)).split(M).access(i).access(j)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(view)))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
   }
 
   @Test
   def transposeWriteJoin(): Unit = {
-    // Map(f) o Join() o Split() o Scatter(IndexFunction.transpose) o Join() o Map(Map(g))
+    // Map(f) o Join() o Split() o Scatter(transpose) o Join() o Map(Map(g))
     val N = new Var("N")
     val M = new Var("M")
 
@@ -187,16 +185,15 @@ class ViewTest {
     val goal = View(transposedArray, "").access(j).access(i)
 
     val view = View(finalArray, "").
-      split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
+      split(N).join(N).reorder(i => transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(view)))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
   }
 
   @Test
   def transposeWriteSplitJoin(): Unit = {
-    // Map(Map(f)) o Split() o Join() o Split() o Scatter(IndexFunction.transpose) o Join() o Map(Map(g))
+    // Map(Map(f)) o Split() o Join() o Split() o Scatter(transpose) o Join() o Map(Map(g))
     val N = new Var("N")
     val M = new Var("M")
 
@@ -211,17 +208,16 @@ class ViewTest {
     val goal = View(transposedArray, "").access(j).access(i)
 
     val view = View(finalArray, "").
-      join(N).split(N).join(N).reorder(i => IndexFunction.transpose(i, origArray)).
+      join(N).split(N).join(N).reorder(i => transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(view)))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
   }
 
   @Test
   def twiceTransposeWrite(): Unit = {
-    // Split() o Scatter(IndexFunction.transpose) o Join() o Map(Split() o
-    // Scatter(IndexFunction.transpose) o Join() o Map(Map(f)))
+    // Split() o Scatter(transpose) o Join() o Map(Split() o
+    // Scatter(transpose) o Join() o Map(Map(f)))
     val N = new Var("N")
     val M = new Var("M")
     val L = new Var("L")
@@ -239,18 +235,16 @@ class ViewTest {
     val midGoal = View(middleArray, "").access(i).access(k).access(j)
 
     val midPoint = View(middleArray, "").access(i).join(M).
-      reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
+      reorder(i => transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
       access(j).access(k)
 
     val view = View(finalArray, "").join(N).
-      reorder(i => IndexFunction.transpose(i, middleArray)).split(L).access(i).
-      join(M).reorder(i => IndexFunction.transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
+      reorder(i => transpose(i, middleArray)).split(L).access(i).
+      join(M).reorder(i => transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
       access(j).access(k)
 
-    assertEquals(ExprSimplifier(ViewPrinter.emit(midGoal)),
-      ExprSimplifier(ViewPrinter.emit(midPoint)))
-    assertEquals(ExprSimplifier(ViewPrinter.emit(goal)),
-      ExprSimplifier(ViewPrinter.emit(view)))
+    assertEquals(ViewPrinter.emit(midGoal), ViewPrinter.emit(midPoint))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
 
   }
 }

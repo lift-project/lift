@@ -1,201 +1,267 @@
 package opencl.generator
 
-import apart.arithmetic.{IntDiv, Cst, ?, ArithExpr}
-import ir._
+import apart.arithmetic.{?, ArithExpr, Cst, IntDiv}
+import ir.ast._
 import opencl.ir._
+import opencl.ir.pattern._
 
+/**
+ * A pass for eliminating unnecessary barriers.
+ *
+ * Barriers are only necessary when the same memory locations get reused (they are in
+ * a loop) or if different threads try to read memory locations other threads write to.
+ *
+ * The pass visits all sub-expressions and determines where splits, joins and reorders
+ * take place (they cause threads to interact) and whether the sub-expressions appear
+ * inside loops (causes reuse of memory locations).
+ *
+ */
 object BarrierElimination {
 
-  def apply(l: Lambda): Unit = {
-    apply(l.body, insideLoop = false)
+  /**
+   * Visit the lambda and determine which barriers can be eliminated.
+   *
+   * @param lambda The starting lambda.
+   */
+  def apply(lambda: Lambda): Unit = {
+    apply(lambda.body, insideLoop = false)
   }
 
   private def apply(expr: Expr, insideLoop: Boolean): Unit = {
     expr match {
-      case call: MapCall =>
-        apply(call.f.f.body, insideLoop || isLoop(call.iterationCount))
-      case call: ReduceCall =>
-        apply(call.f.f.body, insideLoop || isLoop(call.iterationCount))
-      case call: IterateCall =>
-        apply(call.f.f.body, insideLoop || isLoop(call.iterationCount))
-      case call: FunCall => call.f match {
-        case cf: CompFunDef =>
-          markFunCall(cf, insideLoop)
-          cf.funs.foreach( (l:Lambda) => apply(l.body, insideLoop) )
-        case f: FPattern => apply(f.f.body, insideLoop)
-        case l: Lambda => apply(l.body, insideLoop)
-        case Zip(_) | Tuple(_) =>
-          val numAddressSpaces =
-            call.args.map(m => OpenCLMemory.asOpenCLMemory(m.mem).addressSpace).
-              distinct.length != 1
+      case call: FunCall =>
 
-          // Only the last argument needs a barrier if all of them are in
-          // the same address space
-          call.args.foldRight(insideLoop)((e, loop) => {
-            apply(e, loop)
-            numAddressSpaces
-          })
-        case _ =>
+        val calls = getCallsAtLevel(call)
+
+        calls.foreach(call => {
+          call.f match {
+            case m: AbstractMap => apply(m.f.body, insideLoop || isLoop(m.iterationCount))
+            case r: AbstractPartRed => apply(r.f.body, insideLoop || isLoop(r.iterationCount))
+            case i: Iterate => apply(i.f.body, insideLoop || isLoop(i.iterationCount))
+            case toLocal(f) => apply(insideLoop, f)
+            case toGlobal(f) => apply(insideLoop, f)
+            case toPrivate(f) => apply(insideLoop, f)
+            case l: Lambda => apply(l.body, insideLoop)
+            case fp: FPattern => apply(fp.f.body, insideLoop)
+            case _ =>
+          }
+
+          markLevel(calls, insideLoop)
+
+          val mapLcl = getMapLcl(call.f)
+          if (mapLcl.isDefined) {
+            mapLcl.get.f.body match {
+              case FunCall(innerMapLcl @ MapLcl(_,_), _) =>
+                innerMapLcl.emitBarrier = false
+              case _ =>
+            }
+          }
+        })
+
+      case _ =>
+    }
+  }
+
+  // Helper method to bypass toAddressSpace and not visit whatever is inside twice
+  private def apply(insideLoop: Boolean, f: Lambda1): Unit = {
+    f.body match {
+      case call: FunCall => call.f match {
+        case fp: FPattern => apply(fp.f.body, insideLoop)
       }
       case _ =>
     }
   }
 
-  private def isLoop(ae: ArithExpr): Boolean = {
-    !(ae == Cst(1) || ae == Cst(0) || ae == IntDiv(1, ?))
-  }
-
-  def getLambdas(e: Expr): List[Lambda] = {
-    e match {
+  private def getCallsAtLevel(expr: Expr): Seq[FunCall] = {
+    expr match {
       case call: FunCall =>
-        val argLambdas = call.args.foldLeft(List[Lambda]())((ll, f) => ll ++ getLambdas(f))
         call.f match {
-          case cf: CompFunDef => cf.funs.toList ++ argLambdas
-          case _ => argLambdas
+          case Lambda(_, body) => getCallsAtLevel(body) ++ call.args.reverse.flatMap(getCallsAtLevel)
+          case _ => call +: call.args.reverse.flatMap(getCallsAtLevel)
         }
-      case _ => List()
+      case _ => Seq()
     }
   }
 
-  def flatten(compFunDef: CompFunDef) : List[Lambda] = {
-    compFunDef.funs.foldLeft(List[Lambda]())((ll, f) => {
-      f.body match {
+  private def isLoop(ae: ArithExpr) =
+    !(ae == Cst(1) || ae == Cst(0) || ae == IntDiv(1, ?))
 
-        case call: FunCall =>
-          val argLambdas = call.args.foldLeft(List[Lambda]())((ll, f) => ll ++ getLambdas(f))
+  private def markLevel(calls: Seq[FunCall], insideLoop: Boolean): Unit = {
 
-          call.f match {
-            case cf: CompFunDef => ll ++ flatten(cf) ++ argLambdas
-            case _ => ll :+ f
-          }
-        case _ => ll :+ f
-      }
-    })
-  }
+    val c = calls.count(_.isConcrete(false))
 
-  private def markFunCall(cf: CompFunDef, insideLoop: Boolean): Unit = {
-    // Flatten the CompFunDef, such that computations/reorders in
-    // zip/tuple operations appear as well
-    val lambdas = flatten(cf)
-    val c = lambdas.count(_.body.isConcrete)
-
-    var next = lambdas
-    var groups = Seq[Seq[Lambda]]()
+    var next = calls
+    var groups = Seq[Seq[FunCall]]()
 
     if (c > 0) {
 
       // Partition the functions into groups such that the last element
       // of a group is concrete, except possibly in the last group
       while (next.nonEmpty) {
-        val prefixLength = next.prefixLength(_.body.isAbstract)
+        val prefixLength = next.prefixLength(_.isAbstract(false))
         groups = groups :+ next.take(prefixLength + 1)
         next = next.drop(prefixLength + 1)
       }
 
-      // If it is not concrete, then there can't be a barrier
-      if (groups.last.last.body.isAbstract)
+      // If the last group it is not concrete, then there can't be a barrier
+      if (groups.last.last.isAbstract)
         groups = groups.init
 
       val needsBarrier = Array.fill(groups.length)(false)
 
-      val barrierInHead = groups.head.exists(isBarrier)
-      val finalReadMemory = readsFrom(groups.head.last)
+      val barrierInHead = groups.head.exists(c => isMapLcl(c.f))
+      val finalReadFromLocal = readsFromLocal(groups.head.last)
       needsBarrier(0) =
         if (groups.length > 1)
-          !(barrierInHead && (finalReadMemory == GlobalMemory || finalReadMemory == LocalMemory && !insideLoop))
+          !(barrierInHead && (!finalReadFromLocal
+            || finalReadFromLocal && !insideLoop))
         else
-          (groups.head.last.body.containsLocal ||
-            groups.head.last.params.foldLeft(false)((needsBarrier, param) => param.containsLocal || needsBarrier) ) && insideLoop
+          (OpenCLMemory.containsLocalMemory(groups.head.last.mem) ||
+            groups.head.last.args.foldLeft(false)((needsBarrier, arg) => {
+              OpenCLMemory.containsLocalMemory(arg.mem) || needsBarrier
+            })) && insideLoop
 
       groups.zipWithIndex.foreach(x => {
         val group = x._1
         val id = x._2
 
+        if (possibleSharing(group.last) && id < groups.length - 1) {
+          needsBarrier(id + 1) = true
+
+          if (OpenCLMemory.containsLocalMemory(group.last.argsMemory))
+            needsBarrier(id) = true
+        }
+
         // Conservative assumption. TODO: Not if only has matching splits and joins
-        if (group.exists(l => isSplit(l) || isJoin(l)) && id > 0) {
+        if (group.init.exists(call => isPattern(call, classOf[Split]) || isPattern(call, classOf[Join])
+           || isPattern(call, classOf[asVector]) || isPattern(call, classOf[asScalar])) && id > 0) {
           needsBarrier(id) = true
 
           // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (group.last.body.containsLocal && id > 1 && insideLoop &&
-            !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
+          if (OpenCLMemory.containsLocalMemory(group.last.mem) && id > 1 && insideLoop &&
+            !groups.slice(0, id - 1).map(_.exists(c => isMapLcl(c.f))).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
 
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
-        if (group.exists(isScatter) || group.init.exists(isGather) || group.exists(isTranspose)) {
+        if (group.init.exists(call => isPattern(call, classOf[Scatter]) || isPattern(call, classOf[Gather])
+          || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW])
+          || isPattern(call, classOf[Tail])) && id > 0) {
+
           needsBarrier(id) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (group.last.body.containsLocal && id > 1 && insideLoop &&
-            !groups.slice(0, id - 1).map(_.exists(isBarrier)).reduce(_ || _))
+          if (OpenCLMemory.containsLocalMemory(group.last.mem) && id > 1 && insideLoop &&
+            !groups.slice(0, id - 1).map(_.exists(c => isMapLcl(c.f))).reduce(_ || _))
             needsBarrier(id - 1) = true
         }
 
         // Gather in last affects the reading of this group
-        if (isGather(group.last) && id < groups.length - 1) {
+        if (isPattern(group.last, classOf[Gather]) && id < groups.length - 1) {
           needsBarrier(id + 1) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
           // But it doesn't matter at which point.
-          if (readsFrom(group.last) == LocalMemory && id > 0 && insideLoop &&
-            !groups.slice(0, id).map(_.exists(isBarrier)).reduce(_ || _))
+          if (readsFromLocal(group.last) && id > 0 && insideLoop &&
+            !groups.slice(0, id).map(_.exists(c => isMapLcl(c.f))).reduce(_ || _))
             needsBarrier(id) = true
         }
       })
 
-      (groups, needsBarrier).zipped.foreach((group, valid) => if (!valid) invalidateBarrier(group))
+      (groups, needsBarrier).zipped.foreach((group, valid) =>
+        if (!valid) invalidateBarrier(group))
     }
   }
 
-  private def isBarrier(l: Lambda): Boolean = {
-    l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Barrier]
+  // If a map calls its function with something other than
+  // the parameter from its lambda or containing that
+  // there can possibly be threads reading different elements
+  private def possibleSharing(call: FunCall): Boolean = {
+    call.f match {
+      case m: AbstractMap =>
+        m.f match {
+          case Lambda(params, FunCall(_, args @ _*))
+            if !params.sameElements(args) =>
+
+            !Expr.visitWithState(false)(args.head, (e, b) =>
+              if (e.eq(params.head)) true else b)
+
+          case _ => false
+        }
+      case _ => false
+    }
   }
 
-  private def isGather(l: Lambda): Boolean = {
-    l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Gather]
+  private def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
+    Expr.visitWithState(false)(funCall, (expr, contains) => {
+      expr match {
+        case FunCall(declaration, _*) => declaration.getClass == patternClass
+        case _ => contains
+      }
+    }, visitArgs = false)
   }
 
-  private def isScatter(l: Lambda): Boolean = {
-    l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Scatter]
+  private def isMapLcl(funDecl: FunDecl): Boolean = {
+    def isMapLclLambda(f: Lambda1): Boolean = {
+      f.body match {
+        case call: FunCall => isMapLcl(call.f)
+        case _ => false
+      }
+    }
+
+    funDecl match {
+      case _: MapLcl => true
+      case toLocal(f) => isMapLclLambda(f)
+      case toGlobal(f) => isMapLclLambda(f)
+      case toPrivate(f) => isMapLclLambda(f)
+      case _ => false
+    }
   }
 
-  private def isSplit(l: Lambda): Boolean = {
-    l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Split]
+  private def getMapLcl(funDecl: FunDecl): Option[MapLcl] = {
+    def getMapLclLambda(f: Lambda1): Option[MapLcl] = {
+      f.body match {
+        case call: FunCall => getMapLcl(call.f)
+        case _ => None
+      }
+    }
+
+    funDecl match {
+      case m: MapLcl => Some(m)
+      case toLocal(f) => getMapLclLambda(f)
+      case toGlobal(f) => getMapLclLambda(f)
+      case toPrivate(f) => getMapLclLambda(f)
+      case _ => None
+    }
   }
 
-  private def isTranspose(l: Lambda): Boolean = {
-    l.body.isInstanceOf[FunCall] &&
-      (l.body.asInstanceOf[FunCall].f.isInstanceOf[Transpose] || l.body.asInstanceOf[FunCall].f.isInstanceOf[TransposeW])
-  }
-
-  private def isJoin(l: Lambda): Boolean = {
-    l.body.isInstanceOf[FunCall] && l.body.asInstanceOf[FunCall].f.isInstanceOf[Join]
-  }
-
-  private def invalidateBarrier(group: Seq[Lambda]): Unit = {
-    group.find(isBarrier) match {
-      case Some(b) => b.body.asInstanceOf[FunCall].f.asInstanceOf[Barrier].valid = false
+  private def invalidateBarrier(group: Seq[FunCall]): Unit = {
+    group.foreach(c => getMapLcl(c.f) match {
+      case Some(b) => b.emitBarrier = false
       case None =>
-    }
+    })
   }
 
-  private def readsFrom(lambda: Lambda): OpenCLAddressSpace = {
-    Expr.visit[OpenCLAddressSpace](UndefAddressSpace)(lambda.body, (expr, addressSpace) => {
+  private def readsFromLocal(call: FunCall): Boolean = {
+    val result = Expr.visitWithState(false)(call, (expr, addressSpace) => {
       expr match {
         case call: FunCall =>
           call.f match {
-            case uf: UserFunDef =>
-              if (addressSpace == UndefAddressSpace)
-                OpenCLMemory.asOpenCLMemory(call.args(0).mem).addressSpace
+            case uf: UserFun =>
+              if (OpenCLMemory.containsLocalMemory(call.argsMemory))
+                true
               else
                 addressSpace
             case _ => addressSpace
           }
         case _ => addressSpace
       }
-    })
+    }, visitArgs = false)
+
+    result
   }
+
 }

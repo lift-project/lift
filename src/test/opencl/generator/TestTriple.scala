@@ -2,8 +2,10 @@ package opencl.generator
 
 import apart.arithmetic.Var
 import ir._
-import opencl.executor.{Execute, Executor, Compile}
+import ir.ast._
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -22,18 +24,18 @@ object TestTriple {
 
 class TestTriple {
   val inputSize = 1024
-  val add3Tuple = UserFunDef("add3", "t", "{ return t._0+t._1+t._2; }", TupleType(Float, Float, Float), Float)
-  val add3 = UserFunDef("add3", Array("x", "y", "z"), "{ return x+y+z; }", Seq(Float, Float, Float), Float)
+  val add3Tuple = UserFun("add3", "t", "{ return t._0+t._1+t._2; }", TupleType(Float, Float, Float), Float)
+  val add3 = UserFun("add3", Array("x", "y", "z"), "{ return x+y+z; }", Seq(Float, Float, Float), Float)
   val inputArray1 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
   val inputArray2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
   val inputArray3 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
   val gold = (inputArray1 zip inputArray2 zip inputArray3).map({case ((a,b),c) => a+b+c})
-  val inputArray = (inputArray1 zip inputArray2 zip inputArray3).map({case ((a,b),c) => Array(a,b,c)}).flatten
+  val inputArray = (inputArray1 zip inputArray2 zip inputArray3).flatMap { case ((a, b), c) => Array(a, b, c) }
 
   @Test def VECTOR_SUM_TRIPLE() {
     val f = fun(ArrayType(TupleType(Float,Float,Float), Var("N")), (input) =>
       Join() o MapWrg(
-	Join() o Barrier() o MapLcl(MapSeq(add3Tuple)) o Split(4)
+	Join() o  MapLcl(MapSeq(add3Tuple)) o Split(4)
       ) o Split(1024) $ input
     )
 
@@ -51,7 +53,7 @@ class TestTriple {
       ArrayType(Float, N),
 		  (xs, ys, zs) =>
         Join() o MapWrg(
-  	      Join() o Barrier() o MapLcl(MapSeq(add3)) o Split(4)
+  	      Join() o  MapLcl(MapSeq(add3)) o Split(4)
         ) o Split(1024) $ Zip(xs, ys, zs)
     )
 

@@ -1,13 +1,13 @@
 package opencl.generator
 
 import apart.arithmetic.Var
-import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import ir._
+import ir.ast._
 import opencl.executor._
 import opencl.ir._
-import ir._
-import ir.UserFunDef._
-
+import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestMisc {
   @BeforeClass def before() {
@@ -24,6 +24,144 @@ object TestMisc {
 
 class TestMisc {
 
+  @Test def issue22(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (
+      ArrayType(Float, Var("N")),
+      Float,
+      (in, init) => {
+        fun( x0 => Join()(MapWrg(
+          fun(x1 =>
+            fun(x2 =>
+              fun( x3 => Join()(x3)
+              )(MapLcl(
+                fun( x4 => toGlobal(MapSeq(id))(ReduceSeq(add, init)(x4)))
+              )(x2)
+                )
+            )(Split(4)(x1))
+          ))(x0))
+        )(Split(128)(in))
+      })
+
+    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+  }
+
+  @Test def issue23(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun (ArrayType(Float, Var("N")),
+      in => {
+        Join() o MapWrg(
+          Join() o  MapLcl(
+            fun( x4 => toGlobal(MapSeq(id))(ReduceSeq(add, id(0.0f))(x4)))
+          ) o Split(4)
+        ) o Split(128) $ in
+      })
+
+    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+  }
+
+  @Test def issue23ForwardStyle(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l =
+      fun (ArrayType(Float, Var("N")),
+         in => {
+           in :>>
+           Split(128) :>>
+           MapWrg(
+             Split(4) >>>
+             MapLcl(
+               ReduceSeq(add, id(0.0f)) >>>
+               toGlobal(MapSeq(id)) ) >>>
+             Join() ) :>>
+           Join()
+         })
+
+    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+  }
+
+  @Test def issue23BackwardStyle(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l =
+      fun (ArrayType(Float, Var("N")),
+          in => {
+            Join() <<:
+            MapWrg(
+              Join() o
+              MapLcl(
+                toGlobal(MapSeq(id)) o
+                ReduceSeq(add, id(0.0f)) ) o
+              Split(4) ) <<:
+            Split(128) <<:
+            in
+          })
+
+    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+
+    assertEquals(inputData.sum, output.sum, 0.0)
+  }
+
+  @Test def issue24(): Unit = {
+    val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      input => MapWrg(
+        fun( x0 => toGlobal(MapLcl(MapSeq(id)))(x0) ) o
+          Transpose() o TransposeW() o
+           toLocal(MapLcl(MapSeq(id)))
+      ) $ input
+    )
+
+    val (output: Array[Float], _) = Execute(4, 4)(f, input)
+
+    assertArrayEquals(input.flatten.flatten, output, 0.0f)
+  }
+
+  @Test
+  def issue25(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun(ArrayType(Float, Var("N")),
+      in => {
+        MapSeq(id o id) $ in
+      })
+
+    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+
+    assertArrayEquals(inputData, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def issue28(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun(ArrayType(Float, Var("N")),
+      in => {
+        in :>> ReduceSeq(add, toPrivate(add)(0.0f, 1.0f)) :>> toGlobal(MapSeq(id))
+      })
+
+    val (output: Array[Float], _) = Execute(inputSize)(l, inputData)
+
+    assertEquals(inputData.sum + 1, output.head, 0.0f)
+  }
+
   // Simple 1D increment, used to check the syntax of unary UserFunDef
   @Test def increment(): Unit = {
     // domain size
@@ -37,7 +175,7 @@ class TestMisc {
     val gold = xs.map(_ + 1)
 
     // user function
-    val fct = UserFunDef("inc", Array("x"),
+    val fct = UserFun("inc", Array("x"),
       " return x+1.0; ", Seq(Float), Float)
 
     // Expression
@@ -55,9 +193,7 @@ class TestMisc {
     assertArrayEquals(gold, output, 0.001f)
   }
 
-  @Ignore
   @Test def compositionTest(): Unit = {
-    // TODO: Crashes the VM, compilation fails on the native side
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
@@ -140,7 +276,7 @@ class TestMisc {
     val f = fun(
       ArrayType(Float4, N),
       (input) =>
-        MapGlb(Vectorize(4)(id)) $ input
+        MapGlb(id.vectorize(4)) $ input
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
@@ -161,7 +297,7 @@ class TestMisc {
     val f = fun(
       ArrayType(Float, N),
       (input) =>
-        MapGlb(fun(x => add(x, Value.FloatToValue(3.0f)))) $ input
+        MapGlb(fun(x => add(x, 3.0f))) $ input
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
@@ -200,7 +336,7 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => asScalar() o MapGlb(Vectorize(4)(plusOne)) o asVector(4) $ in
+      in => asScalar() o MapGlb(plusOne.vectorize(4)) o asVector(4) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
@@ -380,6 +516,7 @@ class TestMisc {
 
     assertArrayEquals(gold, output, 0.0f)
   }
+
   @Test def iterateLocalOnly(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
@@ -387,9 +524,57 @@ class TestMisc {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Barrier() o toGlobal(MapLcl(id)) o
-        Iterate(5)(Barrier() o MapLcl(plusOne)) o
+      in => Join() o MapWrg( toGlobal(MapLcl(id)) o
+        Iterate(5)( MapLcl(plusOne)) o
         toLocal(MapLcl(id))) o Split(16) $ in
+    )
+
+    val f_nested = fun(
+      ArrayType(Float, Var("N")),
+      in => fun(x1 => Join()(MapWrg(
+        fun(x2 =>
+          fun(x3 =>
+            fun(x4 => toGlobal(MapLcl(id))(x4))(
+              Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(x3)))(
+                toLocal(MapLcl(id))(x2)))
+          )(x1)))(Split(16)(in))
+    )
+
+    val f_nested2 = fun(
+      ArrayType(Float, Var("N")),
+      in => Join()(MapWrg(fun(x2 =>
+        fun(x3 =>
+          fun(x4 => toGlobal(MapLcl(id))(x4))(
+            Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(x3)))(
+              toLocal(MapLcl(id))(x2)))
+              )(Split(16)(in)))
+    )
+
+    val f_nested3 = fun(
+      ArrayType(Float, Var("N")),
+      in => Join()(MapWrg(fun(x2 =>
+        fun(x4 => toGlobal(MapLcl(id))(x4))(
+          Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
+            toLocal(MapLcl(id))(x2)))
+              ))(Split(16)(in)))
+      )
+
+    val f_nested4 = fun(
+      ArrayType(Float, Var("N")),
+      in => Join()(MapWrg(fun(x2 =>
+        toGlobal(MapLcl(id))(
+          Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
+            toLocal(MapLcl(id))(x2)))
+              ))(Split(16)(in)))
+    )
+
+    val f_full = fun(
+      ArrayType(Float, Var("N")),
+      in => Join()(MapWrg(fun(x0 =>
+        toGlobal(MapLcl(id))(
+          Iterate(5)(fun(x1 => MapLcl(plusOne)(x1)))(
+            toLocal(MapLcl(id))(x0)))
+              ))(Split(16)(in)))
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, input)

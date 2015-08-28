@@ -1,11 +1,11 @@
 package benchmarks
 
 import apart.arithmetic.Var
-import ir.UserFunDef._
 import ir._
+import ir.ast._
 import opencl.ir._
-import opencl.ir.CompositePatterns._
 import org.clapper.argot.ArgotConverters._
+import opencl.ir.pattern._
 
 class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
   extends Benchmark("Matrix Transposition", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
@@ -67,9 +67,9 @@ object MatrixTransposition {
       // Merge the tiles
       Untile() o
       MapWrg(0)(MapWrg(1)(
-        Barrier() o toGlobal(MapLcl(1)(MapLcl(0)(id))) o
+         toGlobal(MapLcl(1)(MapLcl(0)(id))) o
         // Transpose the tiles and then the insides of tiles
-        TransposeW() o Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id)))
+        TransposeW() o  toLocal(MapLcl(1)(MapLcl(0)(id)))
       )) o Transpose() o
         // Tile the matrix
         Tile(x, y) $ matrix

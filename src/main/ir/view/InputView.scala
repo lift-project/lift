@@ -2,16 +2,26 @@ package ir.view
 
 import apart.arithmetic.ArithExpr
 import ir._
-import opencl.ir._
+import ir.ast._
 
+/**
+ * A helper object for constructing views.
+ *
+ * Visits the expressions right to left and builds the views for all
+ * sub-expressions that read to memory.
+ */
 object InputView {
 
+  /**
+   * Build input views for the expression.
+   *
+   * @param expr Expression to build views for
+   */
   def apply(expr: Expr): Unit = visitAndBuildViews(expr)
 
-  def visitAndBuildViews(expr: Expr): View = {
+  private def visitAndBuildViews(expr: Expr): View = {
     val result = expr match {
       case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
-      case pr: ParamReference => pr.p.view.get(pr.i)
       case vp: VectorParam => vp.p.view
       case p: Param => p.view
       case call: FunCall => buildViewFunCall(call)
@@ -22,9 +32,10 @@ object InputView {
 
   private def getViewFromArgs(call: FunCall): View = {
     if (call.args.isEmpty) {
+      assert(false)
       NoView
     } else if (call.args.length == 1) {
-      visitAndBuildViews(call.args(0))
+      visitAndBuildViews(call.args.head)
     } else {
       View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
     }
@@ -33,35 +44,41 @@ object InputView {
   private def buildViewFunCall(call: FunCall): View = {
     val argView = getViewFromArgs(call)
 
-    call match {
-      case call: MapCall => buildViewMapCall(call, argView)
-      case call: ReduceCall => buildViewReduceCall(call, argView)
-      case call: FunCall =>
-        call.f match {
-          case l: Lambda => buildViewLambda(l, call, argView)
-          case cf: CompFunDef => buildViewCompFunDef(cf, call, argView)
-          case z: Zip => buildViewZip(call, argView)
-          case Split(n) => buildViewSplit(n, argView)
-          case _: Join => buildViewJoin(call, argView)
-          case uf: UserFunDef => buildViewUserFunDef()
-          case g: Gather => buildViewGather(g, call, argView)
-          case tP: toPrivate => buildViewToPrivate(tP, argView)
-          case tL: toLocal => buildViewToLocal(tL, argView)
-          case tG: toGlobal => buildViewToGlobal(tG, argView)
-          case i: Iterate => buildViewIterate(i, call, argView)
-          case t: Transpose => buildViewTranspose(t, call, argView)
-          case tw: TransposeW => buildViewTransposeW(tw, call, argView)
-          case asVector(n) => buildViewAsVector(n, argView)
-          case _: asScalar => buildViewAsScalar(argView)
-          case f: Filter => buildViewFilter(call, argView)
-          case g: Group => buildViewGroup(g, call, argView)
-          case h: Head => buildViewHead(call, argView)
-          case h: Tail => buildViewTail(call, argView)
-          case uz: Unzip => buildViewUnzip(call, argView)
-          case Pad(size,boundary) => buildViewPad(size, boundary, argView)
-          case _ => argView
-        }
+    call.f match {
+      case m: AbstractMap => buildViewMap(m, call, argView)
+      case r: AbstractPartRed => buildViewReduce(r, call, argView)
+      case l: Lambda => buildViewLambda(l, call, argView)
+      case z: Zip => buildViewZip(call, argView)
+      case uz: Unzip => buildViewUnzip(call, argView)
+      case t: Tuple => buildViewTuple(argView)
+      case Get(n) => buildViewGet(n, argView)
+      case Split(n) => buildViewSplit(n, argView)
+      case _: Join => buildViewJoin(call, argView)
+      case uf: UserFun => buildViewUserFunDef(call)
+      case g: Gather => buildViewGather(g, call, argView)
+      case i: Iterate => buildViewIterate(i, call, argView)
+      case t: Transpose => buildViewTranspose(t, call, argView)
+      case tw: TransposeW => buildViewTransposeW(tw, call, argView)
+      case asVector(n) => buildViewAsVector(n, argView)
+      case _: asScalar => buildViewAsScalar(argView)
+      case f: Filter => buildViewFilter(call, argView)
+      case g: Group => buildViewGroup(g, call, argView)
+      case h: Head => buildViewHead(call, argView)
+      case h: Tail => buildViewTail(call, argView)
+      case fp: FPattern => buildViewToFPattern(fp, argView)
+      case Pad(size,boundary) => buildViewPad(size, boundary, argView)
+      case _ => argView
     }
+  }
+
+  private def buildViewTuple(argView: View): View = {
+    assert(argView.isInstanceOf[ViewTuple])
+    // argView must already be a tuple
+    argView
+  }
+
+  private def buildViewGet(n: Int, argView: View): View = {
+    argView.get(n)
   }
 
   private def buildViewGroup(g: Group, call: FunCall, argView: View): View = {
@@ -74,43 +91,35 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth)
   }
 
-  private def buildViewToGlobal(tG: toGlobal, argView: View): View = {
-    tG.f.params(0).view = argView
-    visitAndBuildViews(tG.f.body)
+  private def buildViewToFPattern(fp: FPattern, argView: View): View = {
+    fp.f.params(0).view = argView
+    visitAndBuildViews(fp.f.body)
   }
 
-  private def buildViewToLocal(tL: toLocal, argView: View): View = {
-    tL.f.params(0).view = argView
-    visitAndBuildViews(tL.f.body)
-  }
+  private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {
 
-  private def buildViewToPrivate(tP: toPrivate, argView: View): View = {
-    tP.f.params(0).view = argView
-    visitAndBuildViews(tP.f.body)
-  }
-
-  private def buildViewMapCall(call: MapCall, argView: View): View = {
     // pass down input view
-    call.f.f.params(0).view = argView.access(call.loopVar)
+    m.f.params(0).view = argView.access(m.loopVar)
 
     // traverse into call.f
-    val innerView = visitAndBuildViews(call.f.f.body)
+    val innerView = visitAndBuildViews(m.f.body)
 
-    call.f.f.body match {
-      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFunDef] =>
+    m.f.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
         // create fresh input view for following function
         View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
       case _ => // call.isAbstract and return input map view
-        new ViewMap(innerView, call.loopVar, call.t)
+        new ViewMap(innerView, m.loopVar, call.t)
     }
   }
 
-  private def buildViewReduceCall(call: ReduceCall, argView: View): View = {
+  private def buildViewReduce(r: AbstractPartRed,
+                              call: FunCall, argView: View): View = {
     // pass down input view
-    call.f.f.params(0).view = argView.get(0)
-    call.f.f.params(1).view = argView.get(1).access(call.loopVar)
+    r.f.params(0).view = argView.get(0)
+    r.f.params(1).view = argView.get(1).access(r.loopVar)
     // traverse into call.f
-    visitAndBuildViews(call.f.f.body)
+    visitAndBuildViews(r.f.body)
     // create fresh input view for following function
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
@@ -124,16 +133,6 @@ object InputView {
       l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.access(i) })
     }
     visitAndBuildViews(l.body)
-  }
-
-  private def buildViewCompFunDef(cf: CompFunDef, call: FunCall, argView: View): View = {
-
-    cf.funs.foldRight(argView)((f, v) => {
-      if (f.params.length != 1) throw new NumberOfArgumentsException
-      f.params(0).view = if (v != NoView) v else View.initialiseNewView(f.params(0).t, call.inputDepth)
-
-      visitAndBuildViews(f.body)
-    })
   }
 
   private def buildViewZip(call: FunCall, argView: View): View = {
@@ -169,8 +168,8 @@ object InputView {
     argView.asScalar()
   }
 
-  private def buildViewUserFunDef(): View = {
-    NoView
+  private def buildViewUserFunDef(call: FunCall): View = {
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
@@ -178,9 +177,8 @@ object InputView {
       case ArrayType(ArrayType(typ, m), n) =>
         argView.
           join(n).
-          reorder((i:ArithExpr) => { IndexFunction.transpose(i, call.t) }).
+          reorder((i:ArithExpr) => { transpose(i, call.t) }).
           split(m)
-      case _ => ???
     }
   }
 
@@ -190,7 +188,6 @@ object InputView {
         argView.
           join(n).
           split(m)
-      case _ => ???
     }
   }
 

@@ -1,8 +1,9 @@
 package opencl.executor
 
-import apart.arithmetic.{ArithExpr, ?}
-import ir.{Type, Lambda}
-import opencl.generator.{Verbose, OpenCLGenerator}
+import apart.arithmetic.{?, ArithExpr}
+import ir.TypeChecker
+import ir.ast.Lambda
+import opencl.generator.{OpenCLGenerator, Verbose}
 
 import scala.collection.immutable
 
@@ -40,7 +41,7 @@ object Compile {
             globalSize1: ArithExpr, globalSize2: ArithExpr, globalSize3: ArithExpr,
             valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
     // 1. type check
-    Type.check(f.body)
+    TypeChecker.check(f.body)
 
     // 2. generate OpenCL kernel
     val kernelCode = OpenCLGenerator.generate(f,

@@ -1,17 +1,20 @@
 package opencl.generator
 
 import java.awt.image.BufferedImage
-import java.io.{IOException, File}
+import java.io.{File, IOException}
 import javax.imageio.ImageIO
 
 import apart.arithmetic.Var
-import benchmarks.{MolecularDynamics, BlackScholes}
+import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
-import ir.UserFunDef._
+import ir.ast._
+import ir.ast.UserFun._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import opencl.ir.pattern._
 
 object TestBenchmark {
   @BeforeClass def before() {
@@ -58,9 +61,9 @@ class TestBenchmark {
     val centresY = Array.fill(k)(util.Random.nextFloat())
     val indices = Array.range(0, k)
 
-    val distance = UserFunDef("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
-    val minimum = UserFunDef("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
-    val getSecond = UserFunDef("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
+    val distance = UserFun("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
+    val minimum = UserFun("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
+    val getSecond = UserFun("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
 
     val points = pointsX zip pointsY
     val centres = (centresX, centresY, indices).zipped
@@ -136,7 +139,7 @@ class TestBenchmark {
       })
     })
 
-    val md = UserFunDef("md", Array("i", "j", "niters", "size"),
+    val md = UserFun("md", Array("i", "j", "niters", "size"),
       """|{
          |  const float space = 2.0f / size;
          |  float Zr = 0.0f;
@@ -200,7 +203,11 @@ class TestBenchmark {
     val espSqr = 500.0f
 
     // x, y, z, velocity x, y, z, mass
-    val input = Array.fill(inputSize)((util.Random.nextFloat(), util.Random.nextFloat(), util.Random.nextFloat(), 0.0f, 0.0f, 0.0f, util.Random.nextFloat()))
+    val input = Array.fill(inputSize)((util.Random.nextFloat(),
+                                       util.Random.nextFloat(),
+                                       util.Random.nextFloat(),
+                                       0.0f, 0.0f, 0.0f,
+                                       util.Random.nextFloat()))
 
     val x = input.map(_._1)
     val y = input.map(_._2)
@@ -233,30 +240,58 @@ class TestBenchmark {
       val py = x._5 * deltaT + 0.5f * acceleration._2 * deltaT * deltaT
       val pz = x._6 * deltaT + 0.5f * acceleration._3 * deltaT * deltaT
 
-      (x._1 + px.toFloat, x._2 + py.toFloat, x._3 + pz.toFloat, x._4 + acceleration._1.toFloat * deltaT, x._5 + acceleration._2.toFloat * deltaT, x._6 + acceleration._3.toFloat * deltaT, x._7)
-    }).map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
+      (x._1 + px.toFloat,
+       x._2 + py.toFloat,
+       x._3 + pz.toFloat,
+       x._4 + acceleration._1.toFloat * deltaT,
+       x._5 + acceleration._2.toFloat * deltaT,
+       x._6 + acceleration._3.toFloat * deltaT,
+       x._7)
+    }).map(_.productIterator)
+      .reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val calcAcc = UserFunDef("calcAcc", Array("x1", "y1", "z1", "x2", "y2", "z2", "mass", "espSqr"),
+    val calcAcc =
+      UserFun("calcAcc",
+              Array("x1", "y1", "z1", "x2", "y2", "z2", "mass2", "espSqr"),
       """|{
          |  float4 r = (x1 - x2, y1 - y2, z1 - z2, 0.0f);
          |  float distSqr = r.x + r.y + r.z;
          |  float invDist = 1.0f / sqrt(distSqr + espSqr);
          |  float invDistCube = invDist * invDist * invDist;
-         |  float s = invDistCube * mass;
+         |  float s = invDistCube * mass2;
          |  Tuple acc = {s * r.x, s * r.y, s * r.z};
          |  return acc;
          |}
-         | """.stripMargin, Seq(Float, Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float, Float))
-    val reduce = UserFunDef("reduce", Array("x", "y"), "{ Tuple t = {x._0 + y._0, x._1 + y._1, x._2 + y._2}; return t;}", Seq(TupleType(Float, Float, Float), TupleType(Float, Float, Float)), TupleType(Float, Float, Float))
-    val update = UserFunDef("update", Array("x", "y", "z", "velX", "velY", "velZ", "mass", "deltaT", "acceleration"),
+         | """.stripMargin,
+              Seq(Float, Float, Float, Float, Float, Float, Float, Float),
+              TupleType(Float, Float, Float))
+
+    val reduce =
+      UserFun("reduce",
+              Array("x", "y"),
+              "{ Tuple t = {x._0 + y._0, x._1 + y._1, x._2 + y._2}; return t;}",
+              Seq(TupleType(Float, Float, Float),
+                  TupleType(Float, Float, Float)),
+              TupleType(Float, Float, Float))
+
+    val update =
+      UserFun("update",
+              Array("x", "y", "z", "velX", "velY", "velZ", "mass",
+                    "deltaT", "acceleration"),
       """|{
          |  float px = velX * deltaT + 0.5f * acceleration._0 * deltaT * deltaT;
          |  float py = velY * deltaT + 0.5f * acceleration._1 * deltaT * deltaT;
          |  float pz = velZ * deltaT + 0.5f * acceleration._2 * deltaT * deltaT;
-         |  Tuple1 t = {x + px, y + py, z + pz, velX + acceleration._0 * deltaT, velY + acceleration._1 * deltaT, velZ + acceleration._2 * deltaT, mass};
+         |  Tuple1 t = {x + px, y + py, z + pz,
+         |              velX + acceleration._0 * deltaT,
+         |              velY + acceleration._1 * deltaT,
+         |              velZ + acceleration._2 * deltaT, mass};
          |  return t;
          |}
-      """.stripMargin, Seq(Float, Float, Float, Float, Float, Float, Float, Float, TupleType(Float, Float, Float)), TupleType(Float, Float, Float, Float, Float, Float, Float))
+      """.stripMargin,
+              Seq(Float, Float, Float, Float, Float, Float, Float,
+                  Float, TupleType(Float, Float, Float)),
+              TupleType(Float, Float, Float, Float, Float, Float, Float))
 
     val N = Var("N")
 
@@ -271,17 +306,27 @@ class TestBenchmark {
       Float,
       Float,
       (x, y, z, velX, velY, velZ, mass, espSqr, deltaT) =>
-        MapGlb(fun(xyz =>
-          toGlobal(MapSeq(fun(acceleration =>
-            update(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(xyz, 3), Get(xyz, 4), Get(xyz, 5), Get(xyz, 6), deltaT, acceleration))))
-            o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f))
-            o MapSeq(fun(abc => calcAcc(Get(xyz, 0), Get(xyz, 1), Get(xyz, 2), Get(abc, 0), Get(abc, 1), Get(abc, 2), Get(abc, 6), espSqr)))
-            $ Zip(x, y, z, velX, velY, velZ, mass)
+        MapGlb(fun(x1y1z1 =>
+
+            toGlobal(MapSeq(fun(acceleration =>
+              update(Get(x1y1z1, 0), Get(x1y1z1, 1), Get(x1y1z1, 2),
+                     Get(x1y1z1, 3), Get(x1y1z1, 4), Get(x1y1z1, 5),
+                     Get(x1y1z1, 6), deltaT, acceleration))))
+
+          o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f))
+
+          o toLocal(MapSeq(fun(x2y2z2 =>
+              calcAcc(Get(x1y1z1, 0), Get(x1y1z1, 1), Get(x1y1z1, 2),
+                      Get(x2y2z2, 0), Get(x2y2z2, 1), Get(x2y2z2, 2),
+                      Get(x2y2z2, 6), espSqr))))
+                $ Zip(x, y, z, velX, velY, velZ, mass)
+
         )) $ Zip(x, y, z, velX, velY, velZ, mass)
     )
 
     val (output: Array[Float], runtime) =
-      Execute(inputSize)(function, x, y, z, velX, velY, velZ, mass, espSqr, deltaT)
+      Execute(inputSize)(function,
+                         x, y, z, velX, velY, velZ, mass, espSqr, deltaT)
 
     assertArrayEquals(gold, output, 0.0001f)
 
@@ -319,7 +364,7 @@ class TestBenchmark {
       Float,
       (particles, neighbourIds, cutsq, lj1, lj2) =>
         MapGlb(fun(p =>
-          toGlobal(MapSeq(Vectorize(4)(id))) o
+          toGlobal(MapSeq(id.vectorize(4))) o
             ReduceSeq(fun((force, n) =>
               MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
             ), Value(0.0f, Float4)) $ Filter(particles, Get(p, 1))
@@ -401,7 +446,7 @@ class TestBenchmark {
     val gold = (xs.map(_ * a), ys).zipped map (_ + _)
 
     // user function
-    val fct = UserFunDef("saxpy", Array("a", "x", "y"),
+    val fct = UserFun("saxpy", Array("a", "x", "y"),
       " return a * x + y; ",
       Seq(Float, Float, Float), Float)
 

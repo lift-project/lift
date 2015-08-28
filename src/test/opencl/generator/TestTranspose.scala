@@ -3,11 +3,10 @@ package opencl.generator
 import apart.arithmetic.Var
 import benchmarks.MatrixTransposition
 import ir._
-import ir.UserFunDef._
-import opencl.executor.{Utils, Execute, Executor}
+import ir.ast._
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
-import opencl.ir.IndexFunction.transposeFunction
-
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -33,7 +32,7 @@ class TestTranspose {
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
-      input => TransposeW() o MapWrg(TransposeW() o Barrier() o MapLcl(MapSeq(id))) $ input
+      input => TransposeW() o MapWrg(TransposeW() o MapLcl(MapSeq(id))) $ input
     )
 
     val (output: Array[Float], _) = Execute(4, 4)(f, input)
@@ -49,7 +48,7 @@ class TestTranspose {
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
-      input => MapWrg(TransposeW() o TransposeW() o Barrier() o MapLcl(MapSeq(id))) $ input
+      input => MapWrg(TransposeW() o TransposeW() o MapLcl(MapSeq(id))) $ input
     )
 
     val (output: Array[Float], _) = Execute(4, 4)(f, input)
@@ -84,9 +83,9 @@ class TestTranspose {
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
       input => MapWrg(
-        Barrier() o toGlobal(MapLcl(MapSeq(id))) o
+        toGlobal(MapLcl(MapSeq(id))) o
           Transpose() o TransposeW() o
-          Barrier() o toLocal(MapLcl(MapSeq(id)))
+          toLocal(MapLcl(MapSeq(id)))
       ) $ input
     )
 
@@ -95,96 +94,60 @@ class TestTranspose {
     assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
 
-  @Test def MATRIX_PLUS_ONE(): Unit = {
-
-    val Msize = 512
-    val Ksize = 512
-    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * c * r)
-    val gold   = matrix.map(_.map(_+1.0f))
-
-    val M = Var("M")
-    val K = Var("K")
-
-    val r = 2
-    val c = 4
-
-    val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      (matrix) => {
-        Join() o MapWrg(0)(fun( rows =>
-          Barrier() o MapLcl(0)(fun( row =>
-            Join() o MapWrg(1)(fun( cols =>
-              MapLcl(1)(fun( col =>
-                plusOne(col)
-              )) $ cols
-            )) o Split(c) $ row
-          )) $ rows
-        )) o Split(r) $ matrix
-      })
-
-    val (output: Array[Float], runtime) = Execute(Ksize * Msize)(f, matrix)
-
-    println("output.length = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    assertArrayEquals(gold.flatten, output, 0.0f)
-  }
-
-  @Test def MATRIX_PLUS_ONE_TILED(): Unit = {
-
-    val Msize = 8
-    val Ksize = 16
-    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * (c + r))
-    val gold   = matrix.map(_.map(_+1.0f))
-
-    val M = Var("M")
-    val K = Var("K")
-
-    val r = 4
-    val c = 8
-
-    val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      (matrix) => {
-        Join() o MapWrg(0)(fun( cols =>
-          MapSeq(Join()) o MapWrg(1)(fun( tile =>
-
-            // step 2: compute plus one
-            Barrier() o toGlobal(
-              MapLcl(0)(fun( row =>
-                MapLcl(1)(fun( elem =>
-                  id(elem)
-                )) $ row
-              ))
-            ) o
-              // step 1: load tile to local memory
-              Barrier() o toLocal(
-                MapLcl(0)(fun( row =>
-                  MapLcl(1)(fun( elem =>
-                    plusOne(elem)
-                  )) $ row
-                ))
-              ) $ tile
-
-          )) o MapSeq(Split(c)) $ cols
-        )) o Split(r) $  matrix
-      })
-
-    val (output: Array[Float], runtime) = Execute(32, Ksize * Msize)(f, matrix)
-
-    println("output.length = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    println("gold: ")
-    Utils.myPrint(gold.flatten, Ksize)
-
-    println("output: ")
-    Utils.myPrint(output, Ksize)
-
-    assertArrayEquals(gold.flatten, output, 0.0f)
-  }
+//  @Test def MATRIX_PLUS_ONE_TILED(): Unit = {
+//
+//    val Msize = 8
+//    val Ksize = 16
+//    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * (c + r))
+//    val gold   = matrix.map(_.map(_+1.0f))
+//
+//    val M = Var("M")
+//    val K = Var("K")
+//
+//    val r = 4
+//    val c = 8
+//
+//    val f = fun(
+//      ArrayType(ArrayType(Float, K), M),
+//      (matrix) => {
+//        Join() o MapWrg(0)(fun( cols =>
+//          MapSeq(Join()) o MapWrg(1)(fun( tile =>
+//
+//            // step 2: compute plus one
+//            toGlobal(
+//              MapLcl(0)(fun( row =>
+//                MapLcl(1)(fun( elem =>
+//                  id(elem)
+//                )) $ row
+//              ))
+//            ) o
+//              // step 1: load tile to local memory
+//              toLocal(
+//                MapLcl(0)(fun( row =>
+//                  MapLcl(1)(fun( elem =>
+//                    plusOne(elem)
+//                  )) $ row
+//                ))
+//              ) $ tile
+//
+//          )) o MapSeq(Split(c)) $ cols
+//        )) o Split(r) $  matrix
+//      })
+//
+//    val (output: Array[Float], runtime) = Execute(r, c, Ksize, Msize, (false, false))(f, matrix)
+//
+//    println("output.length = " + output.length)
+//    println("output(0) = " + output(0))
+//    println("runtime = " + runtime)
+//
+//    println("gold: ")
+//    Utils.myPrint(gold.flatten, Ksize)
+//
+//    println("output: ")
+//    Utils.myPrint(output, Ksize)
+//
+//    assertArrayEquals(gold.flatten, output, 0.0f)
+//  }
 
   @Test def MATRIX_PLUS_ONE_TILED_TRANSPOSE_WITH_JOIN_REORDER_SPLIT(): Unit = {
 
@@ -205,7 +168,7 @@ class TestTranspose {
         Join() o MapWrg(0)(fun( cols =>
           MapSeq(Join()) o MapWrg(1)(fun( tile =>
 
-            Barrier() o MapLcl(0)(fun( row =>
+            MapLcl(0)(fun( row =>
               MapLcl(1)(fun( elem =>
                 plusOne(elem)
               )) $ row
@@ -463,7 +426,7 @@ class TestTranspose {
       (matrix) => {
         MapWrg(0)(
           MapWrg(1)(
-            Barrier() o MapLcl(0)(
+            MapLcl(0)(
               MapLcl(1)(id)
             )
           )

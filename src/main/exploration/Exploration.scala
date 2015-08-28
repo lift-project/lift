@@ -1,9 +1,10 @@
 package exploration
 
 import generator.Dispatcher
+import ir._
+import ir.ast._
 
 import scala.util.Random
-import ir._
 
 case class UngenerableException(msg: String) extends Exception(msg) {
   def this(f: FunCall) = this("impossible to generate "+f)
@@ -35,7 +36,7 @@ object Exploration {
       if (!seen.contains(rndFun)) {
         seen += rndFun
 
-        Type.check(rndFun.body)
+        TypeChecker.check(rndFun.body)
         Context.updateContext(rndFun.body, f.body.context)
 
         // generate code for the function
@@ -102,7 +103,7 @@ object Exploration {
           val f = FunDecl.replace(rndFun, oriF, choice)
           val funCall = topF.body match { case call: FunCall => call }
           f.params(0).t = funCall.argsType
-          Type.check(f.body)
+          TypeChecker.check(f.body)
           Context.updateContext(f.body, topF.body.context)
           try{
             val perf = evalPerf(f, inputs, c)
@@ -150,7 +151,7 @@ object Exploration {
 
     assert (choices.contains(choice))
 
-    Type.check(choice)
+    TypeChecker.check(choice)
     Context.updateContext(choice, f.context)
 
     choice
@@ -191,7 +192,7 @@ object Exploration {
 
         val choice = choose(topF, call, choices, inputs, c, depth)
 
-        Type.check(choice)
+        TypeChecker.check(choice)
         Context.updateContext(choice, call.context)
 
         if (choice != call) {
@@ -199,7 +200,7 @@ object Exploration {
           val newTopF = FunDecl.replace(topF, call, choice)
           val funCall = topF.body match { case call: FunCall => call }
           newTopF.params(0).t = funCall.argsType
-          Type.check(newTopF.body)
+          TypeChecker.check(newTopF.body)
           Context.updateContext(newTopF.body, topF.body.context)
 
           deriveFunCall(newTopF, choice, inputs, c, depth+1)
@@ -213,7 +214,7 @@ object Exploration {
     val newTopF = FunDecl.replace(topF, call, bestChoice)
     val funCall = topF.body match { case call: FunCall => call }
     newTopF.params(0).t = funCall.argsType
-    Type.check(newTopF.body)
+    TypeChecker.check(newTopF.body)
     Context.updateContext(newTopF.body, topF.body.context)
 
     bestChoice match {
@@ -224,14 +225,14 @@ object Exploration {
         // now try to go inside
         call.f match {
           case fp: FPattern => deriveFunCall(newTopF, call, inputs, c, depth + 1)
-          case cf: CompFunDef =>
-            val newFuns = cf.funs.map(inF => derive(newTopF, inF.body, inputs, c, depth + 1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
-            if (newFuns.length == 1)
-              derive(newTopF, newFuns(0), inputs, c, depth + 1)
-            else {
-              val newLambdas = newFuns.zip(cf.funs).map({ case (e,l) => new Lambda(l.params,e) })
-              (new CompFunDef(cf.params, newLambdas: _*))(call.args: _*)
-            }
+//          case cf: CompFun =>
+//            val newFuns = cf.funs.map(inF => derive(newTopF, inF.body, inputs, c, depth + 1)) // TODO: starts from the right! (not truely independent if the right most function changes its number of outputs)
+//            if (newFuns.length == 1)
+//              derive(newTopF, newFuns(0), inputs, c, depth + 1)
+//            else {
+//              val newLambdas = newFuns.zip(cf.funs).map({ case (e,l) => new Lambda(l.params,e) })
+//              (new CompFun(newLambdas: _*))(call.args: _*)
+//            }
 
 
           case _ => bestChoice

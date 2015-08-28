@@ -1,10 +1,11 @@
 package opencl.generator
 
 import apart.arithmetic._
-import ir.UserFunDef._
 import ir._
-import opencl.executor.{Executor, Compile, Execute}
+import ir.ast._
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -28,8 +29,8 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Barrier() o toGlobal(MapLcl(plusOne)) o
-        Barrier() o toLocal(MapLcl(id)))
+      in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
+         toLocal(MapLcl(id)))
         o Split(4) $ in
     )
 
@@ -49,8 +50,8 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Barrier() o toGlobal(MapLcl(plusOne)) o
-        Barrier() o toLocal(MapLcl(id)))
+      in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
+         toLocal(MapLcl(id)))
         o Split(4) $ in
     )
 
@@ -75,8 +76,8 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Barrier() o toGlobal(MapLcl(plusOne)) o
-        Barrier() o toLocal(MapLcl(id)))
+      in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
+         toLocal(MapLcl(id)))
         o Split(4) $ in
     )
 
@@ -98,7 +99,7 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Join() o Barrier() o MapLcl(toGlobal(MapSeq(id))
+      in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id))
         o toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
     )
@@ -133,9 +134,9 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg( toGlobal(MapLcl(id)) o Join() o Barrier() o
+      in => Join() o MapWrg( toGlobal(MapLcl(id)) o Join() o 
         MapLcl(toLocal(MapSeq(id)) o toPrivate(MapSeq(plusOne))) o Split(4) o
-        Barrier() o toLocal(MapLcl(id))
+         toLocal(MapLcl(id))
       ) o Split(128) $ in
     )
 
@@ -154,7 +155,7 @@ class TestAddressSpaces {
       ArrayType(Float, Var("N")),
       in => Join() o MapWrg( Join() o
         MapLcl(toGlobal(MapSeq(id)) o toPrivate(MapSeq(plusOne))) o Split(4) o
-        Barrier() o toLocal(MapLcl(id))
+         toLocal(MapLcl(id))
       ) o Split(128) $ in
     )
 
@@ -201,7 +202,7 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)))
+      in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
     )
@@ -219,7 +220,7 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)))
+      in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
     )
@@ -236,7 +237,7 @@ class TestAddressSpaces {
 
     val  f = fun(
       ArrayType(Float, Var("N")),
-      in => Join() o MapWrg(Join() o Barrier() o MapLcl(toGlobal(MapSeq(id)))
+      in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
     )

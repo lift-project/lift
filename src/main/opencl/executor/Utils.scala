@@ -1,6 +1,6 @@
 package opencl.executor
 
-import ir.Lambda
+import ir.ast.Lambda
 
 object Utils {
 

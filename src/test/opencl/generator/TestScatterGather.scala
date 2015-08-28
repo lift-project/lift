@@ -2,13 +2,12 @@ package opencl.generator
 
 import apart.arithmetic.Var
 import ir._
-import ir.UserFunDef._
+import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.IndexFunction.reverse
-
+import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Test, AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestScatterGather {
   @BeforeClass def before() {
@@ -200,7 +199,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id) o Gather(reverse)) $ in
+      in => MapWrg( MapLcl(id) o Gather(reverse)) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -219,7 +218,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id)) o Gather(reverse) $ in
+      in => MapWrg( MapLcl(id)) o Gather(reverse) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -238,7 +237,7 @@ class TestScatterGather {
 
     val f = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      in => MapWrg(Barrier() o MapLcl(id) o Gather(reverse)) o Gather(reverse) $ in
+      in => MapWrg( MapLcl(id) o Gather(reverse)) o Gather(reverse) $ in
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
@@ -319,6 +318,11 @@ class TestScatterGather {
     val f = fun(
       ArrayType(Float, Var("N")),
       in => MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
+    )
+
+    val f_broken = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(fun(x => Scatter(reverse)(MapSeq(id)(x))))(Split(splitSize)(in))
     )
 
     val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)

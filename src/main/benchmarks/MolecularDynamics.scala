@@ -2,8 +2,9 @@ package benchmarks
 
 import apart.arithmetic.Var
 import ir._
-import ir.UserFunDef._
+import ir.ast._
 import opencl.ir._
+import opencl.ir.pattern._
 
 class MolecularDynamics(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Molecular Dynamics (md)", Seq(1024, 128), f, 0.1f) {
   var scalaInput: Array[(Float, Float, Float, Float)] = Array()
@@ -61,7 +62,7 @@ class MolecularDynamics(override val f: Seq[(String, Array[Lambda])]) extends Be
 }
 
 object MolecularDynamics {
-  val mdCompute = UserFunDef("updateF",
+  val mdCompute = UserFun("updateF",
     Array("f", "ipos", "jpos", "cutsq", "lj1", "lj2"),
     """|{
        |  // Calculate distance
@@ -95,8 +96,8 @@ object MolecularDynamics {
     Float,
     (particles, neighbourIds, cutsq, lj1, lj2) =>
       Join() o MapWrg(
-        Barrier() o MapLcl(fun(p =>
-          toGlobal(MapSeq(Vectorize(4)(id))) o
+         MapLcl(fun(p =>
+          toGlobal(MapSeq(id.vectorize(4))) o
           ReduceSeq(fun((force, n) =>
             MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
           ), Value(0.0f, Float4)) $ Filter(particles, Get(p, 1))
@@ -107,11 +108,11 @@ object MolecularDynamics {
   def mdScala(position: Array[(Float, Float, Float, Float)], neighbours: Array[Array[Int]], cutsq: Float, lj1: Float, lj2:Float): Array[(Float, Float, Float, Float)] = {
     val result = Array.ofDim[(Float, Float, Float, Float)](position.length)
 
-    for (i <- 0 until position.length) {
+    for (i <- position.indices) {
       val ipos = position(i)
       var f = (0.0f, 0.0f, 0.0f, 0.0f)
 
-      for (j <- 0 until neighbours.length) {
+      for (j <- neighbours.indices) {
         val jidx = neighbours(j)(i)
         val jpos = position(jidx)
 
@@ -142,10 +143,10 @@ object MolecularDynamics {
 
     val neighbourList = Array.ofDim[Int](position.length, maxNeighbours)
 
-    for (i <- 0 until position.length) {
+    for (i <- position.indices) {
       var currDist = List[(Int, Float)]()
 
-      for (j <- 0 until position.length) {
+      for (j <- position.indices) {
         if (i != j) {
 
           val ipos = position(i)

@@ -1,6 +1,7 @@
 package opencl.executor
 
-import ir.Lambda
+import ir.ast.Lambda
+
 import scala.reflect.runtime._
 import scala.tools.reflect.ToolBox
 
@@ -16,9 +17,13 @@ object Eval {
     val tb = mirror.mkToolBox()
     val tree = tb.parse(s"""
                           |import arithmetic._
+                          |import apart.arithmetic._
                           |import ir._
+                          |import ir.ast._
                           |import opencl.ir._
-                          |${code}
+                          |import opencl.ir.pattern._
+                          |import opencl.ir.ast._
+                          |$code
                          """.stripMargin)
     tb.eval(tree).asInstanceOf[Lambda]
   }

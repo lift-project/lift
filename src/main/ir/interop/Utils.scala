@@ -1,8 +1,11 @@
 package ir.interop
 
+import java.util.function._
+
 import apart.arithmetic.ArithExpr
 import ir._
-import java.util.function._
+import ir.ast._
+
 import scala.collection.JavaConverters._
 
 object jTypeArray {
@@ -176,8 +179,8 @@ object jIterate {
 object jJoin {
   def create = Join()
 
-  def comp(f: Lambda): CompFunDef = create o f
-  def comp(f: FunDecl): CompFunDef = create o Lambda.FunDefToLambda(f)
+  def comp(f: Lambda): Lambda = create.comp(f)
+  def comp(f: FunDecl): Lambda = create.comp(Lambda.FunDefToLambda(f))
 }
 
 object jMap {
@@ -195,12 +198,12 @@ object jSplit {
 }
 
 object jUserFunDef {
-  def create(name: String, paramName: String, body: String, inT: Type, outT: Type): UserFunDef = {
-    UserFunDef(name, paramName, body, inT, outT)
+  def create(name: String, paramName: String, body: String, inT: Type, outT: Type): UserFun = {
+    UserFun(name, paramName, body, inT, outT)
   }
 
-  def create(name: String, paramNames: Array[String], body: String, inTs: Array[Type], outT: Type): UserFunDef = {
-    UserFunDef(name, paramNames, body, inTs, outT)
+  def create(name: String, paramNames: Array[String], body: String, inTs: Array[Type], outT: Type): UserFun = {
+    UserFun(name, paramNames, body, inTs, outT)
   }
 }
 

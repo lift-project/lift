@@ -6,9 +6,12 @@ package opencl.executor
 
 import apart.arithmetic.Var
 import ir._
-import ir.UserFunDef._
+import ir.ast.UserFun._
+import ir.ast._
 import opencl.ir._
+import opencl.ir.ast._
 import org.junit._
+import opencl.ir.pattern._
 
 object TestInvalid {
   @BeforeClass def before() {
@@ -25,7 +28,7 @@ object TestInvalid {
 
 class TestInvalid {
   // Dummy user function
-  val fct = UserFunDef("afunc", "array", " return array * 2.0f; ", Float, Float)
+  val fct = UserFun("afunc", "array", " return array * 2.0f; ", Float, Float)
   // Dummy function
   val f = fun(ArrayType(Float, Var("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
   val f2 = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")),
@@ -159,14 +162,14 @@ class TestInvalid {
 
   @Test(expected=classOf[IllegalArgumentException])
   def NamesAndTypesDontMatchInUserFunDef(): Unit = {
-    UserFunDef("inc", Array("x", "y"),
+    UserFun("inc", Array("x", "y"),
       " return x+1.0; ", Seq(Float), Float)
   }
 
 
   @Test(expected=classOf[IllegalArgumentException])
   def NamesAndTypesDontMatchInUserFunDef2(): Unit = {
-    UserFunDef("inc", Array("x"),
+    UserFun("inc", Array("x"),
       " return x+1.0; ", Seq(Float, Float), Float)
   }
 
@@ -266,18 +269,26 @@ class TestInvalid {
   }
 
   // Test allocating too much local memory
-  @Ignore
   @Test def AllocateTooMuchLocalMemory(): Unit = {
     try {
       // Allocate 4 times the maximum
-      val arg = LocalArg.create(Executor.getDeviceMaxMemAllocSize().asInstanceOf[Int])
+      val arg = LocalArg.create(Executor.getDeviceMaxMemAllocSize.asInstanceOf[Int])
       Executor.execute("kernel void KERNEL(local float* mem){}", 1, 1, 1, 1, 1, 1, Array(arg))
     } catch {
       case e: Executor.ExecutorFailureException =>
         e.consume()
-        assert(assertion = false)
+
       case _: Throwable =>
       // This might be acceptable depending on how we handle insufficient ressources
+        assert(assertion = false)
+    }
+
+    // This should work
+    try {
+      println("Executing a valid kernel")
+      Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
+    } catch {
+      case _: Throwable => assert(assertion = false)
     }
   }
 }

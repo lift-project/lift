@@ -1,36 +1,131 @@
-package ir
+package ir.ast
 
-import language.implicitConversions
+import ir._
 
-class Lambda(override val params: Array[Param], val body: Expr) extends FunDecl(params) with isGenerable {
-  override def toString = "Lambda(" + params.map(_.toString).reduce(_ + ", " + _) + "){ " + body.toString + " }"
+import scala.language.implicitConversions
+
+/**
+ * Instances of this class represent declarations (and definition) of anonymous functions (a.k.a., lambda expressions).
+ * This class allows for an arbitrary number of parameters.
+ * Use one of the provided subclasses to get a (runtime) checking of the number of arguments when constructing an
+ * instance of such a subclass.
+ *
+ * @param params The parameters of the lambda expression.
+ * @param body The body of the lambda expression.
+ */
+case class Lambda(params: Array[Param],
+                  body: Expr) extends FunDecl(params.length) {
+  /**
+   * Debug string representation
+   */
+  override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
+                          " -> " + body.toString + ")"
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    TypeChecker.checkAndSetTypeForParams(params, argType)
+    TypeChecker.check(body, setType)
+  }
+
+  override def apply(args : Expr*) : Expr = {
+    assert (args.length == arity)
+
+    val paramUsedMultipleTimes =
+      params.map(p => Expr.visitWithState(0)(body, (e, c) => {
+        e match {
+          case p2: Param => if (p.eq(p2)) c + 1 else c
+          case _ => c
+        }})).exists(_ > 1)
+
+    // don't inline if one param is used multiple times
+    val inline = !paramUsedMultipleTimes
+
+    if (!inline) {
+      super.apply(args:_*)
+    } else {
+
+      // 1. pair up parameters and arguments
+      // 2. replace each param with the corresponding argument
+      (params, args).zipped.foldLeft(body) {
+        case (e, (p, a)) => Expr.replace(e, p, a)
+      }
+    }
+  }
+
+  override lazy val isGenerable: Boolean = {
+    Expr.visitWithState(true)(body, (e, s) => {
+      e match {
+        case call: FunCall if !call.f.isGenerable => false
+        case _ => s
+      }
+    })
+  }
 }
 
 object Lambda {
+  /**
+   * Implicitly wrap a given function declaration `f` into a lambda.
+   *
+   * @param f A given function declaration
+   * @return A lambda with the same arity as `f` which immediately calls `f` in its body.
+   */
   implicit def FunDefToLambda(f: FunDecl): Lambda = {
-    val params = f.params.map(_ => Param(UndefType))
+    val params = Array.fill(f.arity)(Param(UndefType))
     new Lambda(params, f(params:_*))
   }
 }
 
+/**
+ * A lambda expression of arity 1.
+ * @param params The parameters of the lambda expression.
+ * @param body The body of the lambda expression.
+ */
 class Lambda1(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 1)
 }
 
 object Lambda1 {
+  /**
+   * Implicitly wrap a given function declaration `f` into a lambda.
+   *
+   * If `f` has arity  1 the returned lambda immediately calls `f` in its body.
+   *
+   * If `f` has arity >1 the returned lambda will unpack (or, 'uncurry') its single parameter
+   * (under the assumption that this is a tuple) and pass all components of the tuple as separate parameters to the
+   * function `f`.
+   *
+   * @param f A given function declaration of arity >=1.
+   * @return A lambda with arity 1 which calls `f` in its body.
+   */
   implicit def FunDefToLambda(f: FunDecl): Lambda1 = {
-    assert(f.params.nonEmpty)
-    if (f.params.length == 1) {
-      fun(f(_))
+    assert(f.arity >= 1)
+    if (f.arity == 1) {
+      f match {
+        case Lambda(params, body) =>
+          // Don't wrap unnecessarily
+          new Lambda1(params, body)
+        case _ => fun(f(_))
+      }
     } else {
-      fun( x => f( f.params.zipWithIndex.map({ case (_,i) => Get(x, i) }):_* ) )
+      fun( x => f( (0 until f.arity).map( Get(x, _) ):_* ) )
     }
   }
 }
 
+/**
+ * A lambda expression of arity 2.
+ * @param params The parameters of the lambda expression.
+ * @param body The body of the lambda expression.
+ */
 class Lambda2(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 2)
 
+  /**
+   * Returns a curried lambda expression, i.e.,  lambda expression of arity 1, where the first argument of `this` is
+   * bound with `arg`.
+   * @param arg The argument to be bound to the first parameter
+   * @return A lambda expression of arity 1 immediately calling `this` where the first parameter is bound to `arg`
+   */
   def apply(arg: Expr): Lambda1 = {
     fun( tmp => super.apply(arg, tmp) )
   }
@@ -38,8 +133,12 @@ class Lambda2(override val params: Array[Param], override val body: Expr) extend
 
 object Lambda2 {
   implicit def FunDefToLambda(f: FunDecl): Lambda2 = {
-    assert(f.params.length == 2)
-    fun(f(_, _))
+    assert(f.arity == 2)
+    f match {
+      // Don't wrap unnecessarily
+      case Lambda(params, body) => new Lambda2(params, body)
+      case _ => fun(f(_, _))
+    }
   }
 }
 

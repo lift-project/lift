@@ -2,7 +2,9 @@ package benchmarks
 
 import apart.arithmetic.Var
 import ir._
+import ir.ast._
 import opencl.ir._
+import opencl.ir.pattern._
 
 class BlackScholes(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Black-Scholes", Seq(4096), f, 0.01f) {
   override def runScala(inputs: Any*): Array[Float] = {
@@ -71,7 +73,7 @@ object BlackScholes {
   }
 
   val blackScholesComp =
-    UserFunDef("blackScholesComp", "inRand",
+    UserFun("blackScholesComp", "inRand",
       """|{
          |  #define S_LOWER_LIMIT 10.0f
          |  #define S_UPPER_LIMIT 100.0f
@@ -146,12 +148,12 @@ object BlackScholes {
 
   val blackScholes = fun(
     ArrayType(Float, Var("N")),
-    inRand => Join() o MapWrg(Barrier() o MapLcl(blackScholesComp)) o Split(8192) $ inRand
+    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(8192) $ inRand
   )
 
   val blackScholesAMD = fun(
     ArrayType(Float, Var("N")),
-    inRand => Join() o MapWrg(Barrier() o MapLcl(blackScholesComp)) o Split(256) $ inRand
+    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(256) $ inRand
   )
 
   def apply() = new BlackScholes(

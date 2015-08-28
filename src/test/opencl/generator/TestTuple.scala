@@ -1,10 +1,11 @@
 package opencl.generator
 
 import apart.arithmetic.Var
-import ir.UserFunDef._
 import ir._
+import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -28,12 +29,12 @@ class TestTuple {
 
     val gold = inputArray.map(-_)
 
-    val negPair = UserFunDef("pair", "x", "{ x._0 = -x._0; x._1 = -x._1; return x; }",
+    val negPair = UserFun("pair", "x", "{ x._0 = -x._0; x._1 = -x._1; return x; }",
       TupleType(Float, Float), TupleType(Float, Float))
 
     val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
       Join() o MapWrg(
-        Join() o Barrier() o MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
+        Join() o  MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
       ) o Split(1024) $ input
     )
 
@@ -59,7 +60,7 @@ class TestTuple {
       ArrayType(TupleType(Float, Float), N),
       (left, right) =>
         Join() o MapWrg(
-          Join() o Barrier() o MapLcl(MapSeq(addPair)) o Split(4)
+          Join() o  MapLcl(MapSeq(addPair)) o Split(4)
         ) o Split(1024) $ Zip(left, right)
     )
 
@@ -77,12 +78,12 @@ class TestTuple {
 
     val gold = inputArray.map((f) => Array(f, f)).flatten
 
-    val pair = UserFunDef("pair", "x", "{ Tuple t = {x, x}; return t; }",
+    val pair = UserFun("pair", "x", "{ Tuple t = {x, x}; return t; }",
                           Float, TupleType(Float, Float))
 
     val pairFun = fun(ArrayType(Float, Var("N")), (input) =>
       Join() o MapWrg(
-        Join() o Barrier() o MapLcl(MapSeq(pair)) o Split(4)
+        Join() o  MapLcl(MapSeq(pair)) o Split(4)
       ) o Split(1024) $ input
     )
 
@@ -96,7 +97,7 @@ class TestTuple {
 
   @Test def reduceOverTuples(): Unit = {
 
-    val maxFirstArg = UserFunDef("maxFirstArg", Array("x", "y"), "{ return x._0 > y._0 ? x : y; }",
+    val maxFirstArg = UserFun("maxFirstArg", Array("x", "y"), "{ return x._0 > y._0 ? x : y; }",
                                  Array(TupleType(Float, Float),
                                        TupleType(Float, Float)), TupleType(Float, Float))
 

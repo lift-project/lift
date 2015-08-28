@@ -1,14 +1,19 @@
 package opencl.generator
 
+import java.io._
+
 import apart.arithmetic.Var
-import ir.UserFunDef._
+import ir._
+import ir.ast._
+import ir.ast.UserFun._
 import opencl.executor._
+import opencl.ir._
+import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir._
-import ir._
-import sys.process._
-import java.io._
+
+import scala.sys.process._
+import opencl.ir.pattern._
 
 object TestGraphTheory {
   @BeforeClass def TestMatrixBasic() {
@@ -27,11 +32,11 @@ object TestGraphTheory {
 class TestGraphTheory {
 
 
-  val add = UserFunDef("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
-  val mult = UserFunDef("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
+  val add = UserFun("add", Array("a","b"), "return a+b;", Seq(Float, Float), Float)
+  val mult = UserFun("mult", Array("a","b"), "return a*b;", Seq(Float, Float), Float)
   //boolean operations - odd names for compatibility on NVIDIA platforms
-  val or = UserFunDef("b_or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
-  val and = UserFunDef("b_and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  val or = UserFun("b_or", Array("a","b"), "return (((a>0.0f)||(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
+  val and = UserFun("b_and", Array("a","b"), "return (((a>0.0f)&&(b>0.0f))?(1.0f):(0.0f));", Seq(Float, Float), Float)
 
   @Test def DENSE_BFS_ITERATION(): Unit = {
     println("DENSE_BFS_ITERATION")

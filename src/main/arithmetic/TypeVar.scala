@@ -2,26 +2,25 @@ package arithmetic
 
 import apart.arithmetic._
 import ir._
+import ir.ast.Expr
 
 import scala.collection.immutable
 import scala.language.implicitConversions
 
 /** a special variable that should only be used for defining function type*/
-class TypeVar private(range : apart.arithmetic.Range) extends Var("", range) {
-  System.out.println(s"tv = $toString")
-
-  override lazy val toString = "t" + id
+class TypeVar private(range : Range) extends Var("", range) {
+  override lazy val toString = "tv_" + name + "_" + id
 }
 
 object TypeVar {
   //var cnt: Int = -1
-  def apply(range : apart.arithmetic.Range = RangeUnknown) = {
+  def apply(range : Range = RangeUnknown) = {
     //cnt = cnt+1
     new TypeVar(/*cnt, */range)
   }
 
   def getTypeVars(expr: Expr) : Set[TypeVar] = {
-    Expr.visit(immutable.HashSet[TypeVar]())(expr, (inExpr, set) => set ++ getTypeVars(inExpr.t))
+    Expr.visitWithState(immutable.HashSet[TypeVar]())(expr, (inExpr, set) => set ++ getTypeVars(inExpr.t))
   }
 
   def getTypeVars(t: Type) : Set[TypeVar] = {
@@ -42,4 +41,3 @@ object TypeVar {
     typeVars.toSet
   }
 }
-

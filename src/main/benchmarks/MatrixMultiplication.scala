@@ -1,10 +1,10 @@
 package benchmarks
 
-import apart.arithmetic.{Cst, ArithExpr, Var}
-import ir.UserFunDef._
+import apart.arithmetic.{ArithExpr, Cst, Var}
 import ir._
-import opencl.ir.CompositePatterns._
+import ir.ast._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 
 class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
@@ -26,8 +26,12 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     "Vector width for loading values")
 
   override def runScala(inputs: Any*): Array[Float] = {
-    val A = inputs(0).asInstanceOf[Array[Array[Float]]]
+    var A = inputs(0).asInstanceOf[Array[Array[Float]]]
     val B = inputs(1).asInstanceOf[Array[Array[Float]]]
+
+    val variant = variantOpt.value.getOrElse(0)
+    if (variant == 3 || variant == 4)
+      A = A.transpose
 
     val aCols = A(0).length
     val aRows = A.length
@@ -118,8 +122,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
             toGlobal(MapLcl(1)(MapLcl(0)(id))) o
               Join() o
@@ -128,7 +132,7 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                   fun(partial => MapLcl(1)(fun(pairOfRows => MapLcl(0)(add) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
                     Map(Join()) o
                     MapLcl(1)( fun(rowA =>
                       MapLcl(0)( fun( colB =>
@@ -140,8 +144,8 @@ object MatrixMultiplication {
                   // Copy tiles to local memory
                   fun(pairOfTiles =>
                     Tuple(
-                      Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
-                      Barrier() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
+                       toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 0),
+                       toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
                 , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
@@ -158,8 +162,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
             Join() o Map(TransposeW()) o
               toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(id)))) o
               Join() o
@@ -168,7 +172,7 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o fun(partial =>
+                   fun(partial =>
                     MapLcl(1)(fun(pairOfRows =>
                       MapLcl(0)(fun(x => MapSeq(add) $ Zip(Get(x, 0), Get(x, 1))
                       )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
@@ -195,9 +199,9 @@ object MatrixMultiplication {
                   // Copy tiles to local memory
                   fun(pairOfTiles =>
                     Tuple(
-                      Join() o Barrier() o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
+                      Join() o  toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
                         o Split(tileSize/workPerThread) $ Get(pairOfTiles, 0),
-                      Join() o Barrier() o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
+                      Join() o  toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id))))
                         o Split(tileSize/workPerThread) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
@@ -212,16 +216,16 @@ object MatrixMultiplication {
 
   // Currently the best for NVIDIA
   def tiledAndBlockedBInnermost(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
-                                  workPerThreadN: ArithExpr, workPerThreadM: ArithExpr) = fun(
+                                  workPerThreadN: ArithExpr, workPerThreadM: ArithExpr): Lambda = fun(
     ArrayType(ArrayType(Float, M), K), // Transposed
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
-            Map(Scatter(IndexFunction.reorderStride(tileSizeM/workPerThreadM))) o Join() o
+            Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
               Map(TransposeW() o Join() o Map(TransposeW())) o
 
               toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) o
@@ -232,7 +236,6 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o
 
                     MapLcl(1)( fun(rowsA =>
                       MapLcl(0)( fun( colsB =>
@@ -261,7 +264,7 @@ object MatrixMultiplication {
                 ) o
 
                   // Copy tiles to local memory
-                  Unzip() o Barrier() o toLocal(MapLcl(1)(fun(pair =>
+                  Unzip() o toLocal(MapLcl(1)(fun(pair =>
                   fun(pair => Tuple(Join() $ Get(pair, 0), Join() $ Get(pair, 1))) o
                     Unzip() o MapLcl(0)(fun( pair =>
                     Tuple(MapSeq(id) $ Get(pair, 0), MapSeq(id) $ Get(pair, 1))
@@ -280,16 +283,16 @@ object MatrixMultiplication {
   // Currently the best for AMD
   def vectorLoads(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                 workPerThreadN: ArithExpr, workPerThreadM: ArithExpr,
-                   vectorWidth: ArithExpr) = fun(
+                   vectorWidth: ArithExpr): Lambda = fun(
     ArrayType(ArrayType(Float, M), K), // Transposed
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
-            Map(Scatter(IndexFunction.reorderStride(tileSizeM/workPerThreadM))) o Join() o
+            Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
               Map(TransposeW() o Join() o Map(TransposeW())) o
 
               toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) o
@@ -300,7 +303,7 @@ object MatrixMultiplication {
               ReduceSeq(fun( (acc, pairOfTiles) =>
 
                 fun(pairOfTiles =>
-                  Barrier() o
+                  
 
                     MapLcl(1)( fun(rowsA =>
                       MapLcl(0)( fun( colsB =>
@@ -329,10 +332,10 @@ object MatrixMultiplication {
                 ) o
 
                   // Copy tiles to local memory
-                  Unzip() o Barrier() o toLocal(MapLcl(1)(fun(pair =>
+                  Unzip() o  toLocal(MapLcl(1)(fun(pair =>
                   fun(pair => Tuple(asScalar() o Join() $ Get(pair, 0), asScalar() o Join() $ Get(pair, 1))) o
                     Unzip() o MapLcl(0)(fun( pair =>
-                    Tuple(MapSeq(Vectorize(vectorWidth)(id)) $ Get(pair, 0), MapSeq(Vectorize(vectorWidth)(id)) $ Get(pair, 1))
+                    Tuple(MapSeq(id.vectorize(vectorWidth)) $ Get(pair, 0), MapSeq(id.vectorize(vectorWidth)) $ Get(pair, 1))
                   )) $ Zip(Split(1) o asVector(vectorWidth) $ Get(pair, 0), Split(1) o asVector(vectorWidth) $ Get(pair, 1))
                 ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
               )

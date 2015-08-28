@@ -1,0 +1,22 @@
+package ir.ast
+
+/**
+ * Abstract base class for all patterns (i.e., primitives defined in our
+ * language)
+ */
+abstract class Pattern(override val arity: Int) extends FunDecl(arity)
+
+object Pattern {
+  def unapply(l: Lambda): Option[(Pattern)] = l match {
+    case Lambda(_, FunCall(x, _)) if x.isInstanceOf[Pattern] => Some(x.asInstanceOf[Pattern])
+    case _ => None
+  }
+}
+
+/**
+ * Trait for all patterns which have a nested lambda (e.g., Map or Reduce)
+ */
+trait FPattern {
+  def f: Lambda
+  def copy(f: Lambda): Pattern
+}

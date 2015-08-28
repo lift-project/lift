@@ -1,10 +1,11 @@
 package opencl.generator
 
 import apart.arithmetic.{Cst, ArithExpr, Var}
-import ir.UserFunDef._
-import ir.{Join, Split, ArrayType, fun}
+import ir.ArrayType
+import ir.ast._
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
