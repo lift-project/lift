@@ -43,7 +43,16 @@ object Rules {
 
   val partialReduce = Rule("Reduce(f) => Reduce(f) o PartRed(f)", {
     case FunCall(Reduce(f), init, arg) =>
-      Reduce(f, init) o PartRed(f, init) $ arg
+
+      // Need to replace the parameters for the partial reduce
+      // Otherwise the 2 will end up sharing and give the wrong result
+      val newAcc = Param()
+      val newElem = Param()
+
+      val expr = Expr.replace(f.body, f.params.head, newAcc)
+      val finalExpr = Expr.replace(expr, f.params(1), newElem)
+
+      Reduce(f, init) o PartRed(Lambda(Array(newAcc, newElem), finalExpr), init) $ arg
   })
 
   val partialReduceToReduce = Rule("PartRed(f) => Reduce(f)", {
