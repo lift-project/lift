@@ -198,22 +198,19 @@ object OpenCLGenerator extends Generator {
         case _ => set
       })
 
-    val lenVar = Var("length")
-    val newIdx = Var("newIdx")
-
     groupFuns.foreach(group => {
       fs = fs :+ OpenCLAST.Function(
         name = s"groupComp${group.id}",
         ret = Int,
         params = List(
           OpenCLAST.ParamDecl("j", Int),
-          OpenCLAST.ParamDecl("i", Int),
-          OpenCLAST.ParamDecl(lenVar.toString, Int)
+          OpenCLAST.ParamDecl("i", Int)
         ),
         body = OpenCLAST.Block(List(OpenCLAST.Inline(
           s"""|  // Compute new index
               |  int relIndices[] = {${group.relIndices.deep.mkString(", ")}};
-              |  return j + relIndices[i];""".stripMargin
+              |  return j + relIndices[i];
+              |""".stripMargin
         ))))
     })
 

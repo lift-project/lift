@@ -5,6 +5,7 @@ import java.util.Scanner
 
 import apart.arithmetic.Var
 import ir.ast._
+import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -203,8 +204,10 @@ class TestStencil {
 
       assertArrayEquals(gold, output, 0.000001f)
     } catch {
-      case x: Throwable => println(s"Cannot run benchmark: $x")
+      case x: ExecutorFailureException =>
+        println(s"Cannot run benchmark: $x")
         assertTrue(false)
+      case x: Throwable => throw x
     }
   }
 

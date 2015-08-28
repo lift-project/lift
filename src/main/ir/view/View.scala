@@ -198,7 +198,7 @@ abstract class View(val t: Type = UndefType) {
     this.t match {
       case ArrayType(elemT, len) =>
         new ViewPad(this, offset, boundary, ArrayType(elemT, len + 2 * offset))
-      case other => throw new IllegalArgumentException("Can't group " + other)
+      case other => throw new IllegalArgumentException("Can't pad " + other)
     }
   }
 
@@ -273,7 +273,7 @@ private[view] case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, overri
  * @param iv View to vectorise.
  * @param t Type of the view.
  */
-class ViewAsVector(val n: ArithExpr, val iv: View, override val t: Type) extends View(t)
+private[view] case class ViewAsVector(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for undoing vectorisation
@@ -520,7 +520,7 @@ object ViewPrinter {
 
         ag.group.paramType match {
           case ArrayType(t, len) =>
-            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1, len)
+            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1)
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()

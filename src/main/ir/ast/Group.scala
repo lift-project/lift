@@ -26,13 +26,29 @@ case class Group(relIndices: Array[Int]) extends Pattern(arity = 1) with isGener
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        paramType = ArrayType(ArrayType(t, relIndices.length), n)
+        paramType = ArrayType(ArrayType(t, relIndices.length), n - relIndices.map(Math.abs).max)
         paramType
 
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
 
+  /**
+   * Define equality operator based on ID to be able to insert [[Group]] instances
+   * into a set properly.
+   * @param other Another object.
+   * @return True if the other object is a [[Group]] instance with the same ID, false otherwise.
+   */
+  override def equals(other: Any): Boolean = other match {
+    case g: Group => g.id == id
+    case _ => false
+  }
+
+  /**
+   * Define hash based on the ID to identify unique instances in associative containers.
+   * @return The hashCode of the id.
+   */
+  override def hashCode = id.hashCode()
 }
 
 object Group {

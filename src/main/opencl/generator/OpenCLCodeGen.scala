@@ -59,10 +59,9 @@ object OpenCLCodeGen {
       case IntDiv(n, d) => "(" + print(n) + " / " + print(d) + ")"
       case gc: GroupCall =>
         val outerAe = gc.outerAe
-        val innerAe = gc.outerAe
-        val len = gc.len
+        val innerAe = gc.innerAe
         "groupComp" + gc.group.id + "(" + print(outerAe) + ", " +
-        print(innerAe) + ", " + print(len) + ")"
+        print(innerAe) + ")"
       case i: IfThenElse =>
         s"( (${print(i.test.lhs)} ${i.test.op} ${print(i.test.rhs)}) ? " +
         s"${print(i.t)} : ${print(i.e)} )"
