@@ -5,7 +5,7 @@ import ir.ast._
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq}
 
 object Lower {
-  def apply(lambda: Lambda) = {
+  def lowerFinal(lambda: Lambda) = {
 
     val partialReducesLowered = lowerPartialReduces(lambda)
 
@@ -13,13 +13,11 @@ object Lower {
 
     val reducesLowered = lowerReduces(simplified)
 
-    val reduceToGlobal = lastWriteToGlobal(reducesLowered)
+    val allocatedToGlobal = reduceToGlobal(reducesLowered)
 
-    val removeOtherIds = dropIds(reduceToGlobal)
+    val removeOtherIds = dropIds(allocatedToGlobal)
 
     val copiesAdded = addAndImplementIds(removeOtherIds)
-
-    println(copiesAdded)
 
     val mapsLowered = simpleMapLoweringStrategy(copiesAdded)
 
@@ -28,8 +26,25 @@ object Lower {
     assignedAddressSpaces
   }
 
-  def dropIds(lambda: Lambda) =
-    lowerPatternWithRule(lambda, {case FunCall(Id(), _) =>}, Rules.dropId)
+  def lowerNoAddressSpaces(lambda: Lambda) = {
+    val partialReducesLowered = lowerPartialReduces(lambda)
+
+    val simplified = simplifyAndFuse(partialReducesLowered)
+
+    val reducesLowered = lowerReduces(simplified)
+
+    val allocatedToGlobal = reduceToGlobal(reducesLowered)
+
+    val removeOtherIds = simplifyAndFuse(dropIds(allocatedToGlobal))
+
+    val mapsLowered = simpleMapLoweringStrategy(removeOtherIds)
+
+    mapsLowered
+  }
+
+  def dropIds(lambda: Lambda) = {
+   lowerPatternWithRule(lambda, {case FunCall(Id(), _) =>}, Rules.dropId)
+  }
 
   def addAndImplementIds(lambda: Lambda) = {
     val at = Rules.addIdForCurrentValueInReduce.isDefinedAt _
@@ -49,12 +64,17 @@ object Lower {
   }
 
   def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] = {
-    Expr.visitWithState(List[Expr]())(lambda.body, (current, collected) => {
-      if (at(current))
-        current +: collected
-      else
-        collected
-    })
+    Expr.visitWithState(List[Expr]())(lambda.body, findAllFunction(at))
+  }
+
+  def findAllDepthFirst(lambda: Lambda, at: (Expr) => Boolean): List[Expr] =
+    Expr.visitWithStateDepthFirst(List[Expr]())(lambda.body, findAllFunction(at))
+
+  def findAllFunction(at: (Expr) => Boolean): (Expr, List[Expr]) => List[Expr] = (current, collected) => {
+    if (at(current))
+      current +: collected
+    else
+      collected
   }
 
   def lowerMaps(lambda: Lambda): Lambda = {
@@ -136,27 +156,41 @@ object Lower {
     })
   }
 
-  def lastWriteToGlobal(lambda: Lambda): Lambda = {
+  def reduceToGlobal(lambda: Lambda): Lambda = {
     if (isTheLastWriteNestedInReduce(lambda)) {
-      val idToImplement = findExpressionForPattern(lambda,
-        { case FunCall(Id(), _) => } : PartialFunction[Expr, Unit]).get
+      val pattern1: PartialFunction[Expr, Unit] = { case FunCall(Id(), _) => }
 
-      val mapSeqForId = findExpressionForPattern(lambda, {
-        case FunCall(MapSeq(f), _) if f.body eq idToImplement  =>
-      } : PartialFunction[Expr, Unit]).get
+      Context.updateContext(lambda.body)
 
+      val ids = findAllDepthFirst(lambda, pattern1.isDefinedAt)
+      val pattern2 : PartialFunction[Expr, Unit] =
+      { case FunCall(MapSeq(f), _) if ids.contains(f.body) => }
+      val mapSeqs = findAllDepthFirst(lambda, pattern2.isDefinedAt)
 
-      TypeChecker.check(lambda.body)
+      // both if map depths not same and reduces not nested in each other?
 
-      val implementedId = Rules.implementIdAsDeepCopy.rewrite(idToImplement)
-      val idReplaced = Expr.replace(mapSeqForId, idToImplement, implementedId)
-
-      val idToGlobal = Rules.globalMemory.rewrite(idReplaced)
-      FunDecl.replace(lambda, mapSeqForId, idToGlobal)
+      if(mapSeqs.map(_.context.mapDepth).distinct.length == 1
+        || isNestedInReduce(mapSeqs.head, lambda.body)){
+        implementIdInMapSeq(lambda, ids.last, mapSeqs.last)
+      } else {
+        (ids, mapSeqs).zipped.foldRight(lambda)((pair, currentLambda) =>
+          implementIdInMapSeq(currentLambda, pair._1, pair._2))
+      }
     } else {
-
       lambda
     }
+  }
+
+
+
+  def implementIdInMapSeq(lambda: Lambda, idToImplement: Expr, mapSeqForId: Expr): Lambda = {
+    TypeChecker.check(lambda.body)
+
+    val implementedId = Rules.implementIdAsDeepCopy.rewrite(idToImplement)
+    val idReplaced = Expr.replace(mapSeqForId, idToImplement, implementedId)
+
+    val idToGlobal = Rules.globalMemory.rewrite(idReplaced)
+    FunDecl.replace(lambda, mapSeqForId, idToGlobal)
   }
 
   def isTheLastWriteNestedInReduce(lambda: Lambda): Boolean =

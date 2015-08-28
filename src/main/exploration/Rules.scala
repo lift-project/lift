@@ -249,7 +249,7 @@ object Rules {
     case FunCall(Reduce(f), init, arg) =>
 
       // Construct id functions using the type of init
-      val idFunction: FunDecl = generateId(init.t)
+      val idFunction: FunDecl = generateCopy(init.t)
 
       val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
 
@@ -970,7 +970,8 @@ object Rules {
     })
 
   val reduceMapFusion = Rule("Reduce o Map => ReduceSeq(fused)", {
-    case funCall @ FunCall(Reduce(_), _, FunCall(Map(_), _))
+    case funCall @ FunCall(Reduce(_), _, mapCall@FunCall(Map(_), _))
+      if mapSeq.isDefinedAt(mapCall)
     =>
       val e0 = Rewrite.applyRuleAtId(funCall, 1, mapSeq)
       val e1 = Rewrite.applyRuleAtId(e0, 0, reduceSeq)

@@ -491,40 +491,82 @@ class TestRewriteMatrixMatrix {
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         Map(fun( aRow =>
           Map(fun( bCol =>
             Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)) )) $ Zip(aRow, bCol)
-          )) $ B
+          )) o Transpose() $ B
         )) $ A
       })
 
-    val tileSizeMN = 8
-    val tileSizeK = 4
+    val tileSizeMN = 32
+    val tileSizeK = 32
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.tileInputAndOutput(tileSizeMN, tileSizeK))
 
+    val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFissionWithZipInside)
+    val f3 = Rewrite.applyRuleAtId(f2, 7, Rules.moveTransposeInsideTiling)
+
     // Split Reduce in 2
-    val f2 = Rewrite.applyRuleAtId(f1, 43, Rules.partialReduce)
-    val f3 = Rewrite.applyRuleAtId(f2, 44, Rules.partialReduceSplitJoin)
+    val f4 = Rewrite.applyRuleAtId(f3, 48, Rules.partialReduce)
+    val f5 = Rewrite.applyRuleAtId(f4, 49, Rules.partialReduceSplitJoin(tileSizeK))
 
     // Pull out the last one
-    val f4 = Rewrite.applyRuleAtId(f3, 40, Rules.mapFission)
-    val f5 = Rewrite.applyRuleAtId(f4, 40, Rules.mapReduceInterchange)
-    val f6 = Rewrite.applyRuleAtId(f5, 10, Rules.mapFission)
-    val f7 = Rewrite.applyRuleAtId(f6, 11, Rules.mapFission)
-    val f8 = Rewrite.applyRuleAtId(f7, 11, Rules.mapReduceInterchange)
+    val f6 = Rewrite.applyRuleAtId(f5, 45, Rules.mapFissionAtPosition(2))
+    val f7 = Rewrite.applyRuleAtId(f6, 45, Rules.mapReducePartialReduce)
+    val f8 = Rewrite.applyRuleAtId(f7, 17, Rules.mapFission)
+    val f9 = Rewrite.applyRuleAtId(f8, 18, Rules.mapFission)
+    val f10 = Rewrite.applyRuleAtId(f9, 18, Rules.mapReduceInterchange)
+
 
     // Move split from partial reduce out and eliminate transposes on the left hand side
-    val f14 = Rewrite.applyRuleAtId(f8, 44, Rules.transposeBothSidesWithSplit)
-    val f15 = Rewrite.applyRuleAtId(f14, 13, Rules.transposeBothSidesWithSplit)
+    val f11 = Rewrite.applyRuleAtId(f10, 50, Rules.mapSplitTranspose)
+    val f12 = Rewrite.applyRuleAtId(f11, 49, Rules.transposeTransposeId)
+    val f13 = Rewrite.applyRuleAtId(f12, 21, Rules.mapFission)
 
-    val f16 = Rewrite.applyRuleAtId(f15, 54, Rules.partialReduceToReduce)
+    // TODO: Swapping the following 2 gives an incorrect result...
+    val f14 = Rewrite.applyRuleAtId(f13, 21, Rules.transposeBothSides)
+    val f15 = Rewrite.applyRuleAtId(f14, 24, Rules.mapSplitTranspose)
 
-    val f17 = Lower.simplifyAndFuse(f16)
+    lowerAndExecute(f1)
+    lowerAndExecute(f2)
+    lowerAndExecute(f3)
+    lowerAndExecute(f4)
+    lowerAndExecute(f5)
+    lowerAndExecute(f6)
+    lowerAndExecute(f7)
+    lowerAndExecute(f8)
+    lowerAndExecute(f9)
+    lowerAndExecute(f10)
+    lowerAndExecute(f11)
+    lowerAndExecute(f12)
+    lowerAndExecute(f13)
+    lowerAndExecute(f14)
+    lowerAndExecute(f15)
+  }
 
-    println(f17)
+  def lowerAndExecute(lambda: Lambda): Unit = {
+    val lowered = Lower.lowerNoAddressSpaces(lambda)
+
+    val mSize = 512
+    val kSize = 512
+    val nSize = 512
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val values = Seq(matrixA, matrixB)
+
+    val (localRange, globalRange) = InferNDRange(lowered, values:_*)
+
+    val (output: Array[Float], runtime) = Execute(localRange(0).eval, localRange(1).eval,
+      globalRange(0).eval, globalRange(1).eval, (true, true))(lowered, values:_*)
+
+    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
+
+    assertArrayEquals(gold.flatten, output, 0.0001f)
+
+    println(runtime)
   }
 
 }
