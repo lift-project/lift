@@ -194,33 +194,47 @@ object MacroRules {
   })
 
   val moveReduceOutOneLevel = Rule("Map( ... Reduce(f) ...) => Map(...) o Reduce( Map(f)) o Map(...)", {
-    case call@FunCall(Map(Lambda(lambdaParam, innerCall: FunCall)), arg)
-      if (Utils.getFinalArg(innerCall) eq lambdaParam.head)
-        && innerCall.contains({ case FunCall(_: AbstractPartRed, _, _) => })
+    case call@FunCall(Map(Lambda(_, innerCall: FunCall)), _)
+      if innerCall.contains({ case FunCall(_: AbstractPartRed, _, _) => })
     =>
 
-      val reduceId = Utils.getIndexForPatternInCallChain(innerCall,
-        { case FunCall(_: AbstractPartRed, _, _) => })
+      var rule = Rules.mapReduceInterchange
+
+      var reduceId = Utils.getIndexForPatternInCallChain(innerCall,
+      { case FunCall(_: AbstractPartRed, _, _) => })
+
+      var offset = 1
+
+      val pattern: PartialFunction[Expr, Unit] =
+      { case FunCall(Reduce(_), _,
+         FunCall(Join(),
+         FunCall(Map(Lambda(_, FunCall(PartRed(_), _, _))), _))) => }
+
+      val patternId = Utils.getIndexForPatternInCallChain(innerCall, pattern)
+
+      if (patternId != -1) {
+        rule = Rules.mapReducePartialReduce
+        reduceId = patternId
+        offset = 3
+      }
+
       val finalArg = Utils.getFinalArg(innerCall)
       val finalArgId = Utils.getIndexForPatternInCallChain(innerCall,
         { case e if e eq finalArg => })
 
       var fissioned: Expr = call
 
-      if (finalArgId > reduceId + 1) {
-        fissioned = mapFissionAtPosition(reduceId).rewrite(fissioned)
-      }
+      if (finalArgId > reduceId + offset)
+        fissioned = mapFissionAtPosition(reduceId + offset - 1).rewrite(fissioned)
 
-      if (reduceId > 0) {
+      if (reduceId > 0)
         fissioned = mapFissionAtPosition(reduceId - 1).rewrite(fissioned)
-      }
 
       val mapReduce = Utils.getExprForPatternInCallChain(fissioned,
-      { case e if Rules.mapReduceInterchange.isDefinedAt(e) => }).get
+      { case e if rule.isDefinedAt(e) => }).get
 
       TypeChecker(fissioned)
-      // TODO: try to apply mapReducePartialReduce first
-      Expr.replace(fissioned, mapReduce, Rules.mapReduceInterchange.rewrite(mapReduce))
+      Expr.replace(fissioned, mapReduce, rule.rewrite(mapReduce))
   })
 
 }
