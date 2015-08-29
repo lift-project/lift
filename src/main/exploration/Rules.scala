@@ -35,7 +35,7 @@ object Rules {
 
   def splitJoin(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
     case FunCall(Map(f), arg) =>
-      val chunkSize = if (split == ?) validSplitVariable(arg.t) else split
+      val chunkSize = if (split == ?) Utils.validSplitVariable(arg.t) else split
       Join() o Map(Map(f)) o Split(chunkSize) $ arg
   })
 
@@ -65,7 +65,7 @@ object Rules {
   def partialReduceReorder(s: ArithExpr): Rule =
     Rule("PartRed(f) => PartRed(f) o Reorder", {
       case FunCall(PartRed(f), init, arg) =>
-        val stride = if (s == ?) validSplitVariable(arg.t) else s
+        val stride = if (s == ?) Utils.validSplitVariable(arg.t) else s
         PartRed(f, init) o Gather(ReorderWithStride(stride)) $ arg
     })
 
@@ -76,7 +76,7 @@ object Rules {
   def partialReduceSplitJoin(split: ArithExpr): Rule =
     Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
       case FunCall(PartRed(f), init, arg) =>
-        val chunkSize = if (split == ?) validSplitVariable(arg.t) else split
+        val chunkSize = if (split == ?) Utils.validSplitVariable(arg.t) else split
         Join() o Map(PartRed(f, init)) o Split(chunkSize) $ arg
     })
 
@@ -384,7 +384,7 @@ object Rules {
   def reorderBothSidesWithStride(stride: ArithExpr): Rule = {
     Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
       case FunCall(map@Map(_), arg) =>
-        val s = if (stride == ?) validSplitVariable(arg.t) else stride
+        val s = if (stride == ?) Utils.validSplitVariable(arg.t) else stride
         Scatter(ReorderWithStride(stride)) o map o Gather(ReorderWithStride(s)) $ arg
     })
   }
@@ -393,7 +393,7 @@ object Rules {
   val transposeBothSides = Rule("Map(fun(a => ... $ a)) $ A => " +
     "Transpose() o Map(fun(a =>... $ a)) o Transpose() $ A  ", {
     case outerCall@FunCall(Map(f@Lambda(lambdaArg, innerCall@FunCall(_,_))), arg)
-      if (lambdaArg.head eq getFinalArg(innerCall))
+      if (lambdaArg.head eq Utils.getFinalArg(innerCall))
         && (outerCall.t match {
         case ArrayType(ArrayType(_, _), _) => true
         case _ => false
@@ -428,7 +428,7 @@ object Rules {
     =>
       // Find all Get patterns that refer to the an element from the zipped array
       // and have to be replaced in expr
-      val gets = findGets(expr, innerLambdaParam.head)
+      val gets = Utils.findGets(expr, innerLambdaParam.head)
 
       // Find which Get pattern corresponds to the component containing an element of 'a'
       val zipToReplace = zipArgs.zipWithIndex.find(e => e._1 eq outerLambdaParam.head).get
@@ -469,7 +469,7 @@ object Rules {
     =>
       // Find all Get patterns that refer to the an element from the zipped array
       // and have to be replaced in expr
-      val gets = findGets(expr, outerLambdaParam.head)
+      val gets = Utils.findGets(expr, outerLambdaParam.head)
 
       // Find 'A'
       val newArg = zipArgs(n)
@@ -519,7 +519,7 @@ object Rules {
         val newZipArgs = zipArgs.updated(mapInZipIndex, newArg)
 
         val newLambdaParam = Param()
-        val gets = findGets(call, p.head)
+        val gets = Utils.findGets(call, p.head)
         val newGets = gets.map({
           case FunCall(Get(i), _) if i == mapInZipIndex => g $ Get(newLambdaParam, i)
           case FunCall(Get(i), _) => Get(newLambdaParam, i)
@@ -779,269 +779,4 @@ object Rules {
     =>
       arg
   })
-
-  /* Macro rules */
-
-  // transpose both sides + id
-  val transposeMapMapTranspose =
-    Rule("Transpose() o Map(Map(Transpose())) => " +
-      "Map(Map(Transpose())) o Transpose()", {
-      case FunCall(Transpose(),
-        FunCall(Map(Lambda(p1,
-          FunCall(Map(Lambda(p2,
-            FunCall(Transpose(), a2))
-           ), a1))
-         ), arg))
-        if (p1.head eq a1) && (p2.head eq a2)
-      =>
-        Map(Map(Transpose())) o Transpose() $ arg
-    })
-
-  val mapFissionAtPosition: Int => Rule = position => Rule("", {
-    case funCall @ FunCall(Map(Lambda(_, FunCall(_, _*))), _) => mapFissionAtPosition(position, funCall)
-  })
-
-  def mapFissionAtPosition(position: Int, expr: Expr): Expr = {
-    var nextFission = expr
-    var fissioned = expr
-    var currentPos = position
-
-    while (currentPos >= 0) {
-
-      val replacement = mapFission.rewrite(nextFission)
-      fissioned = Expr.replace(fissioned, nextFission, replacement)
-
-      nextFission = replacement match {
-        case FunCall(_: AbstractPartRed, _, arg) => arg
-        case FunCall(_, arg) => arg
-      }
-
-      currentPos -= 1
-    }
-
-    currentPos = position
-    var fused = fissioned
-
-    while (currentPos > 0) {
-
-      fused = mapFusion.rewrite(fused)
-
-      currentPos -= 1
-    }
-
-    fused
-  }
-
-  val tileMapMap: (Int, Int) => Rule = (x, y) =>
-    Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), _)
-        if lambdaParam.head eq arg
-      =>
-        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 0, splitJoin(x))
-        val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 2, transposeBothSides)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 3, splitJoin(y))
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 5, transposeBothSides)
-        e3
-    })
-
-  val tileOutput: Int => Rule = x =>
-    Rule("Tile the output of a computation in the form " +
-         "Map(fun(y => Map(f) $ z )) $ x", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), _)
-        if !(lambdaParam.head eq arg)
-      =>
-        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 0, splitJoin(x))
-        val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 2, mapMapInterchange)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 3, splitJoin(x))
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 5, mapMapInterchange)
-        e3
-    })
-
-  val finishTilingInput: Int => Rule = x =>
-    Rule("Map(x => Map(y => Map() $ Get(x, ...) Get$(x, ...) $ Zip(...)", {
-      case funCall @
-        FunCall(Map(Lambda(p,
-          FunCall(Map(Lambda(_,
-            FunCall(Map(_), FunCall(Get(_), a2)))),
-          FunCall(Get(_), a1)))),
-        FunCall(Zip(_), _*))
-        if (p.head eq a1) && (p.head eq a2)
-      =>
-        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 0, splitJoin(x))
-        val e1 = Rewrite.applyRuleAtId(e0, 1, splitZip)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, mapMapTransposeZipOutside)
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 4, mapMapTransposeZipOutside)
-        e3
-    })
-
-  val tileInputAndOutput: (Int, Int) => Rule = (x, y) =>
-    Rule("Tile the input and output of a computation in the form " +
-         "Map(fun(x => Map(fun(y => Reduce(g) o Map(f) $ Zip(x, y) )) $ ... )) $ ...", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam1,
-                      FunCall(Map(Lambda(lambdaParam2,
-                        FunCall(Reduce(_), _, FunCall(Map(Lambda(_, FunCall(_: UserFun, _*))),
-                        FunCall(Zip(_), zipArgs@_*)))
-                      )), arg)
-                     )), _)
-        if !(lambdaParam1.head eq arg)
-          && zipArgs.contains(lambdaParam1.head)
-          && zipArgs.contains(lambdaParam2.head)
-      =>
-        val e1 = Rewrite.applyRuleAtId(funCall, 0, Rules.tileOutput(x))
-
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 7, Rules.mapFission)
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 14, Rules.mapMapTransposeZipInside)
-        val e4 = Rewrite.depthFirstApplyRuleAtId(e3, 6, Rules.mapFissionAtPosition(1))
-        val e5 = Rewrite.depthFirstApplyRuleAtId(e4, 16, Rules.mapMapTransposeZipInside)
-
-        val e6 = Rewrite.depthFirstApplyRuleAtId(e5, 17, Rules.finishTilingInput(y))
-
-        e6
-    })
-
-  val moveTransposeInsideTiling =
-    Rule("Map(Split(n) o Transpose()) o Split(m) o Transpose() => " +
-         "Transpose() o Map(Transpose()) o Split(n) o Map(Split(m))", {
-      case funCall @
-        FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _)))),
-        FunCall(Split(_), FunCall(Transpose(), _)))
-      =>
-        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 4, splitTranspose)
-        val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 0, mapFusion)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, transposeTransposeId)
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 0, mapSplitTranspose)
-        e3
-    })
-
-  val finishRectangularTiles =
-    Rule("", {
-      case funCall@FunCall(Map(Lambda(_,
-             FunCall(TransposeW(), FunCall(Join(),
-             FunCall(Map(_), FunCall(Split(_), FunCall(Transpose(), _)))))
-           )), FunCall(Split(_), _:Param))
-        if mapFissionWithZipInside.rewrite.isDefinedAt(funCall)
-          && mapFissionWithZipInside.rewrite.isDefinedAt(
-            Rewrite.getExprForId(funCall, 5, NumberExpression.breadthFirst(funCall)))
-      =>
-        val e1 = Rewrite.applyRuleAtId(funCall, 5, Rules.mapFissionWithZipInside)
-        val e4 = Rewrite.applyRuleAtId(e1, 6, Rules.moveTransposeInsideTiling)
-        val e5 = Rewrite.applyRuleAtId(e4, 0, Rules.mapFissionWithZipInside)
-        val e6 = Rewrite.applyRuleAtId(e5, 1, Rules.mapFission)
-        val e7 = Rewrite.applyRuleAtId(e6, 2, Rules.mapTransposeSplit)
-        val e8 = Rewrite.applyRuleAtId(e7, 1, Rules.mapSplitTranspose)
-
-        e8
-    })
-
-  val tileTranspose: (Int, Int) => Rule = (x, y) =>
-    Rule("Map(Map(f)) o Transpose() => tiled", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), FunCall(Transpose(), _))
-        if lambdaParam.head eq arg
-      =>
-        val e1 = Rewrite.applyRuleAtId(funCall, 0, Rules.tileMapMap(x, y))
-        val e2 = Rewrite.applyRuleAtId(e1, 1, Rules.mapFissionAtPosition(2))
-        val e3 = Rewrite.applyRuleAtId(e2, 2, Rules.moveTransposeInsideTiling)
-        e3
-    })
-
-  val transposeBothSidesWithSplit =
-    Rule("Transpose() o Map( ... o ... o Split(n) ) o Transpose() => " +
-         "Map( ... ) o Map(Transpose) o Split(n)", {
-      case funCall @
-        FunCall(Transpose(),
-        FunCall(Map(Lambda(p, FunCall(_, FunCall(_, FunCall(Split(_), a))))),
-        FunCall(Transpose(), _)))
-        if p.head eq a
-      =>
-        val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapFissionAtPosition(1))
-        val e1 = Rewrite.applyRuleAtId(e0, 2, mapSplitTranspose)
-        val e2 = Rewrite.applyRuleAtId(e1, 1, transposeBothSides)
-        val e3 = Rewrite.applyRuleAtId(e2, 0, transposeTransposeId)
-        val e4 = Rewrite.applyRuleAtId(e3, 1, transposeTransposeId)
-        e4
-    })
-
-  val reduceMapFusion = Rule("Reduce o Map => ReduceSeq(fused)", {
-    case funCall @ FunCall(Reduce(_), _, mapCall@FunCall(Map(_), _))
-      if mapSeq.isDefinedAt(mapCall)
-    =>
-      val e0 = Rewrite.applyRuleAtId(funCall, 1, mapSeq)
-      val e1 = Rewrite.applyRuleAtId(e0, 0, reduceSeq)
-      val e2 = Rewrite.applyRuleAtId(e1, 1, reduceSeqMapSeqFusion)
-      e2
-  })
-
-  val moveReduceOutOneLevel = Rule("Map( ... Reduce(f) ...) => Map(...) o Reduce( Map(f)) o Map(...)", {
-    case call@FunCall(Map(Lambda(lambdaParam, innerCall: FunCall)), arg)
-      if (getFinalArg(innerCall) eq lambdaParam.head)
-        && innerCall.contains({ case FunCall(_: AbstractPartRed, _, _) => })
-    =>
-
-      val reduceId = getIndexForPatternInCallChain(innerCall, { case FunCall(_: AbstractPartRed, _, _) => })
-      val finalArg = getFinalArg(innerCall)
-      val finalArgId = getIndexForPatternInCallChain(innerCall, { case e if e eq finalArg => })
-
-      var fissioned: Expr = call
-
-      if (finalArgId > reduceId + 1) {
-        fissioned = Rules.mapFissionAtPosition(reduceId).rewrite(fissioned)
-      }
-
-      if (reduceId > 0) {
-        fissioned = Rules.mapFissionAtPosition(reduceId - 1).rewrite(fissioned)
-      }
-
-      val mapReduce = getExprForPatternInCallChain(fissioned,
-        { case e if Rules.mapReduceInterchange.isDefinedAt(e) => }).get
-
-      TypeChecker(fissioned)
-      // TODO: try to apply mapReducePartialReduce first
-      Expr.replace(fissioned, mapReduce, Rules.mapReduceInterchange.rewrite(mapReduce))
-  })
-
-  private def findGets(expr: Expr, tupleParam: Expr): List[FunCall] = {
-    Expr.visitWithState(List[FunCall]())(expr, (e, s) => {
-      e match {
-        case get@FunCall(Get(_), getParam) if getParam eq tupleParam => get :: s
-        case _ => s
-      }
-    })
-  }
-
-  private def validSplitVariable(t: Type): ArithExpr = {
-    t match {
-      case ArrayType(_, len) => Var(RangeMul(Cst(1), len, Cst(2)))
-      case _ => throw new TypeException(t, "ArrayType")
-    }
-  }
-
-  def getExprForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
-    if (pattern.isDefinedAt(expr))
-      Some(expr)
-    else
-      expr match {
-        case FunCall(_, arg) => getExprForPatternInCallChain(arg, pattern)
-        case FunCall(_ : AbstractPartRed, _, arg) => getExprForPatternInCallChain(arg, pattern)
-        case _ => None
-      }
-  }
-
-  def getIndexForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit], currentId: Int = 0): Int = {
-    if (pattern.isDefinedAt(expr))
-      currentId
-    else
-      expr match {
-        case FunCall(_, arg) => getIndexForPatternInCallChain(arg, pattern, currentId + 1)
-        case FunCall(_ : AbstractPartRed, _, arg) => getIndexForPatternInCallChain(arg, pattern, currentId + 1)
-        case _ => -1
-      }
-  }
-
-  def getFinalArg(expr: Expr): Expr = {
-    expr match {
-      case FunCall(_, arg) => getFinalArg(arg)
-      case FunCall(_ : AbstractPartRed, _, arg) => getFinalArg(arg)
-      case _ => expr
-    }
-  }
 }

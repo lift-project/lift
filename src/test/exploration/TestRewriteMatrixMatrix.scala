@@ -49,7 +49,7 @@ class TestRewriteMatrixMatrix {
 
     val stride = tileSizeMN/workPerThreadM
 
-    val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.tileInputAndOutput(tileSizeMN, tileSizeK))
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileInputAndOutput(tileSizeMN, tileSizeK))
 
     val g0 = Rewrite.applyRuleAtId(f1, 44, Rules.partialReduce)
     val g1 = Rewrite.applyRuleAtId(g0, 45, Rules.partialReduceSplitJoin(tileSizeK))
@@ -58,7 +58,7 @@ class TestRewriteMatrixMatrix {
     // Experimenting
 
     val f7 = Rewrite.applyRuleAtId(g1, 28, Rules.reorderBothSidesWithStride(stride))
-    val f8 = Rewrite.applyRuleAtId(f7, 23, Rules.mapFissionAtPosition(1))
+    val f8 = Rewrite.applyRuleAtId(f7, 23, MacroRules.mapFissionAtPosition(1))
     val f9 = Rewrite.applyRuleAtId(f8, 24, Rules.splitJoin(workPerThreadN))
     val f10 = Rewrite.applyRuleAtId(f9, 30, Rules.mapMapInterchange)
     val f11 = Rewrite.applyRuleAtId(f10, 31, Rules.splitJoin(workPerThreadM))
@@ -78,14 +78,14 @@ class TestRewriteMatrixMatrix {
     val f22 = Rewrite.applyRuleAtId(f21, 74, Rules.transposeBothSides)
 
     val f23 = Rewrite.applyRuleAtId(f22, 66, Rules.mapFission)
-    val f24 = Rewrite.applyRuleAtId(f23, 13, Rules.mapFissionAtPosition(2))
+    val f24 = Rewrite.applyRuleAtId(f23, 13, MacroRules.mapFissionAtPosition(2))
 
 
-    val f27 = Rewrite.applyRuleAtId(f24, 76, Rules.mapFissionAtPosition(2))
+    val f27 = Rewrite.applyRuleAtId(f24, 76, MacroRules.mapFissionAtPosition(2))
     val f28 = Rewrite.applyRuleAtId(f27, 76, Rules.mapReducePartialReduce)
-    val f31 = Rewrite.applyRuleAtId(f28, 73, Rules.moveReduceOutOneLevel)
-    val f34 = Rewrite.applyRuleAtId(f31, 65, Rules.moveReduceOutOneLevel)
-    val f37 = Rewrite.applyRuleAtId(f34, 14, Rules.moveReduceOutOneLevel)
+    val f31 = Rewrite.applyRuleAtId(f28, 73, MacroRules.moveReduceOutOneLevel)
+    val f34 = Rewrite.applyRuleAtId(f31, 65, MacroRules.moveReduceOutOneLevel)
+    val f37 = Rewrite.applyRuleAtId(f34, 14, MacroRules.moveReduceOutOneLevel)
 
     // Output's good, nested reduces use same memory, performance drops by a third for NVIDIA and
     // half for AMD if not.
@@ -94,7 +94,7 @@ class TestRewriteMatrixMatrix {
 
     val f38 = Rewrite.applyRuleAtId(f37, 111, Rules.partialReduceToReduce)
     val f39 = Rewrite.applyRuleAtId(f38, 105, Rules.mapReduceInterchangeWithZip)
-    val f40 = Rewrite.applyRuleAtId(f39, 98, Rules.mapFissionAtPosition(1))
+    val f40 = Rewrite.applyRuleAtId(f39, 98, MacroRules.mapFissionAtPosition(1))
     val f41 = Rewrite.applyRuleAtId(f40, 99, Rules.mapFissionWithZipOutside)
     val f42 = Rewrite.applyRuleAtId(f41, 99, Rules.mapReduceInterchangeWithZip)
 
@@ -109,12 +109,12 @@ class TestRewriteMatrixMatrix {
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
 
-    val h15 = Rewrite.applyRuleAtId(h9, 1, Rules.finishRectangularTiles)
+    val h15 = Rewrite.applyRuleAtId(h9, 1, MacroRules.finishRectangularTiles)
 
     // Tile the transposition
 
     val h16 = Rewrite.applyRuleAtId(h15, 5, Rules.addCopy)
-    val h17 = Rewrite.applyRuleAtId(h16, 6, Rules.tileTranspose(tileTranspositionM, tileTranspositionK))
+    val h17 = Rewrite.applyRuleAtId(h16, 6, MacroRules.tileTranspose(tileTranspositionM, tileTranspositionK))
 
     println(h17)
   }
@@ -223,7 +223,7 @@ class TestRewriteMatrixMatrix {
     val tileSizeK = 8
     val workPerThreadN = 2
 
-    val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.tileInputAndOutput(tileSizeMN, tileSizeK))
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileInputAndOutput(tileSizeMN, tileSizeK))
 
     // Experimenting from here on
 
@@ -246,13 +246,13 @@ class TestRewriteMatrixMatrix {
     val f19 = Rewrite.applyRuleAtId(f18, 53, Rules.mapFission)
     val f20 = Rewrite.applyRuleAtId(f19, 54, Rules.mapFission)
     val f21 = Rewrite.applyRuleAtId(f20, 54, Rules.mapReduceInterchange)
-    val f22 = Rewrite.applyRuleAtId(f21, 13, Rules.mapFissionAtPosition(1))
+    val f22 = Rewrite.applyRuleAtId(f21, 13, MacroRules.mapFissionAtPosition(1))
     val f23 = Rewrite.applyRuleAtId(f22, 14, Rules.mapFission)
     val f24 = Rewrite.applyRuleAtId(f23, 14, Rules.mapReduceInterchange)
 
     // Output seems good
 
-    val f25 = Rewrite.applyRuleAtId(f24, 65, Rules.mapFissionAtPosition(1))
+    val f25 = Rewrite.applyRuleAtId(f24, 65, MacroRules.mapFissionAtPosition(1))
     val f26 = Rewrite.applyRuleAtId(f25, 65, Rules.transposeBothSides)
     val f27 = Rewrite.applyRuleAtId(f26, 64, Rules.transposeTransposeId)
     val f28 = Rewrite.applyRuleAtId(f27, 65, Rules.transposeMapSplit)
@@ -273,13 +273,13 @@ class TestRewriteMatrixMatrix {
     // Can comment out and runs fine. Otherwise good.
 
     val f40 = Rewrite.applyRuleAtId(f39, 18, Rules.mapFission)
-    val f41 = Rewrite.applyRuleAtId(f40, 17, Rules.transposeMapMapTranspose)
+    val f41 = Rewrite.applyRuleAtId(f40, 17, MacroRules.transposeMapMapTranspose)
     val f42 = Rewrite.applyRuleAtId(f41, 19, Rules.mapFission)
     val f43 = Rewrite.applyRuleAtId(f42, 20, Rules.mapFission)
     val f44 = Rewrite.applyRuleAtId(f43, 21, Rules.mapTransposeSplit)
     val f45 = Rewrite.applyRuleAtId(f44, 23, Rules.transposeTransposeId)
     val f46 = Rewrite.applyRuleAtId(f45, 18, Rules.transposeMapSplit)
-    val f47 = Rewrite.applyRuleAtId(f46, 20, Rules.transposeMapMapTranspose)
+    val f47 = Rewrite.applyRuleAtId(f46, 20, MacroRules.transposeMapMapTranspose)
     val f48 = Rewrite.applyRuleAtId(f47, 21, Rules.transposeTransposeId)
     val f49 = Rewrite.applyRuleAtId(f48, 20, Rules.splitJoin(tileSizeK))
     val f50 = Rewrite.applyRuleAtId(f49, 19, Rules.splitJoinId)
@@ -295,7 +295,7 @@ class TestRewriteMatrixMatrix {
     val f57 = Rewrite.applyRuleAtId(f56, 17, Rules.mapFusion)
     val f58 = Rewrite.applyRuleAtId(f57, 17, Rules.mapFusion)
     val f59 = Rewrite.applyRuleAtId(f58, 17, Rules.mapFusion)
-    val f60 = Rewrite.applyRuleAtId(f59, 26, Rules.transposeMapMapTranspose)
+    val f60 = Rewrite.applyRuleAtId(f59, 26, MacroRules.transposeMapMapTranspose)
     val f61 = Rewrite.applyRuleAtId(f60, 27, Rules.transposeTransposeId)
     val f62 = Rewrite.applyRuleAtId(f61, 25, Rules.mapFusion)
     val f63 = Rewrite.applyRuleAtId(f62, 25, Rules.mapFusion)
@@ -319,8 +319,8 @@ class TestRewriteMatrixMatrix {
     val f75 = Rewrite.applyRuleAtId(f74, 16, Rules.mapFusion)
     val f76 = Rewrite.applyRuleAtId(f75, 24, Rules.mapFusion)
     val f77 = Rewrite.applyRuleAtId(f76, 29, Rules.mapFusion)
-    val f78 = Rewrite.applyRuleAtId(f77, 35, Rules.reduceMapFusion)
-    val f79 = Rewrite.applyRuleAtId(f78, 15, Rules.reduceMapFusion)
+    val f78 = Rewrite.applyRuleAtId(f77, 35, MacroRules.reduceMapFusion)
+    val f79 = Rewrite.applyRuleAtId(f78, 15, MacroRules.reduceMapFusion)
 
     println(f79)
   }
@@ -338,7 +338,7 @@ class TestRewriteMatrixMatrix {
     val x = 8
     val y = 4
 
-    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.tileTranspose(x, y))
+    val f1 = Rewrite.applyRuleAtId(f, 0, MacroRules.tileTranspose(x, y))
 
     // Add the copy
     val f4 = Rewrite.applyRuleAtId(f1, 17, Rules.addCopy)
@@ -408,7 +408,7 @@ class TestRewriteMatrixMatrix {
     // Derivation the same, except split on the zip is different than the others
     val h0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K), (p951880373, p1752203484) => FunCall(Join(), FunCall(Map(fun((p243745864) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p699780352) => FunCall(toGlobal(fun((p1613255205) => FunCall(MapSeq(fun((p1897115967) => FunCall(Map(fun((p1166151249) => FunCall(Map(fun((p1121453612) => FunCall(id, p1121453612))), p1166151249))), p1897115967))), p1613255205))), FunCall(ReduceSeq(fun((p2619171, p1728790703) => FunCall(Map(fun((p1227074340) => FunCall(Map(fun((p1154002927) => FunCall(add, FunCall(Get(0), p1154002927), FunCall(Get(1), p1154002927)))), FunCall(Zip(2), FunCall(Get(0), p1227074340), FunCall(Get(1), p1227074340))))), FunCall(Zip(2), p2619171, FunCall(fun((p2070529722) => FunCall(Map(fun((p1188753216) => FunCall(Join(), FunCall(Map(fun((p317986356) => FunCall(toPrivate(fun((p331510866) => FunCall(MapSeq(fun((p640363654) => FunCall(id, p640363654))), p331510866))), FunCall(ReduceSeq(fun((p924477420, p99451533) => FunCall(add, p924477420, FunCall(fun((p84739718) => FunCall(mult, FunCall(Get(0), p84739718), FunCall(Get(1), p84739718))), p99451533)))), FunCall(toPrivate(id), Value(0.0f, Float)), FunCall(Zip(2), p317986356, p1188753216))))), FunCall(Transpose(), FunCall(Get(0), p2070529722)))))), FunCall(Transpose(), FunCall(Get(1), p2070529722)))), p1728790703))))), FunCall(toPrivate(Map(fun((p2050835901) => FunCall(Map(fun((p511473681) => FunCall(id, p511473681))), p2050835901)))), Value(0.0f, ArrayType(ArrayType(Float, 8), 8))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p243745864)), FunCall(Split(4), FunCall(Transpose(), p699780352))))))), FunCall(Split(8), FunCall(Transpose(), p1752203484))))))), FunCall(Split(8), p951880373))))
 
-    val h1 = Rewrite.applyRuleAtId(h0, 1, Rules.finishRectangularTiles)
+    val h1 = Rewrite.applyRuleAtId(h0, 1, MacroRules.finishRectangularTiles)
 
     println(h1)
 
@@ -437,7 +437,7 @@ class TestRewriteMatrixMatrix {
     val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.mapReduceInterchange)
     val f4 = Rewrite.applyRuleAtId(f3, 9, Rules.mapMapTransposeZipInside)
     val f5 = Rewrite.applyRuleAtId(f4, 8, Rules.transposeTransposeId)
-    val f6 = Rewrite.applyRuleAtId(f5, 7, Rules.reduceMapFusion)
+    val f6 = Rewrite.applyRuleAtId(f5, 7, MacroRules.reduceMapFusion)
 
     println(f6)
   }
@@ -474,7 +474,7 @@ class TestRewriteMatrixMatrix {
     val f13 = Rewrite.applyRuleAtId(f12, 13, Rules.mapReduceInterchange)
     val f14 = Rewrite.applyRuleAtId(f13, 16, Rules.mapMapTransposeZipInside)
     val f15 = Rewrite.applyRuleAtId(f14, 15, Rules.transposeTransposeId)
-    val f16 = Rewrite.applyRuleAtId(f15, 14, Rules.reduceMapFusion)
+    val f16 = Rewrite.applyRuleAtId(f15, 14, MacroRules.reduceMapFusion)
 
     println(f16)
   }
@@ -499,17 +499,17 @@ class TestRewriteMatrixMatrix {
     val tileSizeMN = 32
     val tileSizeK = 32
 
-    val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.tileInputAndOutput(tileSizeMN, tileSizeK))
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileInputAndOutput(tileSizeMN, tileSizeK))
 
     val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFissionWithZipInside)
-    val f3 = Rewrite.applyRuleAtId(f2, 7, Rules.moveTransposeInsideTiling)
+    val f3 = Rewrite.applyRuleAtId(f2, 7, MacroRules.moveTransposeInsideTiling)
 
     // Split Reduce in 2
     val f4 = Rewrite.applyRuleAtId(f3, 48, Rules.partialReduce)
     val f5 = Rewrite.applyRuleAtId(f4, 49, Rules.partialReduceSplitJoin(tileSizeK))
 
     // Pull out the last one
-    val f6 = Rewrite.applyRuleAtId(f5, 45, Rules.mapFissionAtPosition(2))
+    val f6 = Rewrite.applyRuleAtId(f5, 45, MacroRules.mapFissionAtPosition(2))
     val f7 = Rewrite.applyRuleAtId(f6, 45, Rules.mapReducePartialReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 17, Rules.mapFission)
     val f9 = Rewrite.applyRuleAtId(f8, 18, Rules.mapFission)

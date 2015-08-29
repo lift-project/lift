@@ -174,9 +174,9 @@ class TestRules {
   def fissionAtPosition(): Unit = {
     val f = fun(a => Map(plusOne o Reduce(add, 0.0f) o plusOne o plusOne) $ a)
 
-    Rules.mapFissionAtPosition(0, f.body)
-    Rules.mapFissionAtPosition(1, f.body)
-    Rules.mapFissionAtPosition(2, f.body)
+    MacroRules.mapFissionAtPosition(0, f.body)
+    MacroRules.mapFissionAtPosition(1, f.body)
+    MacroRules.mapFissionAtPosition(2, f.body)
   }
 
   @Test
@@ -291,8 +291,8 @@ class TestRules {
           ) o
           Transpose() $ input)
 
-    val f1 = Rewrite.applyRuleAtId(f0, 4, Rules.transposeBothSidesWithSplit)
-    val f2 = Rewrite.applyRuleAtId(f1, 0, Rules.transposeBothSidesWithSplit)
+    val f1 = Rewrite.applyRuleAtId(f0, 4, MacroRules.transposeBothSidesWithSplit)
+    val f2 = Rewrite.applyRuleAtId(f1, 0, MacroRules.transposeBothSidesWithSplit)
 
     println(f2)
 
@@ -305,7 +305,7 @@ class TestRules {
               Split(tileSize)) o
           Transpose() $ input)
 
-    val h1 = Rewrite.applyRuleAtId(h0, 0, Rules.transposeBothSidesWithSplit)
+    val h1 = Rewrite.applyRuleAtId(h0, 0, MacroRules.transposeBothSidesWithSplit)
 
     println(h1)
   }
@@ -708,7 +708,7 @@ class TestRules {
       input => Map(Reduce(add, 0.0f)) $ input
     )
 
-    val fResult = Rewrite.applyRuleAtId(f, 0, Rules.moveReduceOutOneLevel)
+    val fResult = Rewrite.applyRuleAtId(f, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternSimple.isDefinedAt(fResult.body))
 
     val g = fun(
@@ -716,7 +716,7 @@ class TestRules {
       input => Map(Reduce(add, 0.0f) o Gather(reverse)) $ input
     )
 
-    val gResult = Rewrite.applyRuleAtId(g, 0, Rules.moveReduceOutOneLevel)
+    val gResult = Rewrite.applyRuleAtId(g, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternSimple.isDefinedAt(gResult.body))
 
     val patternWithMap: PartialFunction[Expr, Unit] =
@@ -727,7 +727,7 @@ class TestRules {
       input => Map(Scatter(reverse) o Reduce(add, 0.0f)) $ input
     )
 
-    val hResult = Rewrite.applyRuleAtId(h, 0, Rules.moveReduceOutOneLevel)
+    val hResult = Rewrite.applyRuleAtId(h, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternWithMap.isDefinedAt(hResult.body))
 
     val m = fun(
@@ -735,7 +735,7 @@ class TestRules {
       input => Map(Scatter(reverse) o Scatter(reverse) o Reduce(add, 0.0f) o Gather(reverse)) $ input
     )
 
-    val mResult = Rewrite.applyRuleAtId(m, 0, Rules.moveReduceOutOneLevel)
+    val mResult = Rewrite.applyRuleAtId(m, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternWithMap.isDefinedAt(mResult.body))
   }
 }

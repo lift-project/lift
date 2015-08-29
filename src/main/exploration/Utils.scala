@@ -1,5 +1,9 @@
 package exploration
 
+import apart.arithmetic.{Cst, RangeMul, Var, ArithExpr}
+import ir.{TypeException, ArrayType, Type}
+import ir.ast.{AbstractPartRed, Get, FunCall, Expr}
+
 object Utils {
 
 	def listPossiblities[T](oriList : Seq[T], optionsList : Seq[Seq[T]]) : Seq[Seq[T]] = {
@@ -16,35 +20,49 @@ object Utils {
 	}
 
 
+  def findGets(expr: Expr, tupleParam: Expr): List[FunCall] = {
+    Expr.visitWithState(List[FunCall]())(expr, (e, s) => {
+      e match {
+        case get@FunCall(Get(_), getParam) if getParam eq tupleParam => get :: s
+        case _ => s
+      }
+    })
+  }
 
+  def validSplitVariable(t: Type): ArithExpr = {
+    t match {
+      case ArrayType(_, len) => Var(RangeMul(Cst(1), len, Cst(2)))
+      case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
 
-  /*def randomDescent(f: FunExpr, inputType: Type, maxDepth: Int,
-      constraints: Constraints = new Constraints(3, false)): FunExpr = {
-
-    var c = constraints    
-    
-    // setup the context
-    if (f.context == null)
-      Context.updateContext(f, new Context())
+  def getExprForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
+    if (pattern.isDefinedAt(expr))
+      Some(expr)
     else
-      Context.updateContext(f)
+      expr match {
+        case FunCall(_, arg) => getExprForPatternInCallChain(arg, pattern)
+        case FunCall(_ : AbstractPartRed, _, arg) => getExprForPatternInCallChain(arg, pattern)
+        case _ => None
+      }
+  }
 
-    // setup the types
-    Type.check(f, inputType)
-          
-    if (maxDepth < 0)
-      c = c.setOnlyTerminal
+  def getIndexForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit], currentId: Int = 0): Int = {
+    if (pattern.isDefinedAt(expr))
+      currentId
+    else
+      expr match {
+        case FunCall(_, arg) => getIndexForPatternInCallChain(arg, pattern, currentId + 1)
+        case FunCall(_ : AbstractPartRed, _, arg) => getIndexForPatternInCallChain(arg, pattern, currentId + 1)
+        case _ => -1
+      }
+  }
 
-    val derivs = Rules.derivsWithOneRule(f, c, 2);
-    if (derivs.isEmpty)
-      return f;
-
-    // select one derivation at random
-    val rnd = Random.nextInt(derivs.length)
-    //println(rnd+"/"+derivs.length)
-    val randomDeriv = derivs(rnd)
-
-    randomDescent(randomDeriv, inputType, maxDepth - 1, c)
-  }*/
-
+  def getFinalArg(expr: Expr): Expr = {
+    expr match {
+      case FunCall(_, arg) => getFinalArg(arg)
+      case FunCall(_ : AbstractPartRed, _, arg) => getFinalArg(arg)
+      case _ => expr
+    }
+  }
 }

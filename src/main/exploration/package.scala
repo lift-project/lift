@@ -49,7 +49,7 @@ package object exploration {
     Seq(
       mapFusion,
       mapFusionWithZip,
-      reduceMapFusion,
+      MacroRules.reduceMapFusion,
       reduceSeqMapSeqFusion
     )
 
