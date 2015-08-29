@@ -389,14 +389,6 @@ object Rules {
     })
   }
 
-  def getFinalArg(expr: Expr): Expr = {
-    expr match {
-      case FunCall(_, arg) => getFinalArg(arg)
-      case FunCall(r : AbstractPartRed, _, arg) => arg
-      case _ => expr
-    }
-  }
-
   // TODO: restrict to Map(Map(f)) and create a special case for Map(Reduce)?
   val transposeBothSides = Rule("Map(fun(a => ... $ a)) $ A => " +
     "Transpose() o Map(fun(a =>... $ a)) o Transpose() $ A  ", {
@@ -979,6 +971,34 @@ object Rules {
       e2
   })
 
+  val moveReduceOutOneLevel = Rule("Map( ... Reduce(f) ...) => Map(...) o Reduce( Map(f)) o Map(...)", {
+    case call@FunCall(Map(Lambda(lambdaParam, innerCall: FunCall)), arg)
+      if (getFinalArg(innerCall) eq lambdaParam.head)
+        && innerCall.contains({ case FunCall(_: AbstractPartRed, _, _) => })
+    =>
+
+      val reduceId = getIndexForPatternInCallChain(innerCall, { case FunCall(_: AbstractPartRed, _, _) => })
+      val finalArg = getFinalArg(innerCall)
+      val finalArgId = getIndexForPatternInCallChain(innerCall, { case e if e eq finalArg => })
+
+      var fissioned: Expr = call
+
+      if (finalArgId > reduceId + 1) {
+        fissioned = Rules.mapFissionAtPosition(reduceId).rewrite(fissioned)
+      }
+
+      if (reduceId > 0) {
+        fissioned = Rules.mapFissionAtPosition(reduceId - 1).rewrite(fissioned)
+      }
+
+      val mapReduce = getExprForPatternInCallChain(fissioned,
+        { case e if Rules.mapReduceInterchange.isDefinedAt(e) => }).get
+
+      TypeChecker(fissioned)
+      // TODO: try to apply mapReducePartialReduce first
+      Expr.replace(fissioned, mapReduce, Rules.mapReduceInterchange.rewrite(mapReduce))
+  })
+
   private def findGets(expr: Expr, tupleParam: Expr): List[FunCall] = {
     Expr.visitWithState(List[FunCall]())(expr, (e, s) => {
       e match {
@@ -992,6 +1012,36 @@ object Rules {
     t match {
       case ArrayType(_, len) => Var(RangeMul(Cst(1), len, Cst(2)))
       case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
+
+  def getExprForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
+    if (pattern.isDefinedAt(expr))
+      Some(expr)
+    else
+      expr match {
+        case FunCall(_, arg) => getExprForPatternInCallChain(arg, pattern)
+        case FunCall(_ : AbstractPartRed, _, arg) => getExprForPatternInCallChain(arg, pattern)
+        case _ => None
+      }
+  }
+
+  def getIndexForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit], currentId: Int = 0): Int = {
+    if (pattern.isDefinedAt(expr))
+      currentId
+    else
+      expr match {
+        case FunCall(_, arg) => getIndexForPatternInCallChain(arg, pattern, currentId + 1)
+        case FunCall(_ : AbstractPartRed, _, arg) => getIndexForPatternInCallChain(arg, pattern, currentId + 1)
+        case _ => -1
+      }
+  }
+
+  def getFinalArg(expr: Expr): Expr = {
+    expr match {
+      case FunCall(_, arg) => getFinalArg(arg)
+      case FunCall(_ : AbstractPartRed, _, arg) => getFinalArg(arg)
+      case _ => expr
     }
   }
 }

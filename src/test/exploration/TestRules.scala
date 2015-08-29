@@ -696,4 +696,46 @@ class TestRules {
 
     println(applyRule(f, e, Rules.addCopy))
   }
+
+  @Test
+  def moveReduceOutOneLevel(): Unit = {
+
+    val patternSimple: PartialFunction[Expr, Unit] =
+      { case FunCall(TransposeW(), FunCall(Reduce(_), _, _)) => }
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Reduce(add, 0.0f)) $ input
+    )
+
+    val fResult = Rewrite.applyRuleAtId(f, 0, Rules.moveReduceOutOneLevel)
+    assertTrue(patternSimple.isDefinedAt(fResult.body))
+
+    val g = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Reduce(add, 0.0f) o Gather(reverse)) $ input
+    )
+
+    val gResult = Rewrite.applyRuleAtId(g, 0, Rules.moveReduceOutOneLevel)
+    assertTrue(patternSimple.isDefinedAt(gResult.body))
+
+    val patternWithMap: PartialFunction[Expr, Unit] =
+      { case FunCall(Map(_), FunCall(TransposeW(), FunCall(Reduce(_), _, _))) => }
+
+    val h = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Scatter(reverse) o Reduce(add, 0.0f)) $ input
+    )
+
+    val hResult = Rewrite.applyRuleAtId(h, 0, Rules.moveReduceOutOneLevel)
+    assertTrue(patternWithMap.isDefinedAt(hResult.body))
+
+    val m = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Scatter(reverse) o Scatter(reverse) o Reduce(add, 0.0f) o Gather(reverse)) $ input
+    )
+
+    val mResult = Rewrite.applyRuleAtId(m, 0, Rules.moveReduceOutOneLevel)
+    assertTrue(patternWithMap.isDefinedAt(mResult.body))
+  }
 }

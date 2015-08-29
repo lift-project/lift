@@ -51,9 +51,13 @@ class TestRewriteMatrixMatrix {
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.tileInputAndOutput(tileSizeMN, tileSizeK))
 
+    val g0 = Rewrite.applyRuleAtId(f1, 44, Rules.partialReduce)
+    val g1 = Rewrite.applyRuleAtId(g0, 45, Rules.partialReduceSplitJoin(tileSizeK))
+
+
     // Experimenting
 
-    val f7 = Rewrite.applyRuleAtId(f1, 28, Rules.reorderBothSidesWithStride(stride))
+    val f7 = Rewrite.applyRuleAtId(g1, 28, Rules.reorderBothSidesWithStride(stride))
     val f8 = Rewrite.applyRuleAtId(f7, 23, Rules.mapFissionAtPosition(1))
     val f9 = Rewrite.applyRuleAtId(f8, 24, Rules.splitJoin(workPerThreadN))
     val f10 = Rewrite.applyRuleAtId(f9, 30, Rules.mapMapInterchange)
@@ -76,20 +80,12 @@ class TestRewriteMatrixMatrix {
     val f23 = Rewrite.applyRuleAtId(f22, 66, Rules.mapFission)
     val f24 = Rewrite.applyRuleAtId(f23, 13, Rules.mapFissionAtPosition(2))
 
-    val f25 = Rewrite.applyRuleAtId(f24, 78, Rules.partialReduce)
-    val f26 = Rewrite.applyRuleAtId(f25, 79, Rules.partialReduceSplitJoin(tileSizeK))
 
-    val f27 = Rewrite.applyRuleAtId(f26, 76, Rules.mapFissionAtPosition(2))
+    val f27 = Rewrite.applyRuleAtId(f24, 76, Rules.mapFissionAtPosition(2))
     val f28 = Rewrite.applyRuleAtId(f27, 76, Rules.mapReducePartialReduce)
-    val f29 = Rewrite.applyRuleAtId(f28, 73, Rules.mapFissionAtPosition(1))
-    val f30 = Rewrite.applyRuleAtId(f29, 73, Rules.mapFission)
-    val f31 = Rewrite.applyRuleAtId(f30, 74, Rules.mapReduceInterchange)
-    val f32 = Rewrite.applyRuleAtId(f31, 65, Rules.mapFissionAtPosition(2))
-    val f33 = Rewrite.applyRuleAtId(f32, 65, Rules.mapFissionAtPosition(1))
-    val f34 = Rewrite.applyRuleAtId(f33, 66, Rules.mapReduceInterchange)
-    val f35 = Rewrite.applyRuleAtId(f34, 14, Rules.mapFissionAtPosition(2))
-    val f36 = Rewrite.applyRuleAtId(f35, 14, Rules.mapFissionAtPosition(1))
-    val f37 = Rewrite.applyRuleAtId(f36, 15, Rules.mapReduceInterchange)
+    val f31 = Rewrite.applyRuleAtId(f28, 73, Rules.moveReduceOutOneLevel)
+    val f34 = Rewrite.applyRuleAtId(f31, 65, Rules.moveReduceOutOneLevel)
+    val f37 = Rewrite.applyRuleAtId(f34, 14, Rules.moveReduceOutOneLevel)
 
     // Output's good, nested reduces use same memory, performance drops by a third for NVIDIA and
     // half for AMD if not.
