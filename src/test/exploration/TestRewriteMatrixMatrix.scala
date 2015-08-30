@@ -96,11 +96,7 @@ class TestRewriteMatrixMatrix {
     val f38 = Rewrite.applyRuleAtId(f37, 111, Rules.partialReduceToReduce)
 
     val f39 = Rewrite.applyRuleAtId(f38, 105, MacroRules.moveReduceOutOneLevel)
-
-    // TODO: moveReduceOutOneLevel
-    val f40 = Rewrite.applyRuleAtId(f39, 98, MacroRules.mapFissionAtPosition(1))
-    val f41 = Rewrite.applyRuleAtId(f40, 99, Rules.mapFissionWithZipOutside)
-    val f42 = Rewrite.applyRuleAtId(f41, 99, MacroRules.moveReduceOutOneLevel)
+    val f42 = Rewrite.applyRuleAtId(f39, 98, MacroRules.moveReduceOutOneLevel)
 
     println(f42)
 

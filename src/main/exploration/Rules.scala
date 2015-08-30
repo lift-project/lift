@@ -624,31 +624,47 @@ object Rules {
       FunCall(Map(Lambda(Array(newLambdaParam), newBody)), FunCall(Map(Lambda(Array(newMapLambdaParam), newExpr)), arg))
   })
 
+  private val getCallPattern: PartialFunction[Expr, Unit] = { case FunCall(_, FunCall(Get(_), _)) => }
+
   val mapFissionWithZipOutside = Rule("Map(fun(x => ...o f $ Get(x, i))) $ Zip(..., y, ...) " +
     "Map(fun(z => ... $ Get(z, i)) $ Zip(..., Map(f) $ y, ...)", {
     case FunCall(Map(Lambda(lambdaParam,
-           c@FunCall(dots, FunCall(f, FunCall(Get(i), x)))
+           c@FunCall(dots, arg)
         )), FunCall(Zip(n), zipArgs@_*))
-      if lambdaParam.head eq x
+      if isMapFissionWithZipOutsideValid(lambdaParam, arg)
     =>
-      val newZipArgs = zipArgs.updated(i, Map(f) $ zipArgs(i))
-      val newLambdaParam = Param()
-      val newDots = Expr.replace(c, x, newLambdaParam).asInstanceOf[FunCall].f
-
-      Map(Lambda(Array(newLambdaParam), newDots(Get(newLambdaParam, i)))) $ Zip(newZipArgs:_*)
+      applyMapFissionWithZipOutside(c, arg, zipArgs)
 
     case FunCall(Map(Lambda(lambdaParam,
-    c@FunCall(dots: AbstractPartRed, init, FunCall(f, FunCall(Get(i), x)))
-    )), FunCall(Zip(n), zipArgs@_*))
-      if lambdaParam.head eq x
+            c@FunCall(dots: AbstractPartRed, init, arg@FunCall(f, FunCall(Get(i), x)))
+         )), FunCall(Zip(n), zipArgs@_*))
+      if isMapFissionWithZipOutsideValid(lambdaParam, arg)
     =>
-      val newZipArgs = zipArgs.updated(i, Map(f) $ zipArgs(i))
-      val newLambdaParam = Param()
-      val newDots = Expr.replace(c, x, newLambdaParam).asInstanceOf[FunCall].f
-      val newInit = Expr.replace(init, x, newLambdaParam)
+      applyMapFissionWithZipOutside(c, arg, zipArgs)
 
-      Map(Lambda(Array(newLambdaParam), newDots(newInit, Get(newLambdaParam, i)))) $ Zip(newZipArgs:_*)
   })
+
+  private def applyMapFissionWithZipOutside(c: FunCall, arg: Expr, zipArgs: Seq[Expr]): Expr = {
+    val toBeReplaced: Expr = Utils.getExprForPatternInCallChain(arg, getCallPattern).get
+
+    val (f, i, x) = toBeReplaced match {
+      case FunCall(h, FunCall(Get(j), y)) => (h, j, y)
+    }
+
+    val newZipArgs = zipArgs.updated(i, Map(f) $ zipArgs(i))
+    val newLambdaParam = Param()
+    val interimDots = Expr.replace(c, toBeReplaced, Get(i)(newLambdaParam))
+    val newDots = Expr.replace(interimDots, x, newLambdaParam)
+
+    Map(Lambda(Array(newLambdaParam), newDots)) $ Zip(newZipArgs: _*)
+  }
+
+  private def isMapFissionWithZipOutsideValid(lambdaParam: Array[Param], arg: Expr): Boolean = {
+    Utils.getExprForPatternInCallChain(arg, getCallPattern) match {
+      case Some(FunCall(_, FunCall(Get(_), x))) if lambdaParam.head eq x => true
+      case _ => false
+    }
+  }
 
   def containsParam(expr: Expr, param: Param): Boolean =
     expr.contains({

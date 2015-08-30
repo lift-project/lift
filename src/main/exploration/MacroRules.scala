@@ -223,20 +223,26 @@ object MacroRules {
       val finalArgId = Utils.getIndexForPatternInCallChain(innerCall,
         { case e if e eq finalArg => })
 
+      var fissioned: Expr = call
+
       if (patternId != -1) {
         rule = Rules.mapReducePartialReduce
         offset = 3
-      } else if (zipPattern.isDefinedAt(arg) && reduceArg.isAbstract) {
-        rule = Rules.mapReduceInterchangeWithZipOutside
-
-        // TODO: better solution for fission with Get
-        offset += 1
       }
 
-      var fissioned: Expr = call
+      if (zipPattern.isDefinedAt(arg) && reduceArg.isAbstract) {
+        rule = Rules.mapReduceInterchangeWithZipOutside
 
-      if (finalArgId > reduceId + offset)
-        fissioned = mapFissionAtPosition(reduceId + offset - 1).rewrite(fissioned)
+        var numFissions = finalArgId - reduceId - 2
+
+        while (numFissions > 0) {
+          fissioned = Rules.mapFissionWithZipOutside.rewrite(fissioned)
+          numFissions -= 1
+        }
+
+      } else if (finalArgId > reduceId + offset) {
+          fissioned = mapFissionAtPosition(reduceId + offset - 1).rewrite(fissioned)
+      }
 
       if (reduceId > 0)
         fissioned = mapFissionAtPosition(reduceId - 1).rewrite(fissioned)
@@ -277,10 +283,19 @@ object MacroRules {
         Expr.replace(fissioned, mapCall, zipOutside(mapCall))
       else if (interchange.isDefinedAt(mapCall))
         Expr.replace(fissioned, mapCall, interchange(mapCall))
-      else if (transpose.isDefinedAt(mapCall))
+      else {
+
+        val finalArg = Utils.getFinalArg(innerCall)
+        val finalArgId = Utils.getIndexForPatternInCallChain(innerCall,
+        { case e if e eq finalArg => })
+
+        if (finalArgId > mapId + 1) {
+          val id = if (mapId > 0) 1 else 0
+          fissioned = Rewrite.applyRuleAtId(fissioned, id, mapFissionAtPosition(0))
+        }
+
         Expr.replace(fissioned, mapCall, transpose(mapCall))
-      else
-        ???
+      }
   })
 
 }
