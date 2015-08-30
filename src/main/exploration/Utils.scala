@@ -58,6 +58,24 @@ object Utils {
       }
   }
 
+  def visitFunCallChain(expr: Expr, visitFun: Expr => Unit): Unit = {
+    visitFun(expr)
+    expr match {
+      case FunCall(_, arg) => visitFunCallChain(arg, visitFun)
+      case FunCall(_ : AbstractPartRed, _, arg) => visitFunCallChain(arg, visitFun)
+      case _ =>
+    }
+  }
+
+  def visitFunCallChainWithState[T](init: T)(expr: Expr, visitFun: (Expr, T) => T): T = {
+    val result = visitFun(expr, init)
+    expr match {
+      case FunCall(_, arg) => visitFunCallChainWithState(result)(arg, visitFun)
+      case FunCall(_ : AbstractPartRed, _, arg) => visitFunCallChainWithState(result)(arg, visitFun)
+      case _ => result
+    }
+  }
+
   def getFinalArg(expr: Expr): Expr = {
     expr match {
       case FunCall(_, arg) => getFinalArg(arg)

@@ -315,9 +315,7 @@ object Rules {
   val mapMapInterchange = Rule("Map(fun(a => Map(fun( b => ... ) $ B) $ A => " +
     "Transpose() o Map(fun(b => Map(fun( a => ... ) $ A) $ B", {
     case FunCall(Map(Lambda(a, FunCall(Map(Lambda(b, expr)), bArg))), aArg)
-      if !bArg.contains({
-        case e if e eq a.head =>
-      })
+      if !bArg.contains({ case e if e eq a.head => })
     =>
       TransposeW() o Map(Lambda(b, FunCall(Map(Lambda(a, expr)), aArg))) $ bArg
   })

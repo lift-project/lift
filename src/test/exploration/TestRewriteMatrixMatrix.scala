@@ -75,7 +75,7 @@ class TestRewriteMatrixMatrix {
     val f19 = Rewrite.applyRuleAtId(f18, 64, MacroRules.mapMapInterchange)
 
     val f21 = Rewrite.applyRuleAtId(f19, 65, Rules.splitJoin(workPerThreadM))
-    val f22 = Rewrite.applyRuleAtId(f21, 74, Rules.transposeBothSides)
+    val f22 = Rewrite.applyRuleAtId(f21, 74, MacroRules.mapMapInterchange)
 
     val f23 = Rewrite.applyRuleAtId(f22, 66, Rules.mapFission)
     val f24 = Rewrite.applyRuleAtId(f23, 13, MacroRules.mapFissionAtPosition(2))
@@ -223,17 +223,13 @@ class TestRewriteMatrixMatrix {
 
     // Experimenting from here on
 
-    val f7 = Rewrite.applyRuleAtId(f12, 23, Rules.splitJoin(workPerThreadN))
-
-    val f8 = Rewrite.applyRuleAtId(f7, 29, MacroRules.mapMapInterchange)
-    val f10 = Rewrite.applyRuleAtId(f8, 35, MacroRules.mapMapInterchange)
+    val f8 = Rewrite.applyRuleAtId(f12, 23, MacroRules.apply1DRegisterBlocking(workPerThreadN))
 
     // Input's good
 
-    val f13 = Rewrite.applyRuleAtId(f10, 11, Rules.splitJoin(workPerThreadN))
-
+    // Replace the next 5 with apply1DRegisterBlocking?
+    val f13 = Rewrite.applyRuleAtId(f8, 11, Rules.splitJoin(workPerThreadN))
     val f14 = Rewrite.applyRuleAtId(f13, 52, MacroRules.mapMapInterchange)
-
     val f16 = Rewrite.applyRuleAtId(f14, 12, Rules.mapFission)
 
     // TODO: Replace with moveReduceOutOneLevel and fix up the rest
@@ -419,12 +415,36 @@ class TestRewriteMatrixMatrix {
         )) $ A
       })
 
+
     val f1 = Rewrite.applyRuleAtId(f0, 2, Rules.splitJoin)
     val f2 = Rewrite.applyRuleAtId(f1, 6, MacroRules.moveReduceOutOneLevel)
     val f4 = Rewrite.applyRuleAtId(f2, 9, Rules.mapMapTransposeZipInside)
     val f6 = Lower.simplifyAndFuse(f4)
 
     println(f6)
+  }
+
+  @Test
+  def mmReuseB(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f0 = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // Already transposed
+      (A, B) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)) )) $ Zip(aRow, bCol)
+          )) $ B
+        )) $ A
+      })
+
+    val f2 = Rewrite.applyRuleAtId(f0, 0, MacroRules.apply1DRegisterBlocking)
+    val f5 = Lower.simplifyAndFuse(f2)
+
+    println(f5)
   }
 
   @Test

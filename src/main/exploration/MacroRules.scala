@@ -1,5 +1,6 @@
 package exploration
 
+import apart.arithmetic.{?, ArithExpr}
 import ir.TypeChecker
 import ir.ast._
 
@@ -196,7 +197,6 @@ object MacroRules {
   private val reducePattern: PartialFunction[Expr, Unit] =
     { case FunCall(_: AbstractPartRed, _, _) => }
 
-  // TODO: fission special cases for zip
   // Map(Reduce) interchange, fissions as appropriate, automatically chooses the rule to apply
   val moveReduceOutOneLevel = Rule("Map( ... Reduce(f) ...) => Map(...) o Reduce( Map(f)) o Map(...)", {
     case call@FunCall(Map(Lambda(_, innerCall: FunCall)), arg)
@@ -301,4 +301,83 @@ object MacroRules {
       }
   })
 
+  val apply1DRegisterBlocking: Rule = apply1DRegisterBlocking(?)
+
+  def apply1DRegisterBlocking(factor: ArithExpr): Rule = Rule("1D register blocking", {
+    case call@FunCall(Map(Lambda(lambdaArg, innerCall)), _)
+      if getCallForBlocking(innerCall, lambdaArg).isDefined
+    =>
+
+      // Split-join on outermost map
+      val split = Rules.splitJoin(factor).rewrite.apply(call)
+
+      // Interchange on the newly created dimension
+      val interchanged = Rewrite.depthFirstApplyRuleAtId(split, 2, mapMapInterchange)
+
+      // Interchange again on every map/reduce in the innermost dimension
+
+      val map1 = Utils.getExprForPatternInCallChain(interchanged, mapPattern).get
+      val map2 = Utils.getExprForPatternInCallChain(getMapBody(map1), mapPattern).get
+      val map3 = Utils.getExprForPatternInCallChain(getMapBody(map2), mapPattern).get
+
+      var nextToInterchange = map3
+      var innerInterchanged = interchanged
+
+      val reduceRule = moveReduceOutOneLevel.rewrite
+      val mapRule = mapMapInterchange.rewrite
+
+      val funCallPattern: PartialFunction[Expr, Unit] = { case FunCall(_, _) => }
+
+      while (funCallPattern.isDefinedAt(nextToInterchange)) {
+
+        if (reduceRule.isDefinedAt(nextToInterchange)) {
+          val replacement = reduceRule(nextToInterchange)
+          innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
+
+          replacement match {
+            case FunCall(_, FunCall(_, _, next)) =>
+              nextToInterchange = next
+            case _ =>
+          }
+
+        } else if (mapRule.isDefinedAt(nextToInterchange)) {
+          val replacement = mapRule(nextToInterchange)
+
+          innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
+
+          replacement match {
+            case FunCall(_, FunCall(_, next)) =>
+              nextToInterchange = next
+            case _ =>
+          }
+        } else {
+          nextToInterchange match {
+            case FunCall(_, next) =>
+              nextToInterchange = next
+            case _ =>
+          }
+        }
+
+      }
+
+      innerInterchanged
+  })
+
+  private def getMapBody(expr: Expr) = {
+    expr match {
+      case FunCall(Map(Lambda(_, body)), _) => body
+    }
+  }
+
+  private def getCallForBlocking(innerCall: Expr, lambdaArg: Array[Param]): Option[Expr] = {
+    Utils.getExprForPatternInCallChain(innerCall, {
+      case FunCall(Map(f), arg)
+        if f.body.isConcrete
+          && !Utils.visitFunCallChainWithState(false)(arg, (expr, s) => expr match {
+          case e if e eq lambdaArg.head => true
+          case _ => s
+        })
+       =>
+    })
+  }
 }
