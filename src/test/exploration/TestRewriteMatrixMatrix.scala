@@ -72,11 +72,9 @@ class TestRewriteMatrixMatrix {
     val f17 = Rewrite.applyRuleAtId(f16, 11, Rules.mapFission)
     val f18 = Rewrite.applyRuleAtId(f17, 12, Rules.splitJoin(workPerThreadN))
 
-    // TODO: macro?
-    val f19 = Rewrite.applyRuleAtId(f18, 64, Rules.mapFission)
-    val f20 = Rewrite.applyRuleAtId(f19, 64, Rules.transposeBothSides)
+    val f19 = Rewrite.applyRuleAtId(f18, 64, MacroRules.mapMapInterchange)
 
-    val f21 = Rewrite.applyRuleAtId(f20, 65, Rules.splitJoin(workPerThreadM))
+    val f21 = Rewrite.applyRuleAtId(f19, 65, Rules.splitJoin(workPerThreadM))
     val f22 = Rewrite.applyRuleAtId(f21, 74, Rules.transposeBothSides)
 
     val f23 = Rewrite.applyRuleAtId(f22, 66, Rules.mapFission)
@@ -234,11 +232,9 @@ class TestRewriteMatrixMatrix {
 
     val f13 = Rewrite.applyRuleAtId(f10, 11, Rules.splitJoin(workPerThreadN))
 
-    // TODO: macro?
-    val f14 = Rewrite.applyRuleAtId(f13, 52, Rules.mapFission)
-    val f15 = Rewrite.applyRuleAtId(f14, 52, Rules.transposeBothSides)
+    val f14 = Rewrite.applyRuleAtId(f13, 52, MacroRules.mapMapInterchange)
 
-    val f16 = Rewrite.applyRuleAtId(f15, 12, Rules.mapFission)
+    val f16 = Rewrite.applyRuleAtId(f14, 12, Rules.mapFission)
 
     // TODO: Replace with moveReduceOutOneLevel and fix up the rest
     val f17 = Rewrite.applyRuleAtId(f16, 59, Rules.mapFission)

@@ -294,7 +294,10 @@ object MacroRules {
           fissioned = Rewrite.applyRuleAtId(fissioned, id, mapFissionAtPosition(0))
         }
 
-        Expr.replace(fissioned, mapCall, transpose(mapCall))
+        val newMapCall = Utils.getExprForPatternInCallChain(fissioned, mapPattern).get
+
+        TypeChecker.check(fissioned)
+        Expr.replace(fissioned, newMapCall, transpose(newMapCall))
       }
   })
 
