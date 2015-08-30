@@ -193,34 +193,45 @@ object MacroRules {
       e2
   })
 
+  private val reducePattern: PartialFunction[Expr, Unit] =
+    { case FunCall(_: AbstractPartRed, _, _) => }
+
+  // TODO: fission special cases for zip
+  // Map(Reduce) interchange, fissions as appropriate, automatically chooses the rule to apply
   val moveReduceOutOneLevel = Rule("Map( ... Reduce(f) ...) => Map(...) o Reduce( Map(f)) o Map(...)", {
-    case call@FunCall(Map(Lambda(_, innerCall: FunCall)), _)
-      if innerCall.contains({ case FunCall(_: AbstractPartRed, _, _) => })
+    case call@FunCall(Map(Lambda(_, innerCall: FunCall)), arg)
+      if innerCall.contains(reducePattern)
     =>
 
       var rule = Rules.mapReduceInterchange
 
-      var reduceId = Utils.getIndexForPatternInCallChain(innerCall,
-      { case FunCall(_: AbstractPartRed, _, _) => })
+      val reduceArg = Utils.getExprForPatternInCallChain(innerCall, reducePattern).get.asInstanceOf[FunCall].args(1)
+      val reduceId = Utils.getIndexForPatternInCallChain(innerCall, reducePattern)
 
       var offset = 1
 
       val pattern: PartialFunction[Expr, Unit] =
-      { case FunCall(Reduce(_), _,
-         FunCall(Join(),
-         FunCall(Map(Lambda(_, FunCall(PartRed(_), _, _))), _))) => }
+        { case FunCall(Reduce(_), _,
+               FunCall(Join(),
+               FunCall(Map(Lambda(_, FunCall(PartRed(_), _, _))), _))) => }
 
       val patternId = Utils.getIndexForPatternInCallChain(innerCall, pattern)
 
-      if (patternId != -1) {
-        rule = Rules.mapReducePartialReduce
-        reduceId = patternId
-        offset = 3
-      }
+      val zipPattern: PartialFunction[Expr, Unit] = { case FunCall(Zip(_), _*) => }
 
       val finalArg = Utils.getFinalArg(innerCall)
       val finalArgId = Utils.getIndexForPatternInCallChain(innerCall,
         { case e if e eq finalArg => })
+
+      if (patternId != -1) {
+        rule = Rules.mapReducePartialReduce
+        offset = 3
+      } else if (zipPattern.isDefinedAt(arg) && reduceArg.isAbstract) {
+        rule = Rules.mapReduceInterchangeWithZipOutside
+
+        // TODO: better solution for fission with Get
+        offset += 1
+      }
 
       var fissioned: Expr = call
 
@@ -235,6 +246,41 @@ object MacroRules {
 
       TypeChecker(fissioned)
       Expr.replace(fissioned, mapReduce, rule.rewrite(mapReduce))
+  })
+
+  private val mapPattern: PartialFunction[Expr, Unit] =
+    { case FunCall(map: Map, _) if map.f.body.isConcrete => }
+
+  // Interchange the outer map with the first inner concrete map, fissions appropriately,
+  // automatically chooses the rule to apply
+  val mapMapInterchange = Rule("Map( ... Map(f) ...) => Map(...) o Map(Map(f)) o Map(...)", {
+    case call@FunCall(Map(Lambda(_, innerCall: FunCall)), _)
+      if innerCall.contains(mapPattern)
+    =>
+      val mapId = Utils.getIndexForPatternInCallChain(innerCall, mapPattern)
+
+      var fissioned: Expr = call
+
+      if (mapId > 0)
+        fissioned = mapFissionAtPosition(mapId - 1).rewrite(fissioned)
+
+      val mapCall = Utils.getExprForPatternInCallChain(fissioned, mapPattern).get
+
+      val zipInside = Rules.mapMapTransposeZipInside.rewrite
+      val zipOutside = Rules.mapMapTransposeZipOutside.rewrite
+      val interchange = Rules.mapMapInterchange.rewrite
+      val transpose = Rules.transposeBothSides.rewrite
+
+      if (zipInside.isDefinedAt(mapCall))
+        Expr.replace(fissioned, mapCall, zipInside(mapCall))
+      else if (zipOutside.isDefinedAt(mapCall))
+        Expr.replace(fissioned, mapCall, zipOutside(mapCall))
+      else if (interchange.isDefinedAt(mapCall))
+        Expr.replace(fissioned, mapCall, interchange(mapCall))
+      else if (transpose.isDefinedAt(mapCall))
+        Expr.replace(fissioned, mapCall, transpose(mapCall))
+      else
+        ???
   })
 
 }

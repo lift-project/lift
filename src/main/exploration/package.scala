@@ -63,7 +63,7 @@ package object exploration {
   val interchangeRules =
     Seq(
       mapReduceInterchange,
-      mapReduceInterchangeWithZip,
+      mapReduceInterchangeWithZipOutside,
       mapReducePartialReduce,
       mapMapTransposeZipInside,
       mapMapTransposeZipOutside,

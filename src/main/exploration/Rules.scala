@@ -338,7 +338,7 @@ object Rules {
         newInit) o Transpose() $ mapArg
   })
 
-  val mapReduceInterchangeWithZip =
+  val mapReduceInterchangeWithZipOutside =
     Rule("Map(fun(x => Reduce(f, Get(x, 0)) $ Get(x, 1) ) $ Zip(a, b) => " +
          "Transpose() o Reduce(fun((acc, y) => Map(f) $ Zip(acc, y) ), a ) o Transpose() $ b", {
       case FunCall(Map(Lambda(lambdaParams,
