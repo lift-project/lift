@@ -330,6 +330,8 @@ object MacroRules {
 
       while (funCallPattern.isDefinedAt(nextToInterchange)) {
 
+        TypeChecker(interchanged)
+
         if (reduceRule.isDefinedAt(nextToInterchange)) {
           val replacement = reduceRule(nextToInterchange)
           innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
@@ -373,10 +375,6 @@ object MacroRules {
     Utils.getExprForPatternInCallChain(innerCall, {
       case FunCall(Map(f), arg)
         if f.body.isConcrete
-          && !Utils.visitFunCallChainWithState(false)(arg, (expr, s) => expr match {
-          case e if e eq lambdaArg.head => true
-          case _ => s
-        })
        =>
     })
   }
