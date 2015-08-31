@@ -86,15 +86,16 @@ class TestRewriteMatrixMatrix {
     val f34 = Rewrite.applyRuleAtId(f31, 65, MacroRules.moveReduceOutOneLevel)
     val f37 = Rewrite.applyRuleAtId(f34, 14, MacroRules.moveReduceOutOneLevel)
 
-    // Output's good, nested reduces use same memory, performance drops by a third for NVIDIA and
-    // half for AMD if not.
-    // Can be brought into a form, where a large chunk (splits, joins, transposes and reorders)
-    // can be commented out and runs fine.
 
     val f38 = Rewrite.applyRuleAtId(f37, 111, Rules.partialReduceToReduce)
 
     val f39 = Rewrite.applyRuleAtId(f38, 105, MacroRules.moveReduceOutOneLevel)
     val f42 = Rewrite.applyRuleAtId(f39, 98, MacroRules.moveReduceOutOneLevel)
+
+    // Output's good, nested reduces use same memory, performance drops by a third for NVIDIA and
+    // half for AMD if not.
+    // Can be brought into a form, where a large chunk (splits, joins, transposes and reorders)
+    // can be commented out and runs fine.
 
     println(f42)
 
@@ -196,6 +197,38 @@ class TestRewriteMatrixMatrix {
   }
 
   @Test
+  def simpleLowering(): Unit = {
+    val tileSizeMN = 128
+    val tileSizeK = 16
+    val workPerThreadN = 8
+    val workPerThreadM = 8
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val h0 = fun(ArrayType(ArrayType(Float, M), K), ArrayType(ArrayType(Float, N), K),(p1795960102, p477289012) => FunCall(Join(), FunCall(Map(fun((p1889248251) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p2023938592) => FunCall(TransposeW(), FunCall(Map(fun((p225290371) => FunCall(Scatter(ReorderWithStride(16)), p225290371))), FunCall(Join(), FunCall(Map(fun((p297927961) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p733672688) => FunCall(TransposeW(), FunCall(Map(fun((p756185697) => FunCall(TransposeW(), p756185697))), FunCall(TransposeW(), p733672688))))), FunCall(TransposeW(), p297927961)))))), FunCall(TransposeW(), FunCall(MapSeq(fun((p1691875296) => FunCall(Id(), p1691875296))), FunCall(ReduceSeq(fun((p500179317, p1225197672) => FunCall(Map(fun((p1500608548) => FunCall(Map(fun((p513700442) => FunCall(Map(fun((p912011468) => FunCall(Join(), FunCall(Transpose(), p912011468)))), FunCall(Transpose(), FunCall(MapSeq(fun((p1195067075) => FunCall(Id(), p1195067075))), FunCall(ReduceSeq(fun((p1983025922, p1007309018) => FunCall(Map(fun((p2038148563) => FunCall(Map(fun((p2142080121) => FunCall(add, FunCall(Get(0), p2142080121), FunCall(Get(1), p2142080121)))), FunCall(Zip(2), FunCall(Get(0), p2038148563), FunCall(Map(fun((p112619572) => FunCall(mult, FunCall(Get(1), p2038148563), p112619572))), FunCall(Get(1), p1007309018)))))), FunCall(Zip(2), p1983025922, FunCall(Get(0), p1007309018))))), FunCall(Get(0), p513700442), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p1500608548)), FunCall(Transpose(), FunCall(Get(1), p513700442))))))))), FunCall(Zip(2), FunCall(Get(0), p1500608548), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p1225197672)))))))), FunCall(Zip(2), p500179317, FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p1225197672))))))), FunCall(Map(fun((p1786364562) => FunCall(Map(fun((p326298949) => FunCall(Map(fun((p876926621) => FunCall(Map(fun((p1268959798) => FunCall(id, p1268959798))), p876926621))), p326298949))), p1786364562))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Zip(2), p1889248251, p2023938592)))))))))), FunCall(Transpose(), FunCall(Map(fun((p1935972447) => FunCall(Transpose(), p1935972447))), FunCall(Split(tileSizeK), FunCall(Map(fun((p1890627974) => FunCall(Split(tileSizeMN), p1890627974))), p477289012))))))))), FunCall(Transpose(), FunCall(Map(fun((p1641313620) => FunCall(Transpose(), p1641313620))), FunCall(Split(tileSizeK), FunCall(Map(fun((p192881625) => FunCall(Split(tileSizeMN), p192881625))), p1795960102)))))))
+    val h1 = Lower.lowerNoAddressSpaces(h0)
+
+    val mSize = 256
+    val kSize = 256
+    val nSize = 256
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val values = Seq(matrixA.transpose, matrixB)
+
+    val (localRange, globalRange) = InferNDRange(h1, values:_*)
+
+    val (output: Array[Float], _) = Execute(localRange(0).eval, localRange(1).eval,
+      globalRange(0).eval, globalRange(1).eval, (true, true))(h1, values:_*)
+
+    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
+
+    assertArrayEquals(gold.flatten, output, 0.0001f)
+  }
+
+  @Test
   def reuseWithTiling(): Unit = {
     val N = Var("N")
     val M = Var("M")
@@ -235,9 +268,8 @@ class TestRewriteMatrixMatrix {
     // TODO: Replace with moveReduceOutOneLevel and fix up the rest
     val f17 = Rewrite.applyRuleAtId(f16, 59, Rules.mapFission)
     val f18 = Rewrite.applyRuleAtId(f17, 59, Rules.mapReduceInterchange)
-
-
     val f19 = Rewrite.applyRuleAtId(f18, 53, MacroRules.moveReduceOutOneLevel)
+
     val f22 = Rewrite.applyRuleAtId(f19, 13, MacroRules.moveReduceOutOneLevel)
 
     // Output seems good
