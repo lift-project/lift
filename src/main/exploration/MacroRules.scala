@@ -1,7 +1,7 @@
 package exploration
 
 import apart.arithmetic.{?, ArithExpr}
-import ir.TypeChecker
+import ir.{ArrayType, TypeChecker}
 import ir.ast._
 
 object MacroRules {
@@ -194,6 +194,46 @@ object MacroRules {
       e2
   })
 
+  // Eliminate a matching split-join pair. If there are maps between them, apply
+  // the split-join and splitJoinId rules, to move the pair closer to each other
+  val splitJoinId: Rule = Rule("Split(n) ... Join() => Map(...)", {
+    case call@FunCall(Split(n), arg)
+      if Utils.visitFunCallChainWithState((false, true))(arg, (expr, state) => {
+        // State = (applicable, stillPossible)
+        expr match {
+          case FunCall(Map(_), _) => state
+          case FunCall(Join(), a)
+            if (a.t match {
+              case ArrayType(ArrayType(_, m), _) => n == m
+              case _ => false
+              })
+          =>
+            if (state._2)
+              (true, state._1)
+            else
+              state
+          case _ => (state._1, false)
+        }
+      })._1
+    =>
+
+      if (Rules.splitJoinId.isDefinedAt(call)) {
+        Rules.splitJoinId.rewrite(call)
+      } else {
+        val splitJoined = Rules.splitJoin(n).rewrite.apply(arg)
+        val newCall = Expr.replace(call, arg, splitJoined)
+
+        TypeChecker.check(newCall)
+
+        val splitJoinEliminated = Rules.splitJoinId.rewrite.apply(newCall)
+
+        val newSplit = Utils.getExprForPatternInCallChain(splitJoinEliminated,
+          {case FunCall(Split(_), _) => }).get
+
+        Expr.replace(splitJoinEliminated, newSplit, splitJoinId.rewrite.apply(newSplit))
+      }
+  })
+
   private val reducePattern: PartialFunction[Expr, Unit] =
     { case FunCall(_: AbstractPartRed, _, _) => }
 
@@ -363,6 +403,22 @@ object MacroRules {
       }
 
       innerInterchanged
+  })
+
+  val apply2DRegisterBlocking: Rule = apply2DRegisterBlocking(?, ?)
+
+  def apply2DRegisterBlocking(factorX: ArithExpr, factorY:ArithExpr): Rule = Rule("", {
+    case call@FunCall(_, _) =>
+
+      // ReorderBothSides of inner map
+      // fission out the reorder
+      // split-join on the outer map
+      // interchange on the new dim
+      // split-join on the inner map
+      // interchange on the new dim
+      // interchange inside stuff twice.
+
+      call
   })
 
   private def getMapBody(expr: Expr) = {

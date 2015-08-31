@@ -383,7 +383,7 @@ object Rules {
     Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
       case FunCall(map@Map(_), arg) =>
         val s = if (stride == ?) Utils.validSplitVariable(arg.t) else stride
-        Scatter(ReorderWithStride(stride)) o map o Gather(ReorderWithStride(s)) $ arg
+        Scatter(ReorderWithStride(s)) o map o Gather(ReorderWithStride(s)) $ arg
     })
   }
 

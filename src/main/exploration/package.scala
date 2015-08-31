@@ -29,7 +29,7 @@ package object exploration {
       asVectorAsScalarId,
       transposeTransposeId,
       joinSplitId,
-      splitJoinId,
+      MacroRules.splitJoinId,
       gatherScatterId,
       scatterGatherId,
       removeEmptyMap
