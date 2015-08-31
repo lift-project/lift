@@ -373,7 +373,7 @@ class TestRules {
       input => MapGlb(id) $ input
     )
 
-    val options = Rewrite.rewrite(f, levels = 1)
+    val options = Rewrite.rewriteJustGenerable(f, levels = 1)
     val (gold: Array[Float], _) = Execute(128)(goldF, A)
 
     assertTrue(options.nonEmpty)
@@ -401,7 +401,7 @@ class TestRules {
 
     val a = 1.0f
     val (gold: Array[Float], _) = Execute(128)(goldF, A, a)
-    val lambdaOptions = Rewrite.rewrite(f)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -427,7 +427,7 @@ class TestRules {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewrite(f, simplificationRules, 1)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f, simplificationRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
@@ -454,7 +454,7 @@ class TestRules {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewrite(f, simplificationRules, 1)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f, simplificationRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -480,7 +480,7 @@ class TestRules {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewrite(f, simplificationRules, 1)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f, simplificationRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
@@ -507,7 +507,7 @@ class TestRules {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewrite(f, simplificationRules, 1)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f, simplificationRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -529,7 +529,7 @@ class TestRules {
       input => Reduce(add, 0.0f) $ input
     )
 
-    val lambdaOptions = Rewrite.rewrite(f,
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f,
       Seq(Rules.reduceSeq, Rules.implementIdAsDeepCopy, Rules.globalMemory), 3)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
@@ -552,7 +552,7 @@ class TestRules {
       input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(plusOne) $ input
     )
 
-    val lambdaOptions = Rewrite.rewrite(f, fusionRules, 1)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
@@ -582,7 +582,7 @@ class TestRules {
 
     val A = Array.tabulate(128)(i => i)
 
-    val lambdaOptions = Rewrite.rewrite(f, fusionRules, 1)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
@@ -615,7 +615,7 @@ class TestRules {
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
-    val lambdaOptions = Rewrite.rewrite(f, fusionRules, 1)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
@@ -643,7 +643,7 @@ class TestRules {
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A, a)
 
-    val lambdaOptions = Rewrite.rewrite(f, fusionRules, 1)
+    val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
     println(lambdaOptions)
 

@@ -49,26 +49,24 @@ object Rewrite {
     })
   }
 
-
-
   def rewrite(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] = {
     TypeChecker.check(lambda.body)
 
     val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
     val rewritten = allRulesAt.map(ruleAt => applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
 
-    // TODO: Not all generable kernels are valid...
-    val (g, notG) = rewritten.partition( _.isGenerable )
-
     if (levels == 1) {
-      g
+      rewritten
     } else {
-      g ++ notG.flatMap( l => rewrite(l, rules, levels-1))
+      rewritten.flatMap( l => rewriteJustGenerable(l, rules, levels-1))
     }
   }
 
-  def rewrite(lambda: Lambda, levels: Int = 1): Seq[Lambda] =
-    rewrite(lambda, allRules, levels)
+  def rewriteJustGenerable(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] =
+    rewrite(lambda, rules, levels).filter(_.isGenerable)
+
+  def rewriteJustGenerable(lambda: Lambda, levels: Int = 1): Seq[Lambda] =
+    rewriteJustGenerable(lambda, allRules, levels)
 
 }
 
