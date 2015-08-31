@@ -103,7 +103,7 @@ class TestRewriteMatrixMatrix {
     // Obviously possible, don't yet know how to.
     val h0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K),(p1418385211, p1282811396) => FunCall(Join(), FunCall(Map(fun((p789219251) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p832279283) => FunCall(TransposeW(), FunCall(Map(fun((p265119009) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p265119009))), FunCall(Join(), FunCall(Map(fun((p2050404090) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p388043093) => FunCall(TransposeW(), p388043093))), p2050404090))))), FunCall(Map(fun((p188576144) => FunCall(Map(fun((p1608230649) => FunCall(Map(fun((p282432134) => FunCall(TransposeW(), p282432134))), FunCall(TransposeW(), p1608230649)))), FunCall(TransposeW(), p188576144)))), FunCall(TransposeW(), FunCall(Reduce(fun((p266437232, p1873859565) => FunCall(Map(fun((p1843289228) => FunCall(Map(fun((p1361289747) => FunCall(Map(fun((p1381128261) => FunCall(Join(), FunCall(Transpose(), p1381128261)))), FunCall(Transpose(), FunCall(Reduce(fun((p999609945, p615634843) => FunCall(Map(fun((p1758386724) => FunCall(Map(fun((p673068808) => FunCall(add, FunCall(Get(0), p673068808), FunCall(Get(1), p673068808)))), FunCall(Zip(2), FunCall(Get(0), p1758386724), FunCall(Get(1), p1758386724))))), FunCall(Zip(2), p999609945, p615634843)))), FunCall(Get(0), p1361289747), FunCall(Transpose(), FunCall(Map(fun((p900008524) => FunCall(Transpose(), p900008524))), FunCall(Get(1), p1361289747)))))))), FunCall(Zip(2), FunCall(Get(0), p1843289228), FunCall(Get(1), p1843289228))))), FunCall(Zip(2), p266437232, p1873859565)))), FunCall(Map(fun((p520232556) => FunCall(Map(fun((p17037394) => FunCall(Map(fun((p1484531981) => FunCall(Map(fun((p1159114532) => FunCall(id, p1159114532))), p1484531981))), p17037394))), p520232556))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Map(fun((p1256728724) => FunCall(Map(fun((p1412925683) => FunCall(Map(fun((p1832580921) => FunCall(Map(fun((p497359413) => FunCall(TransposeW(), p497359413))), FunCall(TransposeW(), p1832580921)))), FunCall(Map(fun((p369241501) => FunCall(Map(fun((p2124046270) => FunCall(Map(fun((p1151593579) => FunCall(Map(fun((p1902260856) => FunCall(mult, p1151593579, p1902260856))), FunCall(Get(1), p2124046270)))), FunCall(Get(0), p2124046270)))), FunCall(Zip(2), FunCall(Transpose(), p1412925683), FunCall(Transpose(), p369241501))))), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p1256728724)))))))), FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p1256728724)))))), FunCall(Zip(2), FunCall(Split(tileSizeK), FunCall(Transpose(), p789219251)), FunCall(Split(tileSizeK), FunCall(Transpose(), p832279283))))))))))))), FunCall(Split(tileSizeMN), FunCall(Transpose(), p1282811396))))))), FunCall(Split(tileSizeMN), p1418385211))))
 
-    val h9 = Lower.simplifyAndFuse(h0)
+    val h9 = SimplifyAndFuse(h0)
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
 
@@ -322,11 +322,13 @@ class TestRewriteMatrixMatrix {
     // Splits & joins eliminated, just transposes left
 
     val f54 = Rewrite.applyRuleAtId(f53, 19, Rules.mapFusion)
+
     val f55 = Rewrite.applyRuleAtId(f54, 27, Rules.mapSplitTranspose)
     val f56 = Rewrite.applyRuleAtId(f55, 29, Rules.splitJoinId)
     val f57 = Rewrite.applyRuleAtId(f56, 18, Rules.mapFusion)
     val f58 = Rewrite.applyRuleAtId(f57, 17, Rules.mapFusion)
     val f59 = Rewrite.applyRuleAtId(f58, 16, Rules.mapFusion)
+
     val f60 = Rewrite.applyRuleAtId(f59, 25, MacroRules.transposeMapMapTranspose)
     val f61 = Rewrite.applyRuleAtId(f60, 26, Rules.transposeTransposeId)
     val f62 = Rewrite.applyRuleAtId(f61, 24, Rules.mapFusion)
@@ -336,7 +338,7 @@ class TestRewriteMatrixMatrix {
     val f64 = Rewrite.applyRuleAtId(f63, 32, Rules.mapFission)
     val f65 = Rewrite.applyRuleAtId(f64, 30, Rules.mapTransposeTransposeMapTranspose)
 
-    val f79 = Lower.simplifyAndFuse(f65)
+    val f79 = SimplifyAndFuse(f65)
 
     println(f79)
   }
@@ -445,7 +447,7 @@ class TestRewriteMatrixMatrix {
     val f1 = Rewrite.applyRuleAtId(f0, 2, Rules.splitJoin)
     val f2 = Rewrite.applyRuleAtId(f1, 6, MacroRules.moveReduceOutOneLevel)
     val f4 = Rewrite.applyRuleAtId(f2, 9, Rules.mapMapTransposeZipInside)
-    val f6 = Lower.simplifyAndFuse(f4)
+    val f6 = SimplifyAndFuse(f4)
 
     println(f6)
   }
@@ -468,7 +470,7 @@ class TestRewriteMatrixMatrix {
       })
 
     val f2 = Rewrite.applyRuleAtId(f0, 0, MacroRules.apply1DRegisterBlocking)
-    val f5 = Lower.simplifyAndFuse(f2)
+    val f5 = SimplifyAndFuse(f2)
 
     println(f5)
   }
@@ -501,7 +503,7 @@ class TestRewriteMatrixMatrix {
     val f10 = Rewrite.applyRuleAtId(f9, 16, Rules.transposeTransposeId)
     val f11 = Rewrite.applyRuleAtId(f10, 12, MacroRules.moveReduceOutOneLevel)
     val f14 = Rewrite.applyRuleAtId(f11, 16, Rules.mapMapTransposeZipInside)
-    val f16 = Lower.simplifyAndFuse(f14)
+    val f16 = SimplifyAndFuse(f14)
 
     println(f16)
   }

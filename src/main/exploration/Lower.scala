@@ -9,7 +9,7 @@ object Lower {
 
     val partialReducesLowered = lowerPartialReduces(lambda)
 
-    val simplified = simplifyAndFuse(partialReducesLowered)
+    val simplified = SimplifyAndFuse(partialReducesLowered)
 
     val reducesLowered = lowerReduces(simplified)
 
@@ -29,13 +29,13 @@ object Lower {
   def lowerNoAddressSpaces(lambda: Lambda) = {
     val partialReducesLowered = lowerPartialReduces(lambda)
 
-    val simplified = simplifyAndFuse(partialReducesLowered)
+    val simplified = SimplifyAndFuse(partialReducesLowered)
 
     val reducesLowered = lowerReduces(simplified)
 
     val allocatedToGlobal = reduceToGlobal(reducesLowered)
 
-    val removeOtherIds = simplifyAndFuse(dropIds(allocatedToGlobal))
+    val removeOtherIds = SimplifyAndFuse(dropIds(allocatedToGlobal))
 
     val mapsLowered = simpleMapLoweringStrategy(removeOtherIds)
 
@@ -267,21 +267,6 @@ object Lower {
   def lowerNextLevelWithRule(lambda: Lambda, rule: Rule) = {
     val nextToLower = FindNextMapsToLower()(lambda)
     applyRuleToExpressions(lambda, nextToLower, rule)
-  }
-
-  def simplifyAndFuse(lambda: Lambda): Lambda = {
-    val rules = simplificationRules ++ fusionRules
-
-    TypeChecker.check(lambda.body)
-
-    val allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, rules)
-
-    if (allRulesAt.isEmpty)
-      lambda
-    else {
-      val ruleAt = allRulesAt.head
-      simplifyAndFuse(Rewrite.applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
-    }
   }
 }
 
