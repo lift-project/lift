@@ -1,7 +1,7 @@
 package exploration
 
 import apart.arithmetic.{?, ArithExpr}
-import ir.{ArrayType, TypeChecker}
+import ir._
 import ir.ast._
 
 object MacroRules {
@@ -360,65 +360,153 @@ object MacroRules {
       val map2 = Utils.getExprForPatternInCallChain(getMapBody(map1), mapPattern).get
       val map3 = Utils.getExprForPatternInCallChain(getMapBody(map2), mapPattern).get
 
-      var nextToInterchange = map3
-      var innerInterchanged = interchanged
+      applyInterchangeOnAllComponents(interchanged, map3)
+  })
 
-      val reduceRule = moveReduceOutOneLevel.rewrite
-      val mapRule = mapMapInterchange.rewrite
+  def applyInterchangeOnAllComponents(replaceIn: Expr, interchangeHere: Expr): Expr = {
+    var nextToInterchange = interchangeHere
+    var innerInterchanged = replaceIn
 
-      val funCallPattern: PartialFunction[Expr, Unit] = { case FunCall(_, _) => }
+    val reduceRule = moveReduceOutOneLevel.rewrite
+    val mapRule = mapMapInterchange.rewrite
 
-      while (funCallPattern.isDefinedAt(nextToInterchange)) {
+    val funCallPattern: PartialFunction[Expr, Unit] = { case FunCall(_, _) => }
 
-        TypeChecker(interchanged)
+    while (funCallPattern.isDefinedAt(nextToInterchange)) {
 
-        if (reduceRule.isDefinedAt(nextToInterchange)) {
-          val replacement = reduceRule(nextToInterchange)
-          innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
+      TypeChecker(innerInterchanged)
 
-          replacement match {
-            case FunCall(_, FunCall(_, _, next)) =>
-              nextToInterchange = next
-            case _ =>
-          }
+      if (reduceRule.isDefinedAt(nextToInterchange)) {
 
-        } else if (mapRule.isDefinedAt(nextToInterchange)) {
-          val replacement = mapRule(nextToInterchange)
+        val replacement = reduceRule(nextToInterchange)
+        innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
 
-          innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
+        val reduceCall = Utils.getExprForPatternInCallChain(replacement, reducePattern).get
 
-          replacement match {
-            case FunCall(_, FunCall(_, next)) =>
-              nextToInterchange = next
-            case _ =>
-          }
-        } else {
-          nextToInterchange match {
-            case FunCall(_, next) =>
-              nextToInterchange = next
-            case _ =>
-          }
+        reduceCall match {
+          case FunCall(_, _, next) =>
+            nextToInterchange = next
+          case _ =>
         }
 
+      } else if (mapRule.isDefinedAt(nextToInterchange)) {
+
+        val replacement = mapRule(nextToInterchange)
+
+        innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
+
+        val mapCall = Utils.getExprForPatternInCallChain(replacement, mapPattern).get
+
+        mapCall match {
+          case FunCall(_, next) =>
+            nextToInterchange = next
+          case _ =>
+        }
+
+      } else {
+        nextToInterchange match {
+          case FunCall(_, next) =>
+            nextToInterchange = next
+          case _ =>
+        }
       }
 
-      innerInterchanged
-  })
+    }
+
+    innerInterchanged
+  }
 
   val apply2DRegisterBlocking: Rule = apply2DRegisterBlocking(?, ?)
 
   def apply2DRegisterBlocking(factorX: ArithExpr, factorY:ArithExpr): Rule = Rule("", {
-    case call@FunCall(_, _) =>
-
+    case call@FunCall(Map(Lambda(lambdaArg, innerCall)), arg)
+      if getCallForBlocking(innerCall, lambdaArg).isDefined
+        // TODO: is the guard good enough?
+    =>
       // ReorderBothSides of inner map
+
+      val innerMap = Utils.getExprForPatternInCallChain(getMapBody(call), mapPattern).get
+
+      var stride: ArithExpr = ?
+
+      //TODO: fix factorY to be the actual splitting variable of that dimension
+      if (factorY != ?)
+        stride = Type.getLength(innerMap.t) / factorY
+
+      val innerMapReordered = Rules.reorderBothSidesWithStride(stride).rewrite(innerMap)
+
+      val reorderReplaced = Expr.replace(call, innerMap, innerMapReordered)
+
+      // TODO: common sequences in here, tileOutput and tileMapMap
+
       // fission out the reorder
+
+      val innerMapReorderedReplaced = getMapBody(reorderReplaced)
+
+      val fissionPosition = Utils.getIndexForPatternInCallChain(innerMapReorderedReplaced,
+        { case FunCall(Scatter(_), _) => })
+
+      val fissioned = mapFissionAtPosition(fissionPosition, reorderReplaced)
+
       // split-join on the outer map
+
+      TypeChecker(fissioned)
+
+      val outerMap = Utils.getExprForPatternInCallChain(fissioned, mapPattern).get
+
+      val outerSplitJoined = Rules.splitJoin(factorX).rewrite(outerMap)
+
+      val replaced = Expr.replace(fissioned, outerMap, outerSplitJoined)
+
+      TypeChecker(replaced)
+
       // interchange on the new dim
+
+      val splitJoinedOuterMap = Utils.getExprForPatternInCallChain(replaced, mapPattern).get
+      val newDimensionMap = Utils.getExprForPatternInCallChain(getMapBody(splitJoinedOuterMap), mapPattern).get
+
+      val interchanged = mapMapInterchange.rewrite(newDimensionMap)
+
+      val interchangeReplaced = Expr.replace(replaced, newDimensionMap, interchanged)
+
       // split-join on the inner map
+
+      TypeChecker(interchangeReplaced)
+
+      val innerMapAfterInterchange = Utils.getExprForPatternInCallChain(interchanged, mapPattern).get
+
+      val innerMapSplitJoined = Rules.splitJoin(factorY).rewrite(innerMapAfterInterchange)
+
+      TypeChecker(innerMapSplitJoined)
+
       // interchange on the new dim
+
+      val splitJoinedInnerMap = Utils.getExprForPatternInCallChain(innerMapSplitJoined, mapPattern).get
+      val secondNewDimMap = Utils.getExprForPatternInCallChain(getMapBody(splitJoinedInnerMap), mapPattern).get
+
+      val secondInterchanged = mapMapInterchange.rewrite(secondNewDimMap)
+
+      val e1 = Expr.replace(innerMapSplitJoined, secondNewDimMap, secondInterchanged)
+      val e2 = Expr.replace(interchangeReplaced, innerMapAfterInterchange, e1)
+
+      TypeChecker(e2)
+
       // interchange inside stuff twice.
 
-      call
+      val map1 = Utils.getExprForPatternInCallChain(secondInterchanged, mapPattern).get
+      val map2 = Utils.getExprForPatternInCallChain(getMapBody(map1), mapPattern).get
+
+      val oneInterchange = applyInterchangeOnAllComponents(e2, map2)
+
+      TypeChecker(oneInterchange)
+
+      val map3 = Utils.getExprForPatternInCallChain(oneInterchange, mapPattern).get
+      val map4 = Utils.getExprForPatternInCallChain(getMapBody(map3), mapPattern).get
+      val map5 = Utils.getExprForPatternInCallChain(getMapBody(map4), mapPattern).get
+
+      val secondInterchange = applyInterchangeOnAllComponents(oneInterchange, map5)
+
+      secondInterchange
   })
 
   private def getMapBody(expr: Expr) = {
