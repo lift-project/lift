@@ -281,7 +281,7 @@ class TestRewriteMatrixMatrix {
     // Now there's a massive bunch of transposes, splits and joins, which are id.
     // Can comment out and runs fine. Otherwise good.
 
-    // TODO: macro?
+    // TODO: Improve macro to be able to do the fission
     val f40 = Rewrite.applyRuleAtId(g1, 17, Rules.mapFission)
     val f41 = Rewrite.applyRuleAtId(f40, 16, MacroRules.transposeMapMapTranspose)
 
@@ -290,10 +290,7 @@ class TestRewriteMatrixMatrix {
     val f43 = Rewrite.applyRuleAtId(f42, 19, Rules.mapFission)
     val f44 = Rewrite.applyRuleAtId(f43, 20, Rules.mapTransposeSplit)
 
-    val f45 = Rewrite.applyRuleAtId(f44, 22, Rules.transposeTransposeId)
-    val f46 = Rewrite.applyRuleAtId(f45, 17, Rules.transposeMapSplit)
-
-    val f79 = SimplifyAndFuse(f46)
+    val f79 = SimplifyAndFuse(f44)
 
     println(f79)
 
