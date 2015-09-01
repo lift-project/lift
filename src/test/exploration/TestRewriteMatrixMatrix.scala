@@ -41,7 +41,7 @@ class TestRewriteMatrixMatrix {
 
     val tileSizeMN = 128
     val tileSizeK = 16
-    val workPerThreadN = 8
+    val workPerThreadN = 4
     val workPerThreadM = 8
 
     val tileTranspositionM = 32
@@ -76,6 +76,18 @@ class TestRewriteMatrixMatrix {
     val numExpressionsIntermediate = NumberExpression.breadthFirst(f42).values.max
 
     assertEquals(138, numExpressionsIntermediate)
+
+
+    val f43 = Rewrite.applyRuleAtId(f42, 18, Rules.splitTranspose)
+    val f44 = Rewrite.applyRuleAtId(f43, 20, Rules.splitJoin(tileSizeK))
+    val f45 = Rewrite.applyRuleAtId(f44, 22, Rules.splitJoinId)
+    val f46 = Rewrite.applyRuleAtId(f45, 21, Rules.mapFusion)
+    val f47 = Rewrite.applyRuleAtId(f46, 29, Rules.mapSplitTranspose)
+    val f48 = Rewrite.applyRuleAtId(f47, 32, Rules.splitJoin(workPerThreadN))
+    val f49 = Rewrite.applyRuleAtId(f48, 31, Rules.splitJoinId)
+    val f50 = Rewrite.applyRuleAtId(f49, 32, Rules.splitJoinId)
+
+    println(NumberPrinter(f50))
 
     // TODO: Find missing derivation
     // Continuing from where the splits, joins, transposes and reorders have been eliminated.
