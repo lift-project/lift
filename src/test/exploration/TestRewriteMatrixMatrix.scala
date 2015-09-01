@@ -255,7 +255,13 @@ class TestRewriteMatrixMatrix {
     val h1 = Rewrite.applyRuleAtId(h0, 53, MacroRules.moveReduceOutOneLevel)
     val h2 = Rewrite.applyRuleAtId(h1, 12, MacroRules.moveReduceOutOneLevel)
 
-    val h3 = Rewrite.applyRuleAtId(h2, 63, Rules.transposeMapSplit)
+    val g0 = Rewrite.applyRuleAtId(h2, 86, Rules.partialReduceToReduce)
+    val g1 = Rewrite.applyRuleAtId(g0, 80, Rules.mapReduceInterchangeWithZipOutside)
+
+    // Now there's a massive bunch of transposes, splits and joins, which are id.
+    // Can comment out and runs fine. Otherwise good.
+
+    val h3 = Rewrite.applyRuleAtId(g1, 63, Rules.transposeMapSplit)
 
     // TODO: macro?
     val h4 = Rewrite.applyRuleAtId(h3, 57, Rules.mapFission)
@@ -273,17 +279,7 @@ class TestRewriteMatrixMatrix {
 
     val h13 = Rewrite.applyRuleAtId(h12, 15, Rules.transposeTransposeId)
 
-    // Output seems good
-
-    val g0 = Rewrite.applyRuleAtId(h13, 90, Rules.partialReduceToReduce)
-    val g1 = Rewrite.applyRuleAtId(g0, 84, Rules.mapReduceInterchangeWithZipOutside)
-
-    // Now there's a massive bunch of transposes, splits and joins, which are id.
-    // Can comment out and runs fine. Otherwise good.
-
-    // TODO: Improve macro to be able to do the fission
-    val f40 = Rewrite.applyRuleAtId(g1, 17, Rules.mapFission)
-    val f41 = Rewrite.applyRuleAtId(f40, 16, MacroRules.transposeMapMapTranspose)
+    val f41 = Rewrite.applyRuleAtId(h13, 16, MacroRules.transposeMapMapTransposeFission)
 
     // TODO: macro?
     val f42 = Rewrite.applyRuleAtId(f41, 18, Rules.mapFission)
