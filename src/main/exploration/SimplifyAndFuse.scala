@@ -5,13 +5,7 @@ import ir.ast.Lambda
 
 object SimplifyAndFuse {
 
-  def apply(lambda: Lambda) = simplifyAndFuse(lambda)
-
-  def simplifyAndFuse(lambda: Lambda): Lambda = {
-
-    simplify(lambda)
-
-  }
+  def apply(lambda: Lambda) = simplify(lambda)
 
   def simplify(lambda: Lambda): Lambda = {
     TypeChecker.check(lambda.body)
@@ -20,23 +14,12 @@ object SimplifyAndFuse {
 
     if (allRulesAt.isEmpty) {
 
-      val appliedEnablingRule = tryToEnableMoreSimplifications(lambda)
-
-       val enabledMost = appliedEnablingRule.fold(lambda, 0)((a, b) => if (a._2 > b._2) a else b)
+      val enabledMost = tryToEnableMoreSimplifications(lambda, 2)
 
       if (enabledMost._2 != 0) {
         simplify(enabledMost._1)
       } else {
-
-        val appliedOneMore = appliedEnablingRule.flatMap(l => tryToEnableMoreSimplifications(l._1))
-
-        val bestRule = appliedOneMore.fold(lambda, 0)((a, b) => if (a._2 > b._2) a else b)
-
-        if (bestRule._2 != 0) {
-          simplify(bestRule._1)
-        } else {
-          fuse(lambda)
-        }
+        fuse(lambda)
       }
 
     } else {
@@ -45,7 +28,29 @@ object SimplifyAndFuse {
     }
   }
 
-  def tryToEnableMoreSimplifications(lambda: Lambda): Seq[(Lambda, Int)] = {
+  def tryToEnableMoreSimplifications(lambda: Lambda, maxRulesToApply: Int): (Lambda, Int) = {
+    if (maxRulesToApply < 1) {
+      (lambda, 0)
+    } else {
+      val appliedEnablingRule = applyOneEnablingRule(lambda)
+
+      val enabledMost = getTheBestRule(lambda, appliedEnablingRule)
+
+      if (enabledMost._2 != 0) {
+        enabledMost
+      } else {
+        val appliedOneMore =
+          appliedEnablingRule.map(l => tryToEnableMoreSimplifications(l._1, maxRulesToApply - 1))
+
+        getTheBestRule(lambda, appliedOneMore)
+      }
+    }
+  }
+
+  def getTheBestRule(lambda: Lambda, candidates: Seq[(Lambda, Int)]): (Lambda, Int) =
+    candidates.fold(lambda, 0)((a, b) => if (a._2 > b._2) a else b)
+
+  def applyOneEnablingRule(lambda: Lambda): Seq[(Lambda, Int)] = {
     val enablingRules =
       Seq(
         Rules.mapTransposeTransposeMapTranspose,
@@ -71,7 +76,7 @@ object SimplifyAndFuse {
       lambda
     else {
       val ruleAt = allRulesAt.head
-      simplifyAndFuse(Rewrite.applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
+      simplify(Rewrite.applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
     }
   }
 }
