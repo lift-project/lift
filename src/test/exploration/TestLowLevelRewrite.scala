@@ -191,9 +191,9 @@ object TestLowLevelRewrite {
     Executor.init()
 
     // Prepare input and gold
-    val mSize = 256
-    val kSize = 256
-    val nSize = 256
+    val mSize = 32
+    val kSize = 32
+    val nSize = 32
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
@@ -255,6 +255,12 @@ object TestLowLevelRewrite {
 
       // Step whatever: run everything
       var counter = 0
+      var passed = 0
+      var skipped = 0
+      var failed = 0
+      var crashed = 0
+      var best_time = Double.PositiveInfinity
+      var all_times: List[Double] = List.empty
       all_substitution_tables.foreach(st => {
         var tuned_expr = expr
 
@@ -280,11 +286,39 @@ object TestLowLevelRewrite {
         })
 
         counter = counter + 1
-        println(s"$counter / ${all_substitution_tables.size}")
 
-        val (localRange, globalRange) = InferNDRange(tuned_expr, values:_*)
-        executor(tuned_expr, globalRange, localRange, values:_*)
+        val (test, time) = executor(tuned_expr, values:_*)
+
+        import ExecutionHarness.Status._
+        test match {
+          case Success =>
+            passed = passed + 1
+            all_times = time :: all_times
+            if (time < best_time) {
+              best_time = time
+              println(s"New best time: ${best_time}")
+            }
+
+          case Skipped =>
+            skipped = skipped + 1
+
+          case ValidationError =>
+            println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+            println(tuned_expr)
+            failed = failed + 1
+
+          case _ =>
+            println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+            println(tuned_expr)
+            crashed = crashed + 1
+        }
+
+        println(s"$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $failed failed, $crashed crashed)")
       })
+
+      println("All times:")
+      println(all_times.mkString(", "))
+      println(s"best time: ${best_time}")
     }
 
 
@@ -319,9 +353,9 @@ object TestLowLevelRewrite {
     /*val N = Var("N")
     val M = Var("M")
     val K = Var("K")*/
-    val N = 256
-    val M = 256
-    val K = 256
+    val N = 32
+    val M = 32
+    val K = 32
 
     val f0 =
       fun(
@@ -411,42 +445,60 @@ object TestLowLevelRewrite {
     Lower.lowerNoAddressSpaces(f0)
   }
 
+  object ExecutionHarness {
+    object Status extends Enumeration {
+      type Status = Value
+      val Success, Skipped, ValidationError, ArithmeticsError, ExecutorError, UnknwownError = Value
+    }
+  }
+
   /** Quick execution harness to restart the executor on failure. */
   class ExecutionHarness(gold: Array[Float]) {
 
-    // Point of failure enum to trace crash
-    object PoF extends Enumeration {
-      type PoF = Value
-      val ValidationError, ArithmeticsError, ExecutorError, UnknwownError = Value
-    }
-    import PoF._
+    import ExecutionHarness.Status._
 
     // best execution time so far
     var best_time = scala.Float.PositiveInfinity
 
+    var time: List[Double] = List.empty
+
     // Function called on successful execution and cross validation
-    def success(time: Double): Boolean = {
-      println("Passed")
-      true
+    def success(time: Double): (Status, Double) = {
+      (Success, time)
     }
 
     // Error callback
-    def failure(reason: PoF): Boolean = {
-      println("Failed")
-      false
-    }
+    def failure(reason: Status): (Status, Double) = (reason, 0.0)
 
     // run the given lambda with the given dimensions and parameters
-    def apply(expr: Lambda, global: NDRange, local: NDRange, values: Any*): Boolean = {
+    def apply(expr: Lambda, values: Any*): (Status, Double) = {
       try {
+        val (local, global) = InferNDRange(expr, values:_*)
+
+        if (local.map(_.eval).reduce(Math.max) < 4 ||
+            local.map(_.eval).product < 16)
+          return failure(Skipped)
+        if (global.map(_.eval).reduce(Math.max) < 4)
+          return failure(Skipped)
+
         // execution
         val (output: Array[Float], time) =
           Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ) (expr, values: _*)
 
         // cross validation
-        if (output.length != gold.length) failure(ValidationError)
-        else if ((output zip gold).forall(x => (x._1 - x._2).abs < 0.001f)) success(time)
-        else failure(ValidationError)
+        if (output.length != gold.length)
+          failure(ValidationError)
+        else {
+          val mismatch = (output zip gold).collect{
+            case x if Math.abs(x._1 - x._2) > 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)) => x }.toList
+          if (mismatch.isEmpty) success(time)
+          else {
+            println("Error: " + mismatch.size + " / " + gold.size + " mismatch")
+            println("Local size: " + local.mkString(", "))
+            println("Global size: " + global.mkString(", "))
+            failure(ValidationError)
+          }
+        }
       } catch {
         case ea: Executor.ExecutorFailureException =>
           ea.consume()
