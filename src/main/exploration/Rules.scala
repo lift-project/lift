@@ -95,10 +95,10 @@ object Rules {
   })
 
   val transposeTransposeId = Rule("Transpose() o Transpose() => id", {
-    case FunCall(Transpose(), FunCall(Transpose(), arg)) => arg
-    case FunCall(TransposeW(), FunCall(Transpose(), arg)) => arg
-    case FunCall(Transpose(), FunCall(TransposeW(), arg)) => arg
-    case FunCall(TransposeW(), FunCall(TransposeW(), arg)) => arg
+    case FunCall(t1, FunCall(t2, arg))
+      if isTranspose(t1) && isTranspose(t2)
+    =>
+      arg
   })
 
   val joinSplitId = Rule("Join() o Split(_) => id", {
@@ -529,50 +529,63 @@ object Rules {
         Map(Lambda(Array(newLambdaParam), newCall)) $ Zip(newZipArgs:_*)
     })
 
+  def isTranspose(funDecl: FunDecl) =
+    funDecl.isInstanceOf[Transpose] || funDecl.isInstanceOf[TransposeW]
+
   val mapSplitTranspose = Rule("Map(Split(n)) o Transpose()" +
                                "Transpose() o Map(Transpose()) o Split(n)", {
-    case FunCall(Map(Lambda(param, FunCall(Split(n), a))), FunCall(Transpose(), arg))
-      if param.head eq a
+    case FunCall(Map(Lambda(param, FunCall(Split(n), a))), FunCall(t, arg))
+      if (param.head eq a) && isTranspose(t)
     =>
       Transpose() o Map(Transpose()) o Split(n) $ arg
   })
 
   val mapTransposeSplit = Rule("Map(Transpose()) o Split(n)" +
     "Transpose() o Map(Split(n)) o Transpose()", {
-    case FunCall(Map(Lambda(param, FunCall(Transpose(), a))), FunCall(Split(n), arg))
-      if param.head eq a
+    case FunCall(Map(Lambda(param, FunCall(t, a))), FunCall(Split(n), arg))
+      if (param.head eq a) && isTranspose(t)
     =>
       Transpose() o Map(Split(n)) o Transpose() $ arg
   })
 
   val transposeMapSplit = Rule("Transpose() o Map(Split(n))" +
     "Map(Transpose()) o Split(n) o Transpose()", {
-    case FunCall(Transpose(), FunCall(Map(Lambda(param, FunCall(Split(n), a))), arg))
-      if param.head eq a
+    case FunCall(t, FunCall(Map(Lambda(param, FunCall(Split(n), a))), arg))
+      if (param.head eq a) && isTranspose(t)
     =>
       Map(Transpose()) o Split(n) o Transpose() $ arg
   })
 
   val splitTranspose = Rule("Split(n) o Transpose()" +
         "Map(Transpose()) o Transpose() o Map(Split(n))", {
-        case FunCall(Split(n), FunCall(Transpose(), arg)) =>
+        case FunCall(Split(n), FunCall(t, arg))
+          if isTranspose(t)
+        =>
           Map(Transpose()) o Transpose() o Map(Split(n)) $ arg
   })
 
   val mapTransposeTransposeMapTranspose =
     Rule("Map(Transpose()) o Transpose() o Map(Transpose())) => " +
          "Transpose() o Map(Transpose()) o Transpose()", {
-      case FunCall(Map(Lambda(param1, FunCall(Transpose(), a1))),
-            FunCall(Transpose(),
-            FunCall(Map(Lambda(param2, FunCall(Transpose(), a2))), arg)))
-        if (param1.head eq a1) && (param2.head eq a2)
+      case FunCall(Map(Lambda(param1, FunCall(t1, a1))),
+            FunCall(t2,
+            FunCall(Map(Lambda(param2, FunCall(t3, a2))), arg)))
+        if (param1.head eq a1)
+          && (param2.head eq a2)
+          && isTranspose(t1)
+          && isTranspose(t2)
+          && isTranspose(t3)
       =>
         Transpose() o Map(Transpose()) o Transpose() $ arg
 
-      case FunCall(Map(Lambda(param1, FunCall(Transpose(), a1))),
-          FunCall(TransposeW(),
-          FunCall(Map(Lambda(param2, FunCall(Transpose(), a2))), arg)))
-        if (param1.head eq a1) && (param2.head eq a2)
+      case FunCall(Map(Lambda(param1, FunCall(t1, a1))),
+          FunCall(t2,
+          FunCall(Map(Lambda(param2, FunCall(t3, a2))), arg)))
+        if (param1.head eq a1)
+          && (param2.head eq a2)
+          && isTranspose(t1)
+          && isTranspose(t2)
+          && isTranspose(t3)
       =>
         Transpose() o Map(Transpose()) o Transpose() $ arg
     })
@@ -663,6 +676,27 @@ object Rules {
       case _ => false
     }
   }
+
+  val transposeMapTransposeReorder =
+    Rule("Map(Gather(f) o Transpose()) o Transpose() => " +
+         " Map(Transpose()) o Transpose() o Map(Map(Transpose()))", {
+      case FunCall(Map(Lambda(p,
+              FunCall(f:Gather, FunCall(t1, a))
+           )), FunCall(t2, arg))
+        if (p.head eq a)
+          && isTranspose(t1)
+          && isTranspose(t2)
+      =>
+        Map(Transpose()) o Transpose() o Map(Map(f)) $ arg
+    })
+
+  val reorderTranspose =
+    Rule("Transpose() o Scatter(f) => Map(Scatter(f)) o Transpose()", {
+      case FunCall(t, FunCall(f:Scatter, arg))
+        if isTranspose(t)
+      =>
+        Map(f) o Transpose() $ arg
+    })
 
   def containsParam(expr: Expr, param: Param): Boolean =
     expr.contains({
