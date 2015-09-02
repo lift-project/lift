@@ -387,30 +387,10 @@ object Rules {
     })
   }
 
-  // TODO: restrict to Map(Map(f)) and create a special case for Map(Reduce)?
-  val transposeBothSides = Rule("Map(fun(a => ... $ a)) $ A => " +
-    "Transpose() o Map(fun(a =>... $ a)) o Transpose() $ A  ", {
-    case outerCall@FunCall(Map(f@Lambda(lambdaArg, innerCall@FunCall(_,_))), arg)
-      if (lambdaArg.head eq Utils.getFinalArg(innerCall))
-        && (outerCall.t match {
-        case ArrayType(ArrayType(_, _), _) => true
-        case _ => false
-      })
-        && (arg.t match {
-        case ArrayType(ArrayType(_, _), _) => true
-        case _ => false
-      })
-        && !innerCall.contains({
-        case splitCall@FunCall(Split(_), _)
-          if NumberExpression.byDepth(outerCall)(splitCall) < 2
-        =>
-        case c @ FunCall(Join(), _)
-          if (c.args.head.t match {
-          case ArrayType(ArrayType(_, lenInner), lenOuter) =>
-            lenInner != Cst(1) && lenOuter != Cst(1)
-          case _ => true
-        }) =>
-      })
+  val transposeBothSides = Rule("Map(fun(a => Map(f) $ a)) $ A => " +
+    "Transpose() o Map(fun(a =>Map(f) $ a)) o Transpose() $ A  ", {
+    case FunCall(Map(f@Lambda(param, FunCall(Map(_), a))), arg)
+      if param.head eq a
     =>
       TransposeW() o Map(f) o Transpose() $ arg
   })

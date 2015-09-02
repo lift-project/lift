@@ -141,17 +141,17 @@ class TestRewriteMatrixMatrix {
     val f101 = Rewrite.applyRuleAtId(f100, 26, Rules.mapFusion)
     val f102 = Rewrite.applyRuleAtId(f101, 26, Rules.mapFusion)
     val f103 = Rewrite.applyRuleAtId(f102, 60, Rules.mapFission)
-    val f104 = Rewrite.applyRuleAtId(f103, 61, Rules.transposeBothSides)
+    val temp = Rewrite.applyRuleAtId(f103, 68, Rules.mapFusion)
+    val f104 = Rewrite.applyRuleAtId(temp, 61, Rules.transposeBothSides)
     val f105 = Rewrite.applyRuleAtId(f104, 63, Rules.transposeTransposeId)
     val f106 = Rewrite.applyRuleAtId(f105, 62, Rules.mapFusion)
-    val f107 = Rewrite.applyRuleAtId(f106, 66, Rules.reorderTranspose)
-    val f108 = Rewrite.applyRuleAtId(f107, 65, Rules.mapFusion)
+    val f107 = Rewrite.applyRuleAtId(f106, 65, Rules.reorderTranspose)
+    val f108 = Rewrite.applyRuleAtId(f107, 64, Rules.mapFusion)
     val f109 = Rewrite.applyRuleAtId(f108, 68, Rules.gatherScatterId)
-    val f110 = Rewrite.applyRuleAtId(f109, 65, Rules.removeEmptyMap)
 
     // Scatter-gather eliminated
 
-    val f111 = Rewrite.applyRuleAtId(f110, 64, Rules.mapSplitTranspose)
+    val f111 = Rewrite.applyRuleAtId(f109, 64, Rules.mapSplitTranspose)
     val f112 = Rewrite.applyRuleAtId(f111, 26, Rules.mapFusion)
     val f113 = Rewrite.applyRuleAtId(f112, 33, MacroRules.mapFissionAtPosition(1))
     val f114 = Rewrite.applyRuleAtId(f113, 34, Rules.mapSplitTranspose)
