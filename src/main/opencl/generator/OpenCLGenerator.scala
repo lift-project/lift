@@ -17,6 +17,10 @@ class NotI(msg: String) extends Exception(msg)
 // hacky class to store function name
 class OclFunction(name: String, param: Int) extends ArithExprFunction(name) {
   lazy val toOCLString = s"$name($param)"
+
+  override lazy val digest: Int = HashSeed ^ range.digest() ^ name.hashCode ^ param
+
+  override val HashSeed = 0x31111111
 }
 
 class get_global_id(param: Int) extends OclFunction("get_global_id", param)
