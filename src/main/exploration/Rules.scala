@@ -296,20 +296,21 @@ object Rules {
     =>
       Map(fun1) o Map(Lambda(p1, fun2(p2))) $ arg
 
-    case FunCall(Map(Lambda(p1, FunCall(Reduce(fun1), init, FunCall(fun2, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
       if p2.contains({ case a => a eq p1.head })
     =>
-      Map(Reduce(fun1, init)) o Map(Lambda(p1, fun2(p2))) $ arg
+      Map(Reduce(r.f, init)) o Map(Lambda(p1, fun2(p2))) $ arg
 
-    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(Reduce(fun2), init, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(r: AbstractPartRed, init, p2)))), arg)
       if p2.contains({ case a => a eq p1.head })
     =>
-      Map(fun1) o Map(Lambda(p1, Reduce(fun2, init)(p2))) $ arg
+      Map(fun1) o Map(Lambda(p1, Reduce(r.f, init)(p2))) $ arg
 
-    case FunCall(Map(Lambda(p1, FunCall(Reduce(fun1), init1, FunCall(Reduce(fun2), init2, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(r1: AbstractPartRed, init1,
+                FunCall(r2: AbstractPartRed, init2, p2)))), arg)
       if p2.contains({ case a => a eq p1.head })
     =>
-      Map(Reduce(fun1, init1)) o Map(Lambda(p1, Reduce(fun2, init2)(p2))) $ arg
+      Map(Reduce(r1.f, init1)) o Map(Lambda(p1, Reduce(r2.f, init2)(p2))) $ arg
   })
 
   val mapMapInterchange = Rule("Map(fun(a => Map(fun( b => ... ) $ B) $ A => " +
@@ -550,17 +551,6 @@ object Rules {
       case FunCall(Map(Lambda(param1, FunCall(t1, a1))),
             FunCall(t2,
             FunCall(Map(Lambda(param2, FunCall(t3, a2))), arg)))
-        if (param1.head eq a1)
-          && (param2.head eq a2)
-          && isTranspose(t1)
-          && isTranspose(t2)
-          && isTranspose(t3)
-      =>
-        Transpose() o Map(Transpose()) o Transpose() $ arg
-
-      case FunCall(Map(Lambda(param1, FunCall(t1, a1))),
-          FunCall(t2,
-          FunCall(Map(Lambda(param2, FunCall(t3, a2))), arg)))
         if (param1.head eq a1)
           && (param2.head eq a2)
           && isTranspose(t1)

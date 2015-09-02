@@ -66,12 +66,12 @@ object SimplifyAndFuse {
   def applyOneEnablingRule(lambda: Lambda): Seq[(Lambda, Int)] = {
     val enablingRules =
       Seq(
-        Rules.mapTransposeTransposeMapTranspose,
-        MacroRules.transposeMapMapTranspose,
+        MacroRules.mapTransposeTransposeMapTranspose,
+        MacroRules.transposeMapMapFission,
         MacroRules.mapSplitTranspose,
         MacroRules.transposeMapSplit,
-        Rules.splitTranspose/*,
-        MacroRules.mapTransposeSplit*/ // apply if nothing else works? infinite loop
+        Rules.splitTranspose
+        //,MacroRules.mapTransposeSplit // this and mapSplitTranspose are in each others RHS
       )
 
     val tryNow = Rewrite.rewrite(lambda, enablingRules, 1)

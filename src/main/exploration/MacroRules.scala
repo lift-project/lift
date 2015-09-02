@@ -5,94 +5,13 @@ import ir._
 import ir.ast._
 
 object MacroRules {
-  // transpose both sides + id
-  val transposeMapMapTranspose =
-    Rule("Transpose() o Map(Map(Transpose())) => " +
-      "Map(Map(Transpose())) o Transpose()", {
-      case FunCall(Transpose(),
-            FunCall(Map(Lambda(p1,
-              FunCall(Map(Lambda(p2,
-                FunCall(Transpose(), a2))
-              ), a1))
-            ), arg))
-        if (p1.head eq a1) && (p2.head eq a2)
-      =>
-        Map(Map(Transpose())) o Transpose() $ arg
-    })
 
-  val transposeMapMapTransposeFission =
-    Rule("", {
-      case funCall@FunCall(Transpose(),
-              FunCall(Map(Lambda(p1,
-                innerMapCall@FunCall(Map(Lambda(p2,
-                  FunCall(Transpose(), a2)
-                )), a1)
-              )), _))
-      =>
-        var fissioned: Expr = funCall
-
-        if (!(a2 eq p2.head))
-          fissioned = Expr.replace(fissioned, innerMapCall, Rules.mapFission.rewrite(innerMapCall))
-
-        val map = Utils.getExprForPatternInCallChain(fissioned, { case FunCall(Map(_), _) => }).get
-
-        if (!(p1.head eq a1) || !(a2 eq p2.head))
-          fissioned = Expr.replace(fissioned, map, Rules.mapFission.rewrite(map))
-
-        transposeMapMapTranspose.rewrite(fissioned)
-    })
-
-  val transposeTransposeId =
-    Rule("", {
-      case funCall@FunCall(Map(Lambda(p, body)), FunCall(Map(Lambda(_, FunCall(Transpose(), _))), _))
-        if Utils.getIndexForPatternInCallChain(body,
-          { case FunCall(Transpose(), arg) if arg eq p.head => }) != -1
-      =>
-        val fused = Rules.mapFusion.rewrite(funCall)
-        val fusedBody = getMapBody(fused)
-
-        val applyHere = Utils.getExprForPatternInCallChain(fusedBody,
-          { case e if Rules.transposeTransposeId.isDefinedAt(e) =>}).get
-
-        Expr.replace(fused, applyHere, Rules.transposeTransposeId.rewrite(applyHere))
-    })
-
-  val transposeMapSplit =
-    Rule("", {
-      case funCall@FunCall(Transpose(), FunCall(Map(Lambda(p, FunCall(Split(_), a))), _))
-        =>
-
-        var fissioned: Expr = funCall
-
-        if (!(p.head eq a))
-          fissioned = Rewrite.applyRuleAtId(fissioned, 1, Rules.mapFission)
-
-        Rules.transposeMapSplit.rewrite(fissioned)
-    })
-
-  val mapSplitTranspose =
-    Rule("", {
-      case funCall@FunCall(Map(Lambda(param, body)), FunCall(Transpose(), _))
-        if Utils.getIndexForPatternInCallChain(body,
-          { case FunCall(Split(_), arg) if arg eq param.head => }) != -1
-      =>
-        val index = Utils.getIndexForPatternInCallChain(body,
-                { case FunCall(Split(_), arg) if arg eq param.head => })
-
-        var fissioned: Expr = funCall
-
-        if (index > 0)
-          fissioned = mapFissionAtPosition(index-1, funCall)
-
-        val applyHere = Utils.getExprForPatternInCallChain(fissioned,
-            { case e if Rules.mapSplitTranspose.isDefinedAt(e) => }).get
-
-        Expr.replace(fissioned, applyHere, Rules.mapSplitTranspose.rewrite(applyHere))
-    })
-
-  // TODO: guard
   val mapFissionAtPosition: Int => Rule = position => Rule("", {
-    case funCall @ FunCall(Map(Lambda(_, FunCall(_, _*))), _) => mapFissionAtPosition(position, funCall)
+    case funCall @ FunCall(Map(Lambda(_, body:FunCall)), _)
+      if Utils.getIndexForPatternInCallChain(body,
+      { case e if e eq Utils.getFinalArg(body) => }) - 1 > position
+    =>
+      mapFissionAtPosition(position, funCall)
   })
 
   def mapFissionAtPosition(position: Int, expr: Expr): Expr = {
@@ -125,6 +44,128 @@ object MacroRules {
 
     fused
   }
+
+  // transpose both sides + id
+  val transposeMapMap =
+    Rule("Transpose() o Map(Map(_)) => " +
+      "Map(Map(_)) o Transpose()", {
+      case FunCall(t,
+            FunCall(Map(Lambda(p1,
+              FunCall(Map(Lambda(p2,
+                FunCall(f, a2))
+              ), a1))
+            ), arg))
+        if (p1.head eq a1)
+          && (p2.head eq a2)
+          && Rules.isTranspose(t)
+      =>
+        Map(Map(f)) o Transpose() $ arg
+    })
+
+  val transposeMapMapFission =
+    Rule("", {
+      case funCall@FunCall(t,
+              FunCall(Map(Lambda(p1,
+                innerMapCall@FunCall(Map(Lambda(p2,
+                  FunCall(f, a2)
+                )), a1)
+              )), _))
+        if Utils.getIndexForPatternInCallChain(a1, { case e if e eq p1.head => } ) != -1
+        && Utils.getIndexForPatternInCallChain(a2, { case e if e eq p2.head => } ) != -1
+        && Rules.isTranspose(t)
+      =>
+        var fissioned: Expr = funCall
+
+        if (!(a2 eq p2.head))
+          fissioned = Expr.replace(fissioned, innerMapCall, Rules.mapFission.rewrite(innerMapCall))
+
+        val map = Utils.getExprForPatternInCallChain(fissioned, { case FunCall(Map(_), _) => }).get
+
+        if (!(p1.head eq a1) || !(a2 eq p2.head))
+          fissioned = Expr.replace(fissioned, map, Rules.mapFission.rewrite(map))
+
+        transposeMapMap.rewrite(fissioned)
+    })
+
+  val mapTransposeTransposeMapTranspose =
+    Rule("Map(... o Transpose()) o Transpose() o Map(Transpose() o ...)) => " +
+         "Map(...) o Transpose() o Map(Transpose()) o Transpose() o Map(...)", {
+      case funCall@FunCall(Map(Lambda(param1, firstBody)),
+      FunCall(t2,
+      secondMap@FunCall(Map(Lambda(param2, FunCall(t3, a2))), _)))
+        if Utils.getIndexForPatternInCallChain(a2, { case e if e eq param2.head => }) != -1
+          && Utils.getIndexForPatternInCallChain(firstBody,
+              { case FunCall(t, a) if Rules.isTranspose(t) && (a eq param1.head) => }) != -1
+          && Rules.isTranspose(t2)
+          && Rules.isTranspose(t3)
+      =>
+
+        var fissioned: Expr = funCall
+
+        val index = Utils.getIndexForPatternInCallChain(firstBody,
+          { case FunCall(Transpose(), arg) if arg eq param1.head => })
+
+        if (index > 0)
+          fissioned = mapFissionAtPosition(index - 1).rewrite(funCall)
+
+        if (!(a2 eq param2.head))
+          fissioned = Expr.replace(fissioned, secondMap, Rules.mapFission.rewrite(secondMap))
+
+        val applyHere = Utils.getExprForPatternInCallChain(fissioned,
+          { case e if Rules.mapTransposeTransposeMapTranspose.isDefinedAt(e) => }).get
+
+        Expr.replace(fissioned, applyHere, Rules.mapTransposeTransposeMapTranspose.rewrite(applyHere))
+    })
+
+  val transposeTransposeId =
+    Rule("", {
+      case funCall@FunCall(Map(Lambda(p, body)), FunCall(Map(Lambda(_, FunCall(Transpose(), _))), _))
+        if Utils.getIndexForPatternInCallChain(body,
+          { case FunCall(Transpose(), arg) if arg eq p.head => }) != -1
+      =>
+        val fused = Rules.mapFusion.rewrite(funCall)
+        val fusedBody = getMapBody(fused)
+
+        val applyHere = Utils.getExprForPatternInCallChain(fusedBody,
+          { case e if Rules.transposeTransposeId.isDefinedAt(e) =>}).get
+
+        Expr.replace(fused, applyHere, Rules.transposeTransposeId.rewrite(applyHere))
+    })
+
+  val transposeMapSplit =
+    Rule("", {
+      case funCall@FunCall(t, FunCall(Map(Lambda(p, FunCall(Split(_), a))), _))
+        if Rules.isTranspose(t)
+      =>
+
+        var fissioned: Expr = funCall
+
+        if (!(p.head eq a))
+          fissioned = Rewrite.applyRuleAtId(fissioned, 1, Rules.mapFission)
+
+        Rules.transposeMapSplit.rewrite(fissioned)
+    })
+
+  val mapSplitTranspose =
+    Rule("", {
+      case funCall@FunCall(Map(Lambda(param, body)), FunCall(t, _))
+        if Utils.getIndexForPatternInCallChain(body,
+            { case FunCall(Split(_), arg) if arg eq param.head => }) != -1
+          && Rules.isTranspose(t)
+      =>
+        val index = Utils.getIndexForPatternInCallChain(body,
+                { case FunCall(Split(_), arg) if arg eq param.head => })
+
+        var fissioned: Expr = funCall
+
+        if (index > 0)
+          fissioned = mapFissionAtPosition(index-1, funCall)
+
+        val applyHere = Utils.getExprForPatternInCallChain(fissioned,
+            { case e if Rules.mapSplitTranspose.isDefinedAt(e) => }).get
+
+        Expr.replace(fissioned, applyHere, Rules.mapSplitTranspose.rewrite(applyHere))
+    })
 
   val tileMapMap: (Int, Int) => Rule = (x, y) =>
     Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
