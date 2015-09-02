@@ -68,15 +68,7 @@ class TestRewriteMatrixMatrix {
     val f39 = Rewrite.applyRuleAtId(f38, 104, MacroRules.moveReduceOutOneLevel)
     val f42 = Rewrite.applyRuleAtId(f39, 97, MacroRules.moveReduceOutOneLevel)
 
-    // Output's good, nested reduces use same memory, performance drops by a third for NVIDIA and
-    // half for AMD if not.
-    // Can be brought into a form, where a large chunk (splits, joins, transposes and reorders)
-    // can be commented out and runs fine.
-
-    val numExpressionsIntermediate = NumberExpression.breadthFirst(f42).values.max
-
-    assertEquals(138, numExpressionsIntermediate)
-
+    // Output's good
 
     val f43 = Rewrite.applyRuleAtId(f42, 18, Rules.splitTranspose)
     val f44 = Rewrite.applyRuleAtId(f43, 20, Rules.splitJoin(tileSizeK))
@@ -87,14 +79,97 @@ class TestRewriteMatrixMatrix {
     val f49 = Rewrite.applyRuleAtId(f48, 31, Rules.splitJoinId)
     val f50 = Rewrite.applyRuleAtId(f49, 32, Rules.splitJoinId)
 
-    println(NumberPrinter(f50))
+    // One split join pair eliminated
 
-    // TODO: Find missing derivation
-    // Continuing from where the splits, joins, transposes and reorders have been eliminated.
-    // Obviously possible, don't yet know how to.
-    val h0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K),(p1418385211, p1282811396) => FunCall(Join(), FunCall(Map(fun((p789219251) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p832279283) => FunCall(TransposeW(), FunCall(Map(fun((p265119009) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p265119009))), FunCall(Join(), FunCall(Map(fun((p2050404090) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p388043093) => FunCall(TransposeW(), p388043093))), p2050404090))))), FunCall(Map(fun((p188576144) => FunCall(Map(fun((p1608230649) => FunCall(Map(fun((p282432134) => FunCall(TransposeW(), p282432134))), FunCall(TransposeW(), p1608230649)))), FunCall(TransposeW(), p188576144)))), FunCall(TransposeW(), FunCall(Reduce(fun((p266437232, p1873859565) => FunCall(Map(fun((p1843289228) => FunCall(Map(fun((p1361289747) => FunCall(Map(fun((p1381128261) => FunCall(Join(), FunCall(Transpose(), p1381128261)))), FunCall(Transpose(), FunCall(Reduce(fun((p999609945, p615634843) => FunCall(Map(fun((p1758386724) => FunCall(Map(fun((p673068808) => FunCall(add, FunCall(Get(0), p673068808), FunCall(Get(1), p673068808)))), FunCall(Zip(2), FunCall(Get(0), p1758386724), FunCall(Get(1), p1758386724))))), FunCall(Zip(2), p999609945, p615634843)))), FunCall(Get(0), p1361289747), FunCall(Transpose(), FunCall(Map(fun((p900008524) => FunCall(Transpose(), p900008524))), FunCall(Get(1), p1361289747)))))))), FunCall(Zip(2), FunCall(Get(0), p1843289228), FunCall(Get(1), p1843289228))))), FunCall(Zip(2), p266437232, p1873859565)))), FunCall(Map(fun((p520232556) => FunCall(Map(fun((p17037394) => FunCall(Map(fun((p1484531981) => FunCall(Map(fun((p1159114532) => FunCall(id, p1159114532))), p1484531981))), p17037394))), p520232556))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Map(fun((p1256728724) => FunCall(Map(fun((p1412925683) => FunCall(Map(fun((p1832580921) => FunCall(Map(fun((p497359413) => FunCall(TransposeW(), p497359413))), FunCall(TransposeW(), p1832580921)))), FunCall(Map(fun((p369241501) => FunCall(Map(fun((p2124046270) => FunCall(Map(fun((p1151593579) => FunCall(Map(fun((p1902260856) => FunCall(mult, p1151593579, p1902260856))), FunCall(Get(1), p2124046270)))), FunCall(Get(0), p2124046270)))), FunCall(Zip(2), FunCall(Transpose(), p1412925683), FunCall(Transpose(), p369241501))))), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p1256728724)))))))), FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p1256728724)))))), FunCall(Zip(2), FunCall(Split(tileSizeK), FunCall(Transpose(), p789219251)), FunCall(Split(tileSizeK), FunCall(Transpose(), p832279283))))))))))))), FunCall(Split(tileSizeMN), FunCall(Transpose(), p1282811396))))))), FunCall(Split(tileSizeMN), p1418385211))))
+    val f51 = Rewrite.applyRuleAtId(f50, 87, Rules.transposeMapSplit)
+    val f52 = Rewrite.applyRuleAtId(f51, 84, Rules.mapFission)
+    val f53 = Rewrite.applyRuleAtId(f52, 84, Rules.transposeBothSides)
+    val f54 = Rewrite.applyRuleAtId(f53, 83, Rules.transposeTransposeId)
+    val f55 = Rewrite.applyRuleAtId(f54, 85, Rules.mapFission)
+    val f56 = Rewrite.applyRuleAtId(f55, 84, Rules.transposeMapSplit)
+    val f57 = Rewrite.applyRuleAtId(f56, 83, Rules.mapFusion)
+    val f58 = Rewrite.applyRuleAtId(f57, 75, Rules.mapFission)
+    val f59 = Rewrite.applyRuleAtId(f58, 75, Rules.transposeBothSides)
+    val f60 = Rewrite.applyRuleAtId(f59, 74, Rules.transposeTransposeId)
+    val f61 = Rewrite.applyRuleAtId(f60, 76, Rules.mapFission)
+    val f62 = Rewrite.applyRuleAtId(f61, 75, Rules.transposeMapSplit)
+    val f63 = Rewrite.applyRuleAtId(f62, 74, Rules.mapFusion)
+    val f64 = Rewrite.applyRuleAtId(f63, 17, Rules.mapFission)
+    val f65 = Rewrite.applyRuleAtId(f64, 17, Rules.transposeBothSides)
+    val f66 = Rewrite.applyRuleAtId(f65, 16, Rules.transposeTransposeId)
+    val f67 = Rewrite.applyRuleAtId(f66, 18, Rules.mapFission)
+    val f68 = Rewrite.applyRuleAtId(f67, 17, Rules.transposeMapSplit)
+    val f69 = Rewrite.applyRuleAtId(f68, 16, Rules.mapFusion)
 
-    val h9 = SimplifyAndFuse(h0)
+    // Pulled Split(tileSizeK) out to the correct depth
+
+    val f70 = Rewrite.applyRuleAtId(f69, 19, Rules.mapFusion)
+    val f71 = Rewrite.applyRuleAtId(f70, 77, Rules.transposeMapTransposeReorder)
+    val f72 = Rewrite.applyRuleAtId(f71, 75, Rules.splitTranspose)
+    val f73 = Rewrite.applyRuleAtId(f72, 74, Rules.mapFusion)
+    val f74 = Rewrite.applyRuleAtId(f73, 91, Rules.transposeTransposeId)
+    val f75 = Rewrite.applyRuleAtId(f74, 76, Rules.mapFusion)
+    val f76 = Rewrite.applyRuleAtId(f75, 84, Rules.splitTranspose)
+    val f77 = Rewrite.applyRuleAtId(f76, 76, MacroRules.mapFissionAtPosition(1))
+    val f78 = Rewrite.applyRuleAtId(f77, 77, Rules.transposeBothSides)
+    val f79 = Rewrite.applyRuleAtId(f78, 79, Rules.transposeTransposeId)
+
+    val f80 = Rewrite.applyRuleAtId(f79, 74, Rules.mapFission)
+    val f81 = Rewrite.applyRuleAtId(f80, 75, Rules.transposeBothSides)
+    val f82 = Rewrite.applyRuleAtId(f81, 77, Rules.transposeTransposeId)
+    val f83 = Rewrite.applyRuleAtId(f82, 76, Rules.mapFusion)
+    val f84 = Rewrite.applyRuleAtId(f83, 89, Rules.mapFusion)
+    val f85 = Rewrite.applyRuleAtId(f84, 92, Rules.transposeTransposeId)
+    val f86 = Rewrite.applyRuleAtId(f85, 89, Rules.removeEmptyMap)
+    val f87 = Rewrite.applyRuleAtId(f86, 74, Rules.mapTransposeTransposeMapTranspose)
+    val f88 = Rewrite.applyRuleAtId(f87, 76, Rules.transposeTransposeId)
+    val f89 = Rewrite.applyRuleAtId(f88, 73, Rules.transposeTransposeId)
+    val f90 = Rewrite.applyRuleAtId(f89, 74, Rules.mapFusion)
+    val f91 = Rewrite.applyRuleAtId(f90, 73, Rules.mapFusion)
+    val f92 = Rewrite.applyRuleAtId(f91, 19, Rules.transposeBothSides)
+    val f93 = Rewrite.applyRuleAtId(f92, 21, Rules.transposeTransposeId)
+    val f94 = Rewrite.applyRuleAtId(f93, 18, Rules.transposeTransposeId)
+    val f95 = Rewrite.applyRuleAtId(f94, 18, Rules.splitJoin(tileSizeK))
+    val f96 = Rewrite.applyRuleAtId(f95, 17, Rules.splitJoinId)
+    val f97 = Rewrite.applyRuleAtId(f96, 18, Rules.splitJoinId)
+
+    // Another split-join pair eliminated
+
+    val f98 = Rewrite.applyRuleAtId(f97, 17, Rules.mapFusion)
+    val f99 = Rewrite.applyRuleAtId(f98, 25, Rules.transposeBothSides)
+    val f100 = Rewrite.applyRuleAtId(f99, 27, Rules.transposeTransposeId)
+    val f101 = Rewrite.applyRuleAtId(f100, 26, Rules.mapFusion)
+    val f102 = Rewrite.applyRuleAtId(f101, 26, Rules.mapFusion)
+    val f103 = Rewrite.applyRuleAtId(f102, 60, Rules.mapFission)
+    val f104 = Rewrite.applyRuleAtId(f103, 61, Rules.transposeBothSides)
+    val f105 = Rewrite.applyRuleAtId(f104, 63, Rules.transposeTransposeId)
+    val f106 = Rewrite.applyRuleAtId(f105, 62, Rules.mapFusion)
+    val f107 = Rewrite.applyRuleAtId(f106, 66, Rules.reorderTranspose)
+    val f108 = Rewrite.applyRuleAtId(f107, 65, Rules.mapFusion)
+    val f109 = Rewrite.applyRuleAtId(f108, 68, Rules.gatherScatterId)
+    val f110 = Rewrite.applyRuleAtId(f109, 65, Rules.removeEmptyMap)
+
+    // Scatter-gather eliminated
+
+    val f111 = Rewrite.applyRuleAtId(f110, 64, Rules.mapSplitTranspose)
+    val f112 = Rewrite.applyRuleAtId(f111, 26, Rules.mapFusion)
+    val f113 = Rewrite.applyRuleAtId(f112, 33, MacroRules.mapFissionAtPosition(1))
+    val f114 = Rewrite.applyRuleAtId(f113, 34, Rules.mapSplitTranspose)
+    val f115 = Rewrite.applyRuleAtId(f114, 36, Rules.splitJoinId)
+
+    // Done with split-joins
+
+    val f116 = Rewrite.applyRuleAtId(f115, 16, Rules.mapFusion)
+    val f117 = Rewrite.applyRuleAtId(f116, 25, Rules.transposeTransposeId)
+    val f118 = Rewrite.applyRuleAtId(f117, 24, Rules.mapFusion)
+    val f119 = Rewrite.applyRuleAtId(f118, 33, Rules.mapFission)
+    val f120 = Rewrite.applyRuleAtId(f119, 31, Rules.mapTransposeTransposeMapTranspose)
+    val f121 = Rewrite.applyRuleAtId(f120, 30, Rules.transposeTransposeId)
+    val f122 = Rewrite.applyRuleAtId(f121, 29, Rules.mapFusion)
+    val f123 = Rewrite.applyRuleAtId(f122, 67, Rules.transposeTransposeId)
+    val f124 = Rewrite.applyRuleAtId(f123, 31, Rules.transposeBothSides)
+
+    val h9 = SimplifyAndFuse(f124)
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
 
@@ -496,17 +571,6 @@ class TestRewriteMatrixMatrix {
     val f6 = Rewrite.applyRuleAtId(f5, 45, MacroRules.moveReduceOutOneLevel)
     val f8 = Rewrite.applyRuleAtId(f6, 17, MacroRules.moveReduceOutOneLevel)
 
-    // Move split from partial reduce out and eliminate transposes on the left hand side
-    val f11 = Rewrite.applyRuleAtId(f8, 50, Rules.mapSplitTranspose)
-    val f12 = Rewrite.applyRuleAtId(f11, 49, Rules.transposeTransposeId)
-
-    // TODO: macro?
-    val f13 = Rewrite.applyRuleAtId(f12, 21, Rules.mapFission)
-
-    // TODO: Swapping the following 2 gives an incorrect result...
-    val f14 = Rewrite.applyRuleAtId(f13, 21, Rules.transposeBothSides)
-    val f15 = Rewrite.applyRuleAtId(f14, 24, Rules.mapSplitTranspose)
-
     lowerAndExecute(f1)
     lowerAndExecute(f2)
     lowerAndExecute(f3)
@@ -514,11 +578,6 @@ class TestRewriteMatrixMatrix {
     lowerAndExecute(f5)
     lowerAndExecute(f6)
     lowerAndExecute(f8)
-    lowerAndExecute(f11)
-    lowerAndExecute(f12)
-    lowerAndExecute(f13)
-    lowerAndExecute(f14)
-    lowerAndExecute(f15)
   }
 
   def lowerAndExecute(lambda: Lambda): Unit = {
