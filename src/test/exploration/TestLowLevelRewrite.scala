@@ -1,7 +1,7 @@
 package exploration
 
 import apart.arithmetic.{Prod, Cst, ArithExpr, Var}
-import ir.ArrayType
+import ir.{Type, ArrayType}
 import ir.ast._
 import opencl.executor.{Executor, Execute}
 import opencl.generator.OpenCLGenerator.NDRange
@@ -204,13 +204,93 @@ object TestLowLevelRewrite {
     val expr = getHighLevelExpression()
 
     // Step 2: Find the tunable nodes in the expression
-    val tunableNodes = findTunableNodes(expr)
+    val tunableNodes = findTunableNodes(expr).reverse
+    //                                        ^--- this is necessary to traverse from right to left
 
-    // Step 3: find constraints across the nodes
-    val constraints = FindParameterConstraints(tunableNodes)
+    { // Herein starts the hack for CGO deadline:
+      // instead of using an algebraic solver to model the constraints, we tune only the Split nodes
+      // from the right to the left of the expression. We first collect all the valid substitution tables
+      // and then we merely plow through it.
+
+      // Step 3: Isolate only the splits.
+      // Note that we need a list of pairs instead of a map to keep the order
+      val splits = tunableNodes.collect { case f@FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len) }
+
+      // utility function to traverse the list of pairs and replace a Var by a Cst
+      def propagate(splits: List[(ArithExpr, ArithExpr)], m: ScalaImmMap[ArithExpr, ArithExpr]): List[(ArithExpr, ArithExpr)] = {
+        splits.map((x) => (ArithExpr.substitute(x._1, m), ArithExpr.substitute(x._2, m)))
+      }
+
+      var all_substitution_tables: List[ScalaImmMap[ArithExpr, ArithExpr]] = List.empty
+
+      // recursively build the substitution table.
+      // It takes the first node to tune and recurse with all its possible values.
+      def substitute(splits: List[(ArithExpr, ArithExpr)], substitutions: ScalaImmMap[ArithExpr, ArithExpr]): Unit = {
+
+        if (splits.nonEmpty) {
+          splits.head match {
+            // If the stride is not set and the input length is constant, compute all divisors
+            case (v: Var, Cst(len)) =>
+              (1 to len).filter {
+                len % _ == 0
+              }.foreach(x => substitute(propagate(splits.tail, ScalaImmMap(v -> x)), substitutions + (v -> x)))
+
+            // If the input AND the stride are already set, make sure they are multiple
+            case (Cst(chunk), Cst(len)) if len % chunk == 0 =>
+              substitute(splits.tail, substitutions)
+
+            // Otherwise we cannot set the parameter or the current combination is invalid
+            case (x, y) => println(s"failed: $x, $y")
+          }
+        }
+        else // if we propagated all the nodes, we have a (hopefully valid) substitution table
+          all_substitution_tables = substitutions :: all_substitution_tables
+      }
+
+      // compute all the valid substitution tables
+      substitute(splits, ScalaImmMap.empty)
+
+      println(s"Found ${all_substitution_tables.size} valid parameter sets")
+      if (false) all_substitution_tables.foreach(st => println(st.map(x => s"${x._1} -> ${x._2}").mkString("; ")))
+
+      // Step whatever: run everything
+      var counter = 0
+      all_substitution_tables.foreach(st => {
+        var tuned_expr = expr
+
+        // Quick and dirty substitution,
+        // This relies on the reference on the nodes gathered in the original expression.
+        // As long as we substitute from right to left, we do only shallow copies of the expression tree,
+        // so it seems to work.
+        tunableNodes.foreach(node => {
+          tuned_expr = Lambda(tuned_expr.params, Expr.replace(tuned_expr.body, node, node match {
+            case f@FunCall(s: Split, x) =>
+              FunCall(Split(ArithExpr.substitute(s.chunkSize, st)), x)
+            case f@FunCall(s@Scatter(idx: ReorderWithStride), x) =>
+              FunCall(Scatter(ReorderWithStride(ArithExpr.substitute(idx.s, st))), x)
+            case f@FunCall(s@Gather(idx: ReorderWithStride), x) =>
+              FunCall(Gather(ReorderWithStride(ArithExpr.substitute(idx.s, st))), x)
+            case v: Value =>
+              Value(v.value, Type.substitute(v.t, st))
+            case _ =>
+              // If you end up here, it is most likely because of one of the following:
+              // - a Scatter/Gather with an index function other than a ReorderWithStride
+              throw new RuntimeException("Cannot substitute node")
+          }))
+        })
+
+        counter = counter + 1
+        println(s"$counter / ${all_substitution_tables.size}")
+
+        val (localRange, globalRange) = InferNDRange(tuned_expr, values:_*)
+        executor(tuned_expr, globalRange, localRange, values:_*)
+      })
+    }
+
+
     
     // Step 4: Extract all variables from the constraint system and their dependencies
-    val parameters = findTuningKnobs(constraints)
+    //val parameters = findTuningKnobs(constraints)
 
     // Step 4: explore all possible values satisfying the constraints
     //val (localRange, globalRange) = InferNDRange(expr, values:_*)
