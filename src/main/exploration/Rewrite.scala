@@ -25,12 +25,15 @@ object Rewrite {
   }
 
   def applyRuleAtId(expr: Expr, id: Int, rule: Rule, numbering: collection.Map[Expr, Int]): Expr = {
-    TypeChecker.check(expr)
-    Context.updateContext(expr)
     val toBeReplaced = getExprForId(expr, id, numbering)
-    Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
+    applyRuleAt(expr, rule, toBeReplaced)
   }
 
+  def applyRuleAt(expr: Expr, rule: Rule, toBeReplaced: Expr): Expr = {
+    TypeChecker.check(expr)
+    Context.updateContext(expr)
+    Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
+  }
 
   private[exploration] def listAllPossibleRewritesForRules(lambda: Lambda, rules: Seq[Rule]): Seq[(Rule, Int)] = {
     rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)

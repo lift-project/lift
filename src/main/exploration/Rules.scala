@@ -9,6 +9,8 @@ case class Rule(desc: String,
                 rewrite: PartialFunction[Expr, Expr]) {
 
   def isDefinedAt(expr: Expr) = rewrite.isDefinedAt(expr)
+
+  override def toString: String = desc
 }
 
 object Rules {
@@ -650,7 +652,7 @@ object Rules {
 
   val transposeMapTransposeReorder =
     Rule("Map(Gather(f) o Transpose()) o Transpose() => " +
-         " Map(Transpose()) o Transpose() o Map(Map(Transpose()))", {
+         " Map(Transpose()) o Transpose() o Map(Map(Gather(f)))", {
       case FunCall(Map(Lambda(p,
               FunCall(f:Gather, FunCall(t1, a))
            )), FunCall(t2, arg))

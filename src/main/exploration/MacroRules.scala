@@ -158,11 +158,7 @@ object MacroRules {
       case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), _)
         if lambdaParam.head eq arg
       =>
-        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 0, Rules.splitJoin(x))
-        val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 2, mapMapInterchange)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 3, Rules.splitJoin(y))
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 5, mapMapInterchange)
-        e3
+        tileMapMap(x, y, funCall)
     })
 
   val tileOutput: Int => Rule = x =>
@@ -171,11 +167,7 @@ object MacroRules {
       case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), _)
         if !(lambdaParam.head eq arg)
       =>
-        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 0, Rules.splitJoin(x))
-        val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 2, mapMapInterchange)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 3, Rules.splitJoin(x))
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 5, mapMapInterchange)
-        e3
+        tileMapMap(x, x, funCall)
     })
 
   val finishTilingInput: Int => Rule = x =>
@@ -428,7 +420,6 @@ object MacroRules {
     case call@FunCall(Map(Lambda(lambdaArg, innerCall)), _)
       if getCallForBlocking(innerCall, lambdaArg).isDefined
     =>
-
       // Split-join on outermost map
       val split = Rules.splitJoin(factor).rewrite.apply(call)
 
@@ -436,12 +427,8 @@ object MacroRules {
       val interchanged = Rewrite.depthFirstApplyRuleAtId(split, 2, mapMapInterchange)
 
       // Interchange again on every map/reduce in the innermost dimension
-
-      val map1 = Utils.getExprForPatternInCallChain(interchanged, mapPattern).get
-      val map2 = Utils.getExprForPatternInCallChain(getMapBody(map1), mapPattern).get
-      val map3 = Utils.getExprForPatternInCallChain(getMapBody(map2), mapPattern).get
-
-      applyInterchangeOnAllComponents(interchanged, map3)
+      val map = getMapAtDepth(interchanged, 2)
+      applyInterchangeOnAllComponents(interchanged, map)
   })
 
   def applyInterchangeOnAllComponents(replaceIn: Expr, interchangeHere: Expr): Expr = {
@@ -499,96 +486,65 @@ object MacroRules {
 
   val apply2DRegisterBlocking: Rule = apply2DRegisterBlocking(?, ?)
 
-  def apply2DRegisterBlocking(factorX: ArithExpr, factorY:ArithExpr): Rule = Rule("", {
-    case call@FunCall(Map(Lambda(lambdaArg, innerCall)), arg)
-      if getCallForBlocking(innerCall, lambdaArg).isDefined
+  def apply2DRegisterBlocking(factorX: ArithExpr, factorY: ArithExpr): Rule =
+    Rule("2D register blocking", {
+      case call@FunCall(Map(Lambda(lambdaArg, innerCall)), arg)
+        if getCallForBlocking(innerCall, lambdaArg).isDefined
         // TODO: is the guard good enough?
-    =>
-      // ReorderBothSides of inner map
+      =>
+        val innerMap = getMapAtDepth(call, 1)
 
-      val innerMap = Utils.getExprForPatternInCallChain(getMapBody(call), mapPattern).get
+        // Reorder both sides of the inner map
+        val realY = if (factorY != ?) factorY else Utils.validSplitVariable(innerMap.t)
+        val stride = Type.getLength(innerMap.t) / realY
+        val reorderReplaced = Rewrite.applyRuleAt(call, Rules.reorderBothSidesWithStride(stride), innerMap)
 
-      var stride: ArithExpr = ?
+        val tiled = tileMapMap(factorX, realY, reorderReplaced)
 
-      //TODO: fix factorY to be the actual splitting variable of that dimension
-      if (factorY != ?)
-        stride = Type.getLength(innerMap.t) / factorY
+        // Bring innermost components out by 2 levels
 
-      val innerMapReordered = Rules.reorderBothSidesWithStride(stride).rewrite(innerMap)
+        val map0 = getMapAtDepth(tiled, 3)
+        val firstInterchange = applyInterchangeOnAllComponents(tiled, map0)
 
-      val reorderReplaced = Expr.replace(call, innerMap, innerMapReordered)
+        val map1 = getMapAtDepth(firstInterchange, 2)
+        val secondInterchange = applyInterchangeOnAllComponents(firstInterchange, map1)
 
-      // TODO: common sequences in here, tileOutput and tileMapMap
+        secondInterchange
+    })
 
-      // fission out the reorder
+  def tileMapMap(factorX: ArithExpr, factorY: ArithExpr, expr: Expr): Expr = {
 
-      val innerMapReorderedReplaced = getMapBody(reorderReplaced)
+    // Fission if necessary
+    val mapIndex = Utils.getIndexForPatternInCallChain(getMapBody(expr), mapPattern)
+    val fissioned = if (mapIndex > 0) mapFissionAtPosition(mapIndex - 1, expr) else expr
 
-      val fissionPosition = Utils.getIndexForPatternInCallChain(innerMapReorderedReplaced,
-        { case FunCall(Scatter(_), _) => })
+    // split-join on the outer map
+    val outerMap = getMapAtDepth(fissioned, 0)
+    val outerMapSplitJoined = Rewrite.applyRuleAt(fissioned, Rules.splitJoin(factorX), outerMap)
 
-      val fissioned = mapFissionAtPosition(fissionPosition, reorderReplaced)
+    // interchange on the new dim
+    val newDimension = getMapAtDepth(outerMapSplitJoined, 1)
+    val interchangeReplaced = Rewrite.applyRuleAt(outerMapSplitJoined, mapMapInterchange, newDimension)
 
-      // split-join on the outer map
+    // split-join on the inner map
+    val innerMap = getMapAtDepth(interchangeReplaced, 1)
+    val innerMapSplitJoined = Rewrite.applyRuleAt(interchangeReplaced, Rules.splitJoin(factorY), innerMap)
 
-      TypeChecker(fissioned)
+    // interchange on the new dim
+    val secondNewDimension = getMapAtDepth(innerMapSplitJoined, 2)
+    val e2 = Rewrite.applyRuleAt(innerMapSplitJoined, mapMapInterchange, secondNewDimension)
 
-      val outerMap = Utils.getExprForPatternInCallChain(fissioned, mapPattern).get
+    e2
+  }
 
-      val outerSplitJoined = Rules.splitJoin(factorX).rewrite(outerMap)
+  private def getMapAtDepth(expr:Expr, depth: Int): Expr = {
+    val outermostMap = Utils.getExprForPatternInCallChain(expr, mapPattern).get
 
-      val replaced = Expr.replace(fissioned, outerMap, outerSplitJoined)
-
-      TypeChecker(replaced)
-
-      // interchange on the new dim
-
-      val splitJoinedOuterMap = Utils.getExprForPatternInCallChain(replaced, mapPattern).get
-      val newDimensionMap = Utils.getExprForPatternInCallChain(getMapBody(splitJoinedOuterMap), mapPattern).get
-
-      val interchanged = mapMapInterchange.rewrite(newDimensionMap)
-
-      val interchangeReplaced = Expr.replace(replaced, newDimensionMap, interchanged)
-
-      // split-join on the inner map
-
-      TypeChecker(interchangeReplaced)
-
-      val innerMapAfterInterchange = Utils.getExprForPatternInCallChain(interchanged, mapPattern).get
-
-      val innerMapSplitJoined = Rules.splitJoin(factorY).rewrite(innerMapAfterInterchange)
-
-      TypeChecker(innerMapSplitJoined)
-
-      // interchange on the new dim
-
-      val splitJoinedInnerMap = Utils.getExprForPatternInCallChain(innerMapSplitJoined, mapPattern).get
-      val secondNewDimMap = Utils.getExprForPatternInCallChain(getMapBody(splitJoinedInnerMap), mapPattern).get
-
-      val secondInterchanged = mapMapInterchange.rewrite(secondNewDimMap)
-
-      val e1 = Expr.replace(innerMapSplitJoined, secondNewDimMap, secondInterchanged)
-      val e2 = Expr.replace(interchangeReplaced, innerMapAfterInterchange, e1)
-
-      TypeChecker(e2)
-
-      // interchange inside stuff twice.
-
-      val map1 = Utils.getExprForPatternInCallChain(secondInterchanged, mapPattern).get
-      val map2 = Utils.getExprForPatternInCallChain(getMapBody(map1), mapPattern).get
-
-      val oneInterchange = applyInterchangeOnAllComponents(e2, map2)
-
-      TypeChecker(oneInterchange)
-
-      val map3 = Utils.getExprForPatternInCallChain(oneInterchange, mapPattern).get
-      val map4 = Utils.getExprForPatternInCallChain(getMapBody(map3), mapPattern).get
-      val map5 = Utils.getExprForPatternInCallChain(getMapBody(map4), mapPattern).get
-
-      val secondInterchange = applyInterchangeOnAllComponents(oneInterchange, map5)
-
-      secondInterchange
-  })
+    if (depth == 0)
+      outermostMap
+    else
+      getMapAtDepth(getMapBody(outermostMap), depth - 1)
+  }
 
   private def getMapBody(expr: Expr) = {
     expr match {
