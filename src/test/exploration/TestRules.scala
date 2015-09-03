@@ -277,25 +277,6 @@ class TestRules {
     val tileSize = 4
     val N = Var("N")
 
-    val f0 = fun( ArrayType(ArrayType(ArrayType(Float, tileSize), tileSize), N),
-      input =>
-        Transpose() o
-          Map(
-            Transpose() o
-              Map(
-                Join() o
-                  Map(ReduceSeq(add, 0.0f)) o
-                  Split(tileSize)
-              ) o
-              Transpose()
-          ) o
-          Transpose() $ input)
-
-    val f1 = Rewrite.applyRuleAtId(f0, 4, MacroRules.transposeBothSidesWithSplit)
-    val f2 = Rewrite.applyRuleAtId(f1, 0, MacroRules.transposeBothSidesWithSplit)
-
-    println(f2)
-
     val h0 = fun( ArrayType(ArrayType(ArrayType(Float, tileSize), tileSize), N),
       input =>
         Transpose() o
