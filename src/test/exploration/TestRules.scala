@@ -272,26 +272,6 @@ class TestRules {
   }
 
   @Test
-  def transposeBothSidesWithSplit(): Unit = {
-
-    val tileSize = 4
-    val N = Var("N")
-
-    val h0 = fun( ArrayType(ArrayType(ArrayType(Float, tileSize), tileSize), N),
-      input =>
-        Transpose() o
-          Map(
-            Map(Join() o Map(ReduceSeq(add, 0.0f))) o
-              Map(Transpose()) o
-              Split(tileSize)) o
-          Transpose() $ input)
-
-    val h1 = Rewrite.applyRuleAtId(h0, 0, MacroRules.transposeBothSidesWithSplit)
-
-    println(h1)
-  }
-
-  @Test
   def transposeBothSides(): Unit = {
     val N = Var("N")
     val M = Var("M")
