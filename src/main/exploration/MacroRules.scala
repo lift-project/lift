@@ -63,7 +63,7 @@ object MacroRules {
     })
 
   val transposeMapMapFission =
-    Rule("", {
+    Rule("transposeMapMapFission", {
       case funCall@FunCall(t,
               FunCall(Map(Lambda(p1,
                 innerMapCall@FunCall(Map(Lambda(p2,
@@ -133,7 +133,7 @@ object MacroRules {
     })
 
   val transposeMapSplit =
-    Rule("", {
+    Rule("transposeMapSplit", {
       case funCall@FunCall(t, FunCall(Map(Lambda(p, FunCall(Split(_), a))), _))
         if Rules.isTranspose(t)
       =>
@@ -147,7 +147,7 @@ object MacroRules {
     })
 
   val mapSplitTranspose =
-    Rule("", {
+    Rule("mapSplitTranspose", {
       case funCall@FunCall(Map(Lambda(param, body)), FunCall(t, _))
         if Utils.getIndexForPatternInCallChain(body,
             { case FunCall(Split(_), arg) if arg eq param.head => }) != -1

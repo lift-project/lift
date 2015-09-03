@@ -537,7 +537,7 @@ object Rules {
       Map(Transpose()) o Split(n) o Transpose() $ arg
   })
 
-  val splitTranspose = Rule("Split(n) o Transpose()" +
+  val splitTranspose = Rule("Split(n) o Transpose() => " +
         "Map(Transpose()) o Transpose() o Map(Split(n))", {
         case FunCall(Split(n), FunCall(t, arg))
           if isTranspose(t)
@@ -602,7 +602,8 @@ object Rules {
       val newMapLambdaParam = Param()
       val newExpr = Expr.replace(exprToReplaceInZip.get, lambdaParam.head, newMapLambdaParam)
 
-      FunCall(Map(Lambda(Array(newLambdaParam), newBody)), FunCall(Map(Lambda(Array(newMapLambdaParam), newExpr)), arg))
+      FunCall(Map(Lambda(Array(newLambdaParam), newBody)),
+        FunCall(Map(Lambda(Array(newMapLambdaParam), newExpr)), arg))
   })
 
   private val getCallPattern: PartialFunction[Expr, Unit] = { case FunCall(_, FunCall(Get(_), _)) => }

@@ -110,42 +110,8 @@ class TestRewriteMatrixMatrix {
     val f76 = Rewrite.applyRuleAtId(f75, 84, Rules.splitTranspose)
     val f77 = Rewrite.applyRuleAtId(f76, 76, MacroRules.mapFissionAtPosition(1))
     val f78 = Rewrite.applyRuleAtId(f77, 77, Rules.transposeBothSides)
-    val f79 = Rewrite.applyRuleAtId(f78, 79, Rules.transposeTransposeId)
 
-    val f80 = Rewrite.applyRuleAtId(f79, 74, Rules.mapFission)
-    val f81 = Rewrite.applyRuleAtId(f80, 75, Rules.transposeBothSides)
-    val f82 = Rewrite.applyRuleAtId(f81, 77, Rules.transposeTransposeId)
-    val f83 = Rewrite.applyRuleAtId(f82, 76, Rules.mapFusion)
-    val f84 = Rewrite.applyRuleAtId(f83, 89, Rules.mapFusion)
-    val f85 = Rewrite.applyRuleAtId(f84, 92, Rules.transposeTransposeId)
-    val f86 = Rewrite.applyRuleAtId(f85, 89, Rules.removeEmptyMap)
-    val f87 = Rewrite.applyRuleAtId(f86, 74, Rules.mapTransposeTransposeMapTranspose)
-    val f88 = Rewrite.applyRuleAtId(f87, 76, Rules.transposeTransposeId)
-    val f89 = Rewrite.applyRuleAtId(f88, 73, Rules.transposeTransposeId)
-    val f90 = Rewrite.applyRuleAtId(f89, 74, Rules.mapFusion)
-    val f91 = Rewrite.applyRuleAtId(f90, 73, Rules.mapFusion)
-    val f92 = Rewrite.applyRuleAtId(f91, 19, Rules.transposeBothSides)
-    val f93 = Rewrite.applyRuleAtId(f92, 21, Rules.transposeTransposeId)
-    val f94 = Rewrite.applyRuleAtId(f93, 18, Rules.transposeTransposeId)
-    val f95 = Rewrite.applyRuleAtId(f94, 18, Rules.splitJoin(tileSizeK))
-    val f96 = Rewrite.applyRuleAtId(f95, 17, Rules.splitJoinId)
-    val f97 = Rewrite.applyRuleAtId(f96, 18, Rules.splitJoinId)
-
-    // Another split-join pair eliminated
-
-    val f98 = Rewrite.applyRuleAtId(f97, 17, Rules.mapFusion)
-    val f99 = Rewrite.applyRuleAtId(f98, 25, Rules.transposeBothSides)
-    val f100 = Rewrite.applyRuleAtId(f99, 27, Rules.transposeTransposeId)
-    val f101 = Rewrite.applyRuleAtId(f100, 26, Rules.mapFusion)
-    val f102 = Rewrite.applyRuleAtId(f101, 26, Rules.mapFusion)
-    val f103 = Rewrite.applyRuleAtId(f102, 60, Rules.mapFission)
-    val temp = Rewrite.applyRuleAtId(f103, 68, Rules.mapFusion)
-    val f104 = Rewrite.applyRuleAtId(temp, 61, Rules.transposeBothSides)
-    val f105 = Rewrite.applyRuleAtId(f104, 63, Rules.transposeTransposeId)
-    val f106 = Rewrite.applyRuleAtId(f105, 62, Rules.mapFusion)
-    val f107 = Rewrite.applyRuleAtId(f106, 65, Rules.reorderTranspose)
-
-    val h9 = SimplifyAndFuse(f107)
+    val h9 = SimplifyAndFuse(f78)
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
 
@@ -324,27 +290,7 @@ class TestRewriteMatrixMatrix {
     // Now there's a massive bunch of transposes, splits and joins, which are id.
     // Can comment out and runs fine. Otherwise good.
 
-    val h3 = Rewrite.applyRuleAtId(g1, 63, Rules.transposeMapSplit)
-
-    val h4 = Rewrite.applyRuleAtId(h3, 57, MacroRules.mapTransposeTransposeMapTranspose)
-    val h7 = Rewrite.applyRuleAtId(h4, 57, MacroRules.mapSplitTranspose)
-
-    val h8 = Rewrite.applyRuleAtId(h7, 56, MacroRules.transposeMapMapFission)
-    val h10 = Rewrite.applyRuleAtId(h8, 57, Rules.transposeTransposeId)
-
-
-    val h13 = Rewrite.applyRuleAtId(h10, 15, MacroRules.transposeMapMapFission)
-
-    val f41 = Rewrite.applyRuleAtId(h13, 16, MacroRules.transposeMapMapFission)
-
-    // TODO: macro?
-    val f42 = Rewrite.applyRuleAtId(f41, 18, Rules.mapFission)
-    val f43 = Rewrite.applyRuleAtId(f42, 19, Rules.mapFission)
-    val f44 = Rewrite.applyRuleAtId(f43, 20, Rules.mapTransposeSplit)
-
-    val f79 = SimplifyAndFuse(f44)
-
-    println(f79)
+    val f79 = SimplifyAndFuse(g1)
 
     val numExpressions = NumberExpression.breadthFirst(f79).values.max
     assertEquals(81, numExpressions)
