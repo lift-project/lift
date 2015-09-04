@@ -89,6 +89,8 @@ public class Executor {
 
     public native static long getDeviceMaxMemAllocSize();
 
+    public native static long getDeviceMaxWorkGroupSize();
+
     public native static String getPlatformName();
 
     public native static String getDeviceName();
