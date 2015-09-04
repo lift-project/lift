@@ -267,8 +267,27 @@ object MacroRules {
       e2
   })
 
+  private val splitPattern: PartialFunction[Expr, Unit] = { case FunCall(Split(_), _) => }
+
+  val movingJoin =
+    Rule("", {
+      case call@FunCall(Map(_), joinCall@FunCall(Join(), arg)) =>
+
+        val splitFactor = arg.t match {
+          case ArrayType(ArrayType(_, m), _) => m
+        }
+
+        val splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(splitFactor), call)
+
+        val newSplit = Utils.getExprForPatternInCallChain(splitJoined, splitPattern).get
+
+        val eliminated = Rewrite.applyRuleAt(splitJoined, Rules.splitJoinId, newSplit)
+
+        eliminated
+    })
+
   // Eliminate a matching split-join pair. If there are maps between them, apply
-  // the split-join and splitJoinId rules, to move the pair closer to each other
+  // the split-join and splitJoinId rules, to move the pair closer to each other.
   val splitJoinId: Rule = Rule("Split(n) ... Join() => Map(...)", {
     case call@FunCall(Split(n), arg)
       if Utils.visitFunCallChainWithState((false, true))(arg, (expr, state) => {
@@ -293,17 +312,13 @@ object MacroRules {
       if (Rules.splitJoinId.isDefinedAt(call)) {
         Rules.splitJoinId.rewrite(call)
       } else {
-        val splitJoined = Rules.splitJoin(n).rewrite.apply(arg)
-        val newCall = Expr.replace(call, arg, splitJoined)
+        val newCall = Rewrite.applyRuleAt(call, Rules.splitJoin(n), arg)
 
-        TypeChecker.check(newCall)
+        val splitJoinEliminated = Rewrite.applyRuleAt(newCall, Rules.splitJoinId, newCall)
 
-        val splitJoinEliminated = Rules.splitJoinId.rewrite.apply(newCall)
+        val newSplit = Utils.getExprForPatternInCallChain(splitJoinEliminated, splitPattern).get
 
-        val newSplit = Utils.getExprForPatternInCallChain(splitJoinEliminated,
-          {case FunCall(Split(_), _) => }).get
-
-        Expr.replace(splitJoinEliminated, newSplit, splitJoinId.rewrite.apply(newSplit))
+        Rewrite.applyRuleAt(splitJoinEliminated, splitJoinId, newSplit)
       }
   })
 
@@ -524,11 +539,11 @@ object MacroRules {
 
     // interchange on the new dim
     val newDimension = getMapAtDepth(outerMapSplitJoined, 1)
-    val interchangeReplaced = Rewrite.applyRuleAt(outerMapSplitJoined, mapMapInterchange, newDimension)
+    val interchanged = Rewrite.applyRuleAt(outerMapSplitJoined, mapMapInterchange, newDimension)
 
     // split-join on the inner map
-    val innerMap = getMapAtDepth(interchangeReplaced, 1)
-    val innerMapSplitJoined = Rewrite.applyRuleAt(interchangeReplaced, Rules.splitJoin(factorY), innerMap)
+    val innerMap = getMapAtDepth(interchanged, 1)
+    val innerMapSplitJoined = Rewrite.applyRuleAt(interchanged, Rules.splitJoin(factorY), innerMap)
 
     // interchange on the new dim
     val secondNewDimension = getMapAtDepth(innerMapSplitJoined, 2)

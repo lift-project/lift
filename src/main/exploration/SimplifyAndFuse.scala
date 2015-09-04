@@ -1,9 +1,13 @@
 package exploration
 
 import ir.TypeChecker
-import ir.ast.{Expr, Lambda}
+import ir.ast._
 
 object SimplifyAndFuse {
+  def apply(lambda: Lambda) = (new SimplifyAndFuse)(lambda)
+}
+
+class SimplifyAndFuse {
 
   /**
    * Try to simplify a lambda by eliminating sequences of operations that have
@@ -14,46 +18,58 @@ object SimplifyAndFuse {
    */
   def apply(lambda: Lambda) = simplify(lambda)
 
-  var cantUndo = List[Expr]()
+  private var cantUndo = List[Expr]()
+  private var seen = List[Expr]()
 
-  def simplify(lambda: Lambda): Lambda = {
+  def simplify(lambda: Lambda, maxDepth: Int = 100): Lambda = {
+
+    if (maxDepth == 0)
+      return lambda
 
     val fused = fuseAll(lambda)
-
-    TypeChecker.check(fused.body)
 
     val allRulesAt = Rewrite.listAllPossibleRewritesForRules(fused, simplificationRules)
 
     if (allRulesAt.isEmpty) {
 
-      val enabledMost = tryToEnableMoreSimplifications(fused, 4)
+      val enabledMost = tryToEnableMoreSimplifications(fused, 5)
 
       if (enabledMost._2 != 0) {
-        simplify(enabledMost._1)
+        simplify(enabledMost._1, maxDepth-1)
       }
       else {
 
-        val rewrites = Rewrite.listAllPossibleRewrites(fused, Rules.splitTranspose)
+        val rewrites = Rewrite.listAllPossibleRewrites(fused, Rules.splitTranspose).filter(ruleAt => {
+          val appliesHere = Rewrite.getExprForId(fused.body, ruleAt._2)
+          !seen.contains(appliesHere)
+        })
+
+        val stored = seen
+
         if (rewrites.nonEmpty) {
 
           val bestTry = rewrites.map(ruleAt => {
             val applyRuleAtId = Rewrite.applyRuleAtId(fused, ruleAt._2, ruleAt._1)
 
-            val replacement =
-              Rewrite.getExprForId(applyRuleAtId.body, ruleAt._2, NumberExpression.breadthFirst(applyRuleAtId))
+            seen = Rewrite.getExprForId(fused.body, ruleAt._2) :: seen
 
-            val expr = Utils.getExprForPatternInCallChain(replacement, { case e if MacroRules.transposeMapSplit.isDefinedAt(e) => }).get
+            val replacement = Rewrite.getExprForId(applyRuleAtId.body, ruleAt._2)
 
+            val expr = Utils.getExprForPatternInCallChain(replacement,
+              { case e if MacroRules.transposeMapSplit.isDefinedAt(e) => }).get
             cantUndo = expr :: cantUndo
 
-            simplify(applyRuleAtId)
+            simplify(applyRuleAtId, maxDepth - 1)
           }).minBy(getNumberOfTerms)
 
-          if (getNumberOfTerms(bestTry) < getNumberOfTerms(fused))
+          if (getNumberOfTerms(bestTry) < getNumberOfTerms(fused)) {
+            seen = stored
             return bestTry
+          }
 
         }
 
+        seen = stored
         fused
       }
 
@@ -62,7 +78,7 @@ object SimplifyAndFuse {
 
       val applied = Rewrite.applyRuleAtId(fused, ruleAt._2, ruleAt._1)
 
-      simplify(applied)
+      simplify(applied, maxDepth-1)
     }
   }
 
@@ -108,32 +124,26 @@ object SimplifyAndFuse {
         MacroRules.transposeMapMapFission,
         MacroRules.mapSplitTranspose,
         MacroRules.transposeMapSplit,
+        MacroRules.movingJoin,
         Rules.reorderTranspose
       )
 
-    TypeChecker.check(lambda.body)
-
     var allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, enablingRules)
 
-    allRulesAt = allRulesAt.filter(p => if (p._1 == MacroRules.transposeMapSplit) {
-
-      val replacement =
-        Rewrite.getExprForId(lambda.body, p._2, NumberExpression.breadthFirst(lambda))
-
-      !cantUndo.exists(_ eq replacement)
-
-    } else {
-      true
-    })
+    allRulesAt = allRulesAt.filter(p =>
+      if (p._1 == MacroRules.transposeMapSplit) {
+        val replacement = Rewrite.getExprForId(lambda.body, p._2)
+        !cantUndo.exists(_ eq replacement)
+      } else {
+        true
+      })
 
     val rewritten = allRulesAt.map(ruleAt => fuseAll(Rewrite.applyRuleAtId(lambda, ruleAt._2, ruleAt._1)))
 
-    val tryNow = rewritten
+    val numPossibleSimplifications =
+      rewritten.map(Rewrite.listAllPossibleRewritesForRules(_, simplificationRules).length)
 
-    val possibleSimplifications =
-      tryNow.map(Rewrite.listAllPossibleRewritesForRules(_, simplificationRules).length)
-
-    (tryNow,  possibleSimplifications, allRulesAt.map(_._1 +: rules)).zipped.toSeq
+    (rewritten,  numPossibleSimplifications, allRulesAt.map(_._1 +: rules)).zipped.toSeq
   }
 
   /**
@@ -145,8 +155,6 @@ object SimplifyAndFuse {
    */
   def fuseAll(lambda: Lambda): Lambda = {
     val allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, fusionRules)
-
-    TypeChecker.check(lambda.body)
 
     if (allRulesAt.isEmpty)
       lambda

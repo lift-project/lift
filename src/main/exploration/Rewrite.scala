@@ -8,6 +8,11 @@ object Rewrite {
   def getExprForId(expr: Expr, id: Int, idMap: collection.Map[Expr, Int]): Expr =
     idMap.find(pair => pair._2 == id).get._1
 
+  def getExprForId(expr: Expr, id: Int): Expr = {
+    val numbering = NumberExpression.breadthFirst(expr)
+    getExprForId(expr, id, numbering)
+  }
+
   def applyRuleAtId(lambda: Lambda, id: Int, rule: Rule): Lambda = {
     val replacement = applyRuleAtId(lambda.body, id, rule)
     Lambda(lambda.params, replacement)
@@ -16,7 +21,6 @@ object Rewrite {
   def applyRuleAtId(expr: Expr, id: Int, rule: Rule): Expr = {
     val numbering = NumberExpression.breadthFirst(expr)
     applyRuleAtId(expr, id, rule, numbering)
-
   }
 
   def depthFirstApplyRuleAtId(expr:Expr, id: Int, rule: Rule): Expr = {
@@ -35,13 +39,15 @@ object Rewrite {
     Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
   }
 
-  private[exploration] def listAllPossibleRewritesForRules(lambda: Lambda, rules: Seq[Rule]): Seq[(Rule, Int)] = {
+  private[exploration] def listAllPossibleRewritesForRules(lambda: Lambda,
+                                                           rules: Seq[Rule]): Seq[(Rule, Int)] = {
     rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
   }
 
   private[exploration] def listAllPossibleRewrites(lambda: Lambda,
-                                      rule: Rule): Seq[(Rule, Int)] = {
+                                                   rule: Rule): Seq[(Rule, Int)] = {
     Context.updateContext(lambda.body)
+    TypeChecker.check(lambda.body)
 
     val numbering = NumberExpression.breadthFirst(lambda)
 

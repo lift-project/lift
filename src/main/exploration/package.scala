@@ -32,7 +32,8 @@ package object exploration {
       MacroRules.splitJoinId,
       gatherScatterId,
       scatterGatherId,
-      removeEmptyMap
+      removeEmptyMap,
+      Rules.transposeMapTransposeReorder
     )
 
   val reduceRules =
@@ -96,18 +97,27 @@ package object exploration {
       tupleFission
     )
 
-  val otherRules = Seq(
-    gatherToScatter,
-    scatterToGather,
-    splitJoin,
-    vectorize,
-    reorderBothSidesWithStride,
-    splitZip
-  )
+  val otherRules =
+    Seq(
+      gatherToScatter,
+      scatterToGather,
+      splitJoin,
+      vectorize,
+      reorderBothSidesWithStride,
+      splitZip
+    )
 
   val allRules =
-    otherRules ++ tupleRules ++ idRules ++ interchangeRules ++
-      fissionRules ++ fusionRules++ reduceRules ++
-      simplificationRules ++ addressSpaceRules ++ mapLoweringRules ++ reduceLoweringRule
+        otherRules ++
+        tupleRules ++
+        idRules ++
+        interchangeRules ++
+        fissionRules ++
+        fusionRules++
+        reduceRules ++
+        simplificationRules ++
+        addressSpaceRules ++
+        mapLoweringRules ++
+        reduceLoweringRule
 
 }
