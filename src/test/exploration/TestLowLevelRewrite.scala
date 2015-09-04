@@ -1,12 +1,14 @@
 package exploration
 
 import apart.arithmetic.{Prod, Cst, ArithExpr, Var}
-import ir.{Type, ArrayType}
+import ir.view.View
+import ir.{UndefType, ScalarType, Type, ArrayType}
 import ir.ast._
 import opencl.executor.{Executor, Execute}
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.{OpenCLCodeGen}
 import opencl.ir._
 import opencl.ir.pattern.{ReduceSeq, MapSeq}
+import scala.collection.immutable
 import scala.collection.mutable.{Set, Map => ScalaMap}
 import scala.collection.immutable.{Map => ScalaImmMap}
 
@@ -191,9 +193,9 @@ object TestLowLevelRewrite {
     Executor.init()
 
     // Prepare input and gold
-    val mSize = 32
-    val kSize = 32
-    val nSize = 32
+    val mSize = 1024
+    val kSize = 1024
+    val nSize = 1024
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
@@ -261,6 +263,7 @@ object TestLowLevelRewrite {
       var crashed = 0
       var best_time = Double.PositiveInfinity
       var all_times: List[Double] = List.empty
+      var best_substitutions = all_substitution_tables.head
       all_substitution_tables.foreach(st => {
         var tuned_expr = expr
 
@@ -286,7 +289,7 @@ object TestLowLevelRewrite {
         })
 
         counter = counter + 1
-
+        //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
         val (test, time) = executor(tuned_expr, values:_*)
 
         import ExecutionHarness.Status._
@@ -297,6 +300,7 @@ object TestLowLevelRewrite {
             if (time < best_time) {
               best_time = time
               println(s"New best time: ${best_time}")
+              best_substitutions = st
             }
 
           case Skipped =>
@@ -319,6 +323,7 @@ object TestLowLevelRewrite {
       println("All times:")
       println(all_times.mkString(", "))
       println(s"best time: ${best_time}")
+      println("best parameters: " + best_substitutions.map(x => s"${x._1} -> ${x._2}").mkString("; "))
     }
 
 
@@ -353,9 +358,9 @@ object TestLowLevelRewrite {
     /*val N = Var("N")
     val M = Var("M")
     val K = Var("K")*/
-    val N = 32
-    val M = 32
-    val K = 32
+    val N = 1024
+    val M = 1024
+    val K = 1024
 
     val f0 =
       fun(
@@ -475,25 +480,51 @@ object TestLowLevelRewrite {
       try {
         val (local, global) = InferNDRange(expr, values:_*)
 
-        if (local.map(_.eval).reduce(Math.max) < 4 ||
-            local.map(_.eval).product < 16)
-          return failure(Skipped)
-        if (global.map(_.eval).reduce(Math.max) < 4)
+        // === Filtering ===
+        // Remove obviously bad decisions based on some arbitrary constraints
+
+        expr.params.foreach((p) => {
+          p.t match {
+            case _: ScalarType =>
+              p.mem = OpenCLMemory.allocPrivateMemory(
+                OpenCLMemory.getMaxSizeInBytes(p.t))
+            case _ =>
+              p.mem = OpenCLMemory.allocGlobalMemory(
+                OpenCLMemory.getMaxSizeInBytes(p.t))
+          }
+          p.view = View(p.t, OpenCLCodeGen.print(p.mem.variable))
+        })
+        OpenCLMemory.alloc(expr.body)
+        val buffers = TypedOpenCLMemory.getAllocatedMemory(expr.body, expr.params, true)
+        val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
+        if(private_buffers_size.map(x => OpenCLMemory.getMaxSizeInBytes(x.t)).reduce(_+_).eval > 8192)
           return failure(Skipped)
 
-        // execution
+        // Rule out obviously poor choices based on the grid size
+        if (local.map(_.eval).product < 16) return failure(Skipped)
+        if (global.map(_.eval).product < 16) return failure(Skipped)
+        if ((global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product < 4)
+          return failure(Skipped)
+
+        // Avoid crashing for invalid values
+        if(local.map(_.eval).product > Executor.getDeviceMaxWorkGroupSize)
+          return failure(Skipped)
+
+        // === Execution ===
         val (output: Array[Float], time) =
-          Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ) (expr, values: _*)
+          Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ) (10, 100.0f, expr, values: _*)
 
         // cross validation
         if (output.length != gold.length)
           failure(ValidationError)
         else {
-          val mismatch = (output zip gold).collect{
+          /*val mismatch = (output zip gold).collect{
             case x if Math.abs(x._1 - x._2) > 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)) => x }.toList
-          if (mismatch.isEmpty) success(time)
+          if (mismatch.isEmpty) success(time)*/
+          val passed = (output zip gold).forall(x => Math.abs(x._1 - x._2) < 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)))
+          if (passed) success(time)
           else {
-            println("Error: " + mismatch.size + " / " + gold.size + " mismatch")
+            //println("Error: " + mismatch.size + " / " + gold.size + " mismatch")
             println("Local size: " + local.mkString(", "))
             println("Global size: " + global.mkString(", "))
             failure(ValidationError)
@@ -503,7 +534,9 @@ object TestLowLevelRewrite {
         case ea: Executor.ExecutorFailureException =>
           ea.consume()
           failure(ExecutorError)
-        case e: Exception => failure(UnknwownError)
+        case e: Exception =>
+          e.printStackTrace()
+          failure(UnknwownError)
       }
     }
   }
