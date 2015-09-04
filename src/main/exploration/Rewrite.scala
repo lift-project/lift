@@ -8,13 +8,13 @@ object Rewrite {
   def getExprForId(expr: Expr, id: Int, idMap: collection.Map[Expr, Int]): Expr =
     idMap.find(pair => pair._2 == id).get._1
 
-  def getExprForId(expr: Expr, id: Int): Expr = {
-    val numbering = NumberExpression.breadthFirst(expr)
-    getExprForId(expr, id, numbering)
-  }
-
   def applyRuleAtId(lambda: Lambda, id: Int, rule: Rule): Lambda = {
     val replacement = applyRuleAtId(lambda.body, id, rule)
+    Lambda(lambda.params, replacement)
+  }
+
+  def applyRuleAt(lambda: Lambda, expr: Expr, rule: Rule): Lambda = {
+    val replacement = applyRuleAt(lambda.body, rule, expr)
     Lambda(lambda.params, replacement)
   }
 
@@ -40,20 +40,17 @@ object Rewrite {
   }
 
   private[exploration] def listAllPossibleRewritesForRules(lambda: Lambda,
-                                                           rules: Seq[Rule]): Seq[(Rule, Int)] = {
+                                                           rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+    Context.updateContext(lambda.body)
+    TypeChecker.check(lambda.body)
     rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
   }
 
   private[exploration] def listAllPossibleRewrites(lambda: Lambda,
-                                                   rule: Rule): Seq[(Rule, Int)] = {
-    Context.updateContext(lambda.body)
-    TypeChecker.check(lambda.body)
-
-    val numbering = NumberExpression.breadthFirst(lambda)
-
-    Expr.visitWithState(Seq[(Rule, Int)]())( lambda.body, (e, s) => {
+                                                   rule: Rule): Seq[(Rule, Expr)] = {
+    Expr.visitWithState(Seq[(Rule, Expr)]())( lambda.body, (e, s) => {
       if (rule.rewrite.isDefinedAt(e)) {
-        s :+ (rule, numbering(e))
+        s :+ (rule, e)
       } else s
     })
   }
@@ -62,7 +59,7 @@ object Rewrite {
     TypeChecker.check(lambda.body)
 
     val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
-    val rewritten = allRulesAt.map(ruleAt => applyRuleAtId(lambda, ruleAt._2, ruleAt._1))
+    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt._2, ruleAt._1))
 
     if (levels == 1) {
       rewritten
