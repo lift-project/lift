@@ -155,21 +155,13 @@ object MacroRules {
 
   val tileMapMap: (Int, Int) => Rule = (x, y) =>
     Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), _)
-        if lambdaParam.head eq arg
+      case funCall @ FunCall(Map(Lambda(_, FunCall(Map(_), _))), _)
       =>
         tileMapMap(x, y, funCall)
     })
 
-  val tileOutput: Int => Rule = x =>
-    Rule("Tile the output of a computation in the form " +
-      "Map(fun(y => Map(f) $ z )) $ x", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), _)
-        if !(lambdaParam.head eq arg)
-      =>
-        tileMapMap(x, x, funCall)
-    })
-
+  // TODO: implement a more general version, including automatically moving the inside
+  // TODO: map without needing to set up for this rule to apply
   val finishTilingInput: Int => Rule = x =>
     Rule("Map(x => Map(y => Map() $ Get(x, ...) Get$(x, ...) $ Zip(...)", {
       case funCall @
@@ -182,12 +174,12 @@ object MacroRules {
       =>
         val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 0, Rules.splitJoin(x))
         val e1 = Rewrite.applyRuleAtId(e0, 1, Rules.splitZip)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, Rules.mapMapTransposeZipOutside)
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 4, Rules.mapMapTransposeZipOutside)
+        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, mapMapInterchange)
+        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 4, mapMapInterchange)
         e3
     })
 
-  val tileInputAndOutput: (Int, Int) => Rule = (x, y) =>
+  val tileInputAndOutput: (Int, Int, Int) => Rule = (x, y, z) =>
     Rule("Tile the input and output of a computation in the form " +
       "Map(fun(x => Map(fun(y => Reduce(g) o Map(f) $ Zip(x, y) )) $ ... )) $ ...", {
       case funCall @ FunCall(Map(Lambda(lambdaParam1,
@@ -200,14 +192,12 @@ object MacroRules {
           && zipArgs.contains(lambdaParam1.head)
           && zipArgs.contains(lambdaParam2.head)
       =>
-        val e1 = Rewrite.applyRuleAtId(funCall, 0, tileOutput(x))
+        val e1 = Rewrite.applyRuleAtId(funCall, 0, tileMapMap(x, y))
 
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 7, Rules.mapFission)
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 14, Rules.mapMapTransposeZipInside)
+        val e3 = Rewrite.depthFirstApplyRuleAtId(e1, 7, mapMapInterchange)
         val e4 = Rewrite.depthFirstApplyRuleAtId(e3, 6, mapFissionAtPosition(1))
-        val e5 = Rewrite.depthFirstApplyRuleAtId(e4, 16, Rules.mapMapTransposeZipInside)
-
-        val e6 = Rewrite.depthFirstApplyRuleAtId(e5, 17, finishTilingInput(y))
+        val e5 = Rewrite.depthFirstApplyRuleAtId(e4, 16, mapMapInterchange)
+        val e6 = Rewrite.depthFirstApplyRuleAtId(e5, 17, finishTilingInput(z))
 
         e6
     })
@@ -234,7 +224,7 @@ object MacroRules {
       )), FunCall(Split(_), _:Param))
         if Rules.mapFissionWithZipInside.rewrite.isDefinedAt(funCall)
           && Rules.mapFissionWithZipInside.rewrite.isDefinedAt(
-          Rewrite.getExprForId(funCall, 5, NumberExpression.breadthFirst(funCall)))
+            Rewrite.getExprForId(funCall, 5, NumberExpression.breadthFirst(funCall)))
       =>
         val e1 = Rewrite.applyRuleAtId(funCall, 5, Rules.mapFissionWithZipInside)
         val e4 = Rewrite.applyRuleAtId(e1, 6, moveTransposeInsideTiling)
@@ -385,6 +375,9 @@ object MacroRules {
   private val mapPattern: PartialFunction[Expr, Unit] =
     { case FunCall(map: Map, _) if map.f.body.isConcrete => }
 
+  private val mapMapPattern: PartialFunction[Expr, Unit] =
+    { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
+
   // Interchange the outer map with the first inner concrete map, fissions appropriately,
   // automatically chooses the rule to apply
   val mapMapInterchange = Rule("Map( ... Map(f) ...) => Map(...) o Map(Map(f)) o Map(...)", {
@@ -398,7 +391,7 @@ object MacroRules {
       if (mapId > 0)
         fissioned = mapFissionAtPosition(mapId - 1).rewrite(fissioned)
 
-      val mapCall = Utils.getExprForPatternInCallChain(fissioned, mapPattern).get
+      val mapCall = Utils.getExprForPatternInCallChain(fissioned, mapMapPattern).get
 
       val zipInside = Rules.mapMapTransposeZipInside.rewrite
       val zipOutside = Rules.mapMapTransposeZipOutside.rewrite

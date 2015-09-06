@@ -35,8 +35,7 @@ class SimplifyAndFuse {
 
       if (enabledMost._2 != 0) {
         simplify(enabledMost._1, maxDepth-1)
-      }
-      else {
+      } else {
 
         val stored = seen
 
