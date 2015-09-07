@@ -3,7 +3,7 @@ package exploration
 import apart.arithmetic.Cst
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{toGlobal, ReduceSeq, MapSeq}
+import opencl.ir.pattern._
 
 object ScalaPrinter {
   def apply(expr: Expr): String = {
@@ -20,10 +20,15 @@ object ScalaPrinter {
       case lambda: Lambda => s"fun((${lambda.params.map(apply).mkString(", ")}) => ${apply(lambda.body)})"
       case map: Map => s"Map(${apply(map.f)})"
       case mapSeq: MapSeq => s"MapSeq(${apply(mapSeq.f)})"
+      case mapWrg: MapWrg => s"MapWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
+      case mapLcl: MapLcl => s"MapLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
+      case mapGlb: MapGlb => s"MapGlb(${mapGlb.dim})(${apply(mapGlb.f)})"
       case reduceSeq: ReduceSeq => s"ReduceSeq(${apply(reduceSeq.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
       case toGlobal: toGlobal => s"toGlobal(${apply(toGlobal.f)})"
+      case toLocal: toLocal => s"toLocal(${apply(toLocal.f)})"
+      case toPrivate: toPrivate => s"toPrivate(${apply(toPrivate.f)})"
       case _ => funDecl.toString
     }
   }
