@@ -4,6 +4,40 @@ import ir.ast._
 
 object SimplifyAndFuse {
   def apply(lambda: Lambda) = (new SimplifyAndFuse)(lambda)
+
+  /**
+   * Fuse all map-map and reduce-map sequences.
+   * If no fusion rules apply, returns the lambda.
+   *
+   * @param lambda The lambda where to apply fusion
+   * @return
+   */
+  def fuseAll(lambda: Lambda): Lambda = {
+    val newBody = fuseAll(lambda.body)
+
+    if (newBody eq lambda.body)
+      lambda
+    else
+      Lambda(lambda.params, newBody)
+  }
+
+  /**
+   * Fuse all map-map and reduce-map sequences.
+   * If no fusion rules apply, returns the expression.
+   *
+   * @param expr The expression where to apply fusion
+   * @return
+   */
+  def fuseAll(expr: Expr): Expr = {
+    val allRulesAt = Rewrite.listAllPossibleRewritesForRules(expr, fusionRules)
+
+    if (allRulesAt.isEmpty)
+      expr
+    else {
+      val ruleAt = allRulesAt.head
+      fuseAll(Rewrite.applyRuleAt(expr, ruleAt._1, ruleAt._2))
+    }
+  }
 }
 
 class SimplifyAndFuse {
@@ -25,7 +59,7 @@ class SimplifyAndFuse {
     if (maxDepth == 0)
       return lambda
 
-    val fused = fuseAll(lambda)
+    val fused = SimplifyAndFuse.fuseAll(lambda)
 
     val allRulesAt = Rewrite.listAllPossibleRewritesForRules(fused, simplificationRules)
 
@@ -109,7 +143,7 @@ class SimplifyAndFuse {
   private val enablingRules =
     Seq(
       MacroRules.mapTransposeTransposeMapTranspose,
-      MacroRules.transposeMapMapFission,
+      MacroRules.transposeMapMap,
       MacroRules.mapSplitTranspose,
       MacroRules.transposeMapSplit,
       MacroRules.movingJoin,
@@ -136,29 +170,11 @@ class SimplifyAndFuse {
       })
 
     val rewritten = allRulesAt.map(ruleAt =>
-      fuseAll(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1)))
+      SimplifyAndFuse.fuseAll(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1)))
 
     val numPossibleSimplifications =
       rewritten.map(Rewrite.listAllPossibleRewritesForRules(_, simplificationRules).length)
 
     (rewritten,  numPossibleSimplifications, allRulesAt.map(_._1 +: rules)).zipped.toSeq
-  }
-
-  /**
-   * Fuse all map-map and reduce-map sequences.
-   * If no fusion rules apply, returns the lambda.
-   *
-   * @param lambda The lambda where to apply fusion
-   * @return
-   */
-  def fuseAll(lambda: Lambda): Lambda = {
-    val allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, fusionRules)
-
-    if (allRulesAt.isEmpty)
-      lambda
-    else {
-      val ruleAt = allRulesAt.head
-      fuseAll(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
-    }
   }
 }

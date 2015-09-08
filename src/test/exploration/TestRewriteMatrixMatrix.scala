@@ -4,7 +4,6 @@ import apart.arithmetic.Var
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
-import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -298,27 +297,24 @@ class TestRewriteMatrixMatrix {
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileInputAndOutput(tileSizeM, tileSizeN, tileSizeK))
 
-    val f11 = Rewrite.applyRuleAtId(f1, 44, Rules.partialReduce)
-    val f12 = Rewrite.applyRuleAtId(f11, 45, Rules.partialReduceSplitJoin(tileSizeK))
-
-    // Experimenting from here on
-
-    val f8 = Rewrite.applyRuleAtId(f12, 23, MacroRules.apply1DRegisterBlocking(workPerThreadN))
+    val f8 = Rewrite.applyRuleAtId(f1, 23, MacroRules.apply1DRegisterBlocking(workPerThreadN))
 
     // Input's good
 
     val h0 = Rewrite.applyRuleAtId(f8, 11, MacroRules.apply1DRegisterBlocking(workPerThreadN))
 
-    val h1 = Rewrite.applyRuleAtId(h0, 53, MacroRules.moveReduceOutOneLevel)
+
+    val f11 = Rewrite.applyRuleAtId(h0, 60, Rules.partialReduce)
+    val f12 = Rewrite.applyRuleAtId(f11, 61, Rules.partialReduceSplitJoin(tileSizeK))
+
+    val h1 = Rewrite.applyRuleAtId(f12, 53, MacroRules.moveReduceOutOneLevel)
     val h2 = Rewrite.applyRuleAtId(h1, 12, MacroRules.moveReduceOutOneLevel)
 
-    val g0 = Rewrite.applyRuleAtId(h2, 86, Rules.partialReduceToReduce)
-    val g1 = Rewrite.applyRuleAtId(g0, 80, MacroRules.moveReduceOutOneLevel)
+    val g0 = Rewrite.applyRuleAtId(h2, 78, Rules.partialReduceToReduce)
 
     // Now there's a massive bunch of transposes, splits and joins, which are id.
-    // Can comment out and runs fine. Otherwise good.
 
-    val f79 = SimplifyAndFuse(g1)
+    val f79 = SimplifyAndFuse(g0)
 
     val numExpressions = NumberExpression.breadthFirst(f79).values.max
     assertEquals(81, numExpressions)
@@ -480,6 +476,41 @@ class TestRewriteMatrixMatrix {
     assertEquals(55, numExpressions)
     println(f16)
   }
+
+  @Test
+  def finishTiling(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f0: Lambda = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)) )) $ Zip(aRow, bCol)
+          )) o Transpose() $ B
+        )) $ A
+      })
+
+    val tileSizeM = 16
+    val tileSizeN = 16
+    val tileSizeK = 8
+    val workPerThread = 2
+
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap(tileSizeM, tileSizeN))
+    val f2 = Rewrite.applyRuleAtId(f1, 13, Rules.mapFission)
+    val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.mapFission)
+    val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.finishTiling(tileSizeK))
+    val f5 = Rewrite.applyRuleAtId(SimplifyAndFuse.fuseAll(f4), 23, MacroRules.apply1DRegisterBlocking(workPerThread))
+    val f6 = Rewrite.applyRuleAtId(f5, 11, MacroRules.apply1DRegisterBlocking(workPerThread))
+    val f9 = Rewrite.applyRuleAtId(f6, 12, MacroRules.finishTiling(tileSizeK))
+    val f10 = SimplifyAndFuse(f9)
+
+    println(f10)
+  }
+
 
   @Test
   def mmTiled() = {

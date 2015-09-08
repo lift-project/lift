@@ -172,11 +172,13 @@ class TestRules {
 
   @Test
   def fissionAtPosition(): Unit = {
-    val f = fun(a => Map(plusOne o Reduce(add, 0.0f) o plusOne o plusOne) $ a)
+    val f = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      a => Map(Reduce(add, 0.0f) o Map(plusOne) o Map(plusOne) o Map(plusOne)) $ a)
 
-    MacroRules.mapFissionAtPosition(0, f.body)
-    MacroRules.mapFissionAtPosition(1, f.body)
-    MacroRules.mapFissionAtPosition(2, f.body)
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(0))
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(1))
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(2))
   }
 
   @Test

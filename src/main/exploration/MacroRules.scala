@@ -6,6 +6,39 @@ import ir.ast._
 
 object MacroRules {
 
+  private val mapPattern: PartialFunction[Expr, Unit] =
+  { case FunCall(map: Map, _) if map.f.body.isConcrete => }
+
+  private val mapMapPattern: PartialFunction[Expr, Unit] =
+  { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
+
+  private val reducePattern: PartialFunction[Expr, Unit] =
+  { case FunCall(_: AbstractPartRed, _, _) => }
+
+  private val splitPattern: PartialFunction[Expr, Unit] =
+  { case FunCall(Split(_), _) => }
+
+  private val concretePattern: PartialFunction[Expr, Unit] =
+  { case call: FunCall if call.isConcrete(false) => }
+
+  private def getMapAtDepth(expr:Expr, depth: Int): Expr = {
+    val outermostMap = Utils.getExprForPatternInCallChain(expr, mapPattern).get
+
+    if (depth == 0)
+      outermostMap
+    else
+      getMapAtDepth(getMapBody(outermostMap), depth - 1)
+  }
+
+  private def getMapBody(expr: Expr) = {
+    expr match {
+      case FunCall(Map(Lambda(_, body)), _) => body
+    }
+  }
+
+  /**
+   * Apply map fission. Helper rule for other macro rules.
+   */
   val mapFissionAtPosition: Int => Rule = position =>
     Rule("Map(... o ... o ...) => Map(... o ...) o Map(...)", {
       case funCall @ FunCall(Map(Lambda(_, body:FunCall)), _)
@@ -15,7 +48,7 @@ object MacroRules {
         mapFissionAtPosition(position, funCall)
     })
 
-  def mapFissionAtPosition(position: Int, expr: Expr): Expr = {
+  private def mapFissionAtPosition(position: Int, expr: Expr): Expr = {
     var nextFission = expr
     var fissioned = expr
     var currentPos = position
@@ -47,7 +80,7 @@ object MacroRules {
   }
 
   // transpose both sides + id
-  val transposeMapMap =
+  private val transposeMapMapNoFission =
     Rule("Transpose() o Map(Map(_)) => " +
       "Map(Map(_)) o Transpose()", {
       case FunCall(t,
@@ -63,8 +96,12 @@ object MacroRules {
         Map(Map(f)) o Transpose() $ arg
     })
 
-  val transposeMapMapFission =
-    Rule("transposeMapMapFission", {
+  /**
+   * Move Transpose over Map(Map()), fission appropriately.
+   * Used as an enabling rule when simplifying.
+   */
+  val transposeMapMap =
+    Rule("transposeMapMap", {
       case funCall@FunCall(t,
               FunCall(Map(Lambda(p1,
                 innerMapCall@FunCall(Map(Lambda(p2,
@@ -85,9 +122,13 @@ object MacroRules {
         if (!(p1.head eq a1) || !(a2 eq p2.head))
           fissioned = Expr.replace(fissioned, map, Rules.mapFission.rewrite(map))
 
-        transposeMapMap.rewrite(fissioned)
+        transposeMapMapNoFission.rewrite(fissioned)
     })
 
+  /**
+   * Apply the Map(Transpose) o Transpose o Map(Transpose) rule, fission appropriately.
+   * Used as an enabling rule when simplifying.
+   */
   val mapTransposeTransposeMapTranspose =
     Rule("Map(... o Transpose()) o Transpose() o Map(Transpose() o ...)) => " +
          "Map(...) o Transpose() o Map(Transpose()) o Transpose() o Map(...)", {
@@ -118,6 +159,10 @@ object MacroRules {
         Expr.replace(fissioned, applyHere, Rules.mapTransposeTransposeMapTranspose.rewrite(applyHere))
     })
 
+  /**
+   * Apply the Transpose o Map(Split) rule, fission appropriately.
+   * Used as an enabling rule when simplifying.
+   */
   val transposeMapSplit =
     Rule("transposeMapSplit", {
       case funCall@FunCall(t, FunCall(Map(Lambda(p, FunCall(Split(_), a))), _))
@@ -132,6 +177,10 @@ object MacroRules {
         Rules.transposeMapSplit.rewrite(fissioned)
     })
 
+  /**
+   * Apply the Map(Split) o Transpose rule, fission appropriately.
+   * Used as an enabling rule when simplifying.
+   */
   val mapSplitTranspose =
     Rule("mapSplitTranspose", {
       case funCall@FunCall(Map(Lambda(param, body)), FunCall(t, _))
@@ -153,6 +202,81 @@ object MacroRules {
         Expr.replace(fissioned, applyHere, Rules.mapSplitTranspose.rewrite(applyHere))
     })
 
+  /**
+   * A rule to move join over a map.
+   * Used as an enabling rule when simplifying.
+   */
+  val movingJoin =
+    Rule("Map(_) o Join() => Join() o Map(Map(_))", {
+      case call@FunCall(Map(_), joinCall@FunCall(Join(), arg)) =>
+
+        val splitFactor = arg.t match {
+          case ArrayType(ArrayType(_, m), _) => m
+        }
+
+        val splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(splitFactor), call)
+
+        val newSplit = Utils.getExprForPatternInCallChain(splitJoined, splitPattern).get
+
+        val eliminated = Rewrite.applyRuleAt(splitJoined, Rules.splitJoinId, newSplit)
+
+        eliminated
+    })
+
+  /**
+   * Eliminate a matching split-join pair. If there are maps between them, apply
+   * the split-join and splitJoinId rules, to move the pair closer to each other.
+   */
+  val splitJoinId: Rule = Rule("Split(n) ... Join() => Map(...)", {
+    case call@FunCall(Split(n), arg)
+      if Utils.visitFunCallChainWithState((false, true))(arg, (expr, state) => {
+        // State = (applicable, stillPossible)
+        expr match {
+          case FunCall(Map(_), _) => state
+          case FunCall(Join(), a)
+            if (a.t match {
+              case ArrayType(ArrayType(_, m), _) => n == m
+              case _ => false
+            })
+          =>
+            if (state._2)
+              (true, state._1)
+            else
+              state
+          case _ => (state._1, false)
+        }
+      })._1
+    =>
+
+      if (Rules.splitJoinId.isDefinedAt(call)) {
+        Rules.splitJoinId.rewrite(call)
+      } else {
+        val newCall = Rewrite.applyRuleAt(call, Rules.splitJoin(n), arg)
+
+        val splitJoinEliminated = Rewrite.applyRuleAt(newCall, Rules.splitJoinId, newCall)
+
+        val newSplit = Utils.getExprForPatternInCallChain(splitJoinEliminated, splitPattern).get
+
+        Rewrite.applyRuleAt(splitJoinEliminated, splitJoinId, newSplit)
+      }
+  })
+
+  /**
+   * Fuse Reduce o Map, automatically applying applying the ReduceSeq and MapSeq rules.
+   */
+  val reduceMapFusion = Rule("Reduce o Map => ReduceSeq(fused)", {
+    case funCall @ FunCall(Reduce(_), _, mapCall@FunCall(Map(_), _))
+      if Rules.mapSeq.isDefinedAt(mapCall)
+    =>
+      val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapSeq)
+      val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeq)
+      val e2 = Rewrite.applyRuleAtId(e1, 1, Rules.reduceSeqMapSeqFusion)
+      e2
+  })
+
+  /**
+   * Tile a computation in the form Map(Map(f))
+   */
   val tileMapMap: (Int, Int) => Rule = (x, y) =>
     Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
       case funCall @ FunCall(Map(Lambda(_, FunCall(Map(_), _))), _)
@@ -160,23 +284,62 @@ object MacroRules {
         tileMapMap(x, y, funCall)
     })
 
-  // TODO: implement a more general version, including automatically moving the inside
-  // TODO: map without needing to set up for this rule to apply
-  val finishTilingInput: Int => Rule = x =>
+  val finishTiling: Int => Rule = x =>
     Rule("Map(x => Map(y => Map() $ Get(x, ...) Get$(x, ...) $ Zip(...)", {
       case funCall @
         FunCall(Map(Lambda(p,
-        FunCall(Map(Lambda(_,
-        FunCall(Map(_), FunCall(Get(_), a2)))),
-        FunCall(Get(_), a1)))),
-        FunCall(Zip(_), _*))
-        if (p.head eq a1) && (p.head eq a2)
+        c)),
+        _)
+        if Utils.getIndexForPatternInCallChain(c, mapPattern) != -1
+          && (Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(mapPattern)
+          || Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(reducePattern))
       =>
-        val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 0, Rules.splitJoin(x))
-        val e1 = Rewrite.applyRuleAtId(e0, 1, Rules.splitZip)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, mapMapInterchange)
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 4, mapMapInterchange)
-        e3
+
+        val mapInC = getMapAtDepth(c, 0)
+
+        val body = mapInC.asInstanceOf[FunCall].f.asInstanceOf[Map].f.body
+
+        val expr =
+          if (Utils.getIndexForPatternInCallChain(body, mapPattern) != -1)
+            Utils.getExprForPatternInCallChain(body, mapPattern).get
+          else
+            Utils.getExprForPatternInCallChain(body, reducePattern).get
+
+        Utils.getFinalArg(expr) match {
+          case FunCall(Zip(_), args@_*) =>
+            val ex = Rewrite.depthFirstApplyRuleAtId(funCall, 1, mapMapInterchange)
+            val ey = Rewrite.depthFirstApplyRuleAtId(ex, 0, mapMapInterchange)
+            val e0 = Rewrite.applyRuleAtId(ey, 2, Rules.splitJoin(x))
+            val e1 = Rewrite.applyRuleAtId(e0, 3, Rules.splitZip)
+            val e2 = Rewrite.applyRuleAtId(e1, 11, mapMapInterchange)
+            val e3 = Rewrite.applyRuleAtId(e2, 16, mapMapInterchange)
+            e3
+          case _ =>
+
+            val split =
+              if (Rules.splitJoin.isDefinedAt(expr))
+                Rewrite.applyRuleAt(funCall, Rules.splitJoin(x), expr)
+              else {
+                val appliedPartialReduce = Rules.partialReduce.rewrite(expr)
+
+                val rule = Rules.partialReduceSplitJoin(x)
+                val partialReduce = Utils.getExprForPatternInCallChain(
+                  appliedPartialReduce, { case e if rule.isDefinedAt(e) => }).get
+
+                val splitJoined = Rewrite.applyRuleAt(appliedPartialReduce, rule, partialReduce)
+
+                Expr.replace(funCall, expr, splitJoined)
+              }
+
+            val innerMap = getMapAtDepth(split, 1)
+            val innerExchanged = Rewrite.applyRuleAt(split, interchange, innerMap)
+
+            val outerMap = getMapAtDepth(innerExchanged, 0)
+            val outerExchanged = Rewrite.applyRuleAt(innerExchanged, interchange, outerMap)
+
+            outerExchanged
+        }
+
     })
 
   val tileInputAndOutput: (Int, Int, Int) => Rule = (x, y, z) =>
@@ -192,19 +355,21 @@ object MacroRules {
           && zipArgs.contains(lambdaParam1.head)
           && zipArgs.contains(lambdaParam2.head)
       =>
-        val e1 = Rewrite.applyRuleAtId(funCall, 0, tileMapMap(x, y))
+        val e1 = Rewrite.applyRuleAtId(funCall, 0, MacroRules.tileMapMap(x, y))
+        val e2 = Rewrite.applyRuleAtId(e1, 13, Rules.mapFission)
+        val e3 = Rewrite.applyRuleAtId(e2, 11, Rules.mapFission)
 
-        val e3 = Rewrite.depthFirstApplyRuleAtId(e1, 7, mapMapInterchange)
-        val e4 = Rewrite.depthFirstApplyRuleAtId(e3, 6, mapFissionAtPosition(1))
-        val e5 = Rewrite.depthFirstApplyRuleAtId(e4, 16, mapMapInterchange)
-        val e6 = Rewrite.depthFirstApplyRuleAtId(e5, 17, finishTilingInput(z))
-
-        e6
+        val e4 = Rewrite.applyRuleAtId(e3, 12, MacroRules.finishTiling(z))
+        SimplifyAndFuse.fuseAll(e4)
     })
 
+  /**
+   * Move transposition inside tiling, that is, transpose the 2D structure of tiles
+   * and then transpose each tile.
+   */
   val moveTransposeInsideTiling =
-    Rule("Map(Split(n) o Transpose()) o Split(m) o Transpose() => " +
-      "Transpose() o Map(Transpose()) o Split(n) o Map(Split(m))", {
+    Rule("Tile(M, N) o Transpose() => " +
+      "Map(Map(Transpose())) o Transpose() o Tile(M, N)", {
       case funCall @
         FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _)))),
         FunCall(Split(_), FunCall(Transpose(), _)))
@@ -236,6 +401,9 @@ object MacroRules {
         e8
     })
 
+  /**
+   * Tile Map(Map(f)) o Transpose()
+   */
   val tileTranspose: (Int, Int) => Rule = (x, y) =>
     Rule("Map(Map(f)) o Transpose() => tiled", {
       case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), FunCall(Transpose(), _))
@@ -247,78 +415,12 @@ object MacroRules {
         e3
     })
 
-  val reduceMapFusion = Rule("Reduce o Map => ReduceSeq(fused)", {
-    case funCall @ FunCall(Reduce(_), _, mapCall@FunCall(Map(_), _))
-      if Rules.mapSeq.isDefinedAt(mapCall)
-    =>
-      val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapSeq)
-      val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeq)
-      val e2 = Rewrite.applyRuleAtId(e1, 1, Rules.reduceSeqMapSeqFusion)
-      e2
-  })
-
-  private val splitPattern: PartialFunction[Expr, Unit] = { case FunCall(Split(_), _) => }
-
-  val movingJoin =
-    Rule("", {
-      case call@FunCall(Map(_), joinCall@FunCall(Join(), arg)) =>
-
-        val splitFactor = arg.t match {
-          case ArrayType(ArrayType(_, m), _) => m
-        }
-
-        val splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(splitFactor), call)
-
-        val newSplit = Utils.getExprForPatternInCallChain(splitJoined, splitPattern).get
-
-        val eliminated = Rewrite.applyRuleAt(splitJoined, Rules.splitJoinId, newSplit)
-
-        eliminated
-    })
-
-  // Eliminate a matching split-join pair. If there are maps between them, apply
-  // the split-join and splitJoinId rules, to move the pair closer to each other.
-  val splitJoinId: Rule = Rule("Split(n) ... Join() => Map(...)", {
-    case call@FunCall(Split(n), arg)
-      if Utils.visitFunCallChainWithState((false, true))(arg, (expr, state) => {
-        // State = (applicable, stillPossible)
-        expr match {
-          case FunCall(Map(_), _) => state
-          case FunCall(Join(), a)
-            if (a.t match {
-              case ArrayType(ArrayType(_, m), _) => n == m
-              case _ => false
-              })
-          =>
-            if (state._2)
-              (true, state._1)
-            else
-              state
-          case _ => (state._1, false)
-        }
-      })._1
-    =>
-
-      if (Rules.splitJoinId.isDefinedAt(call)) {
-        Rules.splitJoinId.rewrite(call)
-      } else {
-        val newCall = Rewrite.applyRuleAt(call, Rules.splitJoin(n), arg)
-
-        val splitJoinEliminated = Rewrite.applyRuleAt(newCall, Rules.splitJoinId, newCall)
-
-        val newSplit = Utils.getExprForPatternInCallChain(splitJoinEliminated, splitPattern).get
-
-        Rewrite.applyRuleAt(splitJoinEliminated, splitJoinId, newSplit)
-      }
-  })
-
-  private val reducePattern: PartialFunction[Expr, Unit] =
-    { case FunCall(_: AbstractPartRed, _, _) => }
-
-  // Map(Reduce) interchange, fissions as appropriate, automatically chooses the rule to apply
+  /**
+   *  Map(Reduce) interchange, fissions as appropriate, automatically chooses the rule to apply
+   */
   val moveReduceOutOneLevel = Rule("Map( ... Reduce(f) ...) => Map(...) o Reduce( Map(f)) o Map(...)", {
     case call@FunCall(Map(Lambda(_, innerCall: FunCall)), arg)
-      if innerCall.contains(reducePattern)
+      if Utils.getIndexForPatternInCallChain(innerCall, reducePattern) != -1
     =>
 
       var rule = Rules.mapReduceInterchange
@@ -372,17 +474,15 @@ object MacroRules {
       Expr.replace(fissioned, mapReduce, rule.rewrite(mapReduce))
   })
 
-  private val mapPattern: PartialFunction[Expr, Unit] =
-    { case FunCall(map: Map, _) if map.f.body.isConcrete => }
 
-  private val mapMapPattern: PartialFunction[Expr, Unit] =
-    { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
 
-  // Interchange the outer map with the first inner concrete map, fissions appropriately,
-  // automatically chooses the rule to apply
+  /** 
+   * Interchange the outer map with the first inner concrete map, fissions appropriately,
+   * and automatically chooses the rule to apply
+   */
   val mapMapInterchange = Rule("Map( ... Map(f) ...) => Map(...) o Map(Map(f)) o Map(...)", {
     case call@FunCall(Map(Lambda(_, innerCall: FunCall)), _)
-      if innerCall.contains(mapPattern)
+      if Utils.getIndexForPatternInCallChain(innerCall, mapPattern) != -1
     =>
       val mapId = Utils.getIndexForPatternInCallChain(innerCall, mapPattern)
 
@@ -408,7 +508,7 @@ object MacroRules {
 
         val finalArg = Utils.getFinalArg(innerCall)
         val finalArgId = Utils.getIndexForPatternInCallChain(innerCall,
-        { case e if e eq finalArg => })
+          { case e if e eq finalArg => })
 
         if (finalArgId > mapId + 1) {
           val id = if (mapId > 0) 1 else 0
@@ -422,8 +522,29 @@ object MacroRules {
       }
   })
 
+  // TODO: make sure it applies on the first concrete element
+  /**
+   * Apply interchange on the first concrete Map or Reduce inside a Map
+   */
+  val interchange =
+    Rule("", {
+      case call@FunCall(Map(_), _)
+        if mapMapInterchange.isDefinedAt(call) || moveReduceOutOneLevel.isDefinedAt(call)
+      =>
+        if (moveReduceOutOneLevel.isDefinedAt(call))
+          moveReduceOutOneLevel.rewrite(call)
+        else
+          mapMapInterchange.rewrite(call)
+
+    })
+
   val apply1DRegisterBlocking: Rule = apply1DRegisterBlocking(?)
 
+  /**
+   * Apply register blocking in 1 dimension.
+   * @param factor The amount of work to assign to the new dimension
+   * @return
+   */
   def apply1DRegisterBlocking(factor: ArithExpr): Rule = Rule("1D register blocking", {
     case call@FunCall(Map(Lambda(lambdaArg, innerCall)), _)
       if getCallForBlocking(innerCall, lambdaArg).isDefined
@@ -439,7 +560,7 @@ object MacroRules {
       applyInterchangeOnAllComponents(interchanged, map)
   })
 
-  def applyInterchangeOnAllComponents(replaceIn: Expr, interchangeHere: Expr): Expr = {
+  private def applyInterchangeOnAllComponents(replaceIn: Expr, interchangeHere: Expr): Expr = {
     var nextToInterchange = interchangeHere
     var innerInterchanged = replaceIn
 
@@ -520,7 +641,7 @@ object MacroRules {
         secondInterchange
     })
 
-  def tileMapMap(factorX: ArithExpr, factorY: ArithExpr, expr: Expr): Expr = {
+  private def tileMapMap(factorX: ArithExpr, factorY: ArithExpr, expr: Expr): Expr = {
 
     // Fission if necessary
     val mapIndex = Utils.getIndexForPatternInCallChain(getMapBody(expr), mapPattern)
@@ -543,21 +664,6 @@ object MacroRules {
     val e2 = Rewrite.applyRuleAt(innerMapSplitJoined, mapMapInterchange, secondNewDimension)
 
     e2
-  }
-
-  private def getMapAtDepth(expr:Expr, depth: Int): Expr = {
-    val outermostMap = Utils.getExprForPatternInCallChain(expr, mapPattern).get
-
-    if (depth == 0)
-      outermostMap
-    else
-      getMapAtDepth(getMapBody(outermostMap), depth - 1)
-  }
-
-  private def getMapBody(expr: Expr) = {
-    expr match {
-      case FunCall(Map(Lambda(_, body)), _) => body
-    }
   }
 
   private def getCallForBlocking(innerCall: Expr, lambdaArg: Array[Param]): Option[Expr] = {
