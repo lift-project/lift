@@ -75,15 +75,13 @@ class TestRewriteMatrixMatrix {
 
     // Output's good
 
+    // Simplification can be automated.
     val f43 = Rewrite.applyRuleAtId(f42, 18, Rules.splitTranspose)
     val f44 = Rewrite.applyRuleAtId(f43, 20, Rules.splitJoin(tileSizeK))
     val f45 = Rewrite.applyRuleAtId(f44, 22, Rules.splitJoinId)
     val f46 = Rewrite.applyRuleAtId(f45, 21, Rules.mapFusion)
     val f47 = Rewrite.applyRuleAtId(f46, 29, Rules.mapSplitTranspose)
     val f48 = Rewrite.applyRuleAtId(f47, 31, MacroRules.splitJoinId)
-
-    // One split join pair eliminated
-
     val f51 = Rewrite.applyRuleAtId(f48, 87, Rules.transposeMapSplit)
     val f52 = Rewrite.applyRuleAtId(f51, 84, Rules.mapFission)
     val f53 = Rewrite.applyRuleAtId(f52, 84, Rules.transposeBothSides)
@@ -103,9 +101,6 @@ class TestRewriteMatrixMatrix {
     val f67 = Rewrite.applyRuleAtId(f66, 18, Rules.mapFission)
     val f68 = Rewrite.applyRuleAtId(f67, 17, Rules.transposeMapSplit)
     val f69 = Rewrite.applyRuleAtId(f68, 16, Rules.mapFusion)
-
-    // Pulled Split(tileSizeK) out to the correct depth
-
     val f70 = Rewrite.applyRuleAtId(f69, 19, Rules.mapFusion)
     val f71 = Rewrite.applyRuleAtId(f70, 77, Rules.transposeMapTransposeReorder)
     val f72 = Rewrite.applyRuleAtId(f71, 75, Rules.splitTranspose)
@@ -503,12 +498,13 @@ class TestRewriteMatrixMatrix {
     val f2 = Rewrite.applyRuleAtId(f1, 13, Rules.mapFission)
     val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.mapFission)
     val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.finishTiling(tileSizeK))
-    val f5 = Rewrite.applyRuleAtId(SimplifyAndFuse.fuseAll(f4), 23, MacroRules.apply1DRegisterBlocking(workPerThread))
+    val f5 = Rewrite.applyRuleAtId(f4, 24, MacroRules.apply1DRegisterBlocking(workPerThread))
     val f6 = Rewrite.applyRuleAtId(f5, 11, MacroRules.apply1DRegisterBlocking(workPerThread))
     val f9 = Rewrite.applyRuleAtId(f6, 12, MacroRules.finishTiling(tileSizeK))
     val f10 = SimplifyAndFuse(f9)
 
-    println(f10)
+    val numExpressions = NumberExpression.breadthFirst(f10).values.max
+    assertEquals(81, numExpressions)
   }
 
 

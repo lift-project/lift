@@ -147,6 +147,7 @@ class SimplifyAndFuse {
       MacroRules.mapSplitTranspose,
       MacroRules.transposeMapSplit,
       MacroRules.movingJoin,
+      MacroRules.movingSplit,
       Rules.reorderTranspose
     )
 

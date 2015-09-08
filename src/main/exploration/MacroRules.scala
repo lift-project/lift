@@ -224,6 +224,20 @@ object MacroRules {
     })
 
   /**
+   * A rule to move split over a map.
+   * Used as an enabling rule when simplifying.
+   */
+  val movingSplit =
+    Rule("Split(n) o Map(_) => Map(Map(_)) o Split(n)", {
+      case call@FunCall(Split(n), mapCall@FunCall(Map(_), _)) =>
+
+        val splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(n), mapCall)
+        val eliminated = Rewrite.applyRuleAt(splitJoined, Rules.splitJoinId, splitJoined)
+
+        eliminated
+    })
+
+  /**
    * Eliminate a matching split-join pair. If there are maps between them, apply
    * the split-join and splitJoinId rules, to move the pair closer to each other.
    */
