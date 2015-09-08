@@ -51,7 +51,7 @@ object AllocateLocalMemoryStatically {
   }
 }
 
-object OpenCL{
+object OpenCL {
   val warpSize = 32
 }
 
@@ -67,13 +67,15 @@ object OpenCLGenerator extends Generator {
 
   var varDecls: SymbolTable = immutable.Map.empty
 
-  private def printTypes(expr: Expr): Unit = {
+  def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, {
       case e@(call: FunCall) => println(e + "\n    " +
                                         e.t + " <- " + call.argsType + "\n")
       case e => println(e + "\n    " + e.t + "\n")
     }, (e: Expr) => {})
   }
+
+  def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
 
   private def printMemories(expr: Expr): Unit = {
     Expr.visit(expr, {
