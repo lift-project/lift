@@ -2,12 +2,13 @@ package exploration
 
 import apart.arithmetic.{Prod, Cst, ArithExpr, Var}
 import ir.view.View
-import ir.{UndefType, ScalarType, Type, ArrayType}
+import ir.{TypeChecker, UndefType, ScalarType, Type, ArrayType}
 import ir.ast._
 import opencl.executor.{Executor, Execute}
-import opencl.generator.{OpenCLCodeGen}
+import opencl.generator.{RangesAndCounts, OpenCLCodeGen}
+import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir._
-import opencl.ir.pattern.{ReduceSeq, MapSeq}
+import opencl.ir.pattern._
 import scala.collection.immutable
 import scala.collection.mutable.{Set, Map => ScalaMap}
 import scala.collection.immutable.{Map => ScalaImmMap}
@@ -31,14 +32,27 @@ import scala.collection.immutable.{Map => ScalaImmMap}
  *   combinations.
  */
 
+object AppParams {
+  // matrix size
+  val matrix_size = 256
+
+  // Minimum number of work item per workgroup
+  val min_work_items = 16
+
+  // Minimal grid size
+  val min_grid_size = 4
+
+  val resource_per_thread = 1.5
+}
+
 /** Simple algebraic constraints based on divisibility
   */
 object Constraint {
-  
+
   /** Get the constant factor of an expression.
     * This is used to extract multiple. For example, we can set the input to be 64*N,
     * the constant factor will then be 64.
-    * 
+    *
     * This is more restrictive than the cstFactor of some [[ArithExpr]] classes, because
     * we want to make sure a product doesn't contain division or negative powers.
     */
@@ -55,12 +69,12 @@ object Constraint {
       else None
     case _ => None
   }
-  
+
   /** Get all the possible Int divisors of an expression */
   def divisors(ae: ArithExpr): List[Int] = getConstantFactor(ae) match {
     case Some(x) => // If the LHS has a constant factor, find if there are valid RHS values
       (1 to x).filter{ y => x % y == 0 }.toList
-      
+
     case _ => // if the LHS cannot be decomposed, there are no divisors 
       List.empty
   }
@@ -193,9 +207,9 @@ object TestLowLevelRewrite {
     Executor.init()
 
     // Prepare input and gold
-    val mSize = 1024
-    val kSize = 1024
-    val nSize = 1024
+    val mSize = AppParams.matrix_size
+    val kSize = AppParams.matrix_size
+    val nSize = AppParams.matrix_size
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
@@ -290,7 +304,7 @@ object TestLowLevelRewrite {
 
         counter = counter + 1
         //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-        val (test, time) = executor(tuned_expr, values:_*)
+        val (test, time) = executor(Math.max(best_time, 1000f), tuned_expr, values:_*)
 
         import ExecutionHarness.Status._
         test match {
@@ -299,7 +313,6 @@ object TestLowLevelRewrite {
             all_times = time :: all_times
             if (time < best_time) {
               best_time = time
-              println(s"New best time: ${best_time}")
               best_substitutions = st
             }
 
@@ -307,19 +320,22 @@ object TestLowLevelRewrite {
             skipped = skipped + 1
 
           case ValidationError =>
+            println()
             println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
             println(tuned_expr)
             failed = failed + 1
 
           case _ =>
+            println()
             println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
             println(tuned_expr)
             crashed = crashed + 1
         }
 
-        println(s"$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $failed failed, $crashed crashed)")
+        print(s"\r$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $failed failed, $crashed crashed) best = $best_time                   ")
       })
 
+      println()
       println("All times:")
       println(all_times.mkString(", "))
       println(s"best time: ${best_time}")
@@ -327,7 +343,7 @@ object TestLowLevelRewrite {
     }
 
 
-    
+
     // Step 4: Extract all variables from the constraint system and their dependencies
     //val parameters = findTuningKnobs(constraints)
 
@@ -358,96 +374,216 @@ object TestLowLevelRewrite {
     /*val N = Var("N")
     val M = Var("M")
     val K = Var("K")*/
-    val N = 1024
-    val M = 1024
-    val K = 1024
+    val N = AppParams.matrix_size
+    val M = AppParams.matrix_size
+    val K = AppParams.matrix_size
 
     val f0 =
+    /*      fun(
+            ArrayType(ArrayType(Float, N), K),
+            ArrayType(ArrayType(Float, M), K),
+            (p1795960102, p477289012) =>
+              FunCall(Join(),
+                FunCall(Map(fun((p1889248251) =>
+                  FunCall(TransposeW(),
+                    FunCall(Join(),
+                      FunCall(Map(fun((p2023938592) =>
+                        FunCall(TransposeW(),
+                          FunCall(Map(fun((p225290371) =>
+                            FunCall(Scatter(ReorderWithStride(tileSizeMNVar/^workPerThreadMVar)), p225290371))),
+                            FunCall(Join(),
+                              FunCall(Map(fun((p297927961) =>
+                                FunCall(TransposeW(),
+                                  FunCall(Join(),
+                                    FunCall(Map(fun((p733672688) =>
+                                      FunCall(TransposeW(),
+                                        FunCall(Map(fun((p756185697) =>
+                                          FunCall(TransposeW(), p756185697))),
+                                          FunCall(TransposeW(), p733672688))))),
+                                      FunCall(TransposeW(), p297927961)))))),
+                                FunCall(TransposeW(),
+                                  FunCall(MapSeq(fun((p1691875296) =>
+                                    FunCall(Id(), p1691875296))),
+                                    FunCall(ReduceSeq(fun((p500179317, p1225197672) =>
+                                      FunCall(Map(fun((p1500608548) =>
+                                        FunCall(Map(fun((p513700442) =>
+                                          FunCall(Map(fun((p912011468) =>
+                                            FunCall(Join(),
+                                              FunCall(Transpose(), p912011468)))),
+                                            FunCall(Transpose(),
+                                              FunCall(MapSeq(fun((p1195067075) =>
+                                                FunCall(Id(), p1195067075))),
+                                                FunCall(ReduceSeq(fun((p1983025922, p1007309018) =>
+                                                  FunCall(Map(fun((p2038148563) =>
+                                                    FunCall(Map(fun((p2142080121) =>
+                                                      FunCall(add,
+                                                        FunCall(Get(0), p2142080121),
+                                                        FunCall(Get(1), p2142080121)))),
+                                                      FunCall(Zip(2),
+                                                        FunCall(Get(0), p2038148563),
+                                                        FunCall(Map(fun((p112619572) =>
+                                                          FunCall(mult,
+                                                            FunCall(Get(1), p2038148563), p112619572))),
+                                                          FunCall(Get(1), p1007309018)))))),
+                                                    FunCall(Zip(2), p1983025922,
+                                                      FunCall(Get(0), p1007309018))))),
+                                                  FunCall(Get(0), p513700442),
+                                                  FunCall(Zip(2),
+                                                    FunCall(Transpose(),
+                                                      FunCall(Get(1), p1500608548)),
+                                                    FunCall(Transpose(),
+                                                      FunCall(Get(1), p513700442))))))))),
+                                          FunCall(Zip(2),
+                                            FunCall(Get(0), p1500608548),
+                                            FunCall(Split(workPerThreadMVar),
+                                              FunCall(Gather(ReorderWithStride(tileSizeMNVar/^workPerThreadMVar)),
+                                                FunCall(Transpose(),
+                                                  FunCall(Get(1), p1225197672)))))))),
+                                        FunCall(Zip(2), p500179317,
+                                          FunCall(Split(workPerThreadNVar),
+                                            FunCall(Transpose(),
+                                              FunCall(Get(0), p1225197672))))))),
+                                      FunCall(Map(fun((p1786364562) =>
+                                        FunCall(Map(fun((p326298949) =>
+                                          FunCall(Map(fun((p876926621) =>
+                                            FunCall(Map(fun((p1268959798) =>
+                                              FunCall(id, p1268959798))), p876926621))), p326298949))), p1786364562))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadMVar), workPerThreadNVar), tileSizeMNVar/^workPerThreadMVar), tileSizeMNVar/^workPerThreadNVar))),
+                                      FunCall(Zip(2), p1889248251, p2023938592)))))))))),
+                        FunCall(Transpose(),
+                          FunCall(Map(fun((p1935972447) =>
+                            FunCall(Transpose(), p1935972447))),
+                            FunCall(Split(tileSizeKVar),
+                              FunCall(Map(fun((p1890627974) =>
+                                FunCall(Split(tileSizeMNVar), p1890627974))), p477289012))))))))),
+                  FunCall(Transpose(),
+                    FunCall(Map(fun((p1641313620) =>
+                      FunCall(Transpose(), p1641313620))),
+                      FunCall(Split(tileSizeKVar),
+                        FunCall(Map(fun((p192881625) =>
+                          FunCall(Split(tileSizeMNVar), p192881625))), p1795960102)))))))
+    */
+
       fun(
-        ArrayType(ArrayType(Float, N), K),
         ArrayType(ArrayType(Float, M), K),
-        (p1795960102, p477289012) =>
+        ArrayType(ArrayType(Float, N), K),
+        (p54495403, p1260134048) =>
           FunCall(Join(),
-            FunCall(Map(fun((p1889248251) =>
+            FunCall(MapWrg(1)(fun((p1408652377) =>
               FunCall(TransposeW(),
                 FunCall(Join(),
-                  FunCall(Map(fun((p2023938592) =>
+                  FunCall(MapWrg(0)(fun((p990416209) =>
                     FunCall(TransposeW(),
-                      FunCall(Map(fun((p225290371) =>
-                        FunCall(Scatter(ReorderWithStride(tileSizeMNVar/^workPerThreadMVar)), p225290371))),
+                      FunCall(Map(fun((p1651855867) =>
+                        FunCall(Scatter(ReorderWithStride(tileSizeMNVar/^workPerThreadMVar)), p1651855867))),
                         FunCall(Join(),
-                          FunCall(Map(fun((p297927961) =>
+                          FunCall(Map(fun((p1468303011) =>
                             FunCall(TransposeW(),
                               FunCall(Join(),
-                                FunCall(Map(fun((p733672688) =>
-                                  FunCall(TransposeW(),
-                                    FunCall(Map(fun((p756185697) =>
-                                      FunCall(TransposeW(), p756185697))),
-                                      FunCall(TransposeW(), p733672688))))),
-                                  FunCall(TransposeW(), p297927961)))))),
-                            FunCall(TransposeW(),
-                              FunCall(MapSeq(fun((p1691875296) =>
-                                FunCall(Id(), p1691875296))),
-                                FunCall(ReduceSeq(fun((p500179317, p1225197672) =>
-                                  FunCall(Map(fun((p1500608548) =>
-                                    FunCall(Map(fun((p513700442) =>
-                                      FunCall(Map(fun((p912011468) =>
-                                        FunCall(Join(),
-                                          FunCall(Transpose(), p912011468)))),
-                                        FunCall(Transpose(),
-                                          FunCall(MapSeq(fun((p1195067075) =>
-                                            FunCall(Id(), p1195067075))),
-                                            FunCall(ReduceSeq(fun((p1983025922, p1007309018) =>
-                                              FunCall(Map(fun((p2038148563) =>
-                                                FunCall(Map(fun((p2142080121) =>
-                                                  FunCall(add,
-                                                    FunCall(Get(0), p2142080121),
-                                                    FunCall(Get(1), p2142080121)))),
-                                                  FunCall(Zip(2),
-                                                    FunCall(Get(0), p2038148563),
-                                                    FunCall(Map(fun((p112619572) =>
-                                                      FunCall(mult,
-                                                        FunCall(Get(1), p2038148563), p112619572))),
-                                                      FunCall(Get(1), p1007309018)))))),
-                                                FunCall(Zip(2), p1983025922,
-                                                  FunCall(Get(0), p1007309018))))),
-                                              FunCall(Get(0), p513700442),
-                                              FunCall(Zip(2),
-                                                FunCall(Transpose(),
-                                                  FunCall(Get(1), p1500608548)),
-                                                FunCall(Transpose(),
-                                                  FunCall(Get(1), p513700442))))))))),
+                                FunCall(Map(fun((p523691575) =>
+                                  FunCall(TransposeW(), p523691575))), p1468303011))))),
+                            FunCall(Map(fun((p1354011814) =>
+                              FunCall(Map(fun((p1852584274) =>
+                                FunCall(Map(fun((p1857815974) =>
+                                  FunCall(TransposeW(), p1857815974))),
+                                  FunCall(TransposeW(), p1852584274)))),
+                                FunCall(TransposeW(), p1354011814)))),
+                              FunCall(TransposeW(),
+                                FunCall(toGlobal(fun((p520016214) =>
+                                FunCall(MapSeq(fun((p1675763772) =>
+                                  FunCall(MapLcl(1)(fun((p841283083) =>
+                                    FunCall(MapLcl(0)(fun((p990398217) =>
+                                    FunCall(MapSeq(fun((p1468357786) =>
+                                      FunCall(MapSeq(fun((p36333492) =>
+                                        FunCall(id, p36333492))), p1468357786))), p990398217))), p841283083))), p1675763772))), p520016214))),
+                                  FunCall(ReduceSeq(fun((p1511785794, p527446182) =>
+                          FunCall(fun((p1205555397) =>
+                            FunCall(MapLcl(1)(fun((p1454031203) =>
+                              FunCall(MapLcl(0)(fun((p407858146) =>
+                                FunCall(Map(fun((p817406040) =>
+                                  FunCall(Join(),
+                                    FunCall(Transpose(), p817406040)))),
+                                  FunCall(Transpose(),
+                                    FunCall(ReduceSeq(fun((p603650290, p1754638213) =>
+                                      FunCall(fun((p278934944) =>
+                                        FunCall(MapSeq(fun((p222624801) =>
+                                          FunCall(MapSeq(fun((p85777802) =>
+                                            FunCall(add,
+                                              FunCall(Get(0), p85777802),
+                                              FunCall(Get(1), p85777802)))),
+                                            FunCall(Zip(2),
+                                              FunCall(Get(0), p222624801),
+                                              FunCall(Get(1), p222624801))))),
+                                          FunCall(Zip(2), p603650290,
+                                            FunCall(MapSeq(fun((p280744458) =>
+                                              FunCall(MapSeq(fun((p1213216872) =>
+                                                FunCall(mult, p280744458, p1213216872))),
+                                                FunCall(Get(1), p278934944)))),
+                                              FunCall(toPrivate(fun((p1686369710) =>
+                                                FunCall(MapSeq(fun((p385337537) =>
+                                                  FunCall(id, p385337537))), p1686369710))),
+                                                FunCall(Get(0), p278934944)))))),
+                                        FunCall(fun((p1282811396) =>
+                                          FunCall(Tuple(2),
+                                            FunCall(Get(0), p1282811396),
+                                          FunCall(toPrivate(fun((p439928219) =>
+                                            FunCall(MapSeq(fun((p1883840933) =>
+                                              FunCall(id, p1883840933))), p439928219))),
+                                            FunCall(Get(1), p1282811396)))), p1754638213)))),
+                                      FunCall(Get(0), p407858146),
                                       FunCall(Zip(2),
-                                        FunCall(Get(0), p1500608548),
-                                        FunCall(Split(workPerThreadMVar),
-                                          FunCall(Gather(ReorderWithStride(tileSizeMNVar/^workPerThreadMVar)),
-                                            FunCall(Transpose(),
-                                              FunCall(Get(1), p1225197672)))))))),
-                                    FunCall(Zip(2), p500179317,
-                                      FunCall(Split(workPerThreadNVar),
                                         FunCall(Transpose(),
-                                          FunCall(Get(0), p1225197672))))))),
-                                  FunCall(Map(fun((p1786364562) =>
-                                    FunCall(Map(fun((p326298949) =>
-                                      FunCall(Map(fun((p876926621) =>
-                                        FunCall(Map(fun((p1268959798) =>
-                                          FunCall(id, p1268959798))), p876926621))), p326298949))), p1786364562))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadMVar), workPerThreadNVar), tileSizeMNVar/^workPerThreadMVar), tileSizeMNVar/^workPerThreadNVar))),
-                                  FunCall(Zip(2), p1889248251, p2023938592)))))))))),
+                                          FunCall(Get(1), p1454031203)),
+                                        FunCall(Transpose(),
+                                          FunCall(Get(1), p407858146)))))))),
+                                FunCall(Zip(2), FunCall(Get(0), p1454031203),
+                                  FunCall(Split(workPerThreadMVar),
+                                    FunCall(Gather(ReorderWithStride(tileSizeMNVar/^workPerThreadMVar)),
+                                      FunCall(Transpose(),
+                                        FunCall(Get(1), p1205555397)))))))),
+                              FunCall(Zip(2), p1511785794,
+                                FunCall(Split(workPerThreadNVar),
+                                  FunCall(Transpose(),
+                                    FunCall(Get(0), p1205555397)))))),
+                            FunCall(fun((p1209669119) =>
+                              FunCall(Unzip(),
+                                FunCall(toLocal(fun((p1607305514) =>
+                                  FunCall(MapLcl(1)(fun((p832279283) =>
+                                    FunCall(Unzip(),
+                                      FunCall(MapLcl(0)(fun((p668210649) =>
+                                        FunCall(Tuple(2),
+                                          FunCall(id,
+                                            FunCall(Get(0), p668210649)),
+                                          FunCall(id,
+                                            FunCall(Get(1), p668210649))))),
+                                        FunCall(Zip(2),
+                                          FunCall(Get(0), p832279283),
+                                          FunCall(Get(1), p832279283)))))), p1607305514))),
+                                  FunCall(Zip(2),
+                                    FunCall(Get(0), p1209669119),
+                                    FunCall(Get(1), p1209669119))))), p527446182)))),
+                                    FunCall(MapLcl(1)(fun((p1301664418) =>
+                                      FunCall(MapLcl(0)(fun((p513169028) =>
+                                        FunCall(MapSeq(fun((p377478451) =>
+                                          FunCall(MapSeq(fun((p1596467899) =>
+                                            FunCall(id, p1596467899))), p377478451))), p513169028))), p1301664418))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadMVar), workPerThreadNVar), tileSizeMNVar/^workPerThreadMVar), tileSizeMNVar/^workPerThreadNVar))),
+                                    FunCall(Zip(2), p1408652377, p990416209))))))))))),
                     FunCall(Transpose(),
-                      FunCall(Map(fun((p1935972447) =>
-                        FunCall(Transpose(), p1935972447))),
-                        FunCall(Split(tileSizeKVar),
-                          FunCall(Map(fun((p1890627974) =>
-                            FunCall(Split(tileSizeMNVar), p1890627974))), p477289012))))))))),
+                      FunCall(Map(fun((p1952779858) =>
+                        FunCall(Transpose(), p1952779858))),
+                    FunCall(Split(tileSizeKVar),
+                      FunCall(Map(fun((p1791868405) =>
+                        FunCall(Split(tileSizeMNVar), p1791868405))), p1260134048))))))))),
               FunCall(Transpose(),
-                FunCall(Map(fun((p1641313620) =>
-                  FunCall(Transpose(), p1641313620))),
+                FunCall(Map(fun((p81009902) =>
+                  FunCall(Transpose(), p81009902))),
                   FunCall(Split(tileSizeKVar),
-                    FunCall(Map(fun((p192881625) =>
-                      FunCall(Split(tileSizeMNVar), p192881625))), p1795960102)))))))
+                    FunCall(Map(fun((p674483268) =>
+                      FunCall(Split(tileSizeMNVar), p674483268))), p54495403)))))))
 
+    TypeChecker(f0)
+    f0
     // This is required to patch-up the address space modifiers for reduce
-    Lower.lowerNoAddressSpaces(f0)
+    //Lower.lowerNoAddressSpaces(f0)
   }
 
   object ExecutionHarness {
@@ -476,7 +612,7 @@ object TestLowLevelRewrite {
     def failure(reason: Status): (Status, Double) = (reason, 0.0)
 
     // run the given lambda with the given dimensions and parameters
-    def apply(expr: Lambda, values: Any*): (Status, Double) = {
+    def apply(cur_best: Double, expr: Lambda, values: Any*): (Status, Double) = {
       try {
         val (local, global) = InferNDRange(expr, values:_*)
 
@@ -496,15 +632,41 @@ object TestLowLevelRewrite {
         })
         OpenCLMemoryAllocator.alloc(expr.body)
         val buffers = TypedOpenCLMemory.get(expr.body, expr.params, true)
+
+        // filter private memory
         val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
-        if(private_buffers_size.map(x => OpenCLMemory.getMaxSizeInBytes(x.t)).reduce(_+_).eval > 8192)
+        val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_+_).eval
+        if(private_alloc_size > 8192*5)
+          return failure(Skipped)
+
+        // filter local memory
+        val local_buffers_size = buffers.filter(_.mem.addressSpace == LocalMemory)
+        val local_alloc_size = local_buffers_size.map(_.mem.size).reduce(_+_).eval
+        if(local_alloc_size > Executor.getDeviceLocalMemSize)
           return failure(Skipped)
 
         // Rule out obviously poor choices based on the grid size
-        if (local.map(_.eval).product < 16) return failure(Skipped)
-        if (global.map(_.eval).product < 16) return failure(Skipped)
-        if ((global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product < 4)
+        // - minimum of workitems in a workgroup
+        if (local.map(_.eval).product < AppParams.min_work_items) return failure(Skipped)
+        // - minimum size of the entire compute grid
+        if (global.map(_.eval).product < AppParams.min_grid_size) return failure(Skipped)
+        // - minimum number of workgroups
+        if ((global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product < 8)
           return failure(Skipped)
+
+        // This measures the % of max local memory / thread
+        val resource_per_thread = if (local_alloc_size == 0) 0 else
+          Executor.getDeviceLocalMemSize.toFloat /
+            (Math.floor(Executor.getDeviceLocalMemSize / local_alloc_size) * local.map(_.eval).product.toFloat) /
+            //                                                                   ^--- times # of work-items
+            //                                                               ^--- # workgroup / sm
+            //                                             ^--- usage per workgroup
+            //              ^--- max local memory
+            Executor.getDeviceLocalMemSize.toFloat * 100.0
+        //  ^--- as a fraction of max mem            ^--- in %    
+
+        // number of threads / SM
+        if (resource_per_thread > AppParams.resource_per_thread) return failure(Skipped)
 
         // Avoid crashing for invalid values
         if(local.map(_.eval).product > Executor.getDeviceMaxWorkGroupSize)
@@ -512,7 +674,20 @@ object TestLowLevelRewrite {
 
         // === Execution ===
         val (output: Array[Float], time) =
-          Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ) (10, 100.0f, expr, values: _*)
+          Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ) (10,cur_best*1.4f,expr, values: _*)
+
+        if (false) {
+          println("Current run:")
+          println("- local variables: " + private_buffers_size.map(x => OpenCLMemory.getMaxSizeInBytes(x.t)).reduce(_+_).eval)
+          println("- local size: " + local.map((_.eval)).mkString(", "))
+          println("- global size: " + global.map((_.eval)).mkString(", "))
+          println("- work item count: " + local.map(_.eval).product)
+          println("- work group count: " + (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product)
+          println("- local allocation: " + local_alloc_size)
+          println("- private allocation: " + private_alloc_size)
+          println("- local resource / thread: " + resource_per_thread)
+          println("- execution time: " + time)
+        }
 
         // cross validation
         if (output.length != gold.length)
