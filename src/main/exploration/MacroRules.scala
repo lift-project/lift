@@ -372,11 +372,11 @@ object MacroRules {
         val e1 = Rewrite.applyRuleAtId(funCall, 0, MacroRules.tileMapMap(x, y))
         val e2 = Rewrite.applyRuleAtId(e1, 13, Rules.mapFission)
         val e3 = Rewrite.applyRuleAtId(e2, 11, Rules.mapFission)
-
         val e4 = Rewrite.applyRuleAtId(e3, 12, MacroRules.finishTiling(z))
         SimplifyAndFuse.fuseAll(e4)
     })
 
+  // TODO: Improve to be able to fission a transpose from zip
   /**
    * Move transposition inside tiling, that is, transpose the 2D structure of tiles
    * and then transpose each tile.
