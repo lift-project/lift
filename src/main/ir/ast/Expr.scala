@@ -109,6 +109,23 @@ abstract class Expr {
       } else s
     })
   }
+
+  /**
+   * Reverse function application.
+   * I.e. e :>> f == f(e).
+   * @param f The function to apply to `this`.
+   * @return `f.apply(this)`
+   */
+  def :>>(f: FunDecl) = f.apply(this)
+
+  /**
+   * (double reverse) Function application.
+   * I.e. f <<: e == e.<<:(f) == f(e)
+   *
+   * @param f The function to apply to `this`.
+   * @return `f.apply(this)`
+   */
+  def <<:(f: FunDecl) = f.apply(this)
 }
 
 object Expr {

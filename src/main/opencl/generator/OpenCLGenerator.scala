@@ -131,8 +131,7 @@ object OpenCLGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      TypedOpenCLMemory.
-        getAllocatedMemory(f.body, f.params).foreach(m => println(m.toString))
+      TypedOpenCLMemory.get(f.body, f.params).foreach(m => println(m))
       println("")
     }
 
@@ -241,8 +240,8 @@ object OpenCLGenerator extends Generator {
   }
 
   def allocateMemory(f: Lambda): Unit = {
-    OpenCLMemory.alloc(f.body)
-    Kernel.memory = TypedOpenCLMemory.getAllocatedMemory(f.body, f.params)
+    OpenCLMemoryAllocator.alloc(f.body)
+    Kernel.memory = TypedOpenCLMemory.get(f.body, f.params).toArray
   }
 
   private def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
@@ -271,22 +270,17 @@ object OpenCLGenerator extends Generator {
         case _ => set
       })
 
+    val typedMems =
+      TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).toArray
+
     val (typedValueMems, privateMems) =
-      TypedOpenCLMemory.
-        getAllocatedMemory(f.body,
-                           f.params,
-                           includePrivate = true).diff(Kernel.memory).
-          partition(m => valMems.contains(m.mem))
+      typedMems.diff(Kernel.memory).partition(m => valMems.contains(m.mem))
 
     this.privateMems = privateMems
 
     // the base type is used for allocation of all variables ...
     this.varDecls =
-      TypedOpenCLMemory.
-        getAllocatedMemory(f.body,
-                           f.params,
-                           includePrivate = true).
-          map(tm => (tm.mem.variable, Type.devectorize(tm.t))).toMap
+      typedMems.map(tm => (tm.mem.variable, Type.devectorize(tm.t))).toMap
 
     // ... besides the these variables which use the value types
     // (i.e., possibly a vector type)
@@ -714,7 +708,7 @@ object OpenCLGenerator extends Generator {
                                                replacementsWithFuns) / vt.len))
 
           // originally an array, but now a vector type => vstore
-          case at: ArrayType  if Type.isEqual(at.elemT, vt.scalarT)  =>
+          case at: ArrayType if Type.isEqual(Type.getValueType(at), vt.scalarT) =>
             OpenCLAST.Store(
               OpenCLAST.VarRef(mem.variable.toString), vt,
               value = value,

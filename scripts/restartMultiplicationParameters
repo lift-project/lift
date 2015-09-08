@@ -1,0 +1,12 @@
+#!/bin/bash
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+cd ..
+
+FILENAME=$1
+
+if [ -e "$FILENAME" ]; then
+	nohup scripts/MultiplicationParameters $FILENAME >> $FILENAME &
+else
+	git diff >> $FILENAME
+	nohup scripts/MultiplicationParameters >> $FILENAME &
+fi

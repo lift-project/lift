@@ -494,8 +494,8 @@ object TestLowLevelRewrite {
           }
           p.view = View(p.t, OpenCLCodeGen.print(p.mem.variable))
         })
-        OpenCLMemory.alloc(expr.body)
-        val buffers = TypedOpenCLMemory.getAllocatedMemory(expr.body, expr.params, true)
+        OpenCLMemoryAllocator.alloc(expr.body)
+        val buffers = TypedOpenCLMemory.get(expr.body, expr.params, true)
         val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
         if(private_buffers_size.map(x => OpenCLMemory.getMaxSizeInBytes(x.t)).reduce(_+_).eval > 8192)
           return failure(Skipped)

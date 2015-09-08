@@ -26,8 +26,12 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     "Vector width for loading values")
 
   override def runScala(inputs: Any*): Array[Float] = {
-    val A = inputs(0).asInstanceOf[Array[Array[Float]]]
+    var A = inputs(0).asInstanceOf[Array[Array[Float]]]
     val B = inputs(1).asInstanceOf[Array[Array[Float]]]
+
+    val variant = variantOpt.value.getOrElse(0)
+    if (variant == 3 || variant == 4)
+      A = A.transpose
 
     val aCols = A(0).length
     val aRows = A.length
@@ -118,8 +122,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
             toGlobal(MapLcl(1)(MapLcl(0)(id))) o
               Join() o
@@ -158,8 +162,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
             Join() o Map(TransposeW()) o
               toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(id)))) o
               Join() o
@@ -216,8 +220,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
             Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
               Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -282,8 +286,8 @@ object MatrixMultiplication {
     (A, B) => {
       // Undo the tiling
       Untile() o
-        MapWrg(0)(fun( aRows =>
-          MapWrg(1)(fun( bCols =>
+        MapWrg(1)(fun( aRows =>
+          MapWrg(0)(fun( bCols =>
 
             Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
               Map(TransposeW() o Join() o Map(TransposeW())) o

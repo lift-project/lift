@@ -24,14 +24,7 @@ abstract case class Lambda private[ast] (params: Array[Param],
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
-    if (arity == 1) {
-      params(0).t = argType
-    } else {
-      val tt = argType match { case tt: TupleType => tt }
-      if (arity != tt.elemsT.length) throw new NumberOfArgumentsException
-
-      (params zip tt.elemsT).foreach({case (p,t) => p.t = t })
-    }
+    TypeChecker.checkAndSetTypeForParams(params, argType)
     TypeChecker.check(body, setType)
   }
 
