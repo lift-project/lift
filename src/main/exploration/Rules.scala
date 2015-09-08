@@ -109,10 +109,7 @@ object Rules {
 
   val splitJoinId = Rule("Split(_) o Join() => id", {
     case FunCall(Split(n), FunCall(Join(), arg))
-      if (arg.t match {
-        case ArrayType(ArrayType(_, m), _) => n == m
-        case _ => false
-      }) => arg
+      if Utils.innerLengthOfTypeMatches(arg.t, n) => arg
   })
 
   val scatterGatherId = Rule("Scatter(f) o Gather(f) => id", {

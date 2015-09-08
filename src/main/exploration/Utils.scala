@@ -19,6 +19,16 @@ object Utils {
 	    } )._2	  
 	}
 
+  def innerLengthOfTypeMatches(t: Type, n: ArithExpr): Boolean = {
+    t match {
+      case ArrayType(ArrayType(_, m), _) =>
+        (n, m) match {
+          case (Var(_, r1: RangeMul), Var(_, r2: RangeMul)) => r1 == r2
+          case _ => n == m
+        }
+      case _ => false
+    }
+  }
 
   def findGets(expr: Expr, tupleParam: Expr): List[FunCall] = {
     Expr.visitWithState(List[FunCall]())(expr, (e, s) => {

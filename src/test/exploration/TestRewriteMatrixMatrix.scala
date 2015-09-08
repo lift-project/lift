@@ -290,13 +290,13 @@ class TestRewriteMatrixMatrix {
     val tileSizeK = 8
     val workPerThread = 2
 
-    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap(tileSizeM, tileSizeN))
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
     val f2 = Rewrite.applyRuleAtId(f1, 13, Rules.mapFission)
     val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.mapFission)
-    val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.finishTiling(tileSizeK))
+    val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.finishTiling)
     val f5 = Rewrite.applyRuleAtId(f4, 24, MacroRules.apply1DRegisterBlocking(workPerThread))
     val f6 = Rewrite.applyRuleAtId(f5, 11, MacroRules.apply1DRegisterBlocking(workPerThread))
-    val f9 = Rewrite.applyRuleAtId(f6, 12, MacroRules.finishTiling(tileSizeK))
+    val f9 = Rewrite.applyRuleAtId(f6, 12, MacroRules.finishTiling)
     val f10 = SimplifyAndFuse(f9)
 
     val numExpressions = NumberExpression.breadthFirst(f10).values.max
@@ -476,52 +476,17 @@ class TestRewriteMatrixMatrix {
         )) $ A
       })
 
-    val tileSizeM = 32
-    val tileSizeN = 32
-    val tileSizeK = 32
-
-    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap(tileSizeM, tileSizeN))
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
     val f2 = Rewrite.applyRuleAtId(f1, 13, Rules.mapFission)
     val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.mapFission)
-    val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.finishTiling(tileSizeK))
+    val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.finishTiling)
     val f5 = Rewrite.applyRuleAtId(f4, 6, Rules.mapFissionWithZipInside)
     val f6 = Rewrite.applyRuleAtId(f5, 7, MacroRules.moveTransposeInsideTiling)
-    val f7 = Rewrite.applyRuleAtId(f6, 17, MacroRules.finishTiling(tileSizeK))
+    val f7 = Rewrite.applyRuleAtId(f6, 17, MacroRules.finishTiling)
     val f8 = SimplifyAndFuse(f7)
 
     val numExpressions = NumberExpression.breadthFirst(f8).values.max
     assertEquals(68, numExpressions)
-
-    lowerAndExecute(f1)
-    lowerAndExecute(f2)
-    lowerAndExecute(f3)
-    lowerAndExecute(f4)
-    lowerAndExecute(f5)
-    lowerAndExecute(f6)
-    lowerAndExecute(f8)
-  }
-
-  def lowerAndExecute(lambda: Lambda): Unit = {
-    val lowered = Lower.lowerNoAddressSpaces(lambda)
-
-    val mSize = 256
-    val kSize = 256
-    val nSize = 256
-    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-
-    val values = Seq(matrixA, matrixB)
-
-    val (localRange, globalRange) = InferNDRange(lowered, values:_*)
-
-    val (output: Array[Float], runtime) = Execute(localRange(0).eval, localRange(1).eval,
-      globalRange(0).eval, globalRange(1).eval, (true, true))(lowered, values:_*)
-
-    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
-
-    assertArrayEquals(gold.flatten, output, 0.0001f)
-
-    println(runtime)
   }
 
 }

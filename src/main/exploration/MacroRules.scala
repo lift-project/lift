@@ -248,10 +248,7 @@ object MacroRules {
         expr match {
           case FunCall(Map(_), _) => state
           case FunCall(Join(), a)
-            if (a.t match {
-              case ArrayType(ArrayType(_, m), _) => n == m
-              case _ => false
-            })
+            if Utils.innerLengthOfTypeMatches(a.t, n)
           =>
             if (state._2)
               (true, state._1)
@@ -291,14 +288,18 @@ object MacroRules {
   /**
    * Tile a computation in the form Map(Map(f))
    */
-  val tileMapMap: (Int, Int) => Rule = (x, y) =>
+  val tileMapMap: Rule = tileMapMap(?, ?)
+
+  def tileMapMap(x: ArithExpr, y: ArithExpr): Rule =
     Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
       case funCall @ FunCall(Map(Lambda(_, FunCall(Map(_), _))), _)
       =>
         tileMapMap(x, y, funCall)
     })
 
-  val finishTiling: Int => Rule = x =>
+  val finishTiling: Rule = finishTiling(?)
+
+  def finishTiling(x: ArithExpr): Rule =
     Rule("Map(x => Map(y => Map() $ Get(x, ...) Get$(x, ...) $ Zip(...)", {
       case funCall @
         FunCall(Map(Lambda(p,
@@ -338,7 +339,7 @@ object MacroRules {
 
                 val rule = Rules.partialReduceSplitJoin(x)
                 val partialReduce = Utils.getExprForPatternInCallChain(
-                  appliedPartialReduce, { case e if rule.isDefinedAt(e) => }).get
+                appliedPartialReduce, { case e if rule.isDefinedAt(e) => }).get
 
                 val splitJoined = Rewrite.applyRuleAt(appliedPartialReduce, rule, partialReduce)
 
@@ -353,7 +354,6 @@ object MacroRules {
 
             outerExchanged
         }
-
     })
 
   val tileInputAndOutput: (Int, Int, Int) => Rule = (x, y, z) =>
