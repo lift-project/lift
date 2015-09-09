@@ -285,8 +285,6 @@ object MacroRules {
       e2
   })
 
-
-  // TODO: fission the components inside, can apply blocking separately
   /**
    * Tile a computation in the form Map(Map(f))
    */
@@ -296,7 +294,34 @@ object MacroRules {
     Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
       case funCall @ FunCall(Map(Lambda(_, FunCall(Map(_), _))), _)
       =>
-        tileMapMap(x, y, funCall)
+        val tiled = tileMapMap(x, y, funCall)
+
+        val innerMostMap = getMapAtDepth(tiled, 3)
+        val callChain = getMapBody(innerMostMap)
+
+        val mapId = Utils.getIndexForPatternInCallChain(callChain, mapPattern)
+        val reduceId = Utils.getIndexForPatternInCallChain(callChain, reducePattern)
+
+        val hasMap = mapId != -1
+        val hasReduce = reduceId != -1
+
+        var fissioned = tiled
+
+        // TODO: assuming maps clumped together and reduces clumped together
+
+        // Fission between reduces and maps. Blocking and tiling have to be applied separately,
+        // if tiling the input as well.
+        if (hasReduce && hasMap) {
+          val larger = if (mapId > reduceId) mapId else reduceId
+
+          val firstFission = Rewrite.applyRuleAt(tiled, mapFissionAtPosition(larger - 1), innerMostMap)
+
+          val fissionInHere = getMapAtDepth(firstFission, 2)
+
+          fissioned = Rewrite.applyRuleAt(firstFission, Rules.mapFission, fissionInHere)
+        }
+
+        fissioned
     })
 
   val finishTiling: Rule = finishTiling(?)
@@ -304,12 +329,10 @@ object MacroRules {
   def finishTiling(x: ArithExpr): Rule =
     Rule("Map(x => Map(y => Map() $ Get(x, ...) Get$(x, ...) $ Zip(...)", {
       case funCall @
-        FunCall(Map(Lambda(p,
-        c)),
-        _)
+        FunCall(Map(Lambda(p, c)), _)
         if Utils.getIndexForPatternInCallChain(c, mapPattern) != -1
           && (Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(mapPattern)
-          || Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(reducePattern))
+           || Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(reducePattern))
       =>
 
         val mapInC = getMapAtDepth(c, 0)
