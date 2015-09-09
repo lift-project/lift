@@ -41,13 +41,14 @@ object Rewrite {
     val replacement = rule.rewrite(toBeReplaced)
     var replacedInExpr = Expr.replace(expr, toBeReplaced, replacement)
 
-    if (rule == MacroRules.splitJoinId || rule == Rules.splitJoinId)
+    if (rule == MacroRules.splitJoinId)
       replacedInExpr = patchUpAfterSplitJoin(toBeReplaced, replacement, replacedInExpr)
 
     replacedInExpr
   }
 
   def patchUpAfterSplitJoin(toBeReplaced: Expr, replacement: Expr, replaced: Expr): Expr = {
+    // TODO: suppress warnings?
     TypeChecker(replaced)
 
     val newExpr = Utils.getLengthOfSecondDim(replacement.t)

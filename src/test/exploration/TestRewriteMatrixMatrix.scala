@@ -46,11 +46,7 @@ class TestRewriteMatrixMatrix {
     val f5 = Rewrite.applyRuleAtId(f4, 24, MacroRules.apply2DRegisterBlocking)
     val f6 = Rewrite.applyRuleAtId(f5, 11, MacroRules.apply2DRegisterBlocking)
     val f7 = Rewrite.applyRuleAtId(f6, 13, MacroRules.finishTiling)
-
-    // TODO: Improve the simplifier to be able to get rid of this.
-    val f8 = Rewrite.applyRuleAtId(f7, 18, MacroRules.movingSplit)
-
-    val h9 = SimplifyAndFuse(f8)
+    val h9 = SimplifyAndFuse(f7)
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
 
@@ -91,7 +87,8 @@ class TestRewriteMatrixMatrix {
     val f7 = Rewrite.applyRuleAtId(f6, 77, Rules.tupleFission)
     val f8 = Rewrite.applyRuleAtId(f7, 85, Rules.tupleMap)
 
-    println(f8)
+    val numExpressions = NumberExpression.breadthFirst(f8).values.max
+    assertEquals(196, numExpressions)
   }
 
   @Test
@@ -297,7 +294,8 @@ class TestRewriteMatrixMatrix {
 
     val h1 = Rewrite.applyRuleAtId(h0, 1, MacroRules.finishRectangularTiles)
 
-    println(h1)
+    val numExpressions = NumberExpression.breadthFirst(h1).values.max
+    assertEquals(91, numExpressions)
   }
 
   @Test
@@ -317,10 +315,11 @@ class TestRewriteMatrixMatrix {
         )) $ A
       })
 
-    val f2 = Rewrite.applyRuleAtId(f0, 0, MacroRules.apply1DRegisterBlocking)
-    val f5 = SimplifyAndFuse(f2)
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.apply1DRegisterBlocking)
+    val f2 = SimplifyAndFuse(f1)
 
-    println(f5)
+    val numExpressions = NumberExpression.breadthFirst(f2).values.max
+    assertEquals(32, numExpressions)
   }
 
   @Test
@@ -367,8 +366,10 @@ class TestRewriteMatrixMatrix {
     val f2 = Rewrite.applyRuleAtId(f1, 14, Rules.mapFission)
     val f3 = Rewrite.applyRuleAtId(f2, 12, Rules.mapFission)
     val f4 = Rewrite.applyRuleAtId(f3, 13, MacroRules.finishTiling)
+    val f5 = Rewrite.applyRuleAtId(f4, 1, MacroRules.moveTransposeInsideTiling)
 
-    println(Rewrite.applyRuleAtId(f4.body, 1, MacroRules.moveTransposeInsideTiling))
+    val numExpressions = NumberExpression.breadthFirst(f5).values.max
+    assertEquals(56, numExpressions)
   }
 
   @Test

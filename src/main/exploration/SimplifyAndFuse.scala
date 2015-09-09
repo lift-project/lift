@@ -73,16 +73,27 @@ class SimplifyAndFuse {
 
         val stored = seen
 
-        // TODO: Limit to the splitTranspose pairs between concrete elements
-        val rewrites = Rewrite
-          .listAllPossibleRewrites(fused, Rules.splitTranspose)
-          .filter(ruleAt => !seen.contains(ruleAt._2))
+        var applyHere = fused
+        var rewrites = listAndFilterSplitTransposeRewrites(fused)
+
+        // Deal with the case where movingSplit enables the simplification
+        val possiblyMoreRewrites = Rewrite
+          .rewrite(fused, Seq(MacroRules.movingSplit), 1)
+          .map(l => (l, listAndFilterSplitTransposeRewrites(l)))
+
+        if (possiblyMoreRewrites.nonEmpty) {
+          val mostRewrites = possiblyMoreRewrites.maxBy(_._2.length)
+          if (mostRewrites._2.length > rewrites.length) {
+            rewrites = mostRewrites._2
+            applyHere = mostRewrites._1
+          }
+        }
 
         if (rewrites.nonEmpty) {
 
           val bestTry = rewrites.map(ruleAt => {
             val replacement = ruleAt._1.rewrite(ruleAt._2)
-            val applyRuleAtId = FunDecl.replace(fused, ruleAt._2, replacement)
+            val applyRuleAtId = FunDecl.replace(applyHere, ruleAt._2, replacement)
 
             seen = ruleAt._2 :: seen
 
@@ -111,6 +122,12 @@ class SimplifyAndFuse {
 
       simplify(applied, maxDepth-1)
     }
+  }
+
+  def listAndFilterSplitTransposeRewrites(l: Lambda): Seq[(Rule, Expr)] = {
+    Rewrite
+      .listAllPossibleRewrites(l, Rules.splitTranspose)
+      .filter(ruleAt => !ruleAt._2.isInstanceOf[Param] && !seen.contains(ruleAt._2))
   }
 
   def getNumberOfTerms(lambda: Lambda) =
