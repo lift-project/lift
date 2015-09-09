@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.{Cst, RangeMul, Var, ArithExpr}
+import apart.arithmetic._
 import ir.{TypeException, ArrayType, Type}
 import ir.ast._
 
@@ -107,8 +107,12 @@ object Utils {
   }
 
   def innerLengthOfTypeMatches(t: Type, n: ArithExpr): Boolean =
-    (n, getLengthOfSecondDim(t)) match {
-      case (Var(_, r1: RangeMul), Var(_, r2: RangeMul)) => r1 == r2
+    expressionsMatch(n, getLengthOfSecondDim(t))
+
+  def expressionsMatch(a: ArithExpr, b: ArithExpr): Boolean =
+    (a, b) match {
+      case (Var(_, r1), Var(_, r2)) => r1 == r2
+      case (IntDiv(n1, d1), IntDiv(n2, d2)) => expressionsMatch(n1, n2) && expressionsMatch(d2, d2)
       case (i, j) => i == j
     }
 

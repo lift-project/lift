@@ -31,7 +31,6 @@ class TestRules {
   val N = Var("N")
   val A = Array.fill[Float](128)(0.5f)
 
-
   @Test
   def ruleTest(): Unit = {
     val size = 128
@@ -142,6 +141,38 @@ class TestRules {
     // split o map(transpose) =>
 
     // transpose o split =>
+  }
+
+  @Test
+  def scatterGatherWithRanges(): Unit = {
+    val var1 = Var(RangeMul(1, N, 2))
+    val var2 = Var(RangeMul(1, N, 2))
+
+    val f = fun(
+      ArrayType(Float, N),
+      in => {
+        Gather(ReorderWithStride(var1)) o Scatter(ReorderWithStride(var2)) $ in
+      })
+
+    TypeChecker(f)
+    assertTrue(Rules.gatherScatterId.isDefinedAt(f.body))
+  }
+
+  @Test
+  def scatterGatherWithRangesDivided(): Unit = {
+    val var1 = Var(RangeMul(1, N, 2))
+    val var2 = Var(RangeMul(1, N, 2))
+    val var3 = Var(RangeMul(1, 16, 2))
+    val var4 = Var(RangeMul(1, 16, 2))
+
+    val f = fun(
+      ArrayType(Float, N),
+      in => {
+        Gather(ReorderWithStride(var3/var1)) o Scatter(ReorderWithStride(var4/var2)) $ in
+      })
+
+    TypeChecker(f)
+    assertTrue(Rules.gatherScatterId.isDefinedAt(f.body))
   }
 
   @Test

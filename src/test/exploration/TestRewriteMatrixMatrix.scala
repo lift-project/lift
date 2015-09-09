@@ -39,12 +39,6 @@ class TestRewriteMatrixMatrix {
         )) $ A
       })
 
-    val tileSizeM = 32
-    val tileSizeN = 16
-    val tileSizeK = 8
-    val workPerThreadN = 2
-    val workPerThreadM = 4
-
     val tileTranspositionM = 32
     val tileTranspositionK = 16
 
@@ -59,11 +53,11 @@ class TestRewriteMatrixMatrix {
 
     // Experimenting
 
-    val f7 = Rewrite.applyRuleAtId(g1, 23, MacroRules.apply2DRegisterBlocking(workPerThreadN, workPerThreadM))
+    val f7 = Rewrite.applyRuleAtId(g1, 23, MacroRules.apply2DRegisterBlocking)
 
     // Input's good
 
-    val f16 = Rewrite.applyRuleAtId(f7, 11, MacroRules.apply2DRegisterBlocking(workPerThreadN, workPerThreadM))
+    val f16 = Rewrite.applyRuleAtId(f7, 11, MacroRules.apply2DRegisterBlocking)
 
     val f34 = Rewrite.applyRuleAtId(f16, 66, MacroRules.moveReduceOutOneLevel)
     val f37 = Rewrite.applyRuleAtId(f34, 13, MacroRules.moveReduceOutOneLevel)

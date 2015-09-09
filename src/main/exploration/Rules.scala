@@ -113,14 +113,14 @@ object Rules {
   })
 
   val scatterGatherId = Rule("Scatter(f) o Gather(f) => id", {
-    case FunCall(Scatter(f1), FunCall(Gather(f2), arg))
-      if f1 == f2
+    case FunCall(Scatter(ReorderWithStride(s1)), FunCall(Gather(ReorderWithStride(s2)), arg))
+      if Utils.expressionsMatch(s1, s2)
     => arg
   })
 
   val gatherScatterId = Rule("Gather(f) o Scatter(f) => id", {
-    case FunCall(Gather(f1), FunCall(Scatter(f2), arg))
-      if f1 == f2
+    case FunCall(Gather(ReorderWithStride(s1)), FunCall(Scatter(ReorderWithStride(s2)), arg))
+      if Utils.expressionsMatch(s1, s2)
     => arg
   })
 
