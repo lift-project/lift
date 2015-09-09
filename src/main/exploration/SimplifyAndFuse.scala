@@ -73,6 +73,7 @@ class SimplifyAndFuse {
 
         val stored = seen
 
+        // TODO: Limit to the splitTranspose pairs between concrete elements
         val rewrites = Rewrite
           .listAllPossibleRewrites(fused, Rules.splitTranspose)
           .filter(ruleAt => !seen.contains(ruleAt._2))

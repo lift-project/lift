@@ -196,8 +196,7 @@ class TestRules {
     ArrayType(Float, N),
     in => {
         Map(Map(id)) o Split(var1) o Join() o Split(var2) $ in
-      }
-    )
+      })
 
     TypeChecker(f)
 
