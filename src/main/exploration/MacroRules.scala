@@ -285,6 +285,8 @@ object MacroRules {
       e2
   })
 
+
+  // TODO: fission the components inside, can apply blocking separately
   /**
    * Tile a computation in the form Map(Map(f))
    */
@@ -359,14 +361,15 @@ object MacroRules {
         }
     })
 
-  // TODO: Improve to be able to fission a transpose
   /**
    * Move transposition inside tiling, that is, transpose the 2D structure of tiles
    * and then transpose each tile.
    */
-  val moveTransposeInsideTiling =
+  val moveTransposeInsideTiling: Rule =
     Rule("Tile(M, N) o Transpose() => " +
       "Map(Map(Transpose())) o Transpose() o Tile(M, N)", {
+
+      // Directly applies
       case funCall @
         FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _)))),
         FunCall(Split(_), FunCall(Transpose(), _)))
@@ -376,6 +379,34 @@ object MacroRules {
         val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, Rules.transposeTransposeId)
         val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 0, Rules.mapSplitTranspose)
         e3
+
+      // Applies after some manipulation
+      case funCall@FunCall(Map(Lambda(param, body)), arg@FunCall(Split(_), FunCall(Transpose(), _)))
+        if body.contains({ case FunCall(Split(_), FunCall(Transpose(), a)) if a eq param.head => })
+          && Expr.visitWithState(0)(body, (e, count) => if (e eq param.head) count+1 else count) == 1
+      =>
+
+        var exprToReplace: Option[Expr] = None
+
+        Expr.visit(body, {
+          case e@FunCall(Split(_), FunCall(Transpose(), a)) if a eq param.head =>
+            exprToReplace = Some(e)
+          case _ =>
+        }, _ => Unit)
+
+        val newLambdaParam = Param()
+        val newBody = Expr.replace(body, exprToReplace.get, newLambdaParam)
+
+        val newParam = Param()
+        val newExpr = Expr.replace(exprToReplace.get, param.head, newParam)
+
+        val newFunCall = FunCall(Map(Lambda(Array(newLambdaParam), newBody)),
+          FunCall(Map(Lambda(Array(newParam), newExpr)), arg))
+
+        val applyHere = Utils.getExprForPatternInCallChain(newFunCall,
+        { case e if moveTransposeInsideTiling.isDefinedAt(e) => }).get
+
+        Rewrite.applyRuleAt(newFunCall, moveTransposeInsideTiling, applyHere)
     })
 
   val finishRectangularTiles =
@@ -388,9 +419,8 @@ object MacroRules {
           && Rules.mapFissionWithZipInside.rewrite.isDefinedAt(
             Rewrite.getExprForId(funCall, 5, NumberExpression.breadthFirst(funCall)))
       =>
-        val e1 = Rewrite.applyRuleAtId(funCall, 5, Rules.mapFissionWithZipInside)
-        val e4 = Rewrite.applyRuleAtId(e1, 6, moveTransposeInsideTiling)
-        val e5 = Rewrite.applyRuleAtId(e4, 0, Rules.mapFissionWithZipInside)
+        val e1 = Rewrite.applyRuleAtId(funCall, 5, moveTransposeInsideTiling)
+        val e5 = Rewrite.applyRuleAtId(e1, 0, Rules.mapFissionWithZipInside)
         val e6 = Rewrite.applyRuleAtId(e5, 1, Rules.mapFission)
         val e7 = Rewrite.applyRuleAtId(e6, 2, Rules.mapTransposeSplit)
         val e8 = Rewrite.applyRuleAtId(e7, 1, Rules.mapSplitTranspose)
@@ -409,9 +439,8 @@ object MacroRules {
         if lambdaParam.head eq arg
       =>
         val e1 = Rewrite.applyRuleAtId(funCall, 0, tileMapMap(x, y))
-        val e2 = Rewrite.applyRuleAtId(e1, 1, mapFissionAtPosition(2))
-        val e3 = Rewrite.applyRuleAtId(e2, 2, moveTransposeInsideTiling)
-        e3
+        val e2 = Rewrite.applyRuleAtId(e1, 1, moveTransposeInsideTiling)
+        e2
     })
 
   /**

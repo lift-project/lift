@@ -61,7 +61,6 @@ class TestRewriteMatrixMatrix {
     val h16 = Rewrite.applyRuleAtId(h15, 5, Rules.addCopy)
     val h17 = Rewrite.applyRuleAtId(h16, 6, MacroRules.tileTranspose)
 
-
     val numExpressionsFinal = NumberExpression.breadthFirst(h17).values.max
     assertEquals(131, numExpressionsFinal)
   }
@@ -348,6 +347,31 @@ class TestRewriteMatrixMatrix {
   }
 
   @Test
+  def transposeInsideTiling(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f0: Lambda = fun(
+      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)) )) $ Zip(aRow, bCol)
+          )) o Transpose() $ B
+        )) o Transpose() $ A
+      })
+
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
+    val f2 = Rewrite.applyRuleAtId(f1, 14, Rules.mapFission)
+    val f3 = Rewrite.applyRuleAtId(f2, 12, Rules.mapFission)
+    val f4 = Rewrite.applyRuleAtId(f3, 13, MacroRules.finishTiling)
+
+    println(Rewrite.applyRuleAtId(f4.body, 1, MacroRules.moveTransposeInsideTiling))
+  }
+
+  @Test
   def mmTiled() = {
     val N = Var("N")
     val M = Var("M")
@@ -368,12 +392,11 @@ class TestRewriteMatrixMatrix {
     val f2 = Rewrite.applyRuleAtId(f1, 13, Rules.mapFission)
     val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.mapFission)
     val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.finishTiling)
-    val f5 = Rewrite.applyRuleAtId(f4, 6, Rules.mapFissionWithZipInside)
-    val f6 = Rewrite.applyRuleAtId(f5, 7, MacroRules.moveTransposeInsideTiling)
-    val f7 = Rewrite.applyRuleAtId(f6, 17, MacroRules.finishTiling)
-    val f8 = SimplifyAndFuse(f7)
+    val f5 = Rewrite.applyRuleAtId(f4, 6, MacroRules.moveTransposeInsideTiling)
+    val f6 = Rewrite.applyRuleAtId(f5, 17, MacroRules.finishTiling)
+    val f9 = SimplifyAndFuse(f6)
 
-    val numExpressions = NumberExpression.breadthFirst(f8).values.max
+    val numExpressions = NumberExpression.breadthFirst(f9).values.max
     assertEquals(66, numExpressions)
   }
 
