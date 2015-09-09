@@ -52,8 +52,6 @@ class TestRewriteMatrixMatrix {
 
     val h9 = SimplifyAndFuse(f8)
 
-    // TODO: check mapFusionWithZip
-
     // Final steps, move transpose inside tiling + tiling (kernel) for A
 
     val h15 = Rewrite.applyRuleAtId(h9, 1, MacroRules.finishRectangularTiles)
@@ -65,7 +63,7 @@ class TestRewriteMatrixMatrix {
 
 
     val numExpressionsFinal = NumberExpression.breadthFirst(h17).values.max
-    assertEquals(133, numExpressionsFinal)
+    assertEquals(131, numExpressionsFinal)
   }
 
   @Test
@@ -218,10 +216,8 @@ class TestRewriteMatrixMatrix {
     val f11 = Rewrite.applyRuleAtId(f10, 7, MacroRules.moveTransposeInsideTiling)
     val f12 = SimplifyAndFuse(f11)
 
-    // TODO: check mapFusionWithZip
-
     val numExpressions = NumberExpression.breadthFirst(f12).values.max
-    assertEquals(82, numExpressions)
+    assertEquals(80, numExpressions)
   }
 
   @Test
@@ -377,10 +373,8 @@ class TestRewriteMatrixMatrix {
     val f7 = Rewrite.applyRuleAtId(f6, 17, MacroRules.finishTiling)
     val f8 = SimplifyAndFuse(f7)
 
-    // TODO: check mapFusionWithZip
-
     val numExpressions = NumberExpression.breadthFirst(f8).values.max
-    assertEquals(68, numExpressions)
+    assertEquals(66, numExpressions)
   }
 
 }

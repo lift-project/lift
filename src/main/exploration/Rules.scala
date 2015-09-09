@@ -476,8 +476,8 @@ object Rules {
 
   val mapFusionWithZip =
     Rule("Map(fun(x => f $ arg )) $ Zip( ..., Map(g) , ...)", {
-      case FunCall(Map(f@Lambda(p, call@FunCall(_, arg))), FunCall(Zip(_), zipArgs@_*))
-        if arg.contains({
+      case FunCall(Map(f@Lambda(p, call@FunCall(_, args@ _* ))), FunCall(Zip(_), zipArgs@_*))
+        if args.last.contains({
           case FunCall(Get(n), a)
             if (a eq p.head) && n == zipArgs.indexWhere({
               case FunCall(Map(_), _) => true
