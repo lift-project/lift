@@ -1,17 +1,16 @@
 package exploration
 
-import apart.arithmetic.{Prod, Cst, ArithExpr, Var}
-import ir.view.View
-import ir.{TypeChecker, UndefType, ScalarType, Type, ArrayType}
+import apart.arithmetic.{ArithExpr, Cst, Prod, Var}
 import ir.ast._
-import opencl.executor.{Executor, Execute}
-import opencl.generator.{RangesAndCounts, OpenCLCodeGen}
-import opencl.generator.OpenCLGenerator.NDRange
+import ir.view.View
+import ir.{ArrayType, ScalarType, TypeChecker}
+import opencl.executor.{Execute, Executor}
+import opencl.generator.OpenCLCodeGen
 import opencl.ir._
 import opencl.ir.pattern._
-import scala.collection.immutable
-import scala.collection.mutable.{Set, Map => ScalaMap}
+
 import scala.collection.immutable.{Map => ScalaImmMap}
+import scala.collection.mutable.{Map => ScalaMap, Set}
 
 /**
  * Prototype implementation of the last stage of the rewrite system.
@@ -107,38 +106,6 @@ object TestLowLevelRewrite {
 
   // == Rewrite functions ==
 
-  /** Extract an arithmetic expression from an expression. */
-  def extractArithExpr(expr: Expr): Option[ArithExpr] = expr match {
-    case f@FunCall(s: Split, _) => Some(s.chunkSize)
-    case f@FunCall(Scatter(ReorderWithStride(expr)), _) => Some(expr)
-    case f@FunCall(Gather(ReorderWithStride(expr)), _) => Some(expr)
-
-    // Sanity checks: [[ReorderWithStride]] is currently the only index function defined.
-    // The two tests below are just sanity checks to introduce a failure in case we add other functions.
-    case FunCall(_:Scatter,_) => throw new RuntimeException("rewrite can only handle reorder function")
-    case FunCall(_:Gather,_) => throw new RuntimeException("rewrite can only handle reorder function")
-    case _ => None
-  }
-
-  /** Filter function to find the nodes affected by parameters */
-  def isParameteric(expr: Expr): Boolean = expr match {
-    case _ if extractArithExpr(expr).isDefined => true
-    case v: Value => true // this is necessary to propagate the parameters in the types
-    case _ => false
-  }
-
-  /** List all the tunable parameters in the expression */
-  def findTunableNodes(expr: Lambda): List[Expr] = {
-    val replace_targets = Expr.visitWithState(List[Expr]())(expr.body, (x, set) => {
-      if (isParameteric(x)) x :: set
-      else set
-    })
-
-    if(VERBOSE) println(s"Found ${replace_targets.length} parameterizable nodes")
-
-    replace_targets
-  }
-
   /** Enumerate the constraints based on the list of tunable nodes */
   def FindParameterConstraints(nodes: List[Expr]): ConstraintMap = {
     var constraints: ConstraintMap = ScalaMap.empty
@@ -220,8 +187,9 @@ object TestLowLevelRewrite {
     val expr = getHighLevelExpression()
 
     // Step 2: Find the tunable nodes in the expression
-    val tunableNodes = findTunableNodes(expr).reverse
-    //                                        ^--- this is necessary to traverse from right to left
+    val tunableNodes = Utils.findTunableNodes(expr)
+
+    if(VERBOSE) println(s"Found ${tunableNodes.length} parameterizable nodes")
 
     { // Herein starts the hack for CGO deadline:
       // instead of using an algebraic solver to model the constraints, we tune only the Split nodes
@@ -279,28 +247,8 @@ object TestLowLevelRewrite {
       var all_times: List[Double] = List.empty
       var best_substitutions = all_substitution_tables.head
       all_substitution_tables.foreach(st => {
-        var tuned_expr = expr
 
-        // Quick and dirty substitution,
-        // This relies on the reference on the nodes gathered in the original expression.
-        // As long as we substitute from right to left, we do only shallow copies of the expression tree,
-        // so it seems to work.
-        tunableNodes.foreach(node => {
-          tuned_expr = Lambda(tuned_expr.params, Expr.replace(tuned_expr.body, node, node match {
-            case f@FunCall(s: Split, x) =>
-              FunCall(Split(ArithExpr.substitute(s.chunkSize, st)), x)
-            case f@FunCall(s@Scatter(idx: ReorderWithStride), x) =>
-              FunCall(Scatter(ReorderWithStride(ArithExpr.substitute(idx.s, st))), x)
-            case f@FunCall(s@Gather(idx: ReorderWithStride), x) =>
-              FunCall(Gather(ReorderWithStride(ArithExpr.substitute(idx.s, st))), x)
-            case v: Value =>
-              Value(v.value, Type.substitute(v.t, st))
-            case _ =>
-              // If you end up here, it is most likely because of one of the following:
-              // - a Scatter/Gather with an index function other than a ReorderWithStride
-              throw new RuntimeException("Cannot substitute node")
-          }))
-        })
+        val tuned_expr = Utils.quickAndDirtySubstitution(st, tunableNodes, expr)
 
         counter = counter + 1
         //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
@@ -679,8 +627,8 @@ object TestLowLevelRewrite {
         if (false) {
           println("Current run:")
           println("- local variables: " + private_buffers_size.map(x => OpenCLMemory.getMaxSizeInBytes(x.t)).reduce(_+_).eval)
-          println("- local size: " + local.map((_.eval)).mkString(", "))
-          println("- global size: " + global.map((_.eval)).mkString(", "))
+          println("- local size: " + local.map(_.eval).mkString(", "))
+          println("- global size: " + global.map(_.eval).mkString(", "))
           println("- work item count: " + local.map(_.eval).product)
           println("- work group count: " + (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product)
           println("- local allocation: " + local_alloc_size)

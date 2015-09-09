@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.Var
+import apart.arithmetic.{?, Var}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -48,11 +48,11 @@ class TestRewriteMatrixMatrix {
     val tileTranspositionM = 32
     val tileTranspositionK = 16
 
-    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileInputAndOutput(tileSizeM, tileSizeN, tileSizeK))
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileInputAndOutput(?, ?, ?))
 
     // TODO: part of tiling the input
     val g0 = Rewrite.applyRuleAtId(f1, 44, Rules.partialReduce)
-    val g1 = Rewrite.applyRuleAtId(g0, 45, Rules.partialReduceSplitJoin(tileSizeK))
+    val g1 = Rewrite.applyRuleAtId(g0, 45, Rules.partialReduceSplitJoin)
 
     // Moving and splitting reduce together with maps?
     // as in the reg tiling macro rules
@@ -75,43 +75,7 @@ class TestRewriteMatrixMatrix {
 
     // Output's good
 
-    // Simplification can be automated.
-    val f43 = Rewrite.applyRuleAtId(f42, 18, Rules.splitTranspose)
-    val f44 = Rewrite.applyRuleAtId(f43, 20, Rules.splitJoin(tileSizeK))
-    val f45 = Rewrite.applyRuleAtId(f44, 22, Rules.splitJoinId)
-    val f46 = Rewrite.applyRuleAtId(f45, 21, Rules.mapFusion)
-    val f47 = Rewrite.applyRuleAtId(f46, 29, Rules.mapSplitTranspose)
-    val f48 = Rewrite.applyRuleAtId(f47, 31, MacroRules.splitJoinId)
-    val f51 = Rewrite.applyRuleAtId(f48, 87, Rules.transposeMapSplit)
-    val f52 = Rewrite.applyRuleAtId(f51, 84, Rules.mapFission)
-    val f53 = Rewrite.applyRuleAtId(f52, 84, Rules.transposeBothSides)
-    val f54 = Rewrite.applyRuleAtId(f53, 83, Rules.transposeTransposeId)
-    val f55 = Rewrite.applyRuleAtId(f54, 85, Rules.mapFission)
-    val f56 = Rewrite.applyRuleAtId(f55, 84, Rules.transposeMapSplit)
-    val f57 = Rewrite.applyRuleAtId(f56, 83, Rules.mapFusion)
-    val f58 = Rewrite.applyRuleAtId(f57, 75, Rules.mapFission)
-    val f59 = Rewrite.applyRuleAtId(f58, 75, Rules.transposeBothSides)
-    val f60 = Rewrite.applyRuleAtId(f59, 74, Rules.transposeTransposeId)
-    val f61 = Rewrite.applyRuleAtId(f60, 76, Rules.mapFission)
-    val f62 = Rewrite.applyRuleAtId(f61, 75, Rules.transposeMapSplit)
-    val f63 = Rewrite.applyRuleAtId(f62, 74, Rules.mapFusion)
-    val f64 = Rewrite.applyRuleAtId(f63, 17, Rules.mapFission)
-    val f65 = Rewrite.applyRuleAtId(f64, 17, Rules.transposeBothSides)
-    val f66 = Rewrite.applyRuleAtId(f65, 16, Rules.transposeTransposeId)
-    val f67 = Rewrite.applyRuleAtId(f66, 18, Rules.mapFission)
-    val f68 = Rewrite.applyRuleAtId(f67, 17, Rules.transposeMapSplit)
-    val f69 = Rewrite.applyRuleAtId(f68, 16, Rules.mapFusion)
-    val f70 = Rewrite.applyRuleAtId(f69, 19, Rules.mapFusion)
-    val f71 = Rewrite.applyRuleAtId(f70, 77, Rules.transposeMapTransposeReorder)
-    val f72 = Rewrite.applyRuleAtId(f71, 75, Rules.splitTranspose)
-    val f73 = Rewrite.applyRuleAtId(f72, 74, Rules.mapFusion)
-    val f74 = Rewrite.applyRuleAtId(f73, 91, Rules.transposeTransposeId)
-    val f75 = Rewrite.applyRuleAtId(f74, 76, Rules.mapFusion)
-    val f76 = Rewrite.applyRuleAtId(f75, 84, Rules.splitTranspose)
-    val f77 = Rewrite.applyRuleAtId(f76, 76, MacroRules.mapFissionAtPosition(1))
-    val f78 = Rewrite.applyRuleAtId(f77, 77, Rules.transposeBothSides)
-
-    val h9 = SimplifyAndFuse(f78)
+    val h9 = SimplifyAndFuse(f42)
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
 
@@ -125,25 +89,6 @@ class TestRewriteMatrixMatrix {
     val numExpressionsFinal = NumberExpression.breadthFirst(h17).values.max
 
     assertEquals(134, numExpressionsFinal)
-
-    val lowered = Lower.lowerFinal(h9)
-
-    val mSize = 256
-    val kSize = 256
-    val nSize = 256
-    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-
-    val values = Seq(matrixA, matrixB)
-
-    val (localRange, globalRange) = InferNDRange(lowered, values:_*)
-
-    val (output: Array[Float], _) = Execute(localRange(0).eval, localRange(1).eval,
-      globalRange(0).eval, globalRange(1).eval, (true, true))(lowered, values:_*)
-
-    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
-
-    assertArrayEquals(gold.flatten, output, 0.0001f)
   }
 
   @Test
@@ -285,17 +230,12 @@ class TestRewriteMatrixMatrix {
         )) $ A
       })
 
-    val tileSizeM = 16
-    val tileSizeN = 16
-    val tileSizeK = 8
-    val workPerThread = 2
-
     val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
     val f2 = Rewrite.applyRuleAtId(f1, 13, Rules.mapFission)
     val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.mapFission)
     val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.finishTiling)
-    val f5 = Rewrite.applyRuleAtId(f4, 24, MacroRules.apply1DRegisterBlocking(workPerThread))
-    val f6 = Rewrite.applyRuleAtId(f5, 11, MacroRules.apply1DRegisterBlocking(workPerThread))
+    val f5 = Rewrite.applyRuleAtId(f4, 24, MacroRules.apply1DRegisterBlocking)
+    val f6 = Rewrite.applyRuleAtId(f5, 11, MacroRules.apply1DRegisterBlocking)
     val f9 = Rewrite.applyRuleAtId(f6, 12, MacroRules.finishTiling)
     val f10 = SimplifyAndFuse(f9)
 
@@ -452,11 +392,9 @@ class TestRewriteMatrixMatrix {
       })
 
     val f14 = Rewrite.applyRuleAtId(f0, 0, MacroRules.apply2DRegisterBlocking)
-    val f16 = SimplifyAndFuse(f14)
 
     val numExpressions = NumberExpression.breadthFirst(f14).values.max
     assertEquals(55, numExpressions)
-    println(f16)
   }
 
   @Test

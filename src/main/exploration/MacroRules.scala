@@ -356,7 +356,7 @@ object MacroRules {
         }
     })
 
-  val tileInputAndOutput: (Int, Int, Int) => Rule = (x, y, z) =>
+  val tileInputAndOutput: (ArithExpr, ArithExpr, ArithExpr) => Rule = (x, y, z) =>
     Rule("Tile the input and output of a computation in the form " +
       "Map(fun(x => Map(fun(y => Reduce(g) o Map(f) $ Zip(x, y) )) $ ... )) $ ...", {
       case funCall @ FunCall(Map(Lambda(lambdaParam1,
