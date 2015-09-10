@@ -72,7 +72,7 @@ object Rewrite {
                                                            rules: Seq[Rule]): Seq[(Rule, Expr)] = {
     Context.updateContext(expr)
     TypeChecker.check(expr)
-    rules.map(rule => listAllPossibleRewrites(expr, rule)).reduce(_ ++ _)
+    rules.flatMap(rule => listAllPossibleRewrites(expr, rule))
   }
 
   private[exploration] def listAllPossibleRewrites(lambda: Lambda,
