@@ -8,7 +8,7 @@ public class Executor {
             System.err.println("Runtime error in the executor");
         }
 
-        /// Consume the error. This restarts the Excutor
+        /// Consume the error. This restarts the Executor
         public void consume(){
             System.err.print("Restarting the executor... ");
 
@@ -56,6 +56,29 @@ public class Executor {
     {
         System.loadLibrary("executor-jni");
     }
+
+    /** Compute matrix-matrix multiply natively */
+    public static Float[] nativeMatrixMultiply(Float[] a, Float[] b, int n, int m, int k) {
+        float[] aa = new float[n*m];
+        float[] bb = new float[n*k];
+        float[] cc = new float[n*m];
+        Float[] out = new Float[n*m];
+
+        for(int i = 0; i < n * m; ++i){
+            aa[i] = a[i];
+            bb[i] = b[i];
+        }
+
+        nativeMatrixMultiply(aa,bb,cc,n,m,k);
+
+        for(int i = 0; i < n * m; ++i){
+            out[i] = cc[i];
+        }
+
+        return out;
+    }
+
+    public native static void nativeMatrixMultiply(float[] a, float[] b, float[] out, int n, int m, int k);
 
     public native static double execute(String kernelCode, String kernelName, String buildOptions,
                                         int localSize1, int localSize2, int localSize3,
