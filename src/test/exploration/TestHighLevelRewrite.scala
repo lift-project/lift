@@ -140,6 +140,7 @@ object TestHighLevelRewrite {
 
       toGo -= 1
 
+      println(s"${numRandom - toGo}/$numRandom expressions lowered.")
     }
 
     loweredLambdas
