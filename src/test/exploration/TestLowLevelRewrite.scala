@@ -34,7 +34,7 @@ import scala.collection.immutable.{Map => ScalaImmMap}
 
 object AppParams {
   // matrix size
-  val matrix_size = 256
+  val matrix_size = 1024
 
   // Minimum number of work item per workgroup
   val min_work_items = 16
@@ -43,6 +43,8 @@ object AppParams {
   val min_grid_size = 4
 
   val resource_per_thread = 1.5
+
+  val only_crossvalidate_better_solutions = true
 }
 
 /** Simple algebraic constraints based on divisibility
@@ -210,10 +212,15 @@ object TestLowLevelRewrite {
     val mSize = AppParams.matrix_size
     val kSize = AppParams.matrix_size
     val nSize = AppParams.matrix_size
+    println("Generating data")
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
-    val executor = new ExecutionHarness(gold.flatten)
+    println("Computing gold solution")
+    val gold = Executor.nativeMatrixMultiply(
+      matrixA.flatten.map(_.asInstanceOf[java.lang.Float]),
+      matrixB.flatten.map(_.asInstanceOf[java.lang.Float]), mSize, nSize, kSize).map(_.toFloat)
+
+    val executor = new ExecutionHarness(gold)
     val values = Seq(matrixA.transpose, matrixB)
 
     // Step 1: Get the expression for the re-writer:
@@ -238,6 +245,8 @@ object TestLowLevelRewrite {
       }
 
       var all_substitution_tables: List[ScalaImmMap[ArithExpr, ArithExpr]] = List.empty
+
+      println("Building substitution tables")
 
       // recursively build the substitution table.
       // It takes the first node to tune and recurse with all its possible values.
@@ -636,7 +645,7 @@ object TestLowLevelRewrite {
         // filter private memory
         val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
         val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_+_).eval
-        if(private_alloc_size > 8192*5)
+        if(private_alloc_size > 8192*7)
           return failure(Skipped)
 
         // filter local memory
@@ -677,6 +686,7 @@ object TestLowLevelRewrite {
           Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ) (10,cur_best*1.4f,expr, values: _*)
 
         if (false) {
+          println()
           println("Current run:")
           println("- local variables: " + private_buffers_size.map(x => OpenCLMemory.getMaxSizeInBytes(x.t)).reduce(_+_).eval)
           println("- local size: " + local.map((_.eval)).mkString(", "))
@@ -690,21 +700,24 @@ object TestLowLevelRewrite {
         }
 
         // cross validation
-        if (output.length != gold.length)
-          failure(ValidationError)
-        else {
-          /*val mismatch = (output zip gold).collect{
-            case x if Math.abs(x._1 - x._2) > 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)) => x }.toList
-          if (mismatch.isEmpty) success(time)*/
-          val passed = (output zip gold).forall(x => Math.abs(x._1 - x._2) < 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)))
-          if (passed) success(time)
-          else {
-            //println("Error: " + mismatch.size + " / " + gold.size + " mismatch")
-            println("Local size: " + local.mkString(", "))
-            println("Global size: " + global.mkString(", "))
+        if (!AppParams.only_crossvalidate_better_solutions || 
+            (AppParams.only_crossvalidate_better_solutions && time < cur_best)) {
+          if (output.length != gold.length)
             failure(ValidationError)
+          else {
+            /*val mismatch = (output zip gold).collect{
+              case x if Math.abs(x._1 - x._2) > 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)) => x }.toList
+            if (mismatch.isEmpty) success(time)*/
+            val passed = (output zip gold).forall(x => Math.abs(x._1 - x._2) < 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)))
+            if (passed) success(time)
+            else {
+              //println("Error: " + mismatch.size + " / " + gold.size + " mismatch")
+              println("Local size: " + local.mkString(", "))
+              println("Global size: " + global.mkString(", "))
+              failure(ValidationError)
+            }
           }
-        }
+        } else success(time)
       } catch {
         case ea: Executor.ExecutorFailureException =>
           ea.consume()
