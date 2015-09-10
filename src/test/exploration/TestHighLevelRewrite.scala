@@ -16,9 +16,9 @@ object TestHighLevelRewrite {
     )
 
   def main(args: Array[String]) = {
-    val N = 128//Var("N")
-    val M = 128//Var("M")
-    val K = 128//Var("K")
+    val N = 1024//Var("N")
+    val M = 1024//Var("M")
+    val K = 1024//Var("K")
 
     val startingExpression = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -131,7 +131,7 @@ object TestHighLevelRewrite {
 
     while (toGo > 0) {
 
-      val currentLambda = lambdas(0/*util.Random.nextInt(numLambda)*/)
+      val currentLambda = lambdas(1/*util.Random.nextInt(numLambda)*/)
 
       try {
         val appliedRules = applyAlwaysRules(currentLambda)

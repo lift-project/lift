@@ -33,7 +33,7 @@ import scala.collection.mutable.{Map => ScalaMap, Set}
 
 object AppParams {
   // matrix size
-  val matrix_size = 128
+  val matrix_size = 1024
 
   // Minimum number of work item per workgroup
   val min_work_items = 16
@@ -190,7 +190,7 @@ object TestLowLevelRewrite {
       matrixB.flatten.map(_.asInstanceOf[java.lang.Float]), mSize, nSize, kSize).map(_.toFloat)
 
     val executor = new ExecutionHarness(gold)
-    val values = Seq(matrixA.transpose, matrixB)
+    val values = Seq(matrixA, matrixB)
 
     lambdas.foreach(expr => {
       TypeChecker(expr)
