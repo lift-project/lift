@@ -41,7 +41,9 @@ object AppParams {
   // Minimal grid size
   val min_grid_size = 4
 
-  val resource_per_thread = 1.5
+  val max_amount_private_memory = 8192*4
+
+  val resource_per_thread = 1.0
 
   val only_crossvalidate_better_solutions = true
 }
@@ -261,7 +263,7 @@ object TestLowLevelRewrite {
 
         counter = counter + 1
         //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-        val (test, time) = executor(Math.max(best_time, 1000f), tuned_expr, values:_*)
+        val (test, time) = executor(Math.min(best_time, 1000f), tuned_expr, values:_*)
 
         import ExecutionHarness.Status._
         test match {
@@ -593,7 +595,7 @@ object TestLowLevelRewrite {
         // filter private memory
         val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
         val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_+_).eval
-        if(private_alloc_size > 8192*7)
+        if(private_alloc_size > AppParams.max_amount_private_memory)
           return failure(Skipped)
 
         // filter local memory
@@ -653,15 +655,16 @@ object TestLowLevelRewrite {
           if (output.length != gold.length)
             failure(ValidationError)
           else {
-            /*val mismatch = (output zip gold).collect{
-              case x if Math.abs(x._1 - x._2) > 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)) => x }.toList
-            if (mismatch.isEmpty) success(time)*/
-            val passed = (output zip gold).forall(x => Math.abs(x._1 - x._2) < 0.001f * Math.max(Math.abs(x._1), Math.abs(x._2)))
+            val passed = (output zip gold).forall(x => Math.abs(x._1 - x._2) < 0.01f * Math.max(Math.abs(x._1), Math.abs(x._2)))
             if (passed) success(time)
             else {
-              //println("Error: " + mismatch.size + " / " + gold.size + " mismatch")
+              val mismatch = (output zip gold).collect{
+                case x if Math.abs(x._1 - x._2) >= 0.01f * Math.max(Math.abs(x._1), Math.abs(x._2)) => x }.toList
+              println("Error: " + mismatch.size + " / " + gold.size + " mismatch")
+              println("Avg Error: " + mismatch.map(x => Math.max(Math.abs(x._1), Math.abs(x._2))/Math.min(Math.abs(x._1), Math.abs(x._2))-1).reduce(_+_)/mismatch.size*100.0f)
               println("Local size: " + local.mkString(", "))
               println("Global size: " + global.mkString(", "))
+              println("Execution time: " + time)
               failure(ValidationError)
             }
           }
