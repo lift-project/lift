@@ -199,6 +199,33 @@ object Expr {
     }
   }
 
+  def visitLeftToRight[T](z: T)(expr: Expr,
+                                visitFun: (Expr, T) => T,
+                                visitArgs: Boolean = true): T = {
+
+    expr match {
+      case call: FunCall =>
+
+        // do the rest ...
+        val result = call.f match {
+          case fp: FPattern =>  visitLeftToRight(z)(fp.f.body, visitFun)
+          case l: Lambda =>     visitLeftToRight(z)(l.body, visitFun)
+          case _ => z
+        }
+
+        val newResult = visitFun(expr, result)
+
+        // visit args first
+        if (visitArgs)
+          call.args.foldRight(newResult)((arg, x) => {
+            visitLeftToRight(x)(arg, visitFun)
+          }) else newResult
+
+
+      case _ => visitFun(expr, z)
+    }
+  }
+
   /**
    * Returns an aggregated state computed by visiting the given expression
    * `expr` by recursively traversing it in a depth-first manner

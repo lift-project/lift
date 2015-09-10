@@ -73,12 +73,12 @@ object Utils {
 
   /** List all the tunable parameters in the expression */
   def findTunableNodes(expr: Expr): List[Expr] = {
-    val tunableNodes = Expr.visitWithState(List[Expr]())(expr, (x, set) => {
+    val tunableNodes = Expr.visitLeftToRight(List[Expr]())(expr, (x, set) => {
       if (Utils.isParametric(x)) x :: set
       else set
     })
 
-    tunableNodes.reverse
+    tunableNodes//.reverse
     //          ^--- this is necessary to traverse from right to left
   }
 

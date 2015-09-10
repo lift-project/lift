@@ -5,7 +5,7 @@ import ir.ast._
 import ir.view.View
 import ir.{ArrayType, ScalarType, TypeChecker}
 import opencl.executor.{Execute, Executor}
-import opencl.generator.OpenCLCodeGen
+import opencl.generator.{OpenCLGenerator, OpenCLCodeGen}
 import opencl.ir._
 import opencl.ir.pattern._
 
@@ -33,7 +33,7 @@ import scala.collection.mutable.{Map => ScalaMap, Set}
 
 object AppParams {
   // matrix size
-  val matrix_size = 1024
+  val matrix_size = 128
 
   // Minimum number of work item per workgroup
   val min_work_items = 16
@@ -170,6 +170,160 @@ object TestLowLevelRewrite {
   }
 
   // === Main ===
+
+  def lowlevelexecutor (lambdas: List[Lambda]) {
+
+    // Start up the executor
+    Executor.loadLibrary()
+    Executor.init()
+
+    // Prepare input and gold
+    val mSize = AppParams.matrix_size
+    val kSize = AppParams.matrix_size
+    val nSize = AppParams.matrix_size
+    println("Generating data")
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    println("Computing gold solution")
+    val gold = Executor.nativeMatrixMultiply(
+      matrixA.flatten.map(_.asInstanceOf[java.lang.Float]),
+      matrixB.flatten.map(_.asInstanceOf[java.lang.Float]), mSize, nSize, kSize).map(_.toFloat)
+
+    val executor = new ExecutionHarness(gold)
+    val values = Seq(matrixA.transpose, matrixB)
+
+    lambdas.foreach(expr => {
+      TypeChecker(expr)
+      println(expr)
+
+    // Step 2: Find the tunable nodes in the expression
+      val tunableNodes = Utils.findTunableNodes(expr)
+
+      if(VERBOSE) println(s"Found ${tunableNodes.length} parameterizable nodes")
+
+      { // Herein starts the hack for CGO deadline:
+        // instead of using an algebraic solver to model the constraints, we tune only the Split nodes
+        // from the right to the left of the expression. We first collect all the valid substitution tables
+        // and then we merely plow through it.
+
+        // Step 3: Isolate only the splits.
+        // Note that we need a list of pairs instead of a map to keep the order
+        val splits = tunableNodes.collect { case f@FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len) }
+
+        // utility function to traverse the list of pairs and replace a Var by a Cst
+        def propagate(splits: List[(ArithExpr, ArithExpr)], m: ScalaImmMap[ArithExpr, ArithExpr]): List[(ArithExpr, ArithExpr)] = {
+          splits.map((x) => (ArithExpr.substitute(x._1, m), ArithExpr.substitute(x._2, m)))
+        }
+
+        var all_substitution_tables: List[ScalaImmMap[ArithExpr, ArithExpr]] = List.empty
+
+        println("Building substitution tables")
+
+        // recursively build the substitution table.
+        // It takes the first node to tune and recurse with all its possible values.
+        def substitute(splits: List[(ArithExpr, ArithExpr)], substitutions: ScalaImmMap[ArithExpr, ArithExpr]): Unit = {
+
+          if (splits.nonEmpty) {
+            splits.head match {
+              // If the stride is not set and the input length is constant, compute all divisors
+              case (v: Var, Cst(len)) =>
+                (2 to len-1).filter {
+                  len % _ == 0
+                }.foreach(x => substitute(propagate(splits.tail, ScalaImmMap(v -> x)), substitutions + (v -> x)))
+
+              // If the input AND the stride are already set, make sure they are multiple
+              case (Cst(chunk), Cst(len)) if len % chunk == 0 =>
+                substitute(splits.tail, substitutions)
+
+              // Otherwise we cannot set the parameter or the current combination is invalid
+              case (x, y) => println(s"failed: $x, $y")
+            }
+          }
+          else // if we propagated all the nodes, we have a (hopefully valid) substitution table
+            all_substitution_tables = substitutions :: all_substitution_tables
+        }
+
+        // compute all the valid substitution tables
+        substitute(splits, ScalaImmMap.empty)
+
+        println(s"Found ${all_substitution_tables.size} valid parameter sets")
+        if (false) all_substitution_tables.foreach(st => println(st.map(x => s"${x._1} -> ${x._2}").mkString("; ")))
+
+        // Step whatever: run everything
+        var counter = 0
+        var passed = 0
+        var skipped = 0
+        var failed = 0
+        var crashed = 0
+        var best_time = Double.PositiveInfinity
+        var all_times: List[Double] = List.empty
+        var best_substitutions = all_substitution_tables.head
+
+
+        all_substitution_tables.foreach(st => {
+
+          val tuned_expr = Utils.quickAndDirtySubstitution(st, tunableNodes.reverse, expr)
+          TypeChecker(tuned_expr)
+    
+          //println(tuned_expr)
+          //OpenCLGenerator.printTypes(tuned_expr)
+          //System.exit(-1)
+
+          counter = counter + 1
+          //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+          val (test, time) = executor(Math.min(best_time, 1000f), tuned_expr, values:_*)
+
+          import ExecutionHarness.Status._
+          test match {
+            case Success =>
+              passed = passed + 1
+              all_times = time :: all_times
+              if (time < best_time) {
+                best_time = time
+                best_substitutions = st
+              }
+
+            case Skipped =>
+              skipped = skipped + 1
+
+            case ValidationError =>
+              println()
+              println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+              println(tuned_expr)
+              failed = failed + 1
+
+            case _ =>
+              println()
+              println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+              println(tuned_expr)
+              crashed = crashed + 1
+          }
+
+          print(s"\r$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $failed failed, $crashed crashed) best = $best_time                   ")
+        })
+
+        println()
+        println("All times:")
+        println(all_times.mkString(", "))
+        println(s"best time: ${best_time}")
+        println("best parameters: " + best_substitutions.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+      }
+    })
+
+
+    // Step 4: Extract all variables from the constraint system and their dependencies
+    //val parameters = findTuningKnobs(constraints)
+
+    // Step 4: explore all possible values satisfying the constraints
+    //val (localRange, globalRange) = InferNDRange(expr, values:_*)
+
+    //executor(expr, globalRange, localRange, values:_*)
+
+    // Cleanup
+    Executor.shutdown()
+  }
+
+
 
   def main (args: Array[String]) {
 
@@ -600,7 +754,10 @@ object TestLowLevelRewrite {
 
         // filter local memory
         val local_buffers_size = buffers.filter(_.mem.addressSpace == LocalMemory)
-        val local_alloc_size = local_buffers_size.map(_.mem.size).reduce(_+_).eval
+        val local_alloc_size = 
+          if(local_buffers_size.size != 0)   
+            local_buffers_size.map(_.mem.size).reduce(_+_).eval
+          else 0
         if(local_alloc_size > Executor.getDeviceLocalMemSize)
           return failure(Skipped)
 
@@ -671,6 +828,7 @@ object TestLowLevelRewrite {
         } else success(time)
       } catch {
         case ea: Executor.ExecutorFailureException =>
+          ea.printStackTrace()
           ea.consume()
           failure(ExecutorError)
         case e: Exception =>

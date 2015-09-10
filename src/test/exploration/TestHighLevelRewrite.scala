@@ -16,9 +16,9 @@ object TestHighLevelRewrite {
     )
 
   def main(args: Array[String]) = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = 128//Var("N")
+    val M = 128//Var("M")
+    val K = 128//Var("K")
 
     val startingExpression = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -95,7 +95,8 @@ object TestHighLevelRewrite {
           MacroRules.apply2DRegisterBlocking,
           MacroRules.apply2DRegisterBlocking,
           MacroRules.finishTiling
-        )
+        ) && NumberExpression.byDepth(pair._1).values.max <= 8
+          && hasOneMapOnFirstLevels(pair._1)
 //        ||
 //        pair._2 ==
 //          List(
@@ -114,9 +115,12 @@ object TestHighLevelRewrite {
     val lambdas = twoDBlockingSequence.map(_._1)
     printMinAndMaxDepth(lambdas)
 
-    val lowerSome = lower(lambdas, 3)
+    val lowerSome = lower(lambdas, 1)
 
     println(lowerSome)
+    println("testing " + lowerSome.length + " expressions")
+
+    TestLowLevelRewrite.lowlevelexecutor(lowerSome)
   }
 
   def lower(lambdas: Seq[Lambda], numRandom: Int): List[Lambda] = {
@@ -127,7 +131,7 @@ object TestHighLevelRewrite {
 
     while (toGo > 0) {
 
-      val currentLambda = lambdas(util.Random.nextInt(numLambda))
+      val currentLambda = lambdas(0/*util.Random.nextInt(numLambda)*/)
 
       try {
         val appliedRules = applyAlwaysRules(currentLambda)
@@ -144,6 +148,24 @@ object TestHighLevelRewrite {
     }
 
     loweredLambdas
+  }
+
+  def hasOneMapOnFirstLevels(lambda: Lambda): Boolean = {
+    val mapsOnLevelOne = Utils.visitFunCallChainWithState(0)(lambda.body, (expr, count) => {
+      expr match {
+        case FunCall(m: AbstractMap, _) => count + 1
+        case _ => count
+      }
+    })
+
+    val mapsOnLevelTwo = Utils.visitFunCallChainWithState(0)(MacroRules.getMapBody(MacroRules.getMapAtDepth(lambda.body, 0)), (expr, count) => {
+      expr match {
+        case FunCall(m: AbstractMap, _) => count + 1
+        case _ => count
+      }
+    })
+
+    mapsOnLevelOne == 1 && mapsOnLevelTwo == 1
   }
 
   def applyAlwaysRules(lambda: Lambda): Lambda = {

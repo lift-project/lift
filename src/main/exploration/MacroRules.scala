@@ -21,7 +21,7 @@ object MacroRules {
   private val concretePattern: PartialFunction[Expr, Unit] =
   { case call: FunCall if call.isConcrete(false) => }
 
-  private def getMapAtDepth(expr:Expr, depth: Int): Expr = {
+  def getMapAtDepth(expr:Expr, depth: Int): Expr = {
     val outermostMap = Utils.getExprForPatternInCallChain(expr, mapPattern).get
 
     if (depth == 0)
@@ -30,7 +30,7 @@ object MacroRules {
       getMapAtDepth(getMapBody(outermostMap), depth - 1)
   }
 
-  private def getMapBody(expr: Expr) = {
+  def getMapBody(expr: Expr) = {
     expr match {
       case FunCall(Map(Lambda(_, body)), _) => body
     }
@@ -394,7 +394,7 @@ object MacroRules {
 
       // Directly applies
       case funCall @
-        FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _)))),
+        FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _:Param)))),
         FunCall(Split(_), FunCall(Transpose(), _)))
       =>
         val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 4, Rules.splitTranspose)
@@ -725,3 +725,4 @@ object MacroRules {
     })
   }
 }
+
