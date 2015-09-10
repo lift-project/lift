@@ -1,5 +1,6 @@
 package exploration
 
+import apart.arithmetic.ArithExpr
 import ir._
 import ir.ast._
 
@@ -36,7 +37,30 @@ object Rewrite {
   def applyRuleAt(expr: Expr, rule: Rule, toBeReplaced: Expr): Expr = {
     TypeChecker.check(expr)
     Context.updateContext(expr)
-    Expr.replace(expr, toBeReplaced, rule.rewrite(toBeReplaced))
+
+    val replacement = rule.rewrite(toBeReplaced)
+    var replacedInExpr = Expr.replace(expr, toBeReplaced, replacement)
+
+    if (rule == MacroRules.splitJoinId)
+      replacedInExpr = patchUpAfterSplitJoin(toBeReplaced, replacement, replacedInExpr)
+
+    replacedInExpr
+  }
+
+  def patchUpAfterSplitJoin(toBeReplaced: Expr, replacement: Expr, replaced: Expr): Expr = {
+    // TODO: suppress warnings?
+    TypeChecker(replaced)
+
+    val newExpr = Utils.getLengthOfSecondDim(replacement.t)
+    val oldExpr = Utils.getLengthOfSecondDim(toBeReplaced.t)
+
+    if (oldExpr != newExpr) {
+      val st = collection.immutable.Map[ArithExpr, ArithExpr]((oldExpr, newExpr))
+      val tunableNodes = Utils.findTunableNodes(replaced)
+      Utils.quickAndDirtySubstitution(st, tunableNodes, replaced)
+    } else {
+      replaced
+    }
   }
 
   private[exploration] def listAllPossibleRewritesForRules(lambda: Lambda,

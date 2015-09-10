@@ -1,8 +1,8 @@
 package exploration
 
-import apart.arithmetic.Var
+import apart.arithmetic.{RangeMul, Var}
 import ir.ast._
-import ir.{ArrayType, TypeChecker, VectorType}
+import ir.{Type, ArrayType, TypeChecker, VectorType}
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -30,7 +30,6 @@ class TestRules {
 
   val N = Var("N")
   val A = Array.fill[Float](128)(0.5f)
-
 
   @Test
   def ruleTest(): Unit = {
@@ -142,6 +141,74 @@ class TestRules {
     // split o map(transpose) =>
 
     // transpose o split =>
+  }
+
+  @Test
+  def scatterGatherWithRanges(): Unit = {
+    val var1 = Var(RangeMul(1, N, 2))
+    val var2 = Var(RangeMul(1, N, 2))
+
+    val f = fun(
+      ArrayType(Float, N),
+      in => {
+        Gather(ReorderWithStride(var1)) o Scatter(ReorderWithStride(var2)) $ in
+      })
+
+    TypeChecker(f)
+    assertTrue(Rules.gatherScatterId.isDefinedAt(f.body))
+  }
+
+  @Test
+  def scatterGatherWithRangesDivided(): Unit = {
+    val var1 = Var(RangeMul(1, N, 2))
+    val var2 = Var(RangeMul(1, N, 2))
+    val var3 = Var(RangeMul(1, 16, 2))
+    val var4 = Var(RangeMul(1, 16, 2))
+
+    val f = fun(
+      ArrayType(Float, N),
+      in => {
+        Gather(ReorderWithStride(var3/var1)) o Scatter(ReorderWithStride(var4/var2)) $ in
+      })
+
+    TypeChecker(f)
+    assertTrue(Rules.gatherScatterId.isDefinedAt(f.body))
+  }
+
+  @Test
+  def joinSplitIdWithRanges(): Unit = {
+    val f = fun(
+      ArrayType(Float, N),
+      in => Join() o Split(Var(RangeMul(1, N, 2))) $ in
+    )
+
+    TypeChecker(f)
+
+    assertTrue(Rules.joinSplitId.isDefinedAt(f.body))
+  }
+
+  @Test
+  def splitJoinIdWithRanges(): Unit = {
+    val var1 = Var(RangeMul(1, N, 2))
+    val var2 = Var(RangeMul(1, N, 2))
+
+    val f = fun(
+    ArrayType(Float, N),
+    in => {
+        Map(Map(id)) o Split(var1) o Join() o Split(var2) $ in
+      })
+
+    TypeChecker(f)
+
+    val applyAt = Rewrite.listAllPossibleRewrites(f, Rules.splitJoinId).head._2
+
+    val rewritten = Rewrite.applyRuleAt(f, applyAt, Rules.splitJoinId)
+    TypeChecker(rewritten)
+
+    assertTrue(rewritten.body.t.isInstanceOf[ArrayType])
+    val len = Type.getLength(rewritten.body.t.asInstanceOf[ArrayType].elemT)
+
+    assertEquals(var2, len)
   }
 
   @Test

@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.{?, ArithExpr}
+import apart.arithmetic.{ArithExpr, ?}
 import ir._
 import ir.ast._
 
@@ -248,10 +248,7 @@ object MacroRules {
         expr match {
           case FunCall(Map(_), _) => state
           case FunCall(Join(), a)
-            if (a.t match {
-              case ArrayType(ArrayType(_, m), _) => n == m
-              case _ => false
-            })
+            if Utils.innerLengthOfTypeMatches(a.t, n)
           =>
             if (state._2)
               (true, state._1)
@@ -291,22 +288,51 @@ object MacroRules {
   /**
    * Tile a computation in the form Map(Map(f))
    */
-  val tileMapMap: (Int, Int) => Rule = (x, y) =>
+  val tileMapMap: Rule = tileMapMap(?, ?)
+
+  def tileMapMap(x: ArithExpr, y: ArithExpr): Rule =
     Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
       case funCall @ FunCall(Map(Lambda(_, FunCall(Map(_), _))), _)
       =>
-        tileMapMap(x, y, funCall)
+        val tiled = tileMapMap(x, y, funCall)
+
+        val innerMostMap = getMapAtDepth(tiled, 3)
+        val callChain = getMapBody(innerMostMap)
+
+        val mapId = Utils.getIndexForPatternInCallChain(callChain, mapPattern)
+        val reduceId = Utils.getIndexForPatternInCallChain(callChain, reducePattern)
+
+        val hasMap = mapId != -1
+        val hasReduce = reduceId != -1
+
+        var fissioned = tiled
+
+        // TODO: assuming maps clumped together and reduces clumped together
+
+        // Fission between reduces and maps. Blocking and tiling have to be applied separately,
+        // if tiling the input as well.
+        if (hasReduce && hasMap) {
+          val larger = if (mapId > reduceId) mapId else reduceId
+
+          val firstFission = Rewrite.applyRuleAt(tiled, mapFissionAtPosition(larger - 1), innerMostMap)
+
+          val fissionInHere = getMapAtDepth(firstFission, 2)
+
+          fissioned = Rewrite.applyRuleAt(firstFission, Rules.mapFission, fissionInHere)
+        }
+
+        fissioned
     })
 
-  val finishTiling: Int => Rule = x =>
+  val finishTiling: Rule = finishTiling(?)
+
+  def finishTiling(x: ArithExpr): Rule =
     Rule("Map(x => Map(y => Map() $ Get(x, ...) Get$(x, ...) $ Zip(...)", {
       case funCall @
-        FunCall(Map(Lambda(p,
-        c)),
-        _)
+        FunCall(Map(Lambda(p, c)), _)
         if Utils.getIndexForPatternInCallChain(c, mapPattern) != -1
           && (Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(mapPattern)
-          || Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(reducePattern))
+           || Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(reducePattern))
       =>
 
         val mapInC = getMapAtDepth(c, 0)
@@ -321,6 +347,9 @@ object MacroRules {
 
         Utils.getFinalArg(expr) match {
           case FunCall(Zip(_), args@_*) =>
+
+            // TODO: get rid of ids
+
             val ex = Rewrite.depthFirstApplyRuleAtId(funCall, 1, mapMapInterchange)
             val ey = Rewrite.depthFirstApplyRuleAtId(ex, 0, mapMapInterchange)
             val e0 = Rewrite.applyRuleAtId(ey, 2, Rules.splitJoin(x))
@@ -338,7 +367,7 @@ object MacroRules {
 
                 val rule = Rules.partialReduceSplitJoin(x)
                 val partialReduce = Utils.getExprForPatternInCallChain(
-                  appliedPartialReduce, { case e if rule.isDefinedAt(e) => }).get
+                appliedPartialReduce, { case e if rule.isDefinedAt(e) => }).get
 
                 val splitJoined = Rewrite.applyRuleAt(appliedPartialReduce, rule, partialReduce)
 
@@ -353,37 +382,17 @@ object MacroRules {
 
             outerExchanged
         }
-
-    })
-
-  val tileInputAndOutput: (Int, Int, Int) => Rule = (x, y, z) =>
-    Rule("Tile the input and output of a computation in the form " +
-      "Map(fun(x => Map(fun(y => Reduce(g) o Map(f) $ Zip(x, y) )) $ ... )) $ ...", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam1,
-      FunCall(Map(Lambda(lambdaParam2,
-      FunCall(Reduce(_), _, FunCall(Map(Lambda(_, FunCall(_: UserFun, _*))),
-      FunCall(Zip(_), zipArgs@_*)))
-      )), arg)
-      )), _)
-        if !(lambdaParam1.head eq arg)
-          && zipArgs.contains(lambdaParam1.head)
-          && zipArgs.contains(lambdaParam2.head)
-      =>
-        val e1 = Rewrite.applyRuleAtId(funCall, 0, MacroRules.tileMapMap(x, y))
-        val e2 = Rewrite.applyRuleAtId(e1, 13, Rules.mapFission)
-        val e3 = Rewrite.applyRuleAtId(e2, 11, Rules.mapFission)
-
-        val e4 = Rewrite.applyRuleAtId(e3, 12, MacroRules.finishTiling(z))
-        SimplifyAndFuse.fuseAll(e4)
     })
 
   /**
    * Move transposition inside tiling, that is, transpose the 2D structure of tiles
    * and then transpose each tile.
    */
-  val moveTransposeInsideTiling =
+  val moveTransposeInsideTiling: Rule =
     Rule("Tile(M, N) o Transpose() => " +
       "Map(Map(Transpose())) o Transpose() o Tile(M, N)", {
+
+      // Directly applies
       case funCall @
         FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _)))),
         FunCall(Split(_), FunCall(Transpose(), _)))
@@ -393,6 +402,34 @@ object MacroRules {
         val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, Rules.transposeTransposeId)
         val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 0, Rules.mapSplitTranspose)
         e3
+
+      // Applies after some manipulation
+      case funCall@FunCall(Map(Lambda(param, body)), arg@FunCall(Split(_), FunCall(Transpose(), _)))
+        if body.contains({ case FunCall(Split(_), FunCall(Transpose(), a)) if a eq param.head => })
+          && Expr.visitWithState(0)(body, (e, count) => if (e eq param.head) count+1 else count) == 1
+      =>
+
+        var exprToReplace: Option[Expr] = None
+
+        Expr.visit(body, {
+          case e@FunCall(Split(_), FunCall(Transpose(), a)) if a eq param.head =>
+            exprToReplace = Some(e)
+          case _ =>
+        }, _ => Unit)
+
+        val newLambdaParam = Param()
+        val newBody = Expr.replace(body, exprToReplace.get, newLambdaParam)
+
+        val newParam = Param()
+        val newExpr = Expr.replace(exprToReplace.get, param.head, newParam)
+
+        val newFunCall = FunCall(Map(Lambda(Array(newLambdaParam), newBody)),
+          FunCall(Map(Lambda(Array(newParam), newExpr)), arg))
+
+        val applyHere = Utils.getExprForPatternInCallChain(newFunCall,
+        { case e if moveTransposeInsideTiling.isDefinedAt(e) => }).get
+
+        Rewrite.applyRuleAt(newFunCall, moveTransposeInsideTiling, applyHere)
     })
 
   val finishRectangularTiles =
@@ -405,9 +442,8 @@ object MacroRules {
           && Rules.mapFissionWithZipInside.rewrite.isDefinedAt(
             Rewrite.getExprForId(funCall, 5, NumberExpression.breadthFirst(funCall)))
       =>
-        val e1 = Rewrite.applyRuleAtId(funCall, 5, Rules.mapFissionWithZipInside)
-        val e4 = Rewrite.applyRuleAtId(e1, 6, moveTransposeInsideTiling)
-        val e5 = Rewrite.applyRuleAtId(e4, 0, Rules.mapFissionWithZipInside)
+        val e1 = Rewrite.applyRuleAtId(funCall, 5, moveTransposeInsideTiling)
+        val e5 = Rewrite.applyRuleAtId(e1, 0, Rules.mapFissionWithZipInside)
         val e6 = Rewrite.applyRuleAtId(e5, 1, Rules.mapFission)
         val e7 = Rewrite.applyRuleAtId(e6, 2, Rules.mapTransposeSplit)
         val e8 = Rewrite.applyRuleAtId(e7, 1, Rules.mapSplitTranspose)
@@ -418,15 +454,16 @@ object MacroRules {
   /**
    * Tile Map(Map(f)) o Transpose()
    */
-  val tileTranspose: (Int, Int) => Rule = (x, y) =>
+  val tileTranspose: Rule = tileTranspose(?, ?)
+
+  def tileTranspose(x: ArithExpr, y:ArithExpr): Rule =
     Rule("Map(Map(f)) o Transpose() => tiled", {
       case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), FunCall(Transpose(), _))
         if lambdaParam.head eq arg
       =>
         val e1 = Rewrite.applyRuleAtId(funCall, 0, tileMapMap(x, y))
-        val e2 = Rewrite.applyRuleAtId(e1, 1, mapFissionAtPosition(2))
-        val e3 = Rewrite.applyRuleAtId(e2, 2, moveTransposeInsideTiling)
-        e3
+        val e2 = Rewrite.applyRuleAtId(e1, 1, moveTransposeInsideTiling)
+        e2
     })
 
   /**
@@ -536,20 +573,20 @@ object MacroRules {
       }
   })
 
-  // TODO: make sure it applies on the first concrete element
   /**
    * Apply interchange on the first concrete Map or Reduce inside a Map
    */
   val interchange =
-    Rule("", {
-      case call@FunCall(Map(_), _)
+    Rule("interchange first concrete Map or Reduce", {
+      case call@FunCall(Map(Lambda(_, body)), _)
         if mapMapInterchange.isDefinedAt(call) || moveReduceOutOneLevel.isDefinedAt(call)
       =>
-        if (moveReduceOutOneLevel.isDefinedAt(call))
+        val firstConcrete = Utils.getExprForPatternInCallChain(body, concretePattern).get
+
+        if (reducePattern.isDefinedAt(firstConcrete))
           moveReduceOutOneLevel.rewrite(call)
         else
           mapMapInterchange.rewrite(call)
-
     })
 
   val apply1DRegisterBlocking: Rule = apply1DRegisterBlocking(?)

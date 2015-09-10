@@ -109,21 +109,18 @@ object Rules {
 
   val splitJoinId = Rule("Split(_) o Join() => id", {
     case FunCall(Split(n), FunCall(Join(), arg))
-      if (arg.t match {
-        case ArrayType(ArrayType(_, m), _) => n == m
-        case _ => false
-      }) => arg
+      if Utils.innerLengthOfTypeMatches(arg.t, n) => arg
   })
 
   val scatterGatherId = Rule("Scatter(f) o Gather(f) => id", {
-    case FunCall(Scatter(f1), FunCall(Gather(f2), arg))
-      if f1 == f2
+    case FunCall(Scatter(ReorderWithStride(s1)), FunCall(Gather(ReorderWithStride(s2)), arg))
+      if Utils.expressionsMatch(s1, s2)
     => arg
   })
 
   val gatherScatterId = Rule("Gather(f) o Scatter(f) => id", {
-    case FunCall(Gather(f1), FunCall(Scatter(f2), arg))
-      if f1 == f2
+    case FunCall(Gather(ReorderWithStride(s1)), FunCall(Scatter(ReorderWithStride(s2)), arg))
+      if Utils.expressionsMatch(s1, s2)
     => arg
   })
 
@@ -479,8 +476,8 @@ object Rules {
 
   val mapFusionWithZip =
     Rule("Map(fun(x => f $ arg )) $ Zip( ..., Map(g) , ...)", {
-      case FunCall(Map(f@Lambda(p, call@FunCall(_, arg))), FunCall(Zip(_), zipArgs@_*))
-        if arg.contains({
+      case FunCall(Map(f@Lambda(p, call@FunCall(_, args@ _* ))), FunCall(Zip(_), zipArgs@_*))
+        if args.last.contains({
           case FunCall(Get(n), a)
             if (a eq p.head) && n == zipArgs.indexWhere({
               case FunCall(Map(_), _) => true
