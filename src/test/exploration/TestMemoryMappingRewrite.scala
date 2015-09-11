@@ -1,5 +1,6 @@
 package exploration
 
+import ir.TupleType
 import ir.ast._
 import opencl.executor.{Executor, Eval}
 import opencl.ir.{OpenCLMemory, OpenCLAddressSpace}
@@ -61,7 +62,7 @@ object TestMemoryMappingRewrite {
     // Step 4: make sure the end result is in global
 
 
-    all_mappings.flatMap(mapPrivateMemory).map(turnIdsIntoCopies).map(LowerMapInIds)
+    all_mappings.flatMap(mapPrivateMemory).flatMap(turnIdsIntoCopies).map(LowerMapInIds)
   }
 
   private def mapPrivateMemory(lambda: Lambda): Seq[Lambda] = {
@@ -161,12 +162,55 @@ object TestMemoryMappingRewrite {
     lowered
   }
 
-  def turnIdsIntoCopies(lambda: Lambda): Lambda = {
+  def turnIdsIntoCopies(lambda: Lambda): Seq[Lambda] = {
     val rewrites = Rewrite.listAllPossibleRewrites(lambda, Rules.implementIdAsDeepCopy)
 
     if (rewrites.nonEmpty) {
       val ruleAt = rewrites.head
-      turnIdsIntoCopies(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
+
+
+      ruleAt._2.t match {
+        case TupleType(_*) =>
+
+          val oneLevelImplemented = Rules.implementOneLevelOfId.rewrite(ruleAt._2)
+
+          val idRewrites = Rewrite.listAllPossibleRewrites(oneLevelImplemented, Rules.implementIdAsDeepCopy)
+
+          var allCombinations = List[Expr]()
+
+          (1 to idRewrites.length).foreach(n => {
+            idRewrites.combinations(n).foreach(combination => {
+              var copiesAdded = oneLevelImplemented
+
+              combination.foreach(ruleAt2 => {
+                copiesAdded = Rewrite.applyRuleAt(copiesAdded, ruleAt2._1, ruleAt2._2)
+              })
+
+              val dropLocations = Rewrite.listAllPossibleRewrites(copiesAdded, Rules.dropId)
+
+              val droppedIds = dropLocations.foldLeft(copiesAdded)((a, b) => {
+                Rewrite.applyRuleAt(a, b._1, b._2)
+              })
+
+              allCombinations = droppedIds :: allCombinations
+            })
+          })
+
+          allCombinations.map(combination => FunDecl.replace(lambda, ruleAt._2, combination)).flatMap(turnIdsIntoCopies)
+        case _ => turnIdsIntoCopies(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
+      }
+
+    } else {
+      Seq(applyLoopFusionToTuple(lambda))
+    }
+  }
+
+  def applyLoopFusionToTuple(lambda: Lambda): Lambda = {
+    val rewrites = Rewrite.listAllPossibleRewrites(lambda, Rules.tupleMap)
+
+    if (rewrites.nonEmpty) {
+      val ruleAt = rewrites.head
+      applyLoopFusionToTuple(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
     } else {
       lambda
     }
