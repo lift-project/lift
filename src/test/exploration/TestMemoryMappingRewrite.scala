@@ -1,8 +1,8 @@
 package exploration
 
 import ir.ast._
-import opencl.executor.Eval
-import opencl.ir.OpenCLAddressSpace
+import opencl.executor.{Executor, Eval}
+import opencl.ir.{OpenCLMemory,OpenCLAddressSpace}
 import opencl.ir.pattern.{MapLcl, MapSeq}
 
 import scala.io.Source
@@ -47,9 +47,10 @@ object TestMemoryMappingRewrite {
     idlist.foreach(node => {
       var all_new_mappings: List[Lambda] = List.empty
       all_mappings.foreach(x => {
-        val local_memory = Rewrite.applyRuleAt(x, node, Rules.localMemoryId)
+        if(OpenCLMemory.getMaxSizeInBytes(node.t).eval < Executor.getDeviceLocalMemSize())
+          all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.localMemoryId) :: all_new_mappings
         val no_local_memory = Rewrite.applyRuleAt(x, node, Rules.dropId)
-        all_new_mappings = local_memory :: no_local_memory :: all_new_mappings
+        all_new_mappings = no_local_memory :: all_new_mappings
       })
 
       all_mappings = all_new_mappings
@@ -72,8 +73,6 @@ object TestMemoryMappingRewrite {
       case FunCall(Map(_), _) => true
       case _ => false
     }))
-
-    println(byDepth)
 
     val depth = byDepth.map(pair =>{
       val level = pair._1

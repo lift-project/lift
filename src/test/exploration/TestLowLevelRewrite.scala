@@ -33,7 +33,7 @@ import scala.collection.mutable.{Map => ScalaMap, Set}
 
 object AppParams {
   // matrix size
-  val matrix_size = 4096
+  val matrix_size = 1024
 
   // Minimum number of work item per workgroup
   val min_work_items = 16
@@ -211,7 +211,8 @@ object TestLowLevelRewrite {
 
       if(VERBOSE) println(s"Found ${tunableNodes.length} parameterizable nodes")
 
-      { // Herein starts the hack for CGO deadline:
+      {
+        // Herein starts the hack for CGO deadline:
         // instead of using an algebraic solver to model the constraints, we tune only the Split nodes
         // from the right to the left of the expression. We first collect all the valid substitution tables
         // and then we merely plow through it.
@@ -237,7 +238,7 @@ object TestLowLevelRewrite {
             splits.head match {
               // If the stride is not set and the input length is constant, compute all divisors
               case (v: Var, Cst(len)) =>
-                (2 to len-1).filter {
+                (2 to len - 1).filter {
                   len % _ == 0
                 }.foreach(x => substitute(propagate(splits.tail, ScalaImmMap(v -> x)), substitutions + (v -> x)))
 
@@ -271,58 +272,67 @@ object TestLowLevelRewrite {
         var best_substitutions = all_substitution_tables.head
 
 
+
         all_substitution_tables.foreach(st => {
 
           val tuned_expr = Utils.quickAndDirtySubstitution(st, tunableNodes.reverse, expr)
           TypeChecker(tuned_expr)
 
-          TestHighLevelRewrite.dumpLambasToFiles(Seq(tuned_expr))
-    
-          //println(tuned_expr)
-          //OpenCLGenerator.printTypes(tuned_expr)
-          //System.exit(-1)
+          val all_mappings = TestMemoryMappingRewrite.mapAddressSpace(tuned_expr)
+          
+          println("Number of address mapping: " + all_mappings.size)
+
+          var mapping_counter = 0
+
+          all_mappings.foreach(expr => {
+
+            //println(tuned_expr)
+            //OpenCLGenerator.printTypes(tuned_expr)
+            //System.exit(-1)
+
+            //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+            val (test, time) = executor(Math.min(best_time, 1000f), expr, values: _*)
+
+            import ExecutionHarness.Status._
+            test match {
+              case Success =>
+                passed = passed + 1
+                all_times = time :: all_times
+                if (time < best_time) {
+                  best_time = time
+                  best_substitutions = st
+                }
+
+              case Skipped =>
+                skipped = skipped + 1
+
+              case ValidationError =>
+                println()
+                println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+                println(expr)
+                failed = failed + 1
+
+              case Avoided =>
+                avoided = avoided + 1
+
+              case _ =>
+                println()
+                println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+                println(expr)
+                crashed = crashed + 1
+            }
+            mapping_counter = mapping_counter + 1
+            print(s"\r$mapping_counter / ${all_mappings.size}: $counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $avoided avoided, $failed failed, $crashed crashed) best = $best_time                   ")
+          })
 
           counter = counter + 1
-          //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-          val (test, time) = executor(Math.min(best_time, 1000f), tuned_expr, values:_*)
 
-          import ExecutionHarness.Status._
-          test match {
-            case Success =>
-              passed = passed + 1
-              all_times = time :: all_times
-              if (time < best_time) {
-                best_time = time
-                best_substitutions = st
-              }
-
-            case Skipped =>
-              skipped = skipped + 1
-
-            case ValidationError =>
-              println()
-              println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-              println(tuned_expr)
-              failed = failed + 1
-
-            case Avoided =>
-              avoided = avoided + 1
-
-            case _ =>
-              println()
-              println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-              println(tuned_expr)
-              crashed = crashed + 1
-          }
-
-          print(s"\r$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $avoided avoided, $failed failed, $crashed crashed) best = $best_time                   ")
+          println()
+          println("All times:")
+          println(all_times.mkString(", "))
+          println(s"best time: ${best_time}")
+          println("best parameters: " + best_substitutions.map(x => s"${x._1} -> ${x._2}").mkString("; "))
         })
-
-        println()
-        println("All times:")
-        println(all_times.mkString(", "))
-        println(s"best time: ${best_time}")
-        println("best parameters: " + best_substitutions.map(x => s"${x._1} -> ${x._2}").mkString("; "))
       }
     })
 
@@ -822,7 +832,7 @@ object TestLowLevelRewrite {
 
         // === Execution ===
         val (output: Array[Float], time) =
-          Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ) (10,cur_best*1.4f,expr, values: _*)
+          Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ).evaluate(10,cur_best*1.4f,expr, values: _*)
 
         if (false) {
           println()
@@ -865,10 +875,11 @@ object TestLowLevelRewrite {
           ea.printStackTrace()
           ea.consume()
           failure(ExecutorError)
-        case e: Exception =>
+        case e: Throwable =>
           e.printStackTrace()
           failure(UnknwownError)
       }
     }
   }
 }
+

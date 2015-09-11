@@ -177,7 +177,7 @@ object TestHighLevelRewrite {
 
     while (toGo > 0) {
 
-      val currentLambda = lambdas(2/*util.Random.nextInt(numLambda)*/)
+      val currentLambda = lambdas(1/*util.Random.nextInt(numLambda)*/)
 
       try {
         val appliedRules = applyAlwaysRules(currentLambda)
