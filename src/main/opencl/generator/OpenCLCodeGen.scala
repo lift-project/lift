@@ -210,9 +210,16 @@ object OpenCLCodeGen {
       print(x)
       if(x != f.params.last) sb ++= ", "
     })
-    sb ++= ") "
+    sb ++= ")"
+    if(f.kernel)
+      sb ++= "{ \n" +
+        "#ifndef WORKGROUP_GUARD\n" +
+        "#define WORKGROUP_GUARD\n" + 
+        "#endif\n" +
+        "WORKGROUP_GUARD\n"
     print(f.body)
-    println("")
+    if(f.kernel)
+      println("}")
   }
 
   private def print(a: Assignment): Unit = {

@@ -16,9 +16,9 @@ object TestHighLevelRewrite {
     )
 
   def main(args: Array[String]) = {
-    val N = 1024//Var("N")
-    val M = 1024//Var("M")
-    val K = 1024//Var("K")
+    val N = 4096//Var("N")
+    val M = 4096//Var("M")
+    val K = 4096//Var("K")
 
     val startingExpression = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -30,19 +30,18 @@ object TestHighLevelRewrite {
           )) o Transpose() $ B
         )) $ A
       })
-
-    val startingExpressionATransposed = fun(
-      ArrayType(ArrayType(Float, K), M),
+     val startingExpressionATransposed = fun(
+      ArrayType(ArrayType(Float, M), K),
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         Map(fun(aRow =>
           Map(fun(bCol =>
             Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(aRow, bCol)
           )) o Transpose() $ B
-        )) $ A
+        )) o Transpose() $ A
       })
 
-    val newLambdas = rewrite(startingExpression, Seq(), 5)
+    val newLambdas = rewrite(startingExpressionATransposed, Seq(), 5)
 
     val distinctLambdas = newLambdas.map(_._2).distinct
 
@@ -131,7 +130,7 @@ object TestHighLevelRewrite {
 
     while (toGo > 0) {
 
-      val currentLambda = lambdas(1/*util.Random.nextInt(numLambda)*/)
+      val currentLambda = lambdas(2/*util.Random.nextInt(numLambda)*/)
 
       try {
         val appliedRules = applyAlwaysRules(currentLambda)

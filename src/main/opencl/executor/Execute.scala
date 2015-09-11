@@ -167,6 +167,14 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     benchmark(iterations, timeout, code, f, values:_*)
   }
 
+  def evaluate(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
+    val code = compile(f, values:_*)
+
+    evaluate(iterations, timeout, code, f, values:_*)
+  }
+
+
+
   private def compile(f: Lambda, values: Any*) : String = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
@@ -231,6 +239,18 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     execute(executeFunction, code, f, values:_*)
   }
+
+  def evaluate(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+
+    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (code, localSize1, localSize2, localSize3,
+         globalSize1, globalSize2, globalSize3, args) =>
+      Executor.evaluate(code, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, args, iterations, timeout)
+
+    execute(executeFunction, code, f, values:_*)
+  }
+
 
   private def execute(executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
                        code: String, f: Lambda, values: Any*): (Array[_], Double) = {

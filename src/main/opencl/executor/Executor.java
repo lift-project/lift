@@ -104,6 +104,21 @@ public class Executor {
                                           int globalSize1, int globalSize2, int globalSize3,
                                           KernelArg[] args, int iterations, double timeOut);
 
+    public static double evaluate(String kernelCode,
+                                   int localSize1, int localSize2, int localSize3,
+                                   int globalSize1, int globalSize2, int globalSize3,
+                                   KernelArg[] args, int iterations, double timeout) {
+        return evaluate(kernelCode, "KERNEL", "", localSize1, localSize2, localSize3,
+                globalSize1, globalSize2, globalSize3, args, iterations, timeout);
+    }
+
+    public native static double evaluate(String kernelCode, String kernelName, String buildOptions,
+                                          int localSize1, int localSize2, int localSize3,
+                                          int globalSize1, int globalSize2, int globalSize3,
+                                          KernelArg[] args, int iterations, double timeOut);
+
+ 
+
     public native static void init(int platformId, int deviceId);
 
     public native static long getDeviceLocalMemSize();

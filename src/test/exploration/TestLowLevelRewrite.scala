@@ -33,18 +33,27 @@ import scala.collection.mutable.{Map => ScalaMap, Set}
 
 object AppParams {
   // matrix size
-  val matrix_size = 1024
+  val matrix_size = 4096
 
   // Minimum number of work item per workgroup
   val min_work_items = 16
 
-  // Minimal grid size
+  // Minimal global grid size
   val min_grid_size = 4
 
-  val max_amount_private_memory = 8192*4
+  // Max amount of private memory allocated (this is not necessarily the number of registers)
+  val max_amount_private_memory = 8192*5
 
+  // Minimum number of workgroups
+  val min_num_workgroups = 4
+
+  // Maximum number of workgroups
+  val max_num_workgroups = 10000
+
+  // Fraction of the max local memory allocated to a single work item
   val resource_per_thread = 1.0
 
+  // Don't bother cross validating if the timing is not better than the current best solution
   val only_crossvalidate_better_solutions = true
 }
 
@@ -190,7 +199,7 @@ object TestLowLevelRewrite {
       matrixB.flatten.map(_.asInstanceOf[java.lang.Float]), mSize, nSize, kSize).map(_.toFloat)
 
     val executor = new ExecutionHarness(gold)
-    val values = Seq(matrixA, matrixB)
+    val values = Seq(matrixA.transpose, matrixB)
 
     lambdas.foreach(expr => {
       TypeChecker(expr)
@@ -253,6 +262,7 @@ object TestLowLevelRewrite {
         var counter = 0
         var passed = 0
         var skipped = 0
+        var avoided = 0
         var failed = 0
         var crashed = 0
         var best_time = Double.PositiveInfinity
@@ -292,6 +302,9 @@ object TestLowLevelRewrite {
               println(tuned_expr)
               failed = failed + 1
 
+            case Avoided =>
+              avoided = avoided + 1
+
             case _ =>
               println()
               println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
@@ -299,7 +312,7 @@ object TestLowLevelRewrite {
               crashed = crashed + 1
           }
 
-          print(s"\r$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $failed failed, $crashed crashed) best = $best_time                   ")
+          print(s"\r$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $avoided avoided, $failed failed, $crashed crashed) best = $best_time                   ")
         })
 
         println()
@@ -702,7 +715,7 @@ object TestLowLevelRewrite {
   object ExecutionHarness {
     object Status extends Enumeration {
       type Status = Value
-      val Success, Skipped, ValidationError, ArithmeticsError, ExecutorError, UnknwownError = Value
+      val Success, Skipped, Avoided, ValidationError, ArithmeticsError, ExecutorError, UnknwownError = Value
     }
   }
 
@@ -767,8 +780,11 @@ object TestLowLevelRewrite {
         // - minimum size of the entire compute grid
         if (global.map(_.eval).product < AppParams.min_grid_size) return failure(Skipped)
         // - minimum number of workgroups
-        if ((global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product < 8)
+        val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
+          println("num_workgroups = " + num_workgroups)
+        if (num_workgroups < AppParams.min_num_workgroups || num_workgroups > AppParams.max_num_workgroups) {
           return failure(Skipped)
+        }
 
         // This measures the % of max local memory / thread
         val resource_per_thread = if (local_alloc_size == 0) 0 else
@@ -805,6 +821,8 @@ object TestLowLevelRewrite {
           println("- local resource / thread: " + resource_per_thread)
           println("- execution time: " + time)
         }
+
+        if(time < 0) return failure(Avoided)
 
         // cross validation
         if (!AppParams.only_crossvalidate_better_solutions || 
