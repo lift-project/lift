@@ -3,7 +3,7 @@ package exploration
 import apart.arithmetic.{ArithExpr, Cst, Prod, Var}
 import ir.ast._
 import ir.view.View
-import ir.{ArrayType, ScalarType, TypeChecker}
+import ir.{Type, ArrayType, ScalarType, TypeChecker}
 import opencl.executor.{Execute, Executor}
 import opencl.generator.{OpenCLGenerator, OpenCLCodeGen}
 import opencl.ir._
@@ -202,6 +202,7 @@ object TestLowLevelRewrite {
     val values = Seq(matrixA.transpose, matrixB)
 
     lambdas.foreach(expr => {
+      replaceInputTypes(expr)
       TypeChecker(expr)
       println(expr)
 
@@ -361,6 +362,7 @@ object TestLowLevelRewrite {
 
     // Step 1: Get the expression for the re-writer:
     val expr = getHighLevelExpression()
+    replaceInputTypes(expr)
 
     // Step 2: Find the tunable nodes in the expression
     val tunableNodes = Utils.findTunableNodes(expr)
@@ -497,12 +499,12 @@ object TestLowLevelRewrite {
     val workPerThreadNVar = Var("workPerThreadNVar")
     val workPerThreadMVar = Var("workPerThreadMVar")
 
-    /*val N = Var("N")
+    val N = Var("N")
     val M = Var("M")
-    val K = Var("K")*/
-    val N = AppParams.matrix_size
-    val M = AppParams.matrix_size
-    val K = AppParams.matrix_size
+    val K = Var("K")
+//    val N = AppParams.matrix_size
+//    val M = AppParams.matrix_size
+//    val K = AppParams.matrix_size
 
     val f0 =
     /*      fun(
@@ -710,6 +712,18 @@ object TestLowLevelRewrite {
     f0
     // This is required to patch-up the address space modifiers for reduce
     //Lower.lowerNoAddressSpaces(f0)
+  }
+
+  def replaceInputTypes(lambda: Lambda): Unit = {
+    val vars = lambda.params.flatMap(_.t.varList).distinct
+
+    var st = ScalaImmMap[ArithExpr, ArithExpr]()
+
+    vars.foreach(v => {
+      st = st.updated(v, AppParams.matrix_size)
+    })
+
+    lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
   }
 
   object ExecutionHarness {
