@@ -1,8 +1,8 @@
 package exploration
 
 import apart.arithmetic.Var
-import ir.{TypeChecker, ArrayType}
 import ir.ast._
+import ir.{ArrayType, TypeChecker}
 import opencl.ir._
 
 object TestHighLevelRewrite {
@@ -16,9 +16,9 @@ object TestHighLevelRewrite {
     )
 
   def main(args: Array[String]) = {
-    val N = 4096//Var("N")
-    val M = 4096//Var("M")
-    val K = 4096//Var("K")
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
 
     val startingExpression = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -30,7 +30,7 @@ object TestHighLevelRewrite {
           )) o Transpose() $ B
         )) $ A
       })
-     val startingExpressionATransposed = fun(
+    val startingExpressionATransposed = fun(
       ArrayType(ArrayType(Float, M), K),
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
@@ -49,8 +49,12 @@ object TestHighLevelRewrite {
     println(newLambdas.length + " resulting expressions.")
     println(distinctLambdas.length + " distinct sequences of rules (possibly different locations)")
 
+    val oneKernel = newLambdas.filter(pair => hasOneMapOnFirstLevels(pair._1))
+
+    println(oneKernel.length + " expressions with one kernel")
+
     println(
-      newLambdas.count(pair =>
+      oneKernel.count(pair =>
         pair._2 ==
           List(
             MacroRules.tileMapMap,
@@ -60,7 +64,7 @@ object TestHighLevelRewrite {
       ) + " expressions with the basic tiled sequence"
     )
 
-    val oneDBlockingSequence = newLambdas.filter(pair =>
+    val oneDBlockingSequence = oneKernel.filter(pair =>
       pair._2 ==
         List(
           MacroRules.tileMapMap,
@@ -69,16 +73,16 @@ object TestHighLevelRewrite {
           MacroRules.apply1DRegisterBlocking,
           MacroRules.finishTiling
         )
-//        ||
-//        pair._2 ==
-//          List(
-//            MacroRules.tileMapMap,
-//            MacroRules.apply1DRegisterBlocking,
-//            MacroRules.finishTiling,
-//            MacroRules.finishTiling,
-//            MacroRules.apply1DRegisterBlocking
-//          )
-      )
+        ||
+        pair._2 ==
+          List(
+            MacroRules.tileMapMap,
+            MacroRules.apply1DRegisterBlocking,
+            MacroRules.finishTiling,
+            MacroRules.finishTiling,
+            MacroRules.apply1DRegisterBlocking
+          )
+    )
 
     println(
       oneDBlockingSequence.length + " expressions with a possible tiled 1D blocking sequence,"
@@ -86,7 +90,7 @@ object TestHighLevelRewrite {
 
     printMinAndMaxDepth(oneDBlockingSequence.map(_._1))
 
-    val twoDBlockingSequence = newLambdas.filter(pair =>
+    val twoDBlockingSequence = oneKernel.filter(pair =>
       pair._2 ==
         List(
           MacroRules.tileMapMap,
@@ -95,16 +99,15 @@ object TestHighLevelRewrite {
           MacroRules.apply2DRegisterBlocking,
           MacroRules.finishTiling
         ) && NumberExpression.byDepth(pair._1).values.max <= 8
-          && hasOneMapOnFirstLevels(pair._1)
-//        ||
-//        pair._2 ==
-//          List(
-//            MacroRules.tileMapMap,
-//            MacroRules.apply2DRegisterBlocking,
-//            MacroRules.finishTiling,
-//            MacroRules.finishTiling,
-//            MacroRules.apply2DRegisterBlocking
-//          )
+        ||
+        pair._2 ==
+          List(
+            MacroRules.tileMapMap,
+            MacroRules.apply2DRegisterBlocking,
+            MacroRules.finishTiling,
+            MacroRules.finishTiling,
+            MacroRules.apply2DRegisterBlocking
+          )
     )
 
     println(
@@ -120,6 +123,50 @@ object TestHighLevelRewrite {
     println("testing " + lowerSome.length + " expressions")
 
     TestLowLevelRewrite.lowlevelexecutor(lowerSome)
+  }
+
+  def dumpLambdaToString(lambda: Lambda): String = {
+    val tunableNodes = Utils.findTunableNodes(lambda)
+    val vars = tunableNodes.collect({  case FunCall(Split(cs), _) => cs.varList }).flatten.distinct
+
+    val varDecl =
+      "val v_N_0 = Var(\"N\")\nval v_M_1 = Var(\"M\")\nval v_K_2 = Var(\"K\")\n" +
+        vars.map(v => "val " + v + " = Var(\"" + v.name + "\")").mkString("\n") + "\n"
+
+    val types = lambda.params.map(p => ScalaPrinter(p.t)).mkString(", ")
+
+    val expr = ScalaPrinter(lambda)
+
+    val fullString = varDecl + expr.substring(0, 4) + types + "," + expr.substring(4)
+
+    fullString
+  }
+
+  def dumpLambasToFiles(lambdas: Seq[Lambda]): Unit = {
+
+    lambdas.zipWithIndex.foreach(pair => {
+      val lambda = pair._1
+      val id = pair._2
+
+      println(s"Processing $id/${lambdas.length - 1}")
+
+
+      try {
+        val appliedRules = applyAlwaysRules(lambda)
+        val lowerNext = SimplifyAndFuse(appliedRules)
+
+        val stringRep = dumpLambdaToString(lowerNext)
+
+        val filename = "lambda_" + id
+
+        scala.tools.nsc.io.File(filename).writeAll(stringRep)
+
+      } catch {
+        case t: Throwable =>
+          println(s"$lambda failed with\n$t.")
+      }
+    })
+
   }
 
   def lower(lambdas: Seq[Lambda], numRandom: Int): List[Lambda] = {
@@ -225,8 +272,8 @@ object TestHighLevelRewrite {
 
       } catch {
         case t: Throwable =>
-//          println(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")},\nfailed with\n$t.\n")
-        failures += 1
+          //          println(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")},\nfailed with\n$t.\n")
+          failures += 1
       }
     })
 
