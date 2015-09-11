@@ -275,6 +275,13 @@ object Rules {
       toLocal(f) $ arg
   })
 
+  val localMemoryId = Rule("Id => toLocal(Id())", {
+    case call@FunCall(Id(), arg)
+      if call.context.inMapWrg.reduce(_ || _)
+    =>
+      toLocal(Id()) $ arg
+  })
+
   val globalMemory = Rule("Map(f) => toGlobal(Map(f))", {
     case FunCall(f: AbstractMap, arg) =>
       toGlobal(f) $ arg
@@ -724,8 +731,23 @@ object Rules {
       f o Id() $ arg
   })
 
+  def isId(expr: Expr): Boolean =
+    expr match {
+      case FunCall(Id(), _) => true
+      case _ => false
+    }
+
+  val addIdMapLcl = Rule("MapLcl(f) => MapLcl(f) o Id()", {
+    case FunCall(map:MapLcl, arg)
+      if !isId(arg)
+    =>
+      map o Id() $ arg
+  })
+
   val addIdForCurrentValueInReduce = Rule("", {
-    case call@FunCall(ReduceSeq(l), _, _) =>
+    case call@FunCall(ReduceSeq(l), _, _)
+      if !Utils.visitFunCallChainWithState(false)(l.body, (e, b) => isId(e) || b)
+    =>
       val params = l.params
       val body = l.body
       val newParam = Param()

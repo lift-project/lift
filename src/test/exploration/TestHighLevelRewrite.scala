@@ -152,12 +152,12 @@ object TestHighLevelRewrite {
 
 
       try {
-        val appliedRules = applyAlwaysRules(lambda)
-        val lowerNext = SimplifyAndFuse(appliedRules)
+        //val appliedRules = applyAlwaysRules(lambda)
+        //val lowerNext = SimplifyAndFuse(appliedRules)
 
-        val stringRep = dumpLambdaToString(lowerNext)
+        val stringRep = dumpLambdaToString(lambda)
 
-        val filename = "lambda_" + id
+        val filename = "lambda_" + id + "_" + System.currentTimeMillis()
 
         scala.tools.nsc.io.File(filename).writeAll(stringRep)
 

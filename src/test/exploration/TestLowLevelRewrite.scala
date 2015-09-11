@@ -275,6 +275,8 @@ object TestLowLevelRewrite {
 
           val tuned_expr = Utils.quickAndDirtySubstitution(st, tunableNodes.reverse, expr)
           TypeChecker(tuned_expr)
+
+          TestHighLevelRewrite.dumpLambasToFiles(Seq(tuned_expr))
     
           //println(tuned_expr)
           //OpenCLGenerator.printTypes(tuned_expr)
