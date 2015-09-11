@@ -1,5 +1,9 @@
 package exploration
 
+import java.nio.file.{Paths, Files}
+import java.security.MessageDigest
+import sys.process._
+
 import apart.arithmetic.Var
 import ir.ast._
 import ir.{ArrayType, TypeChecker}
@@ -53,19 +57,19 @@ object TestHighLevelRewrite {
 
     println(oneKernel.length + " expressions with one kernel")
 
-    println(
-      oneKernel.count(pair =>
+    val basicTiled =  oneKernel.filter(pair =>
         pair._2 ==
           List(
             MacroRules.tileMapMap,
             MacroRules.finishTiling,
             MacroRules.finishTiling
           )
-      ) + " expressions with the basic tiled sequence"
-    )
+      )
+	  
+	println(basicTiled.length + " expressions with the basic tiled sequence")
 
     val oneDBlockingSequence = oneKernel.filter(pair =>
-      pair._2 ==
+      (pair._2 ==
         List(
           MacroRules.tileMapMap,
           MacroRules.finishTiling,
@@ -81,7 +85,7 @@ object TestHighLevelRewrite {
             MacroRules.finishTiling,
             MacroRules.finishTiling,
             MacroRules.apply1DRegisterBlocking
-          )
+          ))
     )
 
     println(
@@ -91,14 +95,14 @@ object TestHighLevelRewrite {
     printMinAndMaxDepth(oneDBlockingSequence.map(_._1))
 
     val twoDBlockingSequence = oneKernel.filter(pair =>
-      pair._2 ==
+      (pair._2 ==
         List(
           MacroRules.tileMapMap,
           MacroRules.finishTiling,
           MacroRules.apply2DRegisterBlocking,
           MacroRules.apply2DRegisterBlocking,
           MacroRules.finishTiling
-        ) && NumberExpression.byDepth(pair._1).values.max <= 8
+        )
         ||
         pair._2 ==
           List(
@@ -107,7 +111,7 @@ object TestHighLevelRewrite {
             MacroRules.finishTiling,
             MacroRules.finishTiling,
             MacroRules.apply2DRegisterBlocking
-          )
+          ))
     )
 
     println(
@@ -116,6 +120,10 @@ object TestHighLevelRewrite {
 
     val lambdas = twoDBlockingSequence.map(_._1)
     printMinAndMaxDepth(lambdas)
+
+	val dumpThese = (basicTiled ++ oneDBlockingSequence ++ twoDBlockingSequence).map(_._1)
+
+    //dumpLambasToFiles(dumpThese)
 
     val lowerSome = lower(lambdas, 1)
 
@@ -152,18 +160,32 @@ object TestHighLevelRewrite {
 
 
       try {
-        //val appliedRules = applyAlwaysRules(lambda)
-        //val lowerNext = SimplifyAndFuse(appliedRules)
+        val appliedRules = applyAlwaysRules(lambda)
+        val lowerNext = SimplifyAndFuse(appliedRules)
 
         val stringRep = dumpLambdaToString(lambda)
 
-        val filename = "lambda_" + id + "_" + System.currentTimeMillis()
 
-        scala.tools.nsc.io.File(filename).writeAll(stringRep)
+        val md = MessageDigest.getInstance("SHA-256")
 
+        md.update(stringRep.getBytes("UTF-8"))
+        val digest = md.digest()
+
+        val sha256 = String.format("%064x", new java.math.BigInteger(1, digest))
+		val folder = "lambdas/" + sha256.charAt(0) + "/" + sha256.charAt(1) + "/"
+		var filename = folder + sha256
+		
+		("mkdir -p " + folder).!
+
+		if (Files.exists(Paths.get(filename))) {
+			println("Warning! Clash at " + sha256 + ". Adding System.currentTimeMillis()")
+			filename = filename + "_" + System.currentTimeMillis()
+		}
+
+		scala.tools.nsc.io.File(filename).writeAll(stringRep)
       } catch {
         case t: Throwable =>
-          println(s"$lambda failed with\n$t.")
+          println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
       }
     })
 
