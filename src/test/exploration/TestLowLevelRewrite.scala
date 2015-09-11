@@ -36,13 +36,13 @@ object AppParams {
   val matrix_size = 1024
 
   // Minimum number of work item per workgroup
-  val min_work_items = 16
+  val min_work_items = 32
 
   // Minimal global grid size
   val min_grid_size = 4
 
   // Max amount of private memory allocated (this is not necessarily the number of registers)
-  val max_amount_private_memory = 8192*5
+  val max_amount_private_memory = 8192*4
 
   // Minimum number of workgroups
   val min_num_workgroups = 4
@@ -830,10 +830,6 @@ object TestLowLevelRewrite {
         if(local.map(_.eval).product > Executor.getDeviceMaxWorkGroupSize)
           return failure(Skipped)
 
-        // === Execution ===
-        val (output: Array[Float], time) =
-          Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ).evaluate(10,cur_best*1.4f,expr, values: _*)
-
         if (false) {
           println()
           println("Current run:")
@@ -845,8 +841,13 @@ object TestLowLevelRewrite {
           println("- local allocation: " + local_alloc_size)
           println("- private allocation: " + private_alloc_size)
           println("- local resource / thread: " + resource_per_thread)
-          println("- execution time: " + time)
+          //println("- execution time: " + time)
         }
+
+
+        // === Execution ===
+        val (output: Array[Float], time) =
+          Execute (local(0).eval, local(1).eval, global(0).eval, global(1).eval, (true, true) ).evaluate(10,cur_best*1.4f,expr, values: _*)
 
         if(time < 0) return failure(Avoided)
 
@@ -872,12 +873,17 @@ object TestLowLevelRewrite {
         } else success(time)
       } catch {
         case ea: Executor.ExecutorFailureException =>
-          ea.printStackTrace()
+          //ea.printStackTrace()
+          println(expr)
           ea.consume()
           failure(ExecutorError)
-        case e: Throwable =>
+
+        case e: Exception =>
           e.printStackTrace()
-          failure(UnknwownError)
+          failure(ExecutorError) 
+
+        case e: Throwable =>
+          failure(Skipped)
       }
     }
   }

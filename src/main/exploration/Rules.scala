@@ -261,12 +261,20 @@ object Rules {
 
   /* Address space rules */
 
+  val privateMemoryId = Rule("Id => toPrivate(Id)", {
+    case call@FunCall(Id(), arg)
+      if call.context.inMapLcl.reduce(_ || _)
+    =>
+      toPrivate(Id()) $ arg
+  })
+
   val privateMemory = Rule("Map(f) => toPrivate(Map(f))", {
     case FunCall(f: AbstractMap, arg)
       if f.isInstanceOf[MapLcl] || f.isInstanceOf[MapSeq]
     =>
       toPrivate(f) $ arg
   })
+
 
   val localMemory = Rule("Map(f) => toLocal(Map(f))", {
     case call@FunCall(f: AbstractMap, arg)
@@ -738,8 +746,8 @@ object Rules {
     }
 
   val addIdMapLcl = Rule("MapLcl(f) => MapLcl(f) o Id()", {
-    case FunCall(map:MapLcl, arg)
-      if !isId(arg)
+    case call@FunCall(map:MapLcl, arg)
+      if !isId(arg) && !call.context.inMapLcl.reduce(_ || _)
     =>
       map o Id() $ arg
   })
@@ -825,3 +833,4 @@ object Rules {
       arg
   })
 }
+

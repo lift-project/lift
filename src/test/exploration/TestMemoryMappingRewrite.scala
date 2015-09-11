@@ -2,26 +2,24 @@ package exploration
 
 import ir.ast._
 import opencl.executor.{Executor, Eval}
-import opencl.ir.{OpenCLMemory,OpenCLAddressSpace}
-import opencl.ir.pattern.{MapLcl, MapSeq}
+import opencl.ir.{OpenCLMemory, OpenCLAddressSpace}
+import opencl.ir.pattern.{toLocal, MapLcl, MapSeq}
 
 import scala.io.Source
 
 object TestMemoryMappingRewrite {
-  object Context {
-    val inputs: scala.collection.Map[Expr, OpenCLAddressSpace] = scala.collection.Map.empty
-
-    def push() = {
-
-    }
-  }
 
   def main(args: Array[String]) {
+    Executor.loadLibrary()
+    Executor.init()
+
     val filename = "lambda_0_1441965545755"
 
     val fileContents = Source.fromFile(filename).getLines.mkString("\n").replace("idfloat", "id")
 
     val lambda = Eval(fileContents)
+
+    mapAddressSpace(lambda)
 
   }
 
@@ -47,10 +45,12 @@ object TestMemoryMappingRewrite {
     idlist.foreach(node => {
       var all_new_mappings: List[Lambda] = List.empty
       all_mappings.foreach(x => {
+        // Use local memory if there are enough resources
         if(OpenCLMemory.getMaxSizeInBytes(node.t).eval < Executor.getDeviceLocalMemSize())
           all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.localMemoryId) :: all_new_mappings
-        val no_local_memory = Rewrite.applyRuleAt(x, node, Rules.dropId)
-        all_new_mappings = no_local_memory :: all_new_mappings
+
+        // remove ID
+        all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.dropId) :: all_new_mappings
       })
 
       all_mappings = all_new_mappings
@@ -60,7 +60,59 @@ object TestMemoryMappingRewrite {
 
     // Step 4: make sure the end result is in global
 
-    all_mappings.map(turnIdsIntoCopies).map(LowerMapInIds)
+
+    all_mappings.flatMap(mapPrivateMemory).map(turnIdsIntoCopies).map(LowerMapInIds)
+  }
+
+  private def mapPrivateMemory(lambda: Lambda): Seq[Lambda] = {
+
+    ir.Context.updateContext(lambda.body)
+
+    val (mapseq_list, _) = Expr.visitLeftToRight((List[Expr](), false))(lambda.body, (expr, pair) => {
+      expr match {
+        case FunCall(toLocal(_), _) =>
+          (pair._1, true)
+        case l@FunCall(MapSeq(_), _) if !pair._2 && l.context.inMapLcl.reduce(_ || _) =>
+          (l::pair._1, false)
+        case _ =>
+          pair
+      }
+    })
+
+    var idsAdded = lambda
+
+    mapseq_list.foreach(x => {
+      idsAdded = Rewrite.applyRuleAt(idsAdded, x, Rules.addId)
+    })
+
+    val privateIdList = Expr.visitLeftToRight(List[Expr]())(idsAdded.body, (expr, set) => {
+      expr match {
+        case FunCall(MapSeq(_), call@FunCall(Id(), _)) =>
+          call :: set
+        case _ =>
+          set
+      }
+    })
+
+    var all_mappings_private = List(idsAdded)
+
+    privateIdList.foreach(node => {
+
+      var all_new_mappings: List[Lambda] = List.empty
+      all_mappings_private.foreach(x => {
+        ir.Context.updateContext(x.body)
+
+        // Use private memory
+        all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.privateMemoryId) :: all_new_mappings
+
+        // remove ID
+        all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.dropId) :: all_new_mappings
+      })
+
+      all_mappings_private = all_new_mappings
+    })
+
+    all_mappings_private
   }
 
   private def LowerMapInIds(lambda:Lambda): Lambda = {
@@ -131,3 +183,4 @@ object TestMemoryMappingRewrite {
     }
   }
 }
+
