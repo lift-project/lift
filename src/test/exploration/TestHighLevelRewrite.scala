@@ -2,9 +2,12 @@ package exploration
 
 import java.nio.file.{Paths, Files}
 import java.security.MessageDigest
+import opencl.executor.Eval
+
+import scala.io.Source
 import sys.process._
 
-import apart.arithmetic.Var
+import apart.arithmetic.{Cst, ArithExpr, Var}
 import ir.ast._
 import ir.{ArrayType, TypeChecker}
 import opencl.ir._
@@ -121,9 +124,9 @@ object TestHighLevelRewrite {
     val lambdas = twoDBlockingSequence.map(_._1)
     printMinAndMaxDepth(lambdas)
 
-	val dumpThese = (basicTiled ++ oneDBlockingSequence ++ twoDBlockingSequence).map(_._1)
+    val dumpThese = (basicTiled ++ oneDBlockingSequence ++ twoDBlockingSequence).map(_._1)
 
-    //dumpLambasToFiles(dumpThese)
+    // dumpLambasToFiles(dumpThese)
 
     val lowerSome = lower(lambdas, 1)
 
@@ -134,20 +137,76 @@ object TestHighLevelRewrite {
   }
 
   def dumpLambdaToString(lambda: Lambda): String = {
-    val tunableNodes = Utils.findTunableNodes(lambda)
-    val vars = tunableNodes.collect({  case FunCall(Split(cs), _) => cs.varList }).flatten.distinct
 
-    val varDecl =
-      "val v_N_0 = Var(\"N\")\nval v_M_1 = Var(\"M\")\nval v_K_2 = Var(\"K\")\n" +
-        vars.map(v => "val " + v + " = Var(\"" + v.name + "\")").mkString("\n") + "\n"
+    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
 
+    val withIndex: List[(String, Int)] = findVariables(fullString)
+
+    val decls = withIndex.map(pair =>
+      "val " + getNewName(pair) + " = Var(\"" + getIdentifier(pair) + "\")\n"
+    ).mkString("")
+
+    decls + "\n" + replaceVariableDeclarations(fullString, withIndex)
+  }
+
+  def replaceVariableDeclarations(fullString: String, withIndex: List[(String, Int)]): String = {
+    withIndex.foldRight(fullString)((toReplace, currentString) =>
+      currentString.replaceAll(toReplace._1, getNewName(toReplace)))
+  }
+
+  def dumpLambdaToMethod(lambda: Lambda): String = {
+    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
+
+    val variables = findVariables(fullString)
+
+    val replacedVariableNames = replaceVariableDeclarations(fullString, variables)
+
+    val seqName = "variables"
+
+    val declarations = variables.map(pair => {
+      "val " + getNewName(pair) + " = " + seqName +"(" + pair._2 + ")"
+    }).mkString("\n")
+
+    val method =
+      s"""($seqName: Seq[ArithExpr]) => {
+        |$declarations
+        |
+        |$replacedVariableNames
+        |}
+      """.stripMargin
+
+    method
+  }
+
+  def findVariables(fullString: String): List[(String, Int)] = {
+    val variable = """v_\p{Alnum}*_\d+""".r
+
+    val vars = variable.findAllIn(fullString).map(_.toString).toList.distinct
+
+    val withIndex = vars.zipWithIndex
+    withIndex
+  }
+
+  def getIdentifier(toReplace: (String, Int)): String = {
+    toReplace._1.substring(toReplace._1.indexOf("_") + 1, toReplace._1.lastIndexOf("_"))
+  }
+
+  def getNewName(toReplace: (String, Int)): String = {
+    "v_" + getIdentifier(toReplace) + "_" + toReplace._2
+  }
+
+  def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {
     val types = lambda.params.map(p => ScalaPrinter(p.t)).mkString(", ")
-
     val expr = ScalaPrinter(lambda)
+    val fullString = expr.substring(0, 4) + types + "," + expr.substring(4)
 
-    val fullString = varDecl + expr.substring(0, 4) + types + "," + expr.substring(4)
+    val param = """p_\d+""".r
 
-    fullString
+    val params = param.findAllMatchIn(fullString).map(_.toString()).toList.distinct
+
+    params.zipWithIndex.foldRight(fullString)((toReplace, currentString) =>
+      currentString.replaceAll(toReplace._1, "p_" + toReplace._2))
+
   }
 
   def dumpLambasToFiles(lambdas: Seq[Lambda]): Unit = {
@@ -163,7 +222,7 @@ object TestHighLevelRewrite {
         val appliedRules = applyAlwaysRules(lambda)
         val lowerNext = SimplifyAndFuse(appliedRules)
 
-        val stringRep = dumpLambdaToString(lambda)
+        val stringRep = dumpLambdaToString(lowerNext)
 
 
         val md = MessageDigest.getInstance("SHA-256")

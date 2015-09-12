@@ -10,7 +10,7 @@ object ScalaPrinter {
     expr match {
       case funCall: FunCall => s"FunCall(${apply(funCall.f)}, ${funCall.args.map(apply).mkString(", ")})"
       case value: Value => s"Value(${value.value}, ${apply(value.t)})"
-      case param: Param => "p" + param.hashCode()
+      case param: Param => "p_" + param.hashCode()
       case _ => expr.toString
     }
   }

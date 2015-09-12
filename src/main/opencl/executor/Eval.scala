@@ -1,6 +1,7 @@
 package opencl.executor
 
 import ir.ast.Lambda
+import apart.arithmetic._
 
 import scala.reflect.runtime._
 import scala.tools.reflect.ToolBox
@@ -13,19 +14,27 @@ import scala.tools.reflect.ToolBox
  */
 object Eval {
   def apply(code: String): Lambda = {
+    eval(code).asInstanceOf[Lambda]
+  }
+
+  def getMethod(code:String): Seq[ArithExpr] => Lambda = {
+    eval(code).asInstanceOf[Seq[ArithExpr] => Lambda]
+  }
+
+  def eval(code: String): Any = {
     val mirror = universe.runtimeMirror(getClass.getClassLoader)
     val tb = mirror.mkToolBox()
     val tree = tb.parse(s"""
-                          |import arithmetic._
-                          |import apart.arithmetic._
-                          |import ir._
-                          |import ir.ast._
-                          |import opencl.ir._
-                          |import opencl.ir.pattern._
-                          |import opencl.ir.ast._
-                          |$code
+                           |import arithmetic._
+                           |import apart.arithmetic._
+                           |import ir._
+                           |import ir.ast._
+                           |import opencl.ir._
+                           |import opencl.ir.pattern._
+                           |import opencl.ir.ast._
+                           |$code
                          """.stripMargin)
-    tb.eval(tree).asInstanceOf[Lambda]
+    tb.eval(tree)
   }
 }
 
