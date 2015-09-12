@@ -58,24 +58,10 @@ public class Executor {
     }
 
     /** Compute matrix-matrix multiply natively */
-    public static Float[] nativeMatrixMultiply(Float[] a, Float[] b, int n, int m, int k) {
-        float[] aa = new float[n*m];
-        float[] bb = new float[n*k];
+    public static float[] nativeMatrixMultiply(float[] aa, float[] bb, int n, int m, int k) {
         float[] cc = new float[n*m];
-        Float[] out = new Float[n*m];
-
-        for(int i = 0; i < n * m; ++i){
-            aa[i] = a[i];
-            bb[i] = b[i];
-        }
-
         nativeMatrixMultiply(aa,bb,cc,n,m,k);
-
-        for(int i = 0; i < n * m; ++i){
-            out[i] = cc[i];
-        }
-
-        return out;
+        return cc;
     }
 
     public native static void nativeMatrixMultiply(float[] a, float[] b, float[] out, int n, int m, int k);

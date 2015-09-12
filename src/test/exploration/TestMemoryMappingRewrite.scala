@@ -207,6 +207,8 @@ object TestMemoryMappingRewrite {
   }
 
   private def LowerMapInIds(lambda:Lambda): Lambda = {
+
+    println(lambda)
     val depthMap = NumberExpression.byDepth(lambda).filterKeys({
       case FunCall(map: ir.ast.AbstractMap, _) if map.f.body.isConcrete => true
       case _ => false

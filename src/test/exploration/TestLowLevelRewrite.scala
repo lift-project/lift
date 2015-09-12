@@ -198,8 +198,7 @@ object TestLowLevelRewrite {
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
     println("Computing gold solution")
     val gold = Executor.nativeMatrixMultiply(
-      matrixA.flatten.map(_.asInstanceOf[java.lang.Float]),
-      matrixB.flatten.map(_.asInstanceOf[java.lang.Float]), mSize, nSize, kSize).map(_.toFloat)
+      matrixA.flatten, matrixB.flatten, mSize, nSize, kSize)
 
     val executor = new ExecutionHarness(gold)
     val values = Seq(matrixA.transpose, matrixB)
@@ -369,8 +368,8 @@ object TestLowLevelRewrite {
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
     println("Computing gold solution")
     val gold = Executor.nativeMatrixMultiply(
-      matrixA.flatten.map(_.asInstanceOf[java.lang.Float]),
-      matrixB.flatten.map(_.asInstanceOf[java.lang.Float]), mSize, nSize, kSize).map(_.toFloat)
+      matrixA.flatten,
+      matrixB.flatten, mSize, nSize, kSize).map(_.toFloat)
 
     val executor = new ExecutionHarness(gold)
     val values = Seq(matrixA.transpose, matrixB)
@@ -785,7 +784,11 @@ object TestLowLevelRewrite {
           }
           p.view = View(p.t, OpenCLCodeGen.print(p.mem.variable))
         })
-        OpenCLMemoryAllocator.alloc(expr.body)
+        try {
+          OpenCLMemoryAllocator.alloc(expr.body)
+        } catch {
+          case _:Throwable => return failure(Skipped)
+        }
         val buffers = TypedOpenCLMemory.get(expr.body, expr.params, true)
 
         // filter private memory
@@ -810,7 +813,7 @@ object TestLowLevelRewrite {
         if (global.map(_.eval).product < AppParams.min_grid_size) return failure(Skipped)
         // - minimum number of workgroups
         val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
-          println("num_workgroups = " + num_workgroups)
+
         if (num_workgroups < AppParams.min_num_workgroups || num_workgroups > AppParams.max_num_workgroups) {
           return failure(Skipped)
         }
@@ -882,7 +885,7 @@ object TestLowLevelRewrite {
           failure(ExecutorError)
 
         case e: Exception =>
-          e.printStackTrace()
+          //e.printStackTrace()
           failure(ExecutorError) 
 
         case e: Throwable =>
