@@ -44,6 +44,9 @@ object AppParams {
   // Max amount of private memory allocated (this is not necessarily the number of registers)
   val max_amount_private_memory = 8192*4
 
+  // Max static amount of local memory
+  val max_amount_local_memory = 49152
+
   // Minimum number of workgroups
   val min_num_workgroups = 4
 

@@ -38,12 +38,15 @@ object TestMemoryMappingRewrite {
       }
     })
 
+    // generate all combinations for up to 3 toLocal
+    val all_local_combinations = (1 to 3).map(idlist.combinations(_).toList).reduce(_++_)
+
     var tuned_expr = addedIds
 
     var all_mappings = List(addedIds)
 
     // Step 2: enumerate all possible mappings, including invalids
-    idlist.foreach(node => {
+    /*idlist.foreach(node => {
       var all_new_mappings: List[Lambda] = List.empty
       all_mappings.foreach(x => {
         // Use local memory if there are enough resources
@@ -55,14 +58,57 @@ object TestMemoryMappingRewrite {
       })
 
       all_mappings = all_new_mappings
+    })*/
+
+    // Function to add the lowered expression if there are enough resources
+    def addToLocal(subset: List[Expr], curset: List[Lambda]): List[Lambda] = {
+      // we start with the expression
+      var tuned_expr = addedIds
+
+      // Aggregate the size of the local buffers
+      var total_local_size = 0
+
+      // traverse all the Id nodes
+      idlist.foreach(node => {
+        // if it is in the change set, we need to switch it to a local
+        if (subset.contains(node)) {
+          val local_mem_size = OpenCLMemory.getMaxSizeInBytes(node.t).eval
+          total_local_size += local_mem_size
+
+          // Use local memory if there are enough resources
+          if(true || local_mem_size < AppParams.max_amount_local_memory)
+            tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.localMemoryId)
+          // abort if there are not enough resources
+          else return curset
+        }
+        // otherwise we eliminate it
+        else
+          tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
+      })
+
+      if (true || total_local_size < AppParams.max_amount_local_memory)
+        tuned_expr :: curset
+      else
+        curset
+    }
+
+    // for each substitution set
+    all_local_combinations.foreach(subset => {
+      all_mappings = addToLocal(subset, all_mappings)
     })
 
     // Step 3: remove invalid combinations
 
     // Step 4: make sure the end result is in global
+    val lowered = all_mappings.flatMap(mapPrivateMemory)
 
+    println(lowered.length)
 
-    all_mappings.flatMap(mapPrivateMemory).flatMap(turnIdsIntoCopies).map(LowerMapInIds)
+    val total: List[Lambda] = lowered.flatMap(turnIdsIntoCopies).map(LowerMapInIds)
+
+    println(total.length)
+
+    total
   }
 
   private def mapPrivateMemory(lambda: Lambda): Seq[Lambda] = {
@@ -73,8 +119,12 @@ object TestMemoryMappingRewrite {
       expr match {
         case FunCall(toLocal(_), _) =>
           (pair._1, true)
-        case l@FunCall(MapSeq(_), _) if !pair._2 && l.context.inMapLcl.reduce(_ || _) =>
-          (l::pair._1, false)
+        case call@FunCall(MapSeq(l), _)
+          if !pair._2
+            && call.context.inMapLcl.reduce(_ || _)
+            && !l.body.contains({ case FunCall(uf: UserFun, _) if uf.name.startsWith("id") => })
+        =>
+          (call::pair._1, false)
         case _ =>
           pair
       }
@@ -94,10 +144,11 @@ object TestMemoryMappingRewrite {
           set
       }
     })
+    val all_private_combinations = (1 to 2).map(privateIdList.combinations(_).toList).reduce(_++_)
 
     var all_mappings_private = List(idsAdded)
 
-    privateIdList.foreach(node => {
+    /*privateIdList.foreach(node => {
 
       var all_new_mappings: List[Lambda] = List.empty
       all_mappings_private.foreach(x => {
@@ -111,6 +162,41 @@ object TestMemoryMappingRewrite {
       })
 
       all_mappings_private = all_new_mappings
+    })*/
+
+    def addToPrivate(subset: List[Expr], curset: List[Lambda]): List[Lambda] = {
+      // we start with the expression
+      var tuned_expr = idsAdded
+
+      // Aggregate the size of the local buffers
+      var total_private_size = 0
+
+      // traverse all the Id nodes
+      privateIdList.foreach(node => {
+        // if it is in the change set, we need to switch it to a local
+        if (subset.contains(node)) {
+          val private_mem_size = OpenCLMemory.getMaxSizeInBytes(node.t).eval
+          total_private_size += private_mem_size
+
+          // Use local memory if there are enough resources
+          if(true || private_mem_size < AppParams.max_amount_private_memory)
+            tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.privateMemoryId)
+          // abort if there are not enough resources
+          else return curset
+        }
+        // otherwise we eliminate it
+        else
+          tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
+      })
+
+      if (true || total_private_size < AppParams.max_amount_private_memory)
+        tuned_expr :: curset
+      else
+        curset
+    }
+
+    all_private_combinations.foreach(subset => {
+      all_mappings_private = addToPrivate(subset, all_mappings_private)
     })
 
     all_mappings_private
@@ -171,7 +257,6 @@ object TestMemoryMappingRewrite {
 
       ruleAt._2.t match {
         case TupleType(_*) =>
-
           val oneLevelImplemented = Rules.implementOneLevelOfId.rewrite(ruleAt._2)
 
           val idRewrites = Rewrite.listAllPossibleRewrites(oneLevelImplemented, Rules.implementIdAsDeepCopy)
