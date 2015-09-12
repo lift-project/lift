@@ -752,9 +752,10 @@ object Rules {
       map o Id() $ arg
   })
 
-  val addIdForCurrentValueInReduce = Rule("", {
+  val addIdForCurrentValueInReduce = Rule("reduce", {
     case call@FunCall(ReduceSeq(l), _, _)
       if !Utils.visitFunCallChainWithState(false)(l.body, (e, b) => isId(e) || b)
+      && !l.body.contains( {case FunCall(Id(), a) if a eq l.params(1)=>  })
     =>
       val params = l.params
       val body = l.body

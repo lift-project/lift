@@ -173,6 +173,9 @@ object Utils {
     expr match {
       case FunCall(_, arg) => visitFunCallChainWithState(result)(arg, visitFun)
       case FunCall(_ : AbstractPartRed, _, arg) => visitFunCallChainWithState(result)(arg, visitFun)
+      case FunCall(Zip(_), args@_*) => args.foldRight(result)((arg, x) => {
+        visitFunCallChainWithState(x)(arg, visitFun)
+      })
       case _ => result
     }
   }

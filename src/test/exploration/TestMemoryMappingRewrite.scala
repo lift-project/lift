@@ -1,7 +1,9 @@
 package exploration
 
-import ir.TupleType
+import apart.arithmetic.Var
+import ir.{ArrayType, TupleType}
 import ir.ast._
+import opencl.ir.Float
 import opencl.executor.{Executor, Eval}
 import opencl.ir.{OpenCLMemory, OpenCLAddressSpace}
 import opencl.ir.pattern.{toLocal, MapLcl, MapSeq}
@@ -14,14 +16,41 @@ object TestMemoryMappingRewrite {
     Executor.loadLibrary()
     Executor.init()
 
-    val filename = "lambda_0_1441965545755"
+    val all_files = Source.fromFile("list").getLines()
 
-    val fileContents = Source.fromFile(filename).getLines.mkString("\n").replace("idfloat", "id")
+    var counter = 0
 
-    val lambda = Eval(fileContents)
+    all_files.toList.par.foreach(filename => {
+      counter = counter + 1
+      val hash = filename.split("/").last
 
-    mapAddressSpace(lambda)
+      println(s"Lowering : ${hash} $counter / ${all_files.size}")
 
+      val fileContents = Source.fromFile(filename).getLines.mkString("\n").replace("idfloat", "id")
+
+      val lambda = Eval(fileContents)
+
+      val lowered = Lower.lowerNoAddressSpaces(lambda)
+      println(lowered)
+
+      val mapped = mapAddressSpace(lowered)
+
+      var id = 0
+      mapped.foreach(expr => {
+        id += 1
+        try {
+
+          val str = TestHighLevelRewrite.dumpLambdaToMethod(expr)
+          val sha256 = TestHighLevelRewrite.Sha256Hash(str)
+          val folder = s"lower/${hash}/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+
+          TestHighLevelRewrite.dumpToFile(str, sha256, folder)
+        } catch {
+          case t: Throwable =>
+            println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
+        }
+      })
+    })
   }
 
   def mapAddressSpace(lambda: Lambda): Seq[Lambda] = {
@@ -65,31 +94,19 @@ object TestMemoryMappingRewrite {
       // we start with the expression
       var tuned_expr = addedIds
 
-      // Aggregate the size of the local buffers
-      var total_local_size = 0
-
       // traverse all the Id nodes
       idlist.foreach(node => {
         // if it is in the change set, we need to switch it to a local
         if (subset.contains(node)) {
-          val local_mem_size = OpenCLMemory.getMaxSizeInBytes(node.t).eval
-          total_local_size += local_mem_size
-
-          // Use local memory if there are enough resources
-          if(true || local_mem_size < AppParams.max_amount_local_memory)
-            tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.localMemoryId)
-          // abort if there are not enough resources
-          else return curset
+          //val local_mem_size = OpenCLMemory.getMaxSizeInBytes(node.t).eval
+          tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.localMemoryId)
         }
         // otherwise we eliminate it
         else
           tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
       })
 
-      if (true || total_local_size < AppParams.max_amount_local_memory)
-        tuned_expr :: curset
-      else
-        curset
+      tuned_expr :: curset
     }
 
     // for each substitution set
@@ -168,31 +185,18 @@ object TestMemoryMappingRewrite {
       // we start with the expression
       var tuned_expr = idsAdded
 
-      // Aggregate the size of the local buffers
-      var total_private_size = 0
-
       // traverse all the Id nodes
       privateIdList.foreach(node => {
         // if it is in the change set, we need to switch it to a local
         if (subset.contains(node)) {
-          val private_mem_size = OpenCLMemory.getMaxSizeInBytes(node.t).eval
-          total_private_size += private_mem_size
-
-          // Use local memory if there are enough resources
-          if(true || private_mem_size < AppParams.max_amount_private_memory)
-            tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.privateMemoryId)
-          // abort if there are not enough resources
-          else return curset
+          tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.privateMemoryId)
         }
         // otherwise we eliminate it
         else
           tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
       })
 
-      if (true || total_private_size < AppParams.max_amount_private_memory)
-        tuned_expr :: curset
-      else
-        curset
+      tuned_expr :: curset
     }
 
     all_private_combinations.foreach(subset => {
@@ -306,6 +310,7 @@ object TestMemoryMappingRewrite {
 
     if (rewrites.nonEmpty) {
       val ruleAt = rewrites.head
+      println(ruleAt)
       addIds(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
     } else {
       lambda

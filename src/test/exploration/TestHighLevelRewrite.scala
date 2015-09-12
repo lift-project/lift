@@ -217,37 +217,42 @@ object TestHighLevelRewrite {
 
       println(s"Processing $id/${lambdas.length - 1}")
 
-
       try {
         val appliedRules = applyAlwaysRules(lambda)
         val lowerNext = SimplifyAndFuse(appliedRules)
 
         val stringRep = dumpLambdaToString(lowerNext)
 
+        val sha256 = Sha256Hash(stringRep)
+        val folder = "lambdas/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
-        val md = MessageDigest.getInstance("SHA-256")
-
-        md.update(stringRep.getBytes("UTF-8"))
-        val digest = md.digest()
-
-        val sha256 = String.format("%064x", new java.math.BigInteger(1, digest))
-		val folder = "lambdas/" + sha256.charAt(0) + "/" + sha256.charAt(1) + "/"
-		var filename = folder + sha256
-		
-		("mkdir -p " + folder).!
-
-		if (Files.exists(Paths.get(filename))) {
-			println("Warning! Clash at " + sha256 + ". Adding System.currentTimeMillis()")
-			filename = filename + "_" + System.currentTimeMillis()
-		}
-
-		scala.tools.nsc.io.File(filename).writeAll(stringRep)
+        dumpToFile(stringRep, sha256, folder)
       } catch {
         case t: Throwable =>
           println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
       }
     })
 
+  }
+
+  def Sha256Hash(value: String): String = {
+    val md = MessageDigest.getInstance("SHA-256")
+    md.update(value.getBytes("UTF-8"))
+    val digest = md.digest()
+    String.format("%064x", new java.math.BigInteger(1, digest))
+  }
+
+  def dumpToFile(content: String, filename2: String, path: String): Unit = {
+    var filename = filename2
+
+    ("mkdir -p " + path).!
+
+    if (Files.exists(Paths.get(path + "/" + filename))) {
+      println("Warning! Clash at " + filename + ". Adding System.currentTimeMillis()")
+      filename = filename + "_" + System.currentTimeMillis()
+    }
+
+    scala.tools.nsc.io.File(path + "/" + filename).writeAll(content)
   }
 
   def lower(lambdas: Seq[Lambda], numRandom: Int): List[Lambda] = {
