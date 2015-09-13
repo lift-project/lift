@@ -150,7 +150,7 @@ object TestHighLevelRewrite {
   }
 
   def replaceVariableDeclarations(fullString: String, withIndex: List[(String, Int)]): String = {
-    withIndex.foldRight(fullString)((toReplace, currentString) =>
+    withIndex.foldLeft(fullString)((currentString, toReplace) =>
       currentString.replaceAll(toReplace._1, getNewName(toReplace)))
   }
 

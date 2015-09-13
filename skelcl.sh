@@ -136,7 +136,7 @@ function build(){
 
   # SkelCL
   pushd lib/SkelCL/build
-  make
+  make -j 4
   popd
 }
 
