@@ -2,7 +2,7 @@ package gcoSearch
 
 object AppParams {
   // matrix size
-  val matrix_size = 128
+  val matrix_size = 1024
 
   // Minimum number of work item per workgroup
   val min_work_items = 32

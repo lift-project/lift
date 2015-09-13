@@ -61,7 +61,7 @@ class ExecutionHarness(gold: Array[Float]) {
         println("- private allocation: " + private_alloc_size)
       }
 
-      println(expr)
+      //println(expr)
 
       // === Execution ===
       val (output: Array[Float], time) =

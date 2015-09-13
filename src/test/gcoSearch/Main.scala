@@ -53,7 +53,7 @@ object Main {
     val all_files = Source.fromFile("lambdas/index").getLines().toList
 
     var expr_counter = 0
-    util.Random.shuffle(all_files.toList).foreach(filename => {
+    List(all_files(24)).toList.foreach(filename => {
       var failure_guard = 0
 
       if (Files.exists(Paths.get(filename))) {
@@ -90,18 +90,29 @@ object Main {
 
             println("Propagating parameters...")
             val potential_expressions = all_substitution_tables.par.map(st => {
-              val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
-              val expr = low_level_factory(
-                Seq(Cst(AppParams.matrix_size), Cst(AppParams.matrix_size), Cst(AppParams.matrix_size)) ++ params)
-              TypeChecker(expr)
-              if(ExpressionFilter(expr) == ExpressionFilter.Status.Success)
-                Some((expr, st))
-              else
-                None
+              val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2).reverse
+              try {
+                val expr = low_level_factory(
+                  Seq(Cst(AppParams.matrix_size), Cst(AppParams.matrix_size), Cst(AppParams.matrix_size)) ++ params)
+                TypeChecker(expr)
+                if(ExpressionFilter(expr) == ExpressionFilter.Status.Success)
+                  Some((expr, st))
+                else
+                  None
+                } catch {
+                   case x => 
+                   x.printStackTrace()
+                   println(low_level_hash)
+                   println(params.mkString("; "))
+                   println(low_level_str)
+                   println(AppParams.matrix_size)
+                   System.exit(-1)
+                   None
+                }
             }).collect{ case Some(x) => x }.toList
 
             println(s"Found ${potential_expressions.size} / ${all_substitution_tables.size} filtered expressions")
-/*
+
             potential_expressions.foreach(expr => {
               if (failure_guard < 10) {
                 //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
@@ -115,6 +126,8 @@ object Main {
                     if (time < best_time) {
                       best_time = time
                       best_substitutions = expr._2
+                      println()
+                      println(expr._1)
                     }
 
                   case Skipped =>
@@ -136,13 +149,13 @@ object Main {
                     println(expr._1)
                     crashed = crashed + 1
                 }
-                print(s"$expr_counter / ${all_files.size}; $low_level_counter / ${potential_expressions.size}; $counter / ${all_substitution_tables.size} " +
+                print(s"\r$expr_counter / ${all_files.size}; $low_level_counter / ${low_level_expr_list.size}; $counter / ${potential_expressions.size} " +
                   s"($passed passed, $skipped skipped, $avoided avoided, $failed failed, $crashed crashed) best = $best_time                   ")
 
 
               }
               counter = counter + 1
-            })*/
+            })
           })
         }
       }
