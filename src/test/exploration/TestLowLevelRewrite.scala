@@ -95,6 +95,16 @@ object Constraint {
   }
 }
 
+  object Counter {
+    var local_mem = 0
+    var priv_mem = 0
+    var not_enough_wi = 0 
+    var not_enough_wg = 0
+    var not_enough_rpt = 0
+  }
+
+
+
 // Jump straight to the main function to see the steps
 
 object TestLowLevelRewrite {
@@ -474,7 +484,8 @@ object TestLowLevelRewrite {
             crashed = crashed + 1
         }
 
-        print(s"\r$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $failed failed, $crashed crashed) best = $best_time                   ")
+        print(s"$counter / ${all_substitution_tables.size} ($passed passed, $skipped skipped, $failed failed, $crashed crashed) best = $best_time                   ")
+   
       })
 
       println()
@@ -794,8 +805,11 @@ object TestLowLevelRewrite {
         // filter private memory
         val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
         val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_+_).eval
-        if(private_alloc_size > AppParams.max_amount_private_memory)
+        if(private_alloc_size > AppParams.max_amount_private_memory) {
+          Counter.priv_mem = Counter.priv_mem + 1
           return failure(Skipped)
+        }
+
 
         // filter local memory
         val local_buffers_size = buffers.filter(_.mem.addressSpace == LocalMemory)
@@ -803,18 +817,27 @@ object TestLowLevelRewrite {
           if(local_buffers_size.size != 0)   
             local_buffers_size.map(_.mem.size).reduce(_+_).eval
           else 0
-        if(local_alloc_size > Executor.getDeviceLocalMemSize)
+        if(local_alloc_size > Executor.getDeviceLocalMemSize) {
+          Counter.local_mem = Counter.local_mem + 1
           return failure(Skipped)
+        }
 
         // Rule out obviously poor choices based on the grid size
         // - minimum of workitems in a workgroup
-        if (local.map(_.eval).product < AppParams.min_work_items) return failure(Skipped)
+        if (local.map(_.eval).product < AppParams.min_work_items) {
+          Counter.not_enough_wi = Counter.not_enough_wi + 1
+          return failure(Skipped)
+        }
         // - minimum size of the entire compute grid
-        if (global.map(_.eval).product < AppParams.min_grid_size) return failure(Skipped)
+        if (global.map(_.eval).product < AppParams.min_grid_size) {
+           Counter.not_enough_wg = Counter.not_enough_wg + 1
+           return failure(Skipped)
+        }
         // - minimum number of workgroups
         val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
 
         if (num_workgroups < AppParams.min_num_workgroups || num_workgroups > AppParams.max_num_workgroups) {
+          Counter.not_enough_wg = Counter.not_enough_wg + 1
           return failure(Skipped)
         }
 
@@ -830,13 +853,19 @@ object TestLowLevelRewrite {
         //  ^--- as a fraction of max mem            ^--- in %    
 
         // number of threads / SM
-        if (resource_per_thread > AppParams.resource_per_thread) return failure(Skipped)
+        if (resource_per_thread > AppParams.resource_per_thread) {
+          
+          return failure(Skipped)
+        }
 
         // Avoid crashing for invalid values
-        if(local.map(_.eval).product > Executor.getDeviceMaxWorkGroupSize)
+        if(local.map(_.eval).product > Executor.getDeviceMaxWorkGroupSize) {
+          Counter.not_enough_rpt = Counter.not_enough_rpt + 1
           return failure(Skipped)
+        }
 
-        if (false) {
+
+        if (true) {
           println()
           println("Current run:")
           println("- local variables: " + private_buffers_size.map(x => OpenCLMemory.getMaxSizeInBytes(x.t)).reduce(_+_).eval)
@@ -850,6 +879,7 @@ object TestLowLevelRewrite {
           //println("- execution time: " + time)
         }
 
+        println(expr)
 
         // === Execution ===
         val (output: Array[Float], time) =
@@ -889,7 +919,8 @@ object TestLowLevelRewrite {
           failure(ExecutorError) 
 
         case e: Throwable =>
-          failure(Skipped)
+          //println(e)
+          failure(ExecutorError)
       }
     }
   }
