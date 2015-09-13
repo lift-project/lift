@@ -92,7 +92,7 @@ class ExecutionHarness(gold: Array[Float]) {
       } else success(time)
     } catch {
       case ea: Executor.ExecutorFailureException =>
-        //ea.printStackTrace()
+        ea.printStackTrace()
         println(expr)
         ea.consume()
         failure(ExecutorError)

@@ -72,13 +72,14 @@ object Main {
         println(s"Found ${all_substitution_tables.size} valid parameter sets")
 
 
-        if (Files.exists(Paths.get(s"lower/${high_level_hash}/index"))
+        if (Files.exists(Paths.get(s"lower/$high_level_hash/index"))
           && all_substitution_tables.size < 100000 && failure_guard < 10) {
-          val low_level_expr_list = Source.fromFile(s"lower/${high_level_hash}/index").getLines().toList
+          val low_level_expr_list = Source.fromFile(s"lower/$high_level_hash/index").getLines().toList
 
           val low_level_hash = filename.split("/").last
           var low_level_counter = 0
           println(s"Trying $low_level_hash from $high_level_hash")
+          println(s"Found ${low_level_expr_list.size} low level expressions")
 
           low_level_expr_list.foreach(low_level_filename => {
             var counter = 0
@@ -87,15 +88,24 @@ object Main {
             val low_level_str = Source.fromFile(low_level_filename).getLines().mkString("\n").replace("idfloat", "id")
             val low_level_factory = Eval.getMethod(low_level_str)
 
-            all_substitution_tables.foreach(st => {
-              if (failure_guard < 10) {
-                val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
-                val expr = low_level_factory(
-                  Seq(Cst(AppParams.matrix_size), Cst(AppParams.matrix_size), Cst(AppParams.matrix_size)) ++ params)
-                TypeChecker(expr)
+            println("Propagating parameters...")
+            val potential_expressions = all_substitution_tables.par.map(st => {
+              val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
+              val expr = low_level_factory(
+                Seq(Cst(AppParams.matrix_size), Cst(AppParams.matrix_size), Cst(AppParams.matrix_size)) ++ params)
+              TypeChecker(expr)
+              if(ExpressionFilter(expr) == ExpressionFilter.Status.Success)
+                Some((expr, st))
+              else
+                None
+            }).collect{ case Some(x) => x }.toList
 
+            println(s"Found ${potential_expressions.size} / ${all_substitution_tables.size} filtered expressions")
+/*
+            potential_expressions.foreach(expr => {
+              if (failure_guard < 10) {
                 //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-                val (test, time) = executor(Math.min(best_time, 1000f), expr, values: _*)
+                val (test, time) = executor(Math.min(best_time, 1000f), expr._1, values: _*)
 
                 import ExecutionHarness.Status._
                 test match {
@@ -104,7 +114,7 @@ object Main {
                     all_times = time :: all_times
                     if (time < best_time) {
                       best_time = time
-                      best_substitutions = st
+                      best_substitutions = expr._2
                     }
 
                   case Skipped =>
@@ -112,8 +122,8 @@ object Main {
 
                   case ValidationError =>
                     println()
-                    println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-                    println(expr)
+                    println(expr._2.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+                    println(expr._1)
                     failed = failed + 1
                     failure_guard = failure_guard + 1
 
@@ -122,21 +132,21 @@ object Main {
 
                   case _ =>
                     println()
-                    println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-                    println(expr)
+                    println(expr._2.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+                    println(expr._1)
                     crashed = crashed + 1
                 }
-                print(s"$expr_counter / ${all_files.size}; $low_level_counter / ${low_level_expr_list.size}; $counter / ${all_substitution_tables.size} " +
+                print(s"$expr_counter / ${all_files.size}; $low_level_counter / ${potential_expressions.size}; $counter / ${all_substitution_tables.size} " +
                   s"($passed passed, $skipped skipped, $avoided avoided, $failed failed, $crashed crashed) best = $best_time                   ")
-                println(s"local_mem = ${Counter.local_mem}, priv_mem = ${Counter.priv_mem}, not_enough_wi = ${Counter.not_enough_wi}, not_enough_wg = ${Counter.not_enough_wg}, not_enough_rpt = ${Counter.not_enough_rpt}")
 
 
               }
               counter = counter + 1
-            })
+            })*/
           })
         }
       }
     })
   }
 }
+
