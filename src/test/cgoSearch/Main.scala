@@ -1,4 +1,4 @@
-package gcoSearch
+package cgoSearch
 
 import java.nio.file.{Files, Paths}
 

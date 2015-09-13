@@ -1,4 +1,4 @@
-package gcoSearch
+package cgoSearch
 
 import apart.arithmetic.{Cst, Var, ArithExpr}
 import exploration.Utils

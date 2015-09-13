@@ -1,4 +1,4 @@
-package gcoSearch
+package cgoSearch
 
 object AppParams {
   // matrix size

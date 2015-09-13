@@ -8,7 +8,7 @@ import opencl.executor.{Execute, Executor}
 import opencl.generator.OpenCLCodeGen
 import opencl.ir._
 import opencl.ir.pattern._
-import gcoSearch.AppParams
+import cgoSearch.AppParams
 
 import scala.collection.immutable.{Map => ScalaImmMap}
 import scala.collection.mutable.{Map => ScalaMap, Set}

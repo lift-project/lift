@@ -1,7 +1,7 @@
-package gcoSearch
+package cgoSearch
 
 import exploration.InferNDRange
-import gcoSearch.ExecutionHarness.ErrorCounter
+import cgoSearch.ExecutionHarness.ErrorCounter
 import ir.ScalarType
 import ir.ast.Lambda
 import ir.view.View

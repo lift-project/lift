@@ -1,4 +1,4 @@
-package gcoSearch
+package cgoSearch
 import exploration.InferNDRange
 import ir.ast.Lambda
 import opencl.executor.{Execute, Executor}
