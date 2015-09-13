@@ -3,9 +3,11 @@ package cgoSearch
 import java.nio.file.{Files, Paths}
 
 import apart.arithmetic.{ArithExpr, Cst}
-import exploration.TestLowLevelRewrite
+import exploration.{TestHighLevelRewrite, InferNDRange, TestLowLevelRewrite}
 import ir.TypeChecker
-import opencl.executor.{Eval, Executor}
+import ir.ast.Lambda
+import opencl.executor.{Execute, Eval, Executor}
+import opencl.generator.OpenCLGenerator
 
 import scala.collection.immutable.Map
 import scala.io.Source
@@ -75,20 +77,23 @@ object Main {
           && all_substitution_tables.size < 100000 && failure_guard < 10) {
           val low_level_expr_list = Source.fromFile(s"lower/$high_level_hash/index").getLines().toList
 
-          val low_level_hash = filename.split("/").last
+
           var low_level_counter = 0
-          println(s"Trying $low_level_hash from $high_level_hash")
           println(s"Found ${low_level_expr_list.size} low level expressions")
 
           low_level_expr_list.foreach(low_level_filename => {
             var counter = 0
 
+            val low_level_hash = low_level_filename.split("/").last
             low_level_counter = low_level_counter + 1
             val low_level_str = Source.fromFile(low_level_filename).getLines().mkString("\n").replace("idfloat", "id")
             val low_level_factory = Eval.getMethod(low_level_str)
 
+            println(s"Trying $low_level_hash from $high_level_hash")
+
+
             println("Propagating parameters...")
-            val potential_expressions = all_substitution_tables.par.map(st => {
+            val potential_expressions = all_substitution_tables/*.par*/.map(st => {
               val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
               try {
                 val expr = low_level_factory(
@@ -101,7 +106,7 @@ object Main {
                 else
                   None
                 } catch {
-                   case x => 
+                   case x: Throwable =>
                    x.printStackTrace()
                    println(low_level_hash)
                    println(params.mkString("; "))
@@ -110,57 +115,103 @@ object Main {
                    System.exit(-1)
                    None
                 }
-            }).collect{ case Some(x) => x }.toList
+            }).collect{ case Some(x) => x }
 
             println(s"Found ${potential_expressions.size} / ${all_substitution_tables.size} filtered expressions")
 
-            potential_expressions.foreach(expr => {
-              if (failure_guard < 10) {
-                //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-                val (test, time) = executor(Math.min(best_time, 1000f), expr._1, values: _*)
+            if (!SearchParameters.onlyGenerateOpenCL)
+              executePotentialExpressions()
+            else
+              dumpOpenCLToFiles(potential_expressions, low_level_hash, high_level_hash, values)
 
-                import ExecutionHarness.Status._
-                test match {
-                  case Success =>
-                    passed = passed + 1
-                    all_times = time :: all_times
-                    if (time < best_time) {
-                      best_time = time
-                      best_substitutions = expr._2
+            def executePotentialExpressions(): Unit = {
+              potential_expressions.foreach(expr => {
+                if (failure_guard < 10) {
+                  //println(st.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+                  val (test, time) = executor(Math.min(best_time, 1000f), expr._1, values: _*)
+
+                  import ExecutionHarness.Status._
+                  test match {
+                    case Success =>
+                      passed = passed + 1
+                      all_times = time :: all_times
+                      if (time < best_time) {
+                        best_time = time
+                        best_substitutions = expr._2
+                        println()
+                        println(expr._1)
+                      }
+
+                    case Skipped =>
+                      skipped = skipped + 1
+
+                    case ValidationError =>
                       println()
+                      println(expr._2.map(x => s"${x._1} -> ${x._2}").mkString("; "))
                       println(expr._1)
-                    }
+                      failed = failed + 1
+                      failure_guard = failure_guard + 1
 
-                  case Skipped =>
-                    skipped = skipped + 1
+                    case Avoided =>
+                      avoided = avoided + 1
 
-                  case ValidationError =>
-                    println()
-                    println(expr._2.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-                    println(expr._1)
-                    failed = failed + 1
-                    failure_guard = failure_guard + 1
+                    case _ =>
+                      println()
+                      println(expr._2.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+                      println(expr._1)
+                      crashed = crashed + 1
+                  }
+                  print(s"\r$expr_counter / ${all_files.size}; $low_level_counter / ${low_level_expr_list.size}; $counter / ${potential_expressions.size} " +
+                    s"($passed passed, $skipped skipped, $avoided avoided, $failed failed, $crashed crashed) best = $best_time                   ")
 
-                  case Avoided =>
-                    avoided = avoided + 1
 
-                  case _ =>
-                    println()
-                    println(expr._2.map(x => s"${x._1} -> ${x._2}").mkString("; "))
-                    println(expr._1)
-                    crashed = crashed + 1
                 }
-                print(s"\r$expr_counter / ${all_files.size}; $low_level_counter / ${low_level_expr_list.size}; $counter / ${potential_expressions.size} " +
-                  s"($passed passed, $skipped skipped, $avoided avoided, $failed failed, $crashed crashed) best = $best_time                   ")
-
-
-              }
-              counter = counter + 1
-            })
+                counter = counter + 1
+              })
+            }
           })
         }
       }
     })
   }
+
+  def dumpOpenCLToFiles(expressions: List[(Lambda, ParameterSearch.SubstitutionMap)],
+                        lowLevelHash: String,
+                        highLevelHash: String,
+                        values: Seq[Any] ): Unit = {
+    expressions.foreach(pair => {
+      val lambda = pair._1
+      val substitutionMap = pair._2
+
+      val (local, global) = InferNDRange(lambda)
+      val valueMap = Execute.createValueMap(lambda, values:_*)
+
+      val code = OpenCLGenerator.generate(lambda, local, global, valueMap)
+
+      val kernel =
+      s"""
+        |// Substitutions: $substitutionMap
+        |// Local sizes: ${local.map(_.eval).mkString(", ")}
+        |// Global sizes: ${global.map(_.eval).mkString(", ")}
+        |// High-level hash: $highLevelHash
+        |// Low-level hash: $lowLevelHash
+        |// Input size: ${SearchParameters.matrix_size}
+        |
+        |$code
+      """.stripMargin
+
+      val filename = TestHighLevelRewrite.Sha256Hash(kernel) + ".cl"
+
+      val path = "kernels/"+
+        pathForHash(highLevelHash) + "/" +
+        pathForHash(lowLevelHash) + "/" +
+        pathForHash(filename)
+
+      TestHighLevelRewrite.dumpToFile(kernel, filename, path)
+    })
+  }
+
+  def pathForHash(hash: String): String =
+    hash.charAt(0) + "/" + hash.charAt(1) + "/" + hash
 }
 
