@@ -8,7 +8,7 @@ import opencl.executor.{Execute, Executor}
 import opencl.generator.OpenCLCodeGen
 import opencl.ir._
 import opencl.ir.pattern._
-import cgoSearch.AppParams
+import cgoSearch.SearchParameters
 
 import scala.collection.immutable.{Map => ScalaImmMap}
 import scala.collection.mutable.{Map => ScalaMap, Set}
@@ -172,9 +172,9 @@ object TestLowLevelRewrite {
     Executor.init()
 
     // Prepare input and gold
-    val mSize = AppParams.matrix_size
-    val kSize = AppParams.matrix_size
-    val nSize = AppParams.matrix_size
+    val mSize = SearchParameters.matrix_size
+    val kSize = SearchParameters.matrix_size
+    val nSize = SearchParameters.matrix_size
     println("Generating data")
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
@@ -342,9 +342,9 @@ object TestLowLevelRewrite {
     Executor.init()
 
     // Prepare input and gold
-    val mSize = AppParams.matrix_size
-    val kSize = AppParams.matrix_size
-    val nSize = AppParams.matrix_size
+    val mSize = SearchParameters.matrix_size
+    val kSize = SearchParameters.matrix_size
+    val nSize = SearchParameters.matrix_size
     println("Generating data")
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
@@ -717,7 +717,7 @@ object TestLowLevelRewrite {
     var st = ScalaImmMap[ArithExpr, ArithExpr]()
 
     vars.foreach(v => {
-      st = st.updated(v, AppParams.matrix_size)
+      st = st.updated(v, SearchParameters.matrix_size)
     })
 
     lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
@@ -777,7 +777,7 @@ object TestLowLevelRewrite {
         // filter private memory
         val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
         val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_+_).eval
-        if(private_alloc_size > AppParams.max_amount_private_memory) {
+        if(private_alloc_size > SearchParameters.max_amount_private_memory) {
           Counter.priv_mem = Counter.priv_mem + 1
           return failure(Skipped)
         }
@@ -796,19 +796,19 @@ object TestLowLevelRewrite {
 
         // Rule out obviously poor choices based on the grid size
         // - minimum of workitems in a workgroup
-        if (local.map(_.eval).product < AppParams.min_work_items) {
+        if (local.map(_.eval).product < SearchParameters.min_work_items) {
           Counter.not_enough_wi = Counter.not_enough_wi + 1
           return failure(Skipped)
         }
         // - minimum size of the entire compute grid
-        if (global.map(_.eval).product < AppParams.min_grid_size) {
+        if (global.map(_.eval).product < SearchParameters.min_grid_size) {
            Counter.not_enough_wg = Counter.not_enough_wg + 1
            return failure(Skipped)
         }
         // - minimum number of workgroups
         val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
 
-        if (num_workgroups < AppParams.min_num_workgroups || num_workgroups > AppParams.max_num_workgroups) {
+        if (num_workgroups < SearchParameters.min_num_workgroups || num_workgroups > SearchParameters.max_num_workgroups) {
           Counter.not_enough_wg = Counter.not_enough_wg + 1
           return failure(Skipped)
         }
@@ -825,7 +825,7 @@ object TestLowLevelRewrite {
         //  ^--- as a fraction of max mem            ^--- in %    
 
         // number of threads / SM
-        if (resource_per_thread > AppParams.resource_per_thread) {
+        if (resource_per_thread > SearchParameters.resource_per_thread) {
           
           return failure(Skipped)
         }
@@ -860,8 +860,8 @@ object TestLowLevelRewrite {
         if(time < 0) return failure(Avoided)
 
         // cross validation
-        if (!AppParams.only_crossvalidate_better_solutions || 
-            (AppParams.only_crossvalidate_better_solutions && time < cur_best)) {
+        if (!SearchParameters.only_crossvalidate_better_solutions ||
+            (SearchParameters.only_crossvalidate_better_solutions && time < cur_best)) {
           if (output.length != gold.length)
             failure(ValidationError)
           else {

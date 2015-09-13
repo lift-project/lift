@@ -53,7 +53,7 @@ object ExpressionFilter {
       // filter private memory
       val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
       val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_ + _).eval
-      if (private_alloc_size > AppParams.max_amount_private_memory) {
+      if (private_alloc_size > SearchParameters.max_amount_private_memory) {
         ErrorCounter.priv_mem = ErrorCounter.priv_mem + 1
         return TooMuchPrivateMemory
       }
@@ -71,13 +71,13 @@ object ExpressionFilter {
 
       // Rule out obviously poor choices based on the grid size
       // - minimum of workitems in a workgroup
-      if (local.map(_.eval).product < AppParams.min_work_items) {
+      if (local.map(_.eval).product < SearchParameters.min_work_items) {
         ErrorCounter.not_enough_wi = ErrorCounter.not_enough_wi + 1
         return NotEnoughWorkItems
       }
 
       // - minimum size of the entire compute grid
-      if (global.map(_.eval).product < AppParams.min_grid_size) {
+      if (global.map(_.eval).product < SearchParameters.min_grid_size) {
         ErrorCounter.not_enough_wg = ErrorCounter.not_enough_wg + 1
         return NotEnoughWorkItems
       }
@@ -90,12 +90,12 @@ object ExpressionFilter {
 
       // - minimum number of workgroups
       val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
-      if (num_workgroups < AppParams.min_num_workgroups) {
+      if (num_workgroups < SearchParameters.min_num_workgroups) {
         ErrorCounter.not_enough_wg = ErrorCounter.not_enough_wg + 1
         return NotEnoughWorkGroups
       }
 
-      if (num_workgroups > AppParams.max_num_workgroups) {
+      if (num_workgroups > SearchParameters.max_num_workgroups) {
         ErrorCounter.not_enough_wg = ErrorCounter.not_enough_wg + 1
         return TooManyWorkGroups
       }
@@ -113,7 +113,7 @@ object ExpressionFilter {
       //  ^--- as a fraction of max mem            ^--- in %
 
       // number of threads / SM
-      if (resource_per_thread > AppParams.resource_per_thread) {
+      if (resource_per_thread > SearchParameters.resource_per_thread) {
         return NotEnoughParallelism
       }
 

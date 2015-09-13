@@ -4,7 +4,7 @@ import java.nio.file.{Files, Paths}
 
 import apart.arithmetic.{ArithExpr, Cst, Var}
 import exploration.TestLowLevelRewrite.ExecutionHarness
-import cgoSearch.AppParams
+import cgoSearch.SearchParameters
 import ir.ast.{FunCall, Split}
 import ir.{ArrayType, TypeChecker}
 import opencl.executor.{Eval, Executor}
@@ -28,9 +28,9 @@ object LowLevelExecutor {
     var all_times: List[Double] = List.empty
     var best_substitutions = Map[ArithExpr, ArithExpr]()
 
-    val mSize = AppParams.matrix_size
-    val kSize = AppParams.matrix_size
-    val nSize = AppParams.matrix_size
+    val mSize = SearchParameters.matrix_size
+    val kSize = SearchParameters.matrix_size
+    val nSize = SearchParameters.matrix_size
     println("Generating data")
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)

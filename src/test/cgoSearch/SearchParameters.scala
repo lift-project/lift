@@ -1,6 +1,6 @@
 package cgoSearch
 
-object AppParams {
+object SearchParameters {
   // matrix size
   val matrix_size = 1024
 

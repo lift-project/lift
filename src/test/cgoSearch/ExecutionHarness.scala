@@ -35,7 +35,7 @@ class ExecutionHarness(gold: Array[Float]) {
     try {
       val (local, global) = InferNDRange(expr, values: _*)
 
-      if (AppParams.print_stats) {
+      if (SearchParameters.print_stats) {
         val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
 
         val buffers = TypedOpenCLMemory.get(expr.body, expr.params, includePrivate = true)
@@ -70,8 +70,8 @@ class ExecutionHarness(gold: Array[Float]) {
       if (time < 0) return failure(Avoided)
 
       // cross validation
-      if (!AppParams.only_crossvalidate_better_solutions ||
-        (AppParams.only_crossvalidate_better_solutions && time < cur_best)) {
+      if (!SearchParameters.only_crossvalidate_better_solutions ||
+        (SearchParameters.only_crossvalidate_better_solutions && time < cur_best)) {
         if (output.length != gold.length)
           failure(ValidationError)
         else {

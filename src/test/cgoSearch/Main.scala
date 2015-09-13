@@ -32,9 +32,9 @@ object Main {
     var best_substitutions = Map[ArithExpr, ArithExpr]()
 
     // Prepare the input
-    val mSize = AppParams.matrix_size
-    val kSize = AppParams.matrix_size
-    val nSize = AppParams.matrix_size
+    val mSize = SearchParameters.matrix_size
+    val kSize = SearchParameters.matrix_size
+    val nSize = SearchParameters.matrix_size
 
     println("Generating data")
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
@@ -92,9 +92,9 @@ object Main {
               val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
               try {
                 val expr = low_level_factory(
-                  Seq(Cst(AppParams.matrix_size),
-                      Cst(AppParams.matrix_size),
-                      Cst(AppParams.matrix_size)) ++ params)
+                  Seq(Cst(SearchParameters.matrix_size),
+                      Cst(SearchParameters.matrix_size),
+                      Cst(SearchParameters.matrix_size)) ++ params)
                 TypeChecker(expr)
                 if(ExpressionFilter(expr) == ExpressionFilter.Status.Success)
                   Some((expr, st))
@@ -106,7 +106,7 @@ object Main {
                    println(low_level_hash)
                    println(params.mkString("; "))
                    println(low_level_str)
-                   println(AppParams.matrix_size)
+                   println(SearchParameters.matrix_size)
                    System.exit(-1)
                    None
                 }

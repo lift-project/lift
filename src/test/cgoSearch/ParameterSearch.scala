@@ -23,7 +23,7 @@ object ParameterSearch {
     var st: SubstitutionMap = Map.empty
 
     vars.foreach(v => {
-      st = st.updated(v, AppParams.matrix_size)
+      st = st.updated(v, SearchParameters.matrix_size)
     })
 
     lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
