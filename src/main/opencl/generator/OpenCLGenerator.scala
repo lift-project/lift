@@ -56,6 +56,56 @@ object OpenCL {
 }
 
 object OpenCLGenerator extends Generator {
+  type NDRange = Array[ArithExpr]
+
+  def generate(f: Lambda): String = {
+    generate(f, Array(?, ?, ?))
+  }
+
+  def generate(f: Lambda, localSizes: NDRange): String = {
+    generate(f, localSizes, Array(?, ?, ?), immutable.Map())
+  }
+
+  // Compile a type-checked function into an OpenCL kernel
+  def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
+               valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
+    (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
+  }
+
+  def printTypes(expr: Expr): Unit = {
+    Expr.visit(expr, {
+      case e@(call: FunCall) => println(e + "\n    " +
+        e.t + " <- " + call.argsType + "\n")
+      case e => println(e + "\n    " + e.t + "\n")
+    }, (e: Expr) => {})
+  }
+
+  def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
+
+  def getMemories(f: Lambda): (Array[TypedOpenCLMemory],
+                               Array[TypedOpenCLMemory]) = {
+    val memories = TypedOpenCLMemory.get(f.body, f.params).toArray
+
+    if (AllocateLocalMemoryStatically())
+      memories.partition(isFixedSizeLocalMemory)
+    else
+      (Array.empty[TypedOpenCLMemory], memories)
+  }
+
+
+  private[generator] def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
+    mem => try {
+      mem.mem.size.eval
+      mem.mem.addressSpace == LocalMemory
+    } catch {
+      case _: NotEvaluableException =>
+        false
+    }
+  }
+}
+
+
+class OpenCLGenerator extends Generator {
 
   type NDRange = Array[ArithExpr]
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
@@ -66,16 +116,6 @@ object OpenCLGenerator extends Generator {
   var privateMems = Array[TypedOpenCLMemory]()
 
   var varDecls: SymbolTable = immutable.Map.empty
-
-  def printTypes(expr: Expr): Unit = {
-    Expr.visit(expr, {
-      case e@(call: FunCall) => println(e + "\n    " +
-                                        e.t + " <- " + call.argsType + "\n")
-      case e => println(e + "\n    " + e.t + "\n")
-    }, (e: Expr) => {})
-  }
-
-  def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
 
   private def printMemories(expr: Expr): Unit = {
     Expr.visit(expr, {
@@ -106,7 +146,7 @@ object OpenCLGenerator extends Generator {
 
     if (Verbose()) {
       println("Types:")
-      printTypes(f.body)
+      OpenCLGenerator.printTypes(f.body)
     }
 
     // allocate the params and set the corresponding type
@@ -132,7 +172,7 @@ object OpenCLGenerator extends Generator {
 
       println("Allocated Memory:")
       TypedOpenCLMemory.get(f.body, f.params).foreach(m => println(m))
-      println("")
+      println()
     }
 
     View.visitAndBuildViews(f.body)
@@ -244,25 +284,12 @@ object OpenCLGenerator extends Generator {
     Kernel.memory = TypedOpenCLMemory.get(f.body, f.params).toArray
   }
 
-  private def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
-    mem => try {
-      mem.mem.size.eval
-      mem.mem.addressSpace == LocalMemory
-    } catch {
-      case _: NotEvaluableException =>
-        false
-    }
-  }
-
   object Kernel {
     var memory = Array.empty[TypedOpenCLMemory]
     var staticLocalMemory = Array.empty[TypedOpenCLMemory]
-    var workGroupSize = 128
   }
 
-  private def generateKernel(f: Lambda,
-                             workGroupSize: Int = 128): OclAstNode = {
-    Kernel.workGroupSize = workGroupSize
+  private def generateKernel(f: Lambda): OclAstNode = {
 
     val valMems = Expr.visitWithState(Set[Memory]())(f.body, (expr, set) =>
       expr match {
@@ -289,7 +316,7 @@ object OpenCLGenerator extends Generator {
 
     val partitioned =
       if (AllocateLocalMemoryStatically())
-        Kernel.memory.partition(isFixedSizeLocalMemory)
+        Kernel.memory.partition(OpenCLGenerator.isFixedSizeLocalMemory)
       else
         (Array.empty[TypedOpenCLMemory], Kernel.memory)
 

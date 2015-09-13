@@ -59,8 +59,10 @@ class TestAddressSpaces {
 
     val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
+    val memories = OpenCLGenerator.getMemories(f)._2
+
     assertArrayEquals(gold, output, 0.0f)
-    assertEquals(2, OpenCLGenerator.Kernel.memory.length)
+    assertEquals(2, memories.length)
 
     AllocateLocalMemoryStatically(orig)
   }
@@ -84,9 +86,10 @@ class TestAddressSpaces {
     val code = Compile(f)
 
     val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
+    val memories = OpenCLGenerator.getMemories(f)._2
 
     assertArrayEquals(gold, output, 0.0f)
-    assertEquals(3, OpenCLGenerator.Kernel.memory.length)
+    assertEquals(3, memories.length)
 
     AllocateLocalMemoryStatically(orig)
   }

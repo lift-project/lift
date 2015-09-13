@@ -266,7 +266,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     staticGroupCheck(f, valueMap)
 
     // 3. make sure the device has enough memory to execute the kernel
-    validateMemorySizes(valueMap)
+    validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
     val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval
@@ -389,7 +389,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
                             valueMap: immutable.Map[ArithExpr, ArithExpr],
                             values: Any*): Array[KernelArg] = {
     // go through all memory objects associated with the generated kernel
-    OpenCLGenerator.Kernel.memory.map(mem => {
+    OpenCLGenerator.getMemories(f)._2.map(mem => {
       // get the OpenCL memory object ...
       val m = mem.mem
       // ... look for it in the parameter list ...
@@ -406,9 +406,11 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     })
   }
 
-  private def validateMemorySizes(valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+  private def validateMemorySizes(f:Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+    val memories = OpenCLGenerator.getMemories(f)
+
     val (globalMemories, localMemories) =
-      (OpenCLGenerator.Kernel.memory ++ OpenCLGenerator.Kernel.staticLocalMemory).
+      (memories._1 ++ memories._2).
         partition(_.mem.addressSpace == GlobalMemory)
 
     val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
@@ -434,7 +436,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   private def createSizeArgs(f: Lambda,
                              valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
     // get the variables from the memory objects associated with the generated kernel
-    val allVars = OpenCLGenerator.Kernel.memory.map(mem => {
+    val allVars = OpenCLGenerator.getMemories(f)._2.map(mem => {
       mem.mem.size.varList
     } ).filter(_.nonEmpty).flatten.distinct
     // select the variables which are not (internal) iteration variables
