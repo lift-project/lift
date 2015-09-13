@@ -1,14 +1,13 @@
 package gcoSearch
 
 import java.nio.file.{Files, Paths}
-import apart.arithmetic.{ArithExpr, Cst, Var}
-import exploration.{Counter, TestLowLevelRewrite, Utils}
-import ir.ast.{FunCall, Split}
-import ir.{ArrayType, TypeChecker}
+
+import apart.arithmetic.{ArithExpr, Cst}
+import exploration.TestLowLevelRewrite
+import ir.TypeChecker
 import opencl.executor.{Eval, Executor}
 
 import scala.collection.immutable.Map
-import scala.collection.immutable.{Map => ScalaImmMap}
 import scala.io.Source
 
 /**
@@ -90,10 +89,12 @@ object Main {
 
             println("Propagating parameters...")
             val potential_expressions = all_substitution_tables.par.map(st => {
-              val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2).reverse
+              val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
               try {
                 val expr = low_level_factory(
-                  Seq(Cst(AppParams.matrix_size), Cst(AppParams.matrix_size), Cst(AppParams.matrix_size)) ++ params)
+                  Seq(Cst(AppParams.matrix_size),
+                      Cst(AppParams.matrix_size),
+                      Cst(AppParams.matrix_size)) ++ params)
                 TypeChecker(expr)
                 if(ExpressionFilter(expr) == ExpressionFilter.Status.Success)
                   Some((expr, st))

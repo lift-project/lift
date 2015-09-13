@@ -3,11 +3,12 @@ package exploration
 import apart.arithmetic.{ArithExpr, Cst, Prod, Var}
 import ir.ast._
 import ir.view.View
-import ir.{Type, ArrayType, ScalarType, TypeChecker}
+import ir.{ArrayType, ScalarType, Type, TypeChecker}
 import opencl.executor.{Execute, Executor}
-import opencl.generator.{OpenCLGenerator, OpenCLCodeGen}
+import opencl.generator.OpenCLCodeGen
 import opencl.ir._
 import opencl.ir.pattern._
+import gcoSearch.AppParams
 
 import scala.collection.immutable.{Map => ScalaImmMap}
 import scala.collection.mutable.{Map => ScalaMap, Set}
@@ -30,35 +31,6 @@ import scala.collection.mutable.{Map => ScalaMap, Set}
  * - The preliminary goal is a naive, exhaustive search of all legal
  *   combinations.
  */
-
-object AppParams {
-  // matrix size
-  val matrix_size = 1024
-
-  // Minimum number of work item per workgroup
-  val min_work_items = 32
-
-  // Minimal global grid size
-  val min_grid_size = 4
-
-  // Max amount of private memory allocated (this is not necessarily the number of registers)
-  val max_amount_private_memory = 8192*4
-
-  // Max static amount of local memory
-  val max_amount_local_memory = 49152
-
-  // Minimum number of workgroups
-  val min_num_workgroups = 4
-
-  // Maximum number of workgroups
-  val max_num_workgroups = 10000
-
-  // Fraction of the max local memory allocated to a single work item
-  val resource_per_thread = 1.0
-
-  // Don't bother cross validating if the timing is not better than the current best solution
-  val only_crossvalidate_better_solutions = true
-}
 
 /** Simple algebraic constraints based on divisibility
   */

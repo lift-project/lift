@@ -1,16 +1,16 @@
 package exploration
 
-import java.nio.file.{Paths, Files}
+import java.nio.file.{Files, Paths}
 
-import apart.arithmetic.{Cst, Var, ArithExpr}
+import apart.arithmetic.{ArithExpr, Cst, Var}
 import exploration.TestLowLevelRewrite.ExecutionHarness
-import ir.{TypeChecker, ArrayType}
-import ir.ast.{Split, FunCall}
-import opencl.executor.{Executor, Eval}
-import scala.io.Source
+import gcoSearch.AppParams
+import ir.ast.{FunCall, Split}
+import ir.{ArrayType, TypeChecker}
+import opencl.executor.{Eval, Executor}
 
 import scala.collection.immutable.{Map => ScalaImmMap}
-import scala.collection.mutable.{Map => ScalaMap, Set}
+import scala.io.Source
 
 object LowLevelExecutor {
   def main(args: Array[String]) {
