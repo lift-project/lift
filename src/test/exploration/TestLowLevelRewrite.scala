@@ -262,7 +262,7 @@ object TestLowLevelRewrite {
           val tuned_expr = Utils.quickAndDirtySubstitution(st, tunableNodes.reverse, expr)
           TypeChecker(tuned_expr)
 
-          val all_mappings = TestMemoryMappingRewrite.mapAddressSpace(tuned_expr)
+          val all_mappings = TestMemoryMappingRewrite.mapAddressSpaces(tuned_expr)
           
           println("Number of address mapping: " + all_mappings.size)
 

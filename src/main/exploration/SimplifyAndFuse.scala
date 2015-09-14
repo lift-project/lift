@@ -12,14 +12,8 @@ object SimplifyAndFuse {
    * @param lambda The lambda where to apply fusion
    * @return
    */
-  def fuseAll(lambda: Lambda): Lambda = {
-    val newBody = fuseAll(lambda.body)
-
-    if (newBody eq lambda.body)
-      lambda
-    else
-      Lambda(lambda.params, newBody)
-  }
+  def fuseAll(lambda: Lambda): Lambda =
+    Rewrite.applyRulesUntilCannot(lambda, fusionRules)
 
   /**
    * Fuse all map-map and reduce-map sequences.
@@ -28,16 +22,9 @@ object SimplifyAndFuse {
    * @param expr The expression where to apply fusion
    * @return
    */
-  def fuseAll(expr: Expr): Expr = {
-    val allRulesAt = Rewrite.listAllPossibleRewritesForRules(expr, fusionRules)
+  def fuseAll(expr: Expr): Expr =
+    Rewrite.applyRulesUntilCannot(expr, fusionRules)
 
-    if (allRulesAt.isEmpty)
-      expr
-    else {
-      val ruleAt = allRulesAt.head
-      fuseAll(Rewrite.applyRuleAt(expr, ruleAt._1, ruleAt._2))
-    }
-  }
 }
 
 class SimplifyAndFuse {

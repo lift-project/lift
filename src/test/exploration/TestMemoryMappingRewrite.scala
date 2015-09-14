@@ -1,12 +1,9 @@
 package exploration
 
-import apart.arithmetic.Var
-import ir.{ArrayType, TupleType}
+import ir.TupleType
 import ir.ast._
-import opencl.ir.Float
-import opencl.executor.{Executor, Eval}
-import opencl.ir.{OpenCLMemory, OpenCLAddressSpace}
-import opencl.ir.pattern.{toLocal, MapLcl, MapSeq}
+import opencl.executor.{Eval, Executor}
+import opencl.ir.pattern.{MapLcl, MapSeq, toLocal}
 
 import scala.io.Source
 
@@ -21,28 +18,30 @@ object TestMemoryMappingRewrite {
     var counter = 0
 
     all_files.toList.par.foreach(filename => {
+
       counter = counter + 1
       val hash = filename.split("/").last
 
-      println(s"Lowering : ${hash} $counter / ${all_files.size}")
+      println(s"Lowering : $hash $counter / ${all_files.size}")
 
-      val fileContents = Source.fromFile(filename).getLines.mkString("\n").replace("idfloat", "id")
+      val fileContents = Source.fromFile(filename).getLines().mkString("\n").replace("idfloat", "id")
 
       val lambda = Eval(fileContents)
 
       val lowered = Lower.lowerNoAddressSpaces(lambda)
-      println(lowered)
 
-      val mapped = mapAddressSpace(lowered)
+      val mapped = mapAddressSpaces(lowered)
 
       var id = 0
       mapped.foreach(expr => {
         id += 1
+
         try {
 
           val str = TestHighLevelRewrite.dumpLambdaToMethod(expr)
           val sha256 = TestHighLevelRewrite.Sha256Hash(str)
-          val folder = s"lower/${hash}/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+          val folder = s"lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+
 
           TestHighLevelRewrite.dumpToFile(str, sha256, folder)
         } catch {
@@ -53,86 +52,40 @@ object TestMemoryMappingRewrite {
     })
   }
 
-  def mapAddressSpace(lambda: Lambda): Seq[Lambda] = {
+  def mapAddressSpaces(lambda: Lambda): Seq[Lambda] = {
 
-    // Step 1: Add id nodes in strategic locations
-    val addedIds = addIds(lambda)
+    val allLocalMappings = mapLocalMemory(lambda)
 
-    val idlist = Expr.visitRightToLeft(List[Expr]())(addedIds.body, (expr, set) => {
+    val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
+
+    allPrivateMappings
+  }
+
+  def implementIds(allPrivateMappings: List[Lambda]): List[Lambda] = {
+    val copiesAdded = allPrivateMappings.flatMap(turnIdsIntoCopies)
+    copiesAdded.map(lowerMapInIds)
+  }
+
+  private def collectIds(addedIds: Lambda): List[Expr] =
+    Expr.visitRightToLeft(List[Expr]())(addedIds.body, (expr, set) => {
       expr match {
-        case call@FunCall(Id(), _) =>
-          call :: set
-        case _ =>
-          set
+        case FunCall(Id(), _) => expr :: set
+        case _ => set
       }
     })
 
-    // generate all combinations for up to 3 toLocal
-    val all_local_combinations = (1 to 3).map(idlist.combinations(_).toList).reduce(_++_)
+  def mapLocalMemory(lambda: Lambda): List[Lambda] = {
+    // Step 1: Add id nodes in strategic locations
+    val idsAdded = addIds(lambda)
 
-    var tuned_expr = addedIds
-
-    var all_mappings = List(addedIds)
-
-    // Step 2: enumerate all possible mappings, including invalids
-    /*idlist.foreach(node => {
-      var all_new_mappings: List[Lambda] = List.empty
-      all_mappings.foreach(x => {
-        // Use local memory if there are enough resources
-        if(OpenCLMemory.getMaxSizeInBytes(node.t).eval < Executor.getDeviceLocalMemSize())
-          all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.localMemoryId) :: all_new_mappings
-
-        // remove ID
-        all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.dropId) :: all_new_mappings
-      })
-
-      all_mappings = all_new_mappings
-    })*/
-
-    // Function to add the lowered expression if there are enough resources
-    def addToLocal(subset: List[Expr], curset: List[Lambda]): List[Lambda] = {
-      // we start with the expression
-      var tuned_expr = addedIds
-
-      // traverse all the Id nodes
-      idlist.foreach(node => {
-        // if it is in the change set, we need to switch it to a local
-        if (subset.contains(node)) {
-          //val local_mem_size = OpenCLMemory.getMaxSizeInBytes(node.t).eval
-          tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.localMemoryId)
-        }
-        // otherwise we eliminate it
-        else
-          tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
-      })
-
-      tuned_expr :: curset
-    }
-
-    // for each substitution set
-    all_local_combinations.foreach(subset => {
-      all_mappings = addToLocal(subset, all_mappings)
-    })
-
-    // Step 3: remove invalid combinations
-
-    // Step 4: make sure the end result is in global
-    val lowered = all_mappings.flatMap(mapPrivateMemory)
-
-    println(lowered.length)
-
-    val total: List[Lambda] = lowered.flatMap(turnIdsIntoCopies).map(LowerMapInIds)
-
-    println(total.length)
-
-    total
+    addToAddressSpace(idsAdded, Rules.localMemoryId, 3)
   }
 
-  private def mapPrivateMemory(lambda: Lambda): Seq[Lambda] = {
+  private def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
 
     ir.Context.updateContext(lambda.body)
 
-    val (mapseq_list, _) = Expr.visitLeftToRight((List[Expr](), false))(lambda.body, (expr, pair) => {
+    val (mapSeq, _) = Expr.visitLeftToRight((List[Expr](), false))(lambda.body, (expr, pair) => {
       expr match {
         case FunCall(toLocal(_), _) =>
           (pair._1, true)
@@ -147,68 +100,41 @@ object TestMemoryMappingRewrite {
       }
     })
 
-    var idsAdded = lambda
+    val idsAddedToMapSeq =
+      mapSeq.foldLeft(lambda)((l, x) => Rewrite.applyRuleAt(l, x, Rules.addId))
 
-    mapseq_list.foreach(x => {
-      idsAdded = Rewrite.applyRuleAt(idsAdded, x, Rules.addId)
-    })
+    val idsAdded = Rewrite.applyRulesUntilCannot(idsAddedToMapSeq, Seq(Rules.addIdForCurrentValueInReduce))
 
-    val privateIdList = Expr.visitLeftToRight(List[Expr]())(idsAdded.body, (expr, set) => {
-      expr match {
-        case FunCall(MapSeq(_), call@FunCall(Id(), _)) =>
-          call :: set
-        case _ =>
-          set
-      }
-    })
-    val all_private_combinations = (1 to 2).map(privateIdList.combinations(_).toList).reduce(_++_)
-
-    var all_mappings_private = List(idsAdded)
-
-    /*privateIdList.foreach(node => {
-
-      var all_new_mappings: List[Lambda] = List.empty
-      all_mappings_private.foreach(x => {
-        ir.Context.updateContext(x.body)
-
-        // Use private memory
-        all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.privateMemoryId) :: all_new_mappings
-
-        // remove ID
-        all_new_mappings = Rewrite.applyRuleAt(x, node, Rules.dropId) :: all_new_mappings
-      })
-
-      all_mappings_private = all_new_mappings
-    })*/
-
-    def addToPrivate(subset: List[Expr], curset: List[Lambda]): List[Lambda] = {
-      // we start with the expression
-      var tuned_expr = idsAdded
-
-      // traverse all the Id nodes
-      privateIdList.foreach(node => {
-        // if it is in the change set, we need to switch it to a local
-        if (subset.contains(node)) {
-          tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.privateMemoryId)
-        }
-        // otherwise we eliminate it
-        else
-          tuned_expr = Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
-      })
-
-      tuned_expr :: curset
-    }
-
-    all_private_combinations.foreach(subset => {
-      all_mappings_private = addToPrivate(subset, all_mappings_private)
-    })
-
-    all_mappings_private
+    addToAddressSpace(idsAdded, Rules.privateMemoryId, 2)
   }
 
-  private def LowerMapInIds(lambda:Lambda): Lambda = {
+  def addToAddressSpace(lambda: Lambda,
+                        addressSpaceRule: Rule,
+                        maxCombinations: Int): List[Lambda] = {
+    val idLocations = collectIds(lambda)
+    val combinations = getCombinations(idLocations, maxCombinations)
 
-    println(lambda)
+    val addedToAddressSpace = combinations.map(subset => {
+      // traverse all the Id nodes
+      idLocations.foldLeft(lambda)((tuned_expr, node) => {
+        // if it is in the change set, we need to add toAddressSpace
+        if (subset.contains(node))
+          Rewrite.applyRuleAt(tuned_expr, node, addressSpaceRule)
+        else // otherwise we eliminate it
+          Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
+      })
+    })
+
+    implementIds(addedToAddressSpace)
+  }
+
+  /**
+   *
+   * @param lambda Lambda where to apply the transformation
+   * @return
+   */
+  private def lowerMapInIds(lambda:Lambda): Lambda = {
+
     val depthMap = NumberExpression.byDepth(lambda).filterKeys({
       case FunCall(map: ir.ast.AbstractMap, _) if map.f.body.isConcrete => true
       case _ => false
@@ -254,6 +180,12 @@ object TestMemoryMappingRewrite {
     lowered
   }
 
+  /**
+   * Turn all Id() into Map(id) with the correct number of maps
+   *
+   * @param lambda Lambda where to apply the transformation
+   * @return
+   */
   def turnIdsIntoCopies(lambda: Lambda): Seq[Lambda] = {
     val rewrites = Rewrite.listAllPossibleRewrites(lambda, Rules.implementIdAsDeepCopy)
 
@@ -296,27 +228,14 @@ object TestMemoryMappingRewrite {
     }
   }
 
-  def applyLoopFusionToTuple(lambda: Lambda): Lambda = {
-    val rewrites = Rewrite.listAllPossibleRewrites(lambda, Rules.tupleMap)
+  private def applyLoopFusionToTuple(lambda: Lambda): Lambda =
+    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.tupleMap))
 
-    if (rewrites.nonEmpty) {
-      val ruleAt = rewrites.head
-      applyLoopFusionToTuple(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
-    } else {
-      lambda
-    }
-  }
+  private def addIds(lambda: Lambda): Lambda =
+    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
 
-  def addIds(lambda: Lambda): Lambda = {
-    val rewrites = Rewrite.listAllPossibleRewritesForRules(lambda, Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
+  private def getCombinations(localIdList: List[Expr], max: Int): List[List[Expr]] =
+    (0 to max).map(localIdList.combinations(_).toList).reduce(_ ++ _)
 
-    if (rewrites.nonEmpty) {
-      val ruleAt = rewrites.head
-      println(ruleAt)
-      addIds(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
-    } else {
-      lambda
-    }
-  }
 }
 

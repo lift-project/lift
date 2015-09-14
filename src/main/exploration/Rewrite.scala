@@ -47,6 +47,38 @@ object Rewrite {
     replacedInExpr
   }
 
+  /**
+   * Apply rules one by one until no rules apply anymore
+   * @param lambda The lambda where to apply rules
+   * @param rules The rules to apply
+   * @return
+   */
+  def applyRulesUntilCannot(lambda: Lambda, rules: Seq[Rule]): Lambda = {
+    val newBody = applyRulesUntilCannot(lambda.body, rules)
+
+    if (newBody eq lambda.body)
+      lambda
+    else
+      Lambda(lambda.params, newBody)
+  }
+
+  /**
+   * Apply rules one by one until no rules apply anymore
+   * @param expr The expression where to apply rules
+   * @param rules The rules to apply
+   * @return
+   */
+  def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
+    val allRulesAt = listAllPossibleRewritesForRules(expr, rules)
+
+    if (allRulesAt.isEmpty) {
+      expr
+    } else {
+      val ruleAt = allRulesAt.head
+      applyRulesUntilCannot(Rewrite.applyRuleAt(expr, ruleAt._1, ruleAt._2), rules)
+    }
+  }
+
   def patchUpAfterSplitJoin(toBeReplaced: Expr, replacement: Expr, replaced: Expr): Expr = {
     // TODO: suppress warnings?
     TypeChecker(replaced)
