@@ -29,6 +29,11 @@ object SimplifyAndFuse {
 
 class SimplifyAndFuse {
 
+  private var cantUndo = List[Expr]()
+  private var seen = List[Expr]()
+  private val startTime = System.currentTimeMillis()
+  private val maxTime = 900000 // 15 min
+
   /**
    * Try to simplify a lambda by eliminating sequences of operations that have
    * no effect and fuse all maps and reduces that can be fused.
@@ -36,14 +41,14 @@ class SimplifyAndFuse {
    * @param lambda The lambda to simplify
    * @return A lambda where possible simplifications and fusions have been performed
    */
-  def apply(lambda: Lambda) = simplify(lambda)
-
-  private var cantUndo = List[Expr]()
-  private var seen = List[Expr]()
+  def apply(lambda: Lambda) = {
+    simplify(lambda)
+  }
 
   def simplify(lambda: Lambda, maxDepth: Int = 100): Lambda = {
+    val currentTime = System.currentTimeMillis()
 
-    if (maxDepth == 0)
+    if (maxDepth == 0 || (currentTime - startTime) > maxTime)
       return lambda
 
     val fused = SimplifyAndFuse.fuseAll(lambda)
