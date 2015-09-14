@@ -1,16 +1,15 @@
 package exploration
 
-import java.nio.file.{Paths, Files}
+import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
-import opencl.executor.Eval
 
-import scala.io.Source
-import sys.process._
-
-import apart.arithmetic.{Cst, ArithExpr, Var}
+import apart.arithmetic.Var
 import ir.ast._
 import ir.{ArrayType, TypeChecker}
 import opencl.ir._
+
+import scala.io.Source
+import scala.sys.process._
 
 object TestHighLevelRewrite {
 
@@ -60,80 +59,34 @@ object TestHighLevelRewrite {
 
     println(oneKernel.length + " expressions with one kernel")
 
-    val basicTiled =  oneKernel.filter(pair =>
-        pair._2 ==
-          List(
-            MacroRules.tileMapMap,
-            MacroRules.finishTiling,
-            MacroRules.finishTiling
-          )
-      )
-	  
-	println(basicTiled.length + " expressions with the basic tiled sequence")
+    val dumpThese = oneKernel.filter(pair =>
 
-    val oneDBlockingSequence = oneKernel.filter(pair =>
-      (pair._2 ==
-        List(
-          MacroRules.tileMapMap,
+      (pair._2.head == MacroRules.tileMapMap
+        && pair._2.tail.diff(List(MacroRules.apply2DRegisterBlocking,
+                               MacroRules.apply2DRegisterBlocking,
+                               MacroRules.finishTiling,
+                               MacroRules.finishTiling)).isEmpty
+        && NumberExpression.byDepth(pair._1).values.max <= 8)
+      ||
+        (pair._2.head == MacroRules.tileMapMap
+          && pair._2.tail.diff(List(MacroRules.apply1DRegisterBlocking,
+          MacroRules.apply1DRegisterBlocking,
           MacroRules.finishTiling,
-          MacroRules.apply1DRegisterBlocking,
-          MacroRules.apply1DRegisterBlocking,
-          MacroRules.finishTiling
-        )
-        ||
-        pair._2 ==
-          List(
-            MacroRules.tileMapMap,
-            MacroRules.apply1DRegisterBlocking,
-            MacroRules.finishTiling,
-            MacroRules.finishTiling,
-            MacroRules.apply1DRegisterBlocking
-          ))
-    )
+          MacroRules.finishTiling)).isEmpty
+          && NumberExpression.byDepth(pair._1).values.max <= 7)
+      ||
+         NumberExpression.byDepth(pair._1).values.max <= 6)
+
 
     println(
-      oneDBlockingSequence.length + " expressions with a possible tiled 1D blocking sequence,"
+      dumpThese.length + " expressions to dump"
     )
 
-    printMinAndMaxDepth(oneDBlockingSequence.map(_._1))
-
-    val twoDBlockingSequence = oneKernel.filter(pair =>
-      (pair._2 ==
-        List(
-          MacroRules.tileMapMap,
-          MacroRules.finishTiling,
-          MacroRules.apply2DRegisterBlocking,
-          MacroRules.apply2DRegisterBlocking,
-          MacroRules.finishTiling
-        )
-        ||
-        pair._2 ==
-          List(
-            MacroRules.tileMapMap,
-            MacroRules.apply2DRegisterBlocking,
-            MacroRules.finishTiling,
-            MacroRules.finishTiling,
-            MacroRules.apply2DRegisterBlocking
-          ))
-    )
-
-    println(
-      twoDBlockingSequence.length + " expressions with a possible tiled 2D blocking sequence,"
-    )
-
-    val lambdas = twoDBlockingSequence.map(_._1)
+    val lambdas = dumpThese.map(_._1)
     printMinAndMaxDepth(lambdas)
 
-    val dumpThese = (basicTiled ++ oneDBlockingSequence ++ twoDBlockingSequence).map(_._1)
+    dumpLambasToFiles(lambdas)
 
-    // dumpLambasToFiles(dumpThese)
-
-    val lowerSome = lower(lambdas, 1)
-
-    println(lowerSome)
-    println("testing " + lowerSome.length + " expressions")
-
-    TestLowLevelRewrite.lowlevelexecutor(lowerSome)
   }
 
   def dumpLambdaToString(lambda: Lambda): String = {
@@ -211,7 +164,7 @@ object TestHighLevelRewrite {
 
   def dumpLambasToFiles(lambdas: Seq[Lambda]): Unit = {
 
-    lambdas.zipWithIndex.foreach(pair => {
+    lambdas.zipWithIndex.par.foreach(pair => {
       val lambda = pair._1
       val id = pair._2
 
