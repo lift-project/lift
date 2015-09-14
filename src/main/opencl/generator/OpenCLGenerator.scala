@@ -86,6 +86,16 @@ object OpenCLGenerator extends Generator {
                                Array[TypedOpenCLMemory]) = {
     val memories = TypedOpenCLMemory.get(f.body, f.params).toArray
 
+    val numInputs = f.params.length
+
+    val outputMem = memories.last
+
+    if (memories.length > numInputs) {
+      val temp = memories(numInputs)
+      memories(numInputs) = outputMem
+      memories(memories.length-1) = temp
+    }
+
     if (AllocateLocalMemoryStatically())
       memories.partition(isFixedSizeLocalMemory)
     else
@@ -314,17 +324,11 @@ class OpenCLGenerator extends Generator {
     this.varDecls = this.varDecls ++
                     typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
 
-    val partitioned =
-      if (AllocateLocalMemoryStatically())
-        Kernel.memory.partition(OpenCLGenerator.isFixedSizeLocalMemory)
-      else
-        (Array.empty[TypedOpenCLMemory], Kernel.memory)
 
-     partitioned match {
-      case (static, nonStatic) =>
-        Kernel.memory = nonStatic
-        Kernel.staticLocalMemory = static
-    }
+    val memories = OpenCLGenerator.getMemories(f)
+
+    Kernel.memory = memories._2
+    Kernel.staticLocalMemory = memories._1
 
     f.params.foreach(_.mem.readOnly = true)
 
