@@ -248,8 +248,17 @@ object TestHighLevelRewrite {
     ("mkdir -p " + path).!
 
     if (Files.exists(Paths.get(path + "/" + filename))) {
-      println("Warning! Clash at " + filename + ". Adding System.currentTimeMillis()")
-      filename = filename + "_" + System.currentTimeMillis()
+      val warningString = "Warning! Clash at " + filename + ".\n"
+
+      val clashingContent = Source.fromFile(path + "/" + filename).getLines().mkString("\n")
+
+      if (clashingContent != content) {
+        println(warningString + "Content is different, adding System.currentTimeMillis().")
+        filename = filename + "_" + System.currentTimeMillis()
+      } else {
+        println(warningString + "Content is the same, skipping.")
+      }
+
     }
 
     scala.tools.nsc.io.File(path + "/" + filename).writeAll(content)
