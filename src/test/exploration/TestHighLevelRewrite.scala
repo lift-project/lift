@@ -78,9 +78,7 @@ object TestHighLevelRewrite {
          NumberExpression.byDepth(pair._1).values.max <= 6)
 
 
-    println(
-      dumpThese.length + " expressions to dump"
-    )
+    println(dumpThese.length + " expressions to dump")
 
     val lambdas = dumpThese.map(_._1)
     printMinAndMaxDepth(lambdas)
@@ -228,9 +226,9 @@ object TestHighLevelRewrite {
       val currentLambda = lambdas(1/*util.Random.nextInt(numLambda)*/)
 
       try {
-        val appliedRules = applyAlwaysRules(currentLambda)
-        val lowerNext = Lower.lowerNoAddressSpaces(appliedRules)
-        loweredLambdas = lowerNext :: loweredLambdas
+        val lowerNext = Lower.lowerNoAddressSpaces(currentLambda)
+        val appliedRules = applyAlwaysRules(lowerNext)
+        loweredLambdas = appliedRules :: loweredLambdas
       } catch {
         case t: Throwable =>
           println(s"Lowering\n$currentLambda failed with\n$t.")
