@@ -300,8 +300,10 @@ object Rules {
   val vectorize: Rule = vectorize(?)
 
   def vectorize(vectorWidth: ArithExpr): Rule =
-    Rule("Map(uf) => asScalar() o MapGlb(Vectorize(n)(uf)) o asVector(4)", {
-      case FunCall(Map(Lambda(_, FunCall(uf: UserFun, _))), arg) =>
+    Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(4)", {
+      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArg))), arg)
+        if (p.head eq ufArg) && !ufArg.t.isInstanceOf[VectorType]
+      =>
         // TODO: force the width to be less than the array length
         val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
         asScalar() o Map(Vectorize(n)(uf)) o asVector(n) $ arg

@@ -77,11 +77,10 @@ object TestMemoryMappingRewrite {
   }
 
   def implementIds(lambdas: List[Lambda]): List[Lambda] = {
-    val copiesAdded = lambdas.flatMap(turnIdsIntoCopies)
 
     var list = List[Lambda]()
 
-    copiesAdded.foreach( x => {
+    lambdas.foreach( x => {
       try {
         list = lowerMapInIds(x) :: list
       } catch {
@@ -104,7 +103,11 @@ object TestMemoryMappingRewrite {
     // Step 1: Add id nodes in strategic locations
     val idsAdded = addIds(lambda)
 
-    addToAddressSpace(idsAdded, Rules.localMemoryId, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemoryId, 2)
+    val copiesAdded = toAddressAdded.flatMap(
+      turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation = false))
+
+    implementIds(copiesAdded)
   }
 
   private def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
@@ -131,7 +134,11 @@ object TestMemoryMappingRewrite {
 
     val idsAdded = Rewrite.applyRulesUntilCannot(idsAddedToMapSeq, Seq(Rules.addIdForCurrentValueInReduce))
 
-    addToAddressSpace(idsAdded, Rules.privateMemoryId, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, Rules.privateMemoryId, 2)
+    val copiesAdded = toAddressAdded.flatMap(
+      turnIdsIntoCopies(_, doTupleCombinations = true, doVectorisation = false))
+
+    implementIds(copiesAdded)
   }
 
   def addToAddressSpace(lambda: Lambda,
@@ -140,18 +147,16 @@ object TestMemoryMappingRewrite {
     val idLocations = collectIds(lambda)
     val combinations = getCombinations(idLocations, maxCombinations)
 
-    val addedToAddressSpace = combinations.map(subset => {
+    combinations.map(subset => {
       // traverse all the Id nodes
       idLocations.foldLeft(lambda)((tuned_expr, node) => {
         // if it is in the change set, we need to add toAddressSpace
-        if (subset.contains(node) && addressSpaceRule.isDefinedAt(node))
+        if (subset.contains(node) && addressSpaceRule.isDefinedAt(node)) {
           Rewrite.applyRuleAt(tuned_expr, node, addressSpaceRule)
-        else // otherwise we eliminate it
+        } else // otherwise we eliminate it
           Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
       })
     })
-
-    implementIds(addedToAddressSpace)
   }
 
   /**
@@ -212,15 +217,16 @@ object TestMemoryMappingRewrite {
    * @param lambda Lambda where to apply the transformation
    * @return
    */
-  def turnIdsIntoCopies(lambda: Lambda): Seq[Lambda] = {
+  def turnIdsIntoCopies(lambda: Lambda,
+                        doTupleCombinations: Boolean,
+                        doVectorisation: Boolean): Seq[Lambda] = {
     val rewrites = Rewrite.listAllPossibleRewrites(lambda, Rules.implementIdAsDeepCopy)
 
     if (rewrites.nonEmpty) {
       val ruleAt = rewrites.head
 
-
       ruleAt._2.t match {
-        case TupleType(_*) =>
+        case TupleType(_*) if doTupleCombinations =>
           val oneLevelImplemented = Rules.implementOneLevelOfId.rewrite(ruleAt._2)
 
           val idRewrites = Rewrite.listAllPossibleRewrites(oneLevelImplemented, Rules.implementIdAsDeepCopy)
@@ -245,12 +251,37 @@ object TestMemoryMappingRewrite {
             })
           })
 
-          allCombinations.map(combination => FunDecl.replace(lambda, ruleAt._2, combination)).flatMap(turnIdsIntoCopies)
-        case _ => turnIdsIntoCopies(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
+          allCombinations
+            .map(FunDecl.replace(lambda, ruleAt._2, _))
+            .flatMap(turnIdsIntoCopies(_, doTupleCombinations, doVectorisation))
+        case _ =>
+          turnIdsIntoCopies(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1),
+                            doTupleCombinations,
+                            doVectorisation)
       }
 
     } else {
-      Seq(applyLoopFusionToTuple(lambda))
+      val tuple = applyLoopFusionToTuple(lambda)
+
+      if (doVectorisation) {
+
+        val tryToVectorize = Expr.visitLeftToRight(List[Expr]())(tuple.body, (expr, list) => {
+          expr match {
+            case FunCall(toLocal(Lambda(_, body)), _) => expr :: list
+            case _ => list
+          }
+        })
+
+        val vectorised = tryToVectorize.foldLeft(tuple)( (currentLambda, a) => {
+          val vectorised = Rewrite.applyRulesUntilCannot(a, Seq(Rules.vectorize))
+          FunDecl.replace(currentLambda, a, vectorised)
+        })
+
+        if (!(vectorised eq tuple))
+          return Seq(vectorised, tuple)
+      }
+
+      Seq(tuple)
     }
   }
 
