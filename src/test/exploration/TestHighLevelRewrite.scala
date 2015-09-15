@@ -169,7 +169,9 @@ object TestHighLevelRewrite {
       println(s"Processing $id/${lambdas.length - 1}")
 
       try {
-        val lowerNext = SimplifyAndFuse(lambda)
+
+        val partRedToReduce = Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.partialReduceToReduce))
+        val lowerNext = SimplifyAndFuse(partRedToReduce)
         val appliedRules = applyAlwaysRules(lowerNext)
 
         val stringRep = dumpLambdaToString(appliedRules)

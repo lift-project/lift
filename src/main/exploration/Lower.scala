@@ -123,7 +123,7 @@ object Lower {
   def simpleAddressSpaceStrategy(lambda: Lambda) = {
     val tupleMaps = findAll(lambda, {
       case FunCall(Tuple(_), args@_*) if args.forall({
-        case FunCall(Map(_), _) => true
+        case FunCall(MapSeq(_), _) => true
         case _ => false
         }) => true
       case _ => false
@@ -148,9 +148,14 @@ object Lower {
 
     tupleMaps.foldRight(localMemories)((expr, currentLambda) => {
       expr match {
-        case FunCall(MapSeq(_), _) =>
-          Context.updateContext(currentLambda.body)
-          FunDecl.replace(currentLambda, expr, Rules.privateMemory.rewrite(expr))
+        case FunCall(Tuple(_), args@_*) =>
+         args.foldRight(currentLambda)((arg, l) => {
+           arg match{
+             case FunCall(MapSeq(_), _) =>
+               Context.updateContext(l.body)
+               FunDecl.replace(l, arg, Rules.privateMemory.rewrite(arg))
+           }
+         })
         case _ => currentLambda
       }
     })

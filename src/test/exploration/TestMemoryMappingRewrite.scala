@@ -36,7 +36,6 @@ object TestMemoryMappingRewrite {
 
         val mapped = mapAddressSpaces(lowered)
 
-
         var id = 0
         mapped.foreach(expr => {
           id += 1
@@ -51,7 +50,7 @@ object TestMemoryMappingRewrite {
               throw new RuntimeException(s"Illegal un-lowered Map")
 
             // Dump to file
-            val str = TestHighLevelRewrite.dumpLambdaToMethod(expr)
+            val str = TestHighLevelRewrite.dumpLambdaToString(expr).replace("idfloat", "id")
             val sha256 = TestHighLevelRewrite.Sha256Hash(str)
             val folder = s"lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
@@ -79,7 +78,18 @@ object TestMemoryMappingRewrite {
 
   def implementIds(lambdas: List[Lambda]): List[Lambda] = {
     val copiesAdded = lambdas.flatMap(turnIdsIntoCopies)
-    copiesAdded.map(lowerMapInIds)
+
+    var list = List[Lambda]()
+
+    copiesAdded.foreach( x => {
+      try {
+        list = lowerMapInIds(x) :: list
+      } catch {
+        case t: Throwable => println("Id map lowering failure. Continuing...")
+      }
+    })
+
+    list
   }
 
   private def collectIds(addedIds: Lambda): List[Expr] =
@@ -94,7 +104,7 @@ object TestMemoryMappingRewrite {
     // Step 1: Add id nodes in strategic locations
     val idsAdded = addIds(lambda)
 
-    addToAddressSpace(idsAdded, Rules.localMemoryId, 3)
+    addToAddressSpace(idsAdded, Rules.localMemoryId, 2)
   }
 
   private def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
@@ -151,89 +161,49 @@ object TestMemoryMappingRewrite {
    */
   private def lowerMapInIds(lambda:Lambda): Lambda = {
 
-    val neighbours = Expr.visitRightToLeft(List[(FunCall, FunCall)]())(lambda.body, (expr, list) => {
-      expr match {
-        case call1@FunCall(_, FunCall(toLocal(Lambda(_, call@FunCall(Map(_), _))), _)) =>
-          (call1, call) :: list
-        case call1@FunCall(_, FunCall(toPrivate(Lambda(_, call@FunCall(Map(_), _))), _)) =>
-          (call1, call) :: list
-        case call1@FunCall(_, FunCall(Zip(_), _, FunCall(toLocal(Lambda(_, call@FunCall(Map(_), _))), _))) =>
-          (call1, call) :: list
-        case call1@FunCall(_, FunCall(Zip(_), _, FunCall(toPrivate(Lambda(_, call@FunCall(Map(_), _))), _))) =>
-          (call1, call) :: list
-        case _ => list
-      }
+    val depthMap = NumberExpression.byDepth(lambda).filterKeys({
+      case FunCall(map: ir.ast.AbstractMap, _) if map.f.body.isConcrete => true
+      case _ => false
     })
 
-    val origIdMap = NumberExpression.breadthFirst(lambda)
+    val byDepth = depthMap.groupBy(_._2).mapValues(_.keys.toList).filter(pair => pair._2.exists({
+      case FunCall(Map(_), _) => true
+      case _ => false
+    }))
 
-    val lowered = neighbours.foldLeft(lambda)((l, pair) => {
-      val idMap = NumberExpression.breadthFirst(l)
-      val asHere = Rewrite.getExprForId(l.body, origIdMap(pair._1), idMap)
+    val depth = byDepth.map(pair =>{
+      val level = pair._1
+      val expressions = pair._2
 
-      applySameMapRules(l, asHere, pair._2, idMap)
+      val (nonLowered, lowered) = expressions.partition({
+        case FunCall(map: Map, _) => true
+        case _ => false
+      })
+
+      (level, lowered.head, nonLowered)
+    })
+
+    val idMap = NumberExpression.breadthFirst(lambda)
+
+    var lowered = lambda
+
+    depth.foreach(tuple => {
+      val toLower = tuple._3
+      val lowerToType = tuple._2
+
+      val rule = lowerToType match {
+        case FunCall(_: MapSeq, _) => Rules.mapSeq
+        case FunCall(MapLcl(dim, _), _) => Rules.mapLcl(dim)
+      }
+
+      toLower.foreach(expr => {
+        val id = idMap(expr)
+        lowered = Rewrite.applyRuleAtId(lowered, id, rule)
+
+      })
     })
 
     lowered
-  }
-
-  def applySameMapRules(lambda: Lambda,
-                        asThese: Expr,
-                        toHere: Expr,
-                        idMap: collection.Map[Expr, Int]): Lambda = {
-
-    val getBody: PartialFunction[Expr, Expr] = { case FunCall(m: FPattern, _*) => m.f.body}
-    val concreteFPattern: PartialFunction[Expr, Unit] =
-      { case FunCall(m : FPattern, _*) if m.f.body.isConcrete => }
-
-    toHere match {
-      case FunCall(Tuple(_), args@_*) =>
-
-        args
-          .filter(concreteFPattern.isDefinedAt)
-          .foldLeft(lambda)((l, pair) => applySameMapRules(l, asThese, pair, idMap))
-
-      case _ =>
-
-        val matchRule = asThese match {
-          case FunCall(_: AbstractMap, _) => asThese
-          case FunCall(_: AbstractPartRed, _, _) => asThese
-          case FunCall(fp: FPattern, _) => fp.f.body
-        }
-
-        val rule = matchRule match {
-          case FunCall(_: MapSeq, _) => Rules.mapSeq
-          case FunCall(_: ReduceSeq, _, _) => Rules.mapSeq
-          case FunCall(MapLcl(dim, _), _) => Rules.mapLcl(dim)
-          case FunCall(f, _*) => throw new NotImplementedError(f.getClass.toString)
-        }
-
-        val newLambda = Rewrite.applyRuleAtId(lambda, idMap(toHere), rule)
-
-        val body1 = getBody(matchRule)
-        val body2 = getBody(toHere)
-
-        var map1 = Utils.getExprForPatternInCallChain(body1, concreteFPattern)
-        val map2 = Utils.getExprForPatternInCallChain(body2, concreteFPattern)
-        val tuple = Utils.getExprForPatternInCallChain(body2, { case FunCall(Tuple(_), _*) => })
-
-        if (map1.isEmpty) {
-          body1 match {
-            case FunCall(Tuple(_), args@_*) =>
-              if (args.exists(concreteFPattern.isDefinedAt))
-                map1 = args.find(concreteFPattern.isDefinedAt)
-            case _ =>
-          }
-        }
-
-        if (map1.isDefined && map2.isDefined)
-          applySameMapRules(newLambda, map1.get, map2.get, idMap)
-        else if (map1.isDefined && tuple.isDefined)
-          applySameMapRules(newLambda, map1.get, tuple.get, idMap)
-
-        else
-          newLambda
-    }
   }
 
   /**
