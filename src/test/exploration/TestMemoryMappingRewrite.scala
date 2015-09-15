@@ -50,7 +50,7 @@ object TestMemoryMappingRewrite {
               throw new RuntimeException(s"Illegal un-lowered Map")
 
             // Dump to file
-            val str = TestHighLevelRewrite.dumpLambdaToString(expr).replace("idfloat", "id")
+            val str = TestHighLevelRewrite.dumpLambdaToMethod(expr).replace("idfloat", "id")
             val sha256 = TestHighLevelRewrite.Sha256Hash(str)
             val folder = s"lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
