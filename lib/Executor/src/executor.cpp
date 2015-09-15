@@ -17,6 +17,11 @@
 #define __CL_ENABLE_EXCEPTIONS
 #include <CL/cl.hpp>
 
+#define BLACKLIST_FILE "blacklist.csv"
+#define INCOMPATIBLE_FILE "incompatible.csv"
+#define INVALID_FILE "invalid.csv"
+#define TIMING_FILE "time.csv"
+
 // split CSV values in array of strings
 std::vector<std::string> getNextLineAndSplitIntoTokens(std::istream& str)
 {
@@ -32,13 +37,29 @@ std::vector<std::string> getNextLineAndSplitIntoTokens(std::istream& str)
   return result;
 }
 
+// Append to file
+void file_append(const std::string &filename, const std::string &content)
+{
+  std::ofstream outfile;
+  outfile.open(filename, std::ios_base::app);
+  outfile << content << std::endl;
+}
+
+void add_blacklist(const std::string &hash) 
+{ file_append(BLACKLIST_FILE, hash); }
+
+void add_invalid(const std::string &hash) 
+{ file_append(INVALID_FILE, hash); }
+
+void add_incompatible(const std::string &hash) 
+{ file_append(INCOMPATIBLE_FILE, hash); }
+
 
 // String to int function
 std::size_t readInt(const std::string& str) {
   std::stringstream buffer(str);
   std::size_t value = 0;
   buffer >> value;
-  assert(value != 0 && "Bad value");
   return value;
 }
 
@@ -68,7 +89,7 @@ struct Run {
 
   // read values from CSV and initialize fields
   Run(const std::vector<std::string>& values) {
-    assert(values.size() > 9 && "Bad CSV format");
+    assert(values.size() > 8 && "Bad CSV format");
     
     size = readInt(values[0]);
     assert(size == 1024 && "Can only deal with 1024 for now");
@@ -89,33 +110,39 @@ struct Run {
   }
 
   // Load the file and compile the program
-  void compile(cl::Context context, std::vector<cl::Device> dev) 
+  bool compile(cl::Context context, 
+               std::vector<cl::Device> dev,
+               std::function<bool(cl::Kernel&,size_t,size_t,size_t)> compatibility) 
   {
     auto code = loadCode();
     cl::Program program(context, cl::Program::Sources(1, std::make_pair(code.data(), code.size())));
     try {
       program.build(dev);
       kernel = cl::Kernel(program, "KERNEL");
+      if(!compatibility(kernel, loc1, loc2, loc3)) {
+        kernel = cl::Kernel();
+        add_incompatible(hash);
+        return false;
+      }
     } catch (const cl::Error&) {
       std::cerr << "Compilation failed" << std::endl
                 << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev[0]) << std::endl;
 
-      std::ofstream outfile;
-      outfile.open("blacklist.csv", std::ios_base::app);
-      outfile << hash << std::endl;
+      add_blacklist(hash);
+      return false;
     }
+    return true;
   }
 
 private:
   // Get a file into a string
   std::string loadCode() 
   {
-    std::string path = "cl/";
-    std::ifstream t(path + hash + ".cl");
+    std::ifstream t(hash + ".cl");
     std::string cl_code = std::string((std::istreambuf_iterator<char>(t)),
                           std::istreambuf_iterator<char>());
     if(cl_code.size() == 0) {
-      std::cerr << "\nNo source for " << path << hash << ".cl\n" << std::endl;
+      std::cerr << "\nNo source for " << hash << ".cl\n" << std::endl;
     }
     assert(cl_code.size() != 0 && "Cannot read source file");
     return cl_code;
@@ -127,7 +154,7 @@ void executeRun(Run& run,
                 cl::Context context,
                 cl::CommandQueue queue, 
                 cl::Buffer matA, cl::Buffer matB, cl::Buffer output,
-                std::function<bool(const std::vector<float>&)> validation) 
+                std::function<bool(const std::vector<float>&)> validation)
 {
   using namespace std;
   static int counter = 0; counter++;
@@ -165,32 +192,26 @@ void executeRun(Run& run,
 
     if(!validation(result)) {
       // Save result to file
-      std::ofstream outfile;
-      outfile.open("invalid.csv", std::ios_base::app);
-      outfile << run.hash << std::endl;
-
-      std::cerr << "[" << counter << "Cross validation failed for " << run.hash << endl;
+      add_invalid(run.hash); 
+      std::cerr << "[" << counter << "] Cross validation failed for " << run.hash << endl;
     }
     else {
       // Save result to file
       std::ofstream outfile;
-      outfile.open("time.csv", std::ios_base::app);
+      outfile.open(TIMING_FILE, std::ios_base::app);
       outfile << run.hash << "," << ms << std::endl;
-      
       best_time = min(best_time, ms);
       std::cout << "[" << counter << "] best time: " << best_time << std::endl;
     }
   } catch (const cl::Error& err) {
-    std::ofstream outfile;
-    outfile.open("blacklist.csv", std::ios_base::app);
-    outfile << run.hash << std::endl;
-
+    add_blacklist(run.hash);
     cerr << "execution failed: " << run.hash << endl;
     cerr << err.what() << " (" << err.err() << ")" << std::endl;
     exit(err.err());
   }
 }
 
+// Load a csv and return a list of values for each line
 std::vector<std::vector<std::string>> loadCsv(const std::string& filename)
 {
   std::vector<std::string> line;
@@ -210,7 +231,7 @@ std::vector<std::vector<std::string>> loadCsv(const std::string& filename)
 std::set<std::string> load_blacklist() 
 {
   std::set<std::string> blacklist;
-  for(auto& filename: {"time.csv", "blacklist.csv", "invalid.csv"}) {
+  for(auto& filename: {BLACKLIST_FILE, INCOMPATIBLE_FILE, INVALID_FILE, TIMING_FILE}) {
     for(auto& values: loadCsv(filename))
       blacklist.insert(values.front());
   }
@@ -221,6 +242,34 @@ int main() {
   using namespace std; 
 
   const size_t N = 1024;
+
+  // === Loading CSV file ===
+  ifstream file ( "exec.csv" );  
+
+  vector<string> value;
+  vector<Run> all_run;
+
+  bool stop = false;
+  do {
+    auto str = getNextLineAndSplitIntoTokens(file);
+    if(str.size() != 0) {
+      all_run.push_back({str});
+    } else stop = true;
+  } while(!stop);
+
+  cout << "Loaded " << all_run.size() << " runs" << std::endl;
+
+  // filtering the runs we already did
+  auto blacklist = load_blacklist();
+  std::cout << "Loaded " << blacklist.size() << " blacklisted values" << std::endl;
+
+  if(blacklist.size() == all_run.size()) return 0;
+
+  std::cout << "Filtering.... ";
+  all_run.erase(remove_if(begin(all_run), end(all_run), [&](const Run& run) {
+    return blacklist.find(run.hash) != end(blacklist);
+  }), end(all_run));
+  std::cout << "done" << std::endl;
 
   // Compute input and output
   vector<float> matA(N*N);
@@ -276,32 +325,6 @@ int main() {
     return true;
   };
 
-  // === Loading CSV file ===
-  ifstream file ( "cl/exec.csv" );  
-
-  vector<string> value;
-  vector<Run> all_run;
-
-  bool stop = false;
-  do {
-    auto str = getNextLineAndSplitIntoTokens(file);
-    if(str.size() != 0) {
-      all_run.push_back({str});
-    } else stop = true;
-  } while(!stop);
-
-  cout << "Loaded " << all_run.size() << " runs" << std::endl;
-
-  // filtering the runs we already did
-  auto blacklist = load_blacklist();
-  std::cout << "Loaded " << blacklist.size() << " blacklisted values" << std::endl;
-
-  std::cout << "Filtering.... ";
-  all_run.erase(remove_if(begin(all_run), end(all_run), [&](const Run& run) {
-    return blacklist.find(run.hash) != end(blacklist);
-  }), end(all_run));
-  std::cout << "done" << std::endl;
-
   // === OpenCL init ===
   vector<cl::Platform> platform;
   cl::Platform::get(&platform);
@@ -316,6 +339,9 @@ int main() {
   cl::Device device = devices[0];
   cl::Context context(devices);
   cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
+  const cl_ulong max_mem = device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>();
+  const size_t max_workgroup = device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
 
   cout << "Executing on " << device.getInfo<CL_DEVICE_NAME>() << endl;
 
@@ -370,10 +396,24 @@ int main() {
   bool ready = false;
   std::queue<Run*> ready_queue;
 
+  // function testing that the kernel is compatible with the device
+  auto compatibility_checks = [&](cl::Kernel &kernel, size_t l1, size_t l2, size_t l3) {
+    size_t wg_size = -1;
+    size_t local_size = -1;
+
+    kernel.getWorkGroupInfo(device, CL_KERNEL_WORK_GROUP_SIZE ,&wg_size);
+    kernel.getWorkGroupInfo(device, CL_KERNEL_LOCAL_MEM_SIZE ,&local_size);
+    
+    if(wg_size == 0 || l1*l2*l3 > max_workgroup) return false;
+    if(local_size > max_mem) return false;
+
+    return true;
+  };
+
   // compilation thread
   auto compilation_thread = std::thread([&]{
     for (auto& r: all_run) {
-      r.compile(context, devices);
+      if(r.compile(context, devices, compatibility_checks))
       {
         std::unique_lock<std::mutex> locker(m);
         ready_queue.push(&r);
