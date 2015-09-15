@@ -169,10 +169,10 @@ object TestHighLevelRewrite {
       println(s"Processing $id/${lambdas.length - 1}")
 
       try {
-        val appliedRules = applyAlwaysRules(lambda)
-        val lowerNext = SimplifyAndFuse(appliedRules)
+        val lowerNext = SimplifyAndFuse(lambda)
+        val appliedRules = applyAlwaysRules(lowerNext)
 
-        val stringRep = dumpLambdaToString(lowerNext)
+        val stringRep = dumpLambdaToString(appliedRules)
 
         val sha256 = Sha256Hash(stringRep)
         val folder = "lambdas/" + sha256.charAt(0) + "/" + sha256.charAt(1)
