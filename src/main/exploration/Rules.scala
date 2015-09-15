@@ -306,7 +306,7 @@ object Rules {
       =>
         // TODO: force the width to be less than the array length
         val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
-        asScalar() o Map(Vectorize(n)(uf)) o asVector(n) $ arg
+        asScalar() o Map(VectorizeUserFun(n, uf)) o asVector(n) $ arg
     })
 
   /* Other */
