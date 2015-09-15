@@ -121,6 +121,8 @@ class OpenCLGenerator extends Generator {
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
+  private val openCLCodeGen = new OpenCLCodeGen
+
   var replacements: ValueTable = immutable.Map.empty
   var replacementsWithFuns: ValueTable = immutable.Map.empty
   var privateMems = Array[TypedOpenCLMemory]()
@@ -169,7 +171,7 @@ class OpenCLGenerator extends Generator {
           p.mem = OpenCLMemory.allocGlobalMemory(
                     OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.view = View(p.t, OpenCLCodeGen.print(p.mem.variable))
+      p.view = View(p.t, openCLCodeGen.print(p.mem.variable))
     })
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
@@ -197,7 +199,7 @@ class OpenCLGenerator extends Generator {
     globalBlock += generateKernel(f)
 
     // return the code generated
-    OpenCLCodeGen(globalBlock)
+    openCLCodeGen(globalBlock)
   }
 
   /** Traversals f and print all user functions using oclPrinter */
@@ -208,7 +210,7 @@ class OpenCLGenerator extends Generator {
       expr match {
         case call: FunCall => call.f match {
           case uf: UserFun => set + uf
-          //case vec: Vectorize =>
+          //case vec: Vectorize =
           //  set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
           case _ => set
         }
@@ -273,10 +275,10 @@ class OpenCLGenerator extends Generator {
              |
              |  // Boundary check
              |  if ($newIdx < 0) {
-             |    return ${OpenCLCodeGen.print(
+             |    return ${openCLCodeGen.print(
                               group.negOutOfBoundsF(newIdx, lenVar))};
              |  } else if ($newIdx >= $lenVar) {
-             |    return ${OpenCLCodeGen.print(
+             |    return ${openCLCodeGen.print(
                               group.posOutOfBoundsF(newIdx - lenVar + 1,
                                                     lenVar))};
              |  } else {
@@ -360,7 +362,7 @@ class OpenCLGenerator extends Generator {
       val m = mem.mem
       if (Verbose()) {
         println("Allocated " + ArithExpr.substitute(m.size, varMap.toMap) +
-                " bytes for variable " + OpenCLCodeGen.print(m.variable) +
+                " bytes for variable " + openCLCodeGen.print(m.variable) +
                 " in " + m.addressSpace + " memory")
       }
     })
@@ -415,7 +417,7 @@ class OpenCLGenerator extends Generator {
 
         case i: Iterate => generateIterateCall(i, call, block)
 
-        case u : UserFun =>generateUserFunCall(u, call, block)
+        case u : UserFun => generateUserFunCall(u, call, block)
 
         case fp: FPattern => generate(fp.f.body, block)
         case l: Lambda => generate(l.body, block)
@@ -592,7 +594,7 @@ class OpenCLGenerator extends Generator {
                                OpenCLAST.VarRef(inputMem.variable.toString),
                                outputMem.addressSpace)
 
-    val toutVStr = OpenCLCodeGen.print(tout)
+    val toutVStr = openCLCodeGen.print(tout)
     val range = i.indexVar.range.asInstanceOf[RangeAdd]
 
     // ADDRSPC TYPE tin = (odd ? out : swap);
@@ -626,7 +628,7 @@ class OpenCLGenerator extends Generator {
         OpenCLAST.Expression(curOutLen * innerOutputLength /^ innerInputLength))
 
 
-      val tinVStrRef = OpenCLAST.VarRef(OpenCLCodeGen.print(tin))
+      val tinVStrRef = OpenCLAST.VarRef(openCLCodeGen.print(tin))
 
       // tin = (tout == swap) ? swap : out
       b += OpenCLAST.Assignment(tinVStrRef,
@@ -799,7 +801,7 @@ class OpenCLGenerator extends Generator {
                                addressSpace: OpenCLAddressSpace,
                                t: Type,
                                view: View): OpenCLAST.OclAstNode = {
-    val varname: String = OpenCLCodeGen.print(v)
+    val varname: String = openCLCodeGen.print(v)
 
     addressSpace match {
       case LocalMemory | GlobalMemory =>
@@ -821,7 +823,7 @@ class OpenCLGenerator extends Generator {
                 val index = ArithExpr.substitute(ViewPrinter.emit(view),
                                                  replacements).eval
 
-                OpenCLAST.VarRef(s"${varname}_" + OpenCLCodeGen.print(index))
+                OpenCLAST.VarRef(s"${varname}_" + openCLCodeGen.print(index))
 
               case _ =>
                 OpenCLAST.VarRef(varname)
