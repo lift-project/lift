@@ -74,7 +74,7 @@ object Main {
 
 
         if (Files.exists(Paths.get(s"lower/$high_level_hash/index"))
-          && all_substitution_tables.size < 100000 && failure_guard < 10) {
+          && all_substitution_tables.size < 400000 && failure_guard < 10) {
           val low_level_expr_list = Source.fromFile(s"lower/$high_level_hash/index").getLines().toList
 
 
@@ -115,7 +115,7 @@ object Main {
                    System.exit(-1)
                    None
                 }
-            }).collect{ case Some(x) => x }
+            }).collect{ case Some(x) => x }.toList
 
             println(s"Found ${potential_expressions.size} / ${all_substitution_tables.size} filtered expressions")
 
@@ -180,6 +180,7 @@ object Main {
                         highLevelHash: String,
                         values: Seq[Any] ): Unit = {
     expressions.foreach(pair => {
+     
       val lambda = pair._1
       val substitutionMap = pair._2
 
@@ -200,18 +201,34 @@ object Main {
         |$code
       """.stripMargin
 
-      val filename = TestHighLevelRewrite.Sha256Hash(kernel) + ".cl"
+      val hash = TestHighLevelRewrite.Sha256Hash(kernel)
+      val filename = hash + ".cl"
 
-      val path = "kernels/"+
+      /*val path = "kernels/"+
         pathForHash(highLevelHash) + "/" +
         pathForHash(lowLevelHash) + "/" +
-        pathForHash(filename)
+        pathForHash(filename)*/
+      val path = s"cl/$lowLevelHash"
 
-      TestHighLevelRewrite.dumpToFile(kernel, filename, path)
+      val (_,globalBuffers) = OpenCLGenerator.getMemories(lambda)
+      // FIXME(tlutz): some buffer sizes overflow
+      globalBuffers.foreach(println(_))
+      if(globalBuffers.forall(_.mem.size.eval > 0)) {
+        TestHighLevelRewrite.dumpToFile(kernel, filename, path)
+
+
+        val fw = new java.io.FileWriter(s"cl/$lowLevelHash/exec.csv", true)
+        fw.write(SearchParameters.matrix_size + "," +
+                  global.map(_.eval).mkString(",") + "," +
+                  local.map(_.eval).mkString(",") + s",$hash,"+(globalBuffers.size-3)+","+
+          globalBuffers.drop(3).map(_.mem.size.eval/4).mkString(",")+"\n")
+        fw.close()
+      }
     })
   }
 
   def pathForHash(hash: String): String =
     hash.charAt(0) + "/" + hash.charAt(1) + "/" + hash
 }
+
 
