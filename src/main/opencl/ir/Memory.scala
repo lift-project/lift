@@ -267,6 +267,8 @@ object TypedOpenCLMemory {
 
       val bodyMems = call.f match {
         case uf: UserFun    => collectUserFun(call)
+        case vf: VectorizeUserFun
+                            => collectUserFun(call)
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
         case r: AbstractPartRed => collectReduce(r, adaptedArgMems)

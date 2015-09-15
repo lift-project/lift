@@ -35,6 +35,7 @@ object OutputView {
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
       case uf: UserFun => buildViewUserFun(writeView, call)
+      case uf: VectorizeUserFun => buildViewUserFun(writeView, call)
       case s: Scatter => buildViewScatter(s, call, writeView)
       case i: Iterate => buildViewIterate(i, call, writeView)
       case tw: TransposeW => buildViewTransposeW(tw, call, writeView)

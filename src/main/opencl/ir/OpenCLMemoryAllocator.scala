@@ -75,6 +75,9 @@ object OpenCLMemoryAllocator {
       // here is where the actual allocation happens
       case uf: UserFun        => allocUserFun(call.t, numGlb, numLcl, numPvt,
                                               inMem, addressSpace)
+      case vec: VectorizeUserFun
+                              => allocUserFun(call.t, numGlb, numLcl, numPvt,
+                                              inMem, addressSpace)
       case l: Lambda          => allocLambda(l, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
       case MapGlb(_, _) |

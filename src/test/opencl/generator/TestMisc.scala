@@ -284,6 +284,25 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
+  @Test def vectorizePattern(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float4, N),
+      (input) =>
+        MapGlb(VectorizeUserFun(4, id)) $ input
+    )
+
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
+    assertArrayEquals(inputData, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
   @Test def mapValueArg(): Unit = {
     val inputSize = 1024
     val inputData = Array.tabulate(inputSize)(_.toFloat)

@@ -210,8 +210,7 @@ class OpenCLGenerator extends Generator {
       expr match {
         case call: FunCall => call.f match {
           case uf: UserFun => set + uf
-          //case vec: Vectorize =
-          //  set + UserFun.vectorize(vec.f.asInstanceOf[UserFun], vec.n)
+          case vec: VectorizeUserFun => set + vec.vectorizedFunction
           case _ => set
         }
         case _ => set
@@ -417,6 +416,7 @@ class OpenCLGenerator extends Generator {
 
         case i: Iterate => generateIterateCall(i, call, block)
 
+        case vec: VectorizeUserFun => generateUserFunCall(vec.vectorizedFunction, call, block)
         case u : UserFun => generateUserFunCall(u, call, block)
 
         case fp: FPattern => generate(fp.f.body, block)
@@ -685,8 +685,6 @@ class OpenCLGenerator extends Generator {
   private def generateUserFunCall(u: UserFun,
                                   call: FunCall,
                                   block: Block): Block = {
-    assert(call.f == u)
-
     // Handle vector assignments for vector types
     val mem = OpenCLMemory.asOpenCLMemory(call.mem)
     block += generateStoreNode(mem, call.t, call.view,
@@ -702,9 +700,8 @@ class OpenCLGenerator extends Generator {
         case uf: UserFun =>
           OpenCLAST.FunctionCall(uf.name, args)
 
-        //case vf: Vectorize =>
-        //  generateFunCall(UserFun.vectorize(vf.f.asInstanceOf[UserFun],
-        //                                    vf.n), args:_*)
+        case vf: VectorizeUserFun =>
+          OpenCLAST.FunctionCall(vf.vectorizedFunction.name, args)
         case l: Lambda => generateFunCall(l.body, args)
 
         case _ => throw new NotImplementedError()
