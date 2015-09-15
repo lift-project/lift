@@ -53,7 +53,8 @@ object ExpressionFilter {
       // filter private memory
       val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
       val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_ + _).eval
-      if (private_alloc_size > SearchParameters.max_amount_private_memory) {
+      if (private_alloc_size > SearchParameters.max_amount_private_memory ||
+          private_buffers_size.forall(_.mem.size.eval <= 0)) {
         ErrorCounter.priv_mem = ErrorCounter.priv_mem + 1
         return TooMuchPrivateMemory
       }
@@ -64,7 +65,8 @@ object ExpressionFilter {
         if (local_buffers_size.nonEmpty)
           local_buffers_size.map(_.mem.size).reduce(_ + _).eval
         else 0
-      if (local_alloc_size > Executor.getDeviceLocalMemSize) {
+      if (local_alloc_size > Executor.getDeviceLocalMemSize ||
+          local_buffers_size.forall(_.mem.size.eval <= 0)) {
         ErrorCounter.local_mem = ErrorCounter.local_mem + 1
         return TooMuchLocalMemory
       }
@@ -125,3 +127,4 @@ object ExpressionFilter {
     }
   }
 }
+

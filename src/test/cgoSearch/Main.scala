@@ -54,16 +54,16 @@ object Main {
     val all_files = Source.fromFile("lambdas/index").getLines().toList
 
     var expr_counter = 0
-    List(all_files(24)).toList.foreach(filename => {
+    all_files.foreach(filename => {
       var failure_guard = 0
 
-      if (Files.exists(Paths.get(filename))) {
+      val high_level_hash = filename.split("/").last
+      if (Files.exists(Paths.get(filename)) && high_level_hash == "fee7df346963c3f2f38172e4ebe2102e857ff25355a0aae6d3058c748a3579d3") {
         expr_counter = expr_counter + 1
         println(s"Expression : $expr_counter / ${all_files.size}")
 
         val high_level_str = Source.fromFile(filename).getLines().mkString("\n").replace("idfloat", "id")
         val high_level_expr = Eval(high_level_str)
-        val high_level_hash = filename.split("/").last
 
         TestLowLevelRewrite.replaceInputTypes(high_level_expr)
 
@@ -81,7 +81,7 @@ object Main {
           var low_level_counter = 0
           println(s"Found ${low_level_expr_list.size} low level expressions")
 
-          low_level_expr_list.foreach(low_level_filename => {
+          low_level_expr_list.par.foreach(low_level_filename => {
             var counter = 0
 
             val low_level_hash = low_level_filename.split("/").last
@@ -89,11 +89,11 @@ object Main {
             val low_level_str = Source.fromFile(low_level_filename).getLines().mkString("\n").replace("idfloat", "id")
             val low_level_factory = Eval.getMethod(low_level_str)
 
-            println(s"Trying $low_level_hash from $high_level_hash")
+            println(s"Expression number $low_level_counter")
 
 
             println("Propagating parameters...")
-            val potential_expressions = all_substitution_tables/*.par*/.map(st => {
+            val potential_expressions = all_substitution_tables.map(st => {
               val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
               try {
                 val expr = low_level_factory(
@@ -180,7 +180,7 @@ object Main {
                         highLevelHash: String,
                         values: Seq[Any] ): Unit = {
     expressions.foreach(pair => {
-     
+     try {
       val lambda = pair._1
       val substitutionMap = pair._2
 
@@ -212,7 +212,6 @@ object Main {
 
       val (_,globalBuffers) = OpenCLGenerator.getMemories(lambda)
       // FIXME(tlutz): some buffer sizes overflow
-      globalBuffers.foreach(println(_))
       if(globalBuffers.forall(_.mem.size.eval > 0)) {
         TestHighLevelRewrite.dumpToFile(kernel, filename, path)
 
@@ -224,7 +223,11 @@ object Main {
           globalBuffers.drop(3).map(_.mem.size.eval/4).mkString(",")+"\n")
         fw.close()
       }
+     } catch {
+       case _: Throwable => 
+     }
     })
+
   }
 
   def pathForHash(hash: String): String =
