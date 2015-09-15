@@ -130,7 +130,7 @@ object TestHighLevelRewrite {
   }
 
   def findVariables(fullString: String): List[(String, Int)] = {
-    val variable = """v_\p{Alnum}*_\d+""".r
+    val variable = """v_\p{Alnum}*(_id)?_\d+""".r
 
     val vars = variable.findAllIn(fullString).map(_.toString).toList.distinct
 

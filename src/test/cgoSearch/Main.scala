@@ -58,7 +58,7 @@ object Main {
       var failure_guard = 0
 
       val high_level_hash = filename.split("/").last
-      if (Files.exists(Paths.get(filename)) && high_level_hash == "fee7df346963c3f2f38172e4ebe2102e857ff25355a0aae6d3058c748a3579d3") {
+      if (Files.exists(Paths.get(filename)) && high_level_hash != "fee7df346963c3f2f38172e4ebe2102e857ff25355a0aae6d3058c748a3579d3") {
         expr_counter = expr_counter + 1
         println(s"Expression : $expr_counter / ${all_files.size}")
 
@@ -115,7 +115,7 @@ object Main {
                    System.exit(-1)
                    None
                 }
-            }).collect{ case Some(x) => x }.toList
+            }).collect{ case Some(x) => x }
 
             println(s"Found ${potential_expressions.size} / ${all_substitution_tables.size} filtered expressions")
 
@@ -201,7 +201,10 @@ object Main {
         |$code
       """.stripMargin
 
-      val hash = TestHighLevelRewrite.Sha256Hash(kernel)
+      val variables = TestHighLevelRewrite.findVariables(kernel)
+      val variablesReplacedInKernel = TestHighLevelRewrite.replaceVariableDeclarations(kernel, variables)
+
+      val hash = TestHighLevelRewrite.Sha256Hash(variablesReplacedInKernel)
       val filename = hash + ".cl"
 
       /*val path = "kernels/"+
@@ -219,7 +222,7 @@ object Main {
         val fw = new java.io.FileWriter(s"cl/$lowLevelHash/exec.csv", true)
         fw.write(SearchParameters.matrix_size + "," +
                   global.map(_.eval).mkString(",") + "," +
-                  local.map(_.eval).mkString(",") + s",$hash,"+(globalBuffers.size-3)+","+
+                  local.map(_.eval).mkString(",") + s",$hash,"+(globalBuffers.length-3)+","+
           globalBuffers.drop(3).map(_.mem.size.eval/4).mkString(",")+"\n")
         fw.close()
       }
