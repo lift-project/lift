@@ -2,7 +2,7 @@ package cgoSearch
 
 import java.nio.file.{Files, Paths}
 
-import apart.arithmetic.{ArithExpr, Cst}
+import apart.arithmetic.{Var, ArithExpr, Cst}
 import exploration.{TestHighLevelRewrite, InferNDRange, TestLowLevelRewrite}
 import ir.TypeChecker
 import ir.ast.Lambda
@@ -102,7 +102,10 @@ object Main {
                       Cst(SearchParameters.matrix_size)) ++ params)
                 TypeChecker(expr)
                 if(ExpressionFilter(expr) == ExpressionFilter.Status.Success)
-                  Some((expr, st))
+                  Some((low_level_factory(
+                    Seq(Var(""),
+                      Var(""),
+                      Var("")) ++ params), st))
                 else
                   None
                 } catch {
@@ -227,7 +230,7 @@ object Main {
         fw.close()
       }
      } catch {
-       case _: Throwable => 
+       case _: Throwable =>
      }
     })
 
