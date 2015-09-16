@@ -105,7 +105,7 @@ object TestMemoryMappingRewrite {
 
     val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemoryId, 2)
     val copiesAdded = toAddressAdded.flatMap(
-      turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation = false))
+      turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation = true))
 
     implementIds(copiesAdded)
   }
