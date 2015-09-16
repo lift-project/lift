@@ -65,7 +65,7 @@ object ExpressionFilter {
         if (local_buffers_size.nonEmpty)
           local_buffers_size.map(_.mem.size).reduce(_ + _).eval
         else 0
-      if (local_alloc_size > Executor.getDeviceLocalMemSize ||
+      if (local_alloc_size > 50000 ||
           local_buffers_size.forall(_.mem.size.eval <= 0)) {
         ErrorCounter.local_mem = ErrorCounter.local_mem + 1
         return TooMuchLocalMemory
@@ -85,7 +85,7 @@ object ExpressionFilter {
       }
 
       // Avoid crashing for invalid values
-      if (local.map(_.eval).product > Executor.getDeviceMaxWorkGroupSize) {
+      if (local.map(_.eval).product > 1024) {
         ErrorCounter.not_enough_rpt = ErrorCounter.not_enough_rpt + 1
         return TooManyWorkItems
       }
@@ -104,8 +104,8 @@ object ExpressionFilter {
 
       // This measures the % of max local memory / thread
       val resource_per_thread = if (local_alloc_size == 0) 0
-      else
-        Executor.getDeviceLocalMemSize.toFloat /
+      else 0
+      /*  Executor.getDeviceLocalMemSize.toFloat /
           (Math.floor(Executor.getDeviceLocalMemSize / local_alloc_size) * local.map(_.eval).product.toFloat) /
           //                                                                   ^--- times # of work-items
           //                                                               ^--- # workgroup / sm
@@ -113,7 +113,7 @@ object ExpressionFilter {
           //              ^--- max local memory
           Executor.getDeviceLocalMemSize.toFloat * 100.0
       //  ^--- as a fraction of max mem            ^--- in %
-
+*/
       // number of threads / SM
       if (resource_per_thread > SearchParameters.resource_per_thread) {
         return NotEnoughParallelism

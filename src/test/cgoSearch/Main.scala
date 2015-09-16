@@ -58,7 +58,7 @@ object Main {
       var failure_guard = 0
 
       val high_level_hash = filename.split("/").last
-      if (Files.exists(Paths.get(filename)) && high_level_hash != "fee7df346963c3f2f38172e4ebe2102e857ff25355a0aae6d3058c748a3579d3") {
+      if (Files.exists(Paths.get(filename))) {
         expr_counter = expr_counter + 1
         println(s"Expression : $expr_counter / ${all_files.size}")
 
@@ -196,7 +196,7 @@ object Main {
       s"""
         |// Substitutions: $substitutionMap
         |// Local sizes: ${local.map(_.eval).mkString(", ")}
-        |// Global sizes: ${global.map(_.eval).mkString(", ")}
+        |// Global sizes: ${global.mkString(", ")}
         |// High-level hash: $highLevelHash
         |// Low-level hash: $lowLevelHash
         |// Input size: ${SearchParameters.matrix_size}
@@ -222,12 +222,19 @@ object Main {
         TestHighLevelRewrite.dumpToFile(kernel, filename, path)
 
 
-        val fw = new java.io.FileWriter(s"cl/$lowLevelHash/exec.csv", true)
-        fw.write(SearchParameters.matrix_size + "," +
-                  global.map(_.eval).mkString(",") + "," +
-                  local.map(_.eval).mkString(",") + s",$hash,"+(globalBuffers.length-3)+","+
-          globalBuffers.drop(3).map(_.mem.size.eval/4).mkString(",")+"\n")
-        fw.close()
+        Seq(1024,2048,4096,8192,16384).foreach(i => {
+
+          val fw = new java.io.FileWriter(s"cl/$lowLevelHash/exec_$i.csv", true)
+          fw.write(i + "," +
+            global.map(x => {
+              val subst = collection.immutable.Map(x.varList.map(v => (v, Cst(i)).asInstanceOf[(ArithExpr, ArithExpr)]).toSeq:_*)
+
+              ArithExpr.substitute(x, subst)
+            }).mkString(",") + "," +
+            local.map(_.eval).mkString(",") + s",$hash,"+(globalBuffers.length-3)+","+
+            globalBuffers.drop(3).map(_.mem.size.eval/4).mkString(",")+"\n")
+          fw.close()
+        })
       }
      } catch {
        case _: Throwable =>
