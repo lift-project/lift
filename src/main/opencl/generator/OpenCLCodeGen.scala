@@ -104,7 +104,7 @@ class OpenCLCodeGen {
 
   /** Insert the correct indentation */
   private def tab() = {
-    lazy val whiteSpace: String = Seq.fill(tabSize)(" ").reduce( _ ++ _)
+    lazy val whiteSpace: String = " " * tabSize
     whiteSpace * indent
   }
 
