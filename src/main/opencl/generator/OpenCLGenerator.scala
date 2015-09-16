@@ -189,7 +189,7 @@ class OpenCLGenerator extends Generator {
 
     View.visitAndBuildViews(f.body)
 
-    val globalBlock = new OpenCLAST.Block(List.empty, global = true)
+    val globalBlock = new OpenCLAST.Block(Vector.empty, global = true)
 
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach( globalBlock += _ )
@@ -266,7 +266,7 @@ class OpenCLGenerator extends Generator {
           OpenCLAST.ParamDecl("i", Int),
           OpenCLAST.ParamDecl(lenVar.toString, Int)
         ),
-        body = OpenCLAST.Block(List(OpenCLAST.Inline(
+        body = OpenCLAST.Block(Vector(OpenCLAST.Inline(
           s"""
              |  // Compute new index
              |  int relIndices[] = {${group.relIndices.deep.mkString(", ")}};
@@ -352,7 +352,7 @@ class OpenCLGenerator extends Generator {
             )
         ).toList ++
         vars.map(x => OpenCLAST.ParamDecl(x.toString, Int)), // size parameters
-      body = OpenCLAST.Block(List()),
+      body = OpenCLAST.Block(Vector.empty),
       kernel = true)
 
     // print out allocated memory sizes
@@ -526,7 +526,7 @@ class OpenCLGenerator extends Generator {
                                     block: Block): Block = {
     val unroll: Boolean = OpenCLMemory.containsPrivateMemory(call.args(1).mem)
 
-    val nestedBlock = OpenCLAST.Block(List.empty)
+    val nestedBlock = OpenCLAST.Block(Vector.empty)
 
     nestedBlock += OpenCLAST.Comment("reduce_seq")
     generateLoop(nestedBlock, r.loopVar, (b) => generate(r.f.body, b),
@@ -673,7 +673,7 @@ class OpenCLGenerator extends Generator {
       block += OpenCLAST.Comment("end unroll")
     } else /* the loop is not unrolled */ {
       // Generate an for-loop
-      val innerBlock = OpenCLAST.Block(List.empty)
+      val innerBlock = OpenCLAST.Block(Vector.empty)
       // add it to the current node:
       block += OpenCLAST.Loop(indexVar, iterationCount, body = innerBlock)
       printBody(innerBlock)
