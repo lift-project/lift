@@ -1,8 +1,14 @@
 package exploration
 
+import java.nio.file.{Files, Paths}
+import java.security.MessageDigest
+
 import apart.arithmetic._
-import ir.{TypeException, ArrayType, Type}
 import ir.ast._
+import ir.{ArrayType, Type, TypeException}
+
+import scala.io.Source
+import scala.sys.process._
 
 object Utils {
 
@@ -186,5 +192,139 @@ object Utils {
       case FunCall(_ : AbstractPartRed, _, arg) => getFinalArg(arg)
       case _ => expr
     }
+  }
+
+  // Utilities for dumping to files
+
+  /**
+   * Generate the SHA-256 hash for a string.
+   * @param value The string to hash.
+   * @return The SHA-256 hash as a string.
+   */
+  def Sha256Hash(value: String): String = {
+    val md = MessageDigest.getInstance("SHA-256")
+    md.update(value.getBytes("UTF-8"))
+    val digest = md.digest()
+    String.format("%064x", new java.math.BigInteger(1, digest))
+  }
+
+  /**
+   * Dumps a lambda to a string representing it's declaration in Scala.
+   * Variables and parameters are renamed, so the string would always be the same
+   * and it's hash deterministic.
+   *
+   * @param lambda The lambda to dump to a string
+   * @return
+   */
+  def dumpLambdaToString(lambda: Lambda): String = {
+
+    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
+
+    val withIndex: List[(String, Int)] = findVariables(fullString)
+
+    val decls = withIndex.map(pair =>
+      "val " + getNewName(pair) + " = Var(\"" + getIdentifier(pair) + "\")\n"
+    ).mkString("")
+
+    decls + "\n" + replaceVariableDeclarations(fullString, withIndex)
+  }
+
+  def replaceVariableDeclarations(fullString: String, withIndex: List[(String, Int)]): String = {
+    withIndex.foldLeft(fullString)((currentString, toReplace) =>
+      currentString.replaceAll(toReplace._1, getNewName(toReplace)))
+  }
+
+  /**
+   * Dumps a lambda to a string representing a method declaration in Scala that will return
+   * the lambda.
+   * Variables and parameters are renamed, so the string would always be the same
+   * and it's hash deterministic.
+   *
+   * @param lambda The lambda to dump to a method declaration
+   * @return
+   */
+  def dumpLambdaToMethod(lambda: Lambda): String = {
+    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
+
+    val variables = findVariables(fullString)
+
+    val replacedVariableNames = replaceVariableDeclarations(fullString, variables)
+
+    val seqName = "variables"
+
+    val declarations = variables.map(pair => {
+      "val " + getNewName(pair) + " = " + seqName +"(" + pair._2 + ")"
+    }).mkString("\n")
+
+    val method =
+      s"""($seqName: Seq[ArithExpr]) => {
+                     |$declarations
+          |
+          |$replacedVariableNames
+          |}
+      """.stripMargin
+
+    method
+  }
+
+  def findVariables(fullString: String): List[(String, Int)] = {
+    val variable = """v_\p{Alnum}*(_id)?_\d+""".r
+
+    val vars = variable.findAllIn(fullString).map(_.toString).toList.distinct
+
+    val withIndex = vars.zipWithIndex
+    withIndex
+  }
+
+  private def getIdentifier(toReplace: (String, Int)): String = {
+    toReplace._1.substring(toReplace._1.indexOf("_") + 1, toReplace._1.lastIndexOf("_"))
+  }
+
+  private def getNewName(toReplace: (String, Int)): String = {
+    "v_" + getIdentifier(toReplace) + "_" + toReplace._2
+  }
+
+  private def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {
+    val types = lambda.params.map(p => ScalaPrinter(p.t)).mkString(", ")
+    val expr = ScalaPrinter(lambda)
+    val fullString = expr.substring(0, 4) + types + "," + expr.substring(4)
+
+    val param = """p_\d+""".r
+
+    val params = param.findAllMatchIn(fullString).map(_.toString()).toList.distinct
+
+    params.zipWithIndex.foldRight(fullString)((toReplace, currentString) =>
+      currentString.replaceAll(toReplace._1, "p_" + toReplace._2))
+
+  }
+
+  /**
+   * Dump content to a file.
+   * If the filename exists, appends the current time.
+   *
+   * @param content The content to dump.
+   * @param filename The filename to use.
+   * @param path Path for the file.
+   */
+  def dumpToFile(content: String, filename: String, path: String): Unit = {
+    var uniqueFilename = filename
+
+    ("mkdir -p " + path).!
+
+    if (Files.exists(Paths.get(path + "/" + uniqueFilename))) {
+      val warningString = "Warning! Clash at " + uniqueFilename + ".\n"
+
+      val clashingContent = Source.fromFile(path + "/" + uniqueFilename).getLines().mkString("\n")
+
+      if (clashingContent != content) {
+        println(warningString + "Content is different, adding System.currentTimeMillis().")
+        uniqueFilename = uniqueFilename + "_" + System.currentTimeMillis()
+      } else {
+        println(warningString + "Content is the same, skipping.")
+      }
+
+    }
+
+    scala.tools.nsc.io.File(path + "/" + uniqueFilename).writeAll(content)
   }
 }

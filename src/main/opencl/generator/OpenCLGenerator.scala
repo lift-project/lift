@@ -123,11 +123,11 @@ class OpenCLGenerator extends Generator {
 
   private val openCLCodeGen = new OpenCLCodeGen
 
-  var replacements: ValueTable = immutable.Map.empty
-  var replacementsWithFuns: ValueTable = immutable.Map.empty
-  var privateMems = Array[TypedOpenCLMemory]()
+  private var replacements: ValueTable = immutable.Map.empty
+  private var replacementsWithFuns: ValueTable = immutable.Map.empty
+  private var privateMems = Array[TypedOpenCLMemory]()
 
-  var varDecls: SymbolTable = immutable.Map.empty
+  private var varDecls: SymbolTable = immutable.Map.empty
 
   private def printMemories(expr: Expr): Unit = {
     Expr.visit(expr, {
@@ -203,7 +203,7 @@ class OpenCLGenerator extends Generator {
   }
 
   /** Traversals f and print all user functions using oclPrinter */
-  def generateUserFunctions(expr: Expr): Seq[OclAstNode] = {
+  private def generateUserFunctions(expr: Expr): Seq[OclAstNode] = {
     var fs = Seq[OclAstNode]()
 
     val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
@@ -242,7 +242,7 @@ class OpenCLGenerator extends Generator {
   }
 
   /** Traverses f and print all group functions using oclPrinter */
-  def generateGroupFunctions(expr: Expr): Seq[OclAstNode] = {
+  private def generateGroupFunctions(expr: Expr): Seq[OclAstNode] = {
     var fs = Seq[OclAstNode]()
 
     val groupFuns = Expr.visitWithState(Set[Group]())(expr, (expr, set) =>
@@ -295,7 +295,7 @@ class OpenCLGenerator extends Generator {
     Kernel.memory = TypedOpenCLMemory.get(f.body, f.params).toArray
   }
 
-  object Kernel {
+  private object Kernel {
     var memory = Array.empty[TypedOpenCLMemory]
     var staticLocalMemory = Array.empty[TypedOpenCLMemory]
   }
@@ -655,6 +655,9 @@ class OpenCLGenerator extends Generator {
     val step = range.step
 
     if (unroll && iterationCount.eval > 0) {
+
+
+
       block += OpenCLAST.Comment("unroll")
 
       for (i <- 0 until iterationCount.eval) {
@@ -693,7 +696,7 @@ class OpenCLGenerator extends Generator {
     block
   }
 
-  def generateFunCall(expr: Expr,
+  private def generateFunCall(expr: Expr,
                       args: List[OclAstNode]): OclAstNode = {
     expr match {
       case call: FunCall => call.f match {
