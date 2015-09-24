@@ -1,6 +1,7 @@
 package exploration
 
 import apart.arithmetic.ArithExpr
+import exploration.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
 

@@ -2,6 +2,7 @@ package exploration
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import exploration.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
 import opencl.executor.{Eval, Executor}

@@ -1,4 +1,4 @@
-package exploration
+package exploration.utils
 
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
@@ -11,19 +11,6 @@ import scala.io.Source
 import scala.sys.process._
 
 object Utils {
-
-	def listPossiblities[T](oriList : Seq[T], optionsList : Seq[Seq[T]]) : Seq[Seq[T]] = {
-	    oriList.zip(optionsList).foldLeft((Seq[T](),Seq[Seq[T]]()))((state,p) => {
-	      val ori = p._1
-	      val options = p._2
-	      var prefix = state._1
-	      var results = state._2
-	      results = results.map(x => x :+ ori) // add the current original element
-	      results = results ++ options.map(x => prefix :+ x) // prepand the prefix to all the current options
-	      prefix = prefix :+ ori	// prepare the prefix for next time      
-	      (prefix,results)	      
-	    } )._2	  
-	}
 
   /**
    * Quick and dirty substitution of arithmetic expressions.

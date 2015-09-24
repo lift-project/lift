@@ -1,4 +1,4 @@
-package exploration
+package exploration.utils
 
 import ir.ast._
 

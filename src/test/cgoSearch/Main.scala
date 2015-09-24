@@ -3,7 +3,8 @@ package cgoSearch
 import java.nio.file.{Files, Paths}
 
 import apart.arithmetic.{Var, ArithExpr, Cst}
-import exploration.{Utils, InferNDRange, TestLowLevelRewrite}
+import exploration.utils.Utils
+import exploration.{InferNDRange, TestLowLevelRewrite}
 import ir.TypeChecker
 import ir.ast.Lambda
 import opencl.executor.{Execute, Eval, Executor}

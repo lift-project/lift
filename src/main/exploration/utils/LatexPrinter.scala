@@ -1,8 +1,8 @@
-package exploration
+package exploration.utils
 
 import ir.ast._
 import opencl.ir._
-import opencl.ir.pattern.{toGlobal, ReduceSeq, MapSeq}
+import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 
 object LatexPrinter {
 

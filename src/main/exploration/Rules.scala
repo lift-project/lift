@@ -1,6 +1,7 @@
 package exploration
 
 import apart.arithmetic._
+import exploration.utils.Utils
 import ir._
 import ir.ast._
 import opencl.ir.pattern._

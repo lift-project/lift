@@ -1,4 +1,4 @@
-package exploration
+package exploration.utils
 
 import apart.arithmetic.Cst
 import ir._

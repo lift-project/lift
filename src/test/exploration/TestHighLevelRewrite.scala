@@ -1,6 +1,7 @@
 package exploration
 
 import apart.arithmetic.Var
+import exploration.utils.{NumberExpression, Utils}
 import ir.ast._
 import ir.{ArrayType, TypeChecker}
 import opencl.ir._

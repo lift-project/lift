@@ -1,5 +1,6 @@
 package exploration
 
+import exploration.utils.{NumberExpression, Utils}
 import ir.ast._
 
 object SimplifyAndFuse {

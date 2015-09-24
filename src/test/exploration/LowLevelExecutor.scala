@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 import apart.arithmetic.{ArithExpr, Cst, Var}
 import exploration.TestLowLevelRewrite.ExecutionHarness
 import cgoSearch.SearchParameters
+import exploration.utils.Utils
 import ir.ast.{FunCall, Split}
 import ir.{ArrayType, TypeChecker}
 import opencl.executor.{Eval, Executor}

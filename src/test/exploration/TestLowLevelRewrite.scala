@@ -1,6 +1,7 @@
 package exploration
 
 import apart.arithmetic.{ArithExpr, Cst, Prod, Var}
+import exploration.utils.Utils
 import ir.ast._
 import ir.view.View
 import ir.{ArrayType, ScalarType, Type, TypeChecker}

@@ -1,5 +1,6 @@
 package exploration
 
+import exploration.utils.NumberExpression
 import ir.{Context, TypeChecker}
 import ir.ast._
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq}

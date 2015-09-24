@@ -1,7 +1,7 @@
 package cgoSearch
 
 import apart.arithmetic.{Cst, Var, ArithExpr}
-import exploration.Utils
+import exploration.utils.Utils
 import ir.{ArrayType, Type}
 import ir.ast.{Split, FunCall, Lambda}
 import scala.collection.immutable.{Map => ScalaImmMap}
