@@ -3,7 +3,7 @@ package cgoSearch
 import java.nio.file.{Files, Paths}
 
 import apart.arithmetic.{Var, ArithExpr, Cst}
-import exploration.{TestHighLevelRewrite, InferNDRange, TestLowLevelRewrite}
+import exploration.{Utils, InferNDRange, TestLowLevelRewrite}
 import ir.TypeChecker
 import ir.ast.Lambda
 import opencl.executor.{Execute, Eval, Executor}
@@ -204,10 +204,10 @@ object Main {
         |$code
       """.stripMargin
 
-      val variables = TestHighLevelRewrite.findVariables(kernel)
-      val variablesReplacedInKernel = TestHighLevelRewrite.replaceVariableDeclarations(kernel, variables)
+      val variables = Utils.findVariables(kernel)
+      val variablesReplacedInKernel = Utils.replaceVariableDeclarations(kernel, variables)
 
-      val hash = TestHighLevelRewrite.Sha256Hash(variablesReplacedInKernel)
+      val hash = Utils.Sha256Hash(variablesReplacedInKernel)
       val filename = hash + ".cl"
 
       /*val path = "kernels/"+
@@ -219,7 +219,7 @@ object Main {
       val (_,globalBuffers) = OpenCLGenerator.getMemories(lambda)
       // FIXME(tlutz): some buffer sizes overflow
       if(globalBuffers.forall(_.mem.size.eval > 0)) {
-        TestHighLevelRewrite.dumpToFile(kernel, filename, path)
+        Utils.dumpToFile(kernel, filename, path)
 
 
         Seq(1024,2048,4096,8192,16384).foreach(i => {
