@@ -44,6 +44,7 @@ object Verbose {
 }
 
 object AllocateLocalMemoryStatically {
+  // FIXME(tlutz) This should be a val
   var allocateLocalMemoryStatically = true
   def apply() = allocateLocalMemoryStatically
   def apply(allocateStatically: Boolean) = {

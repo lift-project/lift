@@ -216,26 +216,44 @@ object Main {
         pathForHash(filename)*/
       val path = s"cl/$lowLevelHash"
 
-      val (_,globalBuffers) = OpenCLGenerator.getMemories(lambda)
-      // FIXME(tlutz): some buffer sizes overflow
-      if(globalBuffers.forall(_.mem.size.eval > 0)) {
-        Utils.dumpToFile(kernel, filename, path)
+        val (_,globalBuffers) = OpenCLGenerator.getMemories(lambda)
+        // FIXME(tlutz): some buffer sizes overflow
 
 
-        Seq(1024,2048,4096,8192,16384).foreach(i => {
-
-          val fw = new java.io.FileWriter(s"cl/$lowLevelHash/exec_$i.csv", true)
-          fw.write(i + "," +
-            global.map(x => {
-              val subst = collection.immutable.Map(x.varList.map(v => (v, Cst(i)).asInstanceOf[(ArithExpr, ArithExpr)]).toSeq:_*)
-
-              ArithExpr.substitute(x, subst)
-            }).mkString(",") + "," +
-            local.map(_.eval).mkString(",") + s",$hash,"+(globalBuffers.length-3)+","+
-            globalBuffers.drop(3).map(_.mem.size.eval/4).mkString(",")+"\n")
-          fw.close()
+        // Dump only the code if the minimal amount of temporary global arrays doesn't overflow
+        val min_map = globalBuffers.map(x => {
+          val subst = collection.immutable.Map(x.mem.size.varList.map(v => (v, Cst(1024)).asInstanceOf[(ArithExpr, ArithExpr)]).toSeq:_*)
+          ArithExpr.substitute(x.mem.size, subst).eval
         })
-      }
+
+        if(min_map.forall(_ > 0)) {
+          Utils.dumpToFile(variablesReplacedInKernel, filename, path)
+
+
+          Seq(1024,2048,4096,8192,16384).foreach(i => {
+
+            // Add to the CSV if there are no overflow
+            val cur_temp_alloc = globalBuffers.map(x => {
+              val subst = collection.immutable.Map(x.mem.size.varList.map(v => (v, Cst(i)).asInstanceOf[(ArithExpr, ArithExpr)]).toSeq:_*)
+              ArithExpr.substitute(x.mem.size, subst).eval
+            })
+
+            if(cur_temp_alloc.forall(_ > 0)) {
+              val fw = new java.io.FileWriter(s"$path/exec_$i.csv", true)
+              fw.write(i + "," +
+                global.map(x => {
+                  val subst = collection.immutable.Map(x.varList.map(v => (v, Cst(i)).asInstanceOf[(ArithExpr, ArithExpr)]).toSeq: _*)
+                  ArithExpr.substitute(x, subst)
+                }).mkString(",") + "," +
+                local.map(x => {
+                  val subst = collection.immutable.Map(x.varList.map(v => (v, Cst(i)).asInstanceOf[(ArithExpr, ArithExpr)]).toSeq: _*)
+                  ArithExpr.substitute(x, subst)
+                }).mkString(",") + s",$hash," + (globalBuffers.length - 3) + "," +
+                cur_temp_alloc.mkString(",") + "\n")
+              fw.close()
+            }
+          })
+        }
      } catch {
        case _: Throwable =>
      }
@@ -246,5 +264,3 @@ object Main {
   def pathForHash(hash: String): String =
     hash.charAt(0) + "/" + hash.charAt(1) + "/" + hash
 }
-
-
