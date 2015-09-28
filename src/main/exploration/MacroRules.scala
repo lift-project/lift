@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.{ArithExpr, ?}
+import apart.arithmetic.{?, ArithExpr}
 import exploration.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
@@ -293,7 +293,8 @@ object MacroRules {
 
   def tileMapMap(x: ArithExpr, y: ArithExpr): Rule =
     Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
-      case funCall @ FunCall(Map(Lambda(_, FunCall(Map(_), _))), _)
+      case funCall @ FunCall(Map(Lambda(lambdaParam, chain)), _)
+        if getCallForBlocking(chain, lambdaParam).isDefined
       =>
         val tiled = tileMapMap(x, y, funCall)
 
@@ -349,14 +350,26 @@ object MacroRules {
         Utils.getFinalArg(expr) match {
           case FunCall(Zip(_), args@_*) =>
 
-            // TODO: get rid of ids
 
-            val ex = Rewrite.depthFirstApplyRuleAtId(funCall, 1, mapMapInterchange)
-            val ey = Rewrite.depthFirstApplyRuleAtId(ex, 0, mapMapInterchange)
-            val e0 = Rewrite.applyRuleAtId(ey, 2, Rules.splitJoin(x))
-            val e1 = Rewrite.applyRuleAtId(e0, 3, Rules.splitZip)
-            val e2 = Rewrite.applyRuleAtId(e1, 11, mapMapInterchange)
-            val e3 = Rewrite.applyRuleAtId(e2, 16, mapMapInterchange)
+            val middleMap = getMapAtDepth(funCall, 1)
+            val ex = applyInterchangeOnAllComponents(funCall, middleMap)
+
+            val outerMap = getMapAtDepth(ex, 0)
+            val ey = applyInterchangeOnAllComponents(ex, outerMap)
+
+            val newOuterMap = getMapAtDepth(ey, 0)
+            val e0 = Rewrite.applyRuleAt(ey, Rules.splitJoin(x), newOuterMap)
+
+
+            val splitZip = getMapAtDepth(e0, 0)
+            val e1 = Rewrite.applyRuleAt(e0, Rules.splitZip, splitZip)
+
+            val outer = getMapAtDepth(e1, 1)
+            val e2 = applyInterchangeOnAllComponents(e1, outer)
+
+            val inner = getMapAtDepth(e2, 2)
+            val e3 = applyInterchangeOnAllComponents(e2, inner)
+
             e3
           case _ =>
 
@@ -683,7 +696,6 @@ object MacroRules {
         val tiled = tileMapMap(factorX, realY, reorderReplaced)
 
         // Bring innermost components out by 2 levels
-
         val map0 = getMapAtDepth(tiled, 3)
         val firstInterchange = applyInterchangeOnAllComponents(tiled, map0)
 
@@ -719,11 +731,11 @@ object MacroRules {
   }
 
   private def getCallForBlocking(innerCall: Expr, lambdaArg: Array[Param]): Option[Expr] = {
-    Utils.getExprForPatternInCallChain(innerCall, {
-      case FunCall(Map(f), arg)
-        if f.body.isConcrete
-       =>
-    })
+    val firstConcrete = Utils.getExprForPatternInCallChain(innerCall, concretePattern)
+    firstConcrete match {
+      case Some(FunCall(Map(_), _)) => firstConcrete
+      case _ => None
+    }
   }
 }
 
