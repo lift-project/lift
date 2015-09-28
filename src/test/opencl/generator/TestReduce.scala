@@ -304,7 +304,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output: Array[Float], runtime) = Execute(inputData.length)(
+      val (output: Array[Float], runtime) = Execute(128, inputData.length, (true, true))(
         fun(ArrayType(Float, Var("N")), (in) => {
 
           Join() o MapWrg(
