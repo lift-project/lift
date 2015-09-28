@@ -28,14 +28,9 @@ class TestBarrier {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     // Barrier should be removed
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input => Join() o MapWrg(MapLcl(id)) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
-      input => Join()(MapWrg(MapLcl(id))(Split(128)(input)))
+      input => Join() o MapWrg(MapLcl(id)) o Split(128) $ input
     )
 
     val code = Compile(f)
@@ -51,20 +46,12 @@ class TestBarrier {
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
 
     // Last barrier should be removed
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          MapLcl(id) o Gather(reverse) o MapLcl(id)
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => MapLcl(id)(Gather(reverse)(MapLcl(id)(x))) )
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          MapLcl(id) o Gather(reverse) o MapLcl(id)
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
@@ -80,20 +67,12 @@ class TestBarrier {
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
 
     // All barriers should be removed
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          MapLcl(id) o MapLcl(id) o Gather(reverse)
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-         fun(x => MapLcl(id)( MapLcl(id)( Gather(reverse)(x))) )
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          MapLcl(id) o MapLcl(id) o Gather(reverse)
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
@@ -109,20 +88,12 @@ class TestBarrier {
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
 
     // First barrier should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(MapLcl(id)) o toLocal(MapLcl(id)) o Gather(reverse)
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => toGlobal(MapLcl(id))(toLocal(MapLcl(id))(Gather(reverse)(x))) )
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o toLocal(MapLcl(id)) o Gather(reverse)
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
@@ -138,20 +109,12 @@ class TestBarrier {
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
 
     // No barriers should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(MapLcl(id)) o Gather(reverse) o toLocal(MapLcl(id))
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => toGlobal(MapLcl(id))( Gather(reverse) (toLocal(MapLcl(id))(x))))
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o Gather(reverse) o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
@@ -167,20 +130,12 @@ class TestBarrier {
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
 
     // First barrier should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(Scatter(reverse) o MapLcl(id)) o toLocal(MapLcl(id))
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun( x => Scatter(reverse)(toGlobal(MapLcl(id))(toLocal(MapLcl(id))(x))))
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(Scatter(reverse) o MapLcl(id)) o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
@@ -197,20 +152,12 @@ class TestBarrier {
     val gold = input
 
     // First barrier should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(MapLcl(id)) o toLocal(MapLcl(id))
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => toGlobal(MapLcl(id))(toLocal(MapLcl(id))(x)))
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
@@ -247,20 +194,12 @@ class TestBarrier {
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
 
     // All barriers should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(MapLcl(id)) o toLocal(MapLcl(id)) o Gather(reverse)
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => toGlobal(MapLcl(id))(toLocal(MapLcl(id))(Gather(reverse)(x))))
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o toLocal(MapLcl(id)) o Gather(reverse)
+        ) o Split(128) $ input
     )
 
     val inputs = Seq(input)
@@ -276,20 +215,12 @@ class TestBarrier {
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
 
     // Last barrier should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(MapLcl(id)) o Gather(reverse) o toLocal(MapLcl(id))
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => toGlobal(MapLcl(id))(Gather(reverse)(toLocal(MapLcl(id))(x))))
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o Gather(reverse) o toLocal(MapLcl(id))
+        ) o Split(128) $ input
     )
 
     val inputs = Seq(input)
@@ -305,22 +236,13 @@ class TestBarrier {
     val gold = input
 
     // Last and middle barriers should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(MapLcl(id)) o MapLcl(id) o Gather(reverse) o
-//          toLocal(MapLcl(id)) o Gather(reverse)
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => toGlobal(MapLcl(id))(MapLcl(id)(Gather(reverse)(
-            toLocal(MapLcl(id))(Gather(reverse)(x))))))
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o MapLcl(id) o Gather(reverse) o
+          toLocal(MapLcl(id)) o Gather(reverse)
+        ) o Split(128) $ input
     )
 
     val inputs = Seq(input)
@@ -336,22 +258,13 @@ class TestBarrier {
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
 
     // Last barrier should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(MapLcl(id)) o Gather(reverse) o
-//          MapLcl(id) o Gather(reverse) o toLocal(MapLcl(id)) o Gather(reverse)
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => toGlobal(MapLcl(id))(Gather(reverse)(MapLcl(id)(
-            Gather(reverse)(toLocal(MapLcl(id))(Gather(reverse)(x)))))))
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o Gather(reverse) o
+          MapLcl(id) o Gather(reverse) o toLocal(MapLcl(id)) o Gather(reverse)
+        ) o Split(128) $ input
     )
 
     val inputs = Seq(input)
@@ -367,22 +280,13 @@ class TestBarrier {
     val gold = input
 
     // Middle barrier should be eliminated
-//    val f = fun(
-//      ArrayType(Float, new Var("N")),
-//      input =>
-//        Join() o MapWrg(
-//          toGlobal(MapLcl(id)) o MapLcl(id) o Gather(reverse) o
-//          toLocal(MapLcl(id)) o Gather(reverse)
-//        ) o Split(128) $ input
-//    )
-
     val f = fun(
       ArrayType(Float, new Var("N")),
       input =>
-        Join()(MapWrg(
-          fun(x => toGlobal(MapLcl(id))(MapLcl(id)(
-            Gather(reverse)(toLocal(MapLcl(id))(Gather(reverse)(x))))))
-        )(Split(128)(input)))
+        Join() o MapWrg(
+          toGlobal(MapLcl(id)) o MapLcl(id) o Gather(reverse) o
+          toLocal(MapLcl(id)) o Gather(reverse)
+        ) o Split(128) $ input
     )
 
     val code = Compile(f)
@@ -399,27 +303,16 @@ class TestBarrier {
 
     val N = Var("N")
 
-//    val f = fun(
-//      ArrayType(ArrayType(Float, N), N),
-//      ArrayType(ArrayType(Float, N), N),
-//      (a, b) => {
-//        MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
-//          Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
-//          toLocal(MapLcl(id)) $ Get(pairArrays, 1))
-//        })) $ Zip(a, b)
-//      }
-//    )
-
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(ArrayType(Float, N), N),
       (a, b) => {
-        MapWrg(fun( pairArrays => toGlobal(MapLcl(add))(
-          Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0), toLocal(MapLcl(id)) $ Get(pairArrays, 1)))
-        ))(Zip(a, b))
+        MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
+          Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
+            toLocal(MapLcl(id)) $ Get(pairArrays, 1))
+        })) $ Zip(a, b)
       }
     )
-
 
     val code = Compile(f)
 
@@ -436,27 +329,16 @@ class TestBarrier {
 
     val N = Var("N")
 
-    //    val f = fun(
-    //      ArrayType(ArrayType(Float, N), N),
-    //      ArrayType(ArrayType(Float, N), N),
-    //      (a, b) => {
-    //        MapWrg(toGlobal(MapLcl(add)) o Gather(reverse) o fun(pairArrays => {
-    //          Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
-    //          toLocal(MapLcl(id)) $ Get(pairArrays, 1))
-    //        })) $ Zip(a, b)
-    //      }
-    //    )
-
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(ArrayType(Float, N), N),
       (a, b) => {
-        MapWrg(fun( pairArrays => toGlobal(MapLcl(add))(Gather(reverse)(
-          Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0), toLocal(MapLcl(id)) $ Get(pairArrays, 1))))
-        ))(Zip(a, b))
+        MapWrg(toGlobal(MapLcl(add)) o Gather(reverse) o fun(pairArrays => {
+          Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
+            toLocal(MapLcl(id)) $ Get(pairArrays, 1))
+        })) $ Zip(a, b)
       }
     )
-
 
     val code = Compile(f)
 
@@ -473,28 +355,16 @@ class TestBarrier {
 
     val N = Var("N")
 
-    //    val f = fun(
-    //      ArrayType(ArrayType(Float, N), N),
-    //      ArrayType(ArrayType(Float, N), N),
-    //      (a, b) => {
-    //        MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
-    //          Zip(Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 0),
-    //          toLocal(MapLcl(id)) $ Get(pairArrays, 1))
-    //        })) $ Zip(a, b)
-    //      }
-    //    )
-
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(ArrayType(Float, N), N),
       (a, b) => {
-        MapWrg(fun( pairArrays => toGlobal(MapLcl(add))(
-          Zip(Gather(reverse)(toLocal(MapLcl(id))(Get(pairArrays, 0))),
-            toLocal(MapLcl(id)) $ Get(pairArrays, 1)))
-        ))(Zip(a, b))
+        MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
+          Zip(Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 0),
+            toLocal(MapLcl(id)) $ Get(pairArrays, 1))
+        })) $ Zip(a, b)
       }
     )
-
 
     val code = Compile(f)
 
@@ -511,25 +381,14 @@ class TestBarrier {
 
     val N = Var("N")
 
-    //    val f = fun(
-    //      ArrayType(ArrayType(Float, N), N),
-    //      ArrayType(ArrayType(Float, N), N),
-    //      (a, b) => {
-    //        MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
-    //          Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
-    //          Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 1))
-    //        })) $ Zip(a, b)
-    //      }
-    //    )
-
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(ArrayType(Float, N), N),
       (a, b) => {
-        MapWrg(fun( pairArrays => toGlobal(MapLcl(add))(
-          Zip(toLocal(MapLcl(id))(Get(pairArrays, 0)),
-            Gather(reverse)(toLocal(MapLcl(id))(Get(pairArrays, 1)))))
-        ))(Zip(a, b))
+        MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
+          Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
+            Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 1))
+        })) $ Zip(a, b)
       }
     )
 
@@ -549,25 +408,14 @@ class TestBarrier {
 
     val N = Var("N")
 
-    //    val f = fun(
-    //      ArrayType(ArrayType(Float, N), N),
-    //      ArrayType(ArrayType(Float, N), N),
-    //      (a, b) => {
-    //        MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
-    //          Zip(Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 0),
-    //          Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 1))
-    //        })) $ Zip(a, b)
-    //      }
-    //    )
-
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(ArrayType(Float, N), N),
       (a, b) => {
-        MapWrg(fun( pairArrays => toGlobal(MapLcl(add))(
-          Zip(Gather(reverse)(toLocal(MapLcl(id))(Get(pairArrays, 0))),
-            Gather(reverse)(toLocal(MapLcl(id))(Get(pairArrays, 1)))))
-        ))(Zip(a, b))
+        MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
+          Zip(Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 0),
+            Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 1))
+        })) $ Zip(a, b)
       }
     )
 
@@ -586,20 +434,12 @@ class TestBarrier {
 
     val N = Var("N")
 
-    //    val f = fun(
-    //      ArrayType(ArrayType(Float, N), N),
-    //      ArrayType(ArrayType(Float, N), N),
-    //      (a, b) => MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays =>
-    //        Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0), Get(pairArrays, 1))
-    //      )) $ Zip(a, b)
-    //    )
-
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(ArrayType(Float, N), N),
-      (a, b) => MapWrg(fun( pairArrays => toGlobal(MapLcl(add))(
-        Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0), Get(pairArrays, 1)))
-      ))(Zip(a, b))
+      (a, b) => MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays =>
+        Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0), Get(pairArrays, 1))
+      )) $ Zip(a, b)
     )
 
     val code = Compile(f)
@@ -742,6 +582,79 @@ class TestBarrier {
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, result, 0.0f)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def invalidKernel(): Unit = {
+    val inputSize = 32
+    val input = Array.fill(inputSize, inputSize, inputSize/2,
+      inputSize/2)(util.Random.nextInt(5).toFloat)
+
+    val N = Var("N")
+
+    // Should have a barrier, but not all threads take it
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, 16), 16), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        MapLcl(0)(MapLcl(1)(id) o Gather(reverse) o MapLcl(1)(id))
+      )) $ input
+    )
+
+    Execute(32, 16, inputSize, inputSize, (true, true))(f, input)
+  }
+
+  @Ignore
+  @Test
+  def doubleNestedMapLclWithReorderGlobalMem(): Unit = {
+    val inputSize = 32
+    val input = Array.fill(inputSize, inputSize, inputSize,
+      inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = input.map(_.map(_.map(_.reverse)))
+
+    val N = Var("N")
+
+    // Should have a barrier
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        MapLcl(0)(MapLcl(1)(id)) o
+          MapLcl(0)(Gather(reverse) o MapLcl(1)(id))
+      )) $ input
+    )
+
+    val code = Compile(f)
+    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
+      (false, false))(code, f, input)
+
+    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Ignore
+  @Test
+  def doubleNestedMapLclWithReorderGlobalMem2(): Unit = {
+    val inputSize = 32
+    val input = Array.fill(inputSize, inputSize, inputSize,
+      inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = input.map(_.map(_.map(_.reverse)))
+
+    val N = Var("N")
+
+    // Should have a barrier
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        MapLcl(0)(MapLcl(1)(id) o Gather(reverse)) o
+          MapLcl(0)(MapLcl(1)(id))
+      )) $ input
+    )
+
+    val code = Compile(f)
+    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
+      (false, false))(code, f, input)
+
+    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
   }
 
   @Ignore

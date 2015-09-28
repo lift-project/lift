@@ -178,6 +178,7 @@ class OpenCLGenerator extends Generator {
     RangesAndCounts(f, localSize, globalSize, valueMap)
     allocateMemory(f)
     BarrierElimination(f)
+    CheckBarriersAndLoops(f)
 
     if (Verbose()) {
       println("Memory:")
