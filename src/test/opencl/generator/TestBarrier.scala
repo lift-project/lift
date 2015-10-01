@@ -539,6 +539,63 @@ class TestBarrier {
   }
 
   @Test
+  def doubleNestedMapLclWithReorder2(): Unit = {
+    val inputSize = 32
+    val input = Array.fill(inputSize, inputSize, inputSize,
+      inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = input.map(_.map(_.map(_.reverse)))
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        toGlobal(MapLcl(0)(MapLcl(1)(id))) o
+          toLocal(MapLcl(0)(Gather(reverse) o MapLcl(1)(id)))
+      )) $ input
+    )
+
+    val code = Compile(f)
+    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
+      (false, false))(code, f, input)
+
+    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+    assertEquals(2, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Test
+  def testIsGather(): Unit = {
+    val call = (toGlobal(MapLcl(0)(MapLcl(1)(id) o Gather(reverse))) $ Param()).asInstanceOf[FunCall]
+
+    assertTrue(BarrierElimination.isPattern(call, classOf[Gather]))
+  }
+
+  @Test
+  def doubleNestedMapLclWithReorder3(): Unit = {
+    val inputSize = 32
+    val input = Array.fill(inputSize, inputSize, inputSize,
+      inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = input.map(_.map(_.map(_.reverse)))
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        toGlobal(MapLcl(0)(MapLcl(1)(id) o Gather(reverse))) o
+          toLocal(MapLcl(0)(MapLcl(1)(id)))
+      )) $ input
+    )
+
+    val code = Compile(f)
+    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
+      (false, false))(code, f, input)
+
+    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+    assertEquals(2, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Test
   def tail(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(i => i.toFloat)
@@ -605,7 +662,6 @@ class TestBarrier {
     Execute(32, 16, inputSize, inputSize, (true, true))(f, input)
   }
 
-  @Ignore
   @Test
   def doubleNestedMapLclWithReorderGlobalMem(): Unit = {
     val inputSize = 32
@@ -625,6 +681,7 @@ class TestBarrier {
     )
 
     val code = Compile(f)
+
     val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
       (false, false))(code, f, input)
 
@@ -632,7 +689,32 @@ class TestBarrier {
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
   }
 
-  @Ignore
+  @Test
+  def doubleNestedMapLclWithReorderGlobalMem3(): Unit = {
+    val inputSize = 32
+    val input = Array.fill(inputSize, inputSize, inputSize,
+      inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = input.map(_.map(_.reverse))
+
+    val N = Var("N")
+
+    // Should have a barrier
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        MapLcl(0)(MapLcl(1)(id)) o
+          Scatter(reverse) o MapLcl(0)(MapLcl(1)(id))
+      )) $ input
+    )
+
+    val code = Compile(f)
+    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
+      (false, false))(code, f, input)
+
+    assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
+
   @Test
   def doubleNestedMapLclWithReorderGlobalMem2(): Unit = {
     val inputSize = 32
@@ -683,7 +765,6 @@ class TestBarrier {
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
   }
 
-  @Ignore
   @Test
   def tupleInside2MapLcl() = {
     val innerSize = 16
@@ -725,11 +806,9 @@ class TestBarrier {
       )) $ input)
 
     val code = Compile(f, innerSize, innerSize, 1)
-
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
   }
 
-  @Ignore
   @Test
   def tupleWithAsVectorInsideMapLcl() = {
     val innerSize = 16
@@ -749,7 +828,6 @@ class TestBarrier {
       )) $ input)
 
     val code = Compile(f, innerSize, innerSize, 1)
-
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
   }
 }

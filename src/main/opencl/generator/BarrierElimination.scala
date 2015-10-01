@@ -1,6 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.{?, ArithExpr, Cst, IntDiv}
+import exploration.utils._
 import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -36,7 +37,9 @@ object BarrierElimination {
         calls.foreach(call => {
           call.f match {
             case m: AbstractMap => apply(m.f.body, insideLoop || isLoop(m.iterationCount))
-            case r: AbstractPartRed => apply(r.f.body, insideLoop || isLoop(r.iterationCount))
+            case r: AbstractPartRed =>
+              apply(call.args.head, insideLoop)
+              apply(r.f.body, insideLoop || isLoop(r.iterationCount))
             case i: Iterate => apply(i.f.body, insideLoop || isLoop(i.iterationCount))
             case toLocal(f) => apply(insideLoop, f)
             case toGlobal(f) => apply(insideLoop, f)
@@ -48,14 +51,31 @@ object BarrierElimination {
 
           markLevel(calls, insideLoop)
 
-          val mapLcl = getMapLcl(call.f)
-          if (mapLcl.isDefined) {
-            mapLcl.get.f.body match {
-              case FunCall(innerMapLcl @ MapLcl(_,_), _) =>
+          val mapLclOption = getMapLcl(call.f)
+          if (mapLclOption.isDefined) {
+            val mapLcl = mapLclOption.get
+
+            val nestedMapLcl = Utils.getExprForPatternInCallChain(mapLcl.f.body,
+              {
+                case FunCall(MapLcl(_, _), _) =>
+                case FunCall(Tuple(_) | Zip(_), args@_*)
+                  if args.exists(
+                    Utils.getIndexForPatternInCallChain(_, { case FunCall(MapLcl(_, _), _) =>}) != -1
+                  ) =>
+              })
+
+            nestedMapLcl match {
+              case Some(FunCall(innerMapLcl:MapLcl, _)) =>
                 innerMapLcl.emitBarrier = false
+              case Some(FunCall(_, args@_*)) =>
+                args
+                  .map(Utils.getExprForPatternInCallChain(_, { case FunCall(MapLcl(_, _), _) =>}))
+                  .collect({ case Some(FunCall(decl:MapLcl, _)) => decl })
+                  .foreach(_.emitBarrier = false)
               case _ =>
             }
           }
+
         })
 
       case _ =>
@@ -78,6 +98,7 @@ object BarrierElimination {
       case call: FunCall =>
         call.f match {
           case Lambda(_, body) => getCallsAtLevel(body) ++ call.args.reverse.flatMap(getCallsAtLevel)
+          case r:AbstractPartRed => call +: getCallsAtLevel(call.args(1))
           case _ => call +: call.args.reverse.flatMap(getCallsAtLevel)
         }
       case _ => Seq()
@@ -134,7 +155,7 @@ object BarrierElimination {
         }
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
-        if (group.init.exists(call => isPattern(call, classOf[Split]) || isPattern(call, classOf[Join])
+        if (group.exists(call => isPattern(call, classOf[Split]) || isPattern(call, classOf[Join])
            || isPattern(call, classOf[asVector]) || isPattern(call, classOf[asScalar])) && id > 0) {
           needsBarrier(id) = true
 
@@ -147,7 +168,7 @@ object BarrierElimination {
 
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
-        if (group.init.exists(call => isPattern(call, classOf[Scatter]) || isPattern(call, classOf[Gather])
+        if (group.exists(call => isPattern(call, classOf[Scatter]) || isPattern(call, classOf[Gather])
           || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW])
           || isPattern(call, classOf[Tail])) && id > 0) {
 
@@ -196,10 +217,10 @@ object BarrierElimination {
     }
   }
 
-  private def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
+  private[generator] def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
     Expr.visitWithState(false)(funCall, (expr, contains) => {
       expr match {
-        case FunCall(declaration, _*) => declaration.getClass == patternClass
+        case FunCall(declaration, _*) => declaration.getClass == patternClass || contains
         case _ => contains
       }
     }, visitArgs = false)
