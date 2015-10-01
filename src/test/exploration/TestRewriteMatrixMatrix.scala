@@ -143,7 +143,7 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def simpleLowering(): Unit = {
-    val tileSizeMN = 128
+    val tileSizeMN = 16
     val tileSizeK = 8
     val workPerThreadN = 2
     val workPerThreadM = 8
