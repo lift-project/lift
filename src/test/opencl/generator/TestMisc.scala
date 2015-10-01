@@ -24,6 +24,39 @@ object TestMisc {
 
 class TestMisc {
 
+  @Test def issue20(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inputData.map(_+5)
+
+    val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      (inArr) => {
+        Join() o MapGlb(
+          Iterate(5)(fun((e) => MapSeq(incr) $ e))
+        ) o Split(1) $ inArr
+      }
+    )
+
+    val f2 = fun(
+      ArrayType(Float, Var("N")),
+      (inArr) => {
+        Iterate(5)(fun((arr) =>
+          MapGlb(incr) $ arr
+        )) $ inArr
+      }
+    )
+
+
+    val (output1: Array[Float], _) = Execute(inputData.length)(f, inputData)
+    assertArrayEquals(gold, output1, 0.0f)
+
+    val (output2: Array[Float], _) = Execute(inputData.length)(f2, inputData)
+    assertArrayEquals(gold, output2, 0.0f)
+  }
+
   @Test def issue22(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
