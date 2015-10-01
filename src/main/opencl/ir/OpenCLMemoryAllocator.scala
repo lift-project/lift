@@ -230,7 +230,7 @@ object OpenCLMemoryAllocator {
 
     // create a swap buffer
     it.swapBuffer =
-      OpenCLMemory.allocMemory(largestSize, largestSize, largestSize,
+      OpenCLMemory.allocMemory(largestSize*numGlb, largestSize*numLcl, largestSize*numPvt,
                                inMem.addressSpace)
 
     // recurs to allocate memory for the function(s) inside
