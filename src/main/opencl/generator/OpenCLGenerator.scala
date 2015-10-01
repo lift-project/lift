@@ -732,18 +732,9 @@ class OpenCLGenerator extends Generator {
       )
     } else {
       (originalType, t) match {
-        case (at: ArrayType, vt: VectorType) => at.elemT match {
+        case (at: ArrayType, vt: VectorType) => Type.getValueType(at) match {
           // originally a scalar type, but now a vector type => vstore
           case st: ScalarType if Type.isEqual(st, vt.scalarT) =>
-            OpenCLAST.Store(
-              OpenCLAST.VarRef(mem.variable.toString), vt,
-              value = value,
-              offset = OpenCLAST.Expression(
-                          ArithExpr.substitute(ViewPrinter.emit(view),
-                                               replacementsWithFuns) / vt.len))
-
-          // originally an array, but now a vector type => vstore
-          case at: ArrayType if Type.isEqual(Type.getValueType(at), vt.scalarT) =>
             OpenCLAST.Store(
               OpenCLAST.VarRef(mem.variable.toString), vt,
               value = value,
@@ -773,18 +764,9 @@ class OpenCLGenerator extends Generator {
       simpleAccessNode(v, addressSpace, t, view)
     } else { // types do not match
       (originalType, t) match {
-        case (at: ArrayType, vt: VectorType) => at.elemT match {
+        case (at: ArrayType, vt: VectorType) => Type.getValueType(at) match {
           // originally a scalar type, but now a vector type => vload
           case st: ScalarType if Type.isEqual(st, vt.scalarT) =>
-            OpenCLAST.Load(
-              OpenCLAST.VarRef(v.toString), vt,
-              offset = OpenCLAST.Expression(
-                          ArithExpr.substitute(ViewPrinter.emit(view),
-                                               replacementsWithFuns) / vt.len)
-            )
-
-          // originally an array, but now a vector type => vstore
-          case at: ArrayType  if Type.isEqual(at.elemT, vt.scalarT)  =>
             OpenCLAST.Load(
               OpenCLAST.VarRef(v.toString), vt,
               offset = OpenCLAST.Expression(
