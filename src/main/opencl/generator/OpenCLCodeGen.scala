@@ -184,7 +184,7 @@ class OpenCLCodeGen {
     print(s.offset)
     print(",")
     print(s.v)
-    print(");")
+    println(");")
   }
 
   private def print(f: FunctionCall): Unit = {
