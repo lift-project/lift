@@ -507,6 +507,8 @@ class TestBarrier {
 
     val code = Compile(f)
 
+    println(code)
+
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
   }
 
@@ -678,6 +680,76 @@ class TestBarrier {
     val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
 
     assertArrayEquals(gold, output, 0.0f)
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Ignore
+  @Test
+  def tupleInside2MapLcl() = {
+    val innerSize = 16
+
+    val N = Var("N")
+
+    // Should have 1 barrier
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, innerSize), innerSize), N), N),
+      input => MapWrg(0)(MapWrg(1)(fun(x =>
+        Unzip() o toLocal(MapLcl(1)(fun(pair =>
+          Unzip() o MapLcl(0)(fun( pair =>
+            Tuple(id $ Get(pair, 0), id $ Get(pair, 1))
+          )) $ Zip(Get(pair, 0), Get(pair, 1))
+        ))) $ Zip(x, x) )
+      )) $ input
+    )
+
+    val code = Compile(f, innerSize, innerSize, 1)
+
+    println(code)
+
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Test
+  def tupleInsideMapLcl() = {
+    val innerSize = 16
+
+    val N = Var("N")
+
+    // Should have 1 barrier
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, innerSize), innerSize), N), N),
+      input => MapWrg(0)(MapWrg(1)(fun(x =>
+        Unzip() o toLocal(MapLcl(1)(fun(pair =>
+          Tuple(MapLcl(0)(id) $ Get(pair, 0), MapLcl(0)(id) $ Get(pair, 1)))
+        )) $ Zip(x, x))
+      )) $ input)
+
+    val code = Compile(f, innerSize, innerSize, 1)
+
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Ignore
+  @Test
+  def tupleWithAsVectorInsideMapLcl() = {
+    val innerSize = 16
+
+    val N = Var("N")
+
+    // Should have 1 barrier
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, innerSize), innerSize), N), N),
+      input => MapWrg(0)(MapWrg(1)(fun(x =>
+        Unzip() o toLocal(MapLcl(1)(fun(pair =>
+          Tuple(
+            asScalar() o MapLcl(0)(id.vectorize(4)) o asVector(4) $ Get(pair, 0),
+            asScalar() o MapLcl(0)(id.vectorize(4)) o asVector(4) $ Get(pair, 1))
+          )
+        )) $ Zip(x, x))
+      )) $ input)
+
+    val code = Compile(f, innerSize, innerSize, 1)
+
     assertEquals(1, "barrier".r.findAllMatchIn(code).length)
   }
 }
