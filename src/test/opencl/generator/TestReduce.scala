@@ -625,7 +625,6 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-  @Ignore
   @Test def issue_31(): Unit = {
     val inputSize = 512
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)

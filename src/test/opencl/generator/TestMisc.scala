@@ -7,7 +7,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestMisc {
   @BeforeClass def before() {
@@ -179,7 +179,6 @@ class TestMisc {
     assertArrayEquals(inputData, output, 0.0f)
   }
 
-  @Ignore
   @Test
   def issue28(): Unit = {
     val inputSize = 1024
