@@ -627,7 +627,7 @@ class OpenCLGenerator extends Generator {
 
       // tmp = tmp * outputLen / inputLen
       b += OpenCLAST.Assignment(curOutLenRef,
-        OpenCLAST.Expression(curOutLen * innerOutputLength /^ innerInputLength))
+        OpenCLAST.Expression(innerOutputLength))
 
 
       val tinVStrRef = OpenCLAST.VarRef(openCLCodeGen.print(tin))
