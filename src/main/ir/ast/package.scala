@@ -35,4 +35,21 @@ package object ast {
     val n = Type.getLength(t) /^ s
     (i / n) + s * (i % n)
   }
+
+  case class ReorderWithStride(s: ArithExpr) extends IndexFunction(reorderStride(s)) {
+
+    def canEqual(other: Any): Boolean = other.isInstanceOf[ReorderWithStride]
+
+    override def equals(other: Any): Boolean = other match {
+      case that: ReorderWithStride =>
+        (that canEqual this) &&
+          s == that.s
+      case _ => false
+    }
+
+    override def hashCode(): Int = {
+      val state = Seq(s)
+      state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    }
+  }
 }

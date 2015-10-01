@@ -12,7 +12,7 @@ object OpenCLAST {
   /**
    * List of nodes enclosed in a bock. This behaves like (and emits) a C block.
    */
-  case class Block(var content: List[OclAstNode] = List.empty,
+  case class Block(var content: Vector[OclAstNode] = Vector.empty,
                    global: Boolean = false) extends OclAstNode {
     /** Append a sub-node. Could be any node, including a sub-block.
       * @param node The node to add to this block.

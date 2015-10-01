@@ -7,7 +7,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestMisc {
   @BeforeClass def before() {
@@ -23,6 +23,39 @@ object TestMisc {
 }
 
 class TestMisc {
+
+  @Test def issue20(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inputData.map(_+5)
+
+    val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      (inArr) => {
+        Join() o MapGlb(
+          Iterate(5)(fun((e) => MapSeq(incr) $ e))
+        ) o Split(1) $ inArr
+      }
+    )
+
+    val f2 = fun(
+      ArrayType(Float, Var("N")),
+      (inArr) => {
+        Iterate(5)(fun((arr) =>
+          MapGlb(incr) $ arr
+        )) $ inArr
+      }
+    )
+
+
+    val (output1: Array[Float], _) = Execute(inputData.length)(f, inputData)
+    assertArrayEquals(gold, output1, 0.0f)
+
+    val (output2: Array[Float], _) = Execute(inputData.length)(f2, inputData)
+    assertArrayEquals(gold, output2, 0.0f)
+  }
 
   @Test def issue22(): Unit = {
     val inputSize = 1024
@@ -146,7 +179,6 @@ class TestMisc {
     assertArrayEquals(inputData, output, 0.0f)
   }
 
-  @Ignore
   @Test
   def issue28(): Unit = {
     val inputSize = 1024
@@ -215,19 +247,17 @@ class TestMisc {
     println("runtime = " + runtime)
   }
 
-  @Test def accessingMultidimArrayAfterZip(): Unit = {
+  @Test def accessingMultiDimArrayAfterZip(): Unit = {
     val Nsize = 8
-    val Msize = 4
     val Ksize = 2
-    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+    val matrix = Array.tabulate(Nsize, Nsize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
     val vector = Array.fill(Nsize)(1.0f)
 
     val N = Var("N")
-    val M = Var("M")
     val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayType(ArrayType(ArrayType(Float, K), N), N),
       ArrayType(Float, N),
       (matrix, vector) => MapGlb(fun(r =>
         MapSeq(fun(t =>
@@ -277,6 +307,25 @@ class TestMisc {
       ArrayType(Float4, N),
       (input) =>
         MapGlb(id.vectorize(4)) $ input
+    )
+
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
+    assertArrayEquals(inputData, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Test def vectorizePattern(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float4, N),
+      (input) =>
+        MapGlb(VectorizeUserFun(4, id)) $ input
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)

@@ -1,42 +1,40 @@
 package ir
 
 import ir.ast._
-import opencl.ir.ast._
 import opencl.ir.pattern._
 
 class Context extends Cloneable {
 
-  // TODO(tlutz) keep a stack to track current dim
   var mapDepth : Int = 0
-  var inMapGlb  = false
-  var inMapWrg  = false
-  var inMapLcl  = false
+  var inMapGlb  = Seq(false, false, false)
+  var inMapWrg  = Seq(false, false, false)
+  var inMapLcl  = Seq(false, false, false)
   var inMapWarp = false
   var inMapLane = false
   var inMapSeq  = false
   var inReduceSeq = false
-       
+
   def incMapDepth() : Context = {
     val c = this.copy()
     c.mapDepth += 1
     c
   }
   
-  def setInMapGlb() : Context = {
+  def setInMapGlb(dim: Int) : Context = {
     val c = this.copy()
-    c.inMapGlb = true
+    c.inMapGlb = c.inMapGlb.updated(dim, true)
     c
   }  
   
-  def setInMapWrg() : Context = {
+  def setInMapWrg(dim: Int) : Context = {
     val c = this.copy()
-    c.inMapWrg = true
+    c.inMapWrg = c.inMapWrg.updated(dim, true)
     c
   }
    
-   def setInMapLcl() : Context = {
+   def setInMapLcl(dim: Int) : Context = {
     val c = this.copy()
-    c.inMapLcl = true
+    c.inMapLcl = c.inMapLcl.updated(dim, true)
     c
   }
 
@@ -63,20 +61,16 @@ class Context extends Cloneable {
     c.inReduceSeq = true
     c
   }
-
-
-  /*override def toString(): String = {
-    "Contex[mapDepth="+mapDepth+"]"
-  }*/
   
-  def copy() = this.clone().asInstanceOf[Context]
+  def copy() =
+    this.clone().asInstanceOf[Context]
 }
 
 object Context {
    /**
      * Update the context recursively
      */
-  def updateContext(expr: Expr): Unit = updateContext(expr, expr.context)
+  def updateContext(expr: Expr): Unit = updateContext(expr, new Context)
     
   /**
    * Update the context recursively
@@ -93,12 +87,12 @@ object Context {
               updateContext(inF.body, ctx.incMapDepth())
             case MapSeq(inF)   =>
               updateContext(inF.body, ctx.incMapDepth().setInMapSeq())
-            case MapGlb(_,inF) =>
-              updateContext(inF.body, ctx.incMapDepth().setInMapGlb())
-            case MapWrg(_,inF) =>
-              updateContext(inF.body, ctx.incMapDepth().setInMapWrg())
-            case MapLcl(_,inF) =>
-              updateContext(inF.body, ctx.incMapDepth().setInMapLcl())
+            case MapGlb(dim,inF) =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapGlb(dim))
+            case MapWrg(dim,inF) =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapWrg(dim))
+            case MapLcl(dim,inF) =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapLcl(dim))
             case MapWarp(inF)  =>
               updateContext(inF.body, ctx.incMapDepth().setInMapWarp())
             case MapLane(inF)  =>

@@ -167,6 +167,14 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     benchmark(iterations, timeout, code, f, values:_*)
   }
 
+  def evaluate(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
+    val code = compile(f, values:_*)
+
+    evaluate(iterations, timeout, code, f, values:_*)
+  }
+
+
+
   private def compile(f: Lambda, values: Any*) : String = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
@@ -232,6 +240,18 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     execute(executeFunction, code, f, values:_*)
   }
 
+  def evaluate(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+
+    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (code, localSize1, localSize2, localSize3,
+         globalSize1, globalSize2, globalSize3, args) =>
+      Executor.evaluate(code, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, args, iterations, timeout)
+
+    execute(executeFunction, code, f, values:_*)
+  }
+
+
   private def execute(executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
                        code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
@@ -246,7 +266,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     staticPadCheck(f, valueMap)
 
     // 3. make sure the device has enough memory to execute the kernel
-    validateMemorySizes(valueMap)
+    validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
     val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval
@@ -369,7 +389,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
                             valueMap: immutable.Map[ArithExpr, ArithExpr],
                             values: Any*): Array[KernelArg] = {
     // go through all memory objects associated with the generated kernel
-    OpenCLGenerator.Kernel.memory.map(mem => {
+    OpenCLGenerator.getMemories(f)._2.map(mem => {
       // get the OpenCL memory object ...
       val m = mem.mem
       // ... look for it in the parameter list ...
@@ -386,9 +406,11 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     })
   }
 
-  private def validateMemorySizes(valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+  private def validateMemorySizes(f:Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+    val memories = OpenCLGenerator.getMemories(f)
+
     val (globalMemories, localMemories) =
-      (OpenCLGenerator.Kernel.memory ++ OpenCLGenerator.Kernel.staticLocalMemory).
+      (memories._1 ++ memories._2).
         partition(_.mem.addressSpace == GlobalMemory)
 
     val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
@@ -414,7 +436,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   private def createSizeArgs(f: Lambda,
                              valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
     // get the variables from the memory objects associated with the generated kernel
-    val allVars = OpenCLGenerator.Kernel.memory.map(mem => {
+    val allVars = OpenCLGenerator.getMemories(f)._2.map(mem => {
       mem.mem.size.varList
     } ).filter(_.nonEmpty).flatten.distinct
     // select the variables which are not (internal) iteration variables

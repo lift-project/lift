@@ -8,17 +8,20 @@ import opencl.generator.OpenCLAST._
 import opencl.ir._
 import opencl.ir.ast.GroupCall
 
+object OpenCLCodeGen {
+  def apply() = new OpenCLCodeGen
+}
+
 /** The codegen walks the AST emitted by the [[OpenCLGenerator]] and generates
   * standalone OpenCL-C code.
   */
-object OpenCLCodeGen {
+class OpenCLCodeGen {
   /**
    * Entry point for printing an AST.
    * @param node The root of the AST (the global scope block).
    * @return A string representation of the AST as OpenCL-C code.
    */
   def apply(node: OclAstNode): String = {
-    sb = new StringBuilder()
     indent = 0
     print(node)
     sb.toString()
@@ -72,7 +75,7 @@ object OpenCLCodeGen {
   // private implementation
 
   /** Output stream for current AST */
-  private var sb: StringBuilder = new StringBuilder
+  private val sb: StringBuilder = new StringBuilder
 
   private def print(s: String): Unit = {
     sb ++= s
@@ -100,7 +103,7 @@ object OpenCLCodeGen {
 
   /** Insert the correct indentation */
   private def tab() = {
-    lazy val whiteSpace: String = Seq.fill(tabSize)(" ").reduce( _ ++ _)
+    lazy val whiteSpace: String = " " * tabSize
     whiteSpace * indent
   }
 
@@ -180,7 +183,7 @@ object OpenCLCodeGen {
     print(s.offset)
     print(",")
     print(s.v)
-    print(");")
+    println(");")
   }
 
   private def print(f: FunctionCall): Unit = {
@@ -209,9 +212,16 @@ object OpenCLCodeGen {
       print(x)
       if(x != f.params.last) sb ++= ", "
     })
-    sb ++= ") "
+    sb ++= ")"
+    if(f.kernel)
+      sb ++= "{ \n" +
+        "#ifndef WORKGROUP_GUARD\n" +
+        "#define WORKGROUP_GUARD\n" + 
+        "#endif\n" +
+        "WORKGROUP_GUARD\n"
     print(f.body)
-    println("")
+    if(f.kernel)
+      println("}")
   }
 
   private def print(a: Assignment): Unit = {
@@ -256,7 +266,9 @@ object OpenCLCodeGen {
       }
 
     case x =>
-      print(print(v.t)+" "+v.name)
+      if(v.addressSpace == LocalMemory)
+        print(v.addressSpace + " ")
+      print(s"${print(v.t)} ${v.name}")
       if(v.init != null) {
         print(s" = ")
         print(v.init)

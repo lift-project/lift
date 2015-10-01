@@ -3,7 +3,6 @@ package opencl.generator
 import apart.arithmetic._
 import ir._
 import ir.ast._
-import opencl.generator.OpenCLGenerator.Kernel
 import opencl.ir.pattern._
 
 import scala.collection.immutable
@@ -116,7 +115,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   private def setRangeMapWarp(m: MapWarp, call: FunCall): Unit = {
     m.loopVar.range = RangeAdd(new get_local_id(0) /^ OpenCL.warpSize,
       Type.getLength(call.args.head.t),
-      Cst(Kernel.workGroupSize) /^ OpenCL.warpSize)
+      localSizes(0) /^ OpenCL.warpSize)
     evaluateMapRange(m)
   }
 

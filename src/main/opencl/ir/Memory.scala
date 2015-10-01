@@ -22,7 +22,7 @@ object PrivateMemory extends OpenCLAddressSpace {
   override def toString = "private"
 }
 
-class AddressSpaceCollection(spaces: Seq[OpenCLAddressSpace])
+case class AddressSpaceCollection(spaces: Seq[OpenCLAddressSpace])
   extends OpenCLAddressSpace {
 
   def findCommonAddressSpace(): OpenCLAddressSpace = {
@@ -90,6 +90,22 @@ class OpenCLMemory(var variable: Var,
       case _ =>
         "{" + variable + "; " + addressSpace + "; " + size + "}"
     }
+  }
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[OpenCLMemory]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: OpenCLMemory =>
+      (that canEqual this) &&
+        variable == that.variable &&
+        size == that.size &&
+        addressSpace == that.addressSpace
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(variable, size, addressSpace)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
 
@@ -251,6 +267,8 @@ object TypedOpenCLMemory {
 
       val bodyMems = call.f match {
         case uf: UserFun    => collectUserFun(call)
+        case vf: VectorizeUserFun
+                            => collectUserFun(call)
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
         case r: AbstractPartRed => collectReduce(r, adaptedArgMems)
@@ -328,7 +346,21 @@ object TypedOpenCLMemory {
       TypedOpenCLMemory(i.swapBuffer, ArrayType(call.args.head.t, ?)) +: collect(i.f.body)
     }
 
+    // this prevents that multiple memory objects (possibly with different types) are collected
+    // multiple times
+    def distinct(seq: Seq[TypedOpenCLMemory]) = {
+      val b = Seq.newBuilder[TypedOpenCLMemory]
+      val seen = scala.collection.mutable.HashSet[OpenCLMemory]()
+      for (x <- seq) {
+        if (!seen(x.mem)) {
+          b += x
+          seen += x.mem
+        }
+      }
+      b.result()
+    }
+
     // actual function impl
-    params.map(TypedOpenCLMemory(_)) ++ collect(expr)
+    params.map(TypedOpenCLMemory(_)) ++ distinct(collect(expr))
   }
 }
