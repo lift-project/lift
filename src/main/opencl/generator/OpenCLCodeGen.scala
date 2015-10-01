@@ -267,7 +267,9 @@ class OpenCLCodeGen {
       }
 
     case x =>
-      print(print(v.t)+" "+v.name)
+      if(v.addressSpace == LocalMemory)
+        print(v.addressSpace + " ")
+      print(s"${print(v.t)} ${v.name}")
       if(v.init != null) {
         print(s" = ")
         print(v.init)

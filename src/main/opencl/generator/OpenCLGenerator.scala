@@ -804,15 +804,21 @@ class OpenCLGenerator extends Generator {
                                t: Type,
                                view: View): OpenCLAST.OclAstNode = {
     val varname: String = openCLCodeGen.print(v)
+    val originalType = varDecls(v)
 
     addressSpace match {
       case LocalMemory | GlobalMemory =>
         // both types match => no vload necessary ...
         // generate: var[index]
-        OpenCLAST.VarRef(varname,
-          offset = OpenCLAST.Expression(
-                      ArithExpr.substitute(ViewPrinter.emit(view),
-                                           replacementsWithFuns)))
+        originalType match {
+          case _: ArrayType =>
+            OpenCLAST.VarRef(varname,
+              offset = OpenCLAST.Expression(
+                ArithExpr.substitute(ViewPrinter.emit(view),
+                  replacementsWithFuns)))
+
+          case _ => OpenCLAST.VarRef(varname)
+        }
 
       case PrivateMemory =>
         privateMems.find(m => m.mem.variable == v) match {
