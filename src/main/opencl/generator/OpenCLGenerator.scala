@@ -645,6 +645,9 @@ class OpenCLGenerator extends Generator {
         OpenCLAST.Expression((tout eq swapMem.variable) ??
                              outputMem.variable !! swapMem.variable))
 
+      if(outputMem.addressSpace != PrivateMemory)
+        b += OpenCLAST.Barrier(outputMem)
+
       b
     }, i.iterationCount)
   }
