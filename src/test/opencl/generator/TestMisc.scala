@@ -663,7 +663,7 @@ class TestMisc {
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
-  @Test def LocalTilingRegression2: Unit = {
+  @Test def localMemoryRegression(): Unit = {
     val f =
       fun(
         ArrayType(Float, Var("N")),
@@ -679,8 +679,11 @@ class TestMisc {
 
     val input = Array.fill(2048)(util.Random.nextInt(5).toFloat)
 
-    val (output: Array[Float], _) = Execute(16, 2048)(f, input)
+    val code = Compile(f)
+
+    val (output: Array[Float], _) = Execute(16, 2048)(code, f, input)
 
     assertEquals(input.sum, output.sum, 0.0f)
+    assertEquals(8, "l_id".r.findAllMatchIn(code).length)
   }
 }
