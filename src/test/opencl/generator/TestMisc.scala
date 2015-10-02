@@ -662,4 +662,25 @@ class TestMisc {
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
+
+  @Test def LocalTilingRegression2: Unit = {
+    val f =
+      fun(
+        ArrayType(Float, Var("N")),
+        x => Join() o MapWrg(
+          Join() o MapLcl(
+            Join() o MapSeq(
+              toGlobal(MapSeq(id)) o Gather(reverse) o toLocal(MapSeq(id))
+            ) o Split(2)
+          ) o Split(2)
+        ) o Split(512) $ x
+
+      )
+
+    val input = Array.fill(2048)(util.Random.nextInt(5).toFloat)
+
+    val (output: Array[Float], _) = Execute(16, 2048)(f, input)
+
+    assertEquals(input.sum, output.sum, 0.0f)
+  }
 }
