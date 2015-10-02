@@ -25,46 +25,6 @@ object TestMatrixVector {
 
 class TestMatrixVector {
 
-  def matrixVector(matrix: Array[Array[Float]], vector: Array[Float]): Array[Float] = {
-    matrix.map(
-      (row) => (row, vector).zipped.map(_ * _).sum
-    )
-  }
-
-  def matrixVector(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float]): Array[Float] = {
-    val tmp = matrix.map(
-      (row) => (row, vectorX).zipped.map(_ * _).sum
-    )
-    (tmp, vectorY).zipped.map(_ + _)
-  }
-
-  def matrixVector(matrix: Array[Array[Float]], vector: Array[Float], alpha: Float): Array[Float] = {
-    matrix.map(
-      (row) => (row, vector).zipped.map(_ * _).sum * alpha
-    )
-  }
-
-  def matrixVector(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float], alpha: Float, beta: Float): Array[Float] = {
-    val tmp = matrix.map(
-      (row) => (row, vectorX).zipped.map(_ * _).sum * alpha
-    )
-
-    val scaledY = vectorY.map(_ * beta)
-
-    (tmp, scaledY).zipped.map(_ + _)
-  }
-
-  def matrixVector2(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float], alpha: Float, beta: Float): Array[Float] = {
-    val tmp = matrix.map(
-      (row) => (row, vectorX).zipped.toArray.grouped(vectorX.length/128).toArray.map(_.map(x => x._1 * x._2).sum).map(_ * alpha).sum
-    )
-
-    val scaledY = vectorY.map(_ * beta)
-
-    (tmp, scaledY).zipped.map(_ + _)
-  }
-
-
   @Test def MATRIX_VECTOR_FIXED_SIZE() {
 
     val inputSize = 1024
@@ -87,7 +47,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
   }
 
   @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY() {
@@ -114,7 +74,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
   }
 
 
@@ -141,7 +101,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
   }
 
   @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
@@ -169,7 +129,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
   }
 
   @Test def MATRIX_VECTOR_LOCAL_MEMORY_FUSED() {
@@ -196,7 +156,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrixVector(matrix, vector), output, 0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
 
   }
 
@@ -230,7 +190,7 @@ class TestMatrixVector {
     println("output(0) = " + firstOutput(0))
     println("runtime = " + firstRuntime)
 
-    assertArrayEquals(matrixVector(matrix, vectorX, alpha), firstOutput, 0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, alpha), firstOutput, 0.0f)
 
     val f2 = fun(
       ArrayType(Float, M),
@@ -248,7 +208,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + secondRuntime)
 
-    assertArrayEquals(matrixVector(matrix, vectorX, vectorY, alpha, beta), output, 0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta), output, 0.0f)
 
   }
 
@@ -270,7 +230,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
   }
 
   @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD() {
@@ -291,7 +251,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
   }
 
   @Test def FULL_MATRIX_VECTOR_FUSED() {
@@ -322,7 +282,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrixVector(matrix, vectorX, vectorY.flatten), output,0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten), output,0.0f)
   }
 
 }
