@@ -182,7 +182,7 @@ object BarrierElimination {
         }
 
         // Gather in last affects the reading of this group
-        if (isPattern(group.last, classOf[Gather]) && id < groups.length - 1) {
+        if ((isPattern(group.last, classOf[Gather]) || isPattern(group.last, classOf[Transpose])) && id < groups.length - 1) {
           needsBarrier(id + 1) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
