@@ -20,6 +20,8 @@ import scala.io.Source
  * This version passes a transposed matrix to the kernel.
  */
 object Main {
+  val generate_counter: java.util.concurrent.atomic.AtomicInteger = new java.util.concurrent.atomic.AtomicInteger(0)
+
   def main(args: Array[String]) {
     Executor.loadLibrary()
     Executor.init()
@@ -32,7 +34,7 @@ object Main {
     var crashed = 0
     var best_time = Double.PositiveInfinity
     var all_times: List[Double] = List.empty
-    var best_substitutions = Map[ArithExpr, ArithExpr]()
+    var best_substitutions = Seq[ArithExpr]()
 
     // Prepare the input
     val mSize = SearchParameters.matrix_size
@@ -75,7 +77,7 @@ object Main {
 
 
         if (Files.exists(Paths.get(s"lower/$high_level_hash/index"))
-          && all_substitution_tables.size < 400000 && failure_guard < 10) {
+          && all_substitution_tables.size < 800000 && failure_guard < 10) {
           val low_level_expr_list = Source.fromFile(s"lower/$high_level_hash/index").getLines().toList
 
 
@@ -106,20 +108,21 @@ object Main {
                   Some((low_level_factory(
                     Seq(Var(""),
                       Var(""),
-                      Var("")) ++ params), st))
+                      Var("")) ++ params), params))
                 else
                   None
                 } catch {
-                   case x: Throwable =>
+                case x: ir.TypeException => None
+                case x: Throwable =>
                    x.printStackTrace()
                    println(low_level_hash)
                    println(params.mkString("; "))
                    println(low_level_str)
                    println(SearchParameters.matrix_size)
-                   System.exit(-1)
+                   //System.exit(-1)
                    None
                 }
-            }).collect{ case Some(x) => x }
+            }).collect{ case Some(x) => x }.toList
 
             println(s"Found ${potential_expressions.size} / ${all_substitution_tables.size} filtered expressions")
 
@@ -151,7 +154,7 @@ object Main {
 
                     case ValidationError =>
                       println()
-                      println(expr._2.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+                      println(expr._2.map(x => s"$x").mkString("; "))
                       println(expr._1)
                       failed = failed + 1
                       failure_guard = failure_guard + 1
@@ -159,9 +162,10 @@ object Main {
                     case Avoided =>
                       avoided = avoided + 1
 
-                    case _ =>
+                    case x =>
                       println()
-                      println(expr._2.map(x => s"${x._1} -> ${x._2}").mkString("; "))
+                      println(x)
+                      println(expr._2.map(x => s"$x").mkString("; "))
                       println(expr._1)
                       crashed = crashed + 1
                   }
@@ -179,7 +183,7 @@ object Main {
     })
   }
 
-  def dumpOpenCLToFiles(expressions: List[(Lambda, ParameterSearch.SubstitutionMap)],
+  def dumpOpenCLToFiles(expressions: List[(Lambda, Seq[ArithExpr])],
                         lowLevelHash: String,
                         highLevelHash: String,
                         values: Seq[Any] ): Unit = {
@@ -191,7 +195,7 @@ object Main {
       val (local, global) = InferNDRange(lambda)
       val valueMap = Execute.createValueMap(lambda, values:_*)
 
-      val code = OpenCLGenerator.generate(lambda, local, global, valueMap)
+      val code = OpenCLGenerator.generate(lambda, local, InferNDRange.substituteInNDRange(global, valueMap), valueMap)
 
       val kernel =
       s"""
@@ -228,6 +232,9 @@ object Main {
         })
 
         if(min_map.forall(_ > 0)) {
+          val v = Main.generate_counter.incrementAndGet()
+          if(v % 100 == 0) println(s"Generated $v source files")
+
           Utils.dumpToFile(variablesReplacedInKernel, filename, path)
 
 
