@@ -9,7 +9,7 @@ import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
 import ir.ast._
 import ir.ast.UserFun._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.ast._
 import org.junit.Assert._
@@ -467,6 +467,67 @@ class TestBenchmark {
 
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def mriQ(): Unit = {
+    val phiMag = UserFun("phiMag",
+                         Array("phiR", "phiI"),
+                         "{ return phiR * phiR + phiI * phiI }",
+                         Seq(Float, Float),
+                         Float)
+
+    val qFun = UserFun("computeQ",
+                           Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag", "acc"),
+                           """{
+                             |    #define PIx2 6.2831853071795864769252867665590058f
+                             |    float expArg = PIx2 * (Kx * sX +
+                             |			   Ky * sY +
+                             |			   Kz * sZ);
+                             |    acc._0 = acc._0 + PhiMag * cos(expArg);
+                             |    acc._1 = acc._1 + PhiMag * sin(expArg);
+                             |
+                             |    return acc;
+                             |}""".stripMargin,
+                           Seq(Float, Float, Float, Float, Float, Float, Float, TupleType(Float, Float)),
+                           TupleType(Float, Float))
+
+
+    val pair = UserFun("pair", Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
+      Seq(Float, Float), TupleType(Float, Float))
+
+    val k = Var("K")
+
+    val computePhiMag = fun(
+      ArrayType(Float, k),
+      ArrayType(Float, k),
+      (phiR, phiI) => MapGlb(phiMag) $ Zip(phiR, phiI)
+    )
+
+    val x = Var("X")
+
+    val computeQ = fun(
+      ArrayType(Float, x),
+      ArrayType(Float, x),
+      ArrayType(Float, x),
+      ArrayType(Float, x),
+      ArrayType(Float, x),
+      ArrayType(Float, k),
+      ArrayType(Float, k),
+      ArrayType(Float, k),
+      ArrayType(Float, k),
+      (x, y, z, Qr, Qi, kx, ky, kz, phiMag) =>
+        MapGlb(fun(t =>
+          toGlobal(MapSeq(idFF)) o
+            ReduceSeq(fun((acc, p) =>
+              qFun(Get(t, 0), Get(t, 1), Get(t, 2), Get(p, 0), Get(p, 1), Get(p, 2), Get(p, 3), acc)
+            ), toPrivate(fun(x => pair(Get(x, 0), Get(x, 1)))) $ Tuple(Get(t, 3), Get(t, 4))
+            ) $ Zip(kx, ky, kz, phiMag)
+        )) $ Zip(x, y, z, Qr, Qi)
+    )
+
+    Compile(computePhiMag)
+    Compile(computeQ)
   }
 
   @Test
