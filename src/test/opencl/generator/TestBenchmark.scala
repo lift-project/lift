@@ -468,4 +468,155 @@ class TestBenchmark {
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.001f)
   }
+
+  @Test
+  def mersenneTwisterScala(): Unit = {
+    val inputSize = 256
+
+    val mulFactor = 2
+    val width = 4
+
+    val input = Array.fill(inputSize * width)(util.Random.nextInt())
+
+    val l = 0xffffffffl
+
+    val SHIFT_A = 24
+    val SHIFT_B = 13
+    val SHIFT_C = 15
+
+    val MASK_X = 0xfdff37ff
+    val MASK_Y = 0xef7f3f7d
+    val MASK_Z = 0xff777b7d
+    val MASK_W = 0x7ff7fb2f
+
+    val intMax = 4294967296.0f
+    val PI = 3.14159265358979f
+
+    def lshift128(input: Array[Int], shift: Int): Array[Int] = {
+      val invshift = 32 - shift
+
+      val temp = Array.ofDim[Int](4)
+      temp(0) = input(0) << shift
+      temp(1) = (input(1) << shift) | (input(0) >>> invshift)
+      temp(2) = (input(2) << shift) | (input(1) >>> invshift)
+      temp(3) = (input(3) << shift) | (input(2) >>> invshift)
+
+      temp
+    }
+
+    def rshift128(input: Array[Int], shift: Int): Array[Int] = {
+      val invshift = 32 - shift
+
+      val temp = Array.ofDim[Int](4)
+
+      temp(3) = input(3) >>> shift
+      temp(2) = (input(2) >>> shift) | (input(3) << invshift)
+      temp(1) = (input(1) >>> shift) | (input(2) << invshift)
+      temp(0) = (input(0) >>> shift) | (input(1) << invshift)
+
+      temp
+    }
+
+    val res = input.grouped(width).map(seed => {
+      val temp = Array.ofDim[Int](8, width)
+
+      val stateMask = 1812433253
+      val thirty = 30
+
+      var r1 = Array.fill(width)(0)
+      var r2 = Array.fill(width)(0)
+
+      var a = Array.fill(width)(0)
+      var b = Array.fill(width)(0)
+
+      var e = Array.fill(width)(0)
+      var f = Array.fill(width)(0)
+
+      var r = Array.ofDim[Float](width)
+      var phi = Array.ofDim[Float](width)
+
+      var temp1 = Array.ofDim[Float](width)
+      var temp2 = Array.ofDim[Float](width)
+
+      //Initializing states.
+      val state1 = Array(seed(0), seed(1), seed(2), seed(3))
+
+      val state2 = state1.map(x => (x ^ (x >>> thirty)) * stateMask + 1)
+      val state3 = state2.map(x => (x ^ (x >>> thirty)) * stateMask + 2)
+      val state4 = state3.map(x => (x ^ (x >>> thirty)) * stateMask + 3)
+      val state5 = state4.map(x => (x ^ (x >>> thirty)) * stateMask + 4)
+
+      for(i <- 0 until mulFactor) {
+        i match {
+          case 0 =>
+            r1 = state4
+            r2 = state5
+            a = state1
+            b = state3
+          case 1 =>
+            r1 = r2
+            r2 = temp(0)
+            a = state2
+            b = state4
+          case 2 =>
+            r1 = r2
+            r2 = temp(1)
+            a = state3
+            b = state5
+          case 3 =>
+            r1 = r2
+            r2 = temp(2)
+            a = state4
+            b = state1
+          case 4 =>
+            r1 = r2
+            r2 = temp(3)
+            a = state5
+            b = state2
+          case 5 =>
+            r1 = r2
+            r2 = temp(4)
+            a = temp(0)
+            b = temp(2)
+          case 6 =>
+            r1 = r2
+            r2 = temp(5)
+            a = temp(1)
+            b = temp(3)
+          case 7 =>
+            r1 = r2
+            r2 = temp(6)
+            a = temp(2)
+            b = temp(4)
+        }
+
+        e = lshift128(a, SHIFT_A)
+        f = rshift128(r1, SHIFT_A)
+
+        temp(i)(0) = a(0) ^ e(0) ^ ((b(0) >>> SHIFT_B) & MASK_X) ^ f(0) ^ (r2(0) << SHIFT_C)
+        temp(i)(1) = a(1) ^ e(1) ^ ((b(1) >>> SHIFT_B) & MASK_Y) ^ f(1) ^ (r2(1) << SHIFT_C)
+        temp(i)(2) = a(2) ^ e(2) ^ ((b(2) >>> SHIFT_B) & MASK_Z) ^ f(2) ^ (r2(2) << SHIFT_C)
+        temp(i)(3) = a(3) ^ e(3) ^ ((b(3) >>> SHIFT_B) & MASK_W) ^ f(3) ^ (r2(3) << SHIFT_C)
+      }
+
+      val gaussianRand = Array.ofDim[Array[Float]](mulFactor)
+
+      for(i <- 0 until mulFactor / 2) {
+
+        temp1 = temp(i).map(x => (x.toLong & l).toFloat * 1.0f / intMax)
+        temp2 = temp(i + 1).map(x => (x.toLong & l).toFloat * 1.0f  / intMax)
+
+        // Applying Box-Muller Transformations.
+        r = temp1.map(x => math.sqrt(-2.0f * math.log(x)).toFloat)
+        phi  = temp2.map(2.0f * PI * _)
+
+        gaussianRand(i * 2 + 0) = (r, phi).zipped.map((a, b) => a * math.cos(b).toFloat)
+        gaussianRand(i * 2 + 1) = (r, phi).zipped.map((a, b) => a * math.sin(b).toFloat)
+      }
+
+      gaussianRand.flatten
+    })
+
+    println(res.toArray.flatten.mkString(" "))
+  }
 }
