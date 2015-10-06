@@ -529,15 +529,6 @@ class TestBenchmark {
       var a = Array.fill(width)(0)
       var b = Array.fill(width)(0)
 
-      var e = Array.fill(width)(0)
-      var f = Array.fill(width)(0)
-
-      var r = Array.ofDim[Float](width)
-      var phi = Array.ofDim[Float](width)
-
-      var temp1 = Array.ofDim[Float](width)
-      var temp2 = Array.ofDim[Float](width)
-
       //Initializing states.
       val state1 = Array(seed(0), seed(1), seed(2), seed(3))
 
@@ -590,8 +581,8 @@ class TestBenchmark {
             b = temp(4)
         }
 
-        e = lshift128(a, SHIFT_A)
-        f = rshift128(r1, SHIFT_A)
+        val e = lshift128(a, SHIFT_A)
+        val f = rshift128(r1, SHIFT_A)
 
         temp(i)(0) = a(0) ^ e(0) ^ ((b(0) >>> SHIFT_B) & MASK_X) ^ f(0) ^ (r2(0) << SHIFT_C)
         temp(i)(1) = a(1) ^ e(1) ^ ((b(1) >>> SHIFT_B) & MASK_Y) ^ f(1) ^ (r2(1) << SHIFT_C)
@@ -603,12 +594,12 @@ class TestBenchmark {
 
       for(i <- 0 until mulFactor / 2) {
 
-        temp1 = temp(i).map(x => (x.toLong & l).toFloat * 1.0f / intMax)
-        temp2 = temp(i + 1).map(x => (x.toLong & l).toFloat * 1.0f  / intMax)
+        val temp1 = temp(i).map(x => (x.toLong & l).toFloat * 1.0f / intMax)
+        val temp2 = temp(i + 1).map(x => (x.toLong & l).toFloat * 1.0f / intMax)
 
         // Applying Box-Muller Transformations.
-        r = temp1.map(x => math.sqrt(-2.0f * math.log(x)).toFloat)
-        phi  = temp2.map(2.0f * PI * _)
+        val r = temp1.map(x => math.sqrt(-2.0f * math.log(x)).toFloat)
+        val phi  = temp2.map(2.0f * PI * _)
 
         gaussianRand(i * 2 + 0) = (r, phi).zipped.map((a, b) => a * math.cos(b).toFloat)
         gaussianRand(i * 2 + 1) = (r, phi).zipped.map((a, b) => a * math.sin(b).toFloat)
