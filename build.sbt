@@ -42,7 +42,7 @@ unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/ArithExpr/sr
 
 unmanagedSourceDirectories in Test += baseDirectory.value / "lib/ArithExpr/src/main/"
 
-ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*"
+ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v")
 
