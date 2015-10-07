@@ -4,7 +4,7 @@ import exploration.utils.{NumberExpression, Utils}
 import ir.ast._
 
 object SimplifyAndFuse {
-  def apply(lambda: Lambda) = (new SimplifyAndFuse)(lambda)
+  def apply(lambda: Lambda, maxTime: Long = 900000 /* 15 min */) = (new SimplifyAndFuse(maxTime))(lambda)
 
   /**
    * Fuse all map-map and reduce-map sequences.
@@ -28,12 +28,11 @@ object SimplifyAndFuse {
 
 }
 
-class SimplifyAndFuse {
+class SimplifyAndFuse(maxTime: Long) {
 
   private var cantUndo = List[Expr]()
   private var seen = List[Expr]()
   private val startTime = System.currentTimeMillis()
-  private val maxTime = 900000 // 15 min
 
   /**
    * Try to simplify a lambda by eliminating sequences of operations that have

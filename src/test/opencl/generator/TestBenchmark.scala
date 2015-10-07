@@ -8,13 +8,11 @@ import apart.arithmetic.Var
 import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
-import opencl.ir.ast._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir.pattern._
 
 object TestBenchmark {
   @BeforeClass def before() {
@@ -86,8 +84,8 @@ class TestBenchmark {
       ArrayType(Int, K),
       (x, y, a, b, i) => {
         MapGlb(fun(xy => {
+          toGlobal(MapSeq(idI)) o
           MapSeq(getSecond) o
-          toGlobal(MapSeq(idFI)) o
           ReduceSeq(minimum, (scala.Float.MaxValue, -1)) o
           MapSeq(fun(ab => {
             distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2))
