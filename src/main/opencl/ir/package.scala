@@ -57,6 +57,8 @@ package object ir {
 
   implicit def FloatToValue(f: Float): Value = Value(f.toString + "f", opencl.ir.Float)
 
+  implicit def DoubleToValue(d: Double): Value = Value(d.toString, opencl.ir.Double)
+
   implicit def Tuple2ToValue[T1, T2](t: (T1, T2)): Value = {
     val tupleType = TupleType(getType(t._1), getType(t._2))
     Value(t.toString().replace('(', '{').replace(')', '}'), tupleType)
