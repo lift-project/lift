@@ -150,8 +150,6 @@ class OpenCLGenerator extends Generator {
   // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
-//    ast = new OpenCLAST.Block(List.empty, true)
-//    cur_block = ast
 
     assert(localSize.length == 3)
     assert(globalSize.length == 3)
@@ -192,6 +190,14 @@ class OpenCLGenerator extends Generator {
     View.visitAndBuildViews(f.body)
 
     val globalBlock = new OpenCLAST.Block(Vector.empty, global = true)
+
+    val containsDouble = Expr.visitWithState(false)(f.body, {
+      case (expr, _) if expr.t == Double => true
+      case (_, state) => state
+    })
+
+    if (containsDouble)
+      globalBlock += Extension("cl_khr_fp64")
 
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach( globalBlock += _ )

@@ -24,6 +24,23 @@ object TestMisc {
 
 class TestMisc {
 
+  @Test
+  def testDouble(): Unit = {
+    val inputSize = 256
+    val input = Array.fill(inputSize)(util.Random.nextInt(5).toDouble)
+
+    val incr = UserFun("incr", "x", "{ return x+1; }", Double, Double)
+
+    val f = fun(
+      ArrayType(Double, Var("N")),
+      in => MapGlb(incr) $ in
+    )
+
+    val (output: Array[Double], _) = Execute(inputSize)(f, input)
+
+    assertArrayEquals(input.map(_ + 1), output, 0.0)
+  }
+
   @Test def issue20(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)

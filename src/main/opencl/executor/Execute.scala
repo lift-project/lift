@@ -1,7 +1,6 @@
 package opencl.executor
 
 import apart.arithmetic.{ArithExpr, Cst, Var}
-import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import opencl.generator.{OpenCLGenerator, Verbose}
@@ -337,11 +336,14 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     Type.getBaseType(t) match {
       case Float => outputData.asFloatArray()
       case Int   => outputData.asIntArray()
+      case Double   => outputData.asDoubleArray()
       // handle tuples if all their components are of the same type
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float) =>
         outputData.asFloatArray()
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int) =>
         outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double) =>
+        outputData.asDoubleArray()
       case _ => throw new IllegalArgumentException("Return type of the given lambda expression " +
                                                    "not supported: " + t.toString)
     }
@@ -373,11 +375,20 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       case (Int8,  _: Int) => //fine
       case (Int16, _: Int) => //fine
 
+      case (Double,   _: Double) => // fine
+      case (Double2,  _: Double) => //fine
+      case (Double3,  _: Double) => //fine
+      case (Double4,  _: Double) => //fine
+      case (Double8,  _: Double) => //fine
+      case (Double16, _: Double) => //fine
+
       // handle tuples if all their components are of the same type
       case (tt: TupleType, _: Float)
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Float) => // fine
       case (tt: TupleType, _: Int)
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
+      case (tt: TupleType, _: Double)
+        if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
       case _ => throw new IllegalArgumentException("Expected value of type " + t.toString + ", " +
                                                    "but " + "value of type " + v.getClass
                                                                                .toString + " given")
@@ -477,6 +488,12 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
         case aaai: Array[Array[Array[Int]]] => global.input(aaai.flatten.flatten)
         case aaaai: Array[Array[Array[Array[Int]]]] => global.input(aaaai.flatten.flatten.flatten)
 
+        case d: Double => value(d)
+        case ad: Array[Double] => global.input(ad)
+        case aad: Array[Array[Double]] => global.input(aad.flatten)
+        case aaad: Array[Array[Array[Double]]] => global.input(aaad.flatten.flatten)
+        case aaaad: Array[Array[Array[Array[Double]]]] => global.input(aaaad.flatten.flatten.flatten)
+
         case _ => throw new IllegalArgumentException("Kernel argument is of unsupported type: " +
                                                      any.getClass.toString)
       }
@@ -496,6 +513,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       def apply(array: Array[Float]) = GlobalArg.createInput(array)
 
       def apply(array: Array[Int]) = GlobalArg.createInput(array)
+
+      def apply(array: Array[Double]) = GlobalArg.createInput(array)
     }
 
     /**
@@ -527,6 +546,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     def apply(value: Float) = ValueArg.create(value)
 
     def apply(value: Int) = ValueArg.create(value)
+
+    def apply(value: Double) = ValueArg.create(value)
   }
 
 }

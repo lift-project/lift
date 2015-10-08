@@ -139,6 +139,7 @@ class OpenCLCodeGen {
     case t: TypeDef       => print(t)
     case a: TupleAlias    => print(a)
     case c: Cast          => print(c)
+    case e: Extension     => print(e)
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
   }
@@ -160,6 +161,10 @@ class OpenCLCodeGen {
         |#endif
         |""".stripMargin)
     case _ =>
+  }
+
+  private def print(e: Extension): Unit = {
+    println(s"#pragma OPENCL EXTENSION ${e.content} : enable")
   }
 
   private def print(alias: TupleAlias): Unit = alias.t match {

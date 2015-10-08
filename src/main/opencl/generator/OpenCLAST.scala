@@ -105,4 +105,6 @@ object OpenCLAST {
     * @param content The arithmetic expression.
     */
   case class Expression(content: ArithExpr) extends OclAstNode
+
+  case class Extension(content: String) extends OclAstNode
 }
