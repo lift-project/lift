@@ -252,7 +252,7 @@ object TestLowLevelRewrite {
         var avoided = 0
         var failed = 0
         var crashed = 0
-        var best_time = Double.PositiveInfinity
+        var best_time = scala.Double.PositiveInfinity
         var all_times: List[Double] = List.empty
         var best_substitutions = all_substitution_tables.head
 
@@ -420,7 +420,7 @@ object TestLowLevelRewrite {
       var skipped = 0
       var failed = 0
       var crashed = 0
-      var best_time = Double.PositiveInfinity
+      var best_time = scala.Double.PositiveInfinity
       var all_times: List[Double] = List.empty
       var best_substitutions = all_substitution_tables.head
       all_substitution_tables.foreach(st => {
