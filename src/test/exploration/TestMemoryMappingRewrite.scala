@@ -274,7 +274,7 @@ object TestMemoryMappingRewrite {
         })
 
         val vectorised = tryToVectorize.foldLeft(tuple)( (currentLambda, a) => {
-          val vectorised = Rewrite.applyRulesUntilCannot(a, Seq(Rules.vectorize))
+          val vectorised = Rewrite.applyRulesUntilCannot(a, Seq(Rules.vectorize(4)))
           FunDecl.replace(currentLambda, a, vectorised)
         })
 
