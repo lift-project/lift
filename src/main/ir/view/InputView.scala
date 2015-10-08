@@ -55,6 +55,7 @@ object InputView {
       case Split(n) => buildViewSplit(n, argView)
       case _: Join => buildViewJoin(call, argView)
       case uf: UserFun => buildViewUserFunDef(call)
+      case uf: VectorizeUserFun => buildViewUserFunDef(call)
       case g: Gather => buildViewGather(g, call, argView)
       case i: Iterate => buildViewIterate(i, call, argView)
       case t: Transpose => buildViewTranspose(t, call, argView)
@@ -66,6 +67,7 @@ object InputView {
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case fp: FPattern => buildViewToFPattern(fp, argView)
+      case Pad(size,boundary) => buildViewPad(size, boundary, argView)
       case _ => argView
     }
   }
@@ -202,4 +204,7 @@ object InputView {
     new ViewTail(argView, tail.t)
   }
 
+  private def buildViewPad(size: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr, argView: View) : View = {
+    argView.pad(size, boundary)
+  }
 }

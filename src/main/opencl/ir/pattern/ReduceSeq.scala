@@ -5,7 +5,7 @@ import ir.ast._
 
 case class ReduceSeq(override val f: Lambda)
   extends AbstractReduce(f, Var("i")) with isGenerable {
-  assert(f.isGenerable)
+  assert(f.body.isConcrete)
 
   override def copy(f: Lambda): Pattern = ReduceSeq(f)
 }

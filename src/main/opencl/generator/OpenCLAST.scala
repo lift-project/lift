@@ -12,7 +12,7 @@ object OpenCLAST {
   /**
    * List of nodes enclosed in a bock. This behaves like (and emits) a C block.
    */
-  case class Block(var content: List[OclAstNode] = List.empty,
+  case class Block(var content: Vector[OclAstNode] = Vector.empty,
                    global: Boolean = false) extends OclAstNode {
     /** Append a sub-node. Could be any node, including a sub-block.
       * @param node The node to add to this block.
@@ -22,7 +22,7 @@ object OpenCLAST {
     }
 
     def ::(node: OclAstNode): Unit = {
-      content = node :: content
+      content = node +: content
     }
   }
 
@@ -111,6 +111,9 @@ object OpenCLAST {
     * @param content The arithmetic expression.
     */
   case class Expression(var content: ArithExpr) extends OclAstNode
+
+
+  case class Extension(content: String) extends OclAstNode
 
   def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
 

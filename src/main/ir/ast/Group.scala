@@ -1,6 +1,5 @@
 package ir.ast
 
-import apart.arithmetic.ArithExpr
 import ir.{TypeException, ArrayType, UndefType, Type}
 
 
@@ -17,9 +16,7 @@ import ir.{TypeException, ArrayType, UndefType, Type}
  *
  * @param relIndices Array of relative indices.
  */
-case class Group(relIndices: Array[Int],
-                 negOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr,
-                 posOutOfBoundsF: (ArithExpr, ArithExpr) => ArithExpr) extends Pattern(arity = 1) with isGenerable {
+case class Group(relIndices: Array[Int]) extends Pattern(arity = 1) with isGenerable {
   Group.cnt += 1
   val id = Group.cnt
 
@@ -29,36 +26,52 @@ case class Group(relIndices: Array[Int],
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        paramType = ArrayType(ArrayType(t, relIndices.length), n)
+        paramType = ArrayType(ArrayType(t, relIndices.length), n - relIndices.map(Math.abs).max)
         paramType
 
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
 
+  /**
+   * Define equality operator based on ID to be able to insert [[Group]] instances
+   * into a set properly.
+   * @param other Another object.
+   * @return True if the other object is a [[Group]] instance with the same ID, false otherwise.
+   */
+  override def equals(other: Any): Boolean = other match {
+    case g: Group => g.id == id
+    case _ => false
+  }
+
+  /**
+   * Define hash based on the ID to identify unique instances in associative containers.
+   * @return The hashCode of the id.
+   */
+  override def hashCode = id.hashCode()
 }
 
 object Group {
   var cnt: Int = -1
-
-  // Predefined out-of-boundary cases
-  val edgeNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => 0
-  val edgePos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - 1
-  val reflectNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => -1 - idx
-  val reflectPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len - idx
-  val wrapNeg: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => len + idx
-  val wrapPos: (ArithExpr, ArithExpr) => ArithExpr = (idx, len) => idx - 1
 }
 
 object Group2D {
-  def apply(relColumns: Array[Int],
-            relRows: Array[Int],
-            negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-            posOOB: (ArithExpr, ArithExpr) => ArithExpr): Lambda = {
+  /** Symmetrical grouping */
+  def apply(neighbors: Array[Int]): Lambda = {
     Map(
       Map(
         Transpose()
-      ) o Group(relColumns, negOOB, posOOB) o Transpose()
-    ) o Group(relRows, negOOB, posOOB)
+      ) o Group(neighbors) o Transpose()
+    ) o Group(neighbors)
+  }
+
+  /** Asymmetrical grouping */
+  def apply(relColumns: Array[Int],
+            relRows: Array[Int]): Lambda = {
+    Map(
+      Map(
+        Transpose()
+      ) o Group(relColumns) o Transpose()
+    ) o Group(relRows)
   }
 }

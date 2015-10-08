@@ -8,7 +8,7 @@ public class Executor {
             System.err.println("Runtime error in the executor");
         }
 
-        /// Consume the error. This restarts the Excutor
+        /// Consume the error. This restarts the Executor
         public void consume(){
             System.err.print("Restarting the executor... ");
 
@@ -57,6 +57,15 @@ public class Executor {
         System.loadLibrary("executor-jni");
     }
 
+    /** Compute matrix-matrix multiply natively */
+    public static float[] nativeMatrixMultiply(float[] aa, float[] bb, int n, int m, int k) {
+        float[] cc = new float[n*m];
+        nativeMatrixMultiply(aa,bb,cc,n,m,k);
+        return cc;
+    }
+
+    public native static void nativeMatrixMultiply(float[] a, float[] b, float[] out, int n, int m, int k);
+
     public native static double execute(String kernelCode, String kernelName, String buildOptions,
                                         int localSize1, int localSize2, int localSize3,
                                         int globalSize1, int globalSize2, int globalSize3,
@@ -81,6 +90,21 @@ public class Executor {
                                           int globalSize1, int globalSize2, int globalSize3,
                                           KernelArg[] args, int iterations, double timeOut);
 
+    public static double evaluate(String kernelCode,
+                                   int localSize1, int localSize2, int localSize3,
+                                   int globalSize1, int globalSize2, int globalSize3,
+                                   KernelArg[] args, int iterations, double timeout) {
+        return evaluate(kernelCode, "KERNEL", "", localSize1, localSize2, localSize3,
+                globalSize1, globalSize2, globalSize3, args, iterations, timeout);
+    }
+
+    public native static double evaluate(String kernelCode, String kernelName, String buildOptions,
+                                          int localSize1, int localSize2, int localSize3,
+                                          int globalSize1, int globalSize2, int globalSize3,
+                                          KernelArg[] args, int iterations, double timeOut);
+
+ 
+
     public native static void init(int platformId, int deviceId);
 
     public native static long getDeviceLocalMemSize();
@@ -88,6 +112,8 @@ public class Executor {
     public native static long getDeviceGlobalMemSize();
 
     public native static long getDeviceMaxMemAllocSize();
+
+    public native static long getDeviceMaxWorkGroupSize();
 
     public native static String getPlatformName();
 

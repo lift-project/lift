@@ -7,7 +7,7 @@ import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 object TestTuple {
   @BeforeClass def before() {
@@ -76,7 +76,7 @@ class TestTuple {
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val gold = inputArray.map((f) => Array(f, f)).flatten
+    val gold = inputArray.flatMap((f) => Array(f, f))
 
     val pair = UserFun("pair", "x", "{ Tuple t = {x, x}; return t; }",
                           Float, TupleType(Float, Float))
@@ -180,6 +180,28 @@ class TestTuple {
     println("runtime = " + runtime)
 
     assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def patternGetOfTuple(): Unit = {
+    val inputSize = 1024
+    val inputArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
+
+    val gold = inputArray.zipWithIndex.filter(_._2 % 2 == 0).map(_._1)
+
+    val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
+      Join() o MapWrg(
+        Join() o  MapLcl(MapSeq(fun(x => Get(x, 0)))) o Split(4)
+      ) o Split(1024) $ input
+    )
+
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+
+    assertArrayEquals(gold, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
   }
 
 }

@@ -40,6 +40,14 @@ object Utils {
     if (rest.nonEmpty) myPrint(rest, cols, elems)
   }
 
+
+  def add(A: Array[Array[Float]], B: Array[Array[Float]]) = {
+    if (A.length != B.length || A.head.length != B.length)
+      throw new IllegalArgumentException
+
+    (A, B).zipped.map((x, y) => (x, y).zipped.map(_+_))
+  }
+
   /*
    * Matrix multiplication methods
    */
@@ -51,18 +59,14 @@ object Utils {
     )
   }
 
-  def matrixMatrixPatternMultiply2(A: Array[Array[Float]], B: Array[Array[Float]]): Array[Array[Float]] = {
-    val Bt = B.transpose
-    A.map( Arow =>
-      Bt.map( Bcol => (Arow, Bcol).zipped )
-    ).map(_.map(_.map(_ * _).sum))
-  }
-
   def matrixMatrixMultiply(A: Array[Array[Float]], B: Array[Array[Float]]) :  Array[Array[Float]] = {
     val aCols = A(0).length
     val aRows = A.length
     val bCols = B(0).length
     val res =  Array.ofDim[Float](aRows, bCols)
+
+    if (A.head.length != B.length)
+      throw new IllegalArgumentException
 
     @inline def computeRow(row: Int) {
       // while statements are much faster than for statements
@@ -81,6 +85,35 @@ object Utils {
     (0 until aRows).par.foreach( computeRow )
 
     res
+  }
+
+  def matrixVector(matrix: Array[Array[Float]], vector: Array[Float]): Array[Float] = {
+    matrix.map(
+      (row) => (row, vector).zipped.map(_ * _).sum
+    )
+  }
+
+  def matrixVector(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float]): Array[Float] = {
+    val tmp = matrix.map(
+      (row) => (row, vectorX).zipped.map(_ * _).sum
+    )
+    (tmp, vectorY).zipped.map(_ + _)
+  }
+
+  def matrixVector(matrix: Array[Array[Float]], vector: Array[Float], alpha: Float): Array[Float] = {
+    matrix.map(
+      (row) => (row, vector).zipped.map(_ * _).sum * alpha
+    )
+  }
+
+  def matrixVector(matrix: Array[Array[Float]], vectorX: Array[Float], vectorY: Array[Float], alpha: Float, beta: Float): Array[Float] = {
+    val tmp = matrix.map(
+      (row) => (row, vectorX).zipped.map(_ * _).sum * alpha
+    )
+
+    val scaledY = vectorY.map(_ * beta)
+
+    (tmp, scaledY).zipped.map(_ + _)
   }
 
   /*

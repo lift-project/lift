@@ -39,60 +39,6 @@ class TestDerivingMatrixReuse {
   val chunkSize = 4
 
   @Test
-  def ruleTest(): Unit = {
-    val size = 128
-    val a = Array.fill(size)(util.Random.nextInt(5))
-    val b = Array.fill(size)(util.Random.nextInt(5))
-
-    // Split $ Zip( ... ) => Zip( Split $ ... )
-    val gold = (a, b).zipped.map(_ * _)
-    val test = (a, b).zipped.toArray.grouped(16).map(_.map(x => x._1 * x._2)).flatten.toArray
-    val test2 = (a.grouped(16).toArray, b.grouped(16).toArray).zipped.map((x, y) => (x, y).zipped.map(_*_)).flatten
-
-    assertArrayEquals(gold, test)
-    assertArrayEquals(gold, test2)
-
-    val A = Array.fill(size, size)(util.Random.nextInt(5))
-
-    // Reduce => Reduce() o Reduce( ... $ Zip( ... ) )
-    val gold2 = a.sum
-    val test4 = a.grouped(16).toArray.reduce((x, y) => (x, y).zipped.map(_+_)).sum
-
-    assertEquals(gold2, test4, 0.0f)
-
-    // Reorder $ Zip( ... ) => Zip( Reorder $ ... )
-    val goldReorderZip = (a, b).zipped.toArray.reverse
-    val testReorderZip = (a.reverse, b.reverse).zipped.toArray
-
-    assertArrayEquals(goldReorderZip.map(_._1), testReorderZip.map(_._1))
-    assertArrayEquals(goldReorderZip.map(_._2), testReorderZip.map(_._2))
-
-    // Map-Reduce interchange
-    val goldSwapMapReduce = A.map(_.sum)
-    val testSwapMapReduce = A.transpose.reduce((x, y) => (x, y).zipped.map(_+_))
-
-    assertArrayEquals(goldSwapMapReduce, testSwapMapReduce)
-
-    // Map-Map transpose, pulling zip out
-    val goldMapMapPullZip = A.map(a => (a, b).zipped.map(_*_))
-    val testMapMapPullZip = (A.transpose, b).zipped.map((a, bElem) => a.map(_ * bElem)).transpose
-
-    assertArrayEquals(goldMapMapPullZip.flatten, testMapMapPullZip.flatten)
-
-    // Map-Map transpose, pushing zip in
-    val goldMapMapPushZip = (A, b).zipped.map((a, bElem) => a.map(_ * bElem))
-    val testMapMapPushZip = A.transpose.map(a => (a, b).zipped.map(_ * _)).transpose
-
-    assertArrayEquals(goldMapMapPushZip.flatten, testMapMapPushZip.flatten)
-
-    // map(split) o transpose => transpose o map(transpose) o split
-    val goldMapSplitTranspose = A.transpose.map(_.grouped(16).toArray)
-    val testMapSplitTranspose = A.grouped(16).toArray.map(_.transpose).transpose
-
-    assertArrayEquals(goldMapSplitTranspose.flatten.flatten, testMapSplitTranspose.flatten.flatten)
-  }
-
-  @Test
   def deriveReuseA(): Unit = {
 
     // Starting expression

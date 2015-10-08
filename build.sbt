@@ -14,6 +14,8 @@ compileSkelcl := {
   "echo y" #| "./skelcl.sh" !
 }
 
+scalacOptions ++= Seq("-Xmax-classfile-name", "100")
+
 javaOptions += "-Djava.library.path=./lib/SkelCL/build/executor"
 
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
@@ -40,7 +42,7 @@ unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/ArithExpr/sr
 
 unmanagedSourceDirectories in Test += baseDirectory.value / "lib/ArithExpr/src/main/"
 
-ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*"
+ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v")
 

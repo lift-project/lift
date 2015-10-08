@@ -3,7 +3,7 @@
 set -e
 
 CONFIG_FILE=skelcl.conf
-SKELCL_CMAKE_COMMON_FLAGS="-DBUILD_EXECUTOR=ON -DTHROW_ON_FAILURE=ON"
+SKELCL_CMAKE_COMMON_FLAGS="-DBUILD_EXECUTOR=ON -DTHROW_ON_FAILURE=ON -DCMAKE_BUILD_TYPE=RELEASE"
 INTERACTIVE=false
 
 while getopts ":i" opt; do 
@@ -136,7 +136,7 @@ function build(){
 
   # SkelCL
   pushd lib/SkelCL/build
-  make
+  make -j 4
   popd
 }
 

@@ -12,6 +12,8 @@ package object ir {
 
   val idI = UserFun("id", "x", "{ return x; }", Int, Int)
 
+  val iddouble = UserFun("id", "x", "{ return x; }", Double, Double)
+
   val idFI = UserFun("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
 
   val idFF = UserFun("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
@@ -20,6 +22,8 @@ package object ir {
                             Seq(Float, Float), Float)
 
   val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
+
+  val adddouble = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Double, Double), Double)
 
   val plusOne = UserFun("plusOne", "x", "{ return x+1; }", Float, Float)
 
@@ -33,6 +37,8 @@ package object ir {
   val neg = UserFun("neg", "x", "{ return -x; }", Float, Float)
 
   val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
+
+  val multdouble = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Double, Double), Double)
 
   val multAndSumUp = UserFun("multAndSumUp", Array("acc", "l", "r"),
                              "{ return acc + (l * r); }",

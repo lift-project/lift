@@ -4,6 +4,10 @@ import ir.ast._
 
 object TypeChecker {
 
+  def apply(lambda: Lambda) = check(lambda.body)
+
+  def apply(expr: Expr) = check(expr)
+
   def check(expr: Expr, setType: Boolean = true): Type = {
 
     val inferredOuT = expr match {
@@ -30,6 +34,20 @@ object TypeChecker {
       expr.t = inferredOuT
 
     inferredOuT
+  }
+
+  def checkAndSetTypeForParams(params: Array[Param], argType: Type): Unit = {
+    (params.length, argType) match {
+      case (0, _) =>
+      case (1, _) => params.head.t = argType
+      case (n, tt: TupleType) if n == tt.elemsT.length =>
+        (params zip tt.elemsT).foreach({case (p, t) => p.t = t})
+      // error cases:
+      case (n, tt: TupleType) =>
+        throw new NumberOfArgumentsException(s"Expected $n arguments but " +
+                                             s"got ${tt.elemsT.length}")
+      case _ => throw new TypeException(argType, "some other type")
+    }
   }
 
 }

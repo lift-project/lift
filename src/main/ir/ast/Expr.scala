@@ -109,6 +109,23 @@ abstract class Expr {
       } else s
     })
   }
+
+  /**
+   * Reverse function application.
+   * I.e. e :>> f == f(e).
+   * @param f The function to apply to `this`.
+   * @return `f.apply(this)`
+   */
+  def :>>(f: FunDecl) = f.apply(this)
+
+  /**
+   * (double reverse) Function application.
+   * I.e. f <<: e == e.<<:(f) == f(e)
+   *
+   * @param f The function to apply to `this`.
+   * @return `f.apply(this)`
+   */
+  def <<:(f: FunDecl) = f.apply(this)
 }
 
 object Expr {
@@ -146,8 +163,8 @@ object Expr {
 
   /**
    * Returns an aggregated state computed by visiting the given expression
-   * `expr` by recursively traversing it and calling the given `visitFun` on the
-   * visited sub expressions.
+   * `expr` by recursively traversing it in a breadth-first manner
+   * and calling the given `visitFun` on the visited sub expressions.
    *
    * @param z The initial state of type `T`
    * @param expr The expression to be visited.
@@ -178,6 +195,92 @@ object Expr {
           case l: Lambda =>     visitWithState(newResult)(l.body, visitFun)
           case _ => newResult
         }
+      case _ => result
+    }
+  }
+
+  def visitLeftToRight[T](z: T)(expr: Expr,
+                                visitFun: (Expr, T) => T,
+                                visitArgs: Boolean = true): T = {
+
+    expr match {
+      case call: FunCall =>
+
+        // do the rest ...
+        val result = call.f match {
+          case fp: FPattern =>  visitLeftToRight(z)(fp.f.body, visitFun)
+          case l: Lambda =>     visitLeftToRight(z)(l.body, visitFun)
+          case _ => z
+        }
+
+        val newResult = visitFun(expr, result)
+
+        // visit args first
+        if (visitArgs)
+          call.args.foldRight(newResult)((arg, x) => {
+            visitLeftToRight(x)(arg, visitFun)
+          }) else newResult
+
+
+      case _ => visitFun(expr, z)
+    }
+  }
+
+  def visitRightToLeft[T](z: T)(expr: Expr,
+                                visitFun: (Expr, T) => T): T = {
+
+    expr match {
+      case call: FunCall =>
+        // visit args first
+        val result =
+          call.args.foldRight(z)((arg, x) => {
+            visitRightToLeft(x)(arg, visitFun)
+          })
+
+        // do the rest ...
+        val newResult = call.f match {
+          case fp: FPattern =>  visitRightToLeft(result)(fp.f.body, visitFun)
+          case l: Lambda =>     visitRightToLeft(result)(l.body, visitFun)
+          case _ => result
+        }
+
+        visitFun(expr, newResult)
+
+      case _ => visitFun(expr, z)
+    }
+  }
+
+  /**
+   * Returns an aggregated state computed by visiting the given expression
+   * `expr` by recursively traversing it in a depth-first manner
+   * and calling the given `visitFun` on the visited sub expressions.
+   *
+   * @param z The initial state of type `T`
+   * @param expr The expression to be visited.
+   * @param visitFun The function to be invoked with the current expression to
+   *                 visit and the current state computing an updated state.
+   *                 This function is invoked before the current expression is
+   *                 recursively visited.
+   * @tparam T The type of the state
+   * @return The computed state after visiting the expression `expr` with the
+   *         initial state `z`.
+   */
+  def visitWithStateDepthFirst[T](z: T)(expr: Expr,
+                              visitFun: (Expr, T) => T): T = {
+    val result = visitFun(expr, z)
+    expr match {
+      case call: FunCall =>
+        // do the rest ...
+        val newResult = call.f match {
+          case fp: FPattern =>  visitWithStateDepthFirst(result)(fp.f.body, visitFun)
+          case l: Lambda =>     visitWithStateDepthFirst(result)(l.body, visitFun)
+          case _ => result
+        }
+
+        // then visit the args
+        call.args.foldRight(newResult)((arg, x) => {
+          visitWithStateDepthFirst(x)(arg, visitFun)
+        })
       case _ => result
     }
   }
