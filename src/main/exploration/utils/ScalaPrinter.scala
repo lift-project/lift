@@ -35,8 +35,9 @@ object ScalaPrinter {
 
   def apply(t: Type): String = {
     t match {
-      case ScalarType("float", Cst(4)) => "Float"
-      case ScalarType("int", Cst(4)) => "Int"
+      case opencl.ir.Float => "Float"
+      case opencl.ir.Int => "Int"
+      case opencl.ir.Double => "Double"
       case ArrayType(elemT, len) => s"ArrayType(${apply(elemT)}, $len)"
     }
   }
