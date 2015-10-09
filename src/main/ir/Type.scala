@@ -1,6 +1,6 @@
 package ir
 
-import apart.arithmetic.{Var, Cst, ArithExpr}
+import apart.arithmetic.{ArithExpr, Cst, Var}
 import arithmetic.TypeVar
 
 import scala.collection.{immutable, mutable}
@@ -94,6 +94,14 @@ case class TupleType(elemsT: Type*) extends Type {
  * @param len The length of the array
  */
 case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
+
+  if (len.isEvaluable) {
+    val length = len.evalDbl
+
+    if (!length.isValidInt || length < 1)
+      throw new TypeException(length + " is not a valid length for an array!")
+  }
+
   override def toString = "Arr(" +elemT+","+len+ ")"
 }
 

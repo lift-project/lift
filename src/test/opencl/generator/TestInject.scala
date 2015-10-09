@@ -40,8 +40,8 @@ class TestInject {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertEquals(1, "for".r.findAllMatchIn(code).length)
-    assertEquals(0, "if".r.findAllMatchIn(code).length)
+    assertEquals(1, "for\\s*\\(".r.findAllMatchIn(code).length)
+    assertEquals(0, "if\\s*\\(".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -61,8 +61,8 @@ class TestInject {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertEquals(1, "for".r.findAllMatchIn(code).length)
-    assertEquals(1, "if".r.findAllMatchIn(code).length)
+    assertEquals(1, "for\\s*\\(".r.findAllMatchIn(code).length)
+    assertEquals(1, "if\\s*\\(".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -82,8 +82,8 @@ class TestInject {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertEquals(2, "for".r.findAllMatchIn(code).length)
-    assertEquals(0, "if".r.findAllMatchIn(code).length)
+    assertEquals(2, "for\\s*\\(".r.findAllMatchIn(code).length)
+    assertEquals(0, "if\\s*\\(".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -103,8 +103,8 @@ class TestInject {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertEquals(0, "for".r.findAllMatchIn(code).length)
-    assertEquals(0, "if".r.findAllMatchIn(code).length)
+    assertEquals(0, "for\\s*\\(".r.findAllMatchIn(code).length)
+    assertEquals(0, "if\\s*\\(".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -124,8 +124,8 @@ class TestInject {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertEquals(0, "for".r.findAllMatchIn(code).length)
-    assertEquals(1, "if".r.findAllMatchIn(code).length)
+    assertEquals(0, "for\\s*\\(".r.findAllMatchIn(code).length)
+    assertEquals(1, "if\\s*\\(".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -145,8 +145,8 @@ class TestInject {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertEquals(1, "for".r.findAllMatchIn(code).length)
-    assertEquals(0, "if".r.findAllMatchIn(code).length)
+    assertEquals(1, "for\\s*\\(".r.findAllMatchIn(code).length)
+    assertEquals(0, "if\\s*\\(".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
   }
 
@@ -166,8 +166,8 @@ class TestInject {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertEquals(0, "for".r.findAllMatchIn(code).length)
-    assertEquals(0, "if".r.findAllMatchIn(code).length)
+    assertEquals(0, "for\\s*\\(".r.findAllMatchIn(code).length)
+    assertEquals(0, "if\\s*\\(".r.findAllMatchIn(code).length)
     assertArrayEquals(input, output, 0.0f)
 
     val (output2, runtime2, code2) = Utils.execute(f, inputs, 128, inputSize, (true, true))
@@ -176,8 +176,8 @@ class TestInject {
     println("output(0) = " + output2(0))
     println("runtime = " + runtime2)
 
-    assertEquals(0, "for".r.findAllMatchIn(code2).length)
-    assertEquals(0, "if".r.findAllMatchIn(code2).length)
+    assertEquals(0, "for\\s*\\(".r.findAllMatchIn(code2).length)
+    assertEquals(0, "if\\s*\\(".r.findAllMatchIn(code2).length)
     assertArrayEquals(input, output2, 0.0f)
   }
 }

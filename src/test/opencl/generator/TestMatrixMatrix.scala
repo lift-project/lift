@@ -179,7 +179,7 @@ class TestMatrixMatrix {
       })
     })
 
-    val matrixC = tiledC.map(_.transpose.map(_.flatten)).flatten.flatten
+    val matrixC = tiledC.flatMap(_.transpose.map(_.flatten)).flatten
 
     assertArrayEquals(gold, matrixC, 0.001f)
 
@@ -194,7 +194,7 @@ class TestMatrixMatrix {
       })
     })
 
-    val matrixC2 = tiledC2.map(_.transpose.map(_.flatten)).flatten.flatten
+    val matrixC2 = tiledC2.flatMap(_.transpose.map(_.flatten)).flatten
 
     assertArrayEquals(gold, matrixC2, 0.001f)
 
@@ -206,7 +206,7 @@ class TestMatrixMatrix {
       })
     })
 
-    val matrixC3 = tiledC3.map(_.transpose.map(_.flatten)).flatten.flatten
+    val matrixC3 = tiledC3.flatMap(_.transpose.map(_.flatten)).flatten
 
     assertArrayEquals(gold, matrixC3, 0.001f)
 
@@ -320,7 +320,7 @@ class TestMatrixMatrix {
     val tileSizeM = 16
     val tileSizeN = tileSizeM
     val tileSizeK = 8
-    val workPerThread = 4
+    val workPerThread = 2
 
     val f = fun(
       ArrayType(ArrayType(Float, M), K), // Transposed
@@ -331,8 +331,8 @@ class TestMatrixMatrix {
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
               Join() o Map(TransposeW()) o
-                toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(id)))) o
                 Join() o
+                toGlobal(MapSeq(MapLcl(1)(MapLcl(0)(MapSeq(id))))) o
 
                 // Multiply all necessary combinations of tiles
                 ReduceSeq(fun( (acc, pairOfTiles) =>
@@ -377,7 +377,7 @@ class TestMatrixMatrix {
 
             )) o Transpose() o Tile(tileSizeK, tileSizeN) $ B
             // Tile the matrices
-          )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
+          )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A // Transposed
       })
 
     val (output: Array[Float], _) = Execute(tileSizeM, tileSizeN / workPerThread,
@@ -398,7 +398,7 @@ class TestMatrixMatrix {
     val tileSizeM = 16
     val tileSizeN = tileSizeM
     val tileSizeK = 8
-    val workPerThreadN = 4
+    val workPerThreadN = 2
     val workPerThreadM = 4
 
     val f = MatrixMultiplication.tiledAndBlockedBInnermost(tileSizeN, tileSizeM, tileSizeK, workPerThreadN, workPerThreadM)

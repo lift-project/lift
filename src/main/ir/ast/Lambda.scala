@@ -14,13 +14,14 @@ import scala.language.implicitConversions
  * @param params The parameters of the lambda expression.
  * @param body The body of the lambda expression.
  */
-case class Lambda(params: Array[Param],
+abstract case class Lambda private[ast] (params: Array[Param],
                   body: Expr) extends FunDecl(params.length) {
+
   /**
    * Debug string representation
    */
   override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
-                          " -> " + body.toString + ")"
+      " -> \n" + body.toString.split("\n").map("  " + _ + "\n").mkString + ")"
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -73,6 +74,23 @@ case class Lambda(params: Array[Param],
 }
 
 object Lambda {
+
+  def apply(params: Array[Param],
+            body: Expr): Lambda = {
+    body match {
+      case FunCall(funDecl, FunCall(Lambda(lambdaParams,lambdaBody), args@_*))
+        if lambdaParams.length == params.length && (lambdaParams, args).zipped.forall((a, b) => a eq b)
+      =>
+
+        val a = (lambdaParams, params).zipped.foldLeft(lambdaBody)(
+            (e: Expr, pair: (Param, Param)) => Expr.replace(e, pair._1, pair._2))
+
+        new Lambda(params, FunCall(funDecl, a)) {}
+      case _ => new Lambda(params, body) {}
+    }
+  }
+
+
   /**
    * Implicitly wrap a given function declaration `f` into a lambda.
    *
@@ -81,7 +99,11 @@ object Lambda {
    */
   implicit def FunDefToLambda(f: FunDecl): Lambda = {
     val params = Array.fill(f.arity)(Param(UndefType))
-    new Lambda(params, f(params:_*))
+    f match {
+      case lambda@Lambda(ps, _)
+        if ps.length == params.length => lambda
+      case _ => Lambda(params, f(params: _*))
+    }
   }
 }
 

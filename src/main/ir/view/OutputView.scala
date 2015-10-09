@@ -35,6 +35,7 @@ object OutputView {
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
       case uf: UserFun => buildViewUserFun(writeView, call)
+      case uf: VectorizeUserFun => buildViewUserFun(writeView, call)
       case s: Scatter => buildViewScatter(s, call, writeView)
       case i: Iterate => buildViewIterate(i, call, writeView)
       case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
@@ -172,10 +173,8 @@ object OutputView {
   }
 
   private def buildViewHead(funCall: FunCall, writeView: View) : View = {
-    // Head returns a primitive, not an array, so initialise a view
-    // for the original array
-    View.initialiseNewView(funCall.args.head.t, funCall.outputDepth,
-      funCall.mem.variable.name)
+    // TODO: Not sure about this
+    writeView
   }
 
   private def buildViewTail(funCall: FunCall, writeView: View) : View = {

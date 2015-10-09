@@ -29,7 +29,7 @@ abstract class AbstractPartRed(val f: Lambda,
 
         ArrayType(initT, 1)
 
-      case _ => throw new TypeException(argType, "TupleType(_, _)")
+      case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
     }
   }
 

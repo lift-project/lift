@@ -9,6 +9,14 @@ extern "C" {
 #endif
 /*
  * Class:     opencl_executor_Executor
+ * Method:    nativeMatrixMultiply
+ * Signature: ([F[F[FIII)V
+ */
+JNIEXPORT void JNICALL Java_opencl_executor_Executor_nativeMatrixMultiply
+  (JNIEnv *, jclass, jfloatArray, jfloatArray, jfloatArray, jint, jint, jint);
+
+/*
+ * Class:     opencl_executor_Executor
  * Method:    execute
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIIII[Lopencl/executor/KernelArg;)D
  */
@@ -21,6 +29,14 @@ JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_execute
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIIII[Lopencl/executor/KernelArg;ID)D
  */
 JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_benchmark
+  (JNIEnv *, jclass, jstring, jstring, jstring, jint, jint, jint, jint, jint, jint, jobjectArray, jint, jdouble);
+
+/*
+ * Class:     opencl_executor_Executor
+ * Method:    evaluate
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIIII[Lopencl/executor/KernelArg;ID)D
+ */
+JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_evaluate
   (JNIEnv *, jclass, jstring, jstring, jstring, jint, jint, jint, jint, jint, jint, jobjectArray, jint, jdouble);
 
 /*
@@ -53,6 +69,14 @@ JNIEXPORT jlong JNICALL Java_opencl_executor_Executor_getDeviceGlobalMemSize
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL Java_opencl_executor_Executor_getDeviceMaxMemAllocSize
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     opencl_executor_Executor
+ * Method:    getDeviceMaxWorkGroupSize
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_opencl_executor_Executor_getDeviceMaxWorkGroupSize
   (JNIEnv *, jclass);
 
 /*

@@ -6,9 +6,9 @@ import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir.pattern._
 
 object TestTiling {
   @BeforeClass def before() {
@@ -109,7 +109,7 @@ class TestTiling {
     val Msize = 8
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
     val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
-    val gold = tiled.map(_.transpose.map(_.flatten)).flatten
+    val gold = tiled.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
@@ -147,7 +147,7 @@ class TestTiling {
     val Msize = 8
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
     val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
-    val gold = tiled.map(_.transpose.map(_.flatten)).flatten
+    val gold = tiled.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
@@ -314,7 +314,7 @@ class TestTiling {
     val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
     val tiledTransposed = tiled.map(_.map(_.transpose)).transpose
 
-    val gold = tiledTransposed.map(_.transpose.map(_.flatten)).flatten
+    val gold = tiledTransposed.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
@@ -356,7 +356,7 @@ class TestTiling {
     val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
     val tiledTransposed = tiled.map(_.map(_.transpose)).transpose
 
-    val gold = tiledTransposed.map(_.transpose.map(_.flatten)).flatten
+    val gold = tiledTransposed.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
@@ -384,7 +384,7 @@ class TestTiling {
     val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
     val tiledTransposed = tiled.map(_.map(_.transpose)).transpose
 
-    val gold = tiledTransposed.map(_.transpose.map(_.flatten)).flatten
+    val gold = tiledTransposed.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)

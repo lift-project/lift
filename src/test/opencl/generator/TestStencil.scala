@@ -1,19 +1,20 @@
 package opencl.generator
 
-import apart.arithmetic._
-import ir._
+import java.io._
+import java.util.Scanner
+
+import apart.arithmetic.Var
 import ir.ast._
+import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
-import ir.ast.Group._
-import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import opencl.ir._
+import ir._
+import spl.{Stencil2D, Stencil}
 
 import scala.util.Random
-import opencl.ir.pattern._
-
-/// TODO(tlutz): All the tests in Group have been disabled since the semantics of the modulo operator changed in the
-/// new arithExpr to behave like the C modulo operator with negative integers, which broke the current implementation.
 
 object TestStencil {
   @BeforeClass def before() {
@@ -38,13 +39,9 @@ class TestStencil {
       val newIdx = idx + x
 
       // Boundary check
-      if (newIdx < 0) {
-        data(0)
-      } else if (newIdx >= data.length) {
-        data(data.length - 1)
-      } else {
-        data(newIdx)
-      }
+      if (newIdx < 0) data(0)
+      else if (newIdx >= data.length) data(data.length - 1)
+      else data(newIdx)
     })
   }
 
@@ -53,23 +50,22 @@ class TestStencil {
     val nrRows = data.length
     val nrColumns = data(0).length
 
-    relRows.map(x => {
+    relRows.flatMap(x => {
       var newR = r + x
-      if (newR < 0) {newR = 0}
-      else if (newR >= nrRows) {newR = nrRows - 1}
+      if (newR < 0) newR = 0
+      else if (newR >= nrRows) newR = nrRows - 1
 
       relColumns.map(y => {
         var newC = c + y
-        if (newC < 0) {newC = 0}
-        else if (newC >= nrColumns) {newC = nrColumns - 1}
-
+        if (newC < 0) newC = 0
+        else if (newC >= nrColumns) newC = nrColumns - 1
         data(newR)(newC)
       })
-    }).flatten
+    })
   }
 
   def scala1DStencil(data: Array[Float], relIndices: Array[Int], weights: Array[Float]) = {
-    val neighbours = (0 until data.length).map(x => scala1DNeighbours(data, relIndices, x))
+    val neighbours = data.indices.map(x => scala1DNeighbours(data, relIndices, x))
     neighbours.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)).toArray
   }
 
@@ -88,7 +84,6 @@ class TestStencil {
     neighbours.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)).toArray
   }
 
-  @Ignore
   @Test def SIMPLE_GROUP_1D_STENCIL(): Unit = {
     val data = Seq.fill(1024)(Random.nextFloat()).toArray
     val weights = Array(1, 2, 5, 2, 1) map {_ / 11.0f}
@@ -101,9 +96,9 @@ class TestStencil {
       ArrayType(Float, Var("M")),
       (input, weights) => {
         MapGlb(
-          fun(neighbours => toGlobal(MapSeq(id)) o ReduceSeq(sumUp, 0.0f) o
-                            MapSeq(mult) $ Zip(weights, neighbours))
-        ) o Group(relativeIndices, Group.edgeNeg, Group.edgePos) $ input
+          fun(neighbours =>
+            toGlobal(MapSeq(id)) o ReduceSeq(sumUp, 0.0f) o MapSeq(mult) $ Zip(weights, neighbours))
+        ) o Stencil(relativeIndices, Pad.Boundary.Clamp) $ input
       }
     )
 
@@ -133,7 +128,7 @@ class TestStencil {
               multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
             }), 0.0f) $ Zip(neighbours, weights)
           })
-        ) o Group(relativeIndices, Group.edgeNeg, Group.edgePos) $ input
+        ) o Stencil(relativeIndices, Pad.Boundary.Clamp) $ input
       }
     )
 
@@ -146,15 +141,87 @@ class TestStencil {
   }
 
   @Ignore
+  @Test def GROUP_GAUSSIAN_BLUR(): Unit = {
+    def savePGM(name: String, img: Array[Array[Float]]) = {
+      val out = new BufferedWriter(new FileWriter(new File(name)))
+      out.write(
+        s"""|P2
+            |${img.length} ${img.head.length}
+            |255
+            |${img.map(_.map(x=>(x*255.0f).toInt).mkString("\n")).mkString("\n")}
+        """.stripMargin)
+      out.close()
+    }
+
+    // read input file
+    try {
+      val in = new FileInputStream("/tmp/lena512.pgm")
+      val scanner = new Scanner(in, "ASCII")
+      scanner.useDelimiter("""\s+#.+\s+|\s+""".r.pattern)
+      scanner.nextLine()
+      val width = scanner.nextInt()
+      val height = scanner.nextInt()
+      val max = scanner.nextInt()
+
+      val input = Array.tabulate(width, height)((r, c) => scanner.nextInt()).map(_.map(_/max.toFloat))
+      scanner.close()
+
+      // Gold
+      val neighbors = Array(-1, 0, 1)
+      val weights = Array(0.08f, 0.12f, 0.08f,
+        0.12f, 0.20f, 0.12f,
+        0.08f, 0.12f, 0.08f)
+
+      val gold = scala2DStencil(input, neighbors, neighbors, weights)
+      savePGM("gold.pgm", gold.grouped(width).toArray)
+
+      // Apart
+      val N = Var("N")
+      val M = Var("M")
+
+      val f = fun(
+        ArrayType(ArrayType(Float, M), N),
+        ArrayType(Float, Var("O")),
+        (matrix, weights) => {
+          MapGlb(1)(
+            MapGlb(0)(fun(neighbours => {
+              toGlobal(MapSeq(id)) o
+                ReduceSeq(fun((acc, y) => {
+                  multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+                }), 0.0f) $ Zip(Join() $ neighbours, weights)
+            }))
+          ) o Stencil2D(neighbors, Pad.Boundary.Clamp) $ matrix
+        })
+
+      val (output: Array[Float], runtime) =
+        Execute(16, 16, width, height, (false, false))(f, input, weights)
+
+      savePGM("output.pgm", output.grouped(width).toArray)
+
+      println("output.length = " + output.length)
+      println("output(0) = " + output(0))
+      println("runtime = " + runtime)
+
+      assertArrayEquals(gold, output, 0.000001f)
+    } catch {
+      case x: ExecutorFailureException =>
+        println(s"Cannot run benchmark: $x")
+        assertTrue(false)
+      case x: Throwable => throw x
+    }
+  }
+
+  @Ignore
   @Test def GROUP2D_DOTPRODUCT_2D_STENCIL(): Unit = {
     val Nsize = 128
     val Msize = 128
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => Random.nextFloat())
-    val relColumns = Array(-1, 0, 1)
-    val relRows = Array(-1, 0, 1)
-    val weights = Array(0.08f, 0.12f, 0.08f, 0.12f, 0.2f, 0.12f, 0.08f, 0.12f, 0.08f)
+    val neighbors = Array(-1, 0, 1)
+    val weights = Array(0.08f, 0.12f, 0.08f,
+      0.12f, 0.20f, 0.12f,
+      0.08f, 0.12f, 0.08f)
 
-    val gold = scala2DStencil(matrix, relRows, relColumns, weights)
+    val gold = scala2DStencil(matrix, neighbors, neighbors, weights)
     val N = Var("N")
     val M = Var("M")
 
@@ -169,7 +236,7 @@ class TestStencil {
                 multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Group2D(relColumns, relRows, edgeNeg, edgePos) $ matrix
+        ) o Stencil2D(neighbors, Pad.Boundary.Clamp) $ matrix
       })
 
     val (output: Array[Float], runtime) =
@@ -182,7 +249,6 @@ class TestStencil {
     assertArrayEquals(gold, output, 0.000001f)
   }
 
-  @Ignore
   @Test def GROUP_EDGE(): Unit = {
     val data = Array(1, 2, 3, 4, 5).map(_.toFloat)
     val relIndices = Array(-2, 2)
@@ -190,7 +256,7 @@ class TestStencil {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      (input) => MapGlb(MapSeq(id)) o Group(relIndices, Group.edgeNeg, Group.edgePos) $ input
+      (input) => MapGlb(MapSeq(id)) o Stencil(relIndices, Pad.Boundary.Clamp) $ input
     )
     val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)
     println("output.length = " + output.length)
@@ -200,7 +266,6 @@ class TestStencil {
     assertArrayEquals(edgeGold, output, 0.0f)
   }
 
-  @Ignore
   @Test def GROUP_REFLECT(): Unit = {
     val data = Array(1, 2, 3, 4, 5).map(_.toFloat)
     val relIndices = Array(-2, 2)
@@ -208,7 +273,7 @@ class TestStencil {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      (input) => MapGlb(MapSeq(id)) o Group(relIndices, Group.reflectNeg, Group.reflectPos) $ input
+      (input) => MapGlb(MapSeq(id)) o Stencil(relIndices, Pad.Boundary.Mirror) $ input
     )
     val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)
     println("output.length = " + output.length)
@@ -218,7 +283,6 @@ class TestStencil {
     assertArrayEquals(reflectGold, output, 0.0f)
   }
 
-  @Ignore
   @Test def GROUP_WRAP(): Unit = {
     val data = Array(1, 2, 3, 4, 5).map(_.toFloat)
     val relIndices = Array(-2, 2)
@@ -226,7 +290,7 @@ class TestStencil {
 
     val f = fun(
       ArrayType(Float, Var("N")),
-      (input) => MapGlb(MapSeq(id)) o Group(relIndices, Group.wrapNeg, Group.wrapPos) $ input
+      (input) => MapGlb(MapSeq(id)) o Stencil(relIndices, Pad.Boundary.Wrap) $ input
     )
     val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)
     println("output.length = " + output.length)

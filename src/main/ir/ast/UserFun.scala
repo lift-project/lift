@@ -137,6 +137,41 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
 
   // for debug purposes
   override def toString = name
+
+  override def hashCode(): Int = {
+    val state = Seq(name, paramNamesString, body, inTs, outT, super.hashCode())
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
+
+  override def equals(other: Any): Boolean = other match {
+    case that: UserFun =>
+        that.name == this.name &&
+        that.paramNames.sameElements(this.paramNames) &&
+        that.body == this.body &&
+        that.inTs == this.inTs &&
+        that.outT == outT
+    case _ => false
+  }
+}
+
+case class VectorizeUserFun(n: ArithExpr, userFun: UserFun)
+  extends FunDecl(userFun.inTs.length) {
+
+
+
+  override def checkType(argType: Type,
+                         setType: Boolean): Type = {
+    val substitutions = Type.reify(userFun.inT.vectorize(n), argType)
+    Type.substitute(userFun.outT.vectorize(n), substitutions.toMap)
+  }
+
+  lazy val vectorizedFunction = userFun.vectorize(n)
+
+  /**
+   * Indicating if it is possible to generate code for this function declaration.
+   * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
+   */
+  override def isGenerable: Boolean = n.isEvaluable && n.evalDbl.isValidInt
 }
 
 object UserFun {

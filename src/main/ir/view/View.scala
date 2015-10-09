@@ -189,10 +189,21 @@ abstract class View(val t: Type = UndefType) {
   def group(g: Group): View = {
     this.t match {
       case ArrayType(elemT, len) =>
-        new ViewGroup(this, g, ArrayType(ArrayType(elemT, g.relIndices.length), len))
+        new ViewGroup(this, g, ArrayType(ArrayType(elemT, g.relIndices.length), len - g.relIndices.map(Math.abs).max))
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
+
+  def pad(offset: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr): View = {
+    this.t match {
+      case ArrayType(elemT, len) =>
+        new ViewPad(this, offset, boundary, ArrayType(elemT, len + 2 * offset))
+      case other => throw new IllegalArgumentException("Can't pad " + other)
+    }
+  }
+
+
+  // new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
 }
 
 /**
@@ -334,6 +345,17 @@ private[view] case class ViewHead(iv: View, override val t: Type) extends View(t
 private[view] case class ViewTail(iv: View, override val t: Type) extends View(t)
 
 /**
+ * A view for padding an array.
+ *
+ * @param iv The view to pad.
+ * @param size The number of elements to add on either side.
+ * @param fct The index function to remap the elements.
+ * @param t The type of view.
+ */
+private[view] case class ViewPad(val iv: View, val size: Int, val fct: (ArithExpr, ArithExpr) => ArithExpr, override val t: Type) extends View(t)
+
+
+/**
  * Placeholder for a view that is not yet created.
  */
 object NoView extends View()
@@ -425,20 +447,6 @@ object ViewPrinter {
         val newAAS = (newIdx, chunkElemId._2) :: stack2
         emitView(split.iv, newAAS, tupleAccessStack)
 
-      case ag: ViewGroup =>
-        val outerId = arrayAccessStack.head
-        val stack1 = arrayAccessStack.tail
-        val innerId = stack1.head
-        val stack2 = stack1.tail
-
-        ag.group.paramType match {
-          case ArrayType(t, len) =>
-            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1, len)
-            val newAAS = (newIdx, innerId._2) :: stack2
-            emitView(ag.iv, newAAS, tupleAccessStack)
-          case _ => throw new IllegalArgumentException()
-        }
-
       case join: ViewJoin =>
         val idx = arrayAccessStack.head
         val stack = arrayAccessStack.tail
@@ -503,6 +511,28 @@ object ViewPrinter {
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView(tail.iv, newAAS, tupleAccessStack)
+        
+      case ag: ViewGroup =>
+        val outerId = arrayAccessStack.head
+        val stack1 = arrayAccessStack.tail
+        val innerId = stack1.head
+        val stack2 = stack1.tail
+
+        ag.group.paramType match {
+          case ArrayType(t, len) =>
+            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1)
+            val newAAS = (newIdx, innerId._2) :: stack2
+            emitView(ag.iv, newAAS, tupleAccessStack)
+          case _ => throw new IllegalArgumentException()
+        }
+
+      case pad: ViewPad =>
+        val idx = arrayAccessStack.head
+        val stack = arrayAccessStack.tail
+        val newIdx = pad.fct(idx._1 - pad.size, pad.iv.t.asInstanceOf[ArrayType].len)
+        val newLen = idx._2
+        val newAAS = (newIdx, newLen) :: stack
+        emitView (pad.iv, newAAS, tupleAccessStack)
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }

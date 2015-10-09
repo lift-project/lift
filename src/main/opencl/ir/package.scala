@@ -13,6 +13,8 @@ package object ir {
 
   val idI = UserFun("id", "x", "{ return x; }", Int, Int)
 
+  val iddouble = UserFun("iddouble", "x", "{ return x; }", Double, Double)
+
   val idFI = UserFun("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
 
   val idFF = UserFun("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
@@ -22,6 +24,8 @@ package object ir {
 
   val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).
     setScalaFun( xs => xs(0).asInstanceOf[Float] + xs(1).asInstanceOf[Float] )
+
+  val adddouble = UserFun("adddouble", Array("x", "y"), "{ return x+y; }", Seq(Double, Double), Double)
 
   val plusOne = UserFun("plusOne", "x", "{ return x+1; }", Float, Float).
     setScalaFun( xs => xs(0).asInstanceOf[Float] + 1.0f )
@@ -37,6 +41,8 @@ package object ir {
     setScalaFun( x => - x.head.asInstanceOf[Float] )
 
   val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
+
+  val multdouble = UserFun("multdouble", Array("l", "r"), "{ return l * r; }", Seq(Double, Double), Double)
 
   val multAndSumUp = UserFun("multAndSumUp", Array("acc", "l", "r"),
                              "{ return acc + (l * r); }",
@@ -54,6 +60,8 @@ package object ir {
   implicit def IntToValue(i: Int): Value = Value(i.toString, opencl.ir.Int)
 
   implicit def FloatToValue(f: Float): Value = Value(f.toString + "f", opencl.ir.Float)
+
+  implicit def DoubleToValue(d: Double): Value = Value(d.toString, opencl.ir.Double)
 
   implicit def Tuple2ToValue[T1, T2](t: (T1, T2)): Value = {
     val tupleType = TupleType(getType(t._1), getType(t._2))

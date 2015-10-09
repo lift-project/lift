@@ -1,7 +1,6 @@
 package opencl.executor
 
 import apart.arithmetic.{ArithExpr, Cst, Var}
-import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import opencl.generator.{OpenCLGenerator, Verbose}
@@ -167,6 +166,14 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     benchmark(iterations, timeout, code, f, values:_*)
   }
 
+  def evaluate(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
+    val code = compile(f, values:_*)
+
+    evaluate(iterations, timeout, code, f, values:_*)
+  }
+
+
+
   private def compile(f: Lambda, values: Any*) : String = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
@@ -232,6 +239,18 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     execute(executeFunction, code, f, values:_*)
   }
 
+  def evaluate(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+
+    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (code, localSize1, localSize2, localSize3,
+         globalSize1, globalSize2, globalSize3, args) =>
+      Executor.evaluate(code, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, args, iterations, timeout)
+
+    execute(executeFunction, code, f, values:_*)
+  }
+
+
   private def execute(executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
                        code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
@@ -243,10 +262,10 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     // 2. check all group functions (introduced for stencil support) are valid arguments for the
     // given input sizes
-    staticGroupCheck(f, valueMap)
+    staticPadCheck(f, valueMap)
 
     // 3. make sure the device has enough memory to execute the kernel
-    validateMemorySizes(valueMap)
+    validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
     val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval
@@ -276,11 +295,11 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   }
 
   /** Check that all possible indices returned by Group calls are in-bounds */
-  private def staticGroupCheck(f: Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
-    val groupFuns = Expr.visitWithState(Set[Group]())(f.body, (expr, set) =>
+  private def staticPadCheck(f: Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+    /*val groupFuns = Expr.visit(Set[Pad]())(f.body, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
-          case group: Group => set + group
+          case pad: Pad => set + pad
           case _ => set
         }
         case _ => set
@@ -289,7 +308,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     for (g <- groupFuns) {
       val allIndices = g.relIndices.min to g.relIndices.max
 
-      g.paramType match {
+      g.params(0).t match {
         case ArrayType(_, lenExpr) =>
           val length = ArithExpr.substitute(lenExpr, valueMap).eval
 
@@ -309,7 +328,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
           }
         case _ => throw new IllegalArgumentException("Expect parameter to be of ArrayType")
       }
-    }
+    }*/
   }
 
   private def castToOutputType(t: Type, outputData: GlobalArg): Array[_] = {
@@ -317,11 +336,14 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     Type.getBaseType(t) match {
       case Float => outputData.asFloatArray()
       case Int   => outputData.asIntArray()
+      case Double   => outputData.asDoubleArray()
       // handle tuples if all their components are of the same type
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float) =>
         outputData.asFloatArray()
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int) =>
         outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double) =>
+        outputData.asDoubleArray()
       case _ => throw new IllegalArgumentException("Return type of the given lambda expression " +
                                                    "not supported: " + t.toString)
     }
@@ -353,11 +375,20 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       case (Int8,  _: Int) => //fine
       case (Int16, _: Int) => //fine
 
+      case (Double,   _: Double) => // fine
+      case (Double2,  _: Double) => //fine
+      case (Double3,  _: Double) => //fine
+      case (Double4,  _: Double) => //fine
+      case (Double8,  _: Double) => //fine
+      case (Double16, _: Double) => //fine
+
       // handle tuples if all their components are of the same type
       case (tt: TupleType, _: Float)
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Float) => // fine
       case (tt: TupleType, _: Int)
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
+      case (tt: TupleType, _: Double)
+        if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
       case _ => throw new IllegalArgumentException("Expected value of type " + t.toString + ", " +
                                                    "but " + "value of type " + v.getClass
                                                                                .toString + " given")
@@ -369,7 +400,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
                             valueMap: immutable.Map[ArithExpr, ArithExpr],
                             values: Any*): Array[KernelArg] = {
     // go through all memory objects associated with the generated kernel
-    OpenCLGenerator.Kernel.memory.map(mem => {
+    OpenCLGenerator.getMemories(f)._2.map(mem => {
       // get the OpenCL memory object ...
       val m = mem.mem
       // ... look for it in the parameter list ...
@@ -386,9 +417,11 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     })
   }
 
-  private def validateMemorySizes(valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+  private def validateMemorySizes(f:Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
+    val memories = OpenCLGenerator.getMemories(f)
+
     val (globalMemories, localMemories) =
-      (OpenCLGenerator.Kernel.memory ++ OpenCLGenerator.Kernel.staticLocalMemory).
+      (memories._1 ++ memories._2).
         partition(_.mem.addressSpace == GlobalMemory)
 
     val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
@@ -414,7 +447,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   private def createSizeArgs(f: Lambda,
                              valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
     // get the variables from the memory objects associated with the generated kernel
-    val allVars = OpenCLGenerator.Kernel.memory.map(mem => {
+    val allVars = OpenCLGenerator.getMemories(f)._2.map(mem => {
       mem.mem.size.varList
     } ).filter(_.nonEmpty).flatten.distinct
     // select the variables which are not (internal) iteration variables
@@ -455,6 +488,12 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
         case aaai: Array[Array[Array[Int]]] => global.input(aaai.flatten.flatten)
         case aaaai: Array[Array[Array[Array[Int]]]] => global.input(aaaai.flatten.flatten.flatten)
 
+        case d: Double => value(d)
+        case ad: Array[Double] => global.input(ad)
+        case aad: Array[Array[Double]] => global.input(aad.flatten)
+        case aaad: Array[Array[Array[Double]]] => global.input(aaad.flatten.flatten)
+        case aaaad: Array[Array[Array[Array[Double]]]] => global.input(aaaad.flatten.flatten.flatten)
+
         case _ => throw new IllegalArgumentException("Kernel argument is of unsupported type: " +
                                                      any.getClass.toString)
       }
@@ -474,6 +513,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       def apply(array: Array[Float]) = GlobalArg.createInput(array)
 
       def apply(array: Array[Int]) = GlobalArg.createInput(array)
+
+      def apply(array: Array[Double]) = GlobalArg.createInput(array)
     }
 
     /**
@@ -505,6 +546,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     def apply(value: Float) = ValueArg.create(value)
 
     def apply(value: Int) = ValueArg.create(value)
+
+    def apply(value: Double) = ValueArg.create(value)
   }
 
 }

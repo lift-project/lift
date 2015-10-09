@@ -75,6 +75,9 @@ object OpenCLMemoryAllocator {
       // here is where the actual allocation happens
       case uf: UserFun        => allocUserFun(call.t, numGlb, numLcl, numPvt,
                                               inMem, addressSpace)
+      case vec: VectorizeUserFun
+                              => allocUserFun(call.t, numGlb, numLcl, numPvt,
+                                              inMem, addressSpace)
       case l: Lambda          => allocLambda(l, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
       case MapGlb(_, _) |
@@ -101,8 +104,8 @@ object OpenCLMemoryAllocator {
       case Get(n)             => allocGet(n, inMem)
       case f: Filter          => allocFilter(f, numGlb, numLcl, inMem)
       case Split(_)    | Join()  | asVector(_)  | asScalar() |
-           Transpose() | Unzip() | TransposeW() | Group(_, _, _) |
-           Head()      | Tail()  | Gather(_)    | Scatter(_) | Epsilon() =>
+           Transpose() | Unzip() | TransposeW() | Group(_)   | Pad(_,_) |
+           Head()      | Tail()  | Gather(_)    | Scatter(_) =>
         inMem
     }
   }
@@ -227,7 +230,7 @@ object OpenCLMemoryAllocator {
 
     // create a swap buffer
     it.swapBuffer =
-      OpenCLMemory.allocMemory(largestSize, largestSize, largestSize,
+      OpenCLMemory.allocMemory(largestSize*numGlb, largestSize*numLcl, largestSize*numPvt,
                                inMem.addressSpace)
 
     // recurs to allocate memory for the function(s) inside

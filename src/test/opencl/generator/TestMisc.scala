@@ -25,6 +25,56 @@ object TestMisc {
 
 class TestMisc {
 
+  @Test
+  def testDouble(): Unit = {
+    val inputSize = 256
+    val input = Array.fill(inputSize)(util.Random.nextInt(5).toDouble)
+
+    val incr = UserFun("incr", "x", "{ return x+1; }", Double, Double)
+
+    val f = fun(
+      ArrayType(Double, Var("N")),
+      in => MapGlb(incr) $ in
+    )
+
+    val (output: Array[Double], _) = Execute(inputSize)(f, input)
+
+    assertArrayEquals(input.map(_ + 1), output, 0.0)
+  }
+
+  @Test def issue20(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inputData.map(_+5)
+
+    val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      (inArr) => {
+        Join() o MapGlb(
+          Iterate(5)(fun((e) => MapSeq(incr) $ e))
+        ) o Split(1) $ inArr
+      }
+    )
+
+    val f2 = fun(
+      ArrayType(Float, Var("N")),
+      (inArr) => {
+        Iterate(5)(fun((arr) =>
+          MapGlb(incr) $ arr
+        )) $ inArr
+      }
+    )
+
+
+    val (output1: Array[Float], _) = Execute(inputData.length)(f, inputData)
+    assertArrayEquals(gold, output1, 0.0f)
+
+    val (output2: Array[Float], _) = Execute(inputData.length)(f2, inputData)
+    assertArrayEquals(gold, output2, 0.0f)
+  }
+
   @Test def issue22(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -151,10 +201,8 @@ class TestMisc {
     val output = Interpreter(l).->[Vector[Float]].run(inputData).toArray
 
     assertArrayEquals(inputData, output, 0.0f)
-
   }
 
-//  @Ignore
   @Test
   def issue28(): Unit = {
     val inputSize = 1024
@@ -228,19 +276,17 @@ class TestMisc {
 //    println("runtime = " + runtime)
   }
 
-  @Test def accessingMultidimArrayAfterZip(): Unit = {
+  @Test def accessingMultiDimArrayAfterZip(): Unit = {
     val Nsize = 8
-    val Msize = 4
     val Ksize = 2
-    val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
+    val matrix = Array.tabulate(Nsize, Nsize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
     val vector = Array.fill(Nsize)(1.0f)
 
     val N = Var("N")
-    val M = Var("M")
     val K = Var("K")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayType(ArrayType(ArrayType(Float, K), N), N),
       ArrayType(Float, N),
       (matrix, vector) => MapGlb(fun(r =>
         MapSeq(fun(t =>
@@ -300,6 +346,25 @@ class TestMisc {
 //    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
     val output = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(inputData.grouped(4).toArray).toArray[Float]
 
+    assertArrayEquals(inputData, output, 0.0f)
+
+    println("output(0) = " + output(0))
+    //println("runtime = " + runtime)
+  }
+
+  @Test def vectorizePattern(): Unit = {
+    val inputSize = 1024
+    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float4, N),
+      (input) =>
+        MapGlb(VectorizeUserFun(4, id)) $ input
+    )
+
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
     assertArrayEquals(inputData, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -471,7 +536,6 @@ class TestMisc {
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
-  @Ignore
   @Test def joinJoinThenSplitSplit3D(): Unit = {
 
     val Nsize = 256
@@ -647,5 +711,29 @@ class TestMisc {
 //    println("runtime = " + runtime)
 
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
+  }
+
+  @Test def localMemoryRegression(): Unit = {
+    val f =
+      fun(
+        ArrayType(Float, Var("N")),
+        x => Join() o MapWrg(
+          Join() o MapLcl(
+            Join() o MapSeq(
+              toGlobal(MapSeq(id)) o Gather(reverse) o toLocal(MapSeq(id))
+            ) o Split(2)
+          ) o Split(2)
+        ) o Split(512) $ x
+
+      )
+
+    val input = Array.fill(2048)(util.Random.nextInt(5).toFloat)
+
+    val code = Compile(f)
+
+    val (output: Array[Float], _) = Execute(16, 2048)(code, f, input)
+
+    assertEquals(input.sum, output.sum, 0.0f)
+    assertEquals(8, "l_id".r.findAllMatchIn(code).length)
   }
 }

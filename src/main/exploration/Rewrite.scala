@@ -1,83 +1,146 @@
 package exploration
 
+import apart.arithmetic.ArithExpr
+import exploration.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
-import Rules._
 
 object Rewrite {
 
-  private val rules =
-    Seq(
-      iterateId,
-      iterate1,
-      gatherToScatter,
-      scatterToGather,
-      partialReduceToReduce,
-      partialReduceReorder,
-      epsilonComposition,
-      epsilonComposition2,
-      mapEpsilon,
-      asScalarAsVectorId,
-      asVectorAsScalarId,
-      transposeTransposeId,
-      joinSplitId,
-      splitJoinId,
-      mapSeq,
-      mapGlb,
-      mapWrg,
-      mapLcl,
-      mapWarp,
-      mapLane,
-      splitJoin,
-      mapReduceInterchange,
-      mapMapTransposeZipInside,
-      mapFission,
-      reduceSeq,
-      partialReduce,
-      partialReduceSplitJoin,
-      vectorize,
-      mapReduceFusion,
-      mapFusion,
-      mapMapInterchange,
-      reorderBothSides,
-      transposeBothSides,
-      mapMapTransposeZipOutside
-    )
+  def getExprForId(expr: Expr, id: Int, idMap: collection.Map[Expr, Int]): Expr =
+    idMap.find(pair => pair._2 == id).get._1
 
-  private def listAllPossibleRewritesForAllRules(lambda: Lambda): Seq[(Rule, Expr)] = {
-    rules.map(rule => listAllPossibleRewrites(lambda, rule)).reduce(_ ++ _)
+  def applyRuleAtId(lambda: Lambda, id: Int, rule: Rule): Lambda = {
+    val replacement = applyRuleAtId(lambda.body, id, rule)
+    Lambda(lambda.params, replacement)
   }
 
-  private def listAllPossibleRewrites(lambda: Lambda,
-                                      rule: Rule): Seq[(Rule, Expr)] = {
-    Context.updateContext(lambda.body, new Context)
+  def applyRuleAt(lambda: Lambda, expr: Expr, rule: Rule): Lambda = {
+    val replacement = applyRuleAt(lambda.body, rule, expr)
+    Lambda(lambda.params, replacement)
+  }
 
-    Expr.visitWithState(Seq[(Rule, Expr)]())( lambda.body, (e, s) => {
-      if (rule.rewrite.isDefinedAt(e) && rule.isValid(e.context)) {
+  def applyRuleAtId(expr: Expr, id: Int, rule: Rule): Expr = {
+    val numbering = NumberExpression.breadthFirst(expr)
+    applyRuleAtId(expr, id, rule, numbering)
+  }
+
+  def depthFirstApplyRuleAtId(expr:Expr, id: Int, rule: Rule): Expr = {
+    val numbering = NumberExpression.depthFirst(expr)
+    applyRuleAtId(expr, id, rule, numbering)
+  }
+
+  def applyRuleAtId(expr: Expr, id: Int, rule: Rule, numbering: collection.Map[Expr, Int]): Expr = {
+    val toBeReplaced = getExprForId(expr, id, numbering)
+    applyRuleAt(expr, rule, toBeReplaced)
+  }
+
+  def applyRuleAt(expr: Expr, rule: Rule, toBeReplaced: Expr): Expr = {
+    TypeChecker.check(expr)
+    Context.updateContext(expr)
+
+    val replacement = rule.rewrite(toBeReplaced)
+    var replacedInExpr = Expr.replace(expr, toBeReplaced, replacement)
+
+    if (rule == MacroRules.splitJoinId)
+      replacedInExpr = patchUpAfterSplitJoin(toBeReplaced, replacement, replacedInExpr)
+
+    replacedInExpr
+  }
+
+  /**
+   * Apply rules one by one until no rules apply anymore
+   * @param lambda The lambda where to apply rules
+   * @param rules The rules to apply
+   * @return
+   */
+  def applyRulesUntilCannot(lambda: Lambda, rules: Seq[Rule]): Lambda = {
+    val newBody = applyRulesUntilCannot(lambda.body, rules)
+
+    if (newBody eq lambda.body)
+      lambda
+    else
+      Lambda(lambda.params, newBody)
+  }
+
+  /**
+   * Apply rules one by one until no rules apply anymore
+   * @param expr The expression where to apply rules
+   * @param rules The rules to apply
+   * @return
+   */
+  def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
+    val allRulesAt = listAllPossibleRewritesForRules(expr, rules)
+
+    if (allRulesAt.isEmpty) {
+      expr
+    } else {
+      val ruleAt = allRulesAt.head
+      applyRulesUntilCannot(Rewrite.applyRuleAt(expr, ruleAt._1, ruleAt._2), rules)
+    }
+  }
+
+  def patchUpAfterSplitJoin(toBeReplaced: Expr, replacement: Expr, replaced: Expr): Expr = {
+    // TODO: suppress warnings?
+    TypeChecker(replaced)
+
+    val newExpr = Utils.getLengthOfSecondDim(replacement.t)
+    val oldExpr = Utils.getLengthOfSecondDim(toBeReplaced.t)
+
+    if (oldExpr != newExpr) {
+      val st = collection.immutable.Map[ArithExpr, ArithExpr]((oldExpr, newExpr))
+      val tunableNodes = Utils.findTunableNodes(replaced)
+      Utils.quickAndDirtySubstitution(st, tunableNodes, replaced)
+    } else {
+      replaced
+    }
+  }
+
+  private[exploration] def listAllPossibleRewritesForRules(lambda: Lambda,
+                                                           rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+    listAllPossibleRewritesForRules(lambda.body, rules)
+  }
+
+  private[exploration] def listAllPossibleRewritesForRules(expr: Expr,
+                                                           rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+    Context.updateContext(expr)
+    TypeChecker.check(expr)
+    rules.flatMap(rule => listAllPossibleRewrites(expr, rule))
+  }
+
+  private[exploration] def listAllPossibleRewrites(lambda: Lambda,
+                                                   rule: Rule): Seq[(Rule, Expr)] = {
+    listAllPossibleRewrites(lambda.body, rule)
+  }
+
+  private[exploration] def listAllPossibleRewrites(expr: Expr,
+                                                   rule: Rule): Seq[(Rule, Expr)] = {
+    Expr.visitWithState(Seq[(Rule, Expr)]())( expr, (e, s) => {
+      if (rule.rewrite.isDefinedAt(e)) {
         s :+ (rule, e)
       } else s
     })
   }
 
-  private def applyRuleAt(lambda: Lambda, ruleAt: (Rule, Expr)): Lambda = {
-    val rule = ruleAt._1
-    val oldE = ruleAt._2
-    // same as FunDecl.replace( ... )
-    Lambda(lambda.params, Expr.replace(lambda.body, oldE, rule.rewrite(oldE)))
-  }
-
-  def rewrite(lambda: Lambda, levels: Int = 1): Seq[Lambda] = {
+  def rewrite(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] = {
     TypeChecker.check(lambda.body)
 
-    val allRulesAt = listAllPossibleRewritesForAllRules(lambda)
-    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt))
-
-    val (g, notG) = rewritten.partition( _.isGenerable )
+    val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
+    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt._2, ruleAt._1))
 
     if (levels == 1) {
-      g
+      rewritten
     } else {
-      g ++ notG.flatMap( l => rewrite(l, levels-1))
+      rewritten.flatMap( l => rewriteJustGenerable(l, rules, levels-1))
     }
   }
+
+  def rewriteJustGenerable(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] =
+    rewrite(lambda, rules, levels).filter(_.isGenerable)
+
+  def rewriteJustGenerable(lambda: Lambda, levels: Int = 1): Seq[Lambda] =
+    rewriteJustGenerable(lambda, allRules, levels)
+
 }
+
+

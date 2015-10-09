@@ -4,6 +4,7 @@ import apart.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
 import opencl.ir.OpenCLMemory
+import opencl.ir.pattern.MapLcl
 
 /**
  * Helper object for building views.
@@ -33,6 +34,8 @@ private class BuildDepthInfo() {
   var privateAccessInf = List[(ArithExpr, ArithExpr)]()
   var localAccessInf = List[(ArithExpr, ArithExpr)]()
   var globalAccessInf = List[(ArithExpr, ArithExpr)]()
+
+  var seenMapLcl = false
 
   private def visitAndBuildDepthInfo(expr: Expr): Unit = {
     expr match {
@@ -68,12 +71,20 @@ private class BuildDepthInfo() {
   private def buildDepthInfoMapCall(m: AbstractMap, call: FunCall): Unit = {
     val (readsLocal, readsPrivate) = readsLocalPrivate(call)
 
+    val orig = seenMapLcl
+
+    if (m.isInstanceOf[MapLcl])
+      seenMapLcl = true
+
     buildDepthInfoPatternCall(m.f.body, call, m.loopVar, readsLocal, readsPrivate)
+
+    if (m.isInstanceOf[MapLcl])
+      seenMapLcl = orig
   }
 
   private def readsLocalPrivate(call: FunCall): (Boolean, Boolean) = {
-    val readsLocal = OpenCLMemory.containsLocalMemory(call.args(0).mem)
-    val readsPrivate = OpenCLMemory.containsPrivateMemory(call.args(0).mem)
+    val readsLocal = OpenCLMemory.containsLocalMemory(call.args.head.mem)
+    val readsPrivate = OpenCLMemory.containsPrivateMemory(call.args.head.mem)
     (readsLocal, readsPrivate)
   }
 
@@ -90,7 +101,7 @@ private class BuildDepthInfo() {
     val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
     globalAccessInf = tuple :: globalAccessInf
-    if (readsLocal || writesLocal)
+    if (seenMapLcl || readsLocal || writesLocal)
       localAccessInf = tuple :: localAccessInf
     if (readsPrivate || writesPrivate)
       privateAccessInf = tuple :: privateAccessInf
@@ -98,7 +109,7 @@ private class BuildDepthInfo() {
     visitAndBuildDepthInfo(expr)
 
     globalAccessInf = globalAccessInf.tail
-    if (readsLocal || writesLocal)
+    if (seenMapLcl || readsLocal || writesLocal)
       localAccessInf = localAccessInf.tail
     if (readsPrivate || writesPrivate)
       privateAccessInf = privateAccessInf.tail

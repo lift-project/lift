@@ -4,6 +4,10 @@ import ir.ast._
 
 object TypeChecker {
 
+  def apply(lambda: Lambda) = check(lambda.body)
+
+  def apply(expr: Expr) = check(expr)
+
   def check(expr: Expr, setType: Boolean = true): Type = {
 
     val inferredOuT = expr match {

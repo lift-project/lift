@@ -442,4 +442,23 @@ class TestTranspose {
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
   }
 
+  // Two transpose in a row should generate the ID function
+  @Test def MATRIX_TRANSPOSE_NOOP(): Unit = {
+    val Nsize = 16
+    val gold = Array.fill(Nsize)(util.Random.nextFloat())
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => MapGlb(id)
+        o Join()
+        o Transpose() o Transpose()
+        o Split(4)
+        $ domain
+    )
+
+    val (output: Array[Float], runtime) = Execute(Nsize,Nsize)(f, gold)
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
 }
