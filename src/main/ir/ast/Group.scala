@@ -1,6 +1,8 @@
 package ir.ast
 
+import ir.interpreter.Interpreter._
 import ir.{TypeException, ArrayType, UndefType, Type}
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 
 /**
@@ -42,6 +44,13 @@ case class Group(relIndices: Array[Int]) extends Pattern(arity = 1) with isGener
   override def equals(other: Any): Boolean = other match {
     case g: Group => g.id == id
     case _ => false
+  }
+
+  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Vector[_] => throw new NotImplementedException()
+    }
   }
 
   /**
