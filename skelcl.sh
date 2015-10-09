@@ -3,7 +3,7 @@
 set -e
 
 CONFIG_FILE=skelcl.conf
-SKELCL_CMAKE_COMMON_FLAGS="-DBUILD_EXECUTOR=ON -DTHROW_ON_FAILURE=ON -DCMAKE_BUILD_TYPE=RELEASE"
+SKELCL_CMAKE_COMMON_FLAGS="-DBUILD_EXECUTOR=ON -DTHROW_ON_FAILURE=ON -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_STOOLING=OFF"
 INTERACTIVE=false
 
 while getopts ":i" opt; do 
@@ -93,36 +93,6 @@ function configure(){
       unzip -q gtest-1.7.0.zip
       mv gtest-1.7.0 libraries/gtest
       rm gtest-1.7.0.zip
-    fi
-
-    if [ ! -e libraries/stooling/libraries/llvm ]; then
-      llvm_found=false
-      set +e
-
-      if [ -z "$SKELCL_LLVM_PATH" ]; then
-        if type "llvm-config" > /dev/null; then
-          llvm-config --bindir
-          if [ "$?" = 0 ]; then
-            llvm_path=$(llvm-config --bindir)
-            echo "LLVM install path found in ${llvm_path}/.., so you want to use it?"
-            echo "(y)es or (n)o "
-            read LLVM_ANSWER
-            if [[ "$LLVM_ANSWER" == 'y' ]]; then
-              ln -s "${llvm_path}/.." libraries/stooling/libraries/llvm
-              llvm_found=true
-            fi
-          fi
-        fi
-        set -e
-        if [ "${llvm_found}" = false ]; then
-          echo "[error] Cannot find LLVM. You need to configure LLVM for SkelCL manually" >&2 
-          exit -1
-        fi
-      else
-        echo "Using LLVM path ${SKELCL_LLVM_PATH} set in ${CONFIG_FILE}"
-        ln -s "${SKELCL_LLVM_PATH}" libraries/stooling/libraries/llvm
-        set -e
-      fi
     fi
   fi
 
