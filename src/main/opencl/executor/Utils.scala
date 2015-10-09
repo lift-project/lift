@@ -87,6 +87,38 @@ object Utils {
     res
   }
 
+  def matrixMatrixMultiply(A: Array[Array[Float]],
+                           B: Array[Array[Float]],
+                           C: Array[Array[Float]],
+                           alpha: Float,
+                           beta: Float) :  Array[Array[Float]] = {
+    val aCols = A(0).length
+    val aRows = A.length
+    val bCols = B(0).length
+    val res =  Array.ofDim[Float](aRows, bCols)
+
+    if (A.head.length != B.length)
+      throw new IllegalArgumentException
+
+    @inline def computeRow(row: Int) {
+      // while statements are much faster than for statements
+      var col = 0
+      while(col < bCols) { var i = 0; var sum = 0.0f
+        while(i < aCols) {
+          sum += A(row)(i) * B(i)(col)
+          i += 1
+        }
+
+        res(row)(col) =  alpha * sum + C(row)(col) * beta
+        col += 1
+      }
+    }
+
+    (0 until aRows).par.foreach( computeRow )
+
+    res
+  }
+
   def matrixVector(matrix: Array[Array[Float]], vector: Array[Float]): Array[Float] = {
     matrix.map(
       (row) => (row, vector).zipped.map(_ * _).sum

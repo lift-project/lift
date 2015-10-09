@@ -466,15 +466,25 @@ class OpenCLGenerator extends Generator {
                                  call: FunCall,
                                  block: Block): Unit = {
     generateLoop(block, m.loopVar, (b) => generate(m.f.body, b),
-                 m.iterationCount,
-      (   OpenCLMemory.containsPrivateMemory(call.args.head.mem)
-       && privateMems.exists(_.mem == call.args.head.mem)) ||
-        // Don't unroll just for value
-        OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory)
+                 m.iterationCount, shouldUnrollLoop(call))
 
     if (m.emitBarrier)
       block += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
+
+  def shouldUnrollLoop(call: FunCall): Boolean = {
+    (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
+      && (call.args.head.mem match {
+      case coll: OpenCLMemoryCollection =>
+        coll.subMemories.exists(mem => existsInPrivateMemories(mem))
+      case _ => existsInPrivateMemories(call.args.head.mem)
+    })) ||
+      // Don't unroll just for value
+      OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
+  }
+
+  private def existsInPrivateMemories(mem: Memory): Boolean =
+    privateMems.exists(_.mem == mem)
 
   // MapWarp
   private def generateMapWarpCall(m: MapWarp,
@@ -500,11 +510,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapSeqCall(m: MapSeq,
                                  call: FunCall,
                                  block: Block): Unit = {
-    val unroll: Boolean =
-      (   OpenCLMemory.containsPrivateMemory(call.args.head.mem)
-        && privateMems.exists(_.mem == call.args.head.mem)) ||
-        // Don't unroll just for value
-        OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
+    val unroll = shouldUnrollLoop(call)
 
     block += OpenCLAST.Comment("map_seq")
     generateLoop(block, m.loopVar, (b) => generate(m.f.body, b),
