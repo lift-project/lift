@@ -7,7 +7,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, Assume, BeforeClass, Test}
 
 object TestMisc {
   @BeforeClass def before() {
@@ -26,6 +26,8 @@ class TestMisc {
 
   @Test
   def testDouble(): Unit = {
+    Assume.assumeTrue("Needs double support", Executor.supportsDouble())
+
     val inputSize = 256
     val input = Array.fill(inputSize)(util.Random.nextInt(5).toDouble)
 

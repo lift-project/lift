@@ -115,6 +115,8 @@ public class Executor {
 
     public native static long getDeviceMaxWorkGroupSize();
 
+    public native static boolean supportsDouble();
+
     public native static String getPlatformName();
 
     public native static String getDeviceName();
