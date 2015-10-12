@@ -1,32 +1,27 @@
 package cgoSearch
 
 import exploration.InferNDRange
-import cgoSearch.ExecutionHarness.ErrorCounter
 import ir.ScalarType
 import ir.ast.Lambda
 import ir.view.View
-import opencl.executor.Executor
 import opencl.generator.OpenCLCodeGen
 import opencl.ir._
 
-/**
- * Test if a given lambda is worth executing.
- */
 object ExpressionFilter {
   object Status extends Enumeration {
     type Status = Value
     val Success,
-      TooMuchPrivateMemory,
-      TooMuchLocalMemory,
-      NotEnoughWorkItems,
-      TooManyWorkItems,
-      NotEnoughWorkGroups,
-      TooManyWorkGroups,
-      NotEnoughParallelism,
-      InternalException = Value
+    TooMuchPrivateMemory,
+    TooMuchLocalMemory,
+    NotEnoughWorkItems,
+    TooManyWorkItems,
+    NotEnoughWorkGroups,
+    TooManyWorkGroups,
+    NotEnoughParallelism,
+    InternalException = Value
   }
 
-  import Status._
+  import ExpressionFilter.Status._
 
   def apply(expr: Lambda, values: Any*): Status = {
     try {
@@ -55,7 +50,6 @@ object ExpressionFilter {
       val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_ + _).eval
       if (private_alloc_size > SearchParameters.max_amount_private_memory ||
           private_buffers_size.forall(_.mem.size.eval <= 0)) {
-        ErrorCounter.priv_mem = ErrorCounter.priv_mem + 1
         return TooMuchPrivateMemory
       }
 
@@ -67,38 +61,32 @@ object ExpressionFilter {
         else 0
       if (local_alloc_size > 50000 ||
           local_buffers_size.forall(_.mem.size.eval <= 0)) {
-        ErrorCounter.local_mem = ErrorCounter.local_mem + 1
         return TooMuchLocalMemory
       }
 
       // Rule out obviously poor choices based on the grid size
       // - minimum of workitems in a workgroup
       if (local.map(_.eval).product < SearchParameters.min_work_items) {
-        ErrorCounter.not_enough_wi = ErrorCounter.not_enough_wi + 1
         return NotEnoughWorkItems
       }
 
       // - minimum size of the entire compute grid
       if (global.map(_.eval).product < SearchParameters.min_grid_size) {
-        ErrorCounter.not_enough_wg = ErrorCounter.not_enough_wg + 1
         return NotEnoughWorkItems
       }
 
       // Avoid crashing for invalid values
       if (local.map(_.eval).product > 1024) {
-        ErrorCounter.not_enough_rpt = ErrorCounter.not_enough_rpt + 1
         return TooManyWorkItems
       }
 
       // - minimum number of workgroups
       val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
       if (num_workgroups < SearchParameters.min_num_workgroups) {
-        ErrorCounter.not_enough_wg = ErrorCounter.not_enough_wg + 1
         return NotEnoughWorkGroups
       }
 
       if (num_workgroups > SearchParameters.max_num_workgroups) {
-        ErrorCounter.not_enough_wg = ErrorCounter.not_enough_wg + 1
         return TooManyWorkGroups
       }
 

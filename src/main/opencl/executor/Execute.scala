@@ -281,8 +281,10 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     val args: Array[KernelArg] = memArgs ++ sizes
 
     // 8. execute via JNI
-    val runtime = executeFunction(code, localSize1, localSize2, localSize3,
-      globalSize1, globalSize2, globalSize3, args)
+    val runtime = this.synchronized {
+      executeFunction(code, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, args)
+    }
 
     // 9. cast the output accordingly to the output type
     val output = castToOutputType(f.body.t, outputData)

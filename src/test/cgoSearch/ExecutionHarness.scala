@@ -1,18 +1,12 @@
 package cgoSearch
+
+import apart.arithmetic.NotEvaluableException
 import exploration.InferNDRange
 import ir.ast.Lambda
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 
 object ExecutionHarness {
-  object ErrorCounter {
-    var local_mem = 0
-    var priv_mem = 0
-    var not_enough_wi = 0
-    var not_enough_wg = 0
-    var not_enough_rpt = 0
-  }
-
   object Status extends Enumeration {
     type Status = Value
     val Success, Skipped, Avoided, ValidationError, ArithmeticsError, ExecutorError, UnknwownError = Value
@@ -97,13 +91,11 @@ class ExecutionHarness(gold: Array[Float]) {
         ea.consume()
         failure(ExecutorError)
 
-      case e: Exception =>
-        //e.printStackTrace()
-        failure(ExecutorError)
+      case ae: NotEvaluableException =>
+        failure(ArithmeticsError)
 
       case e: Throwable =>
-        //println(e)
-        failure(ExecutorError)
+        failure(UnknwownError)
     }
   }
 }
