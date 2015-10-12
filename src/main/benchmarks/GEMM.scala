@@ -49,7 +49,7 @@ class GEMM (override val f: Seq[(String, Array[Lambda])])
     val inputSizeM = inputSizes()(1)
     val inputSizeK = inputSizes()(2)
 
-    val matrixA = Array.tabulate(inputSizeK, inputSizeM)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
+    val matrixA = Array.tabulate(inputSizeM, inputSizeK)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
     val matrixB = Array.tabulate(inputSizeK, inputSizeN)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
     val matrixC = Array.tabulate(inputSizeK, inputSizeN)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
 
@@ -63,7 +63,7 @@ class GEMM (override val f: Seq[(String, Array[Lambda])])
   }
 
   override protected def beforeBenchmark() = {
-    f(1)._2(0) = MatrixMultiplication.tiledAndBlockedBInnermost(Cst(tileX.value.getOrElse(16)),
+    f(1)._2(0) = GEMM.tiledAndBlockedBInnermost(Cst(tileX.value.getOrElse(16)),
       Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
       Cst(registerBlockM.value.getOrElse(4)))
   }
@@ -186,13 +186,13 @@ object GEMM {
     })
 
 
-  def apply() = new MatrixMultiplication(
+  def apply() = new GEMM(
     Seq(("naive", Array[Lambda](naive)),
       ("tiledAndBlockedBInnermost", Array[Lambda](tiledAndBlockedBInnermost(16, 16, 8, 4, 4)))
     ))
 
 
   def main(args: Array[String]): Unit = {
-    MatrixMultiplication().run(args)
+    GEMM().run(args)
   }
 }
