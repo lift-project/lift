@@ -3,6 +3,7 @@ package benchmarks
 import apart.arithmetic.{ArithExpr, Cst, Var}
 import ir._
 import ir.ast._
+import opencl.executor.Utils
 import opencl.ir._
 import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
@@ -33,26 +34,7 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     if (variant == 3 || variant == 4)
       A = A.transpose
 
-    val aCols = A(0).length
-    val aRows = A.length
-    val bCols = B(0).length
-    val res =  Array.ofDim[Float](aRows, bCols)
-
-    @inline def computeRow(row: Int) {
-      // while statements are much faster than for statements
-      var col = 0
-      while(col < bCols) { var i = 0; var sum = 0.0f
-        while(i < aCols) {
-          sum += A(row)(i) * B(i)(col)
-          i += 1
-        }
-
-        res(row)(col) = sum
-        col += 1
-      }
-    }
-
-    (0 until aRows).par.foreach( computeRow )
+    val res = Utils.matrixMatrixMultiply(A, B)
 
     res.flatten
   }
@@ -64,7 +46,7 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     val inputSizeM = inputSizes()(1)
     val inputSizeK = inputSizes()(2)
 
-    val matrixA = Array.tabulate(inputSizeK, inputSizeM)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
+    val matrixA = Array.tabulate(inputSizeM, inputSizeK)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
     val matrixB = Array.tabulate(inputSizeK, inputSizeN)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
 
     Seq(matrixA, matrixB)
