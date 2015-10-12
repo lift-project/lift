@@ -165,7 +165,7 @@ object Rules {
         })
         && f.body.isConcrete
         && !(call.context.inMapGlb(dim) ||
-             call.context.inMapWrg.reduce(_ || _) ||
+             call.context.inMapWrg(dim) ||
              call.context.inMapWarp)
     =>
       MapGlb(dim)(f)(arg)
@@ -183,7 +183,7 @@ object Rules {
           case FunCall(MapWrg(dimNested, _), _) if dim == dimNested =>
         })
         && f.body.isConcrete
-        && !(call.context.inMapGlb.reduce(_ || _) ||
+        && !(call.context.inMapGlb(dim) ||
              call.context.inMapWrg(dim) ||
              call.context.inMapWarp)
     =>

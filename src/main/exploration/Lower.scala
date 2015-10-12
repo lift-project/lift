@@ -6,8 +6,7 @@ import ir.ast._
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq}
 
 object Lower {
-  def lowerFinal(lambda: Lambda) = {
-
+  private def patchLambda(lambda: Lambda) = {
     val partialReducesLowered = lowerPartialReduces(lambda)
 
     val simplified = SimplifyAndFuse(partialReducesLowered)
@@ -18,7 +17,11 @@ object Lower {
 
     val removeOtherIds = dropIds(allocatedToGlobal)
 
-    val copiesAdded = addAndImplementIds(removeOtherIds)
+    removeOtherIds
+  }
+
+  def lowerFinal(lambda: Lambda) = {
+    val copiesAdded = addAndImplementIds(patchLambda(lambda))
 
     val mapsLowered = simpleMapLoweringStrategy(copiesAdded)
 
@@ -27,16 +30,14 @@ object Lower {
     assignedAddressSpaces
   }
 
+  def lowerFinals(lambda: Lambda) = {
+    val copiesAdded = addAndImplementIds(patchLambda(lambda))
+
+    lowerMaps(copiesAdded)
+  }
+
   def lowerNoAddressSpaces(lambda: Lambda) = {
-    val partialReducesLowered = lowerPartialReduces(lambda)
-
-    val simplified = SimplifyAndFuse(partialReducesLowered)
-
-    val reducesLowered = lowerReduces(simplified)
-
-    val allocatedToGlobal = reduceToGlobal(reducesLowered)
-
-    val removeOtherIds = SimplifyAndFuse(dropIds(allocatedToGlobal))
+    val removeOtherIds = SimplifyAndFuse(patchLambda(lambda))
 
     val mapsLowered = simpleMapLoweringStrategy(removeOtherIds)
 
@@ -78,33 +79,124 @@ object Lower {
       collected
   }
 
-  def lowerMaps(lambda: Lambda): Lambda = {
-
-    // 1 is seq
+  def lowerMaps(lambda: Lambda) = {
     val depthMap = NumberExpression.byDepth(lambda)
     val maxDepth = depthMap.values.max
 
-    if (maxDepth == 3) {
-      val l1 = lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
-      val l2 = lowerNextLevelWithRule(l1, Rules.mapGlb(0))
-      return l2
+    var lambdas = List[Lambda]()
+
+      /** Global only */
+    {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
+      var lambdaN = lambda1
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
     }
 
-    if (maxDepth == 4) {
-      // One dim has been split
+    if(maxDepth > 1) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(0))
+      var lambdaN = lambda2
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
     }
 
-    if (maxDepth == 5) {
-      // 2 dims have been split
+    if(maxDepth > 2) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(2))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
+      var lambdaN = lambda3
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
     }
 
-    lambda
-    // Reduce level gets seq
-    // depth 2: Glb(1), Glb(0)
-    // Glb(0), Seq
-    // 3, the one that was split gets Wrg and Lcl, other Glb other dim?
-    // 4 Wrg, Lcl,
 
+    /** Workgroup */
+    if(maxDepth > 1) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
+
+      var lambdaN = lambda3
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
+    }
+
+    if(maxDepth > 2) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(1))
+
+      var lambdaN = lambda3
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
+    }
+
+    if(maxDepth > 2) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(0))
+
+      var lambdaN = lambda3
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
+    }
+
+    if(maxDepth > 2) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(1))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
+
+      var lambdaN = lambda3
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
+    }
+
+    if(maxDepth > 2) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(1))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
+
+      var lambdaN = lambda3
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
+    }
+
+    if(maxDepth > 3) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
+      val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(0))
+
+      var lambdaN = lambda4
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN +: lambdas
+    }
+
+    lambdas
   }
 
   def simpleMapLoweringStrategy(lambda: Lambda) = {
