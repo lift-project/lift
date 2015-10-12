@@ -1,7 +1,7 @@
 package exploration
 
 import apart.arithmetic.Var
-import exploration.utils.{NumberExpression, Utils}
+import exploration.utils._
 import ir.ast._
 import ir.{ArrayType, TypeChecker}
 import opencl.ir._
@@ -122,17 +122,11 @@ object HighLevelRewrite {
     val body = lambda.body
     val body1 = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
 
-    val mapsOnLevelOne = countMapsAtCurrentLevel(body)
-    val mapsOnLevelTwo = countMapsAtCurrentLevel(body1)
+    val mapsOnLevelOne = Utils.countMapsAtCurrentLevel(body)
+    val mapsOnLevelTwo = Utils.countMapsAtCurrentLevel(body1)
 
     mapsOnLevelOne == 1 && mapsOnLevelTwo == 1
   }
-
-  def countMapsAtCurrentLevel(expr: Expr): Int =
-    Utils.visitFunCallChainWithState(0)(expr, {
-      case (FunCall(_: AbstractMap, _), count) => count + 1
-      case (_, count) => count
-    })
 
   private def applyAlwaysRules(lambda: Lambda): Lambda = {
     val alwaysApply = Seq(MacroRules.moveTransposeInsideTiling)

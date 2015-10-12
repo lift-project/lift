@@ -1,8 +1,8 @@
 package exploration
 
-import exploration.utils.NumberExpression
-import ir.{Context, TypeChecker}
+import exploration.utils._
 import ir.ast._
+import ir.{Context, TypeChecker}
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq}
 
 object Lower {
@@ -79,43 +79,63 @@ object Lower {
       collected
   }
 
+  private def hasOneMapOnSecondLevel(lambda: Lambda): Boolean = {
+    val body = lambda.body
+    val levelTwoBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
+
+    val mapsOnLevelTwo = Utils.countMapsAtCurrentLevel(levelTwoBody)
+
+    mapsOnLevelTwo == 1
+  }
+
+  private def hasOneMapOnThirdLevel(lambda: Lambda): Boolean = {
+    val body = lambda.body
+    val levelTwoBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
+    val levelThreeBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(levelTwoBody, 0))
+
+    val mapsOnLevelThree = Utils.countMapsAtCurrentLevel(levelThreeBody)
+
+    mapsOnLevelThree == 1
+  }
+
   def lowerMaps(lambda: Lambda) = {
     val depthMap = NumberExpression.byDepth(lambda)
     val maxDepth = depthMap.values.max
 
     var lambdas = List[Lambda]()
+    val oneMapOnLevelTwo = if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
+    val oneMapOnLevelThree = if (maxDepth > 2) hasOneMapOnThirdLevel(lambda) else false
 
-      /** Global only */
+    /* Global only */
     {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
       var lambdaN = lambda1
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 1) {
+    if(maxDepth > 1 && oneMapOnLevelTwo) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(0))
       var lambdaN = lambda2
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 2) {
+    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(2))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
       val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
       var lambdaN = lambda3
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
-
 
     /** Workgroup */
     if(maxDepth > 1) {
@@ -127,10 +147,10 @@ object Lower {
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 2) {
+    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
       val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(1))
@@ -140,10 +160,10 @@ object Lower {
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 2) {
+    if(maxDepth > 2 && oneMapOnLevelTwo) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
       val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(0))
@@ -153,10 +173,10 @@ object Lower {
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 2) {
+    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(1))
       val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
@@ -166,10 +186,10 @@ object Lower {
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 2) {
+    if(maxDepth > 2 && oneMapOnLevelTwo) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(1))
       val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
@@ -179,10 +199,10 @@ object Lower {
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 3) {
+    if(maxDepth > 3 && oneMapOnLevelTwo) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
       val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
@@ -193,7 +213,7 @@ object Lower {
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-      lambdas = lambdaN +: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
     lambdas

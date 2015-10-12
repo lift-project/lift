@@ -314,4 +314,10 @@ object Utils {
 
     scala.tools.nsc.io.File(path + "/" + uniqueFilename).writeAll(content)
   }
+
+  def countMapsAtCurrentLevel(expr: Expr): Int =
+    Utils.visitFunCallChainWithState(0)(expr, {
+      case (FunCall(_: AbstractMap, _), count) => count + 1
+      case (_, count) => count
+    })
 }
