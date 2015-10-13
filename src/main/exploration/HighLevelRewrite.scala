@@ -91,9 +91,7 @@ object HighLevelRewrite {
 
     val ids = userFunCalls.map(numberMap(_))
 
-    ids.sliding(2).map(w => (w.head - w(1)).abs <= cutoff)
-
-    false
+    ids.sliding(2).map(w => (w.head - w(1)).abs <= cutoff).forall(i => i)
   }
 
   private def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
