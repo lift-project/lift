@@ -76,14 +76,10 @@ object HighLevelRewrite {
 
     val filterDepth = oneKernel.filter(filterByDepth)
 
-    val filterDistance = filterDepth.filter(filterByDistance(_))
-
-    filterDistance
+    filterDepth
   }
 
-  private def filterByDistance(pair: (Lambda, Seq[Rule]), cutoff: Int = 5): Boolean = {
-    val lambda = pair._1
-
+  private def filterByDistance(lambda: Lambda, cutoff: Int = 5): Boolean = {
     val numberMap = NumberExpression.depthFirst(lambda)
 
     val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
@@ -128,12 +124,16 @@ object HighLevelRewrite {
 
         val appliedRules: Lambda = finishRewriting(lambda)
 
-        val stringRep = Utils.dumpLambdaToString(appliedRules)
+        if (filterByDistance(appliedRules)) {
 
-        val sha256 = Utils.Sha256Hash(stringRep)
-        val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+          val stringRep = Utils.dumpLambdaToString(appliedRules)
 
-        Utils.dumpToFile(stringRep, sha256, folder)
+          val sha256 = Utils.Sha256Hash(stringRep)
+          val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+
+          Utils.dumpToFile(stringRep, sha256, folder)
+
+        }
       } catch {
         case t: Throwable =>
           println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
