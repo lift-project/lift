@@ -1,13 +1,13 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{Cst, Var}
 import ir._
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, Assume, BeforeClass, Test}
+import org.junit._
 
 object TestMisc {
   @BeforeClass def before() {
@@ -211,6 +211,26 @@ class TestMisc {
     val (output: Array[Float], _) = Execute(inputSize)(l, inputData)
 
     assertEquals(inputData.sum + 1, output.head, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def issue37(): Unit = {
+    val inputSize = 8
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun(ArrayType(Float, Cst(inputSize)),
+                in => {
+                  in :>>
+                  asVector(4) :>>
+                  toPrivate(MapSeq(VectorizeUserFun(4, id))) :>>
+                  asScalar() :>>
+                  toGlobal(MapSeq(id))
+                })
+
+    val (output: Array[Float], _) = Execute(1, 1)(l, inputData)
+
+    assertArrayEquals(inputData, output, 0.0f)
   }
 
   // Simple 1D increment, used to check the syntax of unary UserFunDef
