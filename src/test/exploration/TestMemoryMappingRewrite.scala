@@ -14,9 +14,9 @@ object TestMemoryMappingRewrite {
 
   def main(args: Array[String]) {
 
-    val topFolder = "lower"
+    val topFolder = if (args.isEmpty) "lambdas" else args.head
 
-    val all_files = Source.fromFile("list").getLines().toList
+    val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
 
     val counter = new AtomicInteger()
 
@@ -56,7 +56,7 @@ object TestMemoryMappingRewrite {
                 // Dump to file
                 val str = Utils.dumpLambdaToMethod(expr).replace("idfloat", "id")
                 val sha256 = Utils.Sha256Hash(str)
-                val folder = s"$topFolder/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+                val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
                 Utils.dumpToFile(str, sha256, folder)
               } catch {
