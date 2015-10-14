@@ -1,49 +1,35 @@
 package cgoSearch
 
-import apart.arithmetic.{Cst, Var, ArithExpr}
+import apart.arithmetic.{ArithExpr, Cst, Var}
 import exploration.utils.Utils
-import ir.{ArrayType, Type}
-import ir.ast.{Split, FunCall, Lambda}
-import scala.collection.immutable.{Map => ScalaImmMap}
+import ir.ArrayType
+import ir.ast.{FunCall, Lambda, Split}
 
 import scala.collection.immutable.Map
 
-/** Return all the possible parameter sets for a given expression. */
 object ParameterSearch {
   // A substitution map is a collection of var/value pairs
-  type SubstitutionMap = scala.collection.immutable.Map[ArithExpr, ArithExpr]
+  type SubstitutionMap = Map[ArithExpr, ArithExpr]
 
   // A substitution table represents all valid substitution maps
   type SubstitutionTable = List[SubstitutionMap]
 
-  // Propagate the input types of a lambda
-  def replaceInputTypes(lambda: Lambda): Unit = {
-    val vars = lambda.params.flatMap(_.t.varList).distinct
-
-    var st: SubstitutionMap = Map.empty
-
-    vars.foreach(v => {
-      st = st.updated(v, SearchParameters.matrix_size)
-    })
-
-    lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
-  }
+  private def propagate(splits: List[(ArithExpr, ArithExpr)],
+                m: Map[ArithExpr, ArithExpr]): List[(ArithExpr, ArithExpr)] =
+    splits.map((x) => (ArithExpr.substitute(x._1, m), ArithExpr.substitute(x._2, m)))
 
   // recursively build the substitution table.
   // It takes the first node to tune and recurse with all its possible values.
-  def substitute(splits: List[(ArithExpr, ArithExpr)], substitutions: SubstitutionMap, table: SubstitutionTable): SubstitutionTable = {
-
-    def propagate(splits: List[(ArithExpr, ArithExpr)], m: ScalaImmMap[ArithExpr, ArithExpr]): List[(ArithExpr, ArithExpr)] = {
-      splits.map((x) => (ArithExpr.substitute(x._1, m), ArithExpr.substitute(x._2, m)))
-    }
+  private def substitute(splits: List[(ArithExpr, ArithExpr)],
+                 substitutions: SubstitutionMap,
+                 table: SubstitutionTable): SubstitutionTable = {
 
     if (splits.nonEmpty) {
       splits.head match {
         // If the stride is not set and the input length is constant, compute all divisors
         case (v: Var, Cst(len)) =>
-          (2 to len - 1).filter {
-            len % _ == 0
-          }.foldLeft(table)((table, x) => substitute(propagate(splits.tail, ScalaImmMap(v -> x)), substitutions + (v -> x), table))
+          (1 to len).filter(len % _ == 0).foldLeft(table)((table, x) =>
+            substitute(propagate(splits.tail, Map(v -> x)), substitutions + (v -> x), table))
 
         // If the input AND the stride are already set, make sure they are multiple
         case (Cst(chunk), Cst(len)) if len % chunk == 0 =>
@@ -59,12 +45,18 @@ object ParameterSearch {
       substitutions :: table
   }
 
+  /**
+   * Return all the possible parameter sets for a given expression.
+   *
+   * @param lambda The lambda to build substitutions for.
+   * @return Table of valid substitutions.
+   */
   def apply(lambda: Lambda): SubstitutionTable = {
     // find all the nodes using variables
     val tunableNodes = Utils.findTunableNodes(lambda)
 
     // from that, isolate only the splits
-    val splits = tunableNodes.collect { case f@FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len) }
+    val splits = tunableNodes.collect { case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len) }
 
     substitute(splits, Map.empty, List.empty)
   }
