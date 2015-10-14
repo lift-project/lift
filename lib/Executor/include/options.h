@@ -152,7 +152,7 @@ public:
   explicit OptParser(const std::string desc, const std::vector<std::shared_ptr<OptionBase>> as = std::vector<std::shared_ptr<OptionBase>>())
       : desc{desc}
   {
-    help = addOption<bool>({'h', "help", "Print help and exit", false});
+    help = addOption<bool>({'h', "help", "Print help and exit.", false});
     args.insert(std::end(args), std::begin(as), std::end(as));
   }
 

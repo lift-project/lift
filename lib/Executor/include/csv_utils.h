@@ -2,6 +2,11 @@
 
 #include <vector>
 #include <sstream>
+#include <memory>
+#include <fstream>
+#include <functional>
+
+class Run;
 
 namespace Csv {
 
@@ -41,4 +46,7 @@ inline std::vector<std::vector<std::string>> loadCsv(const std::string &filename
 
   return all_values;
 }
+
+std::vector<std::shared_ptr<Run>> init(std::function<std::shared_ptr<Run>(const std::vector<std::string> &)> factory);
+
 }

@@ -2,8 +2,8 @@
 
 #include <functional>
 
-// [local includes]
-#include "opencl_utils.h"
+#define __CL_ENABLE_EXCEPTIONS
+#include <CL/cl.hpp>
 
 
 // Object representation of the run
@@ -28,10 +28,7 @@ struct Run {
   Run(){}
 
   // Load the file and compile the program
-  bool compile(cl::Context context,
-               std::vector<cl::Device> dev,
-               std::function<bool(cl::Kernel&,size_t,size_t,size_t)> compatibility,
-               bool binary_mode);
+  bool compile(bool binary_mode);
 
   virtual ~Run(){}
 
@@ -40,8 +37,4 @@ struct Run {
   virtual void cleanup() = 0;
 
   cl::Kernel& getKernel() { return kernel; }
-
-protected:
-  // Get a file into a string
-  std::string loadCode(bool binary);
 };
