@@ -30,13 +30,13 @@ object Lower {
     assignedAddressSpaces
   }
 
-  def lowerFinals(lambda: Lambda) = {
-    val copiesAdded = addAndImplementIds(patchLambda(lambda))
+  def mapCombinations(lambda: Lambda) = {
+    val removeOtherIds = SimplifyAndFuse(patchLambda(lambda))
 
-    lowerMaps(copiesAdded)
+    lowerMaps(removeOtherIds)
   }
 
-  def lowerNoAddressSpaces(lambda: Lambda) = {
+  def simpleMapStrategy(lambda: Lambda) = {
     val removeOtherIds = SimplifyAndFuse(patchLambda(lambda))
 
     val mapsLowered = simpleMapLoweringStrategy(removeOtherIds)

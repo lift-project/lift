@@ -1,22 +1,23 @@
-package exploration
+package cgoSearch
 
 import java.util.concurrent.atomic.AtomicInteger
 
 import exploration.utils.{NumberExpression, Utils}
+import exploration.{Lower, Rewrite, Rule, Rules}
 import ir._
 import ir.ast._
-import opencl.executor.{Eval, Executor}
+import opencl.executor.Eval
 import opencl.ir.pattern._
 
 import scala.io.Source
 
-object TestMemoryMappingRewrite {
+object MemoryMappingRewrite {
 
   def main(args: Array[String]) {
-    Executor.loadLibrary()
-    Executor.init()
 
-    val all_files = Source.fromFile("list").getLines().toList
+    val topFolder = if (args.isEmpty) "lambdas" else args.head
+
+    val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
 
     val counter = new AtomicInteger()
 
@@ -33,33 +34,42 @@ object TestMemoryMappingRewrite {
 
         val lambda = Eval(fileContents)
 
-        val lowered = Lower.lowerNoAddressSpaces(lambda)
+        val loweredExpressions = Lower.mapCombinations(lambda)
 
-        val mapped = mapAddressSpaces(lowered)
-
-        var id = 0
-        mapped.foreach(expr => {
-          id += 1
+        loweredExpressions.foreach(lowered => {
 
           try {
+            val mapped = mapAddressSpaces(lowered)
 
-            // Sanity checks.
-            if (expr.body.contains({ case FunCall(Id(), _) => }))
-              throw new RuntimeException("Illegal Id")
+            var id = 0
+            mapped.foreach(expr => {
+              id += 1
 
-            if (expr.body.contains({ case FunCall(Map(l), _) if l.body.isConcrete => }))
-              throw new RuntimeException(s"Illegal un-lowered Map")
+              try {
 
-            // Dump to file
-            val str = Utils.dumpLambdaToMethod(expr).replace("idfloat", "id")
-            val sha256 = Utils.Sha256Hash(str)
-            val folder = s"lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+                // Sanity checks.
+                if (expr.body.contains({ case FunCall(Id(), _) => }))
+                  throw new RuntimeException("Illegal Id")
 
-            Utils.dumpToFile(str, sha256, folder)
+                if (expr.body.contains({ case FunCall(Map(l), _) if l.body.isConcrete => }))
+                  throw new RuntimeException(s"Illegal un-lowered Map")
+
+                // Dump to file
+                val str = Utils.dumpLambdaToMethod(expr).replace("idfloat", "id")
+                val sha256 = Utils.Sha256Hash(str)
+                val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+
+                Utils.dumpToFile(str, sha256, folder)
+              } catch {
+                case t: Throwable =>
+                  println(s"No $id of $count failed with ${t.toString}.")
+              }
+            })
           } catch {
             case t: Throwable =>
-              println(s"No $id of $count failed with ${t.toString}.")
+              println(s"Address space mapping for $count failed")
           }
+
         })
       } catch {
         case t: Throwable =>

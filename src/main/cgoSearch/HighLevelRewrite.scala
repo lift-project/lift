@@ -1,6 +1,7 @@
-package exploration
+package cgoSearch
 
 import apart.arithmetic.Var
+import exploration._
 import exploration.utils._
 import ir.ast._
 import ir.{ArrayType, TypeChecker}
@@ -35,6 +36,17 @@ object HighLevelRewrite {
         )) o Transpose() $ A
       })
 
+    val mv = fun(
+      ArrayType(ArrayType(Float, K), N),
+      ArrayType(ArrayType(Float, 1), K), // Column vector
+      (matrix, vector) =>
+        Map(fun(row =>
+          Map( fun( col =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(row, col)
+          )) o Transpose() $ vector
+        )) $ matrix
+    )
+
     val dumpThese = rewriteExpression(startingExpressionATransposed)
 
     println(dumpThese.length + " expressions to dump")
@@ -63,28 +75,43 @@ object HighLevelRewrite {
 
     println(oneKernel.length + " expressions with one kernel")
 
-    val filterDepth = oneKernel.filter(pair =>
-
-      (pair._2.head == MacroRules.tileMapMap
-        && pair._2.tail.diff(List(MacroRules.apply2DRegisterBlocking,
-        MacroRules.apply2DRegisterBlocking,
-        MacroRules.finishTiling,
-        MacroRules.finishTiling)).isEmpty
-        && NumberExpression.byDepth(pair._1).values.max <= 8)
-        ||
-        (pair._2.head == MacroRules.tileMapMap
-          && pair._2.tail.diff(List(MacroRules.apply1DRegisterBlocking,
-          MacroRules.apply1DRegisterBlocking,
-          MacroRules.finishTiling,
-          MacroRules.finishTiling)).isEmpty
-          && NumberExpression.byDepth(pair._1).values.max <= 7)
-        ||
-        NumberExpression.byDepth(pair._1).values.max <= 6)
+    val filterDepth = oneKernel.filter(filterByDepth)
 
     filterDepth
   }
 
-  private def dumpLambdasToFiles(lambdas: Seq[Lambda]): Unit = {
+  private def filterByDistance(lambda: Lambda, cutoff: Int = 5): Boolean = {
+    val numberMap = NumberExpression.depthFirst(lambda)
+
+    val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
+      expr match {
+        case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr::state
+        case _ => state
+      }
+    })
+
+    val ids = userFunCalls.map(numberMap(_))
+
+    ids.sliding(2).map(w => (w.head - w(1)).abs <= cutoff).forall(i => i)
+  }
+
+  private def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
+    (pair._2.head == MacroRules.tileMapMap
+      && pair._2.tail.diff(List(MacroRules.apply2DRegisterBlocking,
+      MacroRules.apply2DRegisterBlocking,
+      MacroRules.finishTiling,
+      MacroRules.finishTiling)).isEmpty
+      && NumberExpression.byDepth(pair._1).values.max <= 8) ||
+    (pair._2.head == MacroRules.tileMapMap
+      && pair._2.tail.diff(List(MacroRules.apply1DRegisterBlocking,
+      MacroRules.apply1DRegisterBlocking,
+      MacroRules.finishTiling,
+      MacroRules.finishTiling)).isEmpty
+      && NumberExpression.byDepth(pair._1).values.max <= 7) ||
+    NumberExpression.byDepth(pair._1).values.max <= 6
+  }
+
+  private def dumpLambdasToFiles(lambdas: Seq[Lambda], topLevelFolder: String = "lambdas"): Unit = {
 
     lambdas.zipWithIndex.par.foreach(pair => {
       val lambda = pair._1
@@ -96,12 +123,16 @@ object HighLevelRewrite {
 
         val appliedRules: Lambda = finishRewriting(lambda)
 
-        val stringRep = Utils.dumpLambdaToString(appliedRules)
+        if (filterByDistance(appliedRules)) {
 
-        val sha256 = Utils.Sha256Hash(stringRep)
-        val folder = "lambdas/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+          val stringRep = Utils.dumpLambdaToString(appliedRules)
 
-        Utils.dumpToFile(stringRep, sha256, folder)
+          val sha256 = Utils.Sha256Hash(stringRep)
+          val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+
+          Utils.dumpToFile(stringRep, sha256, folder)
+
+        }
       } catch {
         case t: Throwable =>
           println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
@@ -180,7 +211,7 @@ class HighLevelRewrite {
 
       } catch {
         case t: Throwable =>
-          // println(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")},\nfailed with\n$t.\n")
+//           println(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")},\nfailed with\n$t.\n")
           failures += 1
       }
     })

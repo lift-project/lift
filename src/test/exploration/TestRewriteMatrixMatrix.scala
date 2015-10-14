@@ -1,7 +1,7 @@
 package exploration
 
 import apart.arithmetic.Var
-import exploration.utils.NumberExpression
+import exploration.utils.{NumberPrinter, NumberExpression}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -153,7 +153,7 @@ class TestRewriteMatrixMatrix {
     val K = Var("K")
 
     val h0 = fun(ArrayType(ArrayType(Float, M), K), ArrayType(ArrayType(Float, N), K),(p1795960102, p477289012) => FunCall(Join(), FunCall(Map(fun((p1889248251) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p2023938592) => FunCall(TransposeW(), FunCall(Map(fun((p225290371) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p225290371))), FunCall(Join(), FunCall(Map(fun((p297927961) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p733672688) => FunCall(TransposeW(), FunCall(Map(fun((p756185697) => FunCall(TransposeW(), p756185697))), FunCall(TransposeW(), p733672688))))), FunCall(TransposeW(), p297927961)))))), FunCall(TransposeW(), FunCall(MapSeq(fun((p1691875296) => FunCall(Id(), p1691875296))), FunCall(ReduceSeq(fun((p500179317, p1225197672) => FunCall(Map(fun((p1500608548) => FunCall(Map(fun((p513700442) => FunCall(Map(fun((p912011468) => FunCall(Join(), FunCall(Transpose(), p912011468)))), FunCall(Transpose(), FunCall(MapSeq(fun((p1195067075) => FunCall(Id(), p1195067075))), FunCall(ReduceSeq(fun((p1983025922, p1007309018) => FunCall(Map(fun((p2038148563) => FunCall(Map(fun((p2142080121) => FunCall(add, FunCall(Get(0), p2142080121), FunCall(Get(1), p2142080121)))), FunCall(Zip(2), FunCall(Get(0), p2038148563), FunCall(Map(fun((p112619572) => FunCall(mult, FunCall(Get(1), p2038148563), p112619572))), FunCall(Get(1), p1007309018)))))), FunCall(Zip(2), p1983025922, FunCall(Get(0), p1007309018))))), FunCall(Get(0), p513700442), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p1500608548)), FunCall(Transpose(), FunCall(Get(1), p513700442))))))))), FunCall(Zip(2), FunCall(Get(0), p1500608548), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p1225197672)))))))), FunCall(Zip(2), p500179317, FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p1225197672))))))), FunCall(Map(fun((p1786364562) => FunCall(Map(fun((p326298949) => FunCall(Map(fun((p876926621) => FunCall(Map(fun((p1268959798) => FunCall(id, p1268959798))), p876926621))), p326298949))), p1786364562))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Zip(2), p1889248251, p2023938592)))))))))), FunCall(Transpose(), FunCall(Map(fun((p1935972447) => FunCall(Transpose(), p1935972447))), FunCall(Split(tileSizeK), FunCall(Map(fun((p1890627974) => FunCall(Split(tileSizeMN), p1890627974))), p477289012))))))))), FunCall(Transpose(), FunCall(Map(fun((p1641313620) => FunCall(Transpose(), p1641313620))), FunCall(Split(tileSizeK), FunCall(Map(fun((p192881625) => FunCall(Split(tileSizeMN), p192881625))), p1795960102)))))))
-    val h1 = Lower.lowerNoAddressSpaces(h0)
+    val h1 = Lower.simpleMapStrategy(h0)
 
     val mSize = 256
     val kSize = 256
@@ -392,6 +392,43 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
     assertEquals(66, numExpressions)
+  }
+
+  @Ignore
+  @Test
+  def gemmTiled() = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f0: Lambda = fun(
+      ArrayType(ArrayType(Float, K), N),
+      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, M), N),
+      Float,
+      Float,
+      (A, B, C, alpha, beta) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+              Map(fun(x =>
+                add(
+                  mult(x, alpha),
+                  mult(Get(bCol, 1), beta)
+                )
+              )) o Reduce(add, 0.0f) o
+                Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(Get(aRow, 0), Get(bCol, 0))
+          )) $ Zip(Transpose() $ B, Get(aRow, 1))
+        )) $ Zip(A, C)
+      })
+
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
+
+    val f2 = Rewrite.applyRuleAtId(f1, 19, MacroRules.finishTiling)
+    val f3 = Rewrite.applyRuleAtId(f2, 24, MacroRules.finishTiling)
+    TypeChecker(f3)
+    println(f3)
+    val f5 = SimplifyAndFuse(f3)
+    println(f5)
   }
 
 }

@@ -329,7 +329,7 @@ object MacroRules {
   val finishTiling: Rule = finishTiling(?)
 
   def finishTiling(x: ArithExpr): Rule =
-    Rule("Map(x => Map(y => Map() $ Get(x, ...) Get$(x, ...) $ Zip(...)", {
+    Rule("finishTiling", {
       case funCall @
         FunCall(Map(Lambda(p, c)), _)
         if Utils.getIndexForPatternInCallChain(c, mapPattern) != -1
