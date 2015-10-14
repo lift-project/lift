@@ -13,4 +13,4 @@ set(SOURCE_FILES
     src/csv_utils.cpp
     src/opencl_utils.cpp)
 add_executable(Executor ${SOURCE_FILES})
-target_link_libraries(Executor OpenCL)
+target_link_libraries(Executor OpenCL pthread)
