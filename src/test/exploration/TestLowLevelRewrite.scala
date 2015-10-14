@@ -766,7 +766,7 @@ object TestLowLevelRewrite {
               p.mem = OpenCLMemory.allocGlobalMemory(
                 OpenCLMemory.getMaxSizeInBytes(p.t))
           }
-          p.view = View(p.t, OpenCLCodeGen().print(p.mem.variable))
+          p.view = View(p.t, OpenCLCodeGen().toString(p.mem.variable))
         })
         try {
           OpenCLMemoryAllocator.alloc(expr.body)

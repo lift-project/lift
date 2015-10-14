@@ -37,7 +37,7 @@ object ExpressionFilter {
             p.mem = OpenCLMemory.allocGlobalMemory(
               OpenCLMemory.getMaxSizeInBytes(p.t))
         }
-        p.view = View(p.t, OpenCLCodeGen().print(p.mem.variable))
+        p.view = View(p.t, OpenCLCodeGen().toString(p.mem.variable))
       })
 
       OpenCLMemoryAllocator.alloc(expr.body)

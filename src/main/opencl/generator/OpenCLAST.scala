@@ -82,12 +82,16 @@ object OpenCLAST {
                        const: Boolean = false) extends OclAstNode
 
   /** A reference to a declared variable
-    * @param name The name of the variable referenced.
-    * @param index Offset used to index from pointers, if any.
+    * @param v The variable referenced.
+    * @param suffix An optional suffix appended to the name.
+    *               Used e.g. for unrolled variables in private memory.
+    * @param arrayIndex Offset used to index from pointers, if any.
     * @note This uses a String instead of a Var because some nodes (like user
     *       functions), inject variables from string.
     */
-  case class VarRef(name: String, index: Expression = null) extends OclAstNode
+  case class VarRef(v: Var,
+                    suffix: String = null,
+                    arrayIndex: Expression = null) extends OclAstNode
 
   /** Represent an assignment.
     * @param to Left-hand side.
@@ -122,7 +126,7 @@ object OpenCLAST {
     def visitExpression(node: OclAstNode): Unit = {
       node match {
         case e: Expression => fun(e)
-        case v: VarRef if v.index != null => visitExpression(v.index)
+        case v: VarRef if v.arrayIndex != null => visitExpression(v.arrayIndex)
         case v: VarDecl if v.init != null => visitExpression(v.init)
         case l: Load => fun(l.offset)
         case s: Store =>

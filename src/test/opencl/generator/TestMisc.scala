@@ -213,7 +213,6 @@ class TestMisc {
     assertEquals(inputData.sum + 1, output.head, 0.0f)
   }
 
-  @Ignore
   @Test
   def issue37(): Unit = {
     val inputSize = 8

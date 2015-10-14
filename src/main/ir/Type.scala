@@ -424,6 +424,14 @@ object Type {
     }
   }
 
+  def haveSameValueTypes(l: Type, r: Type): Boolean = {
+    Type.isEqual(Type.getValueType(l), Type.getValueType(r))
+  }
+
+  def haveSameBaseTypes(l: Type, r: Type): Boolean = {
+    Type.isEqual(Type.getBaseType(l), Type.getBaseType(r))
+  }
+
   private def isEqual(l: ScalarType, r: ScalarType): Boolean = {
     l.size == r.size && l.name == r.name
   }
