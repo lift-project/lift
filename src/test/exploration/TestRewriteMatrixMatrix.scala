@@ -1,7 +1,7 @@
 package exploration
 
 import apart.arithmetic.Var
-import exploration.utils.NumberExpression
+import exploration.utils.{NumberPrinter, NumberExpression}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -392,6 +392,43 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
     assertEquals(66, numExpressions)
+  }
+
+  @Ignore
+  @Test
+  def gemmTiled() = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f0: Lambda = fun(
+      ArrayType(ArrayType(Float, K), N),
+      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, M), N),
+      Float,
+      Float,
+      (A, B, C, alpha, beta) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+              Map(fun(x =>
+                add(
+                  mult(x, alpha),
+                  mult(Get(bCol, 1), beta)
+                )
+              )) o Reduce(add, 0.0f) o
+                Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(Get(aRow, 0), Get(bCol, 0))
+          )) $ Zip(Transpose() $ B, Get(aRow, 1))
+        )) $ Zip(A, C)
+      })
+
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
+
+    val f2 = Rewrite.applyRuleAtId(f1, 19, MacroRules.finishTiling)
+    val f3 = Rewrite.applyRuleAtId(f2, 24, MacroRules.finishTiling)
+    TypeChecker(f3)
+    println(f3)
+    val f5 = SimplifyAndFuse(f3)
+    println(f5)
   }
 
 }
