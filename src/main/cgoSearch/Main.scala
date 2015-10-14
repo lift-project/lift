@@ -2,12 +2,12 @@ package cgoSearch
 
 import java.nio.file.{Files, Paths}
 
-import apart.arithmetic.{Var, ArithExpr, Cst}
+import apart.arithmetic.{ArithExpr, Cst, Var}
+import exploration.InferNDRange
 import exploration.utils.Utils
-import exploration.{InferNDRange, TestLowLevelRewrite}
-import ir.TypeChecker
 import ir.ast.Lambda
-import opencl.executor.{Execute, Eval, Executor}
+import ir.{Type, TypeChecker}
+import opencl.executor.{Eval, Execute, Executor}
 import opencl.generator.OpenCLGenerator
 
 import scala.collection.immutable.Map
@@ -68,7 +68,7 @@ object Main {
         val high_level_str = Source.fromFile(filename).getLines().mkString("\n").replace("idfloat", "id")
         val high_level_expr = Eval(high_level_str)
 
-        TestLowLevelRewrite.replaceInputTypes(high_level_expr)
+        replaceInputTypes(high_level_expr)
 
         TypeChecker(high_level_expr)
 
@@ -122,7 +122,7 @@ object Main {
                    //System.exit(-1)
                    None
                 }
-            }).collect{ case Some(x) => x }.toList
+            }).collect{ case Some(x) => x }
 
             println(s"Found ${potential_expressions.size} / ${all_substitution_tables.size} filtered expressions")
 
@@ -181,6 +181,18 @@ object Main {
         }
       }
     })
+  }
+
+  def replaceInputTypes(lambda: Lambda): Unit = {
+    val vars = lambda.params.flatMap(_.t.varList).distinct
+
+    var st = Map[ArithExpr, ArithExpr]()
+
+    vars.foreach(v => {
+      st = st.updated(v, SearchParameters.matrix_size)
+    })
+
+    lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
   }
 
   def dumpOpenCLToFiles(expressions: List[(Lambda, Seq[ArithExpr])],
