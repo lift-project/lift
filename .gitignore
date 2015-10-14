@@ -5,3 +5,5 @@ project/target/
 target/
 .idea/
 *.out
+.tags
+scripts/

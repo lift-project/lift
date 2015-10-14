@@ -31,6 +31,4 @@ object SearchParameters {
   // print the execution stats after running the kernel
   val print_stats = false
 
-  // Don't execute kernels, just filter and generate OpenCL code
-  val onlyGenerateOpenCL = true
 }

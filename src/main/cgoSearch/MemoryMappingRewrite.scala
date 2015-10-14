@@ -1,8 +1,9 @@
-package exploration
+package cgoSearch
 
 import java.util.concurrent.atomic.AtomicInteger
 
 import exploration.utils.{NumberExpression, Utils}
+import exploration.{Lower, Rewrite, Rule, Rules}
 import ir._
 import ir.ast._
 import opencl.executor.Eval
@@ -10,7 +11,7 @@ import opencl.ir.pattern._
 
 import scala.io.Source
 
-object TestMemoryMappingRewrite {
+object MemoryMappingRewrite {
 
   def main(args: Array[String]) {
 
