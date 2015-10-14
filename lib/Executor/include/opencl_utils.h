@@ -20,6 +20,8 @@ class OpenCL {
   static std::size_t device_max_work_group_size;
 
 public:
+  static float timeout;
+
   static void init(const unsigned platform_idx, const unsigned device_idx)
   {
     std::vector<cl::Platform> platform;
@@ -54,7 +56,7 @@ public:
   {
     using namespace std;
     static int counter = 0; counter++;
-    static double best_time = 100.0f;
+    static double best_time = timeout;
     try {
       // prepare the kernel for execution
       run.setup(context);
