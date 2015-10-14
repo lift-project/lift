@@ -15,6 +15,7 @@
 // [external includes]
 #define __CL_ENABLE_EXCEPTIONS
 #include <CL/cl.hpp>
+#include <opencl_utils.h>
 
 // [local includes]
 #include "csv_utils.h"
@@ -22,6 +23,10 @@
 #include "options.h"
 #include "run.h"
 
+template<typename T>
+using Matrix = std::vector<T>;
+
+template<typename T>
 struct MMRun: public Run {
   // input matrix size
   std::size_t size;
@@ -31,20 +36,30 @@ struct MMRun: public Run {
 
   std::vector<cl::Buffer> extra_args;
 
+  /**
+   * Deserialize a line from the CSV
+   */
   MMRun(const std::vector<std::string>& values) {
     assert(values.size() > 8 && "Bad CSV format");
 
+    // input size
     size = Csv::readInt(values[0]);
+
+    // global NDRange
     glob1 = Csv::readInt(values[1]);
     glob2 = Csv::readInt(values[2]);
     glob3 = Csv::readInt(values[3]);
+
+    // local NDRange
     loc1 = Csv::readInt(values[4]);
     loc2 = Csv::readInt(values[5]);
     loc3 = Csv::readInt(values[6]);
 
+    // source hash
     hash = values[7];
     hash.erase(std::remove_if(std::begin(hash), std::end(hash), isspace), std::end(hash));
 
+    // number of temporary buffers to allocate and their sizes
     auto num_buf = Csv::readInt(values[8]);
     for(unsigned i = 9+3; i < 9+3 + num_buf; ++i) {
       extra_buffer_size.push_back((int)Csv::readInt(values[i]));
@@ -55,7 +70,7 @@ struct MMRun: public Run {
     // Allocate extra buffers
     std::vector<cl::Buffer> extra_args;
     for(auto &size: extra_buffer_size)
-      extra_args.push_back({context, CL_MEM_READ_WRITE, size*sizeof(float)});
+      extra_args.push_back({context, CL_MEM_READ_WRITE, size*sizeof(T)});
 
     // Skip the first 3 to compensate for the csv (forgot a drop(3) in scala)
     for(unsigned i = 3; i < extra_args.size(); ++i) {
@@ -72,57 +87,6 @@ struct MMRun: public Run {
   }
 };
 
-// Execute the kernel and cross validate
-void executeRun(Run& run,
-                cl::Context context,
-                cl::CommandQueue queue,
-                cl::Buffer output,
-                std::size_t output_size,
-                std::function<bool(const std::vector<float>&)> validation)
-{
-  using namespace std;
-  static int counter = 0; counter++;
-  static double best_time = 100.0f;
-  try {
-    // prepare the kernel for execution
-    run.setup(context);
-
-    // executing
-    cl::Event evt;
-    for(int i = 0; i < 5; ++i) {
-      queue.enqueueNDRangeKernel(run.kernel, cl::NullRange,
-                                 {run.glob1, run.glob2, run.glob3},
-                                 {run.loc1, run.loc2, run.loc3}, nullptr, &evt);
-      evt.wait();
-      auto time = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>() - evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
-      double ms = ((double)time)/1000.0/1000.0;
-      if(ms > 1.2*best_time) break;
-    }
-    // read back the result
-    std::vector<float> result(output_size);
-    queue.enqueueReadBuffer(output, CL_TRUE, 0, result.size()*sizeof(float), result.data());
-    auto time = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>() - evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    double ms = ((double)time)/1000.0/1000.0;
-
-    if(!validation(result)) {
-      // Save result to file
-      File::add_invalid(run.hash);
-      std::cerr << "[" << counter << "] Cross validation failed for " << run.hash << endl;
-    }
-    else {
-      // Save result to file
-      File::add_time(run.hash, ms);
-      best_time = min(best_time, ms);
-      std::cout << "[" << counter << "] best time: " << best_time << std::endl;
-    }
-  } catch (const cl::Error& err) {
-    File::add_blacklist(run.hash);
-    cerr << "execution failed: " << run.hash << endl;
-    cerr << err.what() << " (" << err.err() << ")" << std::endl;
-    exit(err.err());
-  }
-}
-
 int main(int argc, char *argv[]) {
   OptParser op("Harness for simple matrix-matrix multiply.");
 
@@ -137,6 +101,7 @@ int main(int argc, char *argv[]) {
   auto opt_binary = op.addOption<bool>({'f', "force", "Override cached cross validation files.", false});
   auto opt_timeout = op.addOption<float>({'t', "timeout", "Timeout to avoid multiple executions (default 100ms).", 100.0f});
   auto opt_double = op.addOption<bool>({'d', "double", "Use double precision.", false});
+  auto opt_threaded = op.addOption<bool>({'t', "threaded", "Use a separate thread for compilation and execution (default true).", true});
   op.parse(argc, argv);
 
   using namespace std;
@@ -147,7 +112,7 @@ int main(int argc, char *argv[]) {
 
   // === Loading CSV file ===
   vector<std::shared_ptr<Run>> all_run = File::load_run([&](const std::vector<std::string>& values){
-    return std::shared_ptr<MMRun>(new MMRun(values));
+    return std::shared_ptr<MMRun<float>>(new MMRun<float>(values));
   });
   cout << "Loaded " << all_run.size() << " runs" << std::endl;
 
@@ -163,10 +128,13 @@ int main(int argc, char *argv[]) {
   }), end(all_run));
   std::cout << "done" << std::endl;
 
+  // === OpenCL init ===
+  OpenCL::init(opt_platform->get(), opt_device->get());
+
   // Compute input and output
-  vector<float> matA(N*N);
-  vector<float> matB(N*N);
-  vector<float> gold(N*N);
+  Matrix<float> matA(N*N);
+  Matrix<float> matB(N*N);
+  Matrix<float> gold(N*N);
 
   std::string gold_file = "/tmp/apart_matrix_gold_" + std::to_string(N);
   std::string matA_file = "/tmp/apart_matrix_A_" + std::to_string(N);
@@ -249,130 +217,72 @@ int main(int argc, char *argv[]) {
     return true;
   };
 
-  // === OpenCL init ===
-  vector<cl::Platform> platform;
-  cl::Platform::get(&platform);
-
-  if (platform.empty()) {
-    cerr << "OpenCL platforms not found." << endl;
-    return -1;
-  }
-
-  vector<cl::Device> devices;
-  platform[0].getDevices(CL_DEVICE_TYPE_ALL, &devices);
-  assert(devices.size() > 1);
-  cl::Device device = devices[1];
-  devices.clear(); devices.push_back(device);
-  cl::Context context(devices);
-  cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
-
-  const cl_ulong max_mem = device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>();
-  const size_t max_workgroup = device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
-
-  cout << "Executing on " << device.getInfo<CL_DEVICE_NAME>() << endl;
-
   // Allocating buffers
   const size_t buf_size = matA.size() * sizeof(float);
-  cl::Buffer matA_dev(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                      buf_size, static_cast<void*>(matA.data()));
-  cl::Buffer matB_dev(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                      buf_size, static_cast<void*>(matB.data()));
+  cl::Buffer matA_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       buf_size, static_cast<void*>(matA.data()) );
+  cl::Buffer matB_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       buf_size, static_cast<void*>(matB.data()) );
+  cl::Buffer output_dev = OpenCL::alloc( CL_MEM_READ_WRITE, buf_size );
 
-  cl::Buffer output_dev(context, CL_MEM_READ_WRITE, buf_size);
+  // multi-threaded exec
+  if(opt_threaded->get()) {
+    std::mutex m;
+    std::condition_variable cv;
 
-  // reset buffer
-  const std::string code = R"CODE(
-    kernel void ZERO(global float *matrix, int N) {
-      matrix[get_global_id(0)*N+get_global_id(1)] = 0;
-    }
-  )CODE";
+    bool done = false;
+    bool ready = false;
+    std::queue<Run*> ready_queue;
 
-  /*
-  // This doesn't seem to give any speedup 
-  int nthreads = std::thread::hardware_concurrency();
-  std::cout << "Using " << nthreads << " compilation threads" << std::endl;
-  int compile_step = 10;
-
-  auto compiler_thread = [&](int start) {
-    int max = std::min<int>(start + compile_step, all_run.size());
-    for(int i = start; i < max; ++i)
-      all_run[i].compile(context, devices);
-  };
-
-
-  for(int i = 0; i < all_run.size(); i += compile_step * nthreads) {
-    std::cout << "Compiling " << compile_step * nthreads << " programs..." << std::endl;
-
-    std::vector < std::thread > threads;
-    for (unsigned int tid = 0; tid < nthreads; tid++) {
-      //threads.push_back(std::thread([=]{
-        compiler_thread(i + tid * compile_step);
-      //}));
-    }
-
-    //for (auto & t : threads) t.join();
-
-    std::cout << "done" << std::endl;
-  }*/
-
-  std::mutex m;
-  std::condition_variable cv;
-
-  bool done = false;
-  bool ready = false;
-  std::queue<Run*> ready_queue;
-
-  // function testing that the kernel is compatible with the device
-  auto compatibility_checks = [&](cl::Kernel &kernel, size_t l1, size_t l2, size_t l3) {
-    size_t wg_size = -1;
-    size_t local_size = -1;
-
-    kernel.getWorkGroupInfo(device, CL_KERNEL_WORK_GROUP_SIZE ,&wg_size);
-    kernel.getWorkGroupInfo(device, CL_KERNEL_LOCAL_MEM_SIZE ,&local_size);
-
-    if(wg_size == 0 || l1*l2*l3 > max_workgroup) return false;
-    if(local_size > max_mem) return false;
-
-    return true;
-  };
-
-  // compilation thread
-  auto compilation_thread = std::thread([&]{
-    for (auto& r: all_run) {
-      if(r->compile(context, devices, compatibility_checks, opt_binary->get()))
-      {
-        std::unique_lock<std::mutex> locker(m);
-        ready_queue.push(&*r);
-        ready = true;
-        cv.notify_one();
+    // compilation thread
+    auto compilation_thread = std::thread([&] {
+      for (auto &r: all_run) {
+        if (r->compile(opt_binary->get())) {
+          std::unique_lock<std::mutex> locker(m);
+          ready_queue.push(&*r);
+          ready = true;
+          cv.notify_one();
+        }
       }
-    }
-  });
+    });
 
-  auto execute_thread = std::thread([&]{
-    Run *r = nullptr;
-    while(!done) {
-      {
-        std::unique_lock<std::mutex> locker(m);
-        while(!ready) cv.wait(locker);
-      }
-
-      while(! ready_queue.empty()) {
+    auto execute_thread = std::thread([&] {
+      Run *r = nullptr;
+      while (!done) {
         {
           std::unique_lock<std::mutex> locker(m);
-          r = ready_queue.front();
-          ready_queue.pop();
+          while (!ready) cv.wait(locker);
         }
-        r->getKernel().setArg(0,matA_dev);
-        r->getKernel().setArg(1,matB_dev);
-        r->getKernel().setArg(2,output_dev);
-        executeRun(*r, context, queue, output_dev, N*N, validate);
+
+        while (!ready_queue.empty()) {
+          {
+            std::unique_lock<std::mutex> locker(m);
+            r = ready_queue.front();
+            ready_queue.pop();
+          }
+          r->getKernel().setArg(0, matA_dev);
+          r->getKernel().setArg(1, matB_dev);
+          r->getKernel().setArg(2, output_dev);
+          OpenCL::executeRun<float>(*r, output_dev, N * N, validate);
+        }
+      }
+    });
+
+    compilation_thread.join();
+    done = true;
+    cv.notify_one();
+    execute_thread.join();
+  }
+  // single threaded exec
+  else {
+    for (auto &r: all_run) {
+      if (r->compile(opt_binary->get())) {
+        r->getKernel().setArg(0, matA_dev);
+        r->getKernel().setArg(1, matB_dev);
+        r->getKernel().setArg(2, output_dev);
+        OpenCL::executeRun<float>(*r, output_dev, N * N, validate);
       }
     }
-  });
-
-  compilation_thread.join();
-  done = true;
-  execute_thread.join();
+  }
 }
 
