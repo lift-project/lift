@@ -19,7 +19,7 @@ import scala.io.Source
  * This main currently runs a parameter space exploration over the serialized low level expressions.
  * It requires the lambdas/ and lambdasLower/ folders with the generated index files.
  */
-object Main {
+object GenerateOpenCL {
   val generate_counter = new AtomicInteger()
   var topFolder = "lambdas"
 
@@ -160,7 +160,7 @@ object Main {
         val min_map = getBufferSizes(1024, globalBuffers)
 
         if(min_map.forall(_ > 0)) {
-          val v = Main.generate_counter.incrementAndGet()
+          val v = GenerateOpenCL.generate_counter.incrementAndGet()
           if(v % 100 == 0) println(s"Generated $v source files")
 
           Utils.dumpToFile(variablesReplacedInKernel, filename, path)
