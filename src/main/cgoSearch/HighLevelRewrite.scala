@@ -1,6 +1,7 @@
-package exploration
+package cgoSearch
 
 import apart.arithmetic.Var
+import exploration._
 import exploration.utils._
 import ir.ast._
 import ir.{ArrayType, TypeChecker}
