@@ -11,17 +11,13 @@
 #include <condition_variable>
 #include <atomic>
 #include <memory>
-
-// [external includes]
-#define __CL_ENABLE_EXCEPTIONS
-#include <CL/cl.hpp>
-#include <opencl_utils.h>
 #include <cstdio>
 #include <typeinfo>
 
+// [external includes]
+#include <opencl_utils.h>
+
 // [local includes]
-#include "csv_utils.h"
-#include "file_utils.h"
 #include "options.h"
 #include "run.h"
 
