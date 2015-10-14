@@ -92,13 +92,11 @@ template<typename Float>
 void run_harness(
     std::vector<std::shared_ptr<Run>>& all_run,
     const unsigned N,
-    const std::string& matA_file,
-    const std::string& matB_file,
+    const std::string& mat_file,
+    const std::string& vec_file,
     const std::string& gold_file,
     const bool force,
-    const bool transposeA,
-    const bool transposeB,
-    const bool transposeOut,
+    const bool transposeIn,
     const bool threaded,
     const bool binary
 )
@@ -106,72 +104,47 @@ void run_harness(
   using namespace std;
 
   // Compute input and output
-  Matrix<Float> matA(N*N);
-  Matrix<Float> matB(N*N);
-  Matrix<Float> gold(N*N);
+  Matrix<Float> mat(N*N);
+  std::vector<Float> vec(N);
+  std::vector<Float> gold(N);
 
-  if(File::is_file_exist(gold_file) && File::is_file_exist(matA_file) && File::is_file_exist(matB_file) && !force ) {
+  if(File::is_file_exist(gold_file) && File::is_file_exist(mat_file) && File::is_file_exist(vec_file) && !force ) {
     File::load_input(gold, gold_file);
-    File::load_input(matA, matA_file);
-    File::load_input(matB, matB_file);
+    File::load_input(mat, mat_file);
+    File::load_input(vec, vec_file);
   } else {
-    for(unsigned y = 0; y < N; ++y)
-      for(unsigned x = 0; x < N; ++x)
-      {
-        matA[y*N+x] = (((y * 3 + x * 2) % 10) + 1) * 1.0f;
-        matB[y*N+x] = (((y * 7 + x * 3) % 10) + 1) * 1.0f;
+    for(unsigned y = 0; y < N; ++y) {
+      for (unsigned x = 0; x < N; ++x) {
+        mat[y * N + x] = (((y * 3 + x * 2) % 10) + 1) * 1.0f;
       }
+      vec[y] = y*0.125;
+    }
 
     // compute gold
-    std::vector < std::thread > threads;
-    auto mmult = [&](unsigned from, unsigned to) {
-      Float kk[N];
-      for (unsigned i=from; i<to; i++) {
-        for (unsigned j=0; j<N; j++) kk[j] = 0;
-
-        for (unsigned k=0; k<N; k++)
-          for (unsigned j=0; j<N; j++)
-            kk[j] += matA[i*N+k] * matB[k*N+j];
-
-        for (unsigned j=0; j<N; j++) gold[i*N+j] = kk[j];
+    Float* matrix_ptr=mat.data();
+    for (int i=0; i<N; i++) {
+      Float* vector_ptr = vec.data();
+      Float Result=0.0;
+      for (int j=0; j<N; j++)
+      {
+        Result+=(*matrix_ptr)*vector_ptr[j];
+        vector_ptr++;
       }
-    };
-    unsigned nthreads = std::thread::hardware_concurrency();
-    if(N % nthreads != 0)
-      nthreads = 16;
-    assert(N % nthreads == 0);
-    const unsigned chunk = N / nthreads;
-    for (unsigned tid = 0; tid < nthreads; tid++)
-      threads.push_back(std::thread([=]{mmult(tid*chunk, (tid+1)*chunk);}));
-    for (auto & t : threads) t.join();
 
-    if (transposeA) {
-      std::vector<Float> TmatA(N*N);
-      for(unsigned y = 0; y < N; ++y)
-        for(unsigned x = 0; x < N; ++x)
-          TmatA[y*N+x] = matA[x*N+y];
-      std::swap(TmatA, matA);
+      gold[i]=Result;
     }
 
-    if (transposeB) {
-      std::vector<Float> TmatB(N*N);
+    if (transposeIn) {
+      std::vector<Float> Tmat(N*N);
       for(unsigned y = 0; y < N; ++y)
         for(unsigned x = 0; x < N; ++x)
-          TmatB[y*N+x] = matB[x*N+y];
-      std::swap(TmatB, matB);
-    }
-
-    if (transposeOut) {
-      std::vector<Float> Tgold(N*N);
-      for(unsigned y = 0; y < N; ++y)
-        for(unsigned x = 0; x < N; ++x)
-          Tgold[y*N+x] = gold[x*N+y];
-      std::swap(Tgold, gold);
+          Tmat[y*N+x] = mat[x*N+y];
+      std::swap(Tmat, mat);
     }
 
     File::save_input(gold, gold_file);
-    File::save_input(matA, matA_file);
-    File::save_input(matB, matB_file);
+    File::save_input(mat, mat_file);
+    File::save_input(vec, vec_file);
   }
 
   // validation function
@@ -188,12 +161,12 @@ void run_harness(
   };
 
   // Allocating buffers
-  const size_t buf_size = matA.size() * sizeof(Float);
-  cl::Buffer matA_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       buf_size, static_cast<void*>(matA.data()) );
-  cl::Buffer matB_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       buf_size, static_cast<void*>(matB.data()) );
-  cl::Buffer output_dev = OpenCL::alloc( CL_MEM_READ_WRITE, buf_size );
+  const size_t buf_size = mat.size() * sizeof(Float);
+  cl::Buffer mat_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                      buf_size, static_cast<void*>(mat.data()) );
+  cl::Buffer vec_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                      N*sizeof(Float), static_cast<void*>(vec.data()) );
+  cl::Buffer output_dev = OpenCL::alloc( CL_MEM_READ_WRITE, N*sizeof(Float) );
 
   // multi-threaded exec
   if(threaded) {
@@ -230,8 +203,8 @@ void run_harness(
             r = ready_queue.front();
             ready_queue.pop();
           }
-          r->getKernel().setArg(0, matA_dev);
-          r->getKernel().setArg(1, matB_dev);
+          r->getKernel().setArg(0, mat_dev);
+          r->getKernel().setArg(1, vec_dev);
           r->getKernel().setArg(2, output_dev);
           OpenCL::executeRun<Float>(*r, output_dev, N * N, validate);
         }
@@ -247,8 +220,8 @@ void run_harness(
   else {
     for (auto &r: all_run) {
       if (r->compile(binary)) {
-        r->getKernel().setArg(0, matA_dev);
-        r->getKernel().setArg(1, matB_dev);
+        r->getKernel().setArg(0, mat_dev);
+        r->getKernel().setArg(1, vec_dev);
         r->getKernel().setArg(2, output_dev);
         OpenCL::executeRun<Float>(*r, output_dev, N * N, validate);
       }
@@ -263,9 +236,7 @@ int main(int argc, char *argv[]) {
   auto opt_device = op.addOption<unsigned>({'d', "device", "OpenCL device index (default 0).", 0});
 
   auto opt_size = op.addOption<std::size_t>({'s', "size", "Matrix size (default 1024).", 1024});
-  auto opt_transposeA = op.addOption<bool>({0, "transpose-A", "Transpose the first matrix before computation.", false});
-  auto opt_transposeB = op.addOption<bool>({0, "transpose-B", "Transpose the second matrix before computation.", false});
-  auto opt_transposeRes = op.addOption<bool>({0, "transpose-res", "Transpose the output before cross validation.", false});
+  auto opt_transpose = op.addOption<bool>({0, "transpose-in", "Transpose the input matrix before computation.", false});
   auto opt_force = op.addOption<bool>({'b', "binary", "Load programs as binaries instead of compiling OpenCL-C source.", false});
   auto opt_timeout = op.addOption<float>({'t', "timeout", "Timeout to avoid multiple executions (default 100ms).", 100.0f});
   auto opt_double = op.addOption<bool>({0, "double", "Use double precision.", false});
@@ -282,13 +253,13 @@ int main(int argc, char *argv[]) {
   OpenCL::timeout = opt_timeout->get();
 
   // temporary files
-  std::string gold_file = "/tmp/apart_mm_gold_" + std::to_string(N);
-  std::string matA_file = "/tmp/apart_mm_A_" + std::to_string(N);
-  std::string matB_file = "/tmp/apart_mm_B_" + std::to_string(N);
+  std::string gold_file = "/tmp/apart_mv_gold_" + std::to_string(N);
+  std::string mat_file = "/tmp/apart_mv_mat_" + std::to_string(N);
+  std::string vec_file = "/tmp/apart_mv_vec_" + std::to_string(N);
 
   if(*opt_clean) {
     std::cout << "Cleaning..." << std::endl;
-    for(const auto& file: {gold_file, matA_file, matB_file})
+    for(const auto& file: {gold_file, mat_file, vec_file})
       std::remove(file.data());
     return 0;
   }
@@ -309,17 +280,17 @@ int main(int argc, char *argv[]) {
   if (opt_double->get())
     run_harness<double>(
         all_run, N,
-        matA_file, matB_file, gold_file,
+        mat_file, vec_file, gold_file,
         opt_force->get(),
-        opt_transposeA->get(), opt_transposeB->get(), opt_transposeRes->get(),
+        opt_transpose->get(),
         opt_threaded->get(), opt_binary->get()
     );
   else
     run_harness<float>(
         all_run, N,
-        matA_file, matB_file, gold_file,
+        mat_file, vec_file, gold_file,
         opt_force->get(),
-        opt_transposeA->get(), opt_transposeB->get(), opt_transposeRes->get(),
+        opt_transpose->get(),
         opt_threaded->get(), opt_binary->get()
     );
 }

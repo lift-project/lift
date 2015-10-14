@@ -14,5 +14,10 @@ set(SOURCE_FILES
 
 add_library (Executor ${SOURCE_FILES})
 
-add_executable(harness_mm apps/mm.cpp)
-target_link_libraries(harness_mm Executor OpenCL pthread)
+function(add_app name)
+    add_executable(harness_${name} apps/${name}.cpp)
+    target_link_libraries(harness_${name} Executor OpenCL pthread)
+endfunction()
+
+add_app(mm)
+add_app(mv)
