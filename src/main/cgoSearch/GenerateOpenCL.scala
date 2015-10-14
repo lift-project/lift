@@ -30,23 +30,22 @@ object GenerateOpenCL {
 
     // list all the high level expression
     val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
+    val highLevelCount = all_files.size
 
     var expr_counter = 0
     all_files.foreach(filename => {
 
-      val high_level_hash = filename.split("/").last
       if (Files.exists(Paths.get(filename))) {
+        val high_level_hash = filename.split("/").last
         expr_counter = expr_counter + 1
-        val highLevelCount = all_files.size
         println(s"High-level expression : $expr_counter / $highLevelCount")
 
         val high_level_str = readLambdaFromFile(filename)
         val high_level_expr = Eval(high_level_str)
 
-
         val st = createValueMap(high_level_expr)
         val sizesForFilter = st.values.toSeq
-        val vars = Array.fill(sizesForFilter.length)(Var(""))
+        val vars = Seq.fill(sizesForFilter.length)(Var(""))
 
         replaceInputTypes(high_level_expr, st)
 
