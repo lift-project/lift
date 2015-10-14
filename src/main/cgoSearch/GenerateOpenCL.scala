@@ -3,14 +3,10 @@ package cgoSearch
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
-import exploration.InferNDRange
-import exploration.utils.Utils
+import apart.arithmetic.{ArithExpr, Var}
 import ir.ast.Lambda
 import ir.{Type, TypeChecker}
 import opencl.executor.Eval
-import opencl.generator.OpenCLGenerator
-import opencl.ir.TypedOpenCLMemory
 
 import scala.collection.immutable.Map
 import scala.io.Source
@@ -20,7 +16,6 @@ import scala.io.Source
  * It requires the lambdas/ and lambdasLower/ folders with the generated index files.
  */
 object GenerateOpenCL {
-  val generate_counter = new AtomicInteger()
   var topFolder = "lambdas"
 
   def main(args: Array[String]) {
@@ -97,7 +92,7 @@ object GenerateOpenCL {
 
             println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
 
-            dumpOpenCLToFiles(potential_expressions, low_level_hash, high_level_hash)
+            (potential_expressions, low_level_hash, high_level_hash)
           })
         }
       }
@@ -117,82 +112,4 @@ object GenerateOpenCL {
   def replaceInputTypes(lambda: Lambda, st: Map[ArithExpr, ArithExpr]) =
     lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
 
-  def dumpOpenCLToFiles(expressions: List[(Lambda, Seq[ArithExpr])],
-                        lowLevelHash: String,
-                        highLevelHash: String): Unit = {
-    expressions.foreach(pair => {
-      try {
-        val lambda = pair._1
-        val substitutionMap = pair._2
-
-        val (local, global) = InferNDRange(lambda)
-        val valueMap = createValueMap(lambda)
-
-        val inNDRange = InferNDRange.substituteInNDRange(global, valueMap)
-        val code = OpenCLGenerator.generate(lambda, local, inNDRange, valueMap)
-
-        val kernel =
-          s"""
-             |// Substitutions: $substitutionMap
-             |// Local sizes: ${local.map(_.eval).mkString(", ")}
-             |// Global sizes: ${global.mkString(", ")}
-             |// High-level hash: $highLevelHash
-             |// Low-level hash: $lowLevelHash
-             |// Input size: ${SearchParameters.matrix_size}
-             |
-        |$code
-      """.stripMargin
-
-        val variables = Utils.findVariables(kernel)
-        val variablesReplacedInKernel = Utils.replaceVariableDeclarations(kernel, variables)
-
-        val hash = Utils.Sha256Hash(variablesReplacedInKernel)
-        val filename = hash + ".cl"
-
-        val path = s"${topFolder}Cl/$lowLevelHash"
-
-        val (_,globalBuffers) = OpenCLGenerator.getMemories(lambda)
-        // FIXME(tlutz): some buffer sizes overflow
-
-
-        // Dump only the code if the minimal amount of temporary global arrays doesn't overflow
-        val min_map = getBufferSizes(1024, globalBuffers)
-
-        if(min_map.forall(_ > 0)) {
-          val v = GenerateOpenCL.generate_counter.incrementAndGet()
-          if(v % 100 == 0) println(s"Generated $v source files")
-
-          Utils.dumpToFile(variablesReplacedInKernel, filename, path)
-
-
-          Seq(1024,2048,4096,8192,16384).foreach(i => {
-
-            // Add to the CSV if there are no overflow
-            val cur_temp_alloc = getBufferSizes(i, globalBuffers)
-
-            if(cur_temp_alloc.forall(_ > 0)) {
-              val fw = new java.io.FileWriter(s"$path/exec_$i.csv", true)
-              fw.write(i + "," +
-                global.map(substituteInputSizes(i, _)).mkString(",") + "," +
-                local.map(substituteInputSizes(i, _)).mkString(",") +
-                s",$hash," + (globalBuffers.length - 3) + "," +
-                cur_temp_alloc.mkString(",") + "\n")
-              fw.close()
-            }
-          })
-        }
-      } catch {
-        case _: Throwable =>
-      }
-    })
-
-  }
-
-  def substituteInputSizes(size: Int, ae: ArithExpr) = {
-    val subst = Map(ae.varList.map((_: ArithExpr, Cst(size): ArithExpr)).toSeq: _*)
-    ArithExpr.substitute(ae, subst)
-  }
-
-  def getBufferSizes(inputSize: Int, globalBuffers: Array[TypedOpenCLMemory]) =
-    globalBuffers.map(x => substituteInputSizes(inputSize, x.mem.size).eval)
 }

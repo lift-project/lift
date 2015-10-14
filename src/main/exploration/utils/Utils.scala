@@ -213,12 +213,16 @@ object Utils {
       "val " + getNewName(pair) + " = Var(\"" + getIdentifier(pair) + "\")\n"
     ).mkString("")
 
-    decls + "\n" + replaceVariableDeclarations(fullString, withIndex)
+    decls + "\n" + replaceVariableNames(fullString, withIndex)
   }
 
-  def replaceVariableDeclarations(fullString: String, withIndex: List[(String, Int)]): String = {
+  def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
     withIndex.foldLeft(fullString)((currentString, toReplace) =>
       currentString.replaceAll(toReplace._1, getNewName(toReplace)))
+
+  def findAndReplaceVariableNames(code: String) = {
+    val variables = findVariables(code)
+    replaceVariableNames(code, variables)
   }
 
   /**
@@ -235,7 +239,7 @@ object Utils {
 
     val variables = findVariables(fullString)
 
-    val replacedVariableNames = replaceVariableDeclarations(fullString, variables)
+    val replacedVariableNames = replaceVariableNames(fullString, variables)
 
     val seqName = "variables"
 

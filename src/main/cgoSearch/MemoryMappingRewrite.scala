@@ -28,7 +28,7 @@ object MemoryMappingRewrite {
 
       println(s"Lowering : $hash $count / ${all_files.size}")
 
-      val fileContents = Source.fromFile(filename).getLines().mkString("\n").replace("idfloat", "id")
+      val fileContents = GenerateOpenCL.readLambdaFromFile(filename)
 
       try {
 
