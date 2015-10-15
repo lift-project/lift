@@ -76,7 +76,6 @@ struct MMRun: public Run {
     }
     kernel.setArg((unsigned)extra_args.size()+3, (int)size);
     kernel.setArg((unsigned)extra_args.size()+4, (int)size);
-    kernel.setArg((unsigned)extra_args.size()+5, (int)size);
   }
 
   void cleanup() override {
@@ -206,7 +205,7 @@ void run_harness(
           r->getKernel().setArg(0, mat_dev);
           r->getKernel().setArg(1, vec_dev);
           r->getKernel().setArg(2, output_dev);
-          OpenCL::executeRun<Float>(*r, output_dev, N * N, validate);
+          OpenCL::executeRun<Float>(*r, output_dev, N, validate);
         }
       }
     });
@@ -223,7 +222,7 @@ void run_harness(
         r->getKernel().setArg(0, mat_dev);
         r->getKernel().setArg(1, vec_dev);
         r->getKernel().setArg(2, output_dev);
-        OpenCL::executeRun<Float>(*r, output_dev, N * N, validate);
+        OpenCL::executeRun<Float>(*r, output_dev, N, validate);
       }
     }
   }
