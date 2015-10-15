@@ -35,8 +35,7 @@ object GenerateOpenCL {
         expr_counter = expr_counter + 1
         println(s"High-level expression : $expr_counter / $highLevelCount")
 
-        val high_level_str = readLambdaFromFile(filename)
-        val high_level_expr = Eval(high_level_str)
+        val high_level_expr = readLambdaFromFile(filename)
 
         val st = createValueMap(high_level_expr)
         val sizesForFilter = st.values.toSeq
@@ -63,7 +62,7 @@ object GenerateOpenCL {
           low_level_expr_list.par.foreach(low_level_filename => {
 
             val low_level_hash = low_level_filename.split("/").last
-            val low_level_str = readLambdaFromFile(low_level_filename)
+            val low_level_str = readFromFile(low_level_filename)
             val low_level_factory = Eval.getMethod(low_level_str)
 
             println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
@@ -92,15 +91,18 @@ object GenerateOpenCL {
 
             println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
 
-            (potential_expressions, low_level_hash, high_level_hash)
+            SaveOpenCL(topFolder, low_level_hash, high_level_hash, potential_expressions)
           })
         }
       }
     })
   }
 
+  def readFromFile(filename: String) =
+    Source.fromFile(filename).getLines().mkString("\n")
+
   def readLambdaFromFile(filename: String) =
-    Source.fromFile(filename).getLines().mkString("\n").replace("idfloat", "id")
+    Eval(readFromFile(filename))
 
   def createValueMap(lambda: Lambda): Map[ArithExpr, ArithExpr] = {
     val vars = lambda.params.flatMap(_.t.varList).distinct

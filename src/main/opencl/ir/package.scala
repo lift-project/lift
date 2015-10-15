@@ -12,6 +12,8 @@ package object ir {
 
   val idI = UserFun("id", "x", "{ return x; }", Int, Int)
 
+  val idfloat = UserFun("idfloat", "x", "{ return x; }", Float, Float)
+
   val iddouble = UserFun("iddouble", "x", "{ return x; }", Double, Double)
 
   val idFI = UserFun("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
