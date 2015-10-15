@@ -113,7 +113,7 @@ abstract class View(val t: Type = UndefType) {
   def asVector(n: ArithExpr): View = {
     t match {
       case ArrayType(st: ScalarType, len) =>
-        new ViewAsVector(n, this, ArrayType(st.vectorize(n), len))
+        new ViewAsVector(n, this, ArrayType(st.vectorize(n), len /^ n))
       case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into vector types")
     }
   }
@@ -129,7 +129,7 @@ abstract class View(val t: Type = UndefType) {
   def asScalar(): View = {
     t match {
       case ArrayType(VectorType(st, n), len) =>
-        new ViewAsScalar(this, n, ArrayType(st, len))
+        new ViewAsScalar(this, n, ArrayType(st, len * n))
       case st: ScalarType => this
       case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
     }
@@ -352,7 +352,8 @@ private[view] case class ViewTail(iv: View, override val t: Type) extends View(t
  * @param fct The index function to remap the elements.
  * @param t The type of view.
  */
-private[view] case class ViewPad(val iv: View, val size: Int, val fct: (ArithExpr, ArithExpr) => ArithExpr, override val t: Type) extends View(t)
+private[view] case class ViewPad(iv: View, size: Int, fct: (ArithExpr, ArithExpr) => ArithExpr,
+                   override val t: Type) extends View(t)
 
 
 /**

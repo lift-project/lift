@@ -5,7 +5,7 @@ import arithmetic.TypeVar
 import generator.Generator
 import ir._
 import ir.ast._
-import ir.view.{View, ViewPrinter}
+import ir.view._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -175,7 +175,7 @@ class OpenCLGenerator extends Generator {
           p.mem = OpenCLMemory.allocGlobalMemory(
                     OpenCLMemory.getMaxSizeInBytes(p.t))
       }
-      p.view = View(p.t, openCLCodeGen.print(p.mem.variable))
+      p.view = View(p.t, openCLCodeGen.toString(p.mem.variable))
     })
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
@@ -314,7 +314,14 @@ class OpenCLGenerator extends Generator {
 
     // the base type is used for allocation of all variables ...
     this.varDecls =
-      typedMems.map(tm => (tm.mem.variable, Type.devectorize(tm.t))).toMap
+      typedMems.map(tm => {
+        if (tm.mem.addressSpace == PrivateMemory) {
+          // do not devectorize for private memory
+          (tm.mem.variable, tm.t)
+        } else {
+          (tm.mem.variable, Type.devectorize(tm.t))
+        }
+      }).toMap
 
     // ... besides the these variables which use the value types
     // (i.e., possibly a vector type)
@@ -357,7 +364,7 @@ class OpenCLGenerator extends Generator {
       val m = mem.mem
       if (Verbose()) {
         println("Allocated " + ArithExpr.substitute(m.size, varMap.toMap) +
-                " bytes for variable " + openCLCodeGen.print(m.variable) +
+                " bytes for variable " + openCLCodeGen.toString(m.variable) +
                 " in " + m.addressSpace + " memory")
       }
     })
@@ -381,7 +388,7 @@ class OpenCLGenerator extends Generator {
       kernel.body +=
         OpenCLAST.VarDecl(x.mem.variable.toString, x.t,
           addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getSize(Type.getBaseType(x.t))).eval))
+          length = (x.mem.size /^ Type.getSize(Type.getValueType(x.t))).eval))
 
     generate(f.body, kernel.body)
 
@@ -540,8 +547,8 @@ class OpenCLGenerator extends Generator {
     block += OpenCLAST.VarDecl(temp.toString, Type.getValueType(v.t),
       init = OpenCLAST.OpenCLCode(v.value))
     block += OpenCLAST.Assignment(
-      OpenCLAST.VarRef(v.mem.variable.toString),
-      OpenCLAST.VarRef(temp.toString))
+      OpenCLAST.VarRef(v.mem.variable),
+      OpenCLAST.VarRef(temp))
   }
 
   // === Iterate ===
@@ -585,14 +592,13 @@ class OpenCLGenerator extends Generator {
 
     // ADDRSPC TYPE tin = in;
     block += OpenCLAST.VarDecl(tin.toString, Type.devectorize(call.t),
-                               OpenCLAST.VarRef(inputMem.variable.toString),
+                               OpenCLAST.VarRef(inputMem.variable),
                                outputMem.addressSpace)
 
-    val toutVStr = openCLCodeGen.print(tout)
     val range = i.indexVar.range.asInstanceOf[RangeAdd]
 
     // ADDRSPC TYPE tin = (odd ? out : swap);
-    block += OpenCLAST.VarDecl(toutVStr, Type.devectorize(call.t),
+    block += OpenCLAST.VarDecl(openCLCodeGen.toString(tout), Type.devectorize(call.t),
       init = OpenCLAST.Expression(
         ((range.stop % 2) ne Cst(0)) ?? outputMem.variable !! swapMem.variable),
         addressSpace = outputMem.addressSpace)
@@ -612,7 +618,7 @@ class OpenCLGenerator extends Generator {
       inputMem.variable = oldInV
       outputMem.variable = oldOutV
 
-      val curOutLenRef = OpenCLAST.VarRef(curOutLen.toString)
+      val curOutLenRef = OpenCLAST.VarRef(curOutLen)
 
       val innerOutputLength = Type.getLength(funCall.t)
 
@@ -621,7 +627,7 @@ class OpenCLGenerator extends Generator {
         OpenCLAST.Expression(innerOutputLength))
 
 
-      val tinVStrRef = OpenCLAST.VarRef(openCLCodeGen.print(tin))
+      val tinVStrRef = OpenCLAST.VarRef(tin)
 
       // tin = (tout == swap) ? swap : out
       b += OpenCLAST.Assignment(tinVStrRef,
@@ -629,7 +635,7 @@ class OpenCLGenerator extends Generator {
                              swapMem.variable !!  outputMem.variable))
 
 
-      val toutVStrRef = OpenCLAST.VarRef(toutVStr)
+      val toutVStrRef = OpenCLAST.VarRef(tout)
 
       // tout = (tout == swap) ? out : swap
       b += OpenCLAST.Assignment(toutVStrRef,
@@ -639,7 +645,6 @@ class OpenCLGenerator extends Generator {
       if(outputMem.addressSpace != PrivateMemory)
         b += OpenCLAST.Barrier(outputMem)
 
-      b
     }, i.iterationCount)
   }
 
@@ -651,8 +656,6 @@ class OpenCLGenerator extends Generator {
     val step = range.step
 
     if (unroll && iterationCount.eval > 0) {
-
-
 
       block += OpenCLAST.Comment("unroll")
 
@@ -668,6 +671,9 @@ class OpenCLGenerator extends Generator {
 
         generate(block)
       }
+      // cleanup
+      replacements = replacements - indexVar
+      replacementsWithFuns = replacementsWithFuns - indexVar
 
       block += OpenCLAST.Comment("end unroll")
     } else /* the loop is not unrolled */ {
@@ -714,29 +720,30 @@ class OpenCLGenerator extends Generator {
    */
   private def generateStoreNode(block: Block,
                                 mem: OpenCLMemory,
-                                t: Type,
+                                currentType: Type,
                                 view: View,
                                 value: OclAstNode): OclAstNode = {
     val originalType = varDecls(mem.variable)
-    if (Type.isEqual(Type.getValueType(originalType), Type.getValueType(t))) {
+    if (Type.haveSameValueTypes(originalType, currentType)) {
       OpenCLAST.Assignment(
-        to = simpleAccessNode(block, mem.variable, mem.addressSpace, t, view),
+        to = accessNode(mem.variable, mem.addressSpace, view),
         value = value
       )
     } else {
-      (originalType, t) match {
-        case (at: ArrayType, vt: VectorType) => Type.getValueType(at) match {
-          // originally a scalar type, but now a vector type => vstore
-          case st: ScalarType if Type.isEqual(st, vt.scalarT) =>
+      (originalType, currentType) match {
+        // originally a scalar type in global memory, but now a vector type
+        //  => emit vstore
+        case (at: ArrayType, vt: VectorType)
+          if Type.isEqual(Type.getValueType(at), vt.scalarT)
+          && (   mem.addressSpace == GlobalMemory
+              || mem.addressSpace == LocalMemory  ) =>
+
             OpenCLAST.Store(
-              OpenCLAST.VarRef(mem.variable.toString), vt,
+              OpenCLAST.VarRef(mem.variable), vt,
               value = value,
               offset = OpenCLAST.Expression(
                           ArithExpr.substitute(ViewPrinter.emit(view),
                                                replacementsWithFuns) / vt.len))
-        }
-
-        case _ => throw new NotImplementedError()
       }
     }
   }
@@ -747,76 +754,158 @@ class OpenCLGenerator extends Generator {
 
   private def generateLoadNode(block: Block, arg: Expr): OclAstNode = {
     val mem = OpenCLMemory.asOpenCLMemory(arg.mem)
-    generateLoadNode(block, mem.variable, mem.addressSpace, arg.t, arg.view)
+    generateLoadNode(mem.variable, mem.addressSpace, arg.t, arg.view)
   }
 
-  private def generateLoadNode(block: Block,
-                               v: Var,
+  private def generateLoadNode(v: Var,
                                addressSpace: OpenCLAddressSpace,
-                               t: Type,
+                               currentType: Type,
                                view: View): OpenCLAST.OclAstNode = {
     val originalType = varDecls(v)
-    if (Type.isEqual(Type.getValueType(originalType), Type.getValueType(t))) {
-      simpleAccessNode(block, v, addressSpace, t, view)
-    } else { // types do not match
-      (originalType, t) match {
-        case (at: ArrayType, vt: VectorType) => Type.getValueType(at) match {
-          // originally a scalar type, but now a vector type => vload
-          case st: ScalarType if Type.isEqual(st, vt.scalarT) =>
+    if (Type.haveSameValueTypes(originalType, currentType)) {
+      accessNode(v, addressSpace, view)
+    } else {
+      (originalType, currentType) match {
+        // originally a scalar type, but now a vector type
+        //  => emit cast
+        case (st:ScalarType, vt:VectorType)  if Type.isEqual(st, vt.scalarT) =>
+          OpenCLAST.Cast(OpenCLAST.VarRef(v), st)
+
+        // originally an array of scalar values in global memory,
+        // but now a vector type
+        //  => emit vload
+        case (at: ArrayType, vt: VectorType)
+          if Type.isEqual(Type.getValueType(at), vt.scalarT)
+          && ( addressSpace == GlobalMemory || addressSpace == LocalMemory ) =>
+
             OpenCLAST.Load(
-              OpenCLAST.VarRef(v.toString), vt,
+              OpenCLAST.VarRef(v), vt,
               offset = OpenCLAST.Expression(
                           ArithExpr.substitute(ViewPrinter.emit(view),
-                                               replacementsWithFuns) / vt.len)
-            )
-        }
-        case (st:ScalarType, vt:VectorType)  if Type.isEqual(st, vt.scalarT) =>
-          // create (float4) var
-          OpenCLAST.Cast(OpenCLAST.VarRef(v.toString), st)
+                                               replacementsWithFuns) / vt.len))
+
+        // originally an array of vector values in private memory,
+        // but now a scalar type
+        //  => emit load from components
+        case (at: ArrayType, st: ScalarType)
+          if Type.getValueType(at).isInstanceOf[VectorType]
+          && Type.haveSameBaseTypes(at, st)
+          && (addressSpace == PrivateMemory) =>
+
+          // val n = Type.getValueType(at).asInstanceOf[VectorType].len
+          val arraySuffix = arrayAccessPrivateMem(v, view)
+          val componentSuffix = componentAccessVectorVar(v, view)
+          OpenCLAST.VarRef(v, suffix = arraySuffix + componentSuffix)
       }
     }
   }
 
-  private def simpleAccessNode(block: Block,
-                               v: Var,
-                               addressSpace: OpenCLAddressSpace,
-                               t: Type,
-                               view: View): OpenCLAST.OclAstNode = {
-    val varname: String = openCLCodeGen.print(v)
-    val originalType = varDecls(v)
-
+  /**
+   * Create an access node(i.e. of type VarRef) for variable v based on the
+   * given address space and view
+   * @param v The variable to access
+   * @param addressSpace The address space, i.e. global, local, private
+   * @param view The view to access var `v`
+   * @return An VarRef node accessing `v` as described in `view`.
+   */
+  private def accessNode(v: Var,
+                         addressSpace: OpenCLAddressSpace,
+                         view: View): OpenCLAST.VarRef = {
     addressSpace match {
       case LocalMemory | GlobalMemory =>
-        // both types match => no vload necessary ...
-        // generate: var[index]
+        val originalType = varDecls(v)
         originalType match {
-          case _: ArrayType =>
-            OpenCLAST.VarRef(varname,
-              index = OpenCLAST.Expression(
-                ArithExpr.substitute(ViewPrinter.emit(view),
-                  replacementsWithFuns)))
-
-          case _ => OpenCLAST.VarRef(varname)
+          case _: ArrayType => arrayAccessNode(v, addressSpace, view)
+          case _:ScalarType | _:VectorType | _:TupleType => valueAccessNode(v)
         }
 
       case PrivateMemory =>
         privateMems.find(m => m.mem.variable == v) match {
-          case None => OpenCLAST.VarRef(varname)
-          case Some(typedMemory) =>
-            typedMemory.t match {
-              // if the allocated memory was originally an index, compute the
-              // index and append it
-              case _:ArrayType =>
-                val index = ArithExpr.substitute(ViewPrinter.emit(view),
-                                                 replacements).eval
-
-                OpenCLAST.VarRef(s"${varname}_" + openCLCodeGen.print(index))
-
-              case _ =>
-                OpenCLAST.VarRef(varname)
-            }
+          case Some(typedMemory) => typedMemory.t match {
+            case _:ArrayType => arrayAccessNode(v, addressSpace, view)
+            case _:ScalarType | _:VectorType | _:TupleType => valueAccessNode(v)
+          }
+          case _ => valueAccessNode(v)
         }
     }
+  }
+
+  /**
+   * Accessing v as an array
+   * @param v The variable to access
+   * @param addressSpace The address space `v` lives in
+   * @param view The view describing the access
+   * @return An VarRef node accessing `v` as described in `view`.
+   */
+  private def arrayAccessNode(v: Var,
+                              addressSpace: OpenCLAddressSpace,
+                              view: View): OpenCLAST.VarRef = {
+    addressSpace match {
+      case LocalMemory | GlobalMemory =>
+        val index = ArithExpr.substitute(ViewPrinter.emit(view),
+                                         replacementsWithFuns)
+        OpenCLAST.VarRef(v, arrayIndex = OpenCLAST.Expression(index))
+
+      case PrivateMemory =>
+        OpenCLAST.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
+    }
+  }
+
+  /**
+   * Generating the suffix appended to emulate an array access in private memory
+   * @param v The varaible to access
+   * @param view The view describing the access
+   * @return A string of the form '_index' where index is the computed
+   *         array index. The index must be computable at compile time.
+   */
+  private def arrayAccessPrivateMem(v: Var, view: View): String = {
+    val i = {
+      val originalType = varDecls(v)
+      val valueType = Type.getValueType(originalType)
+      valueType match {
+        case _:ScalarType | _:TupleType => ViewPrinter.emit(view)
+        // if the original value type is a vector:
+        //   divide index by vector length
+        case _:VectorType =>
+          val length = Type.getLength(Type.getValueType(originalType))
+          ViewPrinter.emit(view) / length
+      }
+    }
+    // Compute the index ...
+    val index = ArithExpr.substitute(i,replacements).eval
+    // ... and append it
+    "_" + openCLCodeGen.toString(index)
+  }
+
+  /**
+   * Create a string representing for a component access into a vector variable
+   * @param v The variable to access. Must have been declared with a vector type
+   * @param view The view to access this variable
+   * @return OpenCL code for accessing v, e.g.: v.s0
+   */
+  private def componentAccessVectorVar(v: Var, view: View): String = {
+    val i = {
+      val originalType = varDecls(v)
+      val valueType = Type.getValueType(originalType)
+      valueType match {
+        case _:VectorType =>
+          val length = Type.getLength(Type.getValueType(originalType))
+          ViewPrinter.emit(view) % length
+      }
+    }
+    // Compute the index ...
+    val index = ArithExpr.substitute(i,replacements).eval
+    // ... and append it
+    ".s" + openCLCodeGen.toString(index)
+  }
+
+  /**
+   * An access to a variable as a value, i.e. a direct access by name.
+   * @param v The variable to access
+   * @return A VarRef node wrapping `v`
+   */
+  private def valueAccessNode(v: Var): OpenCLAST.VarRef = {
+    OpenCLAST.VarRef(v)
   }
 
   private def findAndDeclareCommonSubterms(block: Block): Unit = {

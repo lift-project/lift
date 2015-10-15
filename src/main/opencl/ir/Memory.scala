@@ -259,25 +259,19 @@ object TypedOpenCLMemory {
         case _ => call.args.map(collect).reduce(_ ++ _)
       }
 
-      val adaptedArgMems = call.f match {
-        case s: asScalar => adaptArgMemsAsScalar(argMems)
-        case v: asVector => adaptArgsMemsAsVector(v, argMems)
-        case _           => argMems
-      }
-
       val bodyMems = call.f match {
         case uf: UserFun    => collectUserFun(call)
         case vf: VectorizeUserFun
                             => collectUserFun(call)
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
-        case r: AbstractPartRed => collectReduce(r, adaptedArgMems)
+        case r: AbstractPartRed => collectReduce(r, argMems)
         case i: Iterate     => collectIterate(call, i)
         case fp: FPattern   => collect(fp.f.body)
         case _              => Seq()
       }
 
-      adaptedArgMems ++ bodyMems
+      argMems ++ bodyMems
     }
 
     def adaptArgMemsAsScalar(mems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {

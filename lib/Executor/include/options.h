@@ -70,6 +70,7 @@ public:
 /// @brief Define an operator to dump command line arguments to stream.
 std::ostream & operator<<(std::ostream &os, const OptionBase * a) {
   a->print(os);
+  os << std::endl;
   return os;
 }
 

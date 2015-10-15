@@ -7,10 +7,17 @@ include_directories(common)
 include_directories(include)
 
 set(SOURCE_FILES
-    src/executor.cpp
     src/run.cpp
     src/file_utils.cpp
     src/csv_utils.cpp
     src/opencl_utils.cpp)
-add_executable(Executor ${SOURCE_FILES})
-target_link_libraries(Executor OpenCL)
+
+add_library (Executor ${SOURCE_FILES})
+
+function(add_app name)
+    add_executable(harness_${name} apps/${name}.cpp)
+    target_link_libraries(harness_${name} Executor OpenCL pthread)
+endfunction()
+
+add_app(mm)
+add_app(mv)
