@@ -1,67 +1,89 @@
 package cgoSearch
 
-import apart.arithmetic.Var
+import java.io.File
+
 import exploration._
 import exploration.utils._
+import ir.TypeChecker
 import ir.ast._
-import ir.{ArrayType, TypeChecker}
-import opencl.ir._
+import org.clapper.argot.ArgotConverters._
+import org.clapper.argot._
 
 object HighLevelRewrite {
 
-  def main(args: Array[String]) = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+  val parser = new ArgotParser("HighLevelRewrite")
 
-    val startingExpression = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
-      (A, B) => {
-        Map(fun(aRow =>
-          Map(fun(bCol =>
-            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(aRow, bCol)
-          )) o Transpose() $ B
-        )) $ A
-      })
-
-    val startingExpressionATransposed = fun(
-      ArrayType(ArrayType(Float, M), K),
-      ArrayType(ArrayType(Float, N), K),
-      (A, B) => {
-        Map(fun(aRow =>
-          Map(fun(bCol =>
-            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(aRow, bCol)
-          )) o Transpose() $ B
-        )) o Transpose() $ A
-      })
-
-    val mv = fun(
-      ArrayType(ArrayType(Float, K), N),
-      ArrayType(ArrayType(Float, 1), K), // Column vector
-      (matrix, vector) =>
-        Map(fun(row =>
-          Map( fun( col =>
-            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(row, col)
-          )) o Transpose() $ vector
-        )) $ matrix
-    )
-
-    val dumpThese = rewriteExpression(startingExpressionATransposed)
-
-    println(dumpThese.length + " expressions to dump")
-
-    val lambdas = dumpThese.map(_._1)
-    printMinAndMaxDepth(lambdas)
-
-    dumpLambdasToFiles(lambdas)
+  val help = parser.flag[Boolean](List("h", "help"),
+    "Show this message.") {
+    (sValue, opt) =>
+      parser.usage()
+      sValue
   }
 
-  def rewriteExpression(startingExpression: Lambda2, maxDepth: Int = 5): Seq[(Lambda, Seq[Rule])] = {
+  val input = parser.parameter[String]("input",
+    "Input file containing the lambda to use for rewriting",
+    optional = false) {
+    (s, opt) =>
+      val file = new File(s)
+      if (!file.exists)
+        parser.usage("Input file \"" + s + "\" does not exist")
+      s
+  }
+
+  val output = parser.option[String](List("o", "output"), "name.",
+    "Store the created lambdas into this folder."
+    ) {
+    (s, opt) =>
+      val file = new File(s)
+      if (file.exists)
+        parser.usage("Output location \"" + s + "\" already exists")
+      s
+  }
+
+  val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
+    "How deep to explore.")
+
+  val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
+
+  val distanceFilter = parser.option[Int](List("distance"), "distance", "Cutoff distance for filtering.")
+
+  val verboseOpt = parser.flag[Boolean](List("v", "verbose"), "Report all errors.")
+
+  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"), "Don't execute in parallel.")
+
+  var verbose = false
+
+  def main(args: Array[String]) = {
+
+    try {
+      parser.parse(args)
+
+      verbose = verboseOpt.value.isDefined
+
+      val filename = input.value.get
+      val lambda = GenerateOpenCL.readLambdaFromFile(filename)
+
+      val dumpThese = rewriteExpression(lambda)
+
+      println(dumpThese.length + " expressions to dump")
+
+      val lambdas = dumpThese.map(_._1)
+      printMinAndMaxDepth(lambdas)
+
+      val folderName =output.value.getOrElse(filename.split("/").last)
+
+      dumpLambdasToFiles(lambdas, folderName)
+    } catch {
+      case e: ArgotUsageException => println(e.message)
+    }
+  }
+
+  def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
+    val maxDepth = explorationDepth.value.getOrElse(5)
     val newLambdas = (new HighLevelRewrite)(startingExpression, maxDepth)
 
     val filtered = filterExpressions(newLambdas)
-    
+
     filtered
   }
 
@@ -71,7 +93,7 @@ object HighLevelRewrite {
     println(newLambdas.length + " resulting expressions.")
     println(distinctLambdas.length + " distinct sequences of rules (possibly different locations)")
 
-    val oneKernel = newLambdas.filter(pair => hasOneMapOnFirstLevels(pair._1))
+    val oneKernel = newLambdas.filter(pair => hasOneMapOnFirstLevel(pair._1))
 
     println(oneKernel.length + " expressions with one kernel")
 
@@ -80,15 +102,17 @@ object HighLevelRewrite {
     filterDepth
   }
 
-  private def filterByDistance(lambda: Lambda, cutoff: Int = 5): Boolean = {
+  private def filterByDistance(lambda: Lambda): Boolean = {
     val numberMap = NumberExpression.depthFirst(lambda)
 
     val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
       expr match {
-        case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr::state
+        case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr :: state
         case _ => state
       }
     })
+
+    val cutoff = distanceFilter.value.getOrElse(5)
 
     val ids = userFunCalls.map(numberMap(_))
 
@@ -96,24 +120,28 @@ object HighLevelRewrite {
   }
 
   private def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
+    val cutoff = depthFilter.value.getOrElse(6)
     (pair._2.head == MacroRules.tileMapMap
       && pair._2.tail.diff(List(MacroRules.apply2DRegisterBlocking,
       MacroRules.apply2DRegisterBlocking,
       MacroRules.finishTiling,
       MacroRules.finishTiling)).isEmpty
-      && NumberExpression.byDepth(pair._1).values.max <= 8) ||
-    (pair._2.head == MacroRules.tileMapMap
-      && pair._2.tail.diff(List(MacroRules.apply1DRegisterBlocking,
-      MacroRules.apply1DRegisterBlocking,
-      MacroRules.finishTiling,
-      MacroRules.finishTiling)).isEmpty
-      && NumberExpression.byDepth(pair._1).values.max <= 7) ||
-    NumberExpression.byDepth(pair._1).values.max <= 6
+      && NumberExpression.byDepth(pair._1).values.max <= cutoff+2) ||
+      (pair._2.head == MacroRules.tileMapMap
+        && pair._2.tail.diff(List(MacroRules.apply1DRegisterBlocking,
+        MacroRules.apply1DRegisterBlocking,
+        MacroRules.finishTiling,
+        MacroRules.finishTiling)).isEmpty
+        && NumberExpression.byDepth(pair._1).values.max <= cutoff+1) ||
+      NumberExpression.byDepth(pair._1).values.max <= cutoff
   }
 
-  private def dumpLambdasToFiles(lambdas: Seq[Lambda], topLevelFolder: String = "lambdas"): Unit = {
+  private def dumpLambdasToFiles(lambdas: Seq[Lambda], topLevelFolder: String): Unit = {
+    val withIndex = lambdas.zipWithIndex
 
-    lambdas.zipWithIndex.par.foreach(pair => {
+    val x = if (sequential.value.isDefined) withIndex else withIndex.par
+
+    x.foreach(pair => {
       val lambda = pair._1
       val id = pair._2
 
@@ -135,7 +163,8 @@ object HighLevelRewrite {
         }
       } catch {
         case t: Throwable =>
-          println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
+          if (verbose)
+            println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
       }
     })
 
@@ -149,15 +178,8 @@ object HighLevelRewrite {
   }
 
   // If the lambda does not have one map, then needs 2 kernels
-  private def hasOneMapOnFirstLevels(lambda: Lambda): Boolean = {
-    val body = lambda.body
-    val body1 = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
-
-    val mapsOnLevelOne = Utils.countMapsAtCurrentLevel(body)
-    val mapsOnLevelTwo = Utils.countMapsAtCurrentLevel(body1)
-
-    mapsOnLevelOne == 1 && mapsOnLevelTwo == 1
-  }
+  private def hasOneMapOnFirstLevel(lambda: Lambda): Boolean =
+    Utils.countMapsAtCurrentLevel(lambda.body) == 1
 
   private def applyAlwaysRules(lambda: Lambda): Lambda = {
     val alwaysApply = Seq(MacroRules.moveTransposeInsideTiling)
@@ -192,7 +214,7 @@ class HighLevelRewrite {
 
   private def rewrite(lambda: Lambda, levels: Int,
                       rulesSoFar: Seq[Rule] = Seq()
-                     ): Seq[(Lambda, Seq[Rule])] = {
+                       ): Seq[(Lambda, Seq[Rule])] = {
 
     TypeChecker.check(lambda.body)
 
@@ -207,11 +229,12 @@ class HighLevelRewrite {
 
         TypeChecker(applied)
 
-        rewritten = rewritten :+ (applied, rulesSoFar :+ ruleAt._1)
+        rewritten = rewritten :+(applied, rulesSoFar :+ ruleAt._1)
 
       } catch {
         case t: Throwable =>
-//           println(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")},\nfailed with\n$t.\n")
+          if (HighLevelRewrite.verbose)
+            println(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")},\nfailed with\n$t.\n")
           failures += 1
       }
     })
@@ -219,7 +242,7 @@ class HighLevelRewrite {
     if (levels == 1 || rulesToTry.isEmpty) {
       rewritten
     } else {
-      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, levels-1, pair._2))
+      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, levels - 1, pair._2))
     }
   }
 

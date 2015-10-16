@@ -1,0 +1,14 @@
+val N = Var("N")
+val M = Var("M")
+val K = Var("K")
+
+fun(
+  ArrayType(ArrayType(Float, M), K),
+  ArrayType(ArrayType(Float, N), K),
+  (A, B) => {
+    Map(fun(aRow =>
+      Map(fun(bCol =>
+        Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(aRow, bCol)
+      )) o Transpose() $ B
+    )) o Transpose() $ A
+  })

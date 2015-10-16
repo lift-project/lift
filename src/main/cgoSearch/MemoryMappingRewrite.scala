@@ -6,7 +6,6 @@ import exploration.utils.{NumberExpression, Utils}
 import exploration.{Lower, Rewrite, Rule, Rules}
 import ir._
 import ir.ast._
-import opencl.executor.Eval
 import opencl.ir.pattern._
 
 import scala.io.Source
@@ -28,11 +27,9 @@ object MemoryMappingRewrite {
 
       println(s"Lowering : $hash $count / ${all_files.size}")
 
-      val fileContents = GenerateOpenCL.readLambdaFromFile(filename)
-
       try {
 
-        val lambda = Eval(fileContents)
+        val lambda = GenerateOpenCL.readLambdaFromFile(filename)
 
         val loweredExpressions = Lower.mapCombinations(lambda)
 
