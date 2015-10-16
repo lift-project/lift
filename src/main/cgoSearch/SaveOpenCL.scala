@@ -2,12 +2,12 @@ package cgoSearch
 
 import java.io.FileWriter
 
-import apart.arithmetic.{?, Cst, ArithExpr}
+import apart.arithmetic.{?, ArithExpr, Cst}
 import exploration.InferNDRange
 import exploration.utils.Utils
 import ir.ast.Lambda
-import opencl.generator.OpenCLGenerator
 import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.ir.TypedOpenCLMemory
 
 object SaveOpenCL {
@@ -20,7 +20,6 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
 
   private var local: NDRange = Array(?, ?, ?)
   private var global: NDRange = Array(?, ?, ?)
-
 
   def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Unit = {
     expressions.foreach(processLambda)
@@ -73,8 +72,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     // Dump only the code if the minimal amount of temporary global arrays doesn't overflow
     val min_map = getBufferSizes(1024, globalBuffers)
 
-    if (min_map.forall(_ > 0))
-      throw new RuntimeException("Buffer size overflow")
+    if (!min_map.forall(_ > 0))
+      throw new IllegalKernel("Buffer size overflow")
 
     Utils.dumpToFile(kernel, filename, path)
     createCsv(hash, path, globalBuffers)
