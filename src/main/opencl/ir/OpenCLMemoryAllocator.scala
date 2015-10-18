@@ -236,7 +236,7 @@ object OpenCLMemoryAllocator {
         // return defaultM
 
         // HOW IT'S ACTUALLY DONE:
-        // get the size of memory we return from the BSearch, based off the type we return
+        // get the size of memory we return from the search, based off the type we return
         val outputSize = getSizeInBytes(call.t) 
         // manually allocate that much memory, storing it in the correct address space
         if (addressSpace != UndefAddressSpace) {

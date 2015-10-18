@@ -423,6 +423,7 @@ class OpenCLGenerator extends Generator {
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
 
         case bs: BSearch => generateBSearchCall(bs, call, block)
+        case ls: LSearch => generateLSearchCall(ls, call, block)
 
         case i: Iterate => generateIterateCall(i, call, block)
 
@@ -564,17 +565,19 @@ class OpenCLGenerator extends Generator {
     // get a reference to it for loading
     val inArrRef = generateLoadNode(inArr.mem.variable, clInArrMem.addressSpace, 
                       inArrT, inArr.view.access(s.indexVar))
-    // declare a temporary var for storing the 
+    // declare temporary vars for declaring the upper and lower indicies of the search
+    val lowerIndex = Var("li")
+    val upperIndex = Var("ui")
     // declare the lower and upper indicies
-    block += OpenCLAST.VarDecl(s.lowerIndex.toString, opencl.ir.Int)
-    block += OpenCLAST.VarDecl(s.upperIndex.toString, opencl.ir.Int)
+    block += OpenCLAST.VarDecl(lowerIndex.toString, opencl.ir.Int)
+    block += OpenCLAST.VarDecl(upperIndex.toString, opencl.ir.Int)
     block += OpenCLAST.VarDecl(s.indexVar.toString, opencl.ir.Int)
     // assign initial values
-    block += OpenCLAST.Assignment(OpenCLAST.Expression(s.lowerIndex), OpenCLAST.Expression(0))
-    block += OpenCLAST.Assignment(OpenCLAST.Expression(s.upperIndex), OpenCLAST.Expression(inArrT.len))
+    block += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex), OpenCLAST.Expression(0))
+    block += OpenCLAST.Assignment(OpenCLAST.Expression(upperIndex), OpenCLAST.Expression(inArrT.len))
     // Don't need to do this assignment here
     // block += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
-      // OpenCLAST.Expression((s.lowerIndex + s.upperIndex) / 2))
+      // OpenCLAST.Expression((lowerIndex + upperIndex) / 2))
     // Declare a variable to copy the result of the user function into
     // We have to do this, as we currently have no nice way of describing normal C statements
     // in a way that works private memory properly. 
@@ -587,21 +590,21 @@ class OpenCLGenerator extends Generator {
     val compResRef = generateLoadNode(s.f.body.mem.variable, 
                                         OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
                                         s.f.body.t, s.f.body.view)
-    generateWhileLoop(block, Predicate(s.lowerIndex,s.upperIndex,Predicate.Operator.<), 
+    generateWhileLoop(block, Predicate(lowerIndex,upperIndex,Predicate.Operator.<), 
       (b) => {
         b += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
-          OpenCLAST.Expression((s.lowerIndex + s.upperIndex) / 2))
+          OpenCLAST.Expression((lowerIndex + upperIndex) / 2))
         generate(s.f.body, b)
         b += OpenCLAST.Assignment(OpenCLAST.Expression(compFuncResVar), compResRef)
         generateConditional(b, 
           Predicate(compFuncResVar, 0, Predicate.Operator.<),
           (cb) => {
-            cb += OpenCLAST.Assignment(OpenCLAST.Expression(s.upperIndex),OpenCLAST.Expression(s.indexVar))
+            cb += OpenCLAST.Assignment(OpenCLAST.Expression(upperIndex),OpenCLAST.Expression(s.indexVar))
           },
           (cb) => {
             generateConditional(cb, 
               Predicate(compFuncResVar, 0, Predicate.Operator.>),
-              (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(s.lowerIndex),OpenCLAST.Expression(s.indexVar))},
+              (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex),OpenCLAST.Expression(s.indexVar))},
               (ccb) => {ccb += OpenCLAST.GOTO("writeresult")}
             )
           }
@@ -618,6 +621,80 @@ class OpenCLGenerator extends Generator {
     block += OpenCLAST.Label("done")
     block += OpenCLAST.OpenCLCode("\n")
   }
+
+  // LSearch 
+  private def generateLSearchCall(s: AbstractSearch,
+                                  call: FunCall,
+                                  block: Block): Unit = {
+    // get the default value handily
+    val defaultVal = call.args(0)
+    // get the input handily
+    val inArr = call.args(1)
+    // get the type of the input (handily, concretely)
+    val inArrT = inArr.t match {
+      case t: ArrayType => t
+    }
+    // get an opencl version of the input mem
+    val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
+    // get a reference to it for loading
+    val inArrRef = generateLoadNode(inArr.mem.variable, clInArrMem.addressSpace, 
+                      inArrT, inArr.view.access(s.indexVar))
+    // declare the index var
+    block += OpenCLAST.VarDecl(s.indexVar.toString, opencl.ir.Int)
+    // assign initial values
+    block += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), OpenCLAST.Expression(0))
+    // Declare a variable to copy the result of the user function into
+    // We have to do this, as we currently have no nice way of describing normal C statements
+    // in a way that works private memory properly. 
+    // TODO: Find some way of representing the arguments to while/if/etc...
+    val compFuncResVar = Var("cmp_res_var")
+    // declare it, with the same type as the comparison result
+    block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
+    // get an AST node describing a load from the comparator function result
+    // val cmpResMemVar = s.f.body.mem.variable
+    val compResRef = generateLoadNode(s.f.body.mem.variable, 
+                                        OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
+                                        s.f.body.t, s.f.body.view)
+    generateWhileLoop(block, Predicate(s.indexVar,inArrT.len,Predicate.Operator.<), 
+      (b) => {
+        generate(s.f.body, b)
+        b += OpenCLAST.Assignment(OpenCLAST.Expression(compFuncResVar), compResRef)
+        generateConditional(b, 
+          // if the result of the comparator is greater than zero, the element we're currently
+          // comparing to is smaller than the element we are searching for
+          Predicate(compFuncResVar, 0, Predicate.Operator.>),
+          (cb) => {
+            // therefore, keep searching!
+            cb += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar),OpenCLAST.Expression(s.indexVar + 1))
+          },
+          (cb) => {
+            // else...
+            generateConditional(cb, 
+              // if the result is less than 0, we've gone past the value we're looking for, so abort
+              Predicate(compFuncResVar, 0, Predicate.Operator.<),
+              // if the value is greater than, it's gone past! the search has failed.
+              (ccb) => {ccb += OpenCLAST.GOTO("searchFailed")},
+              // otherwise, it must be equal to, so jump to returning the result
+              (ccb) => {ccb += OpenCLAST.GOTO("writeresult")}
+            )
+          }
+        )
+      }
+    )
+    block += OpenCLAST.Label("searchFailed")
+    block += generateStoreNode(block, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+      generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
+    block += OpenCLAST.GOTO("done")
+    block += OpenCLAST.Label("writeresult")
+    block += generateStoreNode(block, 
+      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+      inArrRef)
+    block += OpenCLAST.Label("done")
+    block += OpenCLAST.OpenCLCode("\n")
+  }
+
+
+
 
   private def generateValue(v: Value, block: Block): Unit = {
     val temp = Var("")

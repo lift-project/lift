@@ -10,16 +10,29 @@ import ir._
  * the comparator function used to search the array, therefore it is not possible to 
  * have a term like `Search()'
  *
- * @param f A lambda of the form \x -> {-1, 0, 1}, similar to C's `bsearch' function
+ * f returns a value denoting the result of a comparison between the element of the array
+ * passed to it, and a ``baked in'' element, which the search is looking for.
+ *
+ * The value returned must adhere to the following schema:
+ *    f(e) <  0  iff e  > ix
+ *    f(e) == 0  iff e == ix 
+ *    f(e) >  0  iff e  < ix
+ *
+ *  This is slightly counterintuitive, however it allows for efficient comparisons (for example)
+ *  between numeric types using a simple subtraction, for example:
+ *
+ *  int compare(int e, int ix) {
+ *    return (ix-e)
+ *  }
+ *
+ * @param f A lambda comparing a passed element to a baked in search element, similar to C's `bsearch' function
  */
 
 abstract class AbstractSearch(val f: Lambda, 
                               val name: String) extends Pattern(arity = 2) 
                                                         with FPattern {
   assert(f.params.length == 1)
-  var indexVar: Var = Var("mi")
-  var upperIndex = Var("ui")
-  var lowerIndex = Var("li")
+  var indexVar: Var = Var("ix")
   var searchFMem : Memory = UnallocatedMemory
 
   override def checkType(argType: Type, 
@@ -50,5 +63,13 @@ case class BSearch(override val f: Lambda) extends AbstractSearch(f, "BSearch") 
 }
 
 object BSearch {
-  def apply(f:Lambda, init: Expr):Lambda1 = fun((x) => BSearch(f)(init, x))
+  def apply(f:Lambda, init: Expr) : Lambda1 = fun((x) => BSearch(f)(init, x))
+}
+
+case class LSearch(override val f: Lambda) extends AbstractSearch(f, "LSearch") with isGenerable{
+  override def copy(f: Lambda): Pattern = LSearch(f)
+}
+
+object LSearch {
+  def apply(f: Lambda, init: Expr) : Lambda1 = fun((x) => LSearch(f)(init, x))
 }
