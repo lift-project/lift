@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{ArithExpr, Var}
+import apart.arithmetic.{Predicate, ArithExpr, Var}
 import ir.{VectorType, Type}
 import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
 
@@ -45,6 +45,37 @@ object OpenCLAST {
                   iter: ArithExpr,
                   body: Block,
                   unrollHint: Boolean = false) extends OclAstNode
+
+  /** An alternative looping construct, using a predicate - a `while' loop
+    *  
+    * @param loopPredicate the predicate the loop tests each iteration
+    * @Param body the body of the loop
+    */
+  case class WhileLoop(loopPredicate: Predicate,
+                       body: Block) extends OclAstNode
+
+  /** An if-then-else set of statements, with two branches. 
+    *
+    * @param switchPredicate the predicate in the conditional
+    * @param trueBody the body evaluated if switchPredicate is true
+    * @param falseBody the body evaluated if switchPredicate is false
+    */
+  case class Conditional(switchPredicate: Predicate,
+                         trueBody: Block,
+                         falseBody: Block = Block()) extends OclAstNode
+
+  /** A Label, targeted by a corresponding goto
+    * 
+    * @param name the name of label to be declared
+    */
+  case class Label(name: String) extends OclAstNode
+
+  /** A goto statement, targeting the label with corresponding name
+    * TODO: Think of a better way of describing goto labels
+    *
+    * @param name the name of the label to go to
+    */
+  case class GOTO(name: String) extends OclAstNode
 
   case class Barrier(mem: OpenCLMemory) extends OclAstNode
 
@@ -149,6 +180,7 @@ object OpenCLAST {
         b.content.foreach(visitBlocks(_, fun))
       case f: Function => visitBlocks(f.body, fun)
       case l: Loop => visitBlocks(l.body, fun)
+      case wl: WhileLoop => visitBlocks(wl.body, fun)
       case _ =>
     }
   }

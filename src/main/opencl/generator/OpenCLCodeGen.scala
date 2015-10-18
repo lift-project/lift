@@ -129,6 +129,7 @@ class OpenCLCodeGen {
     case p: ParamDecl     => print(p)
     case b: Barrier       => print(b)
     case l: Loop          => print(l)
+    case w: WhileLoop     => print(w)
     case e: Expression    => print(toString(e.content))
     case a: Assignment    => print(a)
     case f: FunctionCall  => print(f)
@@ -138,6 +139,9 @@ class OpenCLCodeGen {
     case a: TupleAlias    => print(a)
     case c: Cast          => print(c)
     case e: Extension     => print(e)
+    case c: Conditional   => print(c)
+    case l: Label         => print(l)
+    case g: GOTO          => print(g)
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
   }
@@ -338,5 +342,51 @@ class OpenCLCodeGen {
           print(l.body)
         }
     }
+  }
+
+
+  /**
+    * Generate a while loop. This is fairly simple so no 
+    * optimisations can be realistically applied.
+    * 
+    * @param wl a [[WhileLoop]] node.
+    */
+  private def print(wl: WhileLoop) {
+    print("while("+ wl.loopPredicate.toString + ")")
+    // printBlock {
+      print(wl.body)
+    // }
+  }
+
+
+  /** Generate an if-then-else conditional set of statements
+    * 
+    * @param c a [[Conditional]] node
+    */
+  private def print(c: Conditional) {
+    println("if(" + c.switchPredicate.toString + ")")
+    // printBlock {
+      print(c.trueBody)
+    // }
+    println("else")
+    // printBlock {
+      print(c.falseBody)
+    // }
+  }
+
+  /** Generate a label for a goto
+    * 
+    * @param l a [[Label]] node
+    */
+  private def print(l: Label) {
+    println(l.name + ": ;")
+  }
+
+  /** Generate a goto statement for a corresponding label
+    * 
+    * @param g a [[GOTO]] node
+    */
+  private def print(g: GOTO) {
+    println("goto " + g.name + ";")
   }
 }

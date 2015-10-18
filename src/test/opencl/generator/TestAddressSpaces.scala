@@ -7,7 +7,7 @@ import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 object TestAddressSpaces {
   @BeforeClass def before() {
@@ -261,5 +261,22 @@ class TestAddressSpaces {
     val (output: Array[Float], _) = Execute(4, inputData.length, (true, false))( l, inputData)
 
     assertArrayEquals(Array.fill(inputSize)(1.0f), output, 0.0f)
+  }
+
+
+  // TODO: Should this test be passing?
+  @Test def intoOutofPrivate() : Unit = {
+    val inputSize = Math.pow(2, 12).toInt
+    val arr = Array.tabulate(inputSize)((i:Int) => i.toFloat)
+    val gold = arr
+    val N = Var("N")
+    val kernel = fun(
+        ArrayType(Float, N),
+        (array) => {
+          MapSeq(toGlobal(id)) o MapSeq(toPrivate(id)) $ array
+        }
+    )
+    val (output:Array[Float], runtime) = Execute(1,1, (true, true))(kernel, arr)
+    assertArrayEquals(output, gold, 0.0f)
   }
 }

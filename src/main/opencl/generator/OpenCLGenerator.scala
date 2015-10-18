@@ -307,8 +307,10 @@ class OpenCLGenerator extends Generator {
     val typedMems =
       TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).toArray
 
+    
     val (typedValueMems, privateMems) =
       typedMems.diff(Kernel.memory).partition(m => valMems.contains(m.mem))
+
 
     this.privateMems = privateMems
 
@@ -420,6 +422,8 @@ class OpenCLGenerator extends Generator {
 
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
 
+        case bs: BSearch => generateBSearchCall(bs, call, block)
+
         case i: Iterate => generateIterateCall(i, call, block)
 
         case vec: VectorizeUserFun => generateUserFunCall(vec.vectorizedFunction, call, block)
@@ -480,14 +484,15 @@ class OpenCLGenerator extends Generator {
   }
 
   def shouldUnrollLoop(call: FunCall): Boolean = {
-    (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
-      && (call.args.head.mem match {
-      case coll: OpenCLMemoryCollection =>
-        coll.subMemories.exists(mem => existsInPrivateMemories(mem))
-      case _ => existsInPrivateMemories(call.args.head.mem)
-    })) ||
-      // Don't unroll just for value
-      OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
+    false 
+    // (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
+    //   && (call.args.head.mem match {
+    //   case coll: OpenCLMemoryCollection =>
+    //     coll.subMemories.exists(mem => existsInPrivateMemories(mem))
+    //   case _ => existsInPrivateMemories(call.args.head.mem)
+    // })) ||
+    //   // Don't unroll just for value
+    //   OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
   }
 
   private def existsInPrivateMemories(mem: Memory): Boolean =
@@ -518,7 +523,8 @@ class OpenCLGenerator extends Generator {
                                  call: FunCall,
                                  block: Block): Unit = {
     val unroll = shouldUnrollLoop(call)
-
+    println(m)
+    println(m.iterationCount)
     block += OpenCLAST.Comment("map_seq")
     generateLoop(block, m.loopVar, (b) => generate(m.f.body, b),
                  m.iterationCount, unroll)
@@ -539,6 +545,78 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.Comment("end reduce_seq")
 
     block += nestedBlock
+  }
+
+  // BSearch
+  private def generateBSearchCall(s: AbstractSearch,
+                                  call: FunCall,
+                                  block: Block): Unit = {
+    // get the default value handily
+    val defaultVal = call.args(0)
+    // get the input handily
+    val inArr = call.args(1)
+    // get the type of the input (handily, concretely)
+    val inArrT = inArr.t match {
+      case t: ArrayType => t
+    }
+    // get an opencl version of the input mem
+    val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
+    // get a reference to it for loading
+    val inArrRef = generateLoadNode(inArr.mem.variable, clInArrMem.addressSpace, 
+                      inArrT, inArr.view.access(s.indexVar))
+    // declare a temporary var for storing the 
+    // declare the lower and upper indicies
+    block += OpenCLAST.VarDecl(s.lowerIndex.toString, opencl.ir.Int)
+    block += OpenCLAST.VarDecl(s.upperIndex.toString, opencl.ir.Int)
+    block += OpenCLAST.VarDecl(s.indexVar.toString, opencl.ir.Int)
+    // assign initial values
+    block += OpenCLAST.Assignment(OpenCLAST.Expression(s.lowerIndex), OpenCLAST.Expression(0))
+    block += OpenCLAST.Assignment(OpenCLAST.Expression(s.upperIndex), OpenCLAST.Expression(inArrT.len))
+    // Don't need to do this assignment here
+    // block += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
+      // OpenCLAST.Expression((s.lowerIndex + s.upperIndex) / 2))
+    // Declare a variable to copy the result of the user function into
+    // We have to do this, as we currently have no nice way of describing normal C statements
+    // in a way that works private memory properly. 
+    // TODO: Find some way of representing the arguments to while/if/etc...
+    val compFuncResVar = Var("cmp_res_var")
+    // declare it, with the same type as the comparison result
+    block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
+    // get an AST node describing a load from the comparator function result
+    // val cmpResMemVar = s.f.body.mem.variable
+    val compResRef = generateLoadNode(s.f.body.mem.variable, 
+                                        OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
+                                        s.f.body.t, s.f.body.view)
+    generateWhileLoop(block, Predicate(s.lowerIndex,s.upperIndex,Predicate.Operator.<), 
+      (b) => {
+        b += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
+          OpenCLAST.Expression((s.lowerIndex + s.upperIndex) / 2))
+        generate(s.f.body, b)
+        b += OpenCLAST.Assignment(OpenCLAST.Expression(compFuncResVar), compResRef)
+        generateConditional(b, 
+          Predicate(compFuncResVar, 0, Predicate.Operator.<),
+          (cb) => {
+            cb += OpenCLAST.Assignment(OpenCLAST.Expression(s.upperIndex),OpenCLAST.Expression(s.indexVar))
+          },
+          (cb) => {
+            generateConditional(cb, 
+              Predicate(compFuncResVar, 0, Predicate.Operator.>),
+              (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(s.lowerIndex),OpenCLAST.Expression(s.indexVar))},
+              (ccb) => {ccb += OpenCLAST.GOTO("writeresult")}
+            )
+          }
+        )
+      }
+    )
+    block += generateStoreNode(block, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+      generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
+    block += OpenCLAST.GOTO("done")
+    block += OpenCLAST.Label("writeresult")
+    block += generateStoreNode(block, 
+      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+      inArrRef)
+    block += OpenCLAST.Label("done")
+    block += OpenCLAST.OpenCLCode("\n")
   }
 
   private def generateValue(v: Value, block: Block): Unit = {
@@ -677,6 +755,7 @@ class OpenCLGenerator extends Generator {
 
       block += OpenCLAST.Comment("end unroll")
     } else /* the loop is not unrolled */ {
+      println("Not unrolling")
       // Generate an for-loop
       val innerBlock = OpenCLAST.Block(Vector.empty)
       // add it to the current node:
@@ -685,6 +764,24 @@ class OpenCLGenerator extends Generator {
     }
   }
 
+  private def generateWhileLoop(block: Block,
+                                loopPredicate: Predicate,
+                                generate: (Block) => Unit) : Unit = {
+    val innerBlock = OpenCLAST.Block(Vector.empty)
+    block += OpenCLAST.WhileLoop(loopPredicate, body = innerBlock)
+    generate(innerBlock)
+  }
+
+  private def generateConditional(block: Block,
+                                  switchPredicate: Predicate,
+                                  genTrueBranch: (Block) => Unit,
+                                  genFalseBranch: (Block) => Unit ) : Unit = {
+    val trueBlock = OpenCLAST.Block(Vector.empty)
+    val falseBlock = OpenCLAST.Block(Vector.empty)
+    block += OpenCLAST.Conditional(switchPredicate, trueBody = trueBlock, falseBody = falseBlock)
+    genTrueBranch(trueBlock)
+    genFalseBranch(falseBlock)
+  }
   private def generateUserFunCall(u: UserFun,
                                   call: FunCall,
                                   block: Block): Block = {
@@ -702,7 +799,6 @@ class OpenCLGenerator extends Generator {
       case call: FunCall => call.f match {
         case uf: UserFun =>
           OpenCLAST.FunctionCall(uf.name, args)
-
         case vf: VectorizeUserFun =>
           OpenCLAST.FunctionCall(vf.vectorizedFunction.name, args)
         case l: Lambda => generateFunCall(l.body, args)
