@@ -46,7 +46,7 @@ object Compiler {
       // parse the command line arguments
       val opts = parser.parse( options, args )
 
-      if (opts.hasOption("help") || opts.getArgs.nonEmpty || opts = null)
+      if (opts.hasOption("help") || opts.getArgs.nonEmpty || opts == null)
         help()
     }
     catch {
