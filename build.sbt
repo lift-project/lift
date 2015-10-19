@@ -32,6 +32,8 @@ libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.6"
 
 libraryDependencies += "junit" % "junit" % "4.11"
 
+libraryDependencies += "commons-cli" % "commons-cli" % "1.3.1"
+
 libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 
 libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
