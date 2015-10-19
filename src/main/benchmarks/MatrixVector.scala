@@ -11,7 +11,7 @@ class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchm
   override def runScala(inputs: Any*): Array[Float] = {
     val matrix = inputs(0).asInstanceOf[Array[Array[Float]]]
     val vectorX = inputs(1).asInstanceOf[Array[Float]]
-    val vectorY = inputs(2).asInstanceOf[Array[Float]]
+    val vectorY = inputs(2).asInstanceOf[Array[Array[Float]]]
     val alpha = inputs(3).asInstanceOf[Float]
     val beta = inputs(4).asInstanceOf[Float]
 
@@ -20,7 +20,7 @@ class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchm
       (row) => (row, vectorX).zipped.map(_ * _).sum * alpha
     )
 
-    val scaledY = vectorY.map(_ * beta)
+    val scaledY = vectorY.map(_.head * beta)
 
     (tmp, scaledY).zipped.map(_ + _)
   }
@@ -31,7 +31,7 @@ class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchm
 
     val matrix = Array.tabulate(inputSizeN, inputSizeM)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
     val vectorX = Array.tabulate(inputSizeN)(i => ((i % 10) + 1) * 2.0f)
-    val vectorY = Array.tabulate(inputSizeN)(i => ((i*3 % 10) + 1) + 1.5f)
+    val vectorY = Array.tabulate(inputSizeN, 1)((i, _) => ((i*3 % 10) + 1) + 1.5f)
 
     val alpha = 2.5f
     val beta = 1.5f
