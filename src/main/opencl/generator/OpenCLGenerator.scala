@@ -485,15 +485,14 @@ class OpenCLGenerator extends Generator {
   }
 
   def shouldUnrollLoop(call: FunCall): Boolean = {
-    false 
-    // (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
-    //   && (call.args.head.mem match {
-    //   case coll: OpenCLMemoryCollection =>
-    //     coll.subMemories.exists(mem => existsInPrivateMemories(mem))
-    //   case _ => existsInPrivateMemories(call.args.head.mem)
-    // })) ||
-    //   // Don't unroll just for value
-    //   OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
+    (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
+      && (call.args.head.mem match {
+      case coll: OpenCLMemoryCollection =>
+        coll.subMemories.exists(mem => existsInPrivateMemories(mem))
+      case _ => existsInPrivateMemories(call.args.head.mem)
+    })) ||
+      // Don't unroll just for value
+      OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
   }
 
   private def existsInPrivateMemories(mem: Memory): Boolean =

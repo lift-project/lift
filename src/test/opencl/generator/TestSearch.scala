@@ -89,7 +89,6 @@ class TestSearch {
   }
 
   @Test def NESTED_BINARY_SEARCH() : Unit = {
-
     val inputSize = Math.pow(2, 4).toInt
     // 2d array of elements to search through
     val search_arrs = Array.tabulate(inputSize)((i:Int) => Array.tabulate(inputSize)((j:Int) => j))
@@ -119,7 +118,6 @@ class TestSearch {
   }
 
    @Test def NESTED_LINEAR_SEARCH() : Unit = {
-
     val inputSize = Math.pow(2, 4).toInt
     // 2d array of elements to search through
     val search_arrs = Array.tabulate(inputSize)((i:Int) => Array.tabulate(inputSize)((j:Int) => j))
