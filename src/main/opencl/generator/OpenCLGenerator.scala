@@ -524,8 +524,6 @@ class OpenCLGenerator extends Generator {
                                  call: FunCall,
                                  block: Block): Unit = {
     val unroll = shouldUnrollLoop(call)
-    println(m)
-    println(m.iterationCount)
     block += OpenCLAST.Comment("map_seq")
     generateLoop(block, m.loopVar, (b) => generate(m.f.body, b),
                  m.iterationCount, unroll)
@@ -832,7 +830,6 @@ class OpenCLGenerator extends Generator {
 
       block += OpenCLAST.Comment("end unroll")
     } else /* the loop is not unrolled */ {
-      println("Not unrolling")
       // Generate an for-loop
       val innerBlock = OpenCLAST.Block(Vector.empty)
       // add it to the current node:
