@@ -649,4 +649,26 @@ class TestReduce {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
   }
+
+  @Ignore @Test def SPLIT_REDUCE() : Unit = {
+    val inputSize = Math.pow(2, 12).toInt
+    val search_arr = Array.tabulate(inputSize)((i:Int) => i)
+    val gold = search_arr.foldLeft(0)(_+_)
+    val N = Var("N")
+    val reduce_kernel = fun(
+      ArrayType(Int, N),
+      (array) => {
+        ReduceSeq(int_add, 0) o Join() o MapSeq(
+          fun((subarr) =>
+            ReduceSeq(int_add, 0) $ subarr
+          )
+        ) o Split(8) $ array
+      }
+    )
+    val (output:Array[Int], runtime) = Execute(1,1, (true, true))(reduce_kernel, search_arr)
+    println("Gold: "+gold)
+    println("Result: "+output(0))
+    println("Time: " + runtime)
+    assert(output(0) == gold)
+  }
 }

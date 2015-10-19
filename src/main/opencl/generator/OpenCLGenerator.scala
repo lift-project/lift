@@ -38,7 +38,7 @@ object Debug {
 }
 
 object Verbose {
-  var verbose = System.getenv("APART_VERBOSE") != null
+  var verbose = true //System.getenv("APART_VERBOSE") != null
   def apply() = verbose
   def apply(verbose: Boolean) = { this.verbose = verbose }
 }
@@ -537,7 +537,6 @@ class OpenCLGenerator extends Generator {
     val unroll: Boolean = OpenCLMemory.containsPrivateMemory(call.args(1).mem)
 
     val nestedBlock = OpenCLAST.Block(Vector.empty)
-
     nestedBlock += OpenCLAST.Comment("reduce_seq")
     generateLoop(nestedBlock, r.loopVar, (b) => generate(r.f.body, b),
                  r.iterationCount, unroll)
@@ -585,6 +584,10 @@ class OpenCLGenerator extends Generator {
     block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
     // get an AST node describing a load from the comparator function result
     // val cmpResMemVar = s.f.body.mem.variable
+
+    // create a variable for each goto label
+    val finishLabel = Var("done")
+    var writeresultLabel = Var("writeresult")
     val compResRef = generateLoadNode(s.f.body.mem.variable, 
                                         OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
                                         s.f.body.t, s.f.body.view)
@@ -603,7 +606,7 @@ class OpenCLGenerator extends Generator {
             generateConditional(cb, 
               Predicate(compFuncResVar, 0, Predicate.Operator.>),
               (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex),OpenCLAST.Expression(s.indexVar))},
-              (ccb) => {ccb += OpenCLAST.GOTO("writeresult")}
+              (ccb) => {ccb += OpenCLAST.GOTO(writeresultLabel)}
             )
           }
         )
@@ -611,12 +614,12 @@ class OpenCLGenerator extends Generator {
     )
     block += generateStoreNode(block, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
-    block += OpenCLAST.GOTO("done")
-    block += OpenCLAST.Label("writeresult")
+    block += OpenCLAST.GOTO(finishLabel)
+    block += OpenCLAST.Label(writeresultLabel)
     block += generateStoreNode(block, 
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
-    block += OpenCLAST.Label("done")
+    block += OpenCLAST.Label(finishLabel)
     block += OpenCLAST.OpenCLCode("\n")
   }
 
@@ -650,6 +653,10 @@ class OpenCLGenerator extends Generator {
     block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
     // get an AST node describing a load from the comparator function result
     // val cmpResMemVar = s.f.body.mem.variable
+    // create a variable for each goto label
+    val finishLabel = Var("done")
+    var writeresultLabel = Var("writeresult")
+    var searchFailedLabel = Var("searchfailed")
     val compResRef = generateLoadNode(s.f.body.mem.variable, 
                                         OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
                                         s.f.body.t, s.f.body.view)
@@ -671,23 +678,23 @@ class OpenCLGenerator extends Generator {
               // if the result is less than 0, we've gone past the value we're looking for, so abort
               Predicate(compFuncResVar, 0, Predicate.Operator.<),
               // if the value is greater than, it's gone past! the search has failed.
-              (ccb) => {ccb += OpenCLAST.GOTO("searchFailed")},
+              (ccb) => {ccb += OpenCLAST.GOTO(searchFailedLabel)},
               // otherwise, it must be equal to, so jump to returning the result
-              (ccb) => {ccb += OpenCLAST.GOTO("writeresult")}
+              (ccb) => {ccb += OpenCLAST.GOTO(writeresultLabel)}
             )
           }
         )
       }
     )
-    block += OpenCLAST.Label("searchFailed")
+    block += OpenCLAST.Label(searchFailedLabel)
     block += generateStoreNode(block, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
-    block += OpenCLAST.GOTO("done")
-    block += OpenCLAST.Label("writeresult")
+    block += OpenCLAST.GOTO(finishLabel)
+    block += OpenCLAST.Label(writeresultLabel)
     block += generateStoreNode(block, 
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
-    block += OpenCLAST.Label("done")
+    block += OpenCLAST.Label(finishLabel)
     block += OpenCLAST.OpenCLCode("\n")
   }
 

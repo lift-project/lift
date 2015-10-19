@@ -88,6 +88,40 @@ class TestSearch {
      assert(output(0) == gold)
   }
 
+  @Ignore @Test def SPLIT_SEARCH() : Unit = {
+    // test of splitting an array, mapping a search over each element, then searching the results
+    val inputSize = Math.pow(2, 12).toInt
+     val search_arr = Array.tabulate(inputSize)((i:Int) => i)
+     val search_index = util.Random.nextInt(inputSize)
+     val gold = search_arr(search_index)
+     // compare: compare the search variable s, with the indexed element i
+     val compare = UserFun("comp", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
+     val N = Var("N")
+     val searchKernel = fun(
+       ArrayType(Int, N),
+       ArrayType(Int, 1),
+       (array, ixarr) => {
+         MapSeq(toGlobal(i_id)) o Join() o MapSeq(
+           fun((ix) =>
+             LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
+              ReduceSeq(int_add, 0) o Join() o MapSeq(
+                fun((subarr) =>
+                  // subarr
+                  LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) $ subarr
+                )
+             ) o Split(8) $ array
+           )
+         ) $ ixarr
+       }
+     )
+     val (output:Array[Int], runtime) = Execute(1,1, (true, true))(searchKernel, search_arr, Array(search_index))
+     println("Search Index: " + search_index)
+     println("Gold: "+gold)
+     println("Result: "+output(0))
+     println("Time: " + runtime)
+     assert(output(0) == gold)
+  }
+
   @Ignore @Test def NESTED_BINARY_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     // 2d array of elements to search through

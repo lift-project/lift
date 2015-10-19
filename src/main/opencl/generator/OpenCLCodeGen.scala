@@ -379,7 +379,7 @@ class OpenCLCodeGen {
     * @param l a [[Label]] node
     */
   private def print(l: Label) {
-    println(l.name + ": ;")
+    println(l.nameVar.toString + ": ;")
   }
 
   /** Generate a goto statement for a corresponding label
@@ -387,6 +387,6 @@ class OpenCLCodeGen {
     * @param g a [[GOTO]] node
     */
   private def print(g: GOTO) {
-    println("goto " + g.name + ";")
+    println("goto " + g.nameVar.toString + ";")
   }
 }

@@ -68,14 +68,14 @@ object OpenCLAST {
     * 
     * @param name the name of label to be declared
     */
-  case class Label(name: String) extends OclAstNode
+  case class Label(nameVar: Var) extends OclAstNode
 
   /** A goto statement, targeting the label with corresponding name
     * TODO: Think of a better way of describing goto labels
     *
     * @param name the name of the label to go to
     */
-  case class GOTO(name: String) extends OclAstNode
+  case class GOTO(nameVar: Var) extends OclAstNode
 
   case class Barrier(mem: OpenCLMemory) extends OclAstNode
 

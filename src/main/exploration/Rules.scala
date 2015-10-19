@@ -855,5 +855,17 @@ object Rules {
     case FunCall(Search(f), arg) => BSearch(f) $ arg
   })
 
+  val lSearch = Rule("Search(f) => BSearch(f)", {
+    case FunCall(Search(f), arg) => LSearch(f) $ arg
+  })
+
+  val absSearchB = Rule("BSearch(f) => Search(f)", {
+    case FunCall(BSearch(f), arg) => Search(f) $ arg
+  })
+
+  val absSearchL = Rule("LSearch(f) => Search(f)", {
+    case FunCall(LSearch(f), arg) => Search(f) $ arg
+  })
+
 }
 
