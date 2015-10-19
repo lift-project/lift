@@ -25,6 +25,8 @@ import ir._
  *    return (ix-e)
  *  }
  *
+ * TODO: Should this be renamed something like "ArraySearch" to avoid confusion with the rewriting search?
+ *
  * @param f A lambda comparing a passed element to a baked in search element, similar to C's `bsearch' function
  */
 
@@ -58,18 +60,6 @@ abstract class AbstractSearch(val f: Lambda,
   }
 }
 
-case class BSearch(override val f: Lambda) extends AbstractSearch(f, "BSearch") with isGenerable{
-  override def copy(f: Lambda): Pattern = BSearch(f)
-}
-
-object BSearch {
-  def apply(f:Lambda, init: Expr) : Lambda1 = fun((x) => BSearch(f)(init, x))
-}
-
-case class LSearch(override val f: Lambda) extends AbstractSearch(f, "LSearch") with isGenerable{
+case class Search(override val f: Lambda1) extends AbstracMap(f, "Search"){
   override def copy(f: Lambda): Pattern = LSearch(f)
-}
-
-object LSearch {
-  def apply(f: Lambda, init: Expr) : Lambda1 = fun((x) => LSearch(f)(init, x))
 }

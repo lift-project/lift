@@ -424,6 +424,7 @@ class OpenCLGenerator extends Generator {
 
         case bs: BSearch => generateBSearchCall(bs, call, block)
         case ls: LSearch => generateLSearchCall(ls, call, block)
+        case _ : Search => 
 
         case i: Iterate => generateIterateCall(i, call, block)
 
