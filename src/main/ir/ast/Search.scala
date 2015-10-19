@@ -60,6 +60,6 @@ abstract class AbstractSearch(val f: Lambda,
   }
 }
 
-case class Search(override val f: Lambda1) extends AbstracMap(f, "Search"){
-  override def copy(f: Lambda): Pattern = LSearch(f)
+case class Search(override val f: Lambda1) extends AbstractSearch(f, "Search") with isGenerable{
+  override def copy(f: Lambda): Pattern = Search(f)
 }
