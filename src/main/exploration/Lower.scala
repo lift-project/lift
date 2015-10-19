@@ -126,16 +126,34 @@ object Lower {
       lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(2))
+    if(maxDepth > 1 && oneMapOnLevelTwo) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
-      var lambdaN = lambda3
+      var lambdaN = lambda2
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
       lambdas = lambdaN :: lambdas
     }
+
+    def addGlobalMapping(first: Int, second: Int, third: Int): Unit = {
+      if (maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
+        val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(first))
+        val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(second))
+        val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(third))
+        var lambdaN = lambda3
+        while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+          lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+        lambdas = lambdaN :: lambdas
+      }
+    }
+    addGlobalMapping(0,1,2)
+    addGlobalMapping(1,0,2)
+    addGlobalMapping(0,2,1)
+    addGlobalMapping(2,1,0)
+    addGlobalMapping(2,0,1)
+    addGlobalMapping(1,2,0)
 
     /** Workgroup */
     if(maxDepth > 1) {
@@ -150,71 +168,100 @@ object Lower {
       lambdas = lambdaN :: lambdas
     }
 
-    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(1))
+//    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
+//      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
+//      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
+//      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(1))
+//
+//      var lambdaN = lambda3
+//
+//      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+//        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+//
+//      lambdas = lambdaN :: lambdas
+//    }
+//
+//    if(maxDepth > 2 && oneMapOnLevelTwo) {
+//      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
+//      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
+//      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(0))
+//
+//      var lambdaN = lambda3
+//
+//      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+//        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+//
+//      lambdas = lambdaN :: lambdas
+//    }
+//
+//    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
+//      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
+//      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(1))
+//      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
+//
+//      var lambdaN = lambda3
+//
+//      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+//        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+//
+//      lambdas = lambdaN :: lambdas
+//    }
+//
+//    if(maxDepth > 2 && oneMapOnLevelTwo) {
+//      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
+//      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(1))
+//      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
+//
+//      var lambdaN = lambda3
+//
+//      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+//        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+//
+//      lambdas = lambdaN :: lambdas
+//    }
 
-      var lambdaN = lambda3
+    def addWrgLocalMapping(first: Int, second: Int): Unit = {
+      if (maxDepth > 3 && oneMapOnLevelTwo) {
+        val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(first))
+        val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(second))
+        val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(first))
+        val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(second))
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+        var lambdaN = lambda4
 
-      lambdas = lambdaN :: lambdas
+        while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+          lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+        lambdas = lambdaN :: lambdas
+      }
+    }
+    addWrgLocalMapping(0,1)
+    addWrgLocalMapping(1,0)
+
+    def addWrgLocalMapping3D(first: Int, second: Int, third: Int): Unit = {
+      if (maxDepth > 5 && oneMapOnLevelTwo && oneMapOnLevelThree) {
+        val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(first))
+        val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(second))
+        val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapWrg(third))
+        val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(first))
+        val lambda5 = Lower.lowerNextLevelWithRule(lambda4, Rules.mapLcl(second))
+        val lambda6 = Lower.lowerNextLevelWithRule(lambda5, Rules.mapLcl(third))
+
+        var lambdaN = lambda6
+
+        while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+          lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+        lambdas = lambdaN :: lambdas
+      }
     }
 
-    if(maxDepth > 2 && oneMapOnLevelTwo) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(0))
-
-      var lambdaN = lambda3
-
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-
-      lambdas = lambdaN :: lambdas
-    }
-
-    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(1))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
-
-      var lambdaN = lambda3
-
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-
-      lambdas = lambdaN :: lambdas
-    }
-
-    if(maxDepth > 2 && oneMapOnLevelTwo) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(1))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
-
-      var lambdaN = lambda3
-
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-
-      lambdas = lambdaN :: lambdas
-    }
-
-    if(maxDepth > 3 && oneMapOnLevelTwo) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
-      val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(0))
-
-      var lambdaN = lambda4
-
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-
-      lambdas = lambdaN :: lambdas
-    }
+    addWrgLocalMapping3D(0,1,2)
+    addWrgLocalMapping3D(1,0,2)
+    addWrgLocalMapping3D(0,2,1)
+    addWrgLocalMapping3D(2,1,0)
+    addWrgLocalMapping3D(2,0,1)
+    addWrgLocalMapping3D(1,2,0)
 
     lambdas
   }

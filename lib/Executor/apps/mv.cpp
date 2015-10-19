@@ -102,6 +102,8 @@ void run_harness(
 {
   using namespace std;
 
+  if(binary)
+    std::cout << "Using precompiled binaries" << std::endl;
   // Compute input and output
   Matrix<Float> mat(N*N);
   std::vector<Float> vec(N);
@@ -116,19 +118,14 @@ void run_harness(
       for (unsigned x = 0; x < N; ++x) {
         mat[y * N + x] = (((y * 3 + x * 2) % 10) + 1) * 1.0f;
       }
-      vec[y] = y*0.125;
+      vec[y] = (y%10)*0.5f;
     }
 
     // compute gold
-    Float* matrix_ptr=mat.data();
     for (int i=0; i<N; i++) {
-      Float* vector_ptr = vec.data();
       Float Result=0.0;
       for (int j=0; j<N; j++)
-      {
-        Result+=(*matrix_ptr)*vector_ptr[j];
-        vector_ptr++;
-      }
+        Result+=mat[i*N+j]*vec[j];
 
       gold[i]=Result;
     }
@@ -153,8 +150,10 @@ void run_harness(
       auto x = gold[i];
       auto y = output[i];
 
-      if(abs(x - y) > 0.0001f * max(abs(x), abs(y)))
+      if(abs(x - y) > 0.0001f * max(abs(x), abs(y))) {
+        cout << "at " << i<< ": " << x << "=/=" << y <<std::endl;
         return false;
+      }
     }
     return true;
   };
@@ -236,11 +235,11 @@ int main(int argc, char *argv[]) {
 
   auto opt_size = op.addOption<std::size_t>({'s', "size", "Matrix size (default 1024).", 1024});
   auto opt_transpose = op.addOption<bool>({0, "transpose-in", "Transpose the input matrix before computation.", false});
-  auto opt_force = op.addOption<bool>({'b', "binary", "Load programs as binaries instead of compiling OpenCL-C source.", false});
+  auto opt_binary = op.addOption<bool>({'b', "binary", "Load programs as binaries instead of compiling OpenCL-C source.", false});
   auto opt_timeout = op.addOption<float>({'t', "timeout", "Timeout to avoid multiple executions (default 100ms).", 100.0f});
   auto opt_double = op.addOption<bool>({0, "double", "Use double precision.", false});
   auto opt_threaded = op.addOption<bool>({'t', "threaded", "Use a separate thread for compilation and execution (default true).", true});
-  auto opt_binary = op.addOption<bool>({'f', "force", "Override cached cross validation files.", false});
+  auto opt_force = op.addOption<bool>({'f', "force", "Override cached cross validation files.", false});
   auto opt_clean = op.addOption<bool>({'c', "clean", "Clean temporary files and exit.", false});
   op.parse(argc, argv);
 
@@ -256,7 +255,7 @@ int main(int argc, char *argv[]) {
   std::string mat_file = "/tmp/apart_mv_mat_" + std::to_string(N);
   std::string vec_file = "/tmp/apart_mv_vec_" + std::to_string(N);
 
-  if(*opt_clean) {
+  if(opt_clean->get()) {
     std::cout << "Cleaning..." << std::endl;
     for(const auto& file: {gold_file, mat_file, vec_file})
       std::remove(file.data());

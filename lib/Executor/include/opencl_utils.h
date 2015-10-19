@@ -74,7 +74,7 @@ public:
       }
       // read back the result
       std::vector<T> result(output_size);
-      queue.enqueueReadBuffer(output, CL_TRUE, 0, result.size()*sizeof(float), result.data());
+      queue.enqueueReadBuffer(output, CL_TRUE, 0, result.size()*sizeof(T), result.data());
       auto time = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>() - evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
       double ms = ((double)time)/1000.0/1000.0;
 

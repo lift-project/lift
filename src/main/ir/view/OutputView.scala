@@ -31,6 +31,7 @@ object OutputView {
     val result = call.f match {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
+      case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case l: Lambda => buildViewLambda(l, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
@@ -119,6 +120,15 @@ object OutputView {
     // create fresh input view for following function
     View.initialiseNewView(call.args(1).t, call.outputDepth,
                            call.mem.variable.name)
+  }
+
+  private def buildViewSearch(s: AbstractSearch, 
+                              call:FunCall, writeView:View) :View = {
+    visitAndBuildViews(call.args(0),
+      View.initialiseNewView(call.args(0).t, call.inputDepth, call.args(0).mem.variable.name))
+    // TODO: Why doesn't this code need this line? 
+    // visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
+    View.initialiseNewView(call.args(1).t, call.outputDepth, call.mem.variable.name)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {

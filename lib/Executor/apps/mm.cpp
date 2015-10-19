@@ -266,11 +266,11 @@ int main(int argc, char *argv[]) {
   auto opt_transposeA = op.addOption<bool>({0, "transpose-A", "Transpose the first matrix before computation.", false});
   auto opt_transposeB = op.addOption<bool>({0, "transpose-B", "Transpose the second matrix before computation.", false});
   auto opt_transposeRes = op.addOption<bool>({0, "transpose-res", "Transpose the output before cross validation.", false});
-  auto opt_force = op.addOption<bool>({'b', "binary", "Load programs as binaries instead of compiling OpenCL-C source.", false});
+  auto opt_binary = op.addOption<bool>({'b', "binary", "Load programs as binaries instead of compiling OpenCL-C source.", false});
   auto opt_timeout = op.addOption<float>({'t', "timeout", "Timeout to avoid multiple executions (default 100ms).", 100.0f});
   auto opt_double = op.addOption<bool>({0, "double", "Use double precision.", false});
   auto opt_threaded = op.addOption<bool>({'t', "threaded", "Use a separate thread for compilation and execution (default true).", true});
-  auto opt_binary = op.addOption<bool>({'f', "force", "Override cached cross validation files.", false});
+  auto opt_force = op.addOption<bool>({'f', "force", "Override cached cross validation files.", false});
   auto opt_clean = op.addOption<bool>({'c', "clean", "Clean temporary files and exit.", false});
   op.parse(argc, argv);
 
