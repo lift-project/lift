@@ -266,6 +266,7 @@ object TypedOpenCLMemory {
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
         case r: AbstractPartRed => collectReduce(r, argMems)
+        case s: AbstractSearch => collectSearch(s, call, argMems)
         case i: Iterate     => collectIterate(call, i)
         case fp: FPattern   => collect(fp.f.body)
         case _              => Seq()
@@ -329,6 +330,18 @@ object TypedOpenCLMemory {
       val mems = collect(r.f.body)
 
       mems.filter(m => {
+        val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
+        val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
+
+        !isAlreadyInArgs && !isAlreadyInParams
+      })
+    }
+
+    def collectSearch(s: AbstractSearch, call:FunCall, argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      val mems = collect(s.f.body)
+
+      // TODO: Optimise so we use the default value instead of more allocated memory!
+      TypedOpenCLMemory(call) +: mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
         val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
 

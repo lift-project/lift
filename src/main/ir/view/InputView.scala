@@ -47,6 +47,7 @@ object InputView {
     call.f match {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
+      case s: AbstractSearch => buildViewSearch(s, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
       case uz: Unzip => buildViewUnzip(call, argView)
@@ -122,6 +123,12 @@ object InputView {
     // traverse into call.f
     visitAndBuildViews(r.f.body)
     // create fresh input view for following function
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+  }
+
+  private def buildViewSearch(s:AbstractSearch, call:FunCall, argView:View) : View = {
+    s.f.params(0).view = argView.get(1).access(s.indexVar)
+    visitAndBuildViews(s.f.body)
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 

@@ -92,6 +92,7 @@ object OpenCLMemoryAllocator {
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
+      case s: AbstractSearch  => allocSearch(s, call, numGlb, numLcl, numPvt, inMem, addressSpace)
       case it: Iterate        => allocIterate(it, call, numGlb, numLcl, numPvt,
                                               inMem)
       case tg: toGlobal       => allocToGlobal(tg, numGlb, numLcl, numPvt,
@@ -212,6 +213,49 @@ object OpenCLMemoryAllocator {
         Expr.visit(r.f.body, e => if (e.mem == bodyM) e.mem = initM , _ => {} )
 
         initM // return initM as the memory of the reduction pattern
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def allocSearch(s: AbstractSearch, call: FunCall,
+                          numGlb: ArithExpr,
+                          numLcl: ArithExpr,
+                          numPvt: ArithExpr, 
+                          inMem: OpenCLMemory,
+                          addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    inMem match {
+      case coll: OpenCLMemoryCollection =>
+        val defaultM = coll.subMemories(0)
+        // set the comparison function input to be the elements of the array we're searching
+        s.f.params(0).mem = coll.subMemories(1)
+        // allocate memory for the comparison function
+        s.searchFMem = alloc(s.f.body, numGlb, numLcl, numPvt, PrivateMemory)
+        // TODO: This is the way the reduce does it - it makes a lot more sense!
+        // Fix it so that we do it too?
+        // use the ``default value'' memory to return our value
+        // return defaultM
+
+        // HOW IT'S ACTUALLY DONE:
+        // get the size of memory we return from the search, based off the type we return
+        val outputSize = getSizeInBytes(call.t) 
+        // manually allocate that much memory, storing it in the correct address space
+        if (addressSpace != UndefAddressSpace) {
+         // use given address space
+          OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+                               addressSpace)
+        } else {
+          // address space is not predetermined
+          //  => figure out the address space based on the input address space(s)
+          val addressSpace =
+            inMem match {
+              case coll: OpenCLMemoryCollection =>
+                coll.addressSpace.findCommonAddressSpace()
+              case m: OpenCLMemory => m.addressSpace
+              case _ => throw new IllegalArgumentException("PANIC")
+            }
+          OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+                                   addressSpace)
+        }
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
