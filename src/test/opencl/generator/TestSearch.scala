@@ -28,7 +28,7 @@ object TestSearch {
 
 
 class TestSearch {
-  @Ignore @Test def SCALAR_BINARY_SEARCH() : Unit = {
+  @Test def SCALAR_BINARY_SEARCH() : Unit = {
      val inputSize = Math.pow(2, 12).toInt
      val search_arr = Array.tabulate(inputSize)((i:Int) => i)
      val search_index = util.Random.nextInt(inputSize)
@@ -42,7 +42,7 @@ class TestSearch {
        (array, ixarr) => {
          MapSeq(toGlobal(i_id)) o Join() o MapSeq(
            toGlobal(fun((ix) =>
-             BSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), toGlobal(i_id) $ 0) $ array
+             BSearch((fun((elem) => compare.apply(elem, ix))), 0) $ array
            ))
          ) $ ixarr
        }
@@ -56,7 +56,7 @@ class TestSearch {
      assert(output(0) == gold)
   }
 
-  @Ignore @Test def SCALAR_LINEAR_SEARCH() : Unit = {
+  @Test def SCALAR_LINEAR_SEARCH() : Unit = {
      val inputSize = Math.pow(2, 12).toInt
      val search_arr = Array.tabulate(inputSize)((i:Int) => i)
      val search_index = util.Random.nextInt(inputSize)
@@ -70,7 +70,7 @@ class TestSearch {
        (array, ixarr) => {
          MapSeq(toGlobal(i_id)) o Join() o MapSeq(
            toGlobal(fun((ix) =>
-             LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) $ array
+             LSearch((fun((elem) => compare.apply(elem, ix))), 0) $ array
            ))
          ) $ ixarr
        }
@@ -99,9 +99,9 @@ class TestSearch {
       (array, ixarr) => {
         MapSeq(toGlobal(i_id)) o Join() o MapSeq(
           toGlobal(fun((ix) =>
-            LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
+            LSearch((fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
               fun((subarr) => 
-                LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), toGlobal(i_id) $ 0) $ subarr
+                LSearch((fun((elem) => compare.apply(elem, ix))), 0) $ subarr
               )
             ) o Split(8) $ array
           ))
@@ -116,7 +116,7 @@ class TestSearch {
     assert(output(0) == gold)
   }
 
-  @Ignore @Test def NESTED_BINARY_SEARCH() : Unit = {
+  @Test def NESTED_BINARY_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     // 2d array of elements to search through
     val search_arrs = Array.tabulate(inputSize)((i:Int) => Array.tabulate(inputSize)((j:Int) => j))
@@ -132,7 +132,7 @@ class TestSearch {
       ArrayType(ArrayType(Int, N), N), //search arrays
       (ixs, arrs) => {
           MapGlb(fun((i_arr_p) =>
-            MapSeq(toGlobal(i_id)) o BSearch(toPrivate(fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), toGlobal(i_id) $ 0) $ Get(i_arr_p, 1)
+            MapSeq(toGlobal(i_id)) o BSearch((fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), 0) $ Get(i_arr_p, 1)
           )
         ) $ Zip(ixs, arrs) // pair indicies with arrays to search
       }
@@ -145,7 +145,7 @@ class TestSearch {
     assertArrayEquals(gold, output)
   }
 
-   @Ignore @Test def NESTED_LINEAR_SEARCH() : Unit = {
+   @Test def NESTED_LINEAR_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     // 2d array of elements to search through
     val search_arrs = Array.tabulate(inputSize)((i:Int) => Array.tabulate(inputSize)((j:Int) => j))
@@ -161,7 +161,7 @@ class TestSearch {
       ArrayType(ArrayType(Int, N), N), //search arrays
       (ixs, arrs) => {
           MapGlb(fun((i_arr_p) =>
-            MapSeq(toGlobal(i_id)) o LSearch(toPrivate(fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), toGlobal(i_id) $ 0) $ Get(i_arr_p, 1)
+            MapSeq(toGlobal(i_id)) o LSearch((fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), 0) $ Get(i_arr_p, 1)
           )
         ) $ Zip(ixs, arrs) // pair indicies with arrays to search
       }
@@ -174,7 +174,7 @@ class TestSearch {
     assertArrayEquals(gold, output)
   }
 
-  @Ignore @Test def TUPLE_BINARY_SEARCH() : Unit = {
+  @Test def TUPLE_BINARY_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => (i, util.Random.nextInt(100)))
     val flat_arr = search_arr.map((t) => Array(t._1, t._2)).flatten
@@ -217,7 +217,7 @@ class TestSearch {
       (array, ixarr) => {
         MapSeq(toGlobal(t_id)) o Join() o MapSeq(
            fun((ix) =>
-             BSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
+             BSearch((fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
            )
          ) $ ixarr
       }
@@ -230,7 +230,7 @@ class TestSearch {
     println("Time: " + runtime)
   }
 
-  @Ignore @Test def TUPLE_LINEAR_SEARCH() : Unit = {
+  @Test def TUPLE_LINEAR_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => (i, util.Random.nextInt(100)))
     val flat_arr = search_arr.map((t) => Array(t._1, t._2)).flatten
@@ -273,7 +273,7 @@ class TestSearch {
       (array, ixarr) => {
         MapSeq(toGlobal(t_id)) o Join() o MapSeq(
            fun((ix) =>
-             LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
+             LSearch((fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
            )
          ) $ ixarr
       }
