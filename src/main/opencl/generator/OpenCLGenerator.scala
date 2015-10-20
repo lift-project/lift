@@ -549,6 +549,7 @@ class OpenCLGenerator extends Generator {
   private def generateBSearchCall(s: AbstractSearch,
                                   call: FunCall,
                                   block: Block): Unit = {
+    block += OpenCLAST.Comment(" === BSEARCH START ===")
     // get the default value handily
     val defaultVal = call.args(0)
     // get the input handily
@@ -582,8 +583,6 @@ class OpenCLGenerator extends Generator {
     val compFuncResVar = Var("cmp_res_var")
     // declare it, with the same type as the comparison result
     block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
-    // get an AST node describing a load from the comparator function result
-    // val cmpResMemVar = s.f.body.mem.variable
 
     // create a variable for each goto label
     val finishLabel = Var("done")
@@ -620,13 +619,14 @@ class OpenCLGenerator extends Generator {
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
     block += OpenCLAST.Label(finishLabel)
-    block += OpenCLAST.OpenCLCode("\n")
+    block += OpenCLAST.Comment(" === BSEARCH END ===")
   }
 
   // LSearch 
   private def generateLSearchCall(s: AbstractSearch,
                                   call: FunCall,
                                   block: Block): Unit = {
+    block += OpenCLAST.Comment(" === LSEARCH START ===")
     // get the default value handily
     val defaultVal = call.args(0)
     // get the input handily
@@ -695,7 +695,7 @@ class OpenCLGenerator extends Generator {
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
     block += OpenCLAST.Label(finishLabel)
-    block += OpenCLAST.OpenCLCode("\n")
+    block += OpenCLAST.Comment(" === LSEARCH END ===")
   }
 
 

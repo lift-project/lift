@@ -230,6 +230,7 @@ object OpenCLMemoryAllocator {
         s.f.params(0).mem = coll.subMemories(1)
         // allocate memory for the comparison function
         s.searchFMem = alloc(s.f.body, numGlb, numLcl, numPvt, GlobalMemory)
+
         // TODO: This is the way the reduce does it - it makes a lot more sense!
         // Fix it so that we do it too?
         // use the ``default value'' memory to return our value
