@@ -650,17 +650,18 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-  @Ignore @Test def SPLIT_REDUCE() : Unit = {
+  @Test def SPLIT_REDUCE() : Unit = {
     val inputSize = Math.pow(2, 12).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => i)
-    val gold = search_arr.foldLeft(0)(_+_)
+    val gold = search_arr.sum
+    val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int);
     val N = Var("N")
     val reduce_kernel = fun(
       ArrayType(Int, N),
       (array) => {
-        ReduceSeq(int_add, 0) o Join() o MapSeq(
+        toGlobal(MapSeq(idI)) o ReduceSeq(int_add, 0) o Join() o MapSeq(
           fun((subarr) =>
-            ReduceSeq(int_add, 0) $ subarr
+            toGlobal(MapSeq(idI)) o ReduceSeq(int_add, 0) $ subarr
           )
         ) o Split(8) $ array
       }
