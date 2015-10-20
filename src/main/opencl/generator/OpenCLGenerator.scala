@@ -38,7 +38,7 @@ object Debug {
 }
 
 object Verbose {
-  var verbose = true //System.getenv("APART_VERBOSE") != null
+  var verbose = System.getenv("APART_VERBOSE") != null
   def apply() = verbose
   def apply(verbose: Boolean) = { this.verbose = verbose }
 }
@@ -655,8 +655,8 @@ class OpenCLGenerator extends Generator {
     // val cmpResMemVar = s.f.body.mem.variable
     // create a variable for each goto label
     val finishLabel = Var("done")
-    var writeresultLabel = Var("writeresult")
-    var searchFailedLabel = Var("searchfailed")
+    val writeResultLabel = Var("writeresult")
+    val searchFailedLabel = Var("searchfailed")
     val compResRef = generateLoadNode(s.f.body.mem.variable, 
                                         OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
                                         s.f.body.t, s.f.body.view)
@@ -680,7 +680,7 @@ class OpenCLGenerator extends Generator {
               // if the value is greater than, it's gone past! the search has failed.
               (ccb) => {ccb += OpenCLAST.GOTO(searchFailedLabel)},
               // otherwise, it must be equal to, so jump to returning the result
-              (ccb) => {ccb += OpenCLAST.GOTO(writeresultLabel)}
+              (ccb) => {ccb += OpenCLAST.GOTO(writeResultLabel)}
             )
           }
         )
@@ -690,7 +690,7 @@ class OpenCLGenerator extends Generator {
     block += generateStoreNode(block, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
     block += OpenCLAST.GOTO(finishLabel)
-    block += OpenCLAST.Label(writeresultLabel)
+    block += OpenCLAST.Label(writeResultLabel)
     block += generateStoreNode(block, 
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)

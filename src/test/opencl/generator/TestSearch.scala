@@ -28,9 +28,6 @@ object TestSearch {
 
 
 class TestSearch {
-  val t_id = UserFun("tuple_id", "x", "return x;", TupleType(Int, Int), TupleType(Int, Int))
-  val i_id = UserFun("int_id", "x", "return x;", Int, Int)
-  val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int);
 
   @Test def SCALAR_BINARY_SEARCH() : Unit = {
      val inputSize = Math.pow(2, 12).toInt
@@ -109,9 +106,8 @@ class TestSearch {
                   // subarr
                   LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) $ subarr
                 )
-             ) o Split(8) $ array
-           )
-         ) $ ixarr
+             )) o Split(8)  $ array
+         )) $ ixarr
        }
      )
      val (output:Array[Int], runtime) = Execute(1,1, (true, true))(searchKernel, search_arr, Array(search_index))
