@@ -124,10 +124,9 @@ object OutputView {
 
   private def buildViewSearch(s: AbstractSearch, 
                               call:FunCall, writeView:View) :View = {
-    visitAndBuildViews(call.args(0),
-      View.initialiseNewView(call.args(0).t, call.inputDepth, call.args(0).mem.variable.name))
-    // TODO: Why doesn't this code need this line? 
-    // visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
+    visitAndBuildViews(call.args.head,
+      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable.name))
+    visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
     View.initialiseNewView(call.args(1).t, call.outputDepth, call.mem.variable.name)
   }
 

@@ -803,7 +803,7 @@ object Rules {
       val zipArgs = args.map({
         case FunCall(_, mapArgs) => mapArgs
       })
-
+      
       val lambdaParam = Param()
 
       val maps = args.zipWithIndex.map({

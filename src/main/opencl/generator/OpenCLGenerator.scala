@@ -594,7 +594,7 @@ class OpenCLGenerator extends Generator {
     generateWhileLoop(block, Predicate(lowerIndex,upperIndex,Predicate.Operator.<), 
       (b) => {
         b += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
-          OpenCLAST.Expression((lowerIndex + upperIndex) / 2))
+          OpenCLAST.Expression(lowerIndex + (upperIndex - lowerIndex) / 2))
         generate(s.f.body, b)
         b += OpenCLAST.Assignment(OpenCLAST.Expression(compFuncResVar), compResRef)
         generateConditional(b, 
@@ -605,7 +605,7 @@ class OpenCLGenerator extends Generator {
           (cb) => {
             generateConditional(cb, 
               Predicate(compFuncResVar, 0, Predicate.Operator.>),
-              (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex),OpenCLAST.Expression(s.indexVar))},
+              (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex),OpenCLAST.Expression(s.indexVar + 1))},
               (ccb) => {ccb += OpenCLAST.GOTO(writeresultLabel)}
             )
           }

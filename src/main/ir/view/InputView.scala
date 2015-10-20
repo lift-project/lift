@@ -127,8 +127,11 @@ object InputView {
   }
 
   private def buildViewSearch(s:AbstractSearch, call:FunCall, argView:View) : View = {
+    // pass down input view
     s.f.params(0).view = argView.get(1).access(s.indexVar)
+    // traverse into call.f
     visitAndBuildViews(s.f.body)
+    // create fresh input view for following function
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
