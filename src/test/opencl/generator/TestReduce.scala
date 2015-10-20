@@ -654,6 +654,7 @@ class TestReduce {
     val inputSize = Math.pow(2, 12).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => i)
     val gold = search_arr.foldLeft(0)(_+_)
+    val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int);
     val N = Var("N")
     val reduce_kernel = fun(
       ArrayType(Int, N),

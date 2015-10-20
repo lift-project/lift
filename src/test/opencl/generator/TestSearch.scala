@@ -106,9 +106,9 @@ class TestSearch {
              LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
               ReduceSeq(int_add, 0) o Join() o MapSeq(
                 fun((subarr) =>
-                  // subarr
                   LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) $ subarr
                 )
+              )
              ) o Split(8) $ array
            )
          ) $ ixarr
