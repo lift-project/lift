@@ -672,4 +672,30 @@ class TestReduce {
     println("Time: " + runtime)
     assert(output(0) == gold)
   }
+
+  /**
+   * This test currently fails as the generated unroll does not reset the accumulator properly.
+   */
+  @Ignore @Test def SPLIT_REDUCE_UNROLLED() : Unit = {
+    val inputSize = 128
+    val search_arr = Array.tabulate(inputSize)((i:Int) => i)
+    val gold = search_arr.sum
+    val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int);
+    val N = Var("N")
+    val reduce_kernel = fun(
+      ArrayType(Int, inputSize),
+      (array) => {
+        toGlobal(MapSeq(idI)) o ReduceSeq(int_add, 0) o Join() o MapSeq(
+          fun((subarr) =>
+            ReduceSeq(int_add, 0) $ subarr
+          )
+        ) o Split(8) $ array
+      }
+    )
+    val (output:Array[Int], runtime) = Execute(1,1, (true, true))(reduce_kernel, search_arr)
+    println("Gold: "+gold)
+    println("Result: "+output(0))
+    println("Time: " + runtime)
+    assert(output(0) == gold)
+  }
 }
