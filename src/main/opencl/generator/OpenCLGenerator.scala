@@ -587,7 +587,7 @@ class OpenCLGenerator extends Generator {
 
     // create a variable for each goto label
     val finishLabel = Var("done")
-    var writeresultLabel = Var("writeresult")
+    val writeResultLabel = Var("writeresult")
     val compResRef = generateLoadNode(s.f.body.mem.variable, 
                                         OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
                                         s.f.body.t, s.f.body.view)
@@ -615,7 +615,7 @@ class OpenCLGenerator extends Generator {
     block += generateStoreNode(block, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
     block += OpenCLAST.GOTO(finishLabel)
-    block += OpenCLAST.Label(writeresultLabel)
+    block += OpenCLAST.Label(writeResultLabel)
     block += generateStoreNode(block, 
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)

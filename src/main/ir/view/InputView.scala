@@ -67,7 +67,7 @@ object InputView {
       case g: Group => buildViewGroup(g, call, argView)
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
-      case fp: FPattern => buildViewToFPattern(fp, argView)
+      case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(size,boundary) => buildViewPad(size, boundary, argView)
       case _ => argView
     }
@@ -91,11 +91,6 @@ object InputView {
     i.f.params(0).view = argView
     visitAndBuildViews(i.f.body)
     View.initialiseNewView(call.t, call.inputDepth)
-  }
-
-  private def buildViewToFPattern(fp: FPattern, argView: View): View = {
-    fp.f.params(0).view = argView
-    visitAndBuildViews(fp.f.body)
   }
 
   private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {
@@ -141,7 +136,7 @@ object InputView {
       if (l.params.length != 1) throw new NumberOfArgumentsException
       l.params(0).view = argView
     } else {
-      l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.access(i) })
+      l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.get(i) })
     }
     visitAndBuildViews(l.body)
   }

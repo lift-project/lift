@@ -80,7 +80,7 @@ object OutputView {
 
   private def buildViewUserFun(writeView: View, call: FunCall): View = {
     call.view = writeView
-    writeView
+    View.initialiseNewView(call.t, call.outputDepth, "")
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {

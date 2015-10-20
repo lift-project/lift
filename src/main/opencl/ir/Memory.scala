@@ -40,8 +40,7 @@ case class AddressSpaceCollection(spaces: Seq[OpenCLAddressSpace])
     if (addessSpaces.forall(_ == addessSpaces.head)) {
       addessSpaces.head
     } else {
-      throw new IllegalArgumentException("Could not determine " +
-                                         "common addressSpace")
+      throw new IllegalArgumentException(s"Could not determine common addressSpace: $addessSpaces")
     }
   }
 }

@@ -111,7 +111,7 @@ object MemoryMappingRewrite {
     // Step 1: Add id nodes in strategic locations
     val idsAdded = addIds(lambda)
 
-    val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemoryId, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation = true))
 
@@ -142,7 +142,7 @@ object MemoryMappingRewrite {
 
     val idsAdded = Rewrite.applyRulesUntilCannot(idsAddedToMapSeq, Seq(Rules.addIdForCurrentValueInReduce))
 
-    val toAddressAdded = addToAddressSpace(idsAdded, Rules.privateMemoryId, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, Rules.privateMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = true, doVectorisation = false))
 

@@ -117,9 +117,14 @@ private class BuildDepthInfo() {
     setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
   }
 
-  private def setDepths(call: FunCall, readsLocal: Boolean, readsPrivate: Boolean, writesLocal: Boolean, writesPrivate: Boolean): Unit = {
-    call.inputDepth = if (writesPrivate) privateAccessInf else if (writesLocal) localAccessInf else globalAccessInf
-    call.outputDepth = if (readsPrivate) privateAccessInf else if (readsLocal) localAccessInf else globalAccessInf
+  private def setDepths(call: FunCall, readsLocal: Boolean, readsPrivate: Boolean,
+                        writesLocal: Boolean, writesPrivate: Boolean): Unit = {
+    call.inputDepth = if (writesPrivate) privateAccessInf
+                      else if (writesLocal) localAccessInf
+                      else globalAccessInf
+    call.outputDepth = if (readsPrivate) privateAccessInf
+                       else if (readsLocal) localAccessInf
+                       else globalAccessInf
   }
 
   private def writesLocalPrivate(call: FunCall): (Boolean, Boolean) = {
