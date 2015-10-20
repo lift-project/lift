@@ -29,9 +29,9 @@ class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchm
     val inputSizeN = inputSizes()(0)
     val inputSizeM = inputSizes()(1)
 
-    val matrix = Array.tabulate(inputSizeN, inputSizeM)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
-    val vectorX = Array.tabulate(inputSizeN)(i => ((i % 10) + 1) * 2.0f)
-    val vectorY = Array.tabulate(inputSizeN, 1)((i, _) => ((i*3 % 10) + 1) + 1.5f)
+    val matrix = Array.fill(inputSizeN, inputSizeM)(util.Random.nextInt(5).toFloat)
+    val vectorX = Array.fill(inputSizeM)(util.Random.nextInt(5).toFloat)
+    val vectorY = Array.fill(inputSizeN, 1)(util.Random.nextInt(5).toFloat)
 
     val alpha = 2.5f
     val beta = 1.5f
