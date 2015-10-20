@@ -8,6 +8,10 @@ import scala.language.implicitConversions
 package object ir {
   // commonly used user functions
 
+  val t_id = UserFun("tuple_id", "x", "return x;", TupleType(Int, Int), TupleType(Int, Int))
+  val i_id = UserFun("int_id", "x", "return x;", Int, Int)
+  val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
+
   val id = UserFun("id", "x", "{ return x; }", Float, Float)
 
   val idI = UserFun("id", "x", "{ return x; }", Int, Int)
