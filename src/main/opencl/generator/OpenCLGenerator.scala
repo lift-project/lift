@@ -606,7 +606,7 @@ class OpenCLGenerator extends Generator {
             generateConditional(cb, 
               Predicate(compFuncResVar, 0, Predicate.Operator.>),
               (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex),OpenCLAST.Expression(s.indexVar + 1))},
-              (ccb) => {ccb += OpenCLAST.GOTO(writeresultLabel)}
+              (ccb) => {ccb += OpenCLAST.GOTO(writeResultLabel)}
             )
           }
         )
