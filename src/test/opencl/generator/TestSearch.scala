@@ -28,8 +28,7 @@ object TestSearch {
 
 
 class TestSearch {
-
-  @Test def SCALAR_BINARY_SEARCH() : Unit = {
+  @Ignore @Test def SCALAR_BINARY_SEARCH() : Unit = {
      val inputSize = Math.pow(2, 12).toInt
      val search_arr = Array.tabulate(inputSize)((i:Int) => i)
      val search_index = util.Random.nextInt(inputSize)
@@ -57,7 +56,7 @@ class TestSearch {
      assert(output(0) == gold)
   }
 
-  @Test def SCALAR_LINEAR_SEARCH() : Unit = {
+  @Ignore @Test def SCALAR_LINEAR_SEARCH() : Unit = {
      val inputSize = Math.pow(2, 12).toInt
      val search_arr = Array.tabulate(inputSize)((i:Int) => i)
      val search_index = util.Random.nextInt(inputSize)
@@ -175,7 +174,7 @@ class TestSearch {
     assertArrayEquals(gold, output)
   }
 
-  @Test def TUPLE_BINARY_SEARCH() : Unit = {
+  @Ignore @Test def TUPLE_BINARY_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => (i, util.Random.nextInt(100)))
     val flat_arr = search_arr.map((t) => Array(t._1, t._2)).flatten
@@ -231,7 +230,7 @@ class TestSearch {
     println("Time: " + runtime)
   }
 
-  @Test def TUPLE_LINEAR_SEARCH() : Unit = {
+  @Ignore @Test def TUPLE_LINEAR_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => (i, util.Random.nextInt(100)))
     val flat_arr = search_arr.map((t) => Array(t._1, t._2)).flatten
