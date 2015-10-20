@@ -650,7 +650,7 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-  @Test def SPLIT_REDUCE() : Unit = {
+  @Ignore @Test def SPLIT_REDUCE() : Unit = {
     val inputSize = Math.pow(2, 12).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => i.toFloat)
     val gold = search_arr.sum
