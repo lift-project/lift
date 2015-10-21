@@ -83,4 +83,33 @@ class TestRewriteMatrixVector {
     assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
   }
 
+  @Test
+  def gemvAMDMacro(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, M),
+      ArrayType(Float, N),
+      Float,
+      Float,
+      (matrix, vectorX, vectorY, alpha, beta) => {
+        Map(fun(t =>
+          Map(fun(x =>
+            add(
+              mult(x, alpha),
+              mult(Get(t, 1), beta)
+            )
+          )) o
+            Reduce(add, 0.0f) o
+            Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
+        )) $ Zip(matrix, vectorY)
+      })
+
+    val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder)
+
+    println(f1)
+  }
+
 }

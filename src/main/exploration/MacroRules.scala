@@ -97,6 +97,44 @@ object MacroRules {
         Map(Map(f)) o Transpose() $ arg
     })
 
+  val partialReduceWithReorder =
+    Rule("partialReduceWithReorder", {
+      case funCall@FunCall(Reduce(_), _, arg) =>
+
+        val stride = Utils.validSplitVariable(arg.t)
+        val len = Type.getLength(arg.t)
+        val splitFactor = len /^ stride
+
+        // Rewrite Reduce to Reduce o Join() o Map(Reduce) o Split o ReorderStride
+        val part = Rewrite.applyRuleAt(funCall, Rules.partialReduce, funCall)
+        val partRed = Utils.getExprForPatternInCallChain(part, { case FunCall(PartRed(_), _*) => }).get
+
+        val reorder = Rewrite.applyRuleAt(part, Rules.partialReduceReorder(stride), partRed)
+        val partRed2 = Utils.getExprForPatternInCallChain(reorder, { case FunCall(PartRed(_), _*) => }).get
+
+        val splitJoin = Rewrite.applyRuleAt(reorder, Rules.partialReduceSplitJoin(splitFactor), partRed2)
+
+        // Find maps before the reduce
+        val maps = Utils.visitFunCallChainWithState((true, List[Expr]()))(arg, (e, s) => {
+          if (s._1)
+            e match {
+              case call@FunCall(Map(_), _) => (true, s._2 :+ call)
+              case _ => (false, s._2)
+            }
+          else
+            s
+        })._2
+
+        // Rewrite maps before the reduce to Scatter() o Join() o Map(Map) o Split() o Gather()
+        val rewrittenMaps = maps
+          .map(x => Rewrite.applyRuleAt(x, Rules.reorderBothSidesWithStride(stride), x))
+          .map({ case x@FunCall(_, call@FunCall(Map(_), _)) =>
+            Rewrite.applyRuleAt(x, Rules.splitJoin(splitFactor), call) })
+
+        // Replace the maps in splitJoin with the rewritten ones
+        (maps, rewrittenMaps).zipped.foldLeft(splitJoin)((e, s) => Expr.replace(e, s._1, s._2))
+    })
+
   /**
    * Move Transpose over Map(Map()), fission appropriately.
    * Used as an enabling rule when simplifying.
