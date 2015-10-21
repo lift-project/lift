@@ -112,6 +112,9 @@ object HighLevelRewrite {
       }
     })
 
+    if (userFunCalls.length == 1)
+      return true
+
     val cutoff = distanceFilter.value.getOrElse(5)
 
     val ids = userFunCalls.map(numberMap(_))
