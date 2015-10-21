@@ -549,7 +549,8 @@ class OpenCLGenerator extends Generator {
   private def generateBSearchCall(s: AbstractSearch,
                                   call: FunCall,
                                   block: Block): Unit = {
-    block += OpenCLAST.Comment(" === BSEARCH START ===")
+    val nestedBlock = OpenCLAST.Block(Vector.empty)
+    block += OpenCLAST.Comment("binary_search")
     // get the default value handily
     val defaultVal = call.args(0)
     // get the input handily
@@ -567,12 +568,12 @@ class OpenCLGenerator extends Generator {
     val lowerIndex = Var("li")
     val upperIndex = Var("ui")
     // declare the lower and upper indicies
-    block += OpenCLAST.VarDecl(lowerIndex.toString, opencl.ir.Int)
-    block += OpenCLAST.VarDecl(upperIndex.toString, opencl.ir.Int)
-    block += OpenCLAST.VarDecl(s.indexVar.toString, opencl.ir.Int)
+    nestedBlock += OpenCLAST.VarDecl(lowerIndex.toString, opencl.ir.Int)
+    nestedBlock += OpenCLAST.VarDecl(upperIndex.toString, opencl.ir.Int)
+    nestedBlock += OpenCLAST.VarDecl(s.indexVar.toString, opencl.ir.Int)
     // assign initial values
-    block += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex), OpenCLAST.Expression(0))
-    block += OpenCLAST.Assignment(OpenCLAST.Expression(upperIndex), OpenCLAST.Expression(inArrT.len))
+    nestedBlock += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex), OpenCLAST.Expression(0))
+    nestedBlock += OpenCLAST.Assignment(OpenCLAST.Expression(upperIndex), OpenCLAST.Expression(inArrT.len))
     // Declare a variable to copy the result of the user function into
     // We have to do this, as we currently have no nice way of describing normal C statements
     // in a way that works private memory properly. 
@@ -584,12 +585,12 @@ class OpenCLGenerator extends Generator {
     // set the memory of the call to the mem
     s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result
-    block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
+    nestedBlock += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
 
     // create a variable for each goto label
     val finishLabel = Var("done")
     val writeResultLabel = Var("writeresult")
-    generateWhileLoop(block, Predicate(lowerIndex,upperIndex,Predicate.Operator.<), 
+    generateWhileLoop(nestedBlock, Predicate(lowerIndex,upperIndex,Predicate.Operator.<), 
       (b) => {
         b += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
           OpenCLAST.Expression(lowerIndex + (upperIndex - lowerIndex) / 2))
@@ -611,22 +612,24 @@ class OpenCLGenerator extends Generator {
         )
       }
     )
-    block += generateStoreNode(block, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(nestedBlock, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
-    block += OpenCLAST.GOTO(finishLabel)
-    block += OpenCLAST.Label(writeResultLabel)
-    block += generateStoreNode(block, 
+    nestedBlock += OpenCLAST.GOTO(finishLabel)
+    nestedBlock += OpenCLAST.Label(writeResultLabel)
+    nestedBlock += generateStoreNode(nestedBlock, 
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
-    block += OpenCLAST.Label(finishLabel)
-    block += OpenCLAST.Comment(" === BSEARCH END ===")
+    nestedBlock += OpenCLAST.Label(finishLabel)
+    block += nestedBlock
+    block += OpenCLAST.Comment("binary_search")
   }
 
   // LSearch 
   private def generateLSearchCall(s: AbstractSearch,
                                   call: FunCall,
                                   block: Block): Unit = {
-    block += OpenCLAST.Comment(" === LSEARCH START ===")
+    val nestedBlock = OpenCLAST.Block(Vector.empty)
+    block += OpenCLAST.Comment("linear_search")
     // get the default value handily
     val defaultVal = call.args(0)
     // get the input handily
@@ -641,9 +644,9 @@ class OpenCLGenerator extends Generator {
     val inArrRef = generateLoadNode(inArr.mem.variable, clInArrMem.addressSpace, 
                       inArrT, inArr.view.access(s.indexVar))
     // declare the index var
-    block += OpenCLAST.VarDecl(s.indexVar.toString, opencl.ir.Int)
+    nestedBlock += OpenCLAST.VarDecl(s.indexVar.toString, opencl.ir.Int)
     // assign initial values
-    block += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), OpenCLAST.Expression(0))
+    nestedBlock += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), OpenCLAST.Expression(0))
     // Declare a variable to copy the result of the user function into
     // We have to do this, as we currently have no nice way of describing normal C statements
     // in a way that works private memory properly. 
@@ -655,7 +658,7 @@ class OpenCLGenerator extends Generator {
     // set the memory of the call to the mem
     s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result
-    block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
+    nestedBlock += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
     // get an AST node describing a load from the comparator function result
     // val cmpResMemVar = s.f.body.mem.variable
     // create a variable for each goto label
@@ -663,7 +666,7 @@ class OpenCLGenerator extends Generator {
     val writeResultLabel = Var("writeresult")
     val searchFailedLabel = Var("searchfailed")
 
-    generateWhileLoop(block, Predicate(s.indexVar,inArrT.len,Predicate.Operator.<), 
+    generateWhileLoop(nestedBlock, Predicate(s.indexVar,(inArrT.len),Predicate.Operator.<), 
       (b) => {
 
         generate(s.f.body, b)
@@ -694,16 +697,17 @@ class OpenCLGenerator extends Generator {
         )
       }
     )
-    block += OpenCLAST.Label(searchFailedLabel)
-    block += generateStoreNode(block, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += OpenCLAST.Label(searchFailedLabel)
+    nestedBlock += generateStoreNode(nestedBlock, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
-    block += OpenCLAST.GOTO(finishLabel)
-    block += OpenCLAST.Label(writeResultLabel)
-    block += generateStoreNode(block, 
+    nestedBlock += OpenCLAST.GOTO(finishLabel)
+    nestedBlock += OpenCLAST.Label(writeResultLabel)
+    nestedBlock += generateStoreNode(nestedBlock, 
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
-    block += OpenCLAST.Label(finishLabel)
-    block += OpenCLAST.Comment(" === LSEARCH END ===")
+    nestedBlock += OpenCLAST.Label(finishLabel)
+    block += nestedBlock
+    block += OpenCLAST.Comment("linear_search")
   }
 
 

@@ -103,7 +103,7 @@ class TestSearch {
      assert(output(0) == gold)
   }
 
-  @Ignore @Test def SPLIT_SEARCH() : Unit = {
+  @Test def SPLIT_SEARCH() : Unit = {
     // test of splitting an array, mapping a search over each element, then searching the results
     val inputSize = Math.pow(2, 12).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => i)
@@ -111,28 +111,41 @@ class TestSearch {
     val gold = search_arr(search_index)
     // compare: compare the search variable s, with the indexed element i
     val compare = UserFun("comp", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
+    val addI = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
     val N = Var("N")
     val searchKernel = fun(
       ArrayType(Int, N),
       ArrayType(Int, 1),
       (array, ixarr) => {
-        MapSeq(toGlobal(i_id)) o Join() o MapSeq(
-          toGlobal(fun((ix) =>
-            LSearch((fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
-              fun((subarr) => 
-                LSearch((fun((elem) => compare.apply(elem, ix))), 0) $ subarr
-              )
-            ) o Split(8) $ array
-          ))
-        ) $ ixarr
+        // MapSeq(toGlobal(i_id)) o Join() o MapSeq(
+        //   toGlobal(fun((ix) =>
+        //     LSearch((fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
+        //       fun((subarr) => 
+        //         toGlobal(MapSeq(idI)) o LSearch((fun((elem) => compare.apply(elem, ix))), 0) $ subarr
+        //       )
+        //     ) o Split(8) $ array
+        //   ))
+        // ) $ ixarr
+        MapSeq(fun((ix) => 
+          // toGlobal(MapSeq(idI)) o ReduceSeq(addI, 0) o Join() o MapSeq(
+          toGlobal(MapSeq(idI)) o BSearch((fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
+            fun((subarr) =>
+              Join() o MapSeq(fun((subarrHead) =>
+                toGlobal(MapSeq(idI)) o BSearch((fun((elem) => compare.apply(elem, ix))), subarrHead) $ subarr
+              )) o Head() $ subarr
+            )
+          ) o Split(8) $ array
+        )) $ ixarr
       }
     )
     val (output:Array[Int], runtime) = Execute(1,1, (true, true))(searchKernel, search_arr, Array(search_index))
+    
     println("Search Index: " + search_index)
     println("Gold: "+gold)
     println("Result: "+output(0))
     println("Time: " + runtime)
     assert(output(0) == gold)
+    assert(false)
   }
 
   @Test def NESTED_BINARY_SEARCH() : Unit = {
