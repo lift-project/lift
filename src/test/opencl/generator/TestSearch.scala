@@ -117,17 +117,7 @@ class TestSearch {
       ArrayType(Int, N),
       ArrayType(Int, 1),
       (array, ixarr) => {
-        // MapSeq(toGlobal(i_id)) o Join() o MapSeq(
-        //   toGlobal(fun((ix) =>
-        //     LSearch((fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
-        //       fun((subarr) => 
-        //         toGlobal(MapSeq(idI)) o LSearch((fun((elem) => compare.apply(elem, ix))), 0) $ subarr
-        //       )
-        //     ) o Split(8) $ array
-        //   ))
-        // ) $ ixarr
         MapSeq(fun((ix) => 
-          // toGlobal(MapSeq(idI)) o ReduceSeq(addI, 0) o Join() o MapSeq(
           toGlobal(MapSeq(idI)) o BSearch((fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
             fun((subarr) =>
               Join() o MapSeq(fun((subarrHead) =>
@@ -145,7 +135,6 @@ class TestSearch {
     println("Result: "+output(0))
     println("Time: " + runtime)
     assert(output(0) == gold)
-    assert(false)
   }
 
   @Test def NESTED_BINARY_SEARCH() : Unit = {

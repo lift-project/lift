@@ -666,6 +666,7 @@ class OpenCLGenerator extends Generator {
     val writeResultLabel = Var("writeresult")
     val searchFailedLabel = Var("searchfailed")
 
+    // todo - need to simplify inArrT.len, as currently it evaluates to unexecutable code on some tests
     generateWhileLoop(nestedBlock, Predicate(s.indexVar,(inArrT.len),Predicate.Operator.<), 
       (b) => {
 
