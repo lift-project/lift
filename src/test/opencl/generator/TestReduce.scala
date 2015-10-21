@@ -669,7 +669,7 @@ class TestReduce {
 
     val (output:Array[Float], _) = Execute(1,1, (true, true))(reduce_kernel, search_arr)
 
-    assertEquals(gold, output(0))
+    assertEquals(gold, output(0), 0.0f)
   }
 
   /**
