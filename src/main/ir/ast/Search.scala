@@ -51,7 +51,7 @@ abstract class AbstractSearch(val f: Lambda,
         // recursively check the body
         TypeChecker.check(f.body, setType)
         // ensure that the body function returns an integer
-        // if(f.body.t != Int) throw new TypeException(f.body.t, "Int")
+        if(f.body.t != opencl.ir.Int) throw new TypeException(f.body.t, "Int")
         // finally, return a single element array type
         ArrayType(elemT, 1)
 
