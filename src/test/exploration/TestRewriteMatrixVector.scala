@@ -71,16 +71,49 @@ class TestRewriteMatrixVector {
     val f21 = Rewrite.applyRuleAtId(f20, 4, Rules.globalMemory)
 
     val inputSize = 4096
+
     val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
     val vectorX = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val vectorY = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
     val beta = 1.5f
+    val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
+    val (local, global) = InferNDRange(f21, matrix, vectorX, vectorY, alpha, beta)
 
     val (output: Array[Float], _) =
-      Execute(128, inputSize)(f21, matrix, vectorX, vectorY, alpha, beta)
+      Execute(local(0).eval, global(0).eval)(f21, matrix, vectorX, vectorY, alpha, beta)
 
-    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
+    assertArrayEquals(gold, output,0.0f)
+  }
+
+  @Test
+  def gemvAMDMacro(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, M),
+      ArrayType(Float, N),
+      Float,
+      Float,
+      (matrix, vectorX, vectorY, alpha, beta) => {
+        Map(fun(t =>
+          Map(fun(x =>
+            add(
+              mult(x, alpha),
+              mult(Get(t, 1), beta)
+            )
+          )) o
+            Reduce(add, 0.0f) o
+            Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
+        )) $ Zip(matrix, vectorY)
+      })
+
+    val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder)
+
+    val f2 = SimplifyAndFuse(f1)
+    val f3 = Lower.mapCombinations(f2)
   }
 
 }

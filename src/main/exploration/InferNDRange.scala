@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.{Cst, ArithExpr}
+import apart.arithmetic.{Var, Cst, ArithExpr}
 import ir._
 import ir.ast.{Lambda, Expr, FunCall}
 import opencl.executor.Execute
@@ -63,7 +63,8 @@ class InferNDRange {
     if (mapGlb.isDefinedAt(dim)) {
       (Cst(32), mapGlb(dim))
     } else if (mapLcl.isDefinedAt(dim)) {
-      (mapLcl(dim), mapWrg(dim) * mapLcl(dim))
+      val wrg = if (mapWrg(dim).isInstanceOf[Var]) mapWrg(dim) else mapWrg(dim) * mapLcl(dim)
+      (mapLcl(dim), wrg)
     } else {
       (Cst(1), Cst(1))
     }
@@ -78,7 +79,12 @@ class InferNDRange {
 
   private def getMostCommonElement(lengths: List[ArithExpr]): ArithExpr = {
     val distinct = lengths.distinct
-    val idOfMostCommon = distinct.map(length => lengths.count(_ == length)).zipWithIndex.maxBy(_._1)._2
+    val idOfMostCommon =
+      distinct.map(length => lengths.count(_ == length))
+              .zipWithIndex
+              .reverse
+              .maxBy(_._1)
+              ._2
     distinct(idOfMostCommon)
   }
 }

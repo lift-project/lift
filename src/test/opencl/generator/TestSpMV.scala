@@ -231,7 +231,7 @@ class TestSpMV {
     assert(output(0) == gold)
   }
 
-  @Test def LSEARCH_DOT_PRODUCT() {
+  @Ignore @Test def LSEARCH_DOT_PRODUCT() {
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
@@ -302,7 +302,7 @@ class TestSpMV {
     assert(output(0) == gold)
   }
 
-  @Test def BSEARCH_DOT_PRODUCT() {
+  @Ignore @Test def BSEARCH_DOT_PRODUCT() {
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
