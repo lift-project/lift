@@ -150,10 +150,13 @@ class TestSearch {
       ArrayType(Int, N), //indicies
       ArrayType(ArrayType(Int, N), N), //search arrays
       (ixs, arrs) => {
-        MapWrg(MapLcl(fun((i_arr_p) =>
-            MapSeq(toGlobal(i_id)) o BSearch((fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), 0) $ Get(i_arr_p, 1)
+        MapSeq(
+          fun((arr_i_p_group) =>
+            Join() o MapSeq(fun((i_arr_p) =>
+              BSearch((fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), 0) $ Get(i_arr_p, 1)
+            )) $ arr_i_p_group
           )
-        )) o Split(8) $ Zip(ixs, arrs) // pair indicies with arrays to search
+        ) o Split(8) $ Zip(ixs, arrs) // pair indicies with arrays to search
       }
     )
     val (output: Array[Int], runtime) = Execute(inputSize,inputSize)(searchKernel, search_indices, search_arrs)

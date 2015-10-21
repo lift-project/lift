@@ -33,7 +33,7 @@ class TestSpMV {
   val i_id = UserFun("int_id", "x", "return x;", Int, Int)
   val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int);
 
-  @Test def REDUCE_SEARCH_MATRIX_VECTOR() {
+  @Ignore @Test def REDUCE_SEARCH_MATRIX_VECTOR() {
 
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
