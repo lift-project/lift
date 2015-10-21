@@ -42,7 +42,7 @@ class TestSearch {
        (array, ixarr) => {
          MapSeq(toGlobal(i_id)) o Join() o MapSeq(
            toGlobal(fun((ix) =>
-             BSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), toGlobal(i_id) $ 0) $ array
+             BSearch((fun((elem) => compare.apply(elem, ix))), 0) $ array
            ))
          ) $ ixarr
        }
@@ -70,7 +70,7 @@ class TestSearch {
        (array, ixarr) => {
          MapSeq(toGlobal(i_id)) o Join() o MapSeq(
            toGlobal(fun((ix) =>
-             LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) $ array
+             LSearch((fun((elem) => compare.apply(elem, ix))), 0) $ array
            ))
          ) $ ixarr
        }
@@ -99,9 +99,9 @@ class TestSearch {
       (array, ixarr) => {
         MapSeq(toGlobal(i_id)) o Join() o MapSeq(
           toGlobal(fun((ix) =>
-            LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
+            LSearch((fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
               fun((subarr) => 
-                LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), toGlobal(i_id) $ 0) $ subarr
+                LSearch((fun((elem) => compare.apply(elem, ix))), 0) $ subarr
               )
             ) o Split(8) $ array
           ))
@@ -131,10 +131,10 @@ class TestSearch {
       ArrayType(Int, N), //indicies
       ArrayType(ArrayType(Int, N), N), //search arrays
       (ixs, arrs) => {
-          MapGlb(fun((i_arr_p) =>
-            MapSeq(toGlobal(i_id)) o BSearch(toPrivate(fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), toGlobal(i_id) $ 0) $ Get(i_arr_p, 1)
+        MapWrg(MapLcl(fun((i_arr_p) =>
+            MapSeq(toGlobal(i_id)) o BSearch((fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), 0) $ Get(i_arr_p, 1)
           )
-        ) $ Zip(ixs, arrs) // pair indicies with arrays to search
+        )) o Split(8) $ Zip(ixs, arrs) // pair indicies with arrays to search
       }
     )
     val (output: Array[Int], runtime) = Execute(inputSize,inputSize)(searchKernel, search_indices, search_arrs)
@@ -145,7 +145,7 @@ class TestSearch {
     assertArrayEquals(gold, output)
   }
 
-   @Ignore @Test def NESTED_LINEAR_SEARCH() : Unit = {
+  @Ignore @Test def NESTED_LINEAR_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     // 2d array of elements to search through
     val search_arrs = Array.tabulate(inputSize)((i:Int) => Array.tabulate(inputSize)((j:Int) => j))
@@ -161,7 +161,7 @@ class TestSearch {
       ArrayType(ArrayType(Int, N), N), //search arrays
       (ixs, arrs) => {
           MapGlb(fun((i_arr_p) =>
-            MapSeq(toGlobal(i_id)) o LSearch(toPrivate(fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), toGlobal(i_id) $ 0) $ Get(i_arr_p, 1)
+            MapSeq(toGlobal(i_id)) o LSearch((fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), 0) $ Get(i_arr_p, 1)
           )
         ) $ Zip(ixs, arrs) // pair indicies with arrays to search
       }
@@ -217,7 +217,7 @@ class TestSearch {
       (array, ixarr) => {
         MapSeq(toGlobal(t_id)) o Join() o MapSeq(
            fun((ix) =>
-             BSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
+             BSearch((fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
            )
          ) $ ixarr
       }
@@ -273,7 +273,7 @@ class TestSearch {
       (array, ixarr) => {
         MapSeq(toGlobal(t_id)) o Join() o MapSeq(
            fun((ix) =>
-             LSearch(toPrivate(fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
+             LSearch((fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
            )
          ) $ ixarr
       }
