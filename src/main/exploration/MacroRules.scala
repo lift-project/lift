@@ -298,33 +298,50 @@ object MacroRules {
       =>
         val tiled = tileMapMap(x, y, funCall)
 
-        val innerMostMap = getMapAtDepth(tiled, 3)
-        val callChain = getMapBody(innerMostMap)
+        val innermostMap = getMapAtDepth(tiled, 3)
+        val callChain = getMapBody(innermostMap)
 
-        val mapId = Utils.getIndexForPatternInCallChain(callChain, mapPattern)
-        val reduceId = Utils.getIndexForPatternInCallChain(callChain, reducePattern)
-
-        val hasMap = mapId != -1
-        val hasReduce = reduceId != -1
+        val innerFission = findConcretePatterns(callChain)
 
         var fissioned = tiled
 
-        // TODO: assuming maps clumped together and reduces clumped together
-
         // Fission between reduces and maps. Blocking and tiling have to be applied separately,
         // if tiling the input as well.
-        if (hasReduce && hasMap) {
-          val larger = if (mapId > reduceId) mapId else reduceId
+        if (innerFission.length > 1) {
 
-          val firstFission = Rewrite.applyRuleAt(tiled, mapFissionAtPosition(larger - 1), innerMostMap)
+          fissioned = fissionBetweenConcretes(fissioned, innermostMap)
 
-          val fissionInHere = getMapAtDepth(firstFission, 2)
+          val fissionInHere = getMapAtDepth(fissioned, 2)
 
-          fissioned = Rewrite.applyRuleAt(firstFission, Rules.mapFission, fissionInHere)
+          fissioned = fissionBetweenConcretes(fissioned, fissionInHere)
         }
 
         fissioned
     })
+
+  private def fissionBetweenConcretes(expr: Expr, fissionInHere: Expr) = {
+    val body = getMapBody(fissionInHere)
+    val concretes = findConcretePatterns(body)
+    val concreteIds = getIdsForExpressions(body, concretes)
+    val res2 = concreteIds.tail.foldLeft(fissionInHere)((e, id) =>
+      Rewrite.applyRuleAt(e, mapFissionAtPosition(id), e))
+
+    Expr.replace(expr, fissionInHere, res2)
+  }
+
+  private def getIdsForExpressions(callChain: Expr, outerFissions: List[Expr]): List[Int] = {
+    outerFissions.map(x =>
+      Utils.getIndexForPatternInCallChain(callChain, { case e if e == x => }))
+  }
+
+  private def findConcretePatterns(callChain: Expr): List[Expr] = {
+    Utils.visitFunCallChainWithState(List[Expr]())(callChain, (e, s) => {
+      if (mapPattern.isDefinedAt(e) || reducePattern.isDefinedAt(e))
+        e :: s
+      else
+        s
+    })
+  }
 
   val finishTiling: Rule = finishTiling(?)
 
