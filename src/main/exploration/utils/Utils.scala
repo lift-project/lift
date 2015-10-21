@@ -276,6 +276,15 @@ object Utils {
   }
 
   private def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {
+    val userFuns = Expr.visitWithState(Set[UserFun]())(lambda.body, (expr, state) => {
+      expr match {
+        case FunCall(uf: UserFun, _*) => state + uf
+        case _ => state
+      }
+    })
+
+    val userFunString = userFuns.map(ScalaPrinter(_)).mkString("\n") + "\n"
+
     val types = lambda.params.map(p => ScalaPrinter(p.t)).mkString(", ")
     val expr = ScalaPrinter(lambda)
     val fullString = expr.substring(0, 4) + types + "," + expr.substring(4)
@@ -284,9 +293,10 @@ object Utils {
 
     val params = param.findAllMatchIn(fullString).map(_.toString()).toList.distinct
 
-    params.zipWithIndex.foldRight(fullString)((toReplace, currentString) =>
+    val lambdaString = params.zipWithIndex.foldRight(fullString)((toReplace, currentString) =>
       currentString.replaceAll(toReplace._1, "p_" + toReplace._2))
 
+    userFunString + lambdaString
   }
 
   /**
