@@ -188,7 +188,7 @@ class OpenCLGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      TypedOpenCLMemory.get(f.body, f.params).foreach(m => println(m))
+      TypedOpenCLMemory.get(f.body, f.params, includePrivate=true).foreach(m => println(m))
       println()
     }
 
@@ -573,29 +573,29 @@ class OpenCLGenerator extends Generator {
     // assign initial values
     block += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex), OpenCLAST.Expression(0))
     block += OpenCLAST.Assignment(OpenCLAST.Expression(upperIndex), OpenCLAST.Expression(inArrT.len))
-    // Don't need to do this assignment here
-    // block += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
-      // OpenCLAST.Expression((lowerIndex + upperIndex) / 2))
     // Declare a variable to copy the result of the user function into
     // We have to do this, as we currently have no nice way of describing normal C statements
     // in a way that works private memory properly. 
     // TODO: Find some way of representing the arguments to while/if/etc...
     val compFuncResVar = Var("cmp_res_var")
+    varDecls = varDecls.updated(compFuncResVar, Type.devectorize(s.f.body.t))
+    // create a memory object for it
+    val compFuncResMem = OpenCLMemory(compFuncResVar, OpenCLMemory.getSizeInBytes(s.f.body.t), PrivateMemory)
+    // set the memory of the call to the mem
+    s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result
     block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
 
     // create a variable for each goto label
     val finishLabel = Var("done")
     val writeResultLabel = Var("writeresult")
-    val compResRef = generateLoadNode(s.f.body.mem.variable, 
-                                        OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
-                                        s.f.body.t, s.f.body.view)
     generateWhileLoop(block, Predicate(lowerIndex,upperIndex,Predicate.Operator.<), 
       (b) => {
         b += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
           OpenCLAST.Expression(lowerIndex + (upperIndex - lowerIndex) / 2))
+
         generate(s.f.body, b)
-        b += OpenCLAST.Assignment(OpenCLAST.Expression(compFuncResVar), compResRef)
+
         generateConditional(b, 
           Predicate(compFuncResVar, 0, Predicate.Operator.<),
           (cb) => {
@@ -649,6 +649,11 @@ class OpenCLGenerator extends Generator {
     // in a way that works private memory properly. 
     // TODO: Find some way of representing the arguments to while/if/etc...
     val compFuncResVar = Var("cmp_res_var")
+    varDecls = varDecls.updated(compFuncResVar, Type.devectorize(s.f.body.t))
+    // create a memory object for it
+    val compFuncResMem = OpenCLMemory(compFuncResVar, OpenCLMemory.getSizeInBytes(s.f.body.t), PrivateMemory)
+    // set the memory of the call to the mem
+    s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result
     block += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
     // get an AST node describing a load from the comparator function result
@@ -657,13 +662,12 @@ class OpenCLGenerator extends Generator {
     val finishLabel = Var("done")
     val writeResultLabel = Var("writeresult")
     val searchFailedLabel = Var("searchfailed")
-    val compResRef = generateLoadNode(s.f.body.mem.variable, 
-                                        OpenCLMemory.asOpenCLMemory(s.f.body.mem).addressSpace,
-                                        s.f.body.t, s.f.body.view)
+
     generateWhileLoop(block, Predicate(s.indexVar,inArrT.len,Predicate.Operator.<), 
       (b) => {
+
         generate(s.f.body, b)
-        b += OpenCLAST.Assignment(OpenCLAST.Expression(compFuncResVar), compResRef)
+
         generateConditional(b, 
           // if the result of the comparator is greater than zero, the element we're currently
           // comparing to is smaller than the element we are searching for
@@ -678,9 +682,13 @@ class OpenCLGenerator extends Generator {
               // if the result is less than 0, we've gone past the value we're looking for, so abort
               Predicate(compFuncResVar, 0, Predicate.Operator.<),
               // if the value is greater than, it's gone past! the search has failed.
-              (ccb) => {ccb += OpenCLAST.GOTO(searchFailedLabel)},
+              (ccb) => {
+                ccb += OpenCLAST.GOTO(searchFailedLabel)
+              },
               // otherwise, it must be equal to, so jump to returning the result
-              (ccb) => {ccb += OpenCLAST.GOTO(writeResultLabel)}
+              (ccb) => {
+                ccb += OpenCLAST.GOTO(writeResultLabel)
+              }
             )
           }
         )
