@@ -1,8 +1,30 @@
 package opencl.executor
 
+import java.awt.image.BufferedImage
+import java.io.{IOException, File}
+import javax.imageio.ImageIO
+
 import ir.ast.Lambda
 
 object Utils {
+
+  def writeMD(width: Int, height: Int, data: Array[Float], name: String): Unit = {
+    val out = new File(name + ".png")
+    val img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY)
+    val r = img.getRaster
+
+    for (i <- 0 until height) {
+      for (j <- 0 until width) {
+        r.setSample(j, i, 0, data(i * height + j).toByte)
+      }
+    }
+
+    try {
+      ImageIO.write(img, "png", out)
+    } catch {
+      case e: IOException => e.printStackTrace()
+    }
+  }
 
   /*
    * Matrix printing methods

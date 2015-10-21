@@ -1,0 +1,28 @@
+val md = UserFun("md", Array("i", "j", "niters", "size"),
+  """|{
+     |  const float space = 2.0f / size;
+     |  float Zr = 0.0f;
+     |  float Zi = 0.0f;
+     |  float Cr = (j * space - 1.5f);
+     |  float Ci = (i * space - 1.0f);
+     |  int y = 0;
+     |
+     |  for (y = 0; y < niters; y++) {
+     |    const float ZiN = Zi * Zi;
+     |    const float ZrN = Zr * Zr;
+     |    if(ZiN + ZrN > 4.0f) break;
+     |    Zi *= Zr;
+     |    Zi *= 2.0f;
+     |    Zi += Ci;
+     |    Zr = ZrN - ZiN + Cr;
+     |  }
+     |  return ((y * 255) / niters);
+     |}
+     |""".stripMargin, Seq(Int, Int, Int, Int), Int)
+
+fun(
+  ArrayType(Int, Var("N")),
+  Int,
+  Int,
+  (in, niters, size) => Map(fun(i => Map(fun(j => md(i, j, niters, size))) $ in)) $ in
+)

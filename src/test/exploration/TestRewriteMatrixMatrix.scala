@@ -1,14 +1,14 @@
 package exploration
 
 import apart.arithmetic.Var
-import exploration.utils.{NumberPrinter, NumberExpression}
+import exploration.utils.NumberExpression
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestRewriteMatrixMatrix {
   @BeforeClass def before() {
@@ -423,12 +423,10 @@ class TestRewriteMatrixMatrix {
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
 
-    val f2 = Rewrite.applyRuleAtId(f1, 19, MacroRules.finishTiling)
-    val f3 = Rewrite.applyRuleAtId(f2, 24, MacroRules.finishTiling)
-    TypeChecker(f3)
-    println(f3)
-    val f5 = SimplifyAndFuse(f3)
-    println(f5)
+    val f2 = Rewrite.applyRuleAtId(f1, 21, MacroRules.finishTiling)
+    val f3 = Rewrite.applyRuleAtId(f2, 20, MacroRules.finishTiling)
+    val f4 = Rewrite.applyRuleAtId(f3, 19, MacroRules.finishTiling)
+    val f5 = SimplifyAndFuse(f4)
   }
 
 }
