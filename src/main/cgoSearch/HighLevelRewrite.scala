@@ -63,7 +63,7 @@ object HighLevelRewrite {
       val filename = input.value.get
       val lambda = GenerateOpenCL.readLambdaFromFile(filename)
 
-      val dumpThese = rewriteExpression(lambda) :+ lambda
+      val dumpThese = rewriteExpression(lambda)
 
       println(dumpThese.length + " expressions to dump")
 
@@ -72,7 +72,7 @@ object HighLevelRewrite {
 
       val folderName =output.value.getOrElse(filename.split("/").last)
 
-      dumpLambdasToFiles(lambdas, folderName)
+      dumpLambdasToFiles(lambdas :+ lambda, folderName)
     } catch {
       case e: ArgotUsageException => println(e.message)
     }
