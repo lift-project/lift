@@ -217,8 +217,8 @@ object Utils {
   }
 
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
-    withIndex.foldLeft(fullString)((currentString, toReplace) =>
-      currentString.replaceAll(toReplace._1, getNewName(toReplace)))
+    withIndex.foldRight(fullString)((toReplace, currentString) =>
+      currentString.replaceAll(toReplace._1 + "\\b", getNewName(toReplace)))
 
   def findAndReplaceVariableNames(code: String) = {
     val variables = findVariables(code)
@@ -258,7 +258,7 @@ object Utils {
     method
   }
 
-  private def findVariables(fullString: String): List[(String, Int)] = {
+  private[utils] def findVariables(fullString: String): List[(String, Int)] = {
     val variable = """v_\p{Alnum}*(_id)?_\d+""".r
 
     val vars = variable
@@ -266,7 +266,6 @@ object Utils {
       .map(_.toString)
       .toList
       .distinct
-      .sortWith((a, b) => a.length > b.length) // Longer ones first so substrings wouldn't be replaced
 
     val withIndex = vars.zipWithIndex
     withIndex
