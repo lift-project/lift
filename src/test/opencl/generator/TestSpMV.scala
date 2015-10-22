@@ -177,7 +177,7 @@ class TestSpMV {
     assert(false)
   }
 
-  @Test def REDUCE_SEARCH_DOT_PRODUCT(){
+  @Ignore @Test def REDUCE_SEARCH_DOT_PRODUCT(){
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
@@ -375,7 +375,7 @@ class TestSpMV {
   /*
    * Negate a sparse vector. Special case of scalar multiplication
    */
-  @Test def SPARSE_VECTOR_NEGATION(){
+  @Ignore @Test def SPARSE_VECTOR_NEGATION(){
     val concreteLength = Math.pow(2, 5).toInt
     val abstractLength = Math.pow(2, 5).toInt
     val rawVector = generateSparseArray(concreteLength,abstractLength)
@@ -402,7 +402,7 @@ class TestSpMV {
   /*
    * Multiply a sparse vector by a scalar
    */
-  @Test def SPARSE_VECTOR_SCAL() {
+  @Ignore @Test def SPARSE_VECTOR_SCAL() {
     val concreteLength = Math.pow(2, 5).toInt
     val abstractLength = Math.pow(2, 5).toInt
     val rawVector = generateSparseArray(concreteLength, abstractLength)
