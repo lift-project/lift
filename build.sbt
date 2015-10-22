@@ -46,6 +46,6 @@ unmanagedSourceDirectories in Test += baseDirectory.value / "lib/ArithExpr/src/m
 
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 
-testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v")
+testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-a")
 
 fork := true
