@@ -1,7 +1,7 @@
 val N = Var("N")
 val M = Var("M")
 
-val f = fun(
+fun(
   ArrayType(ArrayType(Float, M), N),
   ArrayType(Float, M),
   ArrayType(Float, N),

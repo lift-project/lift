@@ -204,7 +204,8 @@ class HighLevelRewrite {
       MacroRules.apply2DRegisterBlocking,
       MacroRules.apply1DRegisterBlocking,
       MacroRules.tileMapMap,
-      MacroRules.finishTiling
+      MacroRules.finishTiling,
+      MacroRules.partialReduceWithReorder
     )
 
   private var failures = 0
