@@ -29,7 +29,7 @@ object TestSearch {
 
 class TestSearch {
   @Test def SPLIT_TO_PRIVATE() : Unit = {
-    val inputSize = Math.pow(2, 12).toInt
+    val inputSize = Math.pow(2, 11).toInt
      val arr = Array.tabulate(inputSize)((i:Int) => i)
      val gold = arr.map(_ + 1)
      val compare = UserFun("plone", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
