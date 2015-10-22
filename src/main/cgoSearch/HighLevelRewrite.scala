@@ -1,6 +1,6 @@
 package cgoSearch
 
-import java.io.File
+import java.io.{FileWriter, File}
 
 import exploration._
 import exploration.utils._
@@ -159,6 +159,11 @@ object HighLevelRewrite {
           val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
           Utils.dumpToFile(stringRep, sha256, folder)
+
+          synchronized {
+            val idxFile = new FileWriter(topLevelFolder + "/index", true)
+            idxFile.write(sha256);
+          }
 
         }
       } catch {
