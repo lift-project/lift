@@ -37,4 +37,11 @@ class TestUtils {
     assertEquals(2, Utils.findVariables(replaced).length)
   }
 
+  @Test
+  def replaceVariableNamesUnrolled(): Unit = {
+    val testString = "v__1, v__1_0, v__1_1"
+
+    val replaced = Utils.findAndReplaceVariableNames(testString)
+    assertEquals(1, Utils.findVariables(replaced).length)
+  }
 }

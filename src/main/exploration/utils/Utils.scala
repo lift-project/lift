@@ -218,7 +218,7 @@ object Utils {
 
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
     withIndex.foldRight(fullString)((toReplace, currentString) =>
-      currentString.replaceAll(toReplace._1 + "\\b", getNewName(toReplace)))
+      currentString.replaceAll(toReplace._1 + "(\\D)", getNewName(toReplace) + "$1"))
 
   def findAndReplaceVariableNames(code: String) = {
     val variables = findVariables(code)
