@@ -63,7 +63,7 @@ object HighLevelRewrite {
       val filename = input.value.get
       val lambda = GenerateOpenCL.readLambdaFromFile(filename)
 
-      val dumpThese = rewriteExpression(lambda)
+      val dumpThese = rewriteExpression(lambda) :+ lambda
 
       println(dumpThese.length + " expressions to dump")
 
