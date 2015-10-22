@@ -216,7 +216,7 @@ object Utils {
     decls + "\n" + replaceVariableNames(fullString, withIndex)
   }
 
-  def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
+  private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
     withIndex.foldLeft(fullString)((currentString, toReplace) =>
       currentString.replaceAll(toReplace._1, getNewName(toReplace)))
 
@@ -249,19 +249,24 @@ object Utils {
 
     val method =
       s"""($seqName: Seq[ArithExpr]) => {
-                     |$declarations
-          |
-          |$replacedVariableNames
-          |}
+         |$declarations
+         |
+         |$replacedVariableNames
+         |}
       """.stripMargin
 
     method
   }
 
-  def findVariables(fullString: String): List[(String, Int)] = {
+  private def findVariables(fullString: String): List[(String, Int)] = {
     val variable = """v_\p{Alnum}*(_id)?_\d+""".r
 
-    val vars = variable.findAllIn(fullString).map(_.toString).toList.distinct
+    val vars = variable
+      .findAllIn(fullString)
+      .map(_.toString)
+      .toList
+      .distinct
+      .sortWith((a, b) => a.length > b.length) // Longer ones first so substrings wouldn't be replaced
 
     val withIndex = vars.zipWithIndex
     withIndex

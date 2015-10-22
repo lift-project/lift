@@ -47,7 +47,7 @@ object ScalaPrinter {
     val inTs = uf.inTs.map(apply).mkString(", ")
     val outT = apply(uf.outT)
 
-    val body = "\"\"\"\n" + uf.body.split("\n").map("|" + _).mkString("\n") + "\"\"\".stripMargin"
+    val body = "\"\"\"" + uf.body.split("\n").map("|" + _).mkString("\n") + "\"\"\".stripMargin"
 
     s"val ${uf.name} = UserFun($name, Array($paramNames), $body, Seq($inTs), $outT)"
   }
