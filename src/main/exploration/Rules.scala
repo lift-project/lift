@@ -262,33 +262,38 @@ object Rules {
 
   /* Address space rules */
 
-  val privateMemoryId = Rule("Id => toPrivate(Id)", {
+  val privateMemory = Rule("Map(f) => toPrivate(Map(f))", {
     case call@FunCall(Id(), arg)
       if call.context.inMapLcl.reduce(_ || _)
     =>
       toPrivate(Id()) $ arg
-  })
 
-  val privateMemory = Rule("Map(f) => toPrivate(Map(f))", {
+    case call@FunCall(uf: UserFun, arg@_*)
+      if call.context.inMapWrg.reduce(_ || _)
+    =>
+      toPrivate(uf)(arg:_*)
+
     case FunCall(f: AbstractMap, arg)
       if f.isInstanceOf[MapLcl] || f.isInstanceOf[MapSeq]
     =>
       toPrivate(f) $ arg
   })
 
-
   val localMemory = Rule("Map(f) => toLocal(Map(f))", {
-    case call@FunCall(f: AbstractMap, arg)
-      if call.context.inMapWrg.reduce(_ || _)
-    =>
-      toLocal(f) $ arg
-  })
-
-  val localMemoryId = Rule("Id => toLocal(Id())", {
     case call@FunCall(Id(), arg)
       if call.context.inMapWrg.reduce(_ || _)
     =>
       toLocal(Id()) $ arg
+
+    case call@FunCall(uf: UserFun, arg@_*)
+      if call.context.inMapWrg.reduce(_ || _)
+    =>
+      toLocal(uf)(arg:_*)
+
+    case call@FunCall(f: AbstractMap, arg)
+      if call.context.inMapWrg.reduce(_ || _)
+    =>
+      toLocal(f) $ arg
   })
 
   val globalMemory = Rule("Map(f) => toGlobal(Map(f))", {
@@ -803,7 +808,7 @@ object Rules {
       val zipArgs = args.map({
         case FunCall(_, mapArgs) => mapArgs
       })
-
+      
       val lambdaParam = Param()
 
       val maps = args.zipWithIndex.map({

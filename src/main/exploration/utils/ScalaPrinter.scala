@@ -1,6 +1,5 @@
 package exploration.utils
 
-import apart.arithmetic.Cst
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
@@ -40,5 +39,16 @@ object ScalaPrinter {
       case opencl.ir.Double => "Double"
       case ArrayType(elemT, len) => s"ArrayType(${apply(elemT)}, $len)"
     }
+  }
+
+  def apply(uf: UserFun): String = {
+    val name = "\"" + uf.name + "\""
+    val paramNames = uf.paramNames.map("\"" + _ + "\"").mkString(", ")
+    val inTs = uf.inTs.map(apply).mkString(", ")
+    val outT = apply(uf.outT)
+
+    val body = "\"\"\"\n" + uf.body.split("\n").map("|" + _).mkString("\n") + "\"\"\".stripMargin"
+
+    s"val ${uf.name} = UserFun($name, Array($paramNames), $body, Seq($inTs), $outT)"
   }
 }

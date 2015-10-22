@@ -97,6 +97,44 @@ object MacroRules {
         Map(Map(f)) o Transpose() $ arg
     })
 
+  val partialReduceWithReorder =
+    Rule("partialReduceWithReorder", {
+      case funCall@FunCall(Reduce(_), _, arg) =>
+
+        val stride = Utils.validSplitVariable(arg.t)
+        val len = Type.getLength(arg.t)
+        val splitFactor = len /^ stride
+
+        // Rewrite Reduce to Reduce o Join() o Map(Reduce) o Split o ReorderStride
+        val part = Rewrite.applyRuleAt(funCall, Rules.partialReduce, funCall)
+        val partRed = Utils.getExprForPatternInCallChain(part, { case FunCall(PartRed(_), _*) => }).get
+
+        val reorder = Rewrite.applyRuleAt(part, Rules.partialReduceReorder(stride), partRed)
+        val partRed2 = Utils.getExprForPatternInCallChain(reorder, { case FunCall(PartRed(_), _*) => }).get
+
+        val splitJoin = Rewrite.applyRuleAt(reorder, Rules.partialReduceSplitJoin(splitFactor), partRed2)
+
+        // Find maps before the reduce
+        val maps = Utils.visitFunCallChainWithState((true, List[Expr]()))(arg, (e, s) => {
+          if (s._1)
+            e match {
+              case call@FunCall(Map(_), _) => (true, s._2 :+ call)
+              case _ => (false, s._2)
+            }
+          else
+            s
+        })._2
+
+        // Rewrite maps before the reduce to Scatter() o Join() o Map(Map) o Split() o Gather()
+        val rewrittenMaps = maps
+          .map(x => Rewrite.applyRuleAt(x, Rules.reorderBothSidesWithStride(stride), x))
+          .map({ case x@FunCall(_, call@FunCall(Map(_), _)) =>
+            Rewrite.applyRuleAt(x, Rules.splitJoin(splitFactor), call) })
+
+        // Replace the maps in splitJoin with the rewritten ones
+        (maps, rewrittenMaps).zipped.foldLeft(splitJoin)((e, s) => Expr.replace(e, s._1, s._2))
+    })
+
   /**
    * Move Transpose over Map(Map()), fission appropriately.
    * Used as an enabling rule when simplifying.
@@ -298,33 +336,50 @@ object MacroRules {
       =>
         val tiled = tileMapMap(x, y, funCall)
 
-        val innerMostMap = getMapAtDepth(tiled, 3)
-        val callChain = getMapBody(innerMostMap)
+        val innermostMap = getMapAtDepth(tiled, 3)
+        val callChain = getMapBody(innermostMap)
 
-        val mapId = Utils.getIndexForPatternInCallChain(callChain, mapPattern)
-        val reduceId = Utils.getIndexForPatternInCallChain(callChain, reducePattern)
-
-        val hasMap = mapId != -1
-        val hasReduce = reduceId != -1
+        val innerFission = findConcretePatterns(callChain)
 
         var fissioned = tiled
 
-        // TODO: assuming maps clumped together and reduces clumped together
-
         // Fission between reduces and maps. Blocking and tiling have to be applied separately,
         // if tiling the input as well.
-        if (hasReduce && hasMap) {
-          val larger = if (mapId > reduceId) mapId else reduceId
+        if (innerFission.length > 1) {
 
-          val firstFission = Rewrite.applyRuleAt(tiled, mapFissionAtPosition(larger - 1), innerMostMap)
+          fissioned = fissionBetweenConcretes(fissioned, innermostMap)
 
-          val fissionInHere = getMapAtDepth(firstFission, 2)
+          val fissionInHere = getMapAtDepth(fissioned, 2)
 
-          fissioned = Rewrite.applyRuleAt(firstFission, Rules.mapFission, fissionInHere)
+          fissioned = fissionBetweenConcretes(fissioned, fissionInHere)
         }
 
         fissioned
     })
+
+  private def fissionBetweenConcretes(expr: Expr, fissionInHere: Expr) = {
+    val body = getMapBody(fissionInHere)
+    val concretes = findConcretePatterns(body)
+    val concreteIds = getIdsForExpressions(body, concretes)
+    val res2 = concreteIds.tail.foldLeft(fissionInHere)((e, id) =>
+      Rewrite.applyRuleAt(e, mapFissionAtPosition(id), e))
+
+    Expr.replace(expr, fissionInHere, res2)
+  }
+
+  private def getIdsForExpressions(callChain: Expr, outerFissions: List[Expr]): List[Int] = {
+    outerFissions.map(x =>
+      Utils.getIndexForPatternInCallChain(callChain, { case e if e == x => }))
+  }
+
+  private def findConcretePatterns(callChain: Expr): List[Expr] = {
+    Utils.visitFunCallChainWithState(List[Expr]())(callChain, (e, s) => {
+      if (mapPattern.isDefinedAt(e) || reducePattern.isDefinedAt(e))
+        e :: s
+      else
+        s
+    })
+  }
 
   val finishTiling: Rule = finishTiling(?)
 

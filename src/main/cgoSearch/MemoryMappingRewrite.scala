@@ -88,7 +88,7 @@ object MemoryMappingRewrite {
 
     var list = List[Lambda]()
 
-    lambdas.foreach( x => {
+    lambdas.foreach(x => {
       try {
         list = lowerMapInIds(x) :: list
       } catch {
@@ -109,13 +109,36 @@ object MemoryMappingRewrite {
 
   def mapLocalMemory(lambda: Lambda): List[Lambda] = {
     // Step 1: Add id nodes in strategic locations
-    val idsAdded = addIds(lambda)
+    val idsAdded = addIdsForLocal(lambda)
 
-    val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemoryId, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation = true))
 
+    addToAddressSpaceToUserFun(copiesAdded) ++ copiesAdded
+
     implementIds(copiesAdded)
+  }
+
+  // Try adding toLocal to userfunctions that are arguments to other userfuncitons
+  // and that would otherwise be forced to global
+  private def addToAddressSpaceToUserFun(copiesAdded: List[Lambda]): List[Lambda] = {
+    copiesAdded.map(f => {
+      Context.updateContext(f.body)
+      val res = Expr.visitLeftToRight(List[Expr]())(f.body, (e, s) => {
+        e match {
+          case FunCall(toGlobal(Lambda(_, FunCall(m: AbstractMap, _))), _) =>
+            m.f.body match {
+              case FunCall(_: UserFun, args@_*) =>
+                args.collect({ case call@FunCall(_: UserFun, _*) => call }).toList ++ s
+              case _ => s
+            }
+          case _ => s
+        }
+      }).filter(Rules.localMemory.isDefinedAt)
+
+      Some(res.foldLeft(f)((l, expr) => Rewrite.applyRuleAt(l, expr, Rules.localMemory)))
+    }).collect({ case Some(s) => s })
   }
 
   private def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
@@ -131,7 +154,7 @@ object MemoryMappingRewrite {
             && call.context.inMapLcl.reduce(_ || _)
             && !l.body.contains({ case FunCall(uf: UserFun, _) if uf.name.startsWith("id") => })
         =>
-          (call::pair._1, false)
+          (call :: pair._1, false)
         case _ =>
           pair
       }
@@ -142,7 +165,7 @@ object MemoryMappingRewrite {
 
     val idsAdded = Rewrite.applyRulesUntilCannot(idsAddedToMapSeq, Seq(Rules.addIdForCurrentValueInReduce))
 
-    val toAddressAdded = addToAddressSpace(idsAdded, Rules.privateMemoryId, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, Rules.privateMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = true, doVectorisation = false))
 
@@ -172,7 +195,7 @@ object MemoryMappingRewrite {
    * @param lambda Lambda where to apply the transformation
    * @return
    */
-  private def lowerMapInIds(lambda:Lambda): Lambda = {
+  private def lowerMapInIds(lambda: Lambda): Lambda = {
 
     val depthMap = NumberExpression.byDepth(lambda).filterKeys({
       case FunCall(map: ir.ast.AbstractMap, _) if map.f.body.isConcrete => true
@@ -184,7 +207,7 @@ object MemoryMappingRewrite {
       case _ => false
     }))
 
-    val depth = byDepth.map(pair =>{
+    val depth = byDepth.map(pair => {
       val level = pair._1
       val expressions = pair._2
 
@@ -264,8 +287,8 @@ object MemoryMappingRewrite {
             .flatMap(turnIdsIntoCopies(_, doTupleCombinations, doVectorisation))
         case _ =>
           turnIdsIntoCopies(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1),
-                            doTupleCombinations,
-                            doVectorisation)
+            doTupleCombinations,
+            doVectorisation)
       }
 
     } else {
@@ -280,7 +303,7 @@ object MemoryMappingRewrite {
           }
         })
 
-        val vectorised = tryToVectorize.foldLeft(tuple)( (currentLambda, a) => {
+        val vectorised = tryToVectorize.foldLeft(tuple)((currentLambda, a) => {
           val vectorised = Rewrite.applyRulesUntilCannot(a, Seq(Rules.vectorize(4)))
           FunDecl.replace(currentLambda, a, vectorised)
         })
@@ -296,8 +319,17 @@ object MemoryMappingRewrite {
   private def applyLoopFusionToTuple(lambda: Lambda): Lambda =
     Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.tupleMap))
 
-  private def addIds(lambda: Lambda): Lambda =
-    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
+  private def addIdsForLocal(lambda: Lambda): Lambda = {
+    val temp = Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
+
+    val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(lambda.body, (e, s) =>
+      e match {
+        case call@FunCall(_: ReduceSeq, _*) => call :: s
+        case _ => s
+      }).filterNot(e => lambda.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _) if c eq e => }))
+
+    reduceSeqs.foldLeft(temp)((l, e) => Rewrite.applyRuleAt(l, e, Rules.addId))
+  }
 
   private def getCombinations(localIdList: List[Expr], max: Int): List[List[Expr]] =
     (0 to max).map(localIdList.combinations(_).toList).reduce(_ ++ _)

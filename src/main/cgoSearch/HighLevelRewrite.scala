@@ -112,6 +112,9 @@ object HighLevelRewrite {
       }
     })
 
+    if (userFunCalls.length == 1)
+      return true
+
     val cutoff = distanceFilter.value.getOrElse(5)
 
     val ids = userFunCalls.map(numberMap(_))
@@ -206,7 +209,8 @@ class HighLevelRewrite {
       MacroRules.apply2DRegisterBlocking,
       MacroRules.apply1DRegisterBlocking,
       MacroRules.tileMapMap,
-      MacroRules.finishTiling
+      MacroRules.finishTiling,
+      MacroRules.partialReduceWithReorder
     )
 
   private var failures = 0

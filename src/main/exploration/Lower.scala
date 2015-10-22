@@ -13,7 +13,7 @@ object Lower {
 
     val reducesLowered = lowerReduces(simplified)
 
-    val allocatedToGlobal = reduceToGlobal(reducesLowered)
+    val allocatedToGlobal = lastWriteToGlobal(reducesLowered)
 
     val removeOtherIds = dropIds(allocatedToGlobal)
 
@@ -168,58 +168,6 @@ object Lower {
       lambdas = lambdaN :: lambdas
     }
 
-//    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
-//      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
-//      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
-//      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(1))
-//
-//      var lambdaN = lambda3
-//
-//      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-//        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-//
-//      lambdas = lambdaN :: lambdas
-//    }
-//
-//    if(maxDepth > 2 && oneMapOnLevelTwo) {
-//      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
-//      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
-//      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(0))
-//
-//      var lambdaN = lambda3
-//
-//      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-//        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-//
-//      lambdas = lambdaN :: lambdas
-//    }
-//
-//    if(maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
-//      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
-//      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(1))
-//      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
-//
-//      var lambdaN = lambda3
-//
-//      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-//        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-//
-//      lambdas = lambdaN :: lambdas
-//    }
-//
-//    if(maxDepth > 2 && oneMapOnLevelTwo) {
-//      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
-//      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(1))
-//      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
-//
-//      var lambdaN = lambda3
-//
-//      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-//        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-//
-//      lambdas = lambdaN :: lambdas
-//    }
-
     def addWrgLocalMapping(first: Int, second: Int): Unit = {
       if (maxDepth > 3 && oneMapOnLevelTwo) {
         val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(first))
@@ -321,32 +269,43 @@ object Lower {
     })
   }
 
-  def reduceToGlobal(lambda: Lambda): Lambda = {
-    if (isTheLastWriteNestedInReduce(lambda)) {
-      val pattern1: PartialFunction[Expr, Unit] = { case FunCall(Id(), _) => }
+  def lastWriteToGlobal(lambda: Lambda): Lambda =
+    if (isTheLastWriteNestedInReduce(lambda))
+      lastReduceToGlobal(lambda)
+    else
+      lastMapToGlobal(lambda)
 
-      Context.updateContext(lambda.body)
+  private def lastMapToGlobal(lambda: Lambda): Lambda = {
+    val lastWrite = getLastWrite(lambda).get
+    val lastMap = findExpressionForPattern(lambda,
+      { case FunCall(Map(Lambda(_, body)), _) if body eq lastWrite => }: PartialFunction[Expr, Unit] ).get
 
-      val ids = findAllDepthFirst(lambda, pattern1.isDefinedAt)
-      val pattern2 : PartialFunction[Expr, Unit] =
-      { case FunCall(MapSeq(f), _) if ids.contains(f.body) => }
-      val mapSeqs = findAllDepthFirst(lambda, pattern2.isDefinedAt)
-
-      // both if map depths not same and reduces not nested in each other?
-
-      if(mapSeqs.map(_.context.mapDepth).distinct.length == 1
-        || isNestedInReduce(mapSeqs.head, lambda.body)){
-        implementIdInMapSeq(lambda, ids.last, mapSeqs.last)
-      } else {
-        (ids, mapSeqs).zipped.foldRight(lambda)((pair, currentLambda) =>
-          implementIdInMapSeq(currentLambda, pair._1, pair._2))
-      }
-    } else {
-      lambda
-    }
+    Rewrite.applyRuleAt(lambda, lastMap, Rules.globalMemory)
   }
 
+  private def lastReduceToGlobal(lambda: Lambda): Lambda = {
+    val pattern1: PartialFunction[Expr, Unit] = {
+      case FunCall(Id(), _) =>
+    }
 
+    Context.updateContext(lambda.body)
+
+    val ids = findAllDepthFirst(lambda, pattern1.isDefinedAt)
+    val pattern2: PartialFunction[Expr, Unit] = {
+      case FunCall(MapSeq(f), _) if ids.contains(f.body) =>
+    }
+    val mapSeqs = findAllDepthFirst(lambda, pattern2.isDefinedAt)
+
+    // both if map depths not same and reduces not nested in each other?
+
+    if (mapSeqs.map(_.context.mapDepth).distinct.length == 1
+      || isNestedInReduce(mapSeqs.head, lambda.body)) {
+      implementIdInMapSeq(lambda, ids.last, mapSeqs.last)
+    } else {
+      (ids, mapSeqs).zipped.foldRight(lambda)((pair, currentLambda) =>
+        implementIdInMapSeq(currentLambda, pair._1, pair._2))
+    }
+  }
 
   def implementIdInMapSeq(lambda: Lambda, idToImplement: Expr, mapSeqForId: Expr): Lambda = {
     TypeChecker.check(lambda.body)
