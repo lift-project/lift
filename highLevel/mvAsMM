@@ -1,0 +1,13 @@
+val N = Var("N")
+val K = Var("K")
+
+fun(
+  ArrayType(ArrayType(Float, K), N),
+  ArrayType(ArrayType(Float, 1), K), // Column vector
+  (matrix, vector) =>
+    Map(fun(row =>
+      Map( fun( col =>
+        Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(row, col)
+      )) o Transpose() $ vector
+    )) $ matrix
+)

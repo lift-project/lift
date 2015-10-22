@@ -38,7 +38,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val lambda = pair._1
     val substitutionMap = pair._2
 
-    InferNDRange(lambda) match { case (l, g) => local = l; global = g}
+    InferNDRange(lambda) match { case (l, g) => local = l; global = g }
     val valueMap = GenerateOpenCL.createValueMap(lambda)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
@@ -51,7 +51,6 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
          |// Global sizes: ${global.mkString(", ")}
          |// High-level hash: $highLevelHash
          |// Low-level hash: $lowLevelHash
-         |// Input size: ${SearchParameters.matrix_size}
          |
          |$code
          |""".stripMargin
