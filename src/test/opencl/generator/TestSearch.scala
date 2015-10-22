@@ -103,7 +103,7 @@ class TestSearch {
      assert(output(0) == gold)
   }
 
-  @Test def SPLIT_SEARCH() : Unit = {
+  @Ignore @Test def SPLIT_SEARCH() : Unit = {
     // test of splitting an array, mapping a search over each element, then searching the results
     val inputSize = Math.pow(2, 12).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => i)
