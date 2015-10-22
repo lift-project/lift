@@ -120,7 +120,7 @@ object MemoryMappingRewrite {
     implementIds(copiesAdded)
   }
 
-  // Try adding toLocal to userfunctions that are arguments to other userfuncitons
+  // Try adding toLocal to user functions that are arguments to other user functions
   // and that would otherwise be forced to global
   private def addToAddressSpaceToUserFun(copiesAdded: List[Lambda]): List[Lambda] = {
     copiesAdded.map(f => {
@@ -296,6 +296,8 @@ object MemoryMappingRewrite {
 
       if (doVectorisation) {
 
+        try {
+
         val tryToVectorize = Expr.visitLeftToRight(List[Expr]())(tuple.body, (expr, list) => {
           expr match {
             case FunCall(toLocal(Lambda(_, body)), _) => expr :: list
@@ -310,7 +312,10 @@ object MemoryMappingRewrite {
 
         if (!(vectorised eq tuple))
           return Seq(vectorised, tuple)
+      } catch {
+        case _: Throwable =>
       }
+    }
 
       Seq(tuple)
     }
@@ -328,7 +333,7 @@ object MemoryMappingRewrite {
         case _ => s
       }).filterNot(e => lambda.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _) if c eq e => }))
 
-    reduceSeqs.foldLeft(temp)((l, e) => Rewrite.applyRuleAt(l, e, Rules.addId))
+    reduceSeqs.foldLeft(temp)((l, e) => Rewrite.applyRuleAt(l, e, Rules.addIdAfter))
   }
 
   private def getCombinations(localIdList: List[Expr], max: Int): List[List[Expr]] =

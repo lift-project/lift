@@ -761,6 +761,11 @@ object Rules {
       f o Id() $ arg
   })
 
+  val addIdAfter = Rule("f => Id() o f", {
+    case call: FunCall =>
+      FunCall(Id(), call)
+  })
+
   def isId(expr: Expr): Boolean =
     expr match {
       case FunCall(Id(), _) => true
