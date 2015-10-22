@@ -279,6 +279,7 @@ object Utils {
     val userFuns = Expr.visitWithState(Set[UserFun]())(lambda.body, (expr, state) => {
       expr match {
         case FunCall(uf: UserFun, _*) => state + uf
+        case FunCall(VectorizeUserFun(_, uf:UserFun), _*) => state + uf
         case _ => state
       }
     })
