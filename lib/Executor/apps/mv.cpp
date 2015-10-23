@@ -206,7 +206,7 @@ void run_harness(
       while (!done) {
         {
           std::unique_lock<std::mutex> locker(m);
-          while (!ready) cv.wait(locker);
+          while (!ready && !done) cv.wait(locker);
         }
 
         while (!ready_queue.empty()) {
