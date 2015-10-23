@@ -7,7 +7,6 @@ import apart.arithmetic._
 import ir.ast._
 import ir.{ArrayType, Type, TypeException}
 
-import scala.io.Source
 import scala.sys.process._
 
 object Utils {
@@ -320,7 +319,7 @@ object Utils {
     if (Files.exists(Paths.get(path + "/" + uniqueFilename))) {
       val warningString = "Warning! Clash at " + uniqueFilename + ".\n"
 
-      val clashingContent = Source.fromFile(path + "/" + uniqueFilename).getLines().mkString("\n")
+      val clashingContent = new String(Files.readAllBytes(Paths.get(path + "/" + uniqueFilename)))
 
       if (clashingContent != content) {
         println(warningString + "Content is different, adding System.currentTimeMillis().")
