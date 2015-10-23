@@ -102,10 +102,13 @@ object OpenCLGenerator extends Generator {
       memories(memories.length-1) = temp
     }
 
+    val (locals, globals) = memories.partition(_.mem.addressSpace == LocalMemory)
+    val globalsFirst = globals ++ locals
+
     if (AllocateLocalMemoryStatically())
-      memories.partition(isFixedSizeLocalMemory)
+      globalsFirst.partition(isFixedSizeLocalMemory)
     else
-      (Array.empty[TypedOpenCLMemory], memories)
+      (Array.empty[TypedOpenCLMemory], globalsFirst)
   }
 
 

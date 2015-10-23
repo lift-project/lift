@@ -66,7 +66,6 @@ struct MMRun: public Run {
 
   void setup(cl::Context context) override {
     // Allocate extra buffers
-    std::vector<cl::Buffer> extra_args;
     for(auto &size: extra_buffer_size)
       extra_args.push_back({context, CL_MEM_READ_WRITE, size*sizeof(T)});
 

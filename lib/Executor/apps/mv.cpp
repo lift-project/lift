@@ -25,19 +25,22 @@ template<typename T>
 using Matrix = std::vector<T>;
 
 template<typename T>
-struct MMRun: public Run {
+struct MVRun : public Run {
   // input matrix size
   std::size_t size;
 
   // list of additional buffers to allocate
   std::vector<int> extra_buffer_size;
-
   std::vector<cl::Buffer> extra_args;
+
+  // list of additional local buffers to allocate
+  std::vector<int> extra_local_buffer_size;
+  std::vector<cl::LocalSpaceArg> extra_local_args;
 
   /**
    * Deserialize a line from the CSV
    */
-  MMRun(const std::vector<std::string>& values) {
+  MVRun(const std::vector<std::string>& values) {
     assert(values.size() > 8 && "Bad CSV format");
 
     // input size
@@ -62,20 +65,31 @@ struct MMRun: public Run {
     for(unsigned i = 9+3; i < 9+3 + num_buf; ++i) {
       extra_buffer_size.push_back((int)Csv::readInt(values[i]));
     }
+
+    // number of local buffers to allocate and their sizes
+    auto num_local = Csv::readInt(values[12+num_buf]);
+    for (unsigned i = 13 + (unsigned) num_buf; i < 13 + num_buf + num_local; ++i) {
+      extra_local_buffer_size.push_back((int)Csv::readInt(values[i]));
+    }
   }
 
   void setup(cl::Context context) override {
     // Allocate extra buffers
-    std::vector<cl::Buffer> extra_args;
     for(auto &size: extra_buffer_size)
-      extra_args.push_back({context, CL_MEM_READ_WRITE, size*sizeof(T)});
+      extra_args.push_back({context, CL_MEM_READ_WRITE, (size_t) size});
+
+    for (auto &size: extra_local_buffer_size)
+      extra_local_args.push_back({(size_t) size});
 
     // Skip the first 3 to compensate for the csv (forgot a drop(3) in scala)
-    for(unsigned i = 3; i < extra_args.size(); ++i) {
-      kernel.setArg(3+i,extra_args[i]);
-    }
-    kernel.setArg((unsigned)extra_args.size()+3, (int)size);
-    kernel.setArg((unsigned)extra_args.size()+4, (int)size);
+    for(unsigned i = 0; i < extra_args.size(); ++i)
+      kernel.setArg(3+i, extra_args[i]);
+
+    for (unsigned i = 0; i < extra_local_args.size(); ++i)
+      kernel.setArg((unsigned) extra_args.size() + 3 + i, extra_local_args[i]);
+
+    kernel.setArg((unsigned)extra_local_args.size()+(unsigned)extra_args.size()+3, (int)size);
+    kernel.setArg((unsigned)extra_local_args.size()+(unsigned)extra_args.size()+4, (int)size);
   }
 
   void cleanup() override {
@@ -150,8 +164,8 @@ void run_harness(
       auto x = gold[i];
       auto y = output[i];
 
-      if(abs(x - y) > 0.0001f * max(abs(x), abs(y))) {
-        cout << "at " << i<< ": " << x << "=/=" << y <<std::endl;
+      if(abs(x - y) > 0.001f * max(abs(x), abs(y))) {
+        cout << "at " << i << ": " << x << "=/=" << y <<std::endl;
         return false;
       }
     }
@@ -266,8 +280,8 @@ int main(int argc, char *argv[]) {
   auto all_run = Csv::init(
       [&](const std::vector<std::string>& values) -> std::shared_ptr<Run> {
         return (opt_double->get() ?
-               std::shared_ptr<Run>(new MMRun<double>(values)) :
-               std::shared_ptr<Run>(new MMRun<float>(values)));
+               std::shared_ptr<Run>(new MVRun<double>(values)) :
+               std::shared_ptr<Run>(new MVRun<float>(values)));
       });
   if (all_run.size() == 0) return 0;
 

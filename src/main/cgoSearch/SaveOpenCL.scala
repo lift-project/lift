@@ -8,7 +8,7 @@ import exploration.utils.Utils
 import ir.ast.Lambda
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator.{IllegalKernel, OpenCLGenerator}
-import opencl.ir.TypedOpenCLMemory
+import opencl.ir.{LocalMemory, TypedOpenCLMemory}
 
 object SaveOpenCL {
   def apply(topFolder: String, lowLevelHash: String, highLevelHash: String,
@@ -66,23 +66,27 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val path = s"${topFolder}Cl/$lowLevelHash"
 
     // FIXME(tlutz): some buffer sizes overflow
-    val (_,globalBuffers) = OpenCLGenerator.getMemories(lambda)
+    val (_, buffers) = OpenCLGenerator.getMemories(lambda)
+    val (localBuffers, globalBuffers) = buffers.partition(_.mem.addressSpace == LocalMemory)
 
     // Dump only the code if the minimal amount of temporary global arrays doesn't overflow
     val min_map = getBufferSizes(1024, globalBuffers)
 
     if (!min_map.forall(_ > 0))
-      throw new IllegalKernel("Buffer size overflow")
+    throw new IllegalKernel("Buffer size overflow")
 
     Utils.dumpToFile(kernel, filename, path)
-    createCsv(hash, path, globalBuffers)
+    createCsv(hash, path, globalBuffers, localBuffers)
   }
 
-  private def createCsv(hash: String, path: String, globalBuffers: Array[TypedOpenCLMemory]): Unit = {
+  private def createCsv(hash: String, path: String,
+                        globalBuffers: Array[TypedOpenCLMemory],
+                        localBuffers: Array[TypedOpenCLMemory]): Unit = {
     Seq(1024, 2048, 4096, 8192, 16384).foreach(i => {
 
       // Add to the CSV if there are no overflow
       val cur_temp_alloc = getBufferSizes(i, globalBuffers)
+      val localTempAlloc = getBufferSizes(i, localBuffers)
 
       if (cur_temp_alloc.forall(_ > 0)) {
         val fw = new FileWriter(s"$path/exec_$i.csv", true)
@@ -90,7 +94,11 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
           global.map(substituteInputSizes(i, _)).mkString(",") + "," +
           local.map(substituteInputSizes(i, _)).mkString(",") +
           s",$hash," + (globalBuffers.length - 3) + "," +
-          cur_temp_alloc.mkString(",") + "\n")
+          cur_temp_alloc.mkString(",") +
+          (if (cur_temp_alloc.length == 3) "" else ",") +
+          localTempAlloc.length +
+          (if (localTempAlloc.length == 0) "" else ",") +
+          localTempAlloc.mkString(",")+ "\n")
         fw.close()
       }
     })
