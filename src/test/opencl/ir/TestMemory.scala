@@ -3,12 +3,9 @@ package opencl.ir
 import apart.arithmetic.Var
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
-import opencl.executor.Compile
-import opencl.ir.ast._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import opencl.ir.pattern._
 
 class TestMemory {
 
@@ -28,7 +25,8 @@ class TestMemory {
         )) $ Zip(A, B)
     )
 
-    Compile(f)
+    TypeChecker(f)
+    OpenCLMemoryAllocator(f)
 
     assertEquals(classOf[OpenCLMemoryCollection], f.body.mem.getClass)
     val subMemories = f.body.mem.asInstanceOf[OpenCLMemoryCollection].subMemories
@@ -55,7 +53,8 @@ class TestMemory {
         ))) $ Zip(A, B)
     )
 
-    Compile(f)
+    TypeChecker(f)
+    OpenCLMemoryAllocator(f)
 
     assertEquals(classOf[OpenCLMemoryCollection], f.body.mem.getClass)
     val subMemories = f.body.mem.asInstanceOf[OpenCLMemoryCollection].subMemories
@@ -82,7 +81,8 @@ class TestMemory {
         ))) $ Zip(A, B)
     )
 
-    Compile(f)
+    TypeChecker(f)
+    OpenCLMemoryAllocator(f)
 
     assertEquals(classOf[OpenCLMemoryCollection], f.body.mem.getClass)
     val subMemories = f.body.mem.asInstanceOf[OpenCLMemoryCollection].subMemories
