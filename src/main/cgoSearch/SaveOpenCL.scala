@@ -76,26 +76,27 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     throw new IllegalKernel("Buffer size overflow")
 
     Utils.dumpToFile(kernel, filename, path)
-    createCsv(hash, path, globalBuffers, localBuffers)
+    createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
   }
 
-  private def createCsv(hash: String, path: String,
+  private def createCsv(hash: String, path: String, numParams: Int,
                         globalBuffers: Array[TypedOpenCLMemory],
                         localBuffers: Array[TypedOpenCLMemory]): Unit = {
     Seq(1024, 2048, 4096, 8192, 16384).foreach(i => {
 
       // Add to the CSV if there are no overflow
-      val cur_temp_alloc = getBufferSizes(i, globalBuffers)
+      val allBufferSizes = getBufferSizes(i, globalBuffers)
+      val globalTempAlloc = allBufferSizes.drop(numParams + 1)
       val localTempAlloc = getBufferSizes(i, localBuffers)
 
-      if (cur_temp_alloc.forall(_ > 0)) {
+      if (allBufferSizes.forall(_ > 0)) {
         val fw = new FileWriter(s"$path/exec_$i.csv", true)
         fw.write(i + "," +
           global.map(substituteInputSizes(i, _)).mkString(",") + "," +
           local.map(substituteInputSizes(i, _)).mkString(",") +
-          s",$hash," + (globalBuffers.length - 3) + "," +
-          cur_temp_alloc.mkString(",") +
-          (if (cur_temp_alloc.length == 3) "" else ",") +
+          s",$hash," + globalTempAlloc.length + "," +
+          globalTempAlloc.mkString(",") +
+          (if (globalTempAlloc.length == 0) "" else ",") +
           localTempAlloc.length +
           (if (localTempAlloc.length == 0) "" else ",") +
           localTempAlloc.mkString(",")+ "\n")
