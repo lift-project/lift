@@ -37,6 +37,7 @@ object ScalaPrinter {
       case opencl.ir.Float => "Float"
       case opencl.ir.Int => "Int"
       case opencl.ir.Double => "Double"
+      case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, $len)"
       case ArrayType(elemT, len) => s"ArrayType(${apply(elemT)}, $len)"
     }
   }
