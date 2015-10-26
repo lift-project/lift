@@ -204,6 +204,7 @@ object MemoryMappingRewrite {
 
     val byDepth = depthMap.groupBy(_._2).mapValues(_.keys.toList).filter(pair => pair._2.exists({
       case FunCall(Map(_), _) => true
+      case FunCall(r: ReduceSeq, _*) => true
       case _ => false
     }))
 
@@ -213,10 +214,11 @@ object MemoryMappingRewrite {
 
       val (nonLowered, lowered) = expressions.partition({
         case FunCall(map: Map, _) => true
+        case FunCall(r: ReduceSeq, _*) => true
         case _ => false
       })
 
-      (level, lowered.head, nonLowered)
+      (level, lowered, nonLowered)
     })
 
     val idMap = NumberExpression.breadthFirst(lambda)
@@ -228,8 +230,9 @@ object MemoryMappingRewrite {
       val lowerToType = tuple._2
 
       val rule = lowerToType match {
-        case FunCall(_: MapSeq, _) => Rules.mapSeq
-        case FunCall(MapLcl(dim, _), _) => Rules.mapLcl(dim)
+        case FunCall(_: MapSeq, _) :: _ => Rules.mapSeq
+        case FunCall(MapLcl(dim, _), _) :: _ => Rules.mapLcl(dim)
+        case FunCall(r: ReduceSeq, _*) :: _ => Rules.mapSeq // Assume just reduces at the level
       }
 
       toLower.foreach(expr => {
