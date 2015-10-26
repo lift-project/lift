@@ -855,8 +855,8 @@ object Rules {
   })
 
   val removeEmptyMap = Rule("Map(fun(x => x)) $ a => a", {
-    case FunCall(Map(Lambda(params, body)), arg)
-      if params.head eq body
+    case FunCall(map: AbstractMap, arg)
+      if map.f.params.head eq map.f.body
     =>
       arg
   })
