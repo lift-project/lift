@@ -27,7 +27,7 @@ Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. T
 
 ### Documentation ###
 
-[ScalaDoc](http://pamina:8080/job/apart-amd/branch/master/javadoc/#package)
+[ScalaDoc](http://skelter:8080/job/apart-amd/branch/master/javadoc/#package)
 
 ### Build Status ###
 
