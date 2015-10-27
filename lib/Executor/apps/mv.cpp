@@ -62,13 +62,13 @@ struct MVRun : public Run {
 
     // number of temporary buffers to allocate and their sizes
     auto num_buf = Csv::readInt(values[8]);
-    for(unsigned i = 9+3; i < 9+3 + num_buf; ++i) {
+    for(unsigned i = 9; i < 9 + num_buf; ++i) {
       extra_buffer_size.push_back((int)Csv::readInt(values[i]));
     }
 
     // number of local buffers to allocate and their sizes
-    auto num_local = Csv::readInt(values[12+num_buf]);
-    for (unsigned i = 13 + (unsigned) num_buf; i < 13 + num_buf + num_local; ++i) {
+    auto num_local = Csv::readInt(values[9+num_buf]);
+    for (unsigned i = 10 + (unsigned) num_buf; i < 10 + num_buf + num_local; ++i) {
       extra_local_buffer_size.push_back((int)Csv::readInt(values[i]));
     }
   }
