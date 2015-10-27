@@ -1,11 +1,11 @@
 package exploration
 
-import apart.arithmetic.{Var, Cst, ArithExpr}
+import apart.arithmetic.{ArithExpr, Cst}
 import ir._
-import ir.ast.{Lambda, Expr, FunCall}
+import ir.ast.{Expr, FunCall, Lambda}
 import opencl.executor.Execute
-import opencl.ir.pattern.{MapWrg, MapLcl, MapGlb}
 import opencl.generator.OpenCLGenerator.NDRange
+import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg}
 
 
 object InferNDRange {
