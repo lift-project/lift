@@ -31,8 +31,8 @@ Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. T
 
 ### Build Status ###
 
-Intel ![](http://pamina:8080/job/apart-intel/branch/master/badge/icon)
+Intel ![](http://skelter:8080/job/apart-intel/branch/master/badge/icon)
 
-AMD ![](http://pamina:8080/job/apart-amd/branch/master/badge/icon)
+AMD ![](http://skelter:8080/job/apart-amd/branch/master/badge/icon)
 
-NVIDIA ![](http://pamina:8080/job/apart-nvidia/branch/master/badge/icon)
+NVIDIA ![](http://skelter:8080/job/apart-nvidia/branch/master/badge/icon)
