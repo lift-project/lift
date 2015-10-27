@@ -61,6 +61,39 @@ object MatrixVector {
       ) $ Zip(matrix, vectorY)
     })
 
+  val fullMatrixVectorFusedOpenCL_ =
+    fun(ArrayType(ArrayType(Float, N), M),
+        ArrayType(Float, N),
+        ArrayType(ArrayType(Float, 1), M),
+        Float,
+        Float,
+        (matrix, vectorX, vectorY, alpha, beta) => {
+    Zip(matrix, vectorY) :>>
+    MapWrg(
+      fun(t =>
+        Zip(
+          Zip(vectorX, Get(t, 0)) :>>
+          Split(N) :>>
+          toLocal(MapLcl(
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) >>>
+            toLocal(MapSeq(id))
+          )) :>>
+          Join() :>>
+          Split(1) :>>
+          MapLcl(
+            MapSeq(fun(x => mult(alpha, x)))
+          ) :>>
+          Join()
+          ,
+          Get(t, 1)
+        )
+      ) >>>
+      Split(1) >>>
+      toGlobal(MapLcl(MapSeq(fun(x => multAndSumUp(Get(x, 0), Get(x, 1), beta))))) >>>
+      Join()
+    )
+  })
+
   val fullMatrixVectorFusedOpenCLAMD = fun(
     ArrayType(ArrayType(Float, N), M),
     ArrayType(Float, N),
@@ -76,6 +109,44 @@ object MatrixVector {
               Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(N/^128) o ReorderStride(128) $ Zip(vectorX, Get(t, 0)),
             Get(t, 1)) )
       ) $ Zip(matrix, vectorY)
+    })
+
+  val fullMatrixVectorFusedOpenCLAMD_ = fun(
+    ArrayType(ArrayType(Float, N), M),
+    ArrayType(Float, N),
+    ArrayType(ArrayType(Float, 1), M),
+    Float,
+    Float,
+    (matrix, vectorX, vectorY, alpha, beta) => {
+      Zip(matrix, vectorY) :>>
+      MapWrg(
+        \(t =>
+          Zip(
+            Zip(vectorX, Get(t, 0)) :>>
+            ReorderStride(128) :>>
+            Split(N/^128) :>>
+            toLocal(MapLcl(
+              ReduceSeq(\((acc, y) => multAndSumUp(acc, y._0, y._1)), 0.0f)) >>>
+              toLocal(MapSeq(id))
+            ) :>>
+            Join() :>>
+            Split(1) :>>
+            MapLcl(MapSeq(\(x => mult(alpha, x) ))) :>>
+            Join() :>>
+            Split(128) :>>
+            MapLcl(
+              ReduceSeq(add, 0.0f) >>>
+              toLocal(MapSeq(id))
+            ) :>>
+            Join()
+            ,
+            Get(t, 1)
+          )
+        ) >>>
+        Split(1) >>>
+        toGlobal(MapLcl(MapSeq(fun( x => multAndSumUp(x._0, x._1, beta))))) >>>
+        Join()
+      )
     })
 
   def apply() = new MatrixVector(Seq(
