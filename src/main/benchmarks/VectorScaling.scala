@@ -35,12 +35,38 @@ object VectorScaling {
     ) o Split(1024) $ input
   )
 
+  val vectorScal_ = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+    input :>>
+    Split(1024) :>>
+    MapWrg(
+      Split(4) >>>
+      MapLcl(
+        MapSeq(fun( x => mult(alpha, x) ))
+      ) >>>
+      Join()
+    ) :>>
+    Join()
+  )
+
   val scalAMD = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
       Join() o  MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
       )) o Split(1)
     ) o Split(128) $ input
+  )
+
+  val scalAMD_ = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+    input :>>
+    Split(128) :>>
+    MapWrg(
+      Split(1) >>>
+      MapLcl(
+        MapSeq(fun(x => mult(alpha, x)))
+      ) >>>
+      Join()
+    ) :>>
+    Join()
   )
 
   val scalNVIDIA = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
@@ -51,12 +77,39 @@ object VectorScaling {
     ) o Split(2048) $ input
   )
 
+  val scalNVIDIA_ = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+    input :>>
+    Split(2048) :>>
+    MapWrg(
+      Split(1) >>>
+      MapLcl(
+        MapSeq(fun(x => mult(alpha, x)))
+      ) >>>
+      Join()
+    ) :>>
+    Join()
+  )
+
   val scalINTEL = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
     Join() o MapWrg(
       Join() o  MapLcl(MapSeq(
         fun( x => mult.vectorize(4).apply(alpha.vectorize(4), x) )
       )) o Split(128) o asVector(4)
     ) o Split(4*128*128) $ input
+  )
+
+  val scalINTEL_ = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+    input :>>
+    Split(4*128*128) :>>
+    MapWrg(
+      asVector(4) >>>
+      Split(128) >>>
+      MapLcl(
+        MapSeq( fun(x => mult.vectorize(4).apply(alpha.vectorize(4), x)) )
+      ) >>>
+      Join()
+    ) :>>
+    Join()
   )
 
   def apply() = new VectorScaling("Vector Scaling",

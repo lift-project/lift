@@ -1,0 +1,23 @@
+val distance = UserFun("distance", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
+val minimum = UserFun("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
+val getSecond = UserFun("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
+
+val N = Var("N")
+val K = Var("K")
+
+fun(
+  ArrayType(Float, N),
+  ArrayType(Float, N),
+  ArrayType(Float, K),
+  ArrayType(Float, K),
+  ArrayType(Int, K),
+  (x, y, a, b, i) => {
+    Map(fun(xy => {
+      Map(getSecond) o
+        Reduce(minimum, (scala.Float.MaxValue, -1)) o
+        Map(fun(ab => {
+          distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2))
+        })) $ Zip(a, b, i)
+    })) $ Zip(x, y)
+  }
+)

@@ -186,6 +186,12 @@ class OpenCLGenerator extends Generator {
     BarrierElimination(f)
     CheckBarriersAndLoops(f)
 
+    f.body.mem match {
+      case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
+        throw new IllegalKernel("Final result must be stored in global memory")
+      case _ =>
+    }
+
     if (Verbose()) {
       println("Memory:")
       printMemories(f.body)

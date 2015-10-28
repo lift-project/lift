@@ -1,11 +1,11 @@
 package exploration
 
-import apart.arithmetic.{Var, Cst, ArithExpr}
+import apart.arithmetic.{ArithExpr, Cst}
 import ir._
-import ir.ast.{Lambda, Expr, FunCall}
+import ir.ast.{Expr, FunCall, Lambda}
 import opencl.executor.Execute
-import opencl.ir.pattern.{MapWrg, MapLcl, MapGlb}
 import opencl.generator.OpenCLGenerator.NDRange
+import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg}
 
 
 object InferNDRange {
@@ -63,8 +63,7 @@ class InferNDRange {
     if (mapGlb.isDefinedAt(dim)) {
       (Cst(32), mapGlb(dim))
     } else if (mapLcl.isDefinedAt(dim)) {
-      val wrg = if (mapWrg(dim).isInstanceOf[Var]) mapWrg(dim) else mapWrg(dim) * mapLcl(dim)
-      (mapLcl(dim), wrg)
+      (mapLcl(dim), mapWrg(dim) * mapLcl(dim))
     } else {
       (Cst(1), Cst(1))
     }

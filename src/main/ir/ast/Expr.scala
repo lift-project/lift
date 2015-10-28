@@ -71,7 +71,7 @@ abstract class Expr {
       e match {
         case call: FunCall =>
           call.f match {
-            case _: UserFun => true
+            case _: UserFun | _: VectorizeUserFun => true
             case _ => b
           }
         case _ => b
