@@ -242,7 +242,7 @@ void run_harness(
 };
 
 int main(int argc, char *argv[]) {
-  OptParser op("Harness for simple matrix-matrix multiply.");
+  OptParser op("Harness for simple matrix-vector multiply.");
 
   auto opt_platform = op.addOption<unsigned>({'p', "platform", "OpenCL platform index (default 0).", 0});
   auto opt_device = op.addOption<unsigned>({'d', "device", "OpenCL device index (default 0).", 0});
