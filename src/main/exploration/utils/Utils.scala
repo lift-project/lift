@@ -275,7 +275,7 @@ object Utils {
   }
 
   private def getNewName(toReplace: (String, Int)): String = {
-    "v_" + getIdentifier(toReplace) + "_" + toReplace._2
+    "v_" + getIdentifier(toReplace) + toReplace._2 + "_" + toReplace._2
   }
 
   private def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {

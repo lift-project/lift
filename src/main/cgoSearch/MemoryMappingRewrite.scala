@@ -335,9 +335,9 @@ object MemoryMappingRewrite {
       e match {
         case call@FunCall(_: ReduceSeq, _*) => call :: s
         case _ => s
-      }).filterNot(e => temp.body.contains({ case FunCall(toGlobal(_), c) if c eq e => }))
+      }).filterNot(e => temp.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _*) if c eq e => }))
 
-    reduceSeqs.foldLeft(temp)((l, e) => Rewrite.applyRuleAt(l, e, Rules.addIdAfterReduce))
+    reduceSeqs.foldRight(temp)((e, l) => Rewrite.applyRuleAt(l, e, Rules.addIdAfterReduce))
   }
 
   private def getCombinations(localIdList: List[Expr], max: Int): List[List[Expr]] =
