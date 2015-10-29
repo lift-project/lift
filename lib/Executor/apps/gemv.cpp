@@ -83,13 +83,13 @@ struct GEMVRun : public Run {
 
     // Skip the first 3 to compensate for the csv (forgot a drop(3) in scala)
     for(unsigned i = 0; i < extra_args.size(); ++i)
-      kernel.setArg(3+i, extra_args[i]);
+      kernel.setArg(6+i, extra_args[i]);
 
     for (unsigned i = 0; i < extra_local_args.size(); ++i)
-      kernel.setArg((unsigned) extra_args.size() + 3 + i, extra_local_args[i]);
+      kernel.setArg((unsigned) extra_args.size() + 5 + i, extra_local_args[i]);
 
-    kernel.setArg((unsigned)extra_local_args.size()+(unsigned)extra_args.size()+3, (int)size);
-    kernel.setArg((unsigned)extra_local_args.size()+(unsigned)extra_args.size()+4, (int)size);
+    kernel.setArg((unsigned)extra_local_args.size()+(unsigned)extra_args.size()+6, (int)size);
+    kernel.setArg((unsigned)extra_local_args.size()+(unsigned)extra_args.size()+7, (int)size);
   }
 
   void cleanup() override {
