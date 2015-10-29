@@ -25,7 +25,7 @@ template<typename T>
 using Matrix = std::vector<T>;
 
 template<typename T>
-struct MVRun : public Run {
+struct GEMVRun : public Run {
   // input matrix size
   std::size_t size;
 
@@ -40,7 +40,7 @@ struct MVRun : public Run {
   /**
    * Deserialize a line from the CSV
    */
-  MVRun(const std::vector<std::string>& values) {
+  GEMVRun(const std::vector<std::string>& values) {
     assert(values.size() > 8 && "Bad CSV format");
 
     // input size
@@ -106,7 +106,8 @@ void run_harness(
     std::vector<std::shared_ptr<Run>>& all_run,
     const unsigned N,
     const std::string& mat_file,
-    const std::string& vec_file,
+    const std::string& vecX_file,
+    const std::string& vecY_file,
     const std::string& gold_file,
     const bool force,
     const bool transposeIn,
@@ -116,32 +117,39 @@ void run_harness(
 {
   using namespace std;
 
+  Float alpha = 1.5;
+  Float beta = 2.5;
+
   if(binary)
     std::cout << "Using precompiled binaries" << std::endl;
   // Compute input and output
   Matrix<Float> mat(N*N);
-  std::vector<Float> vec(N);
+  std::vector<Float> vecX(N);
+  std::vector<Float> vecY(N);
   std::vector<Float> gold(N);
 
-  if(File::is_file_exist(gold_file) && File::is_file_exist(mat_file) && File::is_file_exist(vec_file) && !force ) {
+  if(File::is_file_exist(gold_file) && File::is_file_exist(mat_file) &&
+      File::is_file_exist(vecX_file) && File::is_file_exist(vecY_file) && !force ) {
     File::load_input(gold, gold_file);
     File::load_input(mat, mat_file);
-    File::load_input(vec, vec_file);
+    File::load_input(vecX, vecX_file);
+    File::load_input(vecY, vecY_file);
   } else {
     for(unsigned y = 0; y < N; ++y) {
       for (unsigned x = 0; x < N; ++x) {
         mat[y * N + x] = (((y * 3 + x * 2) % 10) + 1) * 1.0f;
       }
-      vec[y] = (y%10)*0.5f;
+      vecX[y] = (y%10)*0.5f;
+      vecY[y] = (y%10)*1.5f;
     }
 
     // compute gold
     for (int i=0; i<N; i++) {
       Float Result=0.0;
       for (int j=0; j<N; j++)
-        Result+=mat[i*N+j]*vec[j];
+        Result+=mat[i*N+j]*vecX[j];
 
-      gold[i]=Result;
+      gold[i]=Result * alpha + vecY[i] * beta;
     }
 
     if (transposeIn) {
@@ -154,7 +162,8 @@ void run_harness(
 
     File::save_input(gold, gold_file);
     File::save_input(mat, mat_file);
-    File::save_input(vec, vec_file);
+    File::save_input(vecX, vecX_file);
+    File::save_input(vecY, vecY_file);
   }
 
   // validation function
@@ -176,8 +185,10 @@ void run_harness(
   const size_t buf_size = mat.size() * sizeof(Float);
   cl::Buffer mat_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                       buf_size, static_cast<void*>(mat.data()) );
-  cl::Buffer vec_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      N*sizeof(Float), static_cast<void*>(vec.data()) );
+  cl::Buffer vecX_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       N*sizeof(Float), static_cast<void*>(vecX.data()) );
+  cl::Buffer vecY_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       N*sizeof(Float), static_cast<void*>(vecY.data()) );
   cl::Buffer output_dev = OpenCL::alloc( CL_MEM_READ_WRITE, N*sizeof(Float) );
 
   // multi-threaded exec
@@ -216,8 +227,11 @@ void run_harness(
             ready_queue.pop();
           }
           r->getKernel().setArg(0, mat_dev);
-          r->getKernel().setArg(1, vec_dev);
-          r->getKernel().setArg(2, output_dev);
+          r->getKernel().setArg(1, vecX_dev);
+          r->getKernel().setArg(2, vecY_dev);
+          r->getKernel().setArg(3, alpha);
+          r->getKernel().setArg(4, beta);
+          r->getKernel().setArg(5, output_dev);
           OpenCL::executeRun<Float>(*r, output_dev, N, validate);
         }
       }
@@ -233,8 +247,11 @@ void run_harness(
     for (auto &r: all_run) {
       if (r->compile(binary)) {
         r->getKernel().setArg(0, mat_dev);
-        r->getKernel().setArg(1, vec_dev);
-        r->getKernel().setArg(2, output_dev);
+        r->getKernel().setArg(1, vecX_dev);
+        r->getKernel().setArg(2, vecY_dev);
+        r->getKernel().setArg(3, alpha);
+        r->getKernel().setArg(4, beta);
+        r->getKernel().setArg(5, output_dev);
         OpenCL::executeRun<Float>(*r, output_dev, N, validate);
       }
     }
@@ -242,7 +259,7 @@ void run_harness(
 };
 
 int main(int argc, char *argv[]) {
-  OptParser op("Harness for simple matrix-vector multiply.");
+  OptParser op("Harness for general matrix-vector multiply.");
 
   auto opt_platform = op.addOption<unsigned>({'p', "platform", "OpenCL platform index (default 0).", 0});
   auto opt_device = op.addOption<unsigned>({'d', "device", "OpenCL device index (default 0).", 0});
@@ -267,11 +284,12 @@ int main(int argc, char *argv[]) {
   // temporary files
   std::string gold_file = "/tmp/apart_mv_gold_" + std::to_string(N);
   std::string mat_file = "/tmp/apart_mv_mat_" + std::to_string(N);
-  std::string vec_file = "/tmp/apart_mv_vec_" + std::to_string(N);
+  std::string vecX_file = "/tmp/apart_mv_vecX_" + std::to_string(N);
+  std::string vecY_file = "/tmp/apart_mv_vecY_" + std::to_string(N);
 
   if(opt_clean->get()) {
     std::cout << "Cleaning..." << std::endl;
-    for(const auto& file: {gold_file, mat_file, vec_file})
+    for(const auto& file: {gold_file, mat_file, vecX_file, vecY_file})
       std::remove(file.data());
     return 0;
   }
@@ -280,8 +298,8 @@ int main(int argc, char *argv[]) {
   auto all_run = Csv::init(
       [&](const std::vector<std::string>& values) -> std::shared_ptr<Run> {
         return (opt_double->get() ?
-               std::shared_ptr<Run>(new MVRun<double>(values)) :
-               std::shared_ptr<Run>(new MVRun<float>(values)));
+               std::shared_ptr<Run>(new GEMVRun<double>(values)) :
+               std::shared_ptr<Run>(new GEMVRun<float>(values)));
       });
   if (all_run.size() == 0) return 0;
 
@@ -292,7 +310,7 @@ int main(int argc, char *argv[]) {
   if (opt_double->get())
     run_harness<double>(
         all_run, N,
-        mat_file, vec_file, gold_file,
+        mat_file, vecX_file, vecY_file, gold_file,
         opt_force->get(),
         opt_transpose->get(),
         opt_threaded->get(), opt_binary->get()
@@ -300,7 +318,7 @@ int main(int argc, char *argv[]) {
   else
     run_harness<float>(
         all_run, N,
-        mat_file, vec_file, gold_file,
+        mat_file, vecX_file, vecY_file, gold_file,
         opt_force->get(),
         opt_transpose->get(),
         opt_threaded->get(), opt_binary->get()
