@@ -69,6 +69,8 @@ object MemoryMappingRewrite {
 
         })
       } catch {
+        case t: scala.MatchError =>
+          t.printStackTrace()
         case t: Throwable =>
           println(s"Lowering $count failed with $t")
       }
@@ -115,9 +117,9 @@ object MemoryMappingRewrite {
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation = true))
 
-    addToAddressSpaceToUserFun(copiesAdded) ++ copiesAdded
+    val addedUserFun = addToAddressSpaceToUserFun(copiesAdded) ++ copiesAdded
 
-    implementIds(copiesAdded)
+    implementIds(addedUserFun)
   }
 
   // Try adding toLocal to user functions that are arguments to other user functions
@@ -333,9 +335,9 @@ object MemoryMappingRewrite {
       e match {
         case call@FunCall(_: ReduceSeq, _*) => call :: s
         case _ => s
-      }).filterNot(e => temp.body.contains({ case FunCall(toGlobal(_), c) if c eq e => }))
+      }).filterNot(e => temp.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _*) if c eq e => }))
 
-    reduceSeqs.foldLeft(temp)((l, e) => Rewrite.applyRuleAt(l, e, Rules.addIdAfter))
+    reduceSeqs.foldRight(temp)((e, l) => Rewrite.applyRuleAt(l, e, Rules.addIdAfterReduce))
   }
 
   private def getCombinations(localIdList: List[Expr], max: Int): List[List[Expr]] =

@@ -44,4 +44,12 @@ class TestUtils {
     val replaced = Utils.findAndReplaceVariableNames(testString)
     assertEquals(1, Utils.findVariables(replaced).length)
   }
+
+  @Test
+  def replaceOverlap(): Unit = {
+    val testString = "v__11, const global float* restrict v__615, const global float* restrict v__616, const global float*       restrict v__617, float v__618, float v__619, global float* v__644, global float* v__640, global float* v__642,       int v__10, int v__11){\n   15 #ifndef WORKGROUP_GUARD\n   16 #define WORKGROUP_GUARD\n   17 #endif\n   18 WORKGROUP_GUARD\n   19 {\n   20   /* Static local memory */\n   21   local float v__638[1];"
+
+    val replaced = Utils.findAndReplaceVariableNames(testString)
+    assertEquals(11, Utils.findVariables(replaced).length)
+  }
 }

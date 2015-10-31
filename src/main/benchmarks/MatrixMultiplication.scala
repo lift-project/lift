@@ -259,6 +259,78 @@ object MatrixMultiplication {
         )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
     })
 
+  def tiledAndBlockedBInnermost_(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
+                                workPerThreadN: ArithExpr, workPerThreadM: ArithExpr): Lambda =
+    \(ArrayType(ArrayType(Float, M), K), // Transposed
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        A :>> Tile(tileSizeK, tileSizeM) :>> Transpose() :>>
+        MapWrg(1)(\( aRows =>
+          B :>> Tile(tileSizeK, tileSizeN) :>> Transpose() :>>
+          MapWrg(0)(\( bCols =>
+            Zip(aRows, bCols) :>>
+            ReduceSeq(\( (acc, pairOfTiles) =>
+
+                Zip(pairOfTiles._0, pairOfTiles._1) :>>
+                // copy tiles to local memory
+                toLocal(MapLcl(1)(\(pair =>
+                  Zip(pair._0, pair._1) :>>
+                  MapLcl(0)(\(pair =>
+                    Tuple(pair._0 :>> id, pair._1 :>> id)
+                  )) :>>
+                  Unzip()
+                ))) :>>
+                Unzip() :>>
+                \(pairOfTiles =>
+                  Zip(pairOfTiles._0 :>> Transpose() :>> Split(workPerThreadN), acc) :>>
+                  MapLcl(1)(\(rowsA =>
+                    Zip(pairOfTiles._1 :>> Transpose() :>> ReorderStride(tileSizeM/workPerThreadM) :>> Split(workPerThreadM), rowsA._1) :>>
+                    MapLcl(0)(\( colsB =>
+                      Zip(rowsA._0 :>> Transpose(), colsB._0 :>> Transpose()) :>>
+                      ReduceSeq(
+                        \( (acc, rowElemPair) =>
+                          rowElemPair :>>
+                          \(rowElemPair =>
+                            Tuple(rowElemPair._0, rowElemPair._1 :>> toPrivate(MapSeq(id)))
+                          ) :>>
+                          \(rowElemPair =>
+                            Zip(
+                              rowElemPair._0 :>>
+                              Split(1) :>>
+                              toPrivate(MapSeq(
+                                toPrivate(MapSeq(id)) >>>
+                                MapSeq(\(aArray =>
+                                  rowElemPair._1 :>> MapSeq(fun(b => mult.apply(aArray, b)))
+                                ))
+                              )) :>>
+                              Join()
+                              ,
+                              acc
+                            )
+                          )
+                        )
+                        ,
+                        colsB._1
+                      ) :>>
+                      Join()
+                    ))
+                  ))
+                 )
+              )
+              ,
+              Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN)) :>>
+              MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))
+            ) :>>
+            Join() :>>
+            toGlobal(MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))) :>>
+            Map(Map(TransposeW() >>> Join() >>> TransposeW())) :>>
+            Join() :>>
+            Map(Scatter(reorderStride(tileSizeM/workPerThreadM)))
+          ))
+        )) :>> Untile()
+      }
+    )
+
   // Currently the best for AMD
   def vectorLoads(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                 workPerThreadN: ArithExpr, workPerThreadM: ArithExpr,
