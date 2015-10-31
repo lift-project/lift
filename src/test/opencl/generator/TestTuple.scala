@@ -23,6 +23,29 @@ object TestTuple {
 }
 
 class TestTuple {
+
+   @Test def  MAKE_TUPLE() {
+    val inputSize = 1024
+    val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inArrA.zip(inArrB).map{case (a,b) => Array(a, b)}.flatten
+
+    val N = Var("N")
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a,b) => {
+        toGlobal(MapGlb(idFF)) $ Zip(a, b)
+      }
+    )
+
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inArrA, inArrB)
+    
+    assertArrayEquals(gold, output, 0.0f)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+  
   @Test def VECTOR_NEG_PAIR() {
     val inputSize = 1024
     val inputArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
