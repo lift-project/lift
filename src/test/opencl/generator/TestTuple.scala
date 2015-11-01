@@ -28,14 +28,19 @@ class TestTuple {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val gold = inArrA.zip(inArrB).map{case (a,b) => Array(a, b)}.flatten
+    val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
+
+    val makeTupleFromZip = UserFun("id",
+                                   Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
+                                   Seq(Float, Float),
+                                   TupleType(Float, Float))
 
     val N = Var("N")
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
       (a,b) => {
-        toGlobal(MapGlb(idFF)) $ Zip(a, b)
+        toGlobal(MapGlb(makeTupleFromZip)) $ Zip(a, b)
       }
     )
 
