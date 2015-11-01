@@ -123,6 +123,8 @@ object OpenCLGenerator extends Generator {
   }
 }
 
+class OpenCLGeneratorException(msg: String) extends Exception(msg)
+class VariableNotDeclaredError(msg: String) extends OpenCLGeneratorException(msg)
 
 class OpenCLGenerator extends Generator {
 
@@ -831,27 +833,36 @@ class OpenCLGenerator extends Generator {
   }
 
   private def generateLoop(block: Block,
-                           indexVar: Var, generate: (Block) => Unit,
-                           iterationCount: ArithExpr = ?,
+                           indexVar: Var,
+                           generateBody: (Block) => Unit,
+                           iterationCountExpr: ArithExpr = ?,
                            unroll: Boolean = false): Unit = {
     val range = indexVar.range.asInstanceOf[RangeAdd]
     val step = range.step
 
-    if (unroll && iterationCount.eval > 0) {
+    // try to evaluate iteration count
+    val iterationCount =
+      if (unroll) {
+        val i = try { iterationCountExpr.eval } catch {
+            case _: NotEvaluableException =>
+              throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
+                                                 "could not be determined statically.")
+          }
+        if (i > 0) { Some(i) } else {
+          throw new OpenCLGeneratorException(s"Trying to unroll loop, but iteration count is $i.")
+        }
+      } else { None }
 
+    if (unroll) {
       block += OpenCLAST.Comment("unroll")
 
-      for (i <- 0 until iterationCount.eval) {
+      for (i <- 0 until iterationCount.get) {
         replacements = replacements.updated(indexVar, i)
-        if (range.min.isInstanceOf[OclFunction]) {
-          replacementsWithFuns =
-            replacementsWithFuns.updated(indexVar, range.min + step * i)
-        } else {
-          replacementsWithFuns =
-            replacementsWithFuns.updated(indexVar, i)
-        }
+        val j: ArithExpr =
+          if (range.min.isInstanceOf[OclFunction]) { range.min + step * i } else { i }
+        replacementsWithFuns = replacementsWithFuns.updated(indexVar, j)
 
-        generate(block)
+        generateBody(block)
       }
       // cleanup
       replacements = replacements - indexVar
@@ -859,20 +870,20 @@ class OpenCLGenerator extends Generator {
 
       block += OpenCLAST.Comment("end unroll")
     } else /* the loop is not unrolled */ {
-      // Generate an for-loop
+      // Generate an inner block for the for-loop
       val innerBlock = OpenCLAST.Block(Vector.empty)
-      // add it to the current node:
-      block += OpenCLAST.Loop(indexVar, iterationCount, body = innerBlock)
-      generate(innerBlock)
+      // add the for loop to the current node:
+      block += OpenCLAST.Loop(indexVar, iterationCountExpr, body = innerBlock)
+      generateBody(innerBlock)
     }
   }
 
   private def generateWhileLoop(block: Block,
                                 loopPredicate: Predicate,
-                                generate: (Block) => Unit) : Unit = {
+                                generateBody: (Block) => Unit) : Unit = {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     block += OpenCLAST.WhileLoop(loopPredicate, body = innerBlock)
-    generate(innerBlock)
+    generateBody(innerBlock)
   }
 
   private def generateConditional(block: Block,
@@ -922,7 +933,15 @@ class OpenCLGenerator extends Generator {
                                 currentType: Type,
                                 view: View,
                                 value: OclAstNode): OclAstNode = {
-    val originalType = varDecls(mem.variable)
+    val originalType: Type = {
+      try {
+        varDecls(mem.variable)
+      } catch {
+        case _: java.util.NoSuchElementException =>
+          throw new VariableNotDeclaredError(s"Trying to generate store to variable" +
+                                             s"${mem.variable} which was not previously declared.")
+      }
+    }
     if (Type.haveSameValueTypes(originalType, currentType)) {
       OpenCLAST.Assignment(
         to = accessNode(mem.variable, mem.addressSpace, view),
@@ -953,14 +972,28 @@ class OpenCLGenerator extends Generator {
 
   private def generateLoadNode(block: Block, arg: Expr): OclAstNode = {
     val mem = OpenCLMemory.asOpenCLMemory(arg.mem)
-    generateLoadNode(mem.variable, mem.addressSpace, arg.t, arg.view)
+    mem match {
+      case _: OpenCLMemoryCollection =>
+        throw new OpenCLGeneratorException("Trying to generate a single load node for a " +
+                                           "OpenCLMemoryCollection (which was possibly created " +
+                                           "by a `zip`).")
+      case _ => generateLoadNode(mem.variable, mem.addressSpace, arg.t, arg.view)
+    }
   }
 
   private def generateLoadNode(v: Var,
                                addressSpace: OpenCLAddressSpace,
                                currentType: Type,
                                view: View): OpenCLAST.OclAstNode = {
-    val originalType = varDecls(v)
+    val originalType: Type = {
+      try {
+        varDecls(v)
+      } catch {
+        case _: java.util.NoSuchElementException =>
+          throw new VariableNotDeclaredError(s"Trying to generate load to variable $v which was " +
+                                             s"not previously declared.")
+      }
+    }
     if (Type.haveSameValueTypes(originalType, currentType)) {
       accessNode(v, addressSpace, view)
     } else {
