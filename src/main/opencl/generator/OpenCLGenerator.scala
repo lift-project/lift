@@ -623,11 +623,11 @@ class OpenCLGenerator extends Generator {
         )
       }
     )
-    nestedBlock += generateStoreNode(nestedBlock, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
-    nestedBlock += generateStoreNode(nestedBlock, 
+    nestedBlock += generateStoreNode(
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
@@ -710,11 +710,11 @@ class OpenCLGenerator extends Generator {
       }
     )
     nestedBlock += OpenCLAST.Label(searchFailedLabel)
-    nestedBlock += generateStoreNode(nestedBlock, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
-    nestedBlock += generateStoreNode(nestedBlock, 
+    nestedBlock += generateStoreNode(
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
@@ -901,8 +901,8 @@ class OpenCLGenerator extends Generator {
                                   block: Block): Block = {
     // Handle vector assignments for vector types
     val mem = OpenCLMemory.asOpenCLMemory(call.mem)
-    block += generateStoreNode(block, mem, call.t, call.view,
-      generateFunCall(call, generateLoadNodes(block, call.args: _*)))
+    block += generateStoreNode(mem, call.t, call.view,
+      generateFunCall(call, generateLoadNodes(call.args: _*)))
 
     block
   }
@@ -928,8 +928,7 @@ class OpenCLGenerator extends Generator {
    * This function emits a store[n] if the LHS is an array of scala types or
    * an assignment otherwise.
    */
-  private def generateStoreNode(block: Block,
-                                mem: OpenCLMemory,
+  private def generateStoreNode(mem: OpenCLMemory,
                                 currentType: Type,
                                 view: View,
                                 value: OclAstNode): OclAstNode = {
@@ -966,18 +965,26 @@ class OpenCLGenerator extends Generator {
     }
   }
 
-  private def generateLoadNodes(block: Block, args: Expr*): List[OclAstNode] = {
-    args.map(generateLoadNode(block, _)).toList
+  private def generateLoadNodes(args: Expr*): List[OclAstNode] = {
+    args.map(arg => {
+      val mem = OpenCLMemory.asOpenCLMemory(arg.mem)
+      generateLoadNode(mem, arg.t, arg.view)
+    }).toList
   }
 
-  private def generateLoadNode(block: Block, arg: Expr): OclAstNode = {
-    val mem = OpenCLMemory.asOpenCLMemory(arg.mem)
+  private def generateLoadNode(mem: OpenCLMemory, t: Type, view: View): OclAstNode = {
     mem match {
-      case _: OpenCLMemoryCollection =>
-        throw new OpenCLGeneratorException("Trying to generate a single load node for a " +
-                                           "OpenCLMemoryCollection (which was possibly created " +
-                                           "by a `zip`).")
-      case _ => generateLoadNode(mem.variable, mem.addressSpace, arg.t, arg.view)
+      case coll: OpenCLMemoryCollection =>
+        val tt = t.asInstanceOf[TupleType]
+
+        var args: Vector[OclAstNode] = Vector()
+        for (i <- (coll.subMemories zip tt.elemsT).indices) {
+          args = args :+ generateLoadNode(coll.subMemories(i), tt.elemsT(i), view.get(i))
+        }
+
+        StructConstructor(t = tt, args = args)
+
+      case _ => generateLoadNode(mem.variable, mem.addressSpace, t, view)
     }
   }
 

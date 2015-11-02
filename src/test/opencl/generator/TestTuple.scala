@@ -24,7 +24,7 @@ object TestTuple {
 
 class TestTuple {
 
-   @Test def  MAKE_TUPLE() {
+  @Test def  MAKE_TUPLE_FROM_ZIP_EXPLICIT() {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -45,7 +45,31 @@ class TestTuple {
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, inArrA, inArrB)
-    
+
+    assertArrayEquals(gold, output, 0.0f)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+  }
+
+  @Test def  MAKE_TUPLE_FROM_ZIP_IMPLICIT() {
+    val inputSize = 1024
+    val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
+
+    val id =  UserFun("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
+
+    val N = Var("N")
+    val f = fun(
+                 ArrayType(Float, N),
+                 ArrayType(Float, N),
+                 (a,b) => {
+                   toGlobal(MapGlb(id)) $ Zip(a, b)
+                 }
+               )
+
+    val (output: Array[Float], runtime) = Execute(inputSize)(f, inArrA, inArrB)
+
     assertArrayEquals(gold, output, 0.0f)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
