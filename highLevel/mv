@@ -3,11 +3,9 @@ val K = Var("K")
 
 fun(
   ArrayType(ArrayType(Float, K), N),
-  ArrayType(ArrayType(Float, 1), K), // Column vector
+  ArrayType(Float, K),
   (matrix, vector) =>
     Map(fun(row =>
-      Map( fun( col =>
-        Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(row, col)
-      )) o Transpose() $ vector
+        Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(row, vector)
     )) $ matrix
 )

@@ -21,3 +21,5 @@ endfunction()
 
 add_app(mm)
 add_app(mv)
+add_app(gemv)
+#add_app(mandelbrot)

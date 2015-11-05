@@ -69,6 +69,8 @@ object MemoryMappingRewrite {
 
         })
       } catch {
+        case t: scala.MatchError =>
+          t.printStackTrace()
         case t: Throwable =>
           println(s"Lowering $count failed with $t")
       }
@@ -115,12 +117,12 @@ object MemoryMappingRewrite {
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation = true))
 
-    addToAddressSpaceToUserFun(copiesAdded) ++ copiesAdded
+    val addedUserFun = addToAddressSpaceToUserFun(copiesAdded) ++ copiesAdded
 
-    implementIds(copiesAdded)
+    implementIds(addedUserFun)
   }
 
-  // Try adding toLocal to userfunctions that are arguments to other userfuncitons
+  // Try adding toLocal to user functions that are arguments to other user functions
   // and that would otherwise be forced to global
   private def addToAddressSpaceToUserFun(copiesAdded: List[Lambda]): List[Lambda] = {
     copiesAdded.map(f => {
@@ -216,7 +218,7 @@ object MemoryMappingRewrite {
         case _ => false
       })
 
-      (level, lowered.head, nonLowered)
+      (level, lowered, nonLowered)
     })
 
     val idMap = NumberExpression.breadthFirst(lambda)
@@ -228,8 +230,9 @@ object MemoryMappingRewrite {
       val lowerToType = tuple._2
 
       val rule = lowerToType match {
-        case FunCall(_: MapSeq, _) => Rules.mapSeq
-        case FunCall(MapLcl(dim, _), _) => Rules.mapLcl(dim)
+        case FunCall(_: MapSeq, _) :: _ => Rules.mapSeq
+        case FunCall(MapLcl(dim, _), _) :: _ => Rules.mapLcl(dim)
+        case _ => Rules.mapSeq // Fall back to seq
       }
 
       toLower.foreach(expr => {
@@ -296,6 +299,8 @@ object MemoryMappingRewrite {
 
       if (doVectorisation) {
 
+        try {
+
         val tryToVectorize = Expr.visitLeftToRight(List[Expr]())(tuple.body, (expr, list) => {
           expr match {
             case FunCall(toLocal(Lambda(_, body)), _) => expr :: list
@@ -310,7 +315,10 @@ object MemoryMappingRewrite {
 
         if (!(vectorised eq tuple))
           return Seq(vectorised, tuple)
+      } catch {
+        case _: Throwable =>
       }
+    }
 
       Seq(tuple)
     }
@@ -320,15 +328,16 @@ object MemoryMappingRewrite {
     Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.tupleMap))
 
   private def addIdsForLocal(lambda: Lambda): Lambda = {
-    val temp = Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
+    val temp = Rewrite.applyRulesUntilCannot(lambda,
+      Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
 
-    val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(lambda.body, (e, s) =>
+    val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(temp.body, (e, s) =>
       e match {
         case call@FunCall(_: ReduceSeq, _*) => call :: s
         case _ => s
-      }).filterNot(e => lambda.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _) if c eq e => }))
+      }).filterNot(e => temp.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _*) if c eq e => }))
 
-    reduceSeqs.foldLeft(temp)((l, e) => Rewrite.applyRuleAt(l, e, Rules.addId))
+    reduceSeqs.foldRight(temp)((e, l) => Rewrite.applyRuleAt(l, e, Rules.addIdAfterReduce))
   }
 
   private def getCombinations(localIdList: List[Expr], max: Int): List[List[Expr]] =

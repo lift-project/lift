@@ -7,7 +7,6 @@ import apart.arithmetic._
 import ir.ast._
 import ir.{ArrayType, Type, TypeException}
 
-import scala.io.Source
 import scala.sys.process._
 
 object Utils {
@@ -216,9 +215,9 @@ object Utils {
     decls + "\n" + replaceVariableNames(fullString, withIndex)
   }
 
-  def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
-    withIndex.foldLeft(fullString)((currentString, toReplace) =>
-      currentString.replaceAll(toReplace._1, getNewName(toReplace)))
+  private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
+    withIndex.foldRight(fullString)((toReplace, currentString) =>
+      currentString.replaceAll(toReplace._1 + "(\\D)", getNewName(toReplace) + "$1"))
 
   def findAndReplaceVariableNames(code: String) = {
     val variables = findVariables(code)
@@ -249,19 +248,23 @@ object Utils {
 
     val method =
       s"""($seqName: Seq[ArithExpr]) => {
-                     |$declarations
-          |
-          |$replacedVariableNames
-          |}
+         |$declarations
+         |
+         |$replacedVariableNames
+         |}
       """.stripMargin
 
     method
   }
 
-  def findVariables(fullString: String): List[(String, Int)] = {
+  private[utils] def findVariables(fullString: String): List[(String, Int)] = {
     val variable = """v_\p{Alnum}*(_id)?_\d+""".r
 
-    val vars = variable.findAllIn(fullString).map(_.toString).toList.distinct
+    val vars = variable
+      .findAllIn(fullString)
+      .map(_.toString)
+      .toList
+      .distinct
 
     val withIndex = vars.zipWithIndex
     withIndex
@@ -272,7 +275,7 @@ object Utils {
   }
 
   private def getNewName(toReplace: (String, Int)): String = {
-    "v_" + getIdentifier(toReplace) + "_" + toReplace._2
+    "v_" + getIdentifier(toReplace) + toReplace._2 + "_" + toReplace._2
   }
 
   private def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {
@@ -316,7 +319,7 @@ object Utils {
     if (Files.exists(Paths.get(path + "/" + uniqueFilename))) {
       val warningString = "Warning! Clash at " + uniqueFilename + ".\n"
 
-      val clashingContent = Source.fromFile(path + "/" + uniqueFilename).getLines().mkString("\n")
+      val clashingContent = new String(Files.readAllBytes(Paths.get(path + "/" + uniqueFilename)))
 
       if (clashingContent != content) {
         println(warningString + "Content is different, adding System.currentTimeMillis().")

@@ -3,7 +3,7 @@ package cgoSearch
 import apart.arithmetic.{ArithExpr, Cst, Var}
 import exploration.utils.Utils
 import ir.ArrayType
-import ir.ast.{FunCall, Lambda, Split}
+import ir.ast._
 
 import scala.collection.immutable.Map
 
@@ -56,7 +56,10 @@ object ParameterSearch {
     val tunableNodes = Utils.findTunableNodes(lambda)
 
     // from that, isolate only the splits
-    val splits = tunableNodes.collect { case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len) }
+    val splits = tunableNodes.collect({
+      case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len)
+      case FunCall(Gather(ReorderWithStride(s)), x) => (s, x.t.asInstanceOf[ArrayType].len)
+    })
 
     substitute(splits, Map.empty, List.empty)
   }

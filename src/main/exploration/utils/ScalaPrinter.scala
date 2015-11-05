@@ -8,7 +8,7 @@ object ScalaPrinter {
   def apply(expr: Expr): String = {
     expr match {
       case funCall: FunCall => s"FunCall(${apply(funCall.f)}, ${funCall.args.map(apply).mkString(", ")})"
-      case value: Value => s"Value(${value.value}, ${apply(value.t)})"
+      case value: Value => s"""Value("${value.value}", ${apply(value.t)})"""
       case param: Param => "p_" + param.hashCode()
       case _ => expr.toString
     }
@@ -37,6 +37,8 @@ object ScalaPrinter {
       case opencl.ir.Float => "Float"
       case opencl.ir.Int => "Int"
       case opencl.ir.Double => "Double"
+      case TupleType(tt@_*) => s"TupleType(${tt.map(apply).mkString(", ")})"
+      case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, $len)"
       case ArrayType(elemT, len) => s"ArrayType(${apply(elemT)}, $len)"
     }
   }
@@ -47,7 +49,7 @@ object ScalaPrinter {
     val inTs = uf.inTs.map(apply).mkString(", ")
     val outT = apply(uf.outT)
 
-    val body = "\"\"\"\n" + uf.body.split("\n").map("|" + _).mkString("\n") + "\"\"\".stripMargin"
+    val body = "\"\"\"" + uf.body.split("\n").map("|" + _).mkString("\n") + "\"\"\".stripMargin"
 
     s"val ${uf.name} = UserFun($name, Array($paramNames), $body, Seq($inTs), $outT)"
   }

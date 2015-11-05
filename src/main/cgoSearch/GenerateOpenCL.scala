@@ -4,6 +4,7 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import apart.arithmetic.{ArithExpr, Var}
+import exploration.utils.Utils
 import ir.ast.Lambda
 import ir.{Type, TypeChecker}
 import opencl.executor.Eval
@@ -35,13 +36,13 @@ object GenerateOpenCL {
         expr_counter = expr_counter + 1
         println(s"High-level expression : $expr_counter / $highLevelCount")
 
-        val high_level_expr = readLambdaFromFile(filename)
+        val high_level_expr_orig = readLambdaFromFile(filename)
 
-        val st = createValueMap(high_level_expr)
+        val st = createValueMap(high_level_expr_orig)
         val sizesForFilter = st.values.toSeq
         val vars = Seq.fill(sizesForFilter.length)(Var(""))
 
-        replaceInputTypes(high_level_expr, st)
+        val high_level_expr = replaceInputTypes(high_level_expr_orig, st)
 
         TypeChecker(high_level_expr)
 
@@ -51,7 +52,7 @@ object GenerateOpenCL {
 
         val loweredIndex = s"${topFolder}Lower/$high_level_hash/index"
         if (Files.exists(Paths.get(loweredIndex))
-          && substitutionCount < 800000) {
+          && substitutionCount < 800000 && substitutionCount != 0) {
 
           val low_level_expr_list = Source.fromFile(loweredIndex).getLines().toList
 
@@ -111,7 +112,10 @@ object GenerateOpenCL {
       st.updated(v, SearchParameters.matrix_size))
   }
 
-  def replaceInputTypes(lambda: Lambda, st: Map[ArithExpr, ArithExpr]) =
+  def replaceInputTypes(lambda: Lambda, st: Map[ArithExpr, ArithExpr]): Lambda = {
+    val tunable_nodes = Utils.findTunableNodes(lambda).reverse
     lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
+    Utils.quickAndDirtySubstitution(st, tunable_nodes, lambda)
+  }
 
 }

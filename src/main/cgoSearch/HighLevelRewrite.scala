@@ -72,7 +72,7 @@ object HighLevelRewrite {
 
       val folderName =output.value.getOrElse(filename.split("/").last)
 
-      dumpLambdasToFiles(lambdas, folderName)
+      dumpLambdasToFiles(lambdas :+ lambda, folderName)
     } catch {
       case e: ArgotUsageException => println(e.message)
     }

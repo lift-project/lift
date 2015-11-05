@@ -761,6 +761,11 @@ object Rules {
       f o Id() $ arg
   })
 
+  val addIdAfterReduce = Rule("f => Id() o f", {
+    case call@FunCall(_: ReduceSeq, _*) =>
+      FunCall(MapSeq(Id()), call)
+  })
+
   def isId(expr: Expr): Boolean =
     expr match {
       case FunCall(Id(), _) => true
@@ -850,8 +855,8 @@ object Rules {
   })
 
   val removeEmptyMap = Rule("Map(fun(x => x)) $ a => a", {
-    case FunCall(Map(Lambda(params, body)), arg)
-      if params.head eq body
+    case FunCall(map: AbstractMap, arg)
+      if map.f.params.head eq map.f.body
     =>
       arg
   })

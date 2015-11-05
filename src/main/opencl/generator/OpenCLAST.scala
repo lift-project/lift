@@ -1,7 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.{Predicate, ArithExpr, Var}
-import ir.{VectorType, Type}
+import ir.{Type, TupleType, VectorType}
 import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
 
 object OpenCLAST {
@@ -46,10 +46,10 @@ object OpenCLAST {
                   body: Block,
                   unrollHint: Boolean = false) extends OclAstNode
 
-  /** An alternative looping construct, using a predicate - a `while' loop
+  /** An alternative looping construct, using a predicate - a 'while' loop
     *  
     * @param loopPredicate the predicate the loop tests each iteration
-    * @Param body the body of the loop
+    * @param body the body of the loop
     */
   case class WhileLoop(loopPredicate: Predicate,
                        body: Block) extends OclAstNode
@@ -66,14 +66,14 @@ object OpenCLAST {
 
   /** A Label, targeted by a corresponding goto
     * 
-    * @param name the name of label to be declared
+    * @param nameVar the name of label to be declared
     */
   case class Label(nameVar: Var) extends OclAstNode
 
   /** A goto statement, targeting the label with corresponding name
     * TODO: Think of a better way of describing goto labels
     *
-    * @param name the name of the label to go to
+    * @param nameVar the name of the label to go to
     */
   case class GOTO(nameVar: Var) extends OclAstNode
 
@@ -104,6 +104,8 @@ object OpenCLAST {
     * @param t The type to cast the variable into.
     */
   case class Cast(v: VarRef, t: Type) extends OclAstNode
+
+  case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends OclAstNode
 
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently

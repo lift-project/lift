@@ -9,6 +9,21 @@ import OpenCLMemory._
 
 object OpenCLMemoryAllocator {
 
+  def apply(f: Lambda) = {
+    f.params.foreach((p) =>
+      p.t match {
+        case _: ScalarType =>
+          p.mem = OpenCLMemory.allocPrivateMemory(
+            OpenCLMemory.getMaxSizeInBytes(p.t))
+        case _ =>
+          p.mem = OpenCLMemory.allocGlobalMemory(
+            OpenCLMemory.getMaxSizeInBytes(p.t))
+      })
+
+      alloc(f.body)
+  }
+
+
   /** Allocate OpenCLMemory objects for a given Fun f
     *
     * @param expr The expression for which memory should be allocated

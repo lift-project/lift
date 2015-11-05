@@ -1,0 +1,72 @@
+val calcAcc =
+  UserFun("calcAcc",
+    Array("x1", "y1", "z1", "x2", "y2", "z2", "mass2", "espSqr"),
+    """|{
+      |  float4 r = (x1 - x2, y1 - y2, z1 - z2, 0.0f);
+      |  float distSqr = r.x + r.y + r.z;
+      |  float invDist = 1.0f / sqrt(distSqr + espSqr);
+      |  float invDistCube = invDist * invDist * invDist;
+      |  float s = invDistCube * mass2;
+      |  Tuple acc = {s * r.x, s * r.y, s * r.z};
+      |  return acc;
+      |}
+      | """.stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float, Float),
+    TupleType(Float, Float, Float))
+
+val reduce =
+  UserFun("reduce",
+    Array("x", "y"),
+    "{ Tuple t = {x._0 + y._0, x._1 + y._1, x._2 + y._2}; return t;}",
+    Seq(TupleType(Float, Float, Float),
+      TupleType(Float, Float, Float)),
+    TupleType(Float, Float, Float))
+
+val update =
+  UserFun("update",
+    Array("x", "y", "z", "velX", "velY", "velZ", "mass",
+      "deltaT", "acceleration"),
+    """|{
+      |  float px = velX * deltaT + 0.5f * acceleration._0 * deltaT * deltaT;
+      |  float py = velY * deltaT + 0.5f * acceleration._1 * deltaT * deltaT;
+      |  float pz = velZ * deltaT + 0.5f * acceleration._2 * deltaT * deltaT;
+      |  Tuple1 t = {x + px, y + py, z + pz,
+      |              velX + acceleration._0 * deltaT,
+      |              velY + acceleration._1 * deltaT,
+      |              velZ + acceleration._2 * deltaT, mass};
+      |  return t;
+      |}
+    """.stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float,
+      Float, TupleType(Float, Float, Float)),
+    TupleType(Float, Float, Float, Float, Float, Float, Float))
+
+val N = Var("N")
+
+fun(
+  ArrayType(Float, N),
+  ArrayType(Float, N),
+  ArrayType(Float, N),
+  ArrayType(Float, N),
+  ArrayType(Float, N),
+  ArrayType(Float, N),
+  ArrayType(Float, N),
+  Float,
+  Float,
+  (x, y, z, velX, velY, velZ, mass, espSqr, deltaT) =>
+    Map(fun(x1y1z1 =>
+
+      Map(fun(acceleration =>
+        update(Get(x1y1z1, 0), Get(x1y1z1, 1), Get(x1y1z1, 2),
+          Get(x1y1z1, 3), Get(x1y1z1, 4), Get(x1y1z1, 5),
+          Get(x1y1z1, 6), deltaT, acceleration)))
+
+        o Reduce(reduce, (0.0f, 0.0f, 0.0f))
+
+        o Map(fun(x2y2z2 =>
+        calcAcc(Get(x1y1z1, 0), Get(x1y1z1, 1), Get(x1y1z1, 2),
+          Get(x2y2z2, 0), Get(x2y2z2, 1), Get(x2y2z2, 2),
+          Get(x2y2z2, 6), espSqr)))
+        $ Zip(x, y, z, velX, velY, velZ, mass)
+    )) $ Zip(x, y, z, velX, velY, velZ, mass)
+)

@@ -102,10 +102,13 @@ object OpenCLGenerator extends Generator {
       memories(memories.length-1) = temp
     }
 
+    val (locals, globals) = memories.partition(_.mem.addressSpace == LocalMemory)
+    val globalsFirst = globals ++ locals
+
     if (AllocateLocalMemoryStatically())
-      memories.partition(isFixedSizeLocalMemory)
+      globalsFirst.partition(isFixedSizeLocalMemory)
     else
-      (Array.empty[TypedOpenCLMemory], memories)
+      (Array.empty[TypedOpenCLMemory], globalsFirst)
   }
 
 
@@ -120,6 +123,8 @@ object OpenCLGenerator extends Generator {
   }
 }
 
+class OpenCLGeneratorException(msg: String) extends Exception(msg)
+class VariableNotDeclaredError(msg: String) extends OpenCLGeneratorException(msg)
 
 class OpenCLGenerator extends Generator {
 
@@ -182,6 +187,12 @@ class OpenCLGenerator extends Generator {
     allocateMemory(f)
     BarrierElimination(f)
     CheckBarriersAndLoops(f)
+
+    f.body.mem match {
+      case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
+        throw new IllegalKernel("Final result must be stored in global memory")
+      case _ =>
+    }
 
     if (Verbose()) {
       println("Memory:")
@@ -612,11 +623,11 @@ class OpenCLGenerator extends Generator {
         )
       }
     )
-    nestedBlock += generateStoreNode(nestedBlock, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
-    nestedBlock += generateStoreNode(nestedBlock, 
+    nestedBlock += generateStoreNode(
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
@@ -699,11 +710,11 @@ class OpenCLGenerator extends Generator {
       }
     )
     nestedBlock += OpenCLAST.Label(searchFailedLabel)
-    nestedBlock += generateStoreNode(nestedBlock, OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
-    nestedBlock += generateStoreNode(nestedBlock, 
+    nestedBlock += generateStoreNode(
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
@@ -822,27 +833,36 @@ class OpenCLGenerator extends Generator {
   }
 
   private def generateLoop(block: Block,
-                           indexVar: Var, generate: (Block) => Unit,
-                           iterationCount: ArithExpr = ?,
+                           indexVar: Var,
+                           generateBody: (Block) => Unit,
+                           iterationCountExpr: ArithExpr = ?,
                            unroll: Boolean = false): Unit = {
     val range = indexVar.range.asInstanceOf[RangeAdd]
     val step = range.step
 
-    if (unroll && iterationCount.eval > 0) {
+    // try to evaluate iteration count
+    val iterationCount =
+      if (unroll) {
+        val i = try { iterationCountExpr.eval } catch {
+            case _: NotEvaluableException =>
+              throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
+                                                 "could not be determined statically.")
+          }
+        if (i > 0) { Some(i) } else {
+          throw new OpenCLGeneratorException(s"Trying to unroll loop, but iteration count is $i.")
+        }
+      } else { None }
 
+    if (unroll) {
       block += OpenCLAST.Comment("unroll")
 
-      for (i <- 0 until iterationCount.eval) {
+      for (i <- 0 until iterationCount.get) {
         replacements = replacements.updated(indexVar, i)
-        if (range.min.isInstanceOf[OclFunction]) {
-          replacementsWithFuns =
-            replacementsWithFuns.updated(indexVar, range.min + step * i)
-        } else {
-          replacementsWithFuns =
-            replacementsWithFuns.updated(indexVar, i)
-        }
+        val j: ArithExpr =
+          if (range.min.isInstanceOf[OclFunction]) { range.min + step * i } else { i }
+        replacementsWithFuns = replacementsWithFuns.updated(indexVar, j)
 
-        generate(block)
+        generateBody(block)
       }
       // cleanup
       replacements = replacements - indexVar
@@ -850,20 +870,20 @@ class OpenCLGenerator extends Generator {
 
       block += OpenCLAST.Comment("end unroll")
     } else /* the loop is not unrolled */ {
-      // Generate an for-loop
+      // Generate an inner block for the for-loop
       val innerBlock = OpenCLAST.Block(Vector.empty)
-      // add it to the current node:
-      block += OpenCLAST.Loop(indexVar, iterationCount, body = innerBlock)
-      generate(innerBlock)
+      // add the for loop to the current node:
+      block += OpenCLAST.Loop(indexVar, iterationCountExpr, body = innerBlock)
+      generateBody(innerBlock)
     }
   }
 
   private def generateWhileLoop(block: Block,
                                 loopPredicate: Predicate,
-                                generate: (Block) => Unit) : Unit = {
+                                generateBody: (Block) => Unit) : Unit = {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     block += OpenCLAST.WhileLoop(loopPredicate, body = innerBlock)
-    generate(innerBlock)
+    generateBody(innerBlock)
   }
 
   private def generateConditional(block: Block,
@@ -881,8 +901,8 @@ class OpenCLGenerator extends Generator {
                                   block: Block): Block = {
     // Handle vector assignments for vector types
     val mem = OpenCLMemory.asOpenCLMemory(call.mem)
-    block += generateStoreNode(block, mem, call.t, call.view,
-      generateFunCall(call, generateLoadNodes(block, call.args: _*)))
+    block += generateStoreNode(mem, call.t, call.view,
+      generateFunCall(call, generateLoadNodes(call.args: _*)))
 
     block
   }
@@ -908,12 +928,19 @@ class OpenCLGenerator extends Generator {
    * This function emits a store[n] if the LHS is an array of scala types or
    * an assignment otherwise.
    */
-  private def generateStoreNode(block: Block,
-                                mem: OpenCLMemory,
+  private def generateStoreNode(mem: OpenCLMemory,
                                 currentType: Type,
                                 view: View,
                                 value: OclAstNode): OclAstNode = {
-    val originalType = varDecls(mem.variable)
+    val originalType: Type = {
+      try {
+        varDecls(mem.variable)
+      } catch {
+        case _: java.util.NoSuchElementException =>
+          throw new VariableNotDeclaredError(s"Trying to generate store to variable" +
+                                             s"${mem.variable} which was not previously declared.")
+      }
+    }
     if (Type.haveSameValueTypes(originalType, currentType)) {
       OpenCLAST.Assignment(
         to = accessNode(mem.variable, mem.addressSpace, view),
@@ -938,20 +965,42 @@ class OpenCLGenerator extends Generator {
     }
   }
 
-  private def generateLoadNodes(block: Block, args: Expr*): List[OclAstNode] = {
-    args.map(generateLoadNode(block, _)).toList
+  private def generateLoadNodes(args: Expr*): List[OclAstNode] = {
+    args.map(arg => {
+      val mem = OpenCLMemory.asOpenCLMemory(arg.mem)
+      generateLoadNode(mem, arg.t, arg.view)
+    }).toList
   }
 
-  private def generateLoadNode(block: Block, arg: Expr): OclAstNode = {
-    val mem = OpenCLMemory.asOpenCLMemory(arg.mem)
-    generateLoadNode(mem.variable, mem.addressSpace, arg.t, arg.view)
+  private def generateLoadNode(mem: OpenCLMemory, t: Type, view: View): OclAstNode = {
+    mem match {
+      case coll: OpenCLMemoryCollection =>
+        val tt = t.asInstanceOf[TupleType]
+
+        var args: Vector[OclAstNode] = Vector()
+        for (i <- (coll.subMemories zip tt.elemsT).indices) {
+          args = args :+ generateLoadNode(coll.subMemories(i), tt.elemsT(i), view.get(i))
+        }
+
+        StructConstructor(t = tt, args = args)
+
+      case _ => generateLoadNode(mem.variable, mem.addressSpace, t, view)
+    }
   }
 
   private def generateLoadNode(v: Var,
                                addressSpace: OpenCLAddressSpace,
                                currentType: Type,
                                view: View): OpenCLAST.OclAstNode = {
-    val originalType = varDecls(v)
+    val originalType: Type = {
+      try {
+        varDecls(v)
+      } catch {
+        case _: java.util.NoSuchElementException =>
+          throw new VariableNotDeclaredError(s"Trying to generate load to variable $v which was " +
+                                             s"not previously declared.")
+      }
+    }
     if (Type.haveSameValueTypes(originalType, currentType)) {
       accessNode(v, addressSpace, view)
     } else {

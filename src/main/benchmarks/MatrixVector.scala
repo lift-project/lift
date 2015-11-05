@@ -61,6 +61,39 @@ object MatrixVector {
       ) $ Zip(matrix, vectorY)
     })
 
+  val fullMatrixVectorFusedOpenCL_ =
+    fun(ArrayType(ArrayType(Float, N), M),
+        ArrayType(Float, N),
+        ArrayType(ArrayType(Float, 1), M),
+        Float,
+        Float,
+        (matrix, vectorX, vectorY, alpha, beta) => {
+    Zip(matrix, vectorY) :>>
+    MapWrg(
+      fun(t =>
+        Zip(
+          Zip(vectorX, t._0) :>>
+          Split(N) :>>
+          toLocal(MapLcl(
+            ReduceSeq(fun((acc, y) => multAndSumUp(acc, y._0, y._1)), 0.0f) >>>
+            toLocal(MapSeq(id))
+          )) :>>
+          Join() :>>
+          Split(1) :>>
+          MapLcl(
+            MapSeq(fun(x => mult(alpha, x)))
+          ) :>>
+          Join()
+          ,
+          Get(t, 1)
+        )
+      ) >>>
+      Split(1) >>>
+      toGlobal(MapLcl(MapSeq(fun(x => multAndSumUp(x._0, x._1, beta))))) >>>
+      Join()
+    )
+  })
+
   val fullMatrixVectorFusedOpenCLAMD = fun(
     ArrayType(ArrayType(Float, N), M),
     ArrayType(Float, N),
@@ -78,9 +111,54 @@ object MatrixVector {
       ) $ Zip(matrix, vectorY)
     })
 
+  // The same expression as 'fullMatrixVectorFusedOpenCLAMD' but written in a
+  // dataflow / more imperative style
+  val fullMatrixVectorFusedOpenCLAMD_ = fun(
+     ArrayType(ArrayType(Float, N), M),
+     ArrayType(Float, N),
+     ArrayType(ArrayType(Float, 1), M),
+     Float,
+     Float,
+     (matrix, vectorX, vectorY, alpha, beta) => {
+       Zip(matrix, vectorY) :>>
+       MapWrg(
+         \(pair => {
+           val matrixRow = pair._0
+           val y_i       = pair._1
+
+           val partialDotProdcut = {
+             Zip(vectorX, matrixRow) :>>
+             ReorderStride(128) :>>
+             Split(N /^ 128) :>>
+             toLocal(MapLcl(
+               ReduceSeq(\((acc, y) => multAndSumUp(acc, y._0, y._1)), 0.0f) >>>
+               toLocal(MapSeq(id))
+             )) :>>
+             Join()
+           }
+
+           val timesAlpha = {
+             partialDotProdcut :>>
+             Split(1) :>> MapLcl(MapSeq(\(x => mult(alpha, x)))) :>> Join()
+           }
+
+           val fullDotProdcut = {
+             timesAlpha  :>>
+             Split(128) :>> MapLcl(ReduceSeq(add, 0.0f) >>> toLocal(MapSeq(id))) :>> Join()
+           }
+
+           Zip(fullDotProdcut, y_i)
+         }) >>>
+         Split(1) >>>
+         toGlobal(MapLcl(MapSeq(fun(x => multAndSumUp(x._0, x._1, beta))))) >>>
+         Join()
+       )
+     })
+
   def apply() = new MatrixVector(Seq(
     ("FULL_MATRIX_VECTOR_FUSED_OPENCL", Array[Lambda](fullMatrixVectorFusedOpenCL)),
-    ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD", Array[Lambda](fullMatrixVectorFusedOpenCLAMD))))
+    ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD", Array[Lambda](fullMatrixVectorFusedOpenCLAMD)),
+    ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD_", Array[Lambda](fullMatrixVectorFusedOpenCLAMD_))))
 
   def main(args: Array[String]): Unit = {
     MatrixVector().run(args)

@@ -142,6 +142,7 @@ class OpenCLCodeGen {
     case c: Conditional   => print(c)
     case l: Label         => print(l)
     case g: GOTO          => print(g)
+    case s: StructConstructor => print(s)
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
   }
@@ -388,5 +389,14 @@ class OpenCLCodeGen {
     */
   private def print(g: GOTO) {
     println("goto " + g.nameVar.toString + ";")
+  }
+
+  private def print(s: StructConstructor): Unit = {
+    print(s"(${toString(s.t)}){")
+    s.args.foreach(x => {
+      print(x)
+      if(x != s.args.last) print(", ")
+    })
+    print("}")
   }
 }

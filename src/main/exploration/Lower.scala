@@ -296,15 +296,7 @@ object Lower {
     }
     val mapSeqs = findAllDepthFirst(lambda, pattern2.isDefinedAt)
 
-    // both if map depths not same and reduces not nested in each other?
-
-    if (mapSeqs.map(_.context.mapDepth).distinct.length == 1
-      || isNestedInReduce(mapSeqs.head, lambda.body)) {
-      implementIdInMapSeq(lambda, ids.last, mapSeqs.last)
-    } else {
-      (ids, mapSeqs).zipped.foldRight(lambda)((pair, currentLambda) =>
-        implementIdInMapSeq(currentLambda, pair._1, pair._2))
-    }
+    implementIdInMapSeq(lambda, ids.last, mapSeqs.last)
   }
 
   def implementIdInMapSeq(lambda: Lambda, idToImplement: Expr, mapSeqForId: Expr): Lambda = {
