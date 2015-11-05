@@ -1,6 +1,8 @@
 package opencl.generator
 
-import apart.arithmetic.{Cst, Var}
+import apart.arithmetic.{ArithExpr, Cst, Var}
+import benchmarks.MatrixVector
+import exploration.utils.ScalaPrinter
 import ir._
 import ir.ast._
 import opencl.executor._
@@ -723,5 +725,100 @@ class TestMisc {
 
     assertEquals(input.sum, output.sum, 0.0f)
     assertEquals(8, "l_id".r.findAllMatchIn(code).length)
+  }
+
+  @Test def issue47: Unit = {
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M0_0 = variables(0)
+      val v_N1_1 = variables(1)
+      val v_2_2 = variables(2)
+      val v_3_3 = variables(3)
+      val v_4_4 = variables(4)
+      val v_5_5 = variables(5)
+
+      val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+      val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+      val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+      fun(
+        ArrayType(ArrayType(Float, v_M0_0), v_N1_1),
+        ArrayType(Float, v_M0_0),
+        ArrayType(Float, v_N1_1),
+        Float,
+        Float,
+        (p_0, p_1, p_2, p_3, p_4) =>
+        FunCall(MapWrg(0)(fun((p_5) =>
+          FunCall(toGlobal(fun((p_6) =>
+            FunCall(MapLcl(0)(fun((p_7) =>
+              FunCall(add,
+                FunCall(mult, p_7, p_3),
+                FunCall(mult,
+                  FunCall(Get(1), p_5), p_4)))), p_6))),
+            FunCall(MapSeq(fun((p_8) =>
+              FunCall(toLocal(fun((p_9) =>
+                FunCall(id, p_9))), p_8))),
+              FunCall(ReduceSeq(fun((p_10, p_11) =>
+                FunCall(add, p_10, p_11))),
+                FunCall(id, Value("0.0f", Float)),
+                FunCall(Join(),
+                  FunCall(MapLcl(0)(fun((p_12) =>
+                    FunCall(MapSeq(fun((p_13) => p_13)),
+                      FunCall(ReduceSeq(fun((p_14, p_15) =>
+                        FunCall(add, p_14,
+                          FunCall(toPrivate(fun((p_16) =>
+                            FunCall(id, p_16))), p_15)))),
+                        FunCall(id, Value("0.0f", Float)), p_12)))),
+                    FunCall(Split((v_2_2*1/^(v_3_3))),
+                      FunCall(Gather(ReorderWithStride(v_3_3)),
+                        FunCall(Join(),
+                          FunCall(MapLcl(0)(fun((p_17) =>
+                            FunCall(MapSeq(fun((p_18) => p_18)),
+                              FunCall(ReduceSeq(fun((p_19, p_20) =>
+                                FunCall(add, p_19, p_20))),
+                                FunCall(id, Value("0.0f", Float)), p_17)))),
+                            FunCall(toLocal(fun((p_21) =>
+                              FunCall(MapLcl(0)(fun((p_22) =>
+                                FunCall(MapSeq(fun((p_23) =>
+                                  FunCall(id, p_23))), p_22))), p_21))),
+                              FunCall(Join(),
+                                FunCall(MapLcl(0)(fun((p_24) =>
+                                  FunCall(TransposeW(),
+                                    FunCall(Join(),
+                                      FunCall(MapSeq(fun((p_25) =>
+                                        FunCall(TransposeW(),
+                                          FunCall(MapSeq(fun((p_26) =>
+                                            FunCall(MapSeq(fun((p_27) =>
+                                              FunCall(mult,
+                                                FunCall(Get(0), p_27),
+                                                FunCall(Get(1), p_27)))), p_26))),
+                                            FunCall(Transpose(), p_25))))),
+                                        FunCall(Split(v_4_4),
+                                          FunCall(Transpose(), p_24))))))),
+                                  FunCall(Split(v_5_5),
+                                    FunCall(Split((v_M0_0*1/^(v_2_2))),
+                                      FunCall(Gather(ReorderWithStride(v_2_2)),
+                                        FunCall(Zip(2), p_1,
+                                          FunCall(Get(0), p_5))))))))))))))))))),
+          FunCall(Zip(2), p_0, p_2)))
+    }
+
+    val inputSizeN = 1024
+    val inputSizeM = 1024
+
+    val matrix = Array.fill(inputSizeN, inputSizeM)(util.Random.nextInt(5).toFloat)
+    val vectorX = Array.fill(inputSizeM)(util.Random.nextInt(5).toFloat)
+    val vectorY = Array.fill(inputSizeN)(util.Random.nextInt(5).toFloat)
+    val alpha = 2.5f
+    val beta = 1.5f
+    val values = Seq(matrix, vectorX, vectorY, alpha, beta)
+
+    val expr = factory(Array[ArithExpr](1024,1024,128,128,8,2))
+    /*val kernel = opencl.executor.Utils.compile(
+      expr, Seq(matrix, vectorX),
+      128, 1, 1,
+      128*1024, 1, 1, (true, true))
+
+    println(kernel)*/
+
+    val (output: Array[Float], _) = Execute(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
   }
 }
