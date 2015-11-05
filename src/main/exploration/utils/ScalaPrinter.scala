@@ -28,6 +28,8 @@ object ScalaPrinter {
       case toGlobal: toGlobal => s"toGlobal(${apply(toGlobal.f)})"
       case toLocal: toLocal => s"toLocal(${apply(toLocal.f)})"
       case toPrivate: toPrivate => s"toPrivate(${apply(toPrivate.f)})"
+      case bsearch: BSearch => s"BSearch(${apply(bsearch.f)})"
+      case lsearch: LSearch => s"LSearch(${apply(lsearch.f)})"
       case _ => funDecl.toString
     }
   }
