@@ -141,12 +141,12 @@ public:
         if (what.find("uses too much shared data") != std::string::npos)
           File::add_incompatible(hash);
         else
-          File::add_blacklist(hash);
+          File::add_compileerror(hash);
         std::cerr << "Compilation failed: " << what << std::endl;
       }
         // the getBuildInfo might also fail
       catch (const cl::Error& err) {
-        File::add_blacklist(hash);
+        File::add_compileerror(hash);
       }
       return false;
     }

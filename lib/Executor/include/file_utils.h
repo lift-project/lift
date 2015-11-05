@@ -19,6 +19,7 @@ class File {
   static std::string invalid_filename;
   static std::string timing_filename;
   static std::string exec_filename;
+  static std::string compileerror_filename;
 
   static std::string & replace(std::string & subj, std::string old, std::string neu)
   {
@@ -40,6 +41,7 @@ public:
     replace(invalid_filename, pattern, size_str);
     replace(timing_filename, pattern, size_str);
     replace(exec_filename, pattern, size_str);
+    replace(compileerror_filename, pattern, size_str);
   }
 
   static void file_append(const std::string &filename, const std::string &content)
@@ -60,6 +62,9 @@ public:
 
   static void add_time(const std::string &hash, double time)
   { file_append(timing_filename, hash + "," + std::to_string(time)); }
+
+  static void add_compileerror(const std::string &hash)
+  { file_append(compileerror_filename, hash); }
 
   template<typename T>
   static void load_input(std::vector<T>& data, const std::string &filename)
@@ -105,7 +110,14 @@ public:
   static std::set<std::string> load_blacklist()
   {
     std::set<std::string> blacklist;
-    for(auto& filename: {blacklist_filename, incompatible_filename, invalid_filename, timing_filename}) {
+    for(auto& filename: {
+        blacklist_filename, 
+        incompatible_filename, 
+        invalid_filename, 
+        timing_filename,
+        compileerror_filename
+      }) 
+    {
       for(auto& values: Csv::loadCsv(filename))
         blacklist.insert(values.front());
     }
