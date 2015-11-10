@@ -321,10 +321,10 @@ object Lower {
   def getLastWrite(lambda: Lambda) =
     findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
 
-  def lowerPartialReduces(lambda: Lambda) =
+  def lowerPartialReduces(lambda: Lambda): Lambda =
     lowerPatternWithRule(lambda, { case FunCall(PartRed(_), _, _) => }, Rules.partialReduceToReduce)
 
-  def lowerReduces(lambda: Lambda) =
+  def lowerReduces(lambda: Lambda): Lambda =
     lowerPatternWithRule(lambda, { case FunCall(Reduce(_), _, _) => }, Rules.reduceSeq)
 
   def lowerPatternWithRule(lambda: Lambda, pattern: PartialFunction[Expr, Unit], rule: Rule): Lambda = {
@@ -383,6 +383,10 @@ object Lower {
   def lowerNextLevelWithRule(lambda: Lambda, rule: Rule) = {
     val nextToLower = FindNextMapsToLower()(lambda)
     applyRuleToExpressions(lambda, nextToLower, rule)
+  }
+
+  def lower(lambda: Lambda): List[Lambda] = {
+    lowerByLevels(lastWriteToGlobal(lowerReduces(lambda)))
   }
 }
 
