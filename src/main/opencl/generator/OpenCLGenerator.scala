@@ -573,8 +573,7 @@ class OpenCLGenerator extends Generator {
     // get an opencl version of the input mem
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
     // get a reference to it for loading
-    val inArrRef = generateLoadNode(inArr.mem.variable, clInArrMem.addressSpace, 
-                      inArrT, inArr.view.access(s.indexVar))
+    val inArrRef = generateLoadNode(clInArrMem, inArrT, inArr.view.access(s.indexVar))
     // declare temporary vars for declaring the upper and lower indicies of the search
     val lowerIndex = Var("li")
     val upperIndex = Var("ui")
@@ -624,7 +623,7 @@ class OpenCLGenerator extends Generator {
       }
     )
     nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
-      generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
+      generateLoadNode(OpenCLMemory.asOpenCLMemory(defaultVal.mem), defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
     nestedBlock += generateStoreNode(
@@ -652,8 +651,7 @@ class OpenCLGenerator extends Generator {
     // get an opencl version of the input mem
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
     // get a reference to it for loading
-    val inArrRef = generateLoadNode(inArr.mem.variable, clInArrMem.addressSpace, 
-                      inArrT, inArr.view.access(s.indexVar))
+    val inArrRef = generateLoadNode(clInArrMem, inArrT, inArr.view.access(s.indexVar))
     // declare the index var
     nestedBlock += OpenCLAST.VarDecl(s.indexVar.toString, opencl.ir.Int)
     // assign initial values
@@ -711,7 +709,7 @@ class OpenCLGenerator extends Generator {
     )
     nestedBlock += OpenCLAST.Label(searchFailedLabel)
     nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
-      generateLoadNode(defaultVal.mem.variable, OpenCLMemory.asOpenCLMemory(defaultVal.mem).addressSpace, defaultVal.t, defaultVal.view))
+      generateLoadNode(OpenCLMemory.asOpenCLMemory(defaultVal.mem), defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
     nestedBlock += generateStoreNode(
@@ -974,7 +972,13 @@ class OpenCLGenerator extends Generator {
 
   private def generateLoadNode(mem: OpenCLMemory, t: Type, view: View): OclAstNode = {
     mem match {
+      // we want to generate a load for a tuple constructed by a corresponding view (i.e. zip)
       case coll: OpenCLMemoryCollection =>
+        if (!t.isInstanceOf[TupleType])
+          throw new OpenCLGeneratorException(s"Found a OpenCLMemoryCollection for var: " +
+            s"${mem.variable}, but corresponding type: $t is " +
+            s"not a tuple.")
+
         val tt = t.asInstanceOf[TupleType]
 
         var args: Vector[OclAstNode] = Vector()
@@ -984,58 +988,76 @@ class OpenCLGenerator extends Generator {
 
         StructConstructor(t = tt, args = args)
 
-      case _ => generateLoadNode(mem.variable, mem.addressSpace, t, view)
-    }
-  }
+      // not a memory collection: the default case
+      case _ =>
+        val currentType = t
+        val originalType: Type = {
+          try {
+            varDecls(mem.variable)
+          } catch {
+            case _: java.util.NoSuchElementException =>
+              throw new VariableNotDeclaredError(s"Trying to generate load to variable " +
+                s"${mem.variable} which was not previously " +
+                s"declared.")
+          }
+        }
 
-  private def generateLoadNode(v: Var,
-                               addressSpace: OpenCLAddressSpace,
-                               currentType: Type,
-                               view: View): OpenCLAST.OclAstNode = {
-    val originalType: Type = {
-      try {
-        varDecls(v)
-      } catch {
-        case _: java.util.NoSuchElementException =>
-          throw new VariableNotDeclaredError(s"Trying to generate load to variable $v which was " +
-                                             s"not previously declared.")
-      }
-    }
-    if (Type.haveSameValueTypes(originalType, currentType)) {
-      accessNode(v, addressSpace, view)
-    } else {
-      (originalType, currentType) match {
-        // originally a scalar type, but now a vector type
-        //  => emit cast
-        case (st:ScalarType, vt:VectorType)  if Type.isEqual(st, vt.scalarT) =>
-          OpenCLAST.Cast(OpenCLAST.VarRef(v), st)
+        if (Type.haveSameValueTypes(originalType, currentType)) {
+          accessNode(mem.variable, mem.addressSpace, view)
+        } else {
+          (originalType, currentType) match {
+            // originally a scalar type, but now a vector type
+            //  => emit cast
+            case (st: ScalarType, vt: VectorType) if Type.isEqual(st, vt.scalarT) =>
+              OpenCLAST.Cast(OpenCLAST.VarRef(mem.variable), st)
 
-        // originally an array of scalar values in global memory,
-        // but now a vector type
-        //  => emit vload
-        case (at: ArrayType, vt: VectorType)
-          if Type.isEqual(Type.getValueType(at), vt.scalarT)
-          && ( addressSpace == GlobalMemory || addressSpace == LocalMemory ) =>
+            // originally an array of scalar values in global memory,
+            // but now a vector type
+            //  => emit vload
+            case (at: ArrayType, vt: VectorType)
+              if Type.isEqual(Type.getValueType(at), vt.scalarT)
+                && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
-            OpenCLAST.Load(
-              OpenCLAST.VarRef(v), vt,
-              offset = OpenCLAST.Expression(
-                          ArithExpr.substitute(ViewPrinter.emit(view),
-                                               replacementsWithFuns) / vt.len))
+              OpenCLAST.Load(OpenCLAST.VarRef(mem.variable), vt,
+                offset = OpenCLAST.Expression(
+                  ArithExpr.substitute(ViewPrinter.emit(view),
+                    replacementsWithFuns) / vt.len) )
 
-        // originally an array of vector values in private memory,
-        // but now a scalar type
-        //  => emit load from components
-        case (at: ArrayType, st: ScalarType)
-          if Type.getValueType(at).isInstanceOf[VectorType]
-          && Type.haveSameBaseTypes(at, st)
-          && (addressSpace == PrivateMemory) =>
+            // originally an array of vector values in private memory,
+            // but now a scalar type
+            //  => emit load from components
+            case (at: ArrayType, st: ScalarType)
+              if Type.getValueType(at).isInstanceOf[VectorType]
+                && Type.haveSameBaseTypes(at, st)
+                && (mem.addressSpace == PrivateMemory) =>
 
-          // val n = Type.getValueType(at).asInstanceOf[VectorType].len
-          val arraySuffix = arrayAccessPrivateMem(v, view)
-          val componentSuffix = componentAccessVectorVar(v, view)
-          OpenCLAST.VarRef(v, suffix = arraySuffix + componentSuffix)
-      }
+              // val n = Type.getValueType(at).asInstanceOf[VectorType].len
+              val arraySuffix = arrayAccessPrivateMem(mem.variable, view)
+              val componentSuffix = componentAccessVectorVar(mem.variable, view)
+              OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
+
+            // originally a tuple, now a value. => generate stuff like var[i]._j
+            case (at: ArrayType, st: ScalarType)
+              if Type.getValueType(at).isInstanceOf[TupleType] =>
+              // get tuple component and generate suffix (._j)
+              val vtc = view.asInstanceOf[ViewTupleComponent]
+              val suffix = s"._${vtc.i}"
+
+              // throw away the tuple component view for generating array index [i]
+              val innerView = vtc.iv
+
+              mem.addressSpace match {
+                case LocalMemory | GlobalMemory =>
+                  val index = ArithExpr.substitute(ViewPrinter.emit(innerView),
+                    replacementsWithFuns)
+                  OpenCLAST.VarRef(mem.variable, arrayIndex = OpenCLAST.Expression(index), suffix = suffix)
+
+                case PrivateMemory =>
+                  // untested :-)
+                  OpenCLAST.VarRef(mem.variable, suffix = arrayAccessPrivateMem(mem.variable, innerView) + suffix)
+              }
+          }
+        }
     }
   }
 

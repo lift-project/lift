@@ -342,7 +342,7 @@ object OpenCLMemoryAllocator {
       case coll: OpenCLMemoryCollection =>
         assert(n < coll.subMemories.length)
         coll.subMemories(n)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => inMem
     }
   }
 

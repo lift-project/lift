@@ -256,4 +256,22 @@ class TestTuple {
     println("runtime = " + runtime)
   }
 
+  @Test def projectFirstComponentFromTuple() : Unit = {
+    val idII = UserFun("idII", "x", "{ return x; }", TupleType(Int, Int), TupleType(Int, Int))
+
+    val N = Var("N")
+    val f = fun(ArrayType(TupleType(Int, Int), N), A => {
+      MapSeq( fun((a) => idI(a._0)) ) o MapSeq(idII) $ A
+    })
+
+    val inputSize = 1024
+    val input2 = Array.fill(inputSize)(util.Random.nextInt(5),util.Random.nextInt(5))
+    val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Int]].toArray
+    val gold = input2.map(_._1)
+
+    val (output: Array[Int], _) = Execute(128)(f, input)
+
+    assertArrayEquals(gold, output)
+  }
+
 }
