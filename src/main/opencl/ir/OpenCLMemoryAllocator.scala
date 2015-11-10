@@ -347,7 +347,7 @@ object OpenCLMemoryAllocator {
       case coll: OpenCLMemoryCollection =>
         assert(n < coll.subMemories.length)
         coll.subMemories(n)
-      case x => x
+      case _ => inMem
     }
   }
 

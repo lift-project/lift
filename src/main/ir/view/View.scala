@@ -309,7 +309,7 @@ private[view] case class ViewMap(iv: View, itVar: Var, override val t: Type) ext
  * @param iv The view to access.
  * @param t Type of the view.
  */
-private[view] case class ViewTupleComponent(i: Int, iv: View, override val t: Type) extends View(t)
+case class ViewTupleComponent(i: Int, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for constructing a tuple.
