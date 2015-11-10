@@ -727,6 +727,7 @@ class TestMisc {
     assertEquals(8, "l_id".r.findAllMatchIn(code).length)
   }
 
+  @Ignore
   @Test def issue47: Unit = {
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M0_0 = variables(0)

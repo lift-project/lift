@@ -73,6 +73,15 @@ object Rules {
     })
 
   // TODO: iterate
+//  val partialReduceIterate: Rule = partialReduceIterate(?)
+//
+//  def partialReduceIterate(s: ArithExpr): Rule =
+//    Rule("PartRed(f) => iterate(s)(PartRed(f))", {
+//      case FunCall(PartRed(f), init, arg) =>
+//        val iter = if (s == ?) Cst(1) else s
+//        Iterate(iter)(PartRed(f, init)) $ arg
+//    })
+
 
   val partialReduceSplitJoin: Rule = partialReduceSplitJoin(?)
 
