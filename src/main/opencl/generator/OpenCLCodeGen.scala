@@ -205,13 +205,13 @@ class OpenCLCodeGen {
 
   private def print(v: VarRef): Unit = {
     print(toString(v.v))
-    if(v.suffix != null) {
-      print(v.suffix)
-    }
     if(v.arrayIndex != null) {
       print("[")
       print(v.arrayIndex)
       print("]")
+    }
+    if(v.suffix != null) {
+      print(v.suffix)
     }
   }
 

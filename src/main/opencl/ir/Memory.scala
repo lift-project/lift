@@ -40,7 +40,9 @@ case class AddressSpaceCollection(spaces: Seq[OpenCLAddressSpace])
     if (addessSpaces.forall(_ == addessSpaces.head)) {
       addessSpaces.head
     } else {
-      throw new IllegalArgumentException(s"Could not determine common addressSpace: $addessSpaces")
+      // FIXME(tlutz): Document that the default address space is global when the tuple has mixed addess spaces.
+      GlobalMemory
+      //throw new IllegalArgumentException(s"Could not determine common addressSpace: $addessSpaces")
     }
   }
 }
@@ -178,6 +180,8 @@ object OpenCLMemory {
       case GlobalMemory => allocGlobalMemory(glbOutSize)
       case LocalMemory => allocLocalMemory(lclOutSize)
       case PrivateMemory => allocPrivateMemory(pvtOutSize)
+      case co: AddressSpaceCollection =>
+        allocMemory(glbOutSize, lclOutSize, pvtOutSize, co.findCommonAddressSpace())
     }
   }
 
@@ -309,19 +313,26 @@ object TypedOpenCLMemory {
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
       val mems = collect(m.f.body)
 
-      // change types
-      mems.map( tm => tm.mem.addressSpace match {
-        case GlobalMemory | PrivateMemory =>
-          TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
+      def changeType(addressSpace: OpenCLAddressSpace,
+                     tm: TypedOpenCLMemory): TypedOpenCLMemory = {
+        addressSpace match {
+          case GlobalMemory | PrivateMemory =>
+            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
 
-        case LocalMemory =>
-          m match {
-            case _: MapGlb | _: MapWrg  | _: Map =>
-              tm
-            case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-              TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
-          }
-      })
+          case LocalMemory =>
+            m match {
+              case _: MapGlb | _: MapWrg  | _: Map =>
+                tm
+              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
+                TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
+            }
+          case coll: AddressSpaceCollection =>
+            changeType(coll.findCommonAddressSpace(), tm)
+        }
+      }
+
+      // change types for all of them
+      mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
     }
 
     def collectReduce(r: AbstractPartRed,

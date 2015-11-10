@@ -58,7 +58,12 @@ object OpenCLMemoryAllocator {
       assert(oclMem.addressSpace == PrivateMemory)
       oclMem
     } else {
-      OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
+      v.t match {
+        case tt: TupleType =>
+          OpenCLMemoryCollection(tt.elemsT.map(x => OpenCLMemory.allocPrivateMemory(getSizeInBytes(x))))
+        case _ =>
+          OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
+      }
     }
   }
 
@@ -342,7 +347,7 @@ object OpenCLMemoryAllocator {
       case coll: OpenCLMemoryCollection =>
         assert(n < coll.subMemories.length)
         coll.subMemories(n)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case x => x
     }
   }
 
