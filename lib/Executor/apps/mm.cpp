@@ -86,7 +86,6 @@ struct MMRun: public Run {
     for (const auto &local: extra_local_args) 
       kernel.setArg(idx++, local);  
 
-    std::cout << "sizes staring at " << idx << std::endl;
     kernel.setArg(idx++, (int)size);
     kernel.setArg(idx++, (int)size);
     kernel.setArg(idx++, (int)size);
@@ -252,8 +251,11 @@ void run_harness(
     });
 
     compilation_thread.join();
-    done = true;
-    cv.notify_one();
+    {
+      std::unique_lock<std::mutex> locker(m);
+      done = true;
+      cv.notify_one();
+    }
     execute_thread.join();
   }
     // single threaded exec
