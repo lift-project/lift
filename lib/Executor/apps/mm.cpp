@@ -31,8 +31,10 @@ struct MMRun: public Run {
 
   // list of additional buffers to allocate
   std::vector<int> extra_buffer_size;
-
   std::vector<cl::Buffer> extra_args;
+
+  // list of additional local buffers to allocate
+  std::vector<cl::LocalSpaceArg> extra_local_args;
 
   /**
    * Deserialize a line from the CSV
@@ -40,42 +42,53 @@ struct MMRun: public Run {
   MMRun(const std::vector<std::string>& values) {
     assert(values.size() > 8 && "Bad CSV format");
 
+    int i = 0;
+
     // input size
-    size = Csv::readInt(values[0]);
+    size = Csv::readInt(values[i++]);
 
     // global NDRange
-    glob1 = Csv::readInt(values[1]);
-    glob2 = Csv::readInt(values[2]);
-    glob3 = Csv::readInt(values[3]);
+    glob1 = Csv::readInt(values[i++]);
+    glob2 = Csv::readInt(values[i++]);
+    glob3 = Csv::readInt(values[i++]);
 
     // local NDRange
-    loc1 = Csv::readInt(values[4]);
-    loc2 = Csv::readInt(values[5]);
-    loc3 = Csv::readInt(values[6]);
+    loc1 = Csv::readInt(values[i++]);
+    loc2 = Csv::readInt(values[i++]);
+    loc3 = Csv::readInt(values[i++]);
 
     // source hash
-    hash = values[7];
+    hash = values[i++];
     hash.erase(std::remove_if(std::begin(hash), std::end(hash), isspace), std::end(hash));
 
     // number of temporary buffers to allocate and their sizes
-    auto num_buf = Csv::readInt(values[8]);
-    for(unsigned i = 9+3; i < 9+3 + num_buf; ++i) {
-      extra_buffer_size.push_back((int)Csv::readInt(values[i]));
-    }
+    auto num_buf = Csv::readInt(values[i++]);
+    for(unsigned x = 0; x < num_buf; ++x)
+      extra_buffer_size.push_back((int)Csv::readInt(values[i++]));
+
+    // number of local buffers to allocate and their sizes
+    auto num_local = Csv::readInt(values[i++]);
+    for (unsigned x = 0; x < num_local; ++x)
+      extra_local_args.push_back({Csv::readInt(values[i++])});
   }
 
   void setup(cl::Context context) override {
     // Allocate extra buffers
     for(auto &size: extra_buffer_size)
-      extra_args.push_back({context, CL_MEM_READ_WRITE, size*sizeof(T)});
+      extra_args.push_back({context, CL_MEM_READ_WRITE, (size_t)size});
+
+    int idx = 3;
 
     // Skip the first 3 to compensate for the csv (forgot a drop(3) in scala)
-    for(unsigned i = 3; i < extra_args.size(); ++i) {
-      kernel.setArg(3+i,extra_args[i]);
-    }
-    kernel.setArg((unsigned)extra_args.size()+3, (int)size);
-    kernel.setArg((unsigned)extra_args.size()+4, (int)size);
-    kernel.setArg((unsigned)extra_args.size()+5, (int)size);
+    for(const auto &arg: extra_args) 
+      kernel.setArg(idx++, arg);
+    
+    for (const auto &local: extra_local_args) 
+      kernel.setArg(idx++, local);  
+
+    kernel.setArg(idx++, (int)size);
+    kernel.setArg(idx++, (int)size);
+    kernel.setArg(idx++, (int)size);
   }
 
   void cleanup() override {
@@ -238,8 +251,11 @@ void run_harness(
     });
 
     compilation_thread.join();
-    done = true;
-    cv.notify_one();
+    {
+      std::unique_lock<std::mutex> locker(m);
+      done = true;
+      cv.notify_one();
+    }
     execute_thread.join();
   }
     // single threaded exec
