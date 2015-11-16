@@ -13,8 +13,8 @@ import scala.language.implicitConversions
  * @param params The parameters of the lambda expression.
  * @param body The body of the lambda expression.
  */
-abstract class Lambda private[ast] (val params: Array[Param],
-                                    val body: Expr) extends FunDecl(params.length) {
+abstract case class Lambda private[ast] (params: Array[Param],
+                                         body: Expr) extends FunDecl(params.length) {
 
   /**
    * Debug string representation
@@ -64,10 +64,6 @@ abstract class Lambda private[ast] (val params: Array[Param],
 }
 
 object Lambda {
-
-  def unapply(l: Lambda): Option[(Array[Param], Expr)] = {
-    Some(l.params, l.body)
-  }
 
   def apply(params: Array[Param],
             body: Expr): Lambda = {
