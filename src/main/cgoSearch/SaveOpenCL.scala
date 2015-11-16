@@ -30,7 +30,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       val kernel = generateKernel(pair)
       dumpOpenCLToFiles(pair._1, kernel)
     } catch {
-      case _:Throwable =>
+      case x:Throwable =>
+        println(x)
     }
   }
 
@@ -47,7 +48,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val kernel =
       s"""
          |// Substitutions: $substitutionMap
-         |// Local sizes: ${local.map(_.eval).mkString(", ")}
+         |// Local sizes: ${local.map(x => { try { x.eval } catch { case _: Throwable => x } }).mkString(", ")}
          |// Global sizes: ${global.mkString(", ")}
          |// High-level hash: $highLevelHash
          |// Low-level hash: $lowLevelHash
