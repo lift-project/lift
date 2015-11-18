@@ -335,7 +335,7 @@ object Utils {
 
   def countMapsAtCurrentLevel(expr: Expr): Int =
     Utils.visitFunCallChainWithState(0)(expr, {
-      case (FunCall(_: AbstractMap, _), count) => count + 1
+      case (FunCall(m: AbstractMap, _), count) if m.f.body.isConcrete => count + 1
       case (_, count) => count
     })
 }
