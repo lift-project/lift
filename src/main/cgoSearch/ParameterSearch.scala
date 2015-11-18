@@ -58,7 +58,7 @@ object ParameterSearch {
     // from that, isolate only the splits
     val splits = tunableNodes.collect({
       case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len)
-      case FunCall(Gather(ReorderWithStride(s)), x) => (s, x.t.asInstanceOf[ArrayType].len)
+      case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType].len)
     })
 
     substitute(splits, Map.empty, List.empty)
