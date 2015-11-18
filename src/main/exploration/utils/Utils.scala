@@ -310,8 +310,9 @@ object Utils {
    * @param content The content to dump.
    * @param filename The filename to use.
    * @param path Path for the file.
+   * @return If a new file was created returns true, if the content existed at path/filename returns false.
    */
-  def dumpToFile(content: String, filename: String, path: String): Unit = {
+  def dumpToFile(content: String, filename: String, path: String): Boolean = {
     var uniqueFilename = filename
 
     ("mkdir -p " + path).!
@@ -326,11 +327,13 @@ object Utils {
         uniqueFilename = uniqueFilename + "_" + System.currentTimeMillis()
       } else {
         println(warningString + "Content is the same, skipping.")
+        return false
       }
 
     }
 
     scala.tools.nsc.io.File(path + "/" + uniqueFilename).writeAll(content)
+    true
   }
 
   def countMapsAtCurrentLevel(expr: Expr): Int =

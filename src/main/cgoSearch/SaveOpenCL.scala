@@ -76,8 +76,9 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     if (!min_map.forall(_ > 0))
       throw new IllegalKernel("Buffer size overflow")
 
-    Utils.dumpToFile(kernel, filename, path)
-    createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
+    val dumped = Utils.dumpToFile(kernel, filename, path)
+    if (dumped)
+      createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
   }
 
   private def createCsv(hash: String, path: String, numParams: Int,
