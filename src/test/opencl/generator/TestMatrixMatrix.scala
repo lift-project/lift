@@ -8,7 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.reflect.ClassTag
 
@@ -149,7 +149,6 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output2, 0.001f)
   }
 
-  @Ignore
   @Test def vectorised() {
 
     val Msize = 16
@@ -170,7 +169,8 @@ class TestMatrixMatrix {
           MapGlb(1)(fun( Bcol =>
             toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o asScalar() o
               ReduceSeq(VectorizeUserFun(4, add), Value(0.0f).vectorize(4)) o
-              MapSeq(VectorizeUserFun(4, mult)) $ Zip(asVector(4) $ Arow, asVector(4) $ Bcol)
+              MapSeq(VectorizeUserFun(4, mult))
+              $ Zip(asVector(4) $ Arow, asVector(4) $ Bcol)
           )) $ B
         )) $ A
       })
@@ -850,7 +850,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], _) = Execute(mSize, nSize)(f, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output, 0.0001f)
   }

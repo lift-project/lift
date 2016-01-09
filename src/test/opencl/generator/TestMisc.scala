@@ -810,7 +810,7 @@ class TestMisc {
                           FunCall(toPrivate(fun((p_16) =>
                             FunCall(id, p_16))), p_15)))),
                         FunCall(id, Value("0.0f", Float)), p_12)))),
-                    FunCall(Split((v_2_2*1/^(v_3_3))),
+                    FunCall(Split(v_2_2 * 1 /^ v_3_3),
                       FunCall(Gather(ReorderWithStride(v_3_3)),
                         FunCall(Join(),
                           FunCall(MapLcl(0)(fun((p_17) =>
@@ -837,7 +837,7 @@ class TestMisc {
                                         FunCall(Split(v_4_4),
                                           FunCall(Transpose(), p_24))))))),
                                   FunCall(Split(v_5_5),
-                                    FunCall(Split((v_M0_0*1/^(v_2_2))),
+                                    FunCall(Split(v_M0_0 * 1 /^ v_2_2),
                                       FunCall(Gather(ReorderWithStride(v_2_2)),
                                         FunCall(Zip(2), p_1,
                                           FunCall(Get(0), p_5))))))))))))))))))),
@@ -862,7 +862,7 @@ class TestMisc {
 
     println(kernel)*/
 
-    val (output: Array[Float], _) = Execute(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
+    Execute(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
   }
 
   /**
@@ -890,6 +890,6 @@ class TestMisc {
     val valueMap = GenerateOpenCL.createValueMap(expr)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
-    val code = OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)
+    OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)
   }
 }

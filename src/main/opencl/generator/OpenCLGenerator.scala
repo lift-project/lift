@@ -1046,7 +1046,14 @@ class OpenCLGenerator extends Generator {
                 && Type.haveSameBaseTypes(at, st)
                 && (mem.addressSpace == PrivateMemory) =>
 
-              val arraySuffix = arrayAccessPrivateMem(mem.variable, view)
+              val actualArray = privateMems.exists(m => m.mem == mem)
+
+              val arraySuffix =
+                if (actualArray)
+                  arrayAccessPrivateMem(mem.variable, view)
+                else // Workaround for values
+                  ""
+
               val componentSuffix = componentAccessVectorVar(mem.variable, view)
               OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
 
