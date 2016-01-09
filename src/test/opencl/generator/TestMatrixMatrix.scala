@@ -8,7 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 import scala.reflect.ClassTag
 
@@ -147,6 +147,40 @@ class TestMatrixMatrix {
     println("runtime = " + runtime2)
 
     assertArrayEquals(gold, output2, 0.001f)
+  }
+
+  @Ignore
+  @Test def vectorised() {
+
+    val Msize = 16
+    val Ksize = 16
+    val Nsize = 16
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f1 = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      (A, B) => {
+        MapGlb(0)(fun( Arow =>
+          MapGlb(1)(fun( Bcol =>
+            toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o asScalar() o
+              ReduceSeq(VectorizeUserFun(4, add), Value(0.0f).vectorize(4)) o
+              MapSeq(VectorizeUserFun(4, mult)) $ Zip(asVector(4) $ Arow, asVector(4) $ Bcol)
+          )) $ B
+        )) $ A
+      })
+
+    val (output: Array[Float], _) = Execute(Msize, Nsize)(f1, matrixA, matrixB.transpose)
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    assertArrayEquals(gold, output, 0.001f)
+
   }
 
   @Test def tiledMultiplicationScala(): Unit = {
