@@ -235,7 +235,6 @@ class TestMisc {
     assertArrayEquals(inputData, output, 0.0f)
   }
 
-  @Ignore
   @Test
   def asScalarInPrivateMemoryAfterReduce(): Unit = {
     val inputSize = 8
@@ -256,7 +255,6 @@ class TestMisc {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Ignore
   @Test
   def reduceVector(): Unit = {
     val inputSize = 8

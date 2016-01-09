@@ -496,7 +496,21 @@ class OpenCLGenerator extends Generator {
       block += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
-  def shouldUnrollLoop(call: FunCall): Boolean = {
+  private def shouldUnrollLoop(call: FunCall): Boolean = {
+    var originalType: Type = UndefType
+    try {
+      originalType = getOriginalType(call.args.head.mem.asInstanceOf[OpenCLMemory])
+    } catch {
+      case _: VariableNotDeclaredError =>
+    }
+    val currentType = call.args.head.t
+
+        val loopingOverVectorComponents = (originalType, currentType) match {
+          case (_: VectorType, ArrayType(_: ScalarType, _)) => true
+          case _ => false
+        }
+
+    loopingOverVectorComponents ||
     (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
       && (call.args.head.mem match {
       case coll: OpenCLMemoryCollection =>
@@ -991,16 +1005,7 @@ class OpenCLGenerator extends Generator {
       // not a memory collection: the default case
       case _ =>
         val currentType = t
-        val originalType: Type = {
-          try {
-            varDecls(mem.variable)
-          } catch {
-            case _: java.util.NoSuchElementException =>
-              throw new VariableNotDeclaredError(s"Trying to generate load to variable " +
-                s"${mem.variable} which was not previously " +
-                s"declared.")
-          }
-        }
+        val originalType: Type = getOriginalType(mem)
 
         if (Type.haveSameValueTypes(originalType, currentType)) {
           accessNode(mem.variable, mem.addressSpace, view)
@@ -1041,7 +1046,6 @@ class OpenCLGenerator extends Generator {
                 && Type.haveSameBaseTypes(at, st)
                 && (mem.addressSpace == PrivateMemory) =>
 
-              // val n = Type.getValueType(at).asInstanceOf[VectorType].len
               val arraySuffix = arrayAccessPrivateMem(mem.variable, view)
               val componentSuffix = componentAccessVectorVar(mem.variable, view)
               OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
@@ -1069,6 +1073,19 @@ class OpenCLGenerator extends Generator {
           }
         }
     }
+  }
+
+  private def getOriginalType(mem: OpenCLMemory): Type = {
+
+    try {
+      varDecls(mem.variable)
+    } catch {
+      case _: NoSuchElementException =>
+        throw new VariableNotDeclaredError(s"Trying to generate load to variable " +
+          s"${mem.variable} which was not previously " +
+          s"declared.")
+    }
+
   }
 
   /**
