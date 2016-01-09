@@ -540,7 +540,7 @@ class OpenCLGenerator extends Generator {
                  m.iterationCount, unroll)
     block += OpenCLAST.Comment("end map_seq")
   }
-  
+
   // === Reduce ===
   private def generateReduceSeqCall(r: AbstractReduce,
                                     call: FunCall,
@@ -586,7 +586,7 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.Assignment(OpenCLAST.Expression(upperIndex), OpenCLAST.Expression(inArrT.len))
     // Declare a variable to copy the result of the user function into
     // We have to do this, as we currently have no nice way of describing normal C statements
-    // in a way that works private memory properly. 
+    // in a way that works private memory properly.
     // TODO: Find some way of representing the arguments to while/if/etc...
     val compFuncResVar = Var("cmp_res_var")
     varDecls = varDecls.updated(compFuncResVar, Type.devectorize(s.f.body.t))
@@ -600,20 +600,20 @@ class OpenCLGenerator extends Generator {
     // create a variable for each goto label
     val finishLabel = Var("done")
     val writeResultLabel = Var("writeresult")
-    generateWhileLoop(nestedBlock, Predicate(lowerIndex,upperIndex,Predicate.Operator.<), 
+    generateWhileLoop(nestedBlock, Predicate(lowerIndex,upperIndex,Predicate.Operator.<),
       (b) => {
-        b += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), 
+        b += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar),
           OpenCLAST.Expression(lowerIndex + (upperIndex - lowerIndex) / 2))
 
         generate(s.f.body, b)
 
-        generateConditional(b, 
+        generateConditional(b,
           Predicate(compFuncResVar, 0, Predicate.Operator.<),
           (cb) => {
             cb += OpenCLAST.Assignment(OpenCLAST.Expression(upperIndex),OpenCLAST.Expression(s.indexVar))
           },
           (cb) => {
-            generateConditional(cb, 
+            generateConditional(cb,
               Predicate(compFuncResVar, 0, Predicate.Operator.>),
               (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex),OpenCLAST.Expression(s.indexVar + 1))},
               (ccb) => {ccb += OpenCLAST.GOTO(writeResultLabel)}
@@ -634,7 +634,7 @@ class OpenCLGenerator extends Generator {
     block += OpenCLAST.Comment("binary_search")
   }
 
-  // LSearch 
+  // LSearch
   private def generateLSearchCall(s: AbstractSearch,
                                   call: FunCall,
                                   block: Block): Unit = {
@@ -658,7 +658,7 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.Assignment(OpenCLAST.Expression(s.indexVar), OpenCLAST.Expression(0))
     // Declare a variable to copy the result of the user function into
     // We have to do this, as we currently have no nice way of describing normal C statements
-    // in a way that works private memory properly. 
+    // in a way that works private memory properly.
     // TODO: Find some way of representing the arguments to while/if/etc...
     val compFuncResVar = Var("cmp_res_var")
     varDecls = varDecls.updated(compFuncResVar, Type.devectorize(s.f.body.t))
@@ -676,12 +676,12 @@ class OpenCLGenerator extends Generator {
     val searchFailedLabel = Var("searchfailed")
 
     // todo - need to simplify inArrT.len, as currently it evaluates to unexecutable code on some tests
-    generateWhileLoop(nestedBlock, Predicate(s.indexVar,(inArrT.len),Predicate.Operator.<), 
+    generateWhileLoop(nestedBlock, Predicate(s.indexVar, inArrT.len,Predicate.Operator.<),
       (b) => {
 
         generate(s.f.body, b)
 
-        generateConditional(b, 
+        generateConditional(b,
           // if the result of the comparator is greater than zero, the element we're currently
           // comparing to is smaller than the element we are searching for
           Predicate(compFuncResVar, 0, Predicate.Operator.>),
@@ -691,7 +691,7 @@ class OpenCLGenerator extends Generator {
           },
           (cb) => {
             // else...
-            generateConditional(cb, 
+            generateConditional(cb,
               // if the result is less than 0, we've gone past the value we're looking for, so abort
               Predicate(compFuncResVar, 0, Predicate.Operator.<),
               // if the value is greater than, it's gone past! the search has failed.
@@ -1022,6 +1022,16 @@ class OpenCLGenerator extends Generator {
                 offset = OpenCLAST.Expression(
                   ArithExpr.substitute(ViewPrinter.emit(view),
                     replacementsWithFuns) / vt.len) )
+
+            // originally a vector value in private memory,
+            // but now a scalar type
+            //  => emit load from components
+            case (vt: VectorType, st: ScalarType)
+              if Type.isEqual(st, vt.scalarT)
+                && (mem.addressSpace == PrivateMemory) =>
+
+              val componentSuffix = componentAccessVectorVar(mem.variable, view)
+              OpenCLAST.VarRef(mem.variable, suffix = componentSuffix)
 
             // originally an array of vector values in private memory,
             // but now a scalar type
