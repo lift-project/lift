@@ -1,10 +1,8 @@
 package opencl.generator
 
 import apart.arithmetic.{?, ArithExpr, Cst, Var}
-import benchmarks.MatrixVector
 import cgoSearch.GenerateOpenCL
 import exploration.InferNDRange
-import exploration.utils.ScalaPrinter
 import ir._
 import ir.ast._
 import opencl.executor._
@@ -235,6 +233,49 @@ class TestMisc {
     val (output: Array[Float], _) = Execute(1, 1)(l, inputData)
 
     assertArrayEquals(inputData, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def asScalarInPrivateMemoryAfterReduce(): Unit = {
+    val inputSize = 8
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun(ArrayType(Float, Cst(inputSize)),
+      in => {
+        in :>>
+          asVector(4) :>>
+          ReduceSeq(VectorizeUserFun(4, add), Value(0.0f).vectorize(4)) :>>
+          asScalar() :>>
+          toGlobal(MapSeq(id))
+      })
+    val (output: Array[Float], _) = Execute(1, 1)(l, inputData)
+
+    val gold = inputData.splitAt(inputSize/2).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def reduceVector(): Unit = {
+    val inputSize = 8
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val l = fun(ArrayType(Float, Cst(inputSize)),
+      in => {
+        in :>>
+          asVector(4) :>>
+          ReduceSeq(VectorizeUserFun(4, add), Value(0.0f).vectorize(4)) :>>
+          asScalar() :>>
+          ReduceSeq(add, 0.0f) :>>
+          toGlobal(MapSeq(id))
+      })
+    val (output: Array[Float], _) = Execute(1, 1)(l, inputData)
+
+    val gold = Array(inputData.sum)
+
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   // Simple 1D increment, used to check the syntax of unary UserFunDef
@@ -731,7 +772,7 @@ class TestMisc {
   }
 
   @Ignore
-  @Test def issue47: Unit = {
+  @Test def issue47(): Unit = {
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M0_0 = variables(0)
       val v_N1_1 = variables(1)
@@ -831,7 +872,7 @@ class TestMisc {
    * Actual behavior: Throws scala.MatchError: (Arr(Arr(Arr(float,128),v__2),(v__1*1/^(128))),float4) (of class scala.Tuple2)
    */
   @Ignore
-  @Test def issue50_MatchError: Unit = {
+  @Test def issue50_MatchError(): Unit = {
     val v_K0_0 = Var("")
     val v_M1_1 = Var("")
     val v_N2_2 = Var("")
