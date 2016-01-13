@@ -8,7 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.reflect.ClassTag
 
@@ -183,7 +183,6 @@ class TestMatrixMatrix {
 
   }
 
-  @Ignore
   @Test def vectorisedReuseA() {
 
     val Msize = 8
@@ -206,10 +205,10 @@ class TestMatrixMatrix {
       (A, B) =>
         Map(Join()) o
           MapGlb(fun(rowA => MapSeq( fun(colsB =>
-            toGlobal(MapSeq(VectorizeUserFun(4, id))) o ReduceSeq(fun((acc, elemRowPair) =>
-              MapSeq(fun(partial => VectorizeUserFun(4,add)(acc, partial)))
-                $ (MapSeq(fun( b => mult(Get(elemRowPair, 0), b))) $ Get(elemRowPair,1))
-            ), toPrivate(VectorizeUserFun(4, id)) $ Value("0.0f", VectorType(Float, vectorLength))) $ Zip(rowA, colsB)
+            toGlobal(MapSeq(VectorizeUserFun(4, id))) o Join() o ReduceSeq(fun((acc, elemRowPair) =>
+              MapSeq(fun(partial => VectorizeUserFun(4,add)(Get(partial, 0), Get(partial, 1))))
+                $ Zip(MapSeq(fun(b => mult(Get(elemRowPair, 0), b))) $ Get(elemRowPair, 1), acc)
+            ), toPrivate(MapSeq(VectorizeUserFun(4, id))) $ Value("0.0f", ArrayType(VectorType(Float, vectorLength), 1))) $ Zip(rowA, colsB)
           )) o Map(Map(asVector(vectorLength)) o Transpose()) o Split(vectorLength) o Transpose() $ B
           )) $ A
     )
