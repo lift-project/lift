@@ -8,7 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 import scala.reflect.ClassTag
 
@@ -176,6 +176,45 @@ class TestMatrixMatrix {
       })
 
     val (output: Array[Float], _) = Execute(Msize, Nsize)(f1, matrixA, matrixB.transpose)
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    assertArrayEquals(gold, output, 0.001f)
+
+  }
+
+  @Ignore
+  @Test def vectorisedReuseA() {
+
+    val Msize = 8
+    val Ksize = 32
+    val Nsize = 16
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val vectorLength = 4
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float4), Float4)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) =>
+        Map(Join()) o
+          MapGlb(fun(rowA => MapSeq( fun(colsB =>
+            toGlobal(MapSeq(VectorizeUserFun(4, id))) o ReduceSeq(fun((acc, elemRowPair) =>
+              MapSeq(fun(partial => VectorizeUserFun(4,add)(acc, partial)))
+                $ (MapSeq(fun( b => mult(Get(elemRowPair, 0), b))) $ Get(elemRowPair,1))
+            ), toPrivate(VectorizeUserFun(4, id)) $ Value("0.0f", VectorType(Float, vectorLength))) $ Zip(rowA, colsB)
+          )) o Map(Map(asVector(vectorLength)) o Transpose()) o Split(vectorLength) o Transpose() $ B
+          )) $ A
+    )
+
+    val (output: Array[Float], _) = Execute(Msize, Nsize)(f, matrixA, matrixB)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
