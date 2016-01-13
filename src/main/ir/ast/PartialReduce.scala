@@ -23,8 +23,11 @@ abstract class AbstractPartRed(val f: Lambda,
     argType match {
       case TupleType(initT, ArrayType(elemT, _)) =>
         f.params(0).t = initT // initial elem type
-        f.params(1).t = elemT // array element typ
-        TypeChecker.check(f.body, setType) // check the body
+        f.params(1).t = elemT // array element type
+        val bodyType = TypeChecker.check(f.body, setType) // check the body
+
+        if (bodyType != initT)
+          throw new TypeException(s"Reduce operator returns $bodyType instead of the expected $initT")
 
         ArrayType(initT, 1)
 
