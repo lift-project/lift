@@ -162,12 +162,13 @@ object HighLevelRewrite {
           val sha256 = Utils.Sha256Hash(stringRep)
           val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
-          Utils.dumpToFile(stringRep, sha256, folder)
-
-          synchronized {
-            val idxFile = new FileWriter(topLevelFolder + "/index", true)
-            idxFile.write(folder + "/" + sha256 + "\n")
-            idxFile.close()
+          if (Utils.dumpToFile(stringRep, sha256, folder)) {
+            // Add to index if it was unique
+            synchronized {
+              val idxFile = new FileWriter(topLevelFolder + "/index", true)
+              idxFile.write(folder + "/" + sha256 + "\n")
+              idxFile.close()
+            }
           }
 
         }

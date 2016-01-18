@@ -1,5 +1,6 @@
 package cgoSearch
 
+import java.io.FileWriter
 import java.util.concurrent.atomic.AtomicInteger
 
 import exploration.utils.{NumberExpression, Utils}
@@ -56,7 +57,14 @@ object MemoryMappingRewrite {
                 val sha256 = Utils.Sha256Hash(str)
                 val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
-                Utils.dumpToFile(str, sha256, folder)
+                if (Utils.dumpToFile(str, sha256, folder)) {
+                  // Add to index if it was unique
+                  synchronized {
+                    val idxFile = new FileWriter(s"${topFolder}Lower/index", true)
+                    idxFile.write(folder + "/" + sha256 + "\n")
+                    idxFile.close()
+                  }
+                }
               } catch {
                 case t: Throwable =>
                   println(s"No $id of $count failed with ${t.toString}.")
