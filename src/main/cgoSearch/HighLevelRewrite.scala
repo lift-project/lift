@@ -115,6 +115,7 @@ object HighLevelRewrite {
     if (userFunCalls.length == 1)
       return true
 
+    // TODO: A more reasonable default. Will filter out gemv.
     val cutoff = distanceFilter.value.getOrElse(5)
 
     val ids = userFunCalls.map(numberMap(_))
@@ -165,7 +166,8 @@ object HighLevelRewrite {
 
           synchronized {
             val idxFile = new FileWriter(topLevelFolder + "/index", true)
-            idxFile.write(sha256);
+            idxFile.write(folder + "/" + sha256 + "\n")
+            idxFile.close()
           }
 
         }
