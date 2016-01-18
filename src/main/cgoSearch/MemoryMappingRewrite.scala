@@ -60,7 +60,7 @@ object MemoryMappingRewrite {
                 if (Utils.dumpToFile(str, sha256, folder)) {
                   // Add to index if it was unique
                   synchronized {
-                    val idxFile = new FileWriter(s"${topFolder}Lower/index", true)
+                    val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)
                     idxFile.write(folder + "/" + sha256 + "\n")
                     idxFile.close()
                   }
