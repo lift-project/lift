@@ -58,12 +58,7 @@ object OpenCLMemoryAllocator {
       assert(oclMem.addressSpace == PrivateMemory)
       oclMem
     } else {
-      v.t match {
-        case tt: TupleType =>
-          OpenCLMemoryCollection(tt.elemsT.map(x => OpenCLMemory.allocPrivateMemory(getSizeInBytes(x))))
-        case _ =>
           OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
-      }
     }
   }
 
