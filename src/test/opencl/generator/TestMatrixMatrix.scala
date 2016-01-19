@@ -221,6 +221,69 @@ class TestMatrixMatrix {
 
   }
 
+  @Test def partiallyVectorisedTiled(): Unit = {
+    // Basic tiled matrix multiply without local memory
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 2
+    val vectorLength = 4
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    // val dot = UserFun("dotp", Array("a", "b"), "{ return dot(a, b); }", Seq(Float4, Float4), Float)
+    // ReduceSeq( add, 0.0f) o asScalar() o MapSeq(VectorizeUserFun(4, mult))
+    // is equivalent to MapSeq(dot) if the input is of type Array(Float4, 1)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f =  fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapGlb(0)(fun( aRows =>
+            MapGlb(1)(fun( bCols =>
+
+              Map(TransposeW()) o TransposeW() o
+
+              toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) o
+
+                // Multiply all necessary combinations of tiles
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(partial =>
+                    MapSeq(fun(pairOfRows =>
+                      MapSeq(fun(a => MapSeq(add) $ Zip(Get(a, 0), Get(a, 1)))) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                    MapSeq( fun(rowA =>
+                      MapSeq( fun( colB =>
+                        ReduceSeq(add, id $ Value(0.0f)) o asScalar() o
+                          MapSeq(VectorizeUserFun(4, mult)) $ Zip(rowA, colB)
+                      )) $ Get(pairOfTiles, 1)
+                    )) $ Get(pairOfTiles, 0)
+                )
+                  , MapSeq(MapSeq(MapSeq(id)))
+                    $ Value(0.0f, ArrayType(ArrayType(ArrayType(Float, 1), tileSize), tileSize))
+                    // ArrayType(ArrayType(ArrayType(Float, 1), 2), 2))
+                    // maliBNT stores it in float4 + vectorised final add
+                ) $ Zip(aRows, bCols)
+
+            )) o Map(Map(Map(asVector(vectorLength)))) o Tile(tileSize, vectorLength) $ B
+            // Tile the matrices
+          )) o Map(Map(Map(asVector(vectorLength)))) o Tile(tileSize, vectorLength) $ A
+      })
+
+    val (output: Array[Float], _) = Execute(tileSize, tileSize, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
   @Test def tiledMultiplicationScala(): Unit = {
     val mSize = 16
     val kSize = 16
