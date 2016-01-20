@@ -315,13 +315,33 @@ object Rules {
   val vectorize: Rule = vectorize(?)
 
   def vectorize(vectorWidth: ArithExpr): Rule =
-    Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(4)", {
+    Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
       case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArg))), arg)
-        if (p.head eq ufArg) && !ufArg.t.isInstanceOf[VectorType]
+        if (p.head eq ufArg) && !ufArg.t.isInstanceOf[VectorType] && !ufArg.t.isInstanceOf[TupleType]
       =>
         // TODO: force the width to be less than the array length
         val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
         asScalar() o Map(VectorizeUserFun(n, uf)) o asVector(n) $ arg
+    })
+
+  def vectorizeMapZip(vectorWidth: ArithExpr): Rule =
+    Rule("Map(uf) $ Zip(a, b) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
+      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArgs@_*))), FunCall(Zip(_), zipArgs@_*))
+        if zipArgs.forall(arg => !arg.t.isInstanceOf[VectorType] && !arg.t.isInstanceOf[TupleType]) &&
+          ufArgs.forall({
+            case FunCall(Get(_), x) if x == p.head => true
+            case _ => false
+          })
+      =>
+        // TODO: force the width to be less than the array length
+        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        val newZipArgs = zipArgs.map(arg => asVector(n) $ arg)
+        val newParam = Param()
+        val newUfArgs = ufArgs.map({
+          case FunCall(Get(i), _) => FunCall(Get(i), newParam)
+        })
+
+        asScalar() o Map(Lambda(Array(newParam), VectorizeUserFun(n, uf)(newUfArgs:_*))) $ Zip(newZipArgs:_*)
     })
 
   /* Other */

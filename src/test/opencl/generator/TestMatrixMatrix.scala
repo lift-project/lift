@@ -206,9 +206,9 @@ class TestMatrixMatrix {
           MapGlb(0)(fun(rowA => MapGlb(1)( fun(colsB =>
             toGlobal(MapSeq(VectorizeUserFun(4, id))) o Join() o ReduceSeq(fun((acc, elemRowPair) =>
               MapSeq(fun(partial => VectorizeUserFun(4,add)(Get(partial, 0), Get(partial, 1))))
-                $ Zip(MapSeq(fun(b => mult(Get(elemRowPair, 0), b))) $ Get(elemRowPair, 1), acc)
+                $ Zip(MapSeq(fun(b => mult(Get(elemRowPair, 0), b))) o asVector(vectorLength) $ Get(elemRowPair, 1), acc)
             ), toPrivate(MapSeq(VectorizeUserFun(4, id))) $ Value("0.0f", ArrayType(VectorType(Float, vectorLength), 1))) $ Zip(rowA, colsB)
-          )) o Map(Map(asVector(vectorLength)) o Transpose()) o Split(vectorLength) o Transpose() $ B
+          )) o Map(Transpose()) o Split(vectorLength) o Transpose() $ B
           )) $ A
     )
 
@@ -252,30 +252,34 @@ class TestMatrixMatrix {
 
               Map(TransposeW()) o TransposeW() o
 
-              toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) o
+                toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) o
 
                 // Multiply all necessary combinations of tiles
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(partial =>
                     MapSeq(fun(pairOfRows =>
-                      MapSeq(fun(a => MapSeq(add) $ Zip(Get(a, 0), Get(a, 1)))) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1)))) $ Zip(acc, partial) ) o
+                      MapSeq(fun(a =>
+                        MapSeq(add) $ Zip(Get(a, 0), Get(a, 1))
+                      )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
+                    )) $ Zip(acc, partial) ) o
                     MapSeq( fun(rowA =>
                       MapSeq( fun( colB =>
                         ReduceSeq(add, id $ Value(0.0f)) o asScalar() o
-                          MapSeq(VectorizeUserFun(4, mult)) $ Zip(rowA, colB)
+                          MapSeq(VectorizeUserFun(4, mult))
+                          $ Zip(asVector(vectorLength) $ rowA, asVector(vectorLength) $ colB)
                       )) $ Get(pairOfTiles, 1)
                     )) $ Get(pairOfTiles, 0)
                 )
                   , MapSeq(MapSeq(MapSeq(id)))
                     $ Value(0.0f, ArrayType(ArrayType(ArrayType(Float, 1), tileSize), tileSize))
-                    // ArrayType(ArrayType(ArrayType(Float, 1), 2), 2))
-                    // maliBNT stores it in float4 + vectorised final add + 2 vector stores instead 4 scalar ones
+                  // ArrayType(ArrayType(ArrayType(Float, 1), 2), 2))
+                  // maliBNT stores it in float4 + vectorised final add + 2 vector stores instead 4 scalar ones
                 ) $ Zip(aRows, bCols)
 
-            )) o Map(Map(Map(asVector(vectorLength)))) o Tile(tileSize, vectorLength) $ B
+            )) o Tile(tileSize, vectorLength) $ B
             // Tile the matrices
-          )) o Map(Map(Map(asVector(vectorLength)))) o Tile(tileSize, vectorLength) $ A
+          )) o Tile(tileSize, vectorLength) $ A
       })
 
     val (output: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
