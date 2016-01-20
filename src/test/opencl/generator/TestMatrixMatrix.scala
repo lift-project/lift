@@ -168,8 +168,7 @@ class TestMatrixMatrix {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
             toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o asScalar() o
-              ReduceSeq(VectorizeUserFun(4, add), Value(0.0f).vectorize(4)) o
-              MapSeq(VectorizeUserFun(4, mult))
+              ReduceSeq(fun((acc, next) => VectorizeUserFun(4, multAndSumUp)(acc, Get(next, 0), Get(next, 1))), Value(0.0f).vectorize(4))
               $ Zip(asVector(4) $ Arow, asVector(4) $ Bcol)
           )) $ B
         )) $ A
@@ -204,7 +203,7 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, N), K),
       (A, B) =>
         Map(Join()) o
-          MapGlb(fun(rowA => MapSeq( fun(colsB =>
+          MapGlb(0)(fun(rowA => MapGlb(1)( fun(colsB =>
             toGlobal(MapSeq(VectorizeUserFun(4, id))) o Join() o ReduceSeq(fun((acc, elemRowPair) =>
               MapSeq(fun(partial => VectorizeUserFun(4,add)(Get(partial, 0), Get(partial, 1))))
                 $ Zip(MapSeq(fun(b => mult(Get(elemRowPair, 0), b))) $ Get(elemRowPair, 1), acc)
@@ -271,7 +270,7 @@ class TestMatrixMatrix {
                   , MapSeq(MapSeq(MapSeq(id)))
                     $ Value(0.0f, ArrayType(ArrayType(ArrayType(Float, 1), tileSize), tileSize))
                     // ArrayType(ArrayType(ArrayType(Float, 1), 2), 2))
-                    // maliBNT stores it in float4 + vectorised final add
+                    // maliBNT stores it in float4 + vectorised final add + 2 vector stores instead 4 scalar ones
                 ) $ Zip(aRows, bCols)
 
             )) o Map(Map(Map(asVector(vectorLength)))) o Tile(tileSize, vectorLength) $ B
@@ -279,7 +278,7 @@ class TestMatrixMatrix {
           )) o Map(Map(Map(asVector(vectorLength)))) o Tile(tileSize, vectorLength) $ A
       })
 
-    val (output: Array[Float], _) = Execute(tileSize, tileSize, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
