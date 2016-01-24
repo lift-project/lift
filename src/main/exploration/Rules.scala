@@ -91,7 +91,18 @@ object Rules {
         val chunkSize = if (split == ?) Utils.validSplitVariable(arg.t) else split
         Join() o Map(PartRed(f, init)) o Split(chunkSize) $ arg
     })
-
+  
+  val partialReduceVectorize: Rule = partialReduceVectorize(?)
+  
+  def partialReduceVectorize(vectorWidth: ArithExpr): Rule =
+    Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
+      case FunCall(PartRed(Lambda(_, FunCall(uf:UserFun, _*))), init:Value, arg)
+        if !init.t.isInstanceOf[TupleType] && !init.t.isInstanceOf[VectorType] =>
+        // TODO: force the width to be less than the array length
+        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        asScalar() o PartRed(VectorizeUserFun(n, uf), init.vectorize(n)) o asVector(n) $ arg
+    })
+  
   /* Cancellation rules */
 
   val asScalarAsVectorId = Rule("joinVec o splitVec => id", {

@@ -422,6 +422,33 @@ class TestRewriteMatrixMatrix {
     assertEquals(64, numExpressions)
   }
 
+  @Test
+  def vectorised() = {
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f0: Lambda = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // Transposed
+      (A, B) => {
+        Map(fun( aRow =>
+          Map(fun( bCol =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)) )) $ Zip(aRow, bCol)
+          )) $ B
+        )) $ A
+      })
+
+    val f1 = Rewrite.applyRuleAtId(f0, 5, Rules.vectorizeMapZip(4))
+    val f2 = Rewrite.applyRuleAtId(f1, 4, Rules.partialReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 5, Rules.partialReduceVectorize(4))
+    val f4 = Rewrite.applyRuleAtId(f3, 6, Rules.partialReduceToReduce)
+    val f5 = SimplifyAndFuse(f4)
+
+    val numExpressions = NumberExpression.breadthFirst(f5).values.max
+    assertEquals(27, numExpressions)
+  }
+
   @Ignore
   @Test
   def gemmTiled() = {
