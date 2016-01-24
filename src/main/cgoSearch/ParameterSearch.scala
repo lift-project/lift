@@ -28,7 +28,7 @@ object ParameterSearch {
       splits.head match {
         // If the stride is not set and the input length is constant, compute all divisors
         case (v: Var, Cst(len)) =>
-          (1 to len).filter(len % _ == 0).foldLeft(table)((table, x) =>
+          ((if (len == 1) 1 else 2) to len).filter(len % _ == 0).foldLeft(table)((table, x) =>
             substitute(propagate(splits.tail, Map(v -> x)), substitutions + (v -> x), table))
 
         // If the input AND the stride are already set, make sure they are multiple

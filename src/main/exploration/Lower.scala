@@ -116,6 +116,7 @@ object Lower {
       lambdas = lambdaN :: lambdas
     }
 
+/*
     if(maxDepth > 1 && oneMapOnLevelTwo) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(0))
@@ -125,6 +126,7 @@ object Lower {
 
       lambdas = lambdaN :: lambdas
     }
+*/
 
     if(maxDepth > 1 && oneMapOnLevelTwo) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
@@ -136,7 +138,7 @@ object Lower {
       lambdas = lambdaN :: lambdas
     }
 
-    def addGlobalMapping(first: Int, second: Int, third: Int): Unit = {
+/*    def addGlobalMapping(first: Int, second: Int, third: Int): Unit = {
       if (maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
         val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(first))
         val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(second))
@@ -153,7 +155,7 @@ object Lower {
     addGlobalMapping(0,2,1)
     addGlobalMapping(2,1,0)
     addGlobalMapping(2,0,1)
-    addGlobalMapping(1,2,0)
+    addGlobalMapping(1,2,0)*/
 
     /** Workgroup */
     if(maxDepth > 1) {
@@ -183,10 +185,10 @@ object Lower {
         lambdas = lambdaN :: lambdas
       }
     }
-    addWrgLocalMapping(0,1)
+//    addWrgLocalMapping(0,1)
     addWrgLocalMapping(1,0)
 
-    def addWrgLocalMapping3D(first: Int, second: Int, third: Int): Unit = {
+/*    def addWrgLocalMapping3D(first: Int, second: Int, third: Int): Unit = {
       if (maxDepth > 5 && oneMapOnLevelTwo && oneMapOnLevelThree) {
         val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(first))
         val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(second))
@@ -209,7 +211,7 @@ object Lower {
     addWrgLocalMapping3D(0,2,1)
     addWrgLocalMapping3D(2,1,0)
     addWrgLocalMapping3D(2,0,1)
-    addWrgLocalMapping3D(1,2,0)
+    addWrgLocalMapping3D(1,2,0)*/
 
     lambdas
   }
