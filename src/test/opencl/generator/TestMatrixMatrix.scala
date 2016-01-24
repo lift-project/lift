@@ -282,9 +282,8 @@ class TestMatrixMatrix {
           )) o Tile(tileSize, vectorLength) $ A
       })
 
-    // Derived. Type-checks but generates wrong code. Seems like incorrect unrolling.
-    // Result of mult4 stored into the wrong variable 2/4 times. Read from correct one.
-    fun(
+    // Derived.
+    val fd = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N),
       (A, B) =>
@@ -310,9 +309,11 @@ class TestMatrixMatrix {
       )), FunCall(Split(tileSize), A))))
 
 
-    val (output: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
+    val (output1: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
+    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
 
-    assertArrayEquals(gold, output, 0.0001f)
+    assertArrayEquals(gold, output1, 0.0001f)
+    assertArrayEquals(gold, output2, 0.0001f)
   }
 
   @Test def tiledMultiplicationScala(): Unit = {
