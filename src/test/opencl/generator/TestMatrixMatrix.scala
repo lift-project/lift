@@ -194,8 +194,8 @@ class TestMatrixMatrix {
         )), p_640363654)
       )), p_924477420))
 
-    val (output1: Array[Float], _) = Execute(Msize, Nsize)(f1, matrixA, matrixB.transpose)
-    val (output2: Array[Float], _) = Execute(Msize, Nsize)(fd, matrixA, matrixB.transpose)
+    val (output1: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(f1, matrixA, matrixB.transpose)
+    val (output2: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(fd, matrixA, matrixB.transpose)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 

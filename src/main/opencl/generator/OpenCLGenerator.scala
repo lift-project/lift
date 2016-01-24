@@ -505,10 +505,10 @@ class OpenCLGenerator extends Generator {
     }
     val currentType = call.args.head.t
 
-        val loopingOverVectorComponents = (originalType, currentType) match {
-          case (_: VectorType, ArrayType(_: ScalarType, _)) => true
-          case _ => false
-        }
+    val loopingOverVectorComponents = (originalType, currentType) match {
+      case (_: VectorType, ArrayType(_: ScalarType, _)) => true
+      case _ => false
+    }
 
     loopingOverVectorComponents ||
     (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
@@ -908,6 +908,7 @@ class OpenCLGenerator extends Generator {
     genTrueBranch(trueBlock)
     genFalseBranch(falseBlock)
   }
+
   private def generateUserFunCall(u: UserFun,
                                   call: FunCall,
                                   block: Block): Block = {

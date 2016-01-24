@@ -90,9 +90,19 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   }
 
   private def setRangeMapGlb(m: MapGlb, call: FunCall): Unit = {
-    m.loopVar.range = RangeAdd(new get_global_id(m.dim),
-      Type.getLength(call.args.head.t),
-      new get_global_size(m.dim))
+    val dim = m.dim
+    val start = new get_global_id(dim)
+    var length = Type.getLength(call.args.head.t)
+    var step: ArithExpr = new get_global_size(dim)
+
+    val size = globalSizes(dim)
+    if (size != ?) {
+      step = size
+      length = ArithExpr.substitute(length, valueMap)
+      start.range = ContinuousRange(0, size)
+    }
+
+    m.loopVar.range = RangeAdd(start, length, step)
     evaluateMapRange(m)
   }
 
