@@ -174,11 +174,33 @@ class TestMatrixMatrix {
         )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(Msize, Nsize)(f1, matrixA, matrixB.transpose)
+
+    // Derived
+    val fd = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      (p_924477420, p_640363654) =>
+      FunCall(MapGlb(0)(fun((p_317986356) =>
+        FunCall(MapGlb(1)(fun((p_331510866) =>
+          toGlobal(MapSeq(id)) $ FunCall(ReduceSeq(fun((p_1728790703, p_1227074340) =>
+            FunCall(add, p_1728790703, p_1227074340))), Value("0.0f", Float),
+            FunCall(asScalar(),
+                FunCall(ReduceSeq(fun((p_929776179, p_1765250898) =>
+                  FunCall(VectorizeUserFun(4,add), p_929776179, FunCall(VectorizeUserFun(4,mult), FunCall(Get(0), p_1765250898), FunCall(Get(1), p_1765250898)))
+                )),
+                  FunCall(VectorizeUserFun(4, id), Value("0.0f", VectorType(Float, 4))),
+                  FunCall(Zip(2), FunCall(asVector(4), p_317986356), FunCall(asVector(4), p_331510866)))
+            ))
+        )), p_640363654)
+      )), p_924477420))
+
+    val (output1: Array[Float], _) = Execute(Msize, Nsize)(f1, matrixA, matrixB.transpose)
+    val (output2: Array[Float], _) = Execute(Msize, Nsize)(fd, matrixA, matrixB.transpose)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    assertArrayEquals(gold, output, 0.001f)
+    assertArrayEquals(gold, output1, 0.001f)
+    assertArrayEquals(gold, output2, 0.001f)
 
   }
 

@@ -1,7 +1,7 @@
 package exploration
 
 import apart.arithmetic.Var
-import exploration.utils.{NumberPrinter, NumberExpression}
+import exploration.utils.NumberExpression
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
