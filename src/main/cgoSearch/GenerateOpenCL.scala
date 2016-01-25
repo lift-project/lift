@@ -62,37 +62,45 @@ object GenerateOpenCL {
 
           low_level_expr_list.par.foreach(low_level_filename => {
 
-            val low_level_hash = low_level_filename.split("/").last
-            val low_level_str = readFromFile(low_level_filename)
-            val low_level_factory = Eval.getMethod(low_level_str)
+            try {
 
-            println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
+              val low_level_hash = low_level_filename.split("/").last
+              val low_level_str = readFromFile(low_level_filename)
+              val low_level_factory = Eval.getMethod(low_level_str)
 
-            println("Propagating parameters...")
-            val potential_expressions = all_substitution_tables.map(st => {
-              val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
-              try {
-                val expr = low_level_factory(sizesForFilter ++ params)
-                TypeChecker(expr)
-                if(ExpressionFilter(expr) == ExpressionFilter.Status.Success)
-                  Some((low_level_factory(vars ++ params), params))
-                else
-                  None
-              } catch {
-                case x: ir.TypeException => None
-                case x: Throwable =>
-                  x.printStackTrace()
-                  println(low_level_hash)
-                  println(params.mkString("; "))
-                  println(low_level_str)
-                  println(SearchParameters.matrix_size)
-                  None
-              }
-            }).collect{ case Some(x) => x }
+              println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
 
-            println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
+              println("Propagating parameters...")
+              val potential_expressions = all_substitution_tables.map(st => {
+                val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
+                try {
+                  val expr = low_level_factory(sizesForFilter ++ params)
+                  TypeChecker(expr)
+                  if (ExpressionFilter(expr) == ExpressionFilter.Status.Success)
+                    Some((low_level_factory(vars ++ params), params))
+                  else
+                    None
+                } catch {
+                  case x: ir.TypeException => None
+                  case x: Throwable =>
+                    x.printStackTrace()
+                    println(low_level_hash)
+                    println(params.mkString("; "))
+                    println(low_level_str)
+                    println(SearchParameters.matrix_size)
+                    None
+                }
+              }).collect { case Some(x) => x }
 
-            SaveOpenCL(topFolder, low_level_hash, high_level_hash, potential_expressions)
+              println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
+
+              SaveOpenCL(topFolder, low_level_hash, high_level_hash, potential_expressions)
+            } catch {
+              case _: Throwable =>
+              // TODO: Log all errors to a file, so they could be reproduced in case of bugs
+              // Failed reading file or similar.
+            }
+
           })
         }
       }

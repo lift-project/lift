@@ -1,12 +1,11 @@
 package exploration
 
-import apart.arithmetic.{ArithExpr, Cst}
+import apart.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast.{Expr, FunCall, Lambda}
 import opencl.executor.Execute
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg}
-
 
 object InferNDRange {
   def apply(lambda: Lambda): (NDRange, NDRange) = (new InferNDRange)(lambda)
@@ -61,7 +60,7 @@ class InferNDRange {
 
   private def getSizesForDimension(dim: Int): (ArithExpr, ArithExpr) = {
     if (mapGlb.isDefinedAt(dim)) {
-      (Cst(32), mapGlb(dim))
+      (?, mapGlb(dim))
     } else if (mapLcl.isDefinedAt(dim)) {
       (mapLcl(dim), mapWrg(dim) * mapLcl(dim))
     } else {

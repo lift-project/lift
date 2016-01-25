@@ -97,6 +97,19 @@ object MacroRules {
         Map(Map(f)) o Transpose() $ arg
     })
 
+  val vectorizeReduce: Rule = vectorizeReduce(?)
+
+  def vectorizeReduce(vectorWidth: ArithExpr): Rule =
+    Rule("vectorizeReduce", {
+      case fc@FunCall(Reduce(_), _, _) =>
+
+        val part = Rewrite.applyRuleAt(fc, Rules.partialReduce, fc)
+        val partRed = Utils.getExprForPatternInCallChain(part, { case FunCall(PartRed(_), _*) => }).get
+        val res = Rewrite.applyRuleAt(part, Rules.partialReduceVectorize(vectorWidth), partRed)
+
+        res
+    })
+
   val partialReduceWithReorder =
     Rule("partialReduceWithReorder", {
       case funCall@FunCall(Reduce(_), _, arg) =>

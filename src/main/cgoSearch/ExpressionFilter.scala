@@ -47,9 +47,9 @@ object ExpressionFilter {
 
       // filter private memory
       val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
-      val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_ + _).eval
-      if (private_alloc_size > SearchParameters.max_amount_private_memory ||
-          private_buffers_size.forall(_.mem.size.eval <= 0)) {
+      val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_ + _)
+      if (private_alloc_size.eval > SearchParameters.max_amount_private_memory ||
+            private_buffers_size.forall(_.mem.size.eval <= 0)) {
         return TooMuchPrivateMemory
       }
 
@@ -60,34 +60,39 @@ object ExpressionFilter {
           local_buffers_size.map(_.mem.size).reduce(_ + _).eval
         else 0
       if (local_alloc_size > 50000 ||
-          local_buffers_size.forall(_.mem.size.eval <= 0)) {
+        (local_buffers_size.nonEmpty
+          && local_buffers_size.forall(_.mem.size.eval <= 0))) {
         return TooMuchLocalMemory
       }
 
       // Rule out obviously poor choices based on the grid size
-      // - minimum of workitems in a workgroup
-      if (local.map(_.eval).product < SearchParameters.min_work_items) {
-        return NotEnoughWorkItems
-      }
-
       // - minimum size of the entire compute grid
       if (global.map(_.eval).product < SearchParameters.min_grid_size) {
         return NotEnoughWorkItems
       }
 
-      // Avoid crashing for invalid values
-      if (local.map(_.eval).product > 1024) {
+      if (local.forall(_.isEvaluable)) {
+
+        // - minimum of workitems in a workgroup
+        if (local.map(_.eval).product < SearchParameters.min_work_items) {
+          return NotEnoughWorkItems
+        }
+
+        // Avoid crashing for invalid values
+      if (local.forall(_.isEvaluable) && local.map(_.eval).product > 1024) {
         return TooManyWorkItems
       }
 
-      // - minimum number of workgroups
-      val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
-      if (num_workgroups < SearchParameters.min_num_workgroups) {
-        return NotEnoughWorkGroups
-      }
+        // - minimum number of workgroups
+        val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
+        if (num_workgroups < SearchParameters.min_num_workgroups) {
+          return NotEnoughWorkGroups
+        }
 
-      if (num_workgroups > SearchParameters.max_num_workgroups) {
-        return TooManyWorkGroups
+        if (num_workgroups > SearchParameters.max_num_workgroups) {
+          return TooManyWorkGroups
+        }
+
       }
 
       // This measures the % of max local memory / thread

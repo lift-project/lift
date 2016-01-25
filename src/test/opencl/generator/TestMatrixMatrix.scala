@@ -174,8 +174,10 @@ class TestMatrixMatrix {
         )) $ A
       })
 
-
-    // Derived
+    // Derived. TODO: Actual one contains some empty MapSeqs.
+    // High-level 756aaab97669a2d6ac288607378b26f58426c7b157d9d096e403cb083246b7f5
+    // Low-level 143db2b324bb8ceac9bab732aa0643416833dd21fe105f1b53ea39e8383b5ae1
+    // OpenCL 272e6fe757d016204dc99766f2900a455c6c14c714ab266e7b292c6d36145319.cl
     val fd = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
@@ -304,7 +306,9 @@ class TestMatrixMatrix {
           )) o Tile(tileSize, vectorLength) $ A
       })
 
-    // Derived.
+    // Derived. TODO: Actual one contains some empty MapSeqs.
+    // High-level 7352181db558ca218caa8723936a115f8e30dd4e69a2686e11d5a0255bf5d8a4
+    // Low-level 72ef373f103c33cf9c79741a95fdd9d15d605f757529151844690d685c173c19
     val fd = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N),

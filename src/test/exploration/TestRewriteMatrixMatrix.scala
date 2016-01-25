@@ -57,6 +57,9 @@ class TestRewriteMatrixMatrix {
     val f9 = Rewrite.applyRuleAtId(f8, 5, Rules.addCopy)
     val f10 = Rewrite.applyRuleAtId(f9, 6, MacroRules.tileTranspose)
 
+    val maxDepth = NumberExpression.byDepth(f10).values.max
+    println(maxDepth)
+
     val numExpressionsFinal = NumberExpression.breadthFirst(f10).values.max
     assertEquals(131, numExpressionsFinal)
   }
@@ -440,12 +443,11 @@ class TestRewriteMatrixMatrix {
       })
 
     val f1 = Rewrite.applyRuleAtId(f0, 5, Rules.vectorizeMapZip(4))
-    val f2 = Rewrite.applyRuleAtId(f1, 4, Rules.partialReduce)
-    val f3 = Rewrite.applyRuleAtId(f2, 5, Rules.partialReduceVectorize(4))
-    val f4 = Rewrite.applyRuleAtId(f3, 6, Rules.partialReduceToReduce)
-    val f5 = SimplifyAndFuse(f4)
+    val f2 = Rewrite.applyRuleAtId(f1, 4, MacroRules.vectorizeReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.partialReduceToReduce)
+    val f4 = SimplifyAndFuse(f3)
 
-    val numExpressions = NumberExpression.breadthFirst(f5).values.max
+    val numExpressions = NumberExpression.breadthFirst(f3).values.max
     assertEquals(27, numExpressions)
   }
 

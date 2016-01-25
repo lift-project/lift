@@ -6,6 +6,7 @@ import exploration._
 import exploration.utils._
 import ir.TypeChecker
 import ir.ast._
+import opencl.executor.Eval
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 
@@ -70,7 +71,7 @@ object HighLevelRewrite {
       val lambdas = dumpThese.map(_._1)
       printMinAndMaxDepth(lambdas)
 
-      val folderName =output.value.getOrElse(filename.split("/").last)
+      val folderName = output.value.getOrElse(filename.split("/").last)
 
       dumpLambdasToFiles(lambdas :+ lambda, folderName)
     } catch {
@@ -102,12 +103,13 @@ object HighLevelRewrite {
     filterDepth
   }
 
-  private def filterByDistance(lambda: Lambda): Boolean = {
+  def filterByDistance(lambda: Lambda): Boolean = {
     val numberMap = NumberExpression.depthFirst(lambda)
 
     val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
       expr match {
         case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr :: state
+        case FunCall(uf: VectorizeUserFun, _*) => expr :: state
         case _ => state
       }
     })
@@ -159,6 +161,8 @@ object HighLevelRewrite {
 
           val stringRep = Utils.dumpLambdaToString(appliedRules)
 
+          Eval(stringRep)
+
           val sha256 = Utils.Sha256Hash(stringRep)
           val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
@@ -207,13 +211,18 @@ object HighLevelRewrite {
 
 class HighLevelRewrite {
 
+  private val vecRed4 = MacroRules.vectorizeReduce(4)
+  private val vecZip4 = Rules.vectorizeMapZip(4)
+
   private val highLevelRules =
     Seq(
       MacroRules.apply2DRegisterBlocking,
       MacroRules.apply1DRegisterBlocking,
       MacroRules.tileMapMap,
       MacroRules.finishTiling,
-      MacroRules.partialReduceWithReorder
+      MacroRules.partialReduceWithReorder,
+      vecRed4,
+      vecZip4
     )
 
   private var failures = 0
@@ -269,8 +278,8 @@ class HighLevelRewrite {
       ._1
 
     if (distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
-      || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
-      || distinctRulesApplied.contains(MacroRules.tileMapMap))
+        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
+        || distinctRulesApplied.contains(MacroRules.tileMapMap))
       dontTryThese = MacroRules.tileMapMap +: dontTryThese
 
     if (distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking))
@@ -278,6 +287,17 @@ class HighLevelRewrite {
 
     if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking))
       dontTryThese = MacroRules.apply1DRegisterBlocking +: dontTryThese
+
+    if (distinctRulesApplied.contains(vecZip4)
+          || (distinctRulesApplied.contains(MacroRules.tileMapMap)
+            && !distinctRulesApplied.contains(MacroRules.finishTiling)))
+      dontTryThese = vecZip4 +: dontTryThese
+
+    if (distinctRulesApplied.contains(MacroRules.tileMapMap)
+        || distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
+        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
+        || distinctRulesApplied.contains(vecRed4))
+      dontTryThese = vecRed4 +: dontTryThese
 
     val rulesToTry = highLevelRules diff dontTryThese
     rulesToTry
