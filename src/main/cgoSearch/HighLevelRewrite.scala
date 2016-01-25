@@ -6,11 +6,13 @@ import exploration._
 import exploration.utils._
 import ir.TypeChecker
 import ir.ast._
-import opencl.executor.Eval
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
+import java.util.concurrent.atomic.AtomicInteger
 
 object HighLevelRewrite {
+
+  val processed = new AtomicInteger(0)
 
   val parser = new ArgotParser("HighLevelRewrite")
 
@@ -143,13 +145,10 @@ object HighLevelRewrite {
   }
 
   private def dumpLambdasToFiles(lambdas: Seq[Lambda], topLevelFolder: String): Unit = {
-    val withIndex = lambdas.zipWithIndex
+    val x = if (sequential.value.isDefined) lambdas else lambdas.par
 
-    val x = if (sequential.value.isDefined) withIndex else withIndex.par
-
-    x.foreach(pair => {
-      val lambda = pair._1
-      val id = pair._2
+    x.foreach(lambda => {
+      val id = processed.getAndIncrement()
 
       println(s"Processing $id/${lambdas.length - 1}")
 
