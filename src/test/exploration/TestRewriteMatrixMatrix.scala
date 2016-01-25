@@ -447,7 +447,7 @@ class TestRewriteMatrixMatrix {
     val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
 
-    val numExpressions = NumberExpression.breadthFirst(f3).values.max
+    val numExpressions = NumberExpression.breadthFirst(f4).values.max
     assertEquals(27, numExpressions)
   }
 
