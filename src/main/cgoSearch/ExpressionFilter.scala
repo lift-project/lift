@@ -79,7 +79,7 @@ object ExpressionFilter {
         }
 
         // Avoid crashing for invalid values
-      if (local.forall(_.isEvaluable) && local.map(_.eval).product > 1024) {
+      if (local.map(_.eval).product > 1024) {
         return TooManyWorkItems
       }
 

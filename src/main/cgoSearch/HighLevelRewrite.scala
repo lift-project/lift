@@ -103,7 +103,7 @@ object HighLevelRewrite {
     filterDepth
   }
 
-  def filterByDistance(lambda: Lambda): Boolean = {
+  private def filterByDistance(lambda: Lambda): Boolean = {
     val numberMap = NumberExpression.depthFirst(lambda)
 
     val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
@@ -160,8 +160,6 @@ object HighLevelRewrite {
         if (filterByDistance(appliedRules)) {
 
           val stringRep = Utils.dumpLambdaToString(appliedRules)
-
-          Eval(stringRep)
 
           val sha256 = Utils.Sha256Hash(stringRep)
           val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
