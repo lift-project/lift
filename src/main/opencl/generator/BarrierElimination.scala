@@ -1,7 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.{?, ArithExpr, Cst, IntDiv}
-import exploration.utils._
+import rewriting.utils._
 import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._

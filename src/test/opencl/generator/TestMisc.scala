@@ -1,8 +1,8 @@
 package opencl.generator
 
 import apart.arithmetic.{?, ArithExpr, Cst, Var}
-import cgoSearch.GenerateOpenCL
-import exploration.InferNDRange
+import exploration.GenerateOpenCL
+import rewriting.InferNDRange
 import ir._
 import ir.ast._
 import opencl.executor._
