@@ -138,6 +138,7 @@ class OpenCLCodeGen {
     case t: TypeDef       => print(t)
     case a: TupleAlias    => print(a)
     case c: Cast          => print(c)
+    case l: VectorLiteral => print(l)
     case e: Extension     => print(e)
     case c: Conditional   => print(c)
     case l: Label         => print(l)
@@ -150,6 +151,17 @@ class OpenCLCodeGen {
   private def print(c: Cast): Unit = {
     print(s"(${c.t})")
     print(c.v)
+  }
+
+  private def print(l: VectorLiteral): Unit = {
+    print(s"(${l.t})(")
+    var c = 0
+    l.vs.foreach( v => {
+      print(v)
+      c = c+1
+      if (c != l.vs.length) { print(", ") }
+    })
+    print(")")
   }
 
   private def print(t: TypeDef): Unit = t.t match {

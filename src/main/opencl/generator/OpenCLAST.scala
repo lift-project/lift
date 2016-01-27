@@ -105,6 +105,8 @@ object OpenCLAST {
     */
   case class Cast(v: VarRef, t: Type) extends OclAstNode
 
+  case class VectorLiteral(t: VectorType, vs: VarRef*) extends OclAstNode
+
   case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends OclAstNode
 
   /** Parameter declaration. These have to be separated from variable
