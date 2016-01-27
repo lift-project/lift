@@ -58,6 +58,8 @@ struct MMRun: public Run {
     loc2 = Csv::readInt(values[i++]);
     loc3 = Csv::readInt(values[i++]);
 
+      std::cout << loc1 << " " << loc2 << std::endl;
+
     // source hash
     hash = values[i++];
     hash.erase(std::remove_if(std::begin(hash), std::end(hash), isspace), std::end(hash));
@@ -81,11 +83,11 @@ struct MMRun: public Run {
     int idx = 3;
 
     // Skip the first 3 to compensate for the csv (forgot a drop(3) in scala)
-    for(const auto &arg: extra_args) 
+    for(const auto &arg: extra_args)
       kernel.setArg(idx++, arg);
-    
-    for (const auto &local: extra_local_args) 
-      kernel.setArg(idx++, local);  
+
+    for (const auto &local: extra_local_args)
+      kernel.setArg(idx++, local);
 
     kernel.setArg(idx++, (int)size);
     kernel.setArg(idx++, (int)size);

@@ -137,9 +137,9 @@ void run_harness(
     }
 
     // compute gold
-    for (int i=0; i<N; i++) {
+    for (unsigned i=0; i<N; i++) {
       Float Result=0.0;
-      for (int j=0; j<N; j++)
+      for (unsigned j=0; j<N; j++)
         Result+=mat[i*N+j]*vec[j];
 
       gold[i]=Result;

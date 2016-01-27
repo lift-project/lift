@@ -7,7 +7,8 @@
 
 
 // Object representation of the run
-struct Run {
+class Run {
+public:
 
   // global range
   std::size_t glob1 = 0;
