@@ -364,7 +364,7 @@ class TestMatrixMatrix {
       }
     )
 
-    // vectorized the summation in the reduction loop
+    // load the tile in local memory once (to avoid reloading the same value twice) and vectorized the summation in the reduction loop
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N),
@@ -376,8 +376,12 @@ class TestMatrixMatrix {
             Zip(aRows, bCols) :>>
             ReduceSeq(fun( (acc, pairOfTiles) => {
                 pairOfTiles._0 :>> MapSeq(fun( rowA =>
-                  pairOfTiles._1 :>> MapSeq(fun( colB =>
-                    Zip(asVector(vectorLength)(rowA), asVector(vectorLength)(colB)) :>>
+                  asVector(vectorLength)(rowA) :>> MapSeq(VectorizeUserFun(4, id))
+                )) :>> MapSeq(fun( rowA =>
+                  pairOfTiles._1 :>> MapSeq(fun(
+                    colB => asVector(vectorLength)(colB) :>> MapSeq(VectorizeUserFun(4, id))
+                  )) :>> MapSeq(fun( colB =>
+                    Zip(rowA, colB) :>>
                     MapSeq(VectorizeUserFun(4, mult)) :>>
                     asScalar() :>>
                     ReduceSeq(add, Value(0.0f) :>> id)
@@ -429,10 +433,10 @@ class TestMatrixMatrix {
 
 
     val (output1: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
-    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
+//    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output1, 0.0001f)
-    assertArrayEquals(gold, output2, 0.0001f)
+//    assertArrayEquals(gold, output2, 0.0001f)
   }
 
   @Test def tiledMultiplicationScala(): Unit = {
