@@ -64,7 +64,7 @@ class OpenCLMemory(var variable: Var,
   // size cannot be 0 unless it is the null memory
   try {
     if (size.eval == 0)
-      throw new IllegalArgumentException
+      throw new IllegalArgumentException("Cannot have a memory of 0 bytes!")
   } catch {
     case _: NotEvaluableException => // nothing to do
     case e: Exception => throw e

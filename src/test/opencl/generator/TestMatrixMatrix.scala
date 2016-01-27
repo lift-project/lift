@@ -199,9 +199,8 @@ class TestMatrixMatrix {
       })
 
     // Derived. TODO: Actual one contains some empty MapSeqs.
-    // High-level 756aaab97669a2d6ac288607378b26f58426c7b157d9d096e403cb083246b7f5
-    // Low-level 143db2b324bb8ceac9bab732aa0643416833dd21fe105f1b53ea39e8383b5ae1
-    // OpenCL 272e6fe757d016204dc99766f2900a455c6c14c714ab266e7b292c6d36145319.cl
+    // High-level da55a60496191590d618057cadfe6d18b409f8b76cd31753123701e465a8ea4d
+    // Low-level 330f47d76e559e4f466c49cde9d7bd9438b370f8cd032e22f20ee156db54bd9a
     val fd = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // this is already transposed
@@ -445,10 +444,10 @@ class TestMatrixMatrix {
 
 
     val (output1: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
-//    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
+    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output1, 0.0001f)
-//    assertArrayEquals(gold, output2, 0.0001f)
+    assertArrayEquals(gold, output2, 0.0001f)
   }
 
   @Test def tiledMultiplicationScala(): Unit = {

@@ -30,6 +30,7 @@ object ScalaPrinter {
       case toPrivate: toPrivate => s"toPrivate(${apply(toPrivate.f)})"
       case bsearch: BSearch => s"BSearch(${apply(bsearch.f)})"
       case lsearch: LSearch => s"LSearch(${apply(lsearch.f)})"
+      case vec: VectorizeUserFun => s"VectorizeUserFun(${vec.n},${vec.userFun})"
       case _ => funDecl.toString
     }
   }

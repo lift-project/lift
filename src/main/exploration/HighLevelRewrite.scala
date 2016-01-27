@@ -105,13 +105,14 @@ object HighLevelRewrite {
     filterDepth
   }
 
-  private def filterByDistance(lambda: Lambda): Boolean = {
+   def filterByDistance(lambda: Lambda): Boolean = {
     val numberMap = NumberExpression.depthFirst(lambda)
 
     val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
       expr match {
         case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr :: state
-        case FunCall(uf: VectorizeUserFun, _*) => expr :: state
+        case FunCall(uf: VectorizeUserFun, _*) if !uf.userFun.name.contains("id")
+          => expr :: state
         case _ => state
       }
     })
@@ -120,14 +121,14 @@ object HighLevelRewrite {
       return true
 
     // TODO: A more reasonable default. Will filter out gemv.
-    val cutoff = distanceFilter.value.getOrElse(5)
+    val cutoff = distanceFilter.value.getOrElse(8)
 
-    val ids = userFunCalls.map(numberMap(_))
+    val ids = userFunCalls.map(numberMap(_)).sorted
 
     ids.sliding(2).map(w => (w.head - w(1)).abs <= cutoff).forall(i => i)
   }
 
-  private def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
+   def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
     val cutoff = depthFilter.value.getOrElse(6)
     (pair._2.head == MacroRules.tileMapMap
       && pair._2.tail.diff(List(MacroRules.apply2DRegisterBlocking,
@@ -193,7 +194,7 @@ object HighLevelRewrite {
   private def hasOneMapOnFirstLevel(lambda: Lambda): Boolean =
     Utils.countMapsAtCurrentLevel(lambda.body) == 1
 
-  private def applyAlwaysRules(lambda: Lambda): Lambda = {
+  def applyAlwaysRules(lambda: Lambda): Lambda = {
     val alwaysApply = Seq(MacroRules.moveTransposeInsideTiling)
 
     Rewrite.applyRulesUntilCannot(lambda, alwaysApply)

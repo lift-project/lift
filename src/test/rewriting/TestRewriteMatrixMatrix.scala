@@ -1,7 +1,8 @@
 package rewriting
 
 import apart.arithmetic.Var
-import rewriting.utils.NumberExpression
+import exploration.HighLevelRewrite
+import rewriting.utils.{Utils, NumberExpression}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -59,6 +60,9 @@ class TestRewriteMatrixMatrix {
 
     val maxDepth = NumberExpression.byDepth(f10).values.max
     println(maxDepth)
+
+    // TODO
+    // assertTrue(HighLevelRewrite.filterByDistance(f10))
 
     val numExpressionsFinal = NumberExpression.breadthFirst(f10).values.max
     assertEquals(131, numExpressionsFinal)
@@ -214,6 +218,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f7).values.max
     assertEquals(80, numExpressions)
+    // TODO
+//     assertTrue(HighLevelRewrite.filterByDistance(f7))
   }
 
   @Test
@@ -296,6 +302,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(h1).values.max
     assertEquals(91, numExpressions)
+    // TODO
+//     assertTrue(HighLevelRewrite.filterByDistance(h1))
   }
 
   @Test
@@ -320,6 +328,7 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f2).values.max
     assertEquals(32, numExpressions)
+     assertTrue(HighLevelRewrite.filterByDistance(f2))
   }
 
   @Test
@@ -343,6 +352,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f1).values.max
     assertEquals(55, numExpressions)
+    // TODO
+    // assertTrue(HighLevelRewrite.filterByDistance(f1))
   }
 
   @Test
@@ -368,6 +379,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f3).values.max
     assertEquals(56, numExpressions)
+    // TODO
+    // assertTrue(HighLevelRewrite.filterByDistance(f3))
   }
 
   @Test
@@ -395,6 +408,7 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
     assertEquals(66, numExpressions)
+    assertTrue(HighLevelRewrite.filterByDistance(f5))
   }
 
   @Test
@@ -419,10 +433,16 @@ class TestRewriteMatrixMatrix {
     val f2 = Rewrite.applyRuleAtId(f1, 10, MacroRules.finishTiling)
     val f3 = Rewrite.applyRuleAtId(f2, 15, MacroRules.finishTiling)
     val f4 = Rewrite.applyRuleAtId(f3, 36, Rules.vectorizeMapZip(4))
-    val f5 = SimplifyAndFuse(f4)
+    val f5 = HighLevelRewrite.finishRewriting(f4)
+
+    // Useful as a sanity check for HighLevelRewrite
+    val stringRep = Utils.dumpLambdaToString(f5)
+    val sha256 = Utils.Sha256Hash(stringRep)
+    println(sha256)
 
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
     assertEquals(64, numExpressions)
+    assertTrue(HighLevelRewrite.filterByDistance(f5))
   }
 
   @Test
@@ -443,12 +463,18 @@ class TestRewriteMatrixMatrix {
       })
 
     val f1 = Rewrite.applyRuleAtId(f0, 5, Rules.vectorizeMapZip(4))
-    val f2 = Rewrite.applyRuleAtId(f1, 4, MacroRules.vectorizeReduce)
+    val f2 = Rewrite.applyRuleAtId(f1, 4, MacroRules.vectorizeReduce(4))
     val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
 
+    // Useful as a sanity check for HighLevelRewrite
+    val stringRep = Utils.dumpLambdaToString(f4)
+    val sha256 = Utils.Sha256Hash(stringRep)
+    println(sha256)
+
     val numExpressions = NumberExpression.breadthFirst(f4).values.max
     assertEquals(27, numExpressions)
+    assertTrue(HighLevelRewrite.filterByDistance(f4))
   }
 
   @Ignore

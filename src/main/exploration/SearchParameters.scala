@@ -25,7 +25,4 @@ object SearchParameters {
   // Don't bother cross validating if the timing is not better than the current best solution
   val only_crossvalidate_better_solutions = true
 
-  // print the execution stats after running the kernel
-  val print_stats = false
-
 }
