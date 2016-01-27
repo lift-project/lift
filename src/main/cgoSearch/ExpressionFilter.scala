@@ -1,10 +1,11 @@
 package cgoSearch
 
+import apart.arithmetic.Cst
 import exploration.InferNDRange
-import ir.ScalarType
-import ir.ast.Lambda
+import ir.{Memory, ScalarType}
+import ir.ast._
 import ir.view.View
-import opencl.generator.OpenCLCodeGen
+import opencl.generator.{RangesAndCounts, OpenCLCodeGen}
 import opencl.ir._
 
 object ExpressionFilter {
@@ -23,11 +24,13 @@ object ExpressionFilter {
 
   import ExpressionFilter.Status._
 
-  def apply(expr: Lambda, values: Any*): Status = {
+  def apply(expr: Lambda): Status = {
     try {
-      // compute NDRange based on the parameters
-      val (local, global) = InferNDRange(expr, values: _*)
+      // Compute NDRange based on the parameters
+      val (local, global) = InferNDRange(expr)
+      val valueMap = GenerateOpenCL.createValueMap(expr)
 
+      // Allocate memory
       expr.params.foreach((p) => {
         p.t match {
           case _: ScalarType =>
@@ -40,83 +43,70 @@ object ExpressionFilter {
         p.view = View(p.t, OpenCLCodeGen().toString(p.mem.variable))
       })
 
+      RangesAndCounts(expr, local, global,valueMap)
       OpenCLMemoryAllocator.alloc(expr.body)
 
       // Get the allocated buffers
+      val kernelMemory = TypedOpenCLMemory.get(expr.body, expr.params)
       val buffers = TypedOpenCLMemory.get(expr.body, expr.params, includePrivate = true)
 
-      // filter private memory
-      val private_buffers_size = buffers.filter(_.mem.addressSpace == PrivateMemory)
-      val private_alloc_size = private_buffers_size.map(_.mem.size).reduce(_ + _)
-      if (private_alloc_size.eval > SearchParameters.max_amount_private_memory ||
-            private_buffers_size.forall(_.mem.size.eval <= 0)) {
+      val valueMemories =
+        Expr.visitWithState(Set[Memory]())(expr.body, (expr, set) =>
+          expr match {
+            case value: ir.ast.Value => set + value.mem
+            case _ => set
+          })
+
+      val (_, privateMemories) =
+        buffers.diff(kernelMemory).partition(m => valueMemories.contains(m.mem))
+
+      // Check private memory usage and overflow
+      val private_alloc_size = privateMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
+      if (private_alloc_size > SearchParameters.max_amount_private_memory ||
+            privateMemories.exists(_.mem.size.eval <= 0)) {
         return TooMuchPrivateMemory
       }
 
-      // filter local memory
-      val local_buffers_size = buffers.filter(_.mem.addressSpace == LocalMemory)
-      val local_alloc_size =
-        if (local_buffers_size.nonEmpty)
-          local_buffers_size.map(_.mem.size).reduce(_ + _).eval
-        else 0
-      if (local_alloc_size > 50000 ||
-        (local_buffers_size.nonEmpty
-          && local_buffers_size.forall(_.mem.size.eval <= 0))) {
+      // Check local memory usage and overflow
+      val localMemories = buffers.filter(_.mem.addressSpace == LocalMemory)
+      val local_alloc_size = localMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
+
+      if (local_alloc_size > 50000 || localMemories.exists(_.mem.size.eval <= 0))
         return TooMuchLocalMemory
-      }
 
       // Rule out obviously poor choices based on the grid size
       // - minimum size of the entire compute grid
-      if (global.map(_.eval).product < SearchParameters.min_grid_size) {
+      if (global.map(_.eval).product < SearchParameters.min_grid_size)
         return NotEnoughWorkItems
-      }
 
       if (local.forall(_.isEvaluable)) {
 
-        // - minimum of workitems in a workgroup
-        if (local.map(_.eval).product < SearchParameters.min_work_items) {
+        // - minimum of work-items in a workgroup
+        if (local.map(_.eval).product < SearchParameters.min_work_items)
           return NotEnoughWorkItems
-        }
 
-        // Avoid crashing for invalid values
-      if (local.map(_.eval).product > 1024) {
-        return TooManyWorkItems
-      }
+        // - maximum of work-items in a workgroup
+        if (local.map(_.eval).product > 1024)
+          return TooManyWorkItems
+
+        val numWorkgroups =
+          (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
 
         // - minimum number of workgroups
-        val num_workgroups = (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
-        if (num_workgroups < SearchParameters.min_num_workgroups) {
+        if (numWorkgroups < SearchParameters.min_num_workgroups)
           return NotEnoughWorkGroups
-        }
 
-        if (num_workgroups > SearchParameters.max_num_workgroups) {
+        // - maximum number of workgroups
+        if (numWorkgroups > SearchParameters.max_num_workgroups)
           return TooManyWorkGroups
-        }
 
       }
 
-      // This measures the % of max local memory / thread
-      val resource_per_thread = if (local_alloc_size == 0) 0
-      else 0
-      /*  Executor.getDeviceLocalMemSize.toFloat /
-          (Math.floor(Executor.getDeviceLocalMemSize / local_alloc_size) * local.map(_.eval).product.toFloat) /
-          //                                                                   ^--- times # of work-items
-          //                                                               ^--- # workgroup / sm
-          //                                             ^--- usage per workgroup
-          //              ^--- max local memory
-          Executor.getDeviceLocalMemSize.toFloat * 100.0
-      //  ^--- as a fraction of max mem            ^--- in %
-*/
-      // number of threads / SM
-      if (resource_per_thread > SearchParameters.resource_per_thread) {
-        return NotEnoughParallelism
-      }
-
-      // all good...
+      // All good...
       Success
     } catch {
-      case _: Throwable =>
-        InternalException
+      case _: Throwable => InternalException
+      // TODO: Internal exceptions sound suspicious. Log to file...
     }
   }
 }
