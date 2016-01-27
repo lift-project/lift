@@ -1079,6 +1079,28 @@ class OpenCLGenerator extends Generator {
               val componentSuffix = componentAccessVectorVar(mem.variable, view)
               OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
 
+            // originally an array of vector values in private memory,
+            // but now a different vector type
+            //  => emit load from components
+            case (at: ArrayType, vt: VectorType)
+              if Type.getValueType(at).isInstanceOf[VectorType]
+                && Type.haveSameBaseTypes(at, vt)
+                && (mem.addressSpace == PrivateMemory) =>
+
+              // TODO: this seems like a very specific local solution ... find a more generic proper one
+
+              assert( privateMems.exists(m => m.mem == mem) )
+
+              val arraySuffix = arrayAccessPrivateMem(mem.variable, view)
+
+              val componentSuffixStartIndex = componentAccessvectorVarIndex(mem.variable, view)
+              val componentSuffixStopIndex = componentSuffixStartIndex + vt.len.eval
+
+              // iterate over the range, assuming that it is contiguous
+              val componentSuffix = (componentSuffixStartIndex until componentSuffixStopIndex).foldLeft(".s")(_+_)
+
+              OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
+
             // originally a tuple, now a value. => generate stuff like var[i]._j
             case (at: ArrayType, st: ScalarType)
               if Type.getValueType(at).isInstanceOf[TupleType] =>
@@ -1205,6 +1227,13 @@ class OpenCLGenerator extends Generator {
    * @return OpenCL code for accessing v, e.g.: v.s0
    */
   private def componentAccessVectorVar(v: Var, view: View): String = {
+    // Compute the index ...
+    val index = componentAccessvectorVarIndex(v, view)
+    // ... and append it
+    ".s" + openCLCodeGen.toString(index)
+  }
+
+  private def componentAccessvectorVarIndex(v: Var, view: View): Int = {
     val i = {
       val originalType = varDecls(v)
       val valueType = Type.getValueType(originalType)
@@ -1214,10 +1243,7 @@ class OpenCLGenerator extends Generator {
           ViewPrinter.emit(view) % length
       }
     }
-    // Compute the index ...
-    val index = ArithExpr.substitute(i,replacements).eval
-    // ... and append it
-    ".s" + openCLCodeGen.toString(index)
+    ArithExpr.substitute(i,replacements).eval
   }
 
   /**

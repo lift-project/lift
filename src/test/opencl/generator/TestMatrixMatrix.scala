@@ -377,22 +377,26 @@ class TestMatrixMatrix {
           MapGlb(1)(fun( bCols =>
             Zip(aRows, bCols) :>>
             ReduceSeq(fun( (acc, pairOfTiles) => {
-              // copy tile of A into private memory
-              pairOfTiles._0 :>> MapSeq(fun( rowA =>
-                asVector(vectorLength)(rowA) :>> toPrivate(MapSeq(VectorizeUserFun(4, id)))
-              )) :>> MapSeq(fun( rowA =>
-                // copy tile of B into private memory
-                pairOfTiles._1 :>> MapSeq(fun(
-                  colB => asVector(vectorLength)(colB) :>> toPrivate(MapSeq(VectorizeUserFun(4, id)))
-                )) :>> MapSeq(fun( colB =>
-                  // perform vectorized multiplication ...
-                  Zip(rowA, colB) :>>
-                  MapSeq(VectorizeUserFun(4, mult)) :>>
-                  // .. and scalar summation
-                  asScalar() :>>
-                  ReduceSeq(add, Value(0.0f) :>> id)
+              // copy both tiles into private memory
+              Zip(
+                pairOfTiles._0 :>> MapSeq(fun(rowA =>
+                  asVector(vectorLength)(rowA) :>> toPrivate(MapSeq(VectorizeUserFun(4, id))))),
+                pairOfTiles._1 :>> MapSeq(fun(colB =>
+                  asVector(vectorLength)(colB) :>> toPrivate(MapSeq(VectorizeUserFun(4, id)))))
+              ) :>> fun(zippedPairOfTiles =>
+                // for each row of the tile of A ...
+                zippedPairOfTiles :>> MapSeq(fun( rowA =>
+                  // ... and each column of the tile of B ...
+                  zippedPairOfTiles :>> MapSeq(fun( colB =>
+                    // ... perform vectorized multiplication ...
+                    Zip(rowA._0, colB._1) :>>
+                    MapSeq(VectorizeUserFun(4, mult)) :>>
+                    // .. and scalar summation
+                    asScalar() :>>
+                    ReduceSeq(add, Value(0.0f) :>> id)
+                  ))
                 ))
-              )) :>> fun(partial =>
+              ) :>> fun(partial =>
                 // reshape the data to be vectorized for performing the summation
                 partial :>> Join() :>> Join() :>> asVector(4) :>>
                 fun(xs =>{
@@ -402,9 +406,10 @@ class TestMatrixMatrix {
                 }))
               }), MapSeq(VectorizeUserFun(4, id))(Value(0.0f, ArrayType(VectorType(Float, 4), 1)))
             ) :>>
-            // reshape the data and perform the scalar copy back to global memory
-            MapSeq(asScalar() >>> Split(1) >>> Split(tileSize)) :>>
-            toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) :>> TransposeW() :>> Map(TransposeW())
+            // reshape the data and perform the copy back to global memory using a vector width of 2
+            MapSeq(asScalar() >>> asVector(2) >>> Split(1)) :>>
+            toGlobal(MapSeq(MapSeq(MapSeq(VectorizeUserFun(2, id))))) :>>
+            TransposeW() :>> Map(TransposeW())
           ))
         )) :>> Untile()
       }
