@@ -12,6 +12,7 @@
 #include <atomic>
 #include <memory>
 #include <cstdio>
+#include <cmath>
 #include <typeinfo>
 
 // [external includes]
