@@ -369,33 +369,40 @@ class TestMatrixMatrix {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
+        // tile A
         A :>> Tile(tileSize, vectorLength) :>>
         MapGlb(0)(fun( aRows =>
+          // tile B
           B :>> Tile(tileSize, vectorLength) :>>
           MapGlb(1)(fun( bCols =>
             Zip(aRows, bCols) :>>
             ReduceSeq(fun( (acc, pairOfTiles) => {
-                pairOfTiles._0 :>> MapSeq(fun( rowA =>
-                  asVector(vectorLength)(rowA) :>> MapSeq(VectorizeUserFun(4, id))
-                )) :>> MapSeq(fun( rowA =>
-                  pairOfTiles._1 :>> MapSeq(fun(
-                    colB => asVector(vectorLength)(colB) :>> MapSeq(VectorizeUserFun(4, id))
-                  )) :>> MapSeq(fun( colB =>
-                    Zip(rowA, colB) :>>
-                    MapSeq(VectorizeUserFun(4, mult)) :>>
-                    asScalar() :>>
-                    ReduceSeq(add, Value(0.0f) :>> id)
-                  ))
-                )) :>> fun(partial =>
-                  partial :>> Join() :>> Join() :>> asVector(4) :>>
-                  fun(xs =>{
-                    val add4 = VectorizeUserFun(4, add)
-                    Zip(acc, xs) :>> MapSeq(fun(p => add4(p._0, p._1)))
-                  })
-                )
-              }),
-              MapSeq(VectorizeUserFun(4, id))(Value(0.0f, ArrayType(VectorType(Float, 4), 1)))
+              // copy tile of A into private memory
+              pairOfTiles._0 :>> MapSeq(fun( rowA =>
+                asVector(vectorLength)(rowA) :>> toPrivate(MapSeq(VectorizeUserFun(4, id)))
+              )) :>> MapSeq(fun( rowA =>
+                // copy tile of B into private memory
+                pairOfTiles._1 :>> MapSeq(fun(
+                  colB => asVector(vectorLength)(colB) :>> toPrivate(MapSeq(VectorizeUserFun(4, id)))
+                )) :>> MapSeq(fun( colB =>
+                  // perform vectorized multiplication ...
+                  Zip(rowA, colB) :>>
+                  MapSeq(VectorizeUserFun(4, mult)) :>>
+                  // .. and scalar summation
+                  asScalar() :>>
+                  ReduceSeq(add, Value(0.0f) :>> id)
+                ))
+              )) :>> fun(partial =>
+                // reshape the data to be vectorized for performing the summation
+                partial :>> Join() :>> Join() :>> asVector(4) :>>
+                fun(xs =>{
+                  val add4 = VectorizeUserFun(4, add)
+                  // perform the vectorized summation
+                  Zip(acc, xs) :>> MapSeq(fun(p => add4(p._0, p._1)))
+                }))
+              }), MapSeq(VectorizeUserFun(4, id))(Value(0.0f, ArrayType(VectorType(Float, 4), 1)))
             ) :>>
+            // reshape the data and perform the scalar copy back to global memory
             MapSeq(asScalar() >>> Split(1) >>> Split(tileSize)) :>>
             toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) :>> TransposeW() :>> Map(TransposeW())
           ))
