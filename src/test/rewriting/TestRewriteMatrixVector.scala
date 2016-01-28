@@ -1,6 +1,7 @@
 package rewriting
 
 import apart.arithmetic.Var
+import exploration.HighLevelRewrite
 import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Executor, Utils, Execute}
@@ -84,6 +85,8 @@ class TestRewriteMatrixVector {
       Execute(local(0).eval, global(0).eval)(f21, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output,0.0f)
+    // TODO:
+    // assertTrue(HighLevelRewrite.filterByDistance(f11))
   }
 
   @Test
@@ -113,6 +116,7 @@ class TestRewriteMatrixVector {
     val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder)
 
     val f2 = SimplifyAndFuse(f1)
+    assertTrue(HighLevelRewrite.filterByDistance(f2))
     val f3 = Lower.mapCombinations(f2)
   }
 
