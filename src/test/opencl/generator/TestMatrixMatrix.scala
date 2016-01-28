@@ -398,17 +398,16 @@ class TestMatrixMatrix {
               ) :>> fun(partial =>
                 // reshape the data to be vectorized for performing the summation
                 partial :>> Join() :>> Join() :>> asVector(4) :>>
-                fun(xs =>{
-                  val add4 = VectorizeUserFun(4, add)
+                fun(xs =>
                   // perform the vectorized summation
-                  Zip(acc, xs) :>> MapSeq(fun(p => add4(p._0, p._1)))
-                }))
+                  Zip(acc, xs) :>> MapSeq(VectorizeUserFun(4, add))
+                ))
               }), MapSeq(VectorizeUserFun(4, id))(Value(0.0f, ArrayType(VectorType(Float, 4), 1)))
             ) :>>
             // reshape the data and perform the copy back to global memory using a vector width of 2
-            MapSeq(asScalar() >>> asVector(2) >>> Split(1)) :>>
+            Map(asScalar() >>> asVector(2) >>> Split(1)) :>>
             toGlobal(MapSeq(MapSeq(MapSeq(VectorizeUserFun(2, id))))) :>>
-            TransposeW() :>> Map(TransposeW())
+            TransposeW() :>> Map(TransposeW() >>> Join() >>> asScalar())
           ))
         )) :>> Untile()
       }
