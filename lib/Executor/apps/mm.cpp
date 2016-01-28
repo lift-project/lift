@@ -54,7 +54,7 @@ struct MMRun: public Run {
     glob3 = Csv::readInt(values[i++]);
 
     // local NDRange
-    loc1 = Csv::readInt(values[i++]);
+    loc1 = Csv::readInt(values[i++]); // returns 0 if it could not parse the string to an int, e.g. for '?'.
     loc2 = Csv::readInt(values[i++]);
     loc3 = Csv::readInt(values[i++]);
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <vector>
 #include <functional>
 #include <cassert>
@@ -50,6 +51,7 @@ public:
 
   template<typename T>
   static void executeRun(Run& run,
+                         cl::NDRange local_size,
                          cl::Buffer output,
                          std::size_t output_size,
                          std::function<bool(const std::vector<T>&)> validation)
@@ -57,26 +59,28 @@ public:
     using namespace std;
     static int counter = 0; counter++;
     static double best_time = timeout;
+    
+    static const int iterations = 5;
+    
+    std::vector<double> times; times.reserve(iterations);
     try {
       // prepare the kernel for execution
       run.setup(context);
 
       // executing
       cl::Event evt;
-      for(int i = 0; i < 5; ++i) {
+      for(int i = 0; i < iterations; ++i) {
         queue.enqueueNDRangeKernel(run.kernel, cl::NullRange,
                                    {run.glob1, run.glob2, run.glob3},
-                                   {run.loc1, run.loc2, run.loc3}, nullptr, &evt);
+                                   local_size, nullptr, &evt);
         evt.wait();
         auto time = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>() - evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
-        double ms = ((double)time)/1000.0/1000.0;
-        if(ms > 1.2*best_time) break;
+        times.push_back( ((double)time)/1000.0/1000.0 );
+        if(times.back() > 1.2*best_time) break;
       }
       // read back the result
       std::vector<T> result(output_size);
       queue.enqueueReadBuffer(output, CL_TRUE, 0, result.size()*sizeof(T), result.data());
-      auto time = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>() - evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
-      double ms = ((double)time)/1000.0/1000.0;
 
       if(!validation(result)) {
         // Save result to file
@@ -84,9 +88,12 @@ public:
         std::cerr << "[" << counter << "] Cross validation failed for " << run.hash << endl;
       }
       else {
+        // take median
+        sort(times.begin(), times.end());
+        auto median = times[times.size()/2];
         // Save result to file
-        File::add_time(run.hash, ms);
-        best_time = min(best_time, ms);
+        File::add_time(run.hash, median);
+        best_time = min(best_time, median);
         std::cout << "[" << counter << "] best time: " << best_time << std::endl;
       }
     } catch (const cl::Error& err) {
@@ -94,6 +101,21 @@ public:
       cerr << "execution failed: " << run.hash << endl;
       cerr << err.what() << " (" << err.err() << ")" << std::endl;
       exit(err.err());
+    }
+  }
+
+  template<typename T>
+  static void executeRun(Run& run,
+                         cl::Buffer output,
+                         std::size_t output_size,
+                         std::function<bool(const std::vector<T>&)> validation)
+  {
+    // if local size is set in the run use this
+    if (run.loc1 != 0 || run.loc2 != 0 || run.loc3 != 0) {
+      executeRun(run, {run.loc1, run.loc2, run.loc3}, output, output_size, validation);
+    } else { // let the OpenCL runtime choose an appropiate local size
+      // TODO: loop over multiple local sizes and execute them
+      executeRun(run, cl::NDRange(), output, output_size, validation);
     }
   }
 
