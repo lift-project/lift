@@ -58,8 +58,6 @@ struct MMRun: public Run {
     loc2 = Csv::readInt(values[i++]);
     loc3 = Csv::readInt(values[i++]);
 
-      std::cout << loc1 << " " << loc2 << std::endl;
-
     // source hash
     hash = values[i++];
     hash.erase(std::remove_if(std::begin(hash), std::end(hash), isspace), std::end(hash));
