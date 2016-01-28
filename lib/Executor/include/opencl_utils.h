@@ -111,7 +111,7 @@ public:
                          std::function<bool(const std::vector<T>&)> validation)
   {
     // if local size is set in the run use this
-    if (run.loc1 != 0 || run.loc2 != 0 || run.loc3 != 0) {
+    if (run.loc1 != 0 && run.loc2 != 0 && run.loc3 != 0) {
       executeRun(run, {run.loc1, run.loc2, run.loc3}, output, output_size, validation);
     } else { // let the OpenCL runtime choose an appropiate local size
       // TODO: loop over multiple local sizes and execute them
