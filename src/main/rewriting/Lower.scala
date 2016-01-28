@@ -113,7 +113,7 @@ object Lower {
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-//      lambdas = lambdaN :: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
 /*
@@ -167,7 +167,7 @@ object Lower {
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
-//      lambdas = lambdaN :: lambdas
+      lambdas = lambdaN :: lambdas
     }
 
     def addWrgLocalMapping(first: Int, second: Int): Unit = {
@@ -186,7 +186,7 @@ object Lower {
       }
     }
 //    addWrgLocalMapping(0,1)
-//    addWrgLocalMapping(1,0)
+    addWrgLocalMapping(1,0)
 
 /*    def addWrgLocalMapping3D(first: Int, second: Int, third: Int): Unit = {
       if (maxDepth > 5 && oneMapOnLevelTwo && oneMapOnLevelThree) {
