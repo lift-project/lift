@@ -288,6 +288,8 @@ int main(int argc, char *argv[]) {
   auto opt_threaded = op.addOption<bool>({'t', "threaded", "Use a separate thread for compilation and execution (default true).", true});
   auto opt_force = op.addOption<bool>({'f', "force", "Override cached cross validation files.", false});
   auto opt_clean = op.addOption<bool>({'c', "clean", "Clean temporary files and exit.", false});
+  auto opt_local_combinations = op.addOption<bool>({'l', "local-combinations",
+      "Run different valid combinations of local sizes instead of letting the implementation choose if the local size is marked '?'.", false});
   op.parse(argc, argv);
 
   using namespace std;
@@ -296,6 +298,7 @@ int main(int argc, char *argv[]) {
   const size_t N = opt_size->get();
   File::setSize(opt_size->get());
   OpenCL::timeout = opt_timeout->get();
+  OpenCL::local_combinations = opt_local_combinations->get();
 
   // temporary files
   std::string gold_file = "/tmp/apart_mm_gold_" + std::to_string(N);

@@ -19,9 +19,11 @@ class OpenCL {
 
   static cl_ulong device_local_mem_size;
   static std::size_t device_max_work_group_size;
+  static std::vector<size_t> device_max_work_item_sizes;
 
 public:
   static float timeout;
+  static bool local_combinations;
 
   static void init(const unsigned platform_idx, const unsigned device_idx)
   {
@@ -40,6 +42,7 @@ public:
 
     device_local_mem_size = device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>();
     device_max_work_group_size = device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+    device_max_work_item_sizes = device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>();
 
     std::cout << "Executing on " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
   }
@@ -59,7 +62,7 @@ public:
     using namespace std;
     static int counter = 0; counter++;
     static double best_time = timeout;
-    
+
     static const int iterations = 5;
     
     std::vector<double> times; times.reserve(iterations);
@@ -92,15 +95,17 @@ public:
         sort(times.begin(), times.end());
         auto median = times[times.size()/2];
         // Save result to file
-        File::add_time(run.hash, median);
+        File::add_time(run.hash, median, local_size);
         best_time = min(best_time, median);
         std::cout << "[" << counter << "] best time: " << best_time << std::endl;
       }
     } catch (const cl::Error& err) {
-      File::add_blacklist(run.hash);
-      cerr << "execution failed: " << run.hash << endl;
-      cerr << err.what() << " (" << err.err() << ")" << std::endl;
-      exit(err.err());
+      if (err.err() != CL_INVALID_WORK_GROUP_SIZE) {
+        File::add_blacklist(run.hash);
+        cerr << "execution failed: " << run.hash << endl;
+        cerr << err.what() << " (" << err.err() << ")" << std::endl;
+        exit(err.err());
+      }
     }
   }
 
@@ -113,9 +118,33 @@ public:
     // if local size is set in the run use this
     if (run.loc1 != 0 && run.loc2 != 0 && run.loc3 != 0) {
       executeRun(run, {run.loc1, run.loc2, run.loc3}, output, output_size, validation);
-    } else { // let the OpenCL runtime choose an appropiate local size
-      // TODO: loop over multiple local sizes and execute them
-      executeRun(run, cl::NDRange(), output, output_size, validation);
+    } else {
+
+      if (!local_combinations) {
+        // let the OpenCL runtime choose an appropriate local size
+        executeRun(run, cl::NDRange(), output, output_size, validation);
+      } else {
+
+        // loop over valid combinations, while ignoring tiny work-groups
+        // and small numbers of work-groups
+        size_t min_workgroup_size = 4;
+
+        size_t loc1_max = run.loc1 == 0 ? device_max_work_item_sizes[0] : run.loc1;
+        size_t loc2_max = run.loc2 == 0 ? device_max_work_item_sizes[1] : run.loc2;
+        size_t loc3_max = run.loc3 == 0 ? device_max_work_item_sizes[2] : run.loc3;
+
+        for (size_t loc1 = 1; loc1 <= loc1_max; loc1 *= 2) {
+          for (size_t loc2 = 1; loc2 <= loc2_max; loc2 *= 2) {
+            for (size_t loc3 = 1; loc3 <= loc3_max; loc3 *= 2) {
+              auto total_size =loc1*loc2*loc3;
+              if (total_size >= min_workgroup_size &&
+                  total_size <= device_max_work_group_size &&
+                  loc1 <= run.glob1 && loc2 <= run.glob2 && loc3 <= run.glob3)
+                executeRun(run, {loc1, loc2, loc3}, output, output_size, validation);
+            }
+          }
+        }
+      }
     }
   }
 
