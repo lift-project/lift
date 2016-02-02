@@ -85,8 +85,7 @@ class TestRewriteMatrixVector {
       Execute(local(0).eval, global(0).eval)(f21, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output,0.0f)
-    // TODO:
-    // assertTrue(HighLevelRewrite.filterByDistance(f11))
+     assertTrue(HighLevelRewrite.filterByDistance(f11))
   }
 
   @Test
@@ -118,6 +117,41 @@ class TestRewriteMatrixVector {
     val f2 = SimplifyAndFuse(f1)
     assertTrue(HighLevelRewrite.filterByDistance(f2))
     val f3 = Lower.mapCombinations(f2)
+  }
+
+  @Test
+  def gemvVectorised(): Unit = {
+    val N = Var("N")
+    val M = Var("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, M),
+      ArrayType(Float, N),
+      Float,
+      Float,
+      (matrix, vectorX, vectorY, alpha, beta) => {
+        Map(fun(t =>
+          Map(fun(x =>
+            add(
+              mult(x, alpha),
+              mult(Get(t, 1), beta)
+            )
+          )) o
+            Reduce(add, 0.0f) o
+            Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
+        )) $ Zip(matrix, vectorY)
+      })
+
+    val f1 = Rewrite.applyRuleAtId(f, 6, Rules.vectorizeMapZip(4))
+    val f2 = Rewrite.applyRuleAtId(f1, 5, MacroRules.vectorizeReduce(4))
+    val f3 = Rewrite.applyRuleAtId(f2, 7, Rules.partialReduceToReduce)
+    val f4 = SimplifyAndFuse(f3)
+    assertTrue(HighLevelRewrite.filterByDistance(f4))
+
+    val stringRep = rewriting.utils.Utils.dumpLambdaToString(f4)
+    val sha256 = rewriting.utils.Utils.Sha256Hash(stringRep)
+    println(sha256)
   }
 
 }

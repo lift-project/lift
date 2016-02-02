@@ -121,7 +121,7 @@ object HighLevelRewrite {
       return true
 
     // TODO: A more reasonable default. Will filter out gemv.
-    val cutoff = distanceFilter.value.getOrElse(8)
+    val cutoff = distanceFilter.value.getOrElse(9)
 
     val ids = userFunCalls.map(numberMap(_)).sorted
 
