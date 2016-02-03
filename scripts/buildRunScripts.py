@@ -13,7 +13,7 @@ classpath = subprocess.check_output(["sbt", "show runtime:fullClasspath"])
 mainClasses = subprocess.check_output(["sbt", "show discoveredMainClasses"])
 javaOptions = subprocess.check_output(["sbt", "show javaOptions"])
 
-command = "#!/bin/bash\ncd \"$( dirname \"${BASH_SOURCE[0]}\" )\"\ncd ..\njava "
+command = "#!/bin/bash\n\njava "
 
 mainClasses = re.compile("List\((.*)\)").search(mainClasses).group(1).split(", ")
 javaOptions = re.compile("List\((.*)\)").search(javaOptions).group(1).split(", ")
