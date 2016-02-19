@@ -35,6 +35,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
               case m: MapWrg => setRangeMapWrg(m, call)
               case m: MapGlb => setRangeMapGlb(m, call)
               case m: MapLcl => setRangeMapLcl(m, call)
+              case m: MapAtomLcl => setRangeMapAtomLcl(m, call)
               case m: MapWarp => setRangeMapWarp(m, call)
               case m: MapLane => setRangeMapLane(m, call)
               case m: MapSeq => setRangeMapSeq(m, call)
@@ -107,6 +108,22 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   }
 
   private def setRangeMapLcl(m: MapLcl, call: FunCall): Unit = {
+    val dim: Int = m.dim
+    val start = new get_local_id(dim)
+    val length = Type.getLength(call.args.head.t)
+    var step: ArithExpr = new get_local_size(dim)
+
+    val size = localSizes(dim)
+    if (size != ?) {
+      step = size
+      start.range = ContinuousRange(0, size)
+    }
+
+    m.loopVar.range = RangeAdd(start, length, step)
+    evaluateMapRange(m)
+  }
+
+  private def setRangeMapAtomLcl(m: MapAtomLcl, call: FunCall) : Unit = {
     val dim: Int = m.dim
     val start = new get_local_id(dim)
     val length = Type.getLength(call.args.head.t)

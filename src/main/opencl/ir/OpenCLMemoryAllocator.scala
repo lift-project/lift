@@ -100,9 +100,10 @@ object OpenCLMemoryAllocator {
            Map(_)             => allocMapGlb(call.f.asInstanceOf[AbstractMap],
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
-      case MapLcl(_, _) |
-           MapWarp(_)   |
-           MapLane(_)   |
+      case MapLcl(_, _)     |
+           MapAtomLcl(_, _, _) | 
+           MapWarp(_)       |
+           MapLane(_)       |
            MapSeq(_)          => allocMapLcl(call.f.asInstanceOf[AbstractMap],
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)

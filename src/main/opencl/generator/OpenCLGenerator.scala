@@ -426,6 +426,7 @@ class OpenCLGenerator extends Generator {
         case m: MapWrg => generateMapWrgCall(m, call, block)
         case m: MapGlb => generateMapGlbCall(m, call, block)
         case m: MapLcl => generateMapLclCall(m, call, block)
+        case m: MapAtomLcl => generateMapAtomLclCall(m, call, block)
         case m: MapWarp => generateMapWarpCall(m, call, block)
         case m: MapLane => generateMapLaneCall(m, call, block)
         case m: MapSeq => generateMapSeqCall(m, call, block)
@@ -492,6 +493,49 @@ class OpenCLGenerator extends Generator {
     generateLoop(block, m.loopVar, (b) => generate(m.f.body, b),
                  m.iterationCount, shouldUnrollLoop(call))
 
+    if (m.emitBarrier)
+      block += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
+  }
+
+  // MapAtomLcl 
+  private def generateMapAtomLclCall(m: MapAtomLcl, 
+                                     call: FunCall, 
+                                     block: Block): Unit = {
+    // build a new nested block
+    val nestedBlock = OpenCLAST.Block(Vector.empty)
+    block += OpenCLAST.Comment("atomic_local_map")
+
+    // get shorthands for the loopvar/workvar
+    val loopVar = m.loopVar
+    val workVar = m.workVar
+    val workVarPtr = OpenCLAST.FunctionCall("&",List(OpenCLAST.VarRef(workVar)))
+
+    // declare a local variable holding the next index to process, and assign it a value
+    // this must be done in a separate statement, as the variable is in LocalMemory
+    nestedBlock += OpenCLAST.VarDecl(workVar.toString, opencl.ir.Int, addressSpace=LocalMemory)
+    nestedBlock += OpenCLAST.Assignment(OpenCLAST.Expression(workVar), OpenCLAST.Expression(0))
+
+    // declare an index for this thread, the loop variable, and give it a value from the task index
+    nestedBlock += OpenCLAST.VarDecl(loopVar.toString, opencl.ir.Int,
+      OpenCLAST.FunctionCall("atomic_inc", List(workVarPtr))
+    )
+
+    // get the loop variable as a range variable
+    val range = loopVar.range.asInstanceOf[RangeAdd]
+    
+    // generate a while loop which increments the task index atomically, while 
+    // it's less than the maximum range of the loop variable
+    generateWhileLoop(nestedBlock, 
+      Predicate(loopVar, range.max, Predicate.Operator.<), 
+      (b) => {
+        generate(m.f.body, b)
+        b += OpenCLAST.Assignment(OpenCLAST.Expression(loopVar), 
+          OpenCLAST.FunctionCall("atomic_inc", List(workVarPtr))
+        )
+      })
+    block += nestedBlock
+
+    // emit a barrier?
     if (m.emitBarrier)
       block += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
