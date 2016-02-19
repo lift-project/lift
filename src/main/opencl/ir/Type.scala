@@ -24,3 +24,5 @@ object Double3 extends VectorType(Double, Cst(3))
 object Double4 extends VectorType(Double, Cst(4))
 object Double8 extends VectorType(Double, Cst(8))
 object Double16 extends VectorType(Double, Cst(16))
+
+object IntPtr extends ScalarType("int*", Cst(4))

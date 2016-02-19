@@ -70,6 +70,10 @@ class OpenCLCodeGen {
     }
   }
 
+  def toString(p: Predicate) : String = {
+    s"(${toString(p.lhs)} ${p.op} ${toString(p.rhs)})"
+  }
+
   // private implementation
 
   /** Output stream for current AST */
@@ -289,6 +293,13 @@ class OpenCLCodeGen {
       }
 
     case x =>
+      // hackily add support for global memory pointers, but _only_ pointers
+      v.t match {
+        case IntPtr => 
+          if(v.addressSpace == GlobalMemory)
+          print(v.addressSpace + " ")
+        case _ => 
+      }
       if(v.addressSpace == LocalMemory)
         print(v.addressSpace + " ")
       print(s"${toString(v.t)} ${v.name}")
@@ -365,7 +376,7 @@ class OpenCLCodeGen {
     * @param wl a [[WhileLoop]] node.
     */
   private def print(wl: WhileLoop) {
-    print("while("+ wl.loopPredicate.toString + ")")
+    print("while("+ toString(wl.loopPredicate) + ")")
     // printBlock {
       print(wl.body)
     // }
@@ -377,14 +388,17 @@ class OpenCLCodeGen {
     * @param c a [[Conditional]] node
     */
   private def print(c: Conditional) {
-    println("if(" + c.switchPredicate.toString + ")")
+    println("if(" + toString(c.switchPredicate) + ")")
     // printBlock {
       print(c.trueBody)
     // }
-    println("else")
+    if(c.falseBody != Block())
+    {
+      println("else")
     // printBlock {
       print(c.falseBody)
     // }
+    }
   }
 
   /** Generate a label for a goto

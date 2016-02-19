@@ -36,6 +36,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
               case m: MapGlb => setRangeMapGlb(m, call)
               case m: MapLcl => setRangeMapLcl(m, call)
               case m: MapAtomLcl => setRangeMapAtomLcl(m, call)
+              case m: MapAtomWrg => setRangeMapAtomWrg(m, call)
               case m: MapWarp => setRangeMapWarp(m, call)
               case m: MapLane => setRangeMapLane(m, call)
               case m: MapSeq => setRangeMapSeq(m, call)
@@ -139,6 +140,24 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     m.loopVar.range = RangeAdd(start, length, step)
     evaluateMapRange(m)
   }
+
+  private def setRangeMapAtomWrg(m: MapAtomWrg, call: FunCall) : Unit = {
+    // note, this implementation of set range is purposefully simple
+    // we assume that the actual look is _not_ implemented as a simple
+    // loop, but using a separate "task pointer", atomically incremented
+    // and a while loop to repeat the incrementation until the range is reached
+    // under this model, the range/start/end/step of the loop variable
+    // is correct, even though it would not be possible to generate a 
+    // "normal" loop from it.
+    val dim: Int = m.dim
+    val start = Cst(0)
+    val length = Type.getLength(call.args.head.t)
+    var step: ArithExpr = Cst(1)
+
+    m.loopVar.range = RangeAdd(start, length, step)
+    evaluateMapRange(m)
+  }
+
 
   private def setRangeMapWarp(m: MapWarp, call: FunCall): Unit = {
     m.loopVar.range = RangeAdd(new get_local_id(0) /^ OpenCL.warpSize,

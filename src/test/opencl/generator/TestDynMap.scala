@@ -28,7 +28,7 @@ object TestDynMap {
 
 
 class TestDynMap {
-  @Test def FLAT_MAPS() : Unit = {
+  @Ignore @Test def FLAT_MAPS() : Unit = {
     val inputSize = Math.pow(2, 11).toInt
     val splitSize = Math.pow(2, 3).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i)
@@ -61,7 +61,7 @@ class TestDynMap {
     assertArrayEquals(output, gold)
   }
 
-  @Test def ATOM_LOCAL_MAP(): Unit = {
+  @Ignore @Test def ATOM_LOCAL_MAP(): Unit = {
     val inputSize = Math.pow(2, 11).toInt
     val splitSize = Math.pow(2, 3).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i)
@@ -85,6 +85,40 @@ class TestDynMap {
         ) o Split(splitSize) $ array
       }
     )
+
+    val (output: Array[Int], runtime) = Execute(1,1,(true, true))(kernel, arr)
+    println("Time: " + runtime)
+    println("input[0:10]:  " + arr.take(10).toList.toString())
+    println("output[0:10]: " + output.take(10).toList.toString())
+    println("gold[0:10]:   " + gold.take(10).toList.toString())
+    assertArrayEquals(output, gold)
+  }
+
+
+  @Test def ATOM_WRG_MAP(): Unit = {
+    val inputSize = Math.pow(2, 11).toInt
+    val splitSize = Math.pow(2, 3).toInt
+    val arr = Array.tabulate(inputSize)((i:Int) => i)
+    val gold = arr.map((i:Int) => i + i)
+    val idIterate = UserFun("idIterate", "x", 
+    """
+    int y = x;
+    for(int i = 0;i<x;i++){
+      y = y + 1;
+    }
+    return y;
+    """.stripMargin
+    , Int, Int)
+
+    val N = Var("N")
+    val kernel = fun(
+      ArrayType(Int, N),
+      (array) => {
+        Join() o MapAtomWrg(
+          MapLcl(idIterate)
+        ) o Split(splitSize) $ array
+      }
+    )
     
     val (output: Array[Int], runtime) = Execute(1,1,(true, true))(kernel, arr)
     println("Time: " + runtime)
@@ -92,6 +126,38 @@ class TestDynMap {
     println("output[0:10]: " + output.take(10).toList.toString())
     println("gold[0:10]:   " + gold.take(10).toList.toString())
     assertArrayEquals(output, gold)
+  }
 
+  @Test def ATOM_WRG_LCL_MAP() : Unit = {
+        val inputSize = Math.pow(2, 11).toInt
+    val splitSize = Math.pow(2, 3).toInt
+    val arr = Array.tabulate(inputSize)((i:Int) => i)
+    val gold = arr.map((i:Int) => i + i)
+    val idIterate = UserFun("idIterate", "x", 
+    """
+    int y = x;
+    for(int i = 0;i<x;i++){
+      y = y + 1;
+    }
+    return y;
+    """.stripMargin
+    , Int, Int)
+
+    val N = Var("N")
+    val kernel = fun(
+      ArrayType(Int, N),
+      (array) => {
+        Join() o MapAtomWrg(
+          MapAtomLcl(idIterate)
+        ) o Split(splitSize) $ array
+      }
+    )
+    
+    val (output: Array[Int], runtime) = Execute(1,1,(true, true))(kernel, arr)
+    println("Time: " + runtime)
+    println("input[0:10]:  " + arr.take(10).toList.toString())
+    println("output[0:10]: " + output.take(10).toList.toString())
+    println("gold[0:10]:   " + gold.take(10).toList.toString())
+    assertArrayEquals(output, gold)
   }
 }
