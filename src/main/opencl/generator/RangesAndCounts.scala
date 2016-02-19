@@ -124,16 +124,17 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   }
 
   private def setRangeMapAtomLcl(m: MapAtomLcl, call: FunCall) : Unit = {
+    // note, this implementation of set range is purposefully simple
+    // we assume that the actual look is _not_ implemented as a simple
+    // loop, but using a separate "task pointer", atomically incremented
+    // and a while loop to repeat the incrementation until the range is reached
+    // under this model, the range/start/end/step of the loop variable
+    // is correct, even though it would not be possible to generate a 
+    // "normal" loop from it.
     val dim: Int = m.dim
-    val start = new get_local_id(dim)
+    val start = Cst(0)
     val length = Type.getLength(call.args.head.t)
-    var step: ArithExpr = new get_local_size(dim)
-
-    val size = localSizes(dim)
-    if (size != ?) {
-      step = size
-      start.range = ContinuousRange(0, size)
-    }
+    var step: ArithExpr = Cst(1)
 
     m.loopVar.range = RangeAdd(start, length, step)
     evaluateMapRange(m)
