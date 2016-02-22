@@ -28,9 +28,9 @@ object TestDynMap {
 
 
 class TestDynMap {
-  @Ignore @Test def FLAT_MAPS() : Unit = {
-    val inputSize = Math.pow(2, 11).toInt
-    val splitSize = Math.pow(2, 3).toInt
+  @Test def FLAT_MAPS() : Unit = {
+    val inputSize = Math.pow(2, 14).toInt
+    val splitSize = Math.pow(2, 5).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i)
     val gold = arr.map((i:Int) => i + i)
     val idIterate = UserFun("idIterate", "x", 
@@ -53,7 +53,7 @@ class TestDynMap {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(1,1,(true, true))(kernel, arr)
+    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -61,9 +61,9 @@ class TestDynMap {
     assertArrayEquals(output, gold)
   }
 
-  @Ignore @Test def ATOM_LOCAL_MAP(): Unit = {
-    val inputSize = Math.pow(2, 11).toInt
-    val splitSize = Math.pow(2, 3).toInt
+  @Test def ATOM_LOCAL_MAP(): Unit = {
+    val inputSize = Math.pow(2, 14).toInt
+    val splitSize = Math.pow(2, 5).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i)
     val gold = arr.map((i:Int) => i + i)
     val idIterate = UserFun("idIterate", "x", 
@@ -86,7 +86,7 @@ class TestDynMap {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(1,1,(true, true))(kernel, arr)
+    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -94,10 +94,9 @@ class TestDynMap {
     assertArrayEquals(output, gold)
   }
 
-
   @Test def ATOM_WRG_MAP(): Unit = {
-    val inputSize = Math.pow(2, 11).toInt
-    val splitSize = Math.pow(2, 3).toInt
+    val inputSize = Math.pow(2, 14).toInt
+    val splitSize = Math.pow(2, 5).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i)
     val gold = arr.map((i:Int) => i + i)
     val idIterate = UserFun("idIterate", "x", 
@@ -120,7 +119,7 @@ class TestDynMap {
       }
     )
     
-    val (output: Array[Int], runtime) = Execute(1,1,(true, true))(kernel, arr)
+    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -129,8 +128,8 @@ class TestDynMap {
   }
 
   @Test def ATOM_WRG_LCL_MAP() : Unit = {
-        val inputSize = Math.pow(2, 11).toInt
-    val splitSize = Math.pow(2, 3).toInt
+        val inputSize = Math.pow(2, 14).toInt
+    val splitSize = Math.pow(2, 5).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i)
     val gold = arr.map((i:Int) => i + i)
     val idIterate = UserFun("idIterate", "x", 
@@ -153,7 +152,7 @@ class TestDynMap {
       }
     )
     
-    val (output: Array[Int], runtime) = Execute(1,1,(true, true))(kernel, arr)
+    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())

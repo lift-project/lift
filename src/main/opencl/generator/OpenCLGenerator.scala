@@ -513,16 +513,19 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.VarDecl(workVar.toString, opencl.ir.IntPtr, 
       OpenCLAST.Expression(m.globalTaskIndex.variable), addressSpace=GlobalMemory)
     // initialise it to zero
-    // nestedBlock += OpenCLAST.Assignment(
-      // OpenCLAST.FunctionCall("*",List(OpenCLAST.Expression(workVar))), OpenCLAST.Expression(0))
+    generateConditional(nestedBlock, Predicate(new get_global_id(0), 0, Predicate.Operator.==),
+      (b) => {
+        b += OpenCLAST.Assignment(
+          OpenCLAST.FunctionCall("*",List(OpenCLAST.Expression(workVar))), OpenCLAST.Expression(0))
+      }, (_) => {}
+    )
 
     // declare an index for this thread, the loop variable, and give it a value from the task index
     // this must be done in a separate statement, as the variable is in LocalMemory, and
     // we only wish for the first thread in the workgroup to perform the operation
     nestedBlock += OpenCLAST.VarDecl(loopVar.toString, opencl.ir.Int, addressSpace=LocalMemory)
     atomicGetTask(nestedBlock)
-    // nestedBlock += OpenCLAST.Barrier(m.globalTaskIndex.asInstanceOf[OpenCLMemory])
-    nestedBlock += OpenCLAST.OpenCLCode("barrier(CLK_LOCAL_MEM_FENCE);\n")
+    nestedBlock += OpenCLAST.Barrier(OpenCLMemory(workVar, 4, LocalMemory))
     // get the loop variable as a range variable
     val range = loopVar.range.asInstanceOf[RangeAdd]    
     // generate a while loop which increments the task index atomically, while 
@@ -532,7 +535,7 @@ class OpenCLGenerator extends Generator {
       (b) => {
         generate(m.f.body, b)
         atomicGetTask(b)
-        b += OpenCLAST.OpenCLCode("barrier(CLK_LOCAL_MEM_FENCE);\n")
+        b += OpenCLAST.Barrier(OpenCLMemory(workVar, 4, LocalMemory))
       })
     block += nestedBlock
 
