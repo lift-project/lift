@@ -513,12 +513,12 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.VarDecl(workVar.toString, opencl.ir.IntPtr, 
       OpenCLAST.Expression(m.globalTaskIndex.variable), addressSpace=GlobalMemory)
     // initialise it to zero
-    generateConditional(nestedBlock, Predicate(new get_global_id(0), 0, Predicate.Operator.==),
-      (b) => {
-        b += OpenCLAST.Assignment(
-          OpenCLAST.FunctionCall("*",List(OpenCLAST.Expression(workVar))), OpenCLAST.Expression(0))
-      }, (_) => {}
-    )
+//    generateConditional(nestedBlock, Predicate(new get_global_id(0), 0, Predicate.Operator.==),
+//      (b) => {
+//        b += OpenCLAST.Assignment(
+//          OpenCLAST.FunctionCall("*",List(OpenCLAST.Expression(workVar))), OpenCLAST.Expression(0))
+//      }, (_) => {}
+//    )
 
     // declare an index for this thread, the loop variable, and give it a value from the task index
     // this must be done in a separate statement, as the variable is in LocalMemory, and

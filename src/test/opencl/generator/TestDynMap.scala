@@ -113,12 +113,12 @@ class TestDynMap {
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {
-        Join() o MapAtomWrg(
+        MapAtomWrg(
           MapLcl(idIterate)
         ) o Split(splitSize) $ array
       }
     )
-    
+
     val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
