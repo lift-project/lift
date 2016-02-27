@@ -1118,8 +1118,13 @@ class OpenCLGenerator extends Generator {
                   OpenCLAST.VarRef(mem.variable, arrayIndex = OpenCLAST.Expression(index), suffix = suffix)
 
                 case PrivateMemory =>
-                  // untested :-)
-                  OpenCLAST.VarRef(mem.variable, suffix = arrayAccessPrivateMem(mem.variable, innerView) + suffix)
+
+                  val arraySuffix =
+                    if (privateMems.exists(m => m.mem == mem)) // check if this is actually an array
+                      arrayAccessPrivateMem(mem.variable, innerView)
+                    else // Workaround for values
+                      ""
+                  OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + suffix)
               }
           }
         }

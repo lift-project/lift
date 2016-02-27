@@ -1,7 +1,7 @@
 package polybench
 
 import apart.arithmetic.Var
-import ir.ArrayType
+import ir.{TupleType, ArrayType}
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
@@ -184,6 +184,59 @@ class HighLevel {
 
     assertArrayEquals(tmp1Gold, tmp1, 0.001f)
     assertArrayEquals(tmp2Gold, tmp2, 0.001f)
+    assertArrayEquals(yGold, y, 0.001f)
+  }
+
+  @Test
+  def gesummv2(): Unit = {
+    // y = A . x * alpha + B . x * beta
+    val n = 128
+
+    val alpha = 2.0f
+    val beta = 1.5f
+    val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
+    val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+    val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+
+    val tmp1Gold = Utils.matrixVector(A, x, alpha)
+    val tmp2Gold = Utils.matrixVector(B, x, beta)
+    val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
+
+    val f = UserFun("f", Array("acc", "a", "b", "x"),
+      "{ Tuple t = { acc._0 + a * x, acc._1 + b * x };" +
+        "return t; }",
+      Seq(TupleType(Float, Float), Float, Float, Float), TupleType(Float, Float))
+
+    val f2 = UserFun("f", Array("acc", "a", "b", "x"),
+      "{ return acc + a * x; }",
+      Seq(Float, Float, Float, Float), Float)
+
+    val g = UserFun("g", Array("alpha", "a", "beta", "b"),
+      "{ return alpha * a + beta * b; }",
+      Seq(Float, Float, Float, Float), Float)
+
+    val gesummv = fun(
+      ArrayType(ArrayType(Float, K), N),
+      ArrayType(ArrayType(Float, K), N),
+      ArrayType(Float, K),
+      Float, Float,
+      (A, B, x, alpha, beta) =>
+        Zip(A, B) :>> MapGlb(\( p => {
+          val aRow = p._0
+          val bRow = p._1
+          Zip(aRow, bRow, x) :>>
+            ReduceSeq(\( (acc, p) => {
+              val a = p._0
+              val b = p._1
+              val x = p._2
+              f(acc, a, b, x)
+            }), Value("{0.0f, 0.0f}", TupleType(Float, Float))) :>>
+            MapSeq(\( p => { g(alpha, p._0, beta, p._1) })) :>> toGlobal(MapSeq(id))
+        }))
+    )
+
+    val y = Execute(n)(gesummv, A, B, x, alpha, beta)._1.asInstanceOf[Array[Float]]
+
     assertArrayEquals(yGold, y, 0.001f)
   }
 
