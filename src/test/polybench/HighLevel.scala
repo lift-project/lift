@@ -207,10 +207,6 @@ class HighLevel {
         "return t; }",
       Seq(TupleType(Float, Float), Float, Float, Float), TupleType(Float, Float))
 
-    val f2 = UserFun("f", Array("acc", "a", "b", "x"),
-      "{ return acc + a * x; }",
-      Seq(Float, Float, Float, Float), Float)
-
     val g = UserFun("g", Array("alpha", "a", "beta", "b"),
       "{ return alpha * a + beta * b; }",
       Seq(Float, Float, Float, Float), Float)
@@ -240,6 +236,7 @@ class HighLevel {
     assertArrayEquals(yGold, y, 0.001f)
   }
 
+  // this is missing in polybench-gpu
   @Test
   def gemver(): Unit = {
     // A = A + u1.v1^T + u2v2^T

@@ -85,8 +85,8 @@ object MolecularDynamics {
     Seq(Float4, Float4, Float4, Float, Float, Float),
     Float4)
 
-  val N = new Var("N")
-  val M = new Var("M")
+  val N = new Var("N") // number of particles
+  val M = new Var("M") // number of neighbors
 
   val shoc = fun(
     ArrayType(Float4, N),
@@ -95,14 +95,20 @@ object MolecularDynamics {
     Float,
     Float,
     (particles, neighbourIds, cutsq, lj1, lj2) =>
-      Join() o MapWrg(
-         MapLcl(fun(p =>
-          toGlobal(MapSeq(id.vectorize(4))) o
-          ReduceSeq(fun((force, n) =>
-            MolecularDynamics.mdCompute.apply(force, Get(p, 0), n, cutsq, lj1, lj2)
-          ), Value(0.0f, Float4)) $ Filter(particles, Get(p, 1))
-        ))
-      ) o Split(128) $ Zip(particles, Transpose() $ neighbourIds)
+      Zip(particles, Transpose() $ neighbourIds) :>>
+      Split(128) :>>
+      MapWrg(
+        MapLcl( \(p =>
+          Let( p._0, particle => {
+          Filter(particles, p._1) :>>
+          ReduceSeq(\((force, n) =>
+            MolecularDynamics.mdCompute(force, particle, n, cutsq, lj1, lj2)
+          ), Value(0.0f, Float4)) :>>
+          toGlobal(MapSeq(id.vectorize(4)))
+          })
+        ) )
+      ) :>>
+      Join()
   )
 
   def mdScala(position: Array[(Float, Float, Float, Float)], neighbours: Array[Array[Int]], cutsq: Float, lj1: Float, lj2:Float): Array[(Float, Float, Float, Float)] = {

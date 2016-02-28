@@ -312,6 +312,10 @@ class OpenCLGenerator extends Generator {
     val valMems = Expr.visitWithState(Set[Memory]())(f.body, (expr, set) =>
       expr match {
         case value: Value => set + value.mem
+        case FunCall(fun, _) => fun match {
+          case let: Let => set + let.params.head.mem
+          case _ => set
+        }
         case _ => set
       })
 
@@ -443,6 +447,7 @@ class OpenCLGenerator extends Generator {
         case u : UserFun => generateUserFunCall(u, call, block)
 
         case fp: FPattern => generate(fp.f.body, block)
+        case l: Let    => generateLet(l, block)
         case l: Lambda => generate(l.body, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_) | Zip(_) | Tuple(_) | Filter() |
@@ -734,7 +739,20 @@ class OpenCLGenerator extends Generator {
     block += OpenCLAST.Comment("linear_search")
   }
 
+  private def generateLet(l: Let, block: Block): Unit = {
+    block += OpenCLAST.Comment("let start")
 
+    val p = l.params.head
+
+    val temp = Var("")
+    block += OpenCLAST.VarDecl(temp.toString, Type.getValueType(p.t),
+      init = generateLoadNode(l.argMem, p.t, p.view))
+
+    block += OpenCLAST.Assignment(OpenCLAST.VarRef(p.mem.variable), OpenCLAST.VarRef(temp))
+    generate(l.body, block)
+
+    block += OpenCLAST.Comment("let end")
+  }
 
 
   private def generateValue(v: Value, block: Block): Unit = {
