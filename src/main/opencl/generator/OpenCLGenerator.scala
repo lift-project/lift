@@ -740,18 +740,17 @@ class OpenCLGenerator extends Generator {
   }
 
   private def generateLet(l: Let, block: Block): Unit = {
-    block += OpenCLAST.Comment("let start")
+    block += OpenCLAST.Comment("let:")
 
     val p = l.params.head
 
-    val temp = Var("")
-    block += OpenCLAST.VarDecl(temp.toString, Type.getValueType(p.t),
-      init = generateLoadNode(l.argMem, p.t, p.view))
+//    // copied this from Value. Have to ask Toomas why he generated this.
+//    val temp = Var("")
+//    block += OpenCLAST.VarDecl(temp.toString, Type.getValueType(p.t),
+//      init = generateLoadNode(l.argMem, p.t, p.view))
 
-    block += OpenCLAST.Assignment(OpenCLAST.VarRef(p.mem.variable), OpenCLAST.VarRef(temp))
+    block += OpenCLAST.Assignment(OpenCLAST.VarRef(p.mem.variable), generateLoadNode(l.argMem, p.t, p.view))
     generate(l.body, block)
-
-    block += OpenCLAST.Comment("let end")
   }
 
 
