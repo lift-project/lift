@@ -212,7 +212,7 @@ abstract class Benchmark(val name: String,
           globalSize(1),
           globalSize(2),
           (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-        )(iterations, timeout, lambdas.head, inputs:_*)
+        )(0, timeout, lambdas.head, inputs:_*)
         
         val code = scala.io.Source.fromFile(loadKernel.value.get).mkString
 
