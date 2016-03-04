@@ -8,8 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.ast._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
-
+import org.junit._
 import opencl.ir.pattern._
 
 object TestDynMap {
@@ -95,6 +94,9 @@ class TestDynMap {
   }
 
   @Test def ATOM_WRG_MAP(): Unit = {
+    // this currently only seems to work on GPUs...
+    Assume.assumeTrue("Only valid on GPUs", Executor.getDeviceType == "GPU")
+
     val inputSize = Math.pow(2, 14).toInt
     val splitSize = Math.pow(2, 5).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i)
