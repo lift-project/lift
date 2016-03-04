@@ -255,6 +255,14 @@ object TypedOpenCLMemory {
       }
     }
 
+    def collectLet(l: Let): Seq[TypedOpenCLMemory] = {
+      if (includePrivate) {
+        collect(l.body) :+ TypedOpenCLMemory(l.params.head.mem, l.params.head.t)
+      } else {
+        collect(l.body)
+      }
+    }
+
     def collectFunCall(call: FunCall): Seq[TypedOpenCLMemory] = {
       val argMems: Seq[TypedOpenCLMemory] = call.args.length match {
         case 0 => Seq()
@@ -266,6 +274,7 @@ object TypedOpenCLMemory {
         case uf: UserFun    => collectUserFun(call)
         case vf: VectorizeUserFun
                             => collectUserFun(call)
+        case l: Let         => collectLet(l)
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
         case r: AbstractPartRed => collectReduce(r, argMems)
@@ -311,7 +320,7 @@ object TypedOpenCLMemory {
 
     def collectMap(t: Type,
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
-      val mems = collect(m.f.body)
+      val mems = collect(m.f.body)  
 
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
@@ -332,7 +341,15 @@ object TypedOpenCLMemory {
       }
 
       // change types for all of them
-      mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
+      val cts = mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
+
+      // TODO: Think about other ways of refactoring this out 
+      m match {
+        case aw : MapAtomWrg => 
+          cts :+ TypedOpenCLMemory(aw.globalTaskIndex, ArrayType(Int, Cst(1)))
+        case _ => cts
+      }
+      
     }
 
     def collectReduce(r: AbstractPartRed,

@@ -93,6 +93,8 @@ object OpenCLMemoryAllocator {
       case vec: VectorizeUserFun
                               => allocUserFun(call.t, numGlb, numLcl, numPvt,
                                               inMem, addressSpace)
+      case l: Let             => allocLet(l, numGlb, numLcl, numPvt,
+                                          inMem, addressSpace)
       case l: Lambda          => allocLambda(l, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
       case MapGlb(_, _) |
@@ -100,9 +102,14 @@ object OpenCLMemoryAllocator {
            Map(_)             => allocMapGlb(call.f.asInstanceOf[AbstractMap],
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
-      case MapLcl(_, _) |
-           MapWarp(_)   |
-           MapLane(_)   |
+           
+      case MapAtomWrg(_, _, _)=> allocMapAtomWrg(call.f.asInstanceOf[AbstractMap],
+                                             call.t, numGlb, numLcl, numPvt,
+                                             inMem, addressSpace)
+      case MapLcl(_, _)     |
+           MapAtomLcl(_, _, _) | 
+           MapWarp(_)       |
+           MapLane(_)       |
            MapSeq(_)          => allocMapLcl(call.f.asInstanceOf[AbstractMap],
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
@@ -171,6 +178,19 @@ object OpenCLMemoryAllocator {
     }
   }
 
+  private def allocLet(l: Let,
+                       numGlb: ArithExpr,
+                       numLcl: ArithExpr,
+                       numPvt: ArithExpr,
+                       inMem: OpenCLMemory,
+                       addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    // remember original memory to initialize the fresh variable with
+    l.argMem = inMem
+    // ALWAYS use private address space for the fresh variable
+    l.params.head.mem = OpenCLMemory.allocPrivateMemory(getMaxSizeInBytes(l.params.head.t) * numPvt)
+    alloc(l.body, numGlb, numLcl, numPvt, addressSpace)
+  }
+
   private def allocLambda(l: Lambda,
                           numGlb: ArithExpr,
                           numLcl: ArithExpr,
@@ -189,6 +209,22 @@ object OpenCLMemoryAllocator {
                           inMem: OpenCLMemory,
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     am.f.params(0).mem = inMem
+
+    val maxLen = ArithExpr.max(Type.getLength(outT))
+    alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, addressSpace)
+  }
+
+  private def allocMapAtomWrg(am: AbstractMap, 
+                          outT: Type,
+                          numGlb: ArithExpr, 
+                          numLcl: ArithExpr,
+                          numPvt: ArithExpr,
+                          inMem: OpenCLMemory, 
+                          addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    am.f.params(0).mem = inMem
+
+    am.asInstanceOf[MapAtomWrg].globalTaskIndex =
+      OpenCLMemory.allocGlobalMemory(Type.getSize(Int))
 
     val maxLen = ArithExpr.max(Type.getLength(outT))
     alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, addressSpace)
