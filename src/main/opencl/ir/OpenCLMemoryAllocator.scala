@@ -102,9 +102,14 @@ object OpenCLMemoryAllocator {
            Map(_)             => allocMapGlb(call.f.asInstanceOf[AbstractMap],
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
-      case MapLcl(_, _) |
-           MapWarp(_)   |
-           MapLane(_)   |
+           
+      case MapAtomWrg(_, _, _)=> allocMapAtomWrg(call.f.asInstanceOf[AbstractMap],
+                                             call.t, numGlb, numLcl, numPvt,
+                                             inMem, addressSpace)
+      case MapLcl(_, _)     |
+           MapAtomLcl(_, _, _) | 
+           MapWarp(_)       |
+           MapLane(_)       |
            MapSeq(_)          => allocMapLcl(call.f.asInstanceOf[AbstractMap],
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
@@ -204,6 +209,22 @@ object OpenCLMemoryAllocator {
                           inMem: OpenCLMemory,
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     am.f.params(0).mem = inMem
+
+    val maxLen = ArithExpr.max(Type.getLength(outT))
+    alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, addressSpace)
+  }
+
+  private def allocMapAtomWrg(am: AbstractMap, 
+                          outT: Type,
+                          numGlb: ArithExpr, 
+                          numLcl: ArithExpr,
+                          numPvt: ArithExpr,
+                          inMem: OpenCLMemory, 
+                          addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    am.f.params(0).mem = inMem
+
+    am.asInstanceOf[MapAtomWrg].globalTaskIndex =
+      OpenCLMemory.allocGlobalMemory(Type.getSize(Int))
 
     val maxLen = ArithExpr.max(Type.getLength(outT))
     alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, addressSpace)

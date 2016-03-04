@@ -320,7 +320,7 @@ object TypedOpenCLMemory {
 
     def collectMap(t: Type,
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
-      val mems = collect(m.f.body)
+      val mems = collect(m.f.body)  
 
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
@@ -341,7 +341,15 @@ object TypedOpenCLMemory {
       }
 
       // change types for all of them
-      mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
+      val cts = mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
+
+      // TODO: Think about other ways of refactoring this out 
+      m match {
+        case aw : MapAtomWrg => 
+          cts :+ TypedOpenCLMemory(aw.globalTaskIndex, ArrayType(Int, Cst(1)))
+        case _ => cts
+      }
+      
     }
 
     def collectReduce(r: AbstractPartRed,
