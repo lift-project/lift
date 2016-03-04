@@ -330,8 +330,8 @@ class HighLevel {
         MapGlb(fun( aRow =>
           Join() o  MapSeq(fun( bCol =>
             toGlobal(MapSeq(id)) o
-            MapSeq(fun(x => multAndSumUp(x, beta, Get(bCol, 1)))) o
-            MapSeq(fun(x => mult(x, alpha))) o
+            toPrivate(MapSeq(fun(x => multAndSumUp(x, beta, Get(bCol, 1))))) o
+            toPrivate(MapSeq(fun(x => mult(x, alpha)))) o
             ReduceSeq(fun((acc, y) =>
               multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
             ), 0.0f) $ Zip(Get(aRow, 0), Get(bCol, 0))
@@ -371,4 +371,5 @@ class HighLevel {
 
     assertArrayEquals(gold, atax, 0.001f)
   }
+
 }
