@@ -50,7 +50,7 @@ class Kmeans {
       "}",
     Seq(Float, TupleType(Float, Int, Int)), TupleType(Float, Int, Int))
 
-  val select = UserFun("select", Array("tuple"),
+  val select = UserFun("select_", Array("tuple"),
     "{ return tuple._2; }",
     Seq(TupleType(Float, Int, Int)), Int)
 
@@ -71,6 +71,7 @@ class Kmeans {
       })
 
     val code = Compile(kmeans)
+    Execute(128)(kmeans, Array.ofDim[Float](2, 2), Array.ofDim[Float](2,2))
 
     println(code)
   }
