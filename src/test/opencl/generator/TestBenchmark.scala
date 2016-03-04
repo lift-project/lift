@@ -507,6 +507,67 @@ class TestBenchmark {
   }
 
   @Test
+  def mriQ2(): Unit = {
+    val phiMag = UserFun("phiMag",
+      Array("phiR", "phiI"),
+      "{ return phiR * phiR + phiI * phiI }",
+      Seq(Float, Float),
+      Float)
+
+    val qFun = UserFun("computeQ",
+      Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag", "acc"),
+      """{
+        |    #define PIx2 6.2831853071795864769252867665590058f
+        |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
+        |    acc._0 = acc._0 + PhiMag * cos(expArg);
+        |    acc._1 = acc._1 + PhiMag * sin(expArg);
+        |
+        |    return acc;
+        |}""".stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float, TupleType(Float, Float)),
+      TupleType(Float, Float))
+
+
+    val pair = UserFun("pair", Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
+      Seq(Float, Float), TupleType(Float, Float))
+
+    val k = Var("K")
+
+    val computePhiMag = fun(
+      ArrayType(Float, k),
+      ArrayType(Float, k),
+      (phiR, phiI) => MapGlb(phiMag) $ Zip(phiR, phiI)
+    )
+
+    val x = Var("X")
+
+    val computeQ = fun(
+      ArrayType(Float, x),
+      ArrayType(Float, x),
+      ArrayType(Float, x),
+      ArrayType(Float, x),
+      ArrayType(Float, x),
+      ArrayType(TupleType(Float, Float, Float, Float), k),
+      (x, y, z, Qr, Qi, kvalues) =>
+        Zip(x, y, z, Qr, Qi) :>>
+        MapGlb(\(t =>
+          Let( t._0, sX =>
+          Let( t._1, sY =>
+          Let( t._2, sZ =>
+            kvalues :>>
+            ReduceSeq(\((acc, p) =>
+                qFun(sX, sY, sZ, p._0, p._1, p._2, p._3, acc)
+              ), toPrivate(fun(x => pair(x._0, x._1))) $ Tuple(t._3, t._4)) :>>
+            toGlobal(MapSeq(idFF))
+          )))
+        ))
+    )
+
+    Compile(computePhiMag)
+    Compile(computeQ)
+  }
+
+  @Test
   def mersenneTwisterScala(): Unit = {
     val inputSize = 256
 
