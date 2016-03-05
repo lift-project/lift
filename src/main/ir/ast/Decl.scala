@@ -9,7 +9,7 @@ import scala.language.implicitConversions
  * Currently only a function declaration is a legal kind of declaration.
  * There are no other forms of declarations possible.
  */
-abstract class Decl
+abstract class Decl extends IRNode
 
 /**
  * An instance of this class represents a function declaration.

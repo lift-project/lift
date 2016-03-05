@@ -14,7 +14,7 @@ import scala.language.implicitConversions
   *
   * - values: 4, 128, ...
   */
-abstract class Expr {
+abstract class Expr extends IRNode {
   /**
    * The type of the expression
    */
