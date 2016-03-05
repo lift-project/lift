@@ -215,6 +215,21 @@ class OpenCLGenerator extends Generator {
     if (containsDouble)
       globalBlock += Extension("cl_khr_fp64")
 
+    val tupleTypes = Expr.visitWithState(Set[TupleType]())(f.body, (expr, typeList) => {
+      expr match {
+        case FunCall(uf: UserFun, _*) => typeList ++ uf.tupleTypes
+        case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
+        case _ =>
+          expr.t match {
+            case t: TupleType if t.elemsT.forall(!_.isInstanceOf[ArrayType]) => typeList + t
+            case _ => typeList
+          }
+      }
+    })
+
+
+    tupleTypes.foreach(tup => globalBlock += OpenCLAST.TypeDef(tup))
+
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach( globalBlock += _ )
     generateGroupFunctions(f.body).foreach( globalBlock += _ )
@@ -241,9 +256,6 @@ class OpenCLGenerator extends Generator {
       })
 
     userFuns.foreach(uf => {
-      uf.tupleTypes.foreach(tup => {
-        fs = fs :+ OpenCLAST.TypeDef(tup)
-      })
 
       val block = OpenCLAST.Block()
       if(uf.tupleTypes.length == 1)

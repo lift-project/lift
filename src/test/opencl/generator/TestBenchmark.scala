@@ -510,7 +510,7 @@ class TestBenchmark {
   def mriQ2(): Unit = {
     val phiMag = UserFun("phiMag",
       Array("phiR", "phiI"),
-      "{ return phiR * phiR + phiI * phiI }",
+      "{ return phiR * phiR + phiI * phiI; }",
       Seq(Float, Float),
       Float)
 
