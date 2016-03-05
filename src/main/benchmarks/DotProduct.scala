@@ -83,8 +83,19 @@ object DotProduct {
         Iterate(6)(Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)) o
         Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(2)
     ) o Split(128) $ in
-
   })
+
+  val dpMapWrg =
+    Join() o MapWrg(
+      id
+    ) o Split(128)
+
+  val dpReadGlbToLcl =
+    Join() o toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(2)
+  val dpWriteLclToGlb =
+    Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1)
+  val dpIterate =
+     Iterate(6)(Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2))
 
   def apply() = new DotProduct("Dot Product",
     Seq(1024),
@@ -100,6 +111,9 @@ object DotProduct {
     //new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/graph.dot"))).print(ReduceSeq(add, 0.0f))
     new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/graph.dot"))).print(dotProduct3)
 
-
+    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpMapWrg.dot"))).print(dpMapWrg)
+    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpReadGlbToLcl.dot"))).print(dpReadGlbToLcl)
+    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpWriteLclToGlb.dot"))).print(dpWriteLclToGlb)
+    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpIterate.dot"))).print(dpIterate)
   }
 }

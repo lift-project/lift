@@ -27,6 +27,7 @@ class DotPrinter(w: Writer) {
     writeln("digraph{")
     node match {
       case l: Lambda => countParams(l.body)
+      case fp: FPattern => countParams(fp.f.body)
       case e: Expr => countParams(e)
     }
     printNodes(node)
@@ -47,7 +48,7 @@ class DotPrinter(w: Writer) {
       case fc: FunCall =>
         if (!parent.equals(""))
           writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
-        fc.args.zipWithIndex.foreach(p=> printEdges(p._1, nodeId, "arg_"+p._2))
+        fc.args.zipWithIndex.foreach(p=> printEdges(p._1, nodeId, "arg_"+p._2, ",color=Red"))
         printEdges(fc.f, nodeId,"f")
       case p : Param =>
         if (!parent.equals(""))
