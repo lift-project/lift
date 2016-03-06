@@ -3,7 +3,6 @@ package ir.printer
 import java.io.Writer
 
 import ir.ast._
-import opencl.ir.pattern._
 
 
 /**
@@ -12,7 +11,7 @@ import opencl.ir.pattern._
 class DotPrinter(w: Writer) {
 
   // keeps track of the visited node
-  lazy val visited : collection.mutable.Set[Any] = collection.mutable.HashSet()
+  lazy val visited : collection.mutable.Map[Any, Int] = collection.mutable.HashMap()
   lazy val counters : collection.mutable.Map[Param, Int]  = collection.mutable.HashMap()
 
   def writeln(s: String) = {
@@ -20,7 +19,7 @@ class DotPrinter(w: Writer) {
   }
 
   def getNodeId(n: Any) = {
-    "n"+Math.abs(n.hashCode())
+    "n"+Math.abs(n.hashCode()) + visited.get(n).get
   }
 
   def print(node: IRNode) = {
@@ -31,6 +30,7 @@ class DotPrinter(w: Writer) {
       case e: Expr => countParams(e)
     }
     printNodes(node)
+    visited.clear() // start counting again to assosiate the right nodes with the right edges
     printEdges(node, "", "")
     writeln("}")
 
@@ -40,6 +40,9 @@ class DotPrinter(w: Writer) {
 
 
   def printEdges(node : IRNode, parent: String, label: String, attr: String = "") : Unit = {
+    if (!(visited.contains(node) && !(node.isInstanceOf[FunDecl] || node.isInstanceOf[Value]))) {
+      visited.put(node, visited.getOrElse(node, 0) + 1)
+    }
 
     val nodeId = getNodeId(node)
 
@@ -57,7 +60,7 @@ class DotPrinter(w: Writer) {
         l.body match {
           case fc: FunCall =>
             if (fc.args.length == l.params.length)
-              if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.getOrElse(p._2,0) <= 2).fold(true)(_ && _)) {
+              if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.get(p._2).get <= 2).forall(identity)) {
                 printEdges(fc.f, parent, "o", ",color=Blue, style=dashed")
                 return
               }
@@ -86,9 +89,9 @@ class DotPrinter(w: Writer) {
 
   def printNodes(node: IRNode): Unit = {
 
-    if (visited.contains(node))
+    if (visited.contains(node) && !(node.isInstanceOf[FunDecl] || node.isInstanceOf[Value]))
       return
-    visited.add(node)
+    visited.put(node, visited.getOrElse(node, 0)+1)
 
     val nodeId = getNodeId(node)
 
@@ -108,7 +111,7 @@ class DotPrinter(w: Writer) {
         l.body match {
           case fc: FunCall =>
             if (fc.args.length == l.params.length)
-              if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.getOrElse(p._2,0) <= 2).fold(true)(_ && _)) {
+              if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.getOrElse(p._2, 0) <= 2).forall(identity)) {
                 printNodes(fc.f)
                 return
               }
