@@ -38,7 +38,7 @@ object Debug {
 }
 
 object Verbose {
-  var verbose = true // System.getenv("APART_VERBOSE") != null
+  var verbose = System.getenv("APART_VERBOSE") != null
   def apply() = verbose
   def apply(verbose: Boolean) = { this.verbose = verbose }
 }
