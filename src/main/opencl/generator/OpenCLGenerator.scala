@@ -38,7 +38,7 @@ object Debug {
 }
 
 object Verbose {
-  var verbose = System.getenv("APART_VERBOSE") != null
+  var verbose = true // System.getenv("APART_VERBOSE") != null
   def apply() = verbose
   def apply(verbose: Boolean) = { this.verbose = verbose }
 }
@@ -46,6 +46,16 @@ object Verbose {
 object CSE {
   val cse = System.getenv("APART_CSE") != null
   def apply() = cse
+}
+
+object PerformBarrierElimination {
+  val barrierElimination = System.getenv("APART_NO_BARRIER_ELIM") == null
+  def apply() = barrierElimination
+}
+
+object PerformLoopOptimisation {
+  val loopOptimisation = System.getenv("APART_NO_LOOP_OPT") == null
+  def apply() = loopOptimisation
 }
 
 object AllocateLocalMemoryStatically {
@@ -185,7 +195,8 @@ class OpenCLGenerator extends Generator {
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
     allocateMemory(f)
-    BarrierElimination(f)
+    if (PerformBarrierElimination())
+      BarrierElimination(f)
     CheckBarriersAndLoops(f)
 
     f.body.mem match {
@@ -1016,7 +1027,8 @@ class OpenCLGenerator extends Generator {
       // Generate an inner block for the for-loop
       val innerBlock = OpenCLAST.Block(Vector.empty)
       // add the for loop to the current node:
-      block += OpenCLAST.Loop(indexVar, iterationCountExpr, body = innerBlock)
+      val iterationCount = if (PerformLoopOptimisation()) iterationCountExpr else ?
+      block += OpenCLAST.Loop(indexVar, iterationCount, body = innerBlock)
       generateBody(innerBlock)
     }
   }
