@@ -14,6 +14,8 @@ class DotPrinter(w: Writer) {
   lazy val visited : collection.mutable.Map[Any, Int] = collection.mutable.HashMap()
   lazy val counters : collection.mutable.Map[Param, Int]  = collection.mutable.HashMap()
 
+  val nodesId : collection.mutable.Map[IRNode, String] = collection.mutable.HashMap()
+
   def writeln(s: String) = {
     w.write(s+"\n")
   }
@@ -30,7 +32,7 @@ class DotPrinter(w: Writer) {
       case e: Expr => countParams(e)
     }
     printNodes(node)
-    visited.clear() // start counting again to assosiate the right nodes with the right edges
+    visited.clear() // start counting again to associate the right nodes with the right edges
     printEdges(node, "", "")
     writeln("}")
 
@@ -50,31 +52,54 @@ class DotPrinter(w: Writer) {
     node match {
       case fc: FunCall =>
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
-        fc.args.zipWithIndex.foreach(p=> printEdges(p._1, nodeId, "arg_"+p._2, ",color=Red"))
-        printEdges(fc.f, nodeId,"f")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
+        fc.args.zipWithIndex.foreach(p=> printEdges(p._1, nodeId, "arg_"+p._2))//, ",color=Red"))
+        printEdges(fc.f, nodeId,"f", ",constraint=false")
+        writeln(parent+"->"+getNodeId(fc.f)+"[style=\"invis\"]")
+
+//        printEdges(fc.f, nodeId,"f", ",rank=same")
+
+
+
+      /*        writeln("edge [samehead=h]")
+              writeln (getNodeId(fc.args(0))+" -> "+getNodeId(fc.f)+ " [color=Red, constraint=false]")
+              writeln (nodeId + "->" + getNodeId(fc.f)+ " [dir=back,color=Red, constraint=false]")
+              writeln("edge [samehead=\"\"]")*/
+
+        // constraint = false makes sure the data flow edge do not influence the layout
+        /*writeln("edge [samehead=h]")
+        writeln (getNodeId(fc.args(0))+" -> "+getNodeId(fc)+ " [color=Red, constraint=false]")
+        writeln (getNodeId(fc.f) + "->" + getNodeId(fc)+ " [dir=back,color=Red, constraint=false]")
+        writeln("edge [samehead=\"\"]")
+
+        writeln (getNodeId(fc.f) + "->" + getNodeId(fc)+ " [color=Red, constraint=false]")
+*/
       case p : Param =>
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
       case l: Lambda =>
         l.body match {
           case fc: FunCall =>
             if (fc.args.length == l.params.length)
               if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.get(p._2).get <= 2).forall(identity)) {
-                printEdges(fc.f, parent, "o", ",color=Blue, style=dashed")
+                //printEdges(fc.f, parent, "f", ",color=Blue, style=dashed")
+                printEdges(fc.f, parent, "f", ",style=dashed")
                 return
               }
         }
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
         l.params.zipWithIndex.foreach(p => printEdges(p._1, nodeId, "param_"+p._2))
-        printEdges(l.body, nodeId, "body")
+        printEdges(l.body, nodeId, "body")//, ",constraint=false")
+        //if (!parent.equals(""))
+        //  writeln(parent+"->"+getNodeId(l.body))//+"[style=\"invis\"]")
+
       case z: Zip =>
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
       case p: Pattern =>
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
         p match {
           case fp: FPattern =>
             printEdges(fp.f, nodeId, "f")
@@ -83,7 +108,7 @@ class DotPrinter(w: Writer) {
         }
       case uf: UserFun =>
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
     }
   }
 
@@ -176,7 +201,7 @@ class DotPrinter(w: Writer) {
     val nodeId = getNodeId(expr)
 
     if (!parent.equals(""))
-      writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+      writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
 
     expr match {
       case fc: FunCall =>
@@ -201,15 +226,15 @@ class DotPrinter(w: Writer) {
               }
         }
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
         l.params.zipWithIndex.foreach(p => printEdges(p._1, nodeId, "param_"+p._2))
         printEdges(l.body, nodeId, "body")
       case z: Zip =>
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
       case p: Pattern =>
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
         p match {
           case fp: FPattern =>
             printEdges(fp.f, nodeId, "f")
@@ -218,7 +243,7 @@ class DotPrinter(w: Writer) {
         }
       case uf: UserFun =>
         if (!parent.equals(""))
-          writeln (nodeId+" -> "+parent+" [label=\""+label+"\""+attr+"];")
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
     }
   }
 
