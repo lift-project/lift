@@ -76,13 +76,13 @@ object DotProduct {
 
   })
 
-  val dotProduct3 = fun (ArrayType(Float, N), (in) => {
+  val dotProduct3 = fun (ArrayType(Float, N), ArrayType(Float, N), (left, right) => {
 
     Join() o MapWrg(
-      Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+      Join() o  MapLcl(toGlobal(MapSeq(id))) o Split(1) o
         Iterate(6)(Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)) o
-        Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(2)
-    ) o Split(128) $ in
+        Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
+    ) o Split(128) $ Zip(left, right)
   })
 
   val dpMapWrg =
@@ -109,7 +109,7 @@ object DotProduct {
     println(dotProduct3)
     //new TikzPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/graph.tkz"))).print(ReduceSeq(add, 0.0f))
     //new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/graph.dot"))).print(ReduceSeq(add, 0.0f))
-    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/graph.dot"))).print(dotProduct3)
+    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpGraph.dot"))).print(dotProduct3)
 
     new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpMapWrg.dot"))).print(dpMapWrg)
     new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpReadGlbToLcl.dot"))).print(dpReadGlbToLcl)

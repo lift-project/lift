@@ -8,7 +8,7 @@ import ir.ast._
 /**
   * @author cdubach
   */
-class DotPrinter(w: Writer) {
+class DotPrinter(w: Writer, compressLambda : Boolean = true) {
 
   // keeps track of the visited node
   lazy val visited : collection.mutable.Map[Any, Int] = collection.mutable.HashMap()
@@ -26,6 +26,9 @@ class DotPrinter(w: Writer) {
 
   def print(node: IRNode) = {
     writeln("digraph{")
+    writeln("ratio=\"compress\"")
+    writeln("size=8")
+    writeln("margin=\"0.0,0.0\"")
     node match {
       case l: Lambda => countParams(l.body)
       case fp: FPattern => countParams(fp.f.body)
@@ -54,8 +57,8 @@ class DotPrinter(w: Writer) {
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
         fc.args.zipWithIndex.foreach(p=> printEdges(p._1, nodeId, "arg_"+p._2))//, ",color=Red"))
-        printEdges(fc.f, nodeId,"f", ",constraint=false")
-        writeln(parent+"->"+getNodeId(fc.f)+"[style=\"invis\"]")
+        printEdges(fc.f, nodeId,"f")//, ",constraint=false")
+        //writeln(parent+"->"+getNodeId(fc.f)+"[color=red]")//style=\"invis\"]")
 
 //        printEdges(fc.f, nodeId,"f", ",rank=same")
 
@@ -78,21 +81,31 @@ class DotPrinter(w: Writer) {
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
       case l: Lambda =>
-        l.body match {
-          case fc: FunCall =>
-            if (fc.args.length == l.params.length)
-              if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.get(p._2).get <= 2).forall(identity)) {
-                //printEdges(fc.f, parent, "f", ",color=Blue, style=dashed")
-                printEdges(fc.f, parent, "f", ",style=dashed")
-                return
-              }
-        }
+        if (compressLambda)
+          l.body match {
+            case fc: FunCall =>
+              if (fc.args.length == l.params.length)
+                if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.get(p._2).get <= 2).forall(identity)) {
+                  printEdges(fc.f, parent, "f")//, ",style=dashed")
+                  return
+                }
+          }
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
         l.params.zipWithIndex.foreach(p => printEdges(p._1, nodeId, "param_"+p._2))
+
+       /* subgraph step1 {
+                style=filled;
+                node [label="Compiler"] step1_Compiler;
+                node [label="Maschine"] step1_Maschine;
+                color=lightgrey;
+        }*/
+
+
+
         printEdges(l.body, nodeId, "body")//, ",constraint=false")
         //if (!parent.equals(""))
-        //  writeln(parent+"->"+getNodeId(l.body))//+"[style=\"invis\"]")
+        //  writeln(parent+"->"+getNodeId(l.body)+"[color=red]")//+"[style=\"invis\"]")
 
       case z: Zip =>
         if (!parent.equals(""))
@@ -123,9 +136,42 @@ class DotPrinter(w: Writer) {
 
     node match {
       case fc: FunCall =>
+
+        fc.f match {
+          case fp: FPattern =>
+            /*
+            visited.put(fp, visited.getOrElse(fp, 0)+1)
+            writeln("subgraph {")
+            writeln("rank=\"same\"")
+            writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
+            writeln(getNodeId(fp) + " [style=rounded,shape=box,label=<<b>" + fp.getClass.getSimpleName + "</b>>]")
+            writeln("}")
+            fc.args.foreach(printNodes)
+
+            printNodes(fp.f)
+
+            return*/
+          case p : Pattern =>
+
+            writeln("subgraph {")
+            writeln("rank=\"same\"")
+            writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
+            printNodes(p)
+            writeln("}")
+
+            fc.args.foreach(printNodes)
+
+            return
+          case _ =>
+        }
+
         writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
         fc.args.foreach(printNodes)
         printNodes(fc.f)
+
+
+
+
       case v: Value =>
         writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")>]")
       case p: Param =>
@@ -135,16 +181,38 @@ class DotPrinter(w: Writer) {
 
         l.body match {
           case fc: FunCall =>
-            if (fc.args.length == l.params.length)
-              if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.getOrElse(p._2, 0) <= 2).forall(identity)) {
-                printNodes(fc.f)
-                return
-              }
+            if (compressLambda)
+              if (fc.args.length == l.params.length)
+                if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.getOrElse(p._2, 0) <= 2).forall(identity)) {
+                  printNodes(fc.f)
+                  return
+                }
+
+            l.params.foreach(p => printNodes(p))
+
+            visited.put(fc, visited.getOrElse(fc, 0)+1)
+
+            // put the lambda and its body in the same subgraph so that they are side by side
+            writeln("subgraph {")
+            writeln("rank=\"same\"")
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
+            writeln(getNodeId(fc)+" [style=rounded,shape=box,label=<<b>"+fc.getClass.getSimpleName+"</b>>]")
+            writeln("}")
+
+            fc.args.foreach(printNodes)
+            printNodes(fc.f)
+
+            return
         }
 
+       /* writeln("subgraph {")
+        writeln("rank=\"same\"")*/
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
         l.params.foreach(p => printNodes(p))
+        /*writeln("}")*/
+
         printNodes(l.body)
+
       case z: Zip =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
       case p: Pattern =>
