@@ -126,6 +126,7 @@ object OpenCLMemoryAllocator {
       case Zip(_) | Tuple(_)  => allocZipTuple(inMem)
       case Get(n)             => allocGet(n, inMem)
       case f: Filter          => allocFilter(f, numGlb, numLcl, inMem)
+      case ua: UnsafeArrayAccess => allocUnsafeArrayAccess(ua, call, numGlb, numLcl, numPvt, inMem, addressSpace)
       case Split(_)    | Join()  | asVector(_)  | asScalar() |
            Transpose() | Unzip() | TransposeW() | Group(_)   | Pad(_,_) |
            Head()      | Tail()  | Gather(_)    | Scatter(_) =>
@@ -312,6 +313,36 @@ object OpenCLMemoryAllocator {
     }
   }
 
+  private def allocUnsafeArrayAccess(ua: UnsafeArrayAccess,
+                                     call: FunCall,
+                                     numGlb: ArithExpr,
+                                     numLcl: ArithExpr,
+                                     numPvt: ArithExpr,
+                                     inMem: OpenCLMemory,
+                                     addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    // let the index allocate memory for itself (most likely a param, so it will know its memory)
+    alloc(ua.index, numGlb, numLcl, numPvt, addressSpace)
+
+    // allocate memory itself
+    val outputSize = getSizeInBytes(call.t)
+    // manually allocate that much memory, storing it in the correct address space
+    if (addressSpace != UndefAddressSpace) {
+     // use given address space
+      OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+                           addressSpace)
+    } else {
+      // address space is not predetermined
+      //  => figure out the address space based on the input address space(s)
+      val addressSpace =
+        inMem match {
+          case m: OpenCLMemory => m.addressSpace
+          case _ => throw new IllegalArgumentException("PANIC")
+        }
+      OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+                               addressSpace)
+    }
+  }
+
   private def allocIterate(it: Iterate, call: FunCall,
                            numGlb: ArithExpr,
                            numLcl: ArithExpr,
@@ -374,11 +405,12 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocGet(n: Int, inMem: OpenCLMemory): OpenCLMemory = {
-    inMem match {
+    inMem match {     
       case coll: OpenCLMemoryCollection =>
         assert(n < coll.subMemories.length)
         coll.subMemories(n)
       case _ => inMem
+      // case _ => throw new IllegalArgumentException("PANIC")
     }
   }
 
