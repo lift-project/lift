@@ -67,6 +67,7 @@ object InputView {
       case g: Group => buildViewGroup(g, call, argView)
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
+      case uaa: UnsafeArrayAccess => buildViewUnsafeArrayAccess(uaa, call, argView)
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(size,boundary) => buildViewPad(size, boundary, argView)
       case _ => argView
@@ -208,6 +209,12 @@ object InputView {
   private def buildViewTail(tail: FunCall, argView: View) : View = {
     new ViewTail(argView, tail.t)
   }
+
+   private def buildViewUnsafeArrayAccess(a: UnsafeArrayAccess, call: FunCall, argView: View) : View = {
+     // visit the index
+     visitAndBuildViews(a.index)
+     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+   }
 
   private def buildViewPad(size: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr, argView: View) : View = {
     argView.pad(size, boundary)
