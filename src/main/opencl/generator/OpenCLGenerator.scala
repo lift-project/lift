@@ -215,21 +215,6 @@ class OpenCLGenerator extends Generator {
     if (containsDouble)
       globalBlock += Extension("cl_khr_fp64")
 
-    val tupleTypes = Expr.visitWithState(Set[TupleType]())(f.body, (expr, typeList) => {
-      expr match {
-        case FunCall(uf: UserFun, _*) => typeList ++ uf.tupleTypes
-        case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
-        case _ =>
-          expr.t match {
-            case t: TupleType if t.elemsT.forall(!_.isInstanceOf[ArrayType]) => typeList + t
-            case _ => typeList
-          }
-      }
-    })
-
-
-    tupleTypes.foreach(tup => globalBlock += OpenCLAST.TypeDef(tup))
-
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach( globalBlock += _ )
     generateGroupFunctions(f.body).foreach( globalBlock += _ )
@@ -256,6 +241,9 @@ class OpenCLGenerator extends Generator {
       })
 
     userFuns.foreach(uf => {
+      uf.tupleTypes.foreach(tup => {
+        fs = fs :+ OpenCLAST.TypeDef(tup)
+      })
 
       val block = OpenCLAST.Block()
       if(uf.tupleTypes.length == 1)
@@ -463,10 +451,11 @@ class OpenCLGenerator extends Generator {
         case fp: FPattern => generate(fp.f.body, block)
         case l: Let    => generateLet(l, block)
         case l: Lambda => generate(l.body, block)
+        case ua: UnsafeArrayAccess => generateUnsafeArrayAccess(ua, call, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_,_) =>
-
+        case _ => block += OpenCLAST.Comment("__" + call.toString + "__")
         //case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
@@ -696,7 +685,7 @@ class OpenCLGenerator extends Generator {
     val nestedBlock = OpenCLAST.Block(Vector.empty)
     block += OpenCLAST.Comment("binary_search")
     // get the default value handily
-    val defaultVal = call.args(0)
+    val defaultVal = call.args.head
     // get the input handily
     val inArr = call.args(1)
     // get the type of the input (handily, concretely)
@@ -729,6 +718,7 @@ class OpenCLGenerator extends Generator {
     s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result
     nestedBlock += OpenCLAST.VarDecl(compFuncResVar.toString, s.f.body.t)
+    // nestedBlock += OpenCLAST.OpenCLCode("printf(\"Searching. \\n\");")
 
     // create a variable for each goto label
     val finishLabel = Var("done")
@@ -744,11 +734,15 @@ class OpenCLGenerator extends Generator {
           Predicate(compFuncResVar, 0, Predicate.Operator.<),
           (cb) => {
             cb += OpenCLAST.Assignment(OpenCLAST.Expression(upperIndex),OpenCLAST.Expression(s.indexVar))
+            // cb += OpenCLAST.OpenCLCode("printf(\"Move left.\\n\");")
           },
           (cb) => {
             generateConditional(cb,
               Predicate(compFuncResVar, 0, Predicate.Operator.>),
-              (ccb) => {ccb += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex),OpenCLAST.Expression(s.indexVar + 1))},
+              (ccb) => {
+                ccb += OpenCLAST.Assignment(OpenCLAST.Expression(lowerIndex),OpenCLAST.Expression(s.indexVar + 1))
+                // ccb += OpenCLAST.OpenCLCode("printf(\"Move right.\\n\");")
+              },
               (ccb) => {ccb += OpenCLAST.GOTO(writeResultLabel)}
             )
           }
@@ -774,7 +768,7 @@ class OpenCLGenerator extends Generator {
     val nestedBlock = OpenCLAST.Block(Vector.empty)
     block += OpenCLAST.Comment("linear_search")
     // get the default value handily
-    val defaultVal = call.args(0)
+    val defaultVal = call.args.head
     // get the input handily
     val inArr = call.args(1)
     // get the type of the input (handily, concretely)
@@ -851,6 +845,28 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.Label(finishLabel)
     block += nestedBlock
     block += OpenCLAST.Comment("linear_search")
+  }
+
+  private def generateUnsafeArrayAccess(ua: UnsafeArrayAccess,
+                                        call: FunCall,
+                                        block: Block): Unit = {
+    val index = ua.index
+    val clIndexMem = OpenCLMemory.asOpenCLMemory(index.mem)
+
+    val loadIndex = generateLoadNode(clIndexMem, index.t, index.view)
+
+    val indexVar = Var("index")
+    block += OpenCLAST.VarDecl(indexVar.toString, Int, init=loadIndex)
+
+    val inArr = call.args(0)
+    val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
+
+    val loadFromArray = generateLoadNode(clInArrMem, inArr.t, inArr.view.access(indexVar))
+
+    val storeToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
+                                          call.view.access(0), loadFromArray)
+
+    block += storeToOutput
   }
 
   private def generateLet(l: Let, block: Block): Unit = {
@@ -1124,7 +1140,6 @@ class OpenCLGenerator extends Generator {
           throw new OpenCLGeneratorException(s"Found a OpenCLMemoryCollection for var: " +
             s"${mem.variable}, but corresponding type: $t is " +
             s"not a tuple.")
-
         val tt = t.asInstanceOf[TupleType]
 
         var args: Vector[OclAstNode] = Vector()
