@@ -71,7 +71,6 @@ class Kmeans {
       })
 
     val code = Compile(kmeans)
-    Execute(128)(kmeans, Array.ofDim[Float](2, 2), Array.ofDim[Float](2,2))
 
     println(code)
   }
