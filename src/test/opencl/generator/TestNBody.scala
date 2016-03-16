@@ -259,7 +259,7 @@ class TestNBody {
       vel(4*i+3) = mass(i)
     }
 
-    val function = NBody.testing
+    val function = NBody.lessLoadsToGlobal
 
     val (output: Array[Float], _) =
       Execute(inputSize)(function, pos, vel, espSqr, deltaT)
