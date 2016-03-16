@@ -94,7 +94,7 @@ class NBody(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("N-B
 object NBody {
 
   val calcAcc =
-    UserFun("calcAcc", Array("p1", "p2", "vel", "deltaT", "espSqr", "acc"),
+    UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr", "acc"),
       """|{
         |  float4 r;
         |  r.xyz = p1.xyz - p2.xyz;
@@ -107,7 +107,7 @@ object NBody {
         |  return res;
         |}
         | """.stripMargin,
-      Seq(Float4, Float4, Float4, Float, Float, Float4), Float4)
+      Seq(Float4, Float4, Float, Float, Float4), Float4)
 
   val update =
     UserFun("update", Array("pos", "vel", "deltaT", "acceleration"),
@@ -138,8 +138,8 @@ object NBody {
           update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
 
           o ReduceSeq(fun((acc, p2) =>
-          calcAcc(Get(p1,0), Get(p2,0), Get(p1,1), deltaT, espSqr, acc)),
-          Value("(float4) 0.0f", Float4)) $ Zip(pos, vel)
+          calcAcc(Get(p1,0), p2, deltaT, espSqr, acc)),
+          Value("(float4) 0.0f", Float4)) $ pos
 
       )) $ Zip(pos, vel)
   )
@@ -157,7 +157,7 @@ object NBody {
             NBody.update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
 
             o ReduceSeq(fun((acc, p2) =>
-            NBody.calcAcc(Get(p1,0), p2, Get(p1,1), deltaT, espSqr, acc)),
+            NBody.calcAcc(Get(p1,0), p2, deltaT, espSqr, acc)),
             Value("(float4) 0.0f", Float4)) $ pos
 
         ) $ Tuple(toPrivate(idF4) $ Get(p1, 0), toPrivate(idF4) $ Get(p1,1))
