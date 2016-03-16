@@ -144,7 +144,31 @@ object NBody {
       )) $ Zip(pos, vel)
   )
 
-  def apply() = new NBody(Seq(("amd", Array[Lambda](function))))
+  val lessLoadsToGlobal = fun(
+    ArrayType(Float4, N),
+    ArrayType(Float4, N),
+    Float,
+    Float,
+    (pos, vel, espSqr, deltaT) =>
+      MapGlb(fun(p1 =>
+
+        fun (p1 =>
+          toGlobal(MapSeq(fun(acceleration =>
+            NBody.update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
+
+            o ReduceSeq(fun((acc, p2) =>
+            NBody.calcAcc(Get(p1,0), p2, Get(p1,1), deltaT, espSqr, acc)),
+            Value("(float4) 0.0f", Float4)) $ pos
+
+        ) $ Tuple(toPrivate(idF4) $ Get(p1, 0), toPrivate(idF4) $ Get(p1,1))
+      )) $ Zip(pos, vel)
+  )
+
+
+  def apply() = new NBody(Seq(
+    ("amd", Array[Lambda](function)),
+    ("lessLoadsToGlobal", Array[Lambda](lessLoadsToGlobal))
+  ))
 
   def main(args: Array[String]): Unit = {
     NBody().run(args)
