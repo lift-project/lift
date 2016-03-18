@@ -1,7 +1,6 @@
 package opencl.generator
 
 import apart.arithmetic._
-import arithmetic.TypeVar
 import ir._
 import ir.view.AccessVar
 import opencl.generator.OpenCLAST._
@@ -170,6 +169,7 @@ class OpenCLCodeGen {
 
   private def print(t: TypeDef): Unit = t.t match {
     case tt: TupleType =>
+      tt.elemsT.foreach(t => print(TypeDef(t)))
       val name = Type.name(tt)
       val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
       print(s"""#ifndef ${name}_DEFINED
