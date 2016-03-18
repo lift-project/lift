@@ -1,6 +1,6 @@
 package rodinia
 
-import apart.arithmetic.Var
+import apart.arithmetic.{?, Var, ArithExpr}
 import ir.{ArrayType, TupleType}
 import ir.ast._
 import opencl.executor._
@@ -27,8 +27,8 @@ class Kmeans {
   val C = Var("M") // number of clusters
   val F = Var("K") // number of features
 
-  val featuresType    = ArrayType(ArrayType(Float, F), P)
-  val clustersType    = ArrayType(ArrayType(Float, C), F)
+  val featuresType    = ArrayType(ArrayType(Float, P), F)
+  val clustersType    = ArrayType(ArrayType(Float, F), C)
   val membershipType  = ArrayType(Int, P)
 
   val update = UserFun("update", Array("dist", "pair"),
@@ -59,7 +59,7 @@ class Kmeans {
     val kmeans = fun(
       featuresType, clustersType,
       (features, clusters) => {
-        features :>> MapGlb( \( feature => {
+        features :>> Transpose() :>> MapGlb( \( feature => {
           clusters :>> ReduceSeq( \( (tuple, cluster) => {
 
             val dist = Zip(feature, cluster) :>> ReduceSeq(update, 0.0f )
@@ -70,8 +70,7 @@ class Kmeans {
         }) )
       })
 
-    val code = Compile(kmeans)
-    Execute(128)(kmeans, Array.ofDim[Float](2, 2), Array.ofDim[Float](2,2))
+    val code = Compile(kmeans,?,1,1,1024,1,1, scala.collection.immutable.Map[ArithExpr, ArithExpr](P -> 1024))
 
     println(code)
   }

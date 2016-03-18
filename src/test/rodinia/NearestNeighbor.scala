@@ -1,6 +1,6 @@
 package rodinia
 
-import apart.arithmetic.Var
+import apart.arithmetic.{ArithExpr, Var}
 import ir.{ArrayType, TupleType}
 import ir.ast.{\, fun, UserFun}
 import opencl.executor._
@@ -25,7 +25,7 @@ class NearestNeighbor {
   @Test
   def main(): Unit = {
 
-    val distance = UserFun("distance", Array("loc", "lat", "lng"),
+    val distance = UserFun("distance_", Array("loc", "lat", "lng"),
       "{ return sqrt( (lat - loc._0) * (lat - loc._0) + (lng - loc._1) * (lng - loc._1) ); }",
       Seq(TupleType(Float, Float), Float, Float), Float)
 
@@ -37,7 +37,7 @@ class NearestNeighbor {
         locations :>> MapGlb( \(loc => distance(loc, lat, lng)) )
       })
 
-    val code = Compile(nn)
+    val code = Compile(nn, 128, 1, 1, 1024, 1, 1, scala.collection.immutable.Map[ArithExpr, ArithExpr](N -> 1024))
 
     println(code)
   }
