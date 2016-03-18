@@ -464,7 +464,7 @@ object Type {
   def devectorize(t: Type): Type = {
     t match {
       case vt: VectorType => vt.scalarT
-      case tt: TupleType  => TupleType( tt.elemsT.map( devectorize ):_* )
+      case tt: TupleType  => TupleType( tt.elemsT:_* )
       case at: ArrayType  => ArrayType(devectorize(at.elemT), at.len)
       case _ => t
     }
