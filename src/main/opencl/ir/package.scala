@@ -24,7 +24,7 @@ package object ir {
 
   val idFI = UserFun("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
 
-  val idFF = UserFun("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
+  val idFF = UserFun("idFF", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
 
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)

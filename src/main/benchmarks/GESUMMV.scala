@@ -74,8 +74,39 @@ object GESUMMV {
       }))
   )
 
+  val h = UserFun("h", Array("a", "b"), "{ Tuple t = {a._0 + b._0, a._1 + b._1}; return t; }",
+    Seq(TupleType(Float, Float), TupleType(Float, Float)),
+    TupleType(Float, Float))
+
+  val stride = 128
+
+  val fusedOptimised = fun(
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(Float, K),
+    Float, Float,
+    (A, B, x, alpha, beta) =>
+      MapWrg(fun(matrices =>
+        toGlobal(MapLcl(fun(partials => g(alpha, partials._0, beta, partials._1)))) o
+          MapSeq(toLocal(idFF)) o
+          ReduceSeq(h, Value("{0.0f, 0.0f}", TupleType(Float, Float))) o
+          Join() o
+          MapLcl(MapSeq(toLocal(idFF)) o
+            ReduceSeq(fun((acc, next) =>
+              fun(inPrivate =>
+                f(acc, Get(inPrivate, 1), Get(inPrivate,2), Get(inPrivate,0))
+              ) o toPrivate(fun(next => Tuple(id(Get(next, 0)), id(Get(next,1)), id(Get(next,2))))) $ next
+            ), Value("{0.0f, 0.0f}", TupleType(Float, Float)))
+          ) o
+          Split(K/^stride) o
+          ReorderStride(stride) $
+          Zip(x, Get(matrices, 0), Get(matrices, 1))
+      )) $ Zip(A, B)
+  )
+
   def apply() = new GESUMMV(Seq(
-    ("fused", Array[Lambda](fused)))
+    ("fused", Array[Lambda](fused)),
+    ("fusedOptimised", Array[Lambda](fusedOptimised)))
   )
 
   def main(args: Array[String]): Unit = {
