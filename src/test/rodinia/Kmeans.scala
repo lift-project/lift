@@ -32,7 +32,7 @@ class Kmeans {
   val clustersType    = ArrayType(ArrayType(Float, F), C)
 
   val update = UserFun("update", Array("dist", "pair"),
-    "{ return dist + (pair._0 - pair._1) *git st (pair._0 - pair._1); }",
+    "{ return dist + (pair._0 - pair._1) * (pair._0 - pair._1); }",
     Seq(Float, TupleType(Float, Float)), Float)
 
   val test = UserFun("test", Array("dist", "tuple"),
