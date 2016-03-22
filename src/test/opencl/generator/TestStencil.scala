@@ -93,7 +93,7 @@ class TestStencil {
 
     val stencilFun = fun(
       ArrayType(Float, Var("N")),
-      ArrayType(Float, Var("M")),
+      ArrayType(Float, 5),
       (input, weights) => {
         MapGlb(
           fun(neighbours =>

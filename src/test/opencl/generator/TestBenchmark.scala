@@ -45,63 +45,6 @@ class TestBenchmark {
     println("runtime = " + runtime)
   }
 
-  @Test def kMeansMembership(): Unit = {
-    val inputSize = 512
-    val k = 16
-
-    val pointsX = Array.fill(inputSize)(util.Random.nextFloat())
-    val pointsY = Array.fill(inputSize)(util.Random.nextFloat())
-    val centresX = Array.fill(k)(util.Random.nextFloat())
-    val centresY = Array.fill(k)(util.Random.nextFloat())
-    val indices = Array.range(0, k)
-
-    val distance = UserFun("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
-    val minimum = UserFun("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
-    val getSecond = UserFun("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
-
-    val points = pointsX zip pointsY
-    val centres = (centresX, centresY, indices).zipped
-
-    val gold = points.map(x => {
-      centres
-        .map((a, b, id) => ((x._1 - a) * (x._1 - a) + (x._2 - b) * (x._2 - b), id))
-        .reduce((p1, p2) => if (p1._1 < p2._1) p1 else p2)
-        ._2
-    })
-
-    val N = Var("N")
-    val K = Var("K")
-
-    val function = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      ArrayType(Float, K),
-      ArrayType(Float, K),
-      ArrayType(Int, K),
-      (x, y, a, b, i) => {
-        MapGlb(fun(xy => {
-          toGlobal(MapSeq(idI)) o
-          MapSeq(getSecond) o
-          ReduceSeq(minimum, (scala.Float.MaxValue, -1)) o
-          MapSeq(fun(ab => {
-            distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2))
-          })) $ Zip(a, b, i)
-        })) $ Zip(x, y)
-      }
-    )
-
-    println(inputSize)
-    println(k)
-
-    val (output: Array[Int], runtime) =
-      Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices)
-
-    assertArrayEquals(gold, output)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-  }
-
   @Test def mandelbrot(): Unit = {
     val inputSize = 512
 
