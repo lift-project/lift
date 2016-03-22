@@ -18,4 +18,15 @@ class TestTypeChecker {
     TypeChecker(lambda)
   }
 
+  @Test(expected = classOf[TypeException])
+  def incorrectZip(): Unit = {
+    val lambda = fun(
+      ArrayType(Float, Var("K")),
+      ArrayType(Float, 8),
+      (a, b) =>
+        Zip(a,b)
+    )
+
+    TypeChecker(lambda)
+  }
 }
