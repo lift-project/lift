@@ -81,18 +81,22 @@ object Rewrite {
   }
 
   def patchUpAfterSplitJoin(toBeReplaced: Expr, replacement: Expr, replaced: Expr): Expr = {
-    // TODO: suppress warnings?
-    TypeChecker(replaced)
-
-    val newExpr = Utils.getLengthOfSecondDim(replacement.t)
-    val oldExpr = Utils.getLengthOfSecondDim(toBeReplaced.t)
-
-    if (oldExpr != newExpr) {
-      val st = collection.immutable.Map[ArithExpr, ArithExpr]((oldExpr, newExpr))
-      val tunableNodes = Utils.findTunableNodes(replaced)
-      Utils.quickAndDirtySubstitution(st, tunableNodes, replaced)
-    } else {
+    try {
+      TypeChecker(replaced)
       replaced
+    } catch {
+      case t: ZipTypeException =>
+
+        val newExpr = Utils.getLengthOfSecondDim(replacement.t)
+        val oldExpr = Utils.getLengthOfSecondDim(toBeReplaced.t)
+
+        if (oldExpr != newExpr) {
+          val st = collection.immutable.Map[ArithExpr, ArithExpr]((oldExpr, newExpr))
+          val tunableNodes = Utils.findTunableNodes(replaced)
+          Utils.quickAndDirtySubstitution(st, tunableNodes, replaced)
+        } else {
+          replaced
+        }
     }
   }
 

@@ -476,6 +476,7 @@ object Type {
  * @param msg A string message presented to the user
  */
 case class TypeException(msg: String) extends Exception(msg) {
+
   def this(found: Type, expected: String) =
     this(found + " found but " + expected + " expected")
 
@@ -484,8 +485,15 @@ case class TypeException(msg: String) extends Exception(msg) {
 
 }
 
+class ZipTypeException(val tt: TupleType)
+  extends TypeException(s"Can not statically prove that sizes ( ${tt.elemsT.mkString(", ")} ) match!")
+
+object ZipTypeException {
+  def apply(tt: TupleType) = new ZipTypeException(tt)
+}
+
 /**
- * Exceptiong thrown by the type checker on an arity missmatch
+ * Exception thrown by the type checker on an arity mismatch
  * @param msg A string message presented to the user
  */
 case class NumberOfArgumentsException(msg: String) extends Exception(msg) {
