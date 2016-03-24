@@ -354,17 +354,19 @@ class TestBenchmark {
       ArrayType(TupleType(Float, Float, Float, Float), k),
       (x, y, z, Qr, Qi, kvalues) =>
         Zip(x, y, z, Qr, Qi) :>>
-        MapGlb(\(t =>
-          Let( t._0, sX =>
-          Let( t._1, sY =>
-          Let( t._2, sZ =>
-            kvalues :>>
-            ReduceSeq(\((acc, p) =>
-                qFun(sX, sY, sZ, p._0, p._1, p._2, p._3, acc)
-              ), toPrivate(fun(x => pair(x._0, x._1))) $ Tuple(t._3, t._4)) :>>
-            toGlobal(MapSeq(idFF))
-          )))
-        ))
+          MapGlb(\(t =>
+            t._0 :>> toPrivate(id) :>> Let(sX =>
+              t._1 :>> toPrivate(id) :>> Let(sY =>
+                t._2 :>> toPrivate(id) :>> Let(sZ =>
+                  kvalues :>>
+                    ReduceSeq(\((acc, p) =>
+                      qFun(sX, sY, sZ, p._0, p._1, p._2, p._3, acc)
+                    ), toPrivate(fun(x => pair(x._0, x._1))) $ Tuple(t._3, t._4)) :>>
+                    toGlobal(MapSeq(idFF))
+                )
+              )
+            )
+          ))
     )
 
     Compile(computePhiMag)

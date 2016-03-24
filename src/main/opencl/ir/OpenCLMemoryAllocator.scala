@@ -93,8 +93,7 @@ object OpenCLMemoryAllocator {
       case vec: VectorizeUserFun
                               => allocUserFun(call.t, numGlb, numLcl, numPvt,
                                               inMem, addressSpace)
-      case l: Let             => allocLet(l, numGlb, numLcl, numPvt,
-                                          inMem, addressSpace)
+
       case l: Lambda          => allocLambda(l, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
       case MapGlb(_, _) |
@@ -176,19 +175,6 @@ object OpenCLMemoryAllocator {
       OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize,
                                addressSpace)
     }
-  }
-
-  private def allocLet(l: Let,
-                       numGlb: ArithExpr,
-                       numLcl: ArithExpr,
-                       numPvt: ArithExpr,
-                       inMem: OpenCLMemory,
-                       addressSpace: OpenCLAddressSpace): OpenCLMemory = {
-    // remember original memory to initialize the fresh variable with
-    l.argMem = inMem
-    // ALWAYS use private address space for the fresh variable
-    l.params.head.mem = OpenCLMemory.allocPrivateMemory(getMaxSizeInBytes(l.params.head.t) * numPvt)
-    alloc(l.body, numGlb, numLcl, numPvt, addressSpace)
   }
 
   private def allocLambda(l: Lambda,
@@ -276,7 +262,6 @@ object OpenCLMemoryAllocator {
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
-        val defaultM = coll.subMemories(0)
         // set the comparison function input to be the elements of the array we're searching
         s.f.params(0).mem = coll.subMemories(1)
         // allocate memory for the comparison function - otherwise the allocator will complain!

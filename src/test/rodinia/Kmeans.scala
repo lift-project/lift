@@ -169,7 +169,7 @@ class Kmeans {
       featuresType, clustersType,
       (features, clusters) => {
         features :>> Transpose() :>> Split(splitFactor) :>> MapWrg(\( featuresChunk =>
-          \(localClusters =>
+          clusters :>> toLocal(MapLcl(MapSeq(id))) :>> Let(localClusters =>
           MapLcl( \( feature => {
             localClusters :>> ReduceSeq( \( (tuple, cluster) => {
 
@@ -179,7 +179,7 @@ class Kmeans {
             }), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int), 1)) ) :>>
               toGlobal(MapSeq(MapSeq(select)))
           })) $ featuresChunk
-          ) o toLocal(MapLcl(MapSeq(id))) $ clusters
+          )
         )) :>> Join()
       })
 

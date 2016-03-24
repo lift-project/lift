@@ -326,7 +326,7 @@ class TestNBody {
             ))) $ Zip(p1Chunk,
               Join() o
                 ReduceSeq(fun((acc, p2) =>
-                fun(p2Local =>
+                Let(p2Local =>
                   Join() o
                     MapLcl(fun(p1 => // ( (float4, float4), float4 )
 

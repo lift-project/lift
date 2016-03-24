@@ -8,15 +8,6 @@ class Let(override val params: Array[Param], override val body: Expr) extends La
 
   var argMem: OpenCLMemory = null
 
-  override def checkType(argType: Type,
-                         setType: Boolean): Type = {
-    argType match {
-      case _:ScalarType | _: VectorType | _:TupleType =>
-        params.head.t = argType
-        TypeChecker.check(body, setType)
-    }
-  }
-
   override def apply(args : Expr*) : Expr = {
     assert (args.length == arity)
     new FunCall(this, args:_*)
@@ -24,8 +15,8 @@ class Let(override val params: Array[Param], override val body: Expr) extends La
 }
 
 object Let {
-  def apply(e: Expr, f: (Param) => Expr) : Expr = {
+  def apply(f: Param => Expr): Let = {
     val param = Param(UndefType)
-    (new Let(Array(param), f(param)))(e)
+    new Let(Array(param), f(param))
   }
 }
