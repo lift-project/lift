@@ -1,6 +1,10 @@
 package rodinia
 
+import java.io.{File, PrintWriter}
+
 import apart.arithmetic.Var
+import benchmarks.MolecularDynamics
+import ir.printer.DotPrinter
 import ir.{ArrayType, TupleType}
 import ir.ast._
 import opencl.executor._
@@ -34,6 +38,10 @@ class Kmeans {
   val update = UserFun("update", Array("dist", "pair"),
     "{ return dist + (pair._0 - pair._1) * (pair._0 - pair._1); }",
     Seq(Float, TupleType(Float, Float)), Float)
+
+  val update2 = UserFun("update", Array("dist", "pair0", "pair1"),
+    "{ return dist + (pair0 - pair1) * (pair0 - pair1); }",
+    Seq(Float, Float, Float), Float)
 
   val test = UserFun("test", Array("dist", "tuple"),
     "{" +
@@ -173,7 +181,7 @@ class Kmeans {
           MapLcl( \( feature => {
             localClusters :>> ReduceSeq( \( (tuple, cluster) => {
 
-              val dist = Zip(feature, cluster) :>> ReduceSeq(update, 0.0f )
+              val dist = Zip(feature, cluster) :>> ReduceSeq(\((acc, b) => update2(acc, Get(b, 0), Get(b,1))), 0.0f )
               Zip(dist, tuple) :>> MapSeq(test)
 
             }), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int), 1)) ) :>>
@@ -183,7 +191,12 @@ class Kmeans {
         )) :>> Join()
       })
 
+    new DotPrinter(new PrintWriter(new File("/home/s1042579/kmeans.dot"))).print(kMeans)
+
+
     val (output: Array[Int], _) = Execute(numPoints)(kMeans, points.transpose, clusters)
+
+    println(kMeans)
 
     assertArrayEquals(gold, output)
   }

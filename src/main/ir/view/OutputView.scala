@@ -3,6 +3,7 @@ package ir.view
 import apart.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
+import opencl.ir.{Float4, OpenCLMemory, OpenCLMemoryCollection}
 
 /**
  * A helper object for constructing views.
@@ -35,8 +36,8 @@ object OutputView {
       case l: Lambda => buildViewLambda(l, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
-      case uf: UserFun => buildViewUserFun(writeView, call)
-      case uf: VectorizeUserFun => buildViewUserFun(writeView, call)
+      case uf: UserFun => buildViewUserFun(writeView,uf, call)
+      case uf: VectorizeUserFun => buildViewUserFun(writeView, uf.userFun, call)
       case s: Scatter => buildViewScatter(s, call, writeView)
       case i: Iterate => buildViewIterate(i, call, writeView)
       case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
@@ -46,7 +47,7 @@ object OutputView {
       case h: Head => buildViewHead(call, writeView)
       case t: Tail => buildViewTail(call, writeView)
       case fp: FPattern => buildViewFPattern(fp, writeView)
-      case _: Zip => buildViewZip(writeView)
+      case _: Zip => buildViewZip(call, writeView)
       case _ => writeView
     }
 
@@ -60,6 +61,10 @@ object OutputView {
       case r: AbstractPartRed =>
         val e = call.args.head
         visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth))
+
+        if (call.args(1).isInstanceOf[Param])
+          call.args(1).outputView = result
+
         visitAndBuildViews(call.args(1), result)
       case _ =>
         if (call.args.length == 1)
@@ -74,12 +79,63 @@ object OutputView {
      argResult
   }
 
-  private def buildViewZip(writeView: View): View = {
-    writeView.unzip()
+  private def buildViewZip(call: FunCall, writeView: View): View = {
+    val result = writeView.unzip()
+
+    call.args.zipWithIndex.foreach((pair) => {
+      val arg = pair._1
+      val id = pair._2
+
+      if (arg.isInstanceOf[Param])
+        arg.outputView = result.get(id)
+
+    })
+
+    result
   }
 
-  private def buildViewUserFun(writeView: View, call: FunCall): View = {
-    call.view = writeView
+  private def buildViewUserFun(writeView: View, uf:UserFun, call: FunCall): View = {
+
+      call.args.foreach({
+        case p: Param  =>
+          p.outputView = View.initialiseNewView(p.t, p.outputDepth)
+        case c@FunCall(Get(i), p) =>
+          println("<<<<<<<<<< " + p.accessInf)
+          val memCollection = p.mem.asInstanceOf[OpenCLMemoryCollection]
+          if (p.outputView != NoView) {
+
+            val contLocal = OpenCLMemory.containsLocalMemory(c.mem)
+            val contPrivate = OpenCLMemory.containsPrivateMemory(c.mem)
+
+            val outDepth = if (contPrivate) p.accessInf.l(i).privateAccessInf
+            else if (contLocal) p.accessInf.l(i).localAccessInf
+            else p.accessInf.l(i).globalAccessInf
+
+            val subviews = p.outputView.asInstanceOf[ViewZip].ivs.toArray
+            subviews(i) = View.initialiseNewView(c.t, outDepth)
+            p.outputView = ViewZip(subviews, p.t)
+
+          } else {
+
+            val contLocal = OpenCLMemory.containsLocalMemory(c.mem)
+            val contPrivate = OpenCLMemory.containsPrivateMemory(c.mem)
+
+            val outDepth = if (contPrivate) p.accessInf.l(i).privateAccessInf
+            else if (contLocal) p.accessInf.l(i).localAccessInf
+            else p.accessInf.l(i).globalAccessInf
+
+            val subviews = Array.fill[View](memCollection.subMemories.length)(NoView)
+            subviews(i) = View.initialiseNewView(c.t, outDepth)
+            p.outputView = ViewZip(subviews, p.t)
+          }
+      })
+
+    if (uf.name == "id" && call.t == Float4) {
+      println(call)
+      println(writeView)
+    }
+
+    call.outputView = writeView
     View.initialiseNewView(call.t, call.outputDepth, "")
   }
 
@@ -118,8 +174,9 @@ object OutputView {
     // traverse into call.f
     visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
     // create fresh input view for following function
-    View.initialiseNewView(call.args(1).t, call.outputDepth,
-                           call.mem.variable.name)
+//    View.initialiseNewView(call.args(1).t, call.outputDepth,
+//                           call.mem.variable.name)
+    new ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
   private def buildViewSearch(s: AbstractSearch, 
@@ -131,7 +188,16 @@ object OutputView {
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
-    visitAndBuildViews(l.body, writeView)
+    if (l.isInstanceOf[Let]) {
+      visitAndBuildViews(l.body, writeView)
+//      View.initialiseNewView(call.args.head.t, List())
+      l.params.head.outputView
+    } else if (l.isInstanceOf[Lambda2]){
+      visitAndBuildViews(l.body, writeView)
+      l.params(1).outputView
+    } else
+      visitAndBuildViews(l.body, writeView)
+      l.params.head.outputView
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {

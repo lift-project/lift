@@ -342,6 +342,8 @@ class TestNBody {
     val (output: Array[Float], _) =
       Execute(128, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
 
+    println(function)
+
     assertArrayEquals(gold, output, 0.0001f)
 
   }

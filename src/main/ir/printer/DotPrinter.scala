@@ -116,12 +116,13 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
         p match {
           case fp: FPattern =>
             printEdges(fp.f, nodeId, "f")
-          case j : Join =>
-          case s : Split =>
+          case _ =>
         }
       case uf: UserFun =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
+      case _ =>
+
     }
   }
 
@@ -220,14 +221,15 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
           case fp: FPattern =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
             printNodes(fp.f)
-          case j : Join =>
-            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
           case s : Split =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+s.chunkSize+")>]")
+          case  _ =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
         }
       case uf: UserFun =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
-
+      case  _ =>
+        writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }
   }
 

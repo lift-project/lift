@@ -324,10 +324,10 @@ class OpenCLGenerator extends Generator {
     val valMems = Expr.visitWithState(Set[Memory]())(f.body, (expr, set) =>
       expr match {
         case value: Value => set + value.mem
-        case FunCall(fun, _) => fun match {
-          case let: Let => set + let.params.head.mem
-          case _ => set
-        }
+//        case FunCall(fun, _) => fun match {
+//          case let: Let => set + let.params.head.mem
+//          case _ => set
+//        }
         case _ => set
       })
 
@@ -754,12 +754,12 @@ class OpenCLGenerator extends Generator {
         )
       }
     )
-    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       generateLoadNode(OpenCLMemory.asOpenCLMemory(defaultVal.mem), defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
     nestedBlock += generateStoreNode(
-      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
     block += nestedBlock
@@ -840,12 +840,12 @@ class OpenCLGenerator extends Generator {
       }
     )
     nestedBlock += OpenCLAST.Label(searchFailedLabel)
-    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       generateLoadNode(OpenCLMemory.asOpenCLMemory(defaultVal.mem), defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
     nestedBlock += generateStoreNode(
-      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
     block += nestedBlock
@@ -1029,7 +1029,12 @@ class OpenCLGenerator extends Generator {
                                   block: Block): Block = {
     // Handle vector assignments for vector types
     val mem = OpenCLMemory.asOpenCLMemory(call.mem)
-    block += generateStoreNode(mem, call.t, call.view,
+
+    if (call.outputView == NoView) {
+      println(call)
+    }
+
+    block += generateStoreNode(mem, call.t, call.outputView,
       generateFunCall(call, generateLoadNodes(call.args: _*)))
 
     block
@@ -1325,6 +1330,7 @@ class OpenCLGenerator extends Generator {
   }
 
   private def arrayAccessPrivateMemIndex(v: Var, view: View): Int = {
+    println(v + " " + view)
     val i = {
       val originalType = varDecls(v)
       val valueType = Type.getValueType(originalType)

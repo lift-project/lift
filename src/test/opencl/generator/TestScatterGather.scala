@@ -354,4 +354,43 @@ class TestScatterGather {
     assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
 
   }
+
+  def kMeansLocalMemory(): Unit = {
+
+    val numPoints = 1024
+    val numClusters = 5
+    val numFeatures = 8
+
+    val points = Array.fill(numPoints, numFeatures)(util.Random.nextFloat())
+    val clusters = Array.fill(numClusters, numFeatures)(util.Random.nextFloat())
+
+    val gold = Array.fill(2)(2)
+
+    val splitFactor = 128
+
+    val N = Var("N")
+    val M = Var("M")
+
+    val kMeans = fun(
+      ArrayType(ArrayType(Float, M), N), ArrayType(ArrayType(Float, M), N),
+      (features, clusters) => {
+        features :>> Transpose() :>> Split(splitFactor) :>> MapWrg(\( featuresChunk =>
+          clusters :>> toLocal(MapLcl(MapSeq(id))) :>> Let(localClusters =>
+            MapLcl( \( feature => {
+              localClusters :>> ReduceSeq( \( (tuple, cluster) => {
+
+                val dist = Zip(feature, cluster) :>> ReduceSeq(add, 0.0f )
+                Zip(dist, tuple) :>> MapSeq(idFF)
+
+              }), Value(0.0f, ArrayType(TupleType(Float), 1)) ) :>>
+                toGlobal(MapSeq(MapSeq(id)))
+            })) $ featuresChunk
+          )
+        )) :>> Join()
+      })
+
+    val (output: Array[Int], _) = Execute(numPoints)(kMeans, points.transpose, clusters)
+
+    assertArrayEquals(gold, output)
+  }
 }

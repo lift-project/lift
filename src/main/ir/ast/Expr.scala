@@ -2,7 +2,7 @@ package ir.ast
 
 import apart.arithmetic.ArithExpr
 import ir._
-import ir.view.{NoView, View}
+import ir.view.{AccessInfo, NoView, View}
 
 import scala.language.implicitConversions
 
@@ -31,6 +31,8 @@ abstract class Expr extends IRNode {
    */
   var view: View = NoView
 
+  var outputView: View = NoView
+
   /**
    * The context keeps track where this expression is inside a bigger
    * expression for checking (possible) constrains on nesting expression.
@@ -44,6 +46,8 @@ abstract class Expr extends IRNode {
    * Used for constructing input views.
    */
   var inputDepth: List[(ArithExpr, ArithExpr)] = List()
+
+  var accessInf = AccessInfo()
 
   /**
    * A list storing variable, length pairs that describe the full type and loop variables
