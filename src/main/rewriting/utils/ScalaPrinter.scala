@@ -23,7 +23,7 @@ object ScalaPrinter {
       case mapWrg: MapWrg => s"MapWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
       case mapLcl: MapLcl => s"MapLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
       case mapGlb: MapGlb => s"MapGlb(${mapGlb.dim})(${apply(mapGlb.f)})"
-      case reduceSeq: ReduceSeq => s"ReduceSeq(${apply(reduceSeq.f)})"
+      case reduceSeq: ReduceSeq => s"ReduceSeq(${reduceSeq.filterp.map(apply)},${apply(reduceSeq.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
       case toGlobal: toGlobal => s"toGlobal(${apply(toGlobal.f)})"
@@ -32,6 +32,7 @@ object ScalaPrinter {
       case bsearch: BSearch => s"BSearch(${apply(bsearch.f)})"
       case lsearch: LSearch => s"LSearch(${apply(lsearch.f)})"
       case vec: VectorizeUserFun => s"VectorizeUserFun(${vec.n},${vec.userFun})"
+      case uaa: UnsafeArrayAccess => s"UnsafeArrayAccess(${apply(uaa.index)})"
       case _ => funDecl.toString
     }
   }
