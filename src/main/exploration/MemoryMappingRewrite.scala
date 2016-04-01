@@ -91,7 +91,7 @@ object MemoryMappingRewrite {
                         throw new RuntimeException(s"Illegal un-lowered Map")
 
                       // Dump to file
-                      val str = Utils.dumpLambdaToMethod(expr).replace("idfloat", "float")
+                      val str = Utils.dumpLambdaToMethod(expr)
                       val sha256 = Utils.Sha256Hash(str)
                       val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
@@ -142,9 +142,7 @@ object MemoryMappingRewrite {
       Rewrite.listAllPossibleRewritesForRules(lambda, Seq(Rules.mapAtomWrg, Rules.mapAtomLcl))
 
     val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
-
     withLoadBalancing :+ lambda
-
   }
 
   def mapAddressSpaces(lambda: Lambda): Seq[Lambda] = {

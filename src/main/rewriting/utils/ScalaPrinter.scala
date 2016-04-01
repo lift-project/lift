@@ -22,6 +22,8 @@ object ScalaPrinter {
       case mapSeq: MapSeq => s"MapSeq(${apply(mapSeq.f)})"
       case mapWrg: MapWrg => s"MapWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
       case mapLcl: MapLcl => s"MapLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
+      case mapWrg: MapAtomWrg => s"MapAtomWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
+      case mapLcl: MapAtomLcl => s"MapAtomLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
       case mapGlb: MapGlb => s"MapGlb(${mapGlb.dim})(${apply(mapGlb.f)})"
       case reduceSeq: ReduceSeq => s"ReduceSeq(${apply(reduceSeq.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"

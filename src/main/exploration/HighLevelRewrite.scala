@@ -220,10 +220,7 @@ class HighLevelRewrite {
       MacroRules.finishTiling,
       MacroRules.partialReduceWithReorder,
       vecRed4,
-      vecZip4/*,
-      Rules.splitJoin,
-      Rules.partialReduce,
-      Rules.partialReduceReorder*/
+      vecZip4
     )
 
   private var failures = 0

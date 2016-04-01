@@ -171,26 +171,21 @@ object ParameterRewrite {
 
   def saveScala(expressions: List[(Lambda, Seq[ArithExpr])], hashes: Seq[Option[String]]): Unit = {
 
-    val seenHashes = scala.collection.mutable.Set[String]()
     val filename = lambdaFilename
     val file = scala.tools.nsc.io.File(filename)
 
     (expressions, hashes).zipped.foreach((f, hash) => {
 
-      if(hash.isDefined) {
-        val stringRep = "{ " + Utils.dumpLambdaToString(f._1).replace("\n", "; ") + " }"
+      try {
+        val stringRep = "{ " + Utils.dumpLambdaToString(f._1).replace("\n", "; ") + "}"
 
         val sha256 = hash.get
 
-        if (!seenHashes.contains(sha256)) {
-
-          seenHashes += sha256
-
-          synchronized {
-            file.appendAll("(\"" + sha256 + "\",  " +
-              s"Array($stringRep)) ,\n")
-          }
+        synchronized {
+          file.appendAll("(\"" + sha256 + "\",  " + s"Array($stringRep)) ,\n")
         }
+      } catch {
+        case _: Throwable =>
       }
 
     })
