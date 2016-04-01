@@ -155,43 +155,4 @@ class TestRewriteMatrixVector {
     println(sha256)
   }
 
-  @Test
-  def spmv(): Unit = {
-
-    val  cleanUSAAF = UserFun("cleanUSAAF", Array("accessRes", "index"), "{ return (index==-1) ? 0 : accessRes; }",
-      Seq(Float, Int), Float)
-
-    val N = Var("MWidthC")
-    val M = Var("MHeight")
-    val L = Var("VLength")
-
-    val f = fun(
-      // val soaAccessGlbPar = fun(
-      ArrayType(ArrayType(Int, N), M),
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, L),
-      (indices, values, vectorX) =>
-        Join() o Map(fun(rowIdxPair =>
-          Reduce(add, 0.0f) o
-            Map(fun(rowElem =>
-              mult(
-                cleanUSAAF(
-                  toPrivate(UnsafeArrayAccess(rowElem._0)) $ vectorX,
-                  Get(rowElem, 0)
-                ),
-                Get(rowElem, 1)
-              )
-            )) $ Zip(Get(rowIdxPair, 0), Get(rowIdxPair, 1))
-        )) $ Zip(indices, values)
-    )
-
-    val f1 = Rewrite.applyRuleAtId(f, 1, Rules.splitJoin(128))
-    val saved1 = Eval(rewriting.utils.Utils.dumpLambdaToString(f1))
-
-    val mapCombinations = Lower.mapCombinations(saved1)
-
-    mapCombinations.foreach(f => Compile(Eval(rewriting.utils.Utils.dumpLambdaToString(f))))
-
-  }
-
 }

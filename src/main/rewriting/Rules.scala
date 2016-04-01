@@ -212,6 +212,10 @@ object Rules {
       MapWrg(dim)(f)(arg)
   })
 
+  val mapAtomWrg = Rule("MapWrg(f) => MapAtomWrg(f)", {
+    case call@FunCall(MapWrg(dim, f), arg) => MapAtomWrg(dim)(f)(arg)
+  })
+
   val mapWrg: Rule = mapWrg(0)
 
   def mapLcl(dim: Int): Rule = Rule("Map(f) => MapLcl(f)", {
@@ -227,6 +231,10 @@ object Rules {
         && !call.context.inMapLcl(dim)
     =>
       MapLcl(dim)(f)(arg)
+  })
+
+  val mapAtomLcl = Rule("MapLcl(f) => MapAtomLcl(f)", {
+    case call@FunCall(MapLcl(dim, f), arg) => MapAtomLcl(dim)(f)(arg)
   })
 
   val mapLcl: Rule = mapLcl(0)

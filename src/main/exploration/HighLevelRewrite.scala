@@ -64,7 +64,7 @@ object HighLevelRewrite {
       verbose = verboseOpt.value.isDefined
 
       val filename = input.value.get
-      val lambda = GenerateOpenCL.readLambdaFromFile(filename)
+      val lambda = ParameterRewrite.readLambdaFromFile(filename)
 
       val dumpThese = rewriteExpression(lambda)
 
@@ -220,7 +220,10 @@ class HighLevelRewrite {
       MacroRules.finishTiling,
       MacroRules.partialReduceWithReorder,
       vecRed4,
-      vecZip4
+      vecZip4/*,
+      Rules.splitJoin,
+      Rules.partialReduce,
+      Rules.partialReduceReorder*/
     )
 
   private var failures = 0

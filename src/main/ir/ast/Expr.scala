@@ -304,13 +304,6 @@ object Expr {
           val newArgs = call.args.map((arg) => replace(arg, oldE, newE))
 
           val newCall = call.f match {
-            case uaa: UnsafeArrayAccess =>
-              val replaced = replace(uaa.index, oldE, newE)
-
-              if (uaa.index.eq(replaced))
-                uaa
-              else
-                uaa.copy(replaced)
 
             case fp: FPattern =>
               // Try to do the replacement in the body

@@ -100,25 +100,21 @@ object Rewrite {
     }
   }
 
-  def listAllPossibleRewritesForRules(lambda: Lambda,
-                                                           rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewritesForRules(lambda: Lambda, rules: Seq[Rule]): Seq[(Rule, Expr)] = {
     listAllPossibleRewritesForRules(lambda.body, rules)
   }
 
-  def listAllPossibleRewritesForRules(expr: Expr,
-                                                           rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewritesForRules(expr: Expr, rules: Seq[Rule]): Seq[(Rule, Expr)] = {
     Context.updateContext(expr)
     TypeChecker.check(expr)
     rules.flatMap(rule => listAllPossibleRewrites(expr, rule))
   }
 
-  def listAllPossibleRewrites(lambda: Lambda,
-                                                   rule: Rule): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewrites(lambda: Lambda,rule: Rule): Seq[(Rule, Expr)] = {
     listAllPossibleRewrites(lambda.body, rule)
   }
 
-  def listAllPossibleRewrites(expr: Expr,
-                                                   rule: Rule): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewrites(expr: Expr, rule: Rule): Seq[(Rule, Expr)] = {
     Expr.visitWithState(Seq[(Rule, Expr)]())( expr, (e, s) => {
       if (rule.rewrite.isDefinedAt(e)) {
         s :+ (rule, e)

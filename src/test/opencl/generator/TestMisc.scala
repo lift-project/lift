@@ -1,7 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.{?, ArithExpr, Cst, Var}
-import exploration.GenerateOpenCL
+import exploration.ParameterRewrite
 import rewriting.InferNDRange
 import ir._
 import ir.ast._
@@ -887,7 +887,7 @@ class TestMisc {
     var local: NDRange = Array(128, 1, 1)
     var global: NDRange = Array(?, ?, ?)
     InferNDRange(expr) match { case (l, g) => local = l; global = g }
-    val valueMap = GenerateOpenCL.createValueMap(expr)
+    val valueMap = ParameterRewrite.createValueMap(expr)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)
