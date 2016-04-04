@@ -4,6 +4,8 @@ import apart.arithmetic._
 import rewriting.utils.Utils
 import ir._
 import ir.ast._
+import opencl.ir._
+import opencl.ir.ast._
 import opencl.ir.pattern._
 
 case class Rule(desc: String,
@@ -354,6 +356,30 @@ object Rules {
 
         asScalar() o Map(Lambda(Array(newParam), VectorizeUserFun(n, uf)(newUfArgs:_*))) $ Zip(newZipArgs:_*)
     })
+
+  /* OpenCL builtins */
+
+  val dotBuiltin = Rule("", {
+    case f@FunCall(ReduceSeq(Lambda(rp, FunCall(uf:UserFun, a1, a2))), v@Value("0.0f"),
+    FunCall(asScalar(),
+    FunCall(m: AbstractMap, arg)))
+      if uf == add &&
+        v.t == opencl.ir.Float &&
+        rp.contains(a1) &&
+        rp.contains(a2) &&
+        (m.isInstanceOf[Map] || m.isInstanceOf[MapSeq]) &&
+        (m.f.body match {
+          case FunCall(VectorizeUserFun(Cst(4), multUf),
+          FunCall(Get(_), multA1), FunCall(Get(_), multA2))
+            if multUf == mult && multA1.eq(m.f.params.head) &&
+              multA2.eq(m.f.params.head)
+          => true
+          case _ => false
+        })
+    =>
+
+      ReduceSeq(add, 0.0f) o MapSeq(dot) $ arg
+  })
 
   /* Other */
 

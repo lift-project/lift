@@ -8,8 +8,10 @@ import ir.ast._
 import ir.view._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
+import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
-import scala.collection.{mutable, immutable}
+
+import scala.collection.{immutable, mutable}
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
@@ -248,6 +250,7 @@ class OpenCLGenerator extends Generator {
     val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
+          case _: OpenCLBuiltInFun => set
           case uf: UserFun => set + uf
           case vec: VectorizeUserFun => set + vec.vectorizedFunction
           case _ => set

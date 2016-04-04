@@ -2,9 +2,10 @@ package rewriting
 
 import apart.arithmetic.{RangeMul, Var}
 import ir.ast._
-import ir.{Type, ArrayType, TypeChecker, VectorType}
+import ir.{ArrayType, Type, TypeChecker, VectorType}
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.ast._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -141,6 +142,99 @@ class TestRules {
     // split o map(transpose) =>
 
     // transpose o split =>
+  }
+
+  @Test
+  def testDot(): Unit = {
+
+    val input = Array.fill(4)(util.Random.nextFloat())
+    val gold = (input, input).zipped.map(_*_).sum
+
+    val f = fun(
+      ArrayType(Float4, 1),
+      ArrayType(Float4, 1),
+      (x, y) =>
+        toGlobal(MapSeq(id)) o
+          ReduceSeq(add, 0.0f) o
+          asScalar() o
+          MapSeq(VectorizeUserFun(4, mult)) $ Zip(x, y)
+    )
+
+    val g = fun(
+      ArrayType(Float4, 1),
+      ArrayType(Float4, 1),
+      (x, y) =>
+        toGlobal(MapSeq(id)) o
+          MapSeq(dot) $ Zip(x, y)
+    )
+
+    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
+    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+
+    assertEquals(gold, outputF.head, 0.001f)
+    assertEquals(gold, outputG.head, 0.001f)
+  }
+
+
+  @Test
+  def testDot2(): Unit = {
+
+    val input = Array.fill(16)(util.Random.nextFloat())
+    val gold = (input, input).zipped.map(_*_).sum
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float4, N),
+      ArrayType(Float4, N),
+      (x, y) =>
+        toGlobal(MapSeq(id)) o
+          ReduceSeq(add, 0.0f) o
+          asScalar() o
+          MapSeq(VectorizeUserFun(4, mult)) $ Zip(x, y)
+    )
+
+    val g = fun(
+      ArrayType(Float4, N),
+      ArrayType(Float4, N),
+      (x, y) =>
+        toGlobal(MapSeq(id)) o
+          ReduceSeq(add, 0.0f) o
+          MapSeq(dot) $ Zip(x, y)
+    )
+
+    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
+    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+
+    assertEquals(gold, outputF.head, 0.001f)
+    assertEquals(gold, outputG.head, 0.001f)
+  }
+
+  @Test
+  def testDotRule(): Unit = {
+
+    val input = Array.fill(16)(util.Random.nextFloat())
+    val gold = (input, input).zipped.map(_*_).sum
+
+    val N = Var("N")
+
+    val f = fun(
+      ArrayType(Float4, N),
+      ArrayType(Float4, N),
+      (x, y) =>
+        toGlobal(MapSeq(id)) o
+          ReduceSeq(add, 0.0f) o
+          asScalar() o
+          MapSeq(VectorizeUserFun(4, mult)) $ Zip(x, y)
+    )
+
+    val g = Rewrite.applyRuleAtId(f, 1, Rules.dotBuiltin)
+
+    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
+    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+
+    assertEquals(gold, outputF.head, 0.001f)
+    assertEquals(gold, outputG.head, 0.001f)
   }
 
   @Test
