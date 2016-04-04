@@ -2,6 +2,7 @@ package rewriting.utils
 
 import ir._
 import ir.ast._
+import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
 
 object ScalaPrinter {
@@ -56,4 +57,6 @@ object ScalaPrinter {
 
     s"val ${uf.name} = UserFun($name, Array($paramNames), $body, Seq($inTs), $outT)"
   }
+
+  def apply(uf: OpenCLBuiltInFun): String = ""
 }
