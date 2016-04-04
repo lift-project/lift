@@ -3,7 +3,7 @@ package rewriting
 import apart.arithmetic.{RangeMul, Var}
 import ir.ast._
 import ir.{ArrayType, Type, TypeChecker, VectorType}
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Eval, Execute, Executor}
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -228,7 +228,7 @@ class TestRules {
           MapSeq(VectorizeUserFun(4, mult)) $ Zip(x, y)
     )
 
-    val g = Rewrite.applyRuleAtId(f, 1, Rules.dotBuiltin)
+    val g = Rewrite.applyRuleAtId(f, 1, Rules.dotBuiltinSeq)
 
     val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
     val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)

@@ -360,11 +360,28 @@ object Rules {
   /* OpenCL builtins */
 
   val dotBuiltin = Rule("", {
-    case f@FunCall(ReduceSeq(Lambda(rp, FunCall(uf:UserFun, a1, a2))), v@Value("0.0f"),
+    case f@FunCall(Reduce(Lambda(rp, FunCall(uf:UserFun, a1, a2))), init,
+    FunCall(asScalar(),
+    FunCall(Map(Lambda(mp,FunCall(VectorizeUserFun(Cst(4), multUf),
+          FunCall(Get(n), multA1), FunCall(Get(m), multA2)) )), arg)))
+      if uf == add &&
+        init.t == opencl.ir.Float &&
+        rp.contains(a1) &&
+        rp.contains(a2) &&
+        multUf == mult &&
+        multA1.eq(mp.head) &&
+        multA2.eq(mp.head)
+    =>
+
+      Reduce(add, init) o Map(fun(x => dot(Get(x, n), Get(x, m)))) $ arg
+  })
+
+  val dotBuiltinSeq = Rule("", {
+    case f@FunCall(ReduceSeq(Lambda(rp, FunCall(uf:UserFun, a1, a2))), init,
     FunCall(asScalar(),
     FunCall(m: AbstractMap, arg)))
       if uf == add &&
-        v.t == opencl.ir.Float &&
+        init.t == opencl.ir.Float &&
         rp.contains(a1) &&
         rp.contains(a2) &&
         (m.isInstanceOf[Map] || m.isInstanceOf[MapSeq]) &&
@@ -378,7 +395,7 @@ object Rules {
         })
     =>
 
-      ReduceSeq(add, 0.0f) o MapSeq(dot) $ arg
+      ReduceSeq(add, init) o MapSeq(dot) $ arg
   })
 
   /* Other */
