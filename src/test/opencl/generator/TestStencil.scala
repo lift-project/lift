@@ -85,8 +85,11 @@ class TestStencil {
   }
 
   @Test def SIMPLE_GROUP_1D_STENCIL(): Unit = {
-    val data = Seq.fill(1024)(Random.nextFloat()).toArray
-    val weights = Array(1, 2, 5, 2, 1) map {_ / 11.0f}
+    //val data = Seq.fill(1024)(Random.nextFloat()).toArray
+    //val data= Seq.fill[Float](1024)(1).toArray
+    val data = Array.tabulate(1024)(x=>x*1.0f)
+    //val weights = Array(1, 2, 5, 2, 1)  map {_ / 11.0f}
+    val weights = Array(1, 2, 5, 2, 1)  map {_ / 1.0f}
     val relativeIndices = Array(-2, -1, 0, 1, 2)
 
     val gold = scala1DStencil(data, relativeIndices, weights)
@@ -106,6 +109,13 @@ class TestStencil {
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
+
+    println(stencilFun)
+
+    println("WEIGHTS: " + weights.mkString(" "))
+    println("INPUT:  " + data.mkString(" "))
+    println("OUTPUT: " + output.mkString(" "))
+    println("GOLD:   " + gold.mkString(" "))
 
     assertArrayEquals(gold, output, 0.00001f)
   }
