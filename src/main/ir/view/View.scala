@@ -189,7 +189,8 @@ abstract class View(val t: Type = UndefType) {
   def group(g: Group): View = {
     this.t match {
       case ArrayType(elemT, len) =>
-        new ViewGroup(this, g, ArrayType(ArrayType(elemT, g.relIndices.length), len - g.relIndices.map(Math.abs).max))
+        new ViewGroup(this, g, ArrayType(ArrayType(elemT, g.relIndices.length),
+          len - g.relIndices.map(_+g.relIndices.map(Math.abs).max).map(Math.abs).max))
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }

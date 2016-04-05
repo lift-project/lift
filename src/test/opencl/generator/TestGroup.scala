@@ -33,7 +33,9 @@ class TestGroup {
   @Test def GROUP_1D(): Unit = {
     val data = Array.tabulate(5)(_*1.0f)
     val gold = Array(0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f, 2.0f, 3.0f, 4.0f)
-    val indices = Array(0, 1, 2)
+    val indices = Array(-1 , 0 , 1)
+    //val indices = Array(1,2)
+
 
     val groupFun = fun(
       ArrayType(Float, Var("N")),

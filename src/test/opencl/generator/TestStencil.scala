@@ -112,11 +112,6 @@ class TestStencil {
 
     println(stencilFun)
 
-    println("WEIGHTS: " + weights.mkString(" "))
-    println("INPUT:  " + data.mkString(" "))
-    println("OUTPUT: " + output.mkString(" "))
-    println("GOLD:   " + gold.mkString(" "))
-
     assertArrayEquals(gold, output, 0.00001f)
   }
 
