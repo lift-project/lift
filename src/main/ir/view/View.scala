@@ -188,9 +188,8 @@ abstract class View(val t: Type = UndefType) {
 
   def group(g: Group): View = {
     this.t match {
-      case ArrayType(elemT, len) =>
-        new ViewGroup(this, g, ArrayType(ArrayType(elemT, g.relIndices.length),
-          len - g.relIndices.map(_+g.relIndices.map(Math.abs).max).map(Math.abs).max))
+      case ArrayType(_, _) =>
+        new ViewGroup(this, g, g.checkType(this.t, setType=false))
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
@@ -520,8 +519,9 @@ object ViewPrinter {
         val innerId = stack1.head
         val stack2 = stack1.tail
 
-        ag.group.paramType match {
+        ag.t match {
           case ArrayType(t, len) =>
+            // TODO val newIdx = outerId._1 + innerId._1 // find more generic (_) ? _ :  _ expressions
             val newIdx = new GroupCall(ag.group, outerId._1, innerId._1)
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)

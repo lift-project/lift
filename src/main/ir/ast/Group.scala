@@ -20,14 +20,11 @@ case class Group(relIndices: Array[Int]) extends Pattern(arity = 1) with isGener
   Group.cnt += 1
   val id = Group.cnt
 
-  var paramType: Type = UndefType
-
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        paramType = ArrayType(ArrayType(t, relIndices.length), n - relIndices.map(_+relIndices.map(Math.abs).max).map(Math.abs).max)
-        paramType
+        ArrayType(ArrayType(t, relIndices.length), n - relIndices.map(_+relIndices.map(Math.abs).max).map(Math.abs).max)
 
       case _ => throw new TypeException(argType, "ArrayType")
     }
