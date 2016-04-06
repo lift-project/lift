@@ -24,7 +24,8 @@ case class Group(relIndices: Array[Int]) extends Pattern(arity = 1) with isGener
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        ArrayType(ArrayType(t, relIndices.length), n - relIndices.map(_+relIndices.map(Math.abs).max).map(Math.abs).max)
+        //ArrayType(ArrayType(t, relIndices.length), n - relIndices.map(_+relIndices.map(Math.abs).max).map(Math.abs).max)
+        ArrayType(ArrayType(t, relIndices.length), n - (Math.abs(Math.min(0, relIndices.min)) + Math.max(0, relIndices.max)))
 
       case _ => throw new TypeException(argType, "ArrayType")
     }

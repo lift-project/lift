@@ -300,7 +300,7 @@ class OpenCLGenerator extends Generator {
         ),
         body = OpenCLAST.Block(Vector(OpenCLAST.OpenCLCode(
           s"""|  // Compute new index
-              |  int relIndices[] = {${group.relIndices.map(_+group.relIndices.map(Math.abs).max).deep.mkString(", ")}};
+              |  int relIndices[] = {${group.relIndices.map(_+Math.abs(Math.min(0,group.relIndices.min))).deep.mkString(", ")}};
               |  return j + relIndices[i];
               |""".stripMargin
         ))))

@@ -2,13 +2,12 @@ package opencl.generator
 
 import apart.arithmetic.Var
 import ir.ArrayType
-import ir.ast.{Group}
+import ir.ast.{Group, Lambda1, fun}
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import ir.ast.fun
 
 
 object TestGroup {
@@ -28,71 +27,83 @@ object TestGroup {
   * Created by Bastian Hagedorn on 04.04.16.
   */
 class TestGroup {
+
+  val data = Array.tabulate(5)(_*1.0f)
+
+  /**
+    * Creates simple Lambda = Nested Map(Map(id) o Group $ data
+    *
+    * @param indices specifies how to group the array
+    * @return Lambda which groups input using relative indices
+    */
+  def CreateSimpleGroupLambda(indices: Array[Int]): Lambda1 = {
+    val groupFun = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
+    )
+    groupFun
+  }
+
+  /**
+    * Executes the simpleGroupLambda and creates output
+    *
+    * @param indices specifies how to group the array
+    * @return grouped data
+    */
+  def createGroup(indices: Array[Int]): (Array[Float], Double) = {
+    val groupFun = CreateSimpleGroupLambda(indices)
+    val (output: Array[Float], runtime) = Execute(data.length, 10)(groupFun, data)
+    (output, runtime)
+  }
+
+  /**
+    * Asserts that gold version equals calculated output
+    * @param gold expected result
+    * @param output calculated result
+    * @param runtime runtime
+    */
+  def compareGoldWithOutput(gold: Array[Float], output: Array[Float], runtime: Double): Unit = {
+    println("runtime = " + runtime)
+    println(output.mkString(", "))
+    assertArrayEquals(gold, output, 0.00001f)
+  }
+
   @Test def groupLeftCurrentRight(): Unit = {
-    val data = Array.tabulate(5)(_*1.0f)
     val gold = Array(0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f, 2.0f, 3.0f, 4.0f)
     val indices = Array(-1, 0 , 1)
 
-    val groupFun = fun(
-      ArrayType(Float, Var("N")),
-      (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
-    )
-
-    val (output: Array[Float],runtime) = Execute(data.length, 10)(groupFun, data)
-
-    println("runtime = " + runtime)
-    println(output.mkString(", "))
-    assertArrayEquals(gold, output, 0.00001f)
+    val (output: Array[Float], runtime: Double) = createGroup(indices)
+    compareGoldWithOutput(gold, output, runtime)
   }
 
-  // TODO (@Bastian) fix me
   @Test def groupCurrentWithTwoRightNeighbours(): Unit = {
-    val data = Array.tabulate(5)(_*1.0f)
     val gold = Array(0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f, 2.0f, 3.0f, 4.0f)
     val indices = Array(0, 1, 2)
 
-    val groupFun = fun(
-      ArrayType(Float, Var("N")),
-      (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
-    )
-
-    val (output: Array[Float],runtime) = Execute(data.length, 10)(groupFun, data)
-
-    println("runtime = " + runtime)
-    println(output.mkString(", "))
-    assertArrayEquals(gold, output, 0.00001f)
+    val (output: Array[Float], runtime: Double) = createGroup(indices)
+    compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def groupCurrentWithTwoLeftNeighbours(): Unit = {
-    val data = Array.tabulate(5)(_*1.0f)
     val gold = Array(0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f, 2.0f, 3.0f, 4.0f)
     val indices = Array(-2, -1 ,0)
 
-    val groupFun = fun(
-      ArrayType(Float, Var("N")),
-      (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
-    )
-
-    val (output: Array[Float],runtime) = Execute(data.length, 10)(groupFun, data)
-
-    println("runtime = " + runtime)
-    println(output.mkString(", "))
-    assertArrayEquals(gold, output, 0.00001f)
+    val (output: Array[Float], runtime: Double) = createGroup(indices)
+    compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def groupIdentity(): Unit = {
-    val data = Array.tabulate(5)(_*1.0f)
     val indices = Array(0)
 
-    val groupFun = fun(
-      ArrayType(Float, Var("N")),
-      (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
-    )
+    val (output: Array[Float], runtime: Double) = createGroup(indices)
+    compareGoldWithOutput(data, output, runtime)
+  }
 
-    val (output: Array[Float],runtime) = Execute(data.length, 10)(groupFun, data)
+  @Test def groupLeftGapTwoToTheRight(): Unit = {
+    val gold = Array(0.0f, 3.0f, 1.0f, 4.0f)
+    val indices = Array(-1, 2)
 
-    println("runtime = " + runtime)
-    println(output.mkString(", "))
-    assertArrayEquals(data, output, 0.00001f)
+    val (output: Array[Float], runtime: Double) = createGroup(indices)
+    compareGoldWithOutput(gold, output, runtime)
   }
 }
