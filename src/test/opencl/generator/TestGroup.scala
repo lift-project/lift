@@ -37,11 +37,10 @@ class TestGroup {
     * @return Lambda which groups input using relative indices
     */
   def CreateSimpleGroupLambda(indices: Array[Int]): Lambda1 = {
-    val groupFun = fun(
+    fun(
       ArrayType(Float, Var("N")),
       (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
     )
-    groupFun
   }
 
   /**
