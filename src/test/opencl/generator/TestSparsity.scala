@@ -5,7 +5,6 @@ import ir._
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
-import opencl.ir.ast._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import opencl.ir.pattern._

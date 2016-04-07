@@ -3,7 +3,6 @@ package ir.view
 import apart.arithmetic._
 import ir._
 import ir.ast._
-import opencl.ir.ast._
 
 /**
  * An arithmetic expression that performs an access to `array[idx]`

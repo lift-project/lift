@@ -5,7 +5,6 @@ import ir._
 import ir.view.AccessVar
 import opencl.generator.OpenCLAST._
 import opencl.ir._
-import opencl.ir.ast.GroupCall
 
 object OpenCLCodeGen {
   def apply() = new OpenCLCodeGen
