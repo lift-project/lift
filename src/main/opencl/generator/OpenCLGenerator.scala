@@ -295,13 +295,11 @@ class OpenCLGenerator extends Generator {
         name = s"groupComp${group.id}",
         ret = Int,
         params = List(
-          OpenCLAST.ParamDecl("j", Int),
           OpenCLAST.ParamDecl("i", Int)
         ),
         body = OpenCLAST.Block(Vector(OpenCLAST.OpenCLCode(
-          s"""|  // Compute new index
-              |  int relIndices[] = {${group.relIndices.map(_+Math.abs(Math.min(0,group.relIndices.min))).deep.mkString(", ")}};
-              |  return j + relIndices[i];
+          s"""|  int relIndices[] = {${group.relIndices.map(_+Math.abs(Math.min(0,group.relIndices.min))).deep.mkString(", ")}};
+              |  return relIndices[i];
               |""".stripMargin
         ))))
     })

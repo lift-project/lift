@@ -522,7 +522,8 @@ object ViewPrinter {
         ag.t match {
           case ArrayType(t, len) =>
             // TODO val newIdx = outerId._1 + innerId._1 // find more generic (_) ? _ :  _ expressions
-            val newIdx = new GroupCall(ag.group, outerId._1, innerId._1)
+            //val newIdx = new GroupCall(ag.group, outerId._1, innerId._1)
+            val newIdx = outerId._1 + new GroupCall(ag.group, innerId._1)
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()

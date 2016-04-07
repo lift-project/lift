@@ -21,7 +21,6 @@ import ir.ast._
 
 // TODO(tlutz) remove to ir package or view?
 class GroupCall(val group: Group,
-                val outerAe: ArithExpr,
                 val innerAe: ArithExpr) extends ArithExprFunction("group") {
-  "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ")"
+  override lazy val toString: String = "groupComp" + group.id + "(" + innerAe + ")"
 }
