@@ -5,6 +5,6 @@ import ir.ast.{Group2D, Lambda, Pad2D}
 
 object Stencil2D {
   def apply(neighbors: Array[Int], boundary: (ArithExpr, ArithExpr) => ArithExpr): Lambda = {
-    Group2D(neighbors.map(_+neighbors.map(Math.abs).max)) o Pad2D(neighbors.map(Math.abs).max, boundary)
+    Group2D(neighbors/*.map(_+neighbors.map(Math.abs).max)*/) o Pad2D(neighbors.map(Math.abs).max, boundary)
   }
 }

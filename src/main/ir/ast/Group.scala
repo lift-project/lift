@@ -1,18 +1,10 @@
 package ir.ast
 
-import ir.{TypeException, ArrayType, UndefType, Type}
-
+import ir.{TypeException, ArrayType, Type}
 
 /**
- * Group pattern. Slice volume in overlapping tiles.
- * Code for this pattern can be generated.
- *
- * The Group pattern has the following high-level semantics:
- *   `Group([i,,1,,, ..., i,,n,,])( [x,,1,,, ..., x,,m,,] ) =
- *     [ [x,,1,,, ..., x,,n,,], ..., [x,,m-nx2,,, ..., x,,m,,] ]`
- *
- * The split pattern has the following type:
- *   `Group([i],,n,,) : [a],,m,, -> [ [a],,n,, ],,m-2 x \u2016 i \u2016,,`
+ * Group pattern.
+ * Slice volume in overlapping tiles without boundary handling.
  *
  * @param relIndices Array of relative indices.
  */
@@ -27,7 +19,6 @@ case class Group(relIndices: Array[Int]) extends Pattern(arity = 1) with isGener
     argType match {
       case ArrayType(t, n) =>
         ArrayType(ArrayType(t, relIndices.length), n - (Math.abs(Math.min(0, relIndices.min)) + Math.max(0, relIndices.max)))
-
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }

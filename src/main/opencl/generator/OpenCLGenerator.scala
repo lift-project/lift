@@ -291,6 +291,7 @@ class OpenCLGenerator extends Generator {
       })
 
     groupFuns.foreach(group => {
+      val offset = Math.abs(Math.min(0,group.relIndices.min))
       fs = fs :+ OpenCLAST.Function(
         name = s"groupComp${group.id}",
         ret = Int,
@@ -298,7 +299,7 @@ class OpenCLGenerator extends Generator {
           OpenCLAST.ParamDecl("i", Int)
         ),
         body = OpenCLAST.Block(Vector(OpenCLAST.OpenCLCode(
-          s"""|  int relIndices[] = {${group.relIndices.map(_+Math.abs(Math.min(0,group.relIndices.min))).deep.mkString(", ")}};
+          s"""|  int relIndices[] = {${group.relIndices.map(_+offset).deep.mkString(", ")}};
               |  return relIndices[i];
               |""".stripMargin
         ))))

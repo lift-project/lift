@@ -2,7 +2,7 @@ package opencl.generator
 
 import apart.arithmetic.Var
 import ir.ArrayType
-import ir.ast.{Group, Lambda1, fun}
+import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq}
@@ -36,10 +36,39 @@ class TestGroup {
     * @param indices specifies how to group the array
     * @return Lambda which groups input using relative indices
     */
-  def CreateSimpleGroupLambda(indices: Array[Int]): Lambda1 = {
+  def CreateSimple1DGroupLambda(indices: Array[Int]): Lambda1 = {
     fun(
       ArrayType(Float, Var("N")),
       (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
+    )
+  }
+
+
+  def CreateSimple2DGroupLambda(indices: Array[Int]): Lambda1 = {
+    fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      (domain) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours =>
+            MapSeq(MapSeq(id)) $ neighbours
+          ))
+        ) o Group2D(indices) $ domain
+      }
+    )
+  }
+
+  def CreateSimple2DGroupLambda2(indices: Array[Int]): Lambda1 = {
+    fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      (domain) => {
+        domain :>> Group2D(indices) :>> MapGlb(1)(
+          MapGlb(0)(
+             MapSeq(
+               MapSeq(id)
+             )
+          )
+        )
+      }
     )
   }
 
@@ -50,13 +79,14 @@ class TestGroup {
     * @return grouped data
     */
   def createGroup(indices: Array[Int]): (Array[Float], Double) = {
-    val groupFun = CreateSimpleGroupLambda(indices)
+    val groupFun = CreateSimple1DGroupLambda(indices)
     val (output: Array[Float], runtime) = Execute(data.length, 10)(groupFun, data)
     (output, runtime)
   }
 
   /**
     * Asserts that gold version equals calculated output
+ *
     * @param gold expected result
     * @param output calculated result
     * @param runtime runtime
@@ -67,6 +97,9 @@ class TestGroup {
     assertArrayEquals(gold, output, 0.00001f)
   }
 
+  /* **********************************************************
+      GROUP 1D
+   ***********************************************************/
   @Test def groupLeftCurrentRight(): Unit = {
     val gold = Array(0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f, 2.0f, 3.0f, 4.0f)
     val indices = Array(-1, 0 , 1)
@@ -105,4 +138,8 @@ class TestGroup {
     val (output: Array[Float], runtime: Double) = createGroup(indices)
     compareGoldWithOutput(gold, output, runtime)
   }
+
+   /* **********************************************************
+      GROUP 2D
+   ***********************************************************/
 }
