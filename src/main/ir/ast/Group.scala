@@ -56,8 +56,8 @@ object Group2D {
   }
 
   /** Asymmetrical grouping */
-  def apply(relColumns: Array[Int],
-            relRows: Array[Int]): Lambda = {
+  def apply(relRows: Array[Int],
+            relColumns: Array[Int]): Lambda = {
     Map(
       Map(
         Transpose()
