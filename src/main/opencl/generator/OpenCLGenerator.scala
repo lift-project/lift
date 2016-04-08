@@ -665,7 +665,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapSeqCall(m: MapSeq,
                                  call: FunCall,
                                  block: Block): Unit = {
-    val unroll = shouldUnrollLoop(call)
+    val unroll = m.isInstanceOf[MapSeqUnroll] || shouldUnrollLoop(call)
     block += OpenCLAST.Comment("map_seq")
     generateLoop(block, m.loopVar, (b) => generate(m.f.body, b),
                  m.iterationCount, unroll)

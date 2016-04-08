@@ -5,7 +5,7 @@ import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, MapSeq}
+import opencl.ir.pattern.{MapGlb, MapSeq, MapSeqUnroll}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -28,6 +28,7 @@ object TestGroup {
   */
 class TestGroup {
 
+  val UNROLL = true
   val data = Array.tabulate(5)(_*1.0f)
   val data2D = Array.tabulate(4,4) { (i,j) => i * 4.0f + j }
 
@@ -38,10 +39,16 @@ class TestGroup {
     * @return Lambda which groups input using relative indices
     */
   def createSimple1DGroupLambda(indices: Array[Int]): Lambda1 = {
-    fun(
-      ArrayType(Float, Var("N")),
-      (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
-    )
+    if(UNROLL)
+      fun(
+        ArrayType(Float, Var("N")),
+        (domain) => MapGlb(new MapSeqUnroll(id)) o Group(indices) $ domain
+      )
+    else
+      fun(
+        ArrayType(Float, Var("N")),
+        (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
+      )
   }
 
   /**
@@ -51,16 +58,28 @@ class TestGroup {
     * @return Lambda which groups input using relative indices
     */
   def createSimple2DGroupLambda(indices: Array[Int]): Lambda1 = {
-    fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      (domain) => {
-        MapGlb(1)(
-          MapGlb(0)(fun(neighbours =>
-            MapSeq(MapSeq(id)) $ neighbours
-          ))
-        ) o Group2D(indices) $ domain
-      }
-    )
+    if(UNROLL)
+      fun(
+        ArrayType(ArrayType(Float, Var("M")), Var("N")),
+       (domain) => {
+         MapGlb(1)(
+           MapGlb(0)(fun(neighbours =>
+             new MapSeqUnroll(new MapSeqUnroll(id)) $ neighbours
+           ))
+         ) o Group2D(indices) $ domain
+       }
+     )
+    else
+      fun(
+        ArrayType(ArrayType(Float, Var("M")), Var("N")),
+       (domain) => {
+         MapGlb(1)(
+           MapGlb(0)(fun(neighbours =>
+             MapSeq(MapSeq(id)) $ neighbours
+           ))
+         ) o Group2D(indices) $ domain
+       }
+     )
   }
 
   /**
@@ -72,18 +91,31 @@ class TestGroup {
     * @return Lambda which groups input using relative indices
     */
   def createAsymmetric2DGroupLambda(relRows: Array[Int], relCols: Array[Int]): Lambda1 = {
-    fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      (domain) => {
-        MapGlb(1)(
-          MapGlb(0)(fun(neighbours =>
-            MapSeq(MapSeq(id)) $ neighbours
-          ))
-        ) o Group2D(relRows, relCols) $ domain
-      }
-    )
+    if(UNROLL)
+      fun(
+        ArrayType(ArrayType(Float, Var("M")), Var("N")),
+        (domain) => {
+          MapGlb(1)(
+            MapGlb(0)(fun(neighbours =>
+             new MapSeqUnroll(new MapSeqUnroll(id)) $ neighbours
+           ))
+          ) o Group2D(relRows, relCols) $ domain
+       }
+     )
+    else
+      fun(
+        ArrayType(ArrayType(Float, Var("M")), Var("N")),
+        (domain) => {
+          MapGlb(1)(
+            MapGlb(0)(fun(neighbours =>
+             MapSeq(MapSeq(id)) $ neighbours
+           ))
+          ) o Group2D(relRows, relCols) $ domain
+       }
+     )
   }
 
+  /*
   def createSimple2DGroupLambda2(indices: Array[Int]): Lambda1 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
@@ -98,6 +130,7 @@ class TestGroup {
       }
     )
   }
+  */
 
   /**
     * Executes a given lambda and creates output
@@ -209,7 +242,7 @@ class TestGroup {
     * 2x2x3x3 Array. Each gold version below corresponds to a
     * Neighbourhood of one element of the input array
     */
-  @Test def groupBasic9PointNeighbourhood(): Unit = {
+  @Test def group9PointNeighbourhood(): Unit = {
     /* */
     val goldTopLeft = Array.tabulate(3,3) { (i,j) => i * 3.0f + j + i }.flatten
     val goldTopRight = Array.tabulate(3,3) { (i,j) => i * 3.0f + 1 + j + i }.flatten
