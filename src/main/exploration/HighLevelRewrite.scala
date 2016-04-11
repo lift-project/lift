@@ -219,7 +219,6 @@ class HighLevelRewrite {
       MacroRules.tileMapMap,
       MacroRules.finishTiling,
       MacroRules.partialReduceWithReorder,
-      Rules.dotBuiltin,
       vecRed4,
       vecZip4
     )
