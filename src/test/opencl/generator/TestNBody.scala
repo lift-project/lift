@@ -147,10 +147,10 @@ class TestNBody {
 
             o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f))
 
-            o toLocal(MapSeq(fun(x2y2z2 =>
+            o MapSeq(fun(x2y2z2 =>
             calcAcc(Get(x1y1z1, 0), Get(x1y1z1, 1), Get(x1y1z1, 2),
               Get(x2y2z2, 0), Get(x2y2z2, 1), Get(x2y2z2, 2),
-              Get(x2y2z2, 6), espSqr))))
+              Get(x2y2z2, 6), espSqr)))
             $ Zip(x, y, z, velX, velY, velZ, mass)
 
         )) $ Zip(x, y, z, velX, velY, velZ, mass)
