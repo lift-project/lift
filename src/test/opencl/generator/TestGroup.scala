@@ -1,11 +1,14 @@
 package opencl.generator
 
+import java.io.FileInputStream
+import java.util.Scanner
+
 import apart.arithmetic.Var
 import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, MapSeq, MapSeqUnroll}
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -32,6 +35,12 @@ class TestGroup {
   val data = Array.tabulate(5)(_*1.0f)
   val data2D = Array.tabulate(4,4) { (i,j) => i * 4.0f + j }
 
+  val MapSeqOrMapSeqUnroll = (g: FunDecl) =>
+    if (UNROLL)
+      MapSeqUnroll(g)
+    else
+      MapSeq(g)
+
   /**
     * Creates simple 1D Group Lambda = Map(Map(id) o Group $ data
     *
@@ -39,15 +48,9 @@ class TestGroup {
     * @return Lambda which groups input using relative indices
     */
   def createSimple1DGroupLambda(indices: Array[Int]): Lambda1 = {
-    if(UNROLL)
       fun(
         ArrayType(Float, Var("N")),
-        (domain) => MapGlb(new MapSeqUnroll(id)) o Group(indices) $ domain
-      )
-    else
-      fun(
-        ArrayType(Float, Var("N")),
-        (domain) => MapGlb(MapSeq(id)) o Group(indices) $ domain
+        (domain) => MapGlb( MapSeqOrMapSeqUnroll(id) ) o Group(indices) $ domain
       )
   }
 
@@ -58,24 +61,12 @@ class TestGroup {
     * @return Lambda which groups input using relative indices
     */
   def createSimple2DGroupLambda(indices: Array[Int]): Lambda1 = {
-    if(UNROLL)
       fun(
         ArrayType(ArrayType(Float, Var("M")), Var("N")),
        (domain) => {
          MapGlb(1)(
            MapGlb(0)(fun(neighbours =>
-             new MapSeqUnroll(new MapSeqUnroll(id)) $ neighbours
-           ))
-         ) o Group2D(indices) $ domain
-       }
-     )
-    else
-      fun(
-        ArrayType(ArrayType(Float, Var("M")), Var("N")),
-       (domain) => {
-         MapGlb(1)(
-           MapGlb(0)(fun(neighbours =>
-             MapSeq(MapSeq(id)) $ neighbours
+             MapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
            ))
          ) o Group2D(indices) $ domain
        }
@@ -91,31 +82,19 @@ class TestGroup {
     * @return Lambda which groups input using relative indices
     */
   def createAsymmetric2DGroupLambda(relRows: Array[Int], relCols: Array[Int]): Lambda1 = {
-    if(UNROLL)
-      fun(
-        ArrayType(ArrayType(Float, Var("M")), Var("N")),
-        (domain) => {
-          MapGlb(1)(
-            MapGlb(0)(fun(neighbours =>
-             new MapSeqUnroll(new MapSeqUnroll(id)) $ neighbours
-           ))
-          ) o Group2D(relRows, relCols) $ domain
-       }
-     )
-    else
-      fun(
-        ArrayType(ArrayType(Float, Var("M")), Var("N")),
-        (domain) => {
-          MapGlb(1)(
-            MapGlb(0)(fun(neighbours =>
-             MapSeq(MapSeq(id)) $ neighbours
-           ))
-          ) o Group2D(relRows, relCols) $ domain
-       }
-     )
+    fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      (domain) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours =>
+           MapSeq(MapSeqOrMapSeqUnroll(id)) $ neighbours
+         ))
+        ) o Group2D(relRows, relCols) $ domain
+      }
+    )
   }
 
-  /*
+  /* // Different Syntax
   def createSimple2DGroupLambda2(indices: Array[Int]): Lambda1 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
@@ -143,13 +122,14 @@ class TestGroup {
     (output, runtime)
   }
 
-  def create2DGroup(lambda: Lambda1, data2D: Array[Array[Float]]): (Array[Float], Double) = {
+  def createGroup2D(lambda: Lambda1, data2D: Array[Array[Float]]): (Array[Float], Double) = {
     val (output: Array[Float], runtime) = Execute(data2D.length, data2D.length)(lambda, data2D)
     (output, runtime)
   }
 
   /**
     * Asserts that gold version equals calculated output
+    *
     * @param gold expected result
     * @param output calculated result
     * @param runtime runtime
@@ -220,7 +200,7 @@ class TestGroup {
   @Test def group2DIdentity(): Unit = {
      val indices = Array(0)
 
-     val (output: Array[Float], runtime: Double) = create2DGroup(createSimple2DGroupLambda(indices), data2D)
+     val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(indices), data2D)
      compareGoldWithOutput(data2D.flatten, output, runtime)
    }
 
@@ -229,10 +209,10 @@ class TestGroup {
     * there is only one possible group to create.
     */
   @Test def group9PointNeighbourhoodIdentity(): Unit = {
-    val data2D = Array.tabulate(3,3) { (i,j) => i * 4.0f + j }
+    val data2D = Array.tabulate(3,3) { (i,j) => i * 3.0f + j }
     val indices = Array(-1,0,1)
 
-    val (output: Array[Float], runtime: Double) = create2DGroup(createSimple2DGroupLambda(indices), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(indices), data2D)
     compareGoldWithOutput(data2D.flatten, output, runtime)
   }
 
@@ -251,10 +231,14 @@ class TestGroup {
     val gold = goldTopLeft ++ goldTopRight ++ goldBottomLeft ++ goldBottomRight
     val indices = Array(-1, 0 , 1)
 
-    val (output: Array[Float], runtime: Double) = create2DGroup(createSimple2DGroupLambda(indices), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(indices), data2D)
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  /**
+    * Applies a 1D group to a 2D data structure.
+    * Grouping left and right neighbours
+    */
   @Test def group2DRelColsOnly(): Unit = {
     val gold = Array(0.0f, 1.0f, 2.0f,
                      1.0f, 2.0f, 3.0f,
@@ -267,10 +251,14 @@ class TestGroup {
     val relCols = Array(-1,0,1)
     val relRows = Array(0)
 
-    val (output: Array[Float], runtime: Double) = create2DGroup(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  /**
+    * Applyies a 1D group to a 2D data structure.
+    * Group top and bottom neighbours
+    */
   @Test def group2DRelRowsOnly(): Unit = {
     val gold = Array(0.0f, 4.0f, 8.0f,
                      1.0f, 5.0f, 9.0f,
@@ -283,10 +271,13 @@ class TestGroup {
     val relRows = Array(-1,0,1)
     val relCols = Array(0)
 
-    val (output: Array[Float], runtime: Double) = create2DGroup(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  /**
+    * Creates an assymetric grouping of a 2D data structure
+    */
   @Test def group2DAssymetric(): Unit = {
     val data2D = Array.tabulate(5,5) { (i,j) => i * 5.0f + j }
     val gold = Array(0.0f, 3.0f, 15.0f, 18.0f,
@@ -296,7 +287,128 @@ class TestGroup {
     val relRows = Array(-2,1)
     val relCols = Array(-1,2)
 
-    val (output: Array[Float], runtime: Double) = create2DGroup(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
     compareGoldWithOutput(gold, output, runtime)
   }
-}
+
+  /* **********************************************************
+   2D STENCILS WITHOUT PADDING
+  ***********************************************************/
+  val outputLocation =  "../../../../../../Downloads/"
+  val lenaPGM = "../../../../../../Downloads/lena.ascii.pgm"
+
+  /**
+    * ensures that resulting pixel value x will be 0 <= x <= 255
+    */
+  val clamp = UserFun("my_clamp", "i", "{ return (i < 0) ? 0 : i;  }",
+        Float, Float)
+
+  /**
+    * saves an array of floats as grayscale ascii .pgm image
+ *
+    * @param name name of result file
+    * @param location specifies where image should be stored
+    * @param img array of pixels
+    */
+  def savePGM(name: String, location: String, img: Array[Array[Float]]) = {
+    val out = new java.io.BufferedWriter(new java.io.FileWriter(new java.io.File(location, name)))
+    out.write(
+      s"""|P2
+          |${img.length} ${img.head.length}
+          |255
+          |${img.map(_.map(x=>(x*255.0f).toInt).mkString("\n")).mkString("\n")}
+      """.stripMargin)
+    out.close()
+  }
+
+  /**
+    * Stores the pixel values of the input image in an array of floats
+ *
+    * @param name name and path of the input picture
+    * @return array of floats containing pixel values
+    */
+  def readInputImage(name: String): (Int, Int, Array[Array[Float]]) = {
+    val in = new FileInputStream(lenaPGM)
+    val scanner = new Scanner(in, "ASCII")
+    scanner.useDelimiter("""\s+#.+\s+|\s+""".r.pattern)
+    scanner.nextLine()
+    val width = scanner.nextInt()
+    val height = scanner.nextInt()
+    val max = scanner.nextInt()
+
+    val input = Array.tabulate(width, height)((r, c) => scanner.nextInt()).map(_.map(_ / max.toFloat))
+    scanner.close()
+    (width, height, input)
+  }
+
+  /**
+    * Create lambda expression for simple stencil application without padding
+ *
+    * @param neighbours describing neighbours used for symmetricc 2D group creation
+    * @param weights weights used in the stencil
+    * @return lambda expression that calculates the stencil
+    */
+  def createSimpleStencilWithoutPad(neighbours: Array[Int], weights: Array[Float]) : Lambda2 = {
+    fun(
+        ArrayType(ArrayType(Float, Var("M")), Var("N")),
+        ArrayType(Float, weights.length),
+        (matrix, weights) => {
+          MapGlb(1)(
+            MapGlb(0)(fun(neighbours => {
+              toGlobal(MapSeq(clamp)) o
+                ReduceSeq(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ neighbours, weights)
+            }))
+          ) o Group2D(neighbours) $ matrix
+        })
+  }
+
+  /**
+    * Runs simple stencil 2D stencil application and stores result as .pgm image
+    * @param neighbours array of related indices to build symmetric 2D groups
+    * @param weights weights applied to each group
+    * @param name name of the resulting picture
+    */
+  def RunSimple2DStencilWithoutPadding(neighbours: Array[Int], weights: Array[Float], name: String): Unit = {
+    try {
+      val (width, height, input) = readInputImage(lenaPGM)
+      val f = createSimpleStencilWithoutPad(neighbours, weights)
+
+      val (output: Array[Float], runtime) = Execute(1, 1, width, height, (false, false))(f, input, weights)
+      println("Runtime: " + runtime)
+
+      val outOfBoundElementsX = Math.abs(Math.min(0, neighbours.min)) + Math.max(0, neighbours.max)
+      savePGM(name, outputLocation, output.grouped(width - outOfBoundElementsX).toArray)
+    } catch {
+      case x: Exception => x.printStackTrace()
+    }
+  }
+
+  /**
+    * Computation of gaussian blur using a .pgm file
+    * Uses no padding which causes the output picture to be smaller than the input
+    */
+  @Test def gaussianBlurNoPad(): Unit = {
+    val neighbours = Array(-1, 0, 1)
+    val weights = Array(0.08f, 0.12f, 0.08f,
+      0.12f, 0.20f, 0.12f,
+      0.08f, 0.12f, 0.08f)
+
+    RunSimple2DStencilWithoutPadding(neighbours, weights, "gauss.pgm")
+  }
+
+  /**
+    * Computation of sobel filter using a .pgm file
+    * Uses no padding which causes the output picture to be smaller than the input
+    */
+  @Test def gaussianBlurNoPad(): Unit = {
+    val neighbours = Array(-1, 0, 1)
+    val weights = Array(-1.0f, -2.0f, -1.0f,
+      0.0f, 0.0f, 0.0f,
+      1.0f, 2.0f, 1.0f)
+
+    RunSimple2DStencilWithoutPadding(neighbours, weights, "sobel.pgm")
+  }
