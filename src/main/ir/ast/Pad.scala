@@ -1,7 +1,9 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
+import ir.interpreter.Interpreter._
 import ir.{TypeException, ArrayType, Type, UndefType}
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class Pad(offset: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr)
   extends Pattern(arity = 1) with isGenerable
@@ -16,6 +18,13 @@ case class Pad(offset: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr)
         paramType
 
       case _ => throw new TypeException(argType, "ArrayType")
+    }
+  }
+
+  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Vector[_] => throw new NotImplementedException()
     }
   }
 }

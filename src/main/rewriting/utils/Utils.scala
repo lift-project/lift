@@ -6,6 +6,7 @@ import java.security.MessageDigest
 import apart.arithmetic._
 import ir.ast._
 import ir.{ArrayType, Type, TypeException}
+import opencl.ir.ast.OpenCLBuiltInFun
 
 import scala.sys.process._
 
@@ -281,7 +282,7 @@ object Utils {
   private def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {
     val userFuns = Expr.visitWithState(Set[UserFun]())(lambda.body, (expr, state) => {
       expr match {
-        case FunCall(uf: UserFun, _*) => state + uf
+        case FunCall(uf: UserFun, _*) if !uf.isInstanceOf[OpenCLBuiltInFun] => state + uf
         case FunCall(VectorizeUserFun(_, uf:UserFun), _*) => state + uf
         case _ => state
       }

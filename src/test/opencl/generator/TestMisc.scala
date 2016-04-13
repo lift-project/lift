@@ -1,7 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.{?, ArithExpr, Cst, Var}
-import exploration.GenerateOpenCL
+import exploration.ParameterRewrite
 import rewriting.InferNDRange
 import ir._
 import ir.ast._
@@ -290,7 +290,8 @@ class TestMisc {
 
     // user function
     val fct = UserFun("inc", Array("x"),
-      " return x+1.0; ", Seq(Float), Float)
+      " return x+1.0; ", Seq(Float), Float).
+      setScalaFun( xs => xs.head.asInstanceOf[Float]+1.0f )
 
     // Expression
     val f = fun(
@@ -301,9 +302,7 @@ class TestMisc {
     )
 
     // execute
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, xs)
-
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(inputSize)(f, xs)
     assertArrayEquals(gold, output, 0.001f)
   }
 
@@ -322,11 +321,8 @@ class TestMisc {
         MapGlb(composition) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(compFun, inputData)
+    val (output: Array[Float], _) = Execute(inputSize)(compFun, inputData)
     assertArrayEquals(gold, output, 0.0f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
   @Test def accessingMultiDimArrayAfterZip(): Unit = {
@@ -348,11 +344,8 @@ class TestMisc {
       )) $ Zip(matrix, vector)
     )
 
-    val (output: Array[Float], runtime) = Execute(4, Nsize)(f, matrix, vector)
+    val (output: Array[Float], _) = Execute(4, Nsize)(f, matrix, vector)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
   @Test
@@ -375,7 +368,6 @@ class TestMisc {
     )
 
     val (output: Array[Float], _) = Execute(inputSize)(f, inputData, inputData)
-
     assertArrayEquals(inputData.flatten.map(_ + 1), output, 0.0f)
   }
 
@@ -391,11 +383,8 @@ class TestMisc {
         MapGlb(id.vectorize(4)) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
+    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
     assertArrayEquals(inputData, output, 0.0f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
   @Test def vectorizePattern(): Unit = {
@@ -410,11 +399,8 @@ class TestMisc {
         MapGlb(VectorizeUserFun(4, id)) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
+    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
     assertArrayEquals(inputData, output, 0.0f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
   @Test def mapValueArg(): Unit = {
@@ -431,11 +417,8 @@ class TestMisc {
         MapGlb(fun(x => add(x, 3.0f))) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
+    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
     assertArrayEquals(gold, output, 0.0f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
   @Test def composeUserFunctionWithPattern(): Unit = {
@@ -450,12 +433,7 @@ class TestMisc {
       (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(Nsize * Msize)(function, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(Nsize * Msize)(function, matrix)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -470,12 +448,7 @@ class TestMisc {
       in => asScalar() o MapGlb(plusOne.vectorize(4)) o asVector(4) $ in
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -490,12 +463,7 @@ class TestMisc {
       in => MapGlb(plusOne) o asScalar() o asVector(4) $ in
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputData)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -514,12 +482,7 @@ class TestMisc {
       (matrix) => Split(Msize) o MapGlb(0)(id) o Join() $ matrix
     )
 
-    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
     assertArrayEquals(matrix.flatten, output, 0.0f)
   }
 
@@ -540,12 +503,7 @@ class TestMisc {
       (matrix) => Split(Msize) o MapGlb(0)(MapSeq(id)) o Join() $ matrix
     )
 
-    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -566,12 +524,7 @@ class TestMisc {
       (matrix) => MapGlb(0)(Split(Ksize) o MapSeq(id) o Join()) $ matrix
     )
 
-    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -592,12 +545,7 @@ class TestMisc {
       (matrix) => Split(Msize) o Split(Ksize) o MapGlb(0)(id) o Join() o Join() $ matrix
     )
 
-    val (output: Array[Float], runtime) = Execute(Nsize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -611,13 +559,7 @@ class TestMisc {
       in => Iterate(7)(MapGlb(plusOne)) $ in
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, input)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-
+    val (output: Array[Float], _) = Execute(inputSize)(f, input)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -639,12 +581,7 @@ class TestMisc {
       )) $ inA
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputA, inputB)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(inputSize)(f, inputA, inputB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -708,13 +645,18 @@ class TestMisc {
               ))(Split(16)(in)))
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, input)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    assertArrayEquals(gold, output, 0.0f)
+    val (output1: Array[Float], _) = Execute(inputSize)(f, input)
+    assertArrayEquals(gold, output1, 0.0f)
+    val (output2: Array[Float], _) = Execute(inputSize)(f_nested, input)
+    assertArrayEquals(gold, output2, 0.0f)
+    val (output3: Array[Float], _) = Execute(inputSize)(f_nested2, input)
+    assertArrayEquals(gold, output3, 0.0f)
+    val (output4: Array[Float], _) = Execute(inputSize)(f_nested3, input)
+    assertArrayEquals(gold, output4, 0.0f)
+    val (output5: Array[Float], _) = Execute(inputSize)(f_nested4, input)
+    assertArrayEquals(gold, output5, 0.0f)
+    val (output6: Array[Float], _) = Execute(inputSize)(f_full, input)
+    assertArrayEquals(gold, output6, 0.0f)
   }
 
   @Test def decompose(): Unit = {
@@ -736,12 +678,7 @@ class TestMisc {
       (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o Map(fun(x => Map(fun(y => Zip(x, y))) $ Y )) $ X
     )
 
-    val (output: Array[Float], runtime) = Execute(nSize)(f, A, B)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(nSize)(f, A, B)
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
@@ -887,7 +824,7 @@ class TestMisc {
     var local: NDRange = Array(128, 1, 1)
     var global: NDRange = Array(?, ?, ?)
     InferNDRange(expr) match { case (l, g) => local = l; global = g }
-    val valueMap = GenerateOpenCL.createValueMap(expr)
+    val valueMap = ParameterRewrite.createValueMap(expr)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)

@@ -8,3 +8,4 @@ target/
 .tags
 scripts/
 lib/Executor/build
+.kernels

@@ -1,6 +1,7 @@
 package ir.ast
 
 import ir._
+import ir.interpreter.Interpreter.ValueMap
 
 /**
  * Zip pattern.
@@ -17,7 +18,7 @@ import ir._
  *
  * @param n The number of arrays which are combined. Must be >= 2.
  */
-case class Zip(n : Int) extends FunDecl(arity = n) with isGenerable {
+case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -33,15 +34,21 @@ case class Zip(n : Int) extends FunDecl(arity = n) with isGenerable {
         val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType])
 
         // make sure all arguments have the same size
-        if (arrayTypes.map(_.len).distinct.length != 1) {
-          Console.err.println("Warning: can not statically prove that sizes (" +
-            tt.elemsT.mkString(", ") + ") match!")
-          // throw TypeException("sizes do not match")
-        }
+        if (arrayTypes.map(_.len).distinct.length != 1)
+          throw new ZipTypeException(tt)
 
         ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.len)
 
       case _ => throw new TypeException(argType, "TupleType")
+    }
+  }
+
+  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
+    assert(args.length == arity)
+    (n, args) match {
+      case (2, Seq(a: Vector[_], b: Vector[_])) => a zip b
+//      case (3, a, b, c) =>
+      case _ => throw new NotImplementedError()
     }
   }
 }

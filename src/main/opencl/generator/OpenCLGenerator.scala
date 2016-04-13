@@ -8,8 +8,10 @@ import ir.ast._
 import ir.view._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
+import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
-import scala.collection.{mutable, immutable}
+
+import scala.collection.{immutable, mutable}
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
@@ -199,6 +201,22 @@ class OpenCLGenerator extends Generator {
       BarrierElimination(f)
     CheckBarriersAndLoops(f)
 
+    Context.updateContext(f.body)
+
+    Expr.visit(f.body, _ => Unit, {
+      case call@FunCall(MapGlb(dim, _), _*) if call.context.inMapGlb(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapGlb($dim)")
+      case call@FunCall(MapWrg(dim, _), _*) if call.context.inMapWrg(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapWrg($dim)")
+      case call@FunCall(MapLcl(dim, _), _*) if call.context.inMapLcl(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapLcl($dim)")
+      case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_||_) =>
+        throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
+      case call@FunCall(Map(lambda), _*) if lambda.body.isConcrete =>
+        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case _ =>
+    })
+
     f.body.mem match {
       case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
         throw new IllegalKernel("Final result must be stored in global memory")
@@ -259,6 +277,7 @@ class OpenCLGenerator extends Generator {
     val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
+          case _: OpenCLBuiltInFun => set
           case uf: UserFun => set + uf
           case vec: VectorizeUserFun => set + vec.vectorizedFunction
           case _ => set
@@ -472,7 +491,6 @@ class OpenCLGenerator extends Generator {
         case u : UserFun => generateUserFunCall(u, call, block)
 
         case fp: FPattern => generate(fp.f.body, block)
-        case l: Let    => generateLet(l, block)
         case l: Lambda => generate(l.body, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Group(_) | Zip(_) | Tuple(_) | Filter() |
@@ -863,21 +881,6 @@ class OpenCLGenerator extends Generator {
     block += nestedBlock
     block += OpenCLAST.Comment("linear_search")
   }
-
-  private def generateLet(l: Let, block: Block): Unit = {
-    block += OpenCLAST.Comment("let:")
-
-    val p = l.params.head
-
-//    // copied this from Value. Have to ask Toomas why he generated this.
-//    val temp = Var("")
-//    block += OpenCLAST.VarDecl(temp.toString, Type.getValueType(p.t),
-//      init = generateLoadNode(l.argMem, p.t, p.view))
-
-    block += OpenCLAST.Assignment(OpenCLAST.VarRef(p.mem.variable), generateLoadNode(l.argMem, p.t, p.view))
-    generate(l.body, block)
-  }
-
 
   private def generateValue(v: Value, block: Block): Unit = {
     val temp = Var("")

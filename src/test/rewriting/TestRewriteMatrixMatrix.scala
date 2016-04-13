@@ -2,7 +2,6 @@ package rewriting
 
 import apart.arithmetic.Var
 import exploration.HighLevelRewrite
-import rewriting.utils.{Utils, NumberExpression}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -10,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import rewriting.utils.{NumberExpression, Utils}
 
 object TestRewriteMatrixMatrix {
   @BeforeClass def before() {
@@ -510,6 +510,72 @@ class TestRewriteMatrixMatrix {
     val f3 = Rewrite.applyRuleAtId(f2, 20, MacroRules.finishTiling)
     val f4 = Rewrite.applyRuleAtId(f3, 19, MacroRules.finishTiling)
     val f5 = SimplifyAndFuse(f4)
+  }
+
+  @Test
+  def dot(): Unit = {
+    val v_K0_0 = Var("K")
+    val v_M1_1 = Var("M")
+    val v_N2_2 = Var("N")
+    val v_3_3 = Var("")
+    val v_4_4 = Var("")
+    val v_5_5 = Var("")
+
+    val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+    val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+    val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+    val f0 = fun(
+      ArrayType(ArrayType(Float, v_K0_0), v_M1_1),
+      ArrayType(ArrayType(Float, v_K0_0), v_N2_2),
+      (p_0, p_1) =>
+        FunCall(Join(),
+          FunCall(Map(fun((p_2) =>
+            FunCall(TransposeW(),
+              FunCall(Join(),
+                FunCall(Map(fun((p_3) =>
+                  FunCall(TransposeW(),
+                    FunCall(Map(fun((p_4) =>
+                      FunCall(TransposeW(), p_4))),
+                      FunCall(TransposeW(),
+                        FunCall(MapSeq(fun((p_5) =>
+                          FunCall(Id(), p_5))),
+                          FunCall(ReduceSeq(fun((p_6, p_7) =>
+                            FunCall(Map(fun((p_8) =>
+                              FunCall(Join(),
+                                FunCall(Map(fun((p_9) =>
+                                  FunCall(Reduce(fun((p_10, p_11) =>
+                                    FunCall(add, p_10, p_11))),
+                                    FunCall(Get(0), p_9),
+                                    FunCall(asScalar(),
+                                      FunCall(Map(fun((p_12) =>
+                                        FunCall(VectorizeUserFun(4,mult),
+                                          FunCall(Get(0), p_12),
+                                          FunCall(Get(1), p_12)))),
+                                        FunCall(Zip(2),
+                                          FunCall(asVector(4),
+                                            FunCall(Get(1), p_8)),
+                                          FunCall(asVector(4),
+                                            FunCall(Get(1), p_9)))))))),
+                                  FunCall(Zip(2),
+                                    FunCall(Get(0), p_8),
+                                    FunCall(Transpose(),
+                                      FunCall(Get(1), p_7))))))),
+                              FunCall(Zip(2), p_6,
+                                FunCall(Transpose(),
+                                  FunCall(Get(0), p_7)))))),
+                            FunCall(Map(fun((p_13) =>
+                              FunCall(Map(fun((p_14) =>
+                                FunCall(idfloat, p_14))), p_13))),
+                              Value("0.0f", ArrayType(ArrayType(Float, v_3_3), v_4_4))),
+                            FunCall(Zip(2),
+                              FunCall(Split(v_5_5),
+                                FunCall(Transpose(), p_2)),
+                              FunCall(Split(v_5_5),
+                                FunCall(Transpose(), p_3)))))))))),
+                  FunCall(Split(v_3_3), p_1)))))),
+            FunCall(Split(v_4_4), p_0))))
+
+    Rewrite.applyRuleAtId(f0, 41, Rules.dotBuiltin)
   }
 
 }

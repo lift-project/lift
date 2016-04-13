@@ -81,40 +81,40 @@ object Rewrite {
   }
 
   def patchUpAfterSplitJoin(toBeReplaced: Expr, replacement: Expr, replaced: Expr): Expr = {
-    // TODO: suppress warnings?
-    TypeChecker(replaced)
-
-    val newExpr = Utils.getLengthOfSecondDim(replacement.t)
-    val oldExpr = Utils.getLengthOfSecondDim(toBeReplaced.t)
-
-    if (oldExpr != newExpr) {
-      val st = collection.immutable.Map[ArithExpr, ArithExpr]((oldExpr, newExpr))
-      val tunableNodes = Utils.findTunableNodes(replaced)
-      Utils.quickAndDirtySubstitution(st, tunableNodes, replaced)
-    } else {
+    try {
+      TypeChecker(replaced)
       replaced
+    } catch {
+      case t: ZipTypeException =>
+
+        val newExpr = Utils.getLengthOfSecondDim(replacement.t)
+        val oldExpr = Utils.getLengthOfSecondDim(toBeReplaced.t)
+
+        if (oldExpr != newExpr) {
+          val st = collection.immutable.Map[ArithExpr, ArithExpr]((oldExpr, newExpr))
+          val tunableNodes = Utils.findTunableNodes(replaced)
+          Utils.quickAndDirtySubstitution(st, tunableNodes, replaced)
+        } else {
+          replaced
+        }
     }
   }
 
-  def listAllPossibleRewritesForRules(lambda: Lambda,
-                                                           rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewritesForRules(lambda: Lambda, rules: Seq[Rule]): Seq[(Rule, Expr)] = {
     listAllPossibleRewritesForRules(lambda.body, rules)
   }
 
-  def listAllPossibleRewritesForRules(expr: Expr,
-                                                           rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewritesForRules(expr: Expr, rules: Seq[Rule]): Seq[(Rule, Expr)] = {
     Context.updateContext(expr)
     TypeChecker.check(expr)
     rules.flatMap(rule => listAllPossibleRewrites(expr, rule))
   }
 
-  def listAllPossibleRewrites(lambda: Lambda,
-                                                   rule: Rule): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewrites(lambda: Lambda,rule: Rule): Seq[(Rule, Expr)] = {
     listAllPossibleRewrites(lambda.body, rule)
   }
 
-  def listAllPossibleRewrites(expr: Expr,
-                                                   rule: Rule): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewrites(expr: Expr, rule: Rule): Seq[(Rule, Expr)] = {
     Expr.visitWithState(Seq[(Rule, Expr)]())( expr, (e, s) => {
       if (rule.rewrite.isDefinedAt(e)) {
         s :+ (rule, e)

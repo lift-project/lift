@@ -3,6 +3,7 @@ package ir.ast
 import apart.arithmetic.ArithExpr
 import ir._
 import ir.view.{NoView, View}
+import ir.interpreter.Interpreter.ValueMap
 
 import scala.language.implicitConversions
 
@@ -126,6 +127,8 @@ abstract class Expr extends IRNode {
    * @return `f.apply(this)`
    */
   def <<:(f: FunDecl) = f.apply(this)
+
+  def eval(valueMap: ValueMap): Any
 }
 
 object Expr {
@@ -304,6 +307,7 @@ object Expr {
           val newArgs = call.args.map((arg) => replace(arg, oldE, newE))
 
           val newCall = call.f match {
+
             case fp: FPattern =>
               // Try to do the replacement in the body
               val replaced = replace(fp.f.body, oldE, newE)

@@ -99,7 +99,7 @@ object MolecularDynamics {
       Split(128) :>>
       MapWrg(
         MapLcl( \(p =>
-          Let( p._0, particle => {
+          p._0 :>> toPrivate(idF4) :>> Let(particle => {
           Filter(particles, p._1) :>>
           ReduceSeq(\((force, n) =>
             MolecularDynamics.mdCompute(force, particle, n, cutsq, lj1, lj2)

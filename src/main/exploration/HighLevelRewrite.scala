@@ -64,7 +64,7 @@ object HighLevelRewrite {
       verbose = verboseOpt.value.isDefined
 
       val filename = input.value.get
-      val lambda = GenerateOpenCL.readLambdaFromFile(filename)
+      val lambda = ParameterRewrite.readLambdaFromFile(filename)
 
       val dumpThese = rewriteExpression(lambda)
 

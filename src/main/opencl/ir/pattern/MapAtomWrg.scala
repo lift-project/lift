@@ -11,7 +11,7 @@ import opencl.ir._
  * @param dim
  * @param f
  */
-case class MapAtomWrg(dim: Int, override val f: Lambda1, val workVar: Var)
+case class MapAtomWrg(dim: Int, override val f: Lambda1, workVar: Var)
 extends AbstractMap(f, "MapAtomWrg", Var("w_id")) {
   override def copy(f: Lambda): Pattern = MapAtomWrg(dim, f, Var("work_idx"))
   var emitBarrier = true
