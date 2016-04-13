@@ -16,7 +16,7 @@ compileSkelcl := {
 
 scalacOptions ++= Seq("-Xmax-classfile-name", "100")
 
-javaOptions += "-Djava.library.path=./lib/SkelCL/build/executor"
+javaOptions += "-Djava.library.path=" + baseDirectory(_ / "lib/SkelCL/build/executor").value
 
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
 
@@ -32,6 +32,8 @@ libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.6"
 
 libraryDependencies += "junit" % "junit" % "4.11"
 
+libraryDependencies += "commons-cli" % "commons-cli" % "1.3.1"
+
 libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 
 libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
@@ -44,6 +46,6 @@ unmanagedSourceDirectories in Test += baseDirectory.value / "lib/ArithExpr/src/m
 
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 
-testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v")
+testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-a")
 
 fork := true

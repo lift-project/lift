@@ -9,6 +9,21 @@ import OpenCLMemory._
 
 object OpenCLMemoryAllocator {
 
+  def apply(f: Lambda) = {
+    f.params.foreach((p) =>
+      p.t match {
+        case _: ScalarType =>
+          p.mem = OpenCLMemory.allocPrivateMemory(
+            OpenCLMemory.getMaxSizeInBytes(p.t))
+        case _ =>
+          p.mem = OpenCLMemory.allocGlobalMemory(
+            OpenCLMemory.getMaxSizeInBytes(p.t))
+      })
+
+      alloc(f.body)
+  }
+
+
   /** Allocate OpenCLMemory objects for a given Fun f
     *
     * @param expr The expression for which memory should be allocated
@@ -43,7 +58,7 @@ object OpenCLMemoryAllocator {
       assert(oclMem.addressSpace == PrivateMemory)
       oclMem
     } else {
-      OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
+          OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
     }
   }
 
@@ -51,11 +66,11 @@ object OpenCLMemoryAllocator {
     val res = param match {
       case vp: VectorParam =>
         if (vp.p.mem == UnallocatedMemory)
-          throw new IllegalArgumentException("PANIC!")
+          throw new IllegalArgumentException(s"Param $vp has UnallocatedMemory")
         vp.p.mem
       case p: Param =>
         if (p.mem == UnallocatedMemory)
-          throw new IllegalArgumentException("PANIC!")
+          throw new IllegalArgumentException(s"Param $p has UnallocatedMemory")
         p.mem
     }
 
@@ -78,6 +93,7 @@ object OpenCLMemoryAllocator {
       case vec: VectorizeUserFun
                               => allocUserFun(call.t, numGlb, numLcl, numPvt,
                                               inMem, addressSpace)
+
       case l: Lambda          => allocLambda(l, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
       case MapGlb(_, _) |
@@ -85,13 +101,19 @@ object OpenCLMemoryAllocator {
            Map(_)             => allocMapGlb(call.f.asInstanceOf[AbstractMap],
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
-      case MapLcl(_, _) |
-           MapWarp(_)   |
-           MapLane(_)   |
+           
+      case MapAtomWrg(_, _, _)=> allocMapAtomWrg(call.f.asInstanceOf[AbstractMap],
+                                             call.t, numGlb, numLcl, numPvt,
+                                             inMem, addressSpace)
+      case MapLcl(_, _)     |
+           MapAtomLcl(_, _, _) | 
+           MapWarp(_)       |
+           MapLane(_)       |
            MapSeq(_)          => allocMapLcl(call.f.asInstanceOf[AbstractMap],
                                              call.t, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
+      case s: AbstractSearch  => allocSearch(s, call, numGlb, numLcl, numPvt, inMem, addressSpace)
       case it: Iterate        => allocIterate(it, call, numGlb, numLcl, numPvt,
                                               inMem)
       case tg: toGlobal       => allocToGlobal(tg, numGlb, numLcl, numPvt,
@@ -178,6 +200,22 @@ object OpenCLMemoryAllocator {
     alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, addressSpace)
   }
 
+  private def allocMapAtomWrg(am: AbstractMap, 
+                          outT: Type,
+                          numGlb: ArithExpr, 
+                          numLcl: ArithExpr,
+                          numPvt: ArithExpr,
+                          inMem: OpenCLMemory, 
+                          addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    am.f.params(0).mem = inMem
+
+    am.asInstanceOf[MapAtomWrg].globalTaskIndex =
+      OpenCLMemory.allocGlobalMemory(Type.getSize(Int))
+
+    val maxLen = ArithExpr.max(Type.getLength(outT))
+    alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, addressSpace)
+  }
+
   private def allocMapLcl(am: AbstractMap,
                           outT: Type,
                           numGlb: ArithExpr,
@@ -212,6 +250,49 @@ object OpenCLMemoryAllocator {
         Expr.visit(r.f.body, e => if (e.mem == bodyM) e.mem = initM , _ => {} )
 
         initM // return initM as the memory of the reduction pattern
+      case _ => throw new IllegalArgumentException("PANIC")
+    }
+  }
+
+  private def allocSearch(s: AbstractSearch, call: FunCall,
+                          numGlb: ArithExpr,
+                          numLcl: ArithExpr,
+                          numPvt: ArithExpr, 
+                          inMem: OpenCLMemory,
+                          addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    inMem match {
+      case coll: OpenCLMemoryCollection =>
+        // set the comparison function input to be the elements of the array we're searching
+        s.f.params(0).mem = coll.subMemories(1)
+        // allocate memory for the comparison function - otherwise the allocator will complain!
+        s.searchFMem = alloc(s.f.body, numGlb, numLcl, numPvt, PrivateMemory)
+
+        // TODO: This is the way the reduce does it - it makes a lot more sense!
+        // Fix it so that we do it too?
+        // use the ``default value'' memory to return our value
+        // return defaultM
+
+        // HOW IT'S ACTUALLY DONE:
+        // get the size of memory we return from the search, based off the type we return
+        val outputSize = getSizeInBytes(call.t) 
+        // manually allocate that much memory, storing it in the correct address space
+        if (addressSpace != UndefAddressSpace) {
+         // use given address space
+          OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+                               addressSpace)
+        } else {
+          // address space is not predetermined
+          //  => figure out the address space based on the input address space(s)
+          val addressSpace =
+            inMem match {
+              case coll: OpenCLMemoryCollection =>
+                coll.addressSpace.findCommonAddressSpace()
+              case m: OpenCLMemory => m.addressSpace
+              case _ => throw new IllegalArgumentException("PANIC")
+            }
+          OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+                                   addressSpace)
+        }
       case _ => throw new IllegalArgumentException("PANIC")
     }
   }
@@ -282,7 +363,7 @@ object OpenCLMemoryAllocator {
       case coll: OpenCLMemoryCollection =>
         assert(n < coll.subMemories.length)
         coll.subMemories(n)
-      case _ => throw new IllegalArgumentException("PANIC")
+      case _ => inMem
     }
   }
 

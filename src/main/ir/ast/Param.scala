@@ -36,6 +36,17 @@ class Param() extends Expr with Cloneable {
       case Some(x) => x
     }
   }
+  // These methods allow for writing an easy access syntax for tuples
+  def _0 = Get(this, 0)
+  def _1 = Get(this, 1)
+  def _2 = Get(this, 2)
+  def _3 = Get(this, 3)
+  def _4 = Get(this, 4)
+  def _5 = Get(this, 5)
+  def _6 = Get(this, 6)
+  def _7 = Get(this, 7)
+  def _8 = Get(this, 8)
+  def _9 = Get(this, 9)
 }
 
 object Param {

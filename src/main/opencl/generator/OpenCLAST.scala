@@ -1,7 +1,7 @@
 package opencl.generator
 
-import apart.arithmetic.{ArithExpr, Var}
-import ir.{VectorType, Type}
+import apart.arithmetic.{Predicate, ArithExpr, Var}
+import ir.{Type, TupleType, VectorType}
 import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
 
 object OpenCLAST {
@@ -46,6 +46,37 @@ object OpenCLAST {
                   body: Block,
                   unrollHint: Boolean = false) extends OclAstNode
 
+  /** An alternative looping construct, using a predicate - a 'while' loop
+    *  
+    * @param loopPredicate the predicate the loop tests each iteration
+    * @param body the body of the loop
+    */
+  case class WhileLoop(loopPredicate: Predicate,
+                       body: Block) extends OclAstNode
+
+  /** An if-then-else set of statements, with two branches. 
+    *
+    * @param switchPredicate the predicate in the conditional
+    * @param trueBody the body evaluated if switchPredicate is true
+    * @param falseBody the body evaluated if switchPredicate is false
+    */
+  case class Conditional(switchPredicate: Predicate,
+                         trueBody: Block,
+                         falseBody: Block = Block()) extends OclAstNode
+
+  /** A Label, targeted by a corresponding goto
+    * 
+    * @param nameVar the name of label to be declared
+    */
+  case class Label(nameVar: Var) extends OclAstNode
+
+  /** A goto statement, targeting the label with corresponding name
+    * TODO: Think of a better way of describing goto labels
+    *
+    * @param nameVar the name of the label to go to
+    */
+  case class GOTO(nameVar: Var) extends OclAstNode
+
   case class Barrier(mem: OpenCLMemory) extends OclAstNode
 
   case class TypeDef(t: Type) extends OclAstNode
@@ -74,6 +105,10 @@ object OpenCLAST {
     */
   case class Cast(v: VarRef, t: Type) extends OclAstNode
 
+  case class VectorLiteral(t: VectorType, vs: VarRef*) extends OclAstNode
+
+  case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends OclAstNode
+
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
     */
@@ -82,12 +117,16 @@ object OpenCLAST {
                        const: Boolean = false) extends OclAstNode
 
   /** A reference to a declared variable
-    * @param name The name of the variable referenced.
-    * @param index Offset used to index from pointers, if any.
+    * @param v The variable referenced.
+    * @param suffix An optional suffix appended to the name.
+    *               Used e.g. for unrolled variables in private memory.
+    * @param arrayIndex Offset used to index from pointers, if any.
     * @note This uses a String instead of a Var because some nodes (like user
     *       functions), inject variables from string.
     */
-  case class VarRef(name: String, index: Expression = null) extends OclAstNode
+  case class VarRef(v: Var,
+                    suffix: String = null,
+                    arrayIndex: Expression = null) extends OclAstNode
 
   /** Represent an assignment.
     * @param to Left-hand side.
@@ -122,7 +161,7 @@ object OpenCLAST {
     def visitExpression(node: OclAstNode): Unit = {
       node match {
         case e: Expression => fun(e)
-        case v: VarRef if v.index != null => visitExpression(v.index)
+        case v: VarRef if v.arrayIndex != null => visitExpression(v.arrayIndex)
         case v: VarDecl if v.init != null => visitExpression(v.init)
         case l: Load => fun(l.offset)
         case s: Store =>
@@ -145,6 +184,7 @@ object OpenCLAST {
         b.content.foreach(visitBlocks(_, fun))
       case f: Function => visitBlocks(f.body, fun)
       case l: Loop => visitBlocks(l.body, fun)
+      case wl: WhileLoop => visitBlocks(wl.body, fun)
       case _ =>
     }
   }

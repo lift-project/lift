@@ -34,11 +34,8 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
         val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType])
 
         // make sure all arguments have the same size
-        if (arrayTypes.map(_.len).distinct.length != 1) {
-          Console.err.println("Warning: can not statically prove that sizes (" +
-            tt.elemsT.mkString(", ") + ") match!")
-          // throw TypeException("sizes do not match")
-        }
+        if (arrayTypes.map(_.len).distinct.length != 1)
+          throw new ZipTypeException(tt)
 
         ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.len)
 

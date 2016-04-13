@@ -35,7 +35,7 @@ object Interpreter {
     implicit def innerSeq[A]: CanFlatten[Vector[A]] { type Elem = A } =
       new CanFlatten[Vector[A]] {
         type Elem = A
-        def flatten(v: Vector[A]): Vector[A] = v.toVector
+        def flatten(v: Vector[A]): Vector[A] = v
       }
   }
   object CanFlatten extends InnerMost {
@@ -43,7 +43,7 @@ object Interpreter {
     : CanFlatten[Vector[A]] { type Elem = inner.Elem } =
       new CanFlatten[Vector[A]] {
         type Elem = inner.Elem
-        def flatten(v: Vector[A]) : Vector[inner.Elem] = v.toVector.flatMap(vi => inner.flatten(vi))
+        def flatten(v: Vector[A]) : Vector[inner.Elem] = v.flatMap(vi => inner.flatten(vi))
       }
   }
   sealed trait CanFlatten[-A] {

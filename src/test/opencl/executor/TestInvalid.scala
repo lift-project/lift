@@ -6,12 +6,11 @@ package opencl.executor
 
 import apart.arithmetic.Var
 import ir._
-import ir.ast.UserFun._
 import ir.ast._
+import opencl.generator.IllegalKernel
 import opencl.ir._
-import opencl.ir.ast._
-import org.junit._
 import opencl.ir.pattern._
+import org.junit._
 
 object TestInvalid {
   @BeforeClass def before() {
@@ -241,7 +240,63 @@ class TestInvalid {
 
     val f = fun(
       ArrayType(Float, inputSize),
+      in => Join() o MapWrg(toGlobal(MapLcl(id)) o toLocal(MapLcl(id))) o Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def notWritingToGlobal(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
       in => Join() o MapWrg(toLocal(MapLcl(id))) o Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def concreteMap(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o
+        MapGlb(Map(id)) o
+        Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def localWithoutMapWrg(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o
+        MapGlb(toGlobal(MapSeq(id)) o toLocal(MapSeq(id))) o
+        Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def illegalMapNesting(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o MapGlb(MapGlb(id)) o Split(inputSize) $ in
     )
 
     Execute(1, inputSize)(f, input)

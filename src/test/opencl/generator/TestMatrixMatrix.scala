@@ -1,7 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.Var
-import benchmarks.MatrixMultiplication
+import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._
 import opencl.executor._
@@ -147,6 +147,306 @@ class TestMatrixMatrix {
     println("runtime = " + runtime2)
 
     assertArrayEquals(gold, output2, 0.001f)
+  }
+
+  @Test def vectorised() {
+
+    val Msize = 16
+    val Ksize = 16
+    val Nsize = 16
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f1 = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      (A, B) => {
+        MapGlb(0)(fun( Arow =>
+          MapGlb(1)(fun( Bcol =>
+            toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o asScalar() o
+              ReduceSeq(fun((acc, next) => VectorizeUserFun(4, multAndSumUp)(acc, Get(next, 0), Get(next, 1))), Value(0.0f).vectorize(4))
+              $ Zip(asVector(4) $ Arow, asVector(4) $ Bcol)
+          )) $ B
+        )) $ A
+      })
+
+    val f1_ = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        // for each row of A ...
+        A :>> MapGlb(0)(\( Arow =>
+          // ... and each column of B ...
+          B :>> MapGlb(1)(\( Bcol =>
+            // ... combine them into a single vectorized vector ...
+            Zip(asVector(4)(Arow), asVector(4)(Bcol)) :>>
+            // ... reduce this vector using a vectorized operator ...
+            ReduceSeq(\( (acc, pair) => {
+              val multAndSumUpVec = VectorizeUserFun(4, multAndSumUp)
+
+              multAndSumUpVec(acc, pair._0, pair._1)
+            }), Value(0.0f).vectorize(4)) :>>
+            // ... turn the vector data back into scalars and finish the reduction ...
+            asScalar() :>> ReduceSeq(add, 0.0f) :>>
+            // ... copy the result back into global memory (from private)
+            toGlobal(MapSeq(id))
+          ))
+        ))
+      })
+
+    // Derived. TODO: Actual one contains some empty MapSeqs.
+    // High-level da55a60496191590d618057cadfe6d18b409f8b76cd31753123701e465a8ea4d
+    // Low-level 330f47d76e559e4f466c49cde9d7bd9438b370f8cd032e22f20ee156db54bd9a
+    val fd = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      (p_924477420, p_640363654) =>
+      FunCall(MapGlb(0)(fun((p_317986356) =>
+        FunCall(MapGlb(1)(fun((p_331510866) =>
+          toGlobal(MapSeq(id)) $ FunCall(ReduceSeq(fun((p_1728790703, p_1227074340) =>
+            FunCall(add, p_1728790703, p_1227074340))), Value("0.0f", Float),
+            FunCall(asScalar(),
+                FunCall(ReduceSeq(fun((p_929776179, p_1765250898) =>
+                  FunCall(VectorizeUserFun(4,add), p_929776179, FunCall(VectorizeUserFun(4,mult), FunCall(Get(0), p_1765250898), FunCall(Get(1), p_1765250898)))
+                )),
+                  FunCall(VectorizeUserFun(4, id), Value("0.0f", VectorType(Float, 4))),
+                  FunCall(Zip(2), FunCall(asVector(4), p_317986356), FunCall(asVector(4), p_331510866)))
+            ))
+        )), p_640363654)
+      )), p_924477420))
+
+    val (output1: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(f1, matrixA, matrixB.transpose)
+    val (output2: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(fd, matrixA, matrixB.transpose)
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    assertArrayEquals(gold, output1, 0.001f)
+    assertArrayEquals(gold, output2, 0.001f)
+
+  }
+
+  @Test def vectorisedReuseA() {
+
+    val Msize = 8
+    val Ksize = 32
+    val Nsize = 16
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val vectorLength = 4
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float4), Float4)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) =>
+        Map(Join()) o
+          MapGlb(0)(fun(rowA => MapGlb(1)( fun(colsB =>
+            toGlobal(MapSeq(VectorizeUserFun(4, id))) o Join() o ReduceSeq(fun((acc, elemRowPair) =>
+              MapSeq(fun(partial => VectorizeUserFun(4,add)(Get(partial, 0), Get(partial, 1))))
+                $ Zip(MapSeq(fun(b => mult(Get(elemRowPair, 0), b))) o asVector(vectorLength) $ Get(elemRowPair, 1), acc)
+            ), toPrivate(MapSeq(VectorizeUserFun(4, id))) $ Value("0.0f", ArrayType(VectorType(Float, vectorLength), 1))) $ Zip(rowA, colsB)
+          )) o Map(Transpose()) o Split(vectorLength) o Transpose() $ B
+          )) $ A
+    )
+
+    val (output: Array[Float], _) = Execute(Msize, Nsize)(f, matrixA, matrixB)
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    assertArrayEquals(gold, output, 0.001f)
+
+  }
+
+  @Test def partiallyVectorisedTiled(): Unit = {
+    // Basic tiled matrix multiply without local memory
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val tileSize = 2
+    val vectorLength = 4
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    // val dot = UserFun("dotp", Array("a", "b"), "{ return dot(a, b); }", Seq(Float4, Float4), Float)
+    // ReduceSeq( add, 0.0f) o asScalar() o MapSeq(VectorizeUserFun(4, mult))
+    // is equivalent to MapSeq(dot) if the input is of type Array(Float4, 1)
+
+    val N = Var("N")
+    val M = Var("M")
+    val K = Var("K")
+
+    val f_ =  fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        // Undo the tiling
+        Untile() o
+          MapGlb(0)(fun( aRows =>
+            MapGlb(1)(fun( bCols =>
+
+              Map(TransposeW()) o TransposeW() o
+
+                toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) o
+
+                // Multiply all necessary combinations of tiles
+                ReduceSeq(fun( (acc, pairOfTiles) =>
+
+                  fun(partial =>
+                    MapSeq(fun(pairOfRows =>
+                      MapSeq(fun(a =>
+                        MapSeq(add) $ Zip(Get(a, 0), Get(a, 1))
+                      )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
+                    )) $ Zip(acc, partial) ) o
+                    MapSeq( fun(rowA =>
+                      MapSeq( fun( colB =>
+                        ReduceSeq(add, id $ Value(0.0f)) o asScalar() o
+                          MapSeq(VectorizeUserFun(4, mult))
+                          $ Zip(asVector(vectorLength) $ rowA, asVector(vectorLength) $ colB)
+                      )) $ Get(pairOfTiles, 1)
+                    )) $ Get(pairOfTiles, 0)
+                )
+                  , MapSeq(MapSeq(MapSeq(id)))
+                    $ Value(0.0f, ArrayType(ArrayType(ArrayType(Float, 1), tileSize), tileSize))
+                  // ArrayType(ArrayType(ArrayType(Float, 1), 2), 2))
+                  // maliBNT stores it in float4 + vectorised final add + 2 vector stores instead 4 scalar ones
+                ) $ Zip(aRows, bCols)
+
+            )) o Tile(tileSize, vectorLength) $ B
+            // Tile the matrices
+          )) o Tile(tileSize, vectorLength) $ A
+      })
+
+    // same as above just in top to bottom notation
+    val f__ = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        A :>> Tile(tileSize, vectorLength) :>>
+          MapGlb(0)(fun( aRows =>
+            B :>> Tile(tileSize, vectorLength) :>>
+              MapGlb(1)(fun( bCols =>
+                Zip(aRows, bCols) :>>
+                  ReduceSeq(fun( (acc, pairOfTiles) => {
+                    pairOfTiles._0 :>> MapSeq(fun( rowA =>
+                      pairOfTiles._1 :>> MapSeq(fun( colB =>
+                        Zip(asVector(vectorLength)(rowA), asVector(vectorLength)(colB)) :>>
+                          MapSeq(VectorizeUserFun(4, mult)) :>>
+                          asScalar() :>>
+                          ReduceSeq(add, Value(0.0f) :>> id)
+                      ))
+                    )) :>> fun(partial =>
+                      Zip(acc, partial) :>>
+                      MapSeq(fun(pairOfRows =>
+                        Zip(pairOfRows._0, pairOfRows._1) :>>
+                        MapSeq(fun(x => Zip(x._0, x._1) :>> MapSeq(add)))
+                      ))
+                    )
+                  }),
+                    MapSeq(MapSeq(MapSeq(id)))(Value(0.0f, ArrayType(ArrayType(ArrayType(Float, 1), tileSize), tileSize)))
+                  ) :>>
+                  toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) :>> TransposeW() :>> Map(TransposeW())
+              ))
+          )) :>> Untile()
+      }
+    )
+
+    // load the tile in local memory once (to avoid reloading the same value twice) and vectorized the summation in the reduction loop
+    val f = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) => {
+        // tile A
+        A :>> Tile(tileSize, vectorLength) :>>
+        MapGlb(0)(fun( aRows =>
+          // tile B
+          B :>> Tile(tileSize, vectorLength) :>>
+          MapGlb(1)(fun( bCols =>
+            Zip(aRows, bCols) :>>
+            ReduceSeq(fun( (acc, pairOfTiles) => {
+              // copy both tiles into private memory
+              Zip(
+                pairOfTiles._0 :>> MapSeq(fun(rowA =>
+                  asVector(vectorLength)(rowA) :>> toPrivate(MapSeq(VectorizeUserFun(4, id))))),
+                pairOfTiles._1 :>> MapSeq(fun(colB =>
+                  asVector(vectorLength)(colB) :>> toPrivate(MapSeq(VectorizeUserFun(4, id)))))
+              ) :>> fun(zippedPairOfTiles =>
+                // for each row of the tile of A ...
+                zippedPairOfTiles :>> MapSeq(fun( rowA =>
+                  // ... and each column of the tile of B ...
+                  zippedPairOfTiles :>> MapSeq(fun( colB =>
+                    // ... perform vectorized multiplication ...
+                    Zip(rowA._0, colB._1) :>>
+                    MapSeq(VectorizeUserFun(4, mult)) :>>
+                    // .. and scalar summation
+                    asScalar() :>>
+                    ReduceSeq(add, Value(0.0f) :>> id)
+                  ))
+                ))
+              ) :>> fun(partial =>
+                // reshape the data to be vectorized for performing the summation
+                partial :>> Join() :>> Join() :>> asVector(4) :>>
+                fun(xs =>
+                  // perform the vectorized summation
+                  Zip(acc, xs) :>> MapSeq(VectorizeUserFun(4, add))
+                ))
+              }), MapSeq(VectorizeUserFun(4, id))(Value(0.0f, ArrayType(VectorType(Float, 4), 1)))
+            ) :>>
+            // reshape the data and perform the copy back to global memory using a vector width of 2
+            Map(asScalar() >>> asVector(2) >>> Split(1)) :>>
+            toGlobal(MapSeq(MapSeq(MapSeq(VectorizeUserFun(2, id))))) :>>
+            TransposeW() :>> Map(TransposeW() >>> Join() >>> asScalar())
+          ))
+        )) :>> Untile()
+      }
+    )
+
+    // Derived. TODO: Actual one contains some empty MapSeqs.
+    // High-level 7352181db558ca218caa8723936a115f8e30dd4e69a2686e11d5a0255bf5d8a4
+    // Low-level 72ef373f103c33cf9c79741a95fdd9d15d605f757529151844690d685c173c19
+    val fd = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) =>
+      FunCall(Join(), FunCall(MapGlb(0)(fun((p_1545087375) =>
+        FunCall(TransposeW(), FunCall(Join(), FunCall(MapGlb(1)(fun((p_668210649) =>
+          FunCall(TransposeW(), FunCall(Map(fun((p_1434041222) =>
+            FunCall(TransposeW(), p_1434041222)
+          )), FunCall(TransposeW(), FunCall(MapSeq(fun((p_1308109015) =>
+            FunCall(toGlobal(MapSeq(MapSeq(id))), p_1308109015))), FunCall(ReduceSeq(fun((p_2050404090, p_280265505) =>
+            FunCall(MapSeq(fun((p_827084938) =>
+              FunCall(Join(), FunCall(MapSeq(fun((p_306206744) =>
+                FunCall(ReduceSeq(fun((p_1597655940, p_2619171) =>
+                  FunCall(add, p_1597655940, p_2619171))),
+                  FunCall(Get(0), p_306206744), FunCall(asScalar(), FunCall(MapSeq(fun((p_1983025922) =>
+                    FunCall(VectorizeUserFun(4,mult), FunCall(Get(0), p_1983025922), FunCall(Get(1), p_1983025922))
+                  )), FunCall(Zip(2), FunCall(asVector(4), FunCall(Get(1), p_827084938)), FunCall(asVector(4), FunCall(Get(1), p_306206744)))))))), FunCall(Zip(2), FunCall(Get(0), p_827084938), FunCall(Transpose(), FunCall(Get(1), p_280265505)))))
+            )), FunCall(Zip(2), p_2050404090, FunCall(Transpose(), FunCall(Get(0), p_280265505))))
+          )), FunCall(MapSeq(fun((p_824208363) =>
+            FunCall(MapSeq(fun((p_500179317) =>
+              FunCall(idfloat, p_500179317)
+            )), p_824208363))), Value("0.0f", ArrayType(ArrayType(Float, tileSize), tileSize))), FunCall(Zip(2), FunCall(Split(vectorLength), FunCall(Transpose(), p_1545087375)), FunCall(Split(vectorLength), FunCall(Transpose(), p_668210649))))))))
+        )), FunCall(Split(tileSize), B))))
+      )), FunCall(Split(tileSize), A))))
+
+
+    val (output1: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
+    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
+
+    assertArrayEquals(gold, output1, 0.0001f)
+    assertArrayEquals(gold, output2, 0.0001f)
   }
 
   @Test def tiledMultiplicationScala(): Unit = {
@@ -428,88 +728,7 @@ class TestMatrixMatrix {
     val workPerThreadN = 2
     val workPerThreadM = 4
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
-
-    val f = fun(
-      ArrayType(ArrayType(Float, M), K), // Transposed
-      ArrayType(ArrayType(Float, N), K),
-      ArrayType(ArrayType(Float, N), M),
-      Float,
-      Float,
-      (A, B, C, alpha, beta) => {
-        // Undo the tiling
-        Untile() o
-          MapWrg(1)(fun( aRows =>
-            MapWrg(0)(fun( bCols =>
-
-              Map(Scatter(reorderStride(tileSizeM/workPerThreadM))) o Join() o
-                Map(TransposeW() o Join() o Map(TransposeW())) o
-
-                Join() o
-
-                toGlobal(MapSeq(fun(x =>
-                  MapLcl(1)(fun(y =>
-                    MapLcl(0)(fun( z =>
-                      MapSeq(fun(a =>
-                        MapSeq(fun(x =>
-                          add(
-                            mult(Get(x, 0), alpha),
-                            mult(Get(x, 1),beta)
-                          )
-                        )) $ Zip(Get(a, 0), Get(a, 1))
-                      )) $ Zip(Get(z, 0), Transpose() $ Get(z, 1))
-                    )) $ Zip(Get(y, 0), Split(workPerThreadM) o ReorderStride(tileSizeM/workPerThreadM) o Transpose() $ Get(y, 1))
-                  )) $ Zip(x, Split(workPerThreadN) $ Get(bCols, 1))
-                ))) o
-
-                // Multiply all necessary combinations of tiles
-                ReduceSeq(fun( (acc, pairOfTiles) =>
-
-                  fun(pairOfTiles =>
-
-                    MapLcl(1)( fun(rowsA =>
-                      MapLcl(0)( fun( colsB =>
-                        Join() o ReduceSeq(fun((acc, rowElemPair) =>
-                          MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) o
-                            fun(rowElemPair =>
-                              Zip(
-                                Join() o toPrivate(MapSeq(MapSeq(
-                                  fun(aArray => MapSeq(fun(b =>
-                                    mult.apply(aArray, b)
-                                  )) $ Get(rowElemPair, 1))) o toPrivate(MapSeq(id))
-                                )) o Split(1) $ Get(rowElemPair, 0),
-                                acc
-                              )
-                            ) o fun(rowElemPair =>
-                            Tuple(
-                              Get(rowElemPair, 0),
-                              toPrivate(MapSeq(id)) $ Get(rowElemPair, 1)
-                            )) $ rowElemPair
-                        ), Get(colsB, 1)
-                        ) $ Zip(Transpose() $ Get(rowsA, 0), Transpose() $ Get(colsB, 0))
-
-                      )) $ Zip(Split(workPerThreadM) o ReorderStride(tileSizeM/workPerThreadM) o Transpose() $ Get(pairOfTiles, 1), Get(rowsA, 1))
-                    ))  $ Zip(Split(workPerThreadN) o Transpose() $ Get(pairOfTiles, 0), acc)
-
-                  ) o
-
-                    // Copy tiles to local memory
-                    Unzip() o toLocal(MapLcl(1)(fun(pair =>
-                    Unzip() o MapLcl(0)(fun( pair =>
-                      Tuple(id $ Get(pair, 0), id $ Get(pair, 1))
-                    )) $ Zip(Get(pair, 0), Get(pair, 1))
-                  ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
-                )
-                  , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
-                    ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
-                ) $ Zip(Get(aRows, 0), Get(bCols, 0))
-
-              // Tile the matrices
-            )) $ Zip(Transpose() o Tile(tileSizeK, tileSizeN) $ B, Get(aRows, 1))
-          )) $ Zip(Transpose() o Tile(tileSizeK, tileSizeM) $ A, Tile(tileSizeM, tileSizeN) $ C)
-      })
+    val f = GEMM.tiledAndBlockedBInnermost(tileSizeN, tileSizeM, tileSizeK, workPerThreadN, workPerThreadM)
 
     val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
       mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB,
@@ -897,7 +1116,7 @@ class TestMatrixMatrix {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], _) = Execute(mSize, nSize)(f, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output, 0.0001f)
   }

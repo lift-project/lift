@@ -81,6 +81,14 @@ JNIEXPORT jlong JNICALL Java_opencl_executor_Executor_getDeviceMaxWorkGroupSize
 
 /*
  * Class:     opencl_executor_Executor
+ * Method:    supportsDouble
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_opencl_executor_Executor_supportsDouble
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     opencl_executor_Executor
  * Method:    getPlatformName
  * Signature: ()Ljava/lang/String;
  */

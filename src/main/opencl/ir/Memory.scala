@@ -40,8 +40,9 @@ case class AddressSpaceCollection(spaces: Seq[OpenCLAddressSpace])
     if (addessSpaces.forall(_ == addessSpaces.head)) {
       addessSpaces.head
     } else {
-      throw new IllegalArgumentException("Could not determine " +
-                                         "common addressSpace")
+      // FIXME(tlutz): Document that the default address space is global when the tuple has mixed addess spaces.
+      GlobalMemory
+      //throw new IllegalArgumentException(s"Could not determine common addressSpace: $addessSpaces")
     }
   }
 }
@@ -63,7 +64,7 @@ class OpenCLMemory(var variable: Var,
   // size cannot be 0 unless it is the null memory
   try {
     if (size.eval == 0)
-      throw new IllegalArgumentException
+      throw new IllegalArgumentException("Cannot have a memory of 0 bytes!")
   } catch {
     case _: NotEvaluableException => // nothing to do
     case e: Exception => throw e
@@ -179,6 +180,8 @@ object OpenCLMemory {
       case GlobalMemory => allocGlobalMemory(glbOutSize)
       case LocalMemory => allocLocalMemory(lclOutSize)
       case PrivateMemory => allocPrivateMemory(pvtOutSize)
+      case co: AddressSpaceCollection =>
+        allocMemory(glbOutSize, lclOutSize, pvtOutSize, co.findCommonAddressSpace())
     }
   }
 
@@ -259,45 +262,20 @@ object TypedOpenCLMemory {
         case _ => call.args.map(collect).reduce(_ ++ _)
       }
 
-      val adaptedArgMems = call.f match {
-        case s: asScalar => adaptArgMemsAsScalar(argMems)
-        case v: asVector => adaptArgsMemsAsVector(v, argMems)
-        case _           => argMems
-      }
-
       val bodyMems = call.f match {
         case uf: UserFun    => collectUserFun(call)
         case vf: VectorizeUserFun
                             => collectUserFun(call)
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
-        case r: AbstractPartRed => collectReduce(r, adaptedArgMems)
+        case r: AbstractPartRed => collectReduce(r, argMems)
+        case s: AbstractSearch => collectSearch(s, call, argMems)
         case i: Iterate     => collectIterate(call, i)
         case fp: FPattern   => collect(fp.f.body)
         case _              => Seq()
       }
 
-      adaptedArgMems ++ bodyMems
-    }
-
-    def adaptArgMemsAsScalar(mems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
-      if (mems.isEmpty) {
-        mems
-      } else {
-        val tm = mems.last
-        val at = tm.t.asInstanceOf[ArrayType]
-        mems.init :+ TypedOpenCLMemory(tm.mem, Type.asScalarType(at))
-      }
-    }
-
-    def adaptArgsMemsAsVector(v: asVector,
-                              mems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
-      if (mems.isEmpty) {
-        mems
-      } else {
-        val tm = mems.last
-        mems.init :+ TypedOpenCLMemory(tm.mem, tm.t.vectorize(v.n))
-      }
+      argMems ++ bodyMems
     }
 
     def collectUserFun(call: FunCall): Seq[TypedOpenCLMemory] = {
@@ -313,21 +291,36 @@ object TypedOpenCLMemory {
 
     def collectMap(t: Type,
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
-      val mems = collect(m.f.body)
+      val mems = collect(m.f.body)  
 
-      // change types
-      mems.map( tm => tm.mem.addressSpace match {
-        case GlobalMemory | PrivateMemory =>
-          TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
+      def changeType(addressSpace: OpenCLAddressSpace,
+                     tm: TypedOpenCLMemory): TypedOpenCLMemory = {
+        addressSpace match {
+          case GlobalMemory | PrivateMemory =>
+            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
 
-        case LocalMemory =>
-          m match {
-            case _: MapGlb | _: MapWrg  | _: Map =>
-              tm
-            case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-              TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
-          }
-      })
+          case LocalMemory =>
+            m match {
+              case _: MapGlb | _: MapWrg  | _: Map =>
+                tm
+              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
+                TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
+            }
+          case coll: AddressSpaceCollection =>
+            changeType(coll.findCommonAddressSpace(), tm)
+        }
+      }
+
+      // change types for all of them
+      val cts = mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
+
+      // TODO: Think about other ways of refactoring this out 
+      m match {
+        case aw : MapAtomWrg => 
+          cts :+ TypedOpenCLMemory(aw.globalTaskIndex, ArrayType(Int, Cst(1)))
+        case _ => cts
+      }
+      
     }
 
     def collectReduce(r: AbstractPartRed,
@@ -335,6 +328,18 @@ object TypedOpenCLMemory {
       val mems = collect(r.f.body)
 
       mems.filter(m => {
+        val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
+        val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
+
+        !isAlreadyInArgs && !isAlreadyInParams
+      })
+    }
+
+    def collectSearch(s: AbstractSearch, call:FunCall, argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      val mems = collect(s.f.body)
+
+      // TODO: Optimise so we use the default value instead of more allocated memory!
+      TypedOpenCLMemory(call) +: mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
         val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
 

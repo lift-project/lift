@@ -4,3 +4,8 @@ project/project/
 project/target/
 target/
 .idea/
+*.out
+.tags
+scripts/
+lib/Executor/build
+.kernels

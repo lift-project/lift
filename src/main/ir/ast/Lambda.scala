@@ -15,7 +15,7 @@ import scala.language.implicitConversions
  * @param body The body of the lambda expression.
  */
 abstract case class Lambda private[ast] (params: Array[Param],
-                  body: Expr) extends FunDecl(params.length) {
+                                         body: Expr) extends FunDecl(params.length) {
 
   /**
    * Debug string representation
@@ -342,7 +342,7 @@ class Lambda9(override val params: Array[Param], override val body: Expr) extend
   }
 }
 
-object fun {
+trait funDef {
   def apply(f: (Param) => Expr): Lambda1 = {
     val params = Array(Param(UndefType))
     new Lambda1(params, f(params(0)))
@@ -433,3 +433,7 @@ object fun {
     new Lambda9(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8)))
   }
 }
+
+// two names for the same thing:
+object fun extends funDef
+object \ extends funDef

@@ -1,0 +1,8 @@
+val N = Var("N")
+
+fun(
+  ArrayType(Float, N),
+  Float,
+  (vector, alpha) =>
+    Map(fun(x => mult(x, alpha))) $ vector
+)

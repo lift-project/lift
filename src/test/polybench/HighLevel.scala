@@ -1,7 +1,8 @@
 package polybench
 
 import apart.arithmetic.Var
-import ir.ArrayType
+import benchmarks.GESUMMV
+import ir.{TupleType, ArrayType}
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
@@ -188,6 +189,53 @@ class HighLevel {
   }
 
   @Test
+  def gesummv2(): Unit = {
+    // y = A . x * alpha + B . x * beta
+    val n = 128
+
+    val alpha = 2.0f
+    val beta = 1.5f
+    val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
+    val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+    val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+
+    val tmp1Gold = Utils.matrixVector(A, x, alpha)
+    val tmp2Gold = Utils.matrixVector(B, x, beta)
+    val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
+
+    val gesummv = GESUMMV.fused
+
+    val y = Execute(n)(gesummv, A, B, x, alpha, beta)._1.asInstanceOf[Array[Float]]
+
+    assertArrayEquals(yGold, y, 0.001f)
+  }
+
+  @Test
+  def gesummvKepler(): Unit = {
+    // y = A . x * alpha + B . x * beta
+    val n = 1024
+
+    val alpha = 2.0f
+    val beta = 1.5f
+    val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
+    val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+    val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+
+    val tmp1Gold = Utils.matrixVector(A, x, alpha)
+    val tmp2Gold = Utils.matrixVector(B, x, beta)
+    val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
+
+    val stride = 128
+
+    val gesummv = GESUMMV.fusedOptimised
+
+    val y = Execute(stride, stride*n, (true, true))(gesummv, A, B, x, alpha, beta)._1.asInstanceOf[Array[Float]]
+
+    assertArrayEquals(yGold, y, 0.001f)
+  }
+
+  // this is missing in polybench-gpu
+  @Test
   def gemver(): Unit = {
     // A = A + u1.v1^T + u2v2^T
     // x = beta*A^T.y + z
@@ -280,8 +328,8 @@ class HighLevel {
         MapGlb(fun( aRow =>
           Join() o  MapSeq(fun( bCol =>
             toGlobal(MapSeq(id)) o
-            MapSeq(fun(x => multAndSumUp(x, beta, Get(bCol, 1)))) o
-            MapSeq(fun(x => mult(x, alpha))) o
+            toPrivate(MapSeq(fun(x => multAndSumUp(x, beta, Get(bCol, 1))))) o
+            toPrivate(MapSeq(fun(x => mult(x, alpha)))) o
             ReduceSeq(fun((acc, y) =>
               multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
             ), 0.0f) $ Zip(Get(aRow, 0), Get(bCol, 0))
@@ -321,4 +369,5 @@ class HighLevel {
 
     assertArrayEquals(gold, atax, 0.001f)
   }
+
 }

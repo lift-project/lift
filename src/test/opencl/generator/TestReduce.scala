@@ -649,4 +649,49 @@ class TestReduce {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
   }
+
+  @Test def SPLIT_REDUCE() : Unit = {
+    val inputSize = Math.pow(2, 12).toInt
+    val search_arr = Array.tabulate(inputSize)((i:Int) => i.toFloat)
+    val gold = search_arr.sum
+    val N = Var("N")
+
+    val reduce_kernel = fun(
+      ArrayType(Float, N),
+      (array) => {
+        toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join() o MapSeq(
+          fun((subarr) =>
+            toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) $ subarr
+          )
+        ) o Split(8) $ array
+      }
+    )
+
+    val (output:Array[Float], _) = Execute(1,1, (true, true))(reduce_kernel, search_arr)
+    assertEquals(gold, output(0), 0.0f)
+  }
+
+  /**
+   * This test currently fails as the generated unroll does not reset the accumulator properly.
+   */
+  @Ignore @Test def SPLIT_REDUCE_UNROLLED() : Unit = {
+    val inputSize = 128
+    val search_arr = Array.tabulate(inputSize)((i:Int) => i)
+    val gold = search_arr.sum
+    val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
+
+    val reduce_kernel = fun(
+      ArrayType(Int, inputSize),
+      (array) => {
+        toGlobal(MapSeq(idI)) o ReduceSeq(int_add, 0) o Join() o MapSeq(
+          fun((subarr) =>
+            ReduceSeq(int_add, 0) $ subarr
+          )
+        ) o Split(8) $ array
+      }
+    )
+    val (output:Array[Int], _) = Execute(1,1, (true, true))(reduce_kernel, search_arr)
+
+    assertEquals(gold, output(0))
+  }
 }

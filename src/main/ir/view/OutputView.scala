@@ -31,6 +31,7 @@ object OutputView {
     val result = call.f match {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
+      case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case l: Lambda => buildViewLambda(l, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
@@ -79,7 +80,7 @@ object OutputView {
 
   private def buildViewUserFun(writeView: View, call: FunCall): View = {
     call.view = writeView
-    writeView
+    View.initialiseNewView(call.t, call.outputDepth, "")
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {
@@ -119,6 +120,14 @@ object OutputView {
     // create fresh input view for following function
     View.initialiseNewView(call.args(1).t, call.outputDepth,
                            call.mem.variable.name)
+  }
+
+  private def buildViewSearch(s: AbstractSearch, 
+                              call:FunCall, writeView:View) :View = {
+    visitAndBuildViews(call.args.head,
+      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable.name))
+    visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
+    View.initialiseNewView(call.args(1).t, call.outputDepth, call.mem.variable.name)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {

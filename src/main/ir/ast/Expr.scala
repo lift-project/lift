@@ -15,7 +15,7 @@ import scala.language.implicitConversions
   *
   * - values: 4, 128, ...
   */
-abstract class Expr {
+abstract class Expr extends IRNode {
   /**
    * The type of the expression
    */
@@ -72,7 +72,7 @@ abstract class Expr {
       e match {
         case call: FunCall =>
           call.f match {
-            case _: UserFun => true
+            case _: UserFun | _: VectorizeUserFun => true
             case _ => b
           }
         case _ => b
@@ -307,6 +307,7 @@ object Expr {
           val newArgs = call.args.map((arg) => replace(arg, oldE, newE))
 
           val newCall = call.f match {
+
             case fp: FPattern =>
               // Try to do the replacement in the body
               val replaced = replace(fp.f.body, oldE, newE)

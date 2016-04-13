@@ -7,7 +7,7 @@ import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 object TestAddressSpaces {
   @BeforeClass def before() {
@@ -233,7 +233,7 @@ class TestAddressSpaces {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test(expected = classOf[NotEvaluableException])
+  @Test(expected = classOf[opencl.generator.OpenCLGeneratorException])
   def privateGlobalMemoryThreadsNotSpecified(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)

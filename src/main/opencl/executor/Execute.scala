@@ -281,8 +281,10 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     val args: Array[KernelArg] = memArgs ++ sizes
 
     // 8. execute via JNI
-    val runtime = executeFunction(code, localSize1, localSize2, localSize3,
-      globalSize1, globalSize2, globalSize3, args)
+    val runtime = this.synchronized {
+      executeFunction(code, localSize1, localSize2, localSize3,
+        globalSize1, globalSize2, globalSize3, args)
+    }
 
     // 9. cast the output accordingly to the output type
     val output = castToOutputType(f.body.t, outputData)
@@ -340,9 +342,39 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       // handle tuples if all their components are of the same type
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float) =>
         outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float2) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float3) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float4) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float8) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float16) =>
+        outputData.asFloatArray()
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int) =>
         outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int2) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int3) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int4) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int8) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int16) =>
+        outputData.asIntArray()
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double2) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double3) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double4) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double8) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double16) =>
         outputData.asDoubleArray()
       case _ => throw new IllegalArgumentException("Return type of the given lambda expression " +
                                                    "not supported: " + t.toString)

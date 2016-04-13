@@ -47,6 +47,7 @@ object InputView {
     call.f match {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
+      case s: AbstractSearch => buildViewSearch(s, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
       case uz: Unzip => buildViewUnzip(call, argView)
@@ -66,7 +67,7 @@ object InputView {
       case g: Group => buildViewGroup(g, call, argView)
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
-      case fp: FPattern => buildViewToFPattern(fp, argView)
+      case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(size,boundary) => buildViewPad(size, boundary, argView)
       case _ => argView
     }
@@ -90,11 +91,6 @@ object InputView {
     i.f.params(0).view = argView
     visitAndBuildViews(i.f.body)
     View.initialiseNewView(call.t, call.inputDepth)
-  }
-
-  private def buildViewToFPattern(fp: FPattern, argView: View): View = {
-    fp.f.params(0).view = argView
-    visitAndBuildViews(fp.f.body)
   }
 
   private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {
@@ -125,13 +121,22 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
+  private def buildViewSearch(s:AbstractSearch, call:FunCall, argView:View) : View = {
+    // pass down input view
+    s.f.params(0).view = argView.get(1).access(s.indexVar)
+    // traverse into call.f
+    visitAndBuildViews(s.f.body)
+    // create fresh input view for following function
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+  }
+
   private def buildViewLambda(l: Lambda, call: FunCall, argView: View): View = {
     assert(call.args.nonEmpty)
     if (call.args.length == 1) {
       if (l.params.length != 1) throw new NumberOfArgumentsException
       l.params(0).view = argView
     } else {
-      l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.access(i) })
+      l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.get(i) })
     }
     visitAndBuildViews(l.body)
   }
