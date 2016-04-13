@@ -1,78 +1,27 @@
-package opencl.generator
+package opencl.ir.interpreter
 
 import apart.arithmetic.Var
 import ir._
-import ir.ast._
+import ir.ast.{UserFun, fun, _}
+import ir.interpreter.Interpreter
 import opencl.executor._
-import opencl.ir._
-import opencl.ir.pattern._
+import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg, ReduceSeq, _}
+import opencl.ir.{Float4, _}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
-object TestMisc {
+object TestInterpreter {
   @BeforeClass def before() {
     Executor.loadLibrary()
-    println("Initialize the executor")
     Executor.init()
   }
 
   @AfterClass def after() {
-    println("Shutdown the executor")
     Executor.shutdown()
   }
 }
 
-class TestMisc {
-
-  @Test
-  def testDouble(): Unit = {
-    val inputSize = 256
-    val input = Array.fill(inputSize)(util.Random.nextInt(5).toDouble)
-
-    val incr = UserFun("incr", "x", "{ return x+1; }", Double, Double)
-
-    val f = fun(
-      ArrayType(Double, Var("N")),
-      in => MapGlb(incr) $ in
-    )
-
-    val (output: Array[Double], _) = Execute(inputSize)(f, input)
-
-    assertArrayEquals(input.map(_ + 1), output, 0.0)
-  }
-
-  @Test def issue20(): Unit = {
-    val inputSize = 1024
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val gold = inputData.map(_+5)
-
-    val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
-
-    val f = fun(
-      ArrayType(Float, Var("N")),
-      (inArr) => {
-        Join() o MapGlb(
-          Iterate(5)(fun((e) => MapSeq(incr) $ e))
-        ) o Split(1) $ inArr
-      }
-    )
-
-    val f2 = fun(
-      ArrayType(Float, Var("N")),
-      (inArr) => {
-        Iterate(5)(fun((arr) =>
-          MapGlb(incr) $ arr
-        )) $ inArr
-      }
-    )
-
-
-    val (output1: Array[Float], _) = Execute(inputData.length)(f, inputData)
-    assertArrayEquals(gold, output1, 0.0f)
-
-    val (output2: Array[Float], _) = Execute(inputData.length)(f2, inputData)
-    assertArrayEquals(gold, output2, 0.0f)
-  }
+class TestInterpreter {
 
   @Test def issue22(): Unit = {
     val inputSize = 1024
@@ -95,7 +44,7 @@ class TestMisc {
         )(Split(128)(in))
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
+    val output = Interpreter(l).->[Vector[Float]].run(inputData, 0.0f)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -113,7 +62,7 @@ class TestMisc {
         ) o Split(128) $ in
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val output = Interpreter(l).->[Vector[Float]].run(inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -136,7 +85,7 @@ class TestMisc {
            Join()
          })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val output = Interpreter(l).->[Vector[Float]].runAndFlatten(inputData).toArray[Float]
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -159,7 +108,7 @@ class TestMisc {
             in
           })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val output = Interpreter(l).->[Vector[Float]].run(inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -176,7 +125,7 @@ class TestMisc {
       ) $ input
     )
 
-    val (output: Array[Float], _) = Execute(4, 4)(f, input)
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(input).toArray[Float]
 
     assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
@@ -191,7 +140,7 @@ class TestMisc {
         MapSeq(id o id) $ in
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val output = Interpreter(l).->[Vector[Float]].run(inputData).toArray
 
     assertArrayEquals(inputData, output, 0.0f)
   }
@@ -206,7 +155,7 @@ class TestMisc {
         in :>> ReduceSeq(add, toPrivate(add)(0.0f, 1.0f)) :>> toGlobal(MapSeq(id))
       })
 
-    val (output: Array[Float], _) = Execute(inputSize)(l, inputData)
+    val output = Interpreter(l).->[Vector[Float]].run(inputData).toArray
 
     assertEquals(inputData.sum + 1, output.head, 0.0f)
   }
@@ -236,8 +185,8 @@ class TestMisc {
       ) $ xs
     )
 
-    // execute
-    val (output: Array[Float], _) = Execute(inputSize)(f, xs)
+    val output = Interpreter(f).->[Vector[Float]].run(xs).toArray
+
     assertArrayEquals(gold, output, 0.001f)
   }
 
@@ -256,7 +205,8 @@ class TestMisc {
         MapGlb(composition) $ input
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(compFun, inputData)
+    val output = Interpreter(compFun).->[Vector[Float]].run(inputData).toArray
+
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -279,7 +229,7 @@ class TestMisc {
       )) $ Zip(matrix, vector)
     )
 
-    val (output: Array[Float], _) = Execute(4, Nsize)(f, matrix, vector)
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(matrix, vector).toArray[Float]
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -302,7 +252,11 @@ class TestMisc {
         )) $ Zip(A, B)
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData, inputData)
+    val output = Interpreter(f)
+                    .->[Vector[Vector[Float]]]
+                    .runAndFlatten(inputData, inputData)
+                    .toArray[Float]
+
     assertArrayEquals(inputData.flatten.map(_ + 1), output, 0.0f)
   }
 
@@ -318,23 +272,8 @@ class TestMisc {
         MapGlb(id.vectorize(4)) $ input
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
-    assertArrayEquals(inputData, output, 0.0f)
-  }
+    val output = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(inputData.grouped(4).toArray).toArray[Float]
 
-  @Test def vectorizePattern(): Unit = {
-    val inputSize = 1024
-    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
-
-    val N = Var("N")
-
-    val f = fun(
-      ArrayType(Float4, N),
-      (input) =>
-        MapGlb(VectorizeUserFun(4, id)) $ input
-    )
-
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
     assertArrayEquals(inputData, output, 0.0f)
   }
 
@@ -352,7 +291,7 @@ class TestMisc {
         MapGlb(fun(x => add(x, 3.0f))) $ input
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
+    val output = Interpreter(f).->[Vector[Float]].run(inputData).toArray
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -368,22 +307,7 @@ class TestMisc {
       (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
-    val (output: Array[Float], _) = Execute(Nsize * Msize)(function, matrix)
-    assertArrayEquals(gold, output, 0.0f)
-  }
-
-  @Test def vectorize(): Unit = {
-    val inputSize = 512
-    val inputData = Array.tabulate(inputSize)(_.toFloat)
-
-    val gold = inputData.map(_+1)
-
-    val f = fun(
-      ArrayType(Float, Var("N")),
-      in => asScalar() o MapGlb(plusOne.vectorize(4)) o asVector(4) $ in
-    )
-
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
+    val output = Interpreter(function).->[Vector[Vector[Float]]].runAndFlatten(matrix).toArray[Float]
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -398,7 +322,7 @@ class TestMisc {
       in => MapGlb(plusOne) o asScalar() o asVector(4) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
+    val output = Interpreter(f).->[Vector[Float]].run(inputData).toArray
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -417,7 +341,7 @@ class TestMisc {
       (matrix) => Split(Msize) o MapGlb(0)(id) o Join() $ matrix
     )
 
-    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
+    val output = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(matrix).toArray[Float]
     assertArrayEquals(matrix.flatten, output, 0.0f)
   }
 
@@ -438,7 +362,7 @@ class TestMisc {
       (matrix) => Split(Msize) o MapGlb(0)(MapSeq(id)) o Join() $ matrix
     )
 
-    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(matrix).toArray[Float]
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -459,7 +383,7 @@ class TestMisc {
       (matrix) => MapGlb(0)(Split(Ksize) o MapSeq(id) o Join()) $ matrix
     )
 
-    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(matrix).toArray[Float]
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -480,7 +404,7 @@ class TestMisc {
       (matrix) => Split(Msize) o Split(Ksize) o MapGlb(0)(id) o Join() o Join() $ matrix
     )
 
-    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
+    val output = Interpreter(f).->[Vector[Vector[Vector[Float]]]].runAndFlatten(matrix).toArray[Float]
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -494,7 +418,7 @@ class TestMisc {
       in => Iterate(7)(MapGlb(plusOne)) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, input)
+    val output = Interpreter(f).->[Vector[Float]].run(input).toArray
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -516,7 +440,7 @@ class TestMisc {
       )) $ inA
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputA, inputB)
+    val output = Interpreter(f).->[Vector[Float]].run(inputA, inputB).toArray
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -532,66 +456,8 @@ class TestMisc {
         toLocal(MapLcl(id))) o Split(16) $ in
     )
 
-    val f_nested = fun(
-      ArrayType(Float, Var("N")),
-      in => fun(x1 => Join()(MapWrg(
-        fun(x2 =>
-          fun(x3 =>
-            fun(x4 => toGlobal(MapLcl(id))(x4))(
-              Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(x3)))(
-                toLocal(MapLcl(id))(x2)))
-          )(x1)))(Split(16)(in))
-    )
-
-    val f_nested2 = fun(
-      ArrayType(Float, Var("N")),
-      in => Join()(MapWrg(fun(x2 =>
-        fun(x3 =>
-          fun(x4 => toGlobal(MapLcl(id))(x4))(
-            Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(x3)))(
-              toLocal(MapLcl(id))(x2)))
-              )(Split(16)(in)))
-    )
-
-    val f_nested3 = fun(
-      ArrayType(Float, Var("N")),
-      in => Join()(MapWrg(fun(x2 =>
-        fun(x4 => toGlobal(MapLcl(id))(x4))(
-          Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
-            toLocal(MapLcl(id))(x2)))
-              ))(Split(16)(in)))
-      )
-
-    val f_nested4 = fun(
-      ArrayType(Float, Var("N")),
-      in => Join()(MapWrg(fun(x2 =>
-        toGlobal(MapLcl(id))(
-          Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
-            toLocal(MapLcl(id))(x2)))
-              ))(Split(16)(in)))
-    )
-
-    val f_full = fun(
-      ArrayType(Float, Var("N")),
-      in => Join()(MapWrg(fun(x0 =>
-        toGlobal(MapLcl(id))(
-          Iterate(5)(fun(x1 => MapLcl(plusOne)(x1)))(
-            toLocal(MapLcl(id))(x0)))
-              ))(Split(16)(in)))
-    )
-
-    val (output1: Array[Float], _) = Execute(inputSize)(f, input)
-    assertArrayEquals(gold, output1, 0.0f)
-    val (output2: Array[Float], _) = Execute(inputSize)(f_nested, input)
-    assertArrayEquals(gold, output2, 0.0f)
-    val (output3: Array[Float], _) = Execute(inputSize)(f_nested2, input)
-    assertArrayEquals(gold, output3, 0.0f)
-    val (output4: Array[Float], _) = Execute(inputSize)(f_nested3, input)
-    assertArrayEquals(gold, output4, 0.0f)
-    val (output5: Array[Float], _) = Execute(inputSize)(f_nested4, input)
-    assertArrayEquals(gold, output5, 0.0f)
-    val (output6: Array[Float], _) = Execute(inputSize)(f_full, input)
-    assertArrayEquals(gold, output6, 0.0f)
+    val output = Interpreter(f).->[Vector[Float]].run(input).toArray
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def decompose(): Unit = {
@@ -613,31 +479,9 @@ class TestMisc {
       (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o Map(fun(x => Map(fun(y => Zip(x, y))) $ Y )) $ X
     )
 
-    val (output: Array[Float], _) = Execute(nSize)(f, A, B)
+    val outputVec = Interpreter(f).->[Vector[Vector[Vector[Float]]]].run(A,B) //AndFlatten(A, B).toArray[Float]
+
+    val output = outputVec.flatten.flatten.toArray
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
-  }
-
-  @Test def localMemoryRegression(): Unit = {
-    val f =
-      fun(
-        ArrayType(Float, Var("N")),
-        x => Join() o MapWrg(
-          Join() o MapLcl(
-            Join() o MapSeq(
-              toGlobal(MapSeq(id)) o Gather(reverse) o toLocal(MapSeq(id))
-            ) o Split(2)
-          ) o Split(2)
-        ) o Split(512) $ x
-
-      )
-
-    val input = Array.fill(2048)(util.Random.nextInt(5).toFloat)
-
-    val code = Compile(f)
-
-    val (output: Array[Float], _) = Execute(16, 2048)(code, f, input)
-
-    assertEquals(input.sum, output.sum, 0.0f)
-    assertEquals(8, "l_id".r.findAllMatchIn(code).length)
   }
 }
