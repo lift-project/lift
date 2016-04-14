@@ -385,7 +385,7 @@ object View {
     OutputView(expr)
   }
 
-  private def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)]): Type = {
+  private[view] def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)]): Type = {
     outputAccessInf.foldLeft(outputType)((t, len) => ArrayType(t, len._1))
   }
 

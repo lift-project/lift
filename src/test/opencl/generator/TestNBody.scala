@@ -1,14 +1,19 @@
 package opencl.generator
 
+import java.io.{File, PrintWriter}
+
 import apart.arithmetic.Var
 import benchmarks.NBody
 import ir._
 import ir.ast._
+import ir.printer.DotPrinter
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+
+import sys.process._
 
 object TestNBody {
 
@@ -269,6 +274,7 @@ class TestNBody {
 
   @Ignore
   @Test
+  // TODO: missing synchronisation
   def nBodyLocalMem(): Unit = {
 
     val inputSize = 512
@@ -339,10 +345,119 @@ class TestNBody {
           )) o Split(128) $ Zip(pos, vel)
     )
 
-    val (output: Array[Float], _) =
-      Execute(128, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
 
-    println(function)
+    val code = """#ifndef Tuple_float4_float4_DEFINED
+#define Tuple_float4_float4_DEFINED
+typedef struct {
+  float4 _0;
+  float4 _1;
+} Tuple_float4_float4;
+#endif
+#ifndef Tuple_Tuple_float4_float4_float4_DEFINED
+#define Tuple_Tuple_float4_float4_float4_DEFINED
+typedef struct {
+  Tuple_float4_float4 _0;
+  float4 _1;
+} Tuple_Tuple_float4_float4_float4;
+#endif
+#ifndef Tuple_float4_float4_DEFINED
+#define Tuple_float4_float4_DEFINED
+typedef struct {
+  float4 _0;
+  float4 _1;
+} Tuple_float4_float4;
+#endif
+float4 id(float4 x){
+  { return x; }}
+float4 calcAcc(float4 p1, float4 p2, float deltaT, float espSqr, float4 acc){
+  {
+  float4 r;
+  r.xyz = p1.xyz - p2.xyz;
+  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
+  float invDist = 1.0f / sqrt(distSqr + espSqr);
+  float invDistCube = invDist * invDist * invDist;
+  float s = invDistCube * p2.w;
+  float4 res;
+  res.xyz = acc.xyz + s * r.xyz;
+  return res;
+}}
+Tuple_float4_float4 update(float4 pos, float4 vel, float deltaT, float4 acceleration){
+  typedef Tuple_float4_float4 Tuple;
+  {
+  float4 newPos;
+  newPos.xyz = pos.xyz + vel.xyz * deltaT + 0.5f * acceleration.xyz * deltaT * deltaT;
+  newPos.w = pos.w;
+  float4 newVel;
+  newVel.xyz = vel.xyz + acceleration.xyz * deltaT;
+  newVel.w = vel.w;
+  Tuple t = {newPos, newVel};
+  return t;
+}
+    }
+kernel void KERNEL(const global float* restrict v__16, const global float* restrict v__17, float v__18, float v__19, global Tuple_float4_float4* v__32, int v_N_0){
+#ifndef WORKGROUP_GUARD
+#define WORKGROUP_GUARD
+#endif
+WORKGROUP_GUARD
+{
+  /* Static local memory */
+  local float v__25[512];
+  /* Typed Value memory */
+  float4 v__22;
+  /* Private Memory */
+  float4 v__23_0;
+  for (int v_wg_id_15 = get_group_id(0); v_wg_id_15 < (v_N_0 / (128)); v_wg_id_15 += get_num_groups(0)) {
+    {
+      float4 v__60 = 0.0f;
+      v__22 = v__60;
+      /* unroll */
+      v__23_0 = id(v__22);
+      /* end unroll */
+      {
+        /* reduce_seq */
+        for (int v_i_14 = 0; v_i_14 < (v_N_0 / (128)); v_i_14 += 1) {
+          {
+            {
+              int v_l_id_12 = get_local_id(0);
+              {
+                vstore4(id(vload4(((128 * v_i_14) + v_l_id_12),v__16)),v_l_id_12,v__25);
+              }
+            }
+            barrier(CLK_LOCAL_MEM_FENCE);
+            /* unroll */
+            {
+              /* reduce_seq */
+              for (int v_i_10 = 0; v_i_10 < 128; v_i_10 += 1) {
+                {
+                  v__23_0 = calcAcc(vload4(((128 * v_wg_id_15) + get_local_id(0)),v__16), vload4(v_i_10,v__25), v__19, v__18, v__23_0);
+                }
+              }
+              /* end reduce_seq */
+            }
+            /* end unroll */
+            barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+          }
+        }
+        /* end reduce_seq */
+      }
+      /* unroll */
+      v__32[((128 * v_wg_id_15) + get_local_id(0))] = update(vload4(((128 * v_wg_id_15) + get_local_id(0)),v__16), vload4(((128 * v_wg_id_15) + get_local_id(0)),v__17), v__19, v__23_0);
+      /* end unroll */
+    }
+  }
+}
+}""".stripMargin
+
+    Execute(128, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
+    val (output: Array[Float], _) =
+      Execute(128, inputSize, (true, false))(code, function, pos, vel, espSqr, deltaT)
+
+
+    val filename = "nbody"
+
+    new DotPrinter(new PrintWriter(new File(s"/home/s1042579/$filename.dot"))).print(function)
+
+    s"dot -Tpdf /home/s1042579/$filename.dot -o /home/s1042579/$filename.pdf".!
 
     assertArrayEquals(gold, output, 0.0001f)
 

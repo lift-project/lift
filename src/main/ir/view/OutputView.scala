@@ -96,39 +96,33 @@ object OutputView {
 
   private def buildViewUserFun(writeView: View, uf:UserFun, call: FunCall): View = {
 
-      call.args.foreach({
-        case p: Param  =>
-          p.outputView = View.initialiseNewView(p.t, p.outputDepth)
-        case c@FunCall(Get(i), p) =>
-          println("<<<<<<<<<< " + p.accessInf)
-          val memCollection = p.mem.asInstanceOf[OpenCLMemoryCollection]
-          if (p.outputView != NoView) {
+    call.args.foreach({
+      case p: Param  =>
+        val contLocal = OpenCLMemory.containsLocalMemory(p.mem)
+        val contPrivate = OpenCLMemory.containsPrivateMemory(p.mem)
+        val outDepth = if (contPrivate) p.accessInf.privateAccessInf
+        else if (contLocal) p.accessInf.localAccessInf
+        else p.accessInf.globalAccessInf
 
-            val contLocal = OpenCLMemory.containsLocalMemory(c.mem)
-            val contPrivate = OpenCLMemory.containsPrivateMemory(c.mem)
+        p.outputView = View.initialiseNewView(p.t, outDepth)
+      case c@FunCall(Get(i), p) =>
+        println("<<<<<<<<<< " + p.accessInf)
+        val memCollection = p.mem.asInstanceOf[OpenCLMemoryCollection]
 
-            val outDepth = if (contPrivate) p.accessInf.l(i).privateAccessInf
-            else if (contLocal) p.accessInf.l(i).localAccessInf
-            else p.accessInf.l(i).globalAccessInf
+        val contLocal = OpenCLMemory.containsLocalMemory(c.mem)
+        val contPrivate = OpenCLMemory.containsPrivateMemory(c.mem)
+        val outDepth = if (contPrivate) p.accessInf.l(i).privateAccessInf
+        else if (contLocal) p.accessInf.l(i).localAccessInf
+        else p.accessInf.l(i).globalAccessInf
 
-            val subviews = p.outputView.asInstanceOf[ViewZip].ivs.toArray
-            subviews(i) = View.initialiseNewView(c.t, outDepth)
-            p.outputView = ViewZip(subviews, p.t)
+        val subviews = if (p.outputView != NoView)
+          p.outputView.asInstanceOf[ViewZip].ivs.toArray
+        else
+          Array.fill[View](memCollection.subMemories.length)(NoView)
 
-          } else {
-
-            val contLocal = OpenCLMemory.containsLocalMemory(c.mem)
-            val contPrivate = OpenCLMemory.containsPrivateMemory(c.mem)
-
-            val outDepth = if (contPrivate) p.accessInf.l(i).privateAccessInf
-            else if (contLocal) p.accessInf.l(i).localAccessInf
-            else p.accessInf.l(i).globalAccessInf
-
-            val subviews = Array.fill[View](memCollection.subMemories.length)(NoView)
-            subviews(i) = View.initialiseNewView(c.t, outDepth)
-            p.outputView = ViewZip(subviews, p.t)
-          }
-      })
+        subviews(i) = View.initialiseNewView(c.t, outDepth)
+        p.outputView = ViewZip(subviews, p.t)
+    })
 
     if (uf.name == "id" && call.t == Float4) {
       println(call)

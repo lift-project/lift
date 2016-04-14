@@ -169,13 +169,14 @@ private class BuildDepthInfo() {
     val readsLocal = OpenCLMemory.containsLocalMemory(call.args(1).mem)
     val readsPrivate = OpenCLMemory.containsPrivateMemory(call.args(1).mem)
 
+    val length = Type.getLength(call.args(1).t)
     r.f.params(0).accessInf = l.l.head
     r.f.params(1).accessInf =
-      l.l(1)((Type.getLength(call.args(1).t), r.loopVar), readsPrivate, readsLocal || seenMapLcl)
+      l.l(1)((length, r.loopVar), readsPrivate, readsLocal || seenMapLcl)
 
-    println(s">>>>>>>>>> ${Type.getLength(call.args(1).t)}  ${r.loopVar}")
+    println(s">>>>>>>>>> $length  ${r.loopVar}")
 
-    buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), r.loopVar, readsLocal, readsPrivate, l)
+    buildDepthInfoReducePatternCall(r.f.body, call, length, r.loopVar, readsLocal, readsPrivate, l)
     AccessInfo(privateAccessInf, globalAccessInf, localAccessInf)
   }
 
