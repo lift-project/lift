@@ -676,7 +676,7 @@ class OpenCLGenerator extends Generator {
   private def generateReduceSeqCall(r: AbstractReduce,
                                     call: FunCall,
                                     block: Block): Unit = {
-    val unroll: Boolean = OpenCLMemory.containsPrivateMemory(call.args(1).mem)
+    val unroll = OpenCLMemory.containsPrivateMemory(call.args(1).mem)
 
     val nestedBlock = OpenCLAST.Block(Vector.empty)
     nestedBlock += OpenCLAST.Comment("reduce_seq")

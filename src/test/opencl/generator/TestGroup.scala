@@ -26,9 +26,6 @@ object TestGroup {
   }
 }
 
-/**
-  * Created by Bastian Hagedorn on 04.04.16.
-  */
 class TestGroup {
 
   val UNROLL = true
@@ -40,6 +37,15 @@ class TestGroup {
       MapSeqUnroll(g)
     else
       MapSeq(g)
+
+  val gaussWeights = Array(0f, 0.12f, 0.08f,
+      0.12f, 0.20f, 0.12f,
+      0.08f, 0.12f, 0.08f)
+  val sobelWeights = Array(-1, -2, -1,
+      0, 0, 0,
+      1, 2, 1).map(_.toFloat)
+
+
 
   /**
     * Creates simple 1D Group Lambda = Map(Map(id) o Group $ data
@@ -66,7 +72,7 @@ class TestGroup {
       (domain) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
-            MapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
+            MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
           ))
         ) o Group2D(indices) $ domain
       }
@@ -117,7 +123,7 @@ class TestGroup {
     * @param lambda executes the given lambda and applies it to data
     * @return grouped data
     */
-  def createGroup1D(lambda: Lambda1, data: Array[Float]): (Array[Float], Double) = {
+  def createGroups1D(lambda: Lambda1, data: Array[Float]): (Array[Float], Double) = {
     val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
     (output, runtime)
   }
@@ -136,7 +142,7 @@ class TestGroup {
     */
   def compareGoldWithOutput(gold: Array[Float], output: Array[Float], runtime: Double): Unit = {
     println("runtime = " + runtime)
-    println(output.mkString(", "))
+    //println(output.mkString(", "))
     assertArrayEquals(gold, output, 0.00001f)
   }
 
@@ -144,50 +150,50 @@ class TestGroup {
       GROUP 1D
    ***********************************************************/
   @Test def groupLeftCurrentRight(): Unit = {
-    val gold = Array(0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f, 2.0f, 3.0f, 4.0f)
+    val gold = Array(0, 1, 2, 1, 2, 3, 2, 3, 4).map(_.toFloat)
     val indices = Array(-1, 0, 1)
 
-    val (output: Array[Float], runtime: Double) = createGroup1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def groupCurrentWithTwoRightNeighbours(): Unit = {
-    val gold = Array(0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f, 2.0f, 3.0f, 4.0f)
+    val gold = Array(0, 1, 2, 1, 2, 3, 2, 3, 4).map(_.toFloat)
     val indices = Array(0, 1, 2)
 
-    val (output: Array[Float], runtime: Double) = createGroup1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def groupCurrentWithTwoLeftNeighbours(): Unit = {
-    val gold = Array(0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f, 2.0f, 3.0f, 4.0f)
+    val gold = Array(0, 1, 2, 1, 2, 3, 2, 3, 4).map(_.toFloat)
     val indices = Array(-2, -1, 0)
 
-    val (output: Array[Float], runtime: Double) = createGroup1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def groupIdentity(): Unit = {
     val indices = Array(0)
 
-    val (output: Array[Float], runtime: Double) = createGroup1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
     compareGoldWithOutput(data, output, runtime)
   }
 
   @Test def groupLeftGapTwoToTheRight(): Unit = {
-    val gold = Array(0.0f, 3.0f, 1.0f, 4.0f)
+    val gold = Array(0, 3, 1, 4).map(_.toFloat)
     val indices = Array(-1, 2)
 
-    val (output: Array[Float], runtime: Double) = createGroup1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def groupTwoLeftTwoRight(): Unit = {
-    val data = Array(0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f)
-    val gold = Array(0.0f, 1.0f, 3.0f, 4.0f, 1.0f, 2.0f, 4.0f, 5.0f)
+    val data = Array(0, 1, 2, 3, 4, 5).map(_.toFloat)
+    val gold = Array(0, 1, 3, 4, 1, 2, 4, 5).map(_.toFloat)
     val indices = Array(-2, -1, 1, 2)
 
-    val (output: Array[Float], runtime: Double) = createGroup1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
@@ -240,14 +246,14 @@ class TestGroup {
     * Grouping left and right neighbours
     */
   @Test def group2DRelColsOnly(): Unit = {
-    val gold = Array(0.0f, 1.0f, 2.0f,
-      1.0f, 2.0f, 3.0f,
-      4.0f, 5.0f, 6.0f,
-      5.0f, 6.0f, 7.0f,
-      8.0f, 9.0f, 10.0f,
-      9.0f, 10.0f, 11.0f,
-      12.0f, 13.0f, 14.0f,
-      13.0f, 14.0f, 15.0f)
+    val gold = Array(0, 1, 2,
+      1, 2, 3,
+      4, 5, 6,
+      5, 6, 7,
+      8, 9, 10,
+      9, 10, 11,
+      12, 13, 14,
+      13, 14, 15).map(_.toFloat)
     val relCols = Array(-1, 0, 1)
     val relRows = Array(0)
 
@@ -260,14 +266,14 @@ class TestGroup {
     * Group top and bottom neighbours
     */
   @Test def group2DRelRowsOnly(): Unit = {
-    val gold = Array(0.0f, 4.0f, 8.0f,
-      1.0f, 5.0f, 9.0f,
-      2.0f, 6.0f, 10.0f,
-      3.0f, 7.0f, 11.0f,
-      4.0f, 8.0f, 12.0f,
-      5.0f, 9.0f, 13.0f,
-      6.0f, 10.0f, 14.0f,
-      7.0f, 11.0f, 15.0f)
+    val gold = Array(0, 4, 8,
+      1, 5, 9,
+      2, 6, 10,
+      3, 7, 11,
+      4, 8, 12,
+      5, 9, 13,
+      6, 10, 14,
+      7, 11, 15).map(_.toFloat)
     val relRows = Array(-1, 0, 1)
     val relCols = Array(0)
 
@@ -280,10 +286,10 @@ class TestGroup {
     */
   @Test def group2DAssymetric(): Unit = {
     val data2D = Array.tabulate(5, 5) { (i, j) => i * 5.0f + j }
-    val gold = Array(0.0f, 3.0f, 15.0f, 18.0f,
-      1.0f, 4.0f, 16.0f, 19.0f,
-      5.0f, 8.0f, 20.0f, 23.0f,
-      6.0f, 9.0f, 21.0f, 24.0f)
+    val gold = Array(0, 3, 15, 18,
+      1, 4, 16, 19,
+      5, 8, 20, 23,
+      6, 9, 21, 24).map(_.toFloat)
     val relRows = Array(-2, 1)
     val relCols = Array(-1, 2)
 
@@ -316,7 +322,7 @@ class TestGroup {
       s"""|P2
           |${img.length} ${img.head.length}
           |255
-          |${img.map(_.map(x => (x * 255.0f).toInt).mkString("\n")).mkString("\n")}
+          |${img.map(_.map(x => (x /* * 255.0f*/).toInt).mkString("\n")).mkString("\n")}
       """.stripMargin)
     out.close()
   }
@@ -336,7 +342,7 @@ class TestGroup {
     val height = scanner.nextInt()
     val max = scanner.nextInt()
 
-    val input = Array.tabulate(width, height)((r, c) => scanner.nextInt()).map(_.map(_ / max.toFloat))
+    val input = Array.tabulate(width, height)((r, c) => scanner.nextInt()).map(_.map(_/*/ max*/.toFloat))
     scanner.close()
     (width, height, input)
   }
@@ -373,7 +379,7 @@ class TestGroup {
     * @param weights    weights applied to each group
     * @param name       name of the resulting picture
     */
-  def RunSimple2DStencilWithoutPadding(neighbours: Array[Int], weights: Array[Float], name: String): Unit = {
+  def runSimple2DStencilWithoutPadding(neighbours: Array[Int], weights: Array[Float], name: String): Unit = {
     try {
       val (width, height, input) = readInputImage(lenaPGM)
       val f = createSimpleStencilWithoutPad(neighbours, weights)
@@ -383,6 +389,7 @@ class TestGroup {
 
       val outOfBoundElementsX = Math.abs(Math.min(0, neighbours.min)) + Math.max(0, neighbours.max)
       savePGM(name, outputLocation, output.grouped(width - outOfBoundElementsX).toArray)
+
     } catch {
       case x: Exception => x.printStackTrace()
     }
@@ -394,11 +401,7 @@ class TestGroup {
     */
   @Test def gaussianBlurNoPad(): Unit = {
     val neighbours = Array(-1, 0, 1)
-    val weights = Array(0.08f, 0.12f, 0.08f,
-      0.12f, 0.20f, 0.12f,
-      0.08f, 0.12f, 0.08f)
-
-    RunSimple2DStencilWithoutPadding(neighbours, weights, "gauss.pgm")
+    runSimple2DStencilWithoutPadding(neighbours, gaussWeights, "gaussNoPad.pgm")
   }
 
   /**
@@ -407,10 +410,6 @@ class TestGroup {
     */
   @Test def sobelFilterNoPad(): Unit = {
     val neighbours = Array(-1, 0, 1)
-    val weights = Array(-1.0f, -2.0f, -1.0f,
-      0.0f, 0.0f, 0.0f,
-      1.0f, 2.0f, 1.0f)
-
-    RunSimple2DStencilWithoutPadding(neighbours, weights, "sobel.pgm")
+    runSimple2DStencilWithoutPadding(neighbours, sobelWeights, "sobelNoPad.pgm")
   }
 }
