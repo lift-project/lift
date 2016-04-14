@@ -35,4 +35,6 @@ Intel ![](http://skelter:8080/job/apart-intel/branch/master/badge/icon)
 
 AMD ![](http://skelter:8080/job/apart-amd/branch/master/badge/icon)
 
+AMD-GPU ![](http://skelter:8080/job/apart-amd-gpu/branch/master/badge/icon)
+
 NVIDIA ![](http://skelter:8080/job/apart-nvidia/branch/master/badge/icon)
