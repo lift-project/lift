@@ -1,19 +1,13 @@
 package opencl.generator
 
-import java.io._
-import java.util.Scanner
-
 import apart.arithmetic.Var
 import ir.ast._
-import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
 import opencl.ir.pattern._
-import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import opencl.ir._
 import ir._
 import ir.ast.Pad.BoundaryFun
-import spl.{Stencil, Stencil2D}
 
 import scala.collection.immutable.IndexedSeq
 import scala.util.Random
@@ -56,8 +50,9 @@ class TestStencil extends TestGroup {
    ***********************************************************/
   override val UNROLL = false
   val randomData = Seq.fill(1024)(Random.nextFloat()).toArray
+  // currently used for 2D stencils / refactor to run with every boundary condition
   val BOUNDARY = Pad.Boundary.Clamp
-  val SCALABOUNDARY = scalaClamp
+  val SCALABOUNDARY: (Int, Int) => Int = scalaClamp
 
   /**
     * Creates a single neighbourhood for an element in a given array
@@ -70,23 +65,28 @@ class TestStencil extends TestGroup {
     */
   def scalaGather1DNeighboursForSpecificElement(data: Array[Float],
                                                 relIndices: Array[Int],
-                                                idx: Int): Array[Float] = {
+                                                idx: Int,
+                                                boundary: (Int, Int) => Int = SCALABOUNDARY): Array[Float] = {
     relIndices.map(x => {
-      val newIdx = SCALABOUNDARY(idx + x, data.length)
+      val newIdx = boundary(idx + x, data.length)
       data(newIdx)
     })
   }
 
-  def scala2DNeighbours(data: Array[Array[Float]], relRows: Array[Int],
-                        relColumns: Array[Int], r: Int, c: Int) = {
+  def scala2DNeighbours(data: Array[Array[Float]],
+                        relRows: Array[Int],
+                        relColumns: Array[Int],
+                        r: Int,
+                        c: Int,
+                        boundary: (Int, Int) => Int = SCALABOUNDARY) = {
     val nrRows = data.length
     val nrColumns = data(0).length
 
     relRows.flatMap(x => {
-      var newR = SCALABOUNDARY(r + x, nrRows)
+      var newR = boundary(r + x, nrRows)
 
       relColumns.map(y => {
-        var newC = SCALABOUNDARY(c + y, nrRows)
+        var newC = boundary(c + y, nrRows)
         data(newR)(newC)
       })
     })
@@ -118,9 +118,9 @@ class TestStencil extends TestGroup {
         scala2DNeighbours(data, relRows, relColumns, r, c))
     )
 
-    println(neighbours(0).mkString(","))
+    val clamp = (x: Float) => if(x < 0.0f) 0.0f else x
 
-    neighbours.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)).toArray
+    neighbours.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)).toArray.map(clamp(_))
   }
 
   /**
@@ -251,6 +251,19 @@ class TestStencil extends TestGroup {
       })
   }
 
+  def create2DPadGroupLambda(boundary: BoundaryFun, neighbours: Array[Int]): Lambda1 = {
+    fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      (domain) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours =>
+            MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
+          ))
+        ) o Group2D(neighbours) o Pad2D(neighbours.map(Math.abs).max, boundary) $ domain
+      }
+    )
+  }
+
   def run2DStencil(neighbours: Array[Int],
                    weights: Array[Float],
                    name: String,
@@ -272,33 +285,41 @@ class TestStencil extends TestGroup {
     }
   }
 
-  @Test def groupClampPaddedData2D() = {
-    val data2D = Array.tabulate(3, 3) { (i, j) => i * 3.0f + j }
-    val neighbours = Array(-1, 0, 1)
-
-    val f = fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      (domain) => {
-        MapGlb(1)(
-          MapGlb(0)(fun(neighbours =>
-            MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
-          ))
-        ) o Group2D(neighbours) o Pad2D(neighbours.map(Math.abs).max, Pad.Boundary.Clamp) $ domain
-      }
-    )
-
+  def runCombinedPadGroupTest(neighbours: Array[Int], boundary: BoundaryFun, scalaBoundary: (Int, Int) => Int): Unit = {
     val nrRows = data2D.length
     val nrColumns = data2D(0).length
-
-    val gold: IndexedSeq[Array[Float]] = (0 until nrRows).flatMap(r =>
+    val gold = (0 until nrRows).flatMap(r =>
       (0 until nrColumns).map(c =>
-        scala2DNeighbours(data2D, neighbours, neighbours, r, c))
+        scala2DNeighbours(data2D, neighbours, neighbours, r, c, scalaBoundary))
     )
 
-    val (output: Array[Float], runtime) = Execute(data2D.length, data2D.length)(f, data2D)
-    println(data2D.flatten.mkString(", "))
-    println("OUTPUT: " + output.mkString(", "))
-    println("GOLD  : " + gold.flatten.mkString(", "))
+    val lambda = create2DPadGroupLambda(boundary, neighbours)
+    val (output: Array[Float], runtime) = Execute(data2D.length, data2D.length)(lambda, data2D)
+    compareGoldWithOutput(gold.flatten.toArray, output, runtime)
+  }
+
+  @Test def groupClampPaddedData2D() = {
+    val neighbours = Array(-1, 0, 1)
+    val boundary = Pad.Boundary.Clamp
+    val scalaBoundary = scalaClamp
+
+    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
+  }
+
+  @Test def groupMirrorPaddedData2D() = {
+    val neighbours = Array(-1, 0, 1)
+    val boundary = Pad.Boundary.Mirror
+    val scalaBoundary = scalaMirror
+
+    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
+  }
+
+  @Test def groupWrapPaddedData2D() = {
+    val neighbours = Array(-1, 0, 1)
+    val boundary = Pad.Boundary.Wrap
+    val scalaBoundary = scalaWrap
+
+    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
   }
 
   @Test def gaussianBlur(): Unit = {
