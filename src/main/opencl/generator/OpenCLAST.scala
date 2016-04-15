@@ -14,6 +14,17 @@ object OpenCLAST {
   trait BlockMember
 
   implicit def exprToStmt(e: Expression) : ExpressionStatement = ExpressionStatement(e)
+  implicit def predicateToCondExpression(p: Predicate) : CondExpression = {
+    CondExpression(ArithExpression(p.lhs), ArithExpression(p.rhs), p.op match {
+      case Predicate.Operator.!= => CondExpression.Operator.!=
+      case Predicate.Operator.< => CondExpression.Operator.<
+      case Predicate.Operator.<= => CondExpression.Operator.<=
+      case Predicate.Operator.== => CondExpression.Operator.==
+      case Predicate.Operator.> => CondExpression.Operator.>
+      case Predicate.Operator.>= => CondExpression.Operator.>=
+    })
+  }
+
 
   abstract class Statement extends OclAstNode with BlockMember
   abstract class Expression extends OclAstNode
@@ -84,13 +95,13 @@ object OpenCLAST {
 
   /** An if-then-else set of statements, with two branches. 
     *
-    * @param switchPredicate the predicate in the conditional
+    * @param cond the condition
     * @param trueBody the body evaluated if switchPredicate is true
     * @param falseBody the body evaluated if switchPredicate is false
     */
-  case class Conditional(switchPredicate: Predicate,
-                         trueBody: Block,
-                         falseBody: Block = Block()) extends Statement
+  case class IfThenElse(cond: Expression,
+                        trueBody: Block,
+                        falseBody: Block = Block()) extends Statement
 
   /** A Label, targeted by a corresponding goto
     * 

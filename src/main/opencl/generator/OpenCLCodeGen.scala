@@ -62,7 +62,7 @@ class OpenCLCodeGen {
         val innerAe = gc.innerAe
         "groupComp" + gc.group.id + "(" + toString(outerAe) + ", " +
         toString(innerAe) + ")"
-      case i: IfThenElse =>
+      case i: apart.arithmetic.IfThenElse =>
         s"( (${toString(i.test.lhs)} ${i.test.op} ${toString(i.test.rhs)}) ? " +
         s"${toString(i.t)} : ${toString(i.e)} )"
       case _ => throw new NotPrintableExpression(e.toString)
@@ -159,7 +159,7 @@ class OpenCLCodeGen {
     case c: Cast          => print(c)
     case l: VectorLiteral => print(l)
     case e: Extension     => print(e)
-    case c: Conditional   => print(c)
+    case i: OpenCLAST.IfThenElse    => print(i)
     case l: Label         => print(l)
     case g: GOTO          => print(g)
     case s: StructConstructor => print(s)
@@ -382,19 +382,19 @@ class OpenCLCodeGen {
 
   /** Generate an if-then-else conditional set of statements
     * 
-    * @param c a [[Conditional]] node
+    * @param s a [[IfThenElse]] node
     */
-  private def print(c: Conditional) {
-    println("if(" + toString(c.switchPredicate) + ")")
-    // printBlock {
-      print(c.trueBody)
-    // }
-    if(c.falseBody != Block())
+  private def print(s: OpenCLAST.IfThenElse) {
+    print("if(")
+    print(s.cond)
+    println(")")
+
+    print(s.trueBody)
+
+    if(s.falseBody != Block())
     {
       println("else")
-    // printBlock {
-      print(c.falseBody)
-    // }
+      print(s.falseBody)
     }
   }
 

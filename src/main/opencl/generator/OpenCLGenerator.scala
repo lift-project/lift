@@ -1021,31 +1021,34 @@ class OpenCLGenerator extends Generator {
     val range = indexVar.range.asInstanceOf[RangeAdd]
     val step = range.step
     val init = ArithExpression(range.start)
-    val cond =  CondExpression(ArithExpression(indexVar), ArithExpression(iterationCountExpr), CondExpression.Operator.<)
+    val stop = range match {
+      case ra : RangeAdd => ra.stop
+      case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
+
+    }
+    val cond =  CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
 
     // try to see if we really need a loop
     iterationCountExpr match {
       case Cst(0) =>
-        // 0 iteration
+        // zero iteration
         block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is 0, no loop emitted")
         return
 
       case Cst(1) =>
-        // 1 iteration
+        // one iteration
         block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1, no loop emitted")
         val innerBlock = OpenCLAST.Block(Vector.empty)
-        block.asInstanceOf[Block] += innerBlock
-        block.asInstanceOf[Block] += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
+        innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
         generateBody(innerBlock)
+        block.asInstanceOf[Block] += innerBlock
         return
 
       case IntDiv (Cst(1), x) if x.getClass == ?.getClass =>
         // one or less iteration
         block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
         val innerBlock = OpenCLAST.Block(Vector.empty)
-        block.asInstanceOf[Block] += innerBlock
-        block.asInstanceOf[Block] += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
-        block.asInstanceOf[Block] += OpenCLAST.ExpressionStatement(cond)
+        block.asInstanceOf[Block] += OpenCLAST.IfThenElse(CondExpression(init, ArithExpression(stop), CondExpression.Operator.<),innerBlock)
         generateBody(innerBlock)
         return
 
@@ -1109,7 +1112,7 @@ class OpenCLGenerator extends Generator {
                                   genFalseBranch: (Block) => Unit ) : Unit = {
     val trueBlock = OpenCLAST.Block(Vector.empty)
     val falseBlock = OpenCLAST.Block(Vector.empty)
-    block.asInstanceOf[Block] += OpenCLAST.Conditional(switchPredicate, trueBody = trueBlock, falseBody = falseBlock)
+    block.asInstanceOf[Block] += OpenCLAST.IfThenElse(switchPredicate, trueBody = trueBlock, falseBody = falseBlock)
     genTrueBranch(trueBlock)
     genFalseBranch(falseBlock)
   }
