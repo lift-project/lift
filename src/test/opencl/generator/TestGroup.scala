@@ -300,11 +300,11 @@ class TestGroup {
   /* **********************************************************
    2D STENCILS WITHOUT PADDING
   ***********************************************************/
-  val outputLocation = "../../../../../../Downloads/"
-  val lenaPGM = "../../../../../../Downloads/lena.ascii.pgm"
+  val outputLocation = "../../../../../../Downloads/pgm"
+  val lenaPGM = "../../../../../../Downloads/pgm/lena.ascii.pgm"
 
   /**
-    * ensures that resulting pixel value x will be 0 <= x <= 255
+    * ensures that resulting pixel value will be greater than 0
     */
   val clamp = UserFun("my_clamp", "i", "{ return (i < 0) ? 0 : i;  }",
     Float, Float)
