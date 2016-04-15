@@ -1024,9 +1024,44 @@ class OpenCLGenerator extends Generator {
     val stop = range match {
       case ra : RangeAdd => ra.stop
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
-
     }
     val cond =  CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
+
+    // if we need to unroll (e.g. because of access to private memory)
+    if (needUnroll) {
+      val iterationCount = try {
+        iterationCountExpr.eval
+      } catch {
+        case _: NotEvaluableException =>
+          throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
+            "could not be determined statically.")
+      }
+
+      if (iterationCount > 0) {
+        block.asInstanceOf[Block] += OpenCLAST.Comment("unroll")
+
+        for (i <- 0 until iterationCount) {
+          replacements = replacements.updated(indexVar, i)
+          val j: ArithExpr =
+            if (range.min.isInstanceOf[OclFunction]) {
+              range.min + step * i
+            } else {
+              i
+            }
+          replacementsWithFuns = replacementsWithFuns.updated(indexVar, j)
+
+          generateBody(block)
+        }
+        // cleanup
+        replacements = replacements - indexVar
+        replacementsWithFuns = replacementsWithFuns - indexVar
+
+        block.asInstanceOf[Block] += OpenCLAST.Comment("end unroll")
+        return
+      } else {
+        throw new OpenCLGeneratorException(s"Trying to unroll loop, but iteration count is $iterationCount.")
+      }
+    }
 
     // try to see if we really need a loop
     iterationCountExpr match {
@@ -1048,6 +1083,7 @@ class OpenCLGenerator extends Generator {
         // one or less iteration
         block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
         val innerBlock = OpenCLAST.Block(Vector.empty)
+        innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
         block.asInstanceOf[Block] += OpenCLAST.IfThenElse(CondExpression(init, ArithExpression(stop), CondExpression.Operator.<),innerBlock)
         generateBody(innerBlock)
         return
@@ -1056,41 +1092,7 @@ class OpenCLGenerator extends Generator {
     }
 
 
-    // if we need to unroll
-      if (needUnroll) {
-        val iterationCount = try {
-          iterationCountExpr.eval
-        } catch {
-          case _: NotEvaluableException =>
-            throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
-              "could not be determined statically.")
-        }
 
-        if (iterationCount > 0) {
-          block.asInstanceOf[Block] += OpenCLAST.Comment("unroll")
-
-          for (i <- 0 until iterationCount) {
-            replacements = replacements.updated(indexVar, i)
-            val j: ArithExpr =
-              if (range.min.isInstanceOf[OclFunction]) {
-                range.min + step * i
-              } else {
-                i
-              }
-            replacementsWithFuns = replacementsWithFuns.updated(indexVar, j)
-
-            generateBody(block)
-          }
-          // cleanup
-          replacements = replacements - indexVar
-          replacementsWithFuns = replacementsWithFuns - indexVar
-
-          block.asInstanceOf[Block] += OpenCLAST.Comment("end unroll")
-          return
-        } else {
-          throw new OpenCLGeneratorException(s"Trying to unroll loop, but iteration count is $iterationCount.")
-        }
-      }
 
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val innerBlock = OpenCLAST.Block(Vector.empty)

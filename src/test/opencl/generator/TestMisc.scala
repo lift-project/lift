@@ -766,7 +766,7 @@ class TestMisc {
     val (output: Array[Float], _) = Execute(16, 2048)(code, f, input)
 
     assertEquals(input.sum, output.sum, 0.0f)
-    assertEquals(8, "l_id".r.findAllMatchIn(code).length)
+    assertEquals(9, "l_id".r.findAllMatchIn(code).length)
   }
 
   @Ignore
