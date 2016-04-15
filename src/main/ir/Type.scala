@@ -1,6 +1,6 @@
 package ir
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic.{PosVar, ArithExpr, Cst, Var}
 import arithmetic.TypeVar
 
 import scala.collection.{immutable, mutable}
@@ -52,6 +52,8 @@ sealed abstract class Type {
       case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
     }
   }
+
+  def hasFixedSize : Boolean
 }
 
 /**
@@ -62,6 +64,7 @@ sealed abstract class Type {
  */
 case class ScalarType(name: String, size: ArithExpr) extends Type {
   override def toString = name
+  override def hasFixedSize = true
 }
 
 /**
@@ -73,6 +76,7 @@ case class ScalarType(name: String, size: ArithExpr) extends Type {
  */
 case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
   override def toString = scalarT.toString + len.toString
+  override def hasFixedSize = true
 }
 
 /**
@@ -84,7 +88,11 @@ case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
 case class TupleType(elemsT: Type*) extends Type {
   override def toString
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
+
+  override def hasFixedSize = elemsT.forall(_.hasFixedSize)
+
 }
+
 
 /**
  * Instances of this class represent array types with length information
@@ -103,19 +111,41 @@ case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
   }
 
   override def toString = "Arr(" +elemT+","+len+ ")"
+
+  override def hasFixedSize = elemT.hasFixedSize
+}
+
+
+// todo make sure we can distinguish between different unkownlengtharraytype (override hashCode and equals)
+class UnknownLengthArrayType(override val elemT: Type, override val len: Var = PosVar("unknown_length")) extends ArrayType(elemT, len) {
+  override def hasFixedSize = false
+}
+
+object UnknownLengthArrayType {
+  def apply(elemT: Type, len: Var = PosVar("unknown_length")) = {
+    new UnknownLengthArrayType(elemT, len)
+  }
+  def unapply(array: UnknownLengthArrayType): Option[(Type, Var)] =
+    Some((array.elemT, array.len))
 }
 
 /**
  * This instance indicates that a type has not been determined yet, e.g., prior
  * to type checking
  */
-object UndefType extends Type {override def toString = "UndefType"}
+object UndefType extends Type {
+  override def toString = "UndefType"
+  override def hasFixedSize = false
+}
 
 /**
  * This instance indicates that there should be nothing, i.e., this corresponds
  * to `void` or `bottom` in other type systems.
  */
-object NoType extends Type {override def toString = "NoType"}
+object NoType extends Type {
+  override def toString = "NoType"
+  override def hasFixedSize = true
+}
 
 /**
  * Collection of operations on types
@@ -396,6 +426,8 @@ object Type {
   def substitute(t: Type,
                  substitutions: immutable.Map[ArithExpr, ArithExpr]) : Type = {
     Type.visitAndRebuild(t, t1 => t1, {
+      case UnknownLengthArrayType(et,len) => // TODO add substitution here
+        new UnknownLengthArrayType(et,len)
       case ArrayType(et,len) =>
         new ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
 

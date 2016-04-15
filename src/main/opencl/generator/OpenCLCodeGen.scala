@@ -96,7 +96,7 @@ class OpenCLCodeGen {
     code
     indent -= 1
     moveCursorBack(tabSize)
-    println("}")
+    print("}")
   }
 
   /** Print the given string an create an indented new line */
@@ -121,20 +121,36 @@ class OpenCLCodeGen {
    */
   private def print(node: OclAstNode): Unit = node match {
     case b: Block =>
-      if(b.global) b.content.foreach(print)
-      else printBlock { b.content.foreach(print) }
+      if(b.global) {
+        b.content.foreach(
+          n => {
+            print(n)
+            println("")
+          }
+        )
+
+      }
+      else printBlock {
+        b.content.foreach(n => {
+          print(n)
+          println("")
+        })
+      }
 
     case f: Function      => print(f)
     case i: OpenCLCode    => sb ++= i.code
-    case c: Comment       => println(s"/* ${c.content} */")
+    case c: Comment       => print(s"/* ${c.content} */")
     case v: VarDecl       => print(v)
     case v: VarRef        => print(v)
     case p: ParamDecl     => print(p)
     case b: Barrier       => print(b)
-    case l: Loop          => print(l)
+    //case l: Loop          => print(l)
+    case l: ForLoop       => print(l)
     case w: WhileLoop     => print(w)
-    case e: Expression    => print(toString(e.content))
-    case a: Assignment    => print(a)
+    case es: ExpressionStatement => print(es)
+    case ae: ArithExpression  => print(toString(ae.content))
+    case c: CondExpression   => print(c)
+    case a: AssignmentExpression    => print(a)
     case f: FunctionCall  => print(f)
     case l: Load          => print(l)
     case s: Store         => print(s)
@@ -149,6 +165,12 @@ class OpenCLCodeGen {
     case s: StructConstructor => print(s)
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
+  }
+
+  private def print(c: CondExpression): Unit = {
+      print(c.lhs)
+      print(c.cond.toString)
+      print(c.rhs)
   }
 
   private def print(c: Cast): Unit = {
@@ -207,7 +229,7 @@ class OpenCLCodeGen {
     print(s.offset)
     print(",")
     print(s.v)
-    println(");")
+    print(");")
   }
 
   private def print(f: FunctionCall): Unit = {
@@ -251,11 +273,16 @@ class OpenCLCodeGen {
       println("}")
   }
 
-  private def print(a: Assignment): Unit = {
+  private def print(es: ExpressionStatement): Unit = {
+    print(es.e)
+    print(";")
+  }
+
+
+  private def print(a: AssignmentExpression): Unit = {
     print(a.to)
     print(" = ")
     print(a.value)
-    println(";")
   }
 
   private def print(p: ParamDecl): Unit = p.t match {
@@ -269,45 +296,46 @@ class OpenCLCodeGen {
       print(toString(p.t) + " " + p.name)
   }
 
-  private def print(v: VarDecl): Unit = v.t match {
+
+  private def print(vd: VarDecl): Unit = vd.t match {
     case a: ArrayType =>
-      v.addressSpace match {
+      vd.addressSpace match {
         case PrivateMemory =>
-          for (i <- 0 until v.length)
-            println(toString(Type.getValueType(v.t)) + " " + v.name + "_" +
+          for (i <- 0 until vd.length)
+            print(toString(Type.getValueType(vd.t)) + " " + toString(vd.v) + "_" +
                     toString(i) + ";")
 
-        case LocalMemory if v.length != 0 =>
-          val baseType = Type.getBaseType(v.t)
-          println(s"${v.addressSpace} ${toString(baseType)} " +
-                  s"${v.name}[${v.length}];")
+        case LocalMemory if vd.length != 0 =>
+          val baseType = Type.getBaseType(vd.t)
+          print(s"${vd.addressSpace} ${toString(baseType)} " +
+                  s"${toString(vd.v)}[${vd.length}];")
 
         case x =>
-          val baseType = Type.getBaseType(v.t)
-          print(s"${v.addressSpace} ${toString(baseType)} *${v.name}")
-          if(v.init != null) {
+          val baseType = Type.getBaseType(vd.t)
+          print(s"${vd.addressSpace} ${toString(baseType)} *${toString(vd.v)}")
+          if(vd.init != null) {
             print(s" = ")
-            print(v.init)
+            print(vd.init)
           }
-          println(";")
+          print(";")
       }
 
     case x =>
       // hackily add support for global memory pointers, but _only_ pointers
-      v.t match {
+      vd.t match {
         case IntPtr => 
-          if(v.addressSpace == GlobalMemory)
-          print(v.addressSpace + " ")
+          if(vd.addressSpace == GlobalMemory)
+          print(vd.addressSpace + " ")
         case _ => 
       }
-      if(v.addressSpace == LocalMemory)
-        print(v.addressSpace + " ")
-      print(s"${toString(v.t)} ${v.name}")
-      if(v.init != null) {
+      if(vd.addressSpace == LocalMemory)
+        print(vd.addressSpace + " ")
+      print(s"${toString(vd.t)} ${toString(vd.v)}")
+      if(vd.init != null) {
         print(s" = ")
-        print(v.init)
+        print(vd.init)
       }
-      println(";")
+      print(";")
   }
 
   /**
@@ -322,50 +350,19 @@ class OpenCLCodeGen {
   })
 
 
+
+
   /**
-   * Generate a loop. The following optimizations are applied:
-   *  - dead loops do not emit any code
-   *  - loops with a trip count of 1 are emitted as if statements
-   *  - anything else is a for-loop
-   * @param l a [[Loop]] node.
-   */
-  private def print(l: Loop) {
-    val range = l.indexVar.range.asInstanceOf[RangeAdd]
-
-    val init = range.start
-    val cond = range.stop
-    val update = range.step
-
-    l.iter match {
-      case Cst(0) =>
-
-      case Cst(1) =>
-        // exactly one iteration
-        printBlock {
-          println("int " + toString(l.indexVar) + " = " + toString(init) + ";")
-          print(l.body)
-        }
-
-      case IntDiv (Cst(1), x) if x.getClass == ?.getClass =>
-        // one or less iteration
-        printBlock {
-          println("int " + toString(l.indexVar) + " = " + toString(init) + ";")
-          print("if (" + toString(l.indexVar) + " < (" + toString(cond) + ")) ")
-          printBlock {
-            print(l.body)
-          }
-        }
-
-      case _ =>
-        // as the default print of the default loop
-        print ("for (int " + toString (l.indexVar) + " = " +
-               toString (init) + "; " +
-          toString (l.indexVar) + " < " + toString (cond) + "; " +
-          toString (l.indexVar) + " += " + toString (update) + ") ")
-        printBlock {
-          print(l.body)
-        }
-    }
+    * Generate a for loop.
+    * @param fl a [[ForLoop]] node.
+    */
+  private def print(fl: ForLoop) {
+    print("for (")
+    print(fl.init)
+    print(fl.cond)
+    print(fl.increment)
+    print(")")
+    print(fl.body)
   }
 
 

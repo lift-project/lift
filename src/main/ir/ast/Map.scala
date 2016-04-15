@@ -22,10 +22,12 @@ abstract class AbstractMap(val f: Lambda,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
+      case UnknownLengthArrayType(t, v) =>
+        f.params(0).t = t
+        UnknownLengthArrayType(TypeChecker.check(f.body, setType), v)
       case ArrayType(t, n) =>
         f.params(0).t = t
         ArrayType(TypeChecker.check(f.body, setType), n)
-
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
