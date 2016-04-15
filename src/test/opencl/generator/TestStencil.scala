@@ -408,6 +408,7 @@ class TestStencil extends TestGroup {
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  @Ignore
   @Test def heatDiffusion1D(): Unit = {
     val data = Array.fill[Float](32)(0.0f)
     data(1023) = 100.0f
