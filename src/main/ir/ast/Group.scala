@@ -12,6 +12,11 @@ case class Group(relIndices: Array[Int]) extends Pattern(arity = 1) with isGener
   Group.cnt += 1
   val id = Group.cnt
 
+  val offset = Math.abs(Math.min(0, relIndices.min))
+
+  // internally relIndices will be used shiftet to all positives
+  val posIndices = relIndices.map(_+offset)
+
   override def toString: String = "Group([" + relIndices.mkString(",") + "])"
 
   override def checkType(argType: Type,

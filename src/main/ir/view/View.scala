@@ -520,7 +520,7 @@ object ViewPrinter {
 
         ag.t match {
           case ArrayType(t, len) =>
-            val newIdx = outerId._1 + new GroupCall(ag.group, innerId._1)
+            val newIdx = outerId._1 + new Lookup(ag.group.posIndices, innerId._1, ag.group.id)
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()

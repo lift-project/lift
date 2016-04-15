@@ -56,7 +56,7 @@ class OpenCLCodeGen {
       case ai: AccessVar => ai.array + "[" + toString(ai.idx) + "]"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
-      case gc: GroupCall => "groupComp" + gc.group.id + "(" + toString(gc.innerAe) + ")"
+      case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
       case i: IfThenElse =>
         s"( (${toString(i.test.lhs)} ${i.test.op} ${toString(i.test.rhs)}) ? " +
         s"${toString(i.t)} : ${toString(i.e)} )"

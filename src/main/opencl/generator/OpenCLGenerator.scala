@@ -232,7 +232,7 @@ class OpenCLGenerator extends Generator {
 
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach( globalBlock += _ )
-    generateGroupFunctions(f.body).foreach( globalBlock += _ )
+    generateLookupFunctionsForGroups(f.body).foreach( globalBlock += _ )
 
     // pass 3: generate the kernel
     globalBlock += generateKernel(f)
@@ -278,7 +278,7 @@ class OpenCLGenerator extends Generator {
   }
 
   /** Traverses f and print all group functions using oclPrinter */
-  private def generateGroupFunctions(expr: Expr): Seq[OclAstNode] = {
+  private def generateLookupFunctionsForGroups(expr: Expr): Seq[OclAstNode] = {
     var fs = Seq[OclAstNode]()
 
     val groupFuns = Expr.visitWithState(Set[Group]())(expr, (expr, set) =>
@@ -291,15 +291,14 @@ class OpenCLGenerator extends Generator {
       })
 
     groupFuns.foreach(group => {
-      val offset = Math.abs(Math.min(0,group.relIndices.min))
       fs = fs :+ OpenCLAST.Function(
-        name = s"groupComp${group.id}",
+        name = s"lookup${group.id}",
         ret = Int,
         params = List(
           OpenCLAST.ParamDecl("i", Int)
         ),
         body = OpenCLAST.Block(Vector(OpenCLAST.OpenCLCode(
-          s"""|  int relIndices[] = {${group.relIndices.map(_+offset).deep.mkString(", ")}};
+          s"""|  int relIndices[] = {${group.posIndices.deep.mkString(", ")}};
               |  return relIndices[i];
               |""".stripMargin
         ))))
