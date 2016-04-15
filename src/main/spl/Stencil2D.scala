@@ -1,10 +1,9 @@
 package spl
 
-import apart.arithmetic.ArithExpr
-import ir.ast.{Group2D, Lambda, Pad2D}
+import ir.ast.{Group2D, Lambda, Pad2D, Pad}
 
 object Stencil2D {
-  def apply(neighbors: Array[Int], boundary: (ArithExpr, ArithExpr) => ArithExpr): Lambda = {
+  def apply(neighbors: Array[Int], boundary: Pad.BoundaryFun): Lambda = {
     Group2D(neighbors) o Pad2D(neighbors.map(Math.abs).max, boundary)
   }
 }

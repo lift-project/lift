@@ -193,7 +193,7 @@ abstract class View(val t: Type = UndefType) {
     }
   }
 
-  def pad(offset: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr): View = {
+  def pad(offset: Int, boundary: Pad.BoundaryFun): View = {
     this.t match {
       case ArrayType(elemT, len) =>
         new ViewPad(this, offset, boundary, ArrayType(elemT, len + 2 * offset))
@@ -348,10 +348,10 @@ private[view] case class ViewTail(iv: View, override val t: Type) extends View(t
  *
  * @param iv The view to pad.
  * @param size The number of elements to add on either side.
- * @param fct The index function to remap the elements.
+ * @param fct The boundary handling function.
  * @param t The type of view.
  */
-private[view] case class ViewPad(iv: View, size: Int, fct: (ArithExpr, ArithExpr) => ArithExpr,
+private[view] case class ViewPad(iv: View, size: Int, fct: Pad.BoundaryFun,
                    override val t: Type) extends View(t)
 
 

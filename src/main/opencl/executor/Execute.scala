@@ -153,7 +153,6 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
    */
   def apply(f: Lambda, values: Any*): (Any, Double) = {
     val code = compile(f, values:_*)
-
     execute(code, f, values: _*)
   }
 

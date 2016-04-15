@@ -209,7 +209,7 @@ object InputView {
     new ViewTail(argView, tail.t)
   }
 
-  private def buildViewPad(size: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr, argView: View) : View = {
+  private def buildViewPad(size: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
     argView.pad(size, boundary)
   }
 }

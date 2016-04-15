@@ -3,7 +3,7 @@ package ir.ast
 import apart.arithmetic.ArithExpr
 import ir.{TypeException, ArrayType, Type}
 
-case class Pad(paddingSize: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr)
+case class Pad(paddingSize: Int, boundary: Pad.BoundaryFun)
   extends Pattern(arity = 1) with isGenerable
 {
   override def checkType(argType: Type,
@@ -16,25 +16,41 @@ case class Pad(paddingSize: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr)
 }
 
 object Pad {
-  type BoundaryFun = (ArithExpr, ArithExpr) => ArithExpr
+
+  abstract class BoundaryFun {
+    def apply(idx: ArithExpr, len: ArithExpr): ArithExpr // move this into ReindexingFun eventually ...
+  }
 
   object Boundary {
-    val Wrap: BoundaryFun = (idx: ArithExpr, len: ArithExpr) => (idx % len + len) % len
-    val Clamp: BoundaryFun = (idx: ArithExpr, len: ArithExpr) => ArithExpr.Math.Clamp(idx, 0, len-1)
-    val Mirror: BoundaryFun = (idx: ArithExpr, len: ArithExpr) => {
-      val id = ((idx lt 0) ?? (-1-idx) !! idx) % (2*len)
-      (id ge len) ?? (len+len-id-1) !! id
+    //class Constant(val left: ArithExpr, val right: ArithExpr) extends BoundaryFun
+
+    abstract class ReindexingFun extends BoundaryFun //{
+    //  def apply(idx: ArithExpr,  len: ArithExpr): ArithExpr
+    //}
+
+    object Wrap extends ReindexingFun {
+      override def apply(idx: ArithExpr, len: ArithExpr) = {
+        (idx % len + len) % len
+      }
     }
 
-    val Bounce: BoundaryFun = (idx: ArithExpr, len: ArithExpr) => {
-      throw new NotImplementedError("Not Implemented")
+    object Clamp extends ReindexingFun {
+      override def apply(idx: ArithExpr, len: ArithExpr) = {
+        ArithExpr.Math.Clamp(idx, 0, len-1)
+      }
+    }
+
+    object Mirror extends ReindexingFun {
+      override def apply(idx: ArithExpr, len: ArithExpr) = {
+        val id = ((idx lt 0) ?? (-1-idx) !! idx) % (2*len)
+        (id ge len) ?? (len+len-id-1) !! id
+      }
     }
   }
 }
 
 object Pad2D {
-  import ir.ast.Pad.BoundaryFun
-  def apply(paddingSize: Int, boundary: BoundaryFun): Lambda = {
+  def apply(paddingSize: Int, boundary: Pad.BoundaryFun): Lambda = {
     Transpose() o Pad(paddingSize, boundary) o Transpose() o Pad(paddingSize, boundary)
   }
 }
