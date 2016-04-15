@@ -37,9 +37,6 @@ class TestPad {
   val input = Array(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p)
   val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
 
-  /// constant padding
-  val X = 0f
-
   def validate1D(gold: Array[Float], size: Int, boundary: Pad.BoundaryFun, input: Array[Float] = input) = {
     val fct = fun(
       ArrayType(Float, Var("N")),
@@ -53,28 +50,15 @@ class TestPad {
 
   def validate2D(gold: Array[Float], size: Int, boundary: Pad.BoundaryFun) = {
     val N = Var("N")
-
-    println(s"N: $N")
-
-    val x: ArithExpr = ((2 + N) * N) / (2 + N)
-
-    println(s"x: $x")
-
     val fct = fun(
       ArrayType(ArrayType(Float, N), N),
       (domain) => MapGlb(0)(
         MapGlb(1)(id)) o
-        Transpose() o Pad(size, boundary) o Transpose() o Pad(size, boundary) $ domain
+         Pad2D(size, boundary) $ domain
     )
 
     val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input2D)
     println("runtime = " + runtime)
-
-    println("INPUT2D: " + input2D.flatten.mkString(", "))
-    input2D.map(x => println(x.mkString(", ")))
-    println("INPUT  : " + input.mkString(", "))
-    println("GOLD   : " + gold.mkString(", "))
-    println("OUTPUT : " + output.mkString(", "))
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -95,41 +79,62 @@ class TestPad {
   /* **********************************************************
         PAD 1D
      ***********************************************************/
-  @Test def pad1DClampOffset1(): Unit = {
+  @Test def pad1DClampSize1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     println(gold.mkString(", "))
     validate1D(gold, 1, Clamp)
   }
 
-  @Test def pad1DClampOffset2(): Unit = {
+  @Test def pad1DClampSize2(): Unit = {
     val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
     validate1D(gold, 2, Clamp)
   }
 
-  @Test def pad1DMirrorOffset1(): Unit = {
+  @Test def pad1DClampSize8(): Unit = {
+    val input = Array(a,b,c,d)
+    val gold  = Array(A,A,A,A,A,A,A,A,a,b,c,d,D,D,D,D,D,D,D,D)
+
+    validate1D(gold, 8, Clamp, input)
+  }
+
+  @Test def pad1DMirrorSize1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     validate1D(gold, 1, Mirror)
   }
 
-  @Test def pad1DMirrorOffset2(): Unit = {
+  @Test def pad1DMirrorSize2(): Unit = {
     val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
     validate1D(gold, 2, Mirror)
   }
 
-  @Test def pad1DWrapOffset1(): Unit = {
+  @Test def pad1DMirrorSize8(): Unit = {
+    val input = Array(a,b,c,d)
+    val gold  = Array(A,B,C,D,D,C,B,A,a,b,c,d,D,C,B,A,A,B,C,D)
+
+    validate1D(gold, 8, Mirror, input)
+  }
+
+  @Test def pad1DWrapSize1(): Unit = {
     val gold = Array(P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A)
     validate1D(gold, 1, Wrap)
   }
 
-  @Test def pad1DWrapOffset2(): Unit = {
+  @Test def pad1DWrapSize2(): Unit = {
     val gold = Array(O,P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A,B)
     validate1D(gold, 2, Wrap)
+  }
+
+  @Test def pad1DWrapSize8(): Unit = {
+    val input = Array(a,b,c,d)
+    val gold  = Array(A,B,C,D,A,B,C,D,a,b,c,d,A,B,C,D,A,B,C,D)
+
+    validate1D(gold, 8, Wrap, input)
   }
 
   /* **********************************************************
         PAD 2D
      ***********************************************************/
-  @Test def PAD_2D_CLAMP_Pos_1(): Unit = {
+  @Test def pad2DClampSize1(): Unit = {
     val gold = Array(
       A, A, B, C, D, D,
       A, a, b, c, d, D,
@@ -141,129 +146,76 @@ class TestPad {
     validate2D(gold, 1, Clamp)
   }
 
-  @Test def PAD_2D_CLAMP_Pos_2(): Unit = {
+  @Test def pad2DClampSize2(): Unit = {
     val gold = Array(
-      A, A, A, B, C, D, D, D, // <
-      A, A, A, B, C, D, D, D, // <
+      A, A, A, B, C, D, D, D,
+      A, A, A, B, C, D, D, D,
       A, A, a, b, c, d, D, D,
       E, E, e, f, g, h, H, H,
       I, I, i, j, k, l, L, L,
       M, M, m, n, o, p, P, P,
-      M, M, M, N, O, P, P, P, // <
-      M, M, M, N, O, P, P, P) // <
-    //^  ^              ^  ^
+      M, M, M, N, O, P, P, P,
+      M, M, M, N, O, P, P, P)
 
     validate2D(gold, 2, Clamp)
   }
 
-  // === Test bounce boundary condition ===
-  @Ignore
-  @Test def PAD_1D_BOUNCE_Pos_1(): Unit = {
-    val gold = Array(B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O)
-    //               ^                                 ^
-
-    validate1D(gold, 1, Bounce)
-  }
-
-  @Ignore
-  @Test def PAD_1D_BOUNCE_Pos_2(): Unit = {
-    val gold = Array(C,B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O,N)
-    //               ^ ^                                 ^ ^
-
-    validate1D(gold, 2, Bounce)
-  }
-
-  @Ignore
-  @Test def PAD_2D_BOUNCE_Pos_1(): Unit = {
+  @Test def pad2DMirrorSize1(): Unit = {
     val gold = Array(
-      F, E, F, G, H, G, // <
-      B, a, b, c, d, C,
-      F, e, f, g, h, G,
-      J, i, j, k, l, K,
-      N, m, n, o, p, O,
-      J, I, J, K, L, K) // <
-    //^              ^
-
-    validate2D(gold, 1, Bounce)
-  }
-
-  @Ignore
-  @Test def PAD_2D_BOUNCE_Pos_2(): Unit = {
-    val gold = Array(
-      K, J, I, J, K, L, K, J, // <
-      G, F, E, F, G, H, G, F, // <
-      C, B, a, b, c, d, C, B,
-      G, F, e, f, g, h, G, F,
-      K, J, i, j, k, l, K, J,
-      O, N, m, n, o, p, O, N,
-      K, J, I, J, K, L, K, J, // <
-      G, F, E, F, G, H, G, F) // <
-    //^  ^              ^  ^
-
-    validate2D(gold, 2, Bounce)
-  }
-
-  // === Test mirror boundary condition ===
-
-
-  @Test def PAD_2D_MIRROR_Pos_1(): Unit = {
-    val gold = Array(
-      A, A, B, C, D, D, // <
+      A, A, B, C, D, D,
       A, a, b, c, d, D,
       E, e, f, g, h, H,
       I, i, j, k, l, L,
       M, m, n, o, p, P,
-      M, M, N, O, P, P) // <
-    //^              ^
+      M, M, N, O, P, P)
 
     validate2D(gold, 1, Mirror)
   }
 
-  @Test def PAD_2D_MIRROR_Pos_2(): Unit = {
+  @Test def pad2DMirrorSize2(): Unit = {
     val gold = Array(
-      F, E, E, F, G, H, H, G, // <
-      B, A, A, B, C, D, D, C, // <
+      F, E, E, F, G, H, H, G,
+      B, A, A, B, C, D, D, C,
       B, A, a, b, c, d, D, C,
       F, E, e, f, g, h, H, G,
       J, I, i, j, k, l, L, K,
       N, M, m, n, o, p, P, O,
-      N, M, M, N, O, P, P, O, // <
-      J, I, I, J, K, L, L, K) // <
-    //^  ^              ^  ^
+      N, M, M, N, O, P, P, O,
+      J, I, I, J, K, L, L, K)
 
     validate2D(gold, 2, Mirror)
   }
 
-  // === Test wrap boundary condition ===
-
-  @Test def PAD_2D_WRAP_Pos_1(): Unit = {
+  @Test def pad2DWrapSize1(): Unit = {
     val gold = Array(
-      P, M, N, O, P, M, // <
+      P, M, N, O, P, M,
       D, a, b, c, d, A,
       H, e, f, g, h, E,
       L, i, j, k, l, I,
       P, m, n, o, p, M,
-      D, A, B, C, D, A) // <
-    //^              ^
+      D, A, B, C, D, A)
 
     validate2D(gold, 1, Wrap)
   }
 
-  @Test def PAD_2D_WRAP_Pos_2(): Unit = {
+  @Test def pad2DWrapSize2(): Unit = {
     val gold = Array(
-      K, L, I, J, K, L, I, J, // <
-      O, P, M, N, O, P, M, N, // <
+      K, L, I, J, K, L, I, J,
+      O, P, M, N, O, P, M, N,
       C, D, a, b, c, d, A, B,
       G, H, e, f, g, h, E, F,
       K, L, i, j, k, l, I, J,
       O, P, m, n, o, p, M, N,
-      C, D, A, B, C, D, A, B, // <
-      G, H, E, F, G, H, E, F) // <
-    //^  ^              ^  ^
+      C, D, A, B, C, D, A, B,
+      G, H, E, F, G, H, E, F)
 
     validate2D(gold, 2, Wrap)
   }
 
+    /* **********************************************************
+        OLD STUFF WHICH MIGHT TURN OUT USEFUL
+     ***********************************************************/
+  /*
   // === Test custom boundary condition ===
   @Ignore
   @Test def PAD_1D_CUSTOM_Pos_1(): Unit = {
@@ -320,7 +272,7 @@ class TestPad {
 
     throw new RuntimeException("Test case not implemented")
   }
-
+    */
   // *** STAGE 2: corner cases ***
 
   // Pad using padding elements when padding > n
@@ -334,14 +286,8 @@ class TestPad {
     validate1D(gold, 8, CONSTANT(X), input)
   }*/
 
-  @Test def PAD_PadPadding_CLAMP(): Unit = {
-    val input = Array(a,b,c,d)
-    val gold  = Array(A,A,A,A,A,A,A,A,a,b,c,d,D,D,D,D,D,D,D,D)
-    //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
-
-    validate1D(gold, 8, Clamp, input)
-  }
-
+  /*
+  // *** STAGE 3: invalid usages ***
   @Ignore
   @Test def PAD_PadPadding_BOUNCE(): Unit = {
     val input = Array(a,b,c,d)
@@ -350,24 +296,6 @@ class TestPad {
 
     validate1D(gold, 8, Bounce, input)
   }
-
-  @Test def PAD_PadPadding_MIRROR(): Unit = {
-    val input = Array(a,b,c,d)
-    val gold  = Array(A,B,C,D,D,C,B,A,a,b,c,d,D,C,B,A,A,B,C,D)
-    //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
-
-    validate1D(gold, 8, Mirror, input)
-  }
-
-  @Test def PAD_PadPadding_WRAP(): Unit = {
-    val input = Array(a,b,c,d)
-    val gold  = Array(A,B,C,D,A,B,C,D,a,b,c,d,A,B,C,D,A,B,C,D)
-    //                ^ ^ ^ ^ ^ ^ ^ ^         ^ ^ ^ ^ ^ ^ ^ ^
-
-    validate1D(gold, 8, Wrap, input)
-  }
-
-  // *** STAGE 3: invalid usages ***
 
   // Padding an empty array
   @Ignore
@@ -385,7 +313,7 @@ class TestPad {
   }
 
   // === Test constant boundary condition ===
-  /*@Ignore
+  @Ignore
   @Test def PAD_1D_CONSTANT_Pos_1(): Unit = {
     val gold = Array(X,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,X)
     //               ^                                 ^
@@ -429,6 +357,51 @@ class TestPad {
     //^  ^              ^  ^
 
     validate2D(gold, 2, CONSTANT(X))
-  }*/
+  // === Test bounce boundary condition ===
+  @Ignore
+  @Test def PAD_1D_BOUNCE_Pos_1(): Unit = {
+    val gold = Array(B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O)
+    //               ^                                 ^
 
+    validate1D(gold, 1, Bounce)
+  }
+
+  @Ignore
+  @Test def PAD_1D_BOUNCE_Pos_2(): Unit = {
+    val gold = Array(C,B,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,O,N)
+    //               ^ ^                                 ^ ^
+
+    validate1D(gold, 2, Bounce)
+  }
+
+  @Ignore
+  @Test def PAD_2D_BOUNCE_Pos_1(): Unit = {
+    val gold = Array(
+      F, E, F, G, H, G, // <
+      B, a, b, c, d, C,
+      F, e, f, g, h, G,
+      J, i, j, k, l, K,
+      N, m, n, o, p, O,
+      J, I, J, K, L, K) // <
+    //^              ^
+
+    validate2D(gold, 1, Bounce)
+  }
+
+  @Ignore
+  @Test def PAD_2D_BOUNCE_Pos_2(): Unit = {
+    val gold = Array(
+      K, J, I, J, K, L, K, J, // <
+      G, F, E, F, G, H, G, F, // <
+      C, B, a, b, c, d, C, B,
+      G, F, e, f, g, h, G, F,
+      K, J, i, j, k, l, K, J,
+      O, N, m, n, o, p, O, N,
+      K, J, I, J, K, L, K, J, // <
+      G, F, E, F, G, H, G, F) // <
+    //^  ^              ^  ^
+
+    validate2D(gold, 2, Bounce)
+  }
+  }*/
 }
