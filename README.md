@@ -34,6 +34,6 @@ Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. T
 Platform      | Status
 ------------- | -------------
 Intel         | ![](http://skelter:8080/job/apart-intel-master/badge/icon)
-AMD-CPU       | ![](http://skelter:8080/job/apart-amd-master/badge/icon)
+AMD-CPU       | ![](http://skelter:8080/job/apart-amd-cpu-master/badge/icon)
 AMD-GPU       | ![](http://skelter:8080/job/apart-amd-gpu-master/badge/icon)
 NVIDIA        | ![](http://skelter:8080/job/apart-nvidia-master/badge/icon)
