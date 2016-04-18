@@ -48,7 +48,7 @@ class TestStencil extends TestGroup {
   /* **********************************************************
       STENCIL TEST SETTINGS
    ***********************************************************/
-  override val UNROLL = false
+  override val UNROLL = true
   val randomData = Seq.fill(1024)(Random.nextFloat()).toArray
   // currently used for 2D stencils / refactor to run with every boundary condition
   val BOUNDARY = Pad.Boundary.Clamp

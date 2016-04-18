@@ -298,8 +298,8 @@ class OpenCLGenerator extends Generator {
           OpenCLAST.ParamDecl("i", Int)
         ),
         body = OpenCLAST.Block(Vector(OpenCLAST.OpenCLCode(
-          s"""|  int relIndices[] = {${group.posIndices.deep.mkString(", ")}};
-              |  return relIndices[i];
+          s"""|  int table[] = {${group.posIndices.deep.mkString(", ")}};
+              |  return table[i];
               |""".stripMargin
         ))))
     })
