@@ -138,13 +138,10 @@ private class BuildDepthInfo() {
     if (m.isInstanceOf[MapLcl])
       seenMapLcl = orig
 
-    m.f.body match {
-      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
-        // create fresh input view for following function
-        AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
-      case _ => // call.isAbstract and return input map view
-        l
-    }
+    if (m.f.body.isConcrete) // create fresh input view for following function
+      AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+    else // call.isAbstract, return input
+      l
   }
 
   def readsLocalPrivate(call: FunCall): (Boolean, Boolean) = {
@@ -167,8 +164,8 @@ private class BuildDepthInfo() {
 
     println(s">>>>>>>>>> $length  ${r.loopVar}")
 
-    buildDepthInfoReducePatternCall(r.f.body, call, length, r.loopVar, readsLocal, readsPrivate, l)
-    AccessInfo(privateAccessInf, globalAccessInf, localAccessInf)
+    buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), r.loopVar, readsLocal, readsPrivate, l)
+    AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
   }
 
   private def buildDepthInfoReducePatternCall(expr: Expr, call: FunCall, index: ArithExpr,

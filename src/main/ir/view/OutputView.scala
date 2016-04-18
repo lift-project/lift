@@ -3,7 +3,7 @@ package ir.view
 import apart.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.{Float4, OpenCLMemory, OpenCLMemoryCollection}
+import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
  * A helper object for constructing views.
@@ -72,18 +72,27 @@ object OutputView {
 
         visitAndBuildViews(call.args(1), result)
       case _ =>
+
         if (call.args.length == 1) {
           call.args.head match {
             case p: Param =>
+
+              // TODO:
               if (p.outputView == NoView)
                 p.outputView = result
+
               result
             case _ =>
               visitAndBuildViews(call.args.head, result)
           }
         }
         else {
-          call.args.foreach(arg => visitAndBuildViews(arg, result))
+
+          call.args.foreach({
+            case p: Param if p.outputView == NoView => p.outputView = result
+            case _: Param =>
+            case arg => visitAndBuildViews(arg, result)
+          })
           // TODO: DEFINITELY WRONG!
           result
         }
@@ -122,7 +131,7 @@ object OutputView {
 
     call.outputView = writeView
 
-    if (uf.name == "update") {
+    if (uf.name == "add") {
 
       println()
     }
@@ -136,7 +145,8 @@ object OutputView {
 
         p.mem match {
           case memCollection: OpenCLMemoryCollection =>
-            val outDepth = getAccessDepth(p.accessInf.l(i), c.mem)
+            val accessInfo = if (p.accessInf.l.nonEmpty) p.accessInf.l(i) else p.accessInf
+            val outDepth = getAccessDepth(accessInfo, c.mem)
 
             val subviews = if (p.outputView != NoView)
               p.outputView.asInstanceOf[ViewTuple].ivs.toArray
@@ -144,7 +154,7 @@ object OutputView {
               Array.fill[View](memCollection.subMemories.length)(NoView)
 
             if (subviews(i) == NoView)
-            subviews(i) = View.initialiseNewView(c.t, outDepth)
+              subviews(i) = View.initialiseNewView(c.t, outDepth)
             c.outputView = subviews(i)
             p.outputView = ViewTuple(subviews, p.t)
 
@@ -152,6 +162,7 @@ object OutputView {
             val outDepth = getAccessDepth(p.accessInf, p.mem)
             p.outputView = View.initialiseNewView(p.t, outDepth)
         }
+      case _ =>
 
     })
 
@@ -192,9 +203,10 @@ object OutputView {
     } else if (l.isInstanceOf[Lambda2]) {
       visitAndBuildViews(l.body, writeView)
       l.params(1).outputView
-    } else
+    } else {
       visitAndBuildViews(l.body, writeView)
       l.params.head.outputView
+    }
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
