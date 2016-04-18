@@ -19,13 +19,12 @@ object TestStencilDebug {
 
 class TestStencilDebug extends TestStencil {
 
-  @Test def debugGroupBigClampPaddedData2D() = {
-    val neighbours = Array(-2 , -1, 0, 1, 2)
-    val data2D = Array.tabulate(10, 10) { (i, j) => i * 10.0f + j }
+  @Test def debugGroupClampPaddedData2D() = {
+    val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = scalaClamp
 
-    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary, data2D)
+    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
   }
 
   @Test def debugGroupMirrorPaddedData2D() = {
