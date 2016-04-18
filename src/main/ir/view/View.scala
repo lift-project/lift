@@ -577,7 +577,9 @@ object ViewPrinter {
       t match {
         case tt: TupleType => getLengthForArrayAccess(Type.getTypeAtIndex(tt, tupleAccesses.head), tupleAccesses.tail)
         case ArrayType(elemT, n) => getLengthForArrayAccess(elemT, tupleAccesses) * n
-        case _ => throw new IllegalArgumentException("PANIC: cannot compute array access")
+        case _ =>
+          throw new IllegalArgumentException(
+            "PANIC: cannot compute array access for type " + t)
       }
     }
   }

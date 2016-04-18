@@ -244,7 +244,7 @@ class TestTuple {
 
     val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
       Join() o MapWrg(
-        Join() o  MapLcl(MapSeq(fun(x => Get(x, 0)))) o Split(4)
+        Join() o  MapLcl(MapSeq(fun(x => id $ Get(x, 0)))) o Split(4)
       ) o Split(1024) $ input
     )
 

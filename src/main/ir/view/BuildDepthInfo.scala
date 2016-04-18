@@ -87,14 +87,6 @@ private class BuildDepthInfo() {
 
   private def buildDepthInfoFunCall(call: FunCall): AccessInfo = {
     val argInf = buildDepthForArgs(call)
-//
-//    if (seenMap) {
-//      if (argInf.globalAccessInf.isEmpty && argInf.l.isEmpty) {
-//
-//
-//        println()
-//      }
-//    }
 
     val result = call match {
       case call: FunCall =>
@@ -112,10 +104,9 @@ private class BuildDepthInfo() {
             call.f match {
               case l: Lambda => buildDepthInfoLambda(l, call, argInf)
               case fp: FPattern =>  buildDepthInfoLambda(fp.f, call, argInf)
-              case _: toLocal =>
-                println("")
                 return argInf
-              case Get(n) => argInf.l(n)
+              case Get(n) =>
+                if (argInf.l.nonEmpty) argInf.l(n) else argInf
               case _: UserFun =>
                 AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
               case _ => argInf

@@ -18,11 +18,14 @@ object OutputView {
    *
    * @param expr Expression to build views for
    */
-  def apply(expr: Expr): Unit = visitAndBuildViews(expr, View(expr.t, ""))
+  def apply(expr: Expr): Unit = {
+    expr.outputView = View(expr.t, "")
+    visitAndBuildViews(expr, View(expr.t, ""))
+  }
 
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
-      case p: Param => writeView
+      case p: Param => p.outputView
       case call: FunCall => buildViewFunCall(call, writeView)
     }
   }
@@ -46,8 +49,9 @@ object OutputView {
       case _: asScalar => buildViewAsScalar(call, writeView)
       case h: Head => buildViewHead(call, writeView)
       case t: Tail => buildViewTail(call, writeView)
-      case fp: FPattern => buildViewFPattern(fp, writeView)
+      case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Zip => buildViewZip(call, writeView)
+//      case Get(i) =>
       case _ => writeView
     }
 
@@ -63,12 +67,21 @@ object OutputView {
         visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth))
 
         if (call.args(1).isInstanceOf[Param])
+
           call.args(1).outputView = result
 
         visitAndBuildViews(call.args(1), result)
       case _ =>
-        if (call.args.length == 1)
-          visitAndBuildViews(call.args.head, result)
+        if (call.args.length == 1) {
+          call.args.head match {
+            case p: Param =>
+              if (p.outputView == NoView)
+                p.outputView = result
+              result
+            case _ =>
+              visitAndBuildViews(call.args.head, result)
+          }
+        }
         else {
           call.args.foreach(arg => visitAndBuildViews(arg, result))
           // TODO: DEFINITELY WRONG!
@@ -94,42 +107,54 @@ object OutputView {
     result
   }
 
+  private def getAccessDepth(accessInfo: AccessInfo, memory: Memory) = {
+    val contLocal = OpenCLMemory.containsLocalMemory(memory)
+    val contPrivate = OpenCLMemory.containsPrivateMemory(memory)
+
+    val outDepth = if (contPrivate) accessInfo.privateAccessInf
+    else if (contLocal) accessInfo.localAccessInf
+    else accessInfo.globalAccessInf
+
+    outDepth
+  }
+
   private def buildViewUserFun(writeView: View, uf:UserFun, call: FunCall): View = {
+
+    call.outputView = writeView
+
+    if (uf.name == "update") {
+
+      println()
+    }
 
     call.args.foreach({
       case p: Param  =>
-        val contLocal = OpenCLMemory.containsLocalMemory(p.mem)
-        val contPrivate = OpenCLMemory.containsPrivateMemory(p.mem)
-        val outDepth = if (contPrivate) p.accessInf.privateAccessInf
-        else if (contLocal) p.accessInf.localAccessInf
-        else p.accessInf.globalAccessInf
-
+        val outDepth = getAccessDepth(p.accessInf, p.mem)
         p.outputView = View.initialiseNewView(p.t, outDepth)
+
       case c@FunCall(Get(i), p) =>
-        println("<<<<<<<<<< " + p.accessInf)
-        val memCollection = p.mem.asInstanceOf[OpenCLMemoryCollection]
 
-        val contLocal = OpenCLMemory.containsLocalMemory(c.mem)
-        val contPrivate = OpenCLMemory.containsPrivateMemory(c.mem)
-        val outDepth = if (contPrivate) p.accessInf.l(i).privateAccessInf
-        else if (contLocal) p.accessInf.l(i).localAccessInf
-        else p.accessInf.l(i).globalAccessInf
+        p.mem match {
+          case memCollection: OpenCLMemoryCollection =>
+            val outDepth = getAccessDepth(p.accessInf.l(i), c.mem)
 
-        val subviews = if (p.outputView != NoView)
-          p.outputView.asInstanceOf[ViewZip].ivs.toArray
-        else
-          Array.fill[View](memCollection.subMemories.length)(NoView)
+            val subviews = if (p.outputView != NoView)
+              p.outputView.asInstanceOf[ViewTuple].ivs.toArray
+            else
+              Array.fill[View](memCollection.subMemories.length)(NoView)
 
-        subviews(i) = View.initialiseNewView(c.t, outDepth)
-        p.outputView = ViewZip(subviews, p.t)
+            if (subviews(i) == NoView)
+            subviews(i) = View.initialiseNewView(c.t, outDepth)
+            c.outputView = subviews(i)
+            p.outputView = ViewTuple(subviews, p.t)
+
+          case _ =>
+            val outDepth = getAccessDepth(p.accessInf, p.mem)
+            p.outputView = View.initialiseNewView(p.t, outDepth)
+        }
+
     })
 
-    if (uf.name == "id" && call.t == Float4) {
-      println(call)
-      println(writeView)
-    }
-
-    call.outputView = writeView
     View.initialiseNewView(call.t, call.outputDepth, "")
   }
 
@@ -138,38 +163,17 @@ object OutputView {
     View.initialiseNewView(call.t, call.outputDepth)
   }
 
-  private def buildViewFPattern(fp: FPattern, writeView: View): View = {
-    visitAndBuildViews(fp.f.body, writeView)
-  }
-
   private def buildViewMap(m: AbstractMap, call: FunCall, writeView: View): View = {
-    var view = writeView
-
-    // TODO: Find a way to deal with this in one place instead of here and in buildViewCompFunDef
-    // If there was a zip, then the view could be wrong
-    if (writeView.t.isInstanceOf[TupleType])
-      view = View.initialiseNewView(call.t, call.inputDepth)
-
     // traverse into call.f
-    val innerView = visitAndBuildViews(m.f.body, view.access(m.loopVar))
+    visitAndBuildViews(m.f.body, writeView.access(m.loopVar))
 
-    if (m.f.body.isConcrete) {
-      // create fresh view for following function
-      View.initialiseNewView(call.args.head.t, call.outputDepth, call.mem.variable.name)
-    } else { // call.isAbstract and return input map view
-      new ViewMap(innerView, m.loopVar, call.args.head.t)
-    }
+    new ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
   }
 
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
-    visitAndBuildViews(call.args.head,
-      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable.name))
     // traverse into call.f
     visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
-    // create fresh input view for following function
-//    View.initialiseNewView(call.args(1).t, call.outputDepth,
-//                           call.mem.variable.name)
     new ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
@@ -184,9 +188,8 @@ object OutputView {
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
     if (l.isInstanceOf[Let]) {
       visitAndBuildViews(l.body, writeView)
-//      View.initialiseNewView(call.args.head.t, List())
       l.params.head.outputView
-    } else if (l.isInstanceOf[Lambda2]){
+    } else if (l.isInstanceOf[Lambda2]) {
       visitAndBuildViews(l.body, writeView)
       l.params(1).outputView
     } else
