@@ -12,7 +12,7 @@ import org.junit.Assert._
 
 import scala.util.Random
 
-object TestStencil {
+object TestStencilDebug {
   @BeforeClass def before() {
     Executor.loadLibrary()
     println("Initialize the executor")
@@ -123,6 +123,7 @@ class TestStencilDebug {
     runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
   }
 
+	@Ignore
   @Test def groupMirrorPaddedData2D() = {
     val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Mirror
@@ -131,6 +132,7 @@ class TestStencilDebug {
     runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
   }
 
+	@Ignore
   @Test def groupWrapPaddedData2D() = {
     val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Wrap
