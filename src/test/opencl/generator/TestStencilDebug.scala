@@ -4,7 +4,7 @@ import apart.arithmetic.Var
 import ir.ast._
 import opencl.executor._
 import opencl.ir.pattern._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 import opencl.ir._
 import ir._
 import ir.ast.Pad.BoundaryFun
@@ -115,6 +115,7 @@ class TestStencilDebug {
     compareGoldWithOutput(gold.flatten.toArray, output, runtime)
   }
 
+	@Ignore
   @Test def groupClampPaddedData2D() = {
     val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Clamp
@@ -123,7 +124,6 @@ class TestStencilDebug {
     runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
   }
 
-	@Ignore
   @Test def groupMirrorPaddedData2D() = {
     val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Mirror
