@@ -149,6 +149,25 @@ class TestStencil extends TestGroup {
     )
   }
 
+  def createFused1DStencilLambda(weights: Array[Float], neighbours: Array[Int]): Lambda2 = {
+    fun(
+      ArrayType(Float, Var("N")),
+      ArrayType(Float, weights.length),
+      (input, weights) => {
+        val padOffset = neighbours.map(Math.abs).max
+        MapGlb(
+          fun(neighbourhood => {
+            toGlobal(MapSeqOrMapSeqUnroll(id)) o
+              ReduceSeq(fun((acc, y) => {
+                multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+              }), 0.0f) $
+              Zip(weights, neighbourhood)
+          })
+        ) o Group(neighbours) o Pad(padOffset, BOUNDARY) $ input
+      }
+    )
+  }
+
   // TODO implement iteration for each boundary condition
   def executeTestForEachBoundaryCondition(neighbours: Array[Int], weights: Array[Float]) = {
     // change function signature to accept additional boundary condition
@@ -162,7 +181,7 @@ class TestStencil extends TestGroup {
     fun(
       ArrayType(Float, Var("N")),
       (input) =>
-        MapGlb(MapSeq(id)) o
+        MapGlb(MapSeqOrMapSeqUnroll(id)) o
           Group(neighbours) o
           Pad(neighbours.map(Math.abs).max, boundary)
           $ input
@@ -180,6 +199,30 @@ class TestStencil extends TestGroup {
   /* **********************************************************
       1D STENCILS
    ***********************************************************/
+  @Test def groupClampPaddedData3Point(): Unit = {
+    val boundary = Pad.Boundary.Clamp
+    val gold = Array(0, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 4).map(_.toFloat)
+    val neighbours = Array(-1, 0, 1)
+
+    testCombinationPadGroup(boundary, gold, neighbours)
+  }
+
+  @Test def groupMirrorPaddedData3Point(): Unit = {
+    val boundary = Pad.Boundary.Mirror
+    val gold = Array(0, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 4).map(_.toFloat)
+    val neighbours = Array(-1, 0, 1)
+
+    testCombinationPadGroup(boundary, gold, neighbours)
+  }
+
+  @Test def groupMirrorUnsafePaddedData3Point(): Unit = {
+    val boundary = Pad.Boundary.MirrorUnsafe
+    val gold = Array(0, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 4).map(_.toFloat)
+    val neighbours = Array(-1, 0, 1)
+
+    testCombinationPadGroup(boundary, gold, neighbours)
+  }
+
   @Test def groupClampPaddedData(): Unit = {
     val boundary = Pad.Boundary.Clamp
     val gold = Array(0, 2, 0, 3, 0, 4, 1, 4, 2, 4).map(_.toFloat)

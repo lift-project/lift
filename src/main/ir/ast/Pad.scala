@@ -46,6 +46,16 @@ object Pad {
         (id ge len) ?? (len+len-id-1) !! id
       }
     }
+
+    // Pad size is not allowed to exceed input size
+    object MirrorUnsafe extends ReindexingFun {
+      override def apply(idx: ArithExpr, len: ArithExpr) = {
+        //(idx ge len) ?? (2*len-idx-1) !! ((idx lt 0) ?? (-1-idx) !! idx)
+        val leftBoundaryCheck = ((idx lt 0) ?? (-1-idx) !! idx)
+        //(leftBoundaryCheck ge len) ?? (2*len-idx-1) !! leftBoundaryCheck
+        (leftBoundaryCheck le len-1) ?? leftBoundaryCheck !! (2*len-idx-1)
+      }
+    }
   }
 }
 

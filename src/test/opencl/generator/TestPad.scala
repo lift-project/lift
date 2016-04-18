@@ -114,6 +114,23 @@ class TestPad {
     validate1D(gold, 8, Mirror, input)
   }
 
+  @Test def pad1DMirrorUnsafeSize1(): Unit = {
+    val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
+    validate1D(gold, 1, MirrorUnsafe)
+  }
+
+  @Test def pad1DMirrorUnsafeSize2(): Unit = {
+    val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
+    validate1D(gold, 2, MirrorUnsafe)
+  }
+
+  @Test def pad1DMirrorUnsafeSize4(): Unit = {
+    val input = Array(a,b,c,d)
+    val gold  = Array(D,C,B,A,a,b,c,d,D,C,B,A)
+
+    validate1D(gold, 4, MirrorUnsafe, input)
+  }
+
   @Test def pad1DWrapSize1(): Unit = {
     val gold = Array(P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A)
     validate1D(gold, 1, Wrap)
@@ -184,6 +201,32 @@ class TestPad {
       J, I, I, J, K, L, L, K)
 
     validate2D(gold, 2, Mirror)
+  }
+
+  @Test def pad2DMirrorUnsafeSize1(): Unit = {
+    val gold = Array(
+      A, A, B, C, D, D,
+      A, a, b, c, d, D,
+      E, e, f, g, h, H,
+      I, i, j, k, l, L,
+      M, m, n, o, p, P,
+      M, M, N, O, P, P)
+
+    validate2D(gold, 1, MirrorUnsafe)
+  }
+
+  @Test def pad2DMirrorUnsafeSize2(): Unit = {
+    val gold = Array(
+      F, E, E, F, G, H, H, G,
+      B, A, A, B, C, D, D, C,
+      B, A, a, b, c, d, D, C,
+      F, E, e, f, g, h, H, G,
+      J, I, i, j, k, l, L, K,
+      N, M, m, n, o, p, P, O,
+      N, M, M, N, O, P, P, O,
+      J, I, I, J, K, L, L, K)
+
+    validate2D(gold, 2, MirrorUnsafe)
   }
 
   @Test def pad2DWrapSize1(): Unit = {
