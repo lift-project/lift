@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{Log, SizeVar, Var}
+import apart.arithmetic.{ArithExpr, Log, SizeVar, Var}
 import benchmarks.MatrixVector
 import ir._
 import ir.ast._
@@ -9,6 +9,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 import opencl.ir.pattern._
+import rewriting.utils.ScalaPrinter
 
 object TestMatrixVector {
   @BeforeClass def before() {
@@ -24,6 +25,52 @@ object TestMatrixVector {
 }
 
 class TestMatrixVector {
+
+  @Test
+  def hawaiiBest(): Unit = {
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M0_0 = variables(0)
+      val v_N1_1 = variables(1)
+      val v_2_2 = variables(2)
+
+      val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+      val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+      val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+      fun(ArrayType(ArrayType(Float, v_M0_0), v_N1_1), ArrayType(Float, v_M0_0), ArrayType(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), p_16))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split((v_M0_0*1/^(v_2_2))), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
+    }
+
+    val M = Var("M")
+    val N = Var("N")
+
+    val f = factory(Seq[ArithExpr](M,N, 128))
+
+    println(ScalaPrinter(f))
+
+    val code = Compile(f, 128,1,1,128*4096,1,1,scala.collection.immutable.Map[ArithExpr,ArithExpr](M -> 4096, N -> 4096))
+  }
+
+  @Test
+  def keplerBest(): Unit = {
+
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M0_0 = variables(0)
+      val v_N1_1 = variables(1)
+      val v_2_2 = variables(2)
+
+      val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+      val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+      val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+      fun(ArrayType(ArrayType(Float, v_M0_0), v_N1_1), ArrayType(Float, v_M0_0), ArrayType(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), FunCall(toPrivate(fun((p_18) => FunCall(fun((p_19) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p_19)), FunCall(id, FunCall(Get(1), p_19)))), p_18))), p_16)))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split((v_M0_0*1/^(v_2_2))), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
+    }
+
+    val M = Var("M")
+    val N = Var("N")
+
+    val f = factory(Seq[ArithExpr](M,N, 128))
+    println(ScalaPrinter(f))
+
+    val code = Compile(f, 128,1,1,128*4096,1,1,scala.collection.immutable.Map[ArithExpr,ArithExpr](M -> 4096, N -> 4096))
+  }
 
   @Test def MATRIX_VECTOR_FIXED_SIZE() {
 

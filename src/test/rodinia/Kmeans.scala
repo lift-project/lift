@@ -147,7 +147,6 @@ class Kmeans {
       })
 
     val (output: Array[Int], _) = Execute(numPoints)(kMeans, points.transpose, clusters)
-
     assertArrayEquals(gold, output)
   }
 

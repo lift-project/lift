@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{ArithExpr, Var}
 import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._
@@ -759,6 +759,338 @@ class TestMatrixMatrix {
       mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test
+  def hawaiiBest(): Unit = {
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M_0 = variables(0)
+      val v_K_1 = variables(1)
+      val v_N_2 = variables(2)
+      val v__3 = variables(3)
+      val v__4 = variables(4)
+      val v__5 = variables(5)
+      val v__6 = variables(6)
+      val v__7 = variables(7)
+
+      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1),(p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride((v__3) / (v__4))), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(MapLcl(1)(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(MapSeq(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(MapLcl(1)(fun((p_17) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => p_19)), FunCall(ReduceSeq(fun((p_20, p_21) => FunCall(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(MapSeq(fun((p_24) => FunCall(add, FunCall(Get(0), p_24), FunCall(mult, FunCall(Get(1), p_23), FunCall(Get(1), p_24))))), FunCall(Zip(2), FunCall(Get(0), p_23), FunCall(Get(1), p_22))))), FunCall(Zip(2), p_20, FunCall(Get(0), p_22)))), FunCall(toLocal(fun((p_25) => FunCall(fun((p_26) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_27) => FunCall(id, p_27))), FunCall(Get(0), p_26)), FunCall(MapSeq(fun((p_28) => FunCall(id, p_28))), FunCall(Get(1), p_26)))), p_25))), FunCall(toPrivate(fun((p_29) => FunCall(fun((p_30) => FunCall(Tuple(2), FunCall(Get(0), p_30), FunCall(MapSeq(fun((p_31) => FunCall(id, p_31))), FunCall(Get(1), p_30)))), p_29))), p_21))))), FunCall(Get(0), p_18), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_17)), FunCall(Transpose(), FunCall(Get(1), p_18))))))), FunCall(Zip(2), FunCall(Get(0), p_17), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride((v__3) / (v__4))), FunCall(Transpose(), FunCall(Get(1), p_16))))))))), FunCall(Zip(2), p_14, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_16)))))), p_15))), FunCall(MapLcl(1)(fun((p_32) => FunCall(MapLcl(0)(fun((p_33) => FunCall(MapSeq(fun((p_34) => FunCall(MapSeq(fun((p_35) => FunCall(id, p_35))), p_34))), p_33))), p_32))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), (v__3*1/^(v__4))), (v__6*1/^(v__5))))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_36) => FunCall(Transpose(), p_36))), FunCall(Split(v__7), FunCall(Map(fun((p_37) => FunCall(Split(v__3), p_37))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__7), FunCall(Map(fun((p_39) => FunCall(Split(v__6), p_39))), p_0)))))))
+    }
+
+    val v_M_0 = Var("M")
+    val v_K_1 = Var("K")
+    val v_N_2 = Var("N")
+
+    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,16, 64 ,256))
+
+    println(f)
+
+    val code = Compile(f, 32,4,1,1024/4,1024/16,1,
+      scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))
+  }
+
+  @Test
+  def hawaiiBestSgemm(): Unit = {
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M_0 = variables(0)
+      val v_K_1 = variables(1)
+      val v_N_2 = variables(2)
+      val v__3 = variables(3)
+      val v__4 = variables(4)
+      val v__5 = variables(5)
+      val v__6 = variables(6)
+      val v__7 = variables(7)
+
+      fun(
+        ArrayType(ArrayType(Float, v_M_0), v_K_1),
+        ArrayType(ArrayType(Float, v_N_2), v_K_1),
+        ArrayType(ArrayType(Float, v_N_2), v_M_0),
+        Float,
+        Float,
+        (p_0, p_1, C,alpha,beta) =>
+          FunCall(Join(),
+            FunCall(MapWrg(1)(fun((p_2) =>
+              FunCall(TransposeW(),
+                FunCall(Join(),
+                  FunCall(MapWrg(0)(fun((p_3) =>
+                    FunCall(TransposeW(),
+                      FunCall(Join(),
+                        FunCall(Map(fun((p_4) =>
+                          FunCall(Map(fun((p_5) =>
+                            FunCall(Scatter(ReorderWithStride((v__3) / (v__4))), p_5))),
+                            FunCall(TransposeW(),
+                              FunCall(Join(),
+                                FunCall(Map(fun((p_6) =>
+                                  FunCall(TransposeW(),
+                                    FunCall(Map(fun((p_7) =>
+                                      FunCall(TransposeW(), p_7))),
+                                      FunCall(TransposeW(), p_6))))),
+                                  FunCall(TransposeW(), p_4))))))),
+                          FunCall(TransposeW(),
+
+                              FunCall(MapSeq(fun(x =>
+                                MapLcl(1)(fun(y =>
+                                  MapLcl(0)(fun( z =>
+                                    MapSeq(fun(a =>
+                                      MapSeq(fun(x =>
+                                        toGlobal(add)(
+                                          toPrivate(mult)(Get(x, 0), alpha),
+                                          toPrivate(mult)(Get(x, 1), beta)
+                                        )
+                                      )) $ Zip(Get(a, 0), Get(a, 1))
+                                    )) $ Zip(Get(z, 0), Transpose() $ Get(z, 1))
+                                  )) $ Zip(Get(y, 0), Split(v__4) o ReorderStride((v__3) / (v__4)) o Transpose() $ Get(y, 1))
+                                )) $ Zip(x, Split(v__5) $ Get(p_3, 1))
+                              )),
+                              FunCall(ReduceSeq(fun((p_14, p_15) =>
+                                FunCall(fun((p_16) =>
+                                  FunCall(MapLcl(1)(fun((p_17) =>
+                                    FunCall(Join(),
+                                      FunCall(MapLcl(0)(fun((p_18) =>
+                                        FunCall(MapSeq(fun((p_19) => p_19)),
+                                          FunCall(ReduceSeq(fun((p_20, p_21) =>
+                                            FunCall(fun((p_22) =>
+                                              FunCall(MapSeq(fun((p_23) =>
+                                                FunCall(MapSeq(fun((p_24) =>
+                                                  FunCall(add,
+                                                    FunCall(Get(0), p_24),
+                                                    FunCall(mult,
+                                                      FunCall(Get(1), p_23),
+                                                      FunCall(Get(1), p_24))))),
+                                                  FunCall(Zip(2),
+                                                    FunCall(Get(0), p_23),
+                                                    FunCall(Get(1), p_22))))),
+                                                FunCall(Zip(2), p_20,
+                                                  FunCall(Get(0), p_22)))),
+                                              FunCall(toLocal(fun((p_25) =>
+                                                FunCall(fun((p_26) =>
+                                                  FunCall(Tuple(2),
+                                                    FunCall(MapSeq(fun((p_27) =>
+                                                      FunCall(id, p_27))),
+                                                      FunCall(Get(0), p_26)),
+                                                    FunCall(MapSeq(fun((p_28) =>
+                                                      FunCall(id, p_28))),
+                                                      FunCall(Get(1), p_26)))), p_25))),
+                                                FunCall(toPrivate(fun((p_29) =>
+                                                  FunCall(fun((p_30) =>
+                                                    FunCall(Tuple(2),
+                                                      FunCall(Get(0), p_30),
+                                                      FunCall(MapSeq(fun((p_31) =>
+                                                        FunCall(id, p_31))),
+                                                        FunCall(Get(1), p_30)))), p_29))), p_21))))),
+                                            FunCall(Get(0), p_18),
+                                            FunCall(Zip(2),
+                                              FunCall(Transpose(),
+                                                FunCall(Get(1), p_17)),
+                                              FunCall(Transpose(),
+                                                FunCall(Get(1), p_18))))))),
+                                        FunCall(Zip(2),
+                                          FunCall(Get(0), p_17),
+                                          FunCall(Split(v__4),
+                                            FunCall(Gather(ReorderWithStride((v__3) / (v__4))),
+                                              FunCall(Transpose(),
+                                                FunCall(Get(1), p_16))))))))),
+                                    FunCall(Zip(2), p_14,
+                                      FunCall(Split(v__5),
+                                        FunCall(Transpose(),
+                                          FunCall(Get(0), p_16)))))), p_15))),
+                                FunCall(MapLcl(1)(fun((p_32) =>
+                                  FunCall(MapLcl(0)(fun((p_33) =>
+                                    FunCall(MapSeq(fun((p_34) =>
+                                      FunCall(MapSeq(fun((p_35) =>
+                                        FunCall(id, p_35))), p_34))), p_33))), p_32))),
+                                  Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), (v__3*1/^(v__4))), (v__6*1/^(v__5))))),
+                                FunCall(Zip(2), Get(p_2, 0), Get(p_3, 0)))))))))),
+                    Zip(FunCall(Transpose(),
+                      FunCall(Map(fun((p_36) =>
+                        FunCall(Transpose(), p_36))),
+                        FunCall(Split(v__7),
+                          FunCall(Map(fun((p_37) =>
+                            FunCall(Split(v__3), p_37))), p_1)))), Get(p_2,1))))))),
+              Zip(FunCall(Transpose(),
+                FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))),
+                  FunCall(Split(v__7),
+                    FunCall(Map(fun((p_39) =>
+                      FunCall(Split(v__6), p_39))), p_0)))), Tile(v__6, v__3) $ C))))
+    }
+
+    val v_M_0 = Var("M")
+    val v_K_1 = Var("K")
+    val v_N_2 = Var("N")
+
+    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,16, 64 ,256))
+
+    val code = Compile(f, 32,4,1,1024/4,1024/16,1,
+      scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))
+  }
+
+  @Test
+  def keplerBest(): Unit = {
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M_0 = variables(0)
+      val v_K_1 = variables(1)
+      val v_N_2 = variables(2)
+      val v__3 = variables(3)
+      val v__4 = variables(4)
+      val v__5 = variables(5)
+      val v__6 = variables(6)
+      val v__7 = variables(7)
+
+      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1), (p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride((v__3) / (v__4))), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(MapLcl(1)(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(MapSeq(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(MapLcl(1)(fun((p_17) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => p_19)), FunCall(ReduceSeq(fun((p_20, p_21) => FunCall(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(MapSeq(fun((p_24) => FunCall(add, FunCall(Get(0), p_24), FunCall(mult, FunCall(Get(1), p_23), FunCall(Get(1), p_24))))), FunCall(Zip(2), FunCall(Get(0), p_23), FunCall(Get(1), p_22))))), FunCall(Zip(2), p_20, FunCall(Get(0), p_22)))), FunCall(toPrivate(fun((p_25) => FunCall(fun((p_26) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_27) => FunCall(id, p_27))), FunCall(Get(0), p_26)), FunCall(MapSeq(fun((p_28) => FunCall(id, p_28))), FunCall(Get(1), p_26)))), p_25))), p_21)))), FunCall(Get(0), p_18), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_17)), FunCall(Transpose(), FunCall(Get(1), p_18))))))), FunCall(Zip(2), FunCall(Get(0), p_17), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride((v__3) / (v__4))), FunCall(Transpose(), FunCall(Get(1), p_16))))))))), FunCall(Zip(2), p_14, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_16)))))), FunCall(toLocal(fun((p_29) => FunCall(fun((p_30) => FunCall(Unzip(), FunCall(MapLcl(1)(fun((p_31) => FunCall(Tuple(2), FunCall(MapLcl(0)(fun((p_32) => FunCall(id, p_32))), FunCall(Get(0), p_31)), FunCall(MapLcl(0)(fun((p_33) => FunCall(id, p_33))), FunCall(Get(1), p_31))))), FunCall(Zip(2), FunCall(Get(0), p_30), FunCall(Get(1), p_30))))), p_29))), p_15)))), FunCall(MapLcl(1)(fun((p_34) => FunCall(MapLcl(0)(fun((p_35) => FunCall(MapSeq(fun((p_36) => FunCall(MapSeq(fun((p_37) => FunCall(id, p_37))), p_36))), p_35))), p_34))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), (v__3 * 1 /^ (v__4))), (v__6 * 1 /^ (v__5))))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__7), FunCall(Map(fun((p_39) => FunCall(Split(v__3), p_39))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_40) => FunCall(Transpose(), p_40))), FunCall(Split(v__7), FunCall(Map(fun((p_41) => FunCall(Split(v__6), p_41))), p_0)))))))
+    }
+
+    val v_M_0 = Var("M")
+    val v_K_1 = Var("K")
+    val v_N_2 = Var("N")
+
+    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,8, 64 ,8))
+
+    val code = Compile(f, 32,8,1,1024/4,1024/8,1,
+      scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))
+
+  }
+
+  @Test
+  def keplerBestSgemm(): Unit = {
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M_0 = variables(0)
+      val v_K_1 = variables(1)
+      val v_N_2 = variables(2)
+      val v__3 = variables(3)
+      val v__4 = variables(4)
+      val v__5 = variables(5)
+      val v__6 = variables(6)
+      val v__7 = variables(7)
+
+      fun(
+        ArrayType(ArrayType(Float, v_M_0), v_K_1),
+        ArrayType(ArrayType(Float, v_N_2), v_K_1),
+        ArrayType(ArrayType(Float, v_N_2), v_M_0),
+        Float,
+        Float,
+        (p_0, p_1, C,alpha,beta) =>
+          FunCall(Join(),
+            FunCall(MapWrg(1)(fun((p_2) =>
+              FunCall(TransposeW(),
+                FunCall(Join(),
+                  FunCall(MapWrg(0)(fun((p_3) =>
+                    FunCall(TransposeW(),
+                      FunCall(Join(),
+                        FunCall(Map(fun((p_4)
+                        => FunCall(Map(fun((p_5)
+                          => FunCall(Scatter(ReorderWithStride((v__3) / (v__4))), p_5))),
+                            FunCall(TransposeW(),
+                              FunCall(Join(),
+                                FunCall(Map(fun((p_6) =>
+                                  FunCall(TransposeW(),
+                                    FunCall(Map(fun((p_7) =>
+                                      FunCall(TransposeW(), p_7)
+                                    )), FunCall(TransposeW(), p_6))
+                                  ))), FunCall(TransposeW(), p_4))))
+                          ))
+                        ),
+                            FunCall(MapSeq(fun(x =>
+                              MapLcl(1)(fun(y =>
+                                MapLcl(0)(fun( z =>
+                                  MapSeq(fun(a =>
+                                    MapSeq(fun(x =>
+                                      toGlobal(add)(
+                                        toPrivate(mult)(Get(x, 0), alpha),
+                                        toPrivate(mult)(Get(x, 1), beta)
+                                      )
+                                    )) $ Zip(Get(a, 0), Get(a, 1))
+                                  )) $ Zip(Get(z, 0), Transpose() $ Get(z, 1))
+                                )) $ Zip(Get(y, 0), Split(v__4) o ReorderStride((v__3) / (v__4)) o Transpose() $ Get(y, 1))
+                              )) $ Zip(x, Split(v__5) $ Get(p_3, 1))
+                            )),
+                            FunCall(ReduceSeq(fun((p_14, p_15) =>
+                            FunCall(fun((p_16) =>
+                              FunCall(MapLcl(1)(fun((p_17) =>
+                                FunCall(Join(),
+                                  FunCall(MapLcl(0)(fun((p_18) =>
+                                    FunCall(MapSeq(fun((p_19) => p_19)),
+                                      FunCall(ReduceSeq(fun((p_20, p_21) =>
+                                        FunCall(fun((p_22) =>
+                                          FunCall(MapSeq(fun((p_23) =>
+                                            FunCall(MapSeq(fun((p_24) =>
+                                              FunCall(add,
+                                                FunCall(Get(0), p_24),
+                                                FunCall(mult, FunCall(Get(1), p_23),
+                                                  FunCall(Get(1), p_24))
+                                              ))
+                                            ), FunCall(Zip(2),
+                                              FunCall(Get(0), p_23),
+                                              FunCall(Get(1), p_22))))),
+                                            FunCall(Zip(2), p_20,
+                                              FunCall(Get(0), p_22)))),
+                                          FunCall(toPrivate(fun((p_25) =>
+                                            FunCall(fun((p_26) =>
+                                              FunCall(Tuple(2),
+                                                FunCall(MapSeq(fun((p_27) =>
+                                                  FunCall(id, p_27))),
+                                                  FunCall(Get(0), p_26)),
+                                                FunCall(MapSeq(fun((p_28) =>
+                                                  FunCall(id, p_28))),
+                                                  FunCall(Get(1), p_26)))), p_25))), p_21)))),
+                                        FunCall(Get(0), p_18),
+                                        FunCall(Zip(2),
+                                          FunCall(Transpose(),
+                                            FunCall(Get(1), p_17)),
+                                          FunCall(Transpose(),
+                                            FunCall(Get(1), p_18))))))),
+                                    FunCall(Zip(2),
+                                      FunCall(Get(0), p_17),
+                                      FunCall(Split(v__4),
+                                        FunCall(Gather(ReorderWithStride((v__3) / (v__4))),
+                                          FunCall(Transpose(),
+                                            FunCall(Get(1), p_16))))))))),
+                                FunCall(Zip(2), p_14,
+                                  FunCall(Split(v__5),
+                                    FunCall(Transpose(),
+                                      FunCall(Get(0), p_16)))))),
+                              FunCall(toLocal(fun((p_29) =>
+                                FunCall(fun((p_30) =>
+                                  FunCall(Unzip(),
+                                    FunCall(MapLcl(1)(fun((p_31) =>
+                                      FunCall(Tuple(2),
+                                        FunCall(MapLcl(0)(fun((p_32) =>
+                                          FunCall(id, p_32))),
+                                          FunCall(Get(0), p_31)),
+                                        FunCall(MapLcl(0)(fun((p_33) =>
+                                          FunCall(id, p_33))),
+                                          FunCall(Get(1), p_31))))),
+                                      FunCall(Zip(2),
+                                        FunCall(Get(0), p_30),
+                                        FunCall(Get(1), p_30))))), p_29))), p_15)))),
+                            FunCall(MapLcl(1)(fun((p_34) =>
+                              FunCall(MapLcl(0)(fun((p_35) =>
+                                FunCall(MapSeq(fun((p_36) =>
+                                  FunCall(MapSeq(fun((p_37) =>
+                                    FunCall(id, p_37))), p_36))), p_35))), p_34))),
+                              Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), (v__3 * 1 /^ (v__4))), (v__6 * 1 /^ (v__5))))),
+                            FunCall(Zip(2), Get(p_2, 0), Get(p_3, 0))))))))),
+                    Zip(FunCall(Transpose(),
+                      FunCall(Map(fun((p_38) =>
+                        FunCall(Transpose(), p_38))),
+                        FunCall(Split(v__7),
+                          FunCall(Map(fun((p_39) =>
+                            FunCall(Split(v__3), p_39))), p_1)))), Get(p_2, 1))))))),
+              Zip(FunCall(Transpose(),
+                FunCall(Map(fun((p_40) =>
+                  FunCall(Transpose(), p_40))),
+                  FunCall(Split(v__7),
+                    FunCall(Map(fun((p_41) =>
+                      FunCall(Split(v__6), p_41))), p_0)))), Tile(v__6, v__3) $ C))))
+    }
+
+    val v_M_0 = Var("M")
+    val v_K_1 = Var("K")
+    val v_N_2 = Var("N")
+
+    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,8, 64 ,8))
+
+    val code = Compile(f, 32,8,1,1024/4,1024/8,1,
+      scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))
+
   }
 
   @Test def mmTiledAndBlockedAInnermost(): Unit = {

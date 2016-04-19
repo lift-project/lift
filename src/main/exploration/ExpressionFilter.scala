@@ -28,7 +28,7 @@ object ExpressionFilter {
     try {
       // Compute NDRange based on the parameters
       val (local, global) = InferNDRange(expr)
-      val valueMap = GenerateOpenCL.createValueMap(expr)
+      val valueMap = ParameterRewrite.createValueMap(expr)
 
       // Allocate memory
       expr.params.foreach((p) => {

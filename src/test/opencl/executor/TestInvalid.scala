@@ -259,6 +259,49 @@ class TestInvalid {
     Execute(1, inputSize)(f, input)
   }
 
+  @Test(expected = classOf[IllegalKernel])
+  def concreteMap(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o
+        MapGlb(Map(id)) o
+        Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def localWithoutMapWrg(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o
+        MapGlb(toGlobal(MapSeq(id)) o toLocal(MapSeq(id))) o
+        Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def illegalMapNesting(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o MapGlb(MapGlb(id)) o Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
   // Trigger an error in the executor in the executor and recover
   @Test
   def ExecutorFailureRecovery(): Unit = {

@@ -21,8 +21,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
   private var local: NDRange = Array(?, ?, ?)
   private var global: NDRange = Array(?, ?, ?)
 
-  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Unit = {
-    expressions.foreach(processLambda)
+  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
+    expressions.map(processLambda)
   }
 
   private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
@@ -32,6 +32,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     } catch {
       case x:Throwable =>
         println(x)
+        None
     }
   }
 
@@ -40,7 +41,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val substitutionMap = pair._2
 
     InferNDRange(lambda) match { case (l, g) => local = l; global = g }
-    val valueMap = GenerateOpenCL.createValueMap(lambda)
+    val valueMap = ParameterRewrite.createValueMap(lambda)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     val code = OpenCLGenerator.generate(lambda, local, globalSubstituted, valueMap)
@@ -59,7 +60,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     Utils.findAndReplaceVariableNames(kernel)
   }
 
-  private def dumpOpenCLToFiles(lambda: Lambda, kernel: String): Unit = {
+  private def dumpOpenCLToFiles(lambda: Lambda, kernel: String): Option[String] = {
 
     val hash = Utils.Sha256Hash(kernel)
     val filename = hash + ".cl"
@@ -79,6 +80,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val dumped = Utils.dumpToFile(kernel, filename, path)
     if (dumped)
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
+
+    if (dumped) Some(hash) else None
   }
 
   private def createCsv(hash: String, path: String, numParams: Int,

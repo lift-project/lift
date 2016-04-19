@@ -1,7 +1,8 @@
 package ir.ast
 
-import apart.arithmetic.{?, ArithExpr, Var}
+import apart.arithmetic.Var
 import ir._
+import ir.interpreter.Interpreter.ValueMap
 
 /**
  * Abstract class for search patterns.
@@ -58,6 +59,9 @@ abstract class AbstractSearch(val f: Lambda,
       case _ => throw new TypeException(argType, "TupleType(a, ArrayType(a, _)")
     }
   }
+
+  override def eval(valueMap: ValueMap, args: Any*): Any =
+    throw new NotImplementedError("AbstractSearch.eval is not implemented")
 }
 
 case class Search(override val f: Lambda1) extends AbstractSearch(f, "Search") with isGenerable{

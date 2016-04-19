@@ -8,8 +8,10 @@ import ir.ast._
 import ir.view._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
+import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
-import scala.collection.{mutable, immutable}
+
+import scala.collection.{immutable, mutable}
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
@@ -46,6 +48,16 @@ object Verbose {
 object CSE {
   val cse = System.getenv("APART_CSE") != null
   def apply() = cse
+}
+
+object PerformBarrierElimination {
+  val barrierElimination = System.getenv("APART_NO_BARRIER_ELIM") == null
+  def apply() = barrierElimination
+}
+
+object PerformLoopOptimisation {
+  val loopOptimisation = System.getenv("APART_NO_LOOP_OPT") == null
+  def apply() = loopOptimisation
 }
 
 object AllocateLocalMemoryStatically {
@@ -185,8 +197,25 @@ class OpenCLGenerator extends Generator {
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
     allocateMemory(f)
-    BarrierElimination(f)
+    if (PerformBarrierElimination())
+      BarrierElimination(f)
     CheckBarriersAndLoops(f)
+
+    Context.updateContext(f.body)
+
+    Expr.visit(f.body, _ => Unit, {
+      case call@FunCall(MapGlb(dim, _), _*) if call.context.inMapGlb(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapGlb($dim)")
+      case call@FunCall(MapWrg(dim, _), _*) if call.context.inMapWrg(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapWrg($dim)")
+      case call@FunCall(MapLcl(dim, _), _*) if call.context.inMapLcl(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapLcl($dim)")
+      case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_||_) =>
+        throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
+      case call@FunCall(Map(lambda), _*) if lambda.body.isConcrete =>
+        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case _ =>
+    })
 
     f.body.mem match {
       case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
@@ -248,6 +277,7 @@ class OpenCLGenerator extends Generator {
     val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
+          case _: OpenCLBuiltInFun => set
           case uf: UserFun => set + uf
           case vec: VectorizeUserFun => set + vec.vectorizedFunction
           case _ => set
@@ -996,7 +1026,8 @@ class OpenCLGenerator extends Generator {
       // Generate an inner block for the for-loop
       val innerBlock = OpenCLAST.Block(Vector.empty)
       // add the for loop to the current node:
-      block += OpenCLAST.Loop(indexVar, iterationCountExpr, body = innerBlock)
+      val iterationCount = if (PerformLoopOptimisation()) iterationCountExpr else ?
+      block += OpenCLAST.Loop(indexVar, iterationCount, body = innerBlock)
       generateBody(innerBlock)
     }
   }

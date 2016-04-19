@@ -66,11 +66,11 @@ object OpenCLMemoryAllocator {
     val res = param match {
       case vp: VectorParam =>
         if (vp.p.mem == UnallocatedMemory)
-          throw new IllegalArgumentException("PANIC!")
+          throw new IllegalArgumentException(s"Param $vp has UnallocatedMemory")
         vp.p.mem
       case p: Param =>
         if (p.mem == UnallocatedMemory)
-          throw new IllegalArgumentException("PANIC!")
+          throw new IllegalArgumentException(s"Param $p has UnallocatedMemory")
         p.mem
     }
 
