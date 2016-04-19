@@ -73,7 +73,6 @@ class OpenCLCodeGen {
     s"(${toString(p.lhs)} ${p.op} ${toString(p.rhs)})"
   }
 
-  // private implementation
 
   /** Output stream for current AST */
   private val sb: StringBuilder = new StringBuilder
@@ -144,7 +143,6 @@ class OpenCLCodeGen {
     case v: VarRef        => print(v)
     case p: ParamDecl     => print(p)
     case b: Barrier       => print(b)
-    //case l: Loop          => print(l)
     case l: ForLoop       => print(l)
     case w: WhileLoop     => print(w)
     case es: ExpressionStatement => print(es)
@@ -374,9 +372,7 @@ class OpenCLCodeGen {
     */
   private def print(wl: WhileLoop) {
     print("while("+ toString(wl.loopPredicate) + ")")
-    // printBlock {
-      print(wl.body)
-    // }
+    print(wl.body)
   }
 
 

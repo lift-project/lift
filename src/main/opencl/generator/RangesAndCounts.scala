@@ -70,9 +70,11 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
 
   private def setRangeMapWrg(m: MapWrg, call: FunCall): Unit = {
     val dim: Int = m.dim
-    val start: get_group_id = new get_group_id(dim)
-    val length: ArithExpr = Type.getLength(call.args.head.t)
-    val step: ArithExpr = new get_num_groups(m.dim)
+
+    val start =  get_group_id(dim)
+    val step : ArithExpr = get_num_groups(m.dim)
+
+    val stop: ArithExpr = ArithExpr.substitute(Type.getLength(call.args.head.t), valueMap)
 
     val gSize = globalSizes(dim)
     val lSize = localSizes(dim)
@@ -80,22 +82,22 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     gSize match {
       case Cst(c) =>
         val numGroups = gSize /^ lSize
-        val lengthSubst = ArithExpr.substitute(length, valueMap)
         start.range = ContinuousRange(0, numGroups)
-        m.loopVar.range = RangeAdd(start, lengthSubst, numGroups)
+        get_num_groups(m.dim).range = ContinuousRange(numGroups, numGroups)
+        m.loopVar.range = RangeAdd(start, stop, numGroups)
         evaluateMapRange(m)
       case x if x.getClass == ?.getClass =>
       case x => throw new IllegalArgumentException(s"Invalid global size type: $x (${x.getClass})")
     }
 
-    m.loopVar.range = RangeAdd(start, length, step)
+    m.loopVar.range = RangeAdd(start, stop, step)
   }
 
   private def setRangeMapGlb(m: MapGlb, call: FunCall): Unit = {
     val dim = m.dim
-    val start = new get_global_id(dim)
+    val start = get_global_id(dim)
     var length = Type.getLength(call.args.head.t)
-    var step: ArithExpr = new get_global_size(dim)
+    var step: ArithExpr = get_global_size(dim)
 
     val size = globalSizes(dim)
     if (size != ?) {
@@ -110,9 +112,9 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
 
   private def setRangeMapLcl(m: MapLcl, call: FunCall): Unit = {
     val dim: Int = m.dim
-    val start = new get_local_id(dim)
+    val start = get_local_id(dim)
     val length = Type.getLength(call.args.head.t)
-    var step: ArithExpr = new get_local_size(dim)
+    var step: ArithExpr = get_local_size(dim)
 
     val size = localSizes(dim)
     if (size != ?) {
@@ -160,14 +162,14 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
 
 
   private def setRangeMapWarp(m: MapWarp, call: FunCall): Unit = {
-    m.loopVar.range = RangeAdd(new get_local_id(0) /^ OpenCL.warpSize,
+    m.loopVar.range = RangeAdd(get_local_id(0) /^ OpenCL.warpSize,
       Type.getLength(call.args.head.t),
       localSizes(0) /^ OpenCL.warpSize)
     evaluateMapRange(m)
   }
 
   private def setRangeMapLane(m: MapLane, call: FunCall): Unit = {
-    m.loopVar.range = RangeAdd(new get_local_id(0) % OpenCL.warpSize,
+    m.loopVar.range = RangeAdd(get_local_id(0) % OpenCL.warpSize,
       Type.getLength(call.args.head.t), OpenCL.warpSize)
     evaluateMapRange(m)
   }
