@@ -27,8 +27,8 @@ object OutputView {
     expr match {
       case p: Param =>
 
-        if (p.outputView.isInstanceOf[NoView])
-          p.outputView=writeView
+        if (p.outputView == NoView)
+          p.outputView = writeView
 
         p.outputView
       case call: FunCall => buildViewFunCall(call, writeView)
