@@ -1,16 +1,20 @@
 package opencl.generator
 
+import java.io.{File, PrintWriter}
+
 import apart.arithmetic.{?, ArithExpr, Cst, Var}
 import exploration.GenerateOpenCL
 import rewriting.InferNDRange
 import ir._
 import ir.ast._
+import ir.printer.DotPrinter
 import opencl.executor._
 import opencl.generator.OpenCLGenerator._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
+import sys.process._
 
 object TestMisc {
   @BeforeClass def before() {
@@ -368,14 +372,16 @@ class TestMisc {
       (A, B) =>
         MapGlb(fun(tuple => MapSeq(plusOne) $ Get(tuple, 0))) o
         MapGlb(fun( tuple =>
-          fun(tuple => Tuple(Join() $ Get(tuple, 0), Join() $ Get(tuple, 1))) o Unzip() o MapSeq(fun( tuple =>
+          fun(tuple =>
+            Tuple(Join() $ Get(tuple, 0), Join() $ Get(tuple, 1))) o
+            Unzip() o
+            MapSeq(fun( tuple =>
             Tuple(MapSeq(id) $ Get(tuple, 0), MapSeq(id) $ Get(tuple, 1))
           )) $ Zip(Split(1) $ Get(tuple, 0), Split(1) $ Get(tuple, 1))
         )) $ Zip(A, B)
     )
 
     val (output: Array[Float], _) = Execute(inputSize)(f, inputData, inputData)
-
     assertArrayEquals(inputData.flatten.map(_ + 1), output, 0.0f)
   }
 
@@ -709,11 +715,6 @@ class TestMisc {
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(f, input)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -733,7 +734,12 @@ class TestMisc {
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
       ArrayType(ArrayType(Float, M), N),
-      (X, Y) => MapGlb(MapSeq(MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o Map(fun(x => Map(fun(y => Zip(x, y))) $ Y )) $ X
+      (X, Y) =>
+        MapGlb(
+          MapSeq(
+            MapSeq(fun(z => add.apply(Get(z, 0), Get(z, 1)))))) o
+          Map(fun(x => Map(fun(y => Zip(x, y))) $ Y )
+        ) $ X
     )
 
     val (output: Array[Float], runtime) = Execute(nSize)(f, A, B)

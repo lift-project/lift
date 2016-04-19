@@ -36,7 +36,7 @@ abstract class View(val t: Type = UndefType) {
     this match {
       case map: ViewMap => new ViewMap(map.iv.replaced(oldExpr, newExpr), map.itVar, t)
       case access: ViewAccess => new ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(oldExpr, newExpr), t)
-      case zip: ViewZip => new ViewZip(zip.ivs.map(_.replaced(oldExpr, newExpr)), t)
+      case zip: ViewZip => new ViewZip(zip.iv.replaced(oldExpr, newExpr), t)
       case unzip: ViewUnzip => new ViewUnzip(unzip.iv.replaced(oldExpr, newExpr), t)
       case split: ViewSplit => new ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(oldExpr, newExpr), t)
       case join: ViewJoin => new ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(oldExpr, newExpr), t)
@@ -114,7 +114,8 @@ abstract class View(val t: Type = UndefType) {
     t match {
       case ArrayType(st: ScalarType, len) =>
         new ViewAsVector(n, this, ArrayType(st.vectorize(n), len /^ n))
-      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into vector types")
+      case _ =>
+        throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into vector types")
     }
   }
 
@@ -131,7 +132,8 @@ abstract class View(val t: Type = UndefType) {
       case ArrayType(VectorType(st, n), len) =>
         new ViewAsScalar(this, n, ArrayType(st, len * n))
       case st: ScalarType => this
-      case _ => throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
+      case _ =>
+        throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
     }
   }
 
@@ -167,12 +169,14 @@ abstract class View(val t: Type = UndefType) {
 
    */
   def zip(): View = {
-    this match {
-      case tuple: ViewTuple =>
-        new ViewZip(tuple.ivs, ArrayType(TupleType(tuple.ivs.map(_.t.asInstanceOf[ArrayType].elemT): _*),
-          tuple.ivs.head.t.asInstanceOf[ArrayType].len))
-      case other => throw new IllegalArgumentException("Can't zip " + other.getClass)
+    t match {
+      case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType]) =>
+        val arrayTs: Seq[ArrayType] = ts.map(_.asInstanceOf[ArrayType])
+        val newT =ArrayType(TupleType(arrayTs.map(_.elemT):_*), arrayTs.head.len)
+        new ViewZip(this, newT)
+      case other => throw new IllegalArgumentException("Can't zip " + other)
     }
+
   }
 
   /**
@@ -181,7 +185,8 @@ abstract class View(val t: Type = UndefType) {
    */
   def unzip(): View = {
     t match {
-      case ArrayType(TupleType(ts@_*), len) => new ViewUnzip(this, TupleType(ts.map(ArrayType(_, len)): _*))
+      case ArrayType(TupleType(ts@_*), len) =>
+        new ViewUnzip(this, TupleType(ts.map(ArrayType(_, len)): _*))
       case other => throw new IllegalArgumentException("Can't unzip " + other)
     }
   }
@@ -202,8 +207,6 @@ abstract class View(val t: Type = UndefType) {
     }
   }
 
-
-  // new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
 }
 
 /**
@@ -244,10 +247,10 @@ private[view] case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) 
 /**
  * A view for zipping a number of views.
  *
- * @param ivs Views to zip.
+ * @param iv View to zip.
  * @param t Type of the view.
  */
-private[view] case class ViewZip(ivs: Seq[View], override val t: Type) extends View(t)
+private[view] case class ViewZip(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for unzipping another view
@@ -479,9 +482,7 @@ object ViewPrinter {
         emitView(component.iv, arrayAccessStack, newTAS)
 
       case zip: ViewZip =>
-        val i = tupleAccessStack.head
-        val newTAS = tupleAccessStack.tail
-        emitView(zip.ivs(i), arrayAccessStack, newTAS)
+        emitView(zip.iv, arrayAccessStack, tupleAccessStack)
 
       case unzip: ViewUnzip =>
         emitView(unzip.iv, arrayAccessStack, tupleAccessStack)
@@ -556,9 +557,7 @@ object ViewPrinter {
         getViewMem(component.iv, newTAS)
 
       case zip: ViewZip =>
-        val i = tupleAccessStack.head
-        val newTAS = tupleAccessStack.tail
-        getViewMem(zip.ivs(i), newTAS)
+        getViewMem(zip.iv, tupleAccessStack)
 
       case tuple: ViewTuple =>
         val i = tupleAccessStack.head
@@ -575,11 +574,11 @@ object ViewPrinter {
       Type.getLengths(t).reduce(_ * _)
     } else {
       t match {
-        case tt: TupleType => getLengthForArrayAccess(Type.getTypeAtIndex(tt, tupleAccesses.head), tupleAccesses.tail)
+        case tt: TupleType =>
+          getLengthForArrayAccess(Type.getTypeAtIndex(tt, tupleAccesses.head), tupleAccesses.tail)
         case ArrayType(elemT, n) => getLengthForArrayAccess(elemT, tupleAccesses) * n
         case _ =>
-          throw new IllegalArgumentException(
-            "PANIC: cannot compute array access for type " + t)
+          throw new IllegalArgumentException("PANIC: cannot compute array access for type " + t)
       }
     }
   }

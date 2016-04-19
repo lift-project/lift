@@ -145,17 +145,19 @@ class TestMatrixVector {
       ArrayType(Float, N),
       (matrix, vector) => {
         MapWrg(
-          Join() o  toGlobal(MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o Split(N /^ 32) o
-            Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o Split(32) o ReorderStride(N/^32) o fun( r => Zip(vector, r) )
+          Join() o
+            toGlobal(MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o
+            Split(N /^ 32) o
+            Join() o
+            toLocal(MapLcl(
+              toLocal(MapSeq(id)) o
+                ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))
+            ) o
+            Split(32) o ReorderStride(N/^32) o fun( r => Zip(vector, r) )
         ) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vector)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(inputSize * inputSize)(f, matrix, vector)
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
 
   }

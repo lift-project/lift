@@ -1,17 +1,13 @@
 package rodinia
 
-import java.io.{File, PrintWriter}
-
 import apart.arithmetic.Var
-import ir.printer.DotPrinter
-import ir.{ArrayType, TupleType}
 import ir.ast._
+import ir.{ArrayType, TupleType}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
-import sys.process._
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object Kmeans {
   @BeforeClass def before() {
@@ -189,17 +185,7 @@ class Kmeans {
         )) :>> Join()
       })
 
-    val filename = "kmeans"
-
-    new DotPrinter(new PrintWriter(new File(s"/home/s1042579/$filename.dot"))).print(kMeans)
-
-    s"dot -Tpdf /home/s1042579/$filename.dot -o /home/s104579/$filename.pdf".!
-
-
     val (output: Array[Int], _) = Execute(numPoints)(kMeans, points.transpose, clusters)
-
-    println(kMeans)
-
     assertArrayEquals(gold, output)
   }
 

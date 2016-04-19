@@ -637,7 +637,7 @@ class TestReduce {
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate((scala.math.log(inputSize)/scala.math.log(2)).toInt)(
               Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
-            ) o Join() o toLocal(MapLcl(toGlobal(MapSeq(id)))) o Split(1)
+            ) o Join() o MapLcl(toGlobal(MapSeq(id))) o Split(1)
         ) o Split(inputSize) $ input
       })
 

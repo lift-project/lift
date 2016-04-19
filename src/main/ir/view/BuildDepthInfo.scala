@@ -96,6 +96,7 @@ private class BuildDepthInfo() {
             buildDepthInfoMapCall(m, call, argInf)
           case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
           case _ =>
+
             val (readsLocal, readsPrivate) = readsLocalPrivate(call)
             val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
@@ -103,8 +104,7 @@ private class BuildDepthInfo() {
 
             call.f match {
               case l: Lambda => buildDepthInfoLambda(l, call, argInf)
-              case fp: FPattern =>  buildDepthInfoLambda(fp.f, call, argInf)
-                return argInf
+              case fp: FPattern => buildDepthInfoLambda(fp.f, call, argInf)
               case Get(n) =>
                 if (argInf.l.nonEmpty) argInf.l(n) else argInf
               case _: UserFun =>
@@ -128,11 +128,7 @@ private class BuildDepthInfo() {
     if (m.isInstanceOf[MapLcl])
     seenMapLcl = true
 
-
     m.f.params.head.accessInf = l((Type.getLength(call.args.head.t), m.loopVar), readsPrivate, readsLocal || seenMapLcl)
-    println(s">>>>>>>>>> ${Type.getLength(call.args.head.t)}  ${m.loopVar} ${m.getClass.getSimpleName}")
-
-
     buildDepthInfoPatternCall(m.f.body, call, m.loopVar, readsLocal, readsPrivate)
 
     if (m.isInstanceOf[MapLcl])
@@ -161,8 +157,6 @@ private class BuildDepthInfo() {
     r.f.params(0).accessInf = l.l.head
     r.f.params(1).accessInf =
       l.l(1)((length, r.loopVar), readsPrivate, readsLocal || seenMapLcl)
-
-    println(s">>>>>>>>>> $length  ${r.loopVar}")
 
     buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), r.loopVar, readsLocal, readsPrivate, l)
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
@@ -205,7 +199,7 @@ private class BuildDepthInfo() {
     if (readsPrivate || writesPrivate)
       privateAccessInf = tuple :: privateAccessInf
     // traverse into call.f
-    val a = visitAndBuildDepthInfo(expr)
+    visitAndBuildDepthInfo(expr)
 
     globalAccessInf = globalAccessInf.tail
     if (seenMapLcl || readsLocal || writesLocal)
@@ -247,13 +241,6 @@ private class BuildDepthInfo() {
   private def buildDepthInfoLambda(l: Lambda, call: FunCall,
                                    list: AccessInfo): AccessInfo = {
 
-    l match {
-      case Lambda(_, FunCall(toLocal(_), _)) =>
-        println(list)
-      case _ =>
-    }
-
-    // TODO: outDepth for Params
     if (call.args.length == 1) {
       l.params(0).accessInf = list
 

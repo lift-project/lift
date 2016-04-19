@@ -324,10 +324,6 @@ class OpenCLGenerator extends Generator {
     val valMems = Expr.visitWithState(Set[Memory]())(f.body, (expr, set) =>
       expr match {
         case value: Value => set + value.mem
-//        case FunCall(fun, _) => fun match {
-//          case let: Let => set + let.params.head.mem
-//          case _ => set
-//        }
         case _ => set
       })
 
@@ -1030,10 +1026,6 @@ class OpenCLGenerator extends Generator {
     // Handle vector assignments for vector types
     val mem = OpenCLMemory.asOpenCLMemory(call.mem)
 
-    if (call.outputView == NoView) {
-      println(call)
-    }
-
     block += generateStoreNode(mem, call.t, call.outputView,
       generateFunCall(call, generateLoadNodes(call.args: _*)))
 
@@ -1330,7 +1322,6 @@ class OpenCLGenerator extends Generator {
   }
 
   private def arrayAccessPrivateMemIndex(v: Var, view: View): Int = {
-    println(v + " " + view)
     val i = {
       val originalType = varDecls(v)
       val valueType = Type.getValueType(originalType)

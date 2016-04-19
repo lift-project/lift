@@ -24,16 +24,16 @@ object TestTuple {
 
 class TestTuple {
 
+  val makeTupleFromZip = UserFun("id",
+    Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
+    Seq(Float, Float),
+    TupleType(Float, Float))
+
   @Test def  MAKE_TUPLE_FROM_ZIP_EXPLICIT() {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
-
-    val makeTupleFromZip = UserFun("id",
-                                   Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
-                                   Seq(Float, Float),
-                                   TupleType(Float, Float))
 
     val N = Var("N")
     val f = fun(
@@ -44,11 +44,50 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inArrA, inArrB)
-
+    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
     assertArrayEquals(gold, output, 0.0f)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+  }
+
+  @Test
+  @Ignore
+  def zip(){
+    val inputSize = 1024
+    val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
+
+    val N = Var("N")
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a,b) => {
+        toGlobal(MapGlb(makeTupleFromZip)) o Zip(2) $ Tuple(a, b)
+      }
+    )
+
+    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test
+  @Ignore
+  def zip2(){
+    val inputSize = 1024
+    val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
+
+    val N = Var("N")
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a,b) => {
+        toGlobal(MapGlb(makeTupleFromZip)) o Zip(2) o Unzip() $ Zip(a, b)
+      }
+    )
+
+    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def  MAKE_TUPLE_FROM_ZIP_IMPLICIT() {
@@ -234,7 +273,6 @@ class TestTuple {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Ignore
   @Test
   def patternGetOfTuple(): Unit = {
     val inputSize = 1024
