@@ -1,10 +1,8 @@
 package ir.view
 
 import apart.arithmetic.{ArithExpr, Cst}
-import benchmarks.MolecularDynamics
 import ir._
 import ir.ast._
-import opencl.ir._
 import opencl.ir.OpenCLMemory
 import opencl.ir.pattern._
 
@@ -79,11 +77,8 @@ private class BuildDepthInfo() {
     }
 
     expr.accessInf = result
-
     result
   }
-
-  var seenMap = false
 
   private def buildDepthInfoFunCall(call: FunCall): AccessInfo = {
     val argInf = buildDepthForArgs(call)
@@ -91,9 +86,7 @@ private class BuildDepthInfo() {
     val result = call match {
       case call: FunCall =>
         call.f match {
-          case m: AbstractMap =>
-            seenMap = true
-            buildDepthInfoMapCall(m, call, argInf)
+          case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
           case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
           case _ =>
 
@@ -105,8 +98,7 @@ private class BuildDepthInfo() {
             call.f match {
               case l: Lambda => buildDepthInfoLambda(l, call, argInf)
               case fp: FPattern => buildDepthInfoLambda(fp.f, call, argInf)
-              case Get(n) =>
-                if (argInf.l.nonEmpty) argInf.l(n) else argInf
+              case Get(n) => if (argInf.l.nonEmpty) argInf.l(n) else argInf
               case _: UserFun =>
                 AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
               case _ => argInf
@@ -128,7 +120,8 @@ private class BuildDepthInfo() {
     if (m.isInstanceOf[MapLcl])
     seenMapLcl = true
 
-    m.f.params.head.accessInf = l((Type.getLength(call.args.head.t), m.loopVar), readsPrivate, readsLocal || seenMapLcl)
+    m.f.params.head.accessInf =
+      l((Type.getLength(call.args.head.t), m.loopVar), readsPrivate, readsLocal || seenMapLcl)
     buildDepthInfoPatternCall(m.f.body, call, m.loopVar, readsLocal, readsPrivate)
 
     if (m.isInstanceOf[MapLcl])
@@ -140,25 +133,27 @@ private class BuildDepthInfo() {
       l
   }
 
-  def readsLocalPrivate(call: FunCall): (Boolean, Boolean) = {
-    val readsLocal = OpenCLMemory.containsLocalMemory(call.args.head.mem)
-    val readsPrivate = OpenCLMemory.containsPrivateMemory(call.args.head.mem)
-    (readsLocal, readsPrivate)
+  private def readsLocalPrivate(call: FunCall) = containsLocalPrivate(call.args.head.mem)
+
+  private def writesLocalPrivate(call: FunCall) = containsLocalPrivate(call.mem)
+
+  private def containsLocalPrivate(mem: Memory) = {
+    val containsLocal = OpenCLMemory.containsLocalMemory(mem)
+    val containsPrivate = OpenCLMemory.containsPrivateMemory(mem)
+    (containsLocal, containsPrivate)
   }
 
   private def buildDepthInfoReduceCall(r: AbstractPartRed, call: FunCall,
                                        l: AccessInfo): AccessInfo = {
 
-
-    val readsLocal = OpenCLMemory.containsLocalMemory(call.args(1).mem)
-    val readsPrivate = OpenCLMemory.containsPrivateMemory(call.args(1).mem)
-
+    val (readsLocal, readsPrivate) = containsLocalPrivate(call.args(1).mem)
     val length = Type.getLength(call.args(1).t)
+
     r.f.params(0).accessInf = l.l.head
-    r.f.params(1).accessInf =
-      l.l(1)((length, r.loopVar), readsPrivate, readsLocal || seenMapLcl)
+    r.f.params(1).accessInf = l.l(1)((length, r.loopVar), readsPrivate, readsLocal || seenMapLcl)
 
     buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), r.loopVar, readsLocal, readsPrivate, l)
+
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
   }
 
@@ -170,22 +165,22 @@ private class BuildDepthInfo() {
     val tuple = (Type.getLength(call.t), index)
     val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
+    updateAccessInf(readsLocal, readsPrivate, tuple, writesLocal, writesPrivate)
+    // traverse into call.f
+    visitAndBuildDepthInfo(expr)
+
+    restoreAccessInf(readsLocal, readsPrivate, writesLocal, writesPrivate)
+
+    setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
+
+  }
+
+  private def updateAccessInf(readsLocal: Boolean, readsPrivate: Boolean, tuple: (ArithExpr, ArithExpr), writesLocal: Boolean, writesPrivate: Boolean): Unit = {
     globalAccessInf = tuple :: globalAccessInf
     if (seenMapLcl || readsLocal || writesLocal)
       localAccessInf = tuple :: localAccessInf
     if (readsPrivate || writesPrivate)
       privateAccessInf = tuple :: privateAccessInf
-    // traverse into call.f
-    visitAndBuildDepthInfo(expr)
-
-    globalAccessInf = globalAccessInf.tail
-    if (seenMapLcl || readsLocal || writesLocal)
-      localAccessInf = localAccessInf.tail
-    if (readsPrivate || writesPrivate)
-      privateAccessInf = privateAccessInf.tail
-
-    setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
-
   }
 
   private def buildDepthInfoPatternCall(expr: Expr, call: FunCall, index: ArithExpr,
@@ -193,79 +188,64 @@ private class BuildDepthInfo() {
     val tuple = (Type.getLength(call.t), index)
     val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
-    globalAccessInf = tuple :: globalAccessInf
-    if (seenMapLcl || readsLocal || writesLocal)
-      localAccessInf = tuple :: localAccessInf
-    if (readsPrivate || writesPrivate)
-      privateAccessInf = tuple :: privateAccessInf
+    updateAccessInf(readsLocal, readsPrivate, tuple, writesLocal, writesPrivate)
+
     // traverse into call.f
     visitAndBuildDepthInfo(expr)
 
-    globalAccessInf = globalAccessInf.tail
-    if (seenMapLcl || readsLocal || writesLocal)
-      localAccessInf = localAccessInf.tail
-    if (readsPrivate || writesPrivate)
-      privateAccessInf = privateAccessInf.tail
+    restoreAccessInf(readsLocal, readsPrivate, writesLocal, writesPrivate)
 
     setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
 
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
   }
 
-  private def setDepths(call: FunCall, readsLocal: Boolean, readsPrivate: Boolean,
-                        writesLocal: Boolean, writesPrivate: Boolean): Unit = {
-    call.inputDepth = if (writesPrivate) privateAccessInf
-                      else if (writesLocal) localAccessInf
-                      else globalAccessInf
-    call.outputDepth = if (readsPrivate) privateAccessInf
-                       else if (readsLocal) localAccessInf
-                       else globalAccessInf
+  private def restoreAccessInf(readsLocal: Boolean, readsPrivate: Boolean, writesLocal: Boolean, writesPrivate: Boolean): Unit = {
+    globalAccessInf = globalAccessInf.tail
+    if (seenMapLcl || readsLocal || writesLocal)
+      localAccessInf = localAccessInf.tail
+    if (readsPrivate || writesPrivate)
+      privateAccessInf = privateAccessInf.tail
   }
 
-  private def writesLocalPrivate(call: FunCall): (Boolean, Boolean) = {
-    val writesLocal = OpenCLMemory.containsLocalMemory(call.mem)
-    val writesPrivate = OpenCLMemory.containsPrivateMemory(call.mem)
-    (writesLocal, writesPrivate)
+  private def setDepths(call: FunCall, readsLocal: Boolean, readsPrivate: Boolean,
+                        writesLocal: Boolean, writesPrivate: Boolean): Unit = {
+    call.inputDepth = getAccessInf(writesPrivate, writesLocal)
+    call.outputDepth = getAccessInf(readsPrivate, readsLocal)
   }
 
   private def buildDepthForArgs(call: FunCall): AccessInfo = {
 
-    if (call.args.length == 1) {
+    if (call.args.length == 1)
       visitAndBuildDepthInfo(call.args.head)
-    } else {
-
+    else
       AccessInfo(call.args.map((expr: Expr) => visitAndBuildDepthInfo(expr)))
-    }
   }
 
   private def buildDepthInfoLambda(l: Lambda, call: FunCall,
                                    list: AccessInfo): AccessInfo = {
 
-    if (call.args.length == 1) {
-      l.params(0).accessInf = list
-
-      val param = l.params.head
-
-      val readsPrivate = OpenCLMemory.containsPrivateMemory(param.mem)
-      val readsLocal = OpenCLMemory.containsLocalMemory(param.mem)
-
-      param.outputDepth = if (readsPrivate) privateAccessInf
-      else if (readsLocal) localAccessInf else globalAccessInf
-
-    } else {
-
-      (l.params, list.l).zipped.foreach((param, accessInfo) => {
-        val readsPrivate = OpenCLMemory.containsPrivateMemory(param.mem)
-        val readsLocal = OpenCLMemory.containsLocalMemory(param.mem)
-
-        param.outputDepth = if (readsPrivate) privateAccessInf
-        else if (readsLocal) localAccessInf else globalAccessInf
-
-        param.accessInf = accessInfo
-      })
-    }
+    if (call.args.length == 1)
+      setAccessInfo(list, l.params.head)
+    else
+      (l.params, list.l).zipped.foreach((param, accessInfo) => setAccessInfo(_, _))
 
     visitAndBuildDepthInfo(l.body)
   }
 
+  private def setAccessInfo(list: AccessInfo, param: Param): Unit = {
+    val (readsLocal, readsPrivate) = containsLocalPrivate(param.mem)
+
+    param.outputDepth = getAccessInf(readsPrivate, readsLocal)
+    param.accessInf = list
+  }
+
+  private def getAccessInf(readsPrivate: Boolean, readsLocal: Boolean): List[(ArithExpr, ArithExpr)] = {
+    if (readsPrivate)
+      privateAccessInf
+    else if (readsLocal)
+      localAccessInf
+    else
+      globalAccessInf
+  }
 }
