@@ -1,12 +1,9 @@
 package opencl.generator
 
-import java.io.{File, PrintWriter}
-
 import apart.arithmetic.Var
 import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
 import ir.ast._
-import ir.printer.DotPrinter
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -194,15 +191,8 @@ class TestBenchmark {
     val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2)
                .map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    println(MolecularDynamics.shoc)
-
-    new DotPrinter(new PrintWriter(new File("/home/s1042579/dpGraph.dot"))).print(MolecularDynamics.shoc)
-
-    val (output: Array[Float], runtime) =
+    val (output: Array[Float], _) =
       Execute(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
 
     assertEquals(output.length, gold.length)
 
