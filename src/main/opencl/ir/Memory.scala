@@ -296,20 +296,21 @@ object TypedOpenCLMemory {
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
         addressSpace match {
-          case GlobalMemory =>
+          case GlobalMemory | PrivateMemory =>
             TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getLength(t)))
 
-          case PrivateMemory =>
-            m match {
-              case _: MapGlb | _: MapWrg  | _: Map =>
-                tm
-              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-
-                var privateMultiplier = m.iterationCount
-                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
-
-                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
-            }
+            // TODO: Incorrect type returned for PrivateMemory.
+//          case PrivateMemory =>
+//            m match {
+//              case _: MapGlb | _: MapWrg  | _: Map =>
+//                tm
+//              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
+//
+//                var privateMultiplier = m.iterationCount
+//                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+//
+//                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
+//            }
           case LocalMemory =>
             m match {
               case _: MapGlb | _: MapWrg  | _: Map =>
