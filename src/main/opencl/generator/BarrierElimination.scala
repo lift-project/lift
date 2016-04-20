@@ -25,6 +25,22 @@ object BarrierElimination {
    * @param lambda The starting lambda.
    */
   def apply(lambda: Lambda): Unit = {
+    new BarrierElimination(lambda).apply(lambda.body, insideLoop = false)
+  }
+
+  private[generator] def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
+    Expr.visitWithState(false)(funCall, (expr, contains) => {
+      expr match {
+        case FunCall(declaration, _*) => declaration.getClass == patternClass || contains
+        case _ => contains
+      }
+    }, visitArgs = false)
+  }
+}
+
+class BarrierElimination(lambda: Lambda) {
+
+  def apply(lambda: Lambda): Unit = {
     apply(lambda.body, insideLoop = false)
   }
 
@@ -147,6 +163,15 @@ object BarrierElimination {
         val group = x._1
         val id = x._2
 
+        if (argumentToPossibleSharing(group.last)) {
+          needsBarrier(id) = true
+
+         // If int local, also needs a barrier after being consumed
+          if (OpenCLMemory.containsLocalMemory(group.last.mem) && id > 1 && insideLoop &&
+            !groups.slice(0, id - 1).map(_.exists(c => isMapLcl(c.f))).reduce(_ || _))
+            needsBarrier(id - 1) = true
+        }
+
         if (possibleSharing(group.last) && id < groups.length - 1) {
           needsBarrier(id + 1) = true
 
@@ -198,6 +223,20 @@ object BarrierElimination {
     }
   }
 
+
+  private[generator] def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
+    BarrierElimination.isPattern(funCall, patternClass)
+  }
+
+  private def argumentToPossibleSharing(call: FunCall): Boolean = {
+    Expr.visitWithState(false)(lambda.body, {
+      case (FunCall(Lambda(params, FunCall(_, nestedArgs@_*)), args@_*), _ )
+      if args.contains(call) && !params.sameElements(nestedArgs)=>
+       true
+      case (_, state) => state
+    })
+  }
+
   // If a map calls its function with something other than
   // the parameter from its lambda or containing that
   // there can possibly be threads reading different elements
@@ -217,14 +256,6 @@ object BarrierElimination {
     }
   }
 
-  private[generator] def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
-    Expr.visitWithState(false)(funCall, (expr, contains) => {
-      expr match {
-        case FunCall(declaration, _*) => declaration.getClass == patternClass || contains
-        case _ => contains
-      }
-    }, visitArgs = false)
-  }
 
   private def isMapLcl(funDecl: FunDecl): Boolean = {
     def isMapLclLambda(f: Lambda1): Boolean = {
@@ -261,10 +292,14 @@ object BarrierElimination {
   }
 
   private def invalidateBarrier(group: Seq[FunCall]): Unit = {
-    group.foreach(c => getMapLcl(c.f) match {
+    group.foreach(invalidateBarrier)
+  }
+
+  private def invalidateBarrier(c: FunCall): Unit = {
+    getMapLcl(c.f) match {
       case Some(b) => b.emitBarrier = false
       case None =>
-    })
+    }
   }
 
   private def readsFromLocal(call: FunCall): Boolean = {

@@ -150,9 +150,7 @@ class Kmeans {
     assertArrayEquals(gold, output)
   }
 
-  @Ignore
   @Test
-  // TODO: Missing synchronisation
   def kMeansLocalMemory(): Unit = {
 
     val numPoints = 1024

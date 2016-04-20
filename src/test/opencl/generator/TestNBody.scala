@@ -272,9 +272,7 @@ class TestNBody {
 
   }
 
-  @Ignore
   @Test
-  // TODO: missing synchronisation
   def nBodyLocalMem(): Unit = {
 
     val inputSize = 512
