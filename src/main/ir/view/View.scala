@@ -3,6 +3,7 @@ package ir.view
 import apart.arithmetic._
 import ir._
 import ir.ast._
+import opencl.generator.OpenCLCodeGen
 import opencl.ir.ast._
 
 /**
@@ -380,9 +381,20 @@ object View {
   /**
    * Visit the expression and construct all views for all sub-expressions.
    *
+   * @param lambda The starting expression.
+   */
+  def apply(lambda: Lambda): Unit = {
+   lambda.params.foreach((p) => {
+      p.view = View(p.t, OpenCLCodeGen().toString(p.mem.variable))
+    })
+  }
+
+  /**
+   * Visit the expression and construct all views for all sub-expressions.
+   *
    * @param expr The starting expression.
    */
-  def visitAndBuildViews(expr: Expr): Unit = {
+  def apply(expr: Expr): Unit = {
     BuildDepthInfo(expr)
     InputView(expr)
     OutputView(expr)

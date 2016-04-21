@@ -330,7 +330,7 @@ object Type {
       case vt: VectorType => vt.len
       case tt: TupleType  => Cst(1)
       case at: ArrayType  => at.len
-      case _ => throw new IllegalArgumentException
+      case _ => throw new IllegalArgumentException(t.toString)
     }
   }
 

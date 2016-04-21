@@ -177,53 +177,18 @@ class OpenCLGenerator extends Generator {
     assert(globalSize.length == 3)
     assert(f.body.t != UndefType)
 
-    if (Verbose()) {
-      println("Types:")
-      OpenCLGenerator.printTypes(f.body)
-    }
-
-    // allocate the params and set the corresponding type
-    f.params.foreach((p) => {
-      p.t match {
-        case _: ScalarType =>
-          p.mem = OpenCLMemory.allocPrivateMemory(
-                    OpenCLMemory.getMaxSizeInBytes(p.t))
-        case _ =>
-          p.mem = OpenCLMemory.allocGlobalMemory(
-                    OpenCLMemory.getMaxSizeInBytes(p.t))
-      }
-      p.view = View(p.t, openCLCodeGen.toString(p.mem.variable))
-    })
-
     RangesAndCounts(f, localSize, globalSize, valueMap)
     allocateMemory(f)
     if (PerformBarrierElimination())
       BarrierElimination(f)
-    CheckBarriersAndLoops(f)
 
-    Context.updateContext(f.body)
-
-    Expr.visit(f.body, _ => Unit, {
-      case call@FunCall(MapGlb(dim, _), _*) if call.context.inMapGlb(dim) =>
-        throw new IllegalKernel(s"Illegal nesting of $call inside MapGlb($dim)")
-      case call@FunCall(MapWrg(dim, _), _*) if call.context.inMapWrg(dim) =>
-        throw new IllegalKernel(s"Illegal nesting of $call inside MapWrg($dim)")
-      case call@FunCall(MapLcl(dim, _), _*) if call.context.inMapLcl(dim) =>
-        throw new IllegalKernel(s"Illegal nesting of $call inside MapLcl($dim)")
-      case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_||_) =>
-        throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
-      case call@FunCall(Map(lambda), _*) if lambda.body.isConcrete =>
-        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
-      case _ =>
-    })
-
-    f.body.mem match {
-      case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
-        throw new IllegalKernel("Final result must be stored in global memory")
-      case _ =>
-    }
+    checkLambdaIsLegal(f)
 
     if (Verbose()) {
+
+      println("Types:")
+      OpenCLGenerator.printTypes(f.body)
+
       println("Memory:")
       printMemories(f.body)
 
@@ -232,7 +197,7 @@ class OpenCLGenerator extends Generator {
       println()
     }
 
-    View.visitAndBuildViews(f.body)
+    View(f)
 
     val globalBlock = new OpenCLAST.Block(Vector.empty, global = true)
 
@@ -268,6 +233,33 @@ class OpenCLGenerator extends Generator {
 
     // return the code generated
     openCLCodeGen(globalBlock)
+  }
+
+  // TODO: Gather(_)/Transpose() without read and Scatter(_)/TransposeW() without write
+  private def checkLambdaIsLegal(lambda: Lambda): Unit = {
+    CheckBarriersAndLoops(lambda)
+
+    Context.updateContext(lambda.body)
+
+    Expr.visit(lambda.body, _ => Unit, {
+      case call@FunCall(MapGlb(dim, _), _*) if call.context.inMapGlb(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapGlb($dim)")
+      case call@FunCall(MapWrg(dim, _), _*) if call.context.inMapWrg(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapWrg($dim)")
+      case call@FunCall(MapLcl(dim, _), _*) if call.context.inMapLcl(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapLcl($dim)")
+      case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_ || _) =>
+        throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
+      case call@FunCall(Map(nestedLambda), _*) if nestedLambda.body.isConcrete =>
+        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case _ =>
+    })
+
+    lambda.body.mem match {
+      case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
+        throw new IllegalKernel("Final result must be stored in global memory")
+      case _ =>
+    }
   }
 
   /** Traversals f and print all user functions using oclPrinter */
@@ -340,6 +332,15 @@ class OpenCLGenerator extends Generator {
   }
 
   def allocateMemory(f: Lambda): Unit = {
+    f.params.foreach(p =>
+      p.t match {
+        case _: ScalarType =>
+          p.mem = OpenCLMemory.allocPrivateMemory(
+            OpenCLMemory.getMaxSizeInBytes(p.t))
+        case _ =>
+          p.mem = OpenCLMemory.allocGlobalMemory(
+            OpenCLMemory.getMaxSizeInBytes(p.t))
+      })
     OpenCLMemoryAllocator.alloc(f.body)
     Kernel.memory = TypedOpenCLMemory.get(f.body, f.params).toArray
   }
