@@ -51,9 +51,13 @@ object Pad {
     object MirrorUnsafe extends ReindexingFun {
       override def apply(idx: ArithExpr, len: ArithExpr) = {
         //(idx ge len) ?? (2*len-idx-1) !! ((idx lt 0) ?? (-1-idx) !! idx)
-        val leftBoundaryCheck = ((idx lt 0) ?? (-1-idx) !! idx)
         //(leftBoundaryCheck ge len) ?? (2*len-idx-1) !! leftBoundaryCheck
-        (leftBoundaryCheck le len-1) ?? leftBoundaryCheck !! (2*len-idx-1)
+
+        //val leftBoundaryCheck = ((idx lt 0) ?? (-1-idx) !! idx)
+        //(leftBoundaryCheck lt len) ?? leftBoundaryCheck !! (2*len-idx-1)
+
+        //(idx lt 0) ?? (-1-idx) !! ((idx lt len) ?? idx !! 2*len-idx-1)
+        (idx ge 0) ?? ((idx lt len) ?? idx !! 2*len-idx-1) !! (-1-idx)
       }
     }
   }

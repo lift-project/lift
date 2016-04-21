@@ -132,6 +132,14 @@ class TestStencilDebug {
     runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
   }
 
+  @Test def groupMirrorUnsafePaddedData2D() = {
+    val neighbours = Array(-1, 0, 1)
+    val boundary = Pad.Boundary.MirrorUnsafe
+    val scalaBoundary = scalaMirror
+
+    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
+  }
+
 	@Ignore
   @Test def groupWrapPaddedData2D() = {
     val neighbours = Array(-1, 0, 1)
