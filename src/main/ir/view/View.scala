@@ -387,6 +387,7 @@ object View {
    lambda.params.foreach((p) => {
       p.view = View(p.t, OpenCLCodeGen().toString(p.mem.variable))
     })
+    View(lambda.body)
   }
 
   /**
