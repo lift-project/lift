@@ -419,15 +419,17 @@ object ViewPrinter {
    * @param view The view to emit.
    * @return The arithmetic expression.
    */
-  def emit(view: View): ArithExpr = {
+  def emit(view: View, replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): ArithExpr = {
     assert(!view.t.isInstanceOf[ArrayType])
-    emitView(view, List(), List())
+    emitView(view, List(), List(), replacements)
   }
 
   private def emitView(sv: View,
                        arrayAccessStack: List[(ArithExpr, ArithExpr)], // id, dimension size
-                       tupleAccessStack: List[Int]): ArithExpr = {
-    sv match {
+                       tupleAccessStack: List[Int],
+                       replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): ArithExpr = {
+    val replacedView = sv.replaced(replacements)
+    replacedView match {
       case mem: ViewMem =>
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => x + y)
@@ -473,7 +475,7 @@ object ViewPrinter {
         val (idx, len) = arrayAccessStack.head
         val stack = arrayAccessStack.tail
 
-        val newIdx = emit(filter.ids.access(idx))
+        val newIdx = emit(filter.ids.access(idx), replacements)
         val indirection = new AccessVar(getViewMem(filter.ids).name, newIdx)
 
         emitView(filter.iv, (indirection, len) :: stack, tupleAccessStack)

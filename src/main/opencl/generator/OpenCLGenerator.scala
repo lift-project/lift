@@ -1085,8 +1085,8 @@ class OpenCLGenerator extends Generator {
               OpenCLAST.VarRef(mem.variable), vt,
               value = value,
               offset = OpenCLAST.Expression(
-                          ArithExpr.substitute(ViewPrinter.emit(view),
-                                               replacementsWithFuns) / vt.len))
+                          ViewPrinter.emit(view, replacementsWithFuns)
+                                                / vt.len))
       }
     }
   }
@@ -1139,8 +1139,8 @@ class OpenCLGenerator extends Generator {
 
               OpenCLAST.Load(OpenCLAST.VarRef(mem.variable), vt,
                 offset = OpenCLAST.Expression(
-                  ArithExpr.substitute(ViewPrinter.emit(view),
-                    replacementsWithFuns) / vt.len) )
+                  ViewPrinter.emit(view, replacementsWithFuns)
+                     / vt.len) )
 
             // originally an array of scalar values in private memory,
             // but now a vector type
@@ -1226,8 +1226,7 @@ class OpenCLGenerator extends Generator {
 
               mem.addressSpace match {
                 case LocalMemory | GlobalMemory =>
-                  val index = ArithExpr.substitute(ViewPrinter.emit(innerView),
-                    replacementsWithFuns)
+                  val index = ViewPrinter.emit(innerView, replacementsWithFuns)
                   OpenCLAST.VarRef(mem.variable, arrayIndex = OpenCLAST.Expression(index), suffix = suffix)
 
                 case PrivateMemory =>
@@ -1299,8 +1298,8 @@ class OpenCLGenerator extends Generator {
                               view: View): OpenCLAST.VarRef = {
     addressSpace match {
       case LocalMemory | GlobalMemory =>
-        val index = ArithExpr.substitute(ViewPrinter.emit(view),
-                                         replacementsWithFuns)
+        val index = ViewPrinter.emit(view, replacementsWithFuns)
+
         OpenCLAST.VarRef(v, arrayIndex = OpenCLAST.Expression(index))
 
       case PrivateMemory =>
