@@ -4,6 +4,8 @@ import apart.arithmetic._
 import ir._
 import ir.ast._
 
+import scala.collection.{immutable, mutable}
+
 /**
  * An arithmetic expression that performs an access to `array[idx]`
  *
@@ -29,23 +31,26 @@ abstract class View(val t: Type = UndefType) {
    * @return The new view.
    */
   def replaced(oldExpr: ArithExpr, newExpr: ArithExpr): View = {
-    val subst = new scala.collection.mutable.HashMap[ArithExpr, ArithExpr]()
-    subst.put(oldExpr, newExpr)
+    val subst = collection.Map[ArithExpr, ArithExpr](oldExpr -> newExpr)
 
+    replaced(subst)
+  }
+
+  def replaced(subst: collection.Map[ArithExpr, ArithExpr]): View = {
     this match {
-      case map: ViewMap => new ViewMap(map.iv.replaced(oldExpr, newExpr), map.itVar, t)
-      case access: ViewAccess => new ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(oldExpr, newExpr), t)
-      case zip: ViewZip => new ViewZip(zip.ivs.map(_.replaced(oldExpr, newExpr)), t)
-      case unzip: ViewUnzip => new ViewUnzip(unzip.iv.replaced(oldExpr, newExpr), t)
-      case split: ViewSplit => new ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(oldExpr, newExpr), t)
-      case join: ViewJoin => new ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(oldExpr, newExpr), t)
-      case gather: ViewReorder => new ViewReorder(gather.f, gather.iv.replaced(oldExpr, newExpr), t)
-      case asVector: ViewAsVector => new ViewAsVector(asVector.n, asVector.iv.replaced(oldExpr, newExpr), t)
-      case asScalar: ViewAsScalar => new ViewAsScalar(asScalar.iv.replaced(oldExpr, newExpr), asScalar.n, t)
-      case filter: ViewFilter => new ViewFilter(filter.iv.replaced(oldExpr, newExpr), filter.ids.replaced(oldExpr, newExpr), t)
-      case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(oldExpr, newExpr)), t)
-      case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(oldExpr, newExpr), t)
-      case group: ViewGroup => new ViewGroup(group.iv.replaced(oldExpr, newExpr), group.group, group.t)
+      case map: ViewMap => new ViewMap(map.iv.replaced(subst), map.itVar, t)
+      case access: ViewAccess => new ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(subst), t)
+      case zip: ViewZip => new ViewZip(zip.ivs.map(_.replaced(subst)), t)
+      case unzip: ViewUnzip => new ViewUnzip(unzip.iv.replaced(subst), t)
+      case split: ViewSplit => new ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(subst), t)
+      case join: ViewJoin => new ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(subst), t)
+      case gather: ViewReorder => new ViewReorder(gather.f, gather.iv.replaced(subst), t)
+      case asVector: ViewAsVector => new ViewAsVector(asVector.n, asVector.iv.replaced(subst), t)
+      case asScalar: ViewAsScalar => new ViewAsScalar(asScalar.iv.replaced(subst), asScalar.n, t)
+      case filter: ViewFilter => new ViewFilter(filter.iv.replaced(subst), filter.ids.replaced(subst), t)
+      case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
+      case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(subst), t)
+      case group: ViewGroup => new ViewGroup(group.iv.replaced(subst), group.group, group.t)
       case _ => this
     }
   }
@@ -410,7 +415,7 @@ object ViewPrinter {
   /**
    * Emit the arithmetic expression for accessing an array that corresponds
    * to the view.
-   * 
+   *
    * @param view The view to emit.
    * @return The arithmetic expression.
    */
@@ -511,7 +516,7 @@ object ViewPrinter {
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView(tail.iv, newAAS, tupleAccessStack)
-        
+
       case ag: ViewGroup =>
         val outerId = arrayAccessStack.head
         val stack1 = arrayAccessStack.tail

@@ -364,6 +364,7 @@ class TestStencil extends TestGroup {
     runCombinedPadGroupTest(neighbours, boundary, scalaBoundary, data2D)
   }
 
+  @Ignore // Takes ages!!!
   @Test def groupMirrorPaddedData2D() = {
     val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Mirror
