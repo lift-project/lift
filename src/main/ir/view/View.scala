@@ -402,40 +402,17 @@ object View {
 
 }
 
-/**
- * Helper object for converting views to arithmetic expressions.
- *
- * Incrementally backtracks the links in the views modifying access variables and
- * dimension lengths as necessary.
- *
- * Finally flattens the expression, as arrays are stored in a flattened format.
- */
-object ViewPrinter {
-
-  /**
-   * Emit the arithmetic expression for accessing an array that corresponds
-   * to the view.
-   *
-   * @param view The view to emit.
-   * @return The arithmetic expression.
-   */
-  def emit(view: View, replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): ArithExpr = {
-    assert(!view.t.isInstanceOf[ArrayType])
-    emitView(view, List(), List(), replacements)
-  }
-
-  private def emitView(sv: View,
+class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
+    private def emitView(sv: View,
                        arrayAccessStack: List[(ArithExpr, ArithExpr)], // id, dimension size
-                       tupleAccessStack: List[Int],
-                       replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): ArithExpr = {
-    val replacedView = sv.replaced(replacements)
-    replacedView match {
+                       tupleAccessStack: List[Int]): ArithExpr = {
+    sv match {
       case mem: ViewMem =>
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => x + y)
 
       case access: ViewAccess =>
-        val length: ArithExpr = getLengthForArrayAccess(sv.t, tupleAccessStack)
+        val length: ArithExpr = ViewPrinter.getLengthForArrayAccess(sv.t, tupleAccessStack)
         val newAAS = (access.i, length) :: arrayAccessStack
         emitView(access.iv, newAAS, tupleAccessStack)
 
@@ -475,8 +452,8 @@ object ViewPrinter {
         val (idx, len) = arrayAccessStack.head
         val stack = arrayAccessStack.tail
 
-        val newIdx = emit(filter.ids.access(idx), replacements)
-        val indirection = new AccessVar(getViewMem(filter.ids).name, newIdx)
+        val newIdx = ViewPrinter.emit(filter.ids.access(idx), replacements)
+        val indirection = new AccessVar(ViewPrinter.getViewMem(filter.ids).name, newIdx)
 
         emitView(filter.iv, (indirection, len) :: stack, tupleAccessStack)
 
@@ -545,6 +522,31 @@ object ViewPrinter {
       case op => throw new NotImplementedError(op.getClass.toString)
     }
   }
+}
+
+/**
+ * Helper object for converting views to arithmetic expressions.
+ *
+ * Incrementally backtracks the links in the views modifying access variables and
+ * dimension lengths as necessary.
+ *
+ * Finally flattens the expression, as arrays are stored in a flattened format.
+ */
+object ViewPrinter {
+
+  /**
+   * Emit the arithmetic expression for accessing an array that corresponds
+   * to the view.
+   *
+   * @param view The view to emit.
+   * @return The arithmetic expression.
+   */
+  def emit(view: View, replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): ArithExpr = {
+    val vp = new ViewPrinter(replacements)
+    assert(!view.t.isInstanceOf[ArrayType])
+    vp.emitView(view.replaced(replacements), List(), List())
+  }
+
 
   private def getViewMem(sv: View, tupleAccessStack: List[Int] = List()): ViewMem = {
     sv match {

@@ -347,6 +347,7 @@ class TestStencil extends TestGroup {
     compareGoldWithOutput(gold.flatten.toArray, output, runtime)
   }
 
+  @Ignore
   @Test def groupClampPaddedData2D() = {
     val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Clamp
@@ -355,6 +356,7 @@ class TestStencil extends TestGroup {
     runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
   }
 
+  @Ignore // takes ages leads to EOF Exceoption on Fuji
   @Test def groupBigClampPaddedData2D() = {
     val neighbours = Array(-2 , -1, 0, 1, 2)
     val data2D = Array.tabulate(10, 10) { (i, j) => i * 10.0f + j }
@@ -373,6 +375,7 @@ class TestStencil extends TestGroup {
     runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
   }
 
+  @Ignore
   @Test def groupWrapPaddedData2D() = {
     val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Wrap
