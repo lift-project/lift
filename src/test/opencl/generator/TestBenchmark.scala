@@ -191,11 +191,8 @@ class TestBenchmark {
     val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2)
                .map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val (output: Array[Float], runtime) =
+    val (output: Array[Float], _) =
       Execute(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
 
     assertEquals(output.length, gold.length)
 

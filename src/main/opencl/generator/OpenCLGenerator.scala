@@ -8,8 +8,10 @@ import ir.ast._
 import ir.view._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
+import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
-import scala.collection.{mutable, immutable}
+
+import scala.collection.{immutable, mutable}
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
@@ -46,6 +48,16 @@ object Verbose {
 object CSE {
   val cse = System.getenv("APART_CSE") != null
   def apply() = cse
+}
+
+object PerformBarrierElimination {
+  val barrierElimination = System.getenv("APART_NO_BARRIER_ELIM") == null
+  def apply() = barrierElimination
+}
+
+object PerformLoopOptimisation {
+  val loopOptimisation = System.getenv("APART_NO_LOOP_OPT") == null
+  def apply() = loopOptimisation
 }
 
 object AllocateLocalMemoryStatically {
@@ -165,36 +177,18 @@ class OpenCLGenerator extends Generator {
     assert(globalSize.length == 3)
     assert(f.body.t != UndefType)
 
-    if (Verbose()) {
-      println("Types:")
-      OpenCLGenerator.printTypes(f.body)
-    }
-
-    // allocate the params and set the corresponding type
-    f.params.foreach((p) => {
-      p.t match {
-        case _: ScalarType =>
-          p.mem = OpenCLMemory.allocPrivateMemory(
-                    OpenCLMemory.getMaxSizeInBytes(p.t))
-        case _ =>
-          p.mem = OpenCLMemory.allocGlobalMemory(
-                    OpenCLMemory.getMaxSizeInBytes(p.t))
-      }
-      p.view = View(p.t, openCLCodeGen.toString(p.mem.variable))
-    })
-
     RangesAndCounts(f, localSize, globalSize, valueMap)
     allocateMemory(f)
-    BarrierElimination(f)
-    CheckBarriersAndLoops(f)
+    if (PerformBarrierElimination())
+      BarrierElimination(f)
 
-    f.body.mem match {
-      case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
-        throw new IllegalKernel("Final result must be stored in global memory")
-      case _ =>
-    }
+    checkLambdaIsLegal(f)
 
     if (Verbose()) {
+
+      println("Types:")
+      OpenCLGenerator.printTypes(f.body)
+
       println("Memory:")
       printMemories(f.body)
 
@@ -203,7 +197,7 @@ class OpenCLGenerator extends Generator {
       println()
     }
 
-    View.visitAndBuildViews(f.body)
+    View(f)
 
     val globalBlock = new OpenCLAST.Block(Vector.empty, global = true)
 
@@ -241,6 +235,33 @@ class OpenCLGenerator extends Generator {
     openCLCodeGen(globalBlock)
   }
 
+  // TODO: Gather(_)/Transpose() without read and Scatter(_)/TransposeW() without write
+  private def checkLambdaIsLegal(lambda: Lambda): Unit = {
+    CheckBarriersAndLoops(lambda)
+
+    Context.updateContext(lambda.body)
+
+    Expr.visit(lambda.body, _ => Unit, {
+      case call@FunCall(MapGlb(dim, _), _*) if call.context.inMapGlb(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapGlb($dim)")
+      case call@FunCall(MapWrg(dim, _), _*) if call.context.inMapWrg(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapWrg($dim)")
+      case call@FunCall(MapLcl(dim, _), _*) if call.context.inMapLcl(dim) =>
+        throw new IllegalKernel(s"Illegal nesting of $call inside MapLcl($dim)")
+      case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_ || _) =>
+        throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
+      case call@FunCall(Map(nestedLambda), _*) if nestedLambda.body.isConcrete =>
+        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case _ =>
+    })
+
+    lambda.body.mem match {
+      case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
+        throw new IllegalKernel("Final result must be stored in global memory")
+      case _ =>
+    }
+  }
+
   /** Traversals f and print all user functions using oclPrinter */
   private def generateUserFunctions(expr: Expr): Seq[OclAstNode] = {
     var fs = Seq[OclAstNode]()
@@ -248,6 +269,7 @@ class OpenCLGenerator extends Generator {
     val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
       expr match {
         case call: FunCall => call.f match {
+          case _: OpenCLBuiltInFun => set
           case uf: UserFun => set + uf
           case vec: VectorizeUserFun => set + vec.vectorizedFunction
           case _ => set
@@ -308,6 +330,15 @@ class OpenCLGenerator extends Generator {
   }
 
   def allocateMemory(f: Lambda): Unit = {
+    f.params.foreach(p =>
+      p.t match {
+        case _: ScalarType =>
+          p.mem = OpenCLMemory.allocPrivateMemory(
+            OpenCLMemory.getMaxSizeInBytes(p.t))
+        case _ =>
+          p.mem = OpenCLMemory.allocGlobalMemory(
+            OpenCLMemory.getMaxSizeInBytes(p.t))
+      })
     OpenCLMemoryAllocator.alloc(f.body)
     Kernel.memory = TypedOpenCLMemory.get(f.body, f.params).toArray
   }
@@ -322,10 +353,6 @@ class OpenCLGenerator extends Generator {
     val valMems = Expr.visitWithState(Set[Memory]())(f.body, (expr, set) =>
       expr match {
         case value: Value => set + value.mem
-        case FunCall(fun, _) => fun match {
-          case let: Let => set + let.params.head.mem
-          case _ => set
-        }
         case _ => set
       })
 
@@ -752,12 +779,12 @@ class OpenCLGenerator extends Generator {
         )
       }
     )
-    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       generateLoadNode(OpenCLMemory.asOpenCLMemory(defaultVal.mem), defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
     nestedBlock += generateStoreNode(
-      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
     block += nestedBlock
@@ -838,12 +865,12 @@ class OpenCLGenerator extends Generator {
       }
     )
     nestedBlock += OpenCLAST.Label(searchFailedLabel)
-    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+    nestedBlock += generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       generateLoadNode(OpenCLMemory.asOpenCLMemory(defaultVal.mem), defaultVal.t, defaultVal.view))
     nestedBlock += OpenCLAST.GOTO(finishLabel)
     nestedBlock += OpenCLAST.Label(writeResultLabel)
     nestedBlock += generateStoreNode(
-      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.view.access(Cst(0)),
+      OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
     block += nestedBlock
@@ -998,7 +1025,8 @@ class OpenCLGenerator extends Generator {
       // Generate an inner block for the for-loop
       val innerBlock = OpenCLAST.Block(Vector.empty)
       // add the for loop to the current node:
-      block += OpenCLAST.Loop(indexVar, iterationCountExpr, body = innerBlock)
+      val iterationCount = if (PerformLoopOptimisation()) iterationCountExpr else ?
+      block += OpenCLAST.Loop(indexVar, iterationCount, body = innerBlock)
       generateBody(innerBlock)
     }
   }
@@ -1027,7 +1055,8 @@ class OpenCLGenerator extends Generator {
                                   block: Block): Block = {
     // Handle vector assignments for vector types
     val mem = OpenCLMemory.asOpenCLMemory(call.mem)
-    block += generateStoreNode(mem, call.t, call.view,
+
+    block += generateStoreNode(mem, call.t, call.outputView,
       generateFunCall(call, generateLoadNodes(call.args: _*)))
 
     block

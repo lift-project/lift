@@ -1,23 +1,21 @@
 package rodinia
 
 import apart.arithmetic.Var
-import ir.{ArrayType, TupleType}
 import ir.ast._
+import ir.{ArrayType, TupleType}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object Kmeans {
   @BeforeClass def before() {
     Executor.loadLibrary()
-    println("Initialize the executor")
     Executor.init()
   }
 
   @AfterClass def after() {
-    println("Shutdown the executor")
     Executor.shutdown()
   }
 }
@@ -34,6 +32,10 @@ class Kmeans {
   val update = UserFun("update", Array("dist", "pair"),
     "{ return dist + (pair._0 - pair._1) * (pair._0 - pair._1); }",
     Seq(Float, TupleType(Float, Float)), Float)
+
+  val update2 = UserFun("update", Array("dist", "pair0", "pair1"),
+    "{ return dist + (pair0 - pair1) * (pair0 - pair1); }",
+    Seq(Float, Float, Float), Float)
 
   val test = UserFun("test", Array("dist", "tuple"),
     "{" +
@@ -145,13 +147,10 @@ class Kmeans {
       })
 
     val (output: Array[Int], _) = Execute(numPoints)(kMeans, points.transpose, clusters)
-
     assertArrayEquals(gold, output)
   }
 
-  @Ignore
   @Test
-  // TODO: Missing synchronisation
   def kMeansLocalMemory(): Unit = {
 
     val numPoints = 1024
@@ -173,7 +172,7 @@ class Kmeans {
           MapLcl( \( feature => {
             localClusters :>> ReduceSeq( \( (tuple, cluster) => {
 
-              val dist = Zip(feature, cluster) :>> ReduceSeq(update, 0.0f )
+              val dist = Zip(feature, cluster) :>> ReduceSeq(\((acc, b) => update2(acc, Get(b, 0), Get(b,1))), 0.0f )
               Zip(dist, tuple) :>> MapSeq(test)
 
             }), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int), 1)) ) :>>
@@ -184,7 +183,6 @@ class Kmeans {
       })
 
     val (output: Array[Int], _) = Execute(numPoints)(kMeans, points.transpose, clusters)
-
     assertArrayEquals(gold, output)
   }
 

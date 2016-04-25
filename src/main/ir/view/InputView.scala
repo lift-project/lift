@@ -84,7 +84,7 @@ object InputView {
   }
 
   private def buildViewGroup(g: Group, call: FunCall, argView: View): View = {
-      argView.group(g)
+    argView.group(g)
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {

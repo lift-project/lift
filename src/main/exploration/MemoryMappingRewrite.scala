@@ -1,88 +1,148 @@
 package exploration
 
-import java.io.FileWriter
+import java.io.{File, FileWriter}
 import java.util.concurrent.atomic.AtomicInteger
 
-import rewriting.utils.{NumberExpression, Utils}
-import rewriting.{Lower, Rewrite, Rule, Rules}
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
+import org.clapper.argot.ArgotConverters._
+import org.clapper.argot.{ArgotParser, ArgotUsageException}
+import rewriting.utils.{NumberExpression, Utils}
+import rewriting.{Lower, Rewrite, Rule, Rules}
 
 import scala.io.Source
 
 object MemoryMappingRewrite {
 
+  val parser = new ArgotParser("MemoryMappingRewrite")
+
+  val help = parser.flag[Boolean](List("h", "help"),
+    "Show this message.") {
+    (sValue, opt) =>
+      parser.usage()
+      sValue
+  }
+
+  val input = parser.parameter[String]("input",
+    "Input file containing the lambda to use for rewriting",
+    optional = false) {
+    (s, opt) =>
+      val file = new File(s)
+      if (!file.exists)
+        parser.usage("Input file \"" + s + "\" does not exist")
+      s
+  }
+
+  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"), "Don't execute in parallel.")
+
+  val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
+    "Enable load balancing using MapAtomLocal and MapAtomWrg")
+
   def main(args: Array[String]) {
 
-    val topFolder = if (args.isEmpty) "lambdas" else args.head
+    try {
 
-    val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
+      parser.parse(args)
 
-    val counter = new AtomicInteger()
+      val topFolder = input.value.get
 
-    all_files.par.foreach(filename => {
+      val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
 
-      val count = counter.incrementAndGet()
-      val hash = filename.split("/").last
+      val counter = new AtomicInteger()
 
-      println(s"Lowering : $hash $count / ${all_files.size}")
+      val allFilesPar = if (sequential.value.isDefined) all_files else all_files.par
 
-      try {
+      allFilesPar.foreach(filename => {
 
-        val lambda = GenerateOpenCL.readLambdaFromFile(filename)
+        val count = counter.incrementAndGet()
+        val hash = filename.split("/").last
 
-        val loweredExpressions = Lower.mapCombinations(lambda)
+        println(s"Lowering : $hash $count / ${all_files.size}")
 
-        loweredExpressions.foreach(lowered => {
+        try {
 
-          try {
-            val mapped = mapAddressSpaces(lowered)
+          val lambda = ParameterRewrite.readLambdaFromFile(filename)
 
-            var id = 0
-            mapped.foreach(expr => {
-              id += 1
+          val loweredExpressions = Lower.mapCombinations(lambda)
 
-              try {
+          loweredExpressions.foreach(lowered => {
 
-                // Sanity checks.
-                if (expr.body.contains({ case FunCall(Id(), _) => }))
-                  throw new RuntimeException("Illegal Id")
+            try {
+              val mapped = mapAddressSpaces(lowered)
 
-                if (expr.body.contains({ case FunCall(Map(l), _) if l.body.isConcrete => }))
-                  throw new RuntimeException(s"Illegal un-lowered Map")
+              var id = 0
+              mapped.foreach(addressMapped => {
+                id += 1
 
-                // Dump to file
-                val str = Utils.dumpLambdaToMethod(expr).replace("idfloat", "id")
-                val sha256 = Utils.Sha256Hash(str)
-                val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+                try {
+                  val loadBalanced =
+                    if (loadBalancing.value.isDefined) mapLoadBalancing(addressMapped)
+                    else Seq(addressMapped)
 
-                if (Utils.dumpToFile(str, sha256, folder)) {
-                  // Add to index if it was unique
-                  synchronized {
-                    val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)
-                    idxFile.write(folder + "/" + sha256 + "\n")
-                    idxFile.close()
-                  }
+                  loadBalanced.foreach(expr =>
+                    try {
+
+                      // Sanity checks.
+                      if (expr.body.contains({ case FunCall(Id(), _) => }))
+                        throw new RuntimeException("Illegal Id")
+
+                      if (expr.body.contains({ case FunCall(Map(l), _) if l.body.isConcrete => }))
+                        throw new RuntimeException(s"Illegal un-lowered Map")
+
+                      // Dump to file
+                      val str = Utils.dumpLambdaToMethod(expr)
+                      val sha256 = Utils.Sha256Hash(str)
+                      val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+
+                      if (Utils.dumpToFile(str, sha256, folder)) {
+                        // Add to index if it was unique
+                        synchronized {
+                          val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)
+                          idxFile.write(folder + "/" + sha256 + "\n")
+                          idxFile.close()
+                        }
+                      }
+                    } catch {
+                      case t: Throwable =>
+                        println(s"No $id of $count failed with ${t.toString}.")
+                    })
+                } catch {
+                  case _: Throwable =>
+                    println(s"Load balancing for $count failed.")
                 }
-              } catch {
-                case t: Throwable =>
-                  println(s"No $id of $count failed with ${t.toString}.")
-              }
-            })
-          } catch {
-            case t: Throwable =>
-              println(s"Address space mapping for $count failed")
-          }
+              })
+            } catch {
+              case t: Throwable =>
+                println(s"Address space mapping for $count failed.")
+            }
 
-        })
-      } catch {
-        case t: scala.MatchError =>
-          t.printStackTrace()
-        case t: Throwable =>
-          println(s"Lowering $count failed with $t")
-      }
-    })
+          })
+        } catch {
+          case t: scala.MatchError =>
+            t.printStackTrace()
+          case t: Throwable =>
+            println(s"Lowering $count failed with $t")
+        }
+      })
+
+    } catch {
+      case e: ArgotUsageException => println(e.message)
+    }
+  }
+
+  /**
+    * Returns all combinations with at most one load balancing rule applied
+    *
+    * @param lambda The lambda where to apply load balancing.
+    */
+  def  mapLoadBalancing(lambda: Lambda) = {
+
+    val locations =
+      Rewrite.listAllPossibleRewritesForRules(lambda, Seq(Rules.mapAtomWrg, Rules.mapAtomLcl))
+
+    val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
+    withLoadBalancing :+ lambda
   }
 
   def mapAddressSpaces(lambda: Lambda): Seq[Lambda] = {

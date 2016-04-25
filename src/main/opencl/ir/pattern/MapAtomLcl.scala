@@ -8,7 +8,7 @@ import ir.ast._
  * @param dim
  * @param f
  */
-case class MapAtomLcl(dim: Int, override val f: Lambda1, val workVar: Var)
+case class MapAtomLcl(dim: Int, override val f: Lambda1, workVar: Var)
 extends AbstractMap(f, "MapAtomLcl", Var("l_id")) {
   override def copy(f: Lambda): Pattern = MapAtomLcl(dim, f, Var("work_idx"))
   var emitBarrier = true

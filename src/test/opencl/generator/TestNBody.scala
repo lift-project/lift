@@ -1,14 +1,19 @@
 package opencl.generator
 
+import java.io.{File, PrintWriter}
+
 import apart.arithmetic.Var
 import benchmarks.NBody
 import ir._
 import ir.ast._
+import ir.printer.DotPrinter
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+
+import sys.process._
 
 object TestNBody {
 
@@ -147,10 +152,10 @@ class TestNBody {
 
             o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f))
 
-            o toLocal(MapSeq(fun(x2y2z2 =>
+            o MapSeq(fun(x2y2z2 =>
             calcAcc(Get(x1y1z1, 0), Get(x1y1z1, 1), Get(x1y1z1, 2),
               Get(x2y2z2, 0), Get(x2y2z2, 1), Get(x2y2z2, 2),
-              Get(x2y2z2, 6), espSqr))))
+              Get(x2y2z2, 6), espSqr)))
             $ Zip(x, y, z, velX, velY, velZ, mass)
 
         )) $ Zip(x, y, z, velX, velY, velZ, mass)
@@ -267,7 +272,6 @@ class TestNBody {
 
   }
 
-  @Ignore
   @Test
   def nBodyLocalMem(): Unit = {
 
@@ -341,9 +345,7 @@ class TestNBody {
 
     val (output: Array[Float], _) =
       Execute(128, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
-
     assertArrayEquals(gold, output, 0.0001f)
-
   }
 
   def nBodyScala(deltaT: Float, espSqr: Float, input: Array[(Float, Float, Float, Float, Float, Float, Float)]): Array[Float] = {

@@ -58,7 +58,7 @@ class TestScatterGather {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrix.map(_.reverse).flatten, output, 0.0f)
+    assertArrayEquals(matrix.flatMap(_.reverse), output, 0.0f)
   }
 
   @Test def testScatterGlbSeqOuterDim(): Unit = {
@@ -133,7 +133,7 @@ class TestScatterGather {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrix.map(_.reverse).flatten, output, 0.0f)
+    assertArrayEquals(matrix.flatMap(_.reverse), output, 0.0f)
   }
 
   @Test def testGatherGlbSeqOuterDim(): Unit = {
@@ -208,7 +208,7 @@ class TestScatterGather {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(matrix.map(_.reverse).flatten, output, 0.0f)
+    assertArrayEquals(matrix.flatMap(_.reverse), output, 0.0f)
   }
 
   @Test def testGatherWrgLclOuterDim(): Unit = {
@@ -286,7 +286,7 @@ class TestScatterGather {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
   }
 
   @Test def testScatterSplit(): Unit = {
@@ -300,12 +300,7 @@ class TestScatterGather {
       in => Scatter(reverse) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], runtime) = Execute(1,Nsize)(f, vector)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    val (output: Array[Float], _) = Execute(1,Nsize)(f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.reverse.flatten, output, 0.0f)
   }
 
@@ -325,13 +320,10 @@ class TestScatterGather {
       in => MapGlb(fun(x => Scatter(reverse)(MapSeq(id)(x))))(Split(splitSize)(in))
     )
 
-    val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
+    val (output0: Array[Float], _) = Execute(Nsize)(f, vector)
+    val (output1: Array[Float], _) = Execute(Nsize)(f_broken, vector)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output0, 0.0f)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output1, 0.0f)
   }
 
   @Test def mapScatterMap(): Unit = {
@@ -345,13 +337,104 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], runtime) = Execute(Nsize)(f, vector)
+    val (output: Array[Float], _) = Execute(Nsize)(f, vector)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
 
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+  }
 
-    assertArrayEquals(vector.grouped(splitSize).toArray.map(_.reverse).flatten, output, 0.0f)
+  @Test
+  def scatterBetweenMaps0(): Unit = {
+    val nSize = 256
+    val vector = Array.tabulate(nSize)(_.toFloat)
 
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(MapSeq(id)) o MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
+    )
+
+    val (output: Array[Float], _) = Execute(nSize)(f, vector)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
+  }
+
+  @Test
+  def scatterBetweenMaps1(): Unit = {
+    val nSize = 256
+    val vector = Array.tabulate(nSize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(MapSeq(id) o Scatter(reverse)) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
+    )
+
+    val (output: Array[Float], _) = Execute(nSize)(f, vector)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
+  }
+
+  @Test
+  def scatterBetweenMaps2(): Unit = {
+    val nSize = 256
+    val vector = Array.tabulate(nSize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(MapSeq(id) o Scatter(reverse)) o MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
+    )
+
+    val (output: Array[Float], _) = Execute(nSize)(f, vector)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse.reverse), output, 0.0f)
+  }
+
+  @Test
+  def gatherBetweenMaps0(): Unit = {
+    val nSize = 256
+    val vector = Array.tabulate(nSize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(MapSeq(id)) o MapGlb(Gather(reverse) o MapSeq(id)) o Split(splitSize) $ in
+    )
+
+    val (output: Array[Float], _) = Execute(nSize)(f, vector)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
+  }
+
+  @Test
+  def gatherBetweenMaps1(): Unit = {
+    val nSize = 256
+    val vector = Array.tabulate(nSize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(MapSeq(id) o Gather(reverse)) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
+    )
+
+    val (output: Array[Float], _) = Execute(nSize)(f, vector)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
+  }
+
+  @Test
+  def gatherBetweenMaps2(): Unit = {
+    val nSize = 256
+    val vector = Array.tabulate(nSize)(_.toFloat)
+
+    val splitSize = 64
+
+    val f = fun(
+      ArrayType(Float, Var("N")),
+      in => MapGlb(MapSeq(id) o Gather(reverse)) o MapGlb(Gather(reverse) o MapSeq(id)) o Split(splitSize) $ in
+    )
+
+    val (output: Array[Float], _) = Execute(nSize)(f, vector)
+    assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse.reverse), output, 0.0f)
   }
 }

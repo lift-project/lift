@@ -433,6 +433,7 @@ class TestStencil extends TestGroup {
     )
   }
 
+  @Ignore //do not iterate over mapglb!
   @Test def iterative3Point1DStencil(): Unit = {
     val data = Array(1,1,1,1,1).map(_.toFloat)
     val weights = Array(1, 1, 1).map(_.toFloat)
@@ -444,6 +445,7 @@ class TestStencil extends TestGroup {
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  @Ignore //do not iterate over mapglb
   @Test def iterative5Point1DStencil(): Unit = {
     val data = Array(1,1,1,1,1).map(_.toFloat)
     val weights = Array(1, 1, 1, 1, 1).map(_.toFloat)

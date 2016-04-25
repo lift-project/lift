@@ -1,6 +1,7 @@
 package ir.printer
 
-import java.io.Writer
+import java.io.{File, PrintWriter, Writer}
+import sys.process._
 
 import ir.ast._
 
@@ -8,6 +9,15 @@ import ir.ast._
 /**
   * @author cdubach
   */
+
+object DotPrinter {
+  def apply(name: String, f: Lambda): Unit = {
+    val folder = System.getProperty("user.home")
+    new DotPrinter(new PrintWriter(new File(s"$folder/$name.dot"))).print(f)
+    s"dot -Tpdf $folder/$name.dot -o $folder/$name.pdf".!
+  }
+}
+
 class DotPrinter(w: Writer, compressLambda : Boolean = true) {
 
   // keeps track of the visited node
@@ -15,6 +25,8 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
   lazy val counters : collection.mutable.Map[Param, Int]  = collection.mutable.HashMap()
 
   val nodesId : collection.mutable.Map[IRNode, String] = collection.mutable.HashMap()
+
+
 
   def writeln(s: String) = {
     w.write(s+"\n")
@@ -110,18 +122,22 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
       case z: Zip =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
+      case Unzip() =>
+        if (!parent.equals(""))
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
       case p: Pattern =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
         p match {
           case fp: FPattern =>
             printEdges(fp.f, nodeId, "f")
-          case j : Join =>
-          case s : Split =>
+          case _ =>
         }
       case uf: UserFun =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
+      case _ =>
+
     }
   }
 
@@ -168,9 +184,6 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
         writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
         fc.args.foreach(printNodes)
         printNodes(fc.f)
-
-
-
 
       case v: Value =>
         writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")>]")
@@ -220,14 +233,17 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
           case fp: FPattern =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
             printNodes(fp.f)
-          case j : Join =>
+          case Split(chunkSize) =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+chunkSize+")>]")
+          case Get(i) =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+i+")>]")
+          case  _ =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
-          case s : Split =>
-            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+s.chunkSize+")>]")
         }
       case uf: UserFun =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
-
+      case  _ =>
+        writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }
   }
 
@@ -262,120 +278,4 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
       }
       , post => {})
   }
-/*
-
-  def printEdges(expr : Expr, parent: String, label: String, attr: String = "") : Unit = {
-
-    val nodeId = getNodeId(expr)
-
-    if (!parent.equals(""))
-      writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
-
-    expr match {
-      case fc: FunCall =>
-        fc.args.zipWithIndex.foreach(p=> printEdges(p._1, nodeId, "arg_"+p._2))
-        printEdges(fc.f, nodeId,"f")
-      case p : Param =>
-    }
-  }
-
-  def printEdges(decl : Decl, parent: String, label: String, attr: String = "") : Unit = {
-
-    val nodeId = getNodeId(decl)
-
-    decl match {
-      case l: Lambda =>
-        l.body match {
-          case fc: FunCall =>
-            if (fc.args.length == l.params.length)
-              if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.getOrElse(p._2,0) <= 2).fold(true)(_ && _)) {
-                printEdges(fc.f, parent, "o", ",color=Blue, style=dashed")
-                return
-              }
-        }
-        if (!parent.equals(""))
-          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
-        l.params.zipWithIndex.foreach(p => printEdges(p._1, nodeId, "param_"+p._2))
-        printEdges(l.body, nodeId, "body")
-      case z: Zip =>
-        if (!parent.equals(""))
-          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
-      case p: Pattern =>
-        if (!parent.equals(""))
-          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
-        p match {
-          case fp: FPattern =>
-            printEdges(fp.f, nodeId, "f")
-          case j : Join =>
-          case s : Split =>
-        }
-      case uf: UserFun =>
-        if (!parent.equals(""))
-          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
-    }
-  }
-
-  def printNodes(expr: Expr): Unit = {
-
-    if (visited.contains(expr))
-      return
-    visited.add(expr)
-
-    val nodeId = getNodeId(expr)
-
-
-    expr match {
-      case fc: FunCall =>
-        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + expr.getClass.getSimpleName + "</b>>]")
-        fc.args.foreach(printNodes)
-        printNodes(fc.f)
-      case v: Value =>
-        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + expr.getClass.getSimpleName + "</b>("+v.value+")>]")
-      case p: Param =>
-        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + expr.getClass.getSimpleName + "</b>>]")
-    }
-  }
-
-  def printNodes(decl : Decl) : Unit = {
-
-    if (visited.contains(decl))
-      return
-    visited.add(decl)
-
-    val nodeId = getNodeId(decl)
-
-    //writeln(nodeId+" [style=rounded,shape=box,label=\""+decl.getClass.getSimpleName+"\"]")
-
-    decl match {
-      case l: Lambda =>
-
-        l.body match {
-          case fc: FunCall =>
-            if (fc.args.length == l.params.length)
-              if (fc.args.zip(l.params).map(p => p._1 == p._2 && counters.getOrElse(p._2,0) <= 2).fold(true)(_ && _)) {
-                printNodes(fc.f)
-                return
-              }
-        }
-
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+decl.getClass.getSimpleName+"</b>>]")
-        l.params.map(p => printNodes(p))
-        printNodes(l.body)
-      case z: Zip =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+decl.getClass.getSimpleName+"</b>>]")
-      case p: Pattern =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+decl.getClass.getSimpleName+"</b>>]")
-        p match {
-          case fp: FPattern =>
-            printNodes(fp.f)
-          case j : Join =>
-          case s : Split =>
-        }
-      case uf: UserFun =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
-
-  }
-  }
-*/
-
 }

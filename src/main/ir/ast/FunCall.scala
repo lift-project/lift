@@ -1,7 +1,8 @@
 package ir.ast
 
+import ir.interpreter.Interpreter.ValueMap
 import ir.{Memory, TupleType, Type}
-import opencl.ir.{OpenCLMemory, UndefAddressSpace, OpenCLMemoryCollection}
+import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 
 /** Function calls, ie.: map(f, x), zip(x, y), ...
@@ -36,6 +37,17 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   def argsMemory: Memory = {
     if (args.length == 1) args(0).mem
     else OpenCLMemoryCollection(args.map(_.mem.asInstanceOf[OpenCLMemory]))
+  }
+
+  override def eval(valueMap: ValueMap): Any = {
+    val argValues = args.map(_.eval(valueMap))
+    f match {
+      case l: Lambda  => l.eval(valueMap, argValues:_*)
+
+      case p: Pattern => p.eval(valueMap, argValues:_*)
+
+      case uf: UserFun => uf.eval(valueMap, argValues:_*)
+    }
   }
 }
 

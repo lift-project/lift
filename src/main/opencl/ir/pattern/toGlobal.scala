@@ -1,5 +1,6 @@
 package opencl.ir.pattern
 
+import ir.interpreter.Interpreter.ValueMap
 import ir.{TypeChecker, Type}
 import ir.ast._
 
@@ -14,4 +15,8 @@ case class toGlobal(f: Lambda) extends Pattern(arity = f.arity)
     TypeChecker.check(f.body, setType)
   }
 
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    f.eval(valueMap, args:_*)
+  }
 }

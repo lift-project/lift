@@ -4,8 +4,9 @@ import apart.arithmetic.Var
 import exploration.HighLevelRewrite
 import ir.ArrayType
 import ir.ast._
-import opencl.executor.{Executor, Utils, Execute}
+import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
