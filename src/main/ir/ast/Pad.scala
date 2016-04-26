@@ -45,7 +45,8 @@ object Pad {
 
     object Clamp extends ReindexingFun {
       override def apply(idx: ArithExpr, len: ArithExpr) = {
-        ArithExpr.Math.Clamp(idx, 0, len-1)
+        //ArithExpr.Math.Clamp(idx, 0, len-1)
+        (idx ge 0) ?? ((idx lt len) ?? idx !! len-1) !! 0
       }
     }
 

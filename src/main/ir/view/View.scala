@@ -51,6 +51,7 @@ abstract class View(val t: Type = UndefType) {
       case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
       case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(subst), t)
       case group: ViewGroup => new ViewGroup(group.iv.replaced(subst), group.group, group.t)
+      case pad: ViewPad => new ViewPad(pad.iv.replaced(subst), pad.size, pad.fct, t)
       case _ => this
     }
   }
@@ -519,7 +520,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         ag.t match {
           case ArrayType(t, len) =>
             val table: Seq[ArithExpr] = ag.group.posIndices.map(Cst(_))
-            val newIdx = outerId._1 + new Lookup(table, innerId._1, ag.group.id)
+            val newIdx = outerId._1 + Lookup(table, innerId._1, ag.group.id)
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()

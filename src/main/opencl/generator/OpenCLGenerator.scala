@@ -359,7 +359,7 @@ class OpenCLGenerator extends Generator {
     val typedMems =
       TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).toArray
 
-    
+
     val (typedValueMems, privateMems) =
       typedMems.diff(Kernel.memory).partition(m => valMems.contains(m.mem))
 

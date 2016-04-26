@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{?, Var}
 import ir.ast._
 import opencl.executor._
 import opencl.ir.pattern._
@@ -199,6 +199,14 @@ class TestStencil extends TestGroup {
   /* **********************************************************
       1D STENCILS
    ***********************************************************/
+  @Test def groupWrapPaddedData3Point(): Unit = {
+    val boundary = Pad.Boundary.Wrap
+    val gold = Array(4, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 0).map(_.toFloat)
+    val neighbours = Array(-1, 0, 1)
+
+    testCombinationPadGroup(boundary, gold, neighbours)
+  }
+
   @Test def groupClampPaddedData3Point(): Unit = {
     val boundary = Pad.Boundary.Clamp
     val gold = Array(0, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 4).map(_.toFloat)
@@ -286,7 +294,7 @@ class TestStencil extends TestGroup {
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
-            toGlobal(MapSeq(clamp)) o
+            toGlobal(MapSeqOrMapSeqUnroll(clamp)) o
               ReduceSeq(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
@@ -512,5 +520,57 @@ class TestStencil extends TestGroup {
       1, 4, 7, 4, 1).map(_*0.004219409282700422f)
     val stencil = createIterative2DStencil(neighbours, weights, BOUNDARY, 4)
     run2DStencil(stencil, neighbours, weights, "iterativeGauss25.pgm", BOUNDARY)
+  }
+
+   /* **********************************************************
+      DEBUGGING
+   ***********************************************************/
+  @Ignore
+  @Test def debugGroupPad2D() = {
+    val neighbours = Array(-1, 0, 1)
+    val boundary = Pad.Boundary.Clamp
+    val scalaBoundary = scalaClamp
+    val data = data2D
+    val paddingSize = neighbours.map(math.abs).max
+
+    //scala
+     /*
+    val nrRows = data.length
+    val nrColumns = data(0).length
+    val gold = (0 until nrRows).flatMap(r =>
+      (0 until nrColumns).map(c =>
+        scala2DNeighbours(data, neighbours, neighbours, r, c, scalaBoundary))
+    )
+    */
+
+     val dim = 4//Var("N")
+
+    //lift
+    val lambda = fun(
+      //ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, dim), dim),
+      (domain) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours =>
+            MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
+          ))
+        // Group2D
+        ) o Map(
+          Map(
+            Transpose()
+          ) o Group(neighbours) o Transpose()
+        ) o Group(neighbours) o
+        // Pad2D
+          //Transpose() o
+          //Pad(paddingSize, boundary) o
+          //Transpose() o
+          Pad(paddingSize, boundary) $ domain
+      }
+    )
+
+     val code = Compile(lambda, 4, 4, ?, dim, dim, ?, scala.collection.immutable.Map())
+
+    val (output: Array[Float], runtime) = Execute(data.length, data.length, data.length, data.length, (false, false))(code, lambda, data)
+    //compareGoldWithOutput(gold.flatten.toArray, output, runtime)
   }
 }

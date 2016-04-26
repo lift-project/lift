@@ -3,7 +3,7 @@ package opencl.generator
 import java.io.FileInputStream
 import java.util.Scanner
 
-import apart.arithmetic.Var
+import apart.arithmetic.{ArithExpr, Cst, Var, Lookup}
 import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -46,6 +46,12 @@ class TestGroup {
       1, 2, 1).map(_.toFloat)
 
 
+  @Test
+  def lookupSimplfication(): Unit = {
+    val table: Seq[ArithExpr] = Array(0,1,2).map(Cst(_))
+    val lookup = Lookup(table, Cst(1), 0)
+    assertEquals(table.apply(1), lookup)
+  }
 
   /**
     * Creates simple 1D Group Lambda = Map(Map(id) o Group $ data
