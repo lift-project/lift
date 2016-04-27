@@ -230,12 +230,15 @@ object Utils {
 
     val tempString =
       withTemps.foldRight(fullString)((toReplace, currentString) =>
-      currentString.replaceAll(toReplace._1._1, getNewName(toReplace._1._1, toReplace._2)))
+      currentString.replaceAll(
+        toReplace._1._1 + "(\\D)",
+        getNewName(toReplace._1._1, toReplace._2) + "$1"
+      ))
 
     withTemps.foldRight(tempString)((toReplace, currentString) =>
       currentString.replaceAll(
-        getNewName(toReplace._1._1, toReplace._2),
-        getNewName(toReplace._1)
+        getNewName(toReplace._1._1, toReplace._2) + "(\\D)",
+        getNewName(toReplace._1) + "$1"
       ))
   }
 
