@@ -1,6 +1,7 @@
 package benchmarks
 
 import java.io._
+import java.nio.file.{Paths, Files}
 
 import ir.ast.Lambda
 import opencl.executor._
@@ -50,6 +51,9 @@ abstract class Benchmark(val name: String,
 
   val loadKernel = parser.option[String](List("loadKernel"), "filename",
     "Load an OpenCL kernel source file")
+
+  val csvFileName = parser.option[String](List("csv"), "csvFileName",
+    "If specified, results are stored in .csv file with given name")
 
   val size = parser.multiOption[Int](List("s", "size"), "inputSize",
     "Size of the input to use, expecting " + defaultInputSizes.length + " sizes.")
@@ -176,7 +180,35 @@ abstract class Benchmark(val name: String,
     println("BANDWIDTH: " + bandwidth(time) + " GB/s" )
   }
 
+  def printCSVFile(filename: String): Unit = {
+    if(!Files.exists(Paths.get(filename))) {
+     val fw = new FileWriter(filename, true)
+      try {
+        fw.write("Benchmark;InputSize0;InputSize1;")
+        fw.write("Iterations;GlobalSize0;GlobalSize1;GlobalSize2;")
+        fw.write("LocalSize0;LocalSize1;LocalSize2;")
+        fw.write("Platform;Device;Median:Bandwidth\n")
+      } finally fw.close()
+    }
+
+    val fw = new FileWriter(filename, true)
+      try {
+        fw.write(name + "_" + f(variant)._1 + ";" + inputSizes().apply(0) + ";" + inputSizes().apply(1) + ";")
+        fw.write(iterations + ";" + globalSize(0) + ";" + globalSize(1) + ";" + globalSize(2) + ";")
+        fw.write(localSize(0) + ";" + localSize(1) + ";" + localSize(2) + ";")
+        fw.write(Executor.getPlatformName + ";" + Executor.getDeviceName() + ";")
+      } finally fw.close()
+  }
+
+  def printMedianAndBandwidth(median: Double, bandwidth: Double): Unit = {
+    val fw = new FileWriter(csvFileName.value.get, true)
+      try {
+        fw.write(median + ";" + bandwidth + ";\n")
+      } finally fw.close()
+  }
+
   def runBenchmark(): Unit = {
+    if (csvFileName.value.isDefined) printCSVFile(csvFileName.value.get)
 
     print("date".!!)
     println("Benchmark: " + name + " " + f(variant)._1)
@@ -193,7 +225,7 @@ abstract class Benchmark(val name: String,
     print("Machine: " + "hostname".!!)
     print("finger".!!)
     print("Commit: " + "git rev-parse HEAD".!!)
-    print("Diff:\n" + "git diff".!!)
+    //print("Diff:\n" + "git diff".!!)
 
     println()
 
@@ -231,6 +263,7 @@ abstract class Benchmark(val name: String,
 
         println("MEDIAN: " + runtime + " ms")
         printResults(runtime)
+        if(csvFileName.value.isDefined) printMedianAndBandwidth(runtime, bandwidth(runtime))
 
       }
       else {
@@ -249,6 +282,7 @@ abstract class Benchmark(val name: String,
 
         println("MEDIAN: " + runtime + " ms")
         printResults(runtime)
+        if(csvFileName.value.isDefined) printMedianAndBandwidth(runtime, bandwidth(runtime))
       }
 
     } else {
@@ -276,6 +310,7 @@ abstract class Benchmark(val name: String,
       val medianTime = median(sorted)
       println("MEDIAN: " + medianTime + " ms")
       printResults(medianTime)
+      if(csvFileName.value.isDefined) printMedianAndBandwidth(medianTime, bandwidth(medianTime))
       println()
     }
   }
