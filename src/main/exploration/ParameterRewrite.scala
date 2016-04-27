@@ -53,7 +53,7 @@ object ParameterRewrite {
 
     try {
 
-      parser.parse(args)
+      parser.parse(Array("/home/s1042579/Documents/apart/mmTransposeA"))
 
       topFolder = input.value.get
 
@@ -105,7 +105,6 @@ object ParameterRewrite {
               val low_level_counter = new AtomicInteger()
               val lowLevelCount = low_level_expr_list.size
               println(s"Found $lowLevelCount low level expressions")
-
 
               val parList = if (sequential.value.isDefined) low_level_expr_list else low_level_expr_list.par
 

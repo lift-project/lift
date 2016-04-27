@@ -124,7 +124,7 @@ class AccessCounts(
           case _: MapGlb | _: MapLcl | _:MapWrg =>
             val map = f.asInstanceOf[AbstractMap]
 
-            val n = Type.getLength(expr.t) / map.loopVar.range.asInstanceOf[RangeAdd].step
+            val n = Type.getLength(expr.t) /^ map.loopVar.range.asInstanceOf[RangeAdd].step
             count(map.f, n)
 
           // TODO: Map?

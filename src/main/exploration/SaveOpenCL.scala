@@ -2,13 +2,14 @@ package exploration
 
 import java.io.FileWriter
 
+import analysis.{AccessCounts, BarrierCounts, MemoryAmounts}
 import apart.arithmetic.{?, ArithExpr, Cst}
+import ir.ast.Lambda
+import opencl.generator.OpenCLGenerator
+import opencl.generator.OpenCLGenerator.NDRange
+import opencl.ir.{GlobalMemory, LocalMemory, PrivateMemory, TypedOpenCLMemory}
 import rewriting.InferNDRange
 import rewriting.utils.Utils
-import ir.ast.Lambda
-import opencl.generator.OpenCLGenerator.NDRange
-import opencl.generator.{IllegalKernel, OpenCLGenerator}
-import opencl.ir.{LocalMemory, TypedOpenCLMemory}
 
 object SaveOpenCL {
   def apply(topFolder: String, lowLevelHash: String, highLevelHash: String,
@@ -21,16 +22,17 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
   private var local: NDRange = Array(?, ?, ?)
   private var global: NDRange = Array(?, ?, ?)
 
-  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
+  val inputSizes = Seq(1024, 2048, 4096, 8192, 16384)
+
+  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] =
     expressions.map(processLambda)
-  }
 
   private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
     try {
       val kernel = generateKernel(pair)
       dumpOpenCLToFiles(pair._1, kernel)
     } catch {
-      case x:Throwable =>
+      case x: Throwable =>
         println(x)
         None
     }
@@ -67,19 +69,14 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
 
     val path = s"${topFolder}Cl/$lowLevelHash"
 
-    // FIXME(tlutz): some buffer sizes overflow
     val (_, buffers) = OpenCLGenerator.getMemories(lambda)
     val (localBuffers, globalBuffers) = buffers.partition(_.mem.addressSpace == LocalMemory)
 
-    // Dump only the code if the minimal amount of temporary global arrays doesn't overflow
-    val min_map = getBufferSizes(1024, globalBuffers)
-
-    if (!min_map.forall(_ > 0))
-      throw new IllegalKernel("Buffer size overflow")
-
     val dumped = Utils.dumpToFile(kernel, filename, path)
-    if (dumped)
+    if (dumped) {
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
+      dumpStats(lambda, hash, path)
+    }
 
     if (dumped) Some(hash) else None
   }
@@ -87,7 +84,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
   private def createCsv(hash: String, path: String, numParams: Int,
                         globalBuffers: Array[TypedOpenCLMemory],
                         localBuffers: Array[TypedOpenCLMemory]): Unit = {
-    Seq(1024, 2048, 4096, 8192, 16384).foreach(i => {
+    inputSizes.foreach(i => {
 
       // Add to the CSV if there are no overflow
       val allBufferSizes = getBufferSizes(i, globalBuffers)
@@ -95,8 +92,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       val localTempAlloc = getBufferSizes(i, localBuffers)
 
       if (allBufferSizes.forall(_ > 0)) {
-        val fw = new FileWriter(s"$path/exec_$i.csv", true)
-        fw.write(i + "," +
+        val fileWriter = new FileWriter(s"$path/exec_$i.csv", true)
+        fileWriter.write(i + "," +
           global.map(substituteInputSizes(i, _)).mkString(",") + "," +
           local.map(substituteInputSizes(i, _)).mkString(",") +
           s",$hash," + globalTempAlloc.length + "," +
@@ -105,9 +102,46 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
           localTempAlloc.length +
           (if (localTempAlloc.length == 0) "" else ",") +
           localTempAlloc.mkString(",")+ "\n")
-        fw.close()
+        fileWriter.close()
       }
     })
+  }
+
+  private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
+
+    val smallSize = inputSizes.head
+    val exact = true
+
+    val smallGlobalSizes = global.map(substituteInputSizes(smallSize, _))
+    val smallLocalSizes = local.map(substituteInputSizes(smallSize, _))
+    val valueMap = ParameterRewrite.createValueMap(lambda)
+
+    val memoryAmounts = MemoryAmounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
+    val accessCounts = AccessCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
+    val barrierCounts = BarrierCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
+
+    val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
+    val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
+    val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDbl
+
+    val globalStores = accessCounts.storesToAddressSpace(GlobalMemory, exact).evalDbl
+    val globalLoads = accessCounts.loadsToAddressSpace(GlobalMemory, exact).evalDbl
+    val localStores = accessCounts.storesToAddressSpace(LocalMemory, exact).evalDbl
+    val localLoads = accessCounts.loadsToAddressSpace(LocalMemory, exact).evalDbl
+    val privateStores = accessCounts.storesToAddressSpace(PrivateMemory, exact).evalDbl
+    val privateLoads = accessCounts.loadsToAddressSpace(PrivateMemory, exact).evalDbl
+
+    val barriers = barrierCounts.getTotalCount(exact).evalDbl
+
+    val string =
+      s"$hash,$smallSize,${smallGlobalSizes.mkString(",")},${smallLocalSizes.mkString(",")}," +
+      s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
+      s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers\n"
+
+    val fileWriter = new FileWriter(s"$path/stats_$smallSize.csv", true)
+    fileWriter.write(string)
+    fileWriter.close()
+
   }
 
   private def substituteInputSizes(size: Int, ae: ArithExpr) = {

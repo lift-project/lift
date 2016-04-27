@@ -1,6 +1,6 @@
 package analysis
 
-import apart.arithmetic.Var
+import apart.arithmetic.{Cst, Var}
 import ir.ArrayType
 import ir.ast._
 import opencl.generator._
@@ -28,7 +28,7 @@ class TestAccessCounts {
 
     val (_, stores) = AccessCounts(f).accesses
 
-    assertEquals(N * (N / globalSize0), stores(f.body.mem))
+    assertEquals(N * (N /^ globalSize0), stores(f.body.mem))
   }
 
   @Test
@@ -41,7 +41,7 @@ class TestAccessCounts {
 
     val (_, stores) = AccessCounts(f).accesses
 
-    assertEquals((N / globalSize1) * (N / globalSize0), stores(f.body.mem))
+    assertEquals((N /^ globalSize1) * (N /^ globalSize0), stores(f.body.mem))
   }
 
   @Test
@@ -73,8 +73,8 @@ class TestAccessCounts {
     val localWrites = counts.storesToAddressSpace(LocalMemory)
 
     // TODO: assert...
-    assertEquals((N / numGroups0) * (16 / localSize0) , localReads)
-    assertEquals((N / numGroups0) * (16 / localSize0) , localWrites)
+    assertEquals((N /^ numGroups0) * (Cst(16) /^ localSize0) , localReads)
+    assertEquals((N /^ numGroups0) * (Cst(16) /^ localSize0) , localWrites)
   }
 
 }

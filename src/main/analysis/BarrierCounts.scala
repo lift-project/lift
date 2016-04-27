@@ -1,41 +1,83 @@
 package analysis
 
-import apart.arithmetic.{ArithExpr, Cst, RangeAdd}
+import analysis.AccessCounts.SubstitutionMap
+
+import apart.arithmetic.ArithExpr.{contains, substitute}
+import apart.arithmetic.{?, ArithExpr, Cst, RangeAdd}
 import ir._
 import ir.ast._
-import opencl.executor.Compile
+import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator._
+import opencl.ir.OpenCLMemoryAllocator
 import opencl.ir.pattern._
+import rewriting.InferNDRange.substituteInNDRange
 
 object BarrierCounts {
-  def apply(lambda: Lambda) =
-    new BarrierCounts(lambda)
+    def apply(
+    lambda: Lambda,
+    localSize: NDRange = Array(?,?,?),
+    globalSize: NDRange = Array(?,?,?),
+    valueMap: SubstitutionMap = collection.immutable.Map()
+  ) = new BarrierCounts(lambda, localSize, globalSize, valueMap)
 
 }
 
-class BarrierCounts(val lambda: Lambda) {
+class BarrierCounts(
+  val lambda: Lambda,
+  val localSize: NDRange,
+  val globalSize: NDRange,
+  val valueMap: SubstitutionMap) {
 
-  // TODO: only do the required steps and only if not already done
-  Compile(lambda)
-  count(lambda.body)
+  private val substLocal = substituteInNDRange(localSize, valueMap)
+  private val substGlobal = substituteInNDRange(globalSize, valueMap)
 
-  // TODO: different fences?
-
-  lazy val totalCount = barrierCounts.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)
+  private val substitutionMap = collection.immutable.Map[ArithExpr, ArithExpr](
+    new get_local_size(0) -> substLocal(0),
+    new get_local_size(1) -> substLocal(1),
+    new get_local_size(2) -> substLocal(2),
+    new get_global_size(0) -> substGlobal(0),
+    new get_global_size(1) -> substGlobal(1),
+    new get_global_size(2) -> substGlobal(2),
+    new get_num_groups(0) -> (substGlobal(0) / substLocal(0)),
+    new get_num_groups(1) -> (substGlobal(1) / substLocal(1)),
+    new get_num_groups(2) -> (substGlobal(2) / substLocal(2))
+  ).filterNot(pair => contains(pair._2, ?)) ++ valueMap
 
   private var barrierCounts = collection.Map[MapLcl, ArithExpr]()
 
   private var currentNesting: ArithExpr = Cst(1)
 
+  private lazy val totalCount =
+    barrierCounts.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)
+
+  // TODO: only do the required steps and only if not already done
+  if (lambda.body.t == UndefType)
+    TypeChecker(lambda)
+
+  if (lambda.body.mem == UnallocatedMemory) {
+    RangesAndCounts(lambda, localSize, globalSize, valueMap)
+    OpenCLMemoryAllocator(lambda)
+  }
+
+  BarrierElimination(lambda)
+
+  count(lambda.body)
+
+  // TODO: different fences?
+
   def counts = barrierCounts
+
+  def getTotalCount(exact: Boolean = false) =
+    if (exact) substitute(totalCount, substitutionMap) else totalCount
 
   private def count(lambda: Lambda, arithExpr: ArithExpr): Unit = {
     currentNesting *= arithExpr
     count(lambda.body)
-    currentNesting /= arithExpr
+    currentNesting /^= arithExpr
   }
 
   private def getParallelMapTripCount(map: AbstractMap, t: Type) = {
-    Type.getLength(t) / map.loopVar.range.asInstanceOf[RangeAdd].step
+    Type.getLength(t) /^ map.loopVar.range.asInstanceOf[RangeAdd].step
   }
 
   private def count(expr: Expr): Unit = {
