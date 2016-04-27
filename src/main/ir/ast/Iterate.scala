@@ -5,6 +5,7 @@ import arithmetic.TypeVar
 import ir._
 
 import scala.collection._
+import scala.collection.immutable.HashMap
 
 /**
  * Iterate pattern.
@@ -106,8 +107,9 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
           inLen match {
             case tv: TypeVar =>
               if (inLen == outLen) {
-                tv.range = ContinuousRange(tvMap.get(tv).get, tvMap.get(tv).get)
-                return ouT
+                return Type.substitute(ouT,new HashMap[ArithExpr,ArithExpr]() + ((tv, tvMap.get(tv).get)))
+                //tv.range = ContinuousRange(tvMap.get(tv).get, tvMap.get(tv).get)
+                //return ouT
               }
               // recognises output independent of tv
               if (!ArithExpr.contains(outLen, tv))
@@ -122,10 +124,14 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
                 val (min, max) = ArithExpr.minmax(tvMap.get(tv).get,
                                                   (a pow n)*tvMap.get(tv).get)
                 // TODO: deal with growing output size
-                tv.range = ContinuousRange(min,max)
+                //tv.range = ContinuousRange(min,max)
+                val tvWithRange = TypeVar(ContinuousRange(min,max))
+                tvMap += ((tvWithRange, tvMap.get(tv).get))
 
                 // we have outLen*tv where tv is not present inside outLen
-                (a pow n)*tv
+                //(a pow n)*tv
+
+                (a pow n) * tvWithRange
               }
               else throw new TypeException("Cannot infer closed form for" +
                 "iterate return type (only support x*a). inT = " + inT +

@@ -12,11 +12,11 @@ import ir._
  * @param f A lambda to be applied in the partial reduction
  */
 abstract class AbstractPartRed(val f: Lambda,
-                               val loopVar: Var) extends Pattern(arity = 2)
+                               var loopVar: Var) extends Pattern(arity = 2)
                                                          with FPattern {
   assert(f.params.length == 2)
 
-  var iterationCount: ArithExpr = ?
+  val iterationCount: ArithExpr = loopVar.range.numVals()
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

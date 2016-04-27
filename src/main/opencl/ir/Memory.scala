@@ -70,9 +70,16 @@ class OpenCLMemory(var variable: Var,
     case e: Exception => throw e
   }
 
-  // noe type variable allowed in the size
+  // no type variable allowed in the size
   if (TypeVar.getTypeVars(size).nonEmpty)
     throw new IllegalArgumentException
+
+  // no unknown allowed in the size
+  val hasUnknown = ArithExpr.visitUntil(size, _ == ?)
+  if (hasUnknown)
+    throw new IllegalArgumentException
+
+
 
   def copy(): OpenCLMemory = {
     addressSpace match {
@@ -286,6 +293,9 @@ object TypedOpenCLMemory {
           } else {
             Seq(TypedOpenCLMemory(call))
           }
+      /*  case UnallocatedMemory =>
+          println("error")
+          Seq()*/
       }
     }
 

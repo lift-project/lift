@@ -14,7 +14,7 @@ import apart.arithmetic.Var
  * @param f A lambda to be applied in the partial reduction
  */
 abstract class AbstractReduce(override val f: Lambda,
-                              override val loopVar: Var)
+                              loopVar: Var)
   extends AbstractPartRed(f, loopVar)
 
 /**

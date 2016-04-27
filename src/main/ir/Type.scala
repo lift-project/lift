@@ -233,6 +233,23 @@ object Type {
     post(newT)
   }
 
+  /**
+    * This function returns a new type which has been constructed from the given
+    * type `t` by recursively visiting it and applying `f` to any arithmetic expression.
+    * @param t The type to be visited
+    * @param f The function to be invoked on any arithmetic expression
+    * @return The rebuilt type
+    */
+  def visitAndRebuild(t: Type,
+                      f: ArithExpr => ArithExpr) : Type = {
+    Type.visitAndRebuild(t, {
+      case at: ArrayType => new ArrayType(at.elemT, f(at.len))
+      case vt: VectorType => new VectorType(vt.scalarT, f(vt.len))
+      case tt: TupleType => tt
+      case st: ScalarType => st
+    }, t => t)
+  }
+
 
   /**
    * Return the base type of a type.

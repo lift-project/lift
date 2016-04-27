@@ -13,11 +13,11 @@ import ir._
  */
 abstract class AbstractMap(val f: Lambda,
                            val name: String,
-                           val loopVar: Var) extends Pattern(arity = 1)
+                           var loopVar: Var) extends Pattern(arity = 1)
                                                      with FPattern {
   assert(f.params.length == 1)
 
-  var iterationCount: ArithExpr = ?
+  val iterationCount: ArithExpr = loopVar.range.numVals()
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
