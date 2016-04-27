@@ -216,9 +216,28 @@ object Utils {
     decls + "\n" + replaceVariableNames(fullString, withIndex)
   }
 
-  private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
-    withIndex.foldRight(fullString)((toReplace, currentString) =>
-      currentString.replaceAll(toReplace._1 + "(\\D)", getNewName(toReplace) + "$1"))
+  private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {
+
+    val numVariables = withIndex.length
+
+    var tempIds = Set[Int]()
+
+    while (tempIds.size != numVariables) {
+      tempIds += util.Random.nextInt()
+    }
+
+    val withTemps = (withIndex, tempIds).zipped
+
+    val tempString =
+      withTemps.foldRight(fullString)((toReplace, currentString) =>
+      currentString.replaceAll(toReplace._1._1, getNewName(toReplace._1._1, toReplace._2)))
+
+    withTemps.foldRight(tempString)((toReplace, currentString) =>
+      currentString.replaceAll(
+        getNewName(toReplace._1._1, toReplace._2),
+        getNewName(toReplace._1)
+      ))
+  }
 
   def findAndReplaceVariableNames(code: String) = {
     val variables = findVariables(code)
@@ -276,7 +295,7 @@ object Utils {
   }
 
   private def getNewName(toReplace: (String, Int)): String = {
-    "v_" + getIdentifier(toReplace) + toReplace._2 + "_" + toReplace._2
+    "v_" + getIdentifier(toReplace) + "_" + toReplace._2
   }
 
   private def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {
