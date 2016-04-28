@@ -1,9 +1,10 @@
 package benchmarks
 
 import java.io._
-import java.nio.file.{Paths, Files}
+import java.nio.file.{Files, Paths}
 
 import ir.ast.Lambda
+import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
 import opencl.generator.Verbose
 import org.clapper.argot.ArgotConverters._
@@ -243,7 +244,7 @@ abstract class Benchmark(val name: String,
     printParams()
     print("Machine: " + "hostname".!!)
     print("finger".!!)
-    print("Commit: " + commit)
+    println("Commit: " + commit)
     println("Branch: " + branch)
     //print("Diff:\n" + "git diff".!!)
 
@@ -419,6 +420,7 @@ abstract class Benchmark(val name: String,
 
     } catch {
       case e: ArgotUsageException => println(e.message)
+      case x: ExecutorFailureException => x.printStackTrace(); printMedianAndBandwidth(0,0)
     }
   }
 }
