@@ -34,7 +34,11 @@ object MemoryMappingRewrite {
       s
   }
 
-  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"), "Don't execute in parallel.")
+  val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+    "The vector width to use for vectorising rewrites. Default: 4")
+
+  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+    "Don't execute in parallel.")
 
   val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
     "Enable load balancing using MapAtomLocal and MapAtomWrg")
@@ -377,7 +381,13 @@ object MemoryMappingRewrite {
         })
 
         val vectorised = tryToVectorize.foldLeft(tuple)((currentLambda, a) => {
-          val vectorised = Rewrite.applyRulesUntilCannot(a, Seq(Rules.vectorize(4)))
+          val width = vectorWidth.value.getOrElse(4)
+          val vectorised =
+            Rewrite.applyRulesUntilCannot(
+              a,
+              Seq(Rules.vectorize(width))
+            )
+
           FunDecl.replace(currentLambda, a, vectorised)
         })
 

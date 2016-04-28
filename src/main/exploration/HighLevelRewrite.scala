@@ -48,11 +48,16 @@ object HighLevelRewrite {
 
   val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
 
-  val distanceFilter = parser.option[Int](List("distance"), "distance", "Cutoff distance for filtering.")
+  val distanceFilter = parser.option[Int](List("distance"), "distance",
+    "Cutoff distance for filtering.")
+
+  val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+    "The vector width to use for vectorising rewrites. Default: 4")
 
   val verboseOpt = parser.flag[Boolean](List("v", "verbose"), "Report all errors.")
 
-  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"), "Don't execute in parallel.")
+  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+    "Don't execute in parallel.")
 
   var verbose = false
 
@@ -83,7 +88,8 @@ object HighLevelRewrite {
 
   def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
     val maxDepth = explorationDepth.value.getOrElse(5)
-    val newLambdas = (new HighLevelRewrite)(startingExpression, maxDepth)
+    val newLambdas =
+      (new HighLevelRewrite(vectorWidth.value.getOrElse(4)))(startingExpression, maxDepth)
 
     val filtered = filterExpressions(newLambdas)
 
@@ -94,7 +100,8 @@ object HighLevelRewrite {
     val distinctLambdas = newLambdas.map(_._2).distinct
 
     println(newLambdas.length + " resulting expressions.")
-    println(distinctLambdas.length + " distinct sequences of rules (possibly different locations)")
+    println(distinctLambdas.length +
+      " distinct sequences of rules (possibly different locations)")
 
     val oneKernel = newLambdas.filter(pair => hasOneMapOnFirstLevel(pair._1))
 
@@ -207,10 +214,10 @@ object HighLevelRewrite {
 
 }
 
-class HighLevelRewrite {
+class HighLevelRewrite(val vectorWidth: Int) {
 
-  private val vecRed4 = MacroRules.vectorizeReduce(4)
-  private val vecZip4 = Rules.vectorizeMapZip(4)
+  private val vecRed = MacroRules.vectorizeReduce(vectorWidth)
+  private val vecZip = Rules.vectorizeMapZip(vectorWidth)
 
   private val highLevelRules =
     Seq(
@@ -219,8 +226,8 @@ class HighLevelRewrite {
       MacroRules.tileMapMap,
       MacroRules.finishTiling,
       MacroRules.partialReduceWithReorder,
-      vecRed4,
-      vecZip4
+      vecRed,
+      vecZip
     )
 
   private var failures = 0
@@ -286,16 +293,16 @@ class HighLevelRewrite {
     if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking))
       dontTryThese = MacroRules.apply1DRegisterBlocking +: dontTryThese
 
-    if (distinctRulesApplied.contains(vecZip4)
+    if (distinctRulesApplied.contains(vecZip)
           || (distinctRulesApplied.contains(MacroRules.tileMapMap)
             && !distinctRulesApplied.contains(MacroRules.finishTiling)))
-      dontTryThese = vecZip4 +: dontTryThese
+      dontTryThese = vecZip +: dontTryThese
 
     if (distinctRulesApplied.contains(MacroRules.tileMapMap)
         || distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
         || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
-        || distinctRulesApplied.contains(vecRed4))
-      dontTryThese = vecRed4 +: dontTryThese
+        || distinctRulesApplied.contains(vecRed))
+      dontTryThese = vecRed +: dontTryThese
 
     val rulesToTry = highLevelRules diff dontTryThese
     rulesToTry
