@@ -180,23 +180,33 @@ abstract class Benchmark(val name: String,
     println("BANDWIDTH: " + bandwidth(time) + " GB/s" )
   }
 
-  def printCSVFile(filename: String): Unit = {
+  def printCSVFile(filename: String,
+                   kernel: String,
+                   commit: String,
+                   branch: String,
+                   date: String): Unit = {
     if(!Files.exists(Paths.get(filename))) {
      val fw = new FileWriter(filename, true)
       try {
-        fw.write("Benchmark;InputSize0;InputSize1;")
+        fw.write("Benchmark;Kernel;Date;Commit;Branch;")
+        inputSizes().zipWithIndex.foreach{case(e, i) => fw.write("Size" + i + ";")}
+        fw.write("InjectGroup;InjectLocal;")
         fw.write("Iterations;GlobalSize0;GlobalSize1;GlobalSize2;")
         fw.write("LocalSize0;LocalSize1;LocalSize2;")
-        fw.write("Platform;Device;Median:Bandwidth\n")
+        fw.write("Platform;Device;Median;Bandwidth\n")
       } finally fw.close()
     }
 
     val fw = new FileWriter(filename, true)
       try {
-        fw.write(name + "_" + f(variant)._1 + ";" + inputSizes().apply(0) + ";" + inputSizes().apply(1) + ";")
+
+        fw.write(name + "_" + f(variant)._1 + ";" + kernel + ";\"" + date + "\";")
+        fw.write(commit + ";" + branch + ";" )
+        inputSizes().zipWithIndex.foreach{case(e, i) => fw.write(e + ";")}
+        fw.write(injectGroup.value.getOrElse(false) + ";" + injectLocal.value.getOrElse(false) + ";")
         fw.write(iterations + ";" + globalSize(0) + ";" + globalSize(1) + ";" + globalSize(2) + ";")
         fw.write(localSize(0) + ";" + localSize(1) + ";" + localSize(2) + ";")
-        fw.write(Executor.getPlatformName + ";" + Executor.getDeviceName() + ";")
+        fw.write("\"" + Executor.getPlatformName + "\";\"" + Executor.getDeviceName() + "\";")
       } finally fw.close()
   }
 
@@ -208,10 +218,19 @@ abstract class Benchmark(val name: String,
   }
 
   def runBenchmark(): Unit = {
-    if (csvFileName.value.isDefined) printCSVFile(csvFileName.value.get)
+    val kernel = if (loadKernel.value.isDefined)
+          loadKernel.value.get.replaceAll("(.*?/)*", "")
+        else "generated"
+    val commit = ("git rev-parse HEAD".!!).trim
+    val branch = ("git rev-parse --abbrev-ref HEAD".!!).trim
+    val date = ("date".!!).trim
 
-    print("date".!!)
+    if (csvFileName.value.isDefined)
+      printCSVFile(csvFileName.value.get, kernel, commit, branch, date)
+
+    print(date)
     println("Benchmark: " + name + " " + f(variant)._1)
+    println("Kernel: " + kernel)
     println("Size(s): " + inputSizes().mkString(", "))
     println("Total iterations: " + iterations)
     println("Checking results: " + checkResult)
@@ -224,7 +243,8 @@ abstract class Benchmark(val name: String,
     printParams()
     print("Machine: " + "hostname".!!)
     print("finger".!!)
-    print("Commit: " + "git rev-parse HEAD".!!)
+    print("Commit: " + commit)
+    println("Branch: " + branch)
     //print("Diff:\n" + "git diff".!!)
 
     println()

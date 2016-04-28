@@ -44,8 +44,7 @@ object Stencil2D{
   }
 
   val neighbours = Array(-1, 0, 1)
-  val boundary = Pad.Boundary.Clamp
-  val scalaBoundary = scalaClamp
+  val scalaBoundary = scalaWrap
   val makePositive = UserFun("makePositive", "i", "{ return (i < 0) ? 0 : i;  }", Float, Float)
   val weights = Array(0f, 0.12f, 0.08f,
       0.12f, 0.20f, 0.12f,

@@ -51,8 +51,8 @@ class TestStencil extends TestGroup {
   override val UNROLL = true
   val randomData = Seq.fill(1024)(Random.nextFloat()).toArray
   // currently used for 2D stencils / refactor to run with every boundary condition
-  val BOUNDARY = Pad.Boundary.Clamp
-  val SCALABOUNDARY: (Int, Int) => Int = scalaClamp
+  val BOUNDARY = Pad.Boundary.Wrap
+  val SCALABOUNDARY: (Int, Int) => Int = scalaWrap
 
   /**
     * Creates a single neighbourhood for an element in a given array
