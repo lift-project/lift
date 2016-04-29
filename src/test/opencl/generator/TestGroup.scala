@@ -32,6 +32,12 @@ class TestGroup {
   val data = Array.tabulate(5)(_ * 1.0f)
   val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
 
+  val ReduceSeqOrReduceSeqUnroll = (g: FunDecl, init: Expr) =>
+    if (UNROLL)
+      ReduceSeqUnroll(g, init)
+    else
+      ReduceSeq(g, init)
+
   val MapSeqOrMapSeqUnroll = (g: FunDecl) =>
     if (UNROLL)
       MapSeqUnroll(g)
@@ -368,7 +374,7 @@ class TestGroup {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeq(clamp)) o
-              ReduceSeq(fun((acc, pair) => {
+              ReduceSeqOrReduceSeqUnroll(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
                 multAndSumUp.apply(acc, pixel, weight)

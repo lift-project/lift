@@ -10,6 +10,13 @@ case class ReduceSeq(override val f: Lambda)
   override def copy(f: Lambda): Pattern = ReduceSeq(f)
 }
 
+class ReduceSeqUnroll(override val f: Lambda) extends ReduceSeq(f)
+
+object ReduceSeqUnroll {
+  def apply(f: Lambda) = new ReduceSeqUnroll(f)
+  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ReduceSeqUnroll(f)(init, x))
+}
+
 object ReduceSeq {
   def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
 }

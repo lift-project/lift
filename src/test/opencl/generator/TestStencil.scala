@@ -140,7 +140,7 @@ class TestStencil extends TestGroup {
         MapGlb(
           fun(neighbourhood => {
             toGlobal(MapSeqOrMapSeqUnroll(id)) o
-              ReduceSeq(add, 0.0f) o
+              ReduceSeqOrReduceSeqUnroll(add, 0.0f) o
               MapSeqOrMapSeqUnroll(mult) $
               Zip(weights, neighbourhood)
           })
@@ -158,7 +158,7 @@ class TestStencil extends TestGroup {
         MapGlb(
           fun(neighbourhood => {
             toGlobal(MapSeqOrMapSeqUnroll(id)) o
-              ReduceSeq(fun((acc, y) => {
+              ReduceSeqOrReduceSeqUnroll(fun((acc, y) => {
                 multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
               }), 0.0f) $
               Zip(weights, neighbourhood)
@@ -295,7 +295,7 @@ class TestStencil extends TestGroup {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeqOrMapSeqUnroll(clamp)) o
-              ReduceSeq(fun((acc, pair) => {
+              ReduceSeqOrReduceSeqUnroll(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
                 multAndSumUp.apply(acc, pixel, weight)
@@ -431,7 +431,7 @@ class TestStencil extends TestGroup {
           MapGlb(
            fun(neighbourhood => {
              toGlobal(MapSeqOrMapSeqUnroll(id)) o
-               ReduceSeq(add, 0.0f) o
+               ReduceSeqOrReduceSeqUnroll(add, 0.0f) o
                MapSeqOrMapSeqUnroll(mult) $
                Zip(weights, neighbourhood)
            })
@@ -500,7 +500,7 @@ class TestStencil extends TestGroup {
         MapGlb(1)(Join() o
           MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeq(clamp)) o
-              ReduceSeq(fun((acc, pair) => {
+              ReduceSeqOrReduceSeqUnroll(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
                 multAndSumUp.apply(acc, pixel, weight)
