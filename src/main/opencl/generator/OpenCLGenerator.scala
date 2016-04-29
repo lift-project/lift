@@ -1459,8 +1459,22 @@ class OpenCLGenerator extends Generator {
         expr.content = ArithExpr.substitute(expr.content, substitutions.toMap)
       })
 
+      // find actually used variables
+      val usedVars: mutable.Set[VarDecl] = mutable.Set()
+      expressions.foreach(expr => {
+        ArithExpr.visit(expr.content, subterm => {
+          subterm match {
+            case v:Var => newVarDecls.find(_.name == v.toString) match {
+              case Some(s) => usedVars.+=(s)
+              case None =>
+            }
+            case _ => // just interested in used vars
+          }
+        })
+      })
+
       // introduce new var decls at the beginning of the current block
-      newVarDecls.foreach(_ :: block)
+      usedVars.foreach(_ :: block)
     }
   }
 }
