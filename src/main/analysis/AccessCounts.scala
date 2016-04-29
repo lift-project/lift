@@ -46,28 +46,33 @@ class AccessCounts(
     new get_num_groups(2) -> (substGlobal(2) / substLocal(2))
   ).filterNot(pair => contains(pair._2, ?)) ++ valueMap
 
-  private var loads = collection.Map[Memory, ArithExpr]()
-  private var stores = collection.Map[Memory, ArithExpr]()
+  private var loads = collection.Map[(Memory, AccessPattern), ArithExpr]()
+  private var stores = collection.Map[(Memory, AccessPattern), ArithExpr]()
 
   private var currentNesting: ArithExpr = Cst(1)
 
+  private lazy val loadsToAllAddressSpacesWithPattern =
+    loads
+      .groupBy({ case ((mem: OpenCLMemory, pattern), _) => (mem.addressSpace, pattern) })
+      .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
+
+  private lazy val storesToAllAddressSpacesWithPattern =
+    stores
+      .groupBy({ case ((mem: OpenCLMemory, pattern), _) => (mem.addressSpace, pattern) })
+      .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
+
+
   private lazy val loadsToAllAddressSpaces =
     loads
-      .groupBy({ case (mem: OpenCLMemory, _) => mem.addressSpace })
+      .groupBy({ case ((mem: OpenCLMemory, _), _) => mem.addressSpace })
       .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
 
   private lazy val storesToAllAddressSpaces =
     stores
-      .groupBy({ case (mem: OpenCLMemory, _) => mem.addressSpace })
+      .groupBy({ case ((mem: OpenCLMemory, _), _) => mem.addressSpace })
       .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
 
-  if (lambda.body.t == UndefType)
-    TypeChecker(lambda)
-
-  if (lambda.body.mem == UnallocatedMemory) {
-    RangesAndCounts(lambda, localSize, globalSize, valueMap)
-    OpenCLMemoryAllocator(lambda)
-  }
+  private val accessPatterns = AccessPatterns(lambda, localSize, globalSize, valueMap)
 
   count(lambda.body)
 
@@ -86,14 +91,23 @@ class AccessCounts(
 
   def accesses = (loads, stores)
 
-  // TODO: # accesses with pattern
   // TODO: # vector accesses
 
-  def loadsToMemory(memory: Memory, exact: Boolean = false) =
-    getExact(loads.getOrElse(memory, Cst(0)), exact)
+  def loadsToMemory(memory: Memory, exact: Boolean = false) = {
+    val numLoads = loads.filterKeys({
+      case (mem, _) if mem == memory => true
+      case _ => false
+    }).values.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr)
+    getExact(numLoads, exact)
+  }
 
-  def storesToMemory(memory: Memory, exact: Boolean = false) =
-    getExact(stores.getOrElse(memory, Cst(0)), exact)
+  def storesToMemory(memory: Memory, exact: Boolean = false) = {
+    val numStores = stores.filterKeys({
+      case (mem, _) if mem == memory => true
+      case _ => false
+    }).values.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr)
+    getExact(numStores, exact)
+  }
 
   def accessesToMemory(memory: Memory, exact: Boolean = false) =
     loadsToMemory(memory, exact) + storesToMemory(memory, exact)
@@ -106,6 +120,19 @@ class AccessCounts(
 
   def accessesToAddressSpace(addressSpace: OpenCLAddressSpace, exact: Boolean = false) =
     loadsToAddressSpace(addressSpace, exact) + storesToAddressSpace(addressSpace, exact)
+
+  def loadsToAddressSpaceWithPattern(addressSpace: OpenCLAddressSpace,
+    accessPattern: AccessPattern, exact: Boolean = false) = {
+    val key = (addressSpace, accessPattern)
+    getExact(loadsToAllAddressSpacesWithPattern.getOrElse(key, Cst(0)), exact)
+  }
+
+  def storesToAddressSpaceWithPattern(addressSpace: OpenCLAddressSpace,
+    accessPattern: AccessPattern, exact: Boolean = false) = {
+    val key = (addressSpace, accessPattern)
+    getExact(storesToAllAddressSpacesWithPattern.getOrElse(key, Cst(0)), exact)
+  }
+
 
   private def count(lambda: Lambda, arithExpr: ArithExpr): Unit = {
     currentNesting *= arithExpr
@@ -146,13 +173,15 @@ class AccessCounts(
 
             args.foreach(expr => {
               val memory = expr.mem
-              val loadsSoFar = loads.getOrElse(memory, Cst(0))
-              loads += memory -> (loadsSoFar + currentNesting)
+              val pattern = accessPatterns.getReadPatterns(expr)
+              val loadsSoFar = loads.getOrElse((memory, pattern), Cst(0))
+              loads += (memory, pattern) -> (loadsSoFar + currentNesting)
             })
 
             val memory = expr.mem
-            val storesSoFar = stores.getOrElse(memory, Cst(0))
-            stores += memory -> (storesSoFar + currentNesting)
+            val pattern = accessPatterns.getWritePatterns(expr)
+            val storesSoFar = stores.getOrElse((memory, pattern), Cst(0))
+            stores += (memory, pattern) -> (storesSoFar + currentNesting)
 
           case _ =>
         }

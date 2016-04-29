@@ -28,6 +28,12 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     expressions.map(processLambda)
 
   private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
+
+    val fileWriter =
+      new FileWriter(topFolder + "Cl/" + lowLevelHash + "/stats_1024.csv")
+    fileWriter.write(statsHeader)
+    fileWriter.close()
+
     try {
       val kernel = generateKernel(pair)
       dumpOpenCLToFiles(pair._1, kernel)
@@ -106,6 +112,11 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       }
     })
   }
+
+  val statsHeader =
+    "hash,size,globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
+    "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
+    "localStores,localLoads,privateStores,privateLoads,barriers\n"
 
   private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
 
