@@ -214,7 +214,7 @@ abstract class Benchmark(val name: String,
   def printMedianAndBandwidth(median: Double, bandwidth: Double): Unit = {
     val fw = new FileWriter(csvFileName.value.get, true)
       try {
-        fw.write(median + ";" + bandwidth + ";\n")
+        fw.write(median + ";" + bandwidth + "\n")
       } finally fw.close()
   }
 

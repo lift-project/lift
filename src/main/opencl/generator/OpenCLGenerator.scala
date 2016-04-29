@@ -50,6 +50,11 @@ object CSE {
   def apply() = cse
 }
 
+object DeadCodeElimination {
+  val dce = System.getenv("APART_DCE") != null
+  def apply() = dce
+}
+
 object PerformBarrierElimination {
   val barrierElimination = System.getenv("APART_NO_BARRIER_ELIM") == null
   def apply() = barrierElimination
@@ -1474,7 +1479,10 @@ class OpenCLGenerator extends Generator {
       })
 
       // introduce new var decls at the beginning of the current block
-      usedVars.foreach(_ :: block)
+      if (DeadCodeElimination())
+        usedVars.foreach(_ :: block)
+      else
+        newVarDecls.foreach(_ :: block)
     }
   }
 }
