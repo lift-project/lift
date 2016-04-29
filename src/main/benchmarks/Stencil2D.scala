@@ -97,7 +97,7 @@ object Stencil2D{
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeqUnroll(makePositive)) o
-              ReduceSeq(fun((acc, pair) => {
+              ReduceSeqUnroll(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
                 multAndSumUp.apply(acc, pixel, weight)
