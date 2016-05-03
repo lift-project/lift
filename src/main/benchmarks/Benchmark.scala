@@ -185,7 +185,9 @@ abstract class Benchmark(val name: String,
                    kernel: String,
                    commit: String,
                    branch: String,
-                   date: String): Unit = {
+                   date: String,
+                   dce: Boolean,
+                   cse: Boolean): Unit = {
     if(!Files.exists(Paths.get(filename))) {
      val fw = new FileWriter(filename, true)
       try {
@@ -194,6 +196,7 @@ abstract class Benchmark(val name: String,
         fw.write("InjectGroup;InjectLocal;")
         fw.write("Iterations;GlobalSize0;GlobalSize1;GlobalSize2;")
         fw.write("LocalSize0;LocalSize1;LocalSize2;")
+        fw.write("DCE;CSE;")
         fw.write("Platform;Device;Median;Bandwidth\n")
       } finally fw.close()
     }
@@ -207,6 +210,7 @@ abstract class Benchmark(val name: String,
         fw.write(injectGroup.value.getOrElse(false) + ";" + injectLocal.value.getOrElse(false) + ";")
         fw.write(iterations + ";" + globalSize(0) + ";" + globalSize(1) + ";" + globalSize(2) + ";")
         fw.write(localSize(0) + ";" + localSize(1) + ";" + localSize(2) + ";")
+        fw.write(dce + ";" + cse + ";")
         fw.write("\"" + Executor.getPlatformName + "\";\"" + Executor.getDeviceName() + "\";")
       } finally fw.close()
   }
@@ -225,14 +229,18 @@ abstract class Benchmark(val name: String,
     val commit = ("git rev-parse HEAD".!!).trim
     val branch = ("git rev-parse --abbrev-ref HEAD".!!).trim
     val date = ("date".!!).trim
+    val dce = System.getenv("APART_DCE") != null
+    val cse = System.getenv("APART_CSE") != null
 
     if (csvFileName.value.isDefined)
-      printCSVFile(csvFileName.value.get, kernel, commit, branch, date)
+      printCSVFile(csvFileName.value.get, kernel, commit, branch, date, dce, cse)
 
     print(date)
     println("Benchmark: " + name + " " + f(variant)._1)
     println("Kernel: " + kernel)
     println("Size(s): " + inputSizes().mkString(", "))
+    println("Dead Code Elimination: " + dce)
+    println("Common Subexpression Extraction: " + cse)
     println("Total iterations: " + iterations)
     println("Checking results: " + checkResult)
     println("Global sizes: " + globalSize.mkString(", "))
@@ -246,7 +254,7 @@ abstract class Benchmark(val name: String,
     print("finger".!!)
     println("Commit: " + commit)
     println("Branch: " + branch)
-    //print("Diff:\n" + "git diff".!!)
+    print("Diff:\n" + "git diff".!!)
 
     println()
 
