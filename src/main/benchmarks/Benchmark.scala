@@ -235,7 +235,7 @@ abstract class Benchmark(val name: String,
     if (csvFileName.value.isDefined)
       printCSVFile(csvFileName.value.get, kernel, commit, branch, date, dce, cse)
 
-    print(date)
+    println(date)
     println("Benchmark: " + name + " " + f(variant)._1)
     println("Kernel: " + kernel)
     println("Size(s): " + inputSizes().mkString(", "))
