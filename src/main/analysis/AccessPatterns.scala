@@ -58,6 +58,7 @@ class AccessPatterns(
     (readPatterns, writePatterns)
 
   private def isCoalesced(view: View): Boolean = {
+    // TODO: vector accesses
     val newVar = Var("")
     val accessLocation = ViewPrinter.emit(view)
 

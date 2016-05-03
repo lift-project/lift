@@ -2,7 +2,7 @@ package exploration
 
 import java.io.FileWriter
 
-import analysis.{AccessCounts, BarrierCounts, MemoryAmounts}
+import analysis._
 import apart.arithmetic.{?, ArithExpr, Cst}
 import ir.ast.Lambda
 import opencl.generator.OpenCLGenerator
@@ -116,7 +116,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
   val statsHeader =
     "hash,size,globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
     "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
-    "localStores,localLoads,privateStores,privateLoads,barriers\n"
+    "localStores,localLoads,privateStores,privateLoads,barriers," +
+    "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads\n"
 
   private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
 
@@ -135,19 +136,30 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
     val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDbl
 
-    val globalStores = accessCounts.storesToAddressSpace(GlobalMemory, exact).evalDbl
-    val globalLoads = accessCounts.loadsToAddressSpace(GlobalMemory, exact).evalDbl
-    val localStores = accessCounts.storesToAddressSpace(LocalMemory, exact).evalDbl
-    val localLoads = accessCounts.loadsToAddressSpace(LocalMemory, exact).evalDbl
-    val privateStores = accessCounts.storesToAddressSpace(PrivateMemory, exact).evalDbl
-    val privateLoads = accessCounts.loadsToAddressSpace(PrivateMemory, exact).evalDbl
+    val globalStores = accessCounts.getStores(GlobalMemory, exact).evalDbl
+    val globalLoads = accessCounts.getLoads(GlobalMemory, exact).evalDbl
+    val localStores = accessCounts.getStores(LocalMemory, exact).evalDbl
+    val localLoads = accessCounts.getLoads(LocalMemory, exact).evalDbl
+    val privateStores = accessCounts.getStores(PrivateMemory, exact).evalDbl
+    val privateLoads = accessCounts.getLoads(PrivateMemory, exact).evalDbl
 
     val barriers = barrierCounts.getTotalCount(exact).evalDbl
+
+    val coalescedGlobalStores =
+      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDbl
+    val coalescedGlobalLoads =
+      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDbl
+
+    val vectorGlobalStores =
+      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact)
+    val vectorGlobalLoads =
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact)
 
     val string =
       s"$hash,$smallSize,${smallGlobalSizes.mkString(",")},${smallLocalSizes.mkString(",")}," +
       s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
-      s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers\n"
+      s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers" +
+      s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores,$vectorGlobalLoads\n"
 
     val fileWriter = new FileWriter(s"$path/stats_$smallSize.csv", true)
     fileWriter.write(string)

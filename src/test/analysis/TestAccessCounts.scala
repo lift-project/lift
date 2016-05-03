@@ -28,7 +28,7 @@ class TestAccessCounts {
 
     val accessCounts = AccessCounts(f)
 
-    assertEquals(N * (N /^ globalSize0), accessCounts.storesToMemory(f.body.mem))
+    assertEquals(N * (N /^ globalSize0), accessCounts.getStores(f.body.mem))
   }
 
   @Test
@@ -42,7 +42,7 @@ class TestAccessCounts {
     val accessCounts = AccessCounts(f)
 
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.storesToMemory(f.body.mem))
+      accessCounts.getStores(f.body.mem))
   }
 
   @Test
@@ -55,11 +55,11 @@ class TestAccessCounts {
 
     val accessCounts = AccessCounts(f)
 
-    assertEquals(N, accessCounts.storesToMemory(f.body.mem))
-    assertEquals(2*N, accessCounts.loadsToMemory(f.params.head.mem))
+    assertEquals(N, accessCounts.getStores(f.body.mem))
+    assertEquals(2*N, accessCounts.getLoads(f.params.head.mem))
 
-    assertEquals(Cst(0), accessCounts.loadsToMemory(f.body.mem))
-    assertEquals(Cst(0), accessCounts.storesToMemory(f.params.head.mem))
+    assertEquals(Cst(0), accessCounts.getLoads(f.body.mem))
+    assertEquals(Cst(0), accessCounts.getStores(f.params.head.mem))
   }
 
   @Test
@@ -70,8 +70,8 @@ class TestAccessCounts {
     )
 
     val counts = AccessCounts(f)
-    val localReads = counts.loadsToAddressSpace(LocalMemory)
-    val localWrites = counts.storesToAddressSpace(LocalMemory)
+    val localReads = counts.getLoads(LocalMemory, exact = false)
+    val localWrites = counts.getStores(LocalMemory, exact = false)
 
     assertEquals((N /^ numGroups0) * (Cst(16) /^ localSize0) , localReads)
     assertEquals((N /^ numGroups0) * (Cst(16) /^ localSize0) , localWrites)
@@ -88,14 +88,14 @@ class TestAccessCounts {
     val accessCounts = AccessCounts(f)
 
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.loadsToAddressSpaceWithPattern(GlobalMemory, UnknownPattern))
+      accessCounts.getLoads(GlobalMemory, UnknownPattern, exact = false))
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.storesToAddressSpaceWithPattern(GlobalMemory, CoalescedPattern))
+      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact = false))
 
     assertEquals(Cst(0),
-      accessCounts.loadsToAddressSpaceWithPattern(GlobalMemory, CoalescedPattern))
+      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact = false))
     assertEquals(Cst(0),
-      accessCounts.storesToAddressSpaceWithPattern(GlobalMemory, UnknownPattern))
+      accessCounts.getStores(GlobalMemory, UnknownPattern, exact = false))
   }
 
   @Test
@@ -108,7 +108,27 @@ class TestAccessCounts {
 
     val accessCounts = AccessCounts(f)
 
-    // TODO:
+    // TODO: is the pattern correct?
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, UnknownPattern))
   }
 
+  @Test
+  def vector2(): Unit = {
+
+    val f = fun(
+      ArrayType(Float, 4*N),
+      x => asScalar() o MapGlb(0)(idF4) o asVector(4) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    // TODO: is the pattern correct?
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+  }
 }
