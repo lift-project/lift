@@ -75,7 +75,7 @@ object Stencil1D{
         val padOffset = neighbours.map(Math.abs).max
         MapGlb(
           fun(neighbourhood => {
-            toGlobal(MapSeqUnroll(id)) o
+            toGlobal(MapSeqUnroll(makePositive)) o
               ReduceSeqUnroll(fun((acc, y) => {
                 multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
               }), 0.0f) $
