@@ -810,12 +810,49 @@ class TestMisc {
     Execute(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
   }
 
-  /**
-   * Expected behavior: generates code
-   * Actual behavior: Throws scala.MatchError: (Arr(Arr(Arr(float,128),v__2),(v__1*1/^(128))),float4) (of class scala.Tuple2)
-   */
+  @Test
+  def initFromValue(): Unit = {
+    val f = Lambda( Array(),
+      toGlobal(MapGlb(id))
+        $ Value(1.0f, ArrayType(Float, Cst(128)))
+    )
+
+    val (output: Array[Float], _) = Execute(128)(f)
+
+    val gold = Array.fill(128)(1.0f)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test
+  def initFromVectorValue(): Unit = {
+    val f = Lambda( Array(),
+      toGlobal(MapGlb(VectorizeUserFun(4, id)))
+        $ Value(1.0f, ArrayType(Float4, Cst(128/4)))
+    )
+
+    val (output: Array[Float], _) = Execute(128)(f)
+
+    val gold = Array.fill(128)(1.0f)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def initFromValueAsVector(): Unit = {
+    val f = Lambda( Array(),
+      toGlobal(MapGlb(VectorizeUserFun(4, id)))
+        o asVector(4) $ Value(1.0f, ArrayType(Float, Cst(128)))
+    )
+
+    val (output: Array[Float], _) = Execute(128)(f)
+
+    val gold = Array.fill(128)(1.0f)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
   @Ignore
   @Test def issue50_MatchError(): Unit = {
+    // TODO: trying to vectorise a value of ArrayType, for initialising it in local memory
     val v_K0_0 = Var("")
     val v_M1_1 = Var("")
     val v_N2_2 = Var("")
@@ -828,6 +865,8 @@ class TestMisc {
         ArrayType(ArrayType(Float, v_K0_0), v_M1_1),
         ArrayType(ArrayType(Float, v_N2_2), v_K0_0),
         (p_0, p_1) => FunCall(Join(), FunCall(MapWrg(0)(fun((p_2) => FunCall(TransposeW(), FunCall(MapWrg(1)(fun((p_3) => FunCall(TransposeW(), FunCall(toGlobal(fun((p_4) => FunCall(MapSeq(fun((p_5) => FunCall(MapLcl(0)(fun((p_6) => FunCall(id, p_6))), p_5))), p_4))), FunCall(MapSeq(fun((p_7) => p_7)), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(add, FunCall(Get(0), p_11), FunCall(mult, FunCall(Get(1), p_11), FunCall(Get(1), p_10))))), FunCall(toLocal(fun((p_12) => FunCall(MapLcl(0)(fun((p_13) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p_13)), FunCall(id, FunCall(Get(1), p_13))))), p_12))), FunCall(Zip(2), p_8, FunCall(Get(0), p_10))))), p_9))), FunCall(MapLcl(0)(fun((p_14) => FunCall(id, p_14))), FunCall(toLocal(fun((p_15) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_16) => FunCall(VectorizeUserFun(4,id), p_16))), FunCall(asVector(4), p_15))))), Value("0.0f", ArrayType(Float, v_3_3)))), FunCall(Zip(2), FunCall(Transpose(), p_2), p_3))))))), FunCall(Transpose(), p_1))))), FunCall(Split(v_3_3), p_0))))
+
+    println(expr)
 
     var local: NDRange = Array(128, 1, 1)
     var global: NDRange = Array(?, ?, ?)
