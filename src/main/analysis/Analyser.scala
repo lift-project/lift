@@ -4,7 +4,7 @@ import analysis.AccessCounts.SubstitutionMap
 import apart.arithmetic.ArithExpr.{contains, substitute}
 import apart.arithmetic._
 import ir._
-import ir.ast.Lambda
+import ir.ast.{AbstractMap, Lambda}
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator._
 import opencl.ir._
@@ -43,4 +43,7 @@ class Analyser(
   protected def getExact(arithExpr: ArithExpr, exact: Boolean) =
     if (exact) substitute(arithExpr, substitutionMap) else arithExpr
 
+  protected def getParallelMapTripCount(map: AbstractMap, t: Type) = {
+    Type.getLength(t) /^ map.loopVar.range.asInstanceOf[RangeAdd].step
+  }
 }

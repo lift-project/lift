@@ -1,47 +1,35 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic.{?, ArithExpr, Cst}
+import apart.arithmetic.{ArithExpr, Cst}
 import ir._
-import ir.ast._
+import ir.ast.{AbstractMap, AbstractPartRed, Expr, FPattern, FunCall, Iterate, Lambda, UserFun, VectorizeUserFun}
 import opencl.generator.OpenCLGenerator.NDRange
-import opencl.generator._
-import opencl.ir.pattern._
+import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg}
 
-object BarrierCounts {
-    def apply(
-    lambda: Lambda,
-    localSize: NDRange = Array(?,?,?),
-    globalSize: NDRange = Array(?,?,?),
-    valueMap: SubstitutionMap = collection.immutable.Map()
-  ) = new BarrierCounts(lambda, localSize, globalSize, valueMap)
-
-}
-
-class BarrierCounts(
+class FunctionCounts (
   lambda: Lambda,
   localSize: NDRange,
   globalSize: NDRange,
   valueMap: SubstitutionMap
 ) extends Analyser(lambda, localSize, globalSize, valueMap) {
 
-  private var barrierCounts = collection.Map[MapLcl, ArithExpr]()
+  private val functionCounts =
+    collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(Cst(0))
+
+  private val vectorisedFunctionCounts =
+    collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(Cst(0))
 
   private var currentNesting: ArithExpr = Cst(1)
 
-  private lazy val totalCount =
-    barrierCounts.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)
+  def getFunctionCount(userFun: UserFun) = functionCounts(userFun)
 
-  BarrierElimination(lambda)
+  def getVectorisedCount(userFun: UserFun) = vectorisedFunctionCounts(userFun)
 
-  count(lambda.body)
+  def getTotalCount(userFun: UserFun) =
+    getFunctionCount(userFun) + getVectorisedCount(userFun)
 
-  // TODO: different fences?
-
-  def counts = barrierCounts
-
-  def getTotalCount(exact: Boolean = false) =
-    getExact(totalCount, exact)
+  def getFunctions = functionCounts.keySet ++ vectorisedFunctionCounts.keySet
 
   private def count(lambda: Lambda, arithExpr: ArithExpr): Unit = {
     currentNesting *= arithExpr
@@ -56,12 +44,7 @@ class BarrierCounts(
         args.foreach(count)
 
         f match {
-          case mapLcl: MapLcl if mapLcl.emitBarrier =>
-            barrierCounts += mapLcl -> currentNesting
-            val n = getParallelMapTripCount(mapLcl, expr.t)
-            count(mapLcl.f, n)
-
-          case _: MapGlb | _:MapWrg =>
+          case _: MapGlb | _:MapWrg | _: MapLcl =>
             val map = f.asInstanceOf[AbstractMap]
 
             val n = getParallelMapTripCount(map, expr.t)
@@ -80,6 +63,10 @@ class BarrierCounts(
 
           case l: Lambda => count(l.body)
           case fp: FPattern => count(fp.f.body)
+          case uf: UserFun =>
+            functionCounts(uf) += currentNesting
+          case vuf: VectorizeUserFun =>
+            vectorisedFunctionCounts(vuf.userFun) += currentNesting
           case _ =>
         }
 
@@ -87,5 +74,4 @@ class BarrierCounts(
     }
 
   }
-
 }
