@@ -53,7 +53,7 @@ object ParameterRewrite {
 
     try {
 
-      parser.parse(Array("/home/s1042579/Documents/apart/mmTransposeA"))
+      parser.parse(args)
 
       topFolder = input.value.get
 
