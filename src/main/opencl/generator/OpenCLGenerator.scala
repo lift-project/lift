@@ -646,6 +646,7 @@ class OpenCLGenerator extends Generator {
       block += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
+  // TODO: Separate pass. Information needed elsewhere
   private def shouldUnrollLoop(call: FunCall): Boolean = {
     var originalType: Type = UndefType
     try {
@@ -709,6 +710,7 @@ class OpenCLGenerator extends Generator {
   private def generateReduceSeqCall(r: AbstractReduce,
                                     call: FunCall,
                                     block: Block): Unit = {
+    // TODO: Separate pass. Information needed elsewhere
     val unroll: Boolean = OpenCLMemory.containsPrivateMemory(call.args(1).mem)
 
     val nestedBlock = OpenCLAST.Block(Vector.empty)
