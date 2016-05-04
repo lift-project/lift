@@ -49,6 +49,7 @@ class AccessCounts(
     stores
       .groupBy({ case ((mem: OpenCLMemory, pattern, width), _) => (mem.addressSpace, pattern, width) })
       .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
+      .withDefaultValue(Cst(0))
 
   private lazy val loadsToAddressSpacesWithPattern =
     loads

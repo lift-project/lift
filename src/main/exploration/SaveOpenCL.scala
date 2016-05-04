@@ -5,11 +5,13 @@ import java.io.FileWriter
 import analysis._
 import apart.arithmetic.{?, ArithExpr, Cst}
 import ir.ast.Lambda
-import opencl.generator.OpenCLGenerator
+import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.{GlobalMemory, LocalMemory, PrivateMemory, TypedOpenCLMemory}
 import rewriting.InferNDRange
 import rewriting.utils.Utils
+
+import sys.process._
 
 object SaveOpenCL {
   def apply(topFolder: String, lowLevelHash: String, highLevelHash: String,
@@ -24,20 +26,25 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
 
   val inputSizes = Seq(1024, 2048, 4096, 8192, 16384)
 
-  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] =
-    expressions.map(processLambda)
+  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
 
-  private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
+    s"mkdir -p ${topFolder}Cl/$lowLevelHash".!
 
     val fileWriter =
       new FileWriter(topFolder + "Cl/" + lowLevelHash + "/stats_1024.csv")
     fileWriter.write(statsHeader)
     fileWriter.close()
 
+    expressions.map(processLambda)
+  }
+
+  private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
     try {
       val kernel = generateKernel(pair)
       dumpOpenCLToFiles(pair._1, kernel)
     } catch {
+      case _: IllegalKernel =>
+        None
       case x: Throwable =>
         println(x)
         None
@@ -113,7 +120,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     })
   }
 
-  val statsHeader =
+  private val statsHeader =
     "hash,size,globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
     "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
     "localStores,localLoads,privateStores,privateLoads,barriers," +

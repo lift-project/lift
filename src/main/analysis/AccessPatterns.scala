@@ -84,6 +84,7 @@ class AccessPatterns(
             determinePatterns(nestedLambda.body)
             coalescingId = None
 
+          case lambda: Lambda => determinePatterns(lambda.body)
           case fp: FPattern => determinePatterns(fp.f.body)
           case uf: UserFun =>
 
