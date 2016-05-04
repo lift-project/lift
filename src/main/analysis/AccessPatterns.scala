@@ -5,10 +5,7 @@ import apart.arithmetic.ArithExpr._
 import apart.arithmetic._
 import ir.ast.{Map => _, _}
 import ir.view._
-import ir.{TypeChecker, UnallocatedMemory, UndefType}
 import opencl.generator.OpenCLGenerator.NDRange
-import opencl.generator.RangesAndCounts
-import opencl.ir.OpenCLMemoryAllocator
 import opencl.ir.pattern.{MapGlb, MapLcl}
 
 
@@ -27,24 +24,16 @@ object CoalescedPattern extends AccessPattern
 object UnknownPattern extends AccessPattern
 
 class AccessPatterns(
-  val lambda: Lambda,
-  val localSize: NDRange,
-  val globalSize: NDRange,
-  val valueMap: SubstitutionMap
-) {
+  lambda: Lambda,
+  localSize: NDRange,
+  globalSize: NDRange,
+  valueMap: SubstitutionMap
+) extends Analyser(lambda, localSize, globalSize, valueMap) {
 
   private var readPatterns = Map[Expr, AccessPattern]()
   private var writePatterns = Map[Expr, AccessPattern]()
 
   private var coalescingId: Option[Var] = None
-
-  if (lambda.body.t == UndefType)
-    TypeChecker(lambda)
-
-  if (lambda.body.mem == UnallocatedMemory) {
-    RangesAndCounts(lambda, localSize, globalSize, valueMap)
-    OpenCLMemoryAllocator(lambda)
-  }
 
   if (lambda.body.view == NoView)
     View(lambda)

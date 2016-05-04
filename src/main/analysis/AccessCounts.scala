@@ -1,15 +1,12 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic.ArithExpr.{contains, substitute}
 import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
-import opencl.generator._
 import opencl.ir._
 import opencl.ir.pattern._
-import rewriting.InferNDRange.substituteInNDRange
 
 object AccessCounts {
 
@@ -25,28 +22,13 @@ object AccessCounts {
 }
 
 class AccessCounts(
-  val lambda: Lambda,
-  val localSize: NDRange,
-  val globalSize: NDRange,
-  val valueMap: SubstitutionMap
-) {
+  lambda: Lambda,
+  localSize: NDRange,
+  globalSize: NDRange,
+  valueMap: SubstitutionMap
+) extends Analyser(lambda, localSize, globalSize, valueMap) {
 
   private type AccessKey = (Memory, AccessPattern, ArithExpr)
-
-  private val substLocal = substituteInNDRange(localSize, valueMap)
-  private val substGlobal = substituteInNDRange(globalSize, valueMap)
-
-  private val substitutionMap = collection.immutable.Map[ArithExpr, ArithExpr](
-    new get_local_size(0) -> substLocal(0),
-    new get_local_size(1) -> substLocal(1),
-    new get_local_size(2) -> substLocal(2),
-    new get_global_size(0) -> substGlobal(0),
-    new get_global_size(1) -> substGlobal(1),
-    new get_global_size(2) -> substGlobal(2),
-    new get_num_groups(0) -> (substGlobal(0) / substLocal(0)),
-    new get_num_groups(1) -> (substGlobal(1) / substLocal(1)),
-    new get_num_groups(2) -> (substGlobal(2) / substLocal(2))
-  ).filterNot(pair => contains(pair._2, ?)) ++ valueMap
 
   private val loads =
     collection.mutable.Map[AccessKey, ArithExpr]()
@@ -61,6 +43,7 @@ class AccessCounts(
     loads
       .groupBy({ case ((mem: OpenCLMemory, pattern, width), _) => (mem.addressSpace, pattern, width) })
       .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
+      .withDefaultValue(Cst(0))
 
   private lazy val storesToAddressSpacesWithPatternAndWidth =
     stores
@@ -71,28 +54,29 @@ class AccessCounts(
     loads
       .groupBy({ case ((mem: OpenCLMemory, pattern, _), _) => (mem.addressSpace, pattern) })
       .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
+      .withDefaultValue(Cst(0))
 
   private lazy val storesToAddressSpacesWithPattern =
     stores
       .groupBy({ case ((mem: OpenCLMemory, pattern, _), _) => (mem.addressSpace, pattern) })
       .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
+      .withDefaultValue(Cst(0))
 
   private lazy val loadsToAddressSpaces =
     loads
       .groupBy({ case ((mem: OpenCLMemory, _, _), _) => mem.addressSpace })
       .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
+      .withDefaultValue(Cst(0))
 
   private lazy val storesToAddressSpaces =
     stores
       .groupBy({ case ((mem: OpenCLMemory, _, _), _) => mem.addressSpace })
       .map(kv => (kv._1, kv._2.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)))
+      .withDefaultValue(Cst(0))
 
   private val accessPatterns = AccessPatterns(lambda, localSize, globalSize, valueMap)
 
   count(lambda.body)
-
-  private def getExact(arithExpr: ArithExpr, exact: Boolean) =
-    if (exact) substitute(arithExpr, substitutionMap) else arithExpr
 
   override def toString: String = {
     val exact = true

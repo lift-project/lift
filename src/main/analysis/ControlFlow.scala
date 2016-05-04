@@ -1,19 +1,13 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic.ArithExpr.{contains, substitute}
 import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator._
 import opencl.ir.pattern._
-import opencl.ir.{OpenCLMemory, OpenCLMemoryAllocator, OpenCLMemoryCollection, PrivateMemory, TypedOpenCLMemory}
-import rewriting.InferNDRange.substituteInNDRange
-
-/**
-  * Created by Toomas Remmelg on 03/05/16.
-  */
+import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection, PrivateMemory, TypedOpenCLMemory}
 
 object ControlFlow {
  def apply(
@@ -25,29 +19,11 @@ object ControlFlow {
 }
 
 class ControlFlow(
-  val lambda: Lambda,
-  val localSize: NDRange,
-  val globalSize: NDRange,
-  val valueMap: SubstitutionMap
-) {
-
-  private val substLocal = substituteInNDRange(localSize, valueMap)
-  private val substGlobal = substituteInNDRange(globalSize, valueMap)
-
-  private val substitutionMap = collection.immutable.Map[ArithExpr, ArithExpr](
-    new get_local_size(0) -> substLocal(0),
-    new get_local_size(1) -> substLocal(1),
-    new get_local_size(2) -> substLocal(2),
-    new get_global_size(0) -> substGlobal(0),
-    new get_global_size(1) -> substGlobal(1),
-    new get_global_size(2) -> substGlobal(2),
-    new get_num_groups(0) -> (substGlobal(0) / substLocal(0)),
-    new get_num_groups(1) -> (substGlobal(1) / substLocal(1)),
-    new get_num_groups(2) -> (substGlobal(2) / substLocal(2))
-  ).filterNot(pair => contains(pair._2, ?)) ++ valueMap
-
-  private def getExact(arithExpr: ArithExpr, exact: Boolean) =
-    if (exact) substitute(arithExpr, substitutionMap) else arithExpr
+  lambda: Lambda,
+  localSize: NDRange,
+  globalSize: NDRange,
+  valueMap: SubstitutionMap
+) extends Analyser(lambda, localSize, globalSize, valueMap) {
 
   private var ifStatements: ArithExpr = Cst(0)
   private var forStatements: ArithExpr = Cst(0)
@@ -56,14 +32,6 @@ class ControlFlow(
   // TODO: Duplication with OpenCLGenerator
   type SymbolTable = collection.immutable.Map[Var, Type]
   private var varDecls: SymbolTable = collection.immutable.Map.empty
-
-  if (lambda.body.t == UndefType)
-    TypeChecker(lambda)
-
-  if (lambda.body.mem == UnallocatedMemory) {
-    RangesAndCounts(lambda, localSize, globalSize, valueMap)
-    OpenCLMemoryAllocator(lambda)
-  }
 
   // TODO: Duplication with OpenCLGenerator
   private val memory = TypedOpenCLMemory.get(lambda.body, lambda.params)

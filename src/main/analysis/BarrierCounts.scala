@@ -1,16 +1,13 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-
-import apart.arithmetic.ArithExpr.{contains, substitute}
+import apart.arithmetic.ArithExpr.substitute
 import apart.arithmetic.{?, ArithExpr, Cst, RangeAdd}
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator._
-import opencl.ir.OpenCLMemoryAllocator
 import opencl.ir.pattern._
-import rewriting.InferNDRange.substituteInNDRange
 
 object BarrierCounts {
     def apply(
@@ -23,25 +20,11 @@ object BarrierCounts {
 }
 
 class BarrierCounts(
-  val lambda: Lambda,
-  val localSize: NDRange,
-  val globalSize: NDRange,
-  val valueMap: SubstitutionMap) {
-
-  private val substLocal = substituteInNDRange(localSize, valueMap)
-  private val substGlobal = substituteInNDRange(globalSize, valueMap)
-
-  private val substitutionMap = collection.immutable.Map[ArithExpr, ArithExpr](
-    new get_local_size(0) -> substLocal(0),
-    new get_local_size(1) -> substLocal(1),
-    new get_local_size(2) -> substLocal(2),
-    new get_global_size(0) -> substGlobal(0),
-    new get_global_size(1) -> substGlobal(1),
-    new get_global_size(2) -> substGlobal(2),
-    new get_num_groups(0) -> (substGlobal(0) / substLocal(0)),
-    new get_num_groups(1) -> (substGlobal(1) / substLocal(1)),
-    new get_num_groups(2) -> (substGlobal(2) / substLocal(2))
-  ).filterNot(pair => contains(pair._2, ?)) ++ valueMap
+  lambda: Lambda,
+  localSize: NDRange,
+  globalSize: NDRange,
+  valueMap: SubstitutionMap
+) extends Analyser(lambda, localSize, globalSize, valueMap) {
 
   private var barrierCounts = collection.Map[MapLcl, ArithExpr]()
 
@@ -49,15 +32,6 @@ class BarrierCounts(
 
   private lazy val totalCount =
     barrierCounts.foldLeft(Cst(0): ArithExpr)((acc, curr) => acc + curr._2)
-
-  // TODO: only do the required steps and only if not already done
-  if (lambda.body.t == UndefType)
-    TypeChecker(lambda)
-
-  if (lambda.body.mem == UnallocatedMemory) {
-    RangesAndCounts(lambda, localSize, globalSize, valueMap)
-    OpenCLMemoryAllocator(lambda)
-  }
 
   BarrierElimination(lambda)
 
