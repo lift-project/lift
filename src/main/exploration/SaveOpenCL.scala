@@ -117,7 +117,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     "hash,size,globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
     "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
     "localStores,localLoads,privateStores,privateLoads,barriers," +
-    "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads\n"
+    "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads," +
+    "ifStatements,forStatements\n"
 
   private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
 
@@ -131,6 +132,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val memoryAmounts = MemoryAmounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
     val accessCounts = AccessCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
     val barrierCounts = BarrierCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
+    val controlFlow = ControlFlow(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
 
     val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
     val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
@@ -151,15 +153,19 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDbl
 
     val vectorGlobalStores =
-      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact)
+      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDbl
     val vectorGlobalLoads =
-      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact)
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDbl
+
+    val ifStatements = controlFlow.getIfStatements(exact).evalDbl
+    val forStatements = controlFlow.getForStatements(exact).evalDbl
 
     val string =
       s"$hash,$smallSize,${smallGlobalSizes.mkString(",")},${smallLocalSizes.mkString(",")}," +
       s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
-      s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers" +
-      s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores,$vectorGlobalLoads\n"
+      s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
+      s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +
+      s"$vectorGlobalLoads,$ifStatements,$forStatements\n"
 
     val fileWriter = new FileWriter(s"$path/stats_$smallSize.csv", true)
     fileWriter.write(string)
