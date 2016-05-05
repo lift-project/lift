@@ -349,7 +349,6 @@ object Utils {
         println(warningString + "Content is different, adding System.currentTimeMillis().")
         uniqueFilename = uniqueFilename + "_" + System.currentTimeMillis()
       } else {
-        println(warningString + "Content is the same, skipping.")
         return false
       }
 

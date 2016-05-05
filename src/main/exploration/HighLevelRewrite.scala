@@ -1,29 +1,32 @@
 package exploration
 
-import java.io.{FileWriter, File}
+import java.io.{File, FileWriter}
+import java.util.concurrent.atomic.AtomicInteger
 
-import rewriting._
-import rewriting.utils._
+import com.typesafe.scalalogging.Logger
 import ir.TypeChecker
 import ir.ast._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
-import java.util.concurrent.atomic.AtomicInteger
+import rewriting._
+import rewriting.utils._
 
 object HighLevelRewrite {
 
-  val processed = new AtomicInteger(0)
+  private val logger = Logger(this.getClass)
 
-  val parser = new ArgotParser("HighLevelRewrite")
+  private val processed = new AtomicInteger(0)
 
-  val help = parser.flag[Boolean](List("h", "help"),
+  private val parser = new ArgotParser("HighLevelRewrite")
+
+  parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
     (sValue, opt) =>
       parser.usage()
       sValue
   }
 
-  val input = parser.parameter[String]("input",
+  private val input = parser.parameter[String]("input",
     "Input file containing the lambda to use for rewriting",
     optional = false) {
     (s, opt) =>
@@ -33,7 +36,7 @@ object HighLevelRewrite {
       s
   }
 
-  val output = parser.option[String](List("o", "output"), "name.",
+  private val output = parser.option[String](List("o", "output"), "name.",
     "Store the created lambdas into this folder."
     ) {
     (s, opt) =>
@@ -43,30 +46,24 @@ object HighLevelRewrite {
       s
   }
 
-  val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
+  private val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
     "How deep to explore.")
 
-  val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
+  private val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
 
-  val distanceFilter = parser.option[Int](List("distance"), "distance",
+  private val distanceFilter = parser.option[Int](List("distance"), "distance",
     "Cutoff distance for filtering.")
 
-  val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+  private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
     "The vector width to use for vectorising rewrites. Default: 4")
 
-  val verboseOpt = parser.flag[Boolean](List("v", "verbose"), "Report all errors.")
-
-  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
-
-  var verbose = false
 
   def main(args: Array[String]) = {
 
     try {
       parser.parse(args)
-
-      verbose = verboseOpt.value.isDefined
 
       val filename = input.value.get
       val lambda = ParameterRewrite.readLambdaFromFile(filename)
@@ -158,7 +155,7 @@ object HighLevelRewrite {
     x.foreach(lambda => {
       val id = processed.getAndIncrement()
 
-      println(s"Processing $id/${lambdas.length - 1}")
+      print(s"\rProcessing $id/${lambdas.length - 1}")
 
       try {
 
@@ -183,8 +180,7 @@ object HighLevelRewrite {
         }
       } catch {
         case t: Throwable =>
-          if (verbose)
-            println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
+          logger.warn(s"Dumping $lambda failed.", t)
       }
     })
 
@@ -216,6 +212,8 @@ object HighLevelRewrite {
 
 class HighLevelRewrite(val vectorWidth: Int) {
 
+  private val logger = Logger(this.getClass)
+
   private val vecRed = MacroRules.vectorizeReduce(vectorWidth)
   private val vecZip = Rules.vectorizeMapZip(vectorWidth)
 
@@ -234,7 +232,7 @@ class HighLevelRewrite(val vectorWidth: Int) {
 
   def apply(lambda: Lambda, levels: Int): Seq[(Lambda, Seq[Rule])] = {
     val rewritten = rewrite(lambda, levels)
-    println(failures + " rule application failures.")
+    logger.warn(failures + " rule application failures.")
     rewritten
   }
 
@@ -258,9 +256,8 @@ class HighLevelRewrite(val vectorWidth: Int) {
         rewritten = rewritten :+(applied, rulesSoFar :+ ruleAt._1)
 
       } catch {
-        case t: Throwable =>
-          if (HighLevelRewrite.verbose)
-            println(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")},\nfailed with\n$t.\n")
+        case _: Throwable =>
+          logger.warn(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")} failed.")
           failures += 1
       }
     })

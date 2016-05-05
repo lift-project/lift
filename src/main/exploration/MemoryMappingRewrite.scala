@@ -3,6 +3,7 @@ package exploration
 import java.io.{File, FileWriter}
 import java.util.concurrent.atomic.AtomicInteger
 
+import com.typesafe.scalalogging.Logger
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
@@ -15,16 +16,18 @@ import scala.io.Source
 
 object MemoryMappingRewrite {
 
-  val parser = new ArgotParser("MemoryMappingRewrite")
+  private val logger = Logger(this.getClass)
 
-  val help = parser.flag[Boolean](List("h", "help"),
+  private val parser = new ArgotParser("MemoryMappingRewrite")
+
+  parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
     (sValue, opt) =>
       parser.usage()
       sValue
   }
 
-  val input = parser.parameter[String]("input",
+  private val input = parser.parameter[String]("input",
     "Input file containing the lambda to use for rewriting",
     optional = false) {
     (s, opt) =>
@@ -34,13 +37,13 @@ object MemoryMappingRewrite {
       s
   }
 
-  val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+  private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
     "The vector width to use for vectorising rewrites. Default: 4")
 
-  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
-  val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
+  private val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
     "Enable load balancing using MapAtomLocal and MapAtomWrg")
 
   def main(args: Array[String]) {
@@ -62,7 +65,7 @@ object MemoryMappingRewrite {
         val count = counter.incrementAndGet()
         val hash = filename.split("/").last
 
-        println(s"Lowering : $hash $count / ${all_files.size}")
+        print(s"\rLowering : $count / ${all_files.size}")
 
         try {
 
@@ -109,24 +112,24 @@ object MemoryMappingRewrite {
                       }
                     } catch {
                       case t: Throwable =>
-                        println(s"No $id of $count failed with ${t.toString}.")
+                        logger.warn(s"No $id / $count of $hash failed", t)
                     })
                 } catch {
                   case _: Throwable =>
-                    println(s"Load balancing for $count failed.")
+                    logger.warn(s"Load balancing for $hash failed.")
                 }
               })
             } catch {
               case t: Throwable =>
-                println(s"Address space mapping for $count failed.")
+                logger.warn(s"Address space mapping for $hash failed.")
             }
 
           })
         } catch {
           case t: scala.MatchError =>
-            t.printStackTrace()
+            logger.warn("", t)
           case t: Throwable =>
-            println(s"Lowering $count failed with $t")
+            logger.warn(s"Lowering $hash failed with $t")
         }
       })
 
@@ -166,7 +169,8 @@ object MemoryMappingRewrite {
       try {
         list = lowerMapInIds(x) :: list
       } catch {
-        case t: Throwable => println("Id map lowering failure. Continuing...")
+        case t: Throwable =>
+         logger.warn("Id map lowering failure. Continuing...", t)
       }
     })
 
@@ -395,6 +399,7 @@ object MemoryMappingRewrite {
           return Seq(vectorised, tuple)
       } catch {
         case _: Throwable =>
+            // TODO: log?
       }
     }
 
