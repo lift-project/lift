@@ -1,10 +1,11 @@
 package exploration
 
-import java.io.File
+import java.io.{File, IOException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import apart.arithmetic.{ArithExpr, Var}
+import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import ir.{Type, TypeChecker}
 import opencl.executor.Eval
@@ -21,18 +22,20 @@ import scala.sys.process._
   */
 object ParameterRewrite {
 
-  var topFolder = ""
+  private val logger = Logger(this.getClass)
 
-  val parser = new ArgotParser("ParameterRewrite")
+  private var topFolder = ""
 
-  val help = parser.flag[Boolean](List("h", "help"),
+  private val parser = new ArgotParser("ParameterRewrite")
+
+  parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
     (sValue, opt) =>
       parser.usage()
       sValue
   }
 
-  val input = parser.parameter[String]("input",
+  private val input = parser.parameter[String]("input",
     "Input file containing the lambda to use for rewriting",
     optional = false) {
     (s, opt) =>
@@ -42,12 +45,13 @@ object ParameterRewrite {
       s
   }
 
-  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"), "Don't execute in parallel.")
+  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"), "Don't execute in parallel.")
 
-  val generateScala = parser.flag[Boolean](List("generate-scala"),
+  private val generateScala = parser.flag[Boolean](List("generate-scala"),
     "Generate lambdas in Scala as well as in OpenCL")
 
-  var lambdaFilename = ""
+  private var lambdaFilename = ""
+
 
   def main(args: Array[String]) {
 
@@ -131,11 +135,11 @@ object ParameterRewrite {
                     } catch {
                       case x: ir.TypeException => None
                       case x: Throwable =>
-                        x.printStackTrace()
-                        println(low_level_hash)
-                        println(params.mkString("; "))
-                        println(low_level_str)
-                        println(SearchParameters.matrix_size)
+                        logger.warn("Failed parameter propagation", x)
+                        logger.warn(low_level_hash)
+                        logger.warn(params.mkString("; "))
+                        logger.warn(low_level_str)
+                        logger.warn(SearchParameters.matrix_size.toString)
                         None
                     }
                   }).collect { case Some(x) => x }
@@ -149,20 +153,24 @@ object ParameterRewrite {
                     saveScala(potential_expressions, hashes)
 
                 } catch {
-                  case _: Throwable =>
-                  // TODO: Log all errors to a file, so they could be reproduced in case of bugs
-                  // Failed reading file or similar.
+                  case t: Throwable =>
+                    // TODO: Log all errors to a file, so they could be reproduced in case of bugs
+                    // Failed reading file or similar.
+                    logger.warn(t.toString)
                 }
 
               })
             }
           } catch {
-            case _: Throwable =>
+            case t: Throwable =>
+              logger.warn(t.toString)
           }
         }
       })
 
     } catch {
+      case io: IOException =>
+        logger.error(io.toString)
       case e: ArgotUsageException =>
         println(e.message)
     }
@@ -184,7 +192,8 @@ object ParameterRewrite {
           file.appendAll("(\"" + sha256 + "\",  " + s"Array($stringRep)) ,\n")
         }
       } catch {
-        case _: Throwable =>
+        case t: Throwable =>
+          logger.warn(t.toString)
       }
 
     })

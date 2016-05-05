@@ -4,14 +4,15 @@ import java.io.FileWriter
 
 import analysis._
 import apart.arithmetic.{?, ArithExpr, Cst}
+import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
-import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.ir.{GlobalMemory, LocalMemory, PrivateMemory, TypedOpenCLMemory}
 import rewriting.InferNDRange
 import rewriting.utils.Utils
 
-import sys.process._
+import scala.sys.process._
 
 object SaveOpenCL {
   def apply(topFolder: String, lowLevelHash: String, highLevelHash: String,
@@ -20,6 +21,8 @@ object SaveOpenCL {
 }
 
 class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String) {
+
+  private val logger = Logger(this.getClass)
 
   private var local: NDRange = Array(?, ?, ?)
   private var global: NDRange = Array(?, ?, ?)
@@ -45,8 +48,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     } catch {
       case _: IllegalKernel =>
         None
-      case x: Throwable =>
-        println(x)
+      case t: Throwable =>
+        logger.warn(s"Failed compilation $highLevelHash (${pair._2.mkString(",")})", t)
         None
     }
   }

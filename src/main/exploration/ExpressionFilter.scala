@@ -2,10 +2,14 @@ package exploration
 
 import analysis.MemoryAmounts
 import apart.arithmetic.Cst
+import com.typesafe.scalalogging.Logger
 import ir.ast._
 import rewriting.InferNDRange
 
 object ExpressionFilter {
+
+  private val logger = Logger(this.getClass)
+
   object Status extends Enumeration {
     type Status = Value
     val Success,
@@ -82,7 +86,9 @@ object ExpressionFilter {
       // All good...
       Success
     } catch {
-      case _: Throwable => InternalException
+      case t: Throwable =>
+        logger.warn("Failed filtering", t)
+        InternalException
       // TODO: Internal exceptions sound suspicious. Log to file...
     }
   }

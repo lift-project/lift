@@ -3,9 +3,10 @@ skelcl.conf
 project/project/
 project/target/
 target/
-.idea/
-*.out
-.tags
 scripts/
 lib/Executor/build
+.idea/
+.tags
 .kernels
+*.out
+*.log
