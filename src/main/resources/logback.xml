@@ -20,7 +20,7 @@
         </encoder>
     </appender>
 
-    <logger name="exploration" level="warn">
+    <logger name="exploration" level="info">
       <appender-ref ref="explorationFile" />
     </logger>
 

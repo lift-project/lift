@@ -60,10 +60,22 @@ object HighLevelRewrite {
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
+  private val defaultExplorationDepth = 5
+  private val defaultVectorWidth = 4
+  private val defaultDepthFilter = 6
+  private val defaultDistanceFilter = 9
+
   def main(args: Array[String]) = {
 
     try {
       parser.parse(args)
+
+      logger.info(s"Arguments: ${args.mkString(" ")}")
+      logger.info(s"Defaults:")
+      logger.info(s"\tExploration depth: $defaultExplorationDepth")
+      logger.info(s"\tVector width: $defaultVectorWidth")
+      logger.info(s"\tDepth filter: $defaultDepthFilter")
+      logger.info(s"\tDistance filter: $distanceFilter")
 
       val filename = input.value.get
       val lambda = ParameterRewrite.readLambdaFromFile(filename)
@@ -84,9 +96,11 @@ object HighLevelRewrite {
   }
 
   def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
-    val maxDepth = explorationDepth.value.getOrElse(5)
+    val maxDepth = explorationDepth.value.getOrElse(defaultExplorationDepth)
     val newLambdas =
-      (new HighLevelRewrite(vectorWidth.value.getOrElse(4)))(startingExpression, maxDepth)
+      (new HighLevelRewrite(
+        vectorWidth.value.getOrElse(defaultVectorWidth))
+        )(startingExpression, maxDepth)
 
     val filtered = filterExpressions(newLambdas)
 
@@ -124,7 +138,7 @@ object HighLevelRewrite {
     if (userFunCalls.length == 1)
       return true
 
-    val cutoff = distanceFilter.value.getOrElse(9)
+    val cutoff = distanceFilter.value.getOrElse(defaultDistanceFilter)
 
     val ids = userFunCalls.map(numberMap(_)).sorted
 
@@ -139,7 +153,7 @@ object HighLevelRewrite {
   }
 
   def filterByDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Boolean = {
-    val cutoff = depthFilter.value.getOrElse(6)
+    val cutoff = depthFilter.value.getOrElse(defaultDepthFilter)
     val depth = NumberExpression.byDepth(lambda).values.max
 
     val isTiling = ruleSeq.nonEmpty && ruleSeq.head == MacroRules.tileMapMap
@@ -239,6 +253,7 @@ class HighLevelRewrite(val vectorWidth: Int) {
   private var failures = 0
 
   def apply(lambda: Lambda, levels: Int): Seq[(Lambda, Seq[Rule])] = {
+    logger.info(s"Enabled rules:\n\t${highLevelRules.mkString(",\t\n ")}")
     val rewritten = rewrite(lambda, levels)
     logger.warn(failures + " rule application failures.")
     rewritten
