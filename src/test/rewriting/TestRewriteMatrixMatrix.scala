@@ -9,7 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-import rewriting.utils.{NumberExpression, NumberPrinter, Utils}
+import rewriting.utils.{NumberExpression, NumberPrinter}
 
 object TestRewriteMatrixMatrix {
   @BeforeClass def before() {

@@ -339,40 +339,6 @@ class TestMatrixMatrix {
           )) o Tile(tileSize, vectorLength) $ A
       })
 
-    // same as above just in top to bottom notation
-    val f__ = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
-      (A, B) => {
-        A :>> Tile(tileSize, vectorLength) :>>
-          MapGlb(0)(fun( aRows =>
-            B :>> Tile(tileSize, vectorLength) :>>
-              MapGlb(1)(fun( bCols =>
-                Zip(aRows, bCols) :>>
-                  ReduceSeq(fun( (acc, pairOfTiles) => {
-                    pairOfTiles._0 :>> MapSeq(fun( rowA =>
-                      pairOfTiles._1 :>> MapSeq(fun( colB =>
-                        Zip(asVector(vectorLength)(rowA), asVector(vectorLength)(colB)) :>>
-                          MapSeq(VectorizeUserFun(4, mult)) :>>
-                          asScalar() :>>
-                          ReduceSeq(add, Value(0.0f) :>> id)
-                      ))
-                    )) :>> fun(partial =>
-                      Zip(acc, partial) :>>
-                      MapSeq(fun(pairOfRows =>
-                        Zip(pairOfRows._0, pairOfRows._1) :>>
-                        MapSeq(fun(x => Zip(x._0, x._1) :>> MapSeq(add)))
-                      ))
-                    )
-                  }),
-                    MapSeq(MapSeq(MapSeq(id)))(Value(0.0f, ArrayType(ArrayType(ArrayType(Float, 1), tileSize), tileSize)))
-                  ) :>>
-                  toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) :>> TransposeW() :>> Map(TransposeW())
-              ))
-          )) :>> Untile()
-      }
-    )
-
     // load the tile in local memory once (to avoid reloading the same value twice) and vectorized the summation in the reduction loop
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -783,8 +749,6 @@ class TestMatrixMatrix {
     val v_N_2 = Var("N")
 
     val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,16, 64 ,256))
-
-    println(f)
 
     val code = Compile(f, 32,4,1,1024/4,1024/16,1,
       scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))

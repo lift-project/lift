@@ -12,18 +12,20 @@ import rewriting.utils.Utils
 
 class TestHighLevelRewrite {
 
-  val N = Var("N")
-  val M = Var("M")
-  val K = Var("K")
-  val v__2 = Var("")
-  val v__3 = Var("")
-  val v__4 = Var("")
-  val v__5 = Var("")
-  val v__6 = Var("")
-  val v__7 = Var("")
-  val v__8 = Var("")
-  val v__9 = Var("")
-  val v__10 = Var("")
+  LongTestsEnabled()
+
+  private val N = Var("N")
+  private val M = Var("M")
+  private val K = Var("K")
+  private val v__2 = Var("")
+  private val v__3 = Var("")
+  private val v__4 = Var("")
+  private val v__5 = Var("")
+  private val v__6 = Var("")
+  private val v__7 = Var("")
+  private val v__8 = Var("")
+  private val v__9 = Var("")
+  private val v__10 = Var("")
 
   val mmTransposedB = fun(
     ArrayType(ArrayType(Float, K), M),
@@ -72,8 +74,6 @@ class TestHighLevelRewrite {
   @Test
   def mmTBRewrite(): Unit = {
 
-    LongTestsEnabled()
-
     val vectorisedGold = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, K), N),(p_0, p_1) => FunCall(Map(fun((p_2) => FunCall(Map(fun((p_3) => FunCall(Reduce(fun((p_4, p_5) => FunCall(add, p_4, p_5))), Value("0.0f", Float), FunCall(asScalar(), FunCall(PartRed(fun((p_6, p_7) => FunCall(VectorizeUserFun(4,add), p_6, p_7))), Value("0.0f", VectorType(Float, 4)), FunCall(asVector(4), FunCall(asScalar(), FunCall(Map(fun((p_8) => FunCall(VectorizeUserFun(4,mult), FunCall(Get(0), p_8), FunCall(Get(1), p_8)))), FunCall(Zip(2), FunCall(asVector(4), p_2), FunCall(asVector(4), p_3)))))))))), p_1))), p_0))
     val vectorisedHash = getHash(vectorisedGold)
 
@@ -101,8 +101,6 @@ class TestHighLevelRewrite {
 
   @Test
   def mmTARewrite(): Unit = {
-
-    LongTestsEnabled()
 
     val plainTilingGold = fun(ArrayType(ArrayType(Float, M), K), ArrayType(ArrayType(Float, N), K),(p_0, p_1) => FunCall(Join(), FunCall(Map(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_3) => FunCall(TransposeW(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), p_4))), FunCall(TransposeW(), FunCall(Reduce(fun((p_5, p_6) => FunCall(Map(fun((p_7) => FunCall(Join(), FunCall(Map(fun((p_8) => FunCall(PartRed(fun((p_9, p_10) => FunCall(add, p_9, p_10))), FunCall(Get(0), p_8), FunCall(Get(1), p_8)))), FunCall(Zip(2), FunCall(Get(0), p_7), FunCall(Get(1), p_7)))))), FunCall(Zip(2), p_5, p_6)))), Value("0.0f", ArrayType(ArrayType(Float, v__3), v__4)), FunCall(Transpose(), FunCall(Map(fun((p_11) => FunCall(Transpose(), FunCall(Map(fun((p_12) => FunCall(Split(v__5), p_12))), p_11)))), FunCall(Map(fun((p_13) => FunCall(Transpose(), p_13))), FunCall(Transpose(), FunCall(Join(), FunCall(Map(fun((p_14) => FunCall(Transpose(), FunCall(Map(fun((p_15) => FunCall(Transpose(), FunCall(Map(fun((p_16) => FunCall(Map(fun((p_17) => FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), FunCall(Zip(2), p_15, p_16)))), FunCall(Transpose(), FunCall(Get(1), p_14)))))), FunCall(Transpose(), FunCall(Get(0), p_14)))))), FunCall(Zip(2), FunCall(Split(v__6), FunCall(Transpose(), p_2)), FunCall(Split(v__6), FunCall(Transpose(), p_3))))))))))))))), FunCall(Split(v__3), FunCall(Transpose(), p_1))))))), FunCall(Split(v__4), FunCall(Transpose(), p_0)))))
     val plainTilingHash = getHash(plainTilingGold)
@@ -141,8 +139,6 @@ class TestHighLevelRewrite {
 
   @Test
   def gemvRewrite(): Unit = {
-
-    LongTestsEnabled()
 
     val amdGold = fun(ArrayType(ArrayType(Float, M), N), ArrayType(Float, M), ArrayType(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(add, FunCall(mult, p_6, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), FunCall(Reduce(fun((p_7, p_8) => FunCall(add, p_7, p_8))), Value("0.0f", Float), FunCall(Join(), FunCall(Map(fun((p_9) => FunCall(PartRed(fun((p_10, p_11) => FunCall(add, p_10, p_11))), Value("0.0f", Float), p_9))), FunCall(Split(M*1/^v__2), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Scatter(ReorderWithStride(v__2)), FunCall(Join(), FunCall(Map(fun((p_12) => FunCall(Map(fun((p_13) => FunCall(mult, FunCall(Get(0), p_13), FunCall(Get(1), p_13)))), p_12))), FunCall(Split(M*1/^v__2), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))))))), FunCall(Zip(2), p_0, p_2)))
     val amdHash = getHash(amdGold)

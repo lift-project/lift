@@ -37,8 +37,10 @@ object MemoryMappingRewrite {
       s
   }
 
+  private val defaultVectorWidth = 4
+
   private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
-    "The vector width to use for vectorising rewrites. Default: 4")
+    s"The vector width to use for vectorising rewrites. Default: $defaultVectorWidth")
 
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
@@ -52,6 +54,12 @@ object MemoryMappingRewrite {
 
       parser.parse(args)
 
+      logger.info(s"Arguments: ${args.mkString(" ")}")
+      logger.info("Defaults:")
+      logger.info(s"\tVector width: $defaultVectorWidth")
+
+      // TODO: Enabled parallelism mappings?
+
       val topFolder = input.value.get
 
       val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
@@ -64,72 +72,20 @@ object MemoryMappingRewrite {
 
         val count = counter.incrementAndGet()
         val hash = filename.split("/").last
+        val numLambdas = all_files.size
 
-        print(s"\rLowering : $count / ${all_files.size}")
+        print(s"\rLowering : $count / $numLambdas")
 
         try {
 
           val lambda = ParameterRewrite.readLambdaFromFile(filename)
+          val lowered = lowerLambda(lambda, topFolder)
 
-          val loweredExpressions = Lower.mapCombinations(lambda)
+          lowered.foreach(dumpToFile(topFolder, hash, _))
 
-          loweredExpressions.foreach(lowered => {
-
-            try {
-              val mapped = mapAddressSpaces(lowered)
-
-              var id = 0
-              mapped.foreach(addressMapped => {
-                id += 1
-
-                try {
-                  val loadBalanced =
-                    if (loadBalancing.value.isDefined) mapLoadBalancing(addressMapped)
-                    else Seq(addressMapped)
-
-                  loadBalanced.foreach(expr =>
-                    try {
-
-                      // Sanity checks.
-                      if (expr.body.contains({ case FunCall(Id(), _) => }))
-                        throw new RuntimeException("Illegal Id")
-
-                      if (expr.body.contains({ case FunCall(Map(l), _) if l.body.isConcrete => }))
-                        throw new RuntimeException(s"Illegal un-lowered Map")
-
-                      // Dump to file
-                      val str = Utils.dumpLambdaToMethod(expr)
-                      val sha256 = Utils.Sha256Hash(str)
-                      val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
-
-                      if (Utils.dumpToFile(str, sha256, folder)) {
-                        // Add to index if it was unique
-                        synchronized {
-                          val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)
-                          idxFile.write(folder + "/" + sha256 + "\n")
-                          idxFile.close()
-                        }
-                      }
-                    } catch {
-                      case t: Throwable =>
-                        logger.warn(s"No $id / $count of $hash failed", t)
-                    })
-                } catch {
-                  case _: Throwable =>
-                    logger.warn(s"Load balancing for $hash failed.")
-                }
-              })
-            } catch {
-              case t: Throwable =>
-                logger.warn(s"Address space mapping for $hash failed.")
-            }
-
-          })
         } catch {
-          case t: scala.MatchError =>
-            logger.warn("", t)
           case t: Throwable =>
-            logger.warn(s"Lowering $hash failed with $t")
+            logger.warn(s"Reading $hash from file", t)
         }
       })
 
@@ -138,27 +94,98 @@ object MemoryMappingRewrite {
     }
   }
 
+  def lowerLambda(lambda: Lambda, hash: String = "") = {
+
+    try {
+
+      val loweredExpressions = Lower.mapCombinations(lambda)
+
+      loweredExpressions.flatMap(
+        mapAddressSpaces(_, hash).flatMap(addressMapped => {
+
+          val loadBalanced = mapLoadBalancing(addressMapped, hash)
+          filterIllegals(loadBalanced)
+
+        })
+      )
+
+    } catch {
+      case t: Throwable =>
+        logger.warn(s"Lowering $hash failed.", t)
+        Seq()
+    }
+  }
+
+  def filterIllegals(lambdaSeq: Seq[Lambda], hash: String = "") = {
+
+    lambdaSeq.filter(lambda =>
+      try {
+        // Sanity checks.
+        if (lambda.body.contains({ case FunCall(Id(), _) => }))
+          throw new RuntimeException("Illegal Id")
+
+        if (lambda.body.contains({ case FunCall(Map(l), _) if l.body.isConcrete => }))
+          throw new RuntimeException(s"Illegal un-lowered Map")
+
+        true
+      } catch {
+        case t: Throwable =>
+          logger.warn(s"Illegal lambda in $hash failed, ${t.toString}")
+          false
+      })
+  }
+
+  def dumpToFile(topFolder: String, hash: String, expr: Lambda): Unit = {
+    // Dump to file
+    val str = Utils.dumpLambdaToMethod(expr)
+    val sha256 = Utils.Sha256Hash(str)
+    val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+
+    if (Utils.dumpToFile(str, sha256, folder)) {
+      // Add to index if it was unique
+      synchronized {
+        val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)
+        idxFile.write(folder + "/" + sha256 + "\n")
+        idxFile.close()
+      }
+    }
+  }
+
   /**
     * Returns all combinations with at most one load balancing rule applied
     *
     * @param lambda The lambda where to apply load balancing.
     */
-  def  mapLoadBalancing(lambda: Lambda) = {
+  def  mapLoadBalancing(lambda: Lambda, hash: String): Seq[Lambda] = {
+    if (loadBalancing.value.isEmpty)
+      return Seq(lambda)
 
-    val locations =
-      Rewrite.listAllPossibleRewritesForRules(lambda, Seq(Rules.mapAtomWrg, Rules.mapAtomLcl))
+    try {
+      val locations =
+        Rewrite.listAllPossibleRewritesForRules(lambda, Seq(Rules.mapAtomWrg, Rules.mapAtomLcl))
 
-    val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
-    withLoadBalancing :+ lambda
+      val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
+      withLoadBalancing :+ lambda
+    } catch {
+      case _: Throwable =>
+        logger.warn(s"Load balancing for $hash failed.")
+        Seq()
+    }
   }
 
-  def mapAddressSpaces(lambda: Lambda): Seq[Lambda] = {
+  def mapAddressSpaces(lambda: Lambda, hash: String): Seq[Lambda] = {
+    try {
 
-    val allLocalMappings = mapLocalMemory(lambda)
+      val allLocalMappings = mapLocalMemory(lambda)
 
-    val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
+      val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
 
-    allPrivateMappings
+      allPrivateMappings
+    } catch {
+      case t: Throwable =>
+        logger.warn(s"Address space mapping for $hash failed.")
+       Seq()
+    }
   }
 
   def implementIds(lambdas: List[Lambda]): List[Lambda] = {
@@ -185,13 +212,13 @@ object MemoryMappingRewrite {
       }
     })
 
-  def mapLocalMemory(lambda: Lambda): List[Lambda] = {
+  def mapLocalMemory(lambda: Lambda, doVectorisation: Boolean = true): List[Lambda] = {
     // Step 1: Add id nodes in strategic locations
     val idsAdded = addIdsForLocal(lambda)
 
     val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
-      turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation = true))
+      turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation))
 
     val addedUserFun = addToAddressSpaceToUserFun(copiesAdded) ++ copiesAdded
 
@@ -219,7 +246,7 @@ object MemoryMappingRewrite {
     }).collect({ case Some(s) => s })
   }
 
-  private def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
+  def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
 
     ir.Context.updateContext(lambda.body)
 
@@ -385,7 +412,7 @@ object MemoryMappingRewrite {
         })
 
         val vectorised = tryToVectorize.foldLeft(tuple)((currentLambda, a) => {
-          val width = vectorWidth.value.getOrElse(4)
+          val width = vectorWidth.value.getOrElse(defaultVectorWidth)
           val vectorised =
             Rewrite.applyRulesUntilCannot(
               a,
