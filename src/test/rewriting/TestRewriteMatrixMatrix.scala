@@ -37,7 +37,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def reuseBothWithTiling(): Unit = {
 
-//    LongTestsEnabled()
+    LongTestsEnabled()
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), M),
