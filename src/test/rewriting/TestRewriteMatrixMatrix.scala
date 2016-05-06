@@ -24,6 +24,12 @@ object TestRewriteMatrixMatrix {
 
 class TestRewriteMatrixMatrix {
 
+  def checkDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Unit =
+    assertTrue("Depth filter.", HighLevelRewrite.filterByDepth(lambda, ruleSeq))
+
+  def checkDistance(lambda: Lambda): Unit =
+    assertTrue("Distance filter", HighLevelRewrite.filterByDistance(lambda))
+
   @Ignore // Takes too long
   @Test
   def reuseBothWithTiling(): Unit = {
@@ -46,26 +52,28 @@ class TestRewriteMatrixMatrix {
     val f2 = Rewrite.applyRuleAtId(f1, 12, MacroRules.finishTiling)
     val f3 = Rewrite.applyRuleAtId(f2, 24, MacroRules.apply2DRegisterBlocking)
     val f4 = Rewrite.applyRuleAtId(f3, 11, MacroRules.apply2DRegisterBlocking)
-    val f6 = Rewrite.applyRuleAtId(f4, 13, MacroRules.finishTiling)
+    val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.finishTiling)
+    val f6 = Rewrite.applyRuleAtId(f5, 98, Rules.partialReduceToReduce)
     val f7 = SimplifyAndFuse(f6)
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
-
     val f8 = Rewrite.applyRuleAtId(f7, 1, MacroRules.finishRectangularTiles)
 
     // Tile the transposition
-
     val f9 = Rewrite.applyRuleAtId(f8, 5, Rules.addCopy)
     val f10 = Rewrite.applyRuleAtId(f9, 6, MacroRules.tileTranspose)
 
-    val maxDepth = NumberExpression.byDepth(f10).values.max
-    println(maxDepth)
+    val ruleSeq = Seq(
+      MacroRules.tileMapMap, MacroRules.finishTiling,
+      MacroRules.apply2DRegisterBlocking, MacroRules.apply2DRegisterBlocking,
+      MacroRules.finishTiling
+    )
 
-    // TODO
-    // assertTrue(HighLevelRewrite.filterByDistance(f10))
 
     val numExpressionsFinal = NumberExpression.breadthFirst(f10).values.max
-    assertEquals(131, numExpressionsFinal)
+    assertEquals(128, numExpressionsFinal)
+    checkDepth(f10, ruleSeq)
+    checkDistance(f10)
   }
 
   @Test
@@ -214,12 +222,21 @@ class TestRewriteMatrixMatrix {
     val f4 = Rewrite.applyRuleAtId(f3, 11, MacroRules.apply1DRegisterBlocking)
     val f5 = Rewrite.applyRuleAtId(f4, 12, MacroRules.finishTiling)
     val f6 = Rewrite.applyRuleAtId(f5, 6, MacroRules.moveTransposeInsideTiling)
-    val f7 = SimplifyAndFuse(f6)
 
-    val numExpressions = NumberExpression.breadthFirst(f7).values.max
-    assertEquals(80, numExpressions)
-    // TODO
-//     assertTrue(HighLevelRewrite.filterByDistance(f7))
+    val f7 = Rewrite.applyRuleAtId(f6, 82, Rules.partialReduceToReduce)
+    val f8 = SimplifyAndFuse(f7)
+
+
+    val ruleSeq = Seq(
+      MacroRules.tileMapMap, MacroRules.finishTiling,
+      MacroRules.apply1DRegisterBlocking, MacroRules.apply1DRegisterBlocking,
+      MacroRules.finishTiling
+    )
+
+    val numExpressions = NumberExpression.breadthFirst(f8).values.max
+    assertEquals(79, numExpressions)
+    checkDepth(f8, ruleSeq)
+    checkDistance(f8)
   }
 
   @Test
@@ -302,8 +319,7 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(h1).values.max
     assertEquals(91, numExpressions)
-    // TODO
-//     assertTrue(HighLevelRewrite.filterByDistance(h1))
+    checkDepth(h1)
   }
 
   @Test
@@ -328,7 +344,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f2).values.max
     assertEquals(32, numExpressions)
-     assertTrue(HighLevelRewrite.filterByDistance(f2))
+    checkDepth(f2)
+    checkDistance(f2)
   }
 
   @Test
@@ -349,11 +366,12 @@ class TestRewriteMatrixMatrix {
       })
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.apply2DRegisterBlocking)
+    val f2 = SimplifyAndFuse(f1)
 
-    val numExpressions = NumberExpression.breadthFirst(f1).values.max
-    assertEquals(55, numExpressions)
-    // TODO
-    // assertTrue(HighLevelRewrite.filterByDistance(f1))
+    val numExpressions = NumberExpression.breadthFirst(f2).values.max
+    assertEquals(51, numExpressions)
+    checkDepth(f2)
+    checkDistance(f2)
   }
 
   @Test
@@ -377,10 +395,14 @@ class TestRewriteMatrixMatrix {
     val f2 = Rewrite.applyRuleAtId(f1, 13, MacroRules.finishTiling)
     val f3 = Rewrite.applyRuleAtId(f2, 1, MacroRules.moveTransposeInsideTiling)
 
+    val f4 = Rewrite.applyRuleAtId(f3, 18, MacroRules.finishTiling)
+    val f5 = Rewrite.applyRuleAtId(f4, 70, Rules.partialReduceToReduce)
+    val f6 = SimplifyAndFuse(f5)
+
     val numExpressions = NumberExpression.breadthFirst(f3).values.max
     assertEquals(56, numExpressions)
-    // TODO
-    // assertTrue(HighLevelRewrite.filterByDistance(f3))
+    checkDepth(f3)
+    checkDistance(f6)
   }
 
   @Test
@@ -408,7 +430,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
     assertEquals(66, numExpressions)
-    assertTrue(HighLevelRewrite.filterByDistance(f5))
+    checkDepth(f5)
+    checkDistance(f5)
   }
 
   @Test
@@ -442,7 +465,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
     assertEquals(64, numExpressions)
-    assertTrue(HighLevelRewrite.filterByDistance(f5))
+    checkDepth(f5)
+    checkDistance(f5)
   }
 
   @Test
@@ -474,7 +498,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressions = NumberExpression.breadthFirst(f4).values.max
     assertEquals(27, numExpressions)
-    assertTrue(HighLevelRewrite.filterByDistance(f4))
+    checkDepth(f4)
+    checkDistance(f4)
   }
 
   @Ignore
@@ -575,7 +600,10 @@ class TestRewriteMatrixMatrix {
                   FunCall(Split(v_3_3), p_1)))))),
             FunCall(Split(v_4_4), p_0))))
 
-    Rewrite.applyRuleAtId(f0, 41, Rules.dotBuiltin)
+    val f1 = Rewrite.applyRuleAtId(f0, 41, Rules.dotBuiltin)
+
+    checkDepth(f1)
+    checkDistance(f1)
   }
 
 }

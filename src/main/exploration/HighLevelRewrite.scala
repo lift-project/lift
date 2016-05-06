@@ -109,14 +109,14 @@ object HighLevelRewrite {
     filterDepth
   }
 
-   def filterByDistance(lambda: Lambda): Boolean = {
+  def filterByDistance(lambda: Lambda): Boolean = {
     val numberMap = NumberExpression.depthFirst(lambda)
 
     val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
       expr match {
         case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr :: state
-        case FunCall(uf: VectorizeUserFun, _*) if !uf.userFun.name.contains("id")
-          => expr :: state
+        case FunCall(uf: VectorizeUserFun, _*)
+          if !uf.userFun.name.contains("id") => expr :: state
         case _ => state
       }
     })
@@ -129,24 +129,31 @@ object HighLevelRewrite {
 
     val ids = userFunCalls.map(numberMap(_)).sorted
 
-    ids.sliding(2).map(w => (w.head - w(1)).abs <= cutoff).forall(i => i)
+    // TODO: A better distance measure. Number of hops through other
+    // TODO: expressions, if there is data-flow between the two?
+    ids.sliding(2).forall(w => (w.head - w(1)).abs <= cutoff)
   }
 
-   def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
+  def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
+    filterByDepth(pair._1, pair._2)
+  }
+
+  def filterByDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Boolean = {
     val cutoff = depthFilter.value.getOrElse(6)
-    (pair._2.head == MacroRules.tileMapMap
-      && pair._2.tail.diff(List(MacroRules.apply2DRegisterBlocking,
-      MacroRules.apply2DRegisterBlocking,
-      MacroRules.finishTiling,
-      MacroRules.finishTiling)).isEmpty
-      && NumberExpression.byDepth(pair._1).values.max <= cutoff+2) ||
-      (pair._2.head == MacroRules.tileMapMap
-        && pair._2.tail.diff(List(MacroRules.apply1DRegisterBlocking,
-        MacroRules.apply1DRegisterBlocking,
-        MacroRules.finishTiling,
-        MacroRules.finishTiling)).isEmpty
-        && NumberExpression.byDepth(pair._1).values.max <= cutoff+1) ||
-      NumberExpression.byDepth(pair._1).values.max <= cutoff
+    val depth = NumberExpression.byDepth(lambda).values.max
+
+    val isTiling = ruleSeq.nonEmpty && ruleSeq.head == MacroRules.tileMapMap
+    val has2finishTiling = isTiling && ruleSeq.length == 5 &&
+      ruleSeq.count(_ == MacroRules.finishTiling) == 2
+
+    val is1DBlocking = has2finishTiling &&
+      ruleSeq.count(_ == MacroRules.apply1DRegisterBlocking) == 2
+    val is2DBlocking = has2finishTiling &&
+      ruleSeq.count(_ == MacroRules.apply2DRegisterBlocking) == 2
+
+    isTiling && has2finishTiling &&
+      (is2DBlocking && depth <= cutoff+2 || is1DBlocking && depth <= cutoff+1) ||
+      depth <= cutoff
   }
 
   private def dumpLambdasToFiles(lambdas: Seq[Lambda], topLevelFolder: String): Unit = {
@@ -159,7 +166,7 @@ object HighLevelRewrite {
 
       try {
 
-        val appliedRules: Lambda = finishRewriting(lambda)
+        val appliedRules = finishRewriting(lambda)
 
         if (filterByDistance(appliedRules)) {
 
@@ -187,10 +194,11 @@ object HighLevelRewrite {
   }
 
   def finishRewriting(lambda: Lambda): Lambda = {
-    val partRedToReduce = Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.partialReduceToReduce))
-    val lowerNext = SimplifyAndFuse(partRedToReduce)
-    val appliedRules = applyAlwaysRules(lowerNext)
-    appliedRules
+    val partRedToReduce =
+      Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.partialReduceToReduce))
+
+    val simplified = SimplifyAndFuse(partRedToReduce)
+    applyAlwaysRules(simplified)
   }
 
   // If the lambda does not have one map, then needs 2 kernels
