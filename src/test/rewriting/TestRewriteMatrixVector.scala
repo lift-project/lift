@@ -6,7 +6,6 @@ import ir.ArrayType
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
-import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -23,10 +22,11 @@ object TestRewriteMatrixVector {
 
 class TestRewriteMatrixVector {
 
+  val N = Var("N")
+  val M = Var("M")
+
   @Test
   def gemvAMD(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -91,8 +91,6 @@ class TestRewriteMatrixVector {
 
   @Test
   def gemvAMDMacro(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -117,13 +115,11 @@ class TestRewriteMatrixVector {
 
     val f2 = SimplifyAndFuse(f1)
     assertTrue(HighLevelRewrite.filterByDistance(f2))
-    val f3 = Lower.mapCombinations(f2)
+    Lower.mapCombinations(f2)
   }
 
   @Test
   def gemvVectorised(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -149,10 +145,6 @@ class TestRewriteMatrixVector {
     val f3 = Rewrite.applyRuleAtId(f2, 7, Rules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
     assertTrue(HighLevelRewrite.filterByDistance(f4))
-
-    val stringRep = rewriting.utils.Utils.dumpLambdaToString(f4)
-    val sha256 = rewriting.utils.Utils.Sha256Hash(stringRep)
-    println(sha256)
   }
 
 }

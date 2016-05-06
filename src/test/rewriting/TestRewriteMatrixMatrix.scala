@@ -9,7 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-import rewriting.utils.{NumberExpression, Utils}
+import rewriting.utils.{NumberExpression, NumberPrinter, Utils}
 
 object TestRewriteMatrixMatrix {
   @BeforeClass def before() {
@@ -39,7 +39,7 @@ class TestRewriteMatrixMatrix {
 
     LongTestsEnabled()
 
-    val f0: Lambda = fun(
+    val f0 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
@@ -191,7 +191,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def reuseWithTiling(): Unit = {
 
-    val f0: Lambda = fun(
+    val f0 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
@@ -203,7 +203,11 @@ class TestRewriteMatrixMatrix {
       })
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
+
+    println(NumberPrinter(f1))
     val f2 = Rewrite.applyRuleAtId(f1, 12, MacroRules.finishTiling)
+
+
     val f3 = Rewrite.applyRuleAtId(f2, 24, MacroRules.apply1DRegisterBlocking)
     val f4 = Rewrite.applyRuleAtId(f3, 11, MacroRules.apply1DRegisterBlocking)
     val f5 = Rewrite.applyRuleAtId(f4, 12, MacroRules.finishTiling)
@@ -326,7 +330,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def mmReuseBoth(): Unit = {
 
-    val f0: Lambda = fun(
+    val f0 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
@@ -349,7 +353,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def transposeInsideTiling(): Unit = {
 
-    val f0: Lambda = fun(
+    val f0 = fun(
       ArrayType(ArrayType(Float, M), K),
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
@@ -377,7 +381,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def mmTiled(): Unit = {
 
-    val f0: Lambda = fun(
+    val f0 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
@@ -403,7 +407,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def partiallyVectorisedTiled(): Unit = {
 
-    val f0: Lambda = fun(
+    val f0 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Transposed
       (A, B) => {
@@ -421,11 +425,6 @@ class TestRewriteMatrixMatrix {
     val f4 = Rewrite.applyRuleAtId(f3, 36, Rules.vectorizeMapZip(4))
     val f5 = HighLevelRewrite.finishRewriting(f4)
 
-    // Useful as a sanity check for HighLevelRewrite
-    val stringRep = Utils.dumpLambdaToString(f5)
-    val sha256 = Utils.Sha256Hash(stringRep)
-    println(sha256)
-
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
     assertEquals(64, numExpressions)
     checkDepth(f5)
@@ -435,7 +434,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def vectorised(): Unit = {
 
-    val f0: Lambda = fun(
+    val f0 = fun(
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Transposed
       (A, B) => {
@@ -451,11 +450,6 @@ class TestRewriteMatrixMatrix {
     val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
 
-    // Useful as a sanity check for HighLevelRewrite
-    val stringRep = Utils.dumpLambdaToString(f4)
-    val sha256 = Utils.Sha256Hash(stringRep)
-    println(sha256)
-
     val numExpressions = NumberExpression.breadthFirst(f4).values.max
     assertEquals(27, numExpressions)
     checkDepth(f4)
@@ -466,7 +460,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def gemmTiled(): Unit = {
 
-    val f0: Lambda = fun(
+    val f0 = fun(
       ArrayType(ArrayType(Float, K), N),
       ArrayType(ArrayType(Float, M), K),
       ArrayType(ArrayType(Float, M), N),

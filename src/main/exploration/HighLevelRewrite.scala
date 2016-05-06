@@ -222,8 +222,8 @@ class HighLevelRewrite(val vectorWidth: Int) {
 
   private val logger = Logger(this.getClass)
 
-  private val vecRed = MacroRules.vectorizeReduce(vectorWidth)
-  private val vecZip = Rules.vectorizeMapZip(vectorWidth)
+  private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
+  private[exploration] val vecZip = Rules.vectorizeMapZip(vectorWidth)
 
   private val highLevelRules =
     Seq(
