@@ -86,7 +86,7 @@ class TestRewriteMatrixVector {
       Execute(local(0).eval, global(0).eval)(f21, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output,0.0f)
-     assertTrue(HighLevelRewrite.filterByDistance(f11))
+    assertTrue(HighLevelRewrite.filterByDistance(f11))
   }
 
   @Test

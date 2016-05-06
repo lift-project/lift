@@ -124,13 +124,13 @@ object HighLevelRewrite {
     if (userFunCalls.length == 1)
       return true
 
-    // TODO: A more reasonable default. Will filter out gemv.
     val cutoff = distanceFilter.value.getOrElse(9)
 
     val ids = userFunCalls.map(numberMap(_)).sorted
 
     // TODO: A better distance measure. Number of hops through other
     // TODO: expressions, if there is data-flow between the two?
+    // TODO: And somehow compared to the original expression?
     ids.sliding(2).forall(w => (w.head - w(1)).abs <= cutoff)
   }
 

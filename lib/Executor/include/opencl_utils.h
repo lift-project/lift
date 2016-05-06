@@ -63,7 +63,7 @@ public:
     static int counter = 0; counter++;
     static double best_time = timeout;
 
-    static const int iterations = 5;
+    static const int iterations = 10;
     
     std::vector<double> times; times.reserve(iterations);
     try {
@@ -79,7 +79,7 @@ public:
         evt.wait();
         auto time = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>() - evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
         times.push_back( ((double)time)/1000.0/1000.0 );
-        if(times.back() > 1.2*best_time) break;
+        if(times.back() > 5*best_time) break;
       }
       // read back the result
       std::vector<T> result(output_size);
