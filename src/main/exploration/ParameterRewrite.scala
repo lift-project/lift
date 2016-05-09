@@ -102,7 +102,7 @@ object ParameterRewrite {
 
             val loweredIndex = s"${topFolder}Lower/$high_level_hash/index"
             if (Files.exists(Paths.get(loweredIndex))
-              && substitutionCount < 800000 && substitutionCount != 0) {
+              && substitutionCount < 800000) {
 
               val low_level_expr_list = Source.fromFile(loweredIndex).getLines().toList
 

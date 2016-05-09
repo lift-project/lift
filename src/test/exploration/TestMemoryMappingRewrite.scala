@@ -3,6 +3,7 @@ package exploration
 import apart.arithmetic.Var
 import ir._
 import ir.ast._
+import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -10,6 +11,8 @@ import org.junit.Test
 import rewriting.utils.Utils
 
 class TestMemoryMappingRewrite {
+
+  LongTestsEnabled()
 
   private val K = Var("K")
   private val M = Var("M")
