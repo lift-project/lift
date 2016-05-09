@@ -161,6 +161,39 @@ class TestGroup {
   /* **********************************************************
       GROUP 1D
    ***********************************************************/
+  @Test def checkInformationLossRight(): Unit = {
+    val gold = Array(1,2,3,4).map(_.toFloat)
+    val indices = Array(1)
+
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
+    println(output.mkString(","))
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+  @Test def checkInformationLossLeft(): Unit = {
+    val gold = Array(0,1,2,3).map(_.toFloat)
+    val indices = Array(-1)
+
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+  @Test def checkInformationLossLeftBig(): Unit = {
+    val gold = Array(0,1,1,2,2,3).map(_.toFloat)
+    val indices = Array(-2,-1)
+
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+  @Test def checkInformationLossRighBig(): Unit = {
+    val gold = Array(1,2,2,3,3,4).map(_.toFloat)
+    val indices = Array(1,2)
+
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
   @Test def groupLeftCurrentRight(): Unit = {
     val gold = Array(0, 1, 2, 1, 2, 3, 2, 3, 4).map(_.toFloat)
     val indices = Array(-1, 0, 1)
