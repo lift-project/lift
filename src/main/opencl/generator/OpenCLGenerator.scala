@@ -163,6 +163,7 @@ class OpenCLGenerator extends Generator {
   private var replacements: ValueTable = immutable.Map.empty
   private var replacementsWithFuns: ValueTable = immutable.Map.empty
   private var privateMems = Array[TypedOpenCLMemory]()
+  private var privateDecls = immutable.Map[Var, OpenCLAST.VarDecl]()
 
   private var varDecls: SymbolTable = immutable.Map.empty
 
@@ -236,7 +237,7 @@ class OpenCLGenerator extends Generator {
     })
 
 
-    tupleTypes.foreach(tup => globalBlock += OpenCLAST.TypeDef(tup))
+    tupleTypes.foreach(globalBlock += OpenCLAST.TypeDef(_))
 
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach( globalBlock += _ )
@@ -445,11 +446,15 @@ class OpenCLGenerator extends Generator {
           addressSpace = x.mem.addressSpace))
 
     kernel.body += OpenCLAST.Comment("Private Memory")
-    privateMems.foreach(x =>
-      kernel.body +=
-        OpenCLAST.VarDecl(x.mem.variable.toString, x.t,
-          addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getSize(Type.getValueType(x.t))).eval))
+    privateMems.foreach(x => {
+      val decl = OpenCLAST.VarDecl(x.mem.variable.toString, x.t,
+        addressSpace = x.mem.addressSpace,
+        length = (x.mem.size /^ Type.getSize(Type.getValueType(x.t))).eval)
+
+      privateDecls += x.mem.variable -> decl
+
+      kernel.body += decl
+    })
 
     generate(f.body, kernel.body)
 
@@ -498,7 +503,6 @@ class OpenCLGenerator extends Generator {
              Split(_) | Join() | Group(_) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_,_) =>
 
-        //case _ => oclPrinter.print("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
       case p: Param =>
@@ -1096,15 +1100,8 @@ class OpenCLGenerator extends Generator {
                                 currentType: Type,
                                 view: View,
                                 value: OclAstNode): OclAstNode = {
-    val originalType: Type = {
-      try {
-        varDecls(mem.variable)
-      } catch {
-        case _: java.util.NoSuchElementException =>
-          throw new VariableNotDeclaredError(s"Trying to generate store to variable" +
-                                             s"${mem.variable} which was not previously declared.")
-      }
-    }
+    val originalType = getOriginalType(mem)
+
     if (Type.haveSameValueTypes(originalType, currentType)) {
       OpenCLAST.Assignment(
         to = accessNode(mem.variable, mem.addressSpace, view),
@@ -1288,7 +1285,7 @@ class OpenCLGenerator extends Generator {
       varDecls(mem.variable)
     } catch {
       case _: NoSuchElementException =>
-        throw new VariableNotDeclaredError(s"Trying to generate load to variable " +
+        throw new VariableNotDeclaredError(s"Trying to generate access to variable " +
           s"${mem.variable} which was not previously " +
           s"declared.")
     }
@@ -1361,19 +1358,26 @@ class OpenCLGenerator extends Generator {
   }
 
   private def arrayAccessPrivateMemIndex(v: Var, view: View): Int = {
-    val i = {
-      val originalType = varDecls(v)
-      val valueType = Type.getValueType(originalType)
-      valueType match {
-        case _:ScalarType | _:TupleType => ViewPrinter.emit(view)
-        // if the original value type is a vector:
-        //   divide index by vector length
-        case _:VectorType =>
-          val length = Type.getLength(Type.getValueType(originalType))
-          ViewPrinter.emit(view) / length
-      }
+    val declaration = privateDecls(v)
+    val originalType = declaration.t
+    val valueType = Type.getValueType(originalType)
+
+    val i = valueType match {
+      case _:ScalarType | _:TupleType => ViewPrinter.emit(view)
+      // if the original value type is a vector:
+      //   divide index by vector length
+      case _:VectorType =>
+        val length = Type.getLength(Type.getValueType(originalType))
+        ViewPrinter.emit(view) / length
     }
-    ArithExpr.substitute(i, replacements).eval
+
+    val real = ArithExpr.substitute(i, replacements).eval
+
+    if (real >= declaration.length) {
+      throw new OpenCLGeneratorException(s"Out of bounds access to $v with $real")
+    }
+
+    real
   }
 
   /**
@@ -1390,15 +1394,14 @@ class OpenCLGenerator extends Generator {
   }
 
   private def componentAccessvectorVarIndex(v: Var, view: View): Int = {
-    val i = {
-      val originalType = varDecls(v)
-      val valueType = Type.getValueType(originalType)
-      valueType match {
-        case _:VectorType =>
-          val length = Type.getLength(Type.getValueType(originalType))
-          ViewPrinter.emit(view) % length
-      }
+    val originalType = varDecls(v)
+    val valueType = Type.getValueType(originalType)
+    val i = valueType match {
+      case _:VectorType =>
+        val length = Type.getLength(Type.getValueType(originalType))
+        ViewPrinter.emit(view) % length
     }
+
     ArithExpr.substitute(i,replacements).eval
   }
 
