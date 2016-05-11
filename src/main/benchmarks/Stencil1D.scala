@@ -86,12 +86,34 @@ object Stencil1D{
     )
   }
 
+  def createNaiveLocalMemory1DStencilLambda(boundary: BoundaryFun): Lambda2 = {
+    fun(
+      ArrayType(Float, Var("N")),
+      ArrayType(Float, weights.length),
+      (input, weights) => {
+        val padOffset = neighbours.map(Math.abs).max
+        MapWrg(MapLcl(
+          fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(makePositive)) o
+              ReduceSeqUnroll(fun((acc, y) => {
+                multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+              }), 0.0f) $
+              Zip(weights, toLocal(MapSeqUnroll(id)) $ neighbourhood)
+          }))
+        ) o Split(2) o Group(neighbours) o Pad(padOffset, boundary) $ input
+      }
+    )
+  }
+
   def apply() = new Stencil1D(
     Seq(
       ("3_POINT_1D_STENCIL_CLAMP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Clamp))),
       ("3_POINT_1D_STENCIL_MIRROR_UNSAFE", Array[Lambda](create1DStencilLambda(Pad.Boundary.MirrorUnsafe))),
       ("3_POINT_1D_STENCIL_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap))),
-      ("3_POINT_1D_STENCIL_MIRROR", Array[Lambda](create1DStencilLambda(Pad.Boundary.Mirror)))))
+      ("3_POINT_1D_STENCIL_MIRROR", Array[Lambda](create1DStencilLambda(Pad.Boundary.Mirror))),
+      ("EXPERIMENTAL_LOCAL_MEM", Array[Lambda](createNaiveLocalMemory1DStencilLambda(Pad.Boundary.Wrap)))
+    )
+  )
 
   def main(args: Array[String]) = {
     Stencil1D().run(args)
