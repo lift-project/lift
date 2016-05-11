@@ -10,7 +10,7 @@ import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot.{ArgotParser, ArgotUsageException}
 import rewriting.utils.{NumberExpression, Utils}
-import rewriting.{Lower, Rewrite, Rule, Rules}
+import rewriting._
 
 import scala.io.Source
 
@@ -48,6 +48,9 @@ object MemoryMappingRewrite {
   private val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
     "Enable load balancing using MapAtomLocal and MapAtomWrg")
 
+  //                                               glb0, glb01, glb10, grp0, grp01, grp10
+  private val enabledMappings = new EnabledMappings(true, true, false, true, false, true)
+
   def main(args: Array[String]) {
 
     try {
@@ -57,8 +60,7 @@ object MemoryMappingRewrite {
       logger.info(s"Arguments: ${args.mkString(" ")}")
       logger.info("Defaults:")
       logger.info(s"\tVector width: $defaultVectorWidth")
-
-      // TODO: Enabled parallelism mappings?
+      logger.info(s"\tMappings: $enabledMappings")
 
       val topFolder = input.value.get
 
@@ -98,7 +100,7 @@ object MemoryMappingRewrite {
 
     try {
 
-      val loweredExpressions = Lower.mapCombinations(lambda)
+      val loweredExpressions = Lower.mapCombinations(lambda, enabledMappings)
 
       loweredExpressions.flatMap(
         mapAddressSpaces(_, hash).flatMap(addressMapped => {

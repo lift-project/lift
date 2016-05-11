@@ -5,6 +5,19 @@ import ir.ast._
 import ir.{Context, TypeChecker}
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq}
 
+case class EnabledMappings(
+  global0: Boolean,
+  global01: Boolean,
+  global10: Boolean,
+  group0: Boolean,
+  group01: Boolean,
+  group10: Boolean
+) {
+  override def toString =
+    s"Global 0 - $global0, Global 0,1 - $global01, Global 1,0 - $global10, " +
+    s"Group 0 - $group0, Group 0,1 - $group01, Group 1,0 - $group10"
+}
+
 object Lower {
   private def patchLambda(lambda: Lambda) = {
     val partialReducesLowered = lowerPartialReduces(lambda)
@@ -30,10 +43,15 @@ object Lower {
     assignedAddressSpaces
   }
 
-  def mapCombinations(lambda: Lambda) = {
+  def mapCombinations(lambda: Lambda,
+    enabledMappings: EnabledMappings =
+    //                 glb0, glb01, glb10, grp0, grp01, grp10
+    new EnabledMappings(true, true, false, true, false, true)
+  ) = {
+
     val removeOtherIds = SimplifyAndFuse(patchLambda(lambda))
 
-    lowerMaps(removeOtherIds)
+    lowerMaps(removeOtherIds, enabledMappings)
   }
 
   def simpleMapStrategy(lambda: Lambda) = {
@@ -45,7 +63,7 @@ object Lower {
   }
 
   def dropIds(lambda: Lambda) = {
-   lowerPatternWithRule(lambda, {case FunCall(Id(), _) =>}, Rules.dropId)
+   lowerPatternWithRule(lambda, { case FunCall(Id(), _) => }, Rules.dropId)
   }
 
   def addAndImplementIds(lambda: Lambda) = {
@@ -98,7 +116,8 @@ object Lower {
     mapsOnLevelThree == 1
   }
 
-  def lowerMaps(lambda: Lambda) : List[Lambda] = {
+  def lowerMaps(lambda: Lambda, enabledMappings: EnabledMappings) : List[Lambda] = {
+
     val depthMap = NumberExpression.byDepth(lambda)
     val depthsOfUnLowered = depthMap.collect({ case (FunCall(Map(_), _*), depth) => depth })
 
@@ -112,7 +131,7 @@ object Lower {
     val oneMapOnLevelThree = if (maxDepth > 2) hasOneMapOnThirdLevel(lambda) else false
 
     /* Global only */
-    {
+    if (enabledMappings.global0) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
       var lambdaN = lambda1
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
@@ -121,8 +140,7 @@ object Lower {
       lambdas = lambdaN :: lambdas
     }
 
-/*
-    if(maxDepth > 1 && oneMapOnLevelTwo) {
+    if (enabledMappings.global10 && maxDepth > 1 && oneMapOnLevelTwo) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(0))
       var lambdaN = lambda2
@@ -131,9 +149,8 @@ object Lower {
 
       lambdas = lambdaN :: lambdas
     }
-*/
 
-    if(maxDepth > 1 && oneMapOnLevelTwo) {
+    if (enabledMappings.global01 && maxDepth > 1 && oneMapOnLevelTwo) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
       var lambdaN = lambda2
@@ -163,7 +180,7 @@ object Lower {
     addGlobalMapping(1,2,0)*/
 
     /** Workgroup */
-    if(maxDepth > 1) {
+    if(enabledMappings.group0 && maxDepth > 1) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
       val lambda3 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
 
@@ -190,8 +207,12 @@ object Lower {
         lambdas = lambdaN :: lambdas
       }
     }
-//    addWrgLocalMapping(0,1)
-    addWrgLocalMapping(1,0)
+
+    if (enabledMappings.group01)
+      addWrgLocalMapping(0,1)
+
+    if (enabledMappings.group10)
+      addWrgLocalMapping(1,0)
 
 /*    def addWrgLocalMapping3D(first: Int, second: Int, third: Int): Unit = {
       if (maxDepth > 5 && oneMapOnLevelTwo && oneMapOnLevelThree) {
