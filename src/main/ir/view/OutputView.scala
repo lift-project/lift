@@ -57,6 +57,8 @@ object OutputView {
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
+      case group: Group =>
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
       case _ => writeView
     }
 
@@ -181,7 +183,7 @@ object OutputView {
     new ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
-  private def buildViewSearch(s: AbstractSearch, 
+  private def buildViewSearch(s: AbstractSearch,
                               call:FunCall, writeView:View) :View = {
     visitAndBuildViews(call.args.head,
       View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable.name))

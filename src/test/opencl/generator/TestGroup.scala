@@ -219,9 +219,9 @@ class TestGroup {
     val data = Array(0,1,2,3,4,5).map(_.toFloat)
 
     val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(1,2,1), data)
+    println(output.mkString(","))
     compareGoldWithOutput(gold, output, runtime)
   }
-
 
   @Test def groupIdentity(): Unit = {
     val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(0,1,0), data)
@@ -255,6 +255,11 @@ class TestGroup {
     */
   @Test def group2DIdentity(): Unit = {
     val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(0,1,0), data2D)
+    compareGoldWithOutput(data2D.flatten, output, runtime)
+  }
+
+  @Test def group2DIdentityTile(): Unit = {
+    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(1,2,1), data2D)
     compareGoldWithOutput(data2D.flatten, output, runtime)
   }
 
@@ -324,6 +329,29 @@ class TestGroup {
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  @Test def group16PointTiles(): Unit = {
+    val data2D = Array.tabulate(6, 6) { (i, j) => i * 6.0f + j }
+    val gold = Array(0,1,2,3,
+      6,7,8,9,
+      12,13,14,15,
+      18,19,20,21,
+      2,3,4,5,
+      8,9,10,11,
+      14,15,16,17,
+      20,21,22,23,
+      12,13,14,15,
+      18,19,20,21,
+      24,25,26,27,
+      30,31,32,33,
+      14,15,16,17,
+      20,21,22,23,
+      26,27,28,29,
+      32,33,34,35).map(_.toFloat)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(1,2,1), data2D)
+    println(data2D.flatten.mkString(","))
+    println(output.mkString(","))
+    compareGoldWithOutput(gold, output, runtime)
+  }
   /*
   /**
     * Creates an assymetric grouping of a 2D data structure

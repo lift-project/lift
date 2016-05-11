@@ -111,12 +111,50 @@ object Stencil2D{
         ) o Group2D(leftHalo, center, rightHalo) o Pad2D(Math.max(leftHalo, rightHalo), boundary)$ matrix
       })
 
+  def TiledNinePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(Float, 9),
+      (matrix, weights) => {
+        MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            fun(elem => {
+              toGlobal(MapSeqUnroll(makePositive)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+              //weights)
+            })
+
+          )) o Group2D(1,1,1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+
+
+        ))) o Group2D(1, 2, 1) o Pad2D(1, boundary)$ matrix
+      })
+
+  def TiledCopy(boundary: Pad.BoundaryFun): Lambda = fun(
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(Float, 9),
+      (matrix, weights) => {
+        MapWrg(1)(MapWrg(0)(fun( tile =>
+
+         toGlobal(MapLcl(1)(MapLcl(0)(id))) $ tile
+
+
+        ))) o Group2D(1, 2, 1) o Pad2D(1, boundary)$ matrix
+      })
+
   def apply() = new Stencil2D(
     Seq(
       ("9_POINT_2D_STENCIL_CLAMP", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Clamp))),
       ("9_POINT_2D_STENCIL_MIRROR_UNSAFE", Array[Lambda](ninePoint2DStencil(Pad.Boundary.MirrorUnsafe))),
       ("9_POINT_2D_STENCIL_WRAP", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Wrap))),
-      ("9_POINT_2D_STENCIL_MIRROR", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Mirror)))))
+      ("9_POINT_2D_STENCIL_MIRROR", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Mirror))),
+      ("TILED_9_POINT_2D_STENCIL_WRAP", Array[Lambda](TiledNinePoint2DStencil(Pad.Boundary.Wrap)))
+    )
+  )
 
   def main(args: Array[String]) = {
     Stencil2D().run(args)
