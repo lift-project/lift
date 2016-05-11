@@ -1,14 +1,14 @@
 package rewriting
 
 import apart.arithmetic.Var
+import ir._
 import ir.ast._
 import opencl.executor.Executor
-import ir._
 import opencl.ir._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Test}
 
-object TestRewrite {
+object TestLowering {
   @BeforeClass def before() {
     Executor.loadLibrary()
     Executor.init()
@@ -19,7 +19,7 @@ object TestRewrite {
   }
 }
 
-class TestRewrite {
+class TestLowering {
 
   @Test
   def mapMapMapLowering(): Unit = {
@@ -28,7 +28,7 @@ class TestRewrite {
     val f = fun(ArrayType(ArrayType(ArrayType(Float, N), N), N),
         input => Map(Map(Map(id))) $ input)
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
@@ -42,7 +42,7 @@ class TestRewrite {
       Reduce(add, 0.0f) $ input
     })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
@@ -55,7 +55,7 @@ class TestRewrite {
       Map(\(x => mult(alpha, x))) $ input
     })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
@@ -68,29 +68,27 @@ class TestRewrite {
       Reduce(add, 0.0f) o Map(abs) $ input
     })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     assertTrue(fs.forall(_.isGenerable))
   }
 
-  @Ignore
   @Test
   def dotLowering() : Unit = {
     val N = Var("N")
     val f = fun(ArrayType(Float, N), ArrayType(Float, N), (left, right) => {
-      Zip(left, right) :>> Map(mult) :>> Reduce(add, 0.0f)
+      Zip(left, right) :>> Map(\(x => mult(x._0, x._1))) :>> Reduce(add, 0.0f)
     })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     assertTrue(fs.forall(_.isGenerable))
   }
 
-  @Ignore
   @Test
   def gemvLowering() : Unit = {
     val N = Var("N")
@@ -112,7 +110,7 @@ class TestRewrite {
           // ... combine the vector X with a single row ...
           Zip(vectorX, row) :>>
           // ... pairwise multiply them ...
-          Map(mult) :>>
+          Map(\(x => mult(x._0, x._1))) :>>
           // ... reduce the resulting temporary vector ...
           Reduce(add, 0.0f) :>>
           // ... and finally for the computed sum ...
@@ -126,14 +124,13 @@ class TestRewrite {
         )
       })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     assertTrue(fs.forall(_.isGenerable))
   }
 
-  @Ignore
   @Test
   def mvLowering() : Unit = {
     val N = Var("N")
@@ -145,18 +142,17 @@ class TestRewrite {
       (matrix, vector) => {
         matrix :>>
         Map(fun(row =>
-          Zip(row, vector) :>> Map(mult) :>> Reduce(add, 0.0f)
+          Zip(row, vector) :>> Map(\(x => mult(x._0, x._1))) :>> Reduce(add, 0.0f)
         ))
       })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     assertTrue(fs.forall(_.isGenerable))
   }
 
-  @Ignore
   @Test
   def mvAsMmLowering() : Unit = {
     val N = Var("N")
@@ -171,21 +167,20 @@ class TestRewrite {
           vector :>> Transpose() :>>
           Map(fun(col =>
             Zip(row, col) :>>
-            Map(mult) :>>
+            Map(\(x => mult(Get(x, 0), Get(x, 1)))) :>>
             Reduce(add, 0.0f)
           ))
         ))
       })
 
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     assertTrue(fs.forall(_.isGenerable))
   }
 
-  @Ignore
   @Test
   def mmLowering() : Unit = {
     val N = Var("N")
@@ -200,12 +195,12 @@ class TestRewrite {
         Map(fun(aRow =>
           B :>> Transpose() :>>
           Map(fun(bCol =>
-            Zip(aRow, bCol) :>> Map(mult) :>> Reduce(add, 0.0f)
+            Zip(aRow, bCol) :>> Map(\(x => mult(x._0, x._1))) :>> Reduce(add, 0.0f)
           ))
         ))
       })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
@@ -243,14 +238,13 @@ class TestRewrite {
         ))
       })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     assertTrue(fs.forall(_.isGenerable))
   }
 
-  @Ignore
   @Test
   def kmeansLowering() : Unit = {
     val distance = UserFun("distance", Array("x", "y", "a", "b", "id"),
@@ -284,14 +278,14 @@ class TestRewrite {
         }))
       })
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
+    // TODO: Should MapWrg(MapLcl(_) o ReduceSeq(_) $ ...) be allowed or not?
     assertTrue(fs.forall(_.isGenerable))
   }
 
-  @Ignore
   @Test
   def nbodyLowering() : Unit = {
     val calcAcc =
@@ -366,7 +360,7 @@ class TestRewrite {
       })
 
 
-    val fs = Lower.lower(f)
+    val fs = Lower.mapCombinations(f)
     println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)

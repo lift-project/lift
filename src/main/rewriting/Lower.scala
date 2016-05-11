@@ -98,9 +98,14 @@ object Lower {
     mapsOnLevelThree == 1
   }
 
-  def lowerMaps(lambda: Lambda) = {
+  def lowerMaps(lambda: Lambda) : List[Lambda] = {
     val depthMap = NumberExpression.byDepth(lambda)
-    val maxDepth = depthMap.values.max
+    val depthsOfUnLowered = depthMap.collect({ case (FunCall(Map(_), _*), depth) => depth })
+
+    if (depthsOfUnLowered.isEmpty)
+      return List(lambda)
+
+    val maxDepth = depthsOfUnLowered.max + 1
 
     var lambdas = List[Lambda]()
     val oneMapOnLevelTwo = if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
