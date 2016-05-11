@@ -231,7 +231,7 @@ class OpenCLGenerator extends Generator {
 
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach( globalBlock += _ )
-    generateLookupFunctionsForGroups(f.body).foreach( globalBlock += _ )
+    //generateLookupFunctionsForGroups(f.body).foreach( globalBlock += _ )
 
     // pass 3: generate the kernel
     globalBlock += generateKernel(f)
@@ -305,6 +305,7 @@ class OpenCLGenerator extends Generator {
   }
 
   /** Traverses f and print all group functions using oclPrinter */
+  /*
   private def generateLookupFunctionsForGroups(expr: Expr): Seq[OclAstNode] = {
     var fs = Seq[OclAstNode]()
 
@@ -333,6 +334,7 @@ class OpenCLGenerator extends Generator {
 
     fs
   }
+  */
 
   def allocateMemory(f: Lambda): Unit = {
     f.params.foreach(p =>
@@ -493,7 +495,7 @@ class OpenCLGenerator extends Generator {
         case fp: FPattern => generate(fp.f.body, block)
         case l: Lambda => generate(l.body, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
-             Split(_) | Join() | Group(_) | Zip(_) | Tuple(_) | Filter() |
+             Split(_) | Join() | Group(_,_,_) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_,_) =>
 
         //case _ => oclPrinter.print("__" + call.toString + "__")

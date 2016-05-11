@@ -10,7 +10,7 @@ import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 
 
 object TestGroup {
@@ -62,23 +62,21 @@ class TestGroup {
   /**
     * Creates simple 1D Group Lambda = Map(Map(id) o Group $ data
     *
-    * @param indices specifies how to group the array
     * @return Lambda which groups input using relative indices
     */
-  def createSimple1DGroupLambda(indices: Array[Int]): Lambda1 = {
+  def createSimple1DGroupLambda(leftHalo: Int, center: Int, rightHalo: Int): Lambda1 = {
     fun(
       ArrayType(Float, Var("N")),
-      (domain) => MapGlb(MapSeqOrMapSeqUnroll(id)) o Group(indices) $ domain
+      (domain) => MapGlb(MapSeqOrMapSeqUnroll(id)) o Group(leftHalo, center, rightHalo) $ domain
     )
   }
 
   /**
     * Creates simple 2D Group Lambda = Map(Map(lambda x.Map(Map(id(x)) o Group2D $ data
     *
-    * @param indices specifies how to group the array
     * @return Lambda which groups input using relative indices
     */
-  def createSimple2DGroupLambda(indices: Array[Int]): Lambda1 = {
+  def createSimple2DGroupLambda(leftHalo: Int, center: Int, rightHalo: Int): Lambda1 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       (domain) => {
@@ -86,7 +84,7 @@ class TestGroup {
           MapGlb(0)(fun(neighbours =>
             MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
           ))
-        ) o Group2D(indices) $ domain
+        ) o Group2D(leftHalo, center, rightHalo) $ domain
       }
     )
   }
@@ -95,11 +93,10 @@ class TestGroup {
     * Creates asymmetric 2D Group Lambda depending on two sets of relative indices
     * specifying the relative columns and rows of interest
     *
-    * @param relRows relative row indices
-    * @param relCols relative column indices
     * @return Lambda which groups input using relative indices
     */
-  def createAsymmetric2DGroupLambda(relRows: Array[Int], relCols: Array[Int]): Lambda1 = {
+  def createAsymmetric2DGroupLambda(l1: Int, c1: Int, r1: Int,
+                                    l2: Int, c2: Int, r2: Int): Lambda1 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       (domain) => {
@@ -107,7 +104,7 @@ class TestGroup {
           MapGlb(0)(fun(neighbours =>
             MapSeq(MapSeqOrMapSeqUnroll(id)) $ neighbours
           ))
-        ) o Group2D(relRows, relCols) $ domain
+        ) o Group2D(l1, c1, r1, l2, c2, r2) $ domain
       }
     )
   }
@@ -161,6 +158,7 @@ class TestGroup {
   /* **********************************************************
       GROUP 1D
    ***********************************************************/
+  /*
   @Test def checkInformationLossRight(): Unit = {
     val gold = Array(1,2,3,4).map(_.toFloat)
     val indices = Array(1)
@@ -193,38 +191,44 @@ class TestGroup {
     val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
     compareGoldWithOutput(gold, output, runtime)
   }
+  */
 
   @Test def groupLeftCurrentRight(): Unit = {
     val gold = Array(0, 1, 2, 1, 2, 3, 2, 3, 4).map(_.toFloat)
-    val indices = Array(-1, 0, 1)
 
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(1,1,1), data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def groupCurrentWithTwoRightNeighbours(): Unit = {
     val gold = Array(0, 1, 2, 1, 2, 3, 2, 3, 4).map(_.toFloat)
-    val indices = Array(0, 1, 2)
 
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(0,1,2), data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def groupCurrentWithTwoLeftNeighbours(): Unit = {
     val gold = Array(0, 1, 2, 1, 2, 3, 2, 3, 4).map(_.toFloat)
-    val indices = Array(-2, -1, 0)
 
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(2,1,0), data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
-  @Test def groupIdentity(): Unit = {
-    val indices = Array(0)
+  @Test def groupCenter2Halo1(): Unit = {
+    val gold = Array(0, 1, 2, 3, 2, 3, 4, 5).map(_.toFloat)
+    val data = Array(0,1,2,3,4,5).map(_.toFloat)
 
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(1,2,1), data)
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+
+  @Test def groupIdentity(): Unit = {
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(0,1,0), data)
     compareGoldWithOutput(data, output, runtime)
   }
 
+  /* No longer defined
   @Test def groupLeftGapTwoToTheRight(): Unit = {
     val gold = Array(0, 3, 1, 4).map(_.toFloat)
     val indices = Array(-1, 2)
@@ -241,6 +245,7 @@ class TestGroup {
     val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
     compareGoldWithOutput(gold, output, runtime)
   }
+  */
 
   /* **********************************************************
       GROUP 2D
@@ -249,9 +254,7 @@ class TestGroup {
     * Should never fail because it only uses functional compositions of "1D group primitive"
     */
   @Test def group2DIdentity(): Unit = {
-    val indices = Array(0)
-
-    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(indices), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(0,1,0), data2D)
     compareGoldWithOutput(data2D.flatten, output, runtime)
   }
 
@@ -261,9 +264,7 @@ class TestGroup {
     */
   @Test def group9PointNeighbourhoodIdentity(): Unit = {
     val data2D = Array.tabulate(3, 3) { (i, j) => i * 3.0f + j }
-    val indices = Array(-1, 0, 1)
-
-    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(indices), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(1,1,1), data2D)
     compareGoldWithOutput(data2D.flatten, output, runtime)
   }
 
@@ -280,9 +281,8 @@ class TestGroup {
     val goldBottomLeft = goldTopLeft.map(_ + 4) // Top arrays are already flat
     val goldBottomRight = goldTopRight.map(_ + 4)
     val gold = goldTopLeft ++ goldTopRight ++ goldBottomLeft ++ goldBottomRight
-    val indices = Array(-1, 0, 1)
 
-    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(indices), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(1,1,1), data2D)
     compareGoldWithOutput(gold, output, runtime)
   }
 
@@ -299,10 +299,8 @@ class TestGroup {
       9, 10, 11,
       12, 13, 14,
       13, 14, 15).map(_.toFloat)
-    val relCols = Array(-1, 0, 1)
-    val relRows = Array(0)
 
-    val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(0,1,0, 1,1,1), data2D)
     compareGoldWithOutput(gold, output, runtime)
   }
 
@@ -322,10 +320,11 @@ class TestGroup {
     val relRows = Array(-1, 0, 1)
     val relCols = Array(0)
 
-    val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
+    val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(1,1,1, 0,1,0), data2D)
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  /*
   /**
     * Creates an assymetric grouping of a 2D data structure
     */
@@ -341,6 +340,7 @@ class TestGroup {
     val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
     compareGoldWithOutput(gold, output, runtime)
   }
+  */
 
   /* **********************************************************
    2D STENCILS WITHOUT PADDING
@@ -395,11 +395,10 @@ class TestGroup {
   /**
     * Create lambda expression for simple stencil application without padding
     *
-    * @param neighbours describing neighbours used for symmetricc 2D group creation
     * @param weights    weights used in the stencil
     * @return lambda expression that calculates the stencil
     */
-  def createSimpleStencilWithoutPad(neighbours: Array[Int], weights: Array[Float]): Lambda2 = {
+  def createSimpleStencilWithoutPad(leftHalo: Int, center: Int, rightHalo: Int, weights: Array[Float]): Lambda2 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       ArrayType(Float, weights.length),
@@ -413,26 +412,25 @@ class TestGroup {
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Group2D(neighbours) $ matrix
+        ) o Group2D(leftHalo, center, rightHalo) $ matrix
       })
   }
 
   /**
     * Runs simple stencil 2D stencil application and stores result as .pgm image
     *
-    * @param neighbours array of related indices to build symmetric 2D groups
     * @param weights    weights applied to each group
     * @param name       name of the resulting picture
     */
-  def runSimple2DStencilWithoutPadding(neighbours: Array[Int], weights: Array[Float], name: String): Unit = {
+  def runSimple2DStencilWithoutPadding(leftHalo: Int, center: Int, rightHalo: Int, weights: Array[Float], name: String): Unit = {
     try {
       val (width, height, input) = readInputImage(lenaPGM)
-      val f = createSimpleStencilWithoutPad(neighbours, weights)
+      val f = createSimpleStencilWithoutPad(leftHalo, center, rightHalo, weights)
 
       val (output: Array[Float], runtime) = Execute(1, 1, width, height, (false, false))(f, input, weights)
       println("Runtime: " + runtime)
 
-      val outOfBoundElementsX = Math.abs(Math.min(0, neighbours.min)) + Math.max(0, neighbours.max)
+      val outOfBoundElementsX = leftHalo + rightHalo
       savePGM(name, outputLocation, output.grouped(width - outOfBoundElementsX).toArray)
 
     } catch {
@@ -445,8 +443,7 @@ class TestGroup {
     * Uses no padding which causes the output picture to be smaller than the input
     */
   @Test def gaussianBlurNoPad(): Unit = {
-    val neighbours = Array(-1, 0, 1)
-    runSimple2DStencilWithoutPadding(neighbours, gaussWeights, "gaussNoPad.pgm")
+    runSimple2DStencilWithoutPadding(1,1,1, gaussWeights, "gaussNoPad.pgm")
   }
 
   /**
@@ -454,7 +451,6 @@ class TestGroup {
     * Uses no padding which causes the output picture to be smaller than the input
     */
   @Test def sobelFilterNoPad(): Unit = {
-    val neighbours = Array(-1, 0, 1)
-    runSimple2DStencilWithoutPadding(neighbours, sobelWeights, "sobelNoPad.pgm")
+    runSimple2DStencilWithoutPadding(1,1,1, sobelWeights, "sobelNoPad.pgm")
   }
 }

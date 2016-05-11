@@ -61,7 +61,7 @@ class TestStencilDebug {
     else
       MapSeq(g)
 
-  def create2DPadGroupLambda(boundary: BoundaryFun, neighbours: Array[Int]): Lambda1 = {
+  def create2DPadGroupLambda(boundary: BoundaryFun, leftHalo: Int, center: Int, rightHalo: Int): Lambda1 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       (domain) => {
@@ -69,17 +69,18 @@ class TestStencilDebug {
           MapGlb(0)(fun(neighbours =>
             MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
           ))
-        ) o Group2D(neighbours) o Pad2D(neighbours.map(Math.abs).max, boundary) $ domain
+        ) o Group2D(leftHalo, center, rightHalo) o Pad2D(Math.max(leftHalo, rightHalo), boundary) $ domain
       }
     )
   }
 
   def scala2DNeighbours(data: Array[Array[Float]],
-                        relRows: Array[Int],
-                        relColumns: Array[Int],
+                        l1: Int, c1: Int, r1: Int,
+                        l2: Int, c2: Int, r2: Int,
                         r: Int,
                         c: Int,
                         boundary: (Int, Int) => Int = SCALABOUNDARY) = {
+    /*
     val nrRows = data.length
     val nrColumns = data(0).length
 
@@ -91,6 +92,8 @@ class TestStencilDebug {
         data(newR)(newC)
       })
     })
+    */
+    data.flatten
   }
 
   def compareGoldWithOutput(gold: Array[Float], output: Array[Float], runtime: Double): Unit = {
@@ -99,7 +102,9 @@ class TestStencilDebug {
     assertArrayEquals(gold, output, 0.00001f)
   }
 
-  def runCombinedPadGroupTest(neighbours: Array[Int],
+  def runCombinedPadGroupTest(leftHalo: Int,
+                              center: Int,
+                              rightHalo: Int,
                               boundary: BoundaryFun,
                               scalaBoundary: (Int, Int) => Int,
                               data: Array[Array[Float]] = data2D): Unit = {
@@ -107,47 +112,43 @@ class TestStencilDebug {
     val nrColumns = data(0).length
     val gold = (0 until nrRows).flatMap(r =>
       (0 until nrColumns).map(c =>
-        scala2DNeighbours(data, neighbours, neighbours, r, c, scalaBoundary))
+        scala2DNeighbours(data, leftHalo, center, rightHalo, leftHalo, center, rightHalo, r, c, scalaBoundary))
     )
 
-    val lambda = create2DPadGroupLambda(boundary, neighbours)
+    val lambda = create2DPadGroupLambda(boundary, leftHalo, center, rightHalo)
     val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
     compareGoldWithOutput(gold.flatten.toArray, output, runtime)
   }
 
 	@Ignore
   @Test def groupClampPaddedData2D() = {
-    val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = scalaClamp
 
-    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
+    runCombinedPadGroupTest(1,1,1, boundary, scalaBoundary)
   }
 
   @Ignore
   @Test def groupMirrorPaddedData2D() = {
-    val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Mirror
     val scalaBoundary = scalaMirror
 
-    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
+    runCombinedPadGroupTest(1,1,1, boundary, scalaBoundary)
   }
 
   @Test def groupMirrorUnsafePaddedData2D() = {
-    val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.MirrorUnsafe
     val scalaBoundary = scalaMirror
 
-    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
+    runCombinedPadGroupTest(1,1,1, boundary, scalaBoundary)
   }
 
 	@Ignore
   @Test def groupWrapPaddedData2D() = {
-    val neighbours = Array(-1, 0, 1)
     val boundary = Pad.Boundary.Wrap
     val scalaBoundary = scalaWrap
 
-    runCombinedPadGroupTest(neighbours, boundary, scalaBoundary)
+    runCombinedPadGroupTest(1,1,1, boundary, scalaBoundary)
   }
 
 }

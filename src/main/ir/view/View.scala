@@ -519,8 +519,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
 
         ag.t match {
           case ArrayType(t, len) =>
-            val table: Seq[ArithExpr] = ag.group.posIndices.map(Cst(_))
-            val newIdx = outerId._1 + Lookup(table, innerId._1, ag.group.id)
+            val newIdx = outerId._1 * ag.group.center + innerId._1
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()

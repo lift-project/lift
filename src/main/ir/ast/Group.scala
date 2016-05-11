@@ -9,24 +9,20 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
  * Group pattern.
  * Slice volume in overlapping tiles without boundary handling.
  *
- * @param relIndices Array of relative indices.
  */
-case class Group(relIndices: Array[Int]) extends Pattern(arity = 1) with isGenerable {
+case class Group(leftHalo: Int, center: Int, rightHalo: Int) extends Pattern(arity = 1) with isGenerable {
   Group.cnt += 1
   val id = Group.cnt
 
-  val offset = Math.abs(Math.min(0, relIndices.min))
-
-  // internally relIndices will be used shiftet to all positives
-  val posIndices = relIndices.map(_+offset)
-
-  override def toString: String = "Group([" + relIndices.mkString(",") + "])"
+  override def toString: String = "Group(" + leftHalo + "," + center + "," + rightHalo + ")"
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        ArrayType(ArrayType(t, relIndices.length), n - (Math.abs(Math.min(0, relIndices.min)) + Math.max(0, relIndices.max)))
+        val innerLength = leftHalo + center + rightHalo
+        val outerLength = (n - (leftHalo + rightHalo)) / center // do proper type checking
+        ArrayType(ArrayType(t, innerLength), outerLength)
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
@@ -62,21 +58,21 @@ object Group {
 
 object Group2D {
   /** Symmetrical grouping */
-  def apply(neighbors: Array[Int]): Lambda = {
+  def apply(leftHalo: Int, center: Int, rightHalo: Int): Lambda = {
     Map(
       Map(
         Transpose()
-      ) o Group(neighbors) o Transpose()
-    ) o Group(neighbors)
+      ) o Group(leftHalo, center, rightHalo) o Transpose()
+    ) o Group(leftHalo, center, rightHalo)
   }
 
   /** Asymmetrical grouping */
-  def apply(relRows: Array[Int],
-            relColumns: Array[Int]): Lambda = {
+  def apply(l1: Int, c1: Int, r1: Int,
+            l2: Int, c2: Int, r2: Int): Lambda = {
     Map(
       Map(
         Transpose()
-      ) o Group(relColumns) o Transpose()
-    ) o Group(relRows)
+      ) o Group(l2, c2, r2) o Transpose()
+    ) o Group(l1, c1, r1)
   }
 }

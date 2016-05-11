@@ -43,7 +43,9 @@ object Stencil2D{
     if(id >= length) length+length-id-1 else id
   }
 
-  val neighbours = Array(-1, 0, 1)
+  val leftHalo = 1
+  val center = 1
+  val rightHalo = 1
   val scalaBoundary = scalaWrap
   val makePositive = UserFun("makePositive", "i", "{ return (i < 0) ? 0 : i;  }", Float, Float)
   val weights = Array(0f, 0.12f, 0.08f,
@@ -51,19 +53,21 @@ object Stencil2D{
       0.08f, 0.12f, 0.08f)
 
   def runScala(input: Array[Array[Float]]): Array[Float] = {
-    scala2DStencil(input, neighbours, neighbours, weights)
+   // scala2DStencil(input, leftHalo, center, rightHalo, leftHalo, center, rightHalo, weights)
+    input.flatten
   }
 
+  /*
   def scala2DStencil(data: Array[Array[Float]],
-                     relRows: Array[Int],
-                     relColumns: Array[Int],
+                     l1: Int, c1: Int, r1: Int,
+                     l2: Int, c2: Int, r2: Int,
                      weights: Array[Float]): Array[Float] = {
     val nrRows = data.length
     val nrColumns = data(0).length
 
-    val neighbours: IndexedSeq[Array[Float]] = (0 until nrRows).flatMap(r =>
-      (0 until nrColumns).map(c =>
-        scala2DNeighbours(data, relRows, relColumns, r, c))
+    val neighbours: IndexedSeq[Array[Float]] = (0 until nrRows).flatMap(row =>
+      (0 until nrColumns).map(column =>
+        scala2DNeighbours(data, l1, c1, r1, l2, c2, r2, row, column))
     )
 
     val clamp = (x: Float) => if(x < 0.0f) 0.0f else x
@@ -72,8 +76,8 @@ object Stencil2D{
   }
 
   def scala2DNeighbours(data: Array[Array[Float]],
-                        relRows: Array[Int],
-                        relColumns: Array[Int],
+                        l1: Int, c1: Int, r1: Int,
+                        l2: Int, c2: Int, r2: Int,
                         r: Int,
                         c: Int,
                         boundary: (Int, Int) => Int = scalaBoundary) = {
@@ -89,6 +93,7 @@ object Stencil2D{
       })
     })
   }
+  */
 
   def ninePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
@@ -103,7 +108,7 @@ object Stencil2D{
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Group2D(neighbours) o Pad2D(neighbours.map(Math.abs).max, boundary)$ matrix
+        ) o Group2D(leftHalo, center, rightHalo) o Pad2D(Math.max(leftHalo, rightHalo), boundary)$ matrix
       })
 
   def apply() = new Stencil2D(

@@ -79,13 +79,13 @@ object jToLocal {
 }
 
 object jGroup {
-  def create(relIndices: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group(relIndices)
+  def create(leftHalo: Int, center: Int, rightHalo: Int, negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group(leftHalo, center, rightHalo)
 }
 
 object jGroup2D {
-  def create(relColumns: Array[Int], relRows: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(relColumns, relRows)
+  def create(l1: Int, c1: Int, r1: Int, l2: Int, c2: Int, r2: Int, negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(l1, c1, r1, l2, c2, r2)
 }
 
 object jGet {
