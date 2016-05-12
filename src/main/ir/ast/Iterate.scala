@@ -33,7 +33,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
 
   var swapBuffer: Memory = UnallocatedMemory
 
-  var indexVar = Var("i", RangeUnknown)
+  var indexVar = PosVar("i")
 
   override def copy(f: Lambda): Pattern = Iterate(n, f)
 
@@ -55,11 +55,11 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
           f.params(0).t = UndefType
         }
         // substitute all the expression in the input type with type variables
-        val tvMap = scala.collection.mutable.HashMap[TypeVar, ArithExpr]()
+        val initialTvValMap = scala.collection.mutable.HashMap[TypeVar, ArithExpr]()
         var inputTypeWithTypeVar = Type.visitAndRebuild(at, t => t, {
           case at: ArrayType =>
-            val tv = TypeVar()
-            tvMap += tv -> at.len
+            val tv = TypeVar(StartFromRange(1))
+            initialTvValMap += tv -> at.len
             new ArrayType(at.elemT, tv)
           case t: Type => t
         })
@@ -77,81 +77,100 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
         })
 
         // put back the expression when the type variable is not present
-        val fixedTvMap = tvMap -- outputTvSet
+        val fixedTvMap = initialTvValMap -- outputTvSet
         inputTypeWithTypeVar =
           Type.substitute(inputTypeWithTypeVar, fixedTvMap.toMap)
 
         // assign the type for f
         TypeChecker.check(f.body, setType = true)
 
-        val closedFormOutputType = closedFormIterate(inputTypeWithTypeVar,
+        val closedFormInOutType = closedFormIterate(inputTypeWithTypeVar,
                                                      outputTypeWithTypeVar,
-                                                     n, tvMap)
-        Type.substitute(closedFormOutputType, tvMap.toMap)
+                                                     n, initialTvValMap)
+        // patch up the input type of the f (new type variables with range information may have been produced)
+        f.params(0).t = closedFormInOutType._1
+        TypeChecker.check(f.body, setType = true)
+
+        Type.substitute(closedFormInOutType._2, initialTvValMap.toMap)
 
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
 
+  /**
+    * Returns the new input and output types after calculating the closed form
+    * @param inT
+    * @param ouT
+    * @param n
+    * @param initialTvValMap
+    * @return
+    */
   private def closedFormIterate(inT: Type,
                                 ouT: Type,
                                 n: ArithExpr,
-                                tvMap: mutable.HashMap[TypeVar,
-                                                       ArithExpr]): Type = {
+                                initialTvValMap: mutable.HashMap[TypeVar,
+                                                       ArithExpr]): (Type,Type) = {
     (inT,ouT) match {
       case (inAT : ArrayType, outAT : ArrayType) =>
-        val closedFormLen = {
+        /*val closedFormLen = */{
           val inLen = inAT.len
           val outLen = outAT.len
 
           inLen match {
-            case tv: TypeVar =>
+            case inLenTV: TypeVar =>
               if (inLen == outLen) {
-                return Type.substitute(ouT,new HashMap[ArithExpr,ArithExpr]() + ((tv, tvMap.get(tv).get)))
+                // the input type of the function inside the iterate is independent from the number of iterations
+                return (Type.substitute(inT,inLenTV, initialTvValMap.get(inLenTV).get),
+                        Type.substitute(ouT,inLenTV, initialTvValMap.get(inLenTV).get))
                 //tv.range = ContinuousRange(tvMap.get(tv).get, tvMap.get(tv).get)
                 //return ouT
               }
-              // recognises output independent of tv
-              if (!ArithExpr.contains(outLen, tv))
-                return ouT
+              if (!ArithExpr.contains(outLen, inLenTV))
+                // output independent of any type variables
+                return (Type.substitute(inT,inLenTV, initialTvValMap.get(inLenTV).get),ouT)
 
               // recognises outLen*tv
-              val a = outLen /^ tv
-              if (!ArithExpr.contains(a, tv)) {
+              val a = outLen /^ inLenTV
+              if (!ArithExpr.contains(a, inLenTV)) {
 
                 // fix the range for tv
-                // TODO: Pow(a, n) or Pow(a, n-1)???
-                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get,
-                                                  (a pow n)*tvMap.get(tv).get)
-                // TODO: deal with growing output size
+                val (min, max) = ArithExpr.minmax(initialTvValMap.get(inLenTV).get,
+                                                  (a pow n)*initialTvValMap.get(inLenTV).get)
+                //// TODO: deal with growing output size
                 //tv.range = ContinuousRange(min,max)
-                val tvWithRange = TypeVar(ContinuousRange(min,max))
-                tvMap += ((tvWithRange, tvMap.get(tv).get))
+                val inLenTVWithRange = TypeVar(ContinuousRange(min,max+1))
+                initialTvValMap += ((inLenTVWithRange, initialTvValMap.get(inLenTV).get))
+                val substOuT = Type.substitute(ouT,inLenTV,inLenTVWithRange).asInstanceOf[ArrayType]
+                val substInT = Type.substitute(inT,inLenTV,inLenTVWithRange).asInstanceOf[ArrayType]
 
                 // we have outLen*tv where tv is not present inside outLen
                 //(a pow n)*tv
 
-                (a pow n) * tvWithRange
+                val len = (a pow n) * inLenTVWithRange
+
+                val inOutElemsT = closedFormIterate(substInT.elemT, substOuT.elemT, n, initialTvValMap)
+                (new ArrayType(inOutElemsT._1, inLenTVWithRange), new ArrayType(inOutElemsT._2, len))
               }
-              else throw new TypeException("Cannot infer closed form for" +
+              else
+                throw new TypeException("Cannot infer closed form for" +
                 "iterate return type (only support x*a). inT = " + inT +
                 " ouT = " + ouT)
-            case _ => throw new TypeException("Cannot infer closed form for " +
+            case _ =>
+              throw new TypeException("Cannot infer closed form for " +
               "iterate return type. inT = " + inT + " ouT = " + ouT)
           }
         }
 
-        new ArrayType(closedFormIterate(inAT.elemT, outAT.elemT, n, tvMap),
-                      closedFormLen)
-
-
       case (inTT:TupleType, outTT:TupleType) =>
-        new TupleType( inTT.elemsT.zip(outTT.elemsT)
-                                  .map({case (tIn,tOut) =>
-                                      closedFormIterate(tIn,tOut,n,tvMap)} ):_*)
+
+        val inOutElemsT = inTT.elemsT.zip(outTT.elemsT).map({case (tIn,tOut) =>
+            closedFormIterate(tIn,tOut,n,initialTvValMap)}).unzip
+        (new TupleType(inOutElemsT._1:_*),new TupleType(inOutElemsT._2:_*))
 
       case _ =>
-        if (inT == ouT) ouT
+        if (inT == ouT)
+        // the input type of the function inside the iterate is independent from the number of iterations
+          (Type.substitute(inT, initialTvValMap.toMap), Type.substitute(ouT,initialTvValMap.toMap))
         else throw new TypeException("Cannot infer closed form for iterate " +
           "return type. inT = "+inT+" ouT = "+ouT)
     }

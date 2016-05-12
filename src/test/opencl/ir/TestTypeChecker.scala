@@ -11,7 +11,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def incorrectReduceSeq(): Unit = {
     val lambda = fun(
-      ArrayType(Float, Var("K")),
+      ArrayType(Float, SizeVar("K")),
       a => ReduceSeq(fun((acc, x) => MapSeq(fun(a => add(acc, a))) $ x), 0.0f) o Split(1) $ a
     )
 
@@ -21,7 +21,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def incorrectZip(): Unit = {
     val lambda = fun(
-      ArrayType(Float, Var("K")),
+      ArrayType(Float, SizeVar("K")),
       ArrayType(Float, 8),
       (a, b) =>
         Zip(a,b)

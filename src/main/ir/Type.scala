@@ -1,9 +1,12 @@
 package ir
 
-import apart.arithmetic.{PosVar, ArithExpr, Cst, Var}
+import apart.arithmetic._
 import arithmetic.TypeVar
+import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
+import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
+
 
 
 /**
@@ -54,6 +57,7 @@ sealed abstract class Type {
   }
 
   def hasFixedSize : Boolean
+
 }
 
 /**
@@ -102,6 +106,10 @@ case class TupleType(elemsT: Type*) extends Type {
  * @param len The length of the array
  */
 case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
+
+  // TODO: remove the need to check for unknown (but this is used currently in a few places)
+  if (len != ? & len.sign != Sign.Positive)
+    throw new TypeException("Length must be provably positive! (len="+len+")")
 
   if (len.isEvaluable) {
     val length = len.evalDbl
@@ -182,7 +190,7 @@ object Type {
    * @param pre The function to be invoked before traversing `t`
    * @param post The function to be invoked after travering `t`
    */
-  def visit(t: Type, pre: Type => Unit, post: Type => Unit) : Unit = {
+  def visit(t: Type, pre: Type => Unit, post: Type => Unit = _ => {}) : Unit = {
     pre(t)
     t match {
       case vt: VectorType => visit(vt.scalarT, pre, post)
@@ -353,6 +361,22 @@ object Type {
     }
   }
 
+  def getMaxSize(t: Type) : ArithExpr = {
+    // quick hack (set all the type var to theur max value)
+    // TODO: need to be fixed
+    val size = getSize(t)
+    val map = TypeVar.getTypeVars(size).map(tv => (tv, tv.range.max)).toMap
+    ArithExpr.substitute(size, map.toMap)
+  }
+
+  def getMaxLength(t: Type) : ArithExpr = {
+    // quick hack (set all the type var to theur max value)
+    // TODO: need to be fixed
+    val size = getLength(t)
+    val map = TypeVar.getTypeVars(size).map(tv => (tv, tv.range.max)).toMap
+    ArithExpr.substitute(size, map.toMap)
+  }
+
   /**
    * Returns the length (i.e., the number of values represented by this type)
    *
@@ -429,6 +453,10 @@ object Type {
     result.toMap
   }
 
+  def substitute(t: Type, oldVal: ArithExpr, newVal: ArithExpr) : Type ={
+    Type.substitute(t,new HashMap[ArithExpr,ArithExpr]() + ((oldVal, newVal)))
+  }
+
   /**
    * Visit and rebuild the given type by replacing arithmetic expressions in the
    * length information of array and vector types following the given
@@ -441,7 +469,7 @@ object Type {
    *         `t`
    */
   def substitute(t: Type,
-                 substitutions: immutable.Map[ArithExpr, ArithExpr]) : Type = {
+                 substitutions: scala.collection.Map[ArithExpr, ArithExpr]) : Type = {
     Type.visitAndRebuild(t, t1 => t1, {
       case UnknownLengthArrayType(et,len) => // TODO add substitution here
         new UnknownLengthArrayType(et,len)

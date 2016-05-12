@@ -1,6 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import benchmarks.DotProduct
 import opencl.executor._
 import org.junit.Assert._
@@ -22,8 +23,8 @@ object TestDotProduct {
 
 class TestDotProduct {
 
-  val N = Var("N")
-  val M = Var("M")
+  val N = SizeVar("N")
+  val M = SizeVar("M")
 
   private def dotProd(left: Array[Float], right: Array[Float]): Float = {
     (left,right).zipped.map(_*_).sum

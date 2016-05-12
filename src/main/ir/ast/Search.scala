@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.{?, ArithExpr, Var}
+import apart.arithmetic.{?, ArithExpr, PosVar, Var}
 import ir._
 
 /**
@@ -34,10 +34,10 @@ abstract class AbstractSearch(val f: Lambda,
                               val name: String) extends Pattern(arity = 2) 
                                                         with FPattern {
   assert(f.params.length == 1)
-  var indexVar: Var = Var("ix")
+  var indexVar: Var = PosVar("ix")
   var searchFMem : Memory = UnallocatedMemory
 
-  override def checkType(argType: Type, 
+  override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
       case TupleType(defaultT, ArrayType(elemT, _)) => 

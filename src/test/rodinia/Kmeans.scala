@@ -1,13 +1,13 @@
 package rodinia
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir.{ArrayType, TupleType}
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object Kmeans {
   @BeforeClass def before() {
@@ -24,9 +24,9 @@ object Kmeans {
 
 class Kmeans {
 
-  val P = Var("P") // number of points
-  val C = Var("C") // number of clusters
-  val F = Var("F") // number of features
+  val P = SizeVar("P") // number of points
+  val C = SizeVar("C") // number of clusters
+  val F = SizeVar("F") // number of features
 
   val featuresType    = ArrayType(ArrayType(Float, P), F)
   val clustersType    = ArrayType(ArrayType(Float, F), C)
@@ -73,8 +73,8 @@ class Kmeans {
 
     val gold = calculateMembership(points, centres)
 
-    val N = Var("N")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
 
     val function = fun(
       ArrayType(Float, N),

@@ -41,7 +41,7 @@ class TestSparsity {
     val vector : Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold = vector.tail
 
-    val f = fun (ArrayType(Float,Var("N")),(input) =>
+    val f = fun (ArrayType(Float,SizeVar("N")),(input) =>
       MapSeq(id) o Tail() $ input
     )
 
@@ -58,7 +58,7 @@ class TestSparsity {
     val vector : Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold = Array(vector.head)
 
-    val f = fun (ArrayType(Float,Var("N")),(input) =>
+    val f = fun (ArrayType(Float,SizeVar("N")),(input) =>
         MapSeq(id) o Head() $ input
     )
     val (output:Array[Float], runtime) = Execute(1,1)(f,vector)
@@ -75,7 +75,7 @@ class TestSparsity {
     val vector:Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold = Array(vector.tail.head)
 
-    val f = fun (ArrayType(Float,Var("N")),(input) =>
+    val f = fun (ArrayType(Float,SizeVar("N")),(input) =>
       MapSeq(id) o Head() o Tail() $ input
     )
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
@@ -91,7 +91,7 @@ class TestSparsity {
     val vector:Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold:Array[Float] = vector.grouped(32).map(_.head).toArray
 
-    val f = fun (ArrayType(Float,Var("N")),(input) =>
+    val f = fun (ArrayType(Float,SizeVar("N")),(input) =>
       Join() o MapSeq(MapSeq(id) o Head()) o Split(32) $ input
     )
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)
@@ -107,7 +107,7 @@ class TestSparsity {
     val vector:Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold:Array[Float] = vector.grouped(32).map(_.tail).flatten.toArray
 
-    val f = fun (ArrayType(Float,Var("N")),(input) =>
+    val f = fun (ArrayType(Float,SizeVar("N")),(input) =>
       Join() o MapSeq(MapSeq(id) o Tail()) o Split(32) $ input
     )
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)

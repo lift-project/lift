@@ -14,10 +14,10 @@ object OpenCLMemoryAllocator {
       p.t match {
         case _: ScalarType =>
           p.mem = OpenCLMemory.allocPrivateMemory(
-            OpenCLMemory.getMaxSizeInBytes(p.t))
+            OpenCLMemory.getSizeInBytes(p.t))
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(
-            OpenCLMemory.getMaxSizeInBytes(p.t))
+            OpenCLMemory.getSizeInBytes(p.t))
       })
 
       alloc(f.body)
@@ -108,10 +108,12 @@ object OpenCLMemoryAllocator {
       case MapLcl(_, _)     |
            MapAtomLcl(_, _, _) | 
            MapWarp(_)       |
-           MapLane(_)       |
-           MapSeq(_)          => allocMapLcl(call.f.asInstanceOf[AbstractMap],
-                                             call.t, numGlb, numLcl, numPvt,
-                                             inMem, addressSpace)
+           MapLane(_) => allocMapLcl(call.f.asInstanceOf[AbstractMap],
+                                     call.t, numGlb, numLcl, numPvt,
+                                     inMem, addressSpace)
+      case MapSeq(_) => allocMapSeq(call.f.asInstanceOf[AbstractMap],
+                                    call.t, numGlb, numLcl, numPvt,
+                                    inMem, addressSpace)
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
       case s: AbstractSearch  => allocSearch(s, call, numGlb, numLcl, numPvt, inMem, addressSpace)
       case it: Iterate        => allocIterate(it, call, numGlb, numLcl, numPvt,
@@ -152,7 +154,7 @@ object OpenCLMemoryAllocator {
                            inMem: OpenCLMemory,
                            addressSpace: OpenCLAddressSpace): OpenCLMemory = {
 
-    val maxSizeInBytes = getMaxSizeInBytes(outT)
+    val maxSizeInBytes = getSizeInBytes(outT)
     // size in bytes necessary to hold the result of f in the different
     // memory spaces
     val maxGlbOutSize = maxSizeInBytes * numGlb
@@ -196,8 +198,11 @@ object OpenCLMemoryAllocator {
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
-    val maxLen = ArithExpr.max(Type.getLength(outT))
-    alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, addressSpace)
+    //assert(am.f.body.addressSpaces.size ==1 && am.f.body.addressSpaces.contains(GlobalMemory))
+
+    //val maxLen = ArithExpr.max(Type.getLength(outT))
+    val len = Type.getMaxLength(outT)//.max
+    alloc(am.f.body, numGlb * len, numLcl, numPvt, addressSpace)
   }
 
   private def allocMapAtomWrg(am: AbstractMap, 
@@ -209,11 +214,39 @@ object OpenCLMemoryAllocator {
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
-    am.asInstanceOf[MapAtomWrg].globalTaskIndex =
-      OpenCLMemory.allocGlobalMemory(Type.getSize(Int))
+    //assert(am.f.body.addressSpaces.size ==1 && am.f.body.addressSpaces.contains(GlobalMemory))
 
-    val maxLen = ArithExpr.max(Type.getLength(outT))
-    alloc(am.f.body, numGlb * maxLen, numLcl, numPvt, addressSpace)
+    am.asInstanceOf[MapAtomWrg].globalTaskIndex =
+      OpenCLMemory.allocGlobalMemory(Type.getMaxSize(Int))
+
+    //val maxLen = ArithExpr.max(Type.getLength(outT))
+    val len = Type.getMaxLength(outT)
+    alloc(am.f.body, numGlb * len, numLcl, numPvt, addressSpace)
+  }
+
+  private def allocMapSeq(am: AbstractMap,
+                          outT: Type,
+                          numGlb: ArithExpr,
+                          numLcl: ArithExpr,
+                          numPvt: ArithExpr,
+                          inMem: OpenCLMemory,
+                          addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+    am.f.params(0).mem = inMem
+
+    //val maxLen = ArithExpr.max(Type.getLength(outT))
+    val len = Type.getMaxLength(outT)
+
+
+    //val privateMultiplier = am.iterationCount
+    //privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+    val privateMultiplier :ArithExpr =
+    if (am.f.body.addressSpaces.contains(PrivateMemory))
+      am.iterationCount
+    else
+      1
+
+    alloc(am.f.body, numGlb * len, numLcl * len,
+      numPvt * privateMultiplier, addressSpace)
   }
 
   private def allocMapLcl(am: AbstractMap,
@@ -225,12 +258,19 @@ object OpenCLMemoryAllocator {
                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
-    val maxLen = ArithExpr.max(Type.getLength(outT))
+    //val maxLen = ArithExpr.max(Type.getLength(outT))
+    val len = Type.getMaxLength(outT)
 
-    var privateMultiplier = am.iterationCount
-    privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
 
-    alloc(am.f.body, numGlb * maxLen, numLcl * maxLen,
+    //var privateMultiplier = am.iterationCount
+    //privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+    val privateMultiplier :ArithExpr =
+    if (am.f.body.addressSpaces.contains(PrivateMemory))
+      am.iterationCount
+    else
+      1
+
+    alloc(am.f.body, numGlb * len, numLcl * len,
           numPvt * privateMultiplier, addressSpace)
   }
 
@@ -304,8 +344,8 @@ object OpenCLMemoryAllocator {
                            inMem: OpenCLMemory): OpenCLMemory = {
     // get sizes in bytes necessary to hold the input and output of the
     // function inside the iterate
-    val inSize = getMaxSizeInBytes(call.argsType)
-    val outSize = getMaxSizeInBytes(call.t)
+    val inSize = getSizeInBytes(call.argsType)
+    val outSize = getSizeInBytes(call.t)
     // get the max from those two
     val largestSize = ArithExpr.max(inSize, outSize)
 

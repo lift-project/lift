@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import exploration.HighLevelRewrite
 import ir._
 import ir.ast._
@@ -27,9 +27,9 @@ class TestRewriteMatrixMatrix {
   @Ignore // Takes too long
   @Test
   def reuseBothWithTiling(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -79,9 +79,9 @@ class TestRewriteMatrixMatrix {
     val tileTranspositionM = 32
     val tileTranspositionK = 32
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K), (p450003680, p2134991632) => FunCall(Join(), FunCall(Map(fun((p756185697) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1237598030) => FunCall(TransposeW(), FunCall(Map(fun((p660879561) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p660879561))), FunCall(Join(), FunCall(Map(fun((p376416077) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1089504328) => FunCall(TransposeW(), p1089504328))), p376416077))))), FunCall(Map(fun((p294184992) => FunCall(Map(fun((p793315160) => FunCall(Map(fun((p270397815) => FunCall(TransposeW(), p270397815))), FunCall(TransposeW(), p793315160)))), FunCall(TransposeW(), p294184992)))), FunCall(TransposeW(), FunCall(toGlobal(fun((p1485697819) => FunCall(MapSeq(fun((p867398280) => FunCall(Map(fun((p2007331442) => FunCall(Map(fun((p1904324159) => FunCall(Map(fun((p1176735295) => FunCall(Map(fun((p1848415041) => FunCall(id, p1848415041))), p1176735295))), p1904324159))), p2007331442))), p867398280))), p1485697819))), FunCall(ReduceSeq(fun((p1032000752, p843467284) => FunCall(Map(fun((p124407148) => FunCall(Map(fun((p1825027294) => FunCall(Map(fun((p19986569) => FunCall(Join(), FunCall(Transpose(), p19986569)))), FunCall(Transpose(), FunCall(toGlobal(fun((p852445367) => FunCall(MapSeq(fun((p1738236591) => FunCall(Map(fun((p1558021762) => FunCall(Map(fun((p225290371) => FunCall(id, p225290371))), p1558021762))), p1738236591))), p852445367))), FunCall(ReduceSeq(fun((p1004095028, p1169146729) => FunCall(Map(fun((p1948863195) => FunCall(Map(fun((p1890187342) => FunCall(add, FunCall(Get(0), p1890187342), FunCall(Get(1), p1890187342)))), FunCall(Zip(2), FunCall(Get(0), p1948863195), FunCall(Get(1), p1948863195))))), FunCall(Zip(2), p1004095028, FunCall(Map(fun((p876213901) => FunCall(Map(fun((p230528013) => FunCall(mult, p876213901, p230528013))), FunCall(Get(1), p1169146729)))), FunCall(Get(0), p1169146729)))))), FunCall(Get(0), p1825027294), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p124407148)), FunCall(Transpose(), FunCall(Get(1), p1825027294))))))))), FunCall(Zip(2), FunCall(Get(0), p124407148), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p843467284)))))))), FunCall(Zip(2), p1032000752, FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p843467284))))))), FunCall(Map(fun((p1822383117) => FunCall(Map(fun((p233021551) => FunCall(Map(fun((p1991313236) => FunCall(Map(fun((p736778932) => FunCall(id, p736778932))), p1991313236))), p233021551))), p1822383117))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Zip(2), p756185697, p1237598030))))))))))), FunCall(Transpose(), FunCall(Map(fun((p24606376) => FunCall(Transpose(), p24606376))), FunCall(Split(tileSizeK), FunCall(Map(fun((p302155142) => FunCall(Split(tileSizeMN), p302155142))), p2134991632))))))))), FunCall(Transpose(), FunCall(Map(fun((p1891546521) => FunCall(Transpose(), p1891546521))), FunCall(Split(tileSizeK), FunCall(Map(fun((p297927961) => FunCall(Split(tileSizeMN), p297927961))), FunCall(Join(), FunCall(Map(fun((p1881129850) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p912011468) => FunCall(TransposeW(), FunCall(Map(fun((p1312884893) => FunCall(Map(fun((p849373393) => FunCall(id, p849373393))), p1312884893))), FunCall(Transpose(), p912011468))))), p1881129850))))), FunCall(Transpose(), FunCall(Map(fun((p2142080121) => FunCall(Transpose(), p2142080121))), FunCall(Split(tileTranspositionK), FunCall(Map(fun((p673186785) => FunCall(Split(tileTranspositionM), p673186785))), p450003680)))))))))))))
 
@@ -105,9 +105,9 @@ class TestRewriteMatrixMatrix {
     val workPerThreadN = 2
     val workPerThreadM = 4
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K),(p450003680, p2134991632) => FunCall(Join(), FunCall(Map(fun((p756185697) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1237598030) => FunCall(TransposeW(), FunCall(Map(fun((p660879561) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p660879561))), FunCall(Join(), FunCall(Map(fun((p376416077) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1089504328) => FunCall(TransposeW(), p1089504328))), p376416077))))), FunCall(Map(fun((p294184992) => FunCall(Map(fun((p793315160) => FunCall(Map(fun((p270397815) => FunCall(TransposeW(), p270397815))), FunCall(TransposeW(), p793315160)))), FunCall(TransposeW(), p294184992)))), FunCall(TransposeW(), FunCall(toGlobal(fun((p1485697819) => FunCall(MapSeq(fun((p867398280) => FunCall(Map(fun((p2007331442) => FunCall(Map(fun((p1904324159) => FunCall(Map(fun((p1176735295) => FunCall(Map(fun((p1848415041) => FunCall(id, p1848415041))), p1176735295))), p1904324159))), p2007331442))), p867398280))), p1485697819))), FunCall(ReduceSeq(fun((p1032000752, p843467284) => FunCall(Map(fun((p124407148) => FunCall(Map(fun((p1825027294) => FunCall(Map(fun((p19986569) => FunCall(Join(), FunCall(Transpose(), p19986569)))), FunCall(Transpose(), FunCall(toPrivate(fun((p852445367) => FunCall(MapSeq(fun((p1738236591) => FunCall(Map(fun((p1558021762) => FunCall(Map(fun((p225290371) => FunCall(id, p225290371))), p1558021762))), p1738236591))), p852445367))), FunCall(ReduceSeq(fun((p1004095028, p1169146729) => FunCall(Map(fun((p1948863195) => FunCall(Map(fun((p1890187342) => FunCall(add, FunCall(Get(0), p1890187342), FunCall(Get(1), p1890187342)))), FunCall(Zip(2), FunCall(Get(0), p1948863195), FunCall(Get(1), p1948863195))))), FunCall(Zip(2), p1004095028, FunCall(Map(fun((p876213901) => FunCall(Map(fun((p230528013) => FunCall(mult, p876213901, p230528013))), FunCall(Get(1), p1169146729)))), FunCall(Get(0), p1169146729)))))), FunCall(Get(0), p1825027294), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p124407148)), FunCall(Transpose(), FunCall(Get(1), p1825027294))))))))), FunCall(Zip(2), FunCall(Get(0), p124407148), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p843467284)))))))), FunCall(Zip(2), p1032000752, FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p843467284))))))), FunCall(Map(fun((p1822383117) => FunCall(Map(fun((p233021551) => FunCall(Map(fun((p1991313236) => FunCall(Map(fun((p736778932) => FunCall(id, p736778932))), p1991313236))), p233021551))), p1822383117))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Zip(2), p756185697, p1237598030))))))))))), FunCall(Transpose(), FunCall(Map(fun((p24606376) => FunCall(Transpose(), p24606376))), FunCall(Split(tileSizeK), FunCall(Map(fun((p302155142) => FunCall(Split(tileSizeMN), p302155142))), p2134991632))))))))), FunCall(Transpose(), FunCall(Map(fun((p1891546521) => FunCall(Transpose(), p1891546521))), FunCall(Split(tileSizeK), FunCall(Map(fun((p297927961) => FunCall(Split(tileSizeMN), p297927961))), FunCall(Transpose(), p450003680))))))))
 
@@ -155,9 +155,9 @@ class TestRewriteMatrixMatrix {
     val workPerThreadN = 2
     val workPerThreadM = 8
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val h0 = fun(ArrayType(ArrayType(Float, M), K), ArrayType(ArrayType(Float, N), K),(p1795960102, p477289012) => FunCall(Join(), FunCall(Map(fun((p1889248251) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p2023938592) => FunCall(TransposeW(), FunCall(Map(fun((p225290371) => FunCall(Scatter(ReorderWithStride(tileSizeMN/workPerThreadM)), p225290371))), FunCall(Join(), FunCall(Map(fun((p297927961) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p733672688) => FunCall(TransposeW(), FunCall(Map(fun((p756185697) => FunCall(TransposeW(), p756185697))), FunCall(TransposeW(), p733672688))))), FunCall(TransposeW(), p297927961)))))), FunCall(TransposeW(), FunCall(MapSeq(fun((p1691875296) => FunCall(Id(), p1691875296))), FunCall(ReduceSeq(fun((p500179317, p1225197672) => FunCall(Map(fun((p1500608548) => FunCall(Map(fun((p513700442) => FunCall(Map(fun((p912011468) => FunCall(Join(), FunCall(Transpose(), p912011468)))), FunCall(Transpose(), FunCall(MapSeq(fun((p1195067075) => FunCall(Id(), p1195067075))), FunCall(ReduceSeq(fun((p1983025922, p1007309018) => FunCall(Map(fun((p2038148563) => FunCall(Map(fun((p2142080121) => FunCall(add, FunCall(Get(0), p2142080121), FunCall(Get(1), p2142080121)))), FunCall(Zip(2), FunCall(Get(0), p2038148563), FunCall(Map(fun((p112619572) => FunCall(mult, FunCall(Get(1), p2038148563), p112619572))), FunCall(Get(1), p1007309018)))))), FunCall(Zip(2), p1983025922, FunCall(Get(0), p1007309018))))), FunCall(Get(0), p513700442), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p1500608548)), FunCall(Transpose(), FunCall(Get(1), p513700442))))))))), FunCall(Zip(2), FunCall(Get(0), p1500608548), FunCall(Split(workPerThreadM), FunCall(Gather(ReorderWithStride(tileSizeMN/workPerThreadM)), FunCall(Transpose(), FunCall(Get(1), p1225197672)))))))), FunCall(Zip(2), p500179317, FunCall(Split(workPerThreadN), FunCall(Transpose(), FunCall(Get(0), p1225197672))))))), FunCall(Map(fun((p1786364562) => FunCall(Map(fun((p326298949) => FunCall(Map(fun((p876926621) => FunCall(Map(fun((p1268959798) => FunCall(id, p1268959798))), p876926621))), p326298949))), p1786364562))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeMN/workPerThreadM), tileSizeMN/workPerThreadN))), FunCall(Zip(2), p1889248251, p2023938592)))))))))), FunCall(Transpose(), FunCall(Map(fun((p1935972447) => FunCall(Transpose(), p1935972447))), FunCall(Split(tileSizeK), FunCall(Map(fun((p1890627974) => FunCall(Split(tileSizeMN), p1890627974))), p477289012))))))))), FunCall(Transpose(), FunCall(Map(fun((p1641313620) => FunCall(Transpose(), p1641313620))), FunCall(Split(tileSizeK), FunCall(Map(fun((p192881625) => FunCall(Split(tileSizeMN), p192881625))), p1795960102)))))))
     val h1 = Lower.simpleMapStrategy(h0)
@@ -179,10 +179,10 @@ class TestRewriteMatrixMatrix {
 
     assertArrayEquals(gold.flatten, output, 0.0001f)
 
-    val tileSizeMNVar = Var("tileSizeMNVar")
-    val tileSizeKVar = Var("tileSizeKVar")
-    val workPerThreadNVar = Var("workPerThreadNVar")
-    val workPerThreadMVar = Var("workPerThreadMVar")
+    val tileSizeMNVar = SizeVar("tileSizeMNVar")
+    val tileSizeKVar = SizeVar("tileSizeKVar")
+    val workPerThreadNVar = SizeVar("workPerThreadNVar")
+    val workPerThreadMVar = SizeVar("workPerThreadMVar")
 
     val fast = fun(ArrayType(ArrayType(Float, M), K), ArrayType(ArrayType(Float, N), K), (p54495403, p1260134048) => FunCall(Join(), FunCall(MapWrg(1)(fun((p1408652377) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p990416209) => FunCall(TransposeW(), FunCall(Map(fun((p1651855867) => FunCall(Scatter(ReorderWithStride(tileSizeMNVar/^workPerThreadMVar)), p1651855867))), FunCall(Join(), FunCall(Map(fun((p1468303011) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p523691575) => FunCall(TransposeW(), p523691575))), p1468303011))))), FunCall(Map(fun((p1354011814) => FunCall(Map(fun((p1852584274) => FunCall(Map(fun((p1857815974) => FunCall(TransposeW(), p1857815974))), FunCall(TransposeW(), p1852584274)))), FunCall(TransposeW(), p1354011814)))), FunCall(TransposeW(), FunCall(toGlobal(fun((p520016214) => FunCall(MapSeq(fun((p1675763772) => FunCall(MapLcl(1)(fun((p841283083) => FunCall(MapLcl(0)(fun((p990398217) => FunCall(MapSeq(fun((p1468357786) => FunCall(MapSeq(fun((p36333492) => FunCall(id, p36333492))), p1468357786))), p990398217))), p841283083))), p1675763772))), p520016214))), FunCall(ReduceSeq(fun((p1511785794, p527446182) => FunCall(fun((p1205555397) => FunCall(MapLcl(1)(fun((p1454031203) => FunCall(MapLcl(0)(fun((p407858146) => FunCall(Map(fun((p817406040) => FunCall(Join(), FunCall(Transpose(), p817406040)))), FunCall(Transpose(), FunCall(ReduceSeq(fun((p603650290, p1754638213) => FunCall(fun((p278934944) => FunCall(MapSeq(fun((p222624801) => FunCall(MapSeq(fun((p85777802) => FunCall(add, FunCall(Get(0), p85777802), FunCall(Get(1), p85777802)))), FunCall(Zip(2), FunCall(Get(0), p222624801), FunCall(Get(1), p222624801))))), FunCall(Zip(2), p603650290, FunCall(MapSeq(fun((p280744458) => FunCall(MapSeq(fun((p1213216872) => FunCall(mult, p280744458, p1213216872))), FunCall(Get(1), p278934944)))), FunCall(toPrivate(fun((p1686369710) => FunCall(MapSeq(fun((p385337537) => FunCall(id, p385337537))), p1686369710))), FunCall(Get(0), p278934944)))))), FunCall(fun((p1282811396) => FunCall(Tuple(2), FunCall(Get(0), p1282811396), FunCall(toPrivate(fun((p439928219) => FunCall(MapSeq(fun((p1883840933) => FunCall(id, p1883840933))), p439928219))), FunCall(Get(1), p1282811396)))), p1754638213)))), FunCall(Get(0), p407858146), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p1454031203)), FunCall(Transpose(), FunCall(Get(1), p407858146)))))))), FunCall(Zip(2), FunCall(Get(0), p1454031203), FunCall(Split(workPerThreadMVar), FunCall(Gather(ReorderWithStride(tileSizeMNVar/^workPerThreadMVar)), FunCall(Transpose(), FunCall(Get(1), p1205555397)))))))), FunCall(Zip(2), p1511785794, FunCall(Split(workPerThreadNVar), FunCall(Transpose(), FunCall(Get(0), p1205555397)))))), FunCall(fun((p1209669119) => FunCall(Unzip(), FunCall(toLocal(fun((p1607305514) => FunCall(MapLcl(1)(fun((p832279283) => FunCall(Unzip(), FunCall(MapLcl(0)(fun((p668210649) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p668210649)), FunCall(id, FunCall(Get(1), p668210649))))), FunCall(Zip(2), FunCall(Get(0), p832279283), FunCall(Get(1), p832279283)))))), p1607305514))), FunCall(Zip(2), FunCall(Get(0), p1209669119), FunCall(Get(1), p1209669119))))), p527446182)))), FunCall(MapLcl(1)(fun((p1301664418) => FunCall(MapLcl(0)(fun((p513169028) => FunCall(MapSeq(fun((p377478451) => FunCall(MapSeq(fun((p1596467899) => FunCall(id, p1596467899))), p377478451))), p513169028))), p1301664418))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadMVar), workPerThreadNVar), tileSizeMNVar/^workPerThreadMVar), tileSizeMNVar/^workPerThreadNVar))), FunCall(Zip(2), p1408652377, p990416209))))))))))), FunCall(Transpose(), FunCall(Map(fun((p1952779858) => FunCall(Transpose(), p1952779858))), FunCall(Split(tileSizeKVar), FunCall(Map(fun((p1791868405) => FunCall(Split(tileSizeMNVar), p1791868405))), p1260134048))))))))), FunCall(Transpose(), FunCall(Map(fun((p81009902) => FunCall(Transpose(), p81009902))), FunCall(Split(tileSizeKVar), FunCall(Map(fun((p674483268) => FunCall(Split(tileSizeMNVar), p674483268))), p54495403)))))))
     TypeChecker(fast)
@@ -193,9 +193,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def reuseWithTiling(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -224,8 +224,8 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def tiledTransposeWithLocalMemory(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -259,9 +259,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def mmSquareTilesLocalMemory(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, K), N), (p1538399081, p1800890735) => FunCall(Join(), FunCall(Map(fun((p1957502751) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1177377518) => FunCall(TransposeW(), FunCall(Map(fun((p1122805102) => FunCall(TransposeW(), p1122805102))), FunCall(TransposeW(), FunCall(toGlobal(fun((p183284570) => FunCall(MapSeq(fun((p2109874862) => FunCall(Map(fun((p275310919) => FunCall(Map(fun((p797925218) => FunCall(id, p797925218))), p275310919))), p2109874862))), p183284570))), FunCall(ReduceSeq(fun((p1136497418, p1943325854) => FunCall(Map(fun((p1413378318) => FunCall(Map(fun((p1181869371) => FunCall(add, FunCall(Get(0), p1181869371), FunCall(Get(1), p1181869371)))), FunCall(Zip(2), FunCall(Get(0), p1413378318), FunCall(Join(), FunCall(Map(fun((p1256728724) => FunCall(toPrivate(fun((p1157058691) => FunCall(MapSeq(fun((p1667689440) => FunCall(id, p1667689440))), p1157058691))), FunCall(ReduceSeq(fun((p852687460, p1138193439) => FunCall(add, p852687460, FunCall(mult, FunCall(Get(0), p1138193439), FunCall(Get(1), p1138193439))))), FunCall(id, Value(0.0f, Float)), FunCall(Zip(2), FunCall(Get(1), p1413378318), p1256728724))))), FunCall(Transpose(), FunCall(Get(1), p1943325854)))))))), FunCall(Zip(2), p1136497418, FunCall(Transpose(), FunCall(Get(0), p1943325854)))))), FunCall(Map(fun((p194706439) => FunCall(Map(fun((p1686369710) => FunCall(id, p1686369710))), p194706439))), Value(0.0f, ArrayType(ArrayType(Float, 4), 4))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p1957502751)), FunCall(Split(4), FunCall(Transpose(), p1177377518)))))))))), FunCall(Split(4), p1800890735)))))), FunCall(Split(4), p1538399081))))
 
@@ -291,9 +291,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def rectangularTiles(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     // Derivation the same, except split on the zip is different than the others
     val h0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, N), K), (p951880373, p1752203484) => FunCall(Join(), FunCall(Map(fun((p243745864) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p699780352) => FunCall(toGlobal(fun((p1613255205) => FunCall(MapSeq(fun((p1897115967) => FunCall(Map(fun((p1166151249) => FunCall(Map(fun((p1121453612) => FunCall(id, p1121453612))), p1166151249))), p1897115967))), p1613255205))), FunCall(ReduceSeq(fun((p2619171, p1728790703) => FunCall(Map(fun((p1227074340) => FunCall(Map(fun((p1154002927) => FunCall(add, FunCall(Get(0), p1154002927), FunCall(Get(1), p1154002927)))), FunCall(Zip(2), FunCall(Get(0), p1227074340), FunCall(Get(1), p1227074340))))), FunCall(Zip(2), p2619171, FunCall(fun((p2070529722) => FunCall(Map(fun((p1188753216) => FunCall(Join(), FunCall(Map(fun((p317986356) => FunCall(toPrivate(fun((p331510866) => FunCall(MapSeq(fun((p640363654) => FunCall(id, p640363654))), p331510866))), FunCall(ReduceSeq(fun((p924477420, p99451533) => FunCall(add, p924477420, FunCall(fun((p84739718) => FunCall(mult, FunCall(Get(0), p84739718), FunCall(Get(1), p84739718))), p99451533)))), FunCall(toPrivate(id), Value(0.0f, Float)), FunCall(Zip(2), p317986356, p1188753216))))), FunCall(Transpose(), FunCall(Get(0), p2070529722)))))), FunCall(Transpose(), FunCall(Get(1), p2070529722)))), p1728790703))))), FunCall(toPrivate(Map(fun((p2050835901) => FunCall(Map(fun((p511473681) => FunCall(id, p511473681))), p2050835901)))), Value(0.0f, ArrayType(ArrayType(Float, 8), 8))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p243745864)), FunCall(Split(4), FunCall(Transpose(), p699780352))))))), FunCall(Split(8), FunCall(Transpose(), p1752203484))))))), FunCall(Split(8), p951880373))))
@@ -308,9 +308,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def mmReuseB(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0 = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -333,9 +333,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def mmReuseBoth(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -358,9 +358,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def transposeInsideTiling(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, M), K),
@@ -385,9 +385,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def mmTiled() = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -413,9 +413,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def partiallyVectorisedTiled() = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -447,9 +447,9 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def vectorised() = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -480,9 +480,9 @@ class TestRewriteMatrixMatrix {
   @Ignore
   @Test
   def gemmTiled() = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f0: Lambda = fun(
       ArrayType(ArrayType(Float, K), N),
@@ -514,12 +514,12 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def dot(): Unit = {
-    val v_K0_0 = Var("K")
-    val v_M1_1 = Var("M")
-    val v_N2_2 = Var("N")
-    val v_3_3 = Var("")
-    val v_4_4 = Var("")
-    val v_5_5 = Var("")
+    val v_K0_0 = SizeVar("K")
+    val v_M1_1 = SizeVar("M")
+    val v_N2_2 = SizeVar("N")
+    val v_3_3 = SizeVar("")
+    val v_4_4 = SizeVar("")
+    val v_5_5 = SizeVar("")
 
     val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
     val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)

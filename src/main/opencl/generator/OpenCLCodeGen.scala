@@ -300,7 +300,7 @@ class OpenCLCodeGen {
       vd.addressSpace match {
         case PrivateMemory =>
           for (i <- 0 until vd.length)
-            print(toString(Type.getValueType(vd.t)) + " " + toString(vd.v) + "_" +
+            println(toString(Type.getValueType(vd.t)) + " " + toString(vd.v) + "_" +
                     toString(i) + ";")
 
         case LocalMemory if vd.length != 0 =>

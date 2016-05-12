@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -33,7 +33,7 @@ class TestTriple {
   val inputArray = (inputArray1 zip inputArray2 zip inputArray3).flatMap { case ((a, b), c) => Array(a, b, c) }
 
   @Test def VECTOR_SUM_TRIPLE() {
-    val f = fun(ArrayType(TupleType(Float,Float,Float), Var("N")), (input) =>
+    val f = fun(ArrayType(TupleType(Float,Float,Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
 	Join() o  MapLcl(MapSeq(add3Tuple)) o Split(4)
       ) o Split(1024) $ input
@@ -46,7 +46,7 @@ class TestTriple {
   }
 
   @Test def VECTOR_SUM_TRIPLE_2() {
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(
       ArrayType(Float, N),
 		  ArrayType(Float, N),

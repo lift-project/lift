@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import benchmarks.NBody
 import ir._
 import ir.ast._
@@ -8,7 +8,7 @@ import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestNBody {
 
@@ -125,7 +125,7 @@ class TestNBody {
           Float, TupleType(Float, Float, Float)),
         TupleType(Float, Float, Float, Float, Float, Float, Float))
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val function = fun(
       ArrayType(Float, N),
@@ -310,7 +310,7 @@ class TestNBody {
       vel(4*i+3) = mass(i)
     }
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val function = fun(
       ArrayType(Float4, N),

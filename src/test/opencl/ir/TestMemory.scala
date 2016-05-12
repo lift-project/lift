@@ -1,6 +1,6 @@
 package opencl.ir
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
@@ -11,7 +11,7 @@ class TestMemory {
 
   @Test
   def zipInsideToLocalAllocation(): Unit = {
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val arrayType = ArrayType(Float, N)
     val f = fun(
@@ -33,13 +33,13 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(LocalMemory, subMemories(0).addressSpace)
     assertEquals(LocalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
+    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
   }
 
   @Test
   def zipInsideToGlobalAllocation(): Unit = {
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val arrayType = ArrayType(ArrayType(Float, N), N)
     val f = fun(
@@ -61,13 +61,13 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
+    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
   }
 
   @Test
   def zipAllocation(): Unit = {
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val arrayType = ArrayType(ArrayType(Float, N), N)
     val f = fun(
@@ -89,7 +89,7 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getMaxSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
+    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
   }
 }

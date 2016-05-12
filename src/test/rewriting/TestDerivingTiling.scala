@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir._
 import ir.ast._
 import opencl.executor._
@@ -32,8 +32,8 @@ class TestDerivingTiling {
     val matrix = Array.fill(nSize, mSize)(util.Random.nextInt(nSize*mSize).toFloat)
     val gold = matrix.flatMap(_.map(_ + 1))
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     // Starting expression
     def f = fun(
@@ -116,9 +116,9 @@ class TestDerivingTiling {
     val transposedMatrixB = matrixB.transpose
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     // Starting expression
     val f = fun(

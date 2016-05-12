@@ -1,8 +1,9 @@
 package benchmarks
 
-import java.io.{PrintWriter, File, OutputStreamWriter}
+import java.io.{File, OutputStreamWriter, PrintWriter}
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import ir.printer.{DotPrinter, TikzPrinter}
@@ -35,7 +36,7 @@ class DotProduct(override val name: String,
 
 object DotProduct {
 
-  val N = Var("N")
+  val N = SizeVar("N")
 
   val dotProductSimple = fun(ArrayType(Float, N),
     ArrayType(Float, N), (left, right) => {

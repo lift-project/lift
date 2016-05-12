@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.{?, ArithExpr, Var}
+import apart.arithmetic.{?, ArithExpr, PosVar, Var}
 import ir._
 
 /**
@@ -16,7 +16,7 @@ abstract class AbstractPartRed(val f: Lambda,
                                                          with FPattern {
   assert(f.params.length == 2)
 
-  val iterationCount: ArithExpr = loopVar.range.numVals()
+  val iterationCount: ArithExpr = loopVar.range.numVals
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -59,7 +59,7 @@ abstract class AbstractPartRed(val f: Lambda,
  * @param f A lambda to be applied as the binary reduction operator in the
  *          partial reduction
  */
-case class PartRed(override val f: Lambda) extends AbstractPartRed(f, Var("")) {
+case class PartRed(override val f: Lambda) extends AbstractPartRed(f, PosVar("")) {
   override def copy(f: Lambda): Pattern = PartRed(f)
 
   /**

@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import exploration.HighLevelRewrite
 import ir.ArrayType
 import ir.ast._
@@ -25,8 +25,8 @@ class TestRewriteMatrixVector {
 
   @Test
   def gemvAMD(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -91,8 +91,8 @@ class TestRewriteMatrixVector {
 
   @Test
   def gemvAMDMacro(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -122,8 +122,8 @@ class TestRewriteMatrixVector {
 
   @Test
   def gemvVectorised(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),

@@ -1,6 +1,7 @@
 package benchmarks
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -124,7 +125,7 @@ object NBody {
       """.stripMargin,
       Seq(Float4, Float4, Float, Float4), TupleType(Float4, Float4))
 
-  val N = Var("N")
+  val N = SizeVar("N")
 
   val function = fun(
     ArrayType(Float4, N),

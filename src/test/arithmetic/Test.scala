@@ -1,7 +1,7 @@
 package arithmetic
 
-import apart.arithmetic.{Cst, RangeAdd, Sign, ceil}
-import opencl.generator.get_group_id
+import apart.arithmetic._
+import opencl.generator.{get_group_id, get_local_id}
 import org.junit.Assert._
 import org.junit.Test
 
@@ -48,6 +48,29 @@ class TestArith {
     val e = ceil((512 - grpId) /^ 131072)
     val min_e = e.min
     assertEquals(min_e, Cst(0))
+  }
+
+  @Test
+  def RangeAddMinMax(): Unit = {
+    val ra = RangeAdd(get_local_id(0, RangeAdd(0,128,1)), 128, 128)
+    val min = ra.min.min
+    val max = ra.max.max
+    assert(min == Cst(0))
+    assert(max == Cst(127))
+  }
+
+  @Test def simplificationDiv(): Unit = {
+    val N = SizeVar("N")
+    val v = Var("v", RangeAdd(0,N,1))
+    val result = v/N
+    assertEquals(result, Cst(0))
+  }
+
+  @Test def simplificationMod(): Unit = {
+    val N = SizeVar("N")
+    val v = Var("v", RangeAdd(0,N/4,1))
+    val result = v%(N/4)
+    assertEquals(result, Cst(0))
   }
 
 }

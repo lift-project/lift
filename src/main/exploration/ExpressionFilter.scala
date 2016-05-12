@@ -35,10 +35,10 @@ object ExpressionFilter {
         p.t match {
           case _: ScalarType =>
             p.mem = OpenCLMemory.allocPrivateMemory(
-              OpenCLMemory.getMaxSizeInBytes(p.t))
+              OpenCLMemory.getSizeInBytes(p.t))
           case _ =>
             p.mem = OpenCLMemory.allocGlobalMemory(
-              OpenCLMemory.getMaxSizeInBytes(p.t))
+              OpenCLMemory.getSizeInBytes(p.t))
         }
         p.view = View(p.t, OpenCLCodeGen().toString(p.mem.variable))
       })

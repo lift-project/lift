@@ -1,13 +1,14 @@
 package opencl.generator
 
 import apart.arithmetic._
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestAddressSpaces {
   @BeforeClass def before() {
@@ -28,7 +29,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
          toLocal(MapLcl(id)))
         o Split(4) $ in
@@ -49,17 +50,17 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
          toLocal(MapLcl(id)))
         o Split(4) $ in
     )
 
-    val code = Compile(f)
+    val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
+    val (output: Array[Float], _) = Execute(inputSize)(kernel.code, kernel.f, input)
 
-    val memories = OpenCLGenerator.getMemories(f)._2
+    val memories = OpenCLGenerator.getMemories(kernel.f)._2
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(2, memories.length)
@@ -77,16 +78,16 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
          toLocal(MapLcl(id)))
         o Split(4) $ in
     )
 
-    val code = Compile(f)
+    val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(code, f, input)
-    val memories = OpenCLGenerator.getMemories(f)._2
+    val (output: Array[Float], _) = Execute(inputSize)(kernel.code, kernel.f, input)
+    val memories = OpenCLGenerator.getMemories(kernel.f)._2
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(3, memories.length)
@@ -101,7 +102,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id))
         o toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
@@ -119,7 +120,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg( Join() o MapLcl(toGlobal(MapSeq(id)) o toPrivate(MapSeq(plusOne))) o Split(4))
         o Split(128) $ in
     )
@@ -136,7 +137,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(id)) o Join() o 
         MapLcl(toLocal(MapSeq(id)) o toPrivate(MapSeq(plusOne))) o Split(4) o
          toLocal(MapLcl(id))
@@ -155,7 +156,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg( Join() o
         MapLcl(toGlobal(MapSeq(id)) o toPrivate(MapSeq(plusOne))) o Split(4) o
          toLocal(MapLcl(id))
@@ -171,7 +172,7 @@ class TestAddressSpaces {
     val inputSize = 512
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")), (in) => {
+    val l = fun (ArrayType(Float, SizeVar("N")), (in) => {
       Join() o MapGlb(
         toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o toPrivate(MapSeq(id))
       ) o Split(4) $ in
@@ -186,7 +187,7 @@ class TestAddressSpaces {
     val inputSize = 512
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")), (in) => {
+    val l = fun (ArrayType(Float, SizeVar("N")), (in) => {
       Join() o MapGlb( fun(x =>
         toGlobal(MapSeq(id)) o toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, 4)))
       ) o Split(4) $ in
@@ -204,7 +205,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
@@ -222,7 +223,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
@@ -239,7 +240,7 @@ class TestAddressSpaces {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val  f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
@@ -252,7 +253,7 @@ class TestAddressSpaces {
     val inputSize = 512
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")), (in) => {
+    val l = fun (ArrayType(Float, SizeVar("N")), (in) => {
       Join() o MapWrg( fun(x =>
         toGlobal(MapLcl(id)) o toPrivate(MapLcl(id)) $ Value("1.0f", ArrayType(Float, 4)))
       ) o Split(4) $ in

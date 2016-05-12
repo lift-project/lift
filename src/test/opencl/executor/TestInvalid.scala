@@ -5,6 +5,7 @@
 package opencl.executor
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.generator.IllegalKernel
@@ -29,10 +30,10 @@ class TestInvalid {
   // Dummy user function
   val fct = UserFun("afunc", "array", " return array * 2.0f; ", Float, Float)
   // Dummy function
-  val f = fun(ArrayType(Float, Var("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
-  val f2 = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")),
+  val f = fun(ArrayType(Float, SizeVar("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
+  val f2 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")),
     (in1, in2) => MapGlb(fun(a => fct(a))) $ in1 )
-  val f3 = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")), ArrayType(Float, Var("N")),
+  val f3 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")),
     (in1, in2, in3) => MapGlb(fun(a => fct(a))) $ in1 )
 
   // Test invalid 1D array with default local size

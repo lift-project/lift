@@ -1,6 +1,7 @@
 package benchmarks
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -24,7 +25,7 @@ class SumAbsoluteValues(override val name: String,
 
 object SumAbsoluteValues {
 
-  val intelDerivedNoWarp1 = fun(ArrayType(Float, Var("N")), (in) => {
+  val intelDerivedNoWarp1 = fun(ArrayType(Float, SizeVar("N")), (in) => {
     Join() o MapWrg(
       asScalar() o Join() o  MapLcl(
         toGlobal(MapSeq(id.vectorize(4))) o ReduceSeq(absAndSumUp.vectorize(4), Value(0.0f).vectorize(4))
@@ -32,7 +33,7 @@ object SumAbsoluteValues {
     ) o Split(32768) $ in
   })
 
-  val intelDerivedNoWarp1_ = fun(ArrayType(Float, Var("N")), (in) => {
+  val intelDerivedNoWarp1_ = fun(ArrayType(Float, SizeVar("N")), (in) => {
     in :>>
     Split(32768) :>>
     MapWrg(
@@ -48,7 +49,7 @@ object SumAbsoluteValues {
     Join()
   })
 
-  val intelDerived2 = fun(ArrayType(Float, Var("N")), (in) => {
+  val intelDerived2 = fun(ArrayType(Float, SizeVar("N")), (in) => {
     Join() o MapWrg(
       Join() o  MapLcl(
         toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)
@@ -56,7 +57,7 @@ object SumAbsoluteValues {
     ) o Split(2048) $ in
   })
 
-  val intelDerived2_ = fun(ArrayType(Float, Var("N")), (in) => {
+  val intelDerived2_ = fun(ArrayType(Float, SizeVar("N")), (in) => {
     in :>>
     Split(2048) :>>
     MapWrg(
@@ -70,7 +71,7 @@ object SumAbsoluteValues {
     Join()
   })
 
-  val nvidiaDerived1 = fun(ArrayType(Float, Var("N")), (in) => {
+  val nvidiaDerived1 = fun(ArrayType(Float, SizeVar("N")), (in) => {
     // the original derived one does not generate correct code ...
     Join() o MapWrg( Join() o
        MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2048) o ReorderStride(128)
@@ -78,7 +79,7 @@ object SumAbsoluteValues {
     ) o Split(2048*128) $ in
   })
 
-  val nvidiaDerived1_ = fun(ArrayType(Float, Var("N")), (in) => {
+  val nvidiaDerived1_ = fun(ArrayType(Float, SizeVar("N")), (in) => {
     in :>>
     Split(2048*128) :>>
     MapWrg(
@@ -93,7 +94,7 @@ object SumAbsoluteValues {
     Join()
   })
 
-  val amdNvidiaDerived2 = fun(ArrayType(Float, Var("N")), (in) => {
+  val amdNvidiaDerived2 = fun(ArrayType(Float, SizeVar("N")), (in) => {
     Join() o MapWrg(
       Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
         Iterate(6)( Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2) ) o
@@ -101,7 +102,7 @@ object SumAbsoluteValues {
     ) o Split(8192) $ in
   })
 
-  val amdNvidiaDerived2_ = fun(ArrayType(Float, Var("N")), (in) => {
+  val amdNvidiaDerived2_ = fun(ArrayType(Float, SizeVar("N")), (in) => {
     in :>>
     Split(8192) :>>
     MapWrg(
@@ -126,7 +127,7 @@ object SumAbsoluteValues {
     Join()
   })
   
-  val amdDerived1 = fun(ArrayType(Float, Var("N")), (in) => {
+  val amdDerived1 = fun(ArrayType(Float, SizeVar("N")), (in) => {
     Join() o MapWrg(
       asScalar() o Join() o
          MapLcl(toGlobal(MapSeq(id.vectorize(2))) o ReduceSeq(add.vectorize(2), Value(0.0f).vectorize(2)))
@@ -134,7 +135,7 @@ object SumAbsoluteValues {
     ) o Split(4096*128) $ in
   })
 
-  val amdDerived1_ = fun(ArrayType(Float, Var("N")), (in) => {
+  val amdDerived1_ = fun(ArrayType(Float, SizeVar("N")), (in) => {
     in :>>
     Split(4096*128) :>>
     MapWrg(

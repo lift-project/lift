@@ -1,6 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._
@@ -35,9 +36,9 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -69,9 +70,9 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -103,9 +104,9 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f1 = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -157,9 +158,9 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f1 = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -239,9 +240,9 @@ class TestMatrixMatrix {
 
     val vectorLength = 4
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float4), Float4)
 
@@ -284,9 +285,9 @@ class TestMatrixMatrix {
     // ReduceSeq( add, 0.0f) o asScalar() o MapSeq(VectorizeUserFun(4, mult))
     // is equivalent to MapSeq(dot) if the input is of type Array(Float4, 1)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f_ =  fun(
       ArrayType(ArrayType(Float, K), M),
@@ -581,9 +582,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val n = new Var("N")
-    val m = new Var("M")
-    val k = new Var("K")
+    val n = SizeVar("N")
+    val m = SizeVar("M")
+    val k = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, k), m),
@@ -613,9 +614,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val tileSizeM = 16
     val tileSizeN = tileSizeM
@@ -770,9 +771,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val tileSizeM = 8
     val tileSizeN = tileSizeM
@@ -862,9 +863,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val n = new Var("N")
-    val m = new Var("M")
-    val k = new Var("K")
+    val n = SizeVar("N")
+    val m = SizeVar("M")
+    val k = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, k), m),
@@ -896,9 +897,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val n = new Var("N")
-    val m = new Var("M")
-    val k = new Var("K")
+    val n = SizeVar("N")
+    val m = SizeVar("M")
+    val k = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, k), m),
@@ -952,9 +953,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = new Var("N")
-    val M = new Var("M")
-    val K = new Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -1028,9 +1029,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val n = new Var("N")
-    val m = new Var("M")
-    val k = new Var("K")
+    val n = SizeVar("N")
+    val m = SizeVar("M")
+    val k = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, k), m),
@@ -1079,9 +1080,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -1132,9 +1133,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val n = new Var("N")
-    val m = new Var("M")
-    val k = new Var("K")
+    val n = SizeVar("N")
+    val m = SizeVar("M")
+    val k = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, k), m),
@@ -1193,9 +1194,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -1257,9 +1258,9 @@ class TestMatrixMatrix {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -1347,7 +1348,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, test, 0.001f)
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, new Var("M")), new Var("K")), new Var("N")),
+      ArrayType(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("K")), SizeVar("N")),
       input => {
         MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose()) o
         Transpose() $ input
@@ -1367,9 +1368,9 @@ class TestMatrixMatrix {
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -1403,9 +1404,9 @@ class TestMatrixMatrix {
     //val matrixA = Array.tabulate(mSize, kSize)((r, c) => 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => 1.0f)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val r = 2 // number of rows a single workgroup computes
     val c = 4 // number of columns a single workgroup computes

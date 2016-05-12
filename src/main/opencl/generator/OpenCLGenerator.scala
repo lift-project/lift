@@ -2,7 +2,7 @@ package opencl.generator
 
 import apart.arithmetic._
 import arithmetic.TypeVar
-import generator.Generator
+import generator.{Generator, Kernel}
 import ir._
 import ir.ast._
 import ir.view._
@@ -13,11 +13,13 @@ import opencl.ir.pattern._
 
 import scala.collection.{immutable, mutable}
 
+
 class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
 
 // hacky class to store function name
 class OclFunction private (name: String, val param: Int, range: Range) extends ArithExprFunction(name, range) {
+
   lazy val toOCLString = s"$name($param)"
 
   override lazy val digest: Int = HashSeed ^ /*range.digest() ^*/ name.hashCode ^ param
@@ -29,7 +31,18 @@ class OclFunction private (name: String, val param: Int, range: Range) extends A
     case _ => false
   }
 
-  override lazy val (min : ArithExpr, max: ArithExpr) = (Cst(0), this.range.max)
+  /*
+  // true means min, false means max
+  override def _min(map : scala.collection.mutable.Map[ArithExpr, (ArithExpr)]) : Unit = {
+    map.put(this, Cst(0))
+  }
+
+  override def _max(map : scala.collection.mutable.Map[ArithExpr, (ArithExpr)]) : Unit = {
+    map.put(this, this.range.max)
+  }*/
+
+
+  override lazy val (min : ArithExpr, max: ArithExpr) = (Cst(0), this.range.max.max)
   override lazy val sign: Sign.Value = Sign.Positive
 
 }
@@ -89,17 +102,17 @@ object OpenCL {
 object OpenCLGenerator extends Generator {
   type NDRange = Array[ArithExpr]
 
-  def generate(f: Lambda): String = {
+  def generate(f: Lambda): Kernel = {
     generate(f, Array(?, ?, ?))
   }
 
-  def generate(f: Lambda, localSizes: NDRange): String = {
+  def generate(f: Lambda, localSizes: NDRange): Kernel = {
     generate(f, localSizes, Array(?, ?, ?), immutable.Map())
   }
 
   // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
-               valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
+               valueMap: immutable.Map[ArithExpr, ArithExpr]): Kernel = {
     (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
   }
 
@@ -174,18 +187,18 @@ class OpenCLGenerator extends Generator {
     }, (f: Expr) => {})
   }
 
-  def generate(f: Lambda): String = {
+  def generate(f: Lambda): Kernel = {
     generate(f, Array(?, ?, ?))
   }
 
-  def generate(f: Lambda, localSizes: NDRange): String = {
+  def generate(f: Lambda, localSizes: NDRange): Kernel = {
     generate(f, localSizes, Array(?, ?, ?), immutable.Map())
   }
 
 
   // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
-               valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
+               valueMap: immutable.Map[ArithExpr, ArithExpr]): Kernel = {
 
     assert(localSize.length == 3)
     assert(globalSize.length == 3)
@@ -203,7 +216,7 @@ class OpenCLGenerator extends Generator {
     val newF = IRNode.visitArithExpr(f, (ae: ArithExpr) =>
       ArithExpr.substitute(ae, substitutions)
     ).asInstanceOf[Lambda]
-    _generate(newF, localSize, globalSize, valueMap)
+    new Kernel(_generate(newF, localSize, globalSize, valueMap), newF)
   }
 
   def _generate(f: Lambda, localSize: NDRange, globalSize: NDRange, valueMap: scala.collection.Map[ArithExpr, ArithExpr]): String  = {
@@ -215,17 +228,18 @@ class OpenCLGenerator extends Generator {
       OpenCLGenerator.printTypes(f.body)
     }
 
-
+    // infer the address spaces
+    OpenCLAddressSpace.setAddressSpace(f)
 
     // allocate the params and set the corresponding type
     f.params.foreach((p) => {
       p.t match {
         case _: ScalarType =>
           p.mem = OpenCLMemory.allocPrivateMemory(
-                    OpenCLMemory.getMaxSizeInBytes(p.t))
+                    OpenCLMemory.getSizeInBytes(p.t))
         case _ =>
           p.mem = OpenCLMemory.allocGlobalMemory(
-                    OpenCLMemory.getMaxSizeInBytes(p.t))
+                    OpenCLMemory.getSizeInBytes(p.t))
       }
       p.view = View(p.t, openCLCodeGen.toString(p.mem.variable))
     })
@@ -299,13 +313,14 @@ class OpenCLGenerator extends Generator {
     generateGroupFunctions(f.body).foreach( globalBlock += _ )
 
     // pass 3: generate the
-    try {
+    //try {
       globalBlock += generateKernel(f)
-    } catch {
-      case t:Throwable =>
-        println("error")//e.printStackTrace()
-        t.printStackTrace()
-    }
+    //} catch {
+    //  case t:Throwable =>
+    //    //println("error")//e.printStackTrace()
+    //    t.printStackTrace()
+    //    throw t
+    //}
 
 
     // return the code generated
@@ -475,7 +490,7 @@ class OpenCLGenerator extends Generator {
       kernel.body +=
         OpenCLAST.VarDecl(x.mem.variable, x.t,
           addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getSize(Type.getBaseType(x.t))).eval))
+          length = (x.mem.size /^ Type.getMaxSize(Type.getBaseType(x.t))).eval))
 
     kernel.body += OpenCLAST.Comment("Typed Value memory")
     typedValueMems.foreach(x =>
@@ -489,7 +504,7 @@ class OpenCLGenerator extends Generator {
       kernel.body +=
         OpenCLAST.VarDecl(x.mem.variable, x.t,
           addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getSize(Type.getValueType(x.t))).eval))
+          length = (x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))).eval))
 
     generate(f.body, kernel.body)
 
@@ -1077,7 +1092,7 @@ class OpenCLGenerator extends Generator {
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
       val iterationCount = try {
-        indexVar.range.numVals().eval
+        indexVar.range.numVals.eval
       } catch {
         case _: NotEvaluableException =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
@@ -1111,7 +1126,7 @@ class OpenCLGenerator extends Generator {
     }
 
     // try to see if we really need a loop
-    indexVar.range.numVals() match {
+    indexVar.range.numVals match {
       case Cst(0) =>
         // zero iteration
         block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is 0, no loop emitted")
@@ -1126,7 +1141,7 @@ class OpenCLGenerator extends Generator {
         return
 
       case _ =>
-        (indexVar.range.numVals().min,indexVar.range.numVals().max) match {
+        (indexVar.range.numVals.min,indexVar.range.numVals.max) match {
           case (Cst(0),Cst(1)) =>
             // one or less iteration
             block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
@@ -1197,8 +1212,6 @@ class OpenCLGenerator extends Generator {
 
       case _ =>
     }*/
-
-
 
 
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))

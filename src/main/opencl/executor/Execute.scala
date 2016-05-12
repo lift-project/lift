@@ -1,6 +1,7 @@
 package opencl.executor
 
 import apart.arithmetic.{ArithExpr, Cst, Var}
+import generator.Kernel
 import ir._
 import ir.ast._
 import opencl.generator.{OpenCLGenerator, Verbose}
@@ -152,29 +153,29 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
    * Given a lambda: compile it and then execute it
    */
   def apply(f: Lambda, values: Any*): (Any, Double) = {
-    val code = compile(f, values:_*)
+    val kernel = compile(f, values:_*)
 
-    execute(code, f, values: _*)
+    execute(kernel.code, kernel.f, values: _*)
   }
 
   /**
    * Given a lambda: compile it and then execute it <code>iterations</code> times
    */
   def apply(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
-    val code = compile(f, values:_*)
+    val kernel = compile(f, values:_*)
 
-    benchmark(iterations, timeout, code, f, values:_*)
+    benchmark(iterations, timeout, kernel.code, kernel.f, values:_*)
   }
 
   def evaluate(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
-    val code = compile(f, values:_*)
+    val kernel = compile(f, values:_*)
 
-    evaluate(iterations, timeout, code, f, values:_*)
+    evaluate(iterations, timeout, kernel.code, kernel.f, values:_*)
   }
 
 
 
-  private def compile(f: Lambda, values: Any*) : String = {
+  private def compile(f: Lambda, values: Any*) : Kernel = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
       // ... build map of values mapping size information to arithmetic expressions, e.g., ???
@@ -257,7 +258,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     // check that the given values match with the given lambda expression
     checkParamsWithValues(f.params, values)
 
-    // 1. create map associating Variables, e.g., Var("N"), with values, e.g., "1024".
+    // 1. create map associating Variables, e.g., SizeVar("N"), with values, e.g., "1024".
     val valueMap: immutable.Map[ArithExpr, ArithExpr] = Execute.createValueMap(f, values: _*)
 
     // 2. check all group functions (introduced for stencil support) are valid arguments for the
@@ -268,7 +269,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval
+    val outputSize = ArithExpr.substitute(Type.getMaxSize(f.body.t), valueMap).eval
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments

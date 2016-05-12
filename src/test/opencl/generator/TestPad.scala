@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{Cst, ArithExpr, Var}
+import apart.arithmetic.{ArithExpr, Cst, SizeVar}
 import ir.ArrayType
 import ir.ast._
 import opencl.executor._
@@ -45,7 +45,7 @@ class TestPad {
   /// @param boundary Boundary behavior
   def validate1D(gold: Array[Float], size: Int, boundary: Pad.BoundaryFct, input: Array[Float] = input) = {
     val fct = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Pad(size, boundary) $ domain
     )
 
@@ -60,7 +60,7 @@ class TestPad {
   /// @param boundary Boundary behavior
   def validate2D(gold: Array[Float], size: Int, boundary: Pad.BoundaryFct) = {
     val fct = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Join()
         o Transpose() o Pad(size, boundary)
         o Transpose() o Pad(size, boundary)

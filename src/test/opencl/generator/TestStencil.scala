@@ -3,16 +3,16 @@ package opencl.generator
 import java.io._
 import java.util.Scanner
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir.ast._
 import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import opencl.ir._
 import ir._
-import spl.{Stencil2D, Stencil}
+import spl.{Stencil, Stencil2D}
 
 import scala.util.Random
 
@@ -92,7 +92,7 @@ class TestStencil {
     val gold = scala1DStencil(data, relativeIndices, weights)
 
     val stencilFun = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       ArrayType(Float, 5),
       (input, weights) => {
         MapGlb(
@@ -119,8 +119,8 @@ class TestStencil {
     val gold = scala1DStencil(data, relativeIndices, weights)
 
     val stencilFun = fun(
-      ArrayType(Float, Var("N")),
-      ArrayType(Float, Var("M")),
+      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, SizeVar("M")),
       (input, weights) => {
         MapGlb(
           fun(neighbours => {
@@ -176,12 +176,12 @@ class TestStencil {
       savePGM("gold.pgm", gold.grouped(width).toArray)
 
       // Apart
-      val N = Var("N")
-      val M = Var("M")
+      val N = SizeVar("N")
+      val M = SizeVar("M")
 
       val f = fun(
         ArrayType(ArrayType(Float, M), N),
-        ArrayType(Float, Var("O")),
+        ArrayType(Float, SizeVar("O")),
         (matrix, weights) => {
           MapGlb(1)(
             MapGlb(0)(fun(neighbours => {
@@ -222,12 +222,12 @@ class TestStencil {
       0.08f, 0.12f, 0.08f)
 
     val gold = scala2DStencil(matrix, neighbors, neighbors, weights)
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
-      ArrayType(Float, Var("O")),
+      ArrayType(Float, SizeVar("O")),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -255,7 +255,7 @@ class TestStencil {
     val edgeGold = Array(1, 3, 1, 4, 1, 5, 2, 5, 3, 5).map(_.toFloat).array
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => MapGlb(MapSeq(id)) o Stencil(relIndices, Pad.Boundary.Clamp) $ input
     )
     val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)
@@ -272,7 +272,7 @@ class TestStencil {
     val reflectGold = Array(2, 3, 1, 4, 1, 5, 2, 5, 3, 4).map(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => MapGlb(MapSeq(id)) o Stencil(relIndices, Pad.Boundary.Mirror) $ input
     )
     val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)
@@ -289,7 +289,7 @@ class TestStencil {
     val wrapGold = Array(4, 3, 5, 4, 1, 5, 2, 1, 3, 2).map(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => MapGlb(MapSeq(id)) o Stencil(relIndices, Pad.Boundary.Wrap) $ input
     )
     val (output: Array[Float], runtime) = Execute(1, data.length)(f, data)

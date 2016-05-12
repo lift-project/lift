@@ -84,10 +84,10 @@ class TestMatrixVector {
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
     val vector = Array.fill(inputSize)(2.0f)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), Var("M")),
+      ArrayType(ArrayType(Float, N), SizeVar("M")),
       ArrayType(Float, N),
       (matrix, vector) => {
         Join() o MapWrg(

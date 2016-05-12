@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -32,9 +32,9 @@ class TestDerivingMatrixReuse {
 
   val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-  val N = Var("N")
-  val M = Var("M")
-  val K = Var("K")
+  val N = SizeVar("N")
+  val M = SizeVar("M")
+  val K = SizeVar("K")
 
   val chunkSize = 4
 

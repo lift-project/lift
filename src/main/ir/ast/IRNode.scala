@@ -2,6 +2,8 @@ package ir.ast
 
 import apart.arithmetic.{ArithExpr, Var}
 import ir._
+import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
+import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern.{LSearch, _}
 
 
@@ -22,11 +24,9 @@ object IRNode {
       case fc: FunCall => new FunCall(visit(fc.f,pre,post).asInstanceOf[FunDecl],fc.args.map(visit(_,pre,post).asInstanceOf[Expr]):_*)
 
       case vec: VectorizeUserFun => new VectorizeUserFun(vec.n, visit(vec.userFun,pre,post).asInstanceOf[UserFun])
-      case u : UserFun => new UserFun(u.name, u.paramNames, u.body, u.inTs, u.outT)
+      case u : UserFun => u
 
       case l: Lambda => Lambda(l.params.map(visit(_,pre,post).asInstanceOf[Param]),visit(l.body,pre,post).asInstanceOf[Expr])
-
-
 
       case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
            Split(_) | Join() | Group(_) | Zip(_) | Tuple(_) | Filter() |
@@ -42,6 +42,34 @@ object IRNode {
       case _=>
     }
     post(newNode)
+  }
+
+  def visit(n: IRNode,
+            pre: IRNode => Unit,
+            post: IRNode => Unit = _ => {}) : Unit = {
+    pre(n)
+    n match {
+
+      case fc: FunCall =>
+        visit(fc.f,pre,post)
+        fc.args.foreach(visit(_,pre,post))
+
+      case vec: VectorizeUserFun => visit(vec.userFun,pre,post)
+      case u : UserFun =>
+
+      case l: Lambda =>
+        l.params.foreach(visit(_,pre,post))
+        visit(l.body,pre,post)
+
+      case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
+           Split(_) | Join() | Group(_) | Zip(_) | Tuple(_) | Filter() |
+           Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_,_) | Value(_) =>  // nothing to visit here
+
+      case p: Param =>  // nothing to visit here
+
+      case fp : FPattern => visit(fp.f,pre,post)
+    }
+    post(n)
   }
 
 
@@ -66,6 +94,8 @@ object IRNode {
       case i: Iterate => new Iterate(f(i.n), i.f)
 
       case vec: VectorizeUserFun => new VectorizeUserFun(f(vec.n), vec.userFun)
+
+      case u: OpenCLBuiltInFun => new OpenCLBuiltInFun(u.name, u.inTs.map(Type.visitAndRebuild(_, f)), Type.visitAndRebuild(u.outT, f))
       case u: UserFun => new UserFun(u.name, u.paramNames, u.body, u.inTs.map(Type.visitAndRebuild(_, f)), Type.visitAndRebuild(u.outT, f))
 
       case a: asVector => new asVector(f(a.len))

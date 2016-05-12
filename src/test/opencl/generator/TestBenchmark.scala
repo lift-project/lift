@@ -1,6 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
 import ir.ast._
@@ -33,7 +34,7 @@ class TestBenchmark {
     val gold = BlackScholes.runScala(input)
 
     val kernel = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       inRand => MapGlb(BlackScholes.blackScholesComp) $ inRand
     )
 
@@ -99,7 +100,7 @@ class TestBenchmark {
          |""".stripMargin, Seq(Int, Int, Int, Int), Int)
 
     val f = fun(
-      ArrayType(Int, Var("N")),
+      ArrayType(Int, SizeVar("N")),
       Int,
       Int,
       (in, niters, size) => MapGlb(fun(i => MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
@@ -133,8 +134,8 @@ class TestBenchmark {
 
     val gold = MolecularDynamics.mdScala(particlesTuple, neighbours.transpose, cutsq, lj1, lj2).map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val N = new Var("N")
-    val M = new Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(Float4, N),
@@ -215,7 +216,7 @@ class TestBenchmark {
   @Test def saxpy(): Unit = {
     // domain size
     val inputSize = 128
-    val N = Var("N")
+    val N = SizeVar("N")
 
     // Input variables
     val a: Float = 5.0f
@@ -276,7 +277,7 @@ class TestBenchmark {
     val pair = UserFun("pair", Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
       Seq(Float, Float), TupleType(Float, Float))
 
-    val k = Var("K")
+    val k = SizeVar("K")
 
     val computePhiMag = fun(
       ArrayType(Float, k),
@@ -284,7 +285,7 @@ class TestBenchmark {
       (phiR, phiI) => MapGlb(phiMag) $ Zip(phiR, phiI)
     )
 
-    val x = Var("X")
+    val x = SizeVar("X")
 
     val computeQ = fun(
       ArrayType(Float, x),
@@ -335,7 +336,7 @@ class TestBenchmark {
     val pair = UserFun("pair", Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
       Seq(Float, Float), TupleType(Float, Float))
 
-    val k = Var("K")
+    val k = SizeVar("K")
 
     val computePhiMag = fun(
       ArrayType(Float, k),
@@ -343,7 +344,7 @@ class TestBenchmark {
       (phiR, phiI) => MapGlb(phiMag) $ Zip(phiR, phiI)
     )
 
-    val x = Var("X")
+    val x = SizeVar("X")
 
     val computeQ = fun(
       ArrayType(Float, x),

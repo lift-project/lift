@@ -1,6 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import ir.ast.UserFun._
@@ -42,7 +43,7 @@ class TestDynMap {
     """.stripMargin
     , Int, Int)
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {
@@ -75,7 +76,7 @@ class TestDynMap {
     """.stripMargin
     , Int, Int)
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {
@@ -111,7 +112,7 @@ class TestDynMap {
     """.stripMargin
     , Int, Int)
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {
@@ -144,7 +145,7 @@ class TestDynMap {
     """.stripMargin
     , Int, Int)
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {

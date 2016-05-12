@@ -3,6 +3,7 @@ package ir.ast
 import apart.arithmetic.ArithExpr
 import ir._
 import ir.view.{NoView, View}
+import opencl.ir.OpenCLAddressSpace
 
 import scala.language.implicitConversions
 
@@ -25,6 +26,8 @@ abstract class Expr extends IRNode {
    * expression
    */
   var mem: Memory = UnallocatedMemory
+
+  val addressSpaces : scala.collection.mutable.Set[OpenCLAddressSpace] = scala.collection.mutable.HashSet()
 
   /**
    * The view of this expression explaining how to access the memory object

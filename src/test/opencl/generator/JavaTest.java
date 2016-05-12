@@ -1,6 +1,10 @@
 package opencl.generator;
 
+import apart.arithmetic.Cst;
+import apart.arithmetic.StartFromRange;
 import apart.arithmetic.Var;
+import arithmetic.interop.jCst;
+import arithmetic.interop.jStartFromRange;
 import arithmetic.interop.jVar;
 import ir.Type;
 import ir.UndefType$;
@@ -218,7 +222,7 @@ public class JavaTest {
     @Test
     public void matrixMatrix() {
 
-        Var N = jVar.create("N");
+        Var N = (Var) jVar.create("N", new StartFromRange(new Cst(1)));
         Var M = jVar.create("M");
         Var K = jVar.create("K");
 

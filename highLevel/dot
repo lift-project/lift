@@ -1,4 +1,4 @@
-val N = Var("N")
+val N = SizeVar("N")
 
 fun(
   ArrayType(Float, N),
