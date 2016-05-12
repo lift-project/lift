@@ -3,8 +3,7 @@ package opencl.generator;
 import apart.arithmetic.Cst;
 import apart.arithmetic.StartFromRange;
 import apart.arithmetic.Var;
-import arithmetic.interop.jCst;
-import arithmetic.interop.jStartFromRange;
+
 import arithmetic.interop.jVar;
 import ir.Type;
 import ir.UndefType$;
