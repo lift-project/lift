@@ -136,7 +136,8 @@ class TestStencil extends TestGroup {
       ArrayType(Float, Var("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
-        val padOffset = neighbours.map(Math.abs).max
+        val padLeft = Math.abs(Math.min(0, neighbours.min))
+        val padRight = Math.max(0, neighbours.max)
         MapGlb(
           fun(neighbourhood => {
             toGlobal(MapSeqOrMapSeqUnroll(id)) o
@@ -144,7 +145,7 @@ class TestStencil extends TestGroup {
               MapSeqOrMapSeqUnroll(mult) $
               Zip(weights, neighbourhood)
           })
-        ) o Group(neighbours) o Pad(padOffset, BOUNDARY) $ input
+        ) o Group(neighbours) o Pad(padLeft, padRight, BOUNDARY) $ input
       }
     )
   }
@@ -154,7 +155,8 @@ class TestStencil extends TestGroup {
       ArrayType(Float, Var("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
-        val padOffset = neighbours.map(Math.abs).max
+        val padLeft = Math.abs(Math.min(0, neighbours.min))
+        val padRight = Math.max(0, neighbours.max)
         MapGlb(
           fun(neighbourhood => {
             toGlobal(MapSeqOrMapSeqUnroll(id)) o
@@ -163,7 +165,7 @@ class TestStencil extends TestGroup {
               }), 0.0f) $
               Zip(weights, neighbourhood)
           })
-        ) o Group(neighbours) o Pad(padOffset, BOUNDARY) $ input
+        ) o Group(neighbours) o Pad(padLeft, padRight, BOUNDARY) $ input
       }
     )
   }
@@ -178,12 +180,14 @@ class TestStencil extends TestGroup {
   }
 
   def createPadGroupLambda(boundary: BoundaryFun, neighbours: Array[Int]): Lambda1 = {
+    val padLeft = Math.abs(Math.min(0, neighbours.min))
+    val padRight = Math.max(0, neighbours.max)
     fun(
       ArrayType(Float, Var("N")),
       (input) =>
         MapGlb(MapSeqOrMapSeqUnroll(id)) o
           Group(neighbours) o
-          Pad(neighbours.map(Math.abs).max, boundary)
+          Pad(padLeft, padRight, boundary)
           $ input
     )
   }
@@ -264,6 +268,14 @@ class TestStencil extends TestGroup {
     testCombinationPadGroup(boundary, gold)
   }
 
+  @Test def createGroupsForOneSidedPadding(): Unit = {
+    val boundary = Pad.Boundary.Clamp
+    val neighbours = Array(-2, -1, 0)
+    val gold = Array(0,0,0, 0,0,1, 0,1,2, 1,2,3, 2,3,4).map(_.toFloat)
+
+    testCombinationPadGroup(boundary, gold, neighbours)
+  }
+
   @Test def simple3Point1DStencil(): Unit = {
     val weights = Array(1, 2, 1).map(_.toFloat)
     val neighbours = Array(-1, 0, 1)
@@ -288,6 +300,8 @@ class TestStencil extends TestGroup {
       2D STENCILS
    ***********************************************************/
   def createSimple2DStencil(neighbours: Array[Int], weights: Array[Float], boundary: BoundaryFun): Lambda2 = {
+    val padLeft = Math.abs(Math.min(0, neighbours.min))
+    val padRight = Math.max(0, neighbours.max)
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       ArrayType(Float, weights.length),
@@ -301,11 +315,13 @@ class TestStencil extends TestGroup {
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Group2D(neighbours) o Pad2D(neighbours.map(Math.abs).max, boundary)$ matrix
+        ) o Group2D(neighbours) o Pad2D(padLeft, padRight, boundary)$ matrix
       })
   }
 
   def create2DPadGroupLambda(boundary: BoundaryFun, neighbours: Array[Int]): Lambda1 = {
+    val padLeft = Math.abs(Math.min(0, neighbours.min))
+    val padRight = Math.max(0, neighbours.max)
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       (domain) => {
@@ -313,7 +329,7 @@ class TestStencil extends TestGroup {
           MapGlb(0)(fun(neighbours =>
             MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
           ))
-        ) o Group2D(neighbours) o Pad2D(neighbours.map(Math.abs).max, boundary) $ domain
+        ) o Group2D(neighbours) o Pad2D(padLeft, padRight, boundary) $ domain
       }
     )
   }
@@ -415,6 +431,7 @@ class TestStencil extends TestGroup {
     run2DStencil(stencil, neighbours, weights, "gauss25.pgm", BOUNDARY)
   }
 
+  /*
    /* **********************************************************
       ITERATIVE 1D STENCILS
    ***********************************************************/
@@ -573,4 +590,5 @@ class TestStencil extends TestGroup {
     val (output: Array[Float], runtime) = Execute(data.length, data.length, data.length, data.length, (false, false))(code, lambda, data)
     //compareGoldWithOutput(gold.flatten.toArray, output, runtime)
   }
+  */
 }

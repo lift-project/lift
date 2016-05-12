@@ -72,7 +72,8 @@ object Stencil1D{
       ArrayType(Float, Var("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
-        val padOffset = neighbours.map(Math.abs).max
+        val padLeft = Math.abs(Math.min(0, neighbours.min))
+        val padRight = Math.max(0, neighbours.max)
         MapGlb(
           fun(neighbourhood => {
             toGlobal(MapSeqUnroll(makePositive)) o
@@ -81,7 +82,7 @@ object Stencil1D{
               }), 0.0f) $
               Zip(weights, neighbourhood)
           })
-        ) o Group(neighbours) o Pad(padOffset, boundary) $ input
+        ) o Group(neighbours) o Pad(padLeft, padRight, boundary) $ input
       }
     )
   }
@@ -91,7 +92,8 @@ object Stencil1D{
       ArrayType(Float, Var("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
-        val padOffset = neighbours.map(Math.abs).max
+        val padLeft = Math.abs(Math.min(0, neighbours.min))
+        val padRight = Math.max(0, neighbours.max)
         MapWrg(MapLcl(
           fun(neighbourhood => {
             toGlobal(MapSeqUnroll(makePositive)) o
@@ -100,7 +102,7 @@ object Stencil1D{
               }), 0.0f) $
               Zip(weights, toLocal(MapSeqUnroll(id)) $ neighbourhood)
           }))
-        ) o Split(2) o Group(neighbours) o Pad(padOffset, boundary) $ input
+        ) o Split(2) o Group(neighbours) o Pad(padLeft, padRight, boundary) $ input
       }
     )
   }

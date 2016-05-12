@@ -5,13 +5,13 @@ import ir.interpreter.Interpreter._
 import ir.{TypeException, ArrayType, Type, UndefType}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-case class Pad(paddingSize: Int, boundary: Pad.BoundaryFun)
+case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
   extends Pattern(arity = 1) with isGenerable
 {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(t, n) => ArrayType(t, n + 2*paddingSize)
+      case ArrayType(t, n) => ArrayType(t, n + left + right)
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
@@ -74,7 +74,13 @@ object Pad {
 }
 
 object Pad2D {
-  def apply(paddingSize: Int, boundary: Pad.BoundaryFun): Lambda = {
-    Transpose() o Pad(paddingSize, boundary) o Transpose() o Pad(paddingSize, boundary)
+  // todo rename top bottom left right check if naming is correct
+  def apply(top: Int, bottom: Int, left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
+    Transpose() o Pad(left, right, boundary) o Transpose() o Pad(top, bottom, boundary)
+  }
+
+  // Symmetric 2D padding
+  def apply(left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
+    Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary)
   }
 }

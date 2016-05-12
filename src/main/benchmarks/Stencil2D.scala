@@ -94,6 +94,8 @@ object Stencil2D{
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       ArrayType(Float, 9),
       (matrix, weights) => {
+        val left = Math.abs(Math.min(0, neighbours.min))
+        val right = Math.max(0, neighbours.max)
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeqUnroll(makePositive)) o
@@ -103,7 +105,7 @@ object Stencil2D{
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Group2D(neighbours) o Pad2D(neighbours.map(Math.abs).max, boundary)$ matrix
+        ) o Group2D(neighbours) o Pad2D(left, right, boundary)$ matrix
       })
 
   def apply() = new Stencil2D(

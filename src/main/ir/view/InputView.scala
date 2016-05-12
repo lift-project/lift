@@ -68,7 +68,7 @@ object InputView {
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
-      case Pad(size,boundary) => buildViewPad(size, boundary, argView)
+      case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case _ => argView
     }
   }
@@ -209,7 +209,7 @@ object InputView {
     new ViewTail(argView, tail.t)
   }
 
-  private def buildViewPad(size: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
-    argView.pad(size, boundary)
+  private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
+    argView.pad(left, right, boundary)
   }
 }

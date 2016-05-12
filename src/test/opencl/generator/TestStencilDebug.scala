@@ -62,6 +62,8 @@ class TestStencilDebug {
       MapSeq(g)
 
   def create2DPadGroupLambda(boundary: BoundaryFun, neighbours: Array[Int]): Lambda1 = {
+    val padLeft = Math.abs(Math.min(0, neighbours.min))
+    val padRight = Math.max(0, neighbours.max)
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       (domain) => {
@@ -69,7 +71,7 @@ class TestStencilDebug {
           MapGlb(0)(fun(neighbours =>
             MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
           ))
-        ) o Group2D(neighbours) o Pad2D(neighbours.map(Math.abs).max, boundary) $ domain
+        ) o Group2D(neighbours) o Pad2D(padLeft, padRight, boundary) $ domain
       }
     )
   }
