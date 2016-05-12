@@ -75,7 +75,7 @@ class TestSparsity {
     val vector:Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold = Array(vector.tail.head)
 
-    val f = fun (ArrayType(Float,SizeVar("N")),(input) =>
+    val f = fun (ArrayType(Float,Var("N",StartFromRange(2))),(input) =>
       MapSeq(id) o Head() o Tail() $ input
     )
     val (output: Array[Float], runtime) = Execute(vector.length)(f,vector)

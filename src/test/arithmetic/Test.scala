@@ -63,14 +63,20 @@ class TestArith {
     val N = SizeVar("N")
     val v = Var("v", RangeAdd(0,N,1))
     val result = v/N
-    assertEquals(result, Cst(0))
+    assertEquals(Cst(0),result)
   }
 
   @Test def simplificationMod(): Unit = {
     val N = SizeVar("N")
     val v = Var("v", RangeAdd(0,N/4,1))
     val result = v%(N/4)
-    assertEquals(result, Cst(0))
+    assertEquals(Cst(0),result)
+  }
+
+  @Test def isPositive(): Unit = {
+    val N = Var("N",StartFromRange(2))
+    val sign = (N-1).sign
+    assertEquals(Sign.Positive, sign)
   }
 
 }
