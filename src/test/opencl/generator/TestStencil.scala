@@ -288,7 +288,6 @@ class TestStencil extends TestSlide {
   }
   */
 
-  //todo create scala gold version?
   @Test def tiling1D(): Unit = {
     val weights = Array(1, 2, 1).map(_.toFloat)
 
@@ -363,10 +362,9 @@ class TestStencil extends TestSlide {
     )
   }
 
-  def createTiled2DStencil(size: Int,
-                           step: Int,
-                           tileSize: Int,
-                           tileStep: Int,
+  def createTiled2DStencil(size: Int, step: Int,
+                           tileSize: Int, tileStep: Int,
+                           left: Int, right: Int,
                            weights: Array[Float],
                            boundary: Pad.BoundaryFun): Lambda = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
@@ -385,8 +383,7 @@ class TestStencil extends TestSlide {
             })
 
           )) o Slide2D(size, step) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-          //todo fix pad size
-        ))) o Slide2D(tileSize, tileStep) o Pad2D(1,1, boundary)$ matrix
+        ))) o Slide2D(tileSize, tileStep) o Pad2D(left,right, boundary)$ matrix
       }
   )
 
@@ -429,7 +426,7 @@ class TestStencil extends TestSlide {
   }
 
   @Test def tiled2D9PointStencil(): Unit = {
-    val tiled: Lambda = createTiled2DStencil(3,1, 4,2, gaussWeights, BOUNDARY)
+    val tiled: Lambda = createTiled2DStencil(3,1, 4,2, 1,1, gaussWeights, BOUNDARY)
     run2DStencil(tiled, 3,1, 1,1, gaussWeights, "notUsed", BOUNDARY)
   }
 
@@ -500,7 +497,7 @@ class TestStencil extends TestSlide {
     run2DStencil(stencil, 3,1, 1,1, sobelWeights, "sobel.pgm", BOUNDARY)
   }
 
-  @Ignore //something wrong here
+  @Ignore // produces EOF exception on fuji
   @Test def gaussianBlur25PointStencil(): Unit = {
     val weights = Array(1, 4, 7, 4, 1,
       4, 16, 26, 16, 4,

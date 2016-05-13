@@ -75,11 +75,11 @@ object Stencil2D{
         ) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
       })
 
-  def TiledNinePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
+  def tiledNinePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      ArrayType(Float, 9),
+      ArrayType(Float, weights.length),
       (matrix, weights) => {
-        MapWrg(1)(MapWrg(0)(fun( tile =>
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
 
           MapLcl(1)(MapLcl(0)(
             fun(elem => {
@@ -91,11 +91,10 @@ object Stencil2D{
                 }), 0.0f) $ Zip(Join() $ elem, weights)
             })
 
-          )) o Slide2D(3,1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-
-
+          )) o Slide2D(3, 1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
         ))) o Slide2D(4, 2) o Pad2D(1,1, boundary)$ matrix
-      })
+      }
+  )
 
   def TiledCopy(boundary: Pad.BoundaryFun): Lambda = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
@@ -114,7 +113,7 @@ object Stencil2D{
       ("9_POINT_2D_STENCIL_MIRROR_UNSAFE", Array[Lambda](ninePoint2DStencil(Pad.Boundary.MirrorUnsafe))),
       ("9_POINT_2D_STENCIL_WRAP", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Wrap))),
       ("9_POINT_2D_STENCIL_MIRROR", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Mirror))),
-      ("TILED_9_POINT_2D_STENCIL_WRAP", Array[Lambda](TiledNinePoint2DStencil(Pad.Boundary.Wrap)))
+      ("TILED_9_POINT_2D_STENCIL_WRAP", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap)))
     )
   )
 

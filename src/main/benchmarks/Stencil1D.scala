@@ -74,6 +74,26 @@ object Stencil1D{
     )
   }
 
+  def createTiled1DStencilLambda(boundary: BoundaryFun): Lambda2 = {
+    fun(
+      ArrayType(Float, Var("N")),
+      ArrayType(Float, weights.length),
+      (input, weights) => {
+        MapWrg(fun(tile =>
+          MapLcl(
+          fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(add, 0.0f) o
+              MapSeqUnroll(mult) $
+              Zip(weights, neighbourhood)
+          })
+        ) o Slide(size, step) o MapLcl(toLocal(id)) $ tile
+
+        )) o Slide(4, 2) o Pad(left, right, boundary) $ input
+      }
+    )
+  }
+
   def createNaiveLocalMemory1DStencilLambda(boundary: BoundaryFun): Lambda2 = {
     fun(
       ArrayType(Float, Var("N")),
@@ -98,7 +118,8 @@ object Stencil1D{
       ("3_POINT_1D_STENCIL_MIRROR_UNSAFE", Array[Lambda](create1DStencilLambda(Pad.Boundary.MirrorUnsafe))),
       ("3_POINT_1D_STENCIL_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap))),
       ("3_POINT_1D_STENCIL_MIRROR", Array[Lambda](create1DStencilLambda(Pad.Boundary.Mirror))),
-      ("EXPERIMENTAL_LOCAL_MEM", Array[Lambda](createNaiveLocalMemory1DStencilLambda(Pad.Boundary.Wrap)))
+      ("TILED_3_POINT_1D_WRAP", Array[Lambda](createTiled1DStencilLambda(Pad.Boundary.Wrap))),
+      ("COPY_GROUPS_LOCAL_MEM", Array[Lambda](createNaiveLocalMemory1DStencilLambda(Pad.Boundary.Wrap)))
     )
   )
 
