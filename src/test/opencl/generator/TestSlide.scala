@@ -1,7 +1,9 @@
 package opencl.generator
 
 import java.io.FileInputStream
+
 import java.util.Scanner
+import scala.util.Random
 
 import apart.arithmetic.{ArithExpr, Cst, Var, Lookup}
 import ir.ArrayType
@@ -385,14 +387,18 @@ class TestSlide {
 
   def runSimple2DStencilWithoutPadding(size: Int, step: Int, weights: Array[Float], name: String): Unit = {
     try {
-      val (width, height, input) = readInputImage(lenaPGM)
+      //val (width, height, input) = readInputImage(lenaPGM)
+      val randomData2D = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
+      val width = randomData2D(0).length
+      val height = randomData2D.length
+
       val f = createSimpleStencilWithoutPad(size, step, weights)
 
-      val (output: Array[Float], runtime) = Execute(1, 1, width, height, (false, false))(f, input, weights)
+      val (output: Array[Float], runtime) = Execute(1, 1, width, height, (false, false))(f, randomData2D, weights)
       println("Runtime: " + runtime)
 
       val outOfBoundElementsX = size + (size - step) / 2 //todo only true if symmetric padding! check this
-      savePGM(name, outputLocation, output.grouped(width - outOfBoundElementsX).toArray)
+      //savePGM(name, outputLocation, output.grouped(width - outOfBoundElementsX).toArray)
 
     } catch {
       case x: Exception => x.printStackTrace()
