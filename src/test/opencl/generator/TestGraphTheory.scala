@@ -141,7 +141,7 @@ class TestGraphTheory {
     (graph, bfsFringe) => {
       Iterate(5)( fun((fr) =>
         Join() o MapGlb(
-        Join() o MapLcl(
+        Join() o MapSeq(
           fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))
         )) o Split(512) $ graph
       )) $ bfsFringe

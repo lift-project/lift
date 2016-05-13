@@ -262,6 +262,8 @@ class OpenCLGenerator extends Generator {
         throw new IllegalKernel(s"Illegal nesting of $call inside MapWrg($dim)")
       case call@FunCall(MapLcl(dim, _), _*) if call.context.inMapLcl(dim) =>
         throw new IllegalKernel(s"Illegal nesting of $call inside MapLcl($dim)")
+      case call@FunCall(MapLcl(dim, _), _*) if !call.context.inMapWrg(dim) =>
+        throw new IllegalKernel(s"Illegal use of $call without MapWrg($dim)")
       case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_ || _) =>
         throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
       case call@FunCall(Map(nestedLambda), _*) if nestedLambda.body.isConcrete =>
