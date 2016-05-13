@@ -99,8 +99,12 @@ class TestMatrixVector {
 
   @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY() {
 
+    // TODO: Workaround for AMD GPUs. See issue 42.
+    if (Utils.isAmdGpu)
+      AllocateLocalMemoryStatically(false)
+
     val inputSize = 1024
-    val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
+    val matrix = Array.fill(inputSize, inputSize)(1.0f)
     val vector = Array.fill(inputSize)(2.0f)
 
     val f = fun(
@@ -115,12 +119,9 @@ class TestMatrixVector {
 
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output: Array[Float], _) = Execute(inputSize * inputSize)(f, matrix, vector)
 
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
+    AllocateLocalMemoryStatically(true)
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
   }
 
