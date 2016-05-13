@@ -158,7 +158,7 @@ class TestGraphTheory {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
+  @Ignore @Test def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
     println("DENSE_BFS_MULTI_ITERATION_FIXED_SIZE")
     val inputSize = 64
     val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(25)>2) 0 else 1).toFloat)
