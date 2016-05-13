@@ -11,7 +11,9 @@ import opencl.ir.ast._
  * @param array Array name
  * @param idx Index to access in the array
  */
-class AccessVar(val array: String, val idx: ArithExpr) extends Var("")
+class AccessVar(val array: String, val idx: ArithExpr, r : Range = RangeUnknown, fixedId: Option[Long] = None) extends Var("",r,fixedId) {
+  override def copy(r: Range) = new AccessVar(array, idx, r, Some(this.id))
+}
 
 /**
  * Views are lazy constructs for determining the locations for memory accesses.
