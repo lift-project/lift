@@ -10,7 +10,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.ast._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{Ignore, AfterClass, BeforeClass, Test}
 
 import scala.sys.process._
 import opencl.ir.pattern._
