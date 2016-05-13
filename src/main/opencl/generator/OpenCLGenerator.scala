@@ -17,12 +17,26 @@ class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
 
 // hacky class to store function name
-class OclFunction(name: String, param: Int) extends ArithExprFunction(name) {
+class OclFunction(override val name: String, val param: Int) extends ArithExprFunction(name) {
   lazy val toOCLString = s"$name($param)"
 
   override lazy val digest: Int = HashSeed ^ range.digest() ^ name.hashCode ^ param
 
   override val HashSeed = 0x31111111
+
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[OclFunction]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: OclFunction =>
+      (that canEqual this) &&
+        toOCLString == that.toOCLString &&
+        digest == that.digest &&
+        HashSeed == that.HashSeed &&
+        name == that.name &&
+        param == that.param
+    case _ => false
+  }
+
 }
 
 class get_global_id(param: Int) extends OclFunction("get_global_id", param)
@@ -253,6 +267,8 @@ class OpenCLGenerator extends Generator {
         throw new IllegalKernel(s"Illegal nesting of $call inside MapWrg($dim)")
       case call@FunCall(MapLcl(dim, _), _*) if call.context.inMapLcl(dim) =>
         throw new IllegalKernel(s"Illegal nesting of $call inside MapLcl($dim)")
+      case call@FunCall(MapLcl(dim, _), _*) if !call.context.inMapWrg(dim) =>
+        throw new IllegalKernel(s"Illegal use of $call without MapWrg($dim)")
       case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_ || _) =>
         throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
       case call@FunCall(Map(nestedLambda), _*) if nestedLambda.body.isConcrete =>
@@ -337,16 +353,7 @@ class OpenCLGenerator extends Generator {
   */
 
   def allocateMemory(f: Lambda): Unit = {
-    f.params.foreach(p =>
-      p.t match {
-        case _: ScalarType =>
-          p.mem = OpenCLMemory.allocPrivateMemory(
-            OpenCLMemory.getMaxSizeInBytes(p.t))
-        case _ =>
-          p.mem = OpenCLMemory.allocGlobalMemory(
-            OpenCLMemory.getMaxSizeInBytes(p.t))
-      })
-    OpenCLMemoryAllocator.alloc(f.body)
+    OpenCLMemoryAllocator(f)
     Kernel.memory = TypedOpenCLMemory.get(f.body, f.params).toArray
   }
 

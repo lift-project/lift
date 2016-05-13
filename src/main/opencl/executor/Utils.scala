@@ -1,12 +1,23 @@
 package opencl.executor
 
 import java.awt.image.BufferedImage
-import java.io.{IOException, File}
+import java.io.{File, IOException}
 import javax.imageio.ImageIO
 
 import ir.ast.Lambda
+import org.junit.Assume
+
+object LongTestsEnabled {
+  def apply() =
+    Assume.assumeTrue("Needs long tests enabled.",
+      System.getenv("APART_LONG_TESTS") != null)
+}
 
 object Utils {
+
+  def isAmdGpu() = 
+    Executor.getPlatformName == "AMD Accelerated Parallel Processing" && 
+    Executor.getDeviceType == "GPU"
 
   def writeMD(width: Int, height: Int, data: Array[Float], name: String): Unit = {
     val out = new File(name + ".png")
