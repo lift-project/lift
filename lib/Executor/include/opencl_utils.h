@@ -24,6 +24,7 @@ class OpenCL {
 public:
   static float timeout;
   static bool local_combinations;
+  static size_t min_local_size;
 
   static void init(const unsigned platform_idx, const unsigned device_idx)
   {
@@ -64,7 +65,13 @@ public:
     static double best_time = timeout;
 
     static const int iterations = 10;
-    
+
+    auto locals = (const ::size_t*) local_size;
+    auto total_local_size = locals[0] * locals[1] * locals[2];
+
+    if (total_local_size != 0 && total_local_size < min_local_size)
+      return;
+
     std::vector<double> times; times.reserve(iterations);
     try {
       // prepare the kernel for execution

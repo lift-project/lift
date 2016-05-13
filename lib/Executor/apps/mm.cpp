@@ -290,6 +290,9 @@ int main(int argc, char *argv[]) {
   auto opt_clean = op.addOption<bool>({'c', "clean", "Clean temporary files and exit.", false});
   auto opt_local_combinations = op.addOption<bool>({'l', "local-combinations",
       "Run different valid combinations of local sizes instead of letting the implementation choose if the local size is marked '?'.", false});
+  auto opt_min_local_size = op.addOption<std::size_t>({0, "min-local",
+      "The minimum local size to use when running the experiments (defaults 1).", 1});
+
   op.parse(argc, argv);
 
   using namespace std;
@@ -299,6 +302,7 @@ int main(int argc, char *argv[]) {
   File::setSize(opt_size->get());
   OpenCL::timeout = opt_timeout->get();
   OpenCL::local_combinations = opt_local_combinations->get();
+  OpenCL::min_local_size = opt_min_local_size->get();
 
   // temporary files
   std::string gold_file = "/tmp/apart_mm_gold_" + std::to_string(N);
