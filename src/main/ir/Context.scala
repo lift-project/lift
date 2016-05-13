@@ -91,6 +91,8 @@ object Context {
               updateContext(inF.body, ctx.incMapDepth().setInMapGlb(dim))
             case MapWrg(dim,inF) =>
               updateContext(inF.body, ctx.incMapDepth().setInMapWrg(dim))
+            case MapAtomWrg(dim, inF, _) =>
+              updateContext(inF.body, ctx.incMapDepth().setInMapWrg(dim))
             case MapLcl(dim,inF) =>
               updateContext(inF.body, ctx.incMapDepth().setInMapLcl(dim))
             case MapWarp(inF)  =>

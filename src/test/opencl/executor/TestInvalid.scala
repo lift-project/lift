@@ -290,6 +290,21 @@ class TestInvalid {
   }
 
   @Test(expected = classOf[IllegalKernel])
+  def mapLocalWithoutMapWrg(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o
+        MapGlb(toGlobal(MapSeq(id)) o MapLcl(id)) o
+        Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
   def illegalMapNesting(): Unit = {
     val inputSize = 1024
     val input = Array.ofDim[Float](inputSize)
