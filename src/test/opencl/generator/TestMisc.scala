@@ -27,6 +27,28 @@ object TestMisc {
 
 class TestMisc {
 
+  val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
+
+  @Test
+  def testIterateAmdBug(): Unit = {
+
+    Assume.assumeFalse("Wrong AMD IL generated", Utils.isAmdGpu)
+
+    val inputSize = 1
+    val input = Array.fill(inputSize)(0.0f)
+
+    val iterCount = 100
+
+    val f = fun(
+        ArrayType(Float, Var("N")),
+        x => MapGlb(Iterate(iterCount)(MapSeq(incr))) o Split(inputSize) $ x
+      )
+
+    val (output: Array[Float], _) = Execute(1,1)(f, input)
+
+    assertArrayEquals(Array.fill(inputSize)(100.0f), output, 0.0f)
+  }
+
   @Test
   def testDouble(): Unit = {
     Assume.assumeTrue("Needs double support", Executor.supportsDouble())
@@ -50,8 +72,6 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputData.map(_+5)
-
-    val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
 
     val f = fun(
       ArrayType(Float, Var("N")),
