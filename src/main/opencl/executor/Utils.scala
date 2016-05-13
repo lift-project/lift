@@ -171,6 +171,60 @@ object Utils {
   }
 
   /*
+   * Stencil util functions
+   */
+  def scalaCompute1DStencil(data: Array[Float],
+                            size: Int, step: Int,
+                            left: Int, right: Int,
+                            weights: Array[Float],
+                            boundary: (Int, Int) => Int) = {
+    val leftPadding = Array.tabulate(left)(x => data(boundary((x + 1) * -1, data.length))).reverse
+    val rightPadding = Array.tabulate(right)(x => data(boundary(x + data.length, data.length)))
+    val paddedInput = leftPadding ++ data ++ rightPadding
+
+    val neighbourhoodArray = paddedInput.sliding(size, step).toArray
+    neighbourhoodArray.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2))
+  }
+
+  def scalaCompute2DStencil(data: Array[Array[Float]],
+                            size1: Int, step1: Int,
+                            size2: Int, step2: Int,
+                            left: Int, right: Int,
+                            weights: Array[Float],
+                            boundary: (Int, Int) => Int) = {
+    val neighbours = scalaGenerate2DNeighbours(data, size1, step1, size2, step2, left, right, boundary)
+    val result = neighbours.map(x => x.map(y => y.flatten.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)))
+    def clamp(i: Float) = Math.max(0.0f, i)
+    result.flatten.map(clamp(_))
+  }
+
+  def scalaGenerate2DNeighbours(data: Array[Array[Float]],
+                                size1: Int, step1: Int,
+                                size2: Int, step2: Int,
+                                left: Int, right: Int,
+                                boundary: (Int, Int) => Int): Array[Array[Array[Array[Float]]]] = {
+    //padding
+    val topPadding = Array.tabulate(left)(x => data(boundary((x + 1) * -1, data.length))).reverse
+    val bottomPadding = Array.tabulate(right)(x => data(boundary(x + data.length, data.length)))
+    val verticalPaddedInput = (topPadding ++ data ++ bottomPadding).transpose
+    val leftPadding = Array.tabulate(left)(
+      x => verticalPaddedInput(
+        boundary((x + 1) * -1, verticalPaddedInput.length))).reverse
+    val rightPadding = Array.tabulate(right)(
+      x => verticalPaddedInput(
+        boundary(x + data.length, verticalPaddedInput.length)))
+    val paddedInput = (leftPadding ++ verticalPaddedInput ++ rightPadding).transpose
+    //paddedInput.map(x => println(x.mkString(",")))
+
+    //sliding
+    val firstSlide = paddedInput.sliding(size1, step1).toArray
+    val secondSlide = firstSlide.map(x => x.transpose.sliding(size2, step2).toArray)
+    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
+    neighbours
+  }
+
+
+  /*
    * Some helper methods for execution
    */
 

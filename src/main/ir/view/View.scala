@@ -50,8 +50,8 @@ abstract class View(val t: Type = UndefType) {
       case filter: ViewFilter => new ViewFilter(filter.iv.replaced(subst), filter.ids.replaced(subst), t)
       case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
       case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(subst), t)
-      case group: ViewSlide => new ViewSlide(group.iv.replaced(subst), group.slide, group.t)
-      case pad: ViewPad => new ViewPad(pad.iv.replaced(subst), pad.size, pad.fct, t)
+      case slide: ViewSlide => new ViewSlide(slide.iv.replaced(subst), slide.slide, slide.t)
+      case pad: ViewPad => new ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
       case _ => this
     }
   }
@@ -171,8 +171,7 @@ abstract class View(val t: Type = UndefType) {
    * a tuple of arrays.
    *
    * Corresponds to the Zip pattern.
- *
- */
+   */
   def zip(): View = {
     t match {
       case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType]) =>
@@ -196,18 +195,18 @@ abstract class View(val t: Type = UndefType) {
     }
   }
 
-  def group(g: Slide): View = {
+  def slide(s: Slide): View = {
     this.t match {
       case ArrayType(_, _) =>
-        new ViewSlide(this, g, g.checkType(this.t, setType=false))
+        new ViewSlide(this, s, s.checkType(this.t, setType=false))
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
 
-  def pad(offset: Int, boundary: Pad.BoundaryFun): View = {
+  def pad(left: Int, right: Int, boundary: Pad.BoundaryFun): View = {
     this.t match {
       case ArrayType(elemT, len) =>
-        new ViewPad(this, offset, boundary, ArrayType(elemT, len + 2 * offset))
+        new ViewPad(this, left, right, boundary, ArrayType(elemT, len + left + right))
       case other => throw new IllegalArgumentException("Can't pad " + other)
     }
   }
@@ -357,11 +356,12 @@ private[view] case class ViewTail(iv: View, override val t: Type) extends View(t
  * A view for padding an array.
  *
  * @param iv The view to pad.
- * @param size The number of elements to add on either side.
+ * @param left The number of elements to add on the left
+ * @param right The number of elements to add on the right
  * @param fct The boundary handling function.
  * @param t The type of view.
  */
-private[view] case class ViewPad(iv: View, size: Int, fct: Pad.BoundaryFun,
+private[view] case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
                    override val t: Type) extends View(t)
 
 
@@ -528,7 +528,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       case pad: ViewPad =>
         val idx = arrayAccessStack.head
         val stack = arrayAccessStack.tail
-        val newIdx = pad.fct(idx._1 - pad.size, pad.iv.t.asInstanceOf[ArrayType].len)
+        val newIdx = pad.fct(idx._1 - pad.left, pad.iv.t.asInstanceOf[ArrayType].len)
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView (pad.iv, newAAS, tupleAccessStack)

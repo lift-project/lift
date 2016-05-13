@@ -2,10 +2,12 @@ package benchmarks
 
 import apart.arithmetic.Var
 
+
 import ir._
 import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
+import opencl.executor.Utils
 
 class Stencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Stencil2D", Seq(1024, 1024), f, 0.01f) {
 
@@ -45,7 +47,8 @@ object Stencil2D{
 
   val size = 3
   val step = 1
-  val padOffset = 1
+  val left = 1
+  val right = 1
   val scalaBoundary = scalaWrap
   val makePositive = UserFun("makePositive", "i", "{ return (i < 0) ? 0 : i;  }", Float, Float)
   val weights = Array(0f, 0.12f, 0.08f,
@@ -53,47 +56,8 @@ object Stencil2D{
       0.08f, 0.12f, 0.08f)
 
   def runScala(input: Array[Array[Float]]): Array[Float] = {
-   // scala2DStencil(input, leftHalo, center, rightHalo, leftHalo, center, rightHalo, weights)
-    input.flatten
+    Utils.scalaCompute2DStencil(input, size, step, size, step, left, right, weights, scalaBoundary)
   }
-
-  /*
-  def scala2DStencil(data: Array[Array[Float]],
-                     l1: Int, c1: Int, r1: Int,
-                     l2: Int, c2: Int, r2: Int,
-                     weights: Array[Float]): Array[Float] = {
-    val nrRows = data.length
-    val nrColumns = data(0).length
-
-    val neighbours: IndexedSeq[Array[Float]] = (0 until nrRows).flatMap(row =>
-      (0 until nrColumns).map(column =>
-        scala2DNeighbours(data, l1, c1, r1, l2, c2, r2, row, column))
-    )
-
-    val clamp = (x: Float) => if(x < 0.0f) 0.0f else x
-
-    neighbours.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)).toArray.map(clamp(_))
-  }
-
-  def scala2DNeighbours(data: Array[Array[Float]],
-                        l1: Int, c1: Int, r1: Int,
-                        l2: Int, c2: Int, r2: Int,
-                        r: Int,
-                        c: Int,
-                        boundary: (Int, Int) => Int = scalaBoundary) = {
-    val nrRows = data.length
-    val nrColumns = data(0).length
-
-    relRows.flatMap(x => {
-      var newR = boundary(r + x, nrRows)
-
-      relColumns.map(y => {
-        var newC = boundary(c + y, nrRows)
-        data(newR)(newC)
-      })
-    })
-  }
-  */
 
   def ninePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
@@ -108,7 +72,7 @@ object Stencil2D{
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Slide2D(size, step) o Pad2D(padOffset, boundary)$ matrix
+        ) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
       })
 
   def TiledNinePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
@@ -125,13 +89,12 @@ object Stencil2D{
                   val weight = Get(pair, 1)
                   multAndSumUp.apply(acc, pixel, weight)
                 }), 0.0f) $ Zip(Join() $ elem, weights)
-              //weights)
             })
 
           )) o Slide2D(3,1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
 
 
-        ))) o Slide2D(4, 2) o Pad2D(1, boundary)$ matrix
+        ))) o Slide2D(4, 2) o Pad2D(1,1, boundary)$ matrix
       })
 
   def TiledCopy(boundary: Pad.BoundaryFun): Lambda = fun(
@@ -142,8 +105,7 @@ object Stencil2D{
 
          toGlobal(MapLcl(1)(MapLcl(0)(id))) $ tile
 
-
-        ))) o Slide2D(4, 2) o Pad2D(1, boundary)$ matrix
+        ))) o Slide2D(4, 2) o Pad2D(1, 1, boundary)$ matrix
       })
 
   def apply() = new Stencil2D(

@@ -54,6 +54,7 @@ class TestStencil extends TestSlide {
   val BOUNDARY = Pad.Boundary.Clamp
   val SCALABOUNDARY: (Int, Int) => Int = scalaClamp
 
+  /*
   /**
     * computes 1D stencil for given array of floats, weights, and neighbourhood description
     *
@@ -61,9 +62,12 @@ class TestStencil extends TestSlide {
     * @param weights weights applied to each neighbourhood
     * @return result of stencil computation
     */
-  def scalaCompute1DStencil(data: Array[Float], size: Int, step: Int, pad: Int, weights: Array[Float]) = {
-    val leftPadding = Array.tabulate(pad)(x => data(SCALABOUNDARY((x + 1) * -1, data.length))).reverse
-    val rightPadding = Array.tabulate(pad)(x => data(SCALABOUNDARY(x + data.length, data.length)))
+  def scalaCompute1DStencil(data: Array[Float],
+                            size: Int, step: Int,
+                            left: Int, right: Int,
+                            weights: Array[Float]) = {
+    val leftPadding = Array.tabulate(left)(x => data(SCALABOUNDARY((x + 1) * -1, data.length))).reverse
+    val rightPadding = Array.tabulate(right)(x => data(SCALABOUNDARY(x + data.length, data.length)))
     val paddedInput = leftPadding ++ data ++ rightPadding
 
     val neighbourhoodArray = paddedInput.sliding(size, step).toArray
@@ -73,9 +77,9 @@ class TestStencil extends TestSlide {
   def scalaCompute2DStencil(data: Array[Array[Float]],
                             size1: Int, step1: Int,
                             size2: Int, step2: Int,
-                            pad: Int,
+                            left: Int, right: Int,
                             weights: Array[Float]) = {
-    val neighbours = scalaGenerate2DNeighbours(data, size1, step1, size2, step2, pad)
+    val neighbours = scalaGenerate2DNeighbours(data, size1, step1, size2, step2, left, right)
     val result = neighbours.map(x => x.map(y => y.flatten.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)))
     def clamp(i: Float) = Math.max(0.0f, i)
     result.flatten.map(clamp(_))
@@ -84,16 +88,16 @@ class TestStencil extends TestSlide {
   def scalaGenerate2DNeighbours(data: Array[Array[Float]],
                                 size1: Int, step1: Int,
                                 size2: Int, step2: Int,
-                                pad: Int,
+                                left: Int, right: Int,
                                 boundary: (Int, Int) => Int = SCALABOUNDARY): Array[Array[Array[Array[Float]]]] = {
     //padding
-    val topPadding = Array.tabulate(pad)(x => data(boundary((x + 1) * -1, data.length))).reverse
-    val bottomPadding = Array.tabulate(pad)(x => data(boundary(x + data.length, data.length)))
+    val topPadding = Array.tabulate(left)(x => data(boundary((x + 1) * -1, data.length))).reverse
+    val bottomPadding = Array.tabulate(right)(x => data(boundary(x + data.length, data.length)))
     val verticalPaddedInput = (topPadding ++ data ++ bottomPadding).transpose
-    val leftPadding = Array.tabulate(pad)(
+    val leftPadding = Array.tabulate(left)(
       x => verticalPaddedInput(
         boundary((x + 1) * -1, verticalPaddedInput.length))).reverse
-    val rightPadding = Array.tabulate(pad)(
+    val rightPadding = Array.tabulate(right)(
       x => verticalPaddedInput(
         boundary(x + data.length, verticalPaddedInput.length)))
     val paddedInput = (leftPadding ++ verticalPaddedInput ++ rightPadding).transpose
@@ -105,6 +109,7 @@ class TestStencil extends TestSlide {
     val neighbours = secondSlide.map(x => x.map(y => y.transpose))
     neighbours
   }
+  */
 
   /**
     * Create 1D stencil lambda which pads and groups input and afterwards
@@ -113,7 +118,7 @@ class TestStencil extends TestSlide {
     * @param weights weights applied to neighbourhood
     * @return Lambda which computes stencil application
     */
-  def create1DStencilLambda(weights: Array[Float], size: Int, step: Int, pad: Int): Lambda2 = {
+  def create1DStencilLambda(weights: Array[Float], size: Int, step: Int, left: Int, right: Int): Lambda2 = {
     fun(
       ArrayType(Float, Var("N")),
       ArrayType(Float, weights.length),
@@ -125,13 +130,15 @@ class TestStencil extends TestSlide {
               MapSeqOrMapSeqUnroll(mult) $
               Zip(weights, neighbourhood)
           })
-        ) o Slide(size, step) o Pad(pad, BOUNDARY) $ input
+        ) o Slide(size, step) o Pad(left, right, BOUNDARY) $ input
       }
     )
   }
 
-  def createTiled1DStencilLambda(weights: Array[Float], size: Int, step: Int,
-                                 tileSize: Int, tileStep: Int, pad: Int): Lambda2 = {
+  def createTiled1DStencilLambda(weights: Array[Float],
+                                 size: Int, step: Int,
+                                 tileSize: Int, tileStep: Int,
+                                 left: Int, right: Int): Lambda2 = {
     fun(
       ArrayType(Float, Var("N")),
       ArrayType(Float, weights.length),
@@ -146,7 +153,7 @@ class TestStencil extends TestSlide {
           })
         ) o Slide(size, step) o MapLcl(toLocal(id)) $ tile
 
-        )) o Slide(tileSize, tileStep) o Pad(pad, BOUNDARY) $ input
+        )) o Slide(tileSize, tileStep) o Pad(left, right, BOUNDARY) $ input
       }
     )
   }
@@ -160,7 +167,9 @@ class TestStencil extends TestSlide {
     Compile(lambda)
   }
 
-  def createFused1DStencilLambda(weights: Array[Float], size: Int, step: Int, pad: Int): Lambda2 = {
+  def createFused1DStencilLambda(weights: Array[Float],
+                                 size: Int, step: Int,
+                                 left: Int, right: Int): Lambda2 = {
     fun(
       ArrayType(Float, Var("N")),
       ArrayType(Float, weights.length),
@@ -173,7 +182,7 @@ class TestStencil extends TestSlide {
               }), 0.0f) $
               Zip(weights, neighbourhood)
           })
-        ) o Slide(size, step) o Pad(pad, BOUNDARY) $ input
+        ) o Slide(size, step) o Pad(left, right, BOUNDARY) $ input
       }
     )
   }
@@ -189,23 +198,24 @@ class TestStencil extends TestSlide {
   }
   */
 
-  def createPadGroupLambda(boundary: BoundaryFun, size: Int, step: Int, pad: Int): Lambda1 = {
+  def createPadGroupLambda(boundary: BoundaryFun,
+                           size: Int, step: Int,
+                           left: Int, right: Int): Lambda1 = {
     fun(
       ArrayType(Float, Var("N")),
       (input) =>
         MapGlb(MapSeqOrMapSeqUnroll(id)) o
           Slide(size, step) o
-          Pad(pad, boundary)
+          Pad(left, right, boundary)
           $ input
     )
   }
 
   def testCombinationPadGroup(boundary: BoundaryFun,
                               gold: Array[Float],
-                              leftHalo: Int,
-                              center: Int,
-                              rightHalo: Int): Unit = {
-    val f = createPadGroupLambda(boundary, leftHalo, center, rightHalo)
+                              size: Int, step: Int,
+                              left: Int, right: Int): Unit = {
+    val f = createPadGroupLambda(boundary, size, step, left, right)
     val (output: Array[Float], runtime) = createGroups1D(f, data)
     compareGoldWithOutput(gold, output, runtime)
   }
@@ -217,28 +227,28 @@ class TestStencil extends TestSlide {
     val boundary = Pad.Boundary.Wrap
     val gold = Array(4, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 0).map(_.toFloat)
 
-    testCombinationPadGroup(boundary, gold, 3,1,1)
+    testCombinationPadGroup(boundary, gold, 3,1, 1,1)
   }
 
   @Test def groupClampPaddedData3Point(): Unit = {
     val boundary = Pad.Boundary.Clamp
     val gold = Array(0, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 4).map(_.toFloat)
 
-    testCombinationPadGroup(boundary, gold, 3,1,1)
+    testCombinationPadGroup(boundary, gold, 3,1, 1,1)
   }
 
   @Test def groupMirrorPaddedData3Point(): Unit = {
     val boundary = Pad.Boundary.Mirror
     val gold = Array(0, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 4).map(_.toFloat)
 
-    testCombinationPadGroup(boundary, gold, 3,1,1)
+    testCombinationPadGroup(boundary, gold, 3,1, 1,1)
   }
 
   @Test def groupMirrorUnsafePaddedData3Point(): Unit = {
     val boundary = Pad.Boundary.MirrorUnsafe
     val gold = Array(0, 0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 4).map(_.toFloat)
 
-    testCombinationPadGroup(boundary, gold, 3,1,1)
+    testCombinationPadGroup(boundary, gold, 3,1 ,1,1)
   }
 
   /* No longer defined
@@ -259,7 +269,7 @@ class TestStencil extends TestSlide {
       1,2,3,4,4,
       2,3,4,4,4).map(_.toFloat)
 
-    testCombinationPadGroup(boundary, gold, 5,1,2)
+    testCombinationPadGroup(boundary, gold, 5,1, 2,2)
   }
  /* No longer defined
   @Test def groupMirrorPaddedData(): Unit = {
@@ -268,6 +278,7 @@ class TestStencil extends TestSlide {
 
     testCombinationPadGroup(boundary, gold)
   }
+
   @Test def groupWrapPaddedData(): Unit = {
     val boundary = Pad.Boundary.Wrap
     val gold = Array(3, 2, 4, 3, 0, 4, 1, 0, 2, 1).map(_.toFloat)
@@ -280,18 +291,26 @@ class TestStencil extends TestSlide {
   @Test def tiling1D(): Unit = {
     val weights = Array(1, 2, 1).map(_.toFloat)
 
-    val stencil = createTiled1DStencilLambda(weights, 3,1, 4,2, 1)
-    val newLambda = create1DStencilLambda(weights, 3,1, 1)
+    val stencil = createTiled1DStencilLambda(weights, 3,1, 4,2, 1,1)
+    val newLambda = create1DStencilLambda(weights, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
     val (gold: Array[Float], runtime2) = Execute(randomData.length)(newLambda, randomData, weights)
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  @Test def createGroupsForOneSidedPadding(): Unit = {
+    val boundary = Pad.Boundary.Clamp
+    val neighbours = Array(-2, -1, 0)
+    val gold = Array(0,0,0, 0,0,1, 0,1,2, 1,2,3, 2,3,4).map(_.toFloat)
+
+    testCombinationPadGroup(boundary, gold, 3,1, 2,0)
+  }
+
   @Test def simple3Point1DStencil(): Unit = {
     val weights = Array(1, 2, 1).map(_.toFloat)
 
-    val gold = scalaCompute1DStencil(randomData, 3,1, 1, weights)
-    val stencil = create1DStencilLambda(weights, 3,1, 1)
+    val gold = Utils.scalaCompute1DStencil(randomData, 3,1, 1,1, weights, SCALABOUNDARY)
+    val stencil = create1DStencilLambda(weights, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
     compareGoldWithOutput(gold, output, runtime)
   }
@@ -299,8 +318,8 @@ class TestStencil extends TestSlide {
   @Test def simple5Point1DStencil(): Unit = {
     val weights = Array(1, 2, 3, 2, 1).map(_.toFloat)
 
-    val gold = scalaCompute1DStencil(randomData, 5,1, 2, weights)
-    val stencil = create1DStencilLambda(weights, 5,1, 2)
+    val gold = Utils.scalaCompute1DStencil(randomData, 5,1, 2,2, weights, SCALABOUNDARY)
+    val stencil = create1DStencilLambda(weights, 5,1, 2,2)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
     compareGoldWithOutput(gold, output, runtime)
   }
@@ -308,7 +327,9 @@ class TestStencil extends TestSlide {
  /* **********************************************************
       2D STENCILS
    ***********************************************************/
-  def createSimple2DStencil(size: Int, step: Int, pad: Int, weights: Array[Float], boundary: BoundaryFun): Lambda2 = {
+  def createSimple2DStencil(size: Int, step: Int,
+                            left: Int, right: Int,
+                            weights: Array[Float], boundary: BoundaryFun): Lambda2 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       ArrayType(Float, weights.length),
@@ -322,11 +343,13 @@ class TestStencil extends TestSlide {
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Slide2D(size, step) o Pad2D(pad, boundary)$ matrix
+        ) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
       })
   }
 
-  def create2DPadGroupLambda(boundary: BoundaryFun, size: Int, step: Int, pad: Int): Lambda1 = {
+  def create2DPadGroupLambda(boundary: BoundaryFun,
+                             size: Int, step: Int,
+                             left: Int, right: Int): Lambda1 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       (domain) => {
@@ -334,7 +357,7 @@ class TestStencil extends TestSlide {
           MapGlb(0)(fun(neighbours =>
             MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
           ))
-        ) o Slide2D(size, step) o Pad2D(pad, boundary) $ domain
+        ) o Slide2D(size, step) o Pad2D(left, right, boundary) $ domain
       }
     )
   }
@@ -361,11 +384,14 @@ class TestStencil extends TestSlide {
             })
 
           )) o Slide2D(size, step) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-        ))) o Slide2D(tileSize, tileStep) o Pad2D(1, boundary)$ matrix
+          //todo fix pad size
+        ))) o Slide2D(tileSize, tileStep) o Pad2D(1,1, boundary)$ matrix
       }
   )
 
-  def createCopyTilesLambda(size: Int, step: Int, pad: Int, boundary: Pad.BoundaryFun): Lambda = fun(
+  def createCopyTilesLambda(size: Int, step: Int,
+                            left: Int, right: Int,
+                            boundary: Pad.BoundaryFun): Lambda = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       ArrayType(Float, 9),
       (matrix, weights) => {
@@ -373,15 +399,13 @@ class TestStencil extends TestSlide {
 
          toGlobal(MapLcl(1)(MapLcl(0)(id))) $ tile
 
-
-        ))) o Slide2D(4, 2) o Pad2D(1, boundary)$ matrix
+        ))) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
       }
   )
 
   def run2DStencil(stencil: Lambda2,
-                   size: Int,
-                   step: Int,
-                   pad: Int,
+                   size: Int, step: Int,
+                   left : Int, right: Int,
                    weights: Array[Float],
                    name: String,
                    boundary: BoundaryFun): Unit = {
@@ -393,7 +417,7 @@ class TestStencil extends TestSlide {
 
       savePGM(name, outputLocation, output.grouped(width).toArray)
 
-      val gold = scalaCompute2DStencil(input, size,step, size,step, pad, weights)
+      val gold = Utils.scalaCompute2DStencil(input, size,step, size,step, left,right, weights, SCALABOUNDARY)
       compareGoldWithOutput(gold, output, runtime)
 
     } catch {
@@ -401,23 +425,18 @@ class TestStencil extends TestSlide {
     }
   }
 
-  def runCombinedPadGroupTest(size: Int,
-                              step: Int,
-                              pad: Int,
+  def runCombinedPadGroupTest(size: Int, step: Int,
+                              left: Int, right: Int,
                               boundary: BoundaryFun,
                               scalaBoundary: (Int, Int) => Int,
                               data: Array[Array[Float]] = data2D): Unit = {
-    val data = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
-    data.map(x => println(x.mkString(",")))
-    val gold = scalaGenerate2DNeighbours(data, size, step, size, step, pad, scalaBoundary)
-    val test = gold.flatten.flatten.flatten
-    //gold.flatten.flatten.map(x => println(x.mkString(",")))
+    val gold = Utils.scalaGenerate2DNeighbours(data, size, step, size, step, left,right, scalaBoundary)
+    val goldFlat = gold.flatten.flatten.flatten
 
-    val lambda = create2DPadGroupLambda(boundary, size, step, pad)
+    val lambda = create2DPadGroupLambda(boundary, size, step, left, right)
     val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
 
-    println(output.mkString(","))
-    compareGoldWithOutput(test, output, runtime)
+    compareGoldWithOutput(goldFlat, output, runtime)
   }
 
   @Ignore
@@ -425,7 +444,7 @@ class TestStencil extends TestSlide {
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = scalaClamp
 
-    runCombinedPadGroupTest(3,1, 1, boundary, scalaBoundary)
+    runCombinedPadGroupTest(3,1, 1,1, boundary, scalaBoundary)
   }
 
   @Ignore // takes ages leads to EOF Exceoption on Fuji
@@ -434,7 +453,7 @@ class TestStencil extends TestSlide {
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = scalaClamp
 
-    runCombinedPadGroupTest(5,1, 2, boundary, scalaBoundary, data2D)
+    runCombinedPadGroupTest(5,1, 2,2, boundary, scalaBoundary, data2D)
   }
 
   @Ignore // Takes ages!!!
@@ -442,7 +461,7 @@ class TestStencil extends TestSlide {
     val boundary = Pad.Boundary.Mirror
     val scalaBoundary = scalaMirror
 
-    runCombinedPadGroupTest(3,1, 1, boundary, scalaBoundary)
+    runCombinedPadGroupTest(3,1, 1,1, boundary, scalaBoundary)
   }
 
   @Ignore
@@ -450,17 +469,17 @@ class TestStencil extends TestSlide {
     val boundary = Pad.Boundary.Wrap
     val scalaBoundary = scalaWrap
 
-    runCombinedPadGroupTest(3,1, 1, boundary, scalaBoundary)
+    runCombinedPadGroupTest(3,1, 1,1, boundary, scalaBoundary)
   }
 
   @Test def gaussianBlur(): Unit = {
-    val stencil = createSimple2DStencil(3,1,1, gaussWeights, BOUNDARY)
-    run2DStencil(stencil, 3,1, 1, gaussWeights, "gauss.pgm", BOUNDARY)
+    val stencil = createSimple2DStencil(3,1, 1,1, gaussWeights, BOUNDARY)
+    run2DStencil(stencil, 3,1, 1,1, gaussWeights, "gauss.pgm", BOUNDARY)
   }
 
   @Test def tiled2D9PointStencil(): Unit = {
     val tiled: Lambda = createTiled2DStencil(3,1, 4,2, gaussWeights, Pad.Boundary.Wrap)
-    val nontiled: Lambda2 = createSimple2DStencil(3,1,1, gaussWeights, Pad.Boundary.Wrap)
+    val nontiled: Lambda2 = createSimple2DStencil(3,1, 1,1, gaussWeights, Pad.Boundary.Wrap)
     val (width, height, input) = readInputImage(lenaPGM)
 
     val (output: Array[Float], runtime) = Execute(2, 2, width, height, (false, false))(tiled, input, gaussWeights)
@@ -472,17 +491,17 @@ class TestStencil extends TestSlide {
 
   @Test def copyTilesIdentity(): Unit = {
     val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
-    val tiled: Lambda = createCopyTilesLambda(4,2 ,1, Pad.Boundary.Clamp)
+    val tiled: Lambda = createCopyTilesLambda(4,2 ,1,1, Pad.Boundary.Clamp)
 
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
-    val gold = scalaGenerate2DNeighbours(data2D, 4,2, 4,2, 1).flatten.flatten.flatten
+    val gold = Utils.scalaGenerate2DNeighbours(data2D, 4,2, 4,2, 1,1, SCALABOUNDARY).flatten.flatten.flatten
 
     compareGoldWithOutput(gold, output, runtime)
   }
 
   @Test def sobelFilter(): Unit = {
-    val stencil = createSimple2DStencil(3,1,1, gaussWeights, BOUNDARY)
-    run2DStencil(stencil, 3,1, 1, sobelWeights, "sobel.pgm", BOUNDARY)
+    val stencil = createSimple2DStencil(3,1, 1,1, gaussWeights, BOUNDARY)
+    run2DStencil(stencil, 3,1, 1,1, sobelWeights, "sobel.pgm", BOUNDARY)
   }
 
   @Test def gaussianBlur25PointStencil(): Unit = {
@@ -491,7 +510,7 @@ class TestStencil extends TestSlide {
       7, 26, 41, 26, 7,
       4, 16, 26, 16, 4,
       1, 4, 7, 4, 1).map(_*0.004219409282700422f)
-    val stencil = createSimple2DStencil(5,1,2, weights, BOUNDARY)
-    run2DStencil(stencil, 5,1, 2, weights, "gauss25.pgm", BOUNDARY)
+    val stencil = createSimple2DStencil(5,1, 2,2, weights, BOUNDARY)
+    run2DStencil(stencil, 5,1, 2,2, weights, "gauss25.pgm", BOUNDARY)
   }
 }

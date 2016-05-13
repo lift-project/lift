@@ -37,10 +37,10 @@ class TestPad {
   val input = Array(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p)
   val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
 
-  def validate1D(gold: Array[Float], size: Int, boundary: Pad.BoundaryFun, input: Array[Float] = input) = {
+  def validate1D(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun, input: Array[Float] = input) = {
     val fct = fun(
       ArrayType(Float, Var("N")),
-      (domain) => MapGlb(id) o Pad(size, boundary) $ domain
+      (domain) => MapGlb(id) o Pad(left, right, boundary) $ domain
     )
 
     val (output: Array[Float],runtime) = Execute(input.length, input.length)(fct, input)
@@ -48,13 +48,16 @@ class TestPad {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  def validate2D(gold: Array[Float], size: Int, boundary: Pad.BoundaryFun) = {
+  def validate2D(gold: Array[Float],
+                 top: Int, bottom: Int,
+                 left: Int, right: Int,
+                 boundary: Pad.BoundaryFun) = {
     val N = Var("N")
     val fct = fun(
       ArrayType(ArrayType(Float, N), N),
       (domain) => MapGlb(0)(
         MapGlb(1)(id)) o
-         Pad2D(size, boundary) $ domain
+         Pad2D(top, bottom, left, right, boundary) $ domain
     )
 
     val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input2D)
@@ -62,12 +65,12 @@ class TestPad {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  def validate2DOriginal(gold: Array[Float], size: Int, boundary: Pad.BoundaryFun) = {
+  def validate2DOriginal(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun) = {
     val fct = fun(
       ArrayType(Float, Var("N")),
       (domain) => MapGlb(id) o Join()
-        o Transpose() o Pad(size, boundary)
-        o Transpose() o Pad(size, boundary)
+        o Transpose() o Pad(left, right, boundary)
+        o Transpose() o Pad(left, right, boundary)
         o Split(4) $ domain
     )
 
@@ -82,70 +85,80 @@ class TestPad {
   @Test def pad1DClampSize1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     println(gold.mkString(", "))
-    validate1D(gold, 1, Clamp)
+    validate1D(gold, 1,1, Clamp)
   }
 
   @Test def pad1DClampSize2(): Unit = {
     val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
-    validate1D(gold, 2, Clamp)
+    validate1D(gold, 2,2, Clamp)
+  }
+
+  @Test def pad1DClampLeft2(): Unit = {
+    val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p)
+    validate1D(gold, 2,0, Clamp)
+  }
+
+  @Test def pad1DClampRight2(): Unit = {
+    val gold = Array(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
+    validate1D(gold, 0,2, Clamp)
   }
 
   @Test def pad1DClampSize8(): Unit = {
     val input = Array(a,b,c,d)
     val gold  = Array(A,A,A,A,A,A,A,A,a,b,c,d,D,D,D,D,D,D,D,D)
 
-    validate1D(gold, 8, Clamp, input)
+    validate1D(gold, 8,8, Clamp, input)
   }
 
   @Test def pad1DMirrorSize1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
-    validate1D(gold, 1, Mirror)
+    validate1D(gold, 1,1, Mirror)
   }
 
   @Test def pad1DMirrorSize2(): Unit = {
     val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
-    validate1D(gold, 2, Mirror)
+    validate1D(gold, 2,2, Mirror)
   }
 
   @Test def pad1DMirrorSize8(): Unit = {
     val input = Array(a,b,c,d)
     val gold  = Array(A,B,C,D,D,C,B,A,a,b,c,d,D,C,B,A,A,B,C,D)
 
-    validate1D(gold, 8, Mirror, input)
+    validate1D(gold, 8,8, Mirror, input)
   }
 
   @Test def pad1DMirrorUnsafeSize1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
-    validate1D(gold, 1, MirrorUnsafe)
+    validate1D(gold, 1,1, MirrorUnsafe)
   }
 
   @Test def pad1DMirrorUnsafeSize2(): Unit = {
     val gold = Array(B,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,O)
-    validate1D(gold, 2, MirrorUnsafe)
+    validate1D(gold, 2,2, MirrorUnsafe)
   }
 
   @Test def pad1DMirrorUnsafeSize4(): Unit = {
     val input = Array(a,b,c,d)
     val gold  = Array(D,C,B,A,a,b,c,d,D,C,B,A)
 
-    validate1D(gold, 4, MirrorUnsafe, input)
+    validate1D(gold, 4,4, MirrorUnsafe, input)
   }
 
   @Test def pad1DWrapSize1(): Unit = {
     val gold = Array(P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A)
-    validate1D(gold, 1, Wrap)
+    validate1D(gold, 1,1, Wrap)
   }
 
   @Test def pad1DWrapSize2(): Unit = {
     val gold = Array(O,P,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,A,B)
-    validate1D(gold, 2, Wrap)
+    validate1D(gold, 2,2, Wrap)
   }
 
   @Test def pad1DWrapSize8(): Unit = {
     val input = Array(a,b,c,d)
     val gold  = Array(A,B,C,D,A,B,C,D,a,b,c,d,A,B,C,D,A,B,C,D)
 
-    validate1D(gold, 8, Wrap, input)
+    validate1D(gold, 8,8, Wrap, input)
   }
 
   /* **********************************************************
@@ -160,7 +173,48 @@ class TestPad {
       M, m, n, o, p, P,
       M, M, N, O, P, P)
 
-    validate2D(gold, 1, Clamp)
+    validate2D(gold, 1,1,1,1, Clamp)
+  }
+  @Test def pad2DClampLeftOnly(): Unit = {
+    val gold = Array(
+      A, a, b, c, d,
+      E, e, f, g, h,
+      I, i, j, k, l,
+      M, m, n, o, p)
+
+    validate2D(gold, 0,0,1,0, Clamp)
+  }
+
+  @Test def pad2DRightOnly(): Unit = {
+    val gold = Array(
+      a, b, c, d, D,
+      e, f, g, h, H,
+      i, j, k, l, L,
+      m, n, o, p, P)
+
+    validate2D(gold, 0,0,0,1, Clamp)
+  }
+
+  @Test def pad2DClampBottomOnly(): Unit = {
+    val gold = Array(
+      a, b, c, d,
+      e, f, g, h,
+      i, j, k, l,
+      m, n, o, p,
+      M, N, O, P)
+
+    validate2D(gold, 0,1,0,0, Clamp)
+  }
+
+  @Test def pad2DClampSizeTopOnly(): Unit = {
+    val gold = Array(
+      A, B, C, D,
+      a, b, c, d,
+      e, f, g, h,
+      i, j, k, l,
+      m, n, o, p)
+
+    validate2D(gold, 1,0,0,0, Clamp)
   }
 
   @Test def pad2DClampSize2(): Unit = {
@@ -174,7 +228,7 @@ class TestPad {
       M, M, M, N, O, P, P, P,
       M, M, M, N, O, P, P, P)
 
-    validate2D(gold, 2, Clamp)
+    validate2D(gold, 2,2,2,2, Clamp)
   }
 
   @Test def pad2DMirrorSize1(): Unit = {
@@ -186,7 +240,7 @@ class TestPad {
       M, m, n, o, p, P,
       M, M, N, O, P, P)
 
-    validate2D(gold, 1, Mirror)
+    validate2D(gold, 1,1,1,1, Mirror)
   }
 
   @Test def pad2DMirrorSize2(): Unit = {
@@ -200,7 +254,7 @@ class TestPad {
       N, M, M, N, O, P, P, O,
       J, I, I, J, K, L, L, K)
 
-    validate2D(gold, 2, Mirror)
+    validate2D(gold, 2,2,2,2, Mirror)
   }
 
   @Test def pad2DMirrorUnsafeSize1(): Unit = {
@@ -212,7 +266,7 @@ class TestPad {
       M, m, n, o, p, P,
       M, M, N, O, P, P)
 
-    validate2D(gold, 1, MirrorUnsafe)
+    validate2D(gold, 1,1,1,1, MirrorUnsafe)
   }
 
   @Test def pad2DMirrorUnsafeSize2(): Unit = {
@@ -226,7 +280,7 @@ class TestPad {
       N, M, M, N, O, P, P, O,
       J, I, I, J, K, L, L, K)
 
-    validate2D(gold, 2, MirrorUnsafe)
+    validate2D(gold, 2,2,2,2, MirrorUnsafe)
   }
 
   @Test def pad2DWrapSize1(): Unit = {
@@ -238,7 +292,7 @@ class TestPad {
       P, m, n, o, p, M,
       D, A, B, C, D, A)
 
-    validate2D(gold, 1, Wrap)
+    validate2D(gold, 1,1,1,1, Wrap)
   }
 
   @Test def pad2DWrapSize2(): Unit = {
@@ -252,7 +306,7 @@ class TestPad {
       C, D, A, B, C, D, A, B,
       G, H, E, F, G, H, E, F)
 
-    validate2D(gold, 2, Wrap)
+    validate2D(gold, 2,2,2,2, Wrap)
   }
 
     /* **********************************************************

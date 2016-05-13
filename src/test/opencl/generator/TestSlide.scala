@@ -51,17 +51,11 @@ class TestSlide {
       0, 0, 0,
       1, 2, 1).map(_.toFloat)
 
+  // todo eventually move to select primitive
   @Test def lookupSimplfication(): Unit = {
     val table: Seq[ArithExpr] = Array(0,1,2).map(Cst(_))
     val lookup = Lookup(table, Cst(1), 0)
     assertEquals(table.apply(1), lookup)
-  }
-
-  @Test def simpletest(): Unit = {
-    val test = Array(0,1,2,3,4,5,6,7,8,9)
-    val result = test.sliding(3,1)
-
-    result.map(x => println(x.mkString(",")))
   }
 
   def createSimple1DGroupLambda(size: Int, step: Int): Lambda1 = {
