@@ -125,7 +125,7 @@ class TestStencilDebug {
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = scalaClamp
 
-    runCombinedPadGroupTest(1,1,1, boundary, scalaBoundary)
+    runCombinedPadGroupTest(3,1,1, boundary, scalaBoundary)
   }
 
   @Ignore
@@ -133,14 +133,15 @@ class TestStencilDebug {
     val boundary = Pad.Boundary.Mirror
     val scalaBoundary = scalaMirror
 
-    runCombinedPadGroupTest(1,1,1, boundary, scalaBoundary)
+    runCombinedPadGroupTest(3,1,1, boundary, scalaBoundary)
   }
 
+  @Ignore
   @Test def groupMirrorUnsafePaddedData2D() = {
     val boundary = Pad.Boundary.MirrorUnsafe
     val scalaBoundary = scalaMirror
 
-    runCombinedPadGroupTest(1,1,1, boundary, scalaBoundary)
+    runCombinedPadGroupTest(3,1,1, boundary, scalaBoundary)
   }
 
 	@Ignore
@@ -148,7 +149,7 @@ class TestStencilDebug {
     val boundary = Pad.Boundary.Wrap
     val scalaBoundary = scalaWrap
 
-    runCombinedPadGroupTest(1,1,1, boundary, scalaBoundary)
+    runCombinedPadGroupTest(3,1,1, boundary, scalaBoundary)
   }
 
 }
