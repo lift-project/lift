@@ -57,7 +57,7 @@ object OutputView {
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
-      case group: Group =>
+      case group: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
       case _ => writeView
     }

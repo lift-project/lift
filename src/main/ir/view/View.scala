@@ -50,7 +50,7 @@ abstract class View(val t: Type = UndefType) {
       case filter: ViewFilter => new ViewFilter(filter.iv.replaced(subst), filter.ids.replaced(subst), t)
       case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
       case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(subst), t)
-      case group: ViewGroup => new ViewGroup(group.iv.replaced(subst), group.group, group.t)
+      case group: ViewSlide => new ViewSlide(group.iv.replaced(subst), group.slide, group.t)
       case pad: ViewPad => new ViewPad(pad.iv.replaced(subst), pad.size, pad.fct, t)
       case _ => this
     }
@@ -171,8 +171,8 @@ abstract class View(val t: Type = UndefType) {
    * a tuple of arrays.
    *
    * Corresponds to the Zip pattern.
-
-   */
+ *
+ */
   def zip(): View = {
     t match {
       case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType]) =>
@@ -196,10 +196,10 @@ abstract class View(val t: Type = UndefType) {
     }
   }
 
-  def group(g: Group): View = {
+  def group(g: Slide): View = {
     this.t match {
       case ArrayType(_, _) =>
-        new ViewGroup(this, g, g.checkType(this.t, setType=false))
+        new ViewSlide(this, g, g.checkType(this.t, setType=false))
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
@@ -329,13 +329,13 @@ case class ViewTupleComponent(i: Int, iv: View, override val t: Type) extends Vi
 private[view] case class ViewTuple(ivs: Seq[View], override val t: Type) extends View(t)
 
 /**
- *  A view for grouping.
+ *  A view for sliding.
  *
- * @param iv View to group.
- * @param group The group function to use.
+ * @param iv View to Slide.
+ * @param slide The slide function to use.
  * @param t Type of the view.
  */
-private[view] case class ViewGroup(iv: View, group: Group, override val t: Type) extends View(t)
+private[view] case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(t)
 
 /**
  * Get the head of a view.
@@ -511,7 +511,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val newAAS = (newIdx, newLen) :: stack
         emitView(tail.iv, newAAS, tupleAccessStack)
 
-      case ag: ViewGroup =>
+      case ag: ViewSlide =>
         val outerId = arrayAccessStack.head
         val stack1 = arrayAccessStack.tail
         val innerId = stack1.head
@@ -519,7 +519,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
 
         ag.t match {
           case ArrayType(t, len) =>
-            val newIdx = outerId._1 * ag.group.center + innerId._1
+            val newIdx = outerId._1 * ag.slide.step + innerId._1
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()

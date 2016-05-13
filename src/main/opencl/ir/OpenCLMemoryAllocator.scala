@@ -125,9 +125,9 @@ object OpenCLMemoryAllocator {
       case Zip(_) | Tuple(_)  => allocZipTuple(inMem)
       case Get(n)             => allocGet(n, inMem)
       case f: Filter          => allocFilter(f, numGlb, numLcl, inMem)
-      case Split(_)    | Join()  | asVector(_)  | asScalar() |
-           Transpose() | Unzip() | TransposeW() | Group(_)   | Pad(_,_) |
-           Head()      | Tail()  | Gather(_)    | Scatter(_) =>
+      case Split(_) | Join() | asVector(_) | asScalar() |
+           Transpose() | Unzip() | TransposeW() | Slide(_,_) | Pad(_,_) |
+           Head() | Tail() | Gather(_) | Scatter(_) =>
         inMem
     }
   }

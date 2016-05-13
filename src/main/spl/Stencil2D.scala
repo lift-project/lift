@@ -1,6 +1,6 @@
 package spl
 
-import ir.ast.{Group2D, Lambda, Pad2D, Pad}
+import ir.ast.{Slide2D, Lambda, Pad2D, Pad}
 
 /*
 object Stencil2D {

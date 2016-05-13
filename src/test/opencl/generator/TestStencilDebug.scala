@@ -61,7 +61,7 @@ class TestStencilDebug {
     else
       MapSeq(g)
 
-  def create2DPadGroupLambda(boundary: BoundaryFun, leftHalo: Int, center: Int, rightHalo: Int): Lambda1 = {
+  def create2DPadGroupLambda(boundary: BoundaryFun, size: Int, step: Int, pad: Int): Lambda1 = {
     fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       (domain) => {
@@ -69,7 +69,7 @@ class TestStencilDebug {
           MapGlb(0)(fun(neighbours =>
             MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
           ))
-        ) o Group2D(leftHalo, center, rightHalo) o Pad2D(Math.max(leftHalo, rightHalo), boundary) $ domain
+        ) o Slide2D(size, step) o Pad2D(pad, boundary) $ domain
       }
     )
   }

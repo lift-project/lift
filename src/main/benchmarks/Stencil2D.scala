@@ -43,9 +43,9 @@ object Stencil2D{
     if(id >= length) length+length-id-1 else id
   }
 
-  val leftHalo = 1
-  val center = 1
-  val rightHalo = 1
+  val size = 3
+  val step = 1
+  val padOffset = 1
   val scalaBoundary = scalaWrap
   val makePositive = UserFun("makePositive", "i", "{ return (i < 0) ? 0 : i;  }", Float, Float)
   val weights = Array(0f, 0.12f, 0.08f,
@@ -108,7 +108,7 @@ object Stencil2D{
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Group2D(leftHalo, center, rightHalo) o Pad2D(Math.max(leftHalo, rightHalo), boundary)$ matrix
+        ) o Slide2D(size, step) o Pad2D(padOffset, boundary)$ matrix
       })
 
   def TiledNinePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
@@ -128,10 +128,10 @@ object Stencil2D{
               //weights)
             })
 
-          )) o Group2D(1,1,1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+          )) o Slide2D(3,1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
 
 
-        ))) o Group2D(1, 2, 1) o Pad2D(1, boundary)$ matrix
+        ))) o Slide2D(4, 2) o Pad2D(1, boundary)$ matrix
       })
 
   def TiledCopy(boundary: Pad.BoundaryFun): Lambda = fun(
@@ -143,7 +143,7 @@ object Stencil2D{
          toGlobal(MapLcl(1)(MapLcl(0)(id))) $ tile
 
 
-        ))) o Group2D(1, 2, 1) o Pad2D(1, boundary)$ matrix
+        ))) o Slide2D(4, 2) o Pad2D(1, boundary)$ matrix
       })
 
   def apply() = new Stencil2D(

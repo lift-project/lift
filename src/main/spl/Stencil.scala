@@ -1,7 +1,7 @@
 package spl
 
 import apart.arithmetic.ArithExpr
-import ir.ast.{Lambda, Group, Pad}
+import ir.ast.{Lambda, Slide$, Pad}
 
 /*
 object Stencil {

@@ -181,7 +181,7 @@ class BarrierElimination(lambda: Lambda) {
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
         if (group.exists(call => isPattern(call, classOf[Split]) || isPattern(call, classOf[Join])
-           || isPattern(call, classOf[asVector]) || isPattern(call, classOf[asScalar]) || isPattern(call, classOf[Group])) && id > 0) {
+           || isPattern(call, classOf[asVector]) || isPattern(call, classOf[asScalar]) || isPattern(call, classOf[Slide])) && id > 0) {
           needsBarrier(id) = true
 
           // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
@@ -194,7 +194,7 @@ class BarrierElimination(lambda: Lambda) {
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
         if (group.exists(call => isPattern(call, classOf[Scatter]) || isPattern(call, classOf[Gather])
-          || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW]) || isPattern(call, classOf[Group])
+          || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW]) || isPattern(call, classOf[Slide])
           || isPattern(call, classOf[Tail])) && id > 0) {
 
           needsBarrier(id) = true
@@ -207,7 +207,7 @@ class BarrierElimination(lambda: Lambda) {
         }
 
         // Gather in last affects the reading of this group
-        if ((isPattern(group.last, classOf[Gather]) || isPattern(group.last, classOf[Transpose]) || isPattern(group.last, classOf[Group])) && id < groups.length - 1) {
+        if ((isPattern(group.last, classOf[Gather]) || isPattern(group.last, classOf[Transpose]) || isPattern(group.last, classOf[Slide])) && id < groups.length - 1) {
           needsBarrier(id + 1) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.

@@ -42,17 +42,16 @@ object Stencil1D{
     if(id >= length) length+length-id-1 else id
   }
 
-  val leftHalo = 1
-  val center = 1
-  val rightHalo = 1
+  val size = 3
+  val step = 1
+  val padOffset = 1
   val scalaBoundary = scalaWrap
   val makePositive = UserFun("makePositive", "i", "{ return (i < 0) ? 0 : i;  }", Float, Float)
   val weights = Array(025f, 0.5f, 0.25f)
 
   def scalaGather1DNeighboursForSpecificElement(data: Array[Float],
-                                                leftHalo: Int,
-                                                center: Int,
-                                                rightHalo: Int,
+                                                size: Int,
+                                                step: Int,
                                                 idx: Int,
                                                 boundary: (Int, Int) => Int = scalaBoundary): Array[Float] = {
     //todo think about how to implement
@@ -65,14 +64,14 @@ object Stencil1D{
     data
   }
 
-  def scalaCompute1DStencil(data: Array[Float], leftHalo: Int, center: Int, rightHalo: Int, weights: Array[Float]) = {
+  def scalaCompute1DStencil(data: Array[Float], size: Int, step: Int, weights: Array[Float]) = {
     val neighbourhoodArray = data.indices.map(
-      x => scalaGather1DNeighboursForSpecificElement(data, leftHalo, center, rightHalo, x))
+      x => scalaGather1DNeighboursForSpecificElement(data, size, step, x))
     neighbourhoodArray.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)).toArray
   }
 
   def runScala(input: Array[Float]): Array[Float] = {
-    scalaCompute1DStencil(input, leftHalo, center, rightHalo, weights)
+    scalaCompute1DStencil(input, size, step, weights)
   }
 
   def create1DStencilLambda(boundary: BoundaryFun): Lambda2 = {
@@ -80,7 +79,6 @@ object Stencil1D{
       ArrayType(Float, Var("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
-        val padOffset = Math.max(leftHalo, rightHalo)
         MapGlb(
           fun(neighbourhood => {
             toGlobal(MapSeqUnroll(makePositive)) o
@@ -89,7 +87,7 @@ object Stencil1D{
               }), 0.0f) $
               Zip(weights, neighbourhood)
           })
-        ) o Group(leftHalo, center, rightHalo) o Pad(padOffset, boundary) $ input
+        ) o Slide(size, step) o Pad(padOffset, boundary) $ input
       }
     )
   }
