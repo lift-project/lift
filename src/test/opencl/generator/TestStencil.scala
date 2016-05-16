@@ -55,7 +55,6 @@ class TestStencil extends TestSlide {
   val BOUNDARY = Pad.Boundary.Clamp
   val SCALABOUNDARY: (Int, Int) => Int = scalaClamp
 
-  /*
   /**
     * computes 1D stencil for given array of floats, weights, and neighbourhood description
     *
@@ -105,12 +104,8 @@ class TestStencil extends TestSlide {
     //paddedInput.map(x => println(x.mkString(",")))
 
     //sliding
-    val firstSlide = paddedInput.sliding(size1, step1).toArray
-    val secondSlide = firstSlide.map(x => x.transpose.sliding(size2, step2).toArray)
-    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
-    neighbours
+    scalaSlide2D(paddedInput, size1, step1, size2, step2)
   }
-  */
 
   /**
     * Create 1D stencil lambda which pads and groups input and afterwards
@@ -297,6 +292,17 @@ class TestStencil extends TestSlide {
     val (gold: Array[Float], runtime2) = Execute(randomData.length)(newLambda, randomData, weights)
     compareGoldWithOutput(gold, output, runtime)
   }
+
+  @Test def tiling1DBig(): Unit = {
+    val weights = Array(1, 2, 1).map(_.toFloat)
+
+    val stencil = createTiled1DStencilLambda(weights, 3,1, 18,16, 1,1)
+    val newLambda = create1DStencilLambda(weights, 3,1, 1,1)
+    val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
+    val (gold: Array[Float], runtime2) = Execute(randomData.length)(newLambda, randomData, weights)
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
 
   @Test def createGroupsForOneSidedPadding(): Unit = {
     val boundary = Pad.Boundary.Clamp
@@ -488,6 +494,15 @@ class TestStencil extends TestSlide {
 
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
     val gold = Utils.scalaGenerate2DNeighbours(data2D, 4,2, 4,2, 1,1, SCALABOUNDARY).flatten.flatten.flatten
+
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+  @Test def tiling2DBiggerTiles(): Unit = {
+    val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val tiled: Lambda = createTiled2DStencil(3,1, 10,8, 1,1, gaussWeights, BOUNDARY)
+    val (output: Array[Float], runtime) = Execute(32, 32, 32, 32, (false, false))(tiled, data2D, gaussWeights)
+    val gold = Utils.scalaCompute2DStencil(data2D,3,1,3,1,1,1, gaussWeights, SCALABOUNDARY)
 
     compareGoldWithOutput(gold, output, runtime)
   }

@@ -60,6 +60,15 @@ class TestSlide {
     assertEquals(table.apply(1), lookup)
   }
 
+  def scalaSlide2D(input: Array[Array[Float]],
+                   size1: Int, step1: Int,
+                   size2: Int, step2: Int) = {
+    val firstSlide = input.sliding(size1, step1).toArray
+    val secondSlide = firstSlide.map(x => x.transpose.sliding(size2, step2).toArray)
+    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
+    neighbours
+  }
+
   def createSimple1DGroupLambda(size: Int, step: Int): Lambda1 = {
     fun(
       ArrayType(Float, Var("N")),
@@ -172,6 +181,28 @@ class TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  @Test def slideWithGap(): Unit = {
+    val data = Array(0,1,2,3,4,5).map(_.toFloat)
+    val gold = data.sliding(2,4).toArray.flatten
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(2,4), data)
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+  @Test def slideWithGapBig(): Unit = {
+    val data = Array(0,1,2,3,4,5,6,7,8,9,10).map(_.toFloat)
+    val gold = data.sliding(2,4).toArray.flatten
+    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(2,4), data)
+    println(output.mkString(","))
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+   @Test def splitEquivalent(): Unit = {
+     val data = Array(0,1,2,3,4,5).map(_.toFloat)
+      val gold = data.sliding(3,3).toArray.flatten
+      val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(3,3), data)
+     compareGoldWithOutput(gold, output, runtime)
+  }
+
   @Test def groupCenter2Halo1(): Unit = {
     val gold = Array(0,1,2,3, 2,3,4,5).map(_.toFloat)
     val data = Array(0,1,2,3,4,5).map(_.toFloat)
@@ -222,6 +253,17 @@ class TestSlide {
     val data2D = Array.tabulate(3, 3) { (i, j) => i * 3.0f + j }
     val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(3,1), data2D)
     compareGoldWithOutput(data2D.flatten, output, runtime)
+  }
+
+  @Test def validTileSize(): Unit = {
+    val tileSize = 16
+    val tileStep = 14
+    val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val gold = scalaSlide2D(data2D, tileSize,tileStep,tileSize,tileStep)
+    println("test")
+    val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(tileSize,tileStep), data2D)
+
+    compareGoldWithOutput(gold.flatten.flatten.flatten, output, runtime)
   }
 
   /**

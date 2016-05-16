@@ -22,7 +22,7 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        //todo do proper type checking if possible
+        //check that the following holds true!
         //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
         val innerLength = size
         val outerLength = (n - (size - step)) / step
