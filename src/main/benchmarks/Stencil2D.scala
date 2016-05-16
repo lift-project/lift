@@ -75,7 +75,7 @@ object Stencil2D{
         ) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
       })
 
-  def tiledNinePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
+  def tiledNinePoint2DStencil(boundary: Pad.BoundaryFun, tileSize: Int, tileStep: Int): Lambda = fun(
       ArrayType(ArrayType(Float, Var("M")), Var("N")),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
@@ -92,7 +92,7 @@ object Stencil2D{
             })
 
           )) o Slide2D(3, 1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-        ))) o Slide2D(78, 76) o Pad2D(1,1, boundary)$ matrix
+        ))) o Slide2D(tileSize, tileStep) o Pad2D(1,1, boundary)$ matrix
       }
   )
 
@@ -113,7 +113,13 @@ object Stencil2D{
       ("9_POINT_2D_STENCIL_MIRROR_UNSAFE", Array[Lambda](ninePoint2DStencil(Pad.Boundary.MirrorUnsafe))),
       ("9_POINT_2D_STENCIL_WRAP", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Wrap))),
       ("9_POINT_2D_STENCIL_MIRROR", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Mirror))),
-      ("TILED_9_POINT_2D_STENCIL_WRAP", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap)))
+      ("TILED_9P2D_WRAP_16/14", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 16,14))), // 4
+      ("TILED_9P2D_WRAP_18/16", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 18,16))),
+      ("TILED_9P2D_WRAP_32/30", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 32,30))),
+      ("TILED_9P2D_WRAP_34/32", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 34,32))),
+      ("TILED_9P2D_WRAP_64/62", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 64,62))),
+      ("TILED_9P2D_WRAP_66/64", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 66,64))),
+      ("TILED_9P2D_WRAP_78/76", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 78,76))) // 10
     )
   )
 
