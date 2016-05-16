@@ -1,6 +1,6 @@
 package opencl.ir.ast
 
-import apart.arithmetic.{ArithExpr, ArithExprFunction, Var}
+import apart.arithmetic._
 import ir.ast._
 
 /**
@@ -24,4 +24,16 @@ class GroupCall(val group: Group,
                 val outerAe: ArithExpr,
                 val innerAe: ArithExpr) extends ArithExprFunction("group") {
   "groupComp" + group.id + "(" + outerAe + ", " + innerAe + ")"
+
+  override lazy val sign: Sign.Value = {
+    val positives = this.group.relIndices.map(_ >= 0)
+    if (positives.distinct.length == 1)
+      if (positives(0)) Sign.Positive else Sign.Negative
+    else Sign.Unknown
+  }
+
+  override lazy val (min : ArithExpr, max: ArithExpr) = {
+    (Cst(group.relIndices.min),Cst(group.relIndices.max))
+  }
+
 }

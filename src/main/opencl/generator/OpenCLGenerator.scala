@@ -1555,7 +1555,8 @@ class OpenCLGenerator extends Generator {
           ViewPrinter.emit(view) / length
       }
     }
-    ArithExpr.substitute(i, replacements).eval
+    val subst = ArithExpr.substitute(i, replacements)
+    subst.eval
   }
 
   /**
