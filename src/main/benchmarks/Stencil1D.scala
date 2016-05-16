@@ -58,11 +58,12 @@ object Stencil1D{
   }
 
   def create1DStencilLambda(boundary: BoundaryFun,
+                            weights: Array[Float],
                             left: Int, right: Int,
                             size: Int, step: Int): Lambda2 = {
     fun(
       ArrayType(Float, Var("N")),
-      ArrayType(Float, weightsBig.length),
+      ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -78,12 +79,13 @@ object Stencil1D{
   }
 
   def createTiled1DStencilLambda(boundary: BoundaryFun,
+                                 weights: Array[Float],
                                  left: Int, right: Int,
                                  size: Int, step: Int,
                                  tileSize: Int, tileStep: Int): Lambda2 = {
     fun(
       ArrayType(Float, Var("N")),
-      ArrayType(Float, weightsBig.length),
+      ArrayType(Float, weights.length),
       (input, weights) => {
         MapWrg(fun(tile =>
           MapLcl(
@@ -121,14 +123,14 @@ object Stencil1D{
 
   def apply() = new Stencil1D(
     Seq(
-      ("3_POINT_1D_STENCIL_CLAMP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Clamp, 1,1, 3,1))),
-      ("3_POINT_1D_STENCIL_MIRROR_UNSAFE", Array[Lambda](create1DStencilLambda(Pad.Boundary.MirrorUnsafe, 1,1, 3,1))),
-      ("3_POINT_1D_STENCIL_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap, 1,1, 3,1))),
-      ("3_POINT_1D_STENCIL_MIRROR", Array[Lambda](create1DStencilLambda(Pad.Boundary.Mirror, 1,1, 3,1))),
-      ("TILED_3_POINT_1D_WRAP", Array[Lambda](createTiled1DStencilLambda(Pad.Boundary.Wrap,1,1, 3,1 ,18,16))),
+      ("3_POINT_1D_STENCIL_CLAMP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Clamp, weights, 1,1, 3,1))),
+      ("3_POINT_1D_STENCIL_MIRROR_UNSAFE", Array[Lambda](create1DStencilLambda(Pad.Boundary.MirrorUnsafe, weights, 1,1, 3,1))),
+      ("3_POINT_1D_STENCIL_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap, weights, 1,1, 3,1))),
+      ("3_POINT_1D_STENCIL_MIRROR", Array[Lambda](create1DStencilLambda(Pad.Boundary.Mirror, weights, 1,1, 3,1))),
+      ("TILED_3_POINT_1D_WRAP", Array[Lambda](createTiled1DStencilLambda(Pad.Boundary.Wrap, weights, 1,1, 3,1 ,18,16))),
       ("COPY_GROUPS_LOCAL_MEM", Array[Lambda](createNaiveLocalMemory1DStencilLambda(Pad.Boundary.Wrap))),
-      ("TILED_9_POINT_1D_WRAP", Array[Lambda](createTiled1DStencilLambda(Pad.Boundary.Wrap, 4,4, 9,1, 4104,4096))),
-      ("9_POINT_1D_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap,4,4, 9,1)))
+      ("TILED_9_POINT_1D_WRAP", Array[Lambda](createTiled1DStencilLambda(Pad.Boundary.Wrap, weightsBig, 4,4, 9,1, 4104,4096))),
+      ("9_POINT_1D_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap, weightsBig, 4,4, 9,1)))
     )
   )
 
