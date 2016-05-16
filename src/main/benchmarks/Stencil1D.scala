@@ -20,7 +20,7 @@ class Stencil1D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark(
     //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
     val inputData = Array.tabulate(inputSizeN)(x => util.Random.nextFloat())
 
-    Seq(inputData, Stencil1D.weights)
+    Seq(inputData, Stencil1D.weightsBig)
   }
 
   override def globalSize: Array[Int] = {
@@ -43,23 +43,26 @@ object Stencil1D{
     if(id >= length) length+length-id-1 else id
   }
 
-  val size = 3
+  val size = 9
   val step = 1
-  val left = 1
-  val right = 1
+  val left = 4
+  val right = 4
   val scalaBoundary = scalaWrap
   val makePositive = UserFun("makePositive", "i", "{ return (i < 0) ? 0 : i;  }", Float, Float)
   val weights = Array(025f, 0.5f, 0.25f)
+  val weightsBig = Array(1,1,1,1,1,1,1,1,1).map(_.toFloat)
 
 
   def runScala(input: Array[Float]): Array[Float] = {
-    Utils.scalaCompute1DStencil(input, size, step, left, right, weights, scalaBoundary)
+    Utils.scalaCompute1DStencil(input, size, step, left, right, weightsBig, scalaBoundary)
   }
 
-  def create1DStencilLambda(boundary: BoundaryFun): Lambda2 = {
+  def create1DStencilLambda(boundary: BoundaryFun,
+                            left: Int, right: Int,
+                            size: Int, step: Int): Lambda2 = {
     fun(
       ArrayType(Float, Var("N")),
-      ArrayType(Float, weights.length),
+      ArrayType(Float, weightsBig.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -74,22 +77,26 @@ object Stencil1D{
     )
   }
 
-  def createTiled1DStencilLambda(boundary: BoundaryFun): Lambda2 = {
+  def createTiled1DStencilLambda(boundary: BoundaryFun,
+                                 left: Int, right: Int,
+                                 size: Int, step: Int,
+                                 tileSize: Int, tileStep: Int): Lambda2 = {
     fun(
       ArrayType(Float, Var("N")),
-      ArrayType(Float, weights.length),
+      ArrayType(Float, weightsBig.length),
       (input, weights) => {
         MapWrg(fun(tile =>
           MapLcl(
           fun(neighbourhood => {
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeqUnroll(add, 0.0f) o
-              MapSeqUnroll(mult) $
+            toGlobal(MapSeqUnroll(makePositive)) o
+              ReduceSeqUnroll(fun((acc, y) => {
+                multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+              }), 0.0f) $
               Zip(weights, neighbourhood)
           })
         ) o Slide(size, step) o MapLcl(toLocal(id)) $ tile
 
-        )) o Slide(4, 2) o Pad(left, right, boundary) $ input
+        )) o Slide(tileSize, tileStep) o Pad(left, right, boundary) $ input
       }
     )
   }
@@ -114,12 +121,14 @@ object Stencil1D{
 
   def apply() = new Stencil1D(
     Seq(
-      ("3_POINT_1D_STENCIL_CLAMP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Clamp))),
-      ("3_POINT_1D_STENCIL_MIRROR_UNSAFE", Array[Lambda](create1DStencilLambda(Pad.Boundary.MirrorUnsafe))),
-      ("3_POINT_1D_STENCIL_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap))),
-      ("3_POINT_1D_STENCIL_MIRROR", Array[Lambda](create1DStencilLambda(Pad.Boundary.Mirror))),
-      ("TILED_3_POINT_1D_WRAP", Array[Lambda](createTiled1DStencilLambda(Pad.Boundary.Wrap))),
-      ("COPY_GROUPS_LOCAL_MEM", Array[Lambda](createNaiveLocalMemory1DStencilLambda(Pad.Boundary.Wrap)))
+      ("3_POINT_1D_STENCIL_CLAMP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Clamp, 1,1, 3,1))),
+      ("3_POINT_1D_STENCIL_MIRROR_UNSAFE", Array[Lambda](create1DStencilLambda(Pad.Boundary.MirrorUnsafe, 1,1, 3,1))),
+      ("3_POINT_1D_STENCIL_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap, 1,1, 3,1))),
+      ("3_POINT_1D_STENCIL_MIRROR", Array[Lambda](create1DStencilLambda(Pad.Boundary.Mirror, 1,1, 3,1))),
+      ("TILED_3_POINT_1D_WRAP", Array[Lambda](createTiled1DStencilLambda(Pad.Boundary.Wrap,1,1, 3,1 ,18,16))),
+      ("COPY_GROUPS_LOCAL_MEM", Array[Lambda](createNaiveLocalMemory1DStencilLambda(Pad.Boundary.Wrap))),
+      ("TILED_9_POINT_1D_WRAP", Array[Lambda](createTiled1DStencilLambda(Pad.Boundary.Wrap, 4,4, 9,1, 4104,4096))),
+      ("9_POINT_1D_WRAP", Array[Lambda](create1DStencilLambda(Pad.Boundary.Wrap,4,4, 9,1)))
     )
   )
 
