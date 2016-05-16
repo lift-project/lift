@@ -92,7 +92,7 @@ object Stencil2D{
             })
 
           )) o Slide2D(3, 1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-        ))) o Slide2D(4, 2) o Pad2D(1,1, boundary)$ matrix
+        ))) o Slide2D(78, 76) o Pad2D(1,1, boundary)$ matrix
       }
   )
 
