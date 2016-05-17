@@ -25,130 +25,15 @@ object PrivateMemory extends OpenCLAddressSpace {
   override def toString = "private"
 }
 
-object MixedMemory extends  OpenCLAddressSpace {
-  override def toString = "mixed"
-}
-
-/**
-  * Used for function which do not need any memory
-  */
-object NoMemory extends OpenCLAddressSpace {
-  override def toString = "no memory"
-}
-
 object UndefAddressSpace extends OpenCLAddressSpace
 
-class UnexpectedAddressSpaceException(val found: String, val expected: String) extends Exception("Found "+found+" expected "+expected)
+class UnexpectedAddressSpaceException(message: String) extends Exception(message)
 
-object OpenCLAddressSpace {
+object UnexpectedAddressSpaceException {
+  def apply(found: String, expected: String) =
+    new UnexpectedAddressSpaceException(s"Found $found, expected: $expected")
 
-  private def addAddressSpace(e: Expr, as : OpenCLAddressSpace) : scala.collection.Set[OpenCLAddressSpace] = {
-    //Type.visit(t, {t => t.addressSpace = as})
-    e.addressSpaces += as
-    e.addressSpaces
-  }
-
-  private def addAddressSpace(e: Expr, as : scala.collection.Set[OpenCLAddressSpace]) : scala.collection.Set[OpenCLAddressSpace] = {
-    //Type.visit(t, {t => t.addressSpace = as})
-    e.addressSpaces ++= as
-    e.addressSpaces
-  }
-
-  def apply(lambda: Lambda): Unit = {
-    setAddressSpace(lambda)
-  }
-
-  // by default the parameters of the lambda will be set to global space and the return address space should be in global memory
-  def setAddressSpace(l: Lambda) : Unit = {
-
-    //new DotPrinter(new PrintWriter(new File("/home/cdubach/graph1.dot")), false, false,true).print(l)
-
-    // clear up all the address spaces first
-    IRNode.visit(l, _ match {
-        case e: Expr => e.addressSpaces.clear
-        case _ =>
-      }
-    )
-
-    // set the param address space to global memory
-    l.params.foreach(p => addAddressSpace(p, GlobalMemory))
-    setAddressSpace(l.body)
-
-    //new DotPrinter(new PrintWriter(new File("/home/cdubach/graph.dot")), false, true).print(l)
-
-
-    if (l.body.addressSpaces.size != 1 | ! l.body.addressSpaces.contains(GlobalMemory) )
-      throw new UnexpectedAddressSpaceException(l.body.addressSpaces.toString, GlobalMemory.toString)
-  }
-
-  private def setAddressSpaceLambda(l: Lambda, writeTo : OpenCLAddressSpace, argsAddrSpace : Seq[Set[OpenCLAddressSpace]]) = {
-    l.params.zip(argsAddrSpace).foreach({case (p,a) =>
-      assert (p.addressSpaces.isEmpty)
-      p.addressSpaces ++= a
-    })
-    setAddressSpace(l.body, writeTo)
-  }
-
-  private def inferFunCallWriteTo(writeTo : OpenCLAddressSpace, args: Set[Expr]) = {
-    if (writeTo == UndefAddressSpace) {
-      val addSpaces = args.map(_.addressSpaces).reduce(_ ++ _)
-      if (addSpaces.contains(GlobalMemory))
-        GlobalMemory
-      else if (addSpaces.contains(LocalMemory))
-        LocalMemory
-      else if (addSpaces.contains(PrivateMemory))
-        PrivateMemory
-      else
-        UndefAddressSpace
-    } else
-      writeTo
-  }
-
-  private def setAddressSpace(e: Expr, writeTo : OpenCLAddressSpace = UndefAddressSpace) : scala.collection.Set[OpenCLAddressSpace] = {
-     val retAS = e match {
-      case Value(_) =>
-        assert (writeTo == PrivateMemory | writeTo == UndefAddressSpace | writeTo == NoMemory)
-        addAddressSpace(e, PrivateMemory) // note that the address space of a Value may be already set to Private (the same Value can appear multiple times in the IR graph)
-
-      case p: Param =>
-        assert (p.addressSpaces.nonEmpty)
-        p.addressSpaces.toSet
-
-      case f: FunCall =>
-        f.args.foreach(setAddressSpace(_))
-        f.f match {
-          case l: Lambda =>
-            addAddressSpace(f, writeTo)
-            setAddressSpaceLambda(l, writeTo, f.args.map(_.addressSpaces.toSet))
-          case t: toLocal =>
-            addAddressSpace(f, LocalMemory)
-            setAddressSpaceLambda(t.f, LocalMemory, f.args.map(_.addressSpaces.toSet))
-          case t: toPrivate =>
-            addAddressSpace(f, PrivateMemory)
-            setAddressSpaceLambda(t.f, PrivateMemory, f.args.map(_.addressSpaces.toSet))
-          case t: toGlobal =>
-            addAddressSpace(f, GlobalMemory)
-            setAddressSpaceLambda(t.f, GlobalMemory, f.args.map(_.addressSpaces.toSet))
-          case r: AbstractPartRed =>
-            assert (f.args(0).addressSpaces.size == 1) // first argument is initial value
-            val writeTo = f.args(0).addressSpaces.toList(0) // the address space of the result of a reduction is always the same as the initial element
-            addAddressSpace(f, writeTo)
-            setAddressSpaceLambda(r.f, writeTo, f.args.map(_.addressSpaces.toSet))
-          case fp : FPattern =>
-            val inferredWriteTo : OpenCLAddressSpace = inferFunCallWriteTo(writeTo, f.args.toSet)
-            addAddressSpace(f, inferredWriteTo)
-            setAddressSpaceLambda(fp.f, inferredWriteTo, f.args.map(_.addressSpaces.toSet))
-          case VectorizeUserFun(_,_) | UserFun(_, _, _, _, _) | Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) | asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) | Pad(_, _) | Tuple(_) | Group(_) | Filter() | Head() | Tail() | Get(_) =>
-            val inferredWriteTo : OpenCLAddressSpace = inferFunCallWriteTo(writeTo, f.args.toSet)
-            assert (e.addressSpaces.isEmpty)
-            addAddressSpace(f, inferredWriteTo)
-        }
-
-    }
-    retAS
-  }
-
-
+  def apply(message: String) = new UnexpectedAddressSpaceException(message)
 }
 
 case class AddressSpaceCollection(spaces: Seq[OpenCLAddressSpace])

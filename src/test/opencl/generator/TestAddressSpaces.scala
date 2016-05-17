@@ -33,7 +33,7 @@ class TestAddressSpaces {
     )
 
     TypeChecker(f)
-    OpenCLAddressSpace(f)
+    InferOpenCLAddressSpace(f)
     OpenCLMemoryAllocator(f)
 
     assertEquals(1, f.body.addressSpaces.size)
@@ -50,7 +50,7 @@ class TestAddressSpaces {
     )
 
     TypeChecker(f)
-    OpenCLAddressSpace(f)
+    InferOpenCLAddressSpace(f)
     OpenCLMemoryAllocator(f)
 
     assertEquals(1, f.body.addressSpaces.size)

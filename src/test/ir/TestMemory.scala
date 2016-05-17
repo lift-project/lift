@@ -15,7 +15,7 @@ class TestMemory {
     val msid = MapSeq(id)
     val lambda = fun(ArrayType(Float, 16), (A) => msid $ A)
     TypeChecker(lambda)
-    OpenCLAddressSpace.setAddressSpace(lambda)
+    InferOpenCLAddressSpace(lambda)
 
     assertEquals(1, lambda.body.addressSpaces.size)
     assertEquals(GlobalMemory, lambda.body.addressSpaces.head)
@@ -26,7 +26,7 @@ class TestMemory {
     val msidGlbToPrv = MapSeq(id)
     val lambda = fun(ArrayType(Float, 16), (A) => toPrivate(msidGlbToPrv) $ A)
     TypeChecker(lambda)
-    OpenCLAddressSpace.setAddressSpace(lambda)
+    InferOpenCLAddressSpace(lambda)
   }
 
   @Test
@@ -37,7 +37,7 @@ class TestMemory {
       toGlobal(msidPrvToGlb) o toPrivate(msidGlbToPrv) $ A)
 
     TypeChecker(lambda)
-    OpenCLAddressSpace.setAddressSpace(lambda)
+    InferOpenCLAddressSpace(lambda)
 
     assertEquals(1, lambda.body.addressSpaces.size)
     assertEquals(GlobalMemory, lambda.body.addressSpaces.head)
@@ -65,7 +65,7 @@ class TestMemory {
           Value(0.0f, ArrayType(Float, 4))) $ input
     )
     TypeChecker(f)
-    OpenCLAddressSpace.setAddressSpace(f)
+    InferOpenCLAddressSpace(f)
 
     assertEquals(1, uf.f.body.addressSpaces.size)
     assertEquals(PrivateMemory, uf.f.body.addressSpaces.head)
@@ -84,7 +84,7 @@ class TestMemory {
           Value(0.0f, ArrayType(Float, 4))) $ input
     )
     TypeChecker(f)
-    OpenCLAddressSpace.setAddressSpace(f)
+    InferOpenCLAddressSpace(f)
 
     assertEquals(1, uf.f.body.addressSpaces.size)
     assertEquals(PrivateMemory, uf.f.body.addressSpaces.head)

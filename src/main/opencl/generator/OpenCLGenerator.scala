@@ -229,7 +229,7 @@ class OpenCLGenerator extends Generator {
     }
 
     // infer the address spaces
-    OpenCLAddressSpace.setAddressSpace(f)
+    InferOpenCLAddressSpace(f)
 
     // allocate the params and set the corresponding type
     f.params.foreach((p) => {
