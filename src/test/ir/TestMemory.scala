@@ -1,20 +1,13 @@
 package ir
 
 
-import java.io.{File, PrintWriter, Writer}
-
 import apart.arithmetic.SizeVar
 import ir.ast.{Value, Zip, fun}
-import ir.printer.DotPrinter
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal, toPrivate}
+import org.junit.Assert._
 import org.junit.Test
-import org.junit.Assert
 
-/**
-  *     assert(msidGlbToPrv.f.params(0).t.addressSpace == GlobalMemory)
-@author cdubach
-  */
 class TestMemory {
 
   @Test
@@ -23,7 +16,9 @@ class TestMemory {
     val lambda = fun(ArrayType(Float, 16), (A) => msid $ A)
     TypeChecker(lambda)
     OpenCLAddressSpace.setAddressSpace(lambda)
-    assert(lambda.body.addressSpaces.size == 1 && lambda.body.addressSpaces.contains(GlobalMemory))
+
+    assertEquals(1, lambda.body.addressSpaces.size)
+    assertEquals(GlobalMemory, lambda.body.addressSpaces.head)
   }
 
   @Test(expected = classOf[UnexpectedAddressSpaceException])
@@ -38,19 +33,26 @@ class TestMemory {
   def mapSeqPrivateGlobal(): Unit = {
     val msidPrvToGlb = MapSeq(id)
     val msidGlbToPrv = MapSeq(id)
-    val lambda = fun(ArrayType(Float, 16), (A) => toGlobal(msidPrvToGlb) o toPrivate(msidGlbToPrv) $ A)
+    val lambda = fun(ArrayType(Float, 16), (A) =>
+      toGlobal(msidPrvToGlb) o toPrivate(msidGlbToPrv) $ A)
+
     TypeChecker(lambda)
     OpenCLAddressSpace.setAddressSpace(lambda)
 
-    //new DotPrinter(new PrintWriter(new File("/home/cdubach/graph.dot")), false, true).print(lambda)
+    assertEquals(1, lambda.body.addressSpaces.size)
+    assertEquals(GlobalMemory, lambda.body.addressSpaces.head)
 
-    assert(lambda.body.addressSpaces.size == 1 && lambda.body.addressSpaces.contains(GlobalMemory))
+    assertEquals(1, msidGlbToPrv.f.body.addressSpaces.size)
+    assertEquals(PrivateMemory, msidGlbToPrv.f.body.addressSpaces.head)
 
-    assert(msidGlbToPrv.f.body.addressSpaces.size == 1 && msidGlbToPrv.f.body.addressSpaces.contains(PrivateMemory))
-    assert(msidGlbToPrv.f.params(0).addressSpaces.size == 1 && msidGlbToPrv.f.params(0).addressSpaces.contains(GlobalMemory))
+    assertEquals(1, msidGlbToPrv.f.params(0).addressSpaces.size)
+    assertEquals(GlobalMemory, msidGlbToPrv.f.params(0).addressSpaces.head)
 
-    assert(msidPrvToGlb.f.body.addressSpaces.size == 1 && msidPrvToGlb.f.body.addressSpaces.contains(GlobalMemory))
-    assert(msidPrvToGlb.f.params(0).addressSpaces.size == 1 && msidPrvToGlb.f.params(0).addressSpaces.contains(PrivateMemory))
+    assertEquals(1, msidPrvToGlb.f.body.addressSpaces.size)
+    assertEquals(GlobalMemory, msidPrvToGlb.f.body.addressSpaces.head)
+
+    assertEquals(1, msidPrvToGlb.f.params(0).addressSpaces.size)
+    assertEquals(PrivateMemory, msidPrvToGlb.f.params(0).addressSpaces.head)
   }
 
   @Test
@@ -64,7 +66,9 @@ class TestMemory {
     )
     TypeChecker(f)
     OpenCLAddressSpace.setAddressSpace(f)
-    assert(uf.f.body.addressSpaces.contains(PrivateMemory))
+
+    assertEquals(1, uf.f.body.addressSpaces.size)
+    assertEquals(PrivateMemory, uf.f.body.addressSpaces.head)
 
   }
 
@@ -72,6 +76,7 @@ class TestMemory {
   @Test
   def testPrivateArray(): Unit = {
     val uf = MapSeq(plusOne)
+
     val f = fun(
       ArrayType(ArrayType(Float, 4), SizeVar("N")),
       input => toGlobal(MapSeq(MapSeq(id))) o
@@ -80,8 +85,9 @@ class TestMemory {
     )
     TypeChecker(f)
     OpenCLAddressSpace.setAddressSpace(f)
-    new DotPrinter(new PrintWriter(new File("/home/cdubach/graph.dot")), false, true).print(f)
-    assert(uf.f.body.addressSpaces.contains(PrivateMemory))
+
+    assertEquals(1, uf.f.body.addressSpaces.size)
+    assertEquals(PrivateMemory, uf.f.body.addressSpaces.head)
 
   }
 

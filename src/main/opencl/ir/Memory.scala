@@ -54,6 +54,10 @@ object OpenCLAddressSpace {
     e.addressSpaces
   }
 
+  def apply(lambda: Lambda): Unit = {
+    setAddressSpace(lambda)
+  }
+
   // by default the parameters of the lambda will be set to global space and the return address space should be in global memory
   def setAddressSpace(l: Lambda) : Unit = {
 

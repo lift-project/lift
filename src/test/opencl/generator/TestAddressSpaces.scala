@@ -22,6 +22,98 @@ object TestAddressSpaces {
 }
 
 class TestAddressSpaces {
+
+  @Test
+  def simple(): Unit = {
+    val N = SizeVar("N")
+    val f = fun(
+      ArrayType(Float, N),
+      in =>
+         MapGlb(id) $ in
+    )
+
+    TypeChecker(f)
+    OpenCLAddressSpace(f)
+    OpenCLMemoryAllocator(f)
+
+    assertEquals(1, f.body.addressSpaces.size)
+    assertEquals(GlobalMemory, f.body.addressSpaces.head)
+  }
+
+  @Test
+  def globalPrivate(): Unit = {
+    val N = SizeVar("N")
+    val f = fun(
+      ArrayType(Float, N),
+      in =>
+        MapGlb(toGlobal(id) o toPrivate(id)) $ in
+    )
+
+    TypeChecker(f)
+    OpenCLAddressSpace(f)
+    OpenCLMemoryAllocator(f)
+
+    assertEquals(1, f.body.addressSpaces.size)
+    assertEquals(GlobalMemory, f.body.addressSpaces.head)
+  }
+
+  @Test
+  def globalPrivateFixedSizeArray(): Unit = {
+    val N = SizeVar("N")
+    val f = fun(
+      ArrayType(Float, N),
+      in =>
+        Join() o MapGlb(toGlobal(MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
+    )
+
+    // TODO: Shouldn't have to call compile
+    val res = Compile(f).f
+//    TypeChecker(f)
+//    OpenCLAddressSpace(f)
+//    OpenCLMemoryAllocator(f)
+
+    assertEquals(1, res.body.addressSpaces.size)
+    assertEquals(GlobalMemory, res.body.addressSpaces.head)
+  }
+
+  @Test
+  def globalPrivateFixedSizeWithReorder(): Unit = {
+        val N = SizeVar("N")
+    val f = fun(
+      ArrayType(Float, N),
+      in =>
+        Join() o MapGlb(Scatter(reverse) o toGlobal(MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
+    )
+
+    // TODO: Shouldn't have to call compile
+    val res = Compile(f).f
+//    TypeChecker(f)
+//    OpenCLAddressSpace(f)
+//    OpenCLMemoryAllocator(f)
+
+    assertEquals(1, res.body.addressSpaces.size)
+    assertEquals(GlobalMemory, res.body.addressSpaces.head)
+  }
+
+  @Test
+  def globalPrivateFixedSizeWithReorder2(): Unit = {
+    val N = SizeVar("N")
+    val f = fun(
+      ArrayType(Float, N),
+      in =>
+        Join() o MapGlb(toGlobal(Scatter(reverse) o MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
+    )
+
+    // TODO: Shouldn't have to call compile
+    val res = Compile(f).f
+    //    TypeChecker(f)
+    //    OpenCLAddressSpace(f)
+    //    OpenCLMemoryAllocator(f)
+
+    assertEquals(1, res.body.addressSpaces.size)
+    assertEquals(GlobalMemory, res.body.addressSpaces.head)
+  }
+
   @Test def localGlobalMemory(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)

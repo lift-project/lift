@@ -88,11 +88,35 @@ object OpenCLMemoryAllocator {
     // determine the output memory based on the type of f ...
     call.f match {
       // here is where the actual allocation happens
-      case uf: UserFun        => allocUserFun(call.t, numGlb, numLcl, numPvt,
-                                              inMem, addressSpace)
-      case vec: VectorizeUserFun
-                              => allocUserFun(call.t, numGlb, numLcl, numPvt,
-                                              inMem, addressSpace)
+      case uf: UserFun =>
+        if (call.addressSpaces.isEmpty)
+          throw new RuntimeException("No address space at " + call)
+
+        if (call.addressSpaces.size != 1)
+          throw new RuntimeException("UserFun can't write to " + call.addressSpaces.size +
+            " address spaces at " + call + " " + call.addressSpaces)
+
+        if (addressSpace != call.addressSpaces.head)
+          throw new RuntimeException("Address space mismatch at " + call + " " +
+            call.addressSpaces.head + " vs " + addressSpace)
+
+        allocUserFun(call.t, numGlb, numLcl, numPvt,
+          inMem, addressSpace)
+      case vec: VectorizeUserFun  =>
+
+        if (call.addressSpaces.isEmpty)
+          throw new RuntimeException("No address space at " + call)
+
+        if (call.addressSpaces.size != 1)
+          throw new RuntimeException("UserFun can't write to " + call.addressSpaces.size +
+            " address spaces at " + call + " " + call.addressSpaces)
+
+        if (addressSpace != call.addressSpaces.head)
+          throw new RuntimeException("Address space mismatch at " + call + " " +
+            call.addressSpaces.head + " vs " + addressSpace)
+
+        allocUserFun(call.t, numGlb, numLcl, numPvt,
+          inMem, addressSpace)
 
       case l: Lambda          => allocLambda(l, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
