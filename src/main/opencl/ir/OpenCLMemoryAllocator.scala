@@ -96,12 +96,9 @@ object OpenCLMemoryAllocator {
           throw new RuntimeException("UserFun can't write to " + call.addressSpaces.size +
             " address spaces at " + call + " " + call.addressSpaces)
 
-        if (addressSpace != call.addressSpaces.head)
-          throw new RuntimeException("Address space mismatch at " + call + " " +
-            call.addressSpaces.head + " vs " + addressSpace)
-
         allocUserFun(call.t, numGlb, numLcl, numPvt,
-          inMem, addressSpace)
+          inMem, addressSpace, call)
+
       case vec: VectorizeUserFun  =>
 
         if (call.addressSpaces.isEmpty)
@@ -111,12 +108,8 @@ object OpenCLMemoryAllocator {
           throw new RuntimeException("UserFun can't write to " + call.addressSpaces.size +
             " address spaces at " + call + " " + call.addressSpaces)
 
-        if (addressSpace != call.addressSpaces.head)
-          throw new RuntimeException("Address space mismatch at " + call + " " +
-            call.addressSpaces.head + " vs " + addressSpace)
-
         allocUserFun(call.t, numGlb, numLcl, numPvt,
-          inMem, addressSpace)
+          inMem, addressSpace, call)
 
       case l: Lambda          => allocLambda(l, numGlb, numLcl, numPvt,
                                              inMem, addressSpace)
@@ -176,7 +169,8 @@ object OpenCLMemoryAllocator {
                            numLcl: ArithExpr,
                            numPvt: ArithExpr,
                            inMem: OpenCLMemory,
-                           addressSpace: OpenCLAddressSpace): OpenCLMemory = {
+                           addressSpace: OpenCLAddressSpace,
+    call: FunCall): OpenCLMemory = {
 
     val maxSizeInBytes = getSizeInBytes(outT)
     // size in bytes necessary to hold the result of f in the different
@@ -187,8 +181,11 @@ object OpenCLMemoryAllocator {
 
     if (addressSpace != UndefAddressSpace) {
       // use given address space
+      if (addressSpace != call.addressSpaces.head)
+        throw new RuntimeException("Address space mismatch at " + call + " " +
+          call.addressSpaces.head + " vs " + addressSpace)
       OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize,
-                               addressSpace)
+        addressSpace)
     } else {
       // address space is not predetermined
       //  => figure out the address space based on the input address space(s)
@@ -198,8 +195,11 @@ object OpenCLMemoryAllocator {
             coll.addressSpace.findCommonAddressSpace()
           case m: OpenCLMemory => m.addressSpace
         }
+      if (addressSpace != call.addressSpaces.head)
+        throw new RuntimeException("Address space mismatch at " + call + " " +
+          call.addressSpaces.head + " vs " + addressSpace)
       OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize,
-                               addressSpace)
+        addressSpace)
     }
   }
 
