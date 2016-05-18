@@ -155,8 +155,7 @@ object OpenCLGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case _: NotEvaluableException =>
-        false
+      case _: NotEvaluableException => false
     }
   }
 }
@@ -221,26 +220,19 @@ class OpenCLGenerator extends Generator {
 
   def _generate(f: Lambda, localSize: NDRange, globalSize: NDRange, valueMap: scala.collection.Map[ArithExpr, ArithExpr]): String  = {
 
-    assert(f.body.t != UndefType)
+    if (f.body.t == UndefType)
+      throw new OpenCLGeneratorException("Lambda has to be typechecked to generate code")
 
     if (Verbose()) {
       println("Types:")
       OpenCLGenerator.printTypes(f.body)
     }
 
-    // infer the address spaces
     InferOpenCLAddressSpace(f)
 
-    // allocate the params and set the corresponding type
+    // Allocate the params and set the corresponding type
     f.params.foreach((p) => {
-      p.t match {
-        case _: ScalarType =>
-          p.mem = OpenCLMemory.allocPrivateMemory(
-                    OpenCLMemory.getSizeInBytes(p.t))
-        case _ =>
-          p.mem = OpenCLMemory.allocGlobalMemory(
-                    OpenCLMemory.getSizeInBytes(p.t))
-      }
+      p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
       p.view = View(p.t, openCLCodeGen.toString(p.mem.variable))
     })
 
@@ -504,7 +496,7 @@ class OpenCLGenerator extends Generator {
     generate(f.body, kernel.body)
 
     if (CSE())
-      findAndDeclareCommonSubterms(kernel.body)
+      findAndDeclareCommonSubTerms(kernel.body)
 
     kernel
   }
@@ -1150,65 +1142,6 @@ class OpenCLGenerator extends Generator {
         }
     }
 
-
-
-
-/*
-    iterationCountExpr match {
-      case Cst(0) =>
-
-        indexVar.range.numVals() match {
-          case Cst(0) =>
-          case nv => throw new OpenCLGeneratorException(s"range should have zero value")
-        }
-
-        // zero iteration
-        block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is 0, no loop emitted")
-        return
-
-      case Cst(1) =>
-
-        indexVar.range.numVals() match {
-          case Cst(1) =>
-          case nv => throw new OpenCLGeneratorException(s"range should have one value")
-        }
-
-        // one iteration
-        block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1, no loop emitted")
-        val innerBlock = OpenCLAST.Block(Vector.empty)
-        innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
-        generateBody(innerBlock)
-        block.asInstanceOf[Block] += innerBlock
-        return
-
-      case IntDiv (Cst(1), x) if x.getClass == ?.getClass =>
-
-        indexVar.range.numVals().min match {
-          case Cst(0) =>
-          case nv =>
-            nv
-            throw new OpenCLGeneratorException(s"range minimum number of values should be 0 not "+nv)
-        }
-
-        indexVar.range.numVals().max match {
-          case Cst(1) =>
-          case nv =>
-            nv
-            throw new OpenCLGeneratorException(s"range maximum number of values should be 1")
-        }
-
-        // one or less iteration
-        block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
-        val innerBlock = OpenCLAST.Block(Vector.empty)
-        innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
-        block.asInstanceOf[Block] += OpenCLAST.IfThenElse(CondExpression(init, ArithExpression(stop), CondExpression.Operator.<),innerBlock)
-        generateBody(innerBlock)
-        return
-
-      case _ =>
-    }*/
-
-
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val innerBlock = OpenCLAST.Block(Vector.empty)
     block.asInstanceOf[Block] += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
@@ -1591,7 +1524,7 @@ class OpenCLGenerator extends Generator {
     OpenCLAST.VarRef(v)
   }
 
-  private def findAndDeclareCommonSubterms(block: Block): Unit = {
+  private def findAndDeclareCommonSubTerms(block: Block): Unit = {
     visitBlocks(block, process)
 
     def process(block: Block): Unit = {
@@ -1603,18 +1536,15 @@ class OpenCLGenerator extends Generator {
       val counts = mutable.Map[ArithExpr, Int]()
 
       // count how many times a subterm appears in the expressions
-      expressions.foreach(expr => {
-        expr match {
-          case ae : ArithExpression =>
-            ArithExpr.visit(ae.content, subterm => {
-              counts get subterm match {
-                case None => counts put (subterm, 1)
-                case Some(c) => counts put (subterm, c + 1)
-              }
-            })
-          case _ =>
-        }
-
+      expressions.foreach({
+        case ae : ArithExpression =>
+          ArithExpr.visit(ae.content, subterm => {
+            counts get subterm match {
+              case None => counts put (subterm, 1)
+              case Some(c) => counts put (subterm, c + 1)
+            }
+          })
+        case _ =>
       })
 
       // just choose the subterms which appear more than once and are not
@@ -1629,8 +1559,6 @@ class OpenCLGenerator extends Generator {
                               case Pow(_, Cst(-1)) => false
                               case _ => true
                             })
-
-      // Pow(b, Cst(-1))
 
       val substitutions = mutable.Map[ArithExpr, ArithExpr]()
 

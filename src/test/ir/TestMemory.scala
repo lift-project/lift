@@ -18,7 +18,7 @@ class TestMemory {
     TypeChecker(lambda)
     InferOpenCLAddressSpace(lambda)
 
-    assertEquals(GlobalMemory, lambda.body.addressSpaces)
+    assertEquals(GlobalMemory, lambda.body.addressSpace)
   }
 
   @Test(expected = classOf[IllegalKernel])
@@ -39,11 +39,11 @@ class TestMemory {
     TypeChecker(lambda)
     InferOpenCLAddressSpace(lambda)
 
-    assertEquals(GlobalMemory, lambda.body.addressSpaces)
-    assertEquals(PrivateMemory, msidGlbToPrv.f.body.addressSpaces)
-    assertEquals(GlobalMemory, msidGlbToPrv.f.params(0).addressSpaces)
-    assertEquals(GlobalMemory, msidPrvToGlb.f.body.addressSpaces)
-    assertEquals(PrivateMemory, msidPrvToGlb.f.params(0).addressSpaces)
+    assertEquals(GlobalMemory, lambda.body.addressSpace)
+    assertEquals(PrivateMemory, msidGlbToPrv.f.body.addressSpace)
+    assertEquals(GlobalMemory, msidGlbToPrv.f.params(0).addressSpace)
+    assertEquals(GlobalMemory, msidPrvToGlb.f.body.addressSpace)
+    assertEquals(PrivateMemory, msidPrvToGlb.f.params(0).addressSpace)
   }
 
   @Test
@@ -58,7 +58,7 @@ class TestMemory {
     TypeChecker(f)
     InferOpenCLAddressSpace(f)
 
-    assertEquals(PrivateMemory, uf.f.body.addressSpaces)
+    assertEquals(PrivateMemory, uf.f.body.addressSpace)
 
   }
 
@@ -76,7 +76,7 @@ class TestMemory {
     TypeChecker(f)
     InferOpenCLAddressSpace(f)
 
-    assertEquals(PrivateMemory, uf.f.body.addressSpaces)
+    assertEquals(PrivateMemory, uf.f.body.addressSpace)
 
   }
 

@@ -35,7 +35,7 @@ class TestAddressSpaces {
     InferOpenCLAddressSpace(f)
     OpenCLMemoryAllocator(f)
 
-    assertEquals(GlobalMemory, f.body.addressSpaces)
+    assertEquals(GlobalMemory, f.body.addressSpace)
   }
 
   @Test
@@ -51,7 +51,7 @@ class TestAddressSpaces {
     InferOpenCLAddressSpace(f)
     OpenCLMemoryAllocator(f)
 
-    assertEquals(GlobalMemory, f.body.addressSpaces)
+    assertEquals(GlobalMemory, f.body.addressSpace)
   }
 
   @Test
@@ -70,7 +70,7 @@ class TestAddressSpaces {
 //    OpenCLAddressSpace(f)
 //    OpenCLMemoryAllocator(f)
 
-    assertEquals(GlobalMemory, res.body.addressSpaces)
+    assertEquals(GlobalMemory, res.body.addressSpace)
   }
 
   @Test
@@ -89,7 +89,7 @@ class TestAddressSpaces {
 //    OpenCLAddressSpace(f)
 //    OpenCLMemoryAllocator(f)
 
-    assertEquals(GlobalMemory, res.body.addressSpaces)
+    assertEquals(GlobalMemory, res.body.addressSpace)
   }
 
   @Test
@@ -108,7 +108,7 @@ class TestAddressSpaces {
     //    OpenCLAddressSpace(f)
     //    OpenCLMemoryAllocator(f)
 
-    assertEquals(GlobalMemory, res.body.addressSpaces)
+    assertEquals(GlobalMemory, res.body.addressSpace)
   }
 
   @Test def localGlobalMemory(): Unit = {

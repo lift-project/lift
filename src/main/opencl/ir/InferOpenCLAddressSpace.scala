@@ -19,13 +19,13 @@ object InferOpenCLAddressSpace {
 
     // Set the param address space to global memory, if it's not a scalar
     lambda.params.foreach(p => p.t match {
-      case _: ScalarType => p.addressSpaces = PrivateMemory
-      case _ => p.addressSpaces = GlobalMemory
+      case _: ScalarType => p.addressSpace = PrivateMemory
+      case _ => p.addressSpace = GlobalMemory
     })
 
     setAddressSpace(lambda.body)
 
-    if (lambda.body.addressSpaces != GlobalMemory)
+    if (lambda.body.addressSpace != GlobalMemory)
       throw new IllegalKernel("Final result must be stored in global memory")
   }
 
@@ -39,14 +39,14 @@ object InferOpenCLAddressSpace {
       case f: FunCall => setAddressSpaceFunCall(f, writeTo)
     }
 
-    expr.addressSpaces = result
+    expr.addressSpace = result
     result
   }
 
   private def setAddressSpaceParam(p: Param) = {
-    if (p.addressSpaces == UndefAddressSpace)
+    if (p.addressSpace == UndefAddressSpace)
       throw UnexpectedAddressSpaceException(s"Param $p has no address space")
-    p.addressSpaces
+    p.addressSpace
   }
 
   private def setAddressSpaceFunCall(call: FunCall,
@@ -67,12 +67,15 @@ object InferOpenCLAddressSpace {
 
       case Filter() => addressSpaces(0)
       case Get(i) => setAddressSpaceGet(i, addressSpaces.head)
+
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
+      case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
+
       case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
       case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
 
       case VectorizeUserFun(_, _) | UserFun(_, _, _, _, _) =>
-        setAddressSpaceUserFun(writeTo, addressSpaces)
+        inferAddressSpace(writeTo, addressSpaces)
 
     }
   }
@@ -91,21 +94,34 @@ object InferOpenCLAddressSpace {
     addressSpaces: Seq[OpenCLAddressSpace]) = {
 
     // First argument is initial value
-    if (call.args(0).addressSpaces == UndefAddressSpace)
+    if (call.args(0).addressSpace == UndefAddressSpace)
       throw UnexpectedAddressSpaceException(
-        s"No address space ${call.args(0).addressSpaces} at $call")
+        s"No address space ${call.args(0).addressSpace} at $call")
 
     // The address space of the result of a reduction
     // is always the same as the initial element
-    val writeTo = call.args(0).addressSpaces
+    val writeTo = call.args(0).addressSpace
 
     setAddressSpaceLambda(lambda, writeTo, addressSpaces)
+  }
+
+  private def setAddressSpaceSearch(s: AbstractSearch, writeTo: OpenCLAddressSpace,
+    addressSpaces: Seq[OpenCLAddressSpace]) = {
+
+    // Set the comparison function input to be the
+    // elements of the array we're searching
+    s.f.params(0).addressSpace = addressSpaces(1)
+
+    // Set address space for the comparison function
+    setAddressSpace(s.f.body, PrivateMemory)
+
+    inferAddressSpace(writeTo, addressSpaces)
   }
 
   private def setAddressSpaceLambda(l: Lambda, writeTo : OpenCLAddressSpace,
     addressSpaces : Seq[OpenCLAddressSpace]) = {
 
-    l.params.zip(addressSpaces).foreach({ case (p, a) => p.addressSpaces = a })
+    l.params.zip(addressSpaces).foreach({ case (p, a) => p.addressSpace = a })
     setAddressSpace(l.body, writeTo)
   }
 
@@ -125,7 +141,7 @@ object InferOpenCLAddressSpace {
   }
 
   // TODO: Decide if this strategy is the one we want
-  private def setAddressSpaceUserFun(writeTo : OpenCLAddressSpace,
+  private def inferAddressSpace(writeTo : OpenCLAddressSpace,
     addressSpaces: Seq[OpenCLAddressSpace]) = {
 
     if (writeTo != UndefAddressSpace)
