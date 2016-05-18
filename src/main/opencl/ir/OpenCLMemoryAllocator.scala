@@ -57,7 +57,7 @@ object OpenCLMemoryAllocator {
       assert(oclMem.addressSpace == PrivateMemory)
       oclMem
     } else {
-          OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
+      OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
     }
   }
 

@@ -1,29 +1,23 @@
 package opencl.ir
 
 import ir.ScalarType
-import ir.ast.{AbstractPartRed, Expr, FPattern, Filter, FunCall, Gather, Get, Group, Head, IRNode, Join, Lambda, Pad, Param, Scatter, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector}
+import ir.ast._
+import opencl.generator.IllegalKernel
 import opencl.ir.pattern.{toGlobal, toLocal, toPrivate}
 
-/**
-  * Created by Toomas Remmelg on 17/05/16.
-  */
 object InferOpenCLAddressSpace {
 
-  private def addAddressSpace(e: Expr, as : OpenCLAddressSpace) = {
-    e.addressSpaces = as
-    e.addressSpaces
-  }
-
-  // by default the parameters of the lambda will be set to global space
-  // and the return address space should be in global memory
+  /**
+    * Infer OpenCL address spaces for `lambda`.
+    *
+    * By default the parameters will be set to global space
+    * and the return address space should be in global memory
+    *
+    * @param lambda The lambda to infer address spaces for
+    */
   def apply(lambda: Lambda) = {
-    // clear up all the address spaces first
-    IRNode.visit(lambda, {
-      case e: Expr => e.addressSpaces = UndefAddressSpace
-      case _ =>
-    })
 
-    // set the param address space to global memory, if it's not a scalar
+    // Set the param address space to global memory, if it's not a scalar
     lambda.params.foreach(p => p.t match {
       case _: ScalarType => p.addressSpaces = PrivateMemory
       case _ => p.addressSpaces = GlobalMemory
@@ -31,173 +25,113 @@ object InferOpenCLAddressSpace {
 
     setAddressSpace(lambda.body)
 
-    // TODO: Should this be moved? Could make unittesting easier
-    // TODO: IllegalKernel exception seems more informative to me
-    // TODO: Should at least include a proper explanation, why expected global
-    if  (lambda.body.addressSpaces != GlobalMemory )
-      throw UnexpectedAddressSpaceException(
-        lambda.body.addressSpaces.toString,
-        GlobalMemory.toString
-      )
+    if (lambda.body.addressSpaces != GlobalMemory)
+      throw new IllegalKernel("Final result must be stored in global memory")
   }
 
+  private def setAddressSpace(expr: Expr,
+    writeTo : OpenCLAddressSpace = UndefAddressSpace) : OpenCLAddressSpace = {
 
+    val result = expr match {
+      case Value(_) => PrivateMemory
+      case vp: VectorParam => setAddressSpaceParam(vp.p)
+      case p: Param => setAddressSpaceParam(p)
+      case f: FunCall => setAddressSpaceFunCall(f, writeTo)
+    }
 
-  private def setAddressSpaceLambda(
-    l: Lambda,
-    writeTo : OpenCLAddressSpace,
-    argsAddrSpace : Seq[OpenCLAddressSpace])
-  = {
+    expr.addressSpaces = result
+    result
+  }
 
-    l.params.zip(argsAddrSpace).foreach({case (p,a) =>
-      p.addressSpaces = a
-    })
+  private def setAddressSpaceParam(p: Param) = {
+    if (p.addressSpaces == UndefAddressSpace)
+      throw UnexpectedAddressSpaceException(s"Param $p has no address space")
+    p.addressSpaces
+  }
 
+  private def setAddressSpaceFunCall(call: FunCall,
+    writeTo: OpenCLAddressSpace) : OpenCLAddressSpace = {
+
+    val addressSpaces = call.args.map(setAddressSpace(_, writeTo))
+
+    call.f match {
+
+      case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
+           asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
+           Pad(_, _) | Tuple(_) | Group(_) | Head() | Tail() =>
+
+        setAddressSpaceDefault(addressSpaces)
+
+      case toPrivate(_) | toLocal(_) | toGlobal(_) =>
+        setAddressSpaceChange(call, addressSpaces)
+
+      case Filter() => addressSpaces(0)
+      case Get(i) => setAddressSpaceGet(i, addressSpaces.head)
+      case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
+      case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
+      case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
+
+      case VectorizeUserFun(_, _) | UserFun(_, _, _, _, _) =>
+        setAddressSpaceUserFun(writeTo, addressSpaces)
+
+    }
+  }
+
+  private def setAddressSpaceDefault(addressSpaces: Seq[OpenCLAddressSpace]) =
+    if (addressSpaces.length == 1) addressSpaces.head
+    else AddressSpaceCollection(addressSpaces)
+
+  private def setAddressSpaceGet(i: Int, addressSpace: OpenCLAddressSpace) =
+    addressSpace match {
+      case collection: AddressSpaceCollection => collection.spaces(i)
+      case _ => addressSpace
+    }
+
+  private def setAddressSpaceReduce(lambda: Lambda, call: FunCall,
+    addressSpaces: Seq[OpenCLAddressSpace]) = {
+
+    // First argument is initial value
+    if (call.args(0).addressSpaces == UndefAddressSpace)
+      throw UnexpectedAddressSpaceException(
+        s"No address space ${call.args(0).addressSpaces} at $call")
+
+    // The address space of the result of a reduction
+    // is always the same as the initial element
+    val writeTo = call.args(0).addressSpaces
+
+    setAddressSpaceLambda(lambda, writeTo, addressSpaces)
+  }
+
+  private def setAddressSpaceLambda(l: Lambda, writeTo : OpenCLAddressSpace,
+    addressSpaces : Seq[OpenCLAddressSpace]) = {
+
+    l.params.zip(addressSpaces).foreach({ case (p, a) => p.addressSpaces = a })
     setAddressSpace(l.body, writeTo)
   }
 
-  private def inferFunCallWriteTo(writeTo : OpenCLAddressSpace, addSpaces: Set[OpenCLAddressSpace]) = {
-    if (writeTo == UndefAddressSpace) {
-      if (addSpaces.contains(GlobalMemory))
-        GlobalMemory
-      else if (addSpaces.contains(LocalMemory))
-        LocalMemory
-      else if (addSpaces.contains(PrivateMemory))
-        PrivateMemory
-      else
-        throw UnexpectedAddressSpaceException("No suitable address space found!!")
-    } else
-      writeTo
+  private def setAddressSpaceChange(call:FunCall,
+    addressSpaces : Seq[OpenCLAddressSpace]) = {
+
+    if (!call.isConcrete(false))
+      throw new IllegalKernel(s"Address space change requested without a write at $call")
+
+    val (addressSpace, lambda) = call.f match {
+      case toPrivate(f) => (PrivateMemory, f)
+      case toLocal(f) => (LocalMemory, f)
+      case toGlobal(f) => (GlobalMemory, f)
+    }
+
+    setAddressSpaceLambda(lambda, addressSpace, addressSpaces)
   }
 
+  // TODO: Decide if this strategy is the one we want
+  private def setAddressSpaceUserFun(writeTo : OpenCLAddressSpace,
+    addressSpaces: Seq[OpenCLAddressSpace]) = {
 
-  private def inferFunCallWriteTo2(writeTo : OpenCLAddressSpace, args: Seq[OpenCLAddressSpace]) = {
-    if (writeTo == UndefAddressSpace) {
-
-      if (args.size == 1)
-        args.head
-      else {
-        AddressSpaceCollection(args).findCommonAddressSpace()
-      }
-    }
+    if (writeTo != UndefAddressSpace)
+      writeTo
     else
-      writeTo
+      AddressSpaceCollection(addressSpaces).findCommonAddressSpace()
 
   }
-
-  private def setAddressSpace(e: Expr, writeTo : OpenCLAddressSpace = UndefAddressSpace) : OpenCLAddressSpace = {
-    val retAS = e match {
-      case Value(_) =>
-
-//        if (writeTo != PrivateMemory && writeTo != UndefAddressSpace)
-//          throw UnexpectedAddressSpaceException(
-//            s"Value $e cannot have address space $writeTo")
-
-        // note that the address space of a Value may be already set to Private
-        // (the same Value can appear multiple times in the IR graph)
-        addAddressSpace(e, PrivateMemory)
-
-      case vp: VectorParam =>
-        vp.p.addressSpaces
-
-      case p: Param =>
-        if (p.addressSpaces == UndefAddressSpace)
-          throw UnexpectedAddressSpaceException(s"$p has no address space")
-        p.addressSpaces
-
-      case f: FunCall =>
-        setAddressSpace(f, writeTo)
-    }
-
-    e.addressSpaces = retAS
-    retAS
-  }
-
-  private def setAddressSpace(call: FunCall,
-    writeTo: OpenCLAddressSpace) : OpenCLAddressSpace = {
-
-    val retAS =
-      call.f match {
-
-        case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
-             asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-             Pad(_, _) | Tuple(_) | Group(_) | Head() | Tail() =>
-
-          // Pass through
-          val s = call.args.map(setAddressSpace(_, writeTo))
-
-          if  (s.length == 1)
-            s.head
-          else AddressSpaceCollection(s)
-
-        case Filter() =>
-
-          val s = call.args.map(setAddressSpace(_, writeTo))
-          s(0)
-
-        case Get(i) =>
-          val argspaces = call.args.map(setAddressSpace(_, writeTo))
-
-          argspaces.head match {
-            case collection: AddressSpaceCollection => collection.spaces(i)
-            case _ => argspaces.head
-          }
-
-        case _ =>
-
-          val addressSpaces = call.args.map(setAddressSpace(_, writeTo))
-          call.f match {
-
-            case t: toLocal =>
-
-              if (!call.isConcrete(false))
-                throw UnexpectedAddressSpaceException("toLocal that doesn't write to memory")
-
-              setAddressSpaceLambda(t.f, LocalMemory, addressSpaces)
-
-            case t: toPrivate =>
-
-              if (!call.isConcrete(false))
-                throw UnexpectedAddressSpaceException("toPrivate that doesn't write to memory")
-
-              setAddressSpaceLambda(t.f, PrivateMemory, addressSpaces)
-
-            case t: toGlobal =>
-
-              if (!call.isConcrete(false))
-                throw UnexpectedAddressSpaceException("toGlobal that doesn't write to memory")
-
-              setAddressSpaceLambda(t.f, GlobalMemory, addressSpaces)
-
-            case r: AbstractPartRed =>
-              // first argument is initial value
-              if (call.args(0).addressSpaces == UndefAddressSpace)
-                throw UnexpectedAddressSpaceException(
-                  s"No address space ${call.args(0).addressSpaces} at $call")
-
-              // the address space of the result of a reduction
-              // is always the same as the initial element
-              val writeTo = call.args(0).addressSpaces
-
-              setAddressSpaceLambda(r.f, writeTo, addressSpaces)
-
-            case l: Lambda =>
-              setAddressSpaceLambda(l, writeTo, addressSpaces)
-
-            case fp: FPattern =>
-              setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
-
-            case VectorizeUserFun(_, _) | UserFun(_, _, _, _, _) =>
-              val inferredWriteTo = inferFunCallWriteTo2(writeTo, addressSpaces)
-
-              addAddressSpace(call, inferredWriteTo)
-
-
-          }
-      }
-
-    retAS
-  }
-
-
 }

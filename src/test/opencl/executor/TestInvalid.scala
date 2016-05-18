@@ -246,7 +246,7 @@ class TestInvalid {
     Execute(1, inputSize)(f, input)
   }
 
-  @Test(expected = classOf[UnexpectedAddressSpaceException])
+  @Test(expected = classOf[IllegalKernel])
   def notWritingToGlobal(): Unit = {
     val inputSize = 1024
     val input = Array.ofDim[Float](inputSize)

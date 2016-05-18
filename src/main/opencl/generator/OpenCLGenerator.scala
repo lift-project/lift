@@ -265,11 +265,6 @@ class OpenCLGenerator extends Generator {
       case _ =>
     })
 
-    f.body.mem match {
-      case m: OpenCLMemory if m.addressSpace != GlobalMemory =>
-        throw new IllegalKernel("Final result must be stored in global memory")
-      case _ =>
-    }
 
     if (Verbose()) {
       println("Memory:")

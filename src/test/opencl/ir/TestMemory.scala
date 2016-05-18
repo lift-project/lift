@@ -3,6 +3,7 @@ package opencl.ir
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import opencl.generator.IllegalKernel
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
@@ -31,7 +32,7 @@ class TestMemory {
       InferOpenCLAddressSpace(f)
     } catch {
       // Don't care that final is in local
-      case _: UnexpectedAddressSpaceException =>
+      case _: IllegalKernel =>
     }
 
     OpenCLMemoryAllocator(f)
@@ -67,7 +68,7 @@ class TestMemory {
       InferOpenCLAddressSpace(f)
     } catch {
       // Don't care the output is a tuple
-      case _: UnexpectedAddressSpaceException =>
+      case _: IllegalKernel =>
     }
 
     OpenCLMemoryAllocator(f)
@@ -103,7 +104,7 @@ class TestMemory {
       InferOpenCLAddressSpace(f)
     } catch {
       // Don't care the output is a tuple
-      case _: UnexpectedAddressSpaceException =>
+      case _: IllegalKernel =>
     }
 
     OpenCLMemoryAllocator(f)

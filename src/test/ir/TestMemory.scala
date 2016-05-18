@@ -3,6 +3,7 @@ package ir
 
 import apart.arithmetic.SizeVar
 import ir.ast.{Value, Zip, fun}
+import opencl.generator.IllegalKernel
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal, toPrivate}
 import org.junit.Assert._
@@ -20,7 +21,7 @@ class TestMemory {
     assertEquals(GlobalMemory, lambda.body.addressSpaces)
   }
 
-  @Test(expected = classOf[UnexpectedAddressSpaceException])
+  @Test(expected = classOf[IllegalKernel])
   def mapSeqReturnPrivate(): Unit = {
     val msidGlbToPrv = MapSeq(id)
     val lambda = fun(ArrayType(Float, 16), (A) => toPrivate(msidGlbToPrv) $ A)
@@ -39,13 +40,9 @@ class TestMemory {
     InferOpenCLAddressSpace(lambda)
 
     assertEquals(GlobalMemory, lambda.body.addressSpaces)
-
     assertEquals(PrivateMemory, msidGlbToPrv.f.body.addressSpaces)
-
     assertEquals(GlobalMemory, msidGlbToPrv.f.params(0).addressSpaces)
-
     assertEquals(GlobalMemory, msidPrvToGlb.f.body.addressSpaces)
-
     assertEquals(PrivateMemory, msidPrvToGlb.f.params(0).addressSpaces)
   }
 

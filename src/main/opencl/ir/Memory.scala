@@ -6,8 +6,14 @@ import ir._
 import ir.ast._
 import opencl.ir.pattern._
 
-/** Represents OpenCL address spaces either: local or global;
-  * UndefAddressSpace should be used in case of errors */
+/**
+  * Represents OpenCL address spaces: private, local, global or
+  * a collection them in case of tuples.
+  *
+  * UndefAddressSpace is used when the address space hasn't yet
+  * been inferred.
+  *
+  */
 abstract class OpenCLAddressSpace {
   def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean
 }
@@ -15,25 +21,22 @@ abstract class OpenCLAddressSpace {
 object LocalMemory extends OpenCLAddressSpace {
   override def toString = "local"
 
-  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = {
+  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace) =
     openCLAddressSpace == this
-  }
 }
 
 object GlobalMemory extends OpenCLAddressSpace {
   override def toString = "global"
 
-  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = {
+  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace) =
     openCLAddressSpace == this
-  }
 }
 
 object PrivateMemory extends OpenCLAddressSpace {
   override def toString = "private"
 
-    def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = {
+    def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace) =
     openCLAddressSpace == this
-  }
 }
 
 object UndefAddressSpace extends OpenCLAddressSpace {
@@ -53,29 +56,26 @@ object UnexpectedAddressSpaceException {
 case class AddressSpaceCollection(spaces: Seq[OpenCLAddressSpace])
   extends OpenCLAddressSpace {
 
-  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = {
+  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace) =
     spaces.exists(_.containsAddressSpace(openCLAddressSpace))
-  }
 
   def findCommonAddressSpace(): OpenCLAddressSpace = {
-    // try to find common address space which is not the private memory ...
+    // Try to find common address space which is not the private memory ...
     val noPrivateMem = spaces.filterNot(_== PrivateMemory)
-    if (noPrivateMem.isEmpty) { // everything is in private memory
+    if (noPrivateMem.isEmpty) // Everything is in private memory
       return PrivateMemory
-    }
 
-    val addessSpaces = noPrivateMem.map({
+    val addressSpaces = noPrivateMem.map({
       case coll: AddressSpaceCollection => coll.findCommonAddressSpace()
       case space => space
     })
 
-    if (addessSpaces.forall(_ == addessSpaces.head)) {
-      addessSpaces.head
-    } else {
-      // FIXME(tlutz): Document that the default address space is global when the tuple has mixed addess spaces.
+    // FIXME: Document that the default address space
+    // FIXME: is global when the tuple has mixed address space.
+    if (addressSpaces.distinct.size == 1)
+      addressSpaces.head
+    else
       GlobalMemory
-      //throw new IllegalArgumentException(s"Could not determine common addressSpace: $addessSpaces")
-    }
   }
 }
 
