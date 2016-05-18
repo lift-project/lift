@@ -487,11 +487,18 @@ class OpenCLGenerator extends Generator {
           addressSpace = x.mem.addressSpace))
 
     kernel.body += OpenCLAST.Comment("Private Memory")
-    privateMems.foreach(x =>
+    privateMems.foreach(x => {
+      val length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
+
+      if (!length.isEvaluable)
+        throw new IllegalKernel("Private memory length has to be" +
+          s"evaluable, but found $length")
+
       kernel.body +=
         OpenCLAST.VarDecl(x.mem.variable, x.t,
           addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))).eval))
+          length = length.eval)
+    })
 
     generate(f.body, kernel.body)
 

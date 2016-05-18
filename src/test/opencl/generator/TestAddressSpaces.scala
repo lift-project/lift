@@ -323,7 +323,7 @@ class TestAddressSpaces {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test(expected = classOf[opencl.generator.OpenCLGeneratorException])
+  @Test(expected = classOf[IllegalKernel])
   def privateGlobalMemoryThreadsNotSpecified(): Unit = {
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
