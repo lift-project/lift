@@ -1,11 +1,10 @@
 package opencl.ir
 
-import apart.arithmetic.{?, ArithExpr}
+import apart.arithmetic.ArithExpr
 import ir._
 import ir.ast._
+import opencl.ir.OpenCLMemory._
 import opencl.ir.pattern._
-
-import OpenCLMemory._
 
 object OpenCLMemoryAllocator {
 
@@ -89,24 +88,11 @@ object OpenCLMemoryAllocator {
     call.f match {
       // here is where the actual allocation happens
       case uf: UserFun =>
-        if (call.addressSpaces.isEmpty)
-          throw new RuntimeException("No address space at " + call)
-
-        if (call.addressSpaces.size != 1)
-          throw new RuntimeException("UserFun can't write to " + call.addressSpaces.size +
-            " address spaces at " + call + " " + call.addressSpaces)
 
         allocUserFun(call.t, numGlb, numLcl, numPvt,
           inMem, addressSpace, call)
 
       case vec: VectorizeUserFun  =>
-
-        if (call.addressSpaces.isEmpty)
-          throw new RuntimeException("No address space at " + call)
-
-        if (call.addressSpaces.size != 1)
-          throw new RuntimeException("UserFun can't write to " + call.addressSpaces.size +
-            " address spaces at " + call + " " + call.addressSpaces)
 
         allocUserFun(call.t, numGlb, numLcl, numPvt,
           inMem, addressSpace, call)
@@ -169,8 +155,15 @@ object OpenCLMemoryAllocator {
                            numLcl: ArithExpr,
                            numPvt: ArithExpr,
                            inMem: OpenCLMemory,
-                           addressSpace: OpenCLAddressSpace,
+    addressSpace: OpenCLAddressSpace,
     call: FunCall): OpenCLMemory = {
+
+    if (call.addressSpaces == UndefAddressSpace)
+      throw new RuntimeException("No address space at " + call)
+
+    if (call.addressSpaces.isInstanceOf[AddressSpaceCollection])
+      throw new RuntimeException("UserFun can't write to " + call.addressSpaces +
+        " address spaces at " + call)
 
     val maxSizeInBytes = getSizeInBytes(outT)
     // size in bytes necessary to hold the result of f in the different
@@ -179,28 +172,24 @@ object OpenCLMemoryAllocator {
     val maxLclOutSize = maxSizeInBytes * numLcl
     val maxPvtOutSize = maxSizeInBytes * numPvt
 
-    if (addressSpace != UndefAddressSpace) {
-      // use given address space
-      if (addressSpace != call.addressSpaces.head)
-        throw new RuntimeException("Address space mismatch at " + call + " " +
-          call.addressSpaces.head + " vs " + addressSpace)
-      OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize,
-        addressSpace)
-    } else {
-      // address space is not predetermined
-      //  => figure out the address space based on the input address space(s)
-      val addressSpace =
-        inMem match {
-          case coll: OpenCLMemoryCollection =>
-            coll.addressSpace.findCommonAddressSpace()
-          case m: OpenCLMemory => m.addressSpace
-        }
-      if (addressSpace != call.addressSpaces.head)
-        throw new RuntimeException("Address space mismatch at " + call + " " +
-          call.addressSpaces.head + " vs " + addressSpace)
-      OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize,
-        addressSpace)
-    }
+    val addressSpaceToUse = if (addressSpace != UndefAddressSpace)
+    // use given address space
+      addressSpace
+    else
+    // address space is not predetermined
+    //  => figure out the address space based on the input address space(s)
+      inMem match {
+        case coll: OpenCLMemoryCollection =>
+          coll.addressSpace.findCommonAddressSpace()
+        case m: OpenCLMemory => m.addressSpace
+      }
+
+    if (addressSpaceToUse != call.addressSpaces)
+      throw new RuntimeException("Address space mismatch at " + call + " " +
+        call.addressSpaces + " vs " + addressSpaceToUse)
+
+    OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize, maxPvtOutSize,
+      addressSpaceToUse)
   }
 
   private def allocLambda(l: Lambda,
@@ -264,7 +253,7 @@ object OpenCLMemoryAllocator {
     //val privateMultiplier = am.iterationCount
     //privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
     val privateMultiplier :ArithExpr =
-    if (am.f.body.addressSpaces.contains(PrivateMemory))
+    if (am.f.body.addressSpaces.containsAddressSpace(PrivateMemory))
       am.iterationCount
     else
       1
@@ -289,7 +278,7 @@ object OpenCLMemoryAllocator {
     //var privateMultiplier = am.iterationCount
     //privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
     val privateMultiplier :ArithExpr =
-    if (am.f.body.addressSpaces.contains(PrivateMemory))
+    if (am.f.body.addressSpaces.containsAddressSpace(PrivateMemory))
       am.iterationCount
     else
       1

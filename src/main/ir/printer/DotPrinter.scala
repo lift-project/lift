@@ -130,7 +130,7 @@ class DotPrinter(w: Writer,
 
   def writeNodeDef(e: Expr): Unit = {
     val addrSpce = if (printAddressSpace)
-      ":addrSpce("+e.addressSpaces.map(_.toString).reduce(_+","+_)+")"
+      ":addrSpce("+e.addressSpaces+")"
       else
         ""
     val ref = if (printRef)

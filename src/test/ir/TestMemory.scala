@@ -17,8 +17,7 @@ class TestMemory {
     TypeChecker(lambda)
     InferOpenCLAddressSpace(lambda)
 
-    assertEquals(1, lambda.body.addressSpaces.size)
-    assertEquals(GlobalMemory, lambda.body.addressSpaces.head)
+    assertEquals(GlobalMemory, lambda.body.addressSpaces)
   }
 
   @Test(expected = classOf[UnexpectedAddressSpaceException])
@@ -39,20 +38,15 @@ class TestMemory {
     TypeChecker(lambda)
     InferOpenCLAddressSpace(lambda)
 
-    assertEquals(1, lambda.body.addressSpaces.size)
-    assertEquals(GlobalMemory, lambda.body.addressSpaces.head)
+    assertEquals(GlobalMemory, lambda.body.addressSpaces)
 
-    assertEquals(1, msidGlbToPrv.f.body.addressSpaces.size)
-    assertEquals(PrivateMemory, msidGlbToPrv.f.body.addressSpaces.head)
+    assertEquals(PrivateMemory, msidGlbToPrv.f.body.addressSpaces)
 
-    assertEquals(1, msidGlbToPrv.f.params(0).addressSpaces.size)
-    assertEquals(GlobalMemory, msidGlbToPrv.f.params(0).addressSpaces.head)
+    assertEquals(GlobalMemory, msidGlbToPrv.f.params(0).addressSpaces)
 
-    assertEquals(1, msidPrvToGlb.f.body.addressSpaces.size)
-    assertEquals(GlobalMemory, msidPrvToGlb.f.body.addressSpaces.head)
+    assertEquals(GlobalMemory, msidPrvToGlb.f.body.addressSpaces)
 
-    assertEquals(1, msidPrvToGlb.f.params(0).addressSpaces.size)
-    assertEquals(PrivateMemory, msidPrvToGlb.f.params(0).addressSpaces.head)
+    assertEquals(PrivateMemory, msidPrvToGlb.f.params(0).addressSpaces)
   }
 
   @Test
@@ -67,8 +61,7 @@ class TestMemory {
     TypeChecker(f)
     InferOpenCLAddressSpace(f)
 
-    assertEquals(1, uf.f.body.addressSpaces.size)
-    assertEquals(PrivateMemory, uf.f.body.addressSpaces.head)
+    assertEquals(PrivateMemory, uf.f.body.addressSpaces)
 
   }
 
@@ -86,8 +79,7 @@ class TestMemory {
     TypeChecker(f)
     InferOpenCLAddressSpace(f)
 
-    assertEquals(1, uf.f.body.addressSpaces.size)
-    assertEquals(PrivateMemory, uf.f.body.addressSpaces.head)
+    assertEquals(PrivateMemory, uf.f.body.addressSpaces)
 
   }
 

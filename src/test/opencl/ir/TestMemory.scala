@@ -1,6 +1,6 @@
 package opencl.ir
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
@@ -26,6 +26,14 @@ class TestMemory {
     )
 
     TypeChecker(f)
+
+    try {
+      InferOpenCLAddressSpace(f)
+    } catch {
+      // Don't care that final is in local
+      case _: UnexpectedAddressSpaceException =>
+    }
+
     OpenCLMemoryAllocator(f)
 
     assertEquals(classOf[OpenCLMemoryCollection], f.body.mem.getClass)
@@ -54,6 +62,14 @@ class TestMemory {
     )
 
     TypeChecker(f)
+
+    try {
+      InferOpenCLAddressSpace(f)
+    } catch {
+      // Don't care the output is a tuple
+      case _: UnexpectedAddressSpaceException =>
+    }
+
     OpenCLMemoryAllocator(f)
 
     assertEquals(classOf[OpenCLMemoryCollection], f.body.mem.getClass)
@@ -82,6 +98,14 @@ class TestMemory {
     )
 
     TypeChecker(f)
+
+    try {
+      InferOpenCLAddressSpace(f)
+    } catch {
+      // Don't care the output is a tuple
+      case _: UnexpectedAddressSpaceException =>
+    }
+
     OpenCLMemoryAllocator(f)
 
     assertEquals(classOf[OpenCLMemoryCollection], f.body.mem.getClass)

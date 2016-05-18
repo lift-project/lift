@@ -4,7 +4,6 @@
 
 package opencl.executor
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -247,7 +246,7 @@ class TestInvalid {
     Execute(1, inputSize)(f, input)
   }
 
-  @Test(expected = classOf[IllegalKernel])
+  @Test(expected = classOf[UnexpectedAddressSpaceException])
   def notWritingToGlobal(): Unit = {
     val inputSize = 1024
     val input = Array.ofDim[Float](inputSize)

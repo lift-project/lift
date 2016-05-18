@@ -1,31 +1,45 @@
 package opencl.ir
 
-import java.io.{File, PrintWriter}
-
 import apart.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.ast._
-import ir.printer.DotPrinter
 import opencl.ir.pattern._
 
 /** Represents OpenCL address spaces either: local or global;
   * UndefAddressSpace should be used in case of errors */
-abstract class OpenCLAddressSpace
+abstract class OpenCLAddressSpace {
+  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean
+}
 
 object LocalMemory extends OpenCLAddressSpace {
   override def toString = "local"
+
+  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = {
+    openCLAddressSpace == this
+  }
 }
 
 object GlobalMemory extends OpenCLAddressSpace {
   override def toString = "global"
+
+  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = {
+    openCLAddressSpace == this
+  }
 }
 
 object PrivateMemory extends OpenCLAddressSpace {
   override def toString = "private"
+
+    def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = {
+    openCLAddressSpace == this
+  }
 }
 
-object UndefAddressSpace extends OpenCLAddressSpace
+object UndefAddressSpace extends OpenCLAddressSpace {
+  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean =
+    false
+}
 
 class UnexpectedAddressSpaceException(message: String) extends Exception(message)
 
@@ -38,6 +52,10 @@ object UnexpectedAddressSpaceException {
 
 case class AddressSpaceCollection(spaces: Seq[OpenCLAddressSpace])
   extends OpenCLAddressSpace {
+
+  def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = {
+    spaces.exists(_.containsAddressSpace(openCLAddressSpace))
+  }
 
   def findCommonAddressSpace(): OpenCLAddressSpace = {
     // try to find common address space which is not the private memory ...
@@ -315,7 +333,7 @@ object TypedOpenCLMemory {
 
     def collectMap(t: Type,
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
-      val mems = collect(m.f.body)  
+      val mems = collect(m.f.body)
 
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {

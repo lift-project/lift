@@ -1,6 +1,5 @@
 package opencl.generator
 
-import apart.arithmetic._
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -8,7 +7,7 @@ import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestAddressSpaces {
   @BeforeClass def before() {
@@ -36,8 +35,7 @@ class TestAddressSpaces {
     InferOpenCLAddressSpace(f)
     OpenCLMemoryAllocator(f)
 
-    assertEquals(1, f.body.addressSpaces.size)
-    assertEquals(GlobalMemory, f.body.addressSpaces.head)
+    assertEquals(GlobalMemory, f.body.addressSpaces)
   }
 
   @Test
@@ -53,8 +51,7 @@ class TestAddressSpaces {
     InferOpenCLAddressSpace(f)
     OpenCLMemoryAllocator(f)
 
-    assertEquals(1, f.body.addressSpaces.size)
-    assertEquals(GlobalMemory, f.body.addressSpaces.head)
+    assertEquals(GlobalMemory, f.body.addressSpaces)
   }
 
   @Test
@@ -67,13 +64,13 @@ class TestAddressSpaces {
     )
 
     // TODO: Shouldn't have to call compile
+    // TODO: Nothing depends on ranges
     val res = Compile(f).f
 //    TypeChecker(f)
 //    OpenCLAddressSpace(f)
 //    OpenCLMemoryAllocator(f)
 
-    assertEquals(1, res.body.addressSpaces.size)
-    assertEquals(GlobalMemory, res.body.addressSpaces.head)
+    assertEquals(GlobalMemory, res.body.addressSpaces)
   }
 
   @Test
@@ -86,13 +83,13 @@ class TestAddressSpaces {
     )
 
     // TODO: Shouldn't have to call compile
+    // TODO: Nothing depends on ranges
     val res = Compile(f).f
 //    TypeChecker(f)
 //    OpenCLAddressSpace(f)
 //    OpenCLMemoryAllocator(f)
 
-    assertEquals(1, res.body.addressSpaces.size)
-    assertEquals(GlobalMemory, res.body.addressSpaces.head)
+    assertEquals(GlobalMemory, res.body.addressSpaces)
   }
 
   @Test
@@ -105,13 +102,13 @@ class TestAddressSpaces {
     )
 
     // TODO: Shouldn't have to call compile
+    // TODO: Nothing depends on ranges
     val res = Compile(f).f
     //    TypeChecker(f)
     //    OpenCLAddressSpace(f)
     //    OpenCLMemoryAllocator(f)
 
-    assertEquals(1, res.body.addressSpaces.size)
-    assertEquals(GlobalMemory, res.body.addressSpaces.head)
+    assertEquals(GlobalMemory, res.body.addressSpaces)
   }
 
   @Test def localGlobalMemory(): Unit = {
