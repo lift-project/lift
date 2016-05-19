@@ -3,6 +3,7 @@ package ir.ast
 import apart.arithmetic.{?, ArithExpr, PosVar, Var}
 import arithmetic.TypeVar
 import ir._
+import ir.interpreter.Interpreter.ValueMap
 
 /**
  * Abstract class for map patterns.
@@ -32,6 +33,13 @@ abstract class AbstractMap(val f: Lambda,
         f.params(0).t = t
         ArrayType(TypeChecker.check(f.body, setType), n)
       case _ => throw new TypeException(argType, "ArrayType")
+    }
+  }
+
+  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Vector[_] => a.map(f.eval(valueMap, _))
     }
   }
 

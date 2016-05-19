@@ -5,7 +5,8 @@ import ir.ast.{Lambda, Group, Pad}
 
 object Stencil {
   def apply(neighbors: Array[Int], boundary: (ArithExpr, ArithExpr) => ArithExpr): Lambda = {
-    Group(neighbors.map(_+neighbors.map(Math.abs).max)) o Pad(neighbors.map(Math.abs).max, boundary)
+    val max = neighbors.map(Math.abs).max
+    Group(neighbors.map(_ + max)) o Pad(max, boundary)
   }
 }
 

@@ -3,6 +3,7 @@ package ir.ast
 import apart.arithmetic._
 import arithmetic.TypeVar
 import ir._
+import ir.interpreter.Interpreter._
 
 import scala.collection._
 import scala.collection.immutable.HashMap
@@ -36,6 +37,16 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
   var indexVar = PosVar("i")
 
   override def copy(f: Lambda): Pattern = Iterate(n, f)
+
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    args.head match {
+      case v: Vector[_] =>
+        (1 to n.eval).foldLeft[Any](v)((a, _) => {
+          f.eval(valueMap, a)
+        })
+    }
+  }
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -175,7 +186,6 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
           "return type. inT = "+inT+" ouT = "+ouT)
     }
   }
-
 }
 
 object Iterate {

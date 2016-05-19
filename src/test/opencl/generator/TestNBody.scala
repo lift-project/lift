@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import benchmarks.NBody
 import ir._
 import ir.ast._
@@ -8,7 +8,7 @@ import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestNBody {
 
@@ -267,7 +267,6 @@ class TestNBody {
 
   }
 
-  @Ignore
   @Test
   def nBodyLocalMem(): Unit = {
 
@@ -341,9 +340,7 @@ class TestNBody {
 
     val (output: Array[Float], _) =
       Execute(128, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
-
     assertArrayEquals(gold, output, 0.0001f)
-
   }
 
   def nBodyScala(deltaT: Float, espSqr: Float, input: Array[(Float, Float, Float, Float, Float, Float, Float)]): Array[Float] = {

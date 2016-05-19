@@ -106,7 +106,7 @@ function build(){
 
   # SkelCL
   pushd lib/SkelCL/build
-  make -j 4
+  make -j 4 executor
   popd
 }
 

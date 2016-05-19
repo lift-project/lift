@@ -98,7 +98,7 @@ object IRNode {
       case u: OpenCLBuiltInFun => new OpenCLBuiltInFun(u.name, u.inTs.map(Type.visitAndRebuild(_, f)), Type.visitAndRebuild(u.outT, f))
       case u: UserFun => new UserFun(u.name, u.paramNames, u.body, u.inTs.map(Type.visitAndRebuild(_, f)), Type.visitAndRebuild(u.outT, f))
 
-      case a: asVector => new asVector(f(a.len))
+      case a: asVector => new asVector(f(a.n))
       case a: asScalar => new asScalar()
 
       case s: Split => new Split(f(s.chunkSize))

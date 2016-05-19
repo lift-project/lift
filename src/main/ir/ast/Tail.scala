@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.Cst
+import ir.interpreter.Interpreter.ValueMap
 import ir.{TypeException, ArrayType, Type}
 
 /**
@@ -28,4 +29,10 @@ case class Tail() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Array[_] => a.tail
+    }
+  }
 }

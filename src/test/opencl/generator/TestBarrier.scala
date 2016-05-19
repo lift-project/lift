@@ -816,6 +816,27 @@ class TestBarrier {
   }
 
   @Test
+  def tupleInsideMapLcl2() = {
+    val innerSize = 16
+
+    val N = SizeVar("N")
+
+    // Should have 1 barrier
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, innerSize), innerSize), N), N),
+      input => MapWrg(0)(MapWrg(1)(
+        toGlobal(MapLcl(1)(MapLcl(0)(id))) o Get(0) o
+        fun(x =>
+        Unzip() o toLocal(MapLcl(1)(fun(pair =>
+          Tuple(MapLcl(0)(id) $ Get(pair, 0), MapLcl(0)(id) $ Get(pair, 1)))
+        )) $ Zip(x, x))
+      )) $ input)
+
+    val code = Compile(f, innerSize, innerSize, 1).code
+    assertEquals(1, "barrier".r.findAllMatchIn(code).length)
+  }
+
+  @Test
   def tupleWithAsVectorInsideMapLcl() = {
     val innerSize = 16
 

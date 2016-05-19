@@ -1,5 +1,6 @@
 package ir.ast
 
+import ir.interpreter.Interpreter.ValueMap
 import ir.{TypeException, ArrayType, Type}
 
 /**
@@ -23,6 +24,14 @@ case class Transpose() extends Pattern(arity = 1) with isGenerable {
     argType match {
       case ArrayType(ArrayType(t, n), m) => ArrayType(ArrayType(t, m), n)
       case _ => throw new TypeException(argType, "ArrayType(ArrayType(_,_),_)")
+    }
+  }
+
+  override def eval(valueMap: ValueMap, args: Any*): Vector[Vector[_]] = {
+    assert(args.length == arity)
+    args.head match {
+      case vec: Vector[Vector[_]] =>
+        vec.transpose
     }
   }
 }

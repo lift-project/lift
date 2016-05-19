@@ -3,6 +3,7 @@ package ir.view
 import apart.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
+import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
  * A helper object for constructing views.
@@ -17,11 +18,19 @@ object OutputView {
    *
    * @param expr Expression to build views for
    */
-  def apply(expr: Expr): Unit = visitAndBuildViews(expr, View(expr.t, ""))
+  def apply(expr: Expr): Unit = {
+    expr.outputView = View(expr.t, "")
+    visitAndBuildViews(expr, View(expr.t, ""))
+  }
 
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
-      case p: Param => writeView
+      case p: Param =>
+
+        if (p.outputView == NoView)
+          p.outputView = writeView
+
+        p.outputView
       case call: FunCall => buildViewFunCall(call, writeView)
     }
   }
@@ -32,11 +41,10 @@ object OutputView {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
-      case l: Lambda => buildViewLambda(l, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
-      case uf: UserFun => buildViewUserFun(writeView, call)
-      case uf: VectorizeUserFun => buildViewUserFun(writeView, call)
+      case uf: UserFun => buildViewUserFun(writeView,uf, call)
+      case uf: VectorizeUserFun => buildViewUserFun(writeView, uf.userFun, call)
       case s: Scatter => buildViewScatter(s, call, writeView)
       case i: Iterate => buildViewIterate(i, call, writeView)
       case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
@@ -45,81 +53,132 @@ object OutputView {
       case _: asScalar => buildViewAsScalar(call, writeView)
       case h: Head => buildViewHead(call, writeView)
       case t: Tail => buildViewTail(call, writeView)
-      case fp: FPattern => buildViewFPattern(fp, writeView)
-      case _: Zip => buildViewZip(writeView)
+      case _: Zip => buildViewZip(call, writeView)
+      case _: Unzip => writeView.zip()
+      case l: Lambda => buildViewLambda(l, call, writeView)
+      case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _ => writeView
     }
 
     // then handle arguments
-    val argResult = call.f match {
+    call.f match {
       case Zip(_) | Tuple(_) =>
-        call.args.foreach(e =>
-          visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth)))
-        // TODO: PROBABLY WRONG!
-        result
-      case r: AbstractPartRed =>
-        val e = call.args.head
-        visitAndBuildViews(e, View.initialiseNewView(e.t, e.inputDepth))
+        val res = call.args.map(arg =>
+          visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth)))
+
+        ViewTuple(res, call.argsType)
+      case _: AbstractPartRed =>
+        val acc = call.args.head
+        visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth))
         visitAndBuildViews(call.args(1), result)
-      case _ =>
-        if (call.args.length == 1)
-          visitAndBuildViews(call.args.head, result)
-        else {
-          call.args.foreach(arg => visitAndBuildViews(arg, result))
-          // TODO: DEFINITELY WRONG!
-          result
+      case Get(i) =>
+        call.args.head match {
+          case param: Param =>
+            buildViewGet(i, param, call)
+            param.outputView
+          case arg =>
+
+            val view = arg.mem match {
+              case memCollection: OpenCLMemoryCollection =>
+                val subviews = getSubviews(arg, memCollection)
+                subviews(i) = result
+                ViewTuple(subviews, arg.t)
+              case _ => result
+            }
+
+            visitAndBuildViews(arg, view)
         }
+      case _ =>
+          val res = call.args.map(visitAndBuildViews(_, result))
+         ViewTuple(res, call.argsType)
     }
-
-     argResult
   }
 
-  private def buildViewZip(writeView: View): View = {
-    writeView.unzip()
+  private def buildViewZip(call: FunCall, writeView: View): View = {
+    val result = writeView.unzip()
+
+    call.args.zipWithIndex.foreach({
+      case (arg: Param, id) if arg.outputView == NoView => arg.outputView = result.get(id)
+      case _ =>
+    })
+
+    result
   }
 
-  private def buildViewUserFun(writeView: View, call: FunCall): View = {
-    call.view = writeView
+  private def getAccessDepth(accessInfo: AccessInfo, memory: Memory) = {
+    val contLocal = OpenCLMemory.containsLocalMemory(memory)
+    val contPrivate = OpenCLMemory.containsPrivateMemory(memory)
+
+    if (contPrivate)
+      accessInfo.privateAccessInf
+    else if (contLocal)
+      accessInfo.localAccessInf
+    else
+      accessInfo.globalAccessInf
+  }
+
+  private def getSubviews(expr: Expr, memCollection: OpenCLMemoryCollection) = {
+    if (expr.outputView != NoView)
+      expr.outputView.asInstanceOf[ViewTuple].ivs.toArray
+    else
+      Array.fill[View](memCollection.subMemories.length)(NoView)
+  }
+
+  private def buildViewGet(i: Int, param: Param, call: FunCall) = {
+    param.mem match {
+      case memCollection: OpenCLMemoryCollection =>
+        val accessInfo =
+          if (param.accessInf.l.nonEmpty) param.accessInf.l(i) else param.accessInf
+
+        val outDepth = getAccessDepth(accessInfo, call.mem)
+        val subviews = getSubviews(param, memCollection)
+
+        if (subviews(i) == NoView)
+          subviews(i) = View.initialiseNewView(call.t, outDepth)
+
+        call.outputView = subviews(i)
+        param.outputView = ViewTuple(subviews, param.t)
+
+      case _ =>
+        val outDepth = getAccessDepth (param.accessInf, param.mem)
+        param.outputView = View.initialiseNewView(param.t, outDepth)
+    }
+  }
+
+  private def buildViewUserFun(writeView: View, uf:UserFun, call: FunCall): View = {
+
+    call.outputView = writeView
+
+    call.args.foreach({
+      case p: Param  =>
+        val outDepth = getAccessDepth(p.accessInf, p.mem)
+        p.outputView = View.initialiseNewView(p.t, outDepth)
+
+      case getCall@FunCall(Get(i), param: Param) =>
+        buildViewGet(i, param, getCall)
+      case _ =>
+    })
+
     View.initialiseNewView(call.t, call.outputDepth, "")
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {
-    visitAndBuildViews(i.f.body, writeView)
+    val v = View.initialiseNewView(call.args.head.t, call.inputDepth)
+    visitAndBuildViews(i.f.body, v)
     View.initialiseNewView(call.t, call.outputDepth)
   }
 
-  private def buildViewFPattern(fp: FPattern, writeView: View): View = {
-    visitAndBuildViews(fp.f.body, writeView)
-  }
-
   private def buildViewMap(m: AbstractMap, call: FunCall, writeView: View): View = {
-    var view = writeView
-
-    // TODO: Find a way to deal with this in one place instead of here and in buildViewCompFunDef
-    // If there was a zip, then the view could be wrong
-    if (writeView.t.isInstanceOf[TupleType])
-      view = View.initialiseNewView(call.t, call.inputDepth)
-
     // traverse into call.f
-    val innerView = visitAndBuildViews(m.f.body, view.access(m.loopVar))
-
-    if (m.f.body.isConcrete) {
-      // create fresh view for following function
-      View.initialiseNewView(call.args.head.t, call.outputDepth, call.mem.variable.name)
-    } else { // call.isAbstract and return input map view
-      new ViewMap(innerView, m.loopVar, call.args.head.t)
-    }
+    visitAndBuildViews(m.f.body, writeView.access(m.loopVar))
+    new ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
   }
 
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
-    visitAndBuildViews(call.args.head,
-      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable.name))
     // traverse into call.f
     visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
-    // create fresh input view for following function
-    View.initialiseNewView(call.args(1).t, call.outputDepth,
-                           call.mem.variable.name)
+    new ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
   private def buildViewSearch(s: AbstractSearch, 
@@ -132,15 +191,15 @@ object OutputView {
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
     visitAndBuildViews(l.body, writeView)
+    // TODO: Not sure about this
+    l.params.head.outputView
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
-    val chunkSize = call.argsType match {
-      case ArrayType(ArrayType(_, n), _) => n
+    call.argsType match {
+      case ArrayType(ArrayType(_, chunkSize), _) => writeView.split(chunkSize)
       case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
     }
-
-    writeView.split(chunkSize)
   }
 
   private def buildViewSplit(n: ArithExpr, writeView: View): View = {
@@ -154,7 +213,7 @@ object OutputView {
   private def buildViewAsScalar(call: FunCall, writeView: View): View = {
     call.args.head.t match {
       case ArrayType(VectorType(_, n), _) => writeView.asVector(n)
-      case _ => throw new IllegalArgumentException
+      case _ => throw new IllegalArgumentException("PANIC, expected array of vectors, found " + call.argsType)
     }
   }
 

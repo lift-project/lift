@@ -2,19 +2,16 @@ package opencl.generator
 
 import java.io._
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
-import opencl.ir.ast._
+import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.sys.process._
-import opencl.ir.pattern._
 
 object TestGraphTheory {
   @BeforeClass def TestMatrixBasic() {
@@ -128,40 +125,6 @@ class TestGraphTheory {
 
   }
 
-  @Test def DENSE_BFS_MULTI_ITERATION(): Unit = {
-    println("DENSE_BFS_MULTI_ITERATION")
-    val inputSize = 512
-    val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(1000)>2) 0 else 1).toFloat)
-    val fringeArr = Array.fill(inputSize)(0.0f)
-    fringeArr(util.Random.nextInt(inputSize)) = 1.0f
-    val N = SizeVar("N")
-
-    val BFSMultiIteration  = fun(
-      ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
-    ArrayType(Float, N),
-    (graph, bfsFringe) => {
-      Iterate(5)( fun((fr) =>
-        Join() o MapGlb(
-        Join() o MapLcl(
-          fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))
-        )) o Split(512) $ graph
-      )) $ bfsFringe
-    })
-
-    val (output:Array[Float], runtime) = Execute(1,inputSize)(BFSMultiIteration, graphArr, fringeArr)
-    val gold = scalaIterateBFS(5,graphArr,fringeArr)
-
-    println(fringeArr.toList)
-    println("Fringe sum = "+ (fringeArr.reduce(_+_)))
-    println(gold.toList)
-    println("Gold sum = "+ (gold.reduce(_+_)))
-    println(output.toList)
-    println("Output sum = "+ (output.reduce(_+_)))
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.0f)
-
-  }
-
   @Test def DENSE_PAGERANK_MULTI_ITERATION(): Unit = {
     println("DENSE_PAGERANK_MULTI_ITERATION")
     val inputSize = 1024;
@@ -193,7 +156,7 @@ class TestGraphTheory {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
+  @Test @Ignore def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
     println("DENSE_BFS_MULTI_ITERATION_FIXED_SIZE")
     val inputSize = 64
     val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(25)>2) 0 else 1).toFloat)

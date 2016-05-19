@@ -1,6 +1,7 @@
 package ir.printer
 
-import java.io.Writer
+import java.io.{File, PrintWriter, Writer}
+import sys.process._
 
 import ir.ast._
 
@@ -8,6 +9,14 @@ import ir.ast._
 /**
   * @author cdubach
   */
+object DotPrinter {
+  def apply(name: String, f: Lambda): Unit = {
+    val folder = System.getProperty("user.home")
+    new DotPrinter(new PrintWriter(new File(s"$folder/$name.dot"))).print(f)
+    s"dot -Tpdf $folder/$name.dot -o $folder/$name.pdf".!
+  }
+}
+
 class DotPrinter(w: Writer,
                  compressLambda : Boolean = true,
                  printAddressSpace : Boolean = false,
@@ -18,6 +27,8 @@ class DotPrinter(w: Writer,
   lazy val counters : collection.mutable.Map[Param, Int]  = collection.mutable.HashMap()
 
   val nodesId : collection.mutable.Map[IRNode, String] = collection.mutable.HashMap()
+
+
 
   def writeln(s: String) = {
     w.write(s+"\n")
@@ -113,6 +124,9 @@ class DotPrinter(w: Writer,
       case z: Zip =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
+      case Unzip() =>
+        if (!parent.equals(""))
+          writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
       case p: Pattern =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
@@ -124,6 +138,7 @@ class DotPrinter(w: Writer,
       case _ =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
+      case _ =>
 
     }
   }
@@ -172,9 +187,6 @@ class DotPrinter(w: Writer,
         //writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>"+ {if (printAddressSpace) {"("+fc.addressSpaces+")"} else ""} +">]")
         fc.args.foreach(printNodes)
         printNodes(fc.f)
-
-
-
 
       case v: Value =>
         writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")>]")
@@ -228,17 +240,21 @@ class DotPrinter(w: Writer,
             printNodes(fp.f)
           case s : Split =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+s.chunkSize+")>]")
-          case p: Pattern =>
+          case Split(chunkSize) =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+chunkSize+")>]")
+          case Get(i) =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+i+")>]")
+          case  _ =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
         }
       case uf: UserFun =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
-
       case t: Tuple =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>Tuple</b>"+t.n+">]")
       case u: Unzip =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>Unzip</b>>]")
-
+      case  _ =>
+        writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }
   }
 
@@ -252,5 +268,4 @@ class DotPrinter(w: Writer,
       }
       , post => {})
   }
-
 }

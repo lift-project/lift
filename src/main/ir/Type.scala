@@ -159,6 +159,18 @@ object NoType extends Type {
  * Collection of operations on types
  */
 object Type {
+
+  def fromAny(a: Any): Type = {
+    a match {
+      case f: Float => ScalarType("float", 4)
+      case i: Int => ScalarType("int", 4)
+      case a: Seq[_] if a.nonEmpty => ArrayType(fromAny(a.head), a.length)
+      case t: (_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2)):_*)
+      case t: (_,_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2), fromAny(t._3)):_*)
+      case _ => throw new NotImplementedError()
+    }
+  }
+
   /**
    * A string representation of a type
    *
@@ -389,7 +401,7 @@ object Type {
       case vt: VectorType => vt.len
       case tt: TupleType  => Cst(1)
       case at: ArrayType  => at.len
-      case _ => throw new IllegalArgumentException
+      case _ => throw new IllegalArgumentException(t.toString)
     }
   }
 
