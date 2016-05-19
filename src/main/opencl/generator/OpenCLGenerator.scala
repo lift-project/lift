@@ -48,23 +48,44 @@ class OclFunction private (name: String, val param: Int, range: Range) extends A
 }
 
 object OclFunction {
-  def apply(name: String, param: Int, range: Range = RangeUnknown) : OclFunction = new OclFunction(name, param, range)
+  def apply(name: String, param: Int, range: Range = RangeUnknown) : OclFunction =
+    new OclFunction(name, param, range)
 }
 
-object get_num_groups { def apply(param:Int, range : Range = ContinuousRange(0, ?)) = OclFunction("get_num_groups", param, range) }
-object get_global_size { def apply(param: Int, range : Range = ContinuousRange(0, ?)) = OclFunction("get_global_size", param, range) }
-object get_local_size { def apply(param: Int, range : Range = ContinuousRange(0, ?)) = OclFunction("get_local_size", param, range) }
+object get_num_groups {
+  def apply(param:Int, range : Range = ContinuousRange(1, PosInf)) =
+    OclFunction("get_num_groups", param, range)
+}
+object get_global_size {
+  def apply(param: Int, range : Range = ContinuousRange(1, PosInf)) =
+    OclFunction("get_global_size", param, range)
+}
+
+object get_local_size {
+  def apply(param: Int, range : Range = ContinuousRange(1, PosInf)) =
+    OclFunction("get_local_size", param, range)
+}
+
 object get_local_id {
-  def apply(param:Int, range : Range) = OclFunction("get_local_id", param, range)
-  def apply(param:Int) = OclFunction("get_local_id", param, ContinuousRange(0, get_local_size(param)))
+  def apply(param:Int, range : Range) =
+    OclFunction("get_local_id", param, range)
+
+  def apply(param:Int) =
+    OclFunction("get_local_id", param, ContinuousRange(0, get_local_size(param)))
 }
 object get_global_id {
-  def apply(param:Int, range : Range) = OclFunction("get_global_id", param, range)
-  def apply(param:Int) = OclFunction("get_global_id", param, ContinuousRange(0, get_global_size(param)))
+  def apply(param:Int, range : Range) =
+    OclFunction("get_global_id", param, range)
+
+  def apply(param:Int) =
+    OclFunction("get_global_id", param, ContinuousRange(0, get_global_size(param)))
 }
 object get_group_id {
-  def apply(param:Int, range : Range) = OclFunction("get_group_id", param, range)
-  def apply(param:Int) = OclFunction("get_group_id", param, ContinuousRange(0, get_num_groups(param)))
+  def apply(param:Int, range : Range) =
+    OclFunction("get_group_id", param, range)
+
+  def apply(param:Int) =
+    OclFunction("get_group_id", param, ContinuousRange(0, get_num_groups(param)))
 
 }
 
