@@ -140,7 +140,7 @@ object InferOpenCLAddressSpace {
     setAddressSpaceLambda(lambda, addressSpace, addressSpaces)
   }
 
-  // TODO: Decide if this strategy is the one we want
+  // TODO: Decide if this strategy is the one we want. See issue #61
   private def inferAddressSpace(writeTo : OpenCLAddressSpace,
     addressSpaces: Seq[OpenCLAddressSpace]) = {
 
