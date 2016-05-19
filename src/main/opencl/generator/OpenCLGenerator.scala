@@ -214,7 +214,7 @@ class OpenCLGenerator extends Generator {
     assert(globalSize.length == 3)
 
     // inject local and global size and valueMap information into the lambda
-    val substitutions = new scala.collection.mutable.HashMap[ArithExpr, ArithExpr]()
+    val substitutions = collection.mutable.HashMap[ArithExpr, ArithExpr]()
     for( i <- 0 to 2) {
       val lclsz = localSize(i)
       if (lclsz != ?)
@@ -229,10 +229,11 @@ class OpenCLGenerator extends Generator {
     new Kernel(_generate(newF, localSize, globalSize, valueMap), newF)
   }
 
-  def _generate(f: Lambda, localSize: NDRange, globalSize: NDRange, valueMap: scala.collection.Map[ArithExpr, ArithExpr]): String  = {
+  def _generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
+    valueMap: collection.Map[ArithExpr, ArithExpr]): String  = {
 
     if (f.body.t == UndefType)
-      throw new OpenCLGeneratorException("Lambda has to be typechecked to generate code")
+      throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
 
     InferOpenCLAddressSpace(f)
 
@@ -642,11 +643,11 @@ class OpenCLGenerator extends Generator {
     atomicGetTask(nestedBlock)
     nestedBlock += OpenCLAST.Barrier(OpenCLMemory(workVar, 4, LocalMemory))
     // get the loop variable as a range variable
-    val range = loopVar.range.asInstanceOf[RangeAdd]    
+    val range = loopVar.range.asInstanceOf[RangeAdd]
     // generate a while loop which increments the task index atomically, while 
     // it's less than the maximum range of the loop variable
     generateWhileLoop(nestedBlock, 
-      Predicate(loopVar, range.max, Predicate.Operator.<), 
+      Predicate(loopVar, range.stop, Predicate.Operator.<),
       (b) => {
         generate(m.f.body, b)
         atomicGetTask(b)
@@ -699,7 +700,7 @@ class OpenCLGenerator extends Generator {
     // generate a while loop which increments the task index atomically, while 
     // it's less than the maximum range of the loop variable
     generateWhileLoop(nestedBlock, 
-      Predicate(loopVar, range.max, Predicate.Operator.<), 
+      Predicate(loopVar, range.stop, Predicate.Operator.<),
       (b) => {
         generate(m.f.body, b)
         b.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(loopVar),
