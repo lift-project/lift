@@ -124,9 +124,16 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
               if (!ArithExpr.contains(outLen, tv))
                 return ouT
 
-              // recognises outLen*tv
               val a = outLen /^ tv
-              if (!ArithExpr.contains(a, tv)) {
+              val b = outLen - tv
+              if (!ArithExpr.contains(b, tv)) {
+                val (min, max) = ArithExpr.minmax(tvMap.get(tv).get,
+                                                  n*b+tvMap.get(tv).get)
+                tv.range = ContinuousRange(min,max)
+                n*b+tv
+
+              } else if (!ArithExpr.contains(a, tv)) {
+                // recognises outLen*tv
 
                 // fix the range for tv
                 // TODO: Pow(a, n) or Pow(a, n-1)???
