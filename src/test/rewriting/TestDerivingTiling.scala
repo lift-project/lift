@@ -1,12 +1,13 @@
 package rewriting
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
+import org.junit.Assume._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestDerivingTiling {
@@ -106,6 +107,9 @@ class TestDerivingTiling {
 
   @Test
   def mmSquareTiles(): Unit = {
+
+    assumeFalse("Disabled on AMD GPUs. See issue #64.", Utils.isAmdGpu())
+
     val nSize = 16
     val mSize = 16
     val kSize = 16
