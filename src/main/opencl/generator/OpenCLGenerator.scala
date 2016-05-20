@@ -18,7 +18,8 @@ class NotPrintableExpression(msg: String) extends Exception(msg)
 class NotI(msg: String) extends Exception(msg)
 
 // hacky class to store function name
-class OclFunction private (name: String, val param: Int, range: Range) extends ArithExprFunction(name, range) {
+class OclFunction private (name: String, val param: Int, range: Range)
+  extends ArithExprFunction(name, range) {
 
   lazy val toOCLString = s"$name($param)"
 
@@ -31,18 +32,7 @@ class OclFunction private (name: String, val param: Int, range: Range) extends A
     case _ => false
   }
 
-  /*
-  // true means min, false means max
-  override def _min(map : scala.collection.mutable.Map[ArithExpr, (ArithExpr)]) : Unit = {
-    map.put(this, Cst(0))
-  }
-
-  override def _max(map : scala.collection.mutable.Map[ArithExpr, (ArithExpr)]) : Unit = {
-    map.put(this, this.range.max)
-  }*/
-
-
-  override lazy val (min : ArithExpr, max: ArithExpr) = (Cst(0), this.range.max.max)
+  override lazy val (min : ArithExpr, max: ArithExpr) = (range.min.min, range.max.max)
   override lazy val sign: Sign.Value = Sign.Positive
 
 }
@@ -56,6 +46,7 @@ object get_num_groups {
   def apply(param:Int, range : Range = ContinuousRange(1, PosInf)) =
     OclFunction("get_num_groups", param, range)
 }
+
 object get_global_size {
   def apply(param: Int, range : Range = ContinuousRange(1, PosInf)) =
     OclFunction("get_global_size", param, range)
@@ -73,6 +64,7 @@ object get_local_id {
   def apply(param:Int) =
     OclFunction("get_local_id", param, ContinuousRange(0, get_local_size(param)))
 }
+
 object get_global_id {
   def apply(param:Int, range : Range) =
     OclFunction("get_global_id", param, range)
@@ -80,6 +72,7 @@ object get_global_id {
   def apply(param:Int) =
     OclFunction("get_global_id", param, ContinuousRange(0, get_global_size(param)))
 }
+
 object get_group_id {
   def apply(param:Int, range : Range) =
     OclFunction("get_group_id", param, range)
@@ -1177,15 +1170,15 @@ class OpenCLGenerator extends Generator {
         block.asInstanceOf[Block] += innerBlock
         return
 
+      // TODO: See TestOclFunction.numValues and issue #62
+      case numVals if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
+        generateIfStatement(block, indexVar, generateBody, init, stop)
+        return
       case _ =>
         (indexVar.range.numVals.min,indexVar.range.numVals.max) match {
           case (Cst(0),Cst(1)) =>
             // one or less iteration
-            block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
-            val innerBlock = OpenCLAST.Block(Vector.empty)
-            innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
-            block.asInstanceOf[Block] += OpenCLAST.IfThenElse(CondExpression(init, ArithExpression(stop), CondExpression.Operator.<),innerBlock)
-            generateBody(innerBlock)
+            generateIfStatement(block, indexVar, generateBody, init, stop)
             return
 
           case _ =>
@@ -1195,6 +1188,14 @@ class OpenCLGenerator extends Generator {
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val innerBlock = OpenCLAST.Block(Vector.empty)
     block.asInstanceOf[Block] += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
+    generateBody(innerBlock)
+  }
+
+  private def generateIfStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression, stop: ArithExpr): Unit = {
+    block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
+    val innerBlock = OpenCLAST.Block(Vector.empty)
+    innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
+    block.asInstanceOf[Block] += OpenCLAST.IfThenElse(CondExpression(init, ArithExpression(stop), CondExpression.Operator.<), innerBlock)
     generateBody(innerBlock)
   }
 

@@ -1,6 +1,5 @@
 package opencl.generator
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
