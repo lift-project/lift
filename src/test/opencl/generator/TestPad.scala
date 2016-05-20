@@ -82,6 +82,49 @@ class TestPad {
   /* **********************************************************
         PAD 1D
      ***********************************************************/
+  @Test def padAfterPad(): Unit = {
+    val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
+    val bf = Pad.Boundary.Clamp
+    val fct = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => MapGlb(id) o Pad(1,1,bf) o Pad(1,1,bf) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(input.length, input.length)(fct, input)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test def padMapPad(): Unit = {
+    val input = Array(0,1,2,3,4).map(_.toFloat)
+    val gold = Array(0,0,0,1,2,3,4,4,4).map(_.toFloat)
+    val bf = Pad.Boundary.Clamp
+    val fct = fun(
+      ArrayType(Float, Var("N")),
+      (domain) => MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(5,5)(fct, input)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Ignore // need to fail!
+  @Test def joinMapPadRewrite(): Unit = {
+    val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
+    val bf = Pad.Boundary.Clamp
+    val joinMapPad = fun(
+      ArrayType(ArrayType(Float, Var("N")), Var("M")),
+      (domain) => MapSeq(id) o Join() o MapSeq(MapSeq(id)) o Pad(1,1,bf) $ domain
+    )
+    val padJoinMap = fun(
+      ArrayType(ArrayType(Float, Var("N")), Var("M")),
+      (domain) => MapSeq(id) o Pad(1,1,bf) o Join() o MapSeq(MapSeq(id)) $ domain
+    )
+
+    val (output1: Array[Float],runtime) = Execute(128,128)(joinMapPad, input2D)
+    val (output2: Array[Float],runtime2) = Execute(128,128)(padJoinMap, input2D)
+    assertArrayEquals(output1, output2, 0.0f)
+  }
+
   @Test def pad1DClampSize1(): Unit = {
     val gold = Array(A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P)
     println(gold.mkString(", "))
