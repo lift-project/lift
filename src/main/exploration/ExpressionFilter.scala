@@ -5,7 +5,7 @@ import rewriting.InferNDRange
 import ir.{Memory, ScalarType}
 import ir.ast._
 import ir.view.View
-import opencl.generator.{RangesAndCounts, OpenCLCodeGen}
+import opencl.generator.{RangesAndCounts, OpenCLPrinter}
 import opencl.ir._
 
 object ExpressionFilter {
@@ -40,7 +40,7 @@ object ExpressionFilter {
             p.mem = OpenCLMemory.allocGlobalMemory(
               OpenCLMemory.getSizeInBytes(p.t))
         }
-        p.view = View(p.t, OpenCLCodeGen().toString(p.mem.variable))
+        p.view = View(p.t, OpenCLPrinter().toString(p.mem.variable))
       })
 
       RangesAndCounts(expr, local, global,valueMap)

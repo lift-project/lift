@@ -7,16 +7,17 @@ import opencl.generator.OpenCLAST._
 import opencl.ir._
 import opencl.ir.ast.GroupCall
 
-object OpenCLCodeGen {
-  def apply() = new OpenCLCodeGen
+object OpenCLPrinter {
+  def apply() = new OpenCLPrinter
 }
 
-/** The codegen walks the AST emitted by the [[OpenCLGenerator]] and generates
+/** The printer walks the AST emitted by the [[OpenCLGenerator]] and generates
   * standalone OpenCL-C code.
   */
-class OpenCLCodeGen {
+class OpenCLPrinter {
   /**
    * Entry point for printing an AST.
+   *
    * @param node The root of the AST (the global scope block).
    * @return A string representation of the AST as OpenCL-C code.
    */
@@ -116,6 +117,7 @@ class OpenCLCodeGen {
 
   /**
    * Main print method. Print the current node and recurse.
+   *
    * @param node The current node to emit code for.
    */
   private def print(node: OclAstNode): Unit = node match {
@@ -339,6 +341,7 @@ class OpenCLCodeGen {
   /**
    * Generate a barrier for the given address space scope.
    * If the scope is not defined as global or local, the barrier assumes both.
+ *
    * @param b A [[Barrier]] node.
    */
   private def print(b: Barrier) = println (b.mem.addressSpace match {
@@ -347,11 +350,9 @@ class OpenCLCodeGen {
     case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
   })
 
-
-
-
   /**
     * Generate a for loop.
+    *
     * @param fl a [[ForLoop]] node.
     */
   private def print(fl: ForLoop) {

@@ -3,7 +3,7 @@ package ir.view
 import apart.arithmetic._
 import ir._
 import ir.ast._
-import opencl.generator.OpenCLCodeGen
+import opencl.generator.OpenCLPrinter
 import opencl.ir.ast._
 
 /**
@@ -169,8 +169,8 @@ abstract class View(val t: Type = UndefType) {
    * a tuple of arrays.
    *
    * Corresponds to the Zip pattern.
-
-   */
+ *
+ */
   def zip(): View = {
     t match {
       case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType]) =>
@@ -387,7 +387,7 @@ object View {
    */
   def apply(lambda: Lambda): Unit = {
    lambda.params.foreach((p) => {
-      p.view = View(p.t, OpenCLCodeGen().toString(p.mem.variable))
+      p.view = View(p.t, OpenCLPrinter().toString(p.mem.variable))
     })
     View(lambda.body)
   }
