@@ -1,6 +1,7 @@
 package ir.ast
 
-import apart.arithmetic.{?, ArithExpr, Var}
+import apart.arithmetic.{?, ArithExpr, PosVar, Var}
+import arithmetic.TypeVar
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 
@@ -14,19 +15,23 @@ import ir.interpreter.Interpreter.ValueMap
  */
 abstract class AbstractMap(val f: Lambda,
                            val name: String,
-                           val loopVar: Var) extends Pattern(arity = 1)
+                           var loopVar: Var) extends Pattern(arity = 1)
                                                      with FPattern {
   assert(f.params.length == 1)
 
-  var iterationCount: ArithExpr = ?
+  //val iterationCount: ArithExpr = loopVar.range.numVals
+
+  def iterationCount = loopVar.range.numVals
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
+      case UnknownLengthArrayType(t, v) =>
+        f.params(0).t = t
+        UnknownLengthArrayType(TypeChecker.check(f.body, setType), v)
       case ArrayType(t, n) =>
         f.params(0).t = t
         ArrayType(TypeChecker.check(f.body, setType), n)
-
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
@@ -61,7 +66,7 @@ abstract class AbstractMap(val f: Lambda,
  *
  * @param f A lambda to be applied to every element of the input array
  */
-case class Map(override val f: Lambda) extends AbstractMap(f, "Map", Var("")) {
+case class Map(override val f: Lambda) extends AbstractMap(f, "Map", PosVar("")) {
   override def copy(f: Lambda): Pattern = Map(f)
 
   /**

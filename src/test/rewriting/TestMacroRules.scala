@@ -1,7 +1,7 @@
 package rewriting
 
-import apart.arithmetic.Var
-import rewriting.utils.{NumberPrinter, NumberExpression}
+import apart.arithmetic.{SizeVar, Var}
+import rewriting.utils.{NumberExpression, NumberPrinter}
 import ir._
 import ir.ast._
 import jdk.nashorn.internal.ir.annotations.Ignore
@@ -25,9 +25,9 @@ class TestMacroRules {
 
   @Test
   def twoDBlockingNotDefined(): Unit = {
-    val v_M_0 = Var("M")
-    val v_K_1 = Var("K")
-    val v_N_2 = Var("N")
+    val v_M_0 = SizeVar("M")
+    val v_K_1 = SizeVar("K")
+    val v_N_2 = SizeVar("N")
 
     val f = fun(
       ArrayType(ArrayType(Float, v_M_0), v_K_1),
@@ -53,11 +53,11 @@ class TestMacroRules {
 
   @Test
   def twoDBlockingNotDefined2(): Unit = {
-    val v_M_0 = Var("M")
-    val v_K_1 = Var("K")
-    val v_N_2 = Var("N")
-    val v__3 = Var("")
-    val v__4 = Var("")
+    val v_M_0 = SizeVar("M")
+    val v_K_1 = SizeVar("K")
+    val v_N_2 = SizeVar("N")
+    val v__3 = SizeVar("")
+    val v__4 = SizeVar("")
 
     val f = fun(
       ArrayType(ArrayType(Float, v_M_0), v_K_1),
@@ -111,9 +111,9 @@ class TestMacroRules {
 
   @Test
   def finishTiling(): Unit = {
-    val v_M_0 = Var("M")
-    val v_K_1 = Var("K")
-    val v_N_2 = Var("N")
+    val v_M_0 = SizeVar("M")
+    val v_K_1 = SizeVar("K")
+    val v_N_2 = SizeVar("N")
 
     val f =
       fun(

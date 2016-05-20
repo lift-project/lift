@@ -1,15 +1,14 @@
 package opencl.generator
 
-import apart.arithmetic.{?, Var}
-import ir.ast._
-import opencl.executor._
-import opencl.ir.pattern._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
-import opencl.ir._
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast.Pad.BoundaryFun
+import ir.ast._
+import opencl.executor._
+import opencl.ir._
+import opencl.ir.pattern._
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
-import scala.collection.immutable.IndexedSeq
 import scala.util.Random
 
 object TestStencil {
@@ -116,7 +115,7 @@ class TestStencil extends TestSlide {
     */
   def create1DStencilLambda(weights: Array[Float], size: Int, step: Int, left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
@@ -136,7 +135,7 @@ class TestStencil extends TestSlide {
                                  tileSize: Int, tileStep: Int,
                                  left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
         MapWrg(fun(tile =>
@@ -158,7 +157,7 @@ class TestStencil extends TestSlide {
                                          tileSize: Int, tileStep: Int,
                                          l: Int, r: Int, b: Pad.BoundaryFun) = {
     fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           //temporal blocking
@@ -220,7 +219,7 @@ class TestStencil extends TestSlide {
                                                       tileSize: Int, tileStep: Int,
                                                       left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
         MapWrg( fun(tile =>
@@ -245,7 +244,7 @@ class TestStencil extends TestSlide {
                                                n: Int, s: Int,
                                                l: Int, r: Int) = {
     fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
 
         //f:      toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)
@@ -324,7 +323,7 @@ class TestStencil extends TestSlide {
 
   @Test def outputViewGroupTest(): Unit = {
     val lambda = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) =>
       MapSeq(MapSeq(id)) o Slide(3,1) o MapSeq(id) $ input
     )
@@ -335,7 +334,7 @@ class TestStencil extends TestSlide {
                                  size: Int, step: Int,
                                  left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
@@ -366,7 +365,7 @@ class TestStencil extends TestSlide {
                            size: Int, step: Int,
                            left: Int, right: Int): Lambda1 = {
     fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) =>
         MapGlb(MapSeqOrMapSeqUnroll(id)) o
           Slide(size, step) o
@@ -505,7 +504,7 @@ class TestStencil extends TestSlide {
                             left: Int, right: Int,
                             weights: Array[Float], boundary: BoundaryFun): Lambda2 = {
     fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
@@ -525,7 +524,7 @@ class TestStencil extends TestSlide {
                              size: Int, step: Int,
                              left: Int, right: Int): Lambda1 = {
     fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       (domain) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
@@ -541,7 +540,7 @@ class TestStencil extends TestSlide {
                            left: Int, right: Int,
                            weights: Array[Float],
                            boundary: Pad.BoundaryFun): Lambda = fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -564,7 +563,7 @@ class TestStencil extends TestSlide {
   def createCopyTilesLambda(size: Int, step: Int,
                             left: Int, right: Int,
                             boundary: Pad.BoundaryFun): Lambda = fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       ArrayType(Float, 9),
       (matrix, weights) => {
         MapWrg(1)(MapWrg(0)(fun( tile =>

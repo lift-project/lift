@@ -1,6 +1,7 @@
 package opencl.executor
 
 import apart.arithmetic.{?, ArithExpr}
+import generator.Kernel
 import ir.TypeChecker
 import ir.ast.Lambda
 import opencl.generator.{OpenCLGenerator, Verbose}
@@ -17,19 +18,20 @@ object Compile {
    */
   def apply(code: String): (String, Lambda) = {
     val f = Eval(code)
-    (apply(f), f)
+    val kernel = apply(f)
+    (kernel.code, kernel.f)
   }
 
   /**
    * Compiles the given lambda without any information about the local of global size
    */
-  def apply(f: Lambda): String = apply(f, ?, ?, ?)
+  def apply(f: Lambda): Kernel = apply(f, ?, ?, ?)
 
   /**
    * Compiles the given lambda with the given local sizes but without any information about the global size
    */
   def apply(f: Lambda,
-            localSize1: ArithExpr, localSize2: ArithExpr, localSize3: ArithExpr): String =
+            localSize1: ArithExpr, localSize2: ArithExpr, localSize3: ArithExpr): Kernel =
     apply(f, localSize1, localSize2, localSize3, ?, ?, ?, immutable.Map())
 
   /**
@@ -39,21 +41,21 @@ object Compile {
   def apply(f: Lambda,
             localSize0: ArithExpr, localSize1: ArithExpr, localSize2: ArithExpr,
             globalSize1: ArithExpr, globalSize2: ArithExpr, globalSize3: ArithExpr,
-            valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
+            valueMap: immutable.Map[ArithExpr, ArithExpr]): Kernel = {
     // 1. type check
     TypeChecker.check(f.body)
 
     // 2. generate OpenCL kernel
-    val kernelCode = OpenCLGenerator.generate(f,
+    val kernel = OpenCLGenerator.generate(f,
       Array(localSize0, localSize1, localSize2),
       Array(globalSize1, globalSize2, globalSize3), valueMap)
 
     // 3. print and return kernel code
     if (Verbose()) {
       println("Kernel code:")
-      println(kernelCode)
+      println(kernel.code)
     }
-    kernelCode
+    kernel
   }
 
 }

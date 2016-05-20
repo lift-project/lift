@@ -1,15 +1,15 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir._
 import ir.ast._
 import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
-import scala.reflect.ClassTag
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
+import scala.reflect.ClassTag
 import opencl.ir.pattern._
 
 object TestSpMV {
@@ -68,9 +68,9 @@ class TestSpMV {
     val matrix = generateSparseMatrix(width, height, paddedWidth)
     val gold = sparseMatrixVector(matrix, vector)
 
-    val N = Var("N")
-    val M = Var("M")
-    val L = Var("L")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val L = SizeVar("L")
     val f = fun(
       ArrayType(ArrayType(TupleType(Int,Int), N), M),  // matrix
       ArrayType(TupleType(Int,Int), L),  // vector
@@ -148,9 +148,9 @@ class TestSpMV {
     val matrix = generateSparseMatrix(width, height, paddedWidth)
     val gold = sparseMatrixVector(matrix, vector)
 
-    val N = Var("N")
-    val M = Var("M")
-    val L = Var("L")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val L = SizeVar("L")
     val f = fun(
       ArrayType(ArrayType(TupleType(Int,Int), N), M),  // matrix
       ArrayType(TupleType(Int,Int), L),  // vector
@@ -206,8 +206,8 @@ class TestSpMV {
     val vectB = generateSparseArray(100, 1100)
     val gold = sparseDotProduct(vectA, vectB)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
     val f = fun(
       ArrayType(TupleType(Int,Int), N),  //first list
       ArrayType(TupleType(Int,Int), M),  //second list
@@ -276,8 +276,8 @@ class TestSpMV {
     val vectB = generateSparseArray(100, 1100)
     val gold = sparseDotProduct(vectA, vectB)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
     val f = fun(
       ArrayType(TupleType(Int,Int), N),  //first list
       ArrayType(TupleType(Int,Int), M),  //second list
@@ -347,8 +347,8 @@ class TestSpMV {
     val vectB = generateSparseArray(100, 1100)
     val gold = sparseDotProduct(vectA, vectB)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
     val f = fun(
       ArrayType(TupleType(Int,Int), N),  //first list
       ArrayType(TupleType(Int,Int), M),  //second list
@@ -385,7 +385,7 @@ class TestSpMV {
     val negElem = UserFun("negElem", "x", "{ x._0 = x._0; x._1 = -(x._1); return x; }",
       TupleType(Int, Int), TupleType(Int, Int))
 
-    val f = fun(ArrayType(TupleType(Int, Int), Var("N")), (input) =>
+    val f = fun(ArrayType(TupleType(Int, Int), SizeVar("N")), (input) =>
        MapGlb(negElem)  $ input
     )
     val (output:Array[Int], runtime) = Execute(1,1)(f, inputVector)
@@ -414,7 +414,7 @@ class TestSpMV {
       Seq(TupleType(Float, Float),Float), TupleType(Float, Float))
 
     val scalFun = fun(
-      ArrayType(TupleType(Float,Float), Var("N")),
+      ArrayType(TupleType(Float,Float), SizeVar("N")),
       ArrayType(Float, 1), (input, alpha) =>
       MapSeq(
         fun(x =>

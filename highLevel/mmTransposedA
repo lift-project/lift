@@ -1,6 +1,6 @@
-val N = Var("N")
-val M = Var("M")
-val K = Var("K")
+val N = SizeVar("N")
+val M = SizeVar("M")
+val K = SizeVar("K")
 
 fun(
   ArrayType(ArrayType(Float, M), K),

@@ -9,7 +9,6 @@ import ir.ast._
 /**
   * @author cdubach
   */
-
 object DotPrinter {
   def apply(name: String, f: Lambda): Unit = {
     val folder = System.getProperty("user.home")
@@ -18,7 +17,10 @@ object DotPrinter {
   }
 }
 
-class DotPrinter(w: Writer, compressLambda : Boolean = true) {
+class DotPrinter(w: Writer,
+                 compressLambda : Boolean = true,
+                 printAddressSpace : Boolean = false,
+                 printRef : Boolean = false) {
 
   // keeps track of the visited node
   lazy val visited : collection.mutable.Map[Any, Int] = collection.mutable.HashMap()
@@ -133,12 +135,24 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
             printEdges(fp.f, nodeId, "f")
           case _ =>
         }
-      case uf: UserFun =>
+      case _ =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
       case _ =>
 
     }
+  }
+
+  def writeNodeDef(e: Expr): Unit = {
+    val addrSpce = if (printAddressSpace)
+      ":addrSpce("+e.addressSpace+")"
+      else
+        ""
+    val ref = if (printRef)
+      "@"+e.##
+    else
+      ""
+    writeln(getNodeId(e) + " [style=rounded,shape=box,label=<<b>" + e.getClass.getSimpleName + "</b>"+ ref+addrSpce +">]")
   }
 
   def printNodes(node: IRNode): Unit = {
@@ -155,23 +169,12 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
 
         fc.f match {
           case fp: FPattern =>
-            /*
-            visited.put(fp, visited.getOrElse(fp, 0)+1)
-            writeln("subgraph {")
-            writeln("rank=\"same\"")
-            writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
-            writeln(getNodeId(fp) + " [style=rounded,shape=box,label=<<b>" + fp.getClass.getSimpleName + "</b>>]")
-            writeln("}")
-            fc.args.foreach(printNodes)
-
-            printNodes(fp.f)
-
-            return*/
           case p : Pattern =>
 
             writeln("subgraph {")
             writeln("rank=\"same\"")
-            writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
+            writeNodeDef(fc)
+            //writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>"+ {if (printAddressSpace) {"("+fc.addressSpaces+")"} else ""} +">]")
             printNodes(p)
             writeln("}")
 
@@ -180,15 +183,16 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
             return
           case _ =>
         }
-
-        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
+        writeNodeDef(fc)
+        //writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>"+ {if (printAddressSpace) {"("+fc.addressSpaces+")"} else ""} +">]")
         fc.args.foreach(printNodes)
         printNodes(fc.f)
 
       case v: Value =>
         writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")>]")
       case p: Param =>
-        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
+        writeNodeDef(p)
+        //writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
 
       case l: Lambda =>
 
@@ -209,7 +213,8 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
             writeln("subgraph {")
             writeln("rank=\"same\"")
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
-            writeln(getNodeId(fc)+" [style=rounded,shape=box,label=<<b>"+fc.getClass.getSimpleName+"</b>>]")
+            writeNodeDef(fc)
+            //writeln(getNodeId(fc)+" [style=rounded,shape=box,label=<<b>"+fc.getClass.getSimpleName+"</b>"+ {if (printAddressSpace) {"("+fc.addressSpaces+")"} else ""} +">]")
             writeln("}")
 
             fc.args.foreach(printNodes)
@@ -233,6 +238,8 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
           case fp: FPattern =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
             printNodes(fp.f)
+          case s : Split =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+s.chunkSize+")>]")
           case Split(chunkSize) =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+chunkSize+")>]")
           case Get(i) =>
@@ -242,33 +249,16 @@ class DotPrinter(w: Writer, compressLambda : Boolean = true) {
         }
       case uf: UserFun =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
+      case t: Tuple =>
+        writeln(nodeId+" [style=rounded,shape=box,label=<<b>Tuple</b>"+t.n+">]")
+      case u: Unzip =>
+        writeln(nodeId+" [style=rounded,shape=box,label=<<b>Unzip</b>>]")
       case  _ =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }
   }
 
 
-/*  def print(decl: Lambda) = {
-    writeln("digraph{")
-    countParams(decl.body)
-    printNodes(decl)
-    printEdges(decl, "", "")
-    writeln("}")
-
-    w.flush()
-    w.close()
-  }
-
-  def print(expr: Expr) = {
-    writeln("digraph{")
-    countParams(expr)
-    printNodes(expr)
-    printEdges(expr, "", "")
-    writeln("}")
-
-    w.flush()
-    w.close()
-  }*/
 
   def countParams(expr: Expr) = {
     Expr.visit(expr,

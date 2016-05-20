@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{Cst, ArithExpr, Var}
+import apart.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast._
 import opencl.executor._
@@ -39,7 +39,7 @@ class TestPad {
 
   def validate1D(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun, input: Array[Float] = input) = {
     val fct = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Pad(left, right, boundary) $ domain
     )
 
@@ -52,7 +52,7 @@ class TestPad {
                  top: Int, bottom: Int,
                  left: Int, right: Int,
                  boundary: Pad.BoundaryFun) = {
-    val N = Var("N")
+    val N = SizeVar("N")
     val fct = fun(
       ArrayType(ArrayType(Float, N), N),
       (domain) => MapGlb(0)(
@@ -67,7 +67,7 @@ class TestPad {
 
   def validate2DOriginal(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun) = {
     val fct = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Join()
         o Transpose() o Pad(left, right, boundary)
         o Transpose() o Pad(left, right, boundary)
@@ -86,7 +86,7 @@ class TestPad {
     val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
     val bf = Pad.Boundary.Clamp
     val fct = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Pad(1,1,bf) o Pad(1,1,bf) $ domain
     )
 
@@ -99,7 +99,7 @@ class TestPad {
     val gold = Array(0,0,0,1,2,3,4,4,4).map(_.toFloat)
     val bf = Pad.Boundary.Clamp
     val fct = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (domain) => MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
     )
 
@@ -112,11 +112,11 @@ class TestPad {
     val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
     val bf = Pad.Boundary.Clamp
     val joinMapPad = fun(
-      ArrayType(ArrayType(Float, Var("N")), Var("M")),
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
       (domain) => MapSeq(id) o Join() o MapSeq(MapSeq(id)) o Pad(1,1,bf) $ domain
     )
     val padJoinMap = fun(
-      ArrayType(ArrayType(Float, Var("N")), Var("M")),
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
       (domain) => MapSeq(id) o Pad(1,1,bf) o Join() o MapSeq(MapSeq(id)) $ domain
     )
 

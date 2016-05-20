@@ -5,7 +5,7 @@ import java.io.FileInputStream
 import java.util.Scanner
 import scala.util.Random
 
-import apart.arithmetic.{ArithExpr, Cst, Var, Lookup}
+import apart.arithmetic.{ArithExpr, Cst, SizeVar, Lookup}
 import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -71,14 +71,14 @@ class TestSlide {
 
   def createSimple1DGroupLambda(size: Int, step: Int): Lambda1 = {
     fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(MapSeqOrMapSeqUnroll(id)) o Slide(size, step) $ domain
     )
   }
 
   def createSimple2DGroupLambda(size: Int, step: Int): Lambda1 = {
     fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       (domain) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
@@ -92,7 +92,7 @@ class TestSlide {
   def createAsymmetric2DGroupLambda(size1: Int, step1: Int,
                                     size2: Int, step2: Int): Lambda1 = {
     fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       (domain) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
@@ -412,7 +412,7 @@ class TestSlide {
 
   def createSimpleStencilWithoutPad(size: Int, step: Int, weights: Array[Float]): Lambda2 = {
     fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
@@ -471,7 +471,7 @@ class TestSlide {
     val data = Array(0,1,2,3,4,5).map(_.toFloat)
     val gold = Array(18,27).map(_.toFloat)
     val lambda = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         Iterate(2) (Join() o MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Slide(3,1)) $ input
       })

@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.Var
+import apart.arithmetic.{PosVar, Var}
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 
@@ -9,10 +9,10 @@ import ir.interpreter.Interpreter.ValueMap
  *
  * An object of the search pattern has to be instantiated with a given lambda `f`,
  * the comparator function used to search the array, therefore it is not possible to 
- * have a term like `Search()'
+ * have a term like `Search()`
  *
  * f returns a value denoting the result of a comparison between the element of the array
- * passed to it, and a ``baked in'' element, which the search is looking for.
+ * passed to it, and a ``baked in`` element, which the search is looking for.
  *
  * The value returned must adhere to the following schema:
  *    f(e) <  0  iff e  > ix
@@ -28,17 +28,16 @@ import ir.interpreter.Interpreter.ValueMap
  *
  * TODO: Should this be renamed something like "ArraySearch" to avoid confusion with the rewriting search?
  *
- * @param f A lambda comparing a passed element to a baked in search element, similar to C's `bsearch' function
+ * @param f A lambda comparing a passed element to a baked in search element, similar to C's `bsearch` function
  */
 
 abstract class AbstractSearch(val f: Lambda, 
                               val name: String) extends Pattern(arity = 2) 
                                                         with FPattern {
   assert(f.params.length == 1)
-  var indexVar: Var = Var("ix")
-  var searchFMem : Memory = UnallocatedMemory
+  var indexVar: Var = PosVar("ix")
 
-  override def checkType(argType: Type, 
+  override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
       case TupleType(defaultT, ArrayType(elemT, _)) => 

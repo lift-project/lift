@@ -1,19 +1,14 @@
 package opencl.generator
 
-import java.io.{File, PrintWriter}
-
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import benchmarks.NBody
 import ir._
 import ir.ast._
-import ir.printer.DotPrinter
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
-
-import sys.process._
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestNBody {
 
@@ -130,7 +125,7 @@ class TestNBody {
           Float, TupleType(Float, Float, Float)),
         TupleType(Float, Float, Float, Float, Float, Float, Float))
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val function = fun(
       ArrayType(Float, N),
@@ -314,7 +309,7 @@ class TestNBody {
       vel(4*i+3) = mass(i)
     }
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val function = fun(
       ArrayType(Float4, N),

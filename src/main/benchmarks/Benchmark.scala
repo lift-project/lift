@@ -3,6 +3,7 @@ package benchmarks
 import java.io._
 import java.nio.file.{Files, Paths}
 
+import generator.Kernel
 import ir.ast.Lambda
 import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
@@ -24,7 +25,7 @@ abstract class Benchmark(val name: String,
   var inputs = Seq[Any]()
   var scalaResult = Array.emptyFloatArray
   var runtimes = Array.emptyDoubleArray
-  var generatedCode = Array.empty[String]
+  var generatedKernel = Array.empty[Kernel]
 
   // Parser options
   val parser = new ArgotParser(name)
@@ -121,16 +122,16 @@ abstract class Benchmark(val name: String,
     var generateKernels = false
 
 
-    if (generatedCode.length == 0) {
+    if (generatedKernel.length == 0) {
       generateKernels = true
-      generatedCode = Array.ofDim(lambdas.length)
+      generatedKernel = Array.ofDim(lambdas.length)
     }
 
 
     for (i <- lambdas.indices) {
 
       if (generateKernels)
-        generatedCode(i) = Utils.compile(lambdas(i),
+        generatedKernel(i) = Utils.compile(lambdas(i),
           realInputs,
           localSize(0),
           localSize(1),
@@ -148,7 +149,7 @@ abstract class Benchmark(val name: String,
         realGlobalSizes(1),
         realGlobalSizes(2),
         (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-      )(generatedCode(i), lambdas(i), realInputs:_*)
+      )(generatedKernel(i).code, generatedKernel(i).f, realInputs:_*)
 
       // Adjust parameters for the next kernel, if any
       realInputs = Seq(output)

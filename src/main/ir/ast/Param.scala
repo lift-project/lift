@@ -5,6 +5,7 @@ import ir.interpreter.Interpreter.ValueMap
 import ir.{Type, TypeException}
 
 
+
 /**
  * Parameters to functions and lambdas, i.e.: x, y, ...
  */
@@ -78,7 +79,7 @@ object Param {
  * @param p An existing parameter
  * @param n The vector width
  */
-class VectorParam(val p: Param, n: ArithExpr) extends Param {
+class VectorParam(val p: Param, val n: ArithExpr) extends Param {
   t = p.t.vectorize(n) // set the type
   override def toString = "v" + p.toString + "_" + n
 }

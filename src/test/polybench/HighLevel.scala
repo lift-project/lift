@@ -1,8 +1,8 @@
 package polybench
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import benchmarks.GESUMMV
-import ir.{TupleType, ArrayType}
+import ir.{ArrayType, TupleType}
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
@@ -25,9 +25,9 @@ object HighLevel {
 
 class HighLevel {
 
-  val N = Var("N")
-  val M = Var("M")
-  val K = Var("K")
+  val N = SizeVar("N")
+  val M = SizeVar("M")
+  val K = SizeVar("K")
 
   val mm = fun(
     ArrayType(ArrayType(Float, K), N),
@@ -314,9 +314,9 @@ class HighLevel {
     val AB = Utils.matrixMatrixMultiply(A, B)
     val gold = (AB, C).zipped.map((x, y) => (x, y).zipped.map((x, y) => x * alpha + y * beta))
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), N),

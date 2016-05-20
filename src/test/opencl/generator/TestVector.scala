@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import benchmarks.VectorScaling
 import ir._
 import ir.ast._
@@ -34,7 +34,7 @@ class TestVector {
 
     val gold = (leftInputData, rightInputData).zipped.map(_+_)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val addFun = fun(
       ArrayType(Float, N),
@@ -45,9 +45,9 @@ class TestVector {
         ) o Split(1024) $ Zip(left, right)
     )
 
-    val code = Compile(addFun)
+    val kernel = Compile(addFun)
     val (output: Array[Float], runtime) =
-      Execute(inputSize)(code, addFun, leftInputData, rightInputData)
+      Execute(inputSize)(kernel.code, kernel.f, leftInputData, rightInputData)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -62,7 +62,7 @@ class TestVector {
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_)
 
-    val negFun = fun(ArrayType(Float, Var("N")), (input) =>
+    val negFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
 
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(neg)) o Split(4)
@@ -86,7 +86,7 @@ class TestVector {
     val gold = inputArray.map(-_)
 
     val negFun = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => Join() o MapGlb(
         MapSeq(neg)
       ) o Split(4) $ input
@@ -107,7 +107,7 @@ class TestVector {
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_).reverse
 
-    val negFun = fun(ArrayType(Float, Var("N")), (input) =>
+    val negFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
 
       Join() o MapGlb(
         MapSeq(neg)
@@ -197,7 +197,7 @@ class TestVector {
     val alpha = 2.5f
     val gold = inputArray.map(_ * alpha).sum
 
-    val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+    val scalFun = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
       Join() o MapWrg(
         Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(
           fun( x => mult(alpha, x) )
@@ -222,7 +222,7 @@ class TestVector {
     val gold = scala.math.sqrt(inputArray.map(x => x*x).sum).toFloat
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
@@ -253,7 +253,7 @@ class TestVector {
     assertArrayEquals(gold, test, 0.001f)
 
     val f = fun(
-      ArrayType(ArrayType(Float, new Var("M")), new Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       input => MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose() $ input
     )
 

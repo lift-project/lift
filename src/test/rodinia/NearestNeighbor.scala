@@ -1,8 +1,8 @@
 package rodinia
 
-import apart.arithmetic.{ArithExpr, Var}
+import apart.arithmetic.{SizeVar, ArithExpr}
+import ir.ast.{UserFun, \, fun}
 import ir.{ArrayType, TupleType}
-import ir.ast.{\, fun, UserFun}
 import opencl.executor._
 import opencl.ir.Float
 import opencl.ir.pattern.MapGlb
@@ -29,7 +29,7 @@ class NearestNeighbor {
       "{ return sqrt( (lat - loc._0) * (lat - loc._0) + (lng - loc._1) * (lng - loc._1) ); }",
       Seq(TupleType(Float, Float), Float, Float), Float)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val nn = fun(
       ArrayType(TupleType(Float, Float), N), Float, Float,

@@ -1,13 +1,13 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-import opencl.ir.pattern._
 
 object TestDynMap {
   @BeforeClass def TestDynMap() {
@@ -40,7 +40,7 @@ class TestDynMap {
     """.stripMargin
     , Int, Int)
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {
@@ -73,7 +73,7 @@ class TestDynMap {
     """.stripMargin
     , Int, Int)
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {
@@ -109,7 +109,7 @@ class TestDynMap {
     """.stripMargin
     , Int, Int)
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {
@@ -128,7 +128,7 @@ class TestDynMap {
   }
 
   @Test def ATOM_WRG_LCL_MAP() : Unit = {
-        val inputSize = Math.pow(2, 14).toInt
+    val inputSize = Math.pow(2, 14).toInt
     val splitSize = Math.pow(2, 5).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i)
     val gold = arr.map((i:Int) => i + i)
@@ -142,7 +142,7 @@ class TestDynMap {
     """.stripMargin
     , Int, Int)
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val kernel = fun(
       ArrayType(Int, N),
       (array) => {

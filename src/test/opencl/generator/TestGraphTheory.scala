@@ -2,17 +2,16 @@ package opencl.generator
 
 import java.io._
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.sys.process._
-import opencl.ir.pattern._
 
 object TestGraphTheory {
   @BeforeClass def TestMatrixBasic() {
@@ -44,7 +43,7 @@ class TestGraphTheory {
     val fringe = Array.fill(inputSize)(0.0f)
     fringe(util.Random.nextInt(inputSize)) = 1.0f
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val denseBFSIteration = fun(
       ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
       ArrayType(Float, N),
@@ -73,7 +72,7 @@ class TestGraphTheory {
     val inputSize = 1024;
     val graph = buildPageRankMatrix(Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>20) 0 else 1).toFloat))
     val ranks = Array.fill(inputSize)(1.0f/inputSize.toFloat)
-    val N = Var("N")
+    val N = SizeVar("N")
     val densePageRankIteration = fun(
       ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
       ArrayType(Float, N),
@@ -131,7 +130,7 @@ class TestGraphTheory {
     val inputSize = 1024;
     val graph = buildPageRankMatrix(Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>20) 0 else 1).toFloat))
     val ranks = Array.fill(inputSize)(1.0f/inputSize.toFloat)
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val pageRankMultiIteration = fun(
       ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph

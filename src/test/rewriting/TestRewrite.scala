@@ -1,11 +1,11 @@
 package rewriting
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir.ast._
 import opencl.executor.Executor
 import ir._
 import opencl.ir._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import org.junit.Assert._
 
 object TestRewrite {
@@ -23,7 +23,7 @@ class TestRewrite {
 
   @Test
   def mapMapMapLowering(): Unit = {
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(ArrayType(ArrayType(ArrayType(Float, N), N), N),
         input => Map(Map(Map(id))) $ input)
@@ -37,7 +37,7 @@ class TestRewrite {
 
   @Test
   def reduceLowering(): Unit = {
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(ArrayType(Float, N), input => {
       Reduce(add, 0.0f) $ input
     })
@@ -51,7 +51,7 @@ class TestRewrite {
 
   @Test
   def scalLowering() : Unit = {
-    val f = fun(ArrayType(Float, Var("N")), Float, (input, alpha) => {
+    val f = fun(ArrayType(Float, SizeVar("N")), Float, (input, alpha) => {
       Map(\(x => mult(alpha, x))) $ input
     })
 
@@ -64,7 +64,7 @@ class TestRewrite {
 
   @Test
   def asumLowering() : Unit = {
-    val f = fun(ArrayType(Float, Var("N")), input => {
+    val f = fun(ArrayType(Float, SizeVar("N")), input => {
       Reduce(add, 0.0f) o Map(abs) $ input
     })
 
@@ -78,7 +78,7 @@ class TestRewrite {
   @Ignore
   @Test
   def dotLowering() : Unit = {
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(ArrayType(Float, N), ArrayType(Float, N), (left, right) => {
       Zip(left, right) :>> Map(mult) :>> Reduce(add, 0.0f)
     })
@@ -93,8 +93,8 @@ class TestRewrite {
   @Ignore
   @Test
   def gemvLowering() : Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -136,8 +136,8 @@ class TestRewrite {
   @Ignore
   @Test
   def mvLowering() : Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -159,8 +159,8 @@ class TestRewrite {
   @Ignore
   @Test
   def mvAsMmLowering() : Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -188,9 +188,9 @@ class TestRewrite {
   @Ignore
   @Test
   def mmLowering() : Unit = {
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -237,7 +237,7 @@ class TestRewrite {
         |""".stripMargin, Seq(Int, Int, Int, Int), Int)
 
     val f = fun(
-      ArrayType(Int, Var("N")), Int, Int, (in, niters, size) => {
+      ArrayType(Int, SizeVar("N")), Int, Int, (in, niters, size) => {
         in :>> Map(fun(i =>
           in :>> Map(fun(j => md(i, j, niters, size)))
         ))
@@ -265,8 +265,8 @@ class TestRewrite {
       "{ return x._1; }",
       TupleType(Float, Int), Int)
 
-    val N = Var("N")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(Float, N),
@@ -337,7 +337,7 @@ class TestRewrite {
           Float, TupleType(Float, Float, Float)),
         TupleType(Float, Float, Float, Float, Float, Float, Float))
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
