@@ -1,6 +1,7 @@
 package benchmarks
 
 import apart.arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.Utils
@@ -83,9 +84,9 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
 }
 
 object MatrixMultiplication {
-  val N = Var("N")
-  val M = Var("M")
-  val K = Var("K")
+  val N = SizeVar("N")
+  val M = SizeVar("M")
+  val K = SizeVar("K")
 
   val naive = fun(
     ArrayType(ArrayType(Float, K), M),

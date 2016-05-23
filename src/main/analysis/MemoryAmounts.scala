@@ -6,7 +6,7 @@ import ir.ast.{Expr, Lambda}
 import ir.{Memory, UnallocatedMemory}
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator._
-import opencl.ir.{GlobalMemory, LocalMemory, OpenCLMemoryAllocator, TypedOpenCLMemory}
+import opencl.ir.{GlobalMemory, InferOpenCLAddressSpace, LocalMemory, OpenCLMemoryAllocator, TypedOpenCLMemory}
 
 object MemoryAmounts {
     def apply(
@@ -51,18 +51,19 @@ class MemoryAmounts(
 
   private def determine(): Unit = {
 
-    if (lambda.body.mem == UnallocatedMemory) {
+    if (substLambda.body.mem == UnallocatedMemory) {
       // Allocate memory
-      RangesAndCounts(lambda, localSize, globalSize, valueMap)
-      OpenCLMemoryAllocator(lambda)
+      RangesAndCounts(substLambda, localSize, globalSize, valueMap)
+      InferOpenCLAddressSpace(substLambda)
+      OpenCLMemoryAllocator(substLambda)
     }
 
     // Get the allocated buffers
-    val kernelMemory = TypedOpenCLMemory.get(lambda.body, lambda.params)
-    val buffers = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true)
+    val kernelMemory = TypedOpenCLMemory.get(substLambda.body, substLambda.params)
+    val buffers = TypedOpenCLMemory.get(substLambda.body, substLambda.params, includePrivate = true)
 
     valueMemories =
-      Expr.visitWithState(Set[Memory]())(lambda.body, (lambda, set) =>
+      Expr.visitWithState(Set[Memory]())(substLambda.body, (lambda, set) =>
         lambda match {
           case value: ir.ast.Value => set + value.mem
           case _ => set

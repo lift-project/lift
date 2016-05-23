@@ -1,6 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.{?, ArithExpr, Cst, Var}
+import apart.arithmetic.SizeVar
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._
@@ -40,7 +41,7 @@ class TestMisc {
     val iterCount = 100
 
     val f = fun(
-        ArrayType(Float, Var("N")),
+        ArrayType(Float, SizeVar("N")),
         x => MapGlb(Iterate(iterCount)(MapSeq(incr))) o Split(inputSize) $ x
       )
 
@@ -59,7 +60,7 @@ class TestMisc {
     val incr = UserFun("incr", "x", "{ return x+1; }", Double, Double)
 
     val f = fun(
-      ArrayType(Double, Var("N")),
+      ArrayType(Double, SizeVar("N")),
       in => MapGlb(incr) $ in
     )
 
@@ -74,7 +75,7 @@ class TestMisc {
     val gold = inputData.map(_+5)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (inArr) => {
         Join() o MapGlb(
           Iterate(5)(fun((e) => MapSeq(incr) $ e))
@@ -83,7 +84,7 @@ class TestMisc {
     )
 
     val f2 = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (inArr) => {
         Iterate(5)(fun((arr) =>
           MapGlb(incr) $ arr
@@ -104,7 +105,7 @@ class TestMisc {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l = fun (
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       Float,
       (in, init) => {
         fun( x0 => Join()(MapWrg(
@@ -129,7 +130,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")),
+    val l = fun (ArrayType(Float, SizeVar("N")),
       in => {
         Join() o MapWrg(
           Join() o  MapLcl(
@@ -148,7 +149,7 @@ class TestMisc {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l =
-      fun (ArrayType(Float, Var("N")),
+      fun (ArrayType(Float, SizeVar("N")),
          in => {
            in :>>
            Split(128) :>>
@@ -171,7 +172,7 @@ class TestMisc {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l =
-      fun (ArrayType(Float, Var("N")),
+      fun (ArrayType(Float, SizeVar("N")),
           in => {
             Join() <<:
             MapWrg(
@@ -193,7 +194,7 @@ class TestMisc {
     val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      ArrayType(ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
       input => MapWrg(
         fun( x0 => toGlobal(MapLcl(MapSeq(id)))(x0) ) o
           Transpose() o TransposeW() o
@@ -211,7 +212,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, Var("N")),
+    val l = fun(ArrayType(Float, SizeVar("N")),
       in => {
         MapSeq(id o id) $ in
       })
@@ -226,7 +227,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, Var("N")),
+    val l = fun(ArrayType(Float, SizeVar("N")),
       in => {
         in :>> ReduceSeq(add, toPrivate(add)(0.0f, 1.0f)) :>> toGlobal(MapSeq(id))
       })
@@ -300,7 +301,7 @@ class TestMisc {
   @Test def increment(): Unit = {
     // domain size
     val inputSize = 128
-    val N = Var("N")
+    val N = SizeVar("N")
 
     // Input variables
     val xs = Array.fill(inputSize)(util.Random.nextFloat())
@@ -333,7 +334,7 @@ class TestMisc {
     val gold = inputData.map(x => - x)
 
     val composition = id o neg
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val compFun = fun(
         ArrayType(Float, N),
@@ -351,8 +352,8 @@ class TestMisc {
     val matrix = Array.tabulate(Nsize, Nsize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
     val vector = Array.fill(Nsize)(1.0f)
 
-    val N = Var("N")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, K), N), N),
@@ -373,7 +374,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
@@ -398,7 +399,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.tabulate(inputSize*4)(_.toFloat)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float4, N),
@@ -414,7 +415,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.tabulate(inputSize*4)(_.toFloat)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float4, N),
@@ -432,7 +433,7 @@ class TestMisc {
 
     val gold = inputData.map(_ + 3.0f)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -452,7 +453,7 @@ class TestMisc {
     val gold   = matrix.map(- _.sum)
 
     val function = fun(
-      ArrayType(ArrayType(Float, Var("N")), Var("M")),
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
       (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
@@ -467,7 +468,7 @@ class TestMisc {
     val gold = inputData.map(_+1)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => asScalar() o MapGlb(plusOne.vectorize(4)) o asVector(4) $ in
     )
 
@@ -482,7 +483,7 @@ class TestMisc {
     val gold = inputData.map(_+1)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapGlb(plusOne) o asScalar() o asVector(4) $ in
     )
 
@@ -496,8 +497,8 @@ class TestMisc {
     val Msize = 128
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * Msize.toFloat)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
 
     val f = fun(
@@ -516,9 +517,9 @@ class TestMisc {
     val Ksize = 64
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
 
     val f = fun(
@@ -537,9 +538,9 @@ class TestMisc {
     val Ksize = 64
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
 
     val f = fun(
@@ -558,9 +559,9 @@ class TestMisc {
     val Ksize = 64
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
 
     val f = fun(
@@ -578,7 +579,7 @@ class TestMisc {
     val gold = input.map(_+(1*7))
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Iterate(7)(MapGlb(plusOne)) $ in
     )
 
@@ -592,7 +593,7 @@ class TestMisc {
     val inputB = Array.tabulate(inputSize)(_.toFloat).reverse
     val gold = inputA.zip(inputB.map(_*5.0f)).map((t:(Float, Float)) => t match{ case (x:Float,y:Float) => x+y})
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -614,14 +615,14 @@ class TestMisc {
     val gold = input.map(_+1).map(_+1).map(_+1).map(_+1).map(_+1)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(id)) o
         Iterate(5)( MapLcl(plusOne)) o
         toLocal(MapLcl(id))) o Split(16) $ in
     )
 
     val f_nested = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => fun(x1 => Join()(MapWrg(
         fun(x2 =>
           fun(x3 =>
@@ -632,7 +633,7 @@ class TestMisc {
     )
 
     val f_nested2 = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join()(MapWrg(fun(x2 =>
         fun(x3 =>
           fun(x4 => toGlobal(MapLcl(id))(x4))(
@@ -642,7 +643,7 @@ class TestMisc {
     )
 
     val f_nested3 = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join()(MapWrg(fun(x2 =>
         fun(x4 => toGlobal(MapLcl(id))(x4))(
           Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
@@ -651,7 +652,7 @@ class TestMisc {
       )
 
     val f_nested4 = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join()(MapWrg(fun(x2 =>
         toGlobal(MapLcl(id))(
           Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
@@ -660,7 +661,7 @@ class TestMisc {
     )
 
     val f_full = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join()(MapWrg(fun(x0 =>
         toGlobal(MapLcl(id))(
           Iterate(5)(fun(x1 => MapLcl(plusOne)(x1)))(
@@ -692,8 +693,8 @@ class TestMisc {
     val gold = A.map(a => B.map(b => (a, b).zipped)).map(_.map(_.map(_+_)))
 
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -713,7 +714,7 @@ class TestMisc {
   @Test def localMemoryRegression(): Unit = {
     val f =
       fun(
-        ArrayType(Float, Var("N")),
+        ArrayType(Float, SizeVar("N")),
         x => Join() o MapWrg(
           Join() o MapLcl(
             Join() o MapSeq(
@@ -726,12 +727,12 @@ class TestMisc {
 
     val input = Array.fill(2048)(util.Random.nextInt(5).toFloat)
 
-    val code = Compile(f)
+    val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(16, 2048)(code, f, input)
+    val (output: Array[Float], _) = Execute(16, 2048)(kernel.code, kernel.f, input)
 
     assertEquals(input.sum, output.sum, 0.0f)
-    assertEquals(8, "l_id".r.findAllMatchIn(code).length)
+    assertEquals(9, "l_id".r.findAllMatchIn(kernel.code).length)
   }
 
   @Test(expected = classOf[OpenCLGeneratorException])
@@ -865,10 +866,10 @@ class TestMisc {
 
   @Ignore
   @Test def issue50_MatchError(): Unit = {
+    val v_K0_0 = SizeVar("")
+    val v_M1_1 = SizeVar("")
+    val v_N2_2 = SizeVar("")
     // TODO: trying to vectorise a value of ArrayType, for initialising it in local memory
-    val v_K0_0 = Var("")
-    val v_M1_1 = Var("")
-    val v_N2_2 = Var("")
     val v_3_3 = Cst(128)
 
     val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)

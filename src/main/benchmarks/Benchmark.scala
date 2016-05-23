@@ -1,8 +1,11 @@
 package benchmarks
 
 import java.io._
+import java.nio.file.{Files, Paths}
 
+import generator.Kernel
 import ir.ast.Lambda
+import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
 import opencl.generator.Verbose
 import org.clapper.argot.ArgotConverters._
@@ -22,7 +25,7 @@ abstract class Benchmark(val name: String,
   var inputs = Seq[Any]()
   var scalaResult = Array.emptyFloatArray
   var runtimes = Array.emptyDoubleArray
-  var generatedCode = Array.empty[String]
+  var generatedKernel = Array.empty[Kernel]
 
   // Parser options
   val parser = new ArgotParser(name)
@@ -50,6 +53,9 @@ abstract class Benchmark(val name: String,
 
   val loadKernel = parser.option[String](List("loadKernel"), "filename",
     "Load an OpenCL kernel source file")
+
+  val csvFileName = parser.option[String](List("csv"), "csvFileName",
+    "If specified, results are stored in .csv file with given name")
 
   val size = parser.multiOption[Int](List("s", "size"), "inputSize",
     "Size of the input to use, expecting " + defaultInputSizes.length + " sizes.")
@@ -116,16 +122,16 @@ abstract class Benchmark(val name: String,
     var generateKernels = false
 
 
-    if (generatedCode.length == 0) {
+    if (generatedKernel.length == 0) {
       generateKernels = true
-      generatedCode = Array.ofDim(lambdas.length)
+      generatedKernel = Array.ofDim(lambdas.length)
     }
 
 
     for (i <- lambdas.indices) {
 
       if (generateKernels)
-        generatedCode(i) = Utils.compile(lambdas(i),
+        generatedKernel(i) = Utils.compile(lambdas(i),
           realInputs,
           localSize(0),
           localSize(1),
@@ -143,7 +149,7 @@ abstract class Benchmark(val name: String,
         realGlobalSizes(1),
         realGlobalSizes(2),
         (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-      )(generatedCode(i), lambdas(i), realInputs:_*)
+      )(generatedKernel(i).code, generatedKernel(i).f, realInputs:_*)
 
       // Adjust parameters for the next kernel, if any
       realInputs = Seq(output)
@@ -176,11 +182,66 @@ abstract class Benchmark(val name: String,
     println("BANDWIDTH: " + bandwidth(time) + " GB/s" )
   }
 
-  def runBenchmark(): Unit = {
+  def printCSVFile(filename: String,
+                   kernel: String,
+                   commit: String,
+                   branch: String,
+                   date: String,
+                   dce: Boolean,
+                   cse: Boolean): Unit = {
+    if(!Files.exists(Paths.get(filename))) {
+     val fw = new FileWriter(filename, true)
+      try {
+        fw.write("Benchmark;Kernel;Date;Commit;Branch;")
+        inputSizes().zipWithIndex.foreach{case(e, i) => fw.write("Size" + i + ";")}
+        fw.write("InjectGroup;InjectLocal;")
+        fw.write("Iterations;GlobalSize0;GlobalSize1;GlobalSize2;")
+        fw.write("LocalSize0;LocalSize1;LocalSize2;")
+        fw.write("DCE;CSE;")
+        fw.write("Platform;Device;Median;Bandwidth\n")
+      } finally fw.close()
+    }
 
-    print("date".!!)
+    val fw = new FileWriter(filename, true)
+      try {
+
+        fw.write(name + "_" + f(variant)._1 + ";" + kernel + ";\"" + date + "\";")
+        fw.write(commit + ";" + branch + ";" )
+        inputSizes().zipWithIndex.foreach{case(e, i) => fw.write(e + ";")}
+        fw.write(injectGroup.value.getOrElse(false) + ";" + injectLocal.value.getOrElse(false) + ";")
+        fw.write(iterations + ";" + globalSize(0) + ";" + globalSize(1) + ";" + globalSize(2) + ";")
+        fw.write(localSize(0) + ";" + localSize(1) + ";" + localSize(2) + ";")
+        fw.write(dce + ";" + cse + ";")
+        fw.write("\"" + Executor.getPlatformName + "\";\"" + Executor.getDeviceName() + "\";")
+      } finally fw.close()
+  }
+
+  def printMedianAndBandwidth(median: Double, bandwidth: Double): Unit = {
+    val fw = new FileWriter(csvFileName.value.get, true)
+      try {
+        fw.write(median + ";" + bandwidth + "\n")
+      } finally fw.close()
+  }
+
+  def runBenchmark(): Unit = {
+    val kernel = if (loadKernel.value.isDefined)
+          loadKernel.value.get.replaceAll("(.*?/)*", "")
+        else "generated"
+    val commit = ("git rev-parse HEAD".!!).trim
+    val branch = ("git rev-parse --abbrev-ref HEAD".!!).trim
+    val date = ("date".!!).trim
+    val dce = System.getenv("APART_DCE") != null
+    val cse = System.getenv("APART_CSE") != null
+
+    if (csvFileName.value.isDefined)
+      printCSVFile(csvFileName.value.get, kernel, commit, branch, date, dce, cse)
+
+    println(date)
     println("Benchmark: " + name + " " + f(variant)._1)
+    println("Kernel: " + kernel)
     println("Size(s): " + inputSizes().mkString(", "))
+    println("Dead Code Elimination: " + dce)
+    println("Common Subexpression Extraction: " + cse)
     println("Total iterations: " + iterations)
     println("Checking results: " + checkResult)
     println("Global sizes: " + globalSize.mkString(", "))
@@ -192,7 +253,8 @@ abstract class Benchmark(val name: String,
     printParams()
     print("Machine: " + "hostname".!!)
     print("finger".!!)
-    print("Commit: " + "git rev-parse HEAD".!!)
+    println("Commit: " + commit)
+    println("Branch: " + branch)
     print("Diff:\n" + "git diff".!!)
 
     println()
@@ -231,6 +293,7 @@ abstract class Benchmark(val name: String,
 
         println("MEDIAN: " + runtime + " ms")
         printResults(runtime)
+        if(csvFileName.value.isDefined) printMedianAndBandwidth(runtime, bandwidth(runtime))
 
       }
       else {
@@ -249,6 +312,7 @@ abstract class Benchmark(val name: String,
 
         println("MEDIAN: " + runtime + " ms")
         printResults(runtime)
+        if(csvFileName.value.isDefined) printMedianAndBandwidth(runtime, bandwidth(runtime))
       }
 
     } else {
@@ -276,6 +340,7 @@ abstract class Benchmark(val name: String,
       val medianTime = median(sorted)
       println("MEDIAN: " + medianTime + " ms")
       printResults(medianTime)
+      if(csvFileName.value.isDefined) printMedianAndBandwidth(medianTime, bandwidth(medianTime))
       println()
     }
   }
@@ -364,6 +429,7 @@ abstract class Benchmark(val name: String,
 
     } catch {
       case e: ArgotUsageException => println(e.message)
+      case x: ExecutorFailureException => x.printStackTrace(); printMedianAndBandwidth(0,0)
     }
   }
 }

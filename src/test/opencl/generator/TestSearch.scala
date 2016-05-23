@@ -1,15 +1,13 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir._
 import ir.ast._
 import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
-import opencl.ir.ast._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
-
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import opencl.ir.pattern._
 
 object TestSearch {
@@ -34,7 +32,7 @@ class TestSearch {
      val gold = arr.map(_ + 1)
      val compare = UserFun("plone", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
      val plusOne = UserFun("plus_one", "elem", "return (elem+1);", Int, Int)
-     val N = Var("N")
+     val N = SizeVar("N")
      val searchKernel = fun(
        ArrayType(Int, N),
        (array) => {
@@ -54,7 +52,7 @@ class TestSearch {
      val gold = search_arr(search_index)
      // compare: compare the search variable s, with the indexed element i
      val compare = UserFun("comp", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
-     val N = Var("N")
+     val N = SizeVar("N")
      val searchKernel = fun(
        ArrayType(Int, N),
        ArrayType(Int, 1),
@@ -82,7 +80,7 @@ class TestSearch {
      val gold = search_arr(search_index)
      // compare: compare the search variable s, with the indexed element i
      val compare = UserFun("comp", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
-     val N = Var("N")
+     val N = SizeVar("N")
      val searchKernel = fun(
        ArrayType(Int, N),
        ArrayType(Int, 1),
@@ -112,7 +110,7 @@ class TestSearch {
     // compare: compare the search variable s, with the indexed element i
     val compare = UserFun("comp", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
     val addI = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
-    val N = Var("N")
+    val N = SizeVar("N")
     val searchKernel = fun(
       ArrayType(Int, N),
       ArrayType(Int, 1),
@@ -147,7 +145,7 @@ class TestSearch {
     val gold = search_indices.zip(search_arrs).map({ case (i:Int, arr:Array[Int]) => arr(i)})
     // comparison function
     val compare = UserFun("comp", Array("s", "i"), "return (i-s);", Array(Int, Int), Int)
-    val N = Var("N")
+    val N = SizeVar("N")
     val searchKernel = fun(
       ArrayType(Int, N), //indicies
       ArrayType(ArrayType(Int, N), N), //search arrays
@@ -179,7 +177,7 @@ class TestSearch {
     val gold = search_indices.zip(search_arrs).map({ case (i:Int, arr:Array[Int]) => arr(i)})
     // comparison function
     val compare = UserFun("comp", Array("s", "i"), "return (i-s);", Array(Int, Int), Int)
-    val N = Var("N")
+    val N = SizeVar("N")
     val searchKernel = fun(
       ArrayType(Int, N), //indicies
       ArrayType(ArrayType(Int, N), N), //search arrays
@@ -234,7 +232,7 @@ class TestSearch {
       Int // The direction we should move...
     )
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val searchKernel = fun(
       ArrayType(TupleType(Int, Int), N),
       ArrayType(TupleType(Int, Int), 1),
@@ -290,7 +288,7 @@ class TestSearch {
       Int // The direction we should move...
     )
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val searchKernel = fun(
       ArrayType(TupleType(Int, Int), N),
       ArrayType(TupleType(Int, Int), 1),

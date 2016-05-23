@@ -1,6 +1,7 @@
 package ir.ast
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir.{ArrayType, TupleType}
 import opencl.ir._
 import org.junit.Assert._
@@ -9,7 +10,7 @@ import org.junit.Test
 class TestLambda {
   @Test
   def lambdaFactoryMethodBug(): Unit = {
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(TupleType(ArrayType(Float, N), ArrayType(Float, N)),
       input => fun(x =>Tuple(asScalar() $ Get(x, 0), asScalar() $ Get(x, 1))) o

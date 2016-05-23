@@ -25,7 +25,7 @@ class TestAccessPatterns {
     reads(view) == CoalescedPattern
   }
 
-  val N = Var("N")
+  val N = SizeVar("N")
 
   @Test
   def coalescedGlb1(): Unit = {

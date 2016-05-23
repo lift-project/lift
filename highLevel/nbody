@@ -41,7 +41,7 @@ val update =
       Float, TupleType(Float, Float, Float)),
     TupleType(Float, Float, Float, Float, Float, Float, Float))
 
-val N = Var("N")
+val N = SizeVar("N")
 
 fun(
   ArrayType(Float, N),

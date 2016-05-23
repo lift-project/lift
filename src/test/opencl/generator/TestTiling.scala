@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
@@ -35,8 +35,8 @@ class TestTiling {
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -73,8 +73,8 @@ class TestTiling {
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -114,8 +114,8 @@ class TestTiling {
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -152,8 +152,8 @@ class TestTiling {
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -193,8 +193,8 @@ class TestTiling {
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -233,8 +233,8 @@ class TestTiling {
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -276,8 +276,8 @@ class TestTiling {
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -319,8 +319,8 @@ class TestTiling {
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),

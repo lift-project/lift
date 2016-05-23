@@ -1,6 +1,7 @@
 package benchmarks
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -52,8 +53,8 @@ class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
 }
 
 object MatrixTransposition {
-  val N = Var("N")
-  val M = Var("M")
+  val N = SizeVar("N")
+  val M = SizeVar("M")
 
   val naive = fun(
     ArrayType(ArrayType(Float, M), N),

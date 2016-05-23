@@ -1,6 +1,6 @@
 package opencl.ir.interpreter
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast.{UserFun, fun, _}
 import ir.interpreter.Interpreter
@@ -28,7 +28,7 @@ class TestInterpreter {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l = fun (
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       Float,
       (in, init) => {
         fun( x0 => Join()(MapWrg(
@@ -53,7 +53,7 @@ class TestInterpreter {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")),
+    val l = fun (ArrayType(Float, SizeVar("N")),
       in => {
         Join() o MapWrg(
           Join() o  MapLcl(
@@ -72,7 +72,7 @@ class TestInterpreter {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l =
-      fun (ArrayType(Float, Var("N")),
+      fun (ArrayType(Float, SizeVar("N")),
          in => {
            in :>>
            Split(128) :>>
@@ -95,7 +95,7 @@ class TestInterpreter {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l =
-      fun (ArrayType(Float, Var("N")),
+      fun (ArrayType(Float, SizeVar("N")),
           in => {
             Join() <<:
             MapWrg(
@@ -117,7 +117,7 @@ class TestInterpreter {
     val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, new Var("N")), new Var("M")), new Var("L")),
+      ArrayType(ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
       input => MapWrg(
         fun( x0 => toGlobal(MapLcl(MapSeq(id)))(x0) ) o
           Transpose() o TransposeW() o
@@ -135,7 +135,7 @@ class TestInterpreter {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, Var("N")),
+    val l = fun(ArrayType(Float, SizeVar("N")),
       in => {
         MapSeq(id o id) $ in
       })
@@ -150,7 +150,7 @@ class TestInterpreter {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, Var("N")),
+    val l = fun(ArrayType(Float, SizeVar("N")),
       in => {
         in :>> ReduceSeq(add, toPrivate(add)(0.0f, 1.0f)) :>> toGlobal(MapSeq(id))
       })
@@ -164,7 +164,7 @@ class TestInterpreter {
   @Test def increment(): Unit = {
     // domain size
     val inputSize = 128
-    val N = Var("N")
+    val N = SizeVar("N")
 
     // Input variables
     val xs = Array.fill(inputSize)(util.Random.nextFloat())
@@ -197,7 +197,7 @@ class TestInterpreter {
     val gold = inputData.map(x => - x)
 
     val composition = id o neg
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val compFun = fun(
         ArrayType(Float, N),
@@ -216,8 +216,8 @@ class TestInterpreter {
     val matrix = Array.tabulate(Nsize, Nsize, Ksize)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
     val vector = Array.fill(Nsize)(1.0f)
 
-    val N = Var("N")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
 
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, K), N), N),
@@ -238,7 +238,7 @@ class TestInterpreter {
     val inputSize = 1024
     val inputData = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(ArrayType(Float, N), N),
@@ -264,7 +264,7 @@ class TestInterpreter {
     val inputSize = 1024
     val inputData = Array.tabulate(inputSize*4)(_.toFloat)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float4, N),
@@ -283,7 +283,7 @@ class TestInterpreter {
 
     val gold = inputData.map(_ + 3.0f)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -303,7 +303,7 @@ class TestInterpreter {
     val gold   = matrix.map(- _.sum)
 
     val function = fun(
-      ArrayType(ArrayType(Float, Var("N")), Var("M")),
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
       (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
@@ -318,7 +318,7 @@ class TestInterpreter {
     val gold = inputData.map(_+1)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapGlb(plusOne) o asScalar() o asVector(4) $ in
     )
 
@@ -332,8 +332,8 @@ class TestInterpreter {
     val Msize = 128
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * Msize.toFloat)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
 
     val f = fun(
@@ -352,9 +352,9 @@ class TestInterpreter {
     val Ksize = 64
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
 
     val f = fun(
@@ -373,9 +373,9 @@ class TestInterpreter {
     val Ksize = 64
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
 
     val f = fun(
@@ -394,9 +394,9 @@ class TestInterpreter {
     val Ksize = 64
     val matrix = Array.tabulate(Nsize, Msize, Ksize)((r, c, z) => c * 1.0f + r * Msize.toFloat + z * Msize * Ksize)
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
 
     val f = fun(
@@ -414,7 +414,7 @@ class TestInterpreter {
     val gold = input.map(_+(1*7))
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Iterate(7)(MapGlb(plusOne)) $ in
     )
 
@@ -428,7 +428,7 @@ class TestInterpreter {
     val inputB = Array.tabulate(inputSize)(_.toFloat).reverse
     val gold = inputA.zip(inputB.map(_*5.0f)).map((t:(Float, Float)) => t match{ case (x:Float,y:Float) => x+y})
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -450,7 +450,7 @@ class TestInterpreter {
     val gold = input.map(_+1).map(_+1).map(_+1).map(_+1).map(_+1)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(id)) o
         Iterate(5)( MapLcl(plusOne)) o
         toLocal(MapLcl(id))) o Split(16) $ in
@@ -470,8 +470,8 @@ class TestInterpreter {
     val gold = A.map(a => B.map(b => (a, b).zipped)).map(_.map(_.map(_+_)))
 
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),

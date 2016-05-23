@@ -1,6 +1,7 @@
 package opencl.executor
 
 import apart.arithmetic.{ArithExpr, Cst, Var}
+import generator.Kernel
 import ir._
 import ir.ast._
 import opencl.generator.{OpenCLGenerator, Verbose}
@@ -152,29 +153,29 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
    * Given a lambda: compile it and then execute it
    */
   def apply(f: Lambda, values: Any*): (Any, Double) = {
-    val code = compile(f, values:_*)
+    val kernel = compile(f, values:_*)
 
-    execute(code, f, values: _*)
+    execute(kernel.code, kernel.f, values: _*)
   }
 
   /**
    * Given a lambda: compile it and then execute it <code>iterations</code> times
    */
   def apply(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
-    val code = compile(f, values:_*)
+    val kernel = compile(f, values:_*)
 
-    benchmark(iterations, timeout, code, f, values:_*)
+    benchmark(iterations, timeout, kernel.code, kernel.f, values:_*)
   }
 
   def evaluate(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
-    val code = compile(f, values:_*)
+    val kernel = compile(f, values:_*)
 
-    evaluate(iterations, timeout, code, f, values:_*)
+    evaluate(iterations, timeout, kernel.code, kernel.f, values:_*)
   }
 
 
 
-  private def compile(f: Lambda, values: Any*) : String = {
+  private def compile(f: Lambda, values: Any*) : Kernel = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
       // ... build map of values mapping size information to arithmetic expressions, e.g., ???
@@ -254,21 +255,17 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   private def execute(executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
                        code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
-    // check that the given values match with the given lambda expression
+    // 1. check that the given values match with the given lambda expression
     checkParamsWithValues(f.params, values)
 
-    // 1. create map associating Variables, e.g., Var("N"), with values, e.g., "1024".
+    // 2. create map associating Variables, e.g., SizeVar("N"), with values, e.g., "1024".
     val valueMap: immutable.Map[ArithExpr, ArithExpr] = Execute.createValueMap(f, values: _*)
-
-    // 2. check all group functions (introduced for stencil support) are valid arguments for the
-    // given input sizes
-    staticPadCheck(f, valueMap)
 
     // 3. make sure the device has enough memory to execute the kernel
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getSize(f.body.t), valueMap).eval
+    val outputSize = ArithExpr.substitute(Type.getMaxSize(f.body.t), valueMap).eval
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments
@@ -294,43 +291,6 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     // 11. return output data and runtime as a tuple
     (output, runtime)
-  }
-
-  /** Check that all possible indices returned by Group calls are in-bounds */
-  private def staticPadCheck(f: Lambda, valueMap: immutable.Map[ArithExpr, ArithExpr]): Unit = {
-    /*val groupFuns = Expr.visit(Set[Pad]())(f.body, (expr, set) =>
-      expr match {
-        case call: FunCall => call.f match {
-          case pad: Pad => set + pad
-          case _ => set
-        }
-        case _ => set
-      })
-
-    for (g <- groupFuns) {
-      val allIndices = g.relIndices.min to g.relIndices.max
-
-      g.params(0).t match {
-        case ArrayType(_, lenExpr) =>
-          val length = ArithExpr.substitute(lenExpr, valueMap).eval
-
-          for (relIdx <- allIndices) {
-            var newIdx = 0
-            if (relIdx < 0) {
-              newIdx = g.negOutOfBoundsF(relIdx, length).eval
-            } else if (relIdx > 0) {
-              newIdx = g.posOutOfBoundsF(relIdx, length).eval
-            }
-
-            if (newIdx < 0 || newIdx >= length) {
-              throw new IllegalArgumentException("Group function would map relative out-of-bounds" +
-                                                 " index " + relIdx + " to new illegal index " +
-                                                 newIdx + ".")
-            }
-          }
-        case _ => throw new IllegalArgumentException("Expect parameter to be of ArrayType")
-      }
-    }*/
   }
 
   private def castToOutputType(t: Type, outputData: GlobalArg): Array[_] = {

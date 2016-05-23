@@ -4,6 +4,7 @@ import apart.arithmetic.ArithExpr
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 import ir.view.{AccessInfo, NoView, View}
+import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
 import scala.language.implicitConversions
 
@@ -26,6 +27,8 @@ abstract class Expr extends IRNode {
    * expression
    */
   var mem: Memory = UnallocatedMemory
+
+  var addressSpace: OpenCLAddressSpace = UndefAddressSpace
 
   /**
    * The view of this expression explaining how to access the memory object

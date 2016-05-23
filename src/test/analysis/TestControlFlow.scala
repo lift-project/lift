@@ -1,6 +1,6 @@
 package analysis
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic.{ArithExpr, Cst, SizeVar}
 import ir._
 import ir.ast._
 import opencl.generator.get_global_size
@@ -11,9 +11,9 @@ import org.junit.Test
 
 class TestControlFlow {
 
-  val N = Var("N")
-  val globalSize0 = new get_global_size(0)
-  val globalSize1 = new get_global_size(1)
+  val N = SizeVar("N")
+  val globalSize0 = get_global_size(0)
+  val globalSize1 = get_global_size(1)
 
   val globalsLessThanOne = Array[ArithExpr](2048,1,1)
   val globalsOne = Array[ArithExpr](1024,1,1)

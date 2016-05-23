@@ -35,10 +35,10 @@ class AccessPatterns(
 
   private var coalescingId: Option[Var] = None
 
-  if (lambda.body.view == NoView)
-    View(lambda)
+  if (substLambda.body.view == NoView)
+    View(substLambda)
 
-  determinePatterns(lambda.body)
+  determinePatterns(substLambda.body)
 
   def getReadPatterns = readPatterns
   def getWritePatterns = writePatterns

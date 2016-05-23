@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.{Executor, Utils}
@@ -28,7 +28,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -50,7 +50,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(64) $ in
     )
 
@@ -71,7 +71,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(256) $ in
     )
 
@@ -92,7 +92,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -113,7 +113,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -134,7 +134,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -155,7 +155,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 

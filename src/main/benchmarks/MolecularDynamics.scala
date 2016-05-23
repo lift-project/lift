@@ -1,6 +1,7 @@
 package benchmarks
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -85,8 +86,8 @@ object MolecularDynamics {
     Seq(Float4, Float4, Float4, Float, Float, Float),
     Float4)
 
-  val N = new Var("N") // number of particles
-  val M = new Var("M") // number of neighbors
+  val N = SizeVar("N") // number of particles
+  val M = SizeVar("M") // number of neighbors
 
   val shoc = fun(
     ArrayType(Float4, N),

@@ -1,6 +1,6 @@
 package analysis
 
-import apart.arithmetic.{Cst, Var}
+import apart.arithmetic.{Cst, SizeVar}
 import ir.ArrayType
 import ir.ast._
 import opencl.generator._
@@ -11,12 +11,12 @@ import org.junit.Test
 
 class TestAccessCounts {
 
-  val N = Var("N")
-  val globalSize0 = new get_global_size(0)
-  val globalSize1 = new get_global_size(1)
+  val N = SizeVar("N")
+  val globalSize0 = get_global_size(0)
+  val globalSize1 = get_global_size(1)
 
-  val numGroups0 = new get_num_groups(0)
-  val localSize0 = new get_local_size(0)
+  val numGroups0 = get_num_groups(0)
+  val localSize0 = get_local_size(0)
 
   @Test
   def simple(): Unit = {
@@ -27,8 +27,9 @@ class TestAccessCounts {
     )
 
     val accessCounts = AccessCounts(f)
+    val newF = accessCounts.substLambda
 
-    assertEquals(N * (N /^ globalSize0), accessCounts.getStores(f.body.mem))
+    assertEquals(N * (N /^ globalSize0), accessCounts.getStores(newF.body.mem))
   }
 
   @Test
@@ -40,9 +41,10 @@ class TestAccessCounts {
     )
 
     val accessCounts = AccessCounts(f)
+    val newF = accessCounts.substLambda
 
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.getStores(f.body.mem))
+      accessCounts.getStores(newF.body.mem))
   }
 
   @Test
@@ -54,12 +56,13 @@ class TestAccessCounts {
     )
 
     val accessCounts = AccessCounts(f)
+    val newF = accessCounts.substLambda
 
-    assertEquals(N, accessCounts.getStores(f.body.mem))
-    assertEquals(2*N, accessCounts.getLoads(f.params.head.mem))
+    assertEquals(N, accessCounts.getStores(newF.body.mem))
+    assertEquals(2*N, accessCounts.getLoads(newF.params.head.mem))
 
-    assertEquals(Cst(0), accessCounts.getLoads(f.body.mem))
-    assertEquals(Cst(0), accessCounts.getStores(f.params.head.mem))
+    assertEquals(Cst(0), accessCounts.getLoads(newF.body.mem))
+    assertEquals(Cst(0), accessCounts.getStores(newF.params.head.mem))
   }
 
   @Test

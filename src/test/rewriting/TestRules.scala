@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.{RangeMul, Var}
+import apart.arithmetic.{RangeMul, SizeVar, Var}
 import ir.ast._
 import ir.{ArrayType, Type, TypeChecker, VectorType}
 import opencl.executor.{Eval, Execute, Executor}
@@ -29,7 +29,7 @@ class TestRules {
     newLambda
   }
 
-  val N = Var("N")
+  val N = SizeVar("N")
   val A = Array.fill[Float](128)(0.5f)
 
   @Test
@@ -182,7 +182,7 @@ class TestRules {
     val input = Array.fill(16)(util.Random.nextFloat())
     val gold = (input, input).zipped.map(_*_).sum
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float4, N),
@@ -216,7 +216,7 @@ class TestRules {
     val input = Array.fill(16)(util.Random.nextFloat())
     val gold = (input, input).zipped.map(_*_).sum
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float4, N),
@@ -334,7 +334,7 @@ class TestRules {
   @Test
   def fissionAtPosition(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       a => Map(Reduce(add, 0.0f) o Map(plusOne) o Map(plusOne) o Map(plusOne)) $ a)
 
     Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(0))
@@ -397,7 +397,7 @@ class TestRules {
     assertTrue(Rules.mapFission.rewrite.isDefinedAt(f.body))
     println(Lambda(f.params, Rules.mapFission.rewrite(f.body)))
 
-    val M = Var("M")
+    val M = SizeVar("M")
 
     val g = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -410,8 +410,8 @@ class TestRules {
 
   @Test
   def transposeTransposeId(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -424,8 +424,8 @@ class TestRules {
 
   @Test
   def mapReduceInterchange(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(ArrayType(ArrayType(Float, M), N),
       input => Map(Reduce(add, 0.0f)) $ input
@@ -436,8 +436,8 @@ class TestRules {
 
   @Test
   def transposeBothSides(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(ArrayType(ArrayType(Float, M), N),
       input => Map(Map(plusOne)) $ input
@@ -457,8 +457,8 @@ class TestRules {
 
   @Test
   def mapMapTransposeWithZipInside(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(ArrayType(ArrayType(Float, M), N),
       ArrayType(Float, M),
@@ -471,8 +471,8 @@ class TestRules {
 
   @Test
   def mapMapTransposeWithZipOutside(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(ArrayType(ArrayType(Float, M), N),
       ArrayType(Float, M),

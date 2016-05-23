@@ -1,13 +1,13 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.{SizeVar, Var}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestTuple {
   @BeforeClass def before() {
@@ -35,7 +35,7 @@ class TestTuple {
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
@@ -98,7 +98,7 @@ class TestTuple {
 
     val id =  UserFun("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(
                  ArrayType(Float, N),
                  ArrayType(Float, N),
@@ -123,7 +123,7 @@ class TestTuple {
     val negPair = UserFun("pair", "x", "{ x._0 = -x._0; x._1 = -x._1; return x; }",
       TupleType(Float, Float), TupleType(Float, Float))
 
-    val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
+    val f = fun(ArrayType(TupleType(Float, Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
       ) o Split(1024) $ input
@@ -144,7 +144,7 @@ class TestTuple {
 
     val gold = (leftArray zip rightArray).map({case (l, r) => l + r})
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(TupleType(Float, Float), N),
@@ -172,7 +172,7 @@ class TestTuple {
     val pair = UserFun("pair", "x", "{ Tuple t = {x, x}; return t; }",
                           Float, TupleType(Float, Float))
 
-    val pairFun = fun(ArrayType(Float, Var("N")), (input) =>
+    val pairFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(pair)) o Split(4)
       ) o Split(1024) $ input
@@ -194,7 +194,7 @@ class TestTuple {
 
     val inputSize = 512
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val input2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
 
@@ -220,7 +220,7 @@ class TestTuple {
 
     val inputSize = 512
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val input2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
 
@@ -249,8 +249,8 @@ class TestTuple {
     val array = Array.fill(nSize)(util.Random.nextInt(5).toFloat)
     val gold = (input, array).zipped.map((x, y) => (x.map(_+1), y)._1.map(_+y)).flatten
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val function = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -280,7 +280,7 @@ class TestTuple {
 
     val gold = inputArray.zipWithIndex.filter(_._2 % 2 == 0).map(_._1)
 
-    val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
+    val f = fun(ArrayType(TupleType(Float, Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(fun(x => id $ Get(x, 0)))) o Split(4)
       ) o Split(1024) $ input
@@ -297,7 +297,7 @@ class TestTuple {
   @Test def projectFirstComponentFromTuple() : Unit = {
     val idII = UserFun("idII", "x", "{ return x; }", TupleType(Int, Int), TupleType(Int, Int))
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(ArrayType(TupleType(Int, Int), N), A => {
       MapSeq( fun((a) => idI(a._0)) ) o MapSeq(idII) $ A
     })

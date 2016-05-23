@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.LongTestsEnabled
@@ -14,18 +14,18 @@ class TestHighLevelRewrite {
 
   LongTestsEnabled()
 
-  private val N = Var("N")
-  private val M = Var("M")
-  private val K = Var("K")
-  private val v__2 = Var("")
-  private val v__3 = Var("")
-  private val v__4 = Var("")
-  private val v__5 = Var("")
-  private val v__6 = Var("")
-  private val v__7 = Var("")
-  private val v__8 = Var("")
-  private val v__9 = Var("")
-  private val v__10 = Var("")
+  private val N = SizeVar("N")
+  private val M = SizeVar("M")
+  private val K = SizeVar("K")
+  private val v__2 = SizeVar("")
+  private val v__3 = SizeVar("")
+  private val v__4 = SizeVar("")
+  private val v__5 = SizeVar("")
+  private val v__6 = SizeVar("")
+  private val v__7 = SizeVar("")
+  private val v__8 = SizeVar("")
+  private val v__9 = SizeVar("")
+  private val v__10 = SizeVar("")
 
   val mmTransposedB = fun(
     ArrayType(ArrayType(Float, K), M),

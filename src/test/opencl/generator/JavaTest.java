@@ -1,6 +1,9 @@
 package opencl.generator;
 
+import apart.arithmetic.Cst;
+import apart.arithmetic.StartFromRange;
 import apart.arithmetic.Var;
+
 import arithmetic.interop.jVar;
 import ir.Type;
 import ir.UndefType$;
@@ -8,7 +11,6 @@ import ir.ast.*;
 import ir.interop.*;
 import opencl.executor.Compile;
 import opencl.executor.Executor;
-import opencl.ir.package$.*;
 import opencl.ir.interop.*;
 import opencl.ir.package$;
 import opencl.ir.pattern.*;
@@ -62,7 +64,7 @@ public class JavaTest {
     public void vectorNegSimple() {
 
         Lambda1 negFun = jfun.create(
-                jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
+                jArrayType.create(jFloat.getSingleton(), (Var) jVar.create("N", new StartFromRange(new Cst(1)))),
                 (input) -> jJoin.comp(jfun.create((Param x1) -> {
                     return jMapGlb.create(jfun.create((Param x2) -> {
                         return jMapSeq.create(neg).call(x2);
@@ -72,7 +74,7 @@ public class JavaTest {
         Compile.apply(negFun);
 
         Lambda negFun2 = jfun.create(
-                jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
+                jArrayType.create(jFloat.getSingleton(), jVar.create("N", new StartFromRange(new Cst(1)))),
                 (input) -> jJoin.comp(jMapGlb.create(
                                 jMapSeq.create(neg))
                 ).comp(jSplit.create(4)).call(input));
@@ -84,7 +86,7 @@ public class JavaTest {
     public void vectorNegSimpleWithoutJfun() {
         MapGlb mg = jMapGlb.create(neg);
 
-        Type arrayType = jArrayType.create(jFloat.getSingleton(), jVar.create("V"));
+        Type arrayType = jArrayType.create(jFloat.getSingleton(), (Var) jVar.create("N", new StartFromRange(new Cst(1))));
 
         Param p = Param.apply(arrayType);
 
@@ -97,7 +99,7 @@ public class JavaTest {
     public void vectorScalarMultiplication() {
 
         Lambda multFun = jfun.create(
-                jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
+                jArrayType.create(jFloat.getSingleton(), (Var) jVar.create("N", new StartFromRange(new Cst(1)))),
                 jFloat.getSingleton(),
                 (input, alpha) -> jMapGlb.create(
                         jfun.create((x) -> mult.call(alpha, x)))
@@ -108,7 +110,7 @@ public class JavaTest {
 
     @Test
     public void vectorScalarMultiplicationWithoutJfun() {
-        Type arrayType = jArrayType.create(jFloat.getSingleton(), jVar.create("N"));
+        Type arrayType = jArrayType.create(jFloat.getSingleton(), (Var) jVar.create("N", new StartFromRange(new Cst(1))));
         Type floatType = jFloat.getSingleton();
 
         Param p0 = Param.apply(arrayType);
@@ -130,8 +132,8 @@ public class JavaTest {
     @Test
     public void kmeans() {
         // kmeans
-        Var n = jVar.create("N");
-        Var k = jVar.create("K");
+        Var n = (Var) jVar.create("N", new StartFromRange(new Cst(1)));
+        Var k = (Var) jVar.create("K", new StartFromRange(new Cst(1)));
 
 
 
@@ -161,8 +163,8 @@ public class JavaTest {
 
     @Test
     public void kmeansWithoutJfun() {
-        Var n = jVar.create("N");
-        Var k = jVar.create("K");
+        Var n = (Var) jVar.create("N", new StartFromRange(new Cst(1)));
+        Var k = (Var) jVar.create("K", new StartFromRange(new Cst(1)));
 
         Type[] types = {
                 jArrayType.create(jFloat.getSingleton(), n),
@@ -204,7 +206,7 @@ public class JavaTest {
     public void vectorPair() {
 
         Lambda pairFun = jfun.create(
-                jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
+                jArrayType.create(jFloat.getSingleton(), jVar.create("N", new StartFromRange(new Cst(1)))),
                 (input) -> jJoin.comp(jMapWrg.create(
                         jJoin.comp(jMapLcl.create(
                                 jMapSeq.create(pair)
@@ -218,9 +220,9 @@ public class JavaTest {
     @Test
     public void matrixMatrix() {
 
-        Var N = jVar.create("N");
-        Var M = jVar.create("M");
-        Var K = jVar.create("K");
+        Var N = (Var) jVar.create("N", new StartFromRange(new Cst(1)));
+        Var M = (Var) jVar.create("M", new StartFromRange(new Cst(1)));
+        Var K = (Var) jVar.create("K", new StartFromRange(new Cst(1)));
 
 
         Type[] types = {
@@ -263,8 +265,8 @@ public class JavaTest {
     @Test
     public void matrixPlusOne() {
 
-        Var M = jVar.create("M");
-        Var K = jVar.create("K");
+        Var M = (Var) jVar.create("M", new StartFromRange(new Cst(1)));
+        Var K = (Var) jVar.create("K", new StartFromRange(new Cst(1)));
 
         Function<Param, Lambda> test = a -> jfun.create((r) -> add.call(r, a));
 
@@ -287,7 +289,7 @@ public class JavaTest {
         FunDecl simpleComp = neg.comp(plusOne);
 
         Lambda1 negFun = jfun.create(
-                jArrayType.create(jFloat.getSingleton(), jVar.create("N")),
+                jArrayType.create(jFloat.getSingleton(), jVar.create("N", new StartFromRange(new Cst(1)))),
                 (input) -> jMapGlb.create(simpleComp).call(input));
 
         Compile.apply(negFun);
@@ -297,7 +299,7 @@ public class JavaTest {
     public void composeUserFunctionWithPattern() {
 
         Lambda function = jfun.create(
-                jArrayType.create(jArrayType.create(jFloat.getSingleton(), jVar.create("M")), jVar.create("N")),
+                jArrayType.create(jArrayType.create(jFloat.getSingleton(), jVar.create("M", new StartFromRange(new Cst(1)))), jVar.create("N", new StartFromRange(new Cst(1)))),
                 (input) -> jMapGlb.create(
                         jfun.create(row -> jMapSeq.create(neg).comp(jToGlobal.create(jMapSeq.create(id)).comp(jReduceSeq.create(add, package$.MODULE$.FloatToValue(0.0f)))).call(row))
                 ).call(input));

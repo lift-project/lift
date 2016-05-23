@@ -34,16 +34,16 @@ class ControlFlow(
   private var varDecls: SymbolTable = collection.immutable.Map.empty
 
   // TODO: Duplication with OpenCLGenerator
-  private val memory = TypedOpenCLMemory.get(lambda.body, lambda.params)
+  private val memory = TypedOpenCLMemory.get(substLambda.body, substLambda.params)
 
-  private val valMems = Expr.visitWithState(Set[Memory]())(lambda.body, (expr, set) =>
+  private val valMems = Expr.visitWithState(Set[Memory]())(substLambda.body, (expr, set) =>
     expr match {
       case value: Value => set + value.mem
       case _ => set
     })
 
   private val typedMems =
-    TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true).toArray
+    TypedOpenCLMemory.get(substLambda.body, substLambda.params, includePrivate = true).toArray
 
 
   private val (typedValueMems, privateMems) =
@@ -66,7 +66,7 @@ class ControlFlow(
   varDecls = varDecls ++
     typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
 
-  count(lambda.body)
+  count(substLambda.body)
 
   def getIfStatements(exact: Boolean = false) =
     getExact(ifStatements, exact)
@@ -119,18 +119,30 @@ class ControlFlow(
 
   private def count(
     lambda: Lambda,
-    statementType: ArithExpr,
+    loopVar: Var,
     arithExpr: ArithExpr,
     unrolled: Boolean): Unit = {
 
-    statementType match {
+    val range = loopVar.range.asInstanceOf[RangeAdd]
+    // TODO: Information needed elsewhere. See OpenCLGenerator
+    // try to see if we really need a loop
+    loopVar.range.numVals match {
       case Cst(0) => return
       case Cst(1) =>
-      case IntDiv(Cst(1), ?) =>
+
+      // TODO: See TestOclFunction.numValues and issue #62
+      case numVals if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
         ifStatements += currentNesting
-      case _ if !unrolled =>
-        forStatements += currentNesting
       case _ =>
+        (loopVar.range.numVals.min, loopVar.range.numVals.max) match {
+          case (Cst(0),Cst(1)) =>
+            // one or less iteration
+            ifStatements += currentNesting
+
+          case _  if !unrolled =>
+            forStatements += currentNesting
+          case _ =>
+        }
     }
 
     currentNesting *= arithExpr
@@ -152,11 +164,11 @@ class ControlFlow(
             val n = Type.getLength(expr.t) /^ step
             val unrolled = map.isInstanceOf[MapLcl] && shouldUnrollLoop(call)
 
-            count(map.f, map.iterationCount, n, unrolled)
+            count(map.f, map.loopVar, n, unrolled)
 
           case mapSeq: MapSeq =>
             val n = Type.getLength(expr.t)
-            count(mapSeq.f, mapSeq.iterationCount, n, shouldUnrollLoop(call))
+            count(mapSeq.f, mapSeq.loopVar, n, shouldUnrollLoop(call))
 
           case reduceSeq: ReduceSeq =>
             val n = Type.getLength(args(1).t)
@@ -164,10 +176,10 @@ class ControlFlow(
             // TODO: Separate pass. Duplication with OpenCLGenerator
             val unroll = OpenCLMemory.containsPrivateMemory(args(1).mem)
 
-            count(reduceSeq.f, reduceSeq.iterationCount, n, unroll)
+            count(reduceSeq.f, reduceSeq.loopVar, n, unroll)
 
           case iterate@Iterate(n, nestedLambda) =>
-            count(nestedLambda, iterate.iterationCount, n, unrolled = false)
+            count(nestedLambda, iterate.indexVar, n, unrolled = false)
 
           case l: Lambda => count(l.body)
           case fp: FPattern => count(fp.f.body)

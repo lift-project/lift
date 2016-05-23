@@ -1,6 +1,7 @@
 package opencl.generator
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -33,8 +34,8 @@ class TestFilter {
 
     val gold = ids.map(inputData(_))
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val compFun = fun(
       ArrayType(Float, N),
@@ -57,8 +58,8 @@ class TestFilter {
 
     val gold = ids.map(inputData(_))
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val compFun = fun(
       ArrayType(Float, N),
@@ -81,8 +82,8 @@ class TestFilter {
 
     val gold = inputData.grouped(4).map(row => ids.map(row(_))).flatten.toArray
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val compFun = fun(
       ArrayType(Float, N),
@@ -105,8 +106,8 @@ class TestFilter {
 
     val gold = ids.flatMap(inputData(_))
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val compFun = fun(
       ArrayType(ArrayType(Float, N), N),
@@ -129,8 +130,8 @@ class TestFilter {
 
     val gold = inputData.flatMap(row => ids.map(row(_)))
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val compFun = fun(
       ArrayType(ArrayType(Float, N), N),

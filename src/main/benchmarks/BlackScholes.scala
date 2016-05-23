@@ -1,6 +1,7 @@
 package benchmarks
 
 import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -147,12 +148,12 @@ object BlackScholes {
       , Float, TupleType(Float, Float))
 
   val blackScholes = fun(
-    ArrayType(Float, Var("N")),
+    ArrayType(Float, SizeVar("N")),
     inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(8192) $ inRand
   )
 
   val blackScholesAMD = fun(
-    ArrayType(Float, Var("N")),
+    ArrayType(Float, SizeVar("N")),
     inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(256) $ inRand
   )
 

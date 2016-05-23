@@ -8,7 +8,9 @@ import scala.collection.immutable
 import scala.language.implicitConversions
 
 /** a special variable that should only be used for defining function type*/
-class TypeVar private(range : Range) extends Var("", range) {
+class TypeVar private(range : Range, fixedId: Option[Long] = None) extends Var("", range, fixedId) {
+  override def copy(r: Range) = new TypeVar(r, Some(this.id))
+
   override lazy val toString = "tv_" + name + "_" + id
 }
 
