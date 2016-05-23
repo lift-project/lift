@@ -1,7 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{?, ArithExpr, Cst, Var}
-import apart.arithmetic.SizeVar
+import apart.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._
@@ -33,7 +32,7 @@ class TestMisc {
   @Test
   def testIterateAmdBug(): Unit = {
 
-    Assume.assumeFalse("Wrong AMD IL generated", Utils.isAmdGpu)
+    Assume.assumeFalse("Wrong AMD IL generated", Utils.isAmdGpu())
 
     val inputSize = 1
     val input = Array.fill(inputSize)(0.0f)
