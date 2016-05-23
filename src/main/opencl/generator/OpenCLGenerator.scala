@@ -68,6 +68,8 @@ object OpenCLGenerator extends Generator {
   }
 
   def substitute(f: Lambda, localSize: NDRange, globalSize: NDRange, valueMap: collection.Map[ArithExpr, ArithExpr]): Lambda = {
+    // TODO: valueMap shouldn't be substituted directly but used to figure out
+    // TODO: how local/global sizes relate to the input sizes
     // inject local and global size and valueMap information into the lambda
     val substitutions = collection.mutable.Map[ArithExpr, ArithExpr]() ++ valueMap
     for (i <- 0 to 2) {
@@ -142,8 +144,6 @@ class OpenCLGenerator extends Generator {
 
   def _generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
     valueMap: collection.Map[ArithExpr, ArithExpr]): String  = {
-
-    println(f)
 
     if (f.body.t == UndefType)
       throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
@@ -1430,7 +1430,6 @@ class OpenCLGenerator extends Generator {
     }
 
     val real = ArithExpr.substitute(i, replacements).eval
-    println(declaration.length)
 
     if (real >= declaration.length) {
       throw new OpenCLGeneratorException(s"Out of bounds access to $v with $real")
