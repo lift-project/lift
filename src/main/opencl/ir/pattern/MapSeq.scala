@@ -8,7 +8,9 @@ case class MapSeq(override val f: Lambda1) extends AbstractMap(f, "MapSeq",
   override def copy(f: Lambda): Pattern = MapSeq(f)
 }
 
-class MapSeqUnroll(override val f: Lambda1) extends MapSeq(f)
+class MapSeqUnroll(override val f: Lambda1) extends MapSeq(f) {
+  override def copy(f: Lambda): Pattern = MapSeqUnroll(f)
+}
 
 object MapSeqUnroll {
   def apply(f: Lambda1) = new MapSeqUnroll(f)

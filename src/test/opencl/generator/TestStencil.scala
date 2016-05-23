@@ -51,8 +51,8 @@ class TestStencil extends TestSlide {
   val randomData = Seq.fill(1024)(Random.nextFloat()).toArray
   val randomData2D = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
   // currently used for 2D stencils / refactor to run with every boundary condition
-  val BOUNDARY = Pad.Boundary.Clamp
-  val SCALABOUNDARY: (Int, Int) => Int = scalaClamp
+  val BOUNDARY = Pad.Boundary.Wrap
+  val SCALABOUNDARY: (Int, Int) => Int = scalaWrap
 
   /**
     * computes 1D stencil for given array of floats, weights, and neighbourhood description
@@ -130,6 +130,27 @@ class TestStencil extends TestSlide {
     )
   }
 
+  def create1DStencilFusedMapReduceLambda(inputLength: Int,
+                                          weights: Array[Float],
+                                          size: Int, step:
+                                          Int, left: Int, right: Int): Lambda2 = {
+    fun(
+      ArrayType(Float, SizeVar("N")),
+      //ArrayType(Float, inputLength),
+      ArrayType(Float, weights.length),
+      (input, weights) => {
+        MapGlb(
+          fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, y) => {
+                multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+              }), 0.0f) $
+              Zip(weights, neighbourhood)
+          })
+        ) o Slide(size, step) o Pad(left, right, BOUNDARY) $ input
+      }
+    )
+  }
   def createTiled1DStencilLambda(weights: Array[Float],
                                  size: Int, step: Int,
                                  tileSize: Int, tileStep: Int,
@@ -298,7 +319,7 @@ class TestStencil extends TestSlide {
     val (secondIteration: Array[Float], runtime5) = Execute(length, length)(newLambda, firstIteration, weights)
     val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, secondIteration, weights)
 
-    val stencil = createTemporalBlockingUsingRewriteLambda(Pad.Boundary.Clamp, 3,1, 1,1)
+    val stencil = createTemporalBlockingUsingRewriteLambda(BOUNDARY, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(length,length)(stencil, randomData)
 
     compareGoldWithOutput(gold, output, runtime)
@@ -483,7 +504,7 @@ class TestStencil extends TestSlide {
     val weights = Array(1, 2, 1).map(_.toFloat)
 
     val gold = Utils.scalaCompute1DStencil(randomData, 3,1, 1,1, weights, SCALABOUNDARY)
-    val stencil = create1DStencilLambda(weights, 3,1, 1,1)
+    val stencil = create1DStencilFusedMapReduceLambda(randomData.length, weights, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
     compareGoldWithOutput(gold, output, runtime)
   }
@@ -657,7 +678,7 @@ class TestStencil extends TestSlide {
 
   @Test def copyTilesIdentity(): Unit = {
     val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
-    val tiled: Lambda = createCopyTilesLambda(4,2 ,1,1, Pad.Boundary.Clamp)
+    val tiled: Lambda = createCopyTilesLambda(4,2 ,1,1, BOUNDARY)
 
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
     val gold = Utils.scalaGenerate2DNeighbours(data2D, 4,2, 4,2, 1,1, SCALABOUNDARY).flatten.flatten.flatten
@@ -674,8 +695,9 @@ class TestStencil extends TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  @Ignore // same as gaussian blur
   @Test def sobelFilter(): Unit = {
-    val stencil = createSimple2DStencil(3,1, 1,1, gaussWeights, BOUNDARY)
+    val stencil = createSimple2DStencil(3,1, 1,1, sobelWeights, BOUNDARY)
     run2DStencil(stencil, 3,1, 1,1, sobelWeights, "sobel.pgm", BOUNDARY)
   }
 
