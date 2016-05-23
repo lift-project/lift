@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{ArithExpr, SizeVar, Var}
+import apart.arithmetic.{ArithExpr, SizeVar}
 import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._
@@ -752,6 +752,18 @@ class TestMatrixMatrix {
 
     val code = Compile(f, 32,4,1,1024/4,1024/16,1,
       scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))
+
+    val size = 1024
+
+    val matrixA = Array.tabulate(size, size)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(size, size)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
+
+    val (output: Array[Float], _) =
+      Execute(32, 4, 1, 1024/4, 1024/16, 1, (true, true))(f, matrixA, matrixB)
+
+    assertArrayEquals(gold.flatten, output, 0.001f)
   }
 
   @Test
@@ -885,8 +897,21 @@ class TestMatrixMatrix {
 
     val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,16, 64 ,256))
 
-    val code = Compile(f, 32,4,1,1024/4,1024/16,1,
-      scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))
+    val size = 1024
+
+    val matrixA = Array.tabulate(size, size)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(size, size)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val matrixC = Array.tabulate(size, size)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val alpha = 1.5f
+    val beta = 0.5f
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta)
+
+    val (output: Array[Float], _) =
+      Execute(32, 4, 1, 1024/4, 1024/16, 1, (true, true))(f,
+        matrixA, matrixB, matrixC, alpha, beta)
+
+    assertArrayEquals(gold.flatten, output, 0.001f)
   }
 
   @Test
@@ -910,9 +935,17 @@ class TestMatrixMatrix {
 
     val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,8, 64 ,8))
 
-    val code = Compile(f, 32,8,1,1024/4,1024/8,1,
-      scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))
+    val size = 1024
 
+    val matrixA = Array.tabulate(size, size)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(size, size)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
+
+    val (output: Array[Float], _) =
+      Execute(32, 8, 1, 1024/4, 1024/8, 1, (true, true))(f, matrixA, matrixB)
+
+    assertArrayEquals(gold.flatten, output, 0.001f)
   }
 
   @Test
@@ -1054,9 +1087,21 @@ class TestMatrixMatrix {
 
     val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,8, 64 ,8))
 
-    val code = Compile(f, 32,8,1,1024/4,1024/8,1,
-      scala.collection.immutable.Map[ArithExpr,ArithExpr](v_M_0 -> 1024, v_K_1 -> 1024, v_N_2 -> 1024))
+    val size = 1024
 
+    val matrixA = Array.tabulate(size, size)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(size, size)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val matrixC = Array.tabulate(size, size)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val alpha = 1.5f
+    val beta = 0.5f
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta)
+
+    val (output: Array[Float], _) =
+      Execute(32, 8, 1, 1024/4, 1024/8, 1, (true, true))(f,
+        matrixA, matrixB, matrixC, alpha, beta)
+
+    assertArrayEquals(gold.flatten, output, 0.001f)
   }
 
   @Test def mmTiledAndBlockedAInnermost(): Unit = {
