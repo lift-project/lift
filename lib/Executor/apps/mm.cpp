@@ -43,7 +43,7 @@ struct MMRun: public Run {
   MMRun(const std::vector<std::string>& values) {
     assert(values.size() > 8 && "Bad CSV format");
 
-    int i = 0;
+    auto i = 0;
 
     // input size
     size = Csv::readInt(values[i++]);
@@ -78,7 +78,7 @@ struct MMRun: public Run {
     for(auto &size: extra_buffer_size)
       extra_args.push_back({context, CL_MEM_READ_WRITE, (size_t)size});
 
-    int idx = 3;
+    cl_uint idx = 3;
 
     // Skip the first 3 to compensate for the csv (forgot a drop(3) in scala)
     for(const auto &arg: extra_args)
@@ -98,12 +98,25 @@ struct MMRun: public Run {
   }
 };
 
+template<typename T>
+void transpose(std::vector<T>& matrix, const unsigned M, const unsigned N) {
+  std::vector<T> matrixT(M * N);
+
+  for(unsigned y = 0; y < M; ++y)
+    for(unsigned x = 0; x < N; ++x)
+      matrixT[y*M+x] = matrix[x*N+y];
+
+  std::swap(matrixT, matrix);
+}
+
 /**
  * FIXME: This is a lazy copy paste of the old main with a template switch for single and double precision
  */
-template<typename Float>
+template<typename T>
 void run_harness(
     std::vector<std::shared_ptr<Run>>& all_run,
+    const unsigned M,
+    const unsigned K,
     const unsigned N,
     const std::string& matA_file,
     const std::string& matB_file,
@@ -119,68 +132,61 @@ void run_harness(
   using namespace std;
 
   // Compute input and output
-  Matrix<Float> matA(N*N);
-  Matrix<Float> matB(N*N);
-  Matrix<Float> gold(N*N);
+  Matrix<T> matA(M * K);
+  Matrix<T> matB(K * N);
+  Matrix<T> gold(N * N);
 
   if(File::is_file_exist(gold_file) && File::is_file_exist(matA_file) && File::is_file_exist(matB_file) && !force ) {
     File::load_input(gold, gold_file);
     File::load_input(matA, matA_file);
     File::load_input(matB, matB_file);
   } else {
-    for(unsigned y = 0; y < N; ++y)
+    for(unsigned y = 0; y < M; ++y)
+      for(unsigned x = 0; x < K; ++x)
+      {
+        matA[y*M+x] = (((y * 3 + x * 2) % 10) + 1) * 1.0f;
+      }
+
+    for(unsigned y = 0; y < K; ++y)
       for(unsigned x = 0; x < N; ++x)
       {
-        matA[y*N+x] = (((y * 3 + x * 2) % 10) + 1) * 1.0f;
-        matB[y*N+x] = (((y * 7 + x * 3) % 10) + 1) * 1.0f;
+        matB[y*K+x] = (((y * 7 + x * 3) % 10) + 1) * 1.0f;
       }
 
     // compute gold
     std::vector < std::thread > threads;
     auto mmult = [&](unsigned from, unsigned to) {
-      Float kk[N];
+      T kk[N];
       for (unsigned i=from; i<to; i++) {
-        for (unsigned j=0; j<N; j++) kk[j] = 0;
+        for (unsigned j=0; j<N; j++)
+          kk[j] = 0;
 
-        for (unsigned k=0; k<N; k++)
+        for (unsigned k=0; k<K; k++)
           for (unsigned j=0; j<N; j++)
-            kk[j] += matA[i*N+k] * matB[k*N+j];
+            kk[j] += matA[i*N+k] * matB[k*K+j];
 
-        for (unsigned j=0; j<N; j++) gold[i*N+j] = kk[j];
+        for (unsigned j=0; j<N; j++)
+          gold[i*M+j] = kk[j];
       }
     };
+
     unsigned nthreads = std::thread::hardware_concurrency();
     if(N % nthreads != 0)
       nthreads = 16;
     assert(N % nthreads == 0);
-    const unsigned chunk = N / nthreads;
+    const unsigned chunk = M / nthreads;
     for (unsigned tid = 0; tid < nthreads; tid++)
       threads.push_back(std::thread([=]{mmult(tid*chunk, (tid+1)*chunk);}));
     for (auto & t : threads) t.join();
 
-    if (transposeA) {
-      std::vector<Float> TmatA(N*N);
-      for(unsigned y = 0; y < N; ++y)
-        for(unsigned x = 0; x < N; ++x)
-          TmatA[y*N+x] = matA[x*N+y];
-      std::swap(TmatA, matA);
-    }
+    if (transposeA)
+      transpose(matA, M, K);
 
-    if (transposeB) {
-      std::vector<Float> TmatB(N*N);
-      for(unsigned y = 0; y < N; ++y)
-        for(unsigned x = 0; x < N; ++x)
-          TmatB[y*N+x] = matB[x*N+y];
-      std::swap(TmatB, matB);
-    }
+    if (transposeB)
+      transpose(matB, K, N);
 
-    if (transposeOut) {
-      std::vector<Float> Tgold(N*N);
-      for(unsigned y = 0; y < N; ++y)
-        for(unsigned x = 0; x < N; ++x)
-          Tgold[y*N+x] = gold[x*N+y];
-      std::swap(Tgold, gold);
-    }
+    if (transposeOut)
+      transpose(gold, M, N);
 
     File::save_input(gold, gold_file);
     File::save_input(matA, matA_file);
@@ -188,7 +194,7 @@ void run_harness(
   }
 
   // validation function
-  auto validate = [&](const std::vector<Float> &output) {
+  auto validate = [&](const std::vector<T> &output) {
     if(gold.size() != output.size()) return false;
     for(unsigned i = 0; i < gold.size(); ++i) {
       auto x = gold[i];
@@ -201,7 +207,7 @@ void run_harness(
   };
 
   // Allocating buffers
-  const size_t buf_size = matA.size() * sizeof(Float);
+  const size_t buf_size = matA.size() * sizeof(T);
   cl::Buffer matA_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                        buf_size, static_cast<void*>(matA.data()) );
   cl::Buffer matB_dev = OpenCL::alloc( CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
@@ -246,7 +252,7 @@ void run_harness(
           r->getKernel().setArg(0, matA_dev);
           r->getKernel().setArg(1, matB_dev);
           r->getKernel().setArg(2, output_dev);
-          OpenCL::executeRun<Float>(*r, output_dev, N * N, validate);
+          OpenCL::executeRun<T>(*r, output_dev, N * N, validate);
         }
       }
     });
@@ -266,7 +272,7 @@ void run_harness(
         r->getKernel().setArg(0, matA_dev);
         r->getKernel().setArg(1, matB_dev);
         r->getKernel().setArg(2, output_dev);
-        OpenCL::executeRun<Float>(*r, output_dev, N * N, validate);
+        OpenCL::executeRun<T>(*r, output_dev, N * N, validate);
       }
     }
   }
@@ -275,19 +281,33 @@ void run_harness(
 int main(int argc, char *argv[]) {
   OptParser op("Harness for simple matrix-matrix multiply.");
 
-  auto opt_platform = op.addOption<unsigned>({'p', "platform", "OpenCL platform index (default 0).", 0});
-  auto opt_device = op.addOption<unsigned>({'d', "device", "OpenCL device index (default 0).", 0});
+  auto opt_platform = op.addOption<unsigned>({'p', "platform",
+      "OpenCL platform index (default 0).", 0});
+  auto opt_device = op.addOption<unsigned>({'d', "device",
+      "OpenCL device index (default 0).", 0});
 
-  auto opt_size = op.addOption<std::size_t>({'s', "size", "Matrix size (default 1024).", 1024});
-  auto opt_transposeA = op.addOption<bool>({0, "transpose-A", "Transpose the first matrix before computation.", false});
-  auto opt_transposeB = op.addOption<bool>({0, "transpose-B", "Transpose the second matrix before computation.", false});
-  auto opt_transposeRes = op.addOption<bool>({0, "transpose-res", "Transpose the output before cross validation.", false});
+  auto opt_size = op.addOption<std::size_t>({'s', "size",
+      "Matrix size (default 1024).", 1024});
+  auto opt_size_k = op.addOption<std::size_t>({'k', "size-k",
+      "Matrix size in the common dimension (default 1024).", 1024});
+  auto opt_size_m = op.addOption<std::size_t>({'m', "size-m",
+      "Size of matrix A in the non-common dimension (default 1024).", 1024});
+  auto opt_size_n = op.addOption<std::size_t>({'n', "size-n",
+      "Size of matrix B in the non-common dimension (default 1024).", 1024});
+  auto opt_transposeA = op.addOption<bool>({0, "transpose-A",
+      "Transpose the first matrix before computation.", false});
+  auto opt_transposeB = op.addOption<bool>({0, "transpose-B",
+      "Transpose the second matrix before computation.", false});
+  auto opt_transposeRes = op.addOption<bool>({0, "transpose-res",
+      "Transpose the output before cross validation.", false});
+
   auto opt_binary = op.addOption<bool>({'b', "binary", "Load programs as binaries instead of compiling OpenCL-C source.", false});
   auto opt_timeout = op.addOption<float>({'t', "timeout", "Timeout to avoid multiple executions (default 100ms).", 100.0f});
   auto opt_double = op.addOption<bool>({0, "double", "Use double precision.", false});
-  auto opt_threaded = op.addOption<bool>({'t', "threaded", "Use a separate thread for compilation and execution (default true).", true});
+  auto opt_threaded = op.addOption<bool>({0, "threaded", "Use a separate thread for compilation and execution (default true).", true});
   auto opt_force = op.addOption<bool>({'f', "force", "Override cached cross validation files.", false});
   auto opt_clean = op.addOption<bool>({'c', "clean", "Clean temporary files and exit.", false});
+
   auto opt_local_combinations = op.addOption<bool>({'l', "local-combinations",
       "Run different valid combinations of local sizes instead of letting the implementation choose if the local size is marked '?'.", false});
   auto opt_min_local_size = op.addOption<std::size_t>({0, "min-local",
@@ -298,21 +318,34 @@ int main(int argc, char *argv[]) {
   using namespace std;
 
   // Option handling
-  const size_t N = opt_size->get();
-  File::setSize(opt_size->get());
+  const size_t common_size = opt_size->get();
+  size_t N = opt_size_n->get();
+  size_t M = opt_size_m->get();
+  size_t K = opt_size_k->get();
+
+  auto size_string = to_string(M) + "_" + to_string(K) + "_" + to_string(N);
+
+  if (M == 1024 && K == 1024 && N == 1024) {
+    N = common_size;
+    K = common_size;
+    M = common_size;
+    size_string = to_string(common_size);
+  }
+
+  File::set_size(size_string);
   OpenCL::timeout = opt_timeout->get();
   OpenCL::local_combinations = opt_local_combinations->get();
   OpenCL::min_local_size = opt_min_local_size->get();
 
-  // temporary files
-  std::string gold_file = "/tmp/apart_mm_gold_" + std::to_string(N);
-  std::string matA_file = "/tmp/apart_mm_A_" + std::to_string(N);
-  std::string matB_file = "/tmp/apart_mm_B_" + std::to_string(N);
+  // Result files
+  auto gold_file = "/tmp/apart_mm_gold_" + size_string;
+  auto matA_file = "/tmp/apart_mm_A_" + size_string;
+  auto matB_file = "/tmp/apart_mm_B_" + size_string;
 
   if(*opt_clean) {
-    std::cout << "Cleaning..." << std::endl;
+    cout << "Cleaning..." << endl;
     for(const auto& file: {gold_file, matA_file, matB_file})
-      std::remove(file.data());
+      remove(file.data());
     return 0;
   }
 
@@ -323,6 +356,7 @@ int main(int argc, char *argv[]) {
                std::shared_ptr<Run>(new MMRun<double>(values)) :
                std::shared_ptr<Run>(new MMRun<float>(values)));
       });
+
   if (all_run.size() == 0) return 0;
 
   // === OpenCL init ===
@@ -331,7 +365,7 @@ int main(int argc, char *argv[]) {
   // run the harness
   if (opt_double->get())
     run_harness<double>(
-        all_run, N,
+        all_run, M, K, N,
         matA_file, matB_file, gold_file,
         opt_force->get(),
         opt_transposeA->get(), opt_transposeB->get(), opt_transposeRes->get(),
@@ -339,7 +373,7 @@ int main(int argc, char *argv[]) {
     );
   else
     run_harness<float>(
-        all_run, N,
+        all_run, M, K, N,
         matA_file, matB_file, gold_file,
         opt_force->get(),
         opt_transposeA->get(), opt_transposeB->get(), opt_transposeRes->get(),

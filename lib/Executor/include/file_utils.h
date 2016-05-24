@@ -32,9 +32,13 @@ class File {
   }
 
 public:
-  static void setSize(std::size_t size)
+  static void set_size(std::size_t size)
   {
     const auto size_str = std::to_string(size);
+    set_size(size_str);
+  }
+
+  static void set_size(const std::string size_str) {
     const std::string pattern = "%SIZE%";
     replace(blacklist_filename, pattern, size_str);
     replace(incompatible_filename, pattern, size_str);

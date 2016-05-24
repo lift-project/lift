@@ -262,7 +262,7 @@ int main(int argc, char *argv[]) {
 
   // Option handling
   const size_t N = opt_size->get();
-  File::setSize(opt_size->get());
+  File::set_size(opt_size->get());
   OpenCL::timeout = opt_timeout->get();
 
   // temporary files
