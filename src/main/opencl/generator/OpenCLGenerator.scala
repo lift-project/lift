@@ -68,10 +68,9 @@ object OpenCLGenerator extends Generator {
   }
 
   def substitute(f: Lambda, localSize: NDRange, globalSize: NDRange, valueMap: collection.Map[ArithExpr, ArithExpr]): Lambda = {
-    // TODO: valueMap shouldn't be substituted directly but used to figure out
-    // TODO: how local/global sizes relate to the input sizes
+    // TODO: Get rid of this.
     // inject local and global size and valueMap information into the lambda
-    val substitutions = collection.mutable.Map[ArithExpr, ArithExpr]() ++ valueMap
+    val substitutions = collection.mutable.Map[ArithExpr, ArithExpr]()
     for (i <- 0 to 2) {
       val lclsz = localSize(i)
       if (lclsz != ?)
