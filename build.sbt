@@ -40,6 +40,9 @@ libraryDependencies += "jline" % "jline" % "2.12.1"
 libraryDependencies += "junit" % "junit" % "4.11"
 libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 
+// ScalaCheck
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.0" % "test"
+
 // TODO: Pick one for argument parsing
 libraryDependencies += "commons-cli" % "commons-cli" % "1.3.1"
 libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
