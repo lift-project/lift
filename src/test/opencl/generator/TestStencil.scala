@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.SizeVar
+import apart.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
@@ -115,7 +115,7 @@ class TestStencil extends TestSlide {
     */
   def create1DStencilLambda(weights: Array[Float], size: Int, step: Int, left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, Var("N", StartFromRange(3))),
       ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
@@ -135,8 +135,8 @@ class TestStencil extends TestSlide {
                                           size: Int, step:
                                           Int, left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, SizeVar("N")),
-      //ArrayType(Float, inputLength),
+      //ArrayType(Float, inputLength), // more precise information
+      ArrayType(Float, Var("N", StartFromRange(2))),
       ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
@@ -151,6 +151,45 @@ class TestStencil extends TestSlide {
       }
     )
   }
+
+  def create1DMultiInputLambda(inputLength: Int,
+                               weights: Array[Float],
+                               size: Int, step:
+                               Int, left: Int, right: Int): Lambda2 = {
+    fun(
+      //ArrayType(Float, inputLength), // more precise information
+      ArrayType(Float, SizeVar("N")),
+      //ArrayType(Float, SizeVar("M")),
+      ArrayType(Float, weights.length),
+      (input, weights) => {
+
+        Join() o
+        MapGlb(
+          fun(tuple => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(
+                fun((acc, y) => {
+                  multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+                }), 0.0f) $
+              Zip(weights, Get(tuple, 0))
+          })
+
+        ) $ Zip(Slide(size, step) o Pad(left, right, BOUNDARY) $ input,
+                input)
+      }
+    )
+  }
+
+  @Test def multiInput1D(): Unit = {
+    val weights = Array(1, 2, 1).map(_.toFloat)
+
+    val gold = Utils.scalaCompute1DStencil(randomData, 3,1, 1,1, weights, SCALABOUNDARY)
+    val stencil = create1DMultiInputLambda(randomData.length, weights, 3,1, 1,1)
+    val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+
   def createTiled1DStencilLambda(weights: Array[Float],
                                  size: Int, step: Int,
                                  tileSize: Int, tileStep: Int,
@@ -386,7 +425,7 @@ class TestStencil extends TestSlide {
                            size: Int, step: Int,
                            left: Int, right: Int): Lambda1 = {
     fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, Var("N", StartFromRange(2))),
       (input) =>
         MapGlb(MapSeqOrMapSeqUnroll(id)) o
           Slide(size, step) o
@@ -491,7 +530,6 @@ class TestStencil extends TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
-
   @Test def createGroupsForOneSidedPadding(): Unit = {
     val boundary = Pad.Boundary.Clamp
     val neighbours = Array(-2, -1, 0)
@@ -555,6 +593,36 @@ class TestStencil extends TestSlide {
       }
     )
   }
+
+  def create2DModSimplifyLambda(boundary: BoundaryFun,
+                             size: Int, step: Int,
+                             left: Int, right: Int): Lambda1 = {
+    fun(
+      ArrayType(ArrayType(Float, SizeVar("M")), Var("N", StartFromRange(2))),
+      (domain) => {
+        MapGlb(1)(
+          MapSeqUnroll(
+            MapGlb(0)(id)
+            //fun(neighbours =>
+            //MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours)
+            )
+        ) o /*Map(Map(Transpose()) o Slide(size, step) o Transpose()) o*/ Slide(size, step) o
+          /*Transpose() o Pad(left, right, boundary) o*/Transpose() o Transpose() o Pad(left, right, boundary) $ domain
+      }
+    )
+  }
+
+  @Test def modSimplifyTest(): Unit = {
+    val size = 3
+    val step = 1
+    val left = 1
+    val right = 1
+
+    val lambda = create2DModSimplifyLambda(Pad.Boundary.Wrap, size, step, left, right)
+    val (output: Array[Float], runtime) = Execute(data2D.length, data2D.length)(lambda, data2D)
+    output.grouped(4).toArray.map(x => println(x.mkString(",")))
+  }
+
 
   def createTiled2DStencil(size: Int, step: Int,
                            tileSize: Int, tileStep: Int,
