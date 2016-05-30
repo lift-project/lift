@@ -225,26 +225,34 @@ object OpenCLAST {
 
     block.content.foreach {
       case e: Expression => visitExpression(e)
-      case _ =>
+      case o: OclAstNode => visitOclAstNode(o)
     }
 
-    def visitExpression(node: OclAstNode): Unit = {
+    def visitOclAstNode(node: OclAstNode): Unit = {
       node match {
-        case e:Expression => fun(e)
-        case _ =>
+        case e: ExpressionStatement => visitExpression(e.e)
+        case f: ForLoop => visitOclAstNode(f.body)
+        case b: Block => visitExpressionsInBlock(b, fun)
+        case v: VarDecl if v.init != null => visitOclAstNode(v.init)
+        case o: OpenCLCode =>
+        case v: VarDecl =>
+        case c: Comment =>
+        // TODO: implement the rest (simply recurse down)
       }
+    }
+
+    def visitExpression(node: Expression): Unit = {
       node match {
         case v: VarRef if v.arrayIndex != null => visitExpression(v.arrayIndex)
-        case v: VarDecl if v.init != null => visitExpression(v.init)
         case l: Load => fun(l.offset)
         case s: Store =>
-          visitExpression(s.value)
+          visitOclAstNode(s.value)
           fun(s.offset)
-        case f: FunctionCall => f.args.foreach(visitExpression)
+        case f: FunctionCall => f.args.foreach(visitOclAstNode(_))
         case c: Cast => visitExpression(c.v)
         case a: AssignmentExpression =>
-          visitExpression(a.value)
-          visitExpression(a.to)
+          visitOclAstNode(a.value)
+          visitOclAstNode(a.to)
           // TODO: implement the rest (simply recurse down)
       }
     }

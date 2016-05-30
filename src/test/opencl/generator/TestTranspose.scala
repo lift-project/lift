@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import scala.util.Random
 
 object TestTranspose {
   @BeforeClass def before() {
@@ -77,9 +78,20 @@ class TestTranspose {
     assertArrayEquals(gold.flatten.flatten, test, 0.0f)
   }
 
+  @Test def transposeTwiceAfterPadId(): Unit = {
+    val input = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
+    val f = fun(
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      //input => MapSeq(MapSeq(id)) o Transpose() o /*MapSeq(MapSeq(id)) o*/ Transpose() $ input
+      input => MapSeq(MapSeq(id)) o Transpose() o Pad(1,1,Pad.Boundary.Wrap) o Transpose() o Pad(1,1,Pad.Boundary.Wrap) $ input
+    )
+
+    val (output: Array[Float], _) = Execute(1024, 1024)(f, input)
+    val gold = input(0) ++ input ++ input(input.size -1)
+  }
+
   @Test def idTranspose(): Unit = {
     val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
-
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
       input => MapWrg(
