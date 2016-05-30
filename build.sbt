@@ -14,7 +14,7 @@ compileSkelcl := {
   "echo y" #| "./skelcl.sh" !
 }
 
-scalacOptions ++= Seq("-Xmax-classfile-name", "100")
+scalacOptions ++= Seq("-Xmax-classfile-name", "100", "-unchecked", "-deprecation", "-feature")
 
 // Executor path
 javaOptions += "-Djava.library.path=" + baseDirectory(_ / "lib/SkelCL/build/executor").value

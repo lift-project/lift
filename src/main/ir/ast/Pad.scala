@@ -2,7 +2,7 @@ package ir.ast
 
 import apart.arithmetic.ArithExpr
 import ir.interpreter.Interpreter._
-import ir.{TypeException, ArrayType, Type, UndefType}
+import ir.{TypeException, ArrayType, Type}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)

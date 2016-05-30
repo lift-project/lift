@@ -10,6 +10,8 @@ import opencl.ir.{Float4, _}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
+import scala.language.reflectiveCalls
+
 object TestInterpreter {
   @BeforeClass def before() {
     Executor.loadLibrary()

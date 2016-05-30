@@ -192,7 +192,4 @@ object UserFun {
     UserFun(name, Array(paramName), body, Seq(inT), outT)
   }
 
-  @deprecated("replaced by UserFun.vectorize(n)")
-  def vectorize(uf: UserFun, n: ArithExpr): UserFun = uf.vectorize(n)
-
 }

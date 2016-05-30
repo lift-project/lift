@@ -69,9 +69,6 @@ object Param {
     p.t = t
     p
   }
-
-  @deprecated("used Param.vectorize(n)")
-  def vectorize(p: Param, n: ArithExpr): Param = p.vectorize(n)
 }
 
 /**

@@ -543,9 +543,6 @@ object Type {
     l.len == r.len && isEqual(l.scalarT, r.scalarT)
   }
 
-  @deprecated("replaced by Type.vectorize(n)")
-  def vectorize(t: Type, n: ArithExpr): Type = t.vectorize(n)
-
   /**
    * Devecorize a given type.
    * I.e. removes all vector types in it by replacing them with corresponding

@@ -13,6 +13,8 @@ import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.sys.process._
 
+import scala.language.postfixOps
+
 object TestGraphTheory {
   @BeforeClass def TestMatrixBasic() {
     Executor.loadLibrary()
