@@ -269,6 +269,8 @@ object Type {
       case vt: VectorType => new VectorType(vt.scalarT, f(vt.len))
       case tt: TupleType => tt
       case st: ScalarType => st
+      case NoType => NoType
+      case UndefType => UndefType
     }, t => t)
   }
 

@@ -264,6 +264,8 @@ object MacroRules {
 
         val splitFactor = arg.t match {
           case ArrayType(ArrayType(_, m), _) => m
+          case ArrayType(_, _) | NoType | TupleType(_) | UndefType =>
+            throw new TypeException(arg.t, "a valid array type")
         }
 
         val splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(splitFactor), call)

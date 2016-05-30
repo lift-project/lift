@@ -15,6 +15,7 @@ import scala.collection.{immutable, mutable}
 
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
+
 class NotI(msg: String) extends Exception(msg)
 
 object OpenCLGenerator extends Generator {
@@ -44,8 +45,7 @@ object OpenCLGenerator extends Generator {
 
   def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
 
-  def getMemories(f: Lambda): (Array[TypedOpenCLMemory],
-                               Array[TypedOpenCLMemory]) = {
+  def getMemories(f: Lambda): (Array[TypedOpenCLMemory], Array[TypedOpenCLMemory]) = {
     val memories = TypedOpenCLMemory.get(f.body, f.params).toArray
 
     val numInputs = f.params.length
@@ -55,7 +55,7 @@ object OpenCLGenerator extends Generator {
     if (memories.length > numInputs) {
       val temp = memories(numInputs)
       memories(numInputs) = outputMem
-      memories(memories.length-1) = temp
+      memories(memories.length - 1) = temp
     }
 
     val (locals, globals) = memories.partition(_.mem.addressSpace == LocalMemory)
@@ -95,6 +95,7 @@ object OpenCLGenerator extends Generator {
 }
 
 class OpenCLGeneratorException(msg: String) extends Exception(msg)
+
 class VariableNotDeclaredError(msg: String) extends OpenCLGeneratorException(msg)
 
 class OpenCLGenerator extends Generator {
@@ -114,9 +115,10 @@ class OpenCLGenerator extends Generator {
 
   private def printMemories(expr: Expr): Unit = {
     Expr.visit(expr, {
-      case e@(call: FunCall) => println(e + "\n    " +
-                                        e.mem.toString + " <- " +
-                                        call.argsMemory.toString + "\n")
+      case e@(call: FunCall) =>
+        println(e + "\n    " +
+          e.mem.toString + " <- " +
+          call.argsMemory.toString + "\n")
       case e => println(e + "\n    " + e.mem.toString + "\n")
     }, (f: Expr) => {})
   }
@@ -142,7 +144,7 @@ class OpenCLGenerator extends Generator {
 
 
   def _generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
-    valueMap: collection.Map[ArithExpr, ArithExpr]): String  = {
+                valueMap: collection.Map[ArithExpr, ArithExpr]): String = {
 
     if (f.body.t == UndefType)
       throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
@@ -171,7 +173,7 @@ class OpenCLGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      TypedOpenCLMemory.get(f.body, f.params, includePrivate=true).foreach(m => println(m))
+      TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).foreach(m => println(m))
       println()
     }
 
@@ -204,12 +206,12 @@ class OpenCLGenerator extends Generator {
     tupleTypes.foreach(globalBlock += OpenCLAST.TypeDef(_))
 
     // pass 2: find and generate user and group functions
-    generateUserFunctions(f.body).foreach( globalBlock += _ )
+    generateUserFunctions(f.body).foreach(globalBlock += _)
     //generateLookupFunctionsForGroups(f.body).foreach( globalBlock += _ )
 
     // pass 3: generate the
     //try {
-      globalBlock += generateKernel(f)
+    globalBlock += generateKernel(f)
     //} catch {
     //  case t:Throwable =>
     //    //println("error")//e.printStackTrace()
@@ -269,7 +271,7 @@ class OpenCLGenerator extends Generator {
     userFuns.foreach(uf => {
 
       val block = OpenCLAST.Block()
-      if(uf.tupleTypes.length == 1)
+      if (uf.tupleTypes.length == 1)
         block += OpenCLAST.TupleAlias(uf.tupleTypes.head, "Tuple")
       else uf.tupleTypes.zipWithIndex.foreach({ case (x, i) =>
         // TODO: think about this one ...
@@ -281,7 +283,7 @@ class OpenCLGenerator extends Generator {
         name = uf.name,
         ret = uf.outT,
         params = (uf.inTs, uf.paramNames).
-                    zipped.map((t,n) => OpenCLAST.ParamDecl(n,t)).toList,
+          zipped.map((t, n) => OpenCLAST.ParamDecl(n, t)).toList,
         body = block)
     })
 
@@ -362,7 +364,7 @@ class OpenCLGenerator extends Generator {
     // ... besides the these variables which use the value types
     // (i.e., possibly a vector type)
     this.varDecls = this.varDecls ++
-                    typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
+      typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
 
 
     val memories = OpenCLGenerator.getMemories(f)
@@ -374,7 +376,7 @@ class OpenCLGenerator extends Generator {
 
     // array of all unique vars (like N, iterSize, etc. )
     val allVars = Kernel.memory.map(_.mem.size.varList)
-                               .filter(_.nonEmpty).flatten.distinct
+      .filter(_.nonEmpty).flatten.distinct
     // partition into iteration variables and all others variables
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
@@ -384,13 +386,13 @@ class OpenCLGenerator extends Generator {
       ret = UndefType, // = void
       params =
         Kernel.memory.map(x =>
-            OpenCLAST.ParamDecl(
-              x.mem.variable.toString, Type.devectorize(x.t),
-              const = x.mem.readOnly,
-              addressSpace = x.mem.addressSpace
-            )
+          OpenCLAST.ParamDecl(
+            x.mem.variable.toString, Type.devectorize(x.t),
+            const = x.mem.readOnly,
+            addressSpace = x.mem.addressSpace
+          )
         ).toList ++
-        vars.map(x => OpenCLAST.ParamDecl(x.toString, Int)), // size parameters
+          vars.map(x => OpenCLAST.ParamDecl(x.toString, Int)), // size parameters
       body = OpenCLAST.Block(Vector.empty),
       kernel = true)
 
@@ -400,8 +402,8 @@ class OpenCLGenerator extends Generator {
       val m = mem.mem
       if (Verbose()) {
         println("Allocated " + ArithExpr.substitute(m.size, varMap.toMap) +
-                " bytes for variable " + openCLCodeGen.toString(m.variable) +
-                " in " + m.addressSpace + " memory")
+          " bytes for variable " + openCLCodeGen.toString(m.variable) +
+          " in " + m.addressSpace + " memory")
       }
     })
 
@@ -445,7 +447,6 @@ class OpenCLGenerator extends Generator {
   }
 
 
-
   private def generate(expr: Expr, block: Block): Unit = {
     assert(expr.t != UndefType)
 
@@ -470,18 +471,18 @@ class OpenCLGenerator extends Generator {
 
         case bs: BSearch => generateBSearchCall(bs, call, block)
         case ls: LSearch => generateLSearchCall(ls, call, block)
-        case _ : Search => 
+        case _: Search =>
 
         case i: Iterate => generateIterateCall(i, call, block)
 
         case vec: VectorizeUserFun => generateUserFunCall(vec.vectorizedFunction, call, block)
-        case u : UserFun => generateUserFunCall(u, call, block)
+        case u: UserFun => generateUserFunCall(u, call, block)
 
         case fp: FPattern => generate(fp.f.body, block)
         case l: Lambda => generate(l.body, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
-             Split(_) | Join() | Slide(_,_) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_,_,_) =>
+             Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) =>
 
       }
       case v: Value => generateValue(v, block)
@@ -492,10 +493,10 @@ class OpenCLGenerator extends Generator {
   // === Maps ===
 
   // MapWrg
-  private def generateMapWrgCall(m : MapWrg,
+  private def generateMapWrgCall(m: MapWrg,
                                  call: FunCall,
                                  block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b))//,m.iterationCount)
+    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b)) //,m.iterationCount)
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there
     // is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
@@ -508,7 +509,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapGlbCall(m: MapGlb,
                                  call: FunCall,
                                  block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b))//, m.iterationCount)
+    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b)) //, m.iterationCount)
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there
     // is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
@@ -522,7 +523,7 @@ class OpenCLGenerator extends Generator {
                                      block: Block): Unit = {
     // build a new nested block
     val nestedBlock = OpenCLAST.Block(Vector.empty)
-    block.asInstanceOf[Block] += Comment("atomic_workgroup_map")
+    (block: Block) += Comment("atomic_workgroup_map")
 
     // get shorthands for the loopvar/workvar
     val loopVar = m.loopVar
@@ -531,76 +532,76 @@ class OpenCLGenerator extends Generator {
     val threadid = get_local_id(0)
 
     // wrap the task update/getting functionality in a variable, as we need to use it twice
-    def atomicGetTask(ob: Block) = {
-      generateConditional(ob, Predicate(threadid, 0, Predicate.Operator.==), 
-      (b) => {
-        b.asInstanceOf[Block] += AssignmentExpression(OpenCLAST.ArithExpression(loopVar),
-          FunctionCall("atomic_inc", List(OpenCLAST.VarRef(workVar))))
-      },(_) => {})
+    def atomicGetTask(ob: Block): Unit = {
+      generateConditional(ob, Predicate(threadid, 0, Predicate.Operator.==),
+        (b) => {
+          (b: Block) += AssignmentExpression(OpenCLAST.ArithExpression(loopVar),
+            FunctionCall("atomic_inc", List(OpenCLAST.VarRef(workVar))))
+        }, (_) => {})
     }
 
     // declare a global variable holding the next index to process, and assign it a value
     nestedBlock += OpenCLAST.VarDecl(workVar, opencl.ir.IntPtr,
-      OpenCLAST.ArithExpression(m.globalTaskIndex.variable), addressSpace=GlobalMemory)
+      OpenCLAST.ArithExpression(m.globalTaskIndex.variable), addressSpace = GlobalMemory)
     // initialise it to zero
-//    generateConditional(nestedBlock, Predicate(new get_global_id(0), 0, Predicate.Operator.==),
-//      (b) => {
-//        b += OpenCLAST.AssignmentExpression(
-//          OpenCLAST.FunctionCall("*",List(OpenCLAST.Expression(workVar))), OpenCLAST.Expression(0))
-//      }, (_) => {}
-//    )
+    //    generateConditional(nestedBlock, Predicate(new get_global_id(0), 0, Predicate.Operator.==),
+    //      (b) => {
+    //        b += OpenCLAST.AssignmentExpression(
+    //          OpenCLAST.FunctionCall("*",List(OpenCLAST.Expression(workVar))), OpenCLAST.Expression(0))
+    //      }, (_) => {}
+    //    )
 
     // declare an index for this thread, the loop variable, and give it a value from the task index
     // this must be done in a separate statement, as the variable is in LocalMemory, and
     // we only wish for the first thread in the workgroup to perform the operation
-    nestedBlock += OpenCLAST.VarDecl(loopVar, opencl.ir.Int, addressSpace=LocalMemory)
+    nestedBlock += OpenCLAST.VarDecl(loopVar, opencl.ir.Int, addressSpace = LocalMemory)
     atomicGetTask(nestedBlock)
     nestedBlock += OpenCLAST.Barrier(OpenCLMemory(workVar, 4, LocalMemory))
     // get the loop variable as a range variable
     val range = loopVar.range.asInstanceOf[RangeAdd]
     // generate a while loop which increments the task index atomically, while 
     // it's less than the maximum range of the loop variable
-    generateWhileLoop(nestedBlock, 
+    generateWhileLoop(nestedBlock,
       Predicate(loopVar, range.stop, Predicate.Operator.<),
       (b) => {
         generate(m.f.body, b)
         atomicGetTask(b)
-        b.asInstanceOf[Block] += OpenCLAST.Barrier(OpenCLMemory(workVar, 4, LocalMemory))
+        (b: Block) += OpenCLAST.Barrier(OpenCLMemory(workVar, 4, LocalMemory))
       })
-    block.asInstanceOf[Block] += nestedBlock
+    (block: Block) += nestedBlock
 
     // emit a barrier?
     if (m.emitBarrier)
-      block.asInstanceOf[Block] += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
+      (block: Block) += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
   // MapLcl
   private def generateMapLclCall(m: MapLcl,
                                  call: FunCall,
                                  block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b),/* m.iterationCount, */shouldUnrollLoop(call))
+    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b), /* m.iterationCount, */ shouldUnrollLoop(call))
 
     if (m.emitBarrier)
-      block.asInstanceOf[Block] += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
+      (block: Block) += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
   // MapAtomLcl 
-  private def generateMapAtomLclCall(m: MapAtomLcl, 
-                                     call: FunCall, 
+  private def generateMapAtomLclCall(m: MapAtomLcl,
+                                     call: FunCall,
                                      block: Block): Unit = {
 
     // build a new nested block
     val nestedBlock = Block(Vector.empty)
-    block.asInstanceOf[Block] += OpenCLAST.Comment("atomic_local_map")
+    (block: Block) += OpenCLAST.Comment("atomic_local_map")
 
     // get shorthands for the loopvar/workvar
     val loopVar = m.loopVar
     val workVar = m.workVar
-    val workVarPtr = OpenCLAST.FunctionCall("&",List(OpenCLAST.VarRef(workVar)))
+    val workVarPtr = OpenCLAST.FunctionCall("&", List(OpenCLAST.VarRef(workVar)))
 
     // declare a local variable holding the next index to process, and assign it a value
     // this must be done in a separate statement, as the variable is in LocalMemory
-    nestedBlock += OpenCLAST.VarDecl(workVar, opencl.ir.Int, addressSpace=LocalMemory)
+    nestedBlock += OpenCLAST.VarDecl(workVar, opencl.ir.Int, addressSpace = LocalMemory)
     nestedBlock += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(workVar), OpenCLAST.ArithExpression(0))
 
     // declare an index for this thread, the loop variable, and give it a value from the task index
@@ -610,22 +611,22 @@ class OpenCLGenerator extends Generator {
 
     // get the loop variable as a range variable
     val range = loopVar.range.asInstanceOf[RangeAdd]
-    
+
     // generate a while loop which increments the task index atomically, while 
     // it's less than the maximum range of the loop variable
-    generateWhileLoop(nestedBlock, 
+    generateWhileLoop(nestedBlock,
       Predicate(loopVar, range.stop, Predicate.Operator.<),
       (b) => {
         generate(m.f.body, b)
-        b.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(loopVar),
+        (b: Block) += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(loopVar),
           OpenCLAST.FunctionCall("atomic_inc", List(workVarPtr))
         )
       })
-    block.asInstanceOf[Block] += nestedBlock
+    (block: Block) += nestedBlock
 
     // emit a barrier?
     if (m.emitBarrier)
-      block.asInstanceOf[Block] += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
+      (block: Block) += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
   // TODO: Separate pass. Information needed elsewhere
@@ -644,12 +645,12 @@ class OpenCLGenerator extends Generator {
     }
 
     loopingOverVectorComponents ||
-    (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
-      && (call.args.head.mem match {
-      case coll: OpenCLMemoryCollection =>
-        coll.subMemories.exists(mem => existsInPrivateMemories(mem))
-      case _ => existsInPrivateMemories(call.args.head.mem)
-    })) ||
+      (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
+        && (call.args.head.mem match {
+        case coll: OpenCLMemoryCollection =>
+          coll.subMemories.exists(mem => existsInPrivateMemories(mem))
+        case _ => existsInPrivateMemories(call.args.head.mem)
+      })) ||
       // Don't unroll just for value
       OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
   }
@@ -661,10 +662,10 @@ class OpenCLGenerator extends Generator {
   private def generateMapWarpCall(m: MapWarp,
                                   call: FunCall,
                                   block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b)/*,
+    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b) /*,
                  m.iterationCount*/)
     call.mem match {
-      case m : OpenCLMemory => block.asInstanceOf[Block] += OpenCLAST.Barrier(m)
+      case m: OpenCLMemory => (block: Block) += OpenCLAST.Barrier(m)
       case _ =>
     }
   }
@@ -673,7 +674,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapLaneCall(m: MapLane,
                                   call: FunCall,
                                   block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b)/*,
+    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b) /*,
                  m.iterationCount*/)
   }
 
@@ -681,21 +682,23 @@ class OpenCLGenerator extends Generator {
   private def generateMapSeqCall(m: MapSeq,
                                  call: FunCall,
                                  block: Block): Unit = {
-    val unroll =  m.isInstanceOf[MapSeqUnroll] || shouldUnrollLoop(call)
-    block.asInstanceOf[Block] += OpenCLAST.Comment("map_seq")
+    val unroll = m.isInstanceOf[MapSeqUnroll] || shouldUnrollLoop(call)
+    (block: Block) += OpenCLAST.Comment("map_seq")
     generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b), unroll)
-    block.asInstanceOf[Block] += OpenCLAST.Comment("end map_seq")
+    (block: Block) += OpenCLAST.Comment("end map_seq")
   }
 
   // Expr should be an array
-  private def generateLength(e:Expr) : Either[Expression, ArithExpr] = {
+  private def generateLength(e: Expr): Either[Expression, ArithExpr] = {
     e match {
       case e: Expr =>
         e.t match {
           case a: UnknownLengthArrayType =>
             val arrayStart = ViewPrinter.emit(e.view)
-            Left(VarRef(e.mem.variable, arrayIndex=ArithExpression(arrayStart)))
+            Left(VarRef(e.mem.variable, arrayIndex = ArithExpression(arrayStart)))
           case a: ArrayType => Right(a.len)
+          case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
+            throw new TypeException(e.t, "Array")
         }
     }
   }
@@ -708,28 +711,28 @@ class OpenCLGenerator extends Generator {
     val unroll = r.isInstanceOf[ReduceSeqUnroll] || OpenCLMemory.containsPrivateMemory(call.args(1).mem)
 
     val innerBlock = OpenCLAST.Block(Vector.empty)
-    block.asInstanceOf[Block] += OpenCLAST.Comment("reduce_seq")
+    (block: Block) += OpenCLAST.Comment("reduce_seq")
 
     val inputLen = generateLength(call.args(1))
     inputLen match {
 
-      case Left(len:Expression) =>
+      case Left(len: Expression) =>
         val indexVar = r.loopVar
         val range = indexVar.range.asInstanceOf[RangeAdd]
 
         val init = ArithExpression(range.start)
-        val cond =  CondExpression(ArithExpression(r.loopVar), len, CondExpression.Operator.<)
+        val cond = CondExpression(ArithExpression(r.loopVar), len, CondExpression.Operator.<)
         val increment = AssignmentExpression(ArithExpression(r.loopVar), ArithExpression(r.loopVar + range.step))
 
-        block.asInstanceOf[Block] += OpenCLAST.ForLoop(VarDecl(r.loopVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
+        (block: Block) += OpenCLAST.ForLoop(VarDecl(r.loopVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
 
         generate(r.f.body, innerBlock)
 
-      case Right(len:ArithExpr) =>
-        generateForLoop(block, r.loopVar, (b) => generate(r.f.body, b), /*r.iterationCount, */unroll)
+      case Right(len: ArithExpr) =>
+        generateForLoop(block, r.loopVar, (b) => generate(r.f.body, b), /*r.iterationCount, */ unroll)
     }
 
-    block.asInstanceOf[Block] += OpenCLAST.Comment("end reduce_seq")
+    (block: Block) += OpenCLAST.Comment("end reduce_seq")
   }
 
 
@@ -738,15 +741,13 @@ class OpenCLGenerator extends Generator {
                                   call: FunCall,
                                   block: Block): Unit = {
     val nestedBlock = OpenCLAST.Block(Vector.empty)
-    block.asInstanceOf[Block] += OpenCLAST.Comment("binary_search")
+    (block: Block) += OpenCLAST.Comment("binary_search")
     // get the default value handily
-    val defaultVal = call.args(0)
+    val defaultVal = call.args.head
     // get the input handily
     val inArr = call.args(1)
     // get the type of the input (handily, concretely)
-    val inArrT = inArr.t match {
-      case t: ArrayType => t
-    }
+    val inArrT = inArr.t.asInstanceOf[ArrayType]
     // get an opencl version of the input mem
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
     // get a reference to it for loading
@@ -777,9 +778,9 @@ class OpenCLGenerator extends Generator {
     // create a variable for each goto label
     val finishLabel = Var("done")
     val writeResultLabel = Var("writeresult")
-    generateWhileLoop(nestedBlock, Predicate(lowerIndex,upperIndex,Predicate.Operator.<),
+    generateWhileLoop(nestedBlock, Predicate(lowerIndex, upperIndex, Predicate.Operator.<),
       (b) => {
-        b.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(s.indexVar),
+        (b: Block) += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(s.indexVar),
           OpenCLAST.ArithExpression(lowerIndex + (upperIndex - lowerIndex) / 2))
 
         generate(s.f.body, b)
@@ -787,13 +788,17 @@ class OpenCLGenerator extends Generator {
         generateConditional(b,
           Predicate(compFuncResVar, 0, Predicate.Operator.<),
           (cb) => {
-            cb.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(upperIndex),OpenCLAST.ArithExpression(s.indexVar))
+            (cb: Block) += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(upperIndex), OpenCLAST.ArithExpression(s.indexVar))
           },
           (cb) => {
             generateConditional(cb,
               Predicate(compFuncResVar, 0, Predicate.Operator.>),
-              (ccb) => {ccb.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(lowerIndex),OpenCLAST.ArithExpression(s.indexVar + 1))},
-              (ccb) => {ccb.asInstanceOf[Block] += OpenCLAST.GOTO(writeResultLabel)}
+              (ccb) => {
+                (ccb: Block) += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(lowerIndex), OpenCLAST.ArithExpression(s.indexVar + 1))
+              },
+              (ccb) => {
+                (ccb: Block) += OpenCLAST.GOTO(writeResultLabel)
+              }
             )
           }
         )
@@ -807,8 +812,8 @@ class OpenCLGenerator extends Generator {
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
-    block.asInstanceOf[Block] += nestedBlock
-    block.asInstanceOf[Block] += OpenCLAST.Comment("binary_search")
+    (block: Block) += nestedBlock
+    (block: Block) += OpenCLAST.Comment("binary_search")
   }
 
   // LSearch
@@ -816,15 +821,13 @@ class OpenCLGenerator extends Generator {
                                   call: FunCall,
                                   block: Block): Unit = {
     val nestedBlock = OpenCLAST.Block(Vector.empty)
-    block.asInstanceOf[Block] += OpenCLAST.Comment("linear_search")
+    (block: Block) += OpenCLAST.Comment("linear_search")
     // get the default value handily
-    val defaultVal = call.args(0)
+    val defaultVal = call.args.head
     // get the input handily
     val inArr = call.args(1)
     // get the type of the input (handily, concretely)
-    val inArrT = inArr.t match {
-      case t: ArrayType => t
-    }
+    val inArrT = inArr.t.asInstanceOf[ArrayType]
     // get an opencl version of the input mem
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
     // get a reference to it for loading
@@ -853,7 +856,7 @@ class OpenCLGenerator extends Generator {
     val searchFailedLabel = Var("searchfailed")
 
     // todo - need to simplify inArrT.len, as currently it evaluates to unexecutable code on some tests
-    generateWhileLoop(nestedBlock, Predicate(s.indexVar, inArrT.len,Predicate.Operator.<),
+    generateWhileLoop(nestedBlock, Predicate(s.indexVar, inArrT.len, Predicate.Operator.<),
       (b) => {
 
         generate(s.f.body, b)
@@ -864,7 +867,7 @@ class OpenCLGenerator extends Generator {
           Predicate(compFuncResVar, 0, Predicate.Operator.>),
           (cb) => {
             // therefore, keep searching!
-            cb.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(s.indexVar),OpenCLAST.ArithExpression(s.indexVar + 1))
+            (cb: Block) += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(s.indexVar), OpenCLAST.ArithExpression(s.indexVar + 1))
           },
           (cb) => {
             // else...
@@ -873,11 +876,11 @@ class OpenCLGenerator extends Generator {
               Predicate(compFuncResVar, 0, Predicate.Operator.<),
               // if the value is greater than, it's gone past! the search has failed.
               (ccb) => {
-                ccb.asInstanceOf[Block] += OpenCLAST.GOTO(searchFailedLabel)
+                (ccb: Block) += OpenCLAST.GOTO(searchFailedLabel)
               },
               // otherwise, it must be equal to, so jump to returning the result
               (ccb) => {
-                ccb.asInstanceOf[Block] += OpenCLAST.GOTO(writeResultLabel)
+                (ccb: Block) += OpenCLAST.GOTO(writeResultLabel)
               }
             )
           }
@@ -893,16 +896,16 @@ class OpenCLGenerator extends Generator {
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
-    block.asInstanceOf[Block] += nestedBlock
-    block.asInstanceOf[Block] += OpenCLAST.Comment("linear_search")
+    (block: Block) += nestedBlock
+    (block: Block) += OpenCLAST.Comment("linear_search")
   }
 
   private def generateValue(v: Value, block: Block): Unit = {
     val temp = Var("tmp")
 
-    block.asInstanceOf[Block] += OpenCLAST.VarDecl(temp, Type.getValueType(v.t),
+    (block: Block) += OpenCLAST.VarDecl(temp, Type.getValueType(v.t),
       init = OpenCLAST.OpenCLCode(v.value))
-    block.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(
+    (block: Block) += OpenCLAST.AssignmentExpression(
       OpenCLAST.VarRef(v.mem.variable),
       OpenCLAST.VarRef(temp))
   }
@@ -916,14 +919,16 @@ class OpenCLGenerator extends Generator {
     val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
     val swapMem = OpenCLMemory.asOpenCLMemory(i.swapBuffer)
 
-    assert (inputMem.addressSpace == outputMem.addressSpace)
+    assert(inputMem.addressSpace == outputMem.addressSpace)
 
-    val funCall = i.f.body match { case call: FunCall => call }
+    val funCall = i.f.body match {
+      case call: FunCall => call
+    }
 
     // use the type var as the var holding the iterating size if it exists
     if (TypeVar.getTypeVars(funCall.argsType).size > 1) {
       println("size: " + TypeVar.getTypeVars(funCall.argsType).size)
-      TypeVar.getTypeVars(funCall.argsType).foreach( (tv) => {
+      TypeVar.getTypeVars(funCall.argsType).foreach((tv) => {
         println("tv: " + tv)
       })
       println("i.f.inT " + funCall.argsType)
@@ -936,9 +941,9 @@ class OpenCLGenerator extends Generator {
       else
         TypeVar.getTypeVars(funCall.argsType).head
 
-    block.asInstanceOf[Block] +=
+    (block: Block) +=
       OpenCLAST.VarDecl(curOutLen, Int,
-                        OpenCLAST.ArithExpression(Type.getLength(call.argsType)))
+        OpenCLAST.ArithExpression(Type.getLength(call.argsType)))
 
     // create new temporary input and output pointers
     val tin = Var("tin")
@@ -947,17 +952,17 @@ class OpenCLGenerator extends Generator {
     varDecls = varDecls.updated(tout, Type.devectorize(call.t))
 
     // ADDRSPC TYPE tin = in;
-    block.asInstanceOf[Block] += OpenCLAST.VarDecl(tin, Type.devectorize(call.t),
-                               OpenCLAST.VarRef(inputMem.variable),
-                               outputMem.addressSpace)
+    (block: Block) += OpenCLAST.VarDecl(tin, Type.devectorize(call.t),
+      OpenCLAST.VarRef(inputMem.variable),
+      outputMem.addressSpace)
 
     val range = i.indexVar.range.asInstanceOf[RangeAdd]
 
     // ADDRSPC TYPE tin = (odd ? out : swap);
-    block.asInstanceOf[Block] += OpenCLAST.VarDecl(tout, Type.devectorize(call.t),
+    (block: Block) += OpenCLAST.VarDecl(tout, Type.devectorize(call.t),
       init = OpenCLAST.ArithExpression(
         ((range.stop % 2) ne Cst(0)) ?? outputMem.variable !! swapMem.variable),
-        addressSpace = outputMem.addressSpace)
+      addressSpace = outputMem.addressSpace)
 
     generateForLoop(block, i.indexVar, (b) => {
 
@@ -979,29 +984,29 @@ class OpenCLGenerator extends Generator {
       val innerOutputLength = Type.getLength(funCall.t)
 
       // tmp = tmp * outputLen / inputLen
-      b.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(curOutLenRef,
+      (b: Block) += OpenCLAST.AssignmentExpression(curOutLenRef,
         OpenCLAST.ArithExpression(innerOutputLength))
 
 
       val tinVStrRef = OpenCLAST.VarRef(tin)
 
       // tin = (tout == swap) ? swap : out
-      b.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(tinVStrRef,
+      (b: Block) += OpenCLAST.AssignmentExpression(tinVStrRef,
         OpenCLAST.ArithExpression((tout eq swapMem.variable) ??
-                             swapMem.variable !!  outputMem.variable))
+          swapMem.variable !! outputMem.variable))
 
 
       val toutVStrRef = OpenCLAST.VarRef(tout)
 
       // tout = (tout == swap) ? out : swap
-      b.asInstanceOf[Block] += OpenCLAST.AssignmentExpression(toutVStrRef,
+      (b: Block) += OpenCLAST.AssignmentExpression(toutVStrRef,
         OpenCLAST.ArithExpression((tout eq swapMem.variable) ??
-                             outputMem.variable !! swapMem.variable))
+          outputMem.variable !! swapMem.variable))
 
-      if(outputMem.addressSpace != PrivateMemory)
-        b.asInstanceOf[Block] += OpenCLAST.Barrier(outputMem)
+      if (outputMem.addressSpace != PrivateMemory)
+        (b: Block) += OpenCLAST.Barrier(outputMem)
 
-    }/*, i.iterationCount*/)
+    } /*, i.iterationCount*/)
   }
 
   private def generateForLoop(block: Block,
@@ -1014,10 +1019,10 @@ class OpenCLGenerator extends Generator {
     val step = range.step
     val init = ArithExpression(range.start)
     val stop = range match {
-      case ra : RangeAdd => ra.stop
+      case ra: RangeAdd => ra.stop
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
-    val cond =  CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
+    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
 
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
@@ -1030,7 +1035,7 @@ class OpenCLGenerator extends Generator {
       }
 
       if (iterationCount > 0) {
-        block.asInstanceOf[Block] += OpenCLAST.Comment("unroll")
+        (block: Block) += OpenCLAST.Comment("unroll")
 
         for (i <- 0 until iterationCount) {
           replacements = replacements.updated(indexVar, i)
@@ -1048,7 +1053,7 @@ class OpenCLGenerator extends Generator {
         replacements = replacements - indexVar
         replacementsWithFuns = replacementsWithFuns - indexVar
 
-        block.asInstanceOf[Block] += OpenCLAST.Comment("end unroll")
+        (block: Block) += OpenCLAST.Comment("end unroll")
         return
       } else {
         throw new OpenCLGeneratorException(s"Trying to unroll loop, but iteration count is $iterationCount.")
@@ -1061,15 +1066,15 @@ class OpenCLGenerator extends Generator {
     indexVar.range.numVals match {
       case Cst(0) =>
         // zero iteration
-        block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is 0, no loop emitted")
+        (block: Block) += OpenCLAST.Comment("iteration count is 0, no loop emitted")
         return
       case Cst(1) =>
         // one iteration
-        block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1, no loop emitted")
+        (block: Block) += OpenCLAST.Comment("iteration count is exactly 1, no loop emitted")
         val innerBlock = OpenCLAST.Block(Vector.empty)
         innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
         generateBody(innerBlock)
-        block.asInstanceOf[Block] += innerBlock
+        (block: Block) += innerBlock
         return
 
       // TODO: See TestOclFunction.numValues and issue #62
@@ -1077,8 +1082,8 @@ class OpenCLGenerator extends Generator {
         generateIfStatement(block, indexVar, generateBody, init, stop)
         return
       case _ =>
-        (indexVar.range.numVals.min,indexVar.range.numVals.max) match {
-          case (Cst(0),Cst(1)) =>
+        (indexVar.range.numVals.min, indexVar.range.numVals.max) match {
+          case (Cst(0), Cst(1)) =>
             // one or less iteration
             generateIfStatement(block, indexVar, generateBody, init, stop)
             return
@@ -1089,33 +1094,33 @@ class OpenCLGenerator extends Generator {
 
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val innerBlock = OpenCLAST.Block(Vector.empty)
-    block.asInstanceOf[Block] += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
+    (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
     generateBody(innerBlock)
   }
 
   private def generateIfStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression, stop: ArithExpr): Unit = {
-    block.asInstanceOf[Block] += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
+    (block: Block) += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
     val innerBlock = OpenCLAST.Block(Vector.empty)
     innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
-    block.asInstanceOf[Block] += OpenCLAST.IfThenElse(CondExpression(init, ArithExpression(stop), CondExpression.Operator.<), innerBlock)
+    (block: Block) += OpenCLAST.IfThenElse(CondExpression(init, ArithExpression(stop), CondExpression.Operator.<), innerBlock)
     generateBody(innerBlock)
   }
 
   private def generateWhileLoop(block: Block,
                                 loopPredicate: Predicate,
-                                generateBody: (Block) => Unit) : Unit = {
+                                generateBody: (Block) => Unit): Unit = {
     val innerBlock = OpenCLAST.Block(Vector.empty)
-    block.asInstanceOf[Block] += OpenCLAST.WhileLoop(loopPredicate, body = innerBlock)
+    (block: Block) += OpenCLAST.WhileLoop(loopPredicate, body = innerBlock)
     generateBody(innerBlock)
   }
 
   private def generateConditional(block: Block,
                                   switchPredicate: Predicate,
                                   genTrueBranch: (Block) => Unit,
-                                  genFalseBranch: (Block) => Unit ) : Unit = {
+                                  genFalseBranch: (Block) => Unit): Unit = {
     val trueBlock = OpenCLAST.Block(Vector.empty)
     val falseBlock = OpenCLAST.Block(Vector.empty)
-    block.asInstanceOf[Block] += OpenCLAST.IfThenElse(switchPredicate, trueBody = trueBlock, falseBody = falseBlock)
+    (block: Block) += OpenCLAST.IfThenElse(switchPredicate, trueBody = trueBlock, falseBody = falseBlock)
     genTrueBranch(trueBlock)
     genFalseBranch(falseBlock)
   }
@@ -1125,14 +1130,14 @@ class OpenCLGenerator extends Generator {
                                   block: Block): Block = {
     // Handle vector assignments for vector types
     val mem = OpenCLMemory.asOpenCLMemory(call.mem)
-    block.asInstanceOf[Block] += generateStoreNode(mem, call.t, call.outputView,
+    (block: Block) += generateStoreNode(mem, call.t, call.outputView,
       generateFunCall(call, generateLoadNodes(call.args: _*)))
 
     block
   }
 
   private def generateFunCall(expr: Expr,
-                      args: List[OclAstNode]): OclAstNode = {
+                              args: List[OclAstNode]): OclAstNode = {
     expr match {
       case call: FunCall => call.f match {
         case uf: UserFun =>
@@ -1148,14 +1153,14 @@ class OpenCLGenerator extends Generator {
   }
 
   /**
-   * Generate a simple or vector store.
-   * This function emits a store[n] if the LHS is an array of scala types or
-   * an assignment otherwise.
-   */
+    * Generate a simple or vector store.
+    * This function emits a store[n] if the LHS is an array of scala types or
+    * an assignment otherwise.
+    */
   private def generateStoreNode(mem: OpenCLMemory,
                                 currentType: Type,
                                 view: View,
-    value: OclAstNode): Expression = {
+                                value: OclAstNode): Expression = {
     val originalType = getOriginalType(mem)
 
     if (Type.haveSameValueTypes(originalType, currentType)) {
@@ -1169,8 +1174,8 @@ class OpenCLGenerator extends Generator {
         //  => emit vstore
         case (at: ArrayType, vt: VectorType)
           if Type.isEqual(Type.getValueType(at), vt.scalarT)
-            && (   mem.addressSpace == GlobalMemory
-            || mem.addressSpace == LocalMemory  ) =>
+            && (mem.addressSpace == GlobalMemory
+            || mem.addressSpace == LocalMemory) =>
 
           OpenCLAST.Store(
             OpenCLAST.VarRef(mem.variable), vt,
@@ -1231,7 +1236,7 @@ class OpenCLGenerator extends Generator {
               OpenCLAST.Load(OpenCLAST.VarRef(mem.variable), vt,
                 offset = OpenCLAST.ArithExpression(
                   ViewPrinter.emit(view,
-                    replacementsWithFuns) / vt.len) )
+                    replacementsWithFuns) / vt.len))
 
             // originally an array of scalar values in private memory,
             // but now a vector type
@@ -1240,7 +1245,7 @@ class OpenCLGenerator extends Generator {
               if Type.isEqual(Type.getValueType(at), vt.scalarT)
                 && (mem.addressSpace == PrivateMemory) =>
 
-              assert( privateMems.exists(m => m.mem == mem) )
+              assert(privateMems.exists(m => m.mem == mem))
 
               // TODO: this seems like a very specific local solution ... find a more generic proper one
 
@@ -1252,7 +1257,7 @@ class OpenCLGenerator extends Generator {
                 OpenCLAST.VarRef(mem.variable, suffix = "_" + i)
               })
 
-              OpenCLAST.VectorLiteral(vt, seq:_*)
+              OpenCLAST.VectorLiteral(vt, seq: _*)
 
             // originally a vector value in private memory,
             // but now a scalar type
@@ -1293,7 +1298,7 @@ class OpenCLGenerator extends Generator {
 
               // TODO: this seems like a very specific local solution ... find a more generic proper one
 
-              assert( privateMems.exists(m => m.mem == mem) )
+              assert(privateMems.exists(m => m.mem == mem))
 
               val arraySuffix = arrayAccessPrivateMem(mem.variable, view)
 
@@ -1301,7 +1306,7 @@ class OpenCLGenerator extends Generator {
               val componentSuffixStopIndex = componentSuffixStartIndex + vt.len.eval
 
               // iterate over the range, assuming that it is contiguous
-              val componentSuffix = (componentSuffixStartIndex until componentSuffixStopIndex).foldLeft(".s")(_+_)
+              val componentSuffix = (componentSuffixStartIndex until componentSuffixStopIndex).foldLeft(".s")(_ + _)
 
               OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
 
@@ -1348,14 +1353,14 @@ class OpenCLGenerator extends Generator {
   }
 
   /**
-   * Create an access node(i.e. of type VarRef) for variable v based on the
-   * given address space and view
+    * Create an access node(i.e. of type VarRef) for variable v based on the
+    * given address space and view
     *
-    * @param v The variable to access
-   * @param addressSpace The address space, i.e. global, local, private
-   * @param view The view to access var `v`
-   * @return An VarRef node accessing `v` as described in `view`.
-   */
+    * @param v            The variable to access
+    * @param addressSpace The address space, i.e. global, local, private
+    * @param view         The view to access var `v`
+    * @return An VarRef node accessing `v` as described in `view`.
+    */
   private def accessNode(v: Var,
                          addressSpace: OpenCLAddressSpace,
                          view: View): OpenCLAST.VarRef = {
@@ -1364,14 +1369,16 @@ class OpenCLGenerator extends Generator {
         val originalType = varDecls(v)
         originalType match {
           case _: ArrayType => arrayAccessNode(v, addressSpace, view)
-          case _:ScalarType | _:VectorType | _:TupleType => valueAccessNode(v)
+          case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
+          case NoType | UndefType => throw new TypeException(originalType, "A valid type")
         }
 
       case PrivateMemory =>
         privateMems.find(m => m.mem.variable == v) match {
           case Some(typedMemory) => typedMemory.t match {
-            case _:ArrayType => arrayAccessNode(v, addressSpace, view)
-            case _:ScalarType | _:VectorType | _:TupleType => valueAccessNode(v)
+            case _: ArrayType => arrayAccessNode(v, addressSpace, view)
+            case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
+            case NoType | UndefType => throw new TypeException(typedMemory.t, "A valid type")
           }
           case _ => valueAccessNode(v)
         }
@@ -1379,13 +1386,13 @@ class OpenCLGenerator extends Generator {
   }
 
   /**
-   * Accessing v as an array
+    * Accessing v as an array
     *
-    * @param v The variable to access
-   * @param addressSpace The address space `v` lives in
-   * @param view The view describing the access
-   * @return An VarRef node accessing `v` as described in `view`.
-   */
+    * @param v            The variable to access
+    * @param addressSpace The address space `v` lives in
+    * @param view         The view describing the access
+    * @return An VarRef node accessing `v` as described in `view`.
+    */
   private def arrayAccessNode(v: Var,
                               addressSpace: OpenCLAddressSpace,
                               view: View): OpenCLAST.VarRef = {
@@ -1400,13 +1407,13 @@ class OpenCLGenerator extends Generator {
   }
 
   /**
-   * Generating the suffix appended to emulate an array access in private memory
+    * Generating the suffix appended to emulate an array access in private memory
     *
-    * @param v The variable to access
-   * @param view The view describing the access
-   * @return A string of the form '_index' where index is the computed
-   *         array index. The index must be computable at compile time.
-   */
+    * @param v    The variable to access
+    * @param view The view describing the access
+    * @return A string of the form '_index' where index is the computed
+    *         array index. The index must be computable at compile time.
+    */
   private def arrayAccessPrivateMem(v: Var, view: View): String = {
     // Compute the index ...
     val index = arrayAccessPrivateMemIndex(v, view)
@@ -1420,12 +1427,14 @@ class OpenCLGenerator extends Generator {
     val valueType = Type.getValueType(originalType)
 
     val i = valueType match {
-      case _:ScalarType | _:TupleType => ViewPrinter.emit(view)
+      case _: ScalarType | _: TupleType => ViewPrinter.emit(view)
       // if the original value type is a vector:
       //   divide index by vector length
-      case _:VectorType =>
+      case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
         ViewPrinter.emit(view) / length
+      case ArrayType(_, _) | NoType | UndefType =>
+        throw new TypeException(valueType, "A valid non array type")
     }
 
     val real = ArithExpr.substitute(i, replacements).eval
@@ -1438,12 +1447,12 @@ class OpenCLGenerator extends Generator {
   }
 
   /**
-   * Create a string representing for a component access into a vector variable
+    * Create a string representing for a component access into a vector variable
     *
-    * @param v The variable to access. Must have been declared with a vector type
-   * @param view The view to access this variable
-   * @return OpenCL code for accessing v, e.g.: v.s0
-   */
+    * @param v    The variable to access. Must have been declared with a vector type
+    * @param view The view to access this variable
+    * @return OpenCL code for accessing v, e.g.: v.s0
+    */
   private def componentAccessVectorVar(v: Var, view: View): String = {
     // Compute the index ...
     val index = componentAccessvectorVarIndex(v, view)
@@ -1455,20 +1464,22 @@ class OpenCLGenerator extends Generator {
     val originalType = varDecls(v)
     val valueType = Type.getValueType(originalType)
     val i = valueType match {
-      case _:VectorType =>
+      case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
         ViewPrinter.emit(view) % length
+      case ArrayType(_, _) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
+        throw new TypeException(valueType, "VectorType")
     }
 
-    ArithExpr.substitute(i,replacements).eval
+    ArithExpr.substitute(i, replacements).eval
   }
 
   /**
-   * An access to a variable as a value, i.e. a direct access by name.
+    * An access to a variable as a value, i.e. a direct access by name.
     *
     * @param v The variable to access
-   * @return A VarRef node wrapping `v`
-   */
+    * @return A VarRef node wrapping `v`
+    */
   private def valueAccessNode(v: Var): OpenCLAST.VarRef = {
     OpenCLAST.VarRef(v)
   }
@@ -1489,11 +1500,11 @@ class OpenCLGenerator extends Generator {
 
       // count how many times a subterm appears in the expressions
       expressions.foreach({
-        case ae : ArithExpression =>
+        case ae: ArithExpression =>
           ArithExpr.visit(ae.content, subterm => {
             counts get subterm match {
-              case None => counts put (subterm, 1)
-              case Some(c) => counts put (subterm, c + 1)
+              case None => counts put(subterm, 1)
+              case Some(c) => counts put(subterm, c + 1)
             }
           })
         case _ =>
@@ -1502,31 +1513,31 @@ class OpenCLGenerator extends Generator {
       // just choose the subterms which appear more than once and are not
       // instances of Var (i.e. are already variables)
       val subterms = counts.filter(_._2 > 1)
-                           .filter(!_._1.isInstanceOf[Var])
-                           .filter(!_._1.isInstanceOf[Cst])
-                           .filter(!_._1.isInstanceOf[OclFunction])
-                           .filter(_._1 match {
-                              // don't choose pow(b, -1), as this might be
-                              // printed as "/b" inside of a product
-                              case Pow(_, Cst(-1)) => false
-                              case _ => true
-                            })
+        .filter(!_._1.isInstanceOf[Var])
+        .filter(!_._1.isInstanceOf[Cst])
+        .filter(!_._1.isInstanceOf[OclFunction])
+        .filter(_._1 match {
+          // don't choose pow(b, -1), as this might be
+          // printed as "/b" inside of a product
+          case Pow(_, Cst(-1)) => false
+          case _ => true
+        })
 
       val substitutions = mutable.Map[ArithExpr, ArithExpr]()
 
       val newVarDecls: mutable.Iterable[VarDecl] =
-        // for every subterm p._1 ...
-        subterms.map( p => {
+      // for every subterm p._1 ...
+        subterms.map(p => {
           // ... create a new variable ...
           val newVar = Var("")
           // ... and prepare the substitution of the old expression with the
           //     new variable
-          substitutions put (p._1, newVar)
+          substitutions put(p._1, newVar)
 
           OpenCLAST.VarDecl(newVar,
-                            t = Int,
-                            init = OpenCLAST.ArithExpression(p._1),
-                            addressSpace = PrivateMemory)
+            t = Int,
+            init = OpenCLAST.ArithExpression(p._1),
+            addressSpace = PrivateMemory)
         })
 
       // update the Expression nodes to
@@ -1548,9 +1559,9 @@ class OpenCLGenerator extends Generator {
 
       // introduce new var decls at the beginning of the current block
       if (DeadCodeElimination())
-        usedVars.foreach(_ :: block.asInstanceOf[Block])
+        usedVars.foreach(_ :: (block: Block))
       else
-        newVarDecls.foreach(_ :: block.asInstanceOf[Block])
+        newVarDecls.foreach(_ :: (block: Block))
     }
   }
 }

@@ -138,8 +138,6 @@ class DotPrinter(w: Writer,
       case _ =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
-      case _ =>
-
     }
   }
 
@@ -231,28 +229,26 @@ class DotPrinter(w: Writer,
 
         printNodes(l.body)
 
-      case z: Zip =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
       case p: Pattern =>
         p match {
           case fp: FPattern =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
             printNodes(fp.f)
-          case s : Split =>
-            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+s.chunkSize+")>]")
           case Split(chunkSize) =>
-            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+chunkSize+")>]")
+            writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>(" + chunkSize + ")>]")
           case Get(i) =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+i+")>]")
+          case t: Tuple =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>Tuple</b>"+t.n+">]")
+          case z: Zip =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
+          case u: Unzip =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>Unzip</b>>]")
           case  _ =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
         }
       case uf: UserFun =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
-      case t: Tuple =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>Tuple</b>"+t.n+">]")
-      case u: Unzip =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>Unzip</b>>]")
       case  _ =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }

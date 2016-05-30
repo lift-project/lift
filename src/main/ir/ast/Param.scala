@@ -35,6 +35,7 @@ class Param() extends Expr with Cloneable {
   override def eval(valueMap: ValueMap): Any = {
     valueMap get this match {
       case Some(x) => x
+      case None => throw new Error("This expression is not evaluable")
     }
   }
   // These methods allow for writing an easy access syntax for tuples

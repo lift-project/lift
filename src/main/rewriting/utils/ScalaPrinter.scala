@@ -2,6 +2,7 @@ package rewriting.utils
 
 import ir._
 import ir.ast._
+import opencl.generator.NotPrintableExpression
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
 
@@ -46,6 +47,9 @@ object ScalaPrinter {
       case TupleType(tt@_*) => s"TupleType(${tt.map(apply).mkString(", ")})"
       case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, $len)"
       case ArrayType(elemT, len) => s"ArrayType(${apply(elemT)}, $len)"
+      case NoType => throw new NotPrintableExpression(s"Can not print NoType")
+      case UndefType => throw new NotPrintableExpression(s"Can not print UndefType")
+      case s: ScalarType => throw new NotPrintableExpression(s"Can not print ScalaType: $s")
     }
   }
 
