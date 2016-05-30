@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -10,13 +10,13 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestScatterGather {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }

@@ -10,7 +10,7 @@ import org.junit.Test
 class ViewTest {
 
   @Test
-  def test1() {
+  def test1(): Unit = {
 
     val a = View(ArrayType(Int, 8), "a")
     val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
@@ -35,7 +35,7 @@ class ViewTest {
   }
 
   @Test
-  def test2() {
+  def test2(): Unit = {
     val A = View(ArrayType(ArrayType(Int, 8), 8), "A")
     val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
 
@@ -71,7 +71,7 @@ class ViewTest {
   }
 
   @Test
-  def test3() {
+  def test3(): Unit = {
     val A = View(ArrayType(ArrayType(Int, 8), 8), "A")
     val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
 
@@ -93,7 +93,7 @@ class ViewTest {
   }
 
   @Test
-  def testSplit() {
+  def testSplit(): Unit = {
 
     val A = View(ArrayType(Int, 8), "A")
 
@@ -109,7 +109,7 @@ class ViewTest {
   }
 
   @Test
-  def testReorder() {
+  def testReorder(): Unit = {
 
     val A = View(ArrayType(Int, SizeVar("N")), "A")
 

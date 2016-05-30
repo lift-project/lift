@@ -126,7 +126,7 @@ object OutputView {
       Array.fill[View](memCollection.subMemories.length)(NoView)
   }
 
-  private def buildViewGet(i: Int, param: Param, call: FunCall) = {
+  private def buildViewGet(i: Int, param: Param, call: FunCall): Unit = {
     param.mem match {
       case memCollection: OpenCLMemoryCollection =>
         val accessInfo =

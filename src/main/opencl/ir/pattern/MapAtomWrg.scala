@@ -3,13 +3,7 @@ package opencl.ir.pattern
 import apart.arithmetic.{PosVar, Var}
 import ir.ast._
 import ir._
-import opencl.ir._
 
-/**
- *
- * @param dim
- * @param f
- */
 case class MapAtomWrg(dim: Int, override val f: Lambda1, workVar: Var)
 extends AbstractMap(f, "MapAtomWrg", PosVar("w_id")) {
   override def copy(f: Lambda): Pattern = MapAtomWrg(dim, f, PosVar("work_idx"))

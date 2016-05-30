@@ -6,5 +6,6 @@ abstract class KernelArg {
     }
     public native void dispose();
 
-    protected long nativeHandle;
+    @SuppressWarnings({"unused", "FieldCanBeLocal"})
+    private final long nativeHandle;
 }

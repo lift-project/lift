@@ -6,7 +6,6 @@ import ir._
 import ir.interpreter.Interpreter._
 
 import scala.collection._
-import scala.collection.immutable.HashMap
 
 /**
  * Iterate pattern.
@@ -111,17 +110,17 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
   /**
     * Returns the new input and output types after calculating the closed form
     *
-    * @param inT
-    * @param ouT
-    * @param n
-    * @param initialTvValMap
-    * @return
+    * @param inT The input type of the function to be iterated
+    * @param ouT The output type of the function to be iterated
+    * @param n The number of iteration steps
+    * @param initialTvValMap The initial mapping of type variables to arithmetic exprressions.
+    *                        These type variables might appear in the input and output types.
+    * @return A pair of input and output type after calculating the closed form iteration of `n` iteration steps
     */
   private def closedFormIterate(inT: Type,
                                 ouT: Type,
                                 n: ArithExpr,
-                                initialTvValMap: mutable.HashMap[TypeVar,
-                                                       ArithExpr]): (Type,Type) = {
+                                initialTvValMap: mutable.HashMap[TypeVar, ArithExpr]): (Type,Type) = {
     (inT,ouT) match {
       case (inAT : ArrayType, outAT : ArrayType) =>
           val inLen = inAT.len

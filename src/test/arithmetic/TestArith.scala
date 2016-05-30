@@ -79,7 +79,7 @@ class TestArith {
     assertEquals(Sign.Positive, sign)
   }*/
 
-  @Test def isSmaller(): Unit = {
+  @Test def TestIsSmaller(): Unit = {
     val expr1: ArithExpr = ?
     val expr2: ArithExpr = 1 + Var("a")
     val ret = ArithExpr.isSmaller(expr1, expr2)

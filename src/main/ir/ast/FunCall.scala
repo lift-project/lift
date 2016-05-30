@@ -53,7 +53,7 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
 
 object FunCallInst {
   def unapply(l: Lambda): Option[(Pattern,Expr)] = l match {
-    case Lambda(_, FunCall(x, a)) if x.isInstanceOf[Pattern] => Some(x.asInstanceOf[Pattern],a)
+    case Lambda(_, FunCall(x, a)) if x.isInstanceOf[Pattern] => Some((x.asInstanceOf[Pattern], a))
     case _ => None
   }
 }

@@ -1,7 +1,7 @@
 package opencl.generator
 
-import ir.ast.{fun}
-import ir.{UnknownLengthArrayType}
+import ir.ast.fun
+import ir.UnknownLengthArrayType
 import opencl.executor.{Executor, Execute}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -9,13 +9,13 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestUBArray {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }

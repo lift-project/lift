@@ -24,7 +24,7 @@ object ExpressionFilter {
     InternalException = Value
   }
 
-  import ExpressionFilter.Status._
+  import exploration.ExpressionFilter.Status._
 
   def apply(lambda: Lambda): Status = {
 

@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -10,13 +10,13 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestTriple {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -32,7 +32,7 @@ class TestTriple {
   val gold = (inputArray1 zip inputArray2 zip inputArray3).map({case ((a,b),c) => a+b+c})
   val inputArray = (inputArray1 zip inputArray2 zip inputArray3).flatMap { case ((a, b), c) => Array(a, b, c) }
 
-  @Test def VECTOR_SUM_TRIPLE() {
+  @Test def VECTOR_SUM_TRIPLE(): Unit = {
     val f = fun(ArrayType(TupleType(Float,Float,Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
 	Join() o  MapLcl(MapSeq(add3Tuple)) o Split(4)
@@ -45,7 +45,7 @@ class TestTriple {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_SUM_TRIPLE_2() {
+  @Test def VECTOR_SUM_TRIPLE_2(): Unit = {
     val N = SizeVar("N")
     val f = fun(
       ArrayType(Float, N),

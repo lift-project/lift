@@ -3,13 +3,13 @@ package opencl.generator
 object Debug {
   var debug = System.getenv("APART_DEBUG") != null
   def apply() = debug
-  def apply(debug: Boolean) = { this.debug = debug }
+  def apply(debug: Boolean): Unit = { this.debug = debug }
 }
 
 object Verbose {
   var verbose = System.getenv("APART_VERBOSE") != null
   def apply() = verbose
-  def apply(verbose: Boolean) = { this.verbose = verbose }
+  def apply(verbose: Boolean): Unit = { this.verbose = verbose }
 }
 
 object DeadCodeElimination {
@@ -36,7 +36,7 @@ object AllocateLocalMemoryStatically {
   // FIXME(tlutz) This should be a val
   var allocateLocalMemoryStatically = true
   def apply() = allocateLocalMemoryStatically
-  def apply(allocateStatically: Boolean) = {
+  def apply(allocateStatically: Boolean): Unit = {
     allocateLocalMemoryStatically = allocateStatically
   }
 }

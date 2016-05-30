@@ -1,6 +1,5 @@
 package benchmarks
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -159,7 +158,7 @@ object SumAbsoluteValues {
         ("NVIDIA_DERIVED", Array[Lambda](nvidiaDerived1, amdNvidiaDerived2)),
         ("AMD_DERIVED", Array[Lambda](amdDerived1, amdNvidiaDerived2))))
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
     SumAbsoluteValues().run(args)
   }
 }

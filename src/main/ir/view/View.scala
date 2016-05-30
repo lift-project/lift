@@ -422,9 +422,10 @@ object View {
 }
 
 class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
+    @scala.annotation.tailrec
     private def emitView(sv: View,
-                       arrayAccessStack: List[(ArithExpr, ArithExpr)], // id, dimension size
-                       tupleAccessStack: List[Int]): ArithExpr = {
+                         arrayAccessStack: List[(ArithExpr, ArithExpr)], // id, dimension size
+                         tupleAccessStack: List[Int]): ArithExpr = {
     sv match {
       case mem: ViewMem =>
         assert(tupleAccessStack.isEmpty)
@@ -564,6 +565,7 @@ object ViewPrinter {
   }
 
 
+  @scala.annotation.tailrec
   private def getViewMem(sv: View, tupleAccessStack: List[Int] = List()): ViewMem = {
     sv match {
       case map: ViewMem => map

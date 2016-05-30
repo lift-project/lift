@@ -14,7 +14,7 @@ class TikzPrinter(w: Writer) {
   // keeps track of the visited node
   lazy val visited : collection.mutable.Set[Any] = collection.mutable.HashSet()
 
-  def writeln(s: String) = {
+  def writeln(s: String): Unit = {
     w.write(s+"\n")
   }
 
@@ -22,7 +22,7 @@ class TikzPrinter(w: Writer) {
     "n"+Math.abs(n.hashCode())
   }
 
-  def print(decl: Decl) = {
+  def print(decl: Decl): Unit = {
     writeln("\\begin{tikzpicture}[baseline,>=stealth',shorten >=1pt,auto,node distance=1.3cm,minimum size=0pt,every node/.style={rectangle,draw=black!80,rounded corners=3pt,thick}]")
     printNodes(decl, "")
 

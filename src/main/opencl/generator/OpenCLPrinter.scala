@@ -104,7 +104,7 @@ class OpenCLPrinter {
   }
 
   /** Move cursor back by given size. Used to fix indentation */
-  private def moveCursorBack(size: Int) = {
+  private def moveCursorBack(size: Int): Unit = {
     for (_ <- 1 to size) {
       if (sb.last.isWhitespace) { sb.deleteCharAt(sb.size - 1) }
     }
@@ -339,7 +339,7 @@ class OpenCLPrinter {
  *
    * @param b A [[Barrier]] node.
    */
-  private def print(b: Barrier) = println (b.mem.addressSpace match {
+  private def print(b: Barrier): Unit = println (b.mem.addressSpace match {
     case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
     case LocalMemory => "barrier(CLK_LOCAL_MEM_FENCE);"
     case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
@@ -350,7 +350,7 @@ class OpenCLPrinter {
     *
     * @param fl a [[ForLoop]] node.
     */
-  private def print(fl: ForLoop) {
+  private def print(fl: ForLoop): Unit = {
     print("for (")
     print(fl.init)
     print(fl.cond)
@@ -366,7 +366,7 @@ class OpenCLPrinter {
     * 
     * @param wl a [[WhileLoop]] node.
     */
-  private def print(wl: WhileLoop) {
+  private def print(wl: WhileLoop): Unit = {
     print("while("+ toString(wl.loopPredicate) + ")")
     print(wl.body)
   }
@@ -376,7 +376,7 @@ class OpenCLPrinter {
     * 
     * @param s a [[IfThenElse]] node
     */
-  private def print(s: OpenCLAST.IfThenElse) {
+  private def print(s: OpenCLAST.IfThenElse): Unit = {
     print("if(")
     print(s.cond)
     println(")")
@@ -394,7 +394,7 @@ class OpenCLPrinter {
     * 
     * @param l a [[Label]] node
     */
-  private def print(l: Label) {
+  private def print(l: Label): Unit = {
     println(l.nameVar.toString + ": ;")
   }
 
@@ -402,7 +402,7 @@ class OpenCLPrinter {
     * 
     * @param g a [[GOTO]] node
     */
-  private def print(g: GOTO) {
+  private def print(g: GOTO): Unit = {
     println("goto " + g.nameVar.toString + ";")
   }
 

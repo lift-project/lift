@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -10,12 +10,12 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestTail {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }

@@ -350,6 +350,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     (params, values).zipped.foreach( (p, v) => checkParamWithValue(p.t, v) )
   }
 
+  @scala.annotation.tailrec
   private def checkParamWithValue(t: Type, v: Any): Unit = {
     (t, v) match {
       case (at: ArrayType, av: Array[_]) => checkParamWithValue(at.elemT, av(0))
@@ -452,6 +453,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       // ... if found look up the runtime value in the valueMap and create kernel argument ...
       if (i != -1) {
         val s = valueMap(v).eval
+        //noinspection SideEffectsInMonadicTransformation
         if (Verbose())
           println(s)
         Option(arg(s))

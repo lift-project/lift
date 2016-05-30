@@ -65,11 +65,13 @@ object Rewrite {
 
   /**
    * Apply rules one by one until no rules apply anymore
+ *
    * @param expr The expression where to apply rules
    * @param rules The rules to apply
    * @return
-   */
-  def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
+    */
+  @scala.annotation.tailrec
+def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
     val allRulesAt = listAllPossibleRewritesForRules(expr, rules)
 
     if (allRulesAt.isEmpty) {

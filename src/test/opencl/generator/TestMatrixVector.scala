@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{ArithExpr, Log, SizeVar, Var}
+import apart.arithmetic.{ArithExpr, Log, SizeVar}
 import benchmarks.MatrixVector
 import ir._
 import ir.ast._
@@ -12,13 +12,13 @@ import opencl.ir.pattern._
 import rewriting.utils.ScalaPrinter
 
 object TestMatrixVector {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -36,7 +36,7 @@ class TestMatrixVector {
       val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
       val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
       val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
-      fun(ArrayType(ArrayType(Float, v_M0_0), v_N1_1), ArrayType(Float, v_M0_0), ArrayType(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), p_16))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split((v_M0_0*1/^(v_2_2))), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
+      fun(ArrayType(ArrayType(Float, v_M0_0), v_N1_1), ArrayType(Float, v_M0_0), ArrayType(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), p_16))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split(v_M0_0 * 1 /^ v_2_2), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
     }
 
     val M = SizeVar("M")
@@ -46,7 +46,7 @@ class TestMatrixVector {
 
     println(ScalaPrinter(f))
 
-    val code = Compile(f, 128,1,1,128*4096,1,1,scala.collection.immutable.Map[ArithExpr,ArithExpr](M -> 4096, N -> 4096))
+    Compile(f, 128,1,1,128*4096,1,1,scala.collection.immutable.Map[ArithExpr,ArithExpr](M -> 4096, N -> 4096))
   }
 
   @Test
@@ -60,7 +60,7 @@ class TestMatrixVector {
       val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
       val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
       val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
-      fun(ArrayType(ArrayType(Float, v_M0_0), v_N1_1), ArrayType(Float, v_M0_0), ArrayType(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), FunCall(toPrivate(fun((p_18) => FunCall(fun((p_19) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p_19)), FunCall(id, FunCall(Get(1), p_19)))), p_18))), p_16)))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split((v_M0_0*1/^(v_2_2))), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
+      fun(ArrayType(ArrayType(Float, v_M0_0), v_N1_1), ArrayType(Float, v_M0_0), ArrayType(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), FunCall(toPrivate(fun((p_18) => FunCall(fun((p_19) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p_19)), FunCall(id, FunCall(Get(1), p_19)))), p_18))), p_16)))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split(v_M0_0 * 1 /^ v_2_2), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
     }
 
     val M = SizeVar("M")
@@ -69,10 +69,10 @@ class TestMatrixVector {
     val f = factory(Seq[ArithExpr](M,N, 128))
     println(ScalaPrinter(f))
 
-    val code = Compile(f, 128,1,1,128*4096,1,1,scala.collection.immutable.Map[ArithExpr,ArithExpr](M -> 4096, N -> 4096))
+    Compile(f, 128,1,1,128*4096,1,1,scala.collection.immutable.Map[ArithExpr,ArithExpr](M -> 4096, N -> 4096))
   }
 
-  @Test def MATRIX_VECTOR_FIXED_SIZE() {
+  @Test def MATRIX_VECTOR_FIXED_SIZE(): Unit = {
 
     val inputSize = 1024
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
@@ -97,7 +97,7 @@ class TestMatrixVector {
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
   }
 
-  @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY() {
+  @Test def MATRIX_VECTOR_FIXED_SIZE_LOCAL_MEMORY(): Unit = {
 
     // TODO: Workaround for AMD GPUs. See issue 42.
     if (Utils.isAmdGpu)
@@ -126,7 +126,7 @@ class TestMatrixVector {
   }
 
 
-  @Test def MATRIX_VECTOR() {
+  @Test def MATRIX_VECTOR(): Unit = {
 
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
@@ -152,7 +152,7 @@ class TestMatrixVector {
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
   }
 
-  @Test def MATRIX_VECTOR_LOCAL_MEMORY() {
+  @Test def MATRIX_VECTOR_LOCAL_MEMORY(): Unit = {
 
     val inputSize = 1024
     val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
@@ -180,7 +180,7 @@ class TestMatrixVector {
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
   }
 
-  @Test def MATRIX_VECTOR_LOCAL_MEMORY_FUSED() {
+  @Test def MATRIX_VECTOR_LOCAL_MEMORY_FUSED(): Unit = {
 
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
@@ -211,7 +211,7 @@ class TestMatrixVector {
   }
 
 
-  @Test def MATRIX_VECTOR_FUSED() {
+  @Test def MATRIX_VECTOR_FUSED(): Unit = {
 
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
@@ -262,7 +262,7 @@ class TestMatrixVector {
 
   }
 
-  @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL() {
+  @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL(): Unit = {
 
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
@@ -283,7 +283,7 @@ class TestMatrixVector {
     assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
   }
 
-  @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD() {
+  @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD(): Unit = {
 
     val inputSize = 4096
     val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
@@ -304,7 +304,7 @@ class TestMatrixVector {
     assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
   }
 
-  @Test def FULL_MATRIX_VECTOR_FUSED() {
+  @Test def FULL_MATRIX_VECTOR_FUSED(): Unit = {
 
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)

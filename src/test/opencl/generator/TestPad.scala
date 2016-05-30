@@ -11,20 +11,20 @@ import org.junit._
 
 
 object TestPad {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
 }
 
 class TestPad {
-  import Pad.Boundary._
+  import ir.ast.Pad.Boundary._
 
   // use letters instead of numbers
   val next = { var n = -1f; () => { n = n + 1f; n } }
@@ -37,7 +37,7 @@ class TestPad {
   val input = Array(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p)
   val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
 
-  def validate1D(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun, input: Array[Float] = input) = {
+  def validate1D(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun, input: Array[Float] = input): Unit = {
     val fct = fun(
       ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Pad(left, right, boundary) $ domain
@@ -51,7 +51,7 @@ class TestPad {
   def validate2D(gold: Array[Float],
                  top: Int, bottom: Int,
                  left: Int, right: Int,
-                 boundary: Pad.BoundaryFun) = {
+                 boundary: Pad.BoundaryFun): Unit = {
     val N = SizeVar("N")
     val fct = fun(
       ArrayType(ArrayType(Float, N), N),
@@ -65,7 +65,7 @@ class TestPad {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  def validate2DOriginal(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun) = {
+  def validate2DOriginal(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun): Unit = {
     val fct = fun(
       ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Join()
@@ -90,7 +90,7 @@ class TestPad {
       (domain) => MapGlb(id) o Pad(1,1,bf) o Pad(1,1,bf) $ domain
     )
 
-    val (output: Array[Float],runtime) = Execute(input.length, input.length)(fct, input)
+    val (output: Array[Float], _) = Execute(input.length, input.length)(fct, input)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -103,7 +103,7 @@ class TestPad {
       (domain) => MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
     )
 
-    val (output: Array[Float],runtime) = Execute(5,5)(fct, input)
+    val (output: Array[Float], _) = Execute(5,5)(fct, input)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -120,8 +120,8 @@ class TestPad {
       (domain) => MapSeq(id) o Pad(1,1,bf) o Join() o MapSeq(MapSeq(id)) $ domain
     )
 
-    val (output1: Array[Float],runtime) = Execute(128,128)(joinMapPad, input2D)
-    val (output2: Array[Float],runtime2) = Execute(128,128)(padJoinMap, input2D)
+    val (output1: Array[Float], _) = Execute(128,128)(joinMapPad, input2D)
+    val (output2: Array[Float], _) = Execute(128,128)(padJoinMap, input2D)
     assertArrayEquals(output1, output2, 0.0f)
   }
 

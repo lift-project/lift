@@ -51,7 +51,7 @@ object MemoryMappingRewrite {
   //                                               glb0, glb01, glb10, grp0, grp01, grp10
   private val enabledMappings = new EnabledMappings(true, true, false, true, false, true)
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     try {
 
@@ -132,6 +132,7 @@ object MemoryMappingRewrite {
         true
       } catch {
         case t: Throwable =>
+          //noinspection SideEffectsInMonadicTransformation
           logger.warn(s"Illegal lambda in $hash failed, ${t.toString}")
           false
       })

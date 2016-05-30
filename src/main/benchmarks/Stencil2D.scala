@@ -119,7 +119,7 @@ object Stencil2D{
     )
   )
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
     Stencil2D().run(args)
   }
 }

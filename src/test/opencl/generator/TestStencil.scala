@@ -12,13 +12,13 @@ import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import scala.util.Random
 
 object TestStencil {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -199,15 +199,15 @@ class TestStencil extends TestSlide {
 
     val newLambda = create1DStencilLambda(weights, 3,1, 1,1)
     //gold computation
-    val (firstIteration: Array[Float], runtime2) = Execute(length, length)(newLambda, randomData, weights)
+    val (firstIteration: Array[Float], _) = Execute(length, length)(newLambda, randomData, weights)
     //val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, firstIteration, weights)
 
-    val (secondIteration: Array[Float], runtime5) = Execute(length, length)(newLambda, firstIteration, weights)
-    val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, secondIteration, weights)
+    val (secondIteration: Array[Float], _) = Execute(length, length)(newLambda, firstIteration, weights)
+    val (_, _) = Execute(length, length)(newLambda, secondIteration, weights)
     //println(gold.mkString(","))
 
     val stencil = createTempAndSpatialBlockingLambda(3,1, 4,2, 1,1,Pad.Boundary.Clamp)
-    val (output: Array[Float], runtime) = Execute(length,length)(stencil, randomData)
+    val (_, _) = Execute(length,length)(stencil, randomData)
     //println(output.mkString(","))
 
     //compareGoldWithOutput(gold, output, runtime)
@@ -292,11 +292,11 @@ class TestStencil extends TestSlide {
 
     val newLambda = create1DStencilLambda(weights, 3,1, 1,1)
     //gold computation
-    val (firstIteration: Array[Float], runtime2) = Execute(length, length)(newLambda, randomData, weights)
+    val (firstIteration: Array[Float], _) = Execute(length, length)(newLambda, randomData, weights)
     //val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, firstIteration, weights)
 
-    val (secondIteration: Array[Float], runtime5) = Execute(length, length)(newLambda, firstIteration, weights)
-    val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, secondIteration, weights)
+    val (secondIteration: Array[Float], _) = Execute(length, length)(newLambda, firstIteration, weights)
+    val (gold: Array[Float], _) = Execute(length, length)(newLambda, secondIteration, weights)
 
     val stencil = createTemporalBlockingUsingRewriteLambda(Pad.Boundary.Clamp, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(length,length)(stencil, randomData)
@@ -313,8 +313,8 @@ class TestStencil extends TestSlide {
     val stencil = createTemporalBlockingUsingTiles1DStencilLambda(weights, Pad.Boundary.Clamp, 3,1, 5,1, 1,1)
     val newLambda = create1DStencilLambda(weights, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(length,length)(stencil, randomData, weights)
-    val (firstIteration: Array[Float], runtime2) = Execute(length, length)(newLambda, randomData, weights)
-    val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, firstIteration, weights)
+    val (firstIteration: Array[Float], _) = Execute(length, length)(newLambda, randomData, weights)
+    val (gold: Array[Float], _) = Execute(length, length)(newLambda, firstIteration, weights)
 
     //val (secondIteration: Array[Float], runtime5) = Execute(length, length)(newLambda, firstIteration, weights)
     //val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, secondIteration, weights)
@@ -425,7 +425,7 @@ class TestStencil extends TestSlide {
 
   @Test def groupBigClampPaddedData(): Unit = {
     val boundary = Pad.Boundary.Clamp
-    val neighbours = Array(-2, -1, 0, 1, 2)
+//    val neighbours = Array(-2, -1, 0, 1, 2)
     val gold = Array(0,0,0,1,2,
       0,0,1,2,3,
       0,1,2,3,4,
@@ -456,7 +456,7 @@ class TestStencil extends TestSlide {
     val stencil = createTiled1DStencilLambda(weights, 3,1, 4,2, 1,1)
     val newLambda = create1DStencilLambda(weights, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
-    val (gold: Array[Float], runtime2) = Execute(randomData.length)(newLambda, randomData, weights)
+    val (gold: Array[Float], _) = Execute(randomData.length)(newLambda, randomData, weights)
     compareGoldWithOutput(gold, output, runtime)
   }
 
@@ -466,14 +466,14 @@ class TestStencil extends TestSlide {
     val stencil = createTiled1DStencilLambda(weights, 3,1, 18,16, 1,1)
     val newLambda = create1DStencilLambda(weights, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
-    val (gold: Array[Float], runtime2) = Execute(randomData.length)(newLambda, randomData, weights)
+    val (gold: Array[Float], _) = Execute(randomData.length)(newLambda, randomData, weights)
     compareGoldWithOutput(gold, output, runtime)
   }
 
 
   @Test def createGroupsForOneSidedPadding(): Unit = {
     val boundary = Pad.Boundary.Clamp
-    val neighbours = Array(-2, -1, 0)
+//    val neighbours = Array(-2, -1, 0)
     val gold = Array(0,0,0, 0,0,1, 0,1,2, 1,2,3, 2,3,4).map(_.toFloat)
 
     testCombinationPadGroup(boundary, gold, 3,1, 2,0)
@@ -618,7 +618,7 @@ class TestStencil extends TestSlide {
   }
 
   @Ignore
-  @Test def groupClampPaddedData2D() = {
+  @Test def groupClampPaddedData2D(): Unit = {
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = scalaClamp
 
@@ -626,7 +626,7 @@ class TestStencil extends TestSlide {
   }
 
   @Ignore // takes ages leads to EOF Exceoption on Fuji
-  @Test def groupBigClampPaddedData2D() = {
+  @Test def groupBigClampPaddedData2D(): Unit = {
     val data2D = Array.tabulate(10, 10) { (i, j) => i * 10.0f + j }
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = scalaClamp
@@ -635,7 +635,7 @@ class TestStencil extends TestSlide {
   }
 
   @Ignore // Takes ages!!!
-  @Test def groupMirrorPaddedData2D() = {
+  @Test def groupMirrorPaddedData2D(): Unit = {
     val boundary = Pad.Boundary.Mirror
     val scalaBoundary = scalaMirror
 
@@ -643,7 +643,7 @@ class TestStencil extends TestSlide {
   }
 
   @Ignore
-  @Test def groupWrapPaddedData2D() = {
+  @Test def groupWrapPaddedData2D(): Unit = {
     val boundary = Pad.Boundary.Wrap
     val scalaBoundary = scalaWrap
 

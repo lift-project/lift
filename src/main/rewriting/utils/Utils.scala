@@ -130,6 +130,7 @@ object Utils {
     }
   }
 
+  @scala.annotation.tailrec
   def getExprForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
     if (pattern.isDefinedAt(expr))
       Some(expr)
@@ -141,6 +142,7 @@ object Utils {
       }
   }
 
+  @scala.annotation.tailrec
   def getIndexForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit], currentId: Int = 0): Int = {
     if (pattern.isDefinedAt(expr))
       currentId
@@ -152,6 +154,7 @@ object Utils {
       }
   }
 
+  @scala.annotation.tailrec
   def visitFunCallChain(expr: Expr, visitFun: Expr => Unit): Unit = {
     visitFun(expr)
     expr match {
@@ -173,6 +176,7 @@ object Utils {
     }
   }
 
+  @scala.annotation.tailrec
   def getFinalArg(expr: Expr): Expr = {
     expr match {
       case FunCall(_, arg) => getFinalArg(arg)
@@ -192,7 +196,7 @@ object Utils {
     val md = MessageDigest.getInstance("SHA-256")
     md.update(value.getBytes("UTF-8"))
     val digest = md.digest()
-    String.format("%064x", new java.math.BigInteger(1, digest))
+    f"${new java.math.BigInteger(1, digest)}%064x"
   }
 
   /**
@@ -232,12 +236,12 @@ object Utils {
       withTemps.foldRight(fullString)((toReplace, currentString) =>
       currentString.replaceAll(
         toReplace._1._1 + "(\\D)",
-        getNewName(toReplace._1._1, toReplace._2) + "$1"
+        getNewName((toReplace._1._1, toReplace._2)) + "$1"
       ))
 
     withTemps.foldRight(tempString)((toReplace, currentString) =>
       currentString.replaceAll(
-        getNewName(toReplace._1._1, toReplace._2) + "(\\D)",
+        getNewName((toReplace._1._1, toReplace._2)) + "(\\D)",
         getNewName(toReplace._1) + "$1"
       ))
   }

@@ -1,9 +1,8 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
@@ -13,13 +12,13 @@ import scala.reflect.ClassTag
 import opencl.ir.pattern._
 
 object TestSpMV {
-  @BeforeClass def TestSpMV() {
+  @BeforeClass def TestSpMV(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -30,9 +29,9 @@ object TestSpMV {
 class TestSpMV {
   val t_id = UserFun("tuple_id", "x", "return x;", TupleType(Int, Int), TupleType(Int, Int))
   val i_id = UserFun("int_id", "x", "return x;", Int, Int)
-  val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int);
+  val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
 
-  @Ignore @Test def REDUCE_SEARCH_MATRIX_VECTOR() {
+  @Ignore @Test def REDUCE_SEARCH_MATRIX_VECTOR(): Unit = {
 
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
@@ -96,7 +95,7 @@ class TestSpMV {
   }
 
   // Ignore this test currently segfaulting.
-  @Ignore @Test def LSEARCH_MATRIX_VECTOR() {
+  @Ignore @Test def LSEARCH_MATRIX_VECTOR(): Unit = {
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
@@ -141,7 +140,7 @@ class TestSpMV {
     val width = 100
     val height = 100
     val paddedWidth = 4
-    val concreteVectLen = 500
+//    val concreteVectLen = 500
 
     // val vector = generateSparseArray(concreteVectLen, width)
     val vector = Array.tabulate(width+5)((i) => (i, util.Random.nextInt(10)))
@@ -161,7 +160,7 @@ class TestSpMV {
               MapSeq(
                 fun((res) => tupleMult(res, rowElem))
               ) o LSearch(
-                (fun((vectElem) => compare.apply(vectElem, rowElem))), (0, 0)
+                fun((vectElem) => compare.apply(vectElem, rowElem)), (0, 0)
               ) $ vect
             )
           ) $ row //map across the first list
@@ -176,7 +175,7 @@ class TestSpMV {
     assert(false)
   }
 
-  @Ignore @Test def REDUCE_SEARCH_DOT_PRODUCT(){
+  @Ignore @Test def REDUCE_SEARCH_DOT_PRODUCT(): Unit = {
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
@@ -230,7 +229,7 @@ class TestSpMV {
     assert(output(0) == gold)
   }
 
-  @Ignore @Test def LSEARCH_DOT_PRODUCT() {
+  @Ignore @Test def LSEARCH_DOT_PRODUCT(): Unit = {
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
@@ -287,7 +286,7 @@ class TestSpMV {
             MapSeq(
               fun((res) => tupleMult(res, aElem))
             ) o LSearch(
-              (fun((bElem) => compare.apply(bElem, aElem))), (0, 0)
+              fun((bElem) => compare.apply(bElem, aElem)), (0, 0)
             ) $ B
           )
         ) $ A //map across the first list
@@ -301,7 +300,7 @@ class TestSpMV {
     assert(output(0) == gold)
   }
 
-  @Ignore @Test def BSEARCH_DOT_PRODUCT() {
+  @Ignore @Test def BSEARCH_DOT_PRODUCT(): Unit = {
     val sum = UserFun("sum", Array("acc","v"),
       "return (acc+v);",
       Seq(Int,Int), Int
@@ -358,7 +357,7 @@ class TestSpMV {
             MapSeq(
               fun((res) => tupleMult(res, aElem))
             ) o BSearch(
-              (fun((bElem) => compare.apply(bElem, aElem))), (0, 0)
+              fun((bElem) => compare.apply(bElem, aElem)), (0, 0)
             ) $ B
           )
         ) $ A //map across the first list
@@ -374,14 +373,14 @@ class TestSpMV {
   /*
    * Negate a sparse vector. Special case of scalar multiplication
    */
-  @Ignore @Test def SPARSE_VECTOR_NEGATION(){
+  @Ignore @Test def SPARSE_VECTOR_NEGATION(): Unit = {
     val concreteLength = Math.pow(2, 5).toInt
     val abstractLength = Math.pow(2, 5).toInt
     val rawVector = generateSparseArray(concreteLength,abstractLength)
-    val inputVector = rawVector.map((t) => Array(t._1, t._2)).flatten
-    val inputSize = inputVector.length/2
+    val inputVector = rawVector.flatMap((t) => Array(t._1, t._2))
+//    val inputSize = inputVector.length/2
 
-    val gold = rawVector.map((vi) => (vi._1, -vi._2)).map((t) => Array(t._1, t._2)).flatten
+    val gold = rawVector.map((vi) => (vi._1, -vi._2)).flatMap((t) => Array(t._1, t._2))
     val negElem = UserFun("negElem", "x", "{ x._0 = x._0; x._1 = -(x._1); return x; }",
       TupleType(Int, Int), TupleType(Int, Int))
 
@@ -401,12 +400,12 @@ class TestSpMV {
   /*
    * Multiply a sparse vector by a scalar
    */
-  @Ignore @Test def SPARSE_VECTOR_SCAL() {
+  @Ignore @Test def SPARSE_VECTOR_SCAL(): Unit = {
     val concreteLength = Math.pow(2, 5).toInt
     val abstractLength = Math.pow(2, 5).toInt
     val rawVector = generateSparseArray(concreteLength, abstractLength)
-    val inputVector = rawVector.map((t) => Array(t._1, t._2)).flatten.map((x)=>x.toFloat)
-    val inputSize = rawVector.length
+    val inputVector = rawVector.flatMap((t) => Array(t._1, t._2)).map((x)=>x.toFloat)
+//    val inputSize = rawVector.length
     val alpha = Array(2.5f)
     val gold = flattenTupleArray(rawVector.map{case (index, data) => (index.toFloat, data * alpha(0))}) : Array[Float]
 
@@ -446,7 +445,7 @@ class TestSpMV {
   }
 
   def flattenTupleArray[T:ClassTag](arr: Array[(T, T)]) : Array[T] = {
-    arr.map{case (a,b) => Array(a, b)}.flatten
+    arr.flatMap { case (a, b) => Array(a, b) }
   }
 
   def sparseMatrixVector(matrix: Array[Array[(Int, Int)]], vector: Array[(Int, Int)]) : Array[Int] = {
@@ -472,16 +471,16 @@ class TestSpMV {
     while(numSet.size < concreteLength){
       numSet += util.Random.nextInt(abstractLength)
     }
-    var outArray = numSet.toArray
-    return outArray.sorted.map((x) => (x, util.Random.nextInt(5)))
+    val outArray = numSet.toArray
+    outArray.sorted.map((x) => (x, util.Random.nextInt(5)))
   }
 
   // generates an array of exactly concreteLength elements, in the range [0, abstractLength-1]
   def generateSparseIndicies(concreteLength: Int, abstractLength: Int, padVal: Int) : Array[Int] = {
     var m = 0
     var a = 0
-    var g = Array.tabulate(concreteLength)(_ => 0.toInt)
-    for( i <- 0 to abstractLength-1){
+    val g = Array.tabulate(concreteLength)(_ => 0)
+    for( i <- 0 until abstractLength){
       a = util.Random.nextInt(abstractLength)
       if (a < concreteLength - m) {
         g(m) = i
