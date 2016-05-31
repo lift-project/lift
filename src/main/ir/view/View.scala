@@ -12,8 +12,8 @@ import opencl.generator.OpenCLPrinter
  * @param array Array name
  * @param idx Index to access in the array
  */
-class AccessVar(val array: String, val idx: ArithExpr, r : Range = RangeUnknown, fixedId: Option[Long] = None) extends Var("",r,fixedId) {
-  override def copy(r: Range) = new AccessVar(array, idx, r, Some(this.id))
+class AccessVar(val array: String, val idx: ArithExpr, r : Range = RangeUnknown, fixedId: Option[Long] = None) extends ExtensibleVar("",r,fixedId) {
+  override def makeCopy(r: Range) = new AccessVar(array, idx, r, Some(this.id))
 }
 
 /**

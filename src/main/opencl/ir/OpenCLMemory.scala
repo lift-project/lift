@@ -159,7 +159,7 @@ object OpenCLMemory {
     * @return
     */
   def allocMemory(size: ArithExpr, addressSpace: OpenCLAddressSpace) =
-    OpenCLMemory(new Var("", ContinuousRange(Cst(0), size)), size, addressSpace)
+    OpenCLMemory(Var("", ContinuousRange(Cst(0), size)), size, addressSpace)
 
   /** Return newly allocated global memory */
   def allocGlobalMemory(glbOutSize: ArithExpr): OpenCLMemory =
