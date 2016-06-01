@@ -9,8 +9,9 @@ compile <<= (compile in Compile) dependsOn compileSkelcl
 lazy val compileSkelcl = taskKey[Unit]("Updates and builds the SkelCL submodule.")
 
 compileSkelcl := {
-  import language.postfixOps
+  import scala.language.postfixOps
   import scala.sys.process._
+  //noinspection PostfixMethodCall
   "echo y" #| "./skelcl.sh" !
 }
 

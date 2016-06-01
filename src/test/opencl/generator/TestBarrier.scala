@@ -10,13 +10,13 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestBarrier {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -766,7 +766,7 @@ class TestBarrier {
   }
 
   @Test
-  def tupleInside2MapLcl() = {
+  def tupleInside2MapLcl(): Unit = {
     val innerSize = 16
 
     val N = SizeVar("N")
@@ -794,7 +794,7 @@ class TestBarrier {
   }
 
   @Test
-  def tupleInsideMapLcl() = {
+  def tupleInsideMapLcl(): Unit = {
     val innerSize = 16
 
     val N = SizeVar("N")
@@ -815,7 +815,7 @@ class TestBarrier {
   }
 
   @Test
-  def tupleInsideMapLcl2() = {
+  def tupleInsideMapLcl2(): Unit = {
     val innerSize = 16
 
     val N = SizeVar("N")
@@ -836,7 +836,7 @@ class TestBarrier {
   }
 
   @Test
-  def tupleWithAsVectorInsideMapLcl() = {
+  def tupleWithAsVectorInsideMapLcl(): Unit = {
     val innerSize = 16
 
     val N = SizeVar("N")

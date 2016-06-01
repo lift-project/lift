@@ -1,6 +1,5 @@
 package benchmarks
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -121,7 +120,7 @@ object VectorScaling {
         ("SCAL_AMD", Array[Lambda](scalAMD)),
         ("SCAL_INTEL", Array[Lambda](scalINTEL))))
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
     VectorScaling().run(args)
   }
 }

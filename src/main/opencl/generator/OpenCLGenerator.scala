@@ -1136,6 +1136,7 @@ class OpenCLGenerator extends Generator {
     block
   }
 
+  @scala.annotation.tailrec
   private def generateFunCall(expr: Expr,
                               args: List[OclAstNode]): OclAstNode = {
     expr match {

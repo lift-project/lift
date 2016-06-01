@@ -70,20 +70,15 @@ object OpenCLAST {
 
   /**
     *
-    * @param init: should either be an ExpressionStatement or VarDecl
-    * @param cond
-    * @param increment
-    * @param body
+    * @param init The expression/value initializing the iteration variabel. should either be an ExpressionStatement or VarDecl
+    * @param cond The condition used in the for loop
+    * @param increment The expression used to increment the iteration variable
+    * @param body The loop body
     */
   case class ForLoop(init : Statement,
                      cond : ExpressionStatement,
                      increment: Expression,
                      body: Block) extends Statement
-
-  /*case class Loop(indexVar: Var,
-                  iter: ArithExpr,
-                  body: Block,
-                  unrollHint: Boolean = false) extends Statement*/
 
   /** An alternative looping construct, using a predicate - a 'while' loop
     *  
@@ -222,11 +217,7 @@ object OpenCLAST {
 
 
   def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
-
-    block.content.foreach {
-      case e: Expression => visitExpression(e)
-      case _ =>
-    }
+    block.content.foreach(visitExpression)
 
     def visitExpression(node: OclAstNode): Unit = {
       node match {

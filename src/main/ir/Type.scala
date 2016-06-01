@@ -2,7 +2,6 @@ package ir
 
 import apart.arithmetic._
 import arithmetic.TypeVar
-import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
@@ -286,6 +285,7 @@ object Type {
    * @param t A type
    * @return The base type of `t`
    */
+  @scala.annotation.tailrec
   def getBaseType(t: Type): Type = {
     t match {
       case vt: VectorType => vt.scalarT
@@ -304,6 +304,7 @@ object Type {
    * @param t A type
    * @return The value type of `t`
    */
+  @scala.annotation.tailrec
   def getValueType(t: Type): Type = {
     t match {
       case at: ArrayType  => getValueType(at.elemT)
@@ -429,9 +430,6 @@ object Type {
 
   /**
    * TODO: document (christophe?)
-   * @param t1
-   * @param t2
-   * @return
    */
   def reify(t1: Type, t2: Type): immutable.Map[TypeVar, ArithExpr] = {
     val result = mutable.Map[TypeVar, ArithExpr]()
@@ -454,9 +452,6 @@ object Type {
 
   /**
    * TODO: document (christophe?)
-   * @param e1
-   * @param e2
-   * @return
    */
   private def reifyExpr(e1: ArithExpr,
                         e2: ArithExpr) : immutable.Map[TypeVar, ArithExpr] = {

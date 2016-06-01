@@ -134,6 +134,7 @@ object OpenCLMemory {
     * @param addressSpace Address space for allocation
     * @return The newly allocated memory object
     */
+  @scala.annotation.tailrec
   def allocMemory(glbOutSize: ArithExpr,
                   lclOutSize: ArithExpr,
                   pvtOutSize: ArithExpr,
@@ -158,7 +159,7 @@ object OpenCLMemory {
     * @return
     */
   def allocMemory(size: ArithExpr, addressSpace: OpenCLAddressSpace) =
-    OpenCLMemory(new Var("", ContinuousRange(Cst(0), size)), size, addressSpace)
+    OpenCLMemory(Var("", ContinuousRange(Cst(0), size)), size, addressSpace)
 
   /** Return newly allocated global memory */
   def allocGlobalMemory(glbOutSize: ArithExpr): OpenCLMemory =
@@ -259,6 +260,7 @@ object TypedOpenCLMemory {
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
       val mems = collect(m.f.body)
 
+      @scala.annotation.tailrec
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
         addressSpace match {

@@ -13,13 +13,13 @@ import org.junit.{AfterClass, BeforeClass, Test}
 object TestNBody {
 
   @BeforeClass
-  def before() {
+  def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
   @AfterClass
-  def after() {
+  def after(): Unit = {
     Executor.shutdown()
   }
 }

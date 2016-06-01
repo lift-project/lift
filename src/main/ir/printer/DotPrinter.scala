@@ -1,7 +1,7 @@
 package ir.printer
 
 import java.io.{File, PrintWriter, Writer}
-import sys.process._
+import scala.sys.process._
 
 import ir.ast._
 
@@ -30,7 +30,7 @@ class DotPrinter(w: Writer,
 
 
 
-  def writeln(s: String) = {
+  def writeln(s: String): Unit = {
     w.write(s+"\n")
   }
 
@@ -38,7 +38,7 @@ class DotPrinter(w: Writer,
     "n"+Math.abs(n.hashCode()) + visited.get(n).get
   }
 
-  def print(node: IRNode) = {
+  def print(node: IRNode): Unit = {
     writeln("digraph{")
     writeln("ratio=\"compress\"")
     writeln("size=8")
@@ -256,7 +256,7 @@ class DotPrinter(w: Writer,
 
 
 
-  def countParams(expr: Expr) = {
+  def countParams(expr: Expr): Unit = {
     Expr.visit(expr,
       {
         case p: Param => counters.put(p, counters.getOrElse(p, 0) + 1)

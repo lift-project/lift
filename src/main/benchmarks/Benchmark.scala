@@ -212,7 +212,7 @@ abstract class Benchmark(val name: String,
         fw.write(iterations + ";" + globalSize(0) + ";" + globalSize(1) + ";" + globalSize(2) + ";")
         fw.write(localSize(0) + ";" + localSize(1) + ";" + localSize(2) + ";")
         fw.write(dce + ";" + cse + ";")
-        fw.write("\"" + Executor.getPlatformName + "\";\"" + Executor.getDeviceName() + "\";")
+        fw.write("\"" + Executor.getPlatformName + "\";\"" + Executor.getDeviceName + "\";")
       } finally fw.close()
   }
 
@@ -227,9 +227,9 @@ abstract class Benchmark(val name: String,
     val kernel = if (loadKernel.value.isDefined)
           loadKernel.value.get.replaceAll("(.*?/)*", "")
         else "generated"
-    val commit = ("git rev-parse HEAD".!!).trim
-    val branch = ("git rev-parse --abbrev-ref HEAD".!!).trim
-    val date = ("date".!!).trim
+    val commit = "git rev-parse HEAD".!!.trim
+    val branch = "git rev-parse --abbrev-ref HEAD".!!.trim
+    val date = "date".!!.trim
     val dce = System.getenv("APART_DCE") != null
     val cse = System.getenv("APART_CSE") != null
 

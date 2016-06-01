@@ -106,15 +106,15 @@ object Lower {
     mapsOnLevelTwo == 1
   }
 
-  private def hasOneMapOnThirdLevel(lambda: Lambda): Boolean = {
-    val body = lambda.body
-    val levelTwoBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
-    val levelThreeBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(levelTwoBody, 0))
-
-    val mapsOnLevelThree = Utils.countMapsAtCurrentLevel(levelThreeBody)
-
-    mapsOnLevelThree == 1
-  }
+//  private def hasOneMapOnThirdLevel(lambda: Lambda): Boolean = {
+//    val body = lambda.body
+//    val levelTwoBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
+//    val levelThreeBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(levelTwoBody, 0))
+//
+//    val mapsOnLevelThree = Utils.countMapsAtCurrentLevel(levelThreeBody)
+//
+//    mapsOnLevelThree == 1
+//  }
 
   def lowerMaps(lambda: Lambda, enabledMappings: EnabledMappings) : List[Lambda] = {
 
@@ -128,7 +128,7 @@ object Lower {
 
     var lambdas = List[Lambda]()
     val oneMapOnLevelTwo = if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
-    val oneMapOnLevelThree = if (maxDepth > 2) hasOneMapOnThirdLevel(lambda) else false
+//    val oneMapOnLevelThree = if (maxDepth > 2) hasOneMapOnThirdLevel(lambda) else false
 
     /* Global only */
     if (enabledMappings.global0) {
@@ -355,6 +355,7 @@ object Lower {
   def lowerReduces(lambda: Lambda): Lambda =
     lowerPatternWithRule(lambda, { case FunCall(Reduce(_), _, _) => }, Rules.reduceSeq)
 
+  @scala.annotation.tailrec
   def lowerPatternWithRule(lambda: Lambda, pattern: PartialFunction[Expr, Unit], rule: Rule): Lambda = {
     TypeChecker.check(lambda.body)
 
@@ -450,6 +451,7 @@ class FindNextMapsToLower {
     }
   }
 
+  @scala.annotation.tailrec
   private def find(funDecl: FunDecl): Unit = {
     funDecl match {
       case lambda: Lambda => find(lambda.body)

@@ -13,25 +13,26 @@ import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import scala.reflect.ClassTag
 
 object TestMatrixMatrix {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
 }
 
+//noinspection MapFlatten
 class TestMatrixMatrix {
 
   val N = SizeVar("N")
   val M = SizeVar("M")
   val K = SizeVar("K")
 
-  @Test def MATRIX_MATRIX_SIMPLE() {
+  @Test def MATRIX_MATRIX_SIMPLE(): Unit = {
 
     val Msize = 256
     val Ksize = 64
@@ -57,7 +58,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
-  @Test def MATRIX_MATRIX_SIMPLER() {
+  @Test def MATRIX_MATRIX_SIMPLER(): Unit = {
 
     val Msize = 64
     val Ksize = 128
@@ -83,7 +84,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def MATRIX_MATRIX_2D_GLOBAL_ID() {
+  @Test def MATRIX_MATRIX_2D_GLOBAL_ID(): Unit = {
 
     val Msize = 512
     val Ksize = 512
@@ -171,7 +172,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def vectorised() {
+  @Test def vectorised(): Unit = {
 
     val Msize = 16
     val Ksize = 16
@@ -192,29 +193,29 @@ class TestMatrixMatrix {
         )) $ A
       })
 
-    val f1_ = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
-      (A, B) => {
-        // for each row of A ...
-        A :>> MapGlb(0)(\( Arow =>
-          // ... and each column of B ...
-          B :>> MapGlb(1)(\( Bcol =>
-            // ... combine them into a single vectorized vector ...
-            Zip(asVector(4)(Arow), asVector(4)(Bcol)) :>>
-            // ... reduce this vector using a vectorized operator ...
-            ReduceSeq(\( (acc, pair) => {
-              val multAndSumUpVec = VectorizeUserFun(4, multAndSumUp)
-
-              multAndSumUpVec(acc, pair._0, pair._1)
-            }), Value(0.0f).vectorize(4)) :>>
-            // ... turn the vector data back into scalars and finish the reduction ...
-            asScalar() :>> ReduceSeq(add, 0.0f) :>>
-            // ... copy the result back into global memory (from private)
-            toGlobal(MapSeq(id))
-          ))
-        ))
-      })
+//    val f1_ = fun(
+//      ArrayType(ArrayType(Float, K), M),
+//      ArrayType(ArrayType(Float, K), N),
+//      (A, B) => {
+//        // for each row of A ...
+//        A :>> MapGlb(0)(\( Arow =>
+//          // ... and each column of B ...
+//          B :>> MapGlb(1)(\( Bcol =>
+//            // ... combine them into a single vectorized vector ...
+//            Zip(asVector(4)(Arow), asVector(4)(Bcol)) :>>
+//            // ... reduce this vector using a vectorized operator ...
+//            ReduceSeq(\( (acc, pair) => {
+//              val multAndSumUpVec = VectorizeUserFun(4, multAndSumUp)
+//
+//              multAndSumUpVec(acc, pair._0, pair._1)
+//            }), Value(0.0f).vectorize(4)) :>>
+//            // ... turn the vector data back into scalars and finish the reduction ...
+//            asScalar() :>> ReduceSeq(add, 0.0f) :>>
+//            // ... copy the result back into global memory (from private)
+//            toGlobal(MapSeq(id))
+//          ))
+//        ))
+//      })
 
     // Derived. TODO: Actual one contains some empty MapSeqs.
     // High-level da55a60496191590d618057cadfe6d18b409f8b76cd31753123701e465a8ea4d
@@ -247,7 +248,7 @@ class TestMatrixMatrix {
 
   }
 
-  @Test def vectorisedReuseA() {
+  @Test def vectorisedReuseA(): Unit = {
 
     val mSize = 8
     val kSize = 32
@@ -298,46 +299,46 @@ class TestMatrixMatrix {
     // ReduceSeq( add, 0.0f) o asScalar() o MapSeq(VectorizeUserFun(4, mult))
     // is equivalent to MapSeq(dot) if the input is of type Array(Float4, 1)
 
-    val f_ =  fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
-      (A, B) => {
-        // Undo the tiling
-        Untile() o
-          MapGlb(0)(fun( aRows =>
-            MapGlb(1)(fun( bCols =>
-
-              Map(TransposeW()) o TransposeW() o
-
-                toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) o
-
-                // Multiply all necessary combinations of tiles
-                ReduceSeq(fun( (acc, pairOfTiles) =>
-
-                  fun(partial =>
-                    MapSeq(fun(pairOfRows =>
-                      MapSeq(fun(a =>
-                        MapSeq(add) $ Zip(Get(a, 0), Get(a, 1))
-                      )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
-                    )) $ Zip(acc, partial) ) o
-                    MapSeq( fun(rowA =>
-                      MapSeq( fun( colB =>
-                        ReduceSeq(add, id $ Value(0.0f)) o asScalar() o
-                          MapSeq(VectorizeUserFun(4, mult))
-                          $ Zip(asVector(vectorLength) $ rowA, asVector(vectorLength) $ colB)
-                      )) $ Get(pairOfTiles, 1)
-                    )) $ Get(pairOfTiles, 0)
-                )
-                  , MapSeq(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(ArrayType(Float, 1), tileSize), tileSize))
-                  // ArrayType(ArrayType(ArrayType(Float, 1), 2), 2))
-                  // maliBNT stores it in float4 + vectorised final add + 2 vector stores instead 4 scalar ones
-                ) $ Zip(aRows, bCols)
-
-            )) o Tile(tileSize, vectorLength) $ B
-            // Tile the matrices
-          )) o Tile(tileSize, vectorLength) $ A
-      })
+//    val f_ =  fun(
+//      ArrayType(ArrayType(Float, K), M),
+//      ArrayType(ArrayType(Float, K), N),
+//      (A, B) => {
+//        // Undo the tiling
+//        Untile() o
+//          MapGlb(0)(fun( aRows =>
+//            MapGlb(1)(fun( bCols =>
+//
+//              Map(TransposeW()) o TransposeW() o
+//
+//                toGlobal(MapSeq(MapSeq(MapSeq(MapSeq(id))))) o
+//
+//                // Multiply all necessary combinations of tiles
+//                ReduceSeq(fun( (acc, pairOfTiles) =>
+//
+//                  fun(partial =>
+//                    MapSeq(fun(pairOfRows =>
+//                      MapSeq(fun(a =>
+//                        MapSeq(add) $ Zip(Get(a, 0), Get(a, 1))
+//                      )) $ Zip(Get(pairOfRows, 0), Get(pairOfRows, 1))
+//                    )) $ Zip(acc, partial) ) o
+//                    MapSeq( fun(rowA =>
+//                      MapSeq( fun( colB =>
+//                        ReduceSeq(add, id $ Value(0.0f)) o asScalar() o
+//                          MapSeq(VectorizeUserFun(4, mult))
+//                          $ Zip(asVector(vectorLength) $ rowA, asVector(vectorLength) $ colB)
+//                      )) $ Get(pairOfTiles, 1)
+//                    )) $ Get(pairOfTiles, 0)
+//                )
+//                  , MapSeq(MapSeq(MapSeq(id)))
+//                    $ Value(0.0f, ArrayType(ArrayType(ArrayType(Float, 1), tileSize), tileSize))
+//                  // ArrayType(ArrayType(ArrayType(Float, 1), 2), 2))
+//                  // maliBNT stores it in float4 + vectorised final add + 2 vector stores instead 4 scalar ones
+//                ) $ Zip(aRows, bCols)
+//
+//            )) o Tile(tileSize, vectorLength) $ B
+//            // Tile the matrices
+//          )) o Tile(tileSize, vectorLength) $ A
+//      })
 
     // load the tile in local memory once (to avoid reloading the same value twice) and vectorized the summation in the reduction loop
     val f = fun(
@@ -502,9 +503,9 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, matrixC5.flatten, 0.001f)
 
     // Trying to reuse B
-    val matrixC6 = matrixA.grouped(4).toArray.map(rowsA => transposedB.map(colB =>(rowsA.transpose, colB).zipped.
-      foldLeft(Array.ofDim[Float](4))((acc, rowElemPair) => (rowElemPair._1.map(_*rowElemPair._2), acc).
-      zipped.map(_+_)))).map(_.transpose).flatten
+    val matrixC6 = matrixA.grouped(4).toArray.map(rowsA => transposedB.map(colB => (rowsA.transpose, colB).zipped.
+      foldLeft(Array.ofDim[Float](4))((acc, rowElemPair) => (rowElemPair._1.map(_ * rowElemPair._2), acc).
+        zipped.map(_ + _)))).map(_.transpose).flatten
 
     assertArrayEquals(gold, matrixC6.flatten, 0.001f)
 
@@ -526,7 +527,7 @@ class TestMatrixMatrix {
 
      // Trying to reuse both
 
-     // B as innermost
+      // B as innermost
      val matrixC7 = matrixA.grouped(4).toArray.map(rowsA =>
        reorder(matrixB.transpose, f).grouped(4).toArray.map(colsB => (rowsA.transpose, colsB.transpose).zipped.
          foldLeft(Array.ofDim[Float](4, 4))((acc, rowElemPair) => (rowElemPair._1.map(elem => rowElemPair._2.map(_ * elem)), acc).
@@ -741,7 +742,7 @@ class TestMatrixMatrix {
       val v__6 = variables(6)
       val v__7 = variables(7)
 
-      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1),(p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride(v__3 / (v__4))), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(MapLcl(1)(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(MapSeq(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(MapLcl(1)(fun((p_17) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => p_19)), FunCall(ReduceSeq(fun((p_20, p_21) => FunCall(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(MapSeq(fun((p_24) => FunCall(add, FunCall(Get(0), p_24), FunCall(mult, FunCall(Get(1), p_23), FunCall(Get(1), p_24))))), FunCall(Zip(2), FunCall(Get(0), p_23), FunCall(Get(1), p_22))))), FunCall(Zip(2), p_20, FunCall(Get(0), p_22)))), FunCall(toLocal(fun((p_25) => FunCall(fun((p_26) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_27) => FunCall(id, p_27))), FunCall(Get(0), p_26)), FunCall(MapSeq(fun((p_28) => FunCall(id, p_28))), FunCall(Get(1), p_26)))), p_25))), FunCall(toPrivate(fun((p_29) => FunCall(fun((p_30) => FunCall(Tuple(2), FunCall(Get(0), p_30), FunCall(MapSeq(fun((p_31) => FunCall(id, p_31))), FunCall(Get(1), p_30)))), p_29))), p_21))))), FunCall(Get(0), p_18), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_17)), FunCall(Transpose(), FunCall(Get(1), p_18))))))), FunCall(Zip(2), FunCall(Get(0), p_17), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride((v__3) / (v__4))), FunCall(Transpose(), FunCall(Get(1), p_16))))))))), FunCall(Zip(2), p_14, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_16)))))), p_15))), FunCall(MapLcl(1)(fun((p_32) => FunCall(MapLcl(0)(fun((p_33) => FunCall(MapSeq(fun((p_34) => FunCall(MapSeq(fun((p_35) => FunCall(id, p_35))), p_34))), p_33))), p_32))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), (v__3*1/^(v__4))), (v__6*1/^(v__5))))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_36) => FunCall(Transpose(), p_36))), FunCall(Split(v__7), FunCall(Map(fun((p_37) => FunCall(Split(v__3), p_37))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__7), FunCall(Map(fun((p_39) => FunCall(Split(v__6), p_39))), p_0)))))))
+      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1),(p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(MapLcl(1)(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(MapSeq(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(MapLcl(1)(fun((p_17) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => p_19)), FunCall(ReduceSeq(fun((p_20, p_21) => FunCall(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(MapSeq(fun((p_24) => FunCall(add, FunCall(Get(0), p_24), FunCall(mult, FunCall(Get(1), p_23), FunCall(Get(1), p_24))))), FunCall(Zip(2), FunCall(Get(0), p_23), FunCall(Get(1), p_22))))), FunCall(Zip(2), p_20, FunCall(Get(0), p_22)))), FunCall(toLocal(fun((p_25) => FunCall(fun((p_26) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_27) => FunCall(id, p_27))), FunCall(Get(0), p_26)), FunCall(MapSeq(fun((p_28) => FunCall(id, p_28))), FunCall(Get(1), p_26)))), p_25))), FunCall(toPrivate(fun((p_29) => FunCall(fun((p_30) => FunCall(Tuple(2), FunCall(Get(0), p_30), FunCall(MapSeq(fun((p_31) => FunCall(id, p_31))), FunCall(Get(1), p_30)))), p_29))), p_21))))), FunCall(Get(0), p_18), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_17)), FunCall(Transpose(), FunCall(Get(1), p_18))))))), FunCall(Zip(2), FunCall(Get(0), p_17), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride(v__3 / v__4)), FunCall(Transpose(), FunCall(Get(1), p_16))))))))), FunCall(Zip(2), p_14, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_16)))))), p_15))), FunCall(MapLcl(1)(fun((p_32) => FunCall(MapLcl(0)(fun((p_33) => FunCall(MapSeq(fun((p_34) => FunCall(MapSeq(fun((p_35) => FunCall(id, p_35))), p_34))), p_33))), p_32))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_36) => FunCall(Transpose(), p_36))), FunCall(Split(v__7), FunCall(Map(fun((p_37) => FunCall(Split(v__3), p_37))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__7), FunCall(Map(fun((p_39) => FunCall(Split(v__6), p_39))), p_0)))))))
     }
 
     val v_M_0 = SizeVar("M")
@@ -925,7 +926,7 @@ class TestMatrixMatrix {
       val v__6 = variables(6)
       val v__7 = variables(7)
 
-      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1), (p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(MapLcl(1)(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(MapSeq(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(MapLcl(1)(fun((p_17) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => p_19)), FunCall(ReduceSeq(fun((p_20, p_21) => FunCall(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(MapSeq(fun((p_24) => FunCall(add, FunCall(Get(0), p_24), FunCall(mult, FunCall(Get(1), p_23), FunCall(Get(1), p_24))))), FunCall(Zip(2), FunCall(Get(0), p_23), FunCall(Get(1), p_22))))), FunCall(Zip(2), p_20, FunCall(Get(0), p_22)))), FunCall(toPrivate(fun((p_25) => FunCall(fun((p_26) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_27) => FunCall(id, p_27))), FunCall(Get(0), p_26)), FunCall(MapSeq(fun((p_28) => FunCall(id, p_28))), FunCall(Get(1), p_26)))), p_25))), p_21)))), FunCall(Get(0), p_18), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_17)), FunCall(Transpose(), FunCall(Get(1), p_18))))))), FunCall(Zip(2), FunCall(Get(0), p_17), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride((v__3) / (v__4))), FunCall(Transpose(), FunCall(Get(1), p_16))))))))), FunCall(Zip(2), p_14, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_16)))))), FunCall(toLocal(fun((p_29) => FunCall(fun((p_30) => FunCall(Unzip(), FunCall(MapLcl(1)(fun((p_31) => FunCall(Tuple(2), FunCall(MapLcl(0)(fun((p_32) => FunCall(id, p_32))), FunCall(Get(0), p_31)), FunCall(MapLcl(0)(fun((p_33) => FunCall(id, p_33))), FunCall(Get(1), p_31))))), FunCall(Zip(2), FunCall(Get(0), p_30), FunCall(Get(1), p_30))))), p_29))), p_15)))), FunCall(MapLcl(1)(fun((p_34) => FunCall(MapLcl(0)(fun((p_35) => FunCall(MapSeq(fun((p_36) => FunCall(MapSeq(fun((p_37) => FunCall(id, p_37))), p_36))), p_35))), p_34))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), (v__3 * 1 /^ (v__4))), (v__6 * 1 /^ (v__5))))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__7), FunCall(Map(fun((p_39) => FunCall(Split(v__3), p_39))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_40) => FunCall(Transpose(), p_40))), FunCall(Split(v__7), FunCall(Map(fun((p_41) => FunCall(Split(v__6), p_41))), p_0)))))))
+      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1), (p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(MapLcl(1)(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(MapSeq(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(MapLcl(1)(fun((p_17) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => p_19)), FunCall(ReduceSeq(fun((p_20, p_21) => FunCall(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(MapSeq(fun((p_24) => FunCall(add, FunCall(Get(0), p_24), FunCall(mult, FunCall(Get(1), p_23), FunCall(Get(1), p_24))))), FunCall(Zip(2), FunCall(Get(0), p_23), FunCall(Get(1), p_22))))), FunCall(Zip(2), p_20, FunCall(Get(0), p_22)))), FunCall(toPrivate(fun((p_25) => FunCall(fun((p_26) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_27) => FunCall(id, p_27))), FunCall(Get(0), p_26)), FunCall(MapSeq(fun((p_28) => FunCall(id, p_28))), FunCall(Get(1), p_26)))), p_25))), p_21)))), FunCall(Get(0), p_18), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_17)), FunCall(Transpose(), FunCall(Get(1), p_18))))))), FunCall(Zip(2), FunCall(Get(0), p_17), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride(v__3 / v__4)), FunCall(Transpose(), FunCall(Get(1), p_16))))))))), FunCall(Zip(2), p_14, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_16)))))), FunCall(toLocal(fun((p_29) => FunCall(fun((p_30) => FunCall(Unzip(), FunCall(MapLcl(1)(fun((p_31) => FunCall(Tuple(2), FunCall(MapLcl(0)(fun((p_32) => FunCall(id, p_32))), FunCall(Get(0), p_31)), FunCall(MapLcl(0)(fun((p_33) => FunCall(id, p_33))), FunCall(Get(1), p_31))))), FunCall(Zip(2), FunCall(Get(0), p_30), FunCall(Get(1), p_30))))), p_29))), p_15)))), FunCall(MapLcl(1)(fun((p_34) => FunCall(MapLcl(0)(fun((p_35) => FunCall(MapSeq(fun((p_36) => FunCall(MapSeq(fun((p_37) => FunCall(id, p_37))), p_36))), p_35))), p_34))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__7), FunCall(Map(fun((p_39) => FunCall(Split(v__3), p_39))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_40) => FunCall(Transpose(), p_40))), FunCall(Split(v__7), FunCall(Map(fun((p_41) => FunCall(Split(v__6), p_41))), p_0)))))))
     }
 
     val v_M_0 = SizeVar("M")
@@ -1642,7 +1643,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.001f)
   }
 
-  @Test def MATRIX_MATRIX_2D_GLOBAL_ID_WITH_TRANSPOSE() {
+  @Test def MATRIX_MATRIX_2D_GLOBAL_ID_WITH_TRANSPOSE(): Unit = {
 
     val Msize = 512
     val Ksize = 512
@@ -1667,7 +1668,7 @@ class TestMatrixMatrix {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def MATRIX_MATRIX_2D_TEST() {
+  @Test def MATRIX_MATRIX_2D_TEST(): Unit = {
 
     val mSize = 8
     val kSize = 8

@@ -1,21 +1,19 @@
 package opencl.generator
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import benchmarks.DotProduct
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir.pattern._
 
 object TestDotProduct {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -30,7 +28,7 @@ class TestDotProduct {
     (left,right).zipped.map(_*_).sum
   }
 
-  @Test def DOT_PRODUCT_SIMPLE() {
+  @Test def DOT_PRODUCT_SIMPLE(): Unit = {
 
     val inputSize = 1024
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -46,7 +44,7 @@ class TestDotProduct {
     assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
   }
 
-  @Test def DOT_PRODUCT_CPU() {
+  @Test def DOT_PRODUCT_CPU(): Unit = {
 
     val inputSize = 262144
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -76,7 +74,7 @@ class TestDotProduct {
     }
   }
 
-  @Test def DOT_PRODUCT() {
+  @Test def DOT_PRODUCT(): Unit = {
 
     // TODO: Workaround for AMD GPUs. See issue 42.
     if (Utils.isAmdGpu)

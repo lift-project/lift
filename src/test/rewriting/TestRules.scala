@@ -3,7 +3,7 @@ package rewriting
 import apart.arithmetic.{RangeMul, SizeVar, Var}
 import ir.ast._
 import ir.{ArrayType, Type, TypeChecker, VectorType}
-import opencl.executor.{Eval, Execute, Executor}
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -11,12 +11,12 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestRules {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }

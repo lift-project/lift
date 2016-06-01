@@ -13,12 +13,12 @@ import org.junit.{AfterClass, BeforeClass, Test}
 import scala.language.reflectiveCalls
 
 object TestInterpreter {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }

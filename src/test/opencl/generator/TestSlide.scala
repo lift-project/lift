@@ -16,13 +16,13 @@ import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 
 
 object TestSlide {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -379,13 +379,13 @@ class TestSlide {
     * @param location specifies where image should be stored
     * @param img      array of pixels
     */
-  def savePGM(name: String, location: String, img: Array[Array[Float]]) = {
+  def savePGM(name: String, location: String, img: Array[Array[Float]]): Unit = {
     val out = new java.io.BufferedWriter(new java.io.FileWriter(new java.io.File(location, name)))
     out.write(
       s"""|P2
           |${img.length} ${img.head.length}
           |255
-          |${img.map(_.map(x => (x /* * 255.0f*/).toInt).mkString("\n")).mkString("\n")}
+          |${img.map(_.map(x => x /* * 255.0f*/.toInt).mkString("\n")).mkString("\n")}
       """.stripMargin)
     out.close()
   }
@@ -403,7 +403,7 @@ class TestSlide {
     scanner.nextLine()
     val width = scanner.nextInt()
     val height = scanner.nextInt()
-    val max = scanner.nextInt()
+//    val max = scanner.nextInt()
 
     val input = Array.tabulate(width, height)((r, c) => scanner.nextInt()).map(_.map(_/*/ max*/.toFloat))
     scanner.close()
@@ -437,10 +437,10 @@ class TestSlide {
 
       val f = createSimpleStencilWithoutPad(size, step, weights)
 
-      val (output: Array[Float], runtime) = Execute(1, 1, width, height, (false, false))(f, randomData2D, weights)
+      val (_, runtime) = Execute(1, 1, width, height, (false, false))(f, randomData2D, weights)
       println("Runtime: " + runtime)
 
-      val outOfBoundElementsX = size + (size - step) / 2 //todo only true if symmetric padding! check this
+//      val outOfBoundElementsX = size + (size - step) / 2 //todo only true if symmetric padding! check this
       //savePGM(name, outputLocation, output.grouped(width - outOfBoundElementsX).toArray)
 
     } catch {

@@ -5,13 +5,13 @@ import org.junit.{AfterClass, BeforeClass, Test}
 
 
 object TestEval {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -19,7 +19,7 @@ object TestEval {
 
 class TestEval {
 
-  @Test def VECTOR_ADD_SIMPLE_STRING() {
+  @Test def VECTOR_ADD_SIMPLE_STRING(): Unit = {
     val inputSize = 1024
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)

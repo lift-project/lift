@@ -22,6 +22,7 @@ object MacroRules {
   private val concretePattern: PartialFunction[Expr, Unit] =
   { case call: FunCall if call.isConcrete(false) => }
 
+  @scala.annotation.tailrec
   def getMapAtDepth(expr:Expr, depth: Int): Expr = {
     val outermostMap = Utils.getExprForPatternInCallChain(expr, mapPattern).get
 

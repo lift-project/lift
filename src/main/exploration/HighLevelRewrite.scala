@@ -65,7 +65,7 @@ object HighLevelRewrite {
   private val defaultDepthFilter = 6
   private val defaultDistanceFilter = 9
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
 
     try {
       parser.parse(args)

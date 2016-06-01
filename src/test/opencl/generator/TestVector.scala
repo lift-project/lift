@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import benchmarks.VectorScaling
 import ir._
 import ir.ast._
@@ -11,13 +11,13 @@ import org.junit.{AfterClass, BeforeClass, Test}
 import opencl.ir.pattern._
 
 object TestVector {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -25,7 +25,7 @@ object TestVector {
 
 class TestVector {
 
-  @Test def VECTOR_ADD_SIMPLE() {
+  @Test def VECTOR_ADD_SIMPLE(): Unit = {
 
     val inputSize = 1024
 
@@ -56,7 +56,7 @@ class TestVector {
 
   }
 
-  @Test def VECTOR_NEG_SIMPLE() {
+  @Test def VECTOR_NEG_SIMPLE(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -79,7 +79,7 @@ class TestVector {
 
   }
 
-  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID() {
+  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -101,7 +101,7 @@ class TestVector {
 
   }
 
-  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID_REORDER_REVERSE() {
+  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID_REORDER_REVERSE(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -122,7 +122,7 @@ class TestVector {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def VECTOR_SCAL() {
+  @Test def VECTOR_SCAL(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -139,7 +139,7 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def SCAL_NVIDIA() {
+  @Test def SCAL_NVIDIA(): Unit = {
 
     val inputSize = 4096
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -156,7 +156,7 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def SCAL_AMD() {
+  @Test def SCAL_AMD(): Unit = {
 
     val inputSize = 2048
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -173,7 +173,7 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def SCAL_INTEL() {
+  @Test def SCAL_INTEL(): Unit = {
 
     val inputSize = 65536
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -190,7 +190,7 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_SCAL_REDUCE() {
+  @Test def VECTOR_SCAL_REDUCE(): Unit = {
 
     val inputSize = 2048
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -215,7 +215,7 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_NORM() {
+  @Test def VECTOR_NORM(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)

@@ -53,7 +53,7 @@ object ParameterRewrite {
   private var lambdaFilename = ""
 
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
 
     try {
 
@@ -134,6 +134,8 @@ object ParameterRewrite {
                         None
                     } catch {
                       case x: ir.TypeException => None
+
+                      //noinspection SideEffectsInMonadicTransformation
                       case x: Throwable =>
                         logger.warn("Failed parameter propagation", x)
                         logger.warn(low_level_hash)

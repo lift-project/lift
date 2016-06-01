@@ -134,7 +134,7 @@ object Stencil1D{
     )
   )
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
     Stencil1D().run(args)
   }
 }

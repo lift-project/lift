@@ -13,13 +13,13 @@ import org.junit._
 import rewriting.InferNDRange
 
 object TestMisc {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -32,7 +32,7 @@ class TestMisc {
   @Test
   def testIterateAmdBug(): Unit = {
 
-    Assume.assumeFalse("Wrong AMD IL generated", Utils.isAmdGpu())
+    Assume.assumeFalse("Wrong AMD IL generated", Utils.isAmdGpu)
 
     val inputSize = 1
     val input = Array.fill(inputSize)(0.0f)

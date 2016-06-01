@@ -5,8 +5,6 @@ import ir._
 import ir.ast._
 import opencl.ir.pattern._
 
-import scala.collection.immutable
-
 object RangesAndCounts {
   /**
    * Add ranges to the iteration variables of Map, Reduce and Iterate calls and if
@@ -89,7 +87,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
       case x => throw new IllegalArgumentException(s"Invalid global size type: $x (${x.getClass})")
     }
 
-    m.loopVar = new Var(m.loopVar.name, RangeAdd(start, stop, step))
+    m.loopVar = Var(m.loopVar.name, RangeAdd(start, stop, step))
     //evaluateMapRange(m)
   }
 
@@ -107,7 +105,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
       start = get_global_id(dim,ContinuousRange(0, size))
     }
 
-    m.loopVar = new Var(m.loopVar.name, RangeAdd(start, length, step))
+    m.loopVar = Var(m.loopVar.name, RangeAdd(start, length, step))
     //evaluateMapRange(m)
   }
 
@@ -123,7 +121,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
       start = get_local_id(dim,ContinuousRange(0, size))
     }
 
-    m.loopVar = new Var(m.loopVar.name,RangeAdd(start, length, step))
+    m.loopVar = Var(m.loopVar.name,RangeAdd(start, length, step))
 
   }
 
@@ -135,12 +133,11 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     // under this model, the range/start/end/step of the loop variable
     // is correct, even though it would not be possible to generate a 
     // "normal" loop from it.
-    val dim: Int = m.dim
     val start = Cst(0)
     val length = Type.getLength(call.args.head.t)
-    var step: ArithExpr = Cst(1)
+    val step: ArithExpr = Cst(1)
 
-    m.loopVar = new Var(m.loopVar.name, RangeAdd(start, length, step))
+    m.loopVar = Var(m.loopVar.name, RangeAdd(start, length, step))
     //evaluateMapRange(m)
   }
 
@@ -152,41 +149,40 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     // under this model, the range/start/end/step of the loop variable
     // is correct, even though it would not be possible to generate a 
     // "normal" loop from it.
-    val dim: Int = m.dim
     val start = Cst(0)
     val length = Type.getLength(call.args.head.t)
-    var step: ArithExpr = Cst(1)
+    val step: ArithExpr = Cst(1)
 
-    m.loopVar = new Var(m.loopVar.name, RangeAdd(start, length, step))
+    m.loopVar = Var(m.loopVar.name, RangeAdd(start, length, step))
     //evaluateMapRange(m)
   }
 
 
   private def setRangeMapWarp(m: MapWarp, call: FunCall): Unit = {
-    m.loopVar = new Var(m.loopVar.name, range = RangeAdd(get_local_id(0) /^ OpenCL.warpSize,
+    m.loopVar = Var(m.loopVar.name, range = RangeAdd(get_local_id(0) /^ OpenCL.warpSize,
       Type.getLength(call.args.head.t),
       localSizes(0) /^ OpenCL.warpSize))
     //evaluateMapRange(m)
   }
 
   private def setRangeMapLane(m: MapLane, call: FunCall): Unit = {
-    m.loopVar = new Var(m.loopVar.name, RangeAdd(get_local_id(0) % OpenCL.warpSize,
+    m.loopVar = Var(m.loopVar.name, RangeAdd(get_local_id(0) % OpenCL.warpSize,
       Type.getLength(call.args.head.t), OpenCL.warpSize))
     //evaluateMapRange(m)
   }
 
   private def setRangeMapSeq(m: MapSeq, call: FunCall): Unit = {
-    m.loopVar = new Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+    m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
     //evaluateMapRange(m)
   }
 
   private def setRangeReduceSeq(r: AbstractReduce, call: FunCall): Unit = {
     val inT = call.args(1).t
-    r.loopVar = new Var(r.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
+    r.loopVar = Var(r.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
   }
 
   private def setRangeIterate(i: Iterate): Unit = {
-    i.indexVar = new Var(i.indexVar.name,range = ContinuousRange(Cst(0), i.n))
+    i.indexVar = Var(i.indexVar.name,range = ContinuousRange(Cst(0), i.n))
   }
 
   /*private def evaluateMapRange(m: AbstractMap): Unit = {

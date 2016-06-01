@@ -28,25 +28,25 @@ import java.util.stream.Collectors;
 
 public class JavaTest {
 
-    UserFun add = package$.MODULE$.add();
+    private final UserFun add = package$.MODULE$.add();
 
-    UserFun pair = jUserFunDef.create(
+    private final UserFun pair = jUserFunDef.create(
             "pair",
             "x",
             "{ Tuple t = {x, x}; return t; }",
             jFloat.getSingleton(),
             jTupleType.create(jFloat.getSingleton(), jFloat.getSingleton()));
 
-    UserFun mult = package$.MODULE$.mult();
-    UserFun plusOne = package$.MODULE$.plusOne();
+    private final UserFun mult = package$.MODULE$.mult();
+    private final UserFun plusOne = package$.MODULE$.plusOne();
 
-    UserFun neg = package$.MODULE$.neg();
-    UserFun id = package$.MODULE$.id();
-    UserFun idFI = package$.MODULE$.idFI();
+    private final UserFun neg = package$.MODULE$.neg();
+    private final UserFun id = package$.MODULE$.id();
+    private final UserFun idFI = package$.MODULE$.idFI();
 
-    UserFun distance = jUserFunDef.create("dist", jStringArray.create("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
-    UserFun minimum = jUserFunDef.create("minimum", jStringArray.create("x", "y"), "{ return x._0 < y._0 ? x : y; }", jTypeArray.create(jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton())), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
-    UserFun getSecond = jUserFunDef.create("getSecond", "x", "{ return (float) x._1; }", jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jFloat.getSingleton());
+    private final UserFun distance = jUserFunDef.create("dist", jStringArray.create("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", jTypeArray.create(jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
+    private final UserFun minimum = jUserFunDef.create("minimum", jStringArray.create("x", "y"), "{ return x._0 < y._0 ? x : y; }", jTypeArray.create(jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton())), jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()));
+    private final UserFun getSecond = jUserFunDef.create("getSecond", "x", "{ return (float) x._1; }", jTupleType.create(jFloat.getSingleton(), jInt.getSingleton()), jFloat.getSingleton());
 
 
     @BeforeClass
@@ -64,7 +64,7 @@ public class JavaTest {
     public void vectorNegSimple() {
 
         Lambda1 negFun = jfun.create(
-                jArrayType.create(jFloat.getSingleton(), (Var) jVar.create("N", new StartFromRange(new Cst(1)))),
+                jArrayType.create(jFloat.getSingleton(), jVar.create("N", new StartFromRange(new Cst(1)))),
                 (input) -> jJoin.comp(jfun.create((Param x1) -> {
                     return jMapGlb.create(jfun.create((Param x2) -> {
                         return jMapSeq.create(neg).call(x2);
@@ -86,7 +86,7 @@ public class JavaTest {
     public void vectorNegSimpleWithoutJfun() {
         MapGlb mg = jMapGlb.create(neg);
 
-        Type arrayType = jArrayType.create(jFloat.getSingleton(), (Var) jVar.create("N", new StartFromRange(new Cst(1))));
+        Type arrayType = jArrayType.create(jFloat.getSingleton(), jVar.create("N", new StartFromRange(new Cst(1))));
 
         Param p = Param.apply(arrayType);
 
@@ -99,7 +99,7 @@ public class JavaTest {
     public void vectorScalarMultiplication() {
 
         Lambda multFun = jfun.create(
-                jArrayType.create(jFloat.getSingleton(), (Var) jVar.create("N", new StartFromRange(new Cst(1)))),
+                jArrayType.create(jFloat.getSingleton(), jVar.create("N", new StartFromRange(new Cst(1)))),
                 jFloat.getSingleton(),
                 (input, alpha) -> jMapGlb.create(
                         jfun.create((x) -> mult.call(alpha, x)))
@@ -110,7 +110,7 @@ public class JavaTest {
 
     @Test
     public void vectorScalarMultiplicationWithoutJfun() {
-        Type arrayType = jArrayType.create(jFloat.getSingleton(), (Var) jVar.create("N", new StartFromRange(new Cst(1))));
+        Type arrayType = jArrayType.create(jFloat.getSingleton(), jVar.create("N", new StartFromRange(new Cst(1))));
         Type floatType = jFloat.getSingleton();
 
         Param p0 = Param.apply(arrayType);
@@ -197,6 +197,7 @@ public class JavaTest {
         Lambda1 l = new Lambda1(new Param[]{undef1}, f);
         MapGlb mg = MapGlb$.MODULE$.apply(l);
 
+        //noinspection SuspiciousToArrayCall
         Lambda function = Lambda$.MODULE$.apply(params.toArray(new Param[params.size()]), mg.call(zip2));
 
         Compile.apply(function);
@@ -256,6 +257,7 @@ public class JavaTest {
 
         Lambda mg = Lambda.FunDefToLambda(jMapGlb.create(l2));
 
+        //noinspection SuspiciousToArrayCall
         Lambda function = Lambda$.MODULE$.apply(params.toArray(new Param[params.size()]), mg.call(params.get(0)));
 
         Compile.apply(function);

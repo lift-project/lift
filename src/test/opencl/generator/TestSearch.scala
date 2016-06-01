@@ -1,9 +1,8 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
@@ -11,13 +10,13 @@ import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import opencl.ir.pattern._
 
 object TestSearch {
-  @BeforeClass def TestSearch() {
+  @BeforeClass def TestSearch(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -30,7 +29,7 @@ class TestSearch {
     val inputSize = Math.pow(2, 11).toInt
      val arr = Array.tabulate(inputSize)((i:Int) => i)
      val gold = arr.map(_ + 1)
-     val compare = UserFun("plone", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
+//     val compare = UserFun("plone", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
      val plusOne = UserFun("plus_one", "elem", "return (elem+1);", Int, Int)
      val N = SizeVar("N")
      val searchKernel = fun(
@@ -59,7 +58,7 @@ class TestSearch {
        (array, ixarr) => {
          MapSeq(toGlobal(i_id)) o Join() o MapSeq(
            toGlobal(fun((ix) =>
-             BSearch((fun((elem) => compare.apply(elem, ix))), 0) $ array
+             BSearch(fun((elem) => compare.apply(elem, ix)), 0) $ array
            ))
          ) $ ixarr
        }
@@ -87,7 +86,7 @@ class TestSearch {
        (array, ixarr) => {
          MapSeq(toGlobal(i_id)) o Join() o MapSeq(
            toGlobal(fun((ix) =>
-             LSearch((fun((elem) => compare.apply(elem, ix))), 0) $ array
+             LSearch(fun((elem) => compare.apply(elem, ix)), 0) $ array
            ))
          ) $ ixarr
        }
@@ -109,17 +108,17 @@ class TestSearch {
     val gold = search_arr(search_index)
     // compare: compare the search variable s, with the indexed element i
     val compare = UserFun("comp", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
-    val addI = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
+//    val addI = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
     val N = SizeVar("N")
     val searchKernel = fun(
       ArrayType(Int, N),
       ArrayType(Int, 1),
       (array, ixarr) => {
         MapSeq(fun((ix) => 
-          toGlobal(MapSeq(idI)) o BSearch((fun((elem) => compare.apply(elem, ix))), 0) o Join() o MapSeq(
+          toGlobal(MapSeq(idI)) o BSearch(fun((elem) => compare.apply(elem, ix)), 0) o Join() o MapSeq(
             fun((subarr) =>
               Join() o MapSeq(fun((subarrHead) =>
-                toGlobal(MapSeq(idI)) o BSearch((fun((elem) => compare.apply(elem, ix))), subarrHead) $ subarr
+                toGlobal(MapSeq(idI)) o BSearch(fun((elem) => compare.apply(elem, ix)), subarrHead) $ subarr
               )) o Head() $ subarr
             )
           ) o Split(8) $ array
@@ -153,7 +152,7 @@ class TestSearch {
         MapSeq(
           fun((arr_i_p_group) =>
             Join() o MapSeq(fun((i_arr_p) =>
-              BSearch((fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), 0) $ Get(i_arr_p, 1)
+              BSearch(fun((elem) => compare.apply(elem, Get(i_arr_p, 0))), 0) $ Get(i_arr_p, 1)
             )) $ arr_i_p_group
           )
         ) o Split(8) $ Zip(ixs, arrs) // pair indicies with arrays to search
@@ -183,7 +182,7 @@ class TestSearch {
       ArrayType(ArrayType(Int, N), N), //search arrays
       (ixs, arrs) => {
           MapGlb(fun((i_arr_p) =>
-            MapSeq(toGlobal(i_id)) o LSearch((fun((elem) => compare.apply(elem, Get(i_arr_p, 0)))), 0) $ Get(i_arr_p, 1)
+            MapSeq(toGlobal(i_id)) o LSearch(fun((elem) => compare.apply(elem, Get(i_arr_p, 0))), 0) $ Get(i_arr_p, 1)
           )
         ) $ Zip(ixs, arrs) // pair indicies with arrays to search
       }
@@ -199,7 +198,7 @@ class TestSearch {
   @Ignore @Test def TUPLE_BINARY_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => (i, util.Random.nextInt(100)))
-    val flat_arr = search_arr.map((t) => Array(t._1, t._2)).flatten
+    val flat_arr = search_arr.flatMap((t) => Array(t._1, t._2))
     val search_index = (util.Random.nextInt(inputSize), -1)
     val flat_search_index = Array(search_index._1, search_index._2)
     val gold = search_arr(search_index._1)._2
@@ -239,7 +238,7 @@ class TestSearch {
       (array, ixarr) => {
         MapSeq(toGlobal(t_id)) o Join() o MapSeq(
            fun((ix) =>
-             BSearch((fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
+             BSearch(fun((elem) => compare.apply(elem, ix)), (0, 0)) $ array
            )
          ) $ ixarr
       }
@@ -255,7 +254,7 @@ class TestSearch {
   @Ignore @Test def TUPLE_LINEAR_SEARCH() : Unit = {
     val inputSize = Math.pow(2, 4).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => (i, util.Random.nextInt(100)))
-    val flat_arr = search_arr.map((t) => Array(t._1, t._2)).flatten
+    val flat_arr = search_arr.flatMap((t) => Array(t._1, t._2))
     val search_index = (util.Random.nextInt(inputSize), -1)
     val flat_search_index = Array(search_index._1, search_index._2)
     val gold = search_arr(search_index._1)._2
@@ -295,7 +294,7 @@ class TestSearch {
       (array, ixarr) => {
         MapSeq(toGlobal(t_id)) o Join() o MapSeq(
            fun((ix) =>
-             LSearch((fun((elem) => compare.apply(elem, ix))), (0, 0)) $ array
+             LSearch(fun((elem) => compare.apply(elem, ix)), (0, 0)) $ array
            )
          ) $ ixarr
       }

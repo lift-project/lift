@@ -1,6 +1,5 @@
 package benchmarks
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -40,12 +39,12 @@ class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
     globalSizes
   }
 
-  override protected def beforeBenchmark() = {
+  override protected def beforeBenchmark(): Unit = {
     f(1)._2(0) = MatrixTransposition.coalesced(tileX.value.getOrElse(defaultTileSize),
       tileY.value.getOrElse(defaultTileSize))
   }
 
-  override protected def printParams() = {
+  override protected def printParams(): Unit = {
     if (variant == 1)
       println("Tile sizes: " + tileX.value.getOrElse(defaultTileSize) +
         ", " + tileY.value.getOrElse(defaultTileSize))

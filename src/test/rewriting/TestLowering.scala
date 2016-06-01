@@ -9,12 +9,12 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestLowering {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }
