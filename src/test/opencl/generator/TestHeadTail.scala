@@ -6,24 +6,24 @@ import ir.ast._
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 import opencl.ir.pattern._
 
-object TestSparsity {
-  @BeforeClass def TestMatrixBasic() {
+object TestHeadTail {
+  @BeforeClass def TestMatrixBasic(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
 }
 
 
-class TestSparsity {
+class TestHeadTail {
 
 
   val id = UserFun("id", "i", "return i;", Float, Float)
@@ -53,7 +53,7 @@ class TestSparsity {
     assertArrayEquals(gold,output,0.0f)
   }
 
-  @Test def HEAD_TEST (){
+  @Test def HEAD_TEST (): Unit = {
     val vector : Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold = Array(vector.head)
 
@@ -70,7 +70,7 @@ class TestSparsity {
     assertArrayEquals(gold,output,0.0f)
   }
 
-  @Test def HEAD_TAIL_TEST () {
+  @Test def HEAD_TAIL_TEST (): Unit = {
     val vector:Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold = Array(vector.tail.head)
 
@@ -86,7 +86,7 @@ class TestSparsity {
     assertArrayEquals(gold,output,0.0f)
   }
 
-  @Test def MULTIDIMENSIONAL_HEAD () {
+  @Test def MULTIDIMENSIONAL_HEAD (): Unit = {
     val vector:Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold:Array[Float] = vector.grouped(32).map(_.head).toArray
 
@@ -102,7 +102,7 @@ class TestSparsity {
     assertArrayEquals(gold,output,0.0f)
   }
 
-  @Test def MULTIDIMENSIONAL_TAIL () {
+  @Test def MULTIDIMENSIONAL_TAIL (): Unit = {
     val vector:Array[Float] = Array.range(1024,2048).map(_.toFloat)
     val gold:Array[Float] = vector.grouped(32).map(_.tail).flatten.toArray
 

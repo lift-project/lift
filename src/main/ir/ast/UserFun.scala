@@ -99,7 +99,7 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
       param match {
         case (tt: TupleType, _:String) => Seq(tt)
         case (tt: TupleType, names: Array[Any]) =>
-          (tt.elemsT zip names).flatMap { case (t, n) => emit(t, n) }
+          (tt.elemsT zip names).flatMap { case (t, n) => emit((t, n)) }
         case _ => Seq()
       }
     }
@@ -191,8 +191,5 @@ object UserFun {
             inT: Type, outT: Type): UserFun = {
     UserFun(name, Array(paramName), body, Seq(inT), outT)
   }
-
-  @deprecated("replaced by UserFun.vectorize(n)")
-  def vectorize(uf: UserFun, n: ArithExpr): UserFun = uf.vectorize(n)
 
 }

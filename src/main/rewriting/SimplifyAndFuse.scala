@@ -87,10 +87,12 @@ class SimplifyAndFuse(maxTime: Long) {
             val replacement = ruleAt._1.rewrite(ruleAt._2)
             val applyRuleAtId = FunDecl.replace(applyHere, ruleAt._2, replacement)
 
+            //noinspection SideEffectsInMonadicTransformation
             seen = ruleAt._2 :: seen
 
             val expr = Utils.getExprForPatternInCallChain(replacement,
               { case e if MacroRules.transposeMapSplit.isDefinedAt(e) => }).get
+            //noinspection SideEffectsInMonadicTransformation
             cantUndo = expr :: cantUndo
 
             simplify(applyRuleAtId, maxDepth - 1)
@@ -148,7 +150,7 @@ class SimplifyAndFuse(maxTime: Long) {
 
   def getTheBestRule(lambda: Lambda,
                      candidates: Seq[(Lambda, Int, List[Rule])]): (Lambda, Int, List[Rule]) =
-    candidates.fold(lambda, 0, List())((a, b) => if (a._2 > b._2) a else b)
+    candidates.fold((lambda, 0, List()))((a, b) => if (a._2 > b._2) a else b)
 
   private val enablingRules =
     Seq(

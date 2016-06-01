@@ -95,6 +95,4 @@ object Value {
    */
   def apply(v: Value) = v
 
-  @deprecated("Replaced by Value.vectorize(n)")
-  def vectorize(v: Value, n: ArithExpr): Value = v.vectorize(n)
 }

@@ -33,7 +33,7 @@ case class Join() extends Pattern(arity = 1) with isGenerable {
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
     args.head match {
-      case v: Vector[Vector[_]] => v.flatten
+      case v: Vector[Vector[_] @unchecked] => v.flatten
     }
   }
 }

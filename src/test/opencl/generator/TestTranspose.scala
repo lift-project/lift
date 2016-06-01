@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
@@ -12,13 +12,13 @@ import org.junit.{AfterClass, BeforeClass, Test}
 import scala.util.Random
 
 object TestTranspose {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -103,105 +103,6 @@ class TestTranspose {
     val (output: Array[Float], _) = Execute(4, 4)(f, input)
 
     assertArrayEquals(input.flatten.flatten, output, 0.0f)
-  }
-
-//  @Test def MATRIX_PLUS_ONE_TILED(): Unit = {
-//
-//    val Msize = 8
-//    val Ksize = 16
-//    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * (c + r))
-//    val gold   = matrix.map(_.map(_+1.0f))
-//
-//    val M = SizeVar("M")
-//    val K = SizeVar("K")
-//
-//    val r = 4
-//    val c = 8
-//
-//    val f = fun(
-//      ArrayType(ArrayType(Float, K), M),
-//      (matrix) => {
-//        Join() o MapWrg(0)(fun( cols =>
-//          MapSeq(Join()) o MapWrg(1)(fun( tile =>
-//
-//            // step 2: compute plus one
-//            toGlobal(
-//              MapLcl(0)(fun( row =>
-//                MapLcl(1)(fun( elem =>
-//                  id(elem)
-//                )) $ row
-//              ))
-//            ) o
-//              // step 1: load tile to local memory
-//              toLocal(
-//                MapLcl(0)(fun( row =>
-//                  MapLcl(1)(fun( elem =>
-//                    plusOne(elem)
-//                  )) $ row
-//                ))
-//              ) $ tile
-//
-//          )) o MapSeq(Split(c)) $ cols
-//        )) o Split(r) $  matrix
-//      })
-//
-//    val (output: Array[Float], runtime) = Execute(r, c, Ksize, Msize, (false, false))(f, matrix)
-//
-//    println("output.length = " + output.length)
-//    println("output(0) = " + output(0))
-//    println("runtime = " + runtime)
-//
-//    println("gold: ")
-//    Utils.myPrint(gold.flatten, Ksize)
-//
-//    println("output: ")
-//    Utils.myPrint(output, Ksize)
-//
-//    assertArrayEquals(gold.flatten, output, 0.0f)
-//  }
-
-  @Test def MATRIX_PLUS_ONE_TILED_TRANSPOSE_WITH_JOIN_REORDER_SPLIT(): Unit = {
-
-    val Msize = 8
-    val Ksize = 16
-    val matrix = Array.tabulate(Msize, Ksize)((r, c) => 1.0f * (c + r))
-    val gold   = matrix.map(_.map(_+1.0f))
-
-    val M = SizeVar("M")
-    val K = SizeVar("K")
-
-    val r = 4
-    val c = 8
-
-    val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      (matrix) => {
-        Join() o MapWrg(0)(fun( cols =>
-          MapSeq(Join()) o MapWrg(1)(fun( tile =>
-
-            MapLcl(0)(fun( row =>
-              MapLcl(1)(fun( elem =>
-                plusOne(elem)
-              )) $ row
-            )) $ tile
-
-          )) o MapSeq(Split(c)) $ cols
-        )) o Split(r) $  matrix
-      })
-
-    val (output: Array[Float], runtime) = Execute(32, Ksize * Msize)(f, matrix)
-
-    println("output.length = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
-    println("gold: ")
-    Utils.myPrint(gold.flatten, Ksize)
-
-    println("output: ")
-    Utils.myPrint(output, Ksize)
-
-    assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   @Test def MATRIX_TRANSPOSE_Join_Gather_Split(): Unit = {
@@ -467,7 +368,7 @@ class TestTranspose {
         $ domain
     )
 
-    val (output: Array[Float], runtime) = Execute(Nsize,Nsize)(f, gold)
+    val (output: Array[Float], _) = Execute(Nsize,Nsize)(f, gold)
 
     assertArrayEquals(gold, output, 0.0f)
   }

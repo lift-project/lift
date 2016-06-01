@@ -11,12 +11,12 @@ import org.junit.Assume._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestDerivingTiling {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }
@@ -108,7 +108,7 @@ class TestDerivingTiling {
   @Test
   def mmSquareTiles(): Unit = {
 
-    assumeFalse("Disabled on AMD GPUs. See issue #64.", Utils.isAmdGpu())
+    assumeFalse("Disabled on AMD GPUs. See issue #64.", Utils.isAmdGpu)
 
     val nSize = 16
     val mSize = 16

@@ -20,8 +20,8 @@ object Compiler {
   /**
    * Help routine, print help and exit.
    */
-  def help() = {
-    val formatter = new HelpFormatter();
+  def help(): Unit = {
+    val formatter = new HelpFormatter()
     formatter.printHelp( "liftc", options )
     System.exit(0)
   }
@@ -30,7 +30,7 @@ object Compiler {
    * Error routine, print the message on stderr and abort.
    * @param str Error message.
    */
-  def error(str: String) = {
+  def error(str: String): Unit = {
     System.err.println("[ERROR]: " + str)
     System.err.println("[ERROR]: Use '-h' for help.")
     System.exit(-1)
@@ -39,7 +39,7 @@ object Compiler {
   /**
    * Verbose info.
    */
-  def info(str: String) = {
+  def info(str: String): Unit = {
     if (opts.hasOption("verbose")) {
       this.synchronized {
         println("[INFO]" + str)
@@ -50,7 +50,7 @@ object Compiler {
   /**
    * Generate high level expressions from an input file.
    */
-  def generateHighLevel() = {
+  def generateHighLevel(): Unit = {
     info("Generating high level expressions")
 
     val filename = opts.getOptionValue("input")
@@ -67,7 +67,7 @@ object Compiler {
   /**
    * Generate low level expressions from a set of high level expressions.
    */
-  def generateLowLevel() = {
+  def generateLowLevel(): Unit = {
     info("Generating low level expressions")
 
     // TODO(tlutz): logic to generate the high level expressions
@@ -76,13 +76,13 @@ object Compiler {
   /**
    * Generate opencl code from a set of low level expressions.
    */
-  def generateOpenCL() = {
+  def generateOpenCL(): Unit = {
     info("Generating OpenCL code")
 
     // TODO(tlutz): logic to generate the OpenCL code
   }
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     // *** general options
     // help switch
     options.addOption("h", "help", false, "Print help and exit.")

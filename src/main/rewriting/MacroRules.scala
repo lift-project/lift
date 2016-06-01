@@ -22,6 +22,7 @@ object MacroRules {
   private val concretePattern: PartialFunction[Expr, Unit] =
   { case call: FunCall if call.isConcrete(false) => }
 
+  @scala.annotation.tailrec
   def getMapAtDepth(expr:Expr, depth: Int): Expr = {
     val outermostMap = Utils.getExprForPatternInCallChain(expr, mapPattern).get
 
@@ -264,6 +265,8 @@ object MacroRules {
 
         val splitFactor = arg.t match {
           case ArrayType(ArrayType(_, m), _) => m
+          case ArrayType(_, _) | NoType | TupleType(_) | UndefType =>
+            throw new TypeException(arg.t, "a valid array type")
         }
 
         val splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(splitFactor), call)

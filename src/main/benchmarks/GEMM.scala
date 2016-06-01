@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic.{ArithExpr, Cst}
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -63,7 +63,7 @@ class GEMM (override val f: Seq[(String, Array[Lambda])])
     globalSizes
   }
 
-  override protected def beforeBenchmark() = {
+  override protected def beforeBenchmark(): Unit = {
     f(1)._2(0) = GEMM.tiledAndBlockedBInnermost(Cst(tileX.value.getOrElse(16)),
       Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
       Cst(registerBlockM.value.getOrElse(4)))

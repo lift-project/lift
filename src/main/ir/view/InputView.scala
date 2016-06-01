@@ -183,8 +183,9 @@ object InputView {
       case ArrayType(ArrayType(typ, m), n) =>
         argView.
           join(n).
-          reorder((i:ArithExpr) => { transpose(i, call.t) }).
-          split(m)
+          reorder((i: ArithExpr) => { transpose(i, call.t) }).split(m)
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
+        throw new TypeException(call.t, "Array")
     }
   }
 
@@ -194,6 +195,8 @@ object InputView {
         argView.
           join(n).
           split(m)
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+        throw new TypeException(call.t, "Array")
     }
   }
 

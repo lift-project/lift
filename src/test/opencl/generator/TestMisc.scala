@@ -1,7 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{?, ArithExpr, Cst, Var}
-import apart.arithmetic.SizeVar
+import apart.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._
@@ -14,13 +13,13 @@ import org.junit._
 import rewriting.InferNDRange
 
 object TestMisc {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -735,8 +734,8 @@ class TestMisc {
     assertEquals(9, "l_id".r.findAllMatchIn(kernel.code).length)
   }
 
-  @Ignore
-  @Test def issue47(): Unit = {
+  @Test(expected = classOf[OpenCLGeneratorException])
+  def issue47(): Unit = {
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M0_0 = variables(0)
       val v_N1_1 = variables(1)
@@ -821,13 +820,6 @@ class TestMisc {
     val values = Seq(matrix, vectorX, vectorY, alpha, beta)
 
     val expr = factory(Array[ArithExpr](1024,1024,128,128,8,2))
-    /*val kernel = opencl.executor.Utils.compile(
-      expr, Seq(matrix, vectorX),
-      128, 1, 1,
-      128*1024, 1, 1, (true, true))
-
-    println(kernel)*/
-
     Execute(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
   }
 

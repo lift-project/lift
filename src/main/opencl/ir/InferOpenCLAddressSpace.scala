@@ -15,7 +15,7 @@ object InferOpenCLAddressSpace {
     *
     * @param lambda The lambda to infer address spaces for
     */
-  def apply(lambda: Lambda) = {
+  def apply(lambda: Lambda): Unit = {
 
     // Set the param address space to global memory, if it's not a scalar
     lambda.params.foreach(p => p.t match {

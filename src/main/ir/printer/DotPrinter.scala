@@ -1,7 +1,7 @@
 package ir.printer
 
 import java.io.{File, PrintWriter, Writer}
-import sys.process._
+import scala.sys.process._
 
 import ir.ast._
 
@@ -30,7 +30,7 @@ class DotPrinter(w: Writer,
 
 
 
-  def writeln(s: String) = {
+  def writeln(s: String): Unit = {
     w.write(s+"\n")
   }
 
@@ -38,7 +38,7 @@ class DotPrinter(w: Writer,
     "n"+Math.abs(n.hashCode()) + visited.get(n).get
   }
 
-  def print(node: IRNode) = {
+  def print(node: IRNode): Unit = {
     writeln("digraph{")
     writeln("ratio=\"compress\"")
     writeln("size=8")
@@ -138,8 +138,6 @@ class DotPrinter(w: Writer,
       case _ =>
         if (!parent.equals(""))
           writeln (parent+" -> "+nodeId+" [label=\""+label+"\""+attr+"];")
-      case _ =>
-
     }
   }
 
@@ -231,28 +229,26 @@ class DotPrinter(w: Writer,
 
         printNodes(l.body)
 
-      case z: Zip =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
       case p: Pattern =>
         p match {
           case fp: FPattern =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
             printNodes(fp.f)
-          case s : Split =>
-            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+s.chunkSize+")>]")
           case Split(chunkSize) =>
-            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+chunkSize+")>]")
+            writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>(" + chunkSize + ")>]")
           case Get(i) =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+i+")>]")
+          case t: Tuple =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>Tuple</b>"+t.n+">]")
+          case z: Zip =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
+          case u: Unzip =>
+            writeln(nodeId+" [style=rounded,shape=box,label=<<b>Unzip</b>>]")
           case  _ =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
         }
       case uf: UserFun =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
-      case t: Tuple =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>Tuple</b>"+t.n+">]")
-      case u: Unzip =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>Unzip</b>>]")
       case  _ =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }
@@ -260,7 +256,7 @@ class DotPrinter(w: Writer,
 
 
 
-  def countParams(expr: Expr) = {
+  def countParams(expr: Expr): Unit = {
     Expr.visit(expr,
       {
         case p: Param => counters.put(p, counters.getOrElse(p, 0) + 1)

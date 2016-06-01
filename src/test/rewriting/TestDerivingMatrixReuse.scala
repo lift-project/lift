@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -10,12 +10,12 @@ import org.junit.{AfterClass, BeforeClass, Test}
 import opencl.ir.pattern._
 
 object TestDerivingMatrixReuse {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }

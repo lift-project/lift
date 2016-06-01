@@ -1,6 +1,5 @@
 package opencl.generator
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
@@ -12,13 +11,13 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestBenchmark {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }

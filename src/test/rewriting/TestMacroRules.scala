@@ -1,22 +1,21 @@
 package rewriting
 
-import apart.arithmetic.{SizeVar, Var}
-import rewriting.utils.{NumberExpression, NumberPrinter}
+import apart.arithmetic.SizeVar
+import rewriting.utils.NumberExpression
 import ir._
 import ir.ast._
-import jdk.nashorn.internal.ir.annotations.Ignore
 import opencl.executor.Executor
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestMacroRules {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }

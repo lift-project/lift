@@ -190,7 +190,8 @@ object OpenCLMemoryAllocator {
     val len = Type.getMaxLength(outT)
 
     val privateMultiplier: ArithExpr =
-      if (am.f.body.addressSpace.containsAddressSpace(PrivateMemory))
+      if (am.f.body.addressSpace.containsAddressSpace(PrivateMemory) ||
+          inMem.addressSpace.containsAddressSpace(PrivateMemory))
         am.iterationCount
       else
         1

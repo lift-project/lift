@@ -1,6 +1,5 @@
 package benchmarks
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -162,7 +161,7 @@ object BlackScholes {
       ("BLACK_SCHOLES", Array[Lambda](blackScholes)),
       ("BLACK_SCHOLES_AMD", Array[Lambda](blackScholesAMD))))
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
     BlackScholes().run(args)
   }
 

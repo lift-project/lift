@@ -9,13 +9,13 @@ import opencl.ir.pattern.MapGlb
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object NearestNeighbor {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }

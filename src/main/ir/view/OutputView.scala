@@ -126,7 +126,7 @@ object OutputView {
       Array.fill[View](memCollection.subMemories.length)(NoView)
   }
 
-  private def buildViewGet(i: Int, param: Param, call: FunCall) = {
+  private def buildViewGet(i: Int, param: Param, call: FunCall): Unit = {
     param.mem match {
       case memCollection: OpenCLMemoryCollection =>
         val accessInfo =
@@ -226,6 +226,8 @@ object OutputView {
           join(m).
           reorder((i:ArithExpr) => { transpose(i, ArrayType(ArrayType(typ, n), m)) }).
           split(n)
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+        throw new TypeException(call.t, "Array")
     }
   }
 
@@ -235,6 +237,8 @@ object OutputView {
         writeView.
           join(m).
           split(n)
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+        throw new TypeException(call.t, "Array")
     }
   }
 

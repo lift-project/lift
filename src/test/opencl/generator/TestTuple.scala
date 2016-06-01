@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -10,13 +10,13 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestTuple {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -29,7 +29,7 @@ class TestTuple {
     Seq(Float, Float),
     TupleType(Float, Float))
 
-  @Test def  MAKE_TUPLE_FROM_ZIP_EXPLICIT() {
+  @Test def  MAKE_TUPLE_FROM_ZIP_EXPLICIT(): Unit = {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -50,13 +50,13 @@ class TestTuple {
 
   @Test
   @Ignore
-  def zip(){
+  def zip(): Unit = {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
@@ -71,13 +71,13 @@ class TestTuple {
 
   @Test
   @Ignore
-  def zip2(){
+  def zip2(): Unit = {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
@@ -90,7 +90,7 @@ class TestTuple {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def  MAKE_TUPLE_FROM_ZIP_IMPLICIT() {
+  @Test def  MAKE_TUPLE_FROM_ZIP_IMPLICIT(): Unit = {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -114,7 +114,7 @@ class TestTuple {
     println("runtime = " + runtime)
   }
   
-  @Test def VECTOR_NEG_PAIR() {
+  @Test def VECTOR_NEG_PAIR(): Unit = {
     val inputSize = 1024
     val inputArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
 
@@ -137,7 +137,7 @@ class TestTuple {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_ADD_PAIRS() {
+  @Test def VECTOR_ADD_PAIRS(): Unit = {
     val inputSize = 1024
     val leftArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
     val rightArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
@@ -163,7 +163,7 @@ class TestTuple {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_PAIR() {
+  @Test def VECTOR_PAIR(): Unit = {
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 

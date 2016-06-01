@@ -9,14 +9,14 @@ import ir.ast.Lambda
 import org.junit.Assume
 
 object LongTestsEnabled {
-  def apply() =
+  def apply(): Unit =
     Assume.assumeTrue("Needs long tests enabled.",
-      System.getenv("APART_LONG_TESTS") != null)
+      /*true ||*/ System.getenv("APART_LONG_TESTS") != null)
 }
 
 object Utils {
 
-  def isAmdGpu() = 
+  def isAmdGpu =
     Executor.getPlatformName == "AMD Accelerated Parallel Processing" && 
     Executor.getDeviceType == "GPU"
 
@@ -45,29 +45,32 @@ object Utils {
   def myPrint(m: Array[Array[Array[Float]]]): Unit = {
     m.foreach( r => {
       println(r.map( e => {
-        "(" + e.map("%2.0f".format(_)).reduce(_ + ", " + _) + ")"
+        "(" + e.map(x => f"$x%2.0f").reduce(_ + ", " + _) + ")"
       }).reduce(_ + " " + _))
     } )
   }
 
   def myPrint(m: Array[Array[Float]]): Unit = {
     m.foreach( r => {
-      println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
+      println(r.map(x => f"$x%2.0f").reduce(_ + " " + _))
     } )
   }
 
+  @scala.annotation.tailrec
   def myPrint(m: Array[Float], cols: Int): Unit = {
     val (row, rest) = m.splitAt(cols)
-    if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
+    if (row.nonEmpty) println(row.map(x => f"$x%2.0f").reduce(_ + " " + _))
     if (rest.nonEmpty) myPrint(rest, cols)
   }
 
+  @scala.annotation.tailrec
   def printRow(r: Array[Float], elems: Int): Unit = {
     val (elem, rest) = r.splitAt(elems)
-    if (elem.nonEmpty) print("(" + elem.map("%2.0f".format(_)).reduce(_ + ", " + _) + ") ")
+    if (elem.nonEmpty) print("(" + elem.map(x => f"$x%2.0f").reduce(_ + ", " + _) + ") ")
     if (rest.nonEmpty) printRow(rest, elems)
   }
 
+  @scala.annotation.tailrec
   def myPrint(m: Array[Float], cols: Int, elems: Int): Unit = {
     val (row, rest) = m.splitAt(cols*elems)
     if (row.nonEmpty) printRow(row, elems); println("")
@@ -102,7 +105,7 @@ object Utils {
     if (A.head.length != B.length)
       throw new IllegalArgumentException
 
-    @inline def computeRow(row: Int) {
+    @inline def computeRow(row: Int): Unit = {
       // while statements are much faster than for statements
       var col = 0
       while(col < bCols) { var i = 0; var sum = 0.0f
@@ -134,7 +137,7 @@ object Utils {
     if (A.head.length != B.length)
       throw new IllegalArgumentException
 
-    @inline def computeRow(row: Int) {
+    @inline def computeRow(row: Int): Unit = {
       // while statements are much faster than for statements
       var col = 0
       while(col < bCols) { var i = 0; var sum = 0.0f

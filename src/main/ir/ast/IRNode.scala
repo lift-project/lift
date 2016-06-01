@@ -83,7 +83,6 @@ object IRNode {
         val newExpr = e match {
           case vp: VectorParam => new VectorParam(vp.p, f(vp.n))
           case p: Param => p
-          case v: Value => v
           case fc: FunCall => fc
         }
         newExpr.t = newType

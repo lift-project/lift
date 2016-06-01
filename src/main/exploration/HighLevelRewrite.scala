@@ -1,29 +1,32 @@
 package exploration
 
-import java.io.{FileWriter, File}
+import java.io.{File, FileWriter}
+import java.util.concurrent.atomic.AtomicInteger
 
-import rewriting._
-import rewriting.utils._
+import com.typesafe.scalalogging.Logger
 import ir.TypeChecker
 import ir.ast._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
-import java.util.concurrent.atomic.AtomicInteger
+import rewriting._
+import rewriting.utils._
 
 object HighLevelRewrite {
 
-  val processed = new AtomicInteger(0)
+  private val logger = Logger(this.getClass)
 
-  val parser = new ArgotParser("HighLevelRewrite")
+  private val processed = new AtomicInteger(0)
 
-  val help = parser.flag[Boolean](List("h", "help"),
+  private val parser = new ArgotParser("HighLevelRewrite")
+
+  parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
     (sValue, opt) =>
       parser.usage()
       sValue
   }
 
-  val input = parser.parameter[String]("input",
+  private val input = parser.parameter[String]("input",
     "Input file containing the lambda to use for rewriting",
     optional = false) {
     (s, opt) =>
@@ -33,7 +36,7 @@ object HighLevelRewrite {
       s
   }
 
-  val output = parser.option[String](List("o", "output"), "name.",
+  private val output = parser.option[String](List("o", "output"), "name.",
     "Store the created lambdas into this folder."
     ) {
     (s, opt) =>
@@ -43,25 +46,36 @@ object HighLevelRewrite {
       s
   }
 
-  val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
+  private val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
     "How deep to explore.")
 
-  val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
+  private val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
 
-  val distanceFilter = parser.option[Int](List("distance"), "distance", "Cutoff distance for filtering.")
+  private val distanceFilter = parser.option[Int](List("distance"), "distance",
+    "Cutoff distance for filtering.")
 
-  val verboseOpt = parser.flag[Boolean](List("v", "verbose"), "Report all errors.")
+  private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+    "The vector width to use for vectorising rewrites. Default: 4")
 
-  val sequential = parser.flag[Boolean](List("s", "seq", "sequential"), "Don't execute in parallel.")
+  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+    "Don't execute in parallel.")
 
-  var verbose = false
+  private val defaultExplorationDepth = 5
+  private val defaultVectorWidth = 4
+  private val defaultDepthFilter = 6
+  private val defaultDistanceFilter = 9
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
 
     try {
       parser.parse(args)
 
-      verbose = verboseOpt.value.isDefined
+      logger.info(s"Arguments: ${args.mkString(" ")}")
+      logger.info(s"Defaults:")
+      logger.info(s"\tExploration depth: $defaultExplorationDepth")
+      logger.info(s"\tVector width: $defaultVectorWidth")
+      logger.info(s"\tDepth filter: $defaultDepthFilter")
+      logger.info(s"\tDistance filter: $distanceFilter")
 
       val filename = input.value.get
       val lambda = ParameterRewrite.readLambdaFromFile(filename)
@@ -82,8 +96,11 @@ object HighLevelRewrite {
   }
 
   def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
-    val maxDepth = explorationDepth.value.getOrElse(5)
-    val newLambdas = (new HighLevelRewrite)(startingExpression, maxDepth)
+    val maxDepth = explorationDepth.value.getOrElse(defaultExplorationDepth)
+    val newLambdas =
+      (new HighLevelRewrite(
+        vectorWidth.value.getOrElse(defaultVectorWidth))
+        )(startingExpression, maxDepth)
 
     val filtered = filterExpressions(newLambdas)
 
@@ -94,7 +111,8 @@ object HighLevelRewrite {
     val distinctLambdas = newLambdas.map(_._2).distinct
 
     println(newLambdas.length + " resulting expressions.")
-    println(distinctLambdas.length + " distinct sequences of rules (possibly different locations)")
+    println(distinctLambdas.length +
+      " distinct sequences of rules (possibly different locations)")
 
     val oneKernel = newLambdas.filter(pair => hasOneMapOnFirstLevel(pair._1))
 
@@ -105,14 +123,14 @@ object HighLevelRewrite {
     filterDepth
   }
 
-   def filterByDistance(lambda: Lambda): Boolean = {
+  def filterByDistance(lambda: Lambda): Boolean = {
     val numberMap = NumberExpression.depthFirst(lambda)
 
     val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
       expr match {
         case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr :: state
-        case FunCall(uf: VectorizeUserFun, _*) if !uf.userFun.name.contains("id")
-          => expr :: state
+        case FunCall(uf: VectorizeUserFun, _*)
+          if !uf.userFun.name.contains("id") => expr :: state
         case _ => state
       }
     })
@@ -120,29 +138,36 @@ object HighLevelRewrite {
     if (userFunCalls.length == 1)
       return true
 
-    // TODO: A more reasonable default. Will filter out gemv.
-    val cutoff = distanceFilter.value.getOrElse(9)
+    val cutoff = distanceFilter.value.getOrElse(defaultDistanceFilter)
 
     val ids = userFunCalls.map(numberMap(_)).sorted
 
-    ids.sliding(2).map(w => (w.head - w(1)).abs <= cutoff).forall(i => i)
+    // TODO: A better distance measure. Number of hops through other
+    // TODO: expressions, if there is data-flow between the two?
+    // TODO: And somehow compared to the original expression?
+    ids.sliding(2).forall(w => (w.head - w(1)).abs <= cutoff)
   }
 
-   def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
-    val cutoff = depthFilter.value.getOrElse(6)
-    (pair._2.head == MacroRules.tileMapMap
-      && pair._2.tail.diff(List(MacroRules.apply2DRegisterBlocking,
-      MacroRules.apply2DRegisterBlocking,
-      MacroRules.finishTiling,
-      MacroRules.finishTiling)).isEmpty
-      && NumberExpression.byDepth(pair._1).values.max <= cutoff+2) ||
-      (pair._2.head == MacroRules.tileMapMap
-        && pair._2.tail.diff(List(MacroRules.apply1DRegisterBlocking,
-        MacroRules.apply1DRegisterBlocking,
-        MacroRules.finishTiling,
-        MacroRules.finishTiling)).isEmpty
-        && NumberExpression.byDepth(pair._1).values.max <= cutoff+1) ||
-      NumberExpression.byDepth(pair._1).values.max <= cutoff
+  def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
+    filterByDepth(pair._1, pair._2)
+  }
+
+  def filterByDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Boolean = {
+    val cutoff = depthFilter.value.getOrElse(defaultDepthFilter)
+    val depth = NumberExpression.byDepth(lambda).values.max
+
+    val isTiling = ruleSeq.nonEmpty && ruleSeq.head == MacroRules.tileMapMap
+    val has2finishTiling = isTiling && ruleSeq.length == 5 &&
+      ruleSeq.count(_ == MacroRules.finishTiling) == 2
+
+    val is1DBlocking = has2finishTiling &&
+      ruleSeq.count(_ == MacroRules.apply1DRegisterBlocking) == 2
+    val is2DBlocking = has2finishTiling &&
+      ruleSeq.count(_ == MacroRules.apply2DRegisterBlocking) == 2
+
+    isTiling && has2finishTiling &&
+      (is2DBlocking && depth <= cutoff+2 || is1DBlocking && depth <= cutoff+1) ||
+      depth <= cutoff
   }
 
   private def dumpLambdasToFiles(lambdas: Seq[Lambda], topLevelFolder: String): Unit = {
@@ -151,11 +176,11 @@ object HighLevelRewrite {
     x.foreach(lambda => {
       val id = processed.getAndIncrement()
 
-      println(s"Processing $id/${lambdas.length - 1}")
+      print(s"\rProcessing $id/${lambdas.length - 1}")
 
       try {
 
-        val appliedRules: Lambda = finishRewriting(lambda)
+        val appliedRules = finishRewriting(lambda)
 
         if (filterByDistance(appliedRules)) {
 
@@ -176,18 +201,18 @@ object HighLevelRewrite {
         }
       } catch {
         case t: Throwable =>
-          if (verbose)
-            println(s"No $id failed with ${t.toString.replaceAll("\n", " ")}.")
+          logger.warn(s"Dumping $lambda failed.", t)
       }
     })
 
   }
 
   def finishRewriting(lambda: Lambda): Lambda = {
-    val partRedToReduce = Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.partialReduceToReduce))
-    val lowerNext = SimplifyAndFuse(partRedToReduce)
-    val appliedRules = applyAlwaysRules(lowerNext)
-    appliedRules
+    val partRedToReduce =
+      Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.partialReduceToReduce))
+
+    val simplified = SimplifyAndFuse(partRedToReduce)
+    applyAlwaysRules(simplified)
   }
 
   // If the lambda does not have one map, then needs 2 kernels
@@ -207,10 +232,12 @@ object HighLevelRewrite {
 
 }
 
-class HighLevelRewrite {
+class HighLevelRewrite(val vectorWidth: Int) {
 
-  private val vecRed4 = MacroRules.vectorizeReduce(4)
-  private val vecZip4 = Rules.vectorizeMapZip(4)
+  private val logger = Logger(this.getClass)
+
+  private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
+  private[exploration] val vecZip = Rules.vectorizeMapZip(vectorWidth)
 
   private val highLevelRules =
     Seq(
@@ -219,15 +246,16 @@ class HighLevelRewrite {
       MacroRules.tileMapMap,
       MacroRules.finishTiling,
       MacroRules.partialReduceWithReorder,
-      vecRed4,
-      vecZip4
+      vecRed,
+      vecZip
     )
 
   private var failures = 0
 
   def apply(lambda: Lambda, levels: Int): Seq[(Lambda, Seq[Rule])] = {
+    logger.info(s"Enabled rules:\n\t${highLevelRules.mkString(",\t\n ")}")
     val rewritten = rewrite(lambda, levels)
-    println(failures + " rule application failures.")
+    logger.warn(failures + " rule application failures.")
     rewritten
   }
 
@@ -251,9 +279,8 @@ class HighLevelRewrite {
         rewritten = rewritten :+(applied, rulesSoFar :+ ruleAt._1)
 
       } catch {
-        case t: Throwable =>
-          if (HighLevelRewrite.verbose)
-            println(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")},\nfailed with\n$t.\n")
+        case _: Throwable =>
+          logger.warn(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")} failed.")
           failures += 1
       }
     })
@@ -286,16 +313,16 @@ class HighLevelRewrite {
     if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking))
       dontTryThese = MacroRules.apply1DRegisterBlocking +: dontTryThese
 
-    if (distinctRulesApplied.contains(vecZip4)
+    if (distinctRulesApplied.contains(vecZip)
           || (distinctRulesApplied.contains(MacroRules.tileMapMap)
             && !distinctRulesApplied.contains(MacroRules.finishTiling)))
-      dontTryThese = vecZip4 +: dontTryThese
+      dontTryThese = vecZip +: dontTryThese
 
     if (distinctRulesApplied.contains(MacroRules.tileMapMap)
         || distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
         || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
-        || distinctRulesApplied.contains(vecRed4))
-      dontTryThese = vecRed4 +: dontTryThese
+        || distinctRulesApplied.contains(vecRed))
+      dontTryThese = vecRed +: dontTryThese
 
     val rulesToTry = highLevelRules diff dontTryThese
     rulesToTry

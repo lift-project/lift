@@ -1,12 +1,9 @@
 package benchmarks
 
-import java.io.{File, OutputStreamWriter, PrintWriter}
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
-import ir.printer.{DotPrinter, TikzPrinter}
 import opencl.ir._
 import opencl.ir.pattern._
 
@@ -105,7 +102,7 @@ object DotProduct {
         ("cpu", Array[Lambda](dotProductCPU1, dotProductCPU2)),
         ("gpu", Array[Lambda](dotProduct1, dotProduct2))))
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
     DotProduct().run(args)
   }
 }

@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic.{ArithExpr, Cst}
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -59,7 +59,7 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     globalSizes
   }
 
-  override protected def beforeBenchmark() = {
+  override protected def beforeBenchmark(): Unit = {
     f(1)._2(0) = MatrixMultiplication.tiled(tileX.value.getOrElse(16))
     f(2)._2(0) = MatrixMultiplication.moreWorkPerThread(tileX.value.getOrElse(16),
       registerBlockM.value.getOrElse(4))

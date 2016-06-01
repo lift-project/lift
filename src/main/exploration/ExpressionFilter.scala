@@ -1,17 +1,19 @@
 package exploration
 
+import analysis.MemoryAmounts
 import apart.arithmetic.Cst
-import rewriting.InferNDRange
-import ir.{Memory, ScalarType}
+import com.typesafe.scalalogging.Logger
 import ir.ast._
-import ir.view.View
-import opencl.generator.{RangesAndCounts, OpenCLPrinter}
-import opencl.ir._
+import rewriting.InferNDRange
 
 object ExpressionFilter {
+
+  private val logger = Logger(this.getClass)
+
   object Status extends Enumeration {
     type Status = Value
     val Success,
+    TooMuchGlobalMemory,
     TooMuchPrivateMemory,
     TooMuchLocalMemory,
     NotEnoughWorkItems,
@@ -22,57 +24,36 @@ object ExpressionFilter {
     InternalException = Value
   }
 
-  import ExpressionFilter.Status._
+  import exploration.ExpressionFilter.Status._
 
-  def apply(expr: Lambda): Status = {
+  def apply(lambda: Lambda): Status = {
+
     try {
+
       // Compute NDRange based on the parameters
-      val (local, global) = InferNDRange(expr)
-      val valueMap = ParameterRewrite.createValueMap(expr)
+      val (local, global) = InferNDRange(lambda)
+      val memoryAmounts = MemoryAmounts(lambda, local, global)
 
-      // Allocate memory
-      expr.params.foreach((p) => {
-        p.t match {
-          case _: ScalarType =>
-            p.mem = OpenCLMemory.allocPrivateMemory(
-              OpenCLMemory.getSizeInBytes(p.t))
-          case _ =>
-            p.mem = OpenCLMemory.allocGlobalMemory(
-              OpenCLMemory.getSizeInBytes(p.t))
-        }
-        p.view = View(p.t, OpenCLPrinter().toString(p.mem.variable))
-      })
-
-      RangesAndCounts(expr, local, global,valueMap)
-      OpenCLMemoryAllocator.alloc(expr.body)
-
-      // Get the allocated buffers
-      val kernelMemory = TypedOpenCLMemory.get(expr.body, expr.params)
-      val buffers = TypedOpenCLMemory.get(expr.body, expr.params, includePrivate = true)
-
-      val valueMemories =
-        Expr.visitWithState(Set[Memory]())(expr.body, (expr, set) =>
-          expr match {
-            case value: ir.ast.Value => set + value.mem
-            case _ => set
-          })
-
-      val (_, privateMemories) =
-        buffers.diff(kernelMemory).partition(m => valueMemories.contains(m.mem))
+      val privateMemories = memoryAmounts.getPrivateMemories
+      val localMemories = memoryAmounts.getLocalMemories
+      val globalMemories = memoryAmounts.getGlobalMemories
 
       // Check private memory usage and overflow
-      val private_alloc_size = privateMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
-      if (private_alloc_size > SearchParameters.max_amount_private_memory ||
-            privateMemories.exists(_.mem.size.eval <= 0)) {
+      val privateAllocSize = privateMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
+      if (privateAllocSize > SearchParameters.max_amount_private_memory ||
+        privateMemories.exists(_.mem.size.eval <= 0)) {
         return TooMuchPrivateMemory
       }
 
       // Check local memory usage and overflow
-      val localMemories = buffers.filter(_.mem.addressSpace == LocalMemory)
-      val local_alloc_size = localMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
+      val localAllocSize = localMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
 
-      if (local_alloc_size > 50000 || localMemories.exists(_.mem.size.eval <= 0))
+      if (localAllocSize > 50000 || localMemories.exists(_.mem.size.eval <= 0))
         return TooMuchLocalMemory
+
+      // Check global memory overflow
+      if (globalMemories.exists(_.mem.size.eval <= 0))
+        return TooMuchGlobalMemory
 
       // Rule out obviously poor choices based on the grid size
       // - minimum size of the entire compute grid
@@ -105,7 +86,9 @@ object ExpressionFilter {
       // All good...
       Success
     } catch {
-      case _: Throwable => InternalException
+      case t: Throwable =>
+        logger.warn("Failed filtering", t)
+        InternalException
       // TODO: Internal exceptions sound suspicious. Log to file...
     }
   }

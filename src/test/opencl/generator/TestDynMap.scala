@@ -10,13 +10,13 @@ import org.junit.Assert._
 import org.junit._
 
 object TestDynMap {
-  @BeforeClass def TestDynMap() {
+  @BeforeClass def TestDynMap(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
