@@ -8,11 +8,73 @@ import org.junit.Test
 
 class TestTypeChecker {
 
+  private val K = SizeVar("K")
+
+  @Test(expected = classOf[TypeException])
+  def asScalarOn2DArray(): Unit = {
+    val lambda = fun(
+      ArrayType(ArrayType(Float4, K), K),
+      a => asScalar() $ a
+    )
+
+    TypeChecker(lambda)
+  }
+
+  def asScalar1DArray(): Unit = {
+    val lambda = fun(
+      ArrayType(ArrayType(Float4, K), K),
+      a => Map(asScalar()) $ a
+    )
+
+    TypeChecker(lambda)
+  }
+
+  @Test(expected = classOf[TypeException])
+  def asScalar1DScalarArray(): Unit = {
+    val lambda = fun(
+      ArrayType(ArrayType(Float, K), K),
+      a => Map(asScalar()) $ a
+    )
+
+    TypeChecker(lambda)
+  }
+
+  @Test(expected = classOf[TypeException])
+  def asVector2DArray(): Unit = {
+    val lambda = fun(
+      ArrayType(ArrayType(Float, K), K),
+      a => asVector(4) $ a
+    )
+
+    TypeChecker(lambda)
+  }
+
+  def asVector1DArray(): Unit = {
+    val lambda = fun(
+      ArrayType(ArrayType(Float, K), K),
+      a => Map(asVector(4)) $ a
+    )
+
+    TypeChecker(lambda)
+  }
+
+  @Test(expected = classOf[TypeException])
+  def asVector1DVectorArray(): Unit = {
+    val lambda = fun(
+      ArrayType(ArrayType(Float4, K), K),
+      a => Map(asVector(4)) $ a
+    )
+
+    TypeChecker(lambda)
+  }
+
   @Test(expected = classOf[TypeException])
   def incorrectReduceSeq(): Unit = {
     val lambda = fun(
-      ArrayType(Float, SizeVar("K")),
-      a => ReduceSeq(fun((acc, x) => MapSeq(fun(a => add(acc, a))) $ x), 0.0f) o Split(1) $ a
+      ArrayType(Float, K),
+      a => ReduceSeq(
+        fun((acc, x) => MapSeq(fun(a => add(acc, a))) $ x),
+        0.0f) o Split(1) $ a
     )
 
     TypeChecker(lambda)
@@ -21,7 +83,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def incorrectZip(): Unit = {
     val lambda = fun(
-      ArrayType(Float, SizeVar("K")),
+      ArrayType(Float, K),
       ArrayType(Float, 8),
       (a, b) =>
         Zip(a,b)
