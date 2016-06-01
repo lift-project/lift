@@ -39,7 +39,12 @@ class Best {
 
     val tileSizeM = 4
     val tileSizeK = 4
-    val tileSizeN = 4
+    val tileSizeN = 8
+
+    val multAndSumUp = UserFun("multAndSumUp", Array("acc", "l", "r"),
+      "{ return acc + (l * r); }",
+      Seq(VectorType(Float, tileSizeN), Float, VectorType(Float, tileSizeN)),
+      VectorType(Float, tileSizeN))
 
     val f = fun(
       ArrayType(ArrayType(Float, K), M),
@@ -50,29 +55,40 @@ class Best {
           MapGlb(1)(fun( aRows =>
             MapGlb(0)(fun( bCols =>
 
-              toGlobal(MapSeq(MapSeq(id))) o
+              toGlobal(MapSeq(MapSeq(VectorizeUserFun(tileSizeN, id)))) o
                 Join() o
 
                 // Multiply all necessary combinations of tiles
                 ReduceSeq(fun( (acc, pairOfTiles) =>
 
                   fun(pairOfTiles =>
-                      Map(Join()) o
+                    Map(Join()) o
                       MapSeq( fun(rowA =>
                         MapSeq( fun( colB =>
-                          ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), Get(colB, 1)) $ Zip(Get(rowA, 0), Get(colB, 0))
+                          ReduceSeq(fun((acc, y) =>
+                            multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+                          ), Get(colB, 1)) $ Zip(Get(rowA, 0), Get(colB, 0))
                         )) $ Zip(Transpose() $ Get(pairOfTiles, 1), Get(rowA, 1))
                       )) $ Zip(Get(pairOfTiles, 0), acc)
                   ) o
 
-                    // Copy tiles to local memory
+                    // Copy tiles to private memory
                     fun(pairOfTiles =>
                       Tuple(
-                        toPrivate(MapSeq(MapSeq(id))) $ Get(pairOfTiles, 0),
-                        toPrivate(MapSeq(MapSeq(id))) $ Get(pairOfTiles, 1)
+                        toPrivate(MapSeq(
+                          asScalar() o
+                            MapSeq(VectorizeUserFun(tileSizeK, id)) o
+                            asVector(tileSizeK)
+                        )) $ Get(pairOfTiles, 0),
+
+                        toPrivate(MapSeq(
+                          MapSeq(VectorizeUserFun(tileSizeN, id)) o
+                            asVector(tileSizeN)
+                        )) $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
-                  , MapSeq(MapSeq(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSizeN), tileSizeM))
+                  , MapSeq(MapSeq(VectorizeUserFun(tileSizeN, id))) $
+                    Value(0.0f, ArrayType(ArrayType(VectorType(Float, tileSizeN), 1), tileSizeM))
                 ) $ Zip(aRows, bCols)
 
             )) o Transpose() o Tile(tileSizeK, tileSizeN) $ B
