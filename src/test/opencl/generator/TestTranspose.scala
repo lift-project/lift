@@ -82,8 +82,7 @@ class TestTranspose {
     val input = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
     val f = fun(
       ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
-      //input => MapSeq(MapSeq(id)) o Transpose() o /*MapSeq(MapSeq(id)) o*/ Transpose() $ input
-      input => MapSeq(MapSeq(id)) o Transpose() o Pad(1,1,Pad.Boundary.Wrap) o Transpose() o Pad(1,1,Pad.Boundary.Wrap) $ input
+      input => MapSeq(MapSeq(id)) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) $ input
     )
 
     val (output: Array[Float], _) = Execute(1024, 1024)(f, input)

@@ -598,16 +598,15 @@ class TestStencil extends TestSlide {
                              size: Int, step: Int,
                              left: Int, right: Int): Lambda1 = {
     fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), Var("N", StartFromRange(2))),
+      ArrayType(ArrayType(Float, SizeVar("N")), Var("M", StartFromRange(2))),
       (domain) => {
         MapSeq(
           MapSeq(
-            MapSeq(id)
-            //fun(neighbours =>
-            //MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours)
+            fun(neighbours =>
+            MapSeqUnroll(MapSeqUnroll(id)) $ neighbours)
             )
-        ) o /*Map(Map(Transpose()) o Slide(size, step) o Transpose()) o*/ Slide(size, step) $ domain
-          ///*Transpose() o Pad(left, right, boundary) oTranspose() o Transpose() o Pad(left, right, boundary) $ domain
+        ) o Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step) o
+          Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary) $ domain
       }
     )
   }
@@ -619,7 +618,7 @@ class TestStencil extends TestSlide {
     val right = 1
 
     val lambda = create2DModSimplifyLambda(Pad.Boundary.Wrap, size, step, left, right)
-    val (output: Array[Float], runtime) = Execute(randomData.length, randomData2D.length)(lambda, randomData2D)
+    val (output: Array[Float], runtime) = Execute(randomData2D.length, randomData2D.length)(lambda, randomData2D)
     //output.grouped(4).toArray.map(x => println(x.mkString(",")))
   }
 
