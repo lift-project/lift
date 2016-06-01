@@ -97,7 +97,7 @@ class Best {
       })
 
     val (output: Array[Float], _) =
-      Execute(tileSizeM, tileSizeN, mSize/tileSizeM, nSize/tileSizeN, (true, true))(f, matrixA, matrixB)
+      Execute(tileSizeN, tileSizeM, nSize/tileSizeN, nSize/tileSizeM, (true, true))(f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
