@@ -8,13 +8,14 @@ import scala.language.implicitConversions
 
 object OpenCLAST {
 
-  /** Base class for all OpenCL AST nodes.*/
-  abstract sealed class OclAstNode
+  /** Base class for all OpenCL AST nodes. */
+  sealed trait OclAstNode
 
   trait BlockMember
 
-  implicit def exprToStmt(e: Expression) : ExpressionStatement = ExpressionStatement(e)
-  implicit def predicateToCondExpression(p: Predicate) : CondExpression = {
+  implicit def exprToStmt(e: Expression): ExpressionStatement = ExpressionStatement(e)
+
+  implicit def predicateToCondExpression(p: Predicate): CondExpression = {
     CondExpression(ArithExpression(p.lhs), ArithExpression(p.rhs), p.op match {
       case Predicate.Operator.!= => CondExpression.Operator.!=
       case Predicate.Operator.< => CondExpression.Operator.<
@@ -26,12 +27,48 @@ object OpenCLAST {
   }
 
 
-  abstract class Statement extends OclAstNode with BlockMember
-  abstract class Expression extends OclAstNode
+  sealed abstract class Declaration extends OclAstNode with BlockMember
+
+  sealed abstract class Statement extends OclAstNode with BlockMember
+
+  sealed abstract class Expression extends OclAstNode
+
+  /** A function declaration
+    *
+    * @param name   Name of the function.
+    * @param ret    Return type.
+    * @param params List of parameter declaration.
+    * @param body   Body of the function.
+    * @param kernel Flag set if the function is a kernel
+    */
+  case class Function(name: String,
+                      ret: Type, params: List[ParamDecl],
+                      body: Block,
+                      kernel: Boolean = false) extends Declaration
+
+  case class VarDecl(v: Var,
+                     t: Type,
+                     init: OclAstNode = null,
+                     addressSpace: OpenCLAddressSpace = UndefAddressSpace,
+                     length: Int = 0) extends Declaration
+
+  /** Parameter declaration. These have to be separated from variable
+    * declaration since the vectorization has to be handled differently
+    */
+  case class ParamDecl(name: String, t: Type,
+                       addressSpace: OpenCLAddressSpace = UndefAddressSpace,
+                       const: Boolean = false) extends Declaration
+
+  /** A Label, targeted by a corresponding goto
+    *
+    * @param nameVar the name of label to be declared
+    */
+  case class Label(nameVar: Var) extends Declaration
+
 
   /**
-   * List of nodes enclosed in a bock. This behaves like (and emits) a C block.
-   */
+    * List of nodes enclosed in a bock. This behaves like (and emits) a C block.
+    */
   case class Block(var content: Vector[OclAstNode with BlockMember] = Vector.empty,
                    global: Boolean = false) extends Statement {
     /** Append a sub-node. Could be any node, including a sub-block.
@@ -42,7 +79,7 @@ object OpenCLAST {
       content = content :+ node
     }
 
-    def add(node: OclAstNode with BlockMember) : Unit = {
+    def add(node: OclAstNode with BlockMember): Unit = {
       this.content :+ node
     }
 
@@ -51,58 +88,35 @@ object OpenCLAST {
     }
   }
 
-  /** A function declaration
-    *
-    * @param name Name of the function.
-    * @param ret Return type.
-    * @param params List of parameter declaration.
-    * @param body Body of the function.
-    * @param kernel Flag set if the function is a kernel
-    */
-  case class Function(name: String,
-                      ret: Type, params: List[ParamDecl],
-                      body: Block,
-                      kernel: Boolean = false) extends Statement
-
-  case class FunctionCall(name: String,
-                          args: List[OpenCLAST.OclAstNode]) extends Expression
-
-
   /**
     *
-    * @param init The expression/value initializing the iteration variabel. should either be an ExpressionStatement or VarDecl
-    * @param cond The condition used in the for loop
+    * @param init      The expression/value initializing the iteration variabel. should either be an ExpressionStatement or VarDecl
+    * @param cond      The condition used in the for loop
     * @param increment The expression used to increment the iteration variable
-    * @param body The loop body
+    * @param body      The loop body
     */
-  case class ForLoop(init : Statement,
-                     cond : ExpressionStatement,
+  case class ForLoop(init: Declaration,
+                     cond: ExpressionStatement,
                      increment: Expression,
                      body: Block) extends Statement
 
   /** An alternative looping construct, using a predicate - a 'while' loop
-    *  
+    *
     * @param loopPredicate the predicate the loop tests each iteration
-    * @param body the body of the loop
+    * @param body          the body of the loop
     */
   case class WhileLoop(loopPredicate: Predicate,
                        body: Block) extends Statement
 
   /** An if-then-else set of statements, with two branches. 
     *
-    * @param cond the condition
-    * @param trueBody the body evaluated if switchPredicate is true
+    * @param cond      the condition
+    * @param trueBody  the body evaluated if switchPredicate is true
     * @param falseBody the body evaluated if switchPredicate is false
     */
   case class IfThenElse(cond: Expression,
                         trueBody: Block,
                         falseBody: Block = Block()) extends Statement
-
-  /** A Label, targeted by a corresponding goto
-    * 
-    * @param nameVar the name of label to be declared
-    */
-  case class Label(nameVar: Var) extends OclAstNode with BlockMember
 
   /** A goto statement, targeting the label with corresponding name
     * TODO: Think of a better way of describing goto labels
@@ -117,13 +131,24 @@ object OpenCLAST {
 
   case class TupleAlias(t: Type, name: String) extends Statement
 
-  case class VarUse(v: Var) extends Expression
+  case class ExpressionStatement(e: Expression) extends Statement
 
-  case class VarDecl(v: Var,
-                     t: Type,
-                     init: OclAstNode = null,
-                     addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                     length: Int = 0) extends Statement
+
+  case class FunctionCall(name: String,
+                          args: List[OpenCLAST.OclAstNode]) extends Expression
+
+  /** A reference to a declared variable
+    *
+    * @param v          The variable referenced.
+    * @param suffix     An optional suffix appended to the name.
+    *                   Used e.g. for unrolled variables in private memory.
+    * @param arrayIndex Offset used to index from pointers, if any.
+    * @note This uses a String instead of a Var because some nodes (like user
+    *       functions), inject variables from string.
+    */
+  case class VarRef(v: Var,
+                    suffix: String = null,
+                    arrayIndex: Expression = null) extends Expression
 
   case class Load(v: VarRef,
                   t: VectorType,
@@ -134,6 +159,39 @@ object OpenCLAST {
                    value: OclAstNode,
                    offset: Expression) extends Expression
 
+  /** Represent an assignment.
+    *
+    * @param to    Left-hand side.
+    * @param value Right-hand side.
+    * @note Vectors are using Store instead of assignment.
+    */
+  case class AssignmentExpression(to: OclAstNode, value: OclAstNode) extends Expression
+
+  /** Wrapper for arithmetic expression
+    *
+    * @param content The arithmetic expression.
+    */
+  case class ArithExpression(var content: ArithExpr) extends Expression
+
+  case class CondExpression(lhs: Expression, rhs: Expression, cond: CondExpression.Operator.Operator) extends Expression
+
+  object CondExpression {
+
+    /**
+      * List of comparison operators
+      */
+    object Operator extends Enumeration {
+      type Operator = Value
+      val < = Value("<")
+      val > = Value(">")
+      val <= = Value("<=")
+      val >= = Value(">=")
+      val != = Value("!=")
+      val == = Value("==")
+    }
+
+  }
+
   /** Force a cast of a variable to the given type. This is used to
     *
     * @param v A referenced variable.
@@ -141,37 +199,10 @@ object OpenCLAST {
     */
   case class Cast(v: VarRef, t: Type) extends Expression
 
-  case class VectorLiteral(t: VectorType, vs: VarRef*) extends OclAstNode
+  case class VectorLiteral(t: VectorType, vs: VarRef*) extends Expression
 
-  case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends OclAstNode
+  case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends Expression
 
-  /** Parameter declaration. These have to be separated from variable
-    * declaration since the vectorization has to be handled differently
-    */
-  case class ParamDecl(name: String, t: Type,
-                       addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                       const: Boolean = false) extends OclAstNode
-
-  /** A reference to a declared variable
-    *
-    * @param v The variable referenced.
-    * @param suffix An optional suffix appended to the name.
-    *               Used e.g. for unrolled variables in private memory.
-    * @param arrayIndex Offset used to index from pointers, if any.
-    * @note This uses a String instead of a Var because some nodes (like user
-    *       functions), inject variables from string.
-    */
-  case class VarRef(v: Var,
-                    suffix: String = null,
-                    arrayIndex: Expression = null) extends Expression
-
-  /** Represent an assignment.
-    *
-    * @param to Left-hand side.
-    * @param value Right-hand side.
-    * @note Vectors are using Store instead of assignment.
-    */
-  case class AssignmentExpression(to: OclAstNode, value: OclAstNode) extends Expression
 
   /** Inline native code block. Used mainly for UserFun, which are currently
     * represented as strings
@@ -186,71 +217,106 @@ object OpenCLAST {
     */
   case class Comment(content: String) extends OclAstNode with BlockMember
 
-  case class Extension(content: String) extends OclAstNode with BlockMember
-
-  case class ExpressionStatement(e: Expression) extends Statement
-
-
-  /** Wrapper for arithmetic expression
-    *
-    * @param content The arithmetic expression.
-    */
-  case class ArithExpression(var content: ArithExpr) extends Expression
-
-  case class CondExpression(lhs: Expression, rhs: Expression, cond: CondExpression.Operator.Operator) extends Expression
-
-  object CondExpression {
-    /**
-      * List of comparison operators
-      */
-    object Operator extends Enumeration {
-      type Operator = Value
-      val < = Value("<")
-      val > = Value(">")
-      val <= = Value("<=")
-      val >= = Value(">=")
-      val != = Value("!=")
-      val == = Value("==")
-    }
-  }
-
+  case class OpenCLExtension(content: String) extends OclAstNode with BlockMember
 
 
   def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
-    block.content.foreach(visitExpression)
+    visitExpressionsInNode(block)
 
-    def visitExpression(node: OclAstNode): Unit = {
+    def visitExpressionsInNode(node: OclAstNode): Unit = {
+      callFunOnExpression(node)
+
       node match {
-        case e:Expression => fun(e)
-        case _ =>
+        case e: Expression => visitExpression(e)
+        case s: Statement => visitStatement(s)
+        case d: Declaration => visitDeclaration(d)
+        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
       }
+    }
+
+    def callFunOnExpression(node: OclAstNode): Unit = {
       node match {
-        case v: VarRef if v.arrayIndex != null => visitExpression(v.arrayIndex)
-        case v: VarDecl if v.init != null => visitExpression(v.init)
-        case l: Load => fun(l.offset)
-        case s: Store =>
-          visitExpression(s.value)
-          fun(s.offset)
-        case f: FunctionCall => f.args.foreach(visitExpression)
-        case c: Cast => visitExpression(c.v)
-        case a: AssignmentExpression =>
-          visitExpression(a.value)
-          visitExpression(a.to)
-          // TODO: implement the rest (simply recurse down)
+        case e: Expression => fun(e)
+        case s: Statement =>
+        case d: Declaration =>
+        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
       }
+    }
+
+    def visitExpression(e: Expression): Unit = e match {
+      case _: ArithExpression =>
+      case a: AssignmentExpression =>
+        visitExpressionsInNode(a.value)
+        visitExpressionsInNode(a.to)
+      case c: Cast =>
+        visitExpressionsInNode(c.v)
+      case c: CondExpression =>
+        visitExpressionsInNode(c.lhs)
+        visitExpressionsInNode(c.rhs)
+      case f: FunctionCall =>
+        f.args.foreach(visitExpressionsInNode)
+      case l: Load =>
+        visitExpressionsInNode(l.v)
+        visitExpressionsInNode(l.offset)
+      case s: Store =>
+        visitExpressionsInNode(s.v)
+        visitExpressionsInNode(s.value)
+        visitExpressionsInNode(s.offset)
+      case s: StructConstructor =>
+        s.args.foreach(visitExpressionsInNode)
+      case v: VarRef =>
+        if (v.arrayIndex != null) visitExpressionsInNode(v.arrayIndex)
+      case v: VectorLiteral =>
+        v.vs.foreach(visitExpressionsInNode)
+    }
+
+    def visitStatement(s: Statement): Unit = s match {
+      case b: Block => b.content.foreach(visitExpressionsInNode)
+      case es: ExpressionStatement => visitExpressionsInNode(es.e)
+      case f: ForLoop =>
+        visitExpressionsInNode(f.init)
+        visitExpressionsInNode(f.cond)
+        visitExpressionsInNode(f.increment)
+        visitExpressionsInNode(f.body)
+      case ifte: IfThenElse =>
+        visitExpressionsInNode(ifte.cond)
+        visitExpressionsInNode(ifte.trueBody)
+        visitExpressionsInNode(ifte.falseBody)
+      case w: WhileLoop =>
+        visitExpressionsInNode(w.loopPredicate)
+        visitExpressionsInNode(w.body)
+      case Barrier(_) | GOTO(_) | TupleAlias(_, _) | TypeDef(_) =>
+    }
+
+    def visitDeclaration(d: Declaration): Unit = d match {
+      case f: Function => visitExpressionsInNode(f.body)
+      case v: VarDecl => if (v.init != null) visitExpressionsInNode(v.init)
+      case Label(_) | ParamDecl(_, _, _, _) =>
     }
   }
 
   def visitBlocks(node: OclAstNode, fun: Block => Unit): Unit = {
     node match {
-      case b: Block =>
-        fun(b)
-        b.content.foreach(visitBlocks(_, fun))
-      case f: Function => visitBlocks(f.body, fun)
-     // case l: Loop => visitBlocks(l.body, fun)
-      case fl: ForLoop => visitBlocks(fl.body, fun)
-      case wl: WhileLoop => visitBlocks(wl.body, fun)
-      case _ =>
+      case e: Expression => // there are no blocks inside any expressions
+
+      case s: Statement => s match {
+        case b: Block =>
+          fun(b)
+          b.content.foreach(visitBlocks(_, fun))
+        case fl: ForLoop => visitBlocks(fl.body, fun)
+        case wl: WhileLoop => visitBlocks(wl.body, fun)
+        case ifte: IfThenElse =>
+          visitBlocks(ifte.trueBody, fun)
+          visitBlocks(ifte.falseBody, fun)
+        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) =>
+      }
+
+      case d: Declaration => d match {
+        case f: Function => visitBlocks(f.body, fun)
+        case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
+      }
+
+      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
     }
   }
 }

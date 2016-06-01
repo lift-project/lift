@@ -153,7 +153,7 @@ class OpenCLPrinter {
     case a: TupleAlias    => print(a)
     case c: Cast          => print(c)
     case l: VectorLiteral => print(l)
-    case e: Extension     => print(e)
+    case e: OpenCLExtension     => print(e)
     case i: OpenCLAST.IfThenElse    => print(i)
     case l: Label         => print(l)
     case g: GOTO          => print(g)
@@ -199,7 +199,7 @@ class OpenCLPrinter {
     case _ =>
   }
 
-  private def print(e: Extension): Unit = {
+  private def print(e: OpenCLExtension): Unit = {
     println(s"#pragma OPENCL EXTENSION ${e.content} : enable")
   }
 
