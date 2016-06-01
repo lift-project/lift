@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.SizeVar
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
@@ -25,18 +25,21 @@ object TestTiling {
 
 class TestTiling {
 
+  private val N = SizeVar("N")
+  private val M = SizeVar("M")
+
+  private val Nsize = 12
+  private val Msize = 8
+
+  private val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
+  private val transposeGold = matrix.transpose
+
   @Test def tileMatrix(): Unit = {
 
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
     val gold   = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
 
     println("matrix: ")
     Utils.myPrint(matrix)
-
-    val N = SizeVar("N")
-    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -45,11 +48,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("tile: ")
     Utils.myPrint(gold(0)(0))
@@ -65,16 +64,10 @@ class TestTiling {
 
   @Test def tileMatrixLocalMemory(): Unit = {
 
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
     val gold   = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
 
     println("matrix: ")
     Utils.myPrint(matrix)
-
-    val N = SizeVar("N")
-    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -86,11 +79,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("tile: ")
     Utils.myPrint(gold(0)(0))
@@ -105,17 +94,13 @@ class TestTiling {
   }
 
   @Test def tileAndUntileMatrix(): Unit = {
-    val Nsize = 12
-    val Msize = 8
+
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
     val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
     val gold = tiled.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
-
-    val N = SizeVar("N")
-    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -127,11 +112,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("gold: ")
     Utils.myPrint(gold.flatten, 8)
@@ -143,17 +124,13 @@ class TestTiling {
   }
 
   @Test def tileAndUntileMatrixLocalMemory(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
+
+    val tiled = matrix.grouped(4).toArray.
+      map(_.transpose.grouped(4).toArray.map(_.transpose))
     val gold = tiled.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
-
-    val N = SizeVar("N")
-    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -168,11 +145,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("gold: ")
     Utils.myPrint(gold.flatten, 8)
@@ -184,17 +157,12 @@ class TestTiling {
   }
 
   @Test def transposeMatrixInsideTiles(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
+
     val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4)
-                                              .toArray.map(_.transpose)).map(_.map(_.transpose))
+      .toArray.map(_.transpose)).map(_.map(_.transpose))
 
     println("matrix: ")
     Utils.myPrint(matrix)
-
-    val N = SizeVar("N")
-    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -202,11 +170,7 @@ class TestTiling {
         MapWrg(0)(MapWrg(1)( MapLcl(0)(MapLcl(1)(id)) o Transpose())) o Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("tile: 0,0 ")
     Utils.myPrint(gold(0)(0))
@@ -224,17 +188,12 @@ class TestTiling {
   }
 
   @Test def transposeMatrixInsideTilesLocalMemory(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
+
     val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4)
-                                              .toArray.map(_.transpose)).map(_.map(_.transpose))
+      .toArray.map(_.transpose)).map(_.map(_.transpose))
 
     println("matrix: ")
     Utils.myPrint(matrix)
-
-    val N = SizeVar("N")
-    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -244,11 +203,7 @@ class TestTiling {
             TransposeW() o  toLocal(MapLcl(0)(MapLcl(1)(id))))) o Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("tile: 0,0 ")
     Utils.myPrint(gold(0)(0))
@@ -266,18 +221,12 @@ class TestTiling {
   }
 
   @Test def transposeTiles(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4)
-                                              .toArray.map(_.transpose)).transpose
 
+    val gold = matrix.grouped(4).toArray.map(_.transpose.grouped(4)
+      .toArray.map(_.transpose)).transpose
 
     println("matrix: ")
     Utils.myPrint(matrix)
-
-    val N = SizeVar("N")
-    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -286,11 +235,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("tile: 0,0 ")
     Utils.myPrint(gold(0)(0))
@@ -308,13 +253,6 @@ class TestTiling {
   }
 
   @Test def tiledMatrixTranspose(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
-    val tiledTransposed = tiled.map(_.map(_.transpose)).transpose
-
-    val gold = tiledTransposed.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
@@ -334,74 +272,71 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(32, Nsize * Msize)(f, matrix)
-
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
 
     println("gold: ")
-    Utils.myPrint(gold.flatten, Nsize)
+    Utils.myPrint(transposeGold.flatten, Nsize)
 
     println("output: ")
     Utils.myPrint(output, Nsize)
 
-    assertArrayEquals(gold.flatten, output, 0.0f)
+    assertArrayEquals(transposeGold.flatten, output, 0.0f)
   }
 
   @Test def tiledMatrixTransposeLocalMemory(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
-    val tiledTransposed = tiled.map(_.map(_.transpose)).transpose
-
-    val gold = tiledTransposed.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val (output: Array[Float], runtime) =
+    val (output: Array[Float], _) =
       Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(), matrix)
 
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
     println("gold: ")
-    Utils.myPrint(gold.flatten, Nsize)
+    Utils.myPrint(transposeGold.flatten, Nsize)
 
     println("output: ")
     Utils.myPrint(output, Nsize)
 
-    assertArrayEquals(gold.flatten, output, 0.0f)
+    assertArrayEquals(transposeGold.flatten, output, 0.0f)
+  }
+
+  @Test def tiledMatrixTransposePrivateMemory(): Unit = {
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (matrix) => {
+        // Merge the tiles
+        Untile() o
+          MapGlb(1)(MapGlb(0)(
+            toGlobal(MapSeq(MapSeq(id))) o
+              TransposeW() o
+              toPrivate(MapSeq(MapSeq(id)))
+          )) o
+          // Transpose the tiles and then the insides of tiles
+          Transpose() o
+          // Tile the matrix
+          Tile(4) $ matrix
+      })
+
+    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
+
+    assertArrayEquals(transposeGold.flatten, output, 0.0f)
   }
 
   @Test def tiledMatrixTransposeNonSquareTile(): Unit = {
-    val Nsize = 12
-    val Msize = 8
-    val matrix = Array.tabulate(Nsize, Msize)((r, c) => c * 1.0f + r * 8.0f)
-    val tiled = matrix.grouped(4).toArray.map(_.transpose.grouped(4).toArray.map(_.transpose))
-    val tiledTransposed = tiled.map(_.map(_.transpose)).transpose
-
-    val gold = tiledTransposed.flatMap(_.transpose.map(_.flatten))
 
     println("matrix: ")
     Utils.myPrint(matrix)
 
-    val (output: Array[Float], runtime) =
+    val (output: Array[Float], _) =
       Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(4,8), matrix)
 
-    println("output.size = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
     println("gold: ")
-    Utils.myPrint(gold.flatten, Nsize)
+    Utils.myPrint(transposeGold.flatten, Nsize)
 
     println("output: ")
     Utils.myPrint(output, Nsize)
 
-    assertArrayEquals(gold.flatten, output, 0.0f)
+    assertArrayEquals(transposeGold.flatten, output, 0.0f)
   }
 }
