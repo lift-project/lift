@@ -152,12 +152,14 @@ object OpenCLAST {
 
   case class Load(v: VarRef,
                   t: VectorType,
-                  offset: Expression) extends Expression
+                  offset: Expression,
+                  openCLAddressSpace: OpenCLAddressSpace) extends Expression
 
   case class Store(v: VarRef,
                    t: VectorType,
                    value: OclAstNode,
-                   offset: Expression) extends Expression
+                   offset: Expression,
+                   openCLAddressSpace: OpenCLAddressSpace) extends Expression
 
   /** Represent an assignment.
     *

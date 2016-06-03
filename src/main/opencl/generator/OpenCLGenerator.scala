@@ -1183,7 +1183,7 @@ class OpenCLGenerator extends Generator {
             value = value,
             offset = OpenCLAST.ArithExpression(
               ViewPrinter.emit(view,
-                replacementsWithFuns) / vt.len))
+                replacementsWithFuns) / vt.len), mem.addressSpace)
       }
     }
   }
@@ -1237,7 +1237,7 @@ class OpenCLGenerator extends Generator {
               OpenCLAST.Load(OpenCLAST.VarRef(mem.variable), vt,
                 offset = OpenCLAST.ArithExpression(
                   ViewPrinter.emit(view,
-                    replacementsWithFuns) / vt.len))
+                    replacementsWithFuns) / vt.len),mem.addressSpace)
 
             // originally an array of scalar values in private memory,
             // but now a vector type

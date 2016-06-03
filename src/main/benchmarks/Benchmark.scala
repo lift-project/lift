@@ -319,7 +319,7 @@ abstract class Benchmark(val name: String,
       for (i <- 0 until iterations) {
 
         if (i == 1)
-          Verbose.verbose = false
+          Verbose(false)
 
         println("Iteration: " + i)
 
@@ -386,7 +386,7 @@ abstract class Benchmark(val name: String,
 
       Executor.loadLibrary()
       Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
-      Verbose.verbose = verbose.value.getOrElse(false)
+      Verbose(verbose.value.getOrElse(false))
 
       checkResult = checkResultOpt.value.getOrElse(false)
 

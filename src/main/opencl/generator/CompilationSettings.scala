@@ -1,40 +1,45 @@
 package opencl.generator
 
 object Debug {
-  var debug = System.getenv("APART_DEBUG") != null
+  private var debug = System.getenv("APART_DEBUG") != null
   def apply() = debug
   def apply(debug: Boolean): Unit = { this.debug = debug }
 }
 
 object Verbose {
-  var verbose = System.getenv("APART_VERBOSE") != null
+  private var verbose = System.getenv("APART_VERBOSE") != null
   def apply() = verbose
   def apply(verbose: Boolean): Unit = { this.verbose = verbose }
 }
 
 object DeadCodeElimination {
-  val dce = System.getenv("APART_DCE") != null
+  private val dce = System.getenv("APART_DCE") != null
   def apply() = dce
 }
 
 object CSE {
-  val cse = System.getenv("APART_CSE") != null
+  private val cse = System.getenv("APART_CSE") != null
   def apply() = cse
 }
 
 object PerformBarrierElimination {
-  val barrierElimination = System.getenv("APART_NO_BARRIER_ELIM") == null
+  private val barrierElimination = System.getenv("APART_NO_BARRIER_ELIM") == null
   def apply() = barrierElimination
 }
 
 object PerformLoopOptimisation {
-  val loopOptimisation = System.getenv("APART_NO_LOOP_OPT") == null
+  private val loopOptimisation = System.getenv("APART_NO_LOOP_OPT") == null
   def apply() = loopOptimisation
+}
+
+object UseCastsForVectors {
+  private val vectorCast = System.getenv("APART_VECTOR_CAST") == null
+  def apply() = vectorCast
 }
 
 object AllocateLocalMemoryStatically {
   // FIXME(tlutz) This should be a val
-  var allocateLocalMemoryStatically = true
+  private var allocateLocalMemoryStatically = true
   def apply() = allocateLocalMemoryStatically
   def apply(allocateStatically: Boolean): Unit = {
     allocateLocalMemoryStatically = allocateStatically
