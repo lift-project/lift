@@ -542,8 +542,8 @@ class Best {
                     FunCall(TransposeW(),
                       FunCall(Join(),
                         FunCall(Map(fun((p_4) =>
-                          FunCall(Map(fun((p_5) =>
-                            FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))),
+//                          FunCall(Map(fun((p_5) =>
+//                            FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))),
                             FunCall(TransposeW(),
                               FunCall(Join(),
                                 FunCall(Map(fun((p_6) =>
@@ -551,15 +551,15 @@ class Best {
                                     FunCall(Map(fun((p_7) =>
                                       FunCall(TransposeW(), p_7))),
                                       FunCall(TransposeW(), p_6))))),
-                                  FunCall(TransposeW(), p_4))))))),
+                                  FunCall(TransposeW(), p_4))))))/*)*/,
                           FunCall(TransposeW(),
                             FunCall(toGlobal(fun((p_8) =>
                               FunCall(MapSeq(fun((p_9) =>
                                 FunCall(MapLcl(1)(fun((p_10) =>
                                   FunCall(MapLcl(0)(fun((p_11) =>
                                     FunCall(MapSeq(fun((p_12) =>
-                                      FunCall(MapSeq(fun((p_13) =>
-                                        FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))),
+                                      FunCall(asScalar() o MapSeq(fun((p_13) =>
+                                        FunCall(VectorizeUserFun(4, id), p_13))) o asVector(4), p_12))), p_11))), p_10))), p_9))), p_8))),
                               FunCall(ReduceSeq(fun((p_14, p_15) =>
                                 FunCall(fun((p_16) =>
                                   FunCall(MapLcl(1)(fun((p_17) =>
@@ -598,9 +598,9 @@ class Best {
                                         FunCall(Zip(2),
                                           FunCall(Get(0), p_17),
                                           FunCall(Split(v__4),
-                                            FunCall(Gather(ReorderWithStride(v__3 / v__4)),
+//                                            FunCall(Gather(ReorderWithStride(v__3 / v__4)),
                                               FunCall(Transpose(),
-                                                FunCall(Get(1), p_16))))))))),
+                                                FunCall(Get(1), p_16))))))))/*)*/,
                                     FunCall(Zip(2), p_14,
                                       FunCall(Split(v__5),
                                         FunCall(Transpose(),
