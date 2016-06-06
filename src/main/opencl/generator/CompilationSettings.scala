@@ -33,7 +33,7 @@ object PerformLoopOptimisation {
 }
 
 object UseCastsForVectors {
-  private val vectorCast = System.getenv("APART_VECTOR_CAST") == null
+  private val vectorCast = System.getenv("APART_VECTOR_CAST") != null
   def apply() = vectorCast
 }
 
