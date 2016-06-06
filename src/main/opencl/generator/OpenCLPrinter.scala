@@ -210,7 +210,7 @@ class OpenCLPrinter {
   }
 
   private def print(l: Load): Unit = {
-      if (UseCastsForVectors()) {
+      if (!UseCastsForVectors()) {
       print(s"vload${l.t.len}(")
       print(l.offset)
       print(",")
@@ -226,7 +226,7 @@ class OpenCLPrinter {
   }
 
   private def print(s: Store): Unit = {
-    if (UseCastsForVectors()) {
+    if (!UseCastsForVectors()) {
       print(s"vstore${s.t.len}(")
       print(s.value)
       print(",")
