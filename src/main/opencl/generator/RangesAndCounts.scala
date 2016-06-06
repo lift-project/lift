@@ -49,7 +49,6 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
             r match {
               case r: ReduceSeq => setRangeReduceSeq(r, call)
             }
-            //evaluateReduceRange(r)
             apply(r.f.body)
 
           case i: Iterate =>
@@ -77,18 +76,14 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     val lSize = localSizes(dim)
 
     gSize match {
-      case Cst(c) =>
+      case x if x.getClass == ?.getClass =>
+      case c =>
         val numGroups = gSize /^ lSize
         start = get_group_id(dim,ContinuousRange(0, numGroups))
         step = numGroups
-        //m.loopVar = new Var(m.loopVar.name, RangeAdd(start, stop, step))
-        //evaluateMapRange(m)
-      case x if x.getClass == ?.getClass =>
-      case x => throw new IllegalArgumentException(s"Invalid global size type: $x (${x.getClass})")
     }
 
     m.loopVar = Var(m.loopVar.name, RangeAdd(start, stop, step))
-    //evaluateMapRange(m)
   }
 
   private def setRangeMapGlb(m: MapGlb, call: FunCall): Unit = {
@@ -106,7 +101,6 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     }
 
     m.loopVar = Var(m.loopVar.name, RangeAdd(start, length, step))
-    //evaluateMapRange(m)
   }
 
   private def setRangeMapLcl(m: MapLcl, call: FunCall): Unit = {
@@ -138,7 +132,6 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     val step: ArithExpr = Cst(1)
 
     m.loopVar = Var(m.loopVar.name, RangeAdd(start, length, step))
-    //evaluateMapRange(m)
   }
 
   private def setRangeMapAtomWrg(m: MapAtomWrg, call: FunCall) : Unit = {
@@ -154,7 +147,6 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     val step: ArithExpr = Cst(1)
 
     m.loopVar = Var(m.loopVar.name, RangeAdd(start, length, step))
-    //evaluateMapRange(m)
   }
 
 
@@ -162,18 +154,15 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     m.loopVar = Var(m.loopVar.name, range = RangeAdd(get_local_id(0) /^ OpenCL.warpSize,
       Type.getLength(call.args.head.t),
       localSizes(0) /^ OpenCL.warpSize))
-    //evaluateMapRange(m)
   }
 
   private def setRangeMapLane(m: MapLane, call: FunCall): Unit = {
     m.loopVar = Var(m.loopVar.name, RangeAdd(get_local_id(0) % OpenCL.warpSize,
       Type.getLength(call.args.head.t), OpenCL.warpSize))
-    //evaluateMapRange(m)
   }
 
   private def setRangeMapSeq(m: MapSeq, call: FunCall): Unit = {
     m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
-    //evaluateMapRange(m)
   }
 
   private def setRangeReduceSeq(r: AbstractReduce, call: FunCall): Unit = {
@@ -184,16 +173,6 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   private def setRangeIterate(i: Iterate): Unit = {
     i.indexVar = Var(i.indexVar.name,range = ContinuousRange(Cst(0), i.n))
   }
-
-  /*private def evaluateMapRange(m: AbstractMap): Unit = {
-    m.iterationCount =
-      evaluateRangeForCount(m.loopVar.range.asInstanceOf[RangeAdd])
-  }*/
-
-  /*private def evaluateReduceRange(r: AbstractPartRed): Unit = {
-    r.iterationCount =
-      evaluateRangeForCount(r.loopVar.range.asInstanceOf[RangeAdd])
-  }*/
 
   private def evaluateIterateRange(i: Iterate): Unit = {
     i.iterationCount =

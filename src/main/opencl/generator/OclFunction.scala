@@ -19,6 +19,9 @@ class OclFunction private (name: String, val param: Int, range: Range)
   override lazy val (min : ArithExpr, max: ArithExpr) = (range.min.min, range.max.max)
   override lazy val sign: Sign.Value = Sign.Positive
 
+  override def substituteDiv =
+    new OclFunction(name, param, range.substituteDiv)
+
 }
 
 object OclFunction {

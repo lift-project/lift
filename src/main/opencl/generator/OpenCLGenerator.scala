@@ -11,8 +11,7 @@ import opencl.ir._
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
 
-import scala.collection.{immutable, mutable}
-
+import scala.collection.immutable
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 
@@ -662,8 +661,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapWarpCall(m: MapWarp,
                                   call: FunCall,
                                   block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b) /*,
-                 m.iterationCount*/)
+    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b))
     call.mem match {
       case m: OpenCLMemory => (block: Block) += OpenCLAST.Barrier(m)
       case _ =>
@@ -674,8 +672,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapLaneCall(m: MapLane,
                                   call: FunCall,
                                   block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b) /*,
-                 m.iterationCount*/)
+    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b))
   }
 
   // MapSeq
@@ -1065,20 +1062,24 @@ class OpenCLGenerator extends Generator {
     // try to see if we really need a loop
     indexVar.range.numVals match {
       case Cst(0) =>
-        // zero iteration
+        // zero iterations
         (block: Block) += OpenCLAST.Comment("iteration count is 0, no loop emitted")
         return
+
       case Cst(1) =>
-        // one iteration
-        (block: Block) += OpenCLAST.Comment("iteration count is exactly 1, no loop emitted")
-        val innerBlock = OpenCLAST.Block(Vector.empty)
-        innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
-        generateBody(innerBlock)
-        (block: Block) += innerBlock
+        generateStatement(block, indexVar, generateBody, init)
+        return
+
+      // TODO: See TestInject.injectExactlyOneIterationVariable
+      // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
+      case _ if range.start.min.min == Cst(0) &&
+        range.stop.substituteDiv == range.step.substituteDiv =>
+
+        generateStatement(block, indexVar, generateBody, init)
         return
 
       // TODO: See TestOclFunction.numValues and issue #62
-      case numVals if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
+      case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
         generateIfStatement(block, indexVar, generateBody, init, stop)
         return
       case _ =>
@@ -1096,6 +1097,15 @@ class OpenCLGenerator extends Generator {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
     generateBody(innerBlock)
+  }
+
+  private def generateStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression): Unit = {
+    // one iteration
+    (block: Block) += OpenCLAST.Comment("iteration count is exactly 1, no loop emitted")
+    val innerBlock = OpenCLAST.Block(Vector.empty)
+    innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
+    generateBody(innerBlock)
+    (block: Block) += innerBlock
   }
 
   private def generateIfStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression, stop: ArithExpr): Unit = {
