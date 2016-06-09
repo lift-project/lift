@@ -1,10 +1,7 @@
 package opencl.generator
 
-import apart.arithmetic.{?, Cst}
 import ir.ast.{Expr, FunCall, Lambda}
 import opencl.ir.pattern.MapLcl
-
-class IllegalKernel(msg: String) extends Exception(msg)
 
 object CheckBarriersAndLoops {
 

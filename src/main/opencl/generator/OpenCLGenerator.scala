@@ -13,8 +13,6 @@ import opencl.ir.pattern._
 
 import scala.collection.immutable
 
-class NotPrintableExpression(msg: String) extends Exception(msg)
-
 object OpenCLGenerator extends Generator {
   type NDRange = Array[ArithExpr]
 
@@ -121,10 +119,6 @@ object OpenCLGenerator extends Generator {
     }
   }
 }
-
-class OpenCLGeneratorException(msg: String) extends Exception(msg)
-
-class VariableNotDeclaredError(msg: String) extends OpenCLGeneratorException(msg)
 
 class OpenCLGenerator extends Generator {
 
