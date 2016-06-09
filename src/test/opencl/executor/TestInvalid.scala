@@ -361,4 +361,44 @@ class TestInvalid {
       case _: Throwable => assert(assertion = false)
     }
   }
+
+  @Ignore
+  @Test(expected = classOf[IllegalKernel])
+  def illegalGather(): Unit = {
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => Gather(reverse) o MapSeq(id) $ input
+    )
+
+    Compile(f)
+  }
+
+  @Ignore
+  @Test(expected = classOf[IllegalKernel])
+  def illegalScatter(): Unit = {
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => MapSeq(id) o Scatter(reverse) $ input
+    )
+
+    Compile(f)
+  }
+
+  @Ignore
+  @Test(expected = classOf[IllegalKernel])
+  def conflictingScatter(): Unit = {
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => fun(x => MapSeq(fun(y => add(y._0, y._1))) $ Zip(x, Scatter(reverse) $ x)) o MapSeq(id) $ input
+    )
+
+    Compile(f)
+  }
+
 }
