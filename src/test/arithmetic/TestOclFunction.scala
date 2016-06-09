@@ -27,7 +27,6 @@ class TestOclFunction {
     assertEquals(Cst(1), max)
   }
 
-  @Ignore
   @Test
   def regression0(): Unit = {
     val v_N_5 = Var("N", StartFromRange(1))
