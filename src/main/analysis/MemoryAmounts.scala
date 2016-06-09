@@ -51,19 +51,19 @@ class MemoryAmounts(
 
   private def determine(): Unit = {
 
-    if (substLambda.body.mem == UnallocatedMemory) {
+    if (lambda.body.mem == UnallocatedMemory) {
       // Allocate memory
-      RangesAndCounts(substLambda, localSize, globalSize, valueMap)
-      InferOpenCLAddressSpace(substLambda)
-      OpenCLMemoryAllocator(substLambda)
+      RangesAndCounts(lambda, localSize, globalSize, valueMap)
+      InferOpenCLAddressSpace(lambda)
+      OpenCLMemoryAllocator(lambda)
     }
 
     // Get the allocated buffers
-    val kernelMemory = TypedOpenCLMemory.get(substLambda.body, substLambda.params)
-    val buffers = TypedOpenCLMemory.get(substLambda.body, substLambda.params, includePrivate = true)
+    val kernelMemory = TypedOpenCLMemory.get(lambda.body, lambda.params)
+    val buffers = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true)
 
     valueMemories =
-      Expr.visitWithState(Set[Memory]())(substLambda.body, (lambda, set) =>
+      Expr.visitWithState(Set[Memory]())(lambda.body, (lambda, set) =>
         lambda match {
           case value: ir.ast.Value => set + value.mem
           case _ => set

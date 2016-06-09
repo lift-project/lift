@@ -34,16 +34,16 @@ class ControlFlow(
   private var varDecls: SymbolTable = collection.immutable.Map.empty
 
   // TODO: Duplication with OpenCLGenerator
-  private val memory = TypedOpenCLMemory.get(substLambda.body, substLambda.params)
+  private val memory = TypedOpenCLMemory.get(lambda.body, lambda.params)
 
-  private val valMems = Expr.visitWithState(Set[Memory]())(substLambda.body, (expr, set) =>
+  private val valMems = Expr.visitWithState(Set[Memory]())(lambda.body, (expr, set) =>
     expr match {
       case value: Value => set + value.mem
       case _ => set
     })
 
   private val typedMems =
-    TypedOpenCLMemory.get(substLambda.body, substLambda.params, includePrivate = true).toArray
+    TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true).toArray
 
 
   private val (typedValueMems, privateMems) =
@@ -66,7 +66,7 @@ class ControlFlow(
   varDecls = varDecls ++
     typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
 
-  count(substLambda.body)
+  count(lambda.body)
 
   def getIfStatements(exact: Boolean = false) =
     getExact(ifStatements, exact)

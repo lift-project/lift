@@ -4,7 +4,6 @@ import java.awt.image.BufferedImage
 import java.io.{File, IOException}
 import javax.imageio.ImageIO
 
-import generator.Kernel
 import ir.ast.Lambda
 import org.junit.Assume
 
@@ -265,15 +264,15 @@ object Utils {
 
     val (output: Array[Float], runtime) = Execute(localSize1, localSize2, localSize3,
                                                   globalSize1, globalSize2, globalSize3,
-                                                  injectSizes)(kernel.code, kernel.f, values:_*)
+                                                  injectSizes)(kernel, f, values:_*)
 
-    (output, runtime, kernel.code)
+    (output, runtime, kernel)
   }
 
   def compile(f: Lambda, values: Seq[Any],
               localSize1: Int, localSize2: Int, localSize3: Int,
               globalSize1: Int,  globalSize2: Int, globalSize3: Int,
-              injectSizes: (Boolean, Boolean)) : Kernel = {
+              injectSizes: (Boolean, Boolean)) : String= {
     val valueMap = Execute.createValueMap(f, values:_*)
 
     if (injectSizes._1)

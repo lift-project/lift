@@ -2,7 +2,7 @@ package opencl.generator
 
 import apart.arithmetic._
 import arithmetic.TypeVar
-import generator.{Generator, Kernel}
+import generator.Generator
 import ir._
 import ir.ast._
 import ir.view._
@@ -15,22 +15,20 @@ import scala.collection.immutable
 
 class NotPrintableExpression(msg: String) extends Exception(msg)
 
-class NotI(msg: String) extends Exception(msg)
-
 object OpenCLGenerator extends Generator {
   type NDRange = Array[ArithExpr]
 
-  def generate(f: Lambda): Kernel = {
+  def generate(f: Lambda): String = {
     generate(f, Array(?, ?, ?))
   }
 
-  def generate(f: Lambda, localSizes: NDRange): Kernel = {
+  def generate(f: Lambda, localSizes: NDRange): String = {
     generate(f, localSizes, Array(?, ?, ?), immutable.Map())
   }
 
   // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
-               valueMap: immutable.Map[ArithExpr, ArithExpr]): Kernel = {
+               valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
     (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
   }
 
@@ -64,23 +62,6 @@ object OpenCLGenerator extends Generator {
       globalsFirst.partition(isFixedSizeLocalMemory)
     else
       (Array.empty[TypedOpenCLMemory], globalsFirst)
-  }
-
-  def substitute(f: Lambda, localSize: NDRange, globalSize: NDRange, valueMap: collection.Map[ArithExpr, ArithExpr]): Lambda = {
-    // TODO: Get rid of this.
-    // inject local and global size and valueMap information into the lambda
-    val substitutions = collection.mutable.Map[ArithExpr, ArithExpr]()
-    for (i <- 0 to 2) {
-      val lclsz = localSize(i)
-      if (lclsz != ?)
-        substitutions += ((get_local_size(i), lclsz))
-      val glbsz = globalSize(i)
-      if (glbsz != ?)
-        substitutions += ((get_global_size(i), glbsz))
-    }
-
-    IRNode.visitArithExpr(f, ArithExpr.substitute(_, substitutions))
-      .asInstanceOf[Lambda]
   }
 
   private[generator] def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
@@ -122,27 +103,15 @@ class OpenCLGenerator extends Generator {
     }, (f: Expr) => {})
   }
 
-  def generate(f: Lambda): Kernel = {
+  def generate(f: Lambda): String  = {
     generate(f, Array(?, ?, ?))
   }
 
-  def generate(f: Lambda, localSizes: NDRange): Kernel = {
+  def generate(f: Lambda, localSizes: NDRange): String = {
     generate(f, localSizes, Array(?, ?, ?), immutable.Map())
   }
 
-  // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
-               valueMap: immutable.Map[ArithExpr, ArithExpr]): Kernel = {
-
-    assert(localSize.length == 3)
-    assert(globalSize.length == 3)
-
-    val newF: Lambda = OpenCLGenerator.substitute(f, localSize, globalSize, valueMap)
-    new Kernel(_generate(newF, localSize, globalSize, valueMap), newF)
-  }
-
-
-  def _generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                 valueMap: collection.Map[ArithExpr, ArithExpr]): String = {
 
     if (f.body.t == UndefType)
@@ -201,23 +170,13 @@ class OpenCLGenerator extends Generator {
       }
     })
 
-
     tupleTypes.foreach(globalBlock += OpenCLAST.TypeDef(_))
 
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach(globalBlock += _)
-    //generateLookupFunctionsForGroups(f.body).foreach( globalBlock += _ )
 
     // pass 3: generate the
-    //try {
     globalBlock += generateKernel(f)
-    //} catch {
-    //  case t:Throwable =>
-    //    //println("error")//e.printStackTrace()
-    //    t.printStackTrace()
-    //    throw t
-    //}
-
 
     // return the code generated
     openCLCodeGen(globalBlock)
@@ -288,38 +247,6 @@ class OpenCLGenerator extends Generator {
 
     fs
   }
-
-  /** Traverses f and print all group functions using oclPrinter */
-  /*
-  private def generateLookupFunctionsForGroups(expr: Expr): Seq[OclAstNode] = {
-    var fs = Seq[OclAstNode]()
-
-    val groupFuns = Expr.visitWithState(Set[Group]())(expr, (expr, set) =>
-      expr match {
-        case call: FunCall => call.f match {
-          case group: Group => set + group
-          case _ => set
-        }
-        case _ => set
-      })
-
-    groupFuns.foreach(group => {
-      fs = fs :+ OpenCLAST.Function(
-        name = s"lookup${group.id}",
-        ret = Int,
-        params = List(
-          OpenCLAST.ParamDecl("i", Int)
-        ),
-        body = OpenCLAST.Block(Vector(OpenCLAST.OpenCLCode(
-          s"""|  int table[] = {${group.posIndices.deep.mkString(", ")}};
-              |  return table[i];
-              |""".stripMargin
-        ))))
-    })
-
-    fs
-  }
-  */
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
@@ -691,6 +618,7 @@ class OpenCLGenerator extends Generator {
       case e: Expr =>
         e.t match {
           case a: UnknownLengthArrayType =>
+            // TODO: Emitting a view of type ArrayType is illegal!
             val arrayStart = ViewPrinter.emit(e.view)
             Left(VarRef(e.mem.variable, arrayIndex = ArithExpression(arrayStart)))
           case a: ArrayType => Right(a.len)

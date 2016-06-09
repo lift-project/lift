@@ -728,10 +728,10 @@ class TestMisc {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(16, 2048)(kernel.code, kernel.f, input)
+    val (output: Array[Float], _) = Execute(16, 2048)(kernel, f, input)
 
     assertEquals(input.sum, output.sum, 0.0f)
-    assertEquals(9, "l_id".r.findAllMatchIn(kernel.code).length)
+    assertEquals(9, "l_id".r.findAllMatchIn(kernel).length)
   }
 
   @Test(expected = classOf[OpenCLGeneratorException])

@@ -31,7 +31,7 @@ class TestInject {
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
-    val code = Compile(f, 128,1,1, N, 1, 1, collection.immutable.Map()).code
+    val code = Compile(f, 128,1,1, N, 1, 1, collection.immutable.Map())
 
     assertEquals(0, "for\\s*\\(".r.findAllMatchIn(code).length)
     assertEquals(0, "if\\s*\\(".r.findAllMatchIn(code).length)
