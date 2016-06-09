@@ -542,8 +542,6 @@ class Best {
                     FunCall(TransposeW(),
                       FunCall(Join(),
                         FunCall(Map(fun((p_4) =>
-//                          FunCall(Map(fun((p_5) =>
-//                            FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))),
                             FunCall(TransposeW(),
                               FunCall(Join(),
                                 FunCall(Map(fun((p_6) =>
@@ -551,7 +549,7 @@ class Best {
                                     FunCall(Map(fun((p_7) =>
                                       FunCall(TransposeW(), p_7))),
                                       FunCall(TransposeW(), p_6))))),
-                                  FunCall(TransposeW(), p_4))))))/*)*/,
+                                  FunCall(TransposeW(), p_4)))))),
                           FunCall(TransposeW(),
                             FunCall(toGlobal(fun((p_8) =>
                               FunCall(MapSeq(fun((p_9) =>
@@ -598,26 +596,18 @@ class Best {
                                         FunCall(Zip(2),
                                           FunCall(Get(0), p_17),
                                           FunCall(Split(v__4),
-//                                            FunCall(Gather(ReorderWithStride(v__3 / v__4)),
                                               FunCall(Transpose(),
-                                                FunCall(Get(1), p_16))))))))/*)*/,
+                                                FunCall(Get(1), p_16)))))))),
                                     FunCall(Zip(2), p_14,
                                       FunCall(Split(v__5),
                                         FunCall(Transpose(),
                                           FunCall(Get(0), p_16)))))),
                                   FunCall(toLocal(fun((p_29) =>
                                     FunCall(fun((p_30) =>
-//                                      Unzip() o
                                         fun(x => Tuple(
                                           Split(64) o Join() o toLocal(MapLcl(1)(asScalar() o MapLcl(0)(VectorizeUserFun(4, id)) o asVector(4))) o Split(128) o Join() $ Get(x, 0),
                                           toLocal(MapLcl(1)(asScalar() o MapLcl(0)(VectorizeUserFun(4, id)) o asVector(4))) $ Get(x, 1)
-                                        )) o Unzip()/*o
-                                        MapLcl(1)(fun((p_31) =>
-                                          Tuple(
-                                            asScalar() o MapLcl(0)(VectorizeUserFun(4, id)) o asVector(4) $
-                                              Get(p_31, 0),
-                                            asScalar() o MapLcl(0)(VectorizeUserFun(4, id)) o asVector(4) $
-                                              Get(p_31, 1))))*/ $
+                                        )) o Unzip() $
                                           FunCall(Zip(2),
                                             FunCall(Get(0), p_30),
                                             FunCall(Get(1), p_30))), p_29))), p_15)))),
