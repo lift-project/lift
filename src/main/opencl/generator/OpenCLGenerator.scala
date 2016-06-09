@@ -64,6 +64,54 @@ object OpenCLGenerator extends Generator {
       (Array.empty[TypedOpenCLMemory], globalsFirst)
   }
 
+  def getDifferentMemories(lambda: Lambda) = {
+
+    val valMems = Expr.visitWithState(Set[Memory]())(lambda.body, (expr, set) =>
+      expr match {
+        case value: Value => set + value.mem
+        case _ => set
+      })
+
+    val typedMems =
+      TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true).toArray
+
+    val memory = TypedOpenCLMemory.get(lambda.body, lambda.params)
+
+    val (typedValueMems, privateMems) =
+      typedMems.diff(memory).partition(m => valMems.contains(m.mem))
+
+    // the base type is used for allocation of all variables ...
+    var varDecls =
+      typedMems.map(tm => {
+        if (tm.mem.addressSpace == PrivateMemory) {
+          // do not de-vectorise for private memory
+          (tm.mem.variable, tm.t)
+        } else {
+          (tm.mem.variable, Type.devectorize(tm.t))
+        }
+      }).toMap
+
+    // ... besides the these variables which use the value types
+    // (i.e., possibly a vector type)
+    varDecls = varDecls ++
+      typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
+
+    (typedValueMems, privateMems, varDecls)
+  }
+
+  def getOriginalType(mem: OpenCLMemory,
+    varDecls: immutable.Map[Var, Type]): Type = {
+
+    try {
+      varDecls(mem.variable)
+    } catch {
+      case _: NoSuchElementException =>
+        throw new VariableNotDeclaredError(s"Trying to generate access to variable " +
+          s"${mem.variable} which was not previously declared.")
+    }
+
+  }
+
   private[generator] def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
     mem => try {
       mem.mem.size.eval
@@ -127,6 +175,8 @@ class OpenCLGenerator extends Generator {
     RangesAndCounts(f, localSize, globalSize, valueMap)
     allocateMemory(f)
 
+    ShouldUnroll(f)
+
     if (PerformBarrierElimination())
       BarrierElimination(f)
 
@@ -141,7 +191,7 @@ class OpenCLGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).foreach(m => println(m))
+      TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).foreach(println(_))
       println()
     }
 
@@ -258,40 +308,14 @@ class OpenCLGenerator extends Generator {
     var staticLocalMemory = Array.empty[TypedOpenCLMemory]
   }
 
+
   private def generateKernel(f: Lambda): Declaration = {
 
-    val valMems = Expr.visitWithState(Set[Memory]())(f.body, (expr, set) =>
-      expr match {
-        case value: Value => set + value.mem
-        case _ => set
-      })
+    val someMemories = OpenCLGenerator.getDifferentMemories(f)
 
-    val typedMems =
-      TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).toArray
-
-
-    val (typedValueMems, privateMems) =
-      typedMems.diff(Kernel.memory).partition(m => valMems.contains(m.mem))
-
-
-    this.privateMems = privateMems
-
-    // the base type is used for allocation of all variables ...
-    this.varDecls =
-      typedMems.map(tm => {
-        if (tm.mem.addressSpace == PrivateMemory) {
-          // do not devectorize for private memory
-          (tm.mem.variable, tm.t)
-        } else {
-          (tm.mem.variable, Type.devectorize(tm.t))
-        }
-      }).toMap
-
-    // ... besides the these variables which use the value types
-    // (i.e., possibly a vector type)
-    this.varDecls = this.varDecls ++
-      typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
-
+    val typedValueMems = someMemories._1
+    this.privateMems = someMemories._2
+    varDecls = someMemories._3
 
     val memories = OpenCLGenerator.getMemories(f)
 
@@ -423,7 +447,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapWrgCall(m: MapWrg,
                                  call: FunCall,
                                  block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b)) //,m.iterationCount)
+    generateForLoop(block, m.loopVar, generate(m.f.body, _))
     // TODO: This assumes, that the MapWrg(0) is always the outermost and there
     // is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
@@ -436,7 +460,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapGlbCall(m: MapGlb,
                                  call: FunCall,
                                  block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b)) //, m.iterationCount)
+    generateForLoop(block, m.loopVar, generate(m.f.body, _))
     // TODO: This assumes, that the MapGlb(0) is always the outermost and there
     // is no need for synchronization inside.
     // TODO: Rethink and then redesign this!
@@ -479,7 +503,6 @@ class OpenCLGenerator extends Generator {
     //    )
 
     // declare an index for this thread, the loop variable, and give it a value from the task index
-    // this must be done in a separate statement, as the variable is in LocalMemory, and
     // we only wish for the first thread in the workgroup to perform the operation
     nestedBlock += OpenCLAST.VarDecl(loopVar, opencl.ir.Int, addressSpace = LocalMemory)
     atomicGetTask(nestedBlock)
@@ -506,7 +529,7 @@ class OpenCLGenerator extends Generator {
   private def generateMapLclCall(m: MapLcl,
                                  call: FunCall,
                                  block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b), /* m.iterationCount, */ shouldUnrollLoop(call))
+    generateForLoop(block, m.loopVar, generate(m.f.body, _), m.shouldUnroll)
 
     if (m.emitBarrier)
       (block: Block) += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
@@ -556,40 +579,11 @@ class OpenCLGenerator extends Generator {
       (block: Block) += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
-  // TODO: Separate pass. Information needed elsewhere
-  private def shouldUnrollLoop(call: FunCall): Boolean = {
-    var originalType: Type = UndefType
-    try {
-      originalType = getOriginalType(call.args.head.mem.asInstanceOf[OpenCLMemory])
-    } catch {
-      case _: VariableNotDeclaredError =>
-    }
-    val currentType = call.args.head.t
-
-    val loopingOverVectorComponents = (originalType, currentType) match {
-      case (_: VectorType, ArrayType(_: ScalarType, _)) => true
-      case _ => false
-    }
-
-    loopingOverVectorComponents ||
-      (OpenCLMemory.containsPrivateMemory(call.args.head.mem)
-        && (call.args.head.mem match {
-        case coll: OpenCLMemoryCollection =>
-          coll.subMemories.exists(mem => existsInPrivateMemories(mem))
-        case _ => existsInPrivateMemories(call.args.head.mem)
-      })) ||
-      // Don't unroll just for value
-      OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
-  }
-
-  private def existsInPrivateMemories(mem: Memory): Boolean =
-    privateMems.exists(_.mem == mem)
-
   // MapWarp
   private def generateMapWarpCall(m: MapWarp,
                                   call: FunCall,
                                   block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b))
+    generateForLoop(block, m.loopVar, generate(m.f.body, _))
     call.mem match {
       case m: OpenCLMemory => (block: Block) += OpenCLAST.Barrier(m)
       case _ =>
@@ -600,16 +594,15 @@ class OpenCLGenerator extends Generator {
   private def generateMapLaneCall(m: MapLane,
                                   call: FunCall,
                                   block: Block): Unit = {
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b))
+    generateForLoop(block, m.loopVar, generate(m.f.body, _))
   }
 
   // MapSeq
   private def generateMapSeqCall(m: MapSeq,
                                  call: FunCall,
                                  block: Block): Unit = {
-    val unroll = m.isInstanceOf[MapSeqUnroll] || shouldUnrollLoop(call)
     (block: Block) += OpenCLAST.Comment("map_seq")
-    generateForLoop(block, m.loopVar, (b) => generate(m.f.body, b), unroll)
+    generateForLoop(block, m.loopVar, generate(m.f.body, _), m.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end map_seq")
   }
 
@@ -630,11 +623,9 @@ class OpenCLGenerator extends Generator {
   }
 
   // === Reduce ===
-  private def generateReduceSeqCall(r: AbstractReduce,
+  private def generateReduceSeqCall(r: ReduceSeq,
                                     call: FunCall,
                                     block: Block): Unit = {
-    // TODO: Separate pass. Information needed elsewhere
-    val unroll = r.isInstanceOf[ReduceSeqUnroll] || OpenCLMemory.containsPrivateMemory(call.args(1).mem)
 
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.Comment("reduce_seq")
@@ -655,7 +646,7 @@ class OpenCLGenerator extends Generator {
         generate(r.f.body, innerBlock)
 
       case Right(len: ArithExpr) =>
-        generateForLoop(block, r.loopVar, (b) => generate(r.f.body, b), /*r.iterationCount, */ unroll)
+        generateForLoop(block, r.loopVar, generate(r.f.body, _), r.shouldUnroll)
     }
 
     (block: Block) += OpenCLAST.Comment("end reduce_seq")
@@ -938,7 +929,6 @@ class OpenCLGenerator extends Generator {
   private def generateForLoop(block: Block,
                               indexVar: Var,
                               generateBody: (Block) => Unit,
-                              /*iterationCountExpr: ArithExpr = ?,*/
                               needUnroll: Boolean = false): Unit = {
 
     val range = indexVar.range.asInstanceOf[RangeAdd]
@@ -1091,6 +1081,9 @@ class OpenCLGenerator extends Generator {
       case _ => throw new NotImplementedError()
     }
   }
+
+  private def getOriginalType(mem: OpenCLMemory) =
+    OpenCLGenerator.getOriginalType(mem, varDecls)
 
   /**
     * Generate a simple or vector store.
@@ -1278,18 +1271,6 @@ class OpenCLGenerator extends Generator {
           }
         }
     }
-  }
-
-  private def getOriginalType(mem: OpenCLMemory): Type = {
-
-    try {
-      varDecls(mem.variable)
-    } catch {
-      case _: NoSuchElementException =>
-        throw new VariableNotDeclaredError(s"Trying to generate access to variable " +
-          s"${mem.variable} which was not previously declared.")
-    }
-
   }
 
   /**

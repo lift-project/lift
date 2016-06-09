@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.{?, ArithExpr, PosVar, Var}
+import apart.arithmetic.{PosVar, Var}
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 
@@ -17,7 +17,7 @@ abstract class AbstractPartRed(val f: Lambda,
                                                          with FPattern {
   assert(f.params.length == 2)
 
-  val iterationCount: ArithExpr = loopVar.range.numVals
+  val iterationCount = loopVar.range.numVals
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
