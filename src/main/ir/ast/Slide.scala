@@ -6,11 +6,9 @@ import apart.arithmetic.Cst
 import ir.{TypeException, ArrayType, Type}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-
 /**
  * Slide pattern.
  * Create sliding windows of input
- *
  */
 case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerable {
   Slide.cnt += 1
@@ -34,7 +32,7 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
   /**
    * Define equality operator based on ID to be able to insert [[Slide]] instances
    * into a set properly.
- *
+   *
    * @param other Another object.
    * @return True if the other object is a [[Slide]] instance with the same ID, false otherwise.
    */
@@ -52,7 +50,6 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
 
   /**
    * Define hash based on the ID to identify unique instances in associative containers.
- *
    * @return The hashCode of the id.
    */
   override def hashCode = id.hashCode()
