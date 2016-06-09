@@ -42,16 +42,10 @@ class Analyser(
   if (lambda.body.t == UndefType)
     TypeChecker(lambda)
 
-  // TODO: Somehow only if necessary...
-  val substLambda =
-    if (lambda.body.mem == UnallocatedMemory)
-      OpenCLGenerator.substitute(lambda, localSize, globalSize, valueMap)
-    else lambda
-
-  if (substLambda.body.mem == UnallocatedMemory) {
-    RangesAndCounts(substLambda, localSize, globalSize, valueMap)
-    InferOpenCLAddressSpace(substLambda)
-    OpenCLMemoryAllocator(substLambda)
+  if (lambda.body.mem == UnallocatedMemory) {
+    RangesAndCounts(lambda, localSize, globalSize, valueMap)
+    InferOpenCLAddressSpace(lambda)
+    OpenCLMemoryAllocator(lambda)
   }
 
 

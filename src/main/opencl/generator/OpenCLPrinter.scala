@@ -210,21 +210,38 @@ class OpenCLPrinter {
   }
 
   private def print(l: Load): Unit = {
-    print(s"vload${l.t.len}(")
-    print(l.offset)
-    print(",")
-    print(l.v)
-    print(")")
+      if (!UseCastsForVectors()) {
+      print(s"vload${l.t.len}(")
+      print(l.offset)
+      print(",")
+      print(l.v)
+      print(")")
+    } else {
+      print(s"*( ((${l.openCLAddressSpace} ${l.t}*)")
+      print(l.v)
+      print(s") + ")
+      print(l.offset)
+      print(")")
+    }
   }
 
   private def print(s: Store): Unit = {
-    print(s"vstore${s.t.len}(")
-    print(s.value)
-    print(",")
-    print(s.offset)
-    print(",")
-    print(s.v)
-    print(");")
+    if (!UseCastsForVectors()) {
+      print(s"vstore${s.t.len}(")
+      print(s.value)
+      print(",")
+      print(s.offset)
+      print(",")
+      print(s.v)
+      print(");")
+    } else {
+      print(s"*( ((${s.openCLAddressSpace} ${s.t}*)")
+      print(s.v)
+      print(s") + ")
+      print(s.offset)
+      print(") = ")
+      print(s.value)
+    }
   }
 
   private def print(f: FunctionCall): Unit = {

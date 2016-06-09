@@ -27,9 +27,8 @@ class TestAccessCounts {
     )
 
     val accessCounts = AccessCounts(f)
-    val newF = accessCounts.substLambda
 
-    assertEquals(N * (N /^ globalSize0), accessCounts.getStores(newF.body.mem))
+    assertEquals(N * (N /^ globalSize0), accessCounts.getStores(f.body.mem))
   }
 
   @Test
@@ -41,10 +40,9 @@ class TestAccessCounts {
     )
 
     val accessCounts = AccessCounts(f)
-    val newF = accessCounts.substLambda
 
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.getStores(newF.body.mem))
+      accessCounts.getStores(f.body.mem))
   }
 
   @Test
@@ -56,13 +54,12 @@ class TestAccessCounts {
     )
 
     val accessCounts = AccessCounts(f)
-    val newF = accessCounts.substLambda
 
-    assertEquals(N, accessCounts.getStores(newF.body.mem))
-    assertEquals(2*N, accessCounts.getLoads(newF.params.head.mem))
+    assertEquals(N, accessCounts.getStores(f.body.mem))
+    assertEquals(2*N, accessCounts.getLoads(f.params.head.mem))
 
-    assertEquals(Cst(0), accessCounts.getLoads(newF.body.mem))
-    assertEquals(Cst(0), accessCounts.getStores(newF.params.head.mem))
+    assertEquals(Cst(0), accessCounts.getLoads(f.body.mem))
+    assertEquals(Cst(0), accessCounts.getStores(f.params.head.mem))
   }
 
   @Test

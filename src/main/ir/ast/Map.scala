@@ -1,7 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.{?, ArithExpr, PosVar, Var}
-import arithmetic.TypeVar
+import apart.arithmetic.{PosVar, Var}
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 
@@ -18,8 +17,6 @@ abstract class AbstractMap(val f: Lambda,
                            var loopVar: Var) extends Pattern(arity = 1)
                                                      with FPattern {
   assert(f.params.length == 1)
-
-  //val iterationCount: ArithExpr = loopVar.range.numVals
 
   def iterationCount = loopVar.range.numVals
 

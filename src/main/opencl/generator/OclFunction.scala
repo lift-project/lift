@@ -11,8 +11,6 @@ class OclFunction private (name: String, val param: Int, range: Range)
 
   override val HashSeed = 0x31111111
 
-  override def substituteDiv = this
-
   override def equals(that: Any) = that match {
     case f: OclFunction => this.name.equals(f.name) && this.param == f.param
     case _ => false
@@ -20,6 +18,9 @@ class OclFunction private (name: String, val param: Int, range: Range)
 
   override lazy val (min : ArithExpr, max: ArithExpr) = (range.min.min, range.max.max)
   override lazy val sign: Sign.Value = Sign.Positive
+
+  override def substituteDiv =
+    new OclFunction(name, param, range.substituteDiv)
 
 }
 

@@ -63,14 +63,10 @@ class TestAddressSpaces {
         Join() o MapGlb(toGlobal(MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
     )
 
-    // TODO: Shouldn't have to call compile
-    // TODO: Nothing depends on ranges
-    val res = Compile(f).f
-//    TypeChecker(f)
-//    OpenCLAddressSpace(f)
-//    OpenCLMemoryAllocator(f)
+    TypeChecker(f)
+    InferOpenCLAddressSpace(f)
 
-    assertEquals(GlobalMemory, res.body.addressSpace)
+    assertEquals(GlobalMemory, f.body.addressSpace)
   }
 
   @Test
@@ -82,14 +78,10 @@ class TestAddressSpaces {
         Join() o MapGlb(Scatter(reverse) o toGlobal(MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
     )
 
-    // TODO: Shouldn't have to call compile
-    // TODO: Nothing depends on ranges
-    val res = Compile(f).f
-//    TypeChecker(f)
-//    OpenCLAddressSpace(f)
-//    OpenCLMemoryAllocator(f)
+    TypeChecker(f)
+    InferOpenCLAddressSpace(f)
 
-    assertEquals(GlobalMemory, res.body.addressSpace)
+    assertEquals(GlobalMemory, f.body.addressSpace)
   }
 
   @Test
@@ -101,14 +93,10 @@ class TestAddressSpaces {
         Join() o MapGlb(toGlobal(Scatter(reverse) o MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
     )
 
-    // TODO: Shouldn't have to call compile
-    // TODO: Nothing depends on ranges
-    val res = Compile(f).f
-    //    TypeChecker(f)
-    //    OpenCLAddressSpace(f)
-    //    OpenCLMemoryAllocator(f)
+    TypeChecker(f)
+    InferOpenCLAddressSpace(f)
 
-    assertEquals(GlobalMemory, res.body.addressSpace)
+    assertEquals(GlobalMemory, f.body.addressSpace)
   }
 
   @Test def localGlobalMemory(): Unit = {
@@ -147,9 +135,9 @@ class TestAddressSpaces {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel.code, kernel.f, input)
+    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
 
-    val memories = OpenCLGenerator.getMemories(kernel.f)._2
+    val memories = OpenCLGenerator.getMemories(f)._2
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(2, memories.length)
@@ -175,8 +163,8 @@ class TestAddressSpaces {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel.code, kernel.f, input)
-    val memories = OpenCLGenerator.getMemories(kernel.f)._2
+    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val memories = OpenCLGenerator.getMemories(f)._2
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(3, memories.length)

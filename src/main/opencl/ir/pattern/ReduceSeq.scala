@@ -1,6 +1,6 @@
 package opencl.ir.pattern
 
-import apart.arithmetic.{PosVar, Var}
+import apart.arithmetic.PosVar
 import ir.ast._
 
 case class ReduceSeq(override val f: Lambda)
@@ -8,10 +8,11 @@ case class ReduceSeq(override val f: Lambda)
   assert(f.body.isConcrete)
 
   override def copy(f: Lambda): Pattern = ReduceSeq(f)
+  var shouldUnroll = false
 }
 
 class ReduceSeqUnroll(override val f: Lambda) extends ReduceSeq(f) {
-  override def copy(f: Lambda): Pattern = ReduceSeqUnroll(f)
+  shouldUnroll = true
 }
 
 object ReduceSeqUnroll {

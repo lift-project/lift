@@ -4,7 +4,7 @@ import java.io.{File, IOException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
-import apart.arithmetic.{ArithExpr, Var}
+import apart.arithmetic.ArithExpr
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import ir.{Type, TypeChecker}
@@ -90,7 +90,7 @@ object ParameterRewrite {
 
             val st = createValueMap(high_level_expr_orig)
             val sizesForFilter = st.values.toSeq
-            val vars = Seq.fill(sizesForFilter.length)(Var(""))
+            val vars = getVars(high_level_expr_orig)
 
             val high_level_expr = replaceInputTypes(high_level_expr_orig, st)
 
@@ -209,11 +209,14 @@ object ParameterRewrite {
     Eval(readFromFile(filename))
 
   def createValueMap(lambda: Lambda): Map[ArithExpr, ArithExpr] = {
-    val vars = lambda.params.flatMap(_.t.varList).distinct
+    val vars = getVars(lambda)
 
     vars.foldLeft(Map[ArithExpr, ArithExpr]())((st, v) =>
       st.updated(v, SearchParameters.matrix_size))
   }
+
+  def getVars(lambda: Lambda) =
+    lambda.params.flatMap(_.t.varList).distinct
 
   def replaceInputTypes(lambda: Lambda, st: Map[ArithExpr, ArithExpr]): Lambda = {
     val tunable_nodes = Utils.findTunableNodes(lambda).reverse

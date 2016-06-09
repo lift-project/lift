@@ -1,7 +1,6 @@
 package opencl.executor
 
 import apart.arithmetic.{ArithExpr, Cst, Var}
-import generator.Kernel
 import ir._
 import ir.ast._
 import opencl.generator.{OpenCLGenerator, Verbose}
@@ -118,11 +117,14 @@ object Execute {
    */
   private def ValidateNDRange(globalSize: Int, localSize: Int, dim: Int): Unit = {
     if (localSize <= 0)
-      throw new InvalidLocalSizeException(s"Local size ($localSize) cannot be negative in dim $dim")
+      throw new InvalidLocalSizeException(
+        s"Local size ($localSize) cannot be negative in dim $dim")
     if (globalSize <= 0)
-      throw new InvalidGlobalSizeException(s"Global size ($globalSize) cannot be negative in dim $dim")
+      throw new InvalidGlobalSizeException(
+        s"Global size ($globalSize) cannot be negative in dim $dim")
     if (globalSize % localSize != 0)
-      throw new InvalidIndexSpaceException(s"Global size ($globalSize) is not divisible by local size ($localSize) in dim $dim")
+      throw new InvalidIndexSpaceException(
+        s"Global size ($globalSize) is not divisible by local size ($localSize) in dim $dim")
   }
 }
 
@@ -143,7 +145,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
               val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
 
   /**
-   * Given just a string: evaluate the string into a lambda and then call the function below
+   * Given just a string: evaluate the string into a lambda and
+   * then call the function below
    */
   def apply(input: String, values: Any*): (Any, Double) = {
     apply(Eval(input), values: _*)
@@ -155,7 +158,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   def apply(f: Lambda, values: Any*): (Any, Double) = {
     val kernel = compile(f, values:_*)
 
-    execute(kernel.code, kernel.f, values: _*)
+    execute(kernel, f, values: _*)
   }
 
   /**
@@ -164,18 +167,18 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   def apply(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
     val kernel = compile(f, values:_*)
 
-    benchmark(iterations, timeout, kernel.code, kernel.f, values:_*)
+    benchmark(iterations, timeout, kernel, f, values:_*)
   }
 
   def evaluate(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
     val kernel = compile(f, values:_*)
 
-    evaluate(iterations, timeout, kernel.code, kernel.f, values:_*)
+    evaluate(iterations, timeout, kernel, f, values:_*)
   }
 
 
 
-  private def compile(f: Lambda, values: Any*) : Kernel = {
+  private def compile(f: Lambda, values: Any*) : String = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
       // ... build map of values mapping size information to arithmetic expressions, e.g., ???
@@ -259,7 +262,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     checkParamsWithValues(f.params, values)
 
     // 2. create map associating Variables, e.g., SizeVar("N"), with values, e.g., "1024".
-    val valueMap: immutable.Map[ArithExpr, ArithExpr] = Execute.createValueMap(f, values: _*)
+    val valueMap = Execute.createValueMap(f, values: _*)
 
     // 3. make sure the device has enough memory to execute the kernel
     validateMemorySizes(f, valueMap)
@@ -336,16 +339,15 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
         outputData.asDoubleArray()
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double16) =>
         outputData.asDoubleArray()
-      case _ => throw new IllegalArgumentException("Return type of the given lambda expression " +
-                                                   "not supported: " + t.toString)
+      case _ => throw new IllegalArgumentException(
+        s"Return type of the given lambda expression not supported: $t")
     }
   }
 
   private def checkParamsWithValues(params: Seq[Param], values : Seq[Any]): Unit = {
-    if (params.length != values.length) {
-      throw new IllegalArgumentException("Expected " + params.length + " parameters, but " +
-                                         values.length + " given")
-    }
+    if (params.length != values.length)
+      throw new IllegalArgumentException(
+        s"Expected ${params.length} parameters, but ${values.length} given")
 
     (params, values).zipped.foreach( (p, v) => checkParamWithValue(p.t, v) )
   }
@@ -355,25 +357,12 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     (t, v) match {
       case (at: ArrayType, av: Array[_]) => checkParamWithValue(at.elemT, av(0))
       case (Float,   _: Float) => // fine
-      case (Float2,  _: Float) => //fine
-      case (Float3,  _: Float) => //fine
-      case (Float4,  _: Float) => //fine
-      case (Float8,  _: Float) => //fine
-      case (Float16, _: Float) => //fine
-
       case (Int,   _: Int) => // fine
-      case (Int2,  _: Int) => //fine
-      case (Int3,  _: Int) => //fine
-      case (Int4,  _: Int) => //fine
-      case (Int8,  _: Int) => //fine
-      case (Int16, _: Int) => //fine
-
       case (Double,   _: Double) => // fine
-      case (Double2,  _: Double) => //fine
-      case (Double3,  _: Double) => //fine
-      case (Double4,  _: Double) => //fine
-      case (Double8,  _: Double) => //fine
-      case (Double16, _: Double) => //fine
+
+      case (VectorType(Float, _), _) => //fine
+      case (VectorType(Int, _), _) => //fine
+      case (VectorType(Double, _), _) => //fine
 
       // handle tuples if all their components are of the same type
       case (tt: TupleType, _: Float)
@@ -382,9 +371,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
       case (tt: TupleType, _: Double)
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
-      case _ => throw new IllegalArgumentException("Expected value of type " + t.toString + ", " +
-                                                   "but " + "value of type " + v.getClass
-                                                                               .toString + " given")
+      case _ => throw new IllegalArgumentException(
+        s"Expected value of type $t, but value of type ${v.getClass} given")
     }
   }
 
@@ -438,16 +426,16 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
   }
 
   private def createSizeArgs(f: Lambda,
-                             valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
+    valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
     // get the variables from the memory objects associated with the generated kernel
-    val allVars = OpenCLGenerator.getMemories(f)._2.map(mem => {
-      mem.mem.size.varList
-    } ).filter(_.nonEmpty).flatten.distinct
+    val allVars = OpenCLGenerator.getMemories(f)._2.map(
+      _.mem.size.varList
+     ).filter(_.nonEmpty).flatten.distinct
     // select the variables which are not (internal) iteration variables
     val (vars, _) = allVars.partition(_.name != Iterate.varName)
 
     // go through all size variables associated with the kernel
-    vars.map( v => {
+    vars.sortBy(_.name).map( v => {
       // look for the variable in the parameter list ...
       val i = f.params.indexWhere( p => p.t.varList.contains(v) )
       // ... if found look up the runtime value in the valueMap and create kernel argument ...
@@ -488,8 +476,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
         case aaad: Array[Array[Array[Double]]] => global.input(aaad.flatten.flatten)
         case aaaad: Array[Array[Array[Array[Double]]]] => global.input(aaaad.flatten.flatten.flatten)
 
-        case _ => throw new IllegalArgumentException("Kernel argument is of unsupported type: " +
-                                                     any.getClass.toString)
+        case _ => throw new IllegalArgumentException(
+          s"Kernel argument is of unsupported type: ${any.getClass}")
       }
     }
   }
@@ -519,8 +507,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
         implicitly[ClassTag[T]] match {
           case ClassTag.Float => GlobalArg.createOutput(length * 4) // in bytes
           case ClassTag.Int => GlobalArg.createOutput(length * 4) // in bytes
-          case tag => throw new IllegalArgumentException("Given type: " + tag.toString() + " not " +
-                                                       "supported")
+          case tag =>
+            throw new IllegalArgumentException(s"Given type: $tag not supported")
         }
       }
     }

@@ -4,11 +4,11 @@ import apart.arithmetic.SizeVar
 import benchmarks.VectorScaling
 import ir._
 import ir.ast._
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir.pattern._
 
 object TestVector {
   @BeforeClass def before(): Unit = {
@@ -45,15 +45,10 @@ class TestVector {
         ) o Split(1024) $ Zip(left, right)
     )
 
-    val kernel = Compile(addFun)
-    val (output: Array[Float], runtime) =
-      Execute(inputSize)(kernel.code, kernel.f, leftInputData, rightInputData)
+    val (output: Array[Float], _) =
+      Execute(inputSize)(addFun, leftInputData, rightInputData)
 
     assertArrayEquals(gold, output, 0.0f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
   }
 
   @Test def VECTOR_NEG_SIMPLE(): Unit = {
