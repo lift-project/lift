@@ -318,7 +318,8 @@ class OpenCLGenerator extends Generator {
             addressSpace = x.mem.addressSpace
           )
         ).toList ++
-          vars.map(x => OpenCLAST.ParamDecl(x.toString, Int)), // size parameters
+          // size parameters
+          vars.sortBy(_.name).map(x => OpenCLAST.ParamDecl(x.toString, Int)),
       body = OpenCLAST.Block(Vector.empty),
       kernel = true)
 

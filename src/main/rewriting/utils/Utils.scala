@@ -284,7 +284,7 @@ object Utils {
     method
   }
 
-  private[utils] def findVariables(fullString: String): List[(String, Int)] = {
+  def findVariables(fullString: String): List[(String, Int)] = {
     val variable = """v_\p{Alnum}*(_id)?_\d+""".r
 
     val vars = variable
