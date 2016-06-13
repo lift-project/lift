@@ -44,6 +44,12 @@ object Rules {
       Join() o Map(Map(f)) o Split(chunkSize) $ arg
   })
 
+  val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {
+    case call@FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg))), arg)
+      if p == mapArg =>
+      Split(Type.getLength(arg.t)) o Map(f) o Join() $ arg
+  })
+
   /* Reduce rules */
 
   val partialReduce = Rule("Reduce(f) => Reduce(f) o PartRed(f)", {

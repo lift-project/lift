@@ -537,6 +537,26 @@ class TestRules {
 
   @Test
   def joinSplit(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Map(id)) $ input
+    )
+
+    TypeChecker(f)
+
+    val g = Rewrite.applyRuleAt(f, f.body, Rules.joinSplit)
+    val h = Rewrite.applyRulesUntilCannot(g, Seq(Rules.mapGlb))
+
+    val input = Array.fill[Float](128, 128)(util.Random.nextFloat())
+
+    val (result:Array[Float], _) = Execute(128)(h, input)
+
+    assertArrayEquals(input.flatten, result, 0.0f)
+    assertEquals(ArrayType(ArrayType(Float, N), N), h.body.t)
+  }
+
+  @Test
+  def joinSplitId(): Unit = {
     val goldF = fun(
       ArrayType(Float, N),
       input => MapGlb(id) $ input
@@ -561,7 +581,7 @@ class TestRules {
   }
 
   @Test
-  def splitJoin(): Unit = {
+  def splitJoinId(): Unit = {
     val A = Array.fill[Float](128, 4)(0.5f)
 
     val goldF = fun(
