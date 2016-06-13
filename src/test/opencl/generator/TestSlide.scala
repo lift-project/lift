@@ -46,12 +46,14 @@ class TestSlide {
     else
       MapSeq(g)
 
-  val gaussWeights = Array(0f, 0.12f, 0.08f,
+  val gaussWeights = Array(
+      0.08f, 0.12f, 0.08f,
       0.12f, 0.20f, 0.12f,
       0.08f, 0.12f, 0.08f)
-  val sobelWeights = Array(-1, -2, -1,
-      0, 0, 0,
-      1, 2, 1).map(_.toFloat)
+  val sobelWeights = Array(
+      -1, -2, -1,
+       0,  0,  0,
+       1,  2,  1).map(_.toFloat)
 
   // todo eventually move to select primitive
   @Test def lookupSimplfication(): Unit = {
@@ -137,43 +139,8 @@ class TestSlide {
   }
 
   /* **********************************************************
-      GROUP 1D
+      SLIDE 1D
    ***********************************************************/
-  /*
-  @Test def checkInformationLossRight(): Unit = {
-    val gold = Array(1,2,3,4).map(_.toFloat)
-    val indices = Array(1)
-
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
-    println(output.mkString(","))
-    compareGoldWithOutput(gold, output, runtime)
-  }
-
-  @Test def checkInformationLossLeft(): Unit = {
-    val gold = Array(0,1,2,3).map(_.toFloat)
-    val indices = Array(-1)
-
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
-    compareGoldWithOutput(gold, output, runtime)
-  }
-
-  @Test def checkInformationLossLeftBig(): Unit = {
-    val gold = Array(0,1,1,2,2,3).map(_.toFloat)
-    val indices = Array(-2,-1)
-
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
-    compareGoldWithOutput(gold, output, runtime)
-  }
-
-  @Test def checkInformationLossRighBig(): Unit = {
-    val gold = Array(1,2,2,3,3,4).map(_.toFloat)
-    val indices = Array(1,2)
-
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
-    compareGoldWithOutput(gold, output, runtime)
-  }
-  */
-
   @Test def groupLeftCurrentRight(): Unit = {
     val gold = Array(0,1,2, 1,2,3, 2,3,4).map(_.toFloat)
 
@@ -188,7 +155,7 @@ class TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
-  @Test def slideWithGapBig(): Unit = {
+  @Test def slideWithBiggerGap(): Unit = {
     val data = Array(0,1,2,3,4,5,6,7,8,9,10).map(_.toFloat)
     val gold = data.sliding(2,4).toArray.flatten
     val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(2,4), data)
@@ -203,7 +170,7 @@ class TestSlide {
      compareGoldWithOutput(gold, output, runtime)
   }
 
-  @Test def groupCenter2Halo1(): Unit = {
+  @Test def slideWidth4Step2(): Unit = {
     val gold = Array(0,1,2,3, 2,3,4,5).map(_.toFloat)
     val data = Array(0,1,2,3,4,5).map(_.toFloat)
 
@@ -212,39 +179,20 @@ class TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
-  @Test def groupIdentity(): Unit = {
+  @Test def slideIdentity(): Unit = {
     val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(1,1), data)
     compareGoldWithOutput(data, output, runtime)
   }
 
-  /* No longer defined
-  @Test def groupLeftGapTwoToTheRight(): Unit = {
-    val gold = Array(0, 3, 1, 4).map(_.toFloat)
-    val indices = Array(-1, 2)
-
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
-    compareGoldWithOutput(gold, output, runtime)
-  }
-
-  @Test def groupTwoLeftTwoRight(): Unit = {
-    val data = Array(0, 1, 2, 3, 4, 5).map(_.toFloat)
-    val gold = Array(0, 1, 3, 4, 1, 2, 4, 5).map(_.toFloat)
-    val indices = Array(-2, -1, 1, 2)
-
-    val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(indices), data)
-    compareGoldWithOutput(gold, output, runtime)
-  }
-  */
-
   /* **********************************************************
       GROUP 2D
    ***********************************************************/
-  @Test def group2DIdentity(): Unit = {
+  @Test def slide2DIdentity(): Unit = {
     val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(1,1), data2D)
     compareGoldWithOutput(data2D.flatten, output, runtime)
   }
 
-  @Test def group2DIdentityTile(): Unit = {
+  @Test def slide2DIdentityTile(): Unit = {
     val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(4,2), data2D)
     compareGoldWithOutput(data2D.flatten, output, runtime)
   }
@@ -261,14 +209,13 @@ class TestSlide {
     val tileStep = 14
     val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
     val gold = scalaSlide2D(data2D, tileSize,tileStep,tileSize,tileStep)
-    println("test")
     val (output: Array[Float], runtime: Double) = createGroup2D(createSimple2DGroupLambda(tileSize,tileStep), data2D)
 
     compareGoldWithOutput(gold.flatten.flatten.flatten, output, runtime)
   }
 
   /**
-    * Grouping a 2D data structure results in a 4D data structure.
+    * Sliding a 2D data structure results in a 4D data structure.
     * Creating a 9 Point Neighbourhood of a 4x4 Array results in a
     * 2x2x3x3 Array. Each gold version below corresponds to a
     * Neighbourhood of one element of the input array
@@ -344,23 +291,6 @@ class TestSlide {
     println(output.mkString(","))
     compareGoldWithOutput(gold, output, runtime)
   }
-  /*
-  /**
-    * Creates an assymetric grouping of a 2D data structure
-    */
-  @Test def group2DAssymetric(): Unit = {
-    val data2D = Array.tabulate(5, 5) { (i, j) => i * 5.0f + j }
-    val gold = Array(0, 3, 15, 18,
-      1, 4, 16, 19,
-      5, 8, 20, 23,
-      6, 9, 21, 24).map(_.toFloat)
-    val relRows = Array(-2, 1)
-    val relCols = Array(-1, 2)
-
-    val (output: Array[Float], runtime: Double) = createGroup2D(createAsymmetric2DGroupLambda(relRows, relCols), data2D)
-    compareGoldWithOutput(gold, output, runtime)
-  }
-  */
 
   /* **********************************************************
    2D STENCILS WITHOUT PADDING
@@ -440,8 +370,8 @@ class TestSlide {
       val (_, runtime) = Execute(1, 1, width, height, (false, false))(f, randomData2D, weights)
       println("Runtime: " + runtime)
 
-//      val outOfBoundElementsX = size + (size - step) / 2 //todo only true if symmetric padding! check this
-      //savePGM(name, outputLocation, output.grouped(width - outOfBoundElementsX).toArray)
+      // val outOfBoundElementsX = size + (size - step) / 2 //todo only true if symmetric padding! check this
+      // savePGM(name, outputLocation, output.grouped(width - outOfBoundElementsX).toArray)
 
     } catch {
       case x: Exception => x.printStackTrace()
@@ -451,17 +381,11 @@ class TestSlide {
   /**
     * Computation of gaussian blur using a .pgm file
     * Uses no padding which causes the output picture to be smaller than the input
+    *
+    * Used to actually produce images
     */
   @Test def gaussianBlurNoPad(): Unit = {
     runSimple2DStencilWithoutPadding(3,1, gaussWeights, "gaussNoPad.pgm")
-  }
-
-  /**
-    * Computation of sobel filter using a .pgm file
-    * Uses no padding which causes the output picture to be smaller than the input
-    */
-  @Test def sobelFilterNoPad(): Unit = {
-    runSimple2DStencilWithoutPadding(3,1, sobelWeights, "sobelNoPad.pgm")
   }
 
   /* **********************************************************

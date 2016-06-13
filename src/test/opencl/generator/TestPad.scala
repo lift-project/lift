@@ -65,20 +65,6 @@ class TestPad {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  def validate2DOriginal(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun): Unit = {
-    val fct = fun(
-      ArrayType(Float, SizeVar("N")),
-      (domain) => MapGlb(id) o Join()
-        o Transpose() o Pad(left, right, boundary)
-        o Transpose() o Pad(left, right, boundary)
-        o Split(4) $ domain
-    )
-
-    val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input)
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.0f)
-  }
-
   /* **********************************************************
         PAD 1D
      ***********************************************************/
@@ -107,7 +93,7 @@ class TestPad {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Ignore // need to fail!
+  @Ignore // needs to fail! todo change to check for failure
   @Test def joinMapPadRewrite(): Unit = {
     val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
     val bf = Pad.Boundary.Clamp
@@ -353,7 +339,7 @@ class TestPad {
   }
 
     /* **********************************************************
-        OLD STUFF WHICH MIGHT TURN OUT USEFUL
+        OLD STUFF WHICH MIGHT TURN OUT TO BE USEFUL
      ***********************************************************/
   /*
   // === Test custom boundary condition ===

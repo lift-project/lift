@@ -6,8 +6,7 @@ import ir.{TypeException, ArrayType, Type}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
-  extends Pattern(arity = 1) with isGenerable
-{
+  extends Pattern(arity = 1) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
@@ -40,6 +39,13 @@ object Pad {
     object Wrap extends ReindexingFun {
       override def apply(idx: ArithExpr, len: ArithExpr) = {
         (idx % len + len) % len
+      }
+    }
+
+    // Pad size is not allowed to exceed input size
+    object WrapUnsafe extends ReindexingFun {
+      override def apply(idx: ArithExpr, len: ArithExpr) = {
+        (idx + len) % len
       }
     }
 
