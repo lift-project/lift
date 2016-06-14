@@ -77,24 +77,24 @@ object Stencil2D{
   }
 
   def tiledNinePoint2DStencil(boundary: Pad.BoundaryFun, tileSize: Int, tileStep: Int) = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
-      ArrayType(Float, weights.length),
-      (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+    ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+    ArrayType(Float, weights.length),
+    (matrix, weights) => {
+      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
 
-          MapLcl(1)(MapLcl(0)(
-            fun(elem => {
-              toGlobal(MapSeqUnroll(makePositive)) o
-                ReduceSeqUnroll(fun((acc, pair) => {
-                  val pixel = Get(pair, 0)
-                  val weight = Get(pair, 1)
-                  multAndSumUp.apply(acc, pixel, weight)
-                }), 0.0f) $ Zip(Join() $ elem, weights)
-            })
+        MapLcl(1)(MapLcl(0)(
+          fun(elem => {
+            toGlobal(MapSeqUnroll(makePositive)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
 
-          )) o Slide2D(3, 1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-        ))) o Slide2D(tileSize, tileStep) o Pad2D(1,1, boundary)$ matrix
-      }
+        )) o Slide2D(size, step) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+      ))) o Slide2D(tileSize, tileStep) o Pad2D(left,right, boundary)$ matrix
+    }
   )
 
   def TiledCopy(boundary: Pad.BoundaryFun): Lambda = fun(
@@ -114,6 +114,7 @@ object Stencil2D{
       ("9_POINT_2D_STENCIL_MIRROR_UNSAFE", Array[Lambda](ninePoint2DStencil(Pad.Boundary.MirrorUnsafe))),
       ("9_POINT_2D_STENCIL_WRAP", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Wrap))),
       ("9_POINT_2D_STENCIL_MIRROR", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Mirror))),
+      ("TILED_9P2D_WRAP_10/8", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 10,8))),
       ("TILED_9P2D_WRAP_18/16", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 18,16))),
       ("TILED_9P2D_WRAP_34/32", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 34,32))),
       ("TILED_9P2D_WRAP_66/64", Array[Lambda](tiledNinePoint2DStencil(Pad.Boundary.Wrap, 66,64)))
