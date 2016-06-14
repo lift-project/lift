@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.{SizeVar, Var}
+import apart.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast.{Pad2D, _}
@@ -60,7 +60,7 @@ object Stencil2D{
 
   def ninePoint2DStencil(boundary: BoundaryFun): Lambda2 = {
     fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
@@ -72,12 +72,12 @@ object Stencil2D{
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Slide2D(size, step) o Pad2D(left, right, boundary) $ matrix
+        ) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
       })
   }
 
   def tiledNinePoint2DStencil(boundary: Pad.BoundaryFun, tileSize: Int, tileStep: Int) = fun(
-    ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
     ArrayType(Float, weights.length),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>

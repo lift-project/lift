@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, StartFromRange, Var}
+import apart.arithmetic.{Cst, SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
@@ -276,7 +276,7 @@ class TestStencil extends TestSlide {
                             left: Int, right: Int,
                             weights: Array[Float], boundary: BoundaryFun): Lambda2 = {
     fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
@@ -300,6 +300,8 @@ class TestStencil extends TestSlide {
                    boundary: BoundaryFun): Unit = {
     try {
       //val (width, height, input) = readInputImage(lenaPGM)
+
+      // be carefull when choosing small input size because of 'StartsFromRange(100)'
       val width = randomData2D(0).length
       val height = randomData2D.length
 
@@ -425,7 +427,7 @@ class TestStencil extends TestSlide {
                            left: Int, right: Int,
                            weights: Array[Float],
                            boundary: Pad.BoundaryFun): Lambda = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -469,6 +471,7 @@ class TestStencil extends TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiling2DBiggerTiles(): Unit = {
     val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
     val tiled: Lambda = createTiled2DStencil(3,1, 10,8, 1,1, gaussWeights, BOUNDARY)
@@ -478,6 +481,7 @@ class TestStencil extends TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiled2D9PointStencil(): Unit = {
     val tiled: Lambda = createTiled2DStencil(3,1, 4,2, 1,1, gaussWeights, BOUNDARY)
     run2DStencil(tiled, 3,1, 1,1, gaussWeights, "notUsed", BOUNDARY)
