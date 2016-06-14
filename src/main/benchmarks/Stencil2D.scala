@@ -1,10 +1,9 @@
 package benchmarks
 
-import apart.arithmetic.Var
-
-
+import apart.arithmetic.{SizeVar, Var}
 import ir._
-import ir.ast._
+import ir.ast.Pad.BoundaryFun
+import ir.ast.{Pad2D, _}
 import opencl.ir._
 import opencl.ir.pattern._
 import opencl.executor.Utils
@@ -59,9 +58,10 @@ object Stencil2D{
     Utils.scalaCompute2DStencil(input, size, step, size, step, left, right, weights, scalaBoundary)
   }
 
-  def ninePoint2DStencil(boundary: Pad.BoundaryFun): Lambda = fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      ArrayType(Float, 9),
+  def ninePoint2DStencil(boundary: BoundaryFun): Lambda2 = {
+    fun(
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayType(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -72,11 +72,12 @@ object Stencil2D{
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
+        ) o Slide2D(size, step) o Pad2D(left, right, boundary) $ matrix
       })
+  }
 
-  def tiledNinePoint2DStencil(boundary: Pad.BoundaryFun, tileSize: Int, tileStep: Int): Lambda = fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
+  def tiledNinePoint2DStencil(boundary: Pad.BoundaryFun, tileSize: Int, tileStep: Int) = fun(
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
