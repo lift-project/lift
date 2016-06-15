@@ -35,8 +35,8 @@ object CAST {
                            t:Type) extends Declaration
 
   /**
-    * Represents a C variable declaration. Scalar and Arrays are both implemented with this node, just set
-    * size = 0 for scalar. The init block is optional by setting it to null
+    * Represents a C variable declaration. Scalar and Arrays are both implemented with this node, just set size to None
+    * for Scalar, or give a Some value for array. The init block is optional by setting it to null
     * @param v The variable of the declaration
     * @param t The type of the variable
     * @param size The size of the variable, 0 for a scalar, else array size
@@ -44,7 +44,7 @@ object CAST {
     */
   case class VarDecl(v:Var,
                      t:Type,
-                     size:ArithExpr,
+                     size:Option[ArithExpr],
                      init:Expression) extends Declaration
 
   /**
@@ -58,6 +58,15 @@ object CAST {
     * @param decl
     */
   case class DeclStatement(decl:Declaration) extends Statement
+
+  /**
+    * A C variable assignment. Target is the variable to assign to, index is an optional index to implement
+    * array access. Rhs in an arbitary expression
+    * @param target
+    * @param index
+    * @param rhs
+    */
+  case class AssignmentStatement(target:Var, index:Option[ArithExpr], rhs:Expression) extends Statement
 
   /**
     * Turns an expression into a statement
