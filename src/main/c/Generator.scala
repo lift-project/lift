@@ -1,4 +1,4 @@
-+package c
+package c
 import c.AST._
 import c.Pattern.MapSeq
 import ir.ast.{Expr, FunCall, FunDecl, Lambda, Param, Value}
@@ -40,7 +40,6 @@ object Generator {
 
     //TOASK: Is the assumption that variable x in lambda body is the same as ARRAY x in expression to which the lambda
     //is applied? If so, map (x -> x + 1) (e(ls)) should result in some C like
-
     //x = e(ls) <- generated in generateFunCall, x is an array
     //for(int i = 0; i < sizeof(x), i++) {
     //x[i] = x[i] + 1
