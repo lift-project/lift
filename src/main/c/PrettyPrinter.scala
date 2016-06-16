@@ -1,11 +1,11 @@
 package c
-import CAST._
+import AST._
 import apart.arithmetic.{ArithExpr, Cst, Sum, Var}
-import c.CType.Int32
+import c.Type.Int32
 /**
   * Created by Federico on 14-Jun-16.
   */
-object CPrettyPrinter {
+object PrettyPrinter {
 
   def prettyPrint(node:CNode): String = node match {
     case FunctionDecl(name, returnType, parameters, body) =>
@@ -16,7 +16,8 @@ object CPrettyPrinter {
     case AssignmentStatement(target,index,rhs) => s"$target${optArrayBrackets(index)} = ${prettyPrint(rhs)}"
     case DeclStatement(decl) => prettyPrint(decl)
     case ExpressionStatement(exp) => prettyPrint(exp) ++ ";\n"
-    case PragmaStatement(str) => "#pragma " ++ str
+    case CommentStatement(str) => s"//$str\n"
+    case PragmaStatement(str) => s"#pragma $str\n"
     case WhileLoop(cond, body) => "while " ++ parens(prettyPrint(cond)) ++ brakets(prettyPrint(body))
     case IfThenElse(cond, tb, fb) => {
       val trueBranch = brakets(prettyPrint(tb))

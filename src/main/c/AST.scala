@@ -6,7 +6,7 @@ import ir.Type
 /**
   * Created by Federico on 14-Jun-16.
   */
-object CAST {
+object AST {
   sealed trait CNode
   trait BlockMember
 
@@ -73,6 +73,12 @@ object CAST {
     * @param e
     */
   case class ExpressionStatement(e: Expression) extends Statement
+
+  /**
+    * Represents a comment line in C
+    * @param str
+    */
+  case class CommentStatement(str:String) extends Statement
 
   /**
     * A C pragma directive. Pass in only the specific part of the pragma, the #pragma part is automatically
