@@ -357,9 +357,9 @@ class TestStencil extends TestSlide {
   }
 
   @Test def blurX(): Unit = {
-    val weights = Array(1.0f, 1.0f, 1.0f)
-    val stencil = createSimple2DStencil(1,1,8,1, 0,0,8,8, weights, Pad.Boundary.Wrap,2)
-    run2DStencil(stencil, 1,1,8,1, 0,0,8,8, weights, "notUsed", scalaWrap)
+    val weights = Array.fill[Float](17)(1.0f)
+    val stencil = createSimple2DStencil(1,1,17,1, 0,0,8,8, weights, Pad.Boundary.Wrap,2)
+    run2DStencil(stencil, 1,1,17,1, 0,0,8,8, weights, "notUsed", scalaWrap)
   }
 
  /* **********************************************************

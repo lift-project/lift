@@ -44,18 +44,21 @@ object Stencil2D{
     if(id >= length) length+length-id-1 else id
   }
 
-  val size = 3
-  val step = 1
-  val left = 1
-  val right = 1
-  val scalaBoundary = scalaWrap
+  val size1 = 1
+  val step1 = 1
+  val size2 = 17
+  val step2 = 1
+  val top = 0
+  val bottom = 0
+  val left = 8
+  val right = 8
+  val scalaBoundary = scalaClamp
   val makePositive = UserFun("makePositive", "i", "{ return (i < 0) ? 0 : i;  }", Float, Float)
-  val weights = Array(0f, 0.12f, 0.08f,
-      0.12f, 0.20f, 0.12f,
-      0.08f, 0.12f, 0.08f)
+  //val weights = Array(0f, 0.12f, 0.08f, 0.12f, 0.20f, 0.12f, 0.08f, 0.12f, 0.08f)
+  val weights = Array.fill[Float](17)(1.0f)
 
   def runScala(input: Array[Array[Float]]): Array[Float] = {
-    Utils.scalaCompute2DStencil(input, size, step, size, step, left, right, weights, scalaBoundary)
+    Utils.scalaCompute2DStencil(input, size1, step1, size2, step2, top, bottom, left, right, weights, scalaBoundary)
   }
 
   def ninePoint2DStencil(boundary: BoundaryFun): Lambda2 = {
@@ -72,7 +75,7 @@ object Stencil2D{
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
+        ) o Slide2D(size1, step1, size2, step2) o Pad2D(top, bottom, left, right, boundary)$ matrix
       })
   }
 
@@ -84,7 +87,7 @@ object Stencil2D{
 
         MapLcl(1)(MapLcl(0)(
           fun(elem => {
-            toGlobal(MapSeqUnroll(makePositive)) o
+            toGlobal(MapSeqUnroll(id)) o
               ReduceSeqUnroll(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
@@ -92,7 +95,7 @@ object Stencil2D{
               }), 0.0f) $ Zip(Join() $ elem, weights)
           })
 
-        )) o Slide2D(size, step) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        )) o Slide2D(size1, step1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
       ))) o Slide2D(tileSize, tileStep) o Pad2D(left,right, boundary)$ matrix
     }
   )
@@ -110,6 +113,7 @@ object Stencil2D{
 
   def apply() = new Stencil2D(
     Seq(
+      ("BLUR_X_CLAMP", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Clamp))),
       ("9_POINT_2D_STENCIL_CLAMP", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Clamp))),
       ("9_POINT_2D_STENCIL_MIRROR_UNSAFE", Array[Lambda](ninePoint2DStencil(Pad.Boundary.MirrorUnsafe))),
       ("9_POINT_2D_STENCIL_WRAP", Array[Lambda](ninePoint2DStencil(Pad.Boundary.Wrap))),
