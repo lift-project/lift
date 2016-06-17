@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{Cst, SizeVar, StartFromRange, Var}
+import apart.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
@@ -73,7 +73,6 @@ class TestStencil extends TestSlide {
       }
     )
   }
-
 
   /* **********************************************************
       SLIDE o PAD
@@ -227,7 +226,7 @@ class TestStencil extends TestSlide {
                               boundary: BoundaryFun,
                               scalaBoundary: (Int, Int) => Int,
                               data: Array[Array[Float]] = data2D): Unit = {
-    val gold = Utils.scalaGenerate2DNeighbours(data, size, step, size, step, left,right, scalaBoundary)
+    val gold = Utils.scalaGenerate2DNeighbours(data, size, step, size, step, left,right, left, right, scalaBoundary)
     val goldFlat = gold.flatten.flatten.flatten
 
     val lambda = create2DPadSlideLambda(boundary, size, step, left, right)
@@ -274,9 +273,21 @@ class TestStencil extends TestSlide {
   ***********************************************************/
   def createSimple2DStencil(size: Int, step: Int,
                             left: Int, right: Int,
-                            weights: Array[Float], boundary: BoundaryFun): Lambda2 = {
+                            weights: Array[Float],
+                            boundary: BoundaryFun,
+                            fromRange: Int): Lambda2 = {
+    createSimple2DStencil(size, step, size, step, left, right, left, right, weights, boundary, fromRange)
+  }
+
+  def createSimple2DStencil(size1: Int, step1: Int,
+                            size2: Int, step2: Int,
+                            top: Int, bottom: Int,
+                            left: Int, right: Int,
+                            weights: Array[Float],
+                            boundary: BoundaryFun,
+                            fromRange: Int): Lambda2 = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(fromRange))), Var("M", StartFromRange(fromRange))),
       ArrayType(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
@@ -288,16 +299,18 @@ class TestStencil extends TestSlide {
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
+        ) o Slide2D(size1, step1, size2, step2) o Pad2D(top, bottom, left, right, boundary)$ matrix
       })
   }
 
   def run2DStencil(stencil: Lambda2,
-                   size: Int, step: Int,
+                   size1: Int, step1: Int,
+                   size2: Int, step2: Int,
+                   top: Int, bottom: Int,
                    left : Int, right: Int,
                    weights: Array[Float],
                    name: String,
-                   boundary: BoundaryFun): Unit = {
+                   scalaBoundary: (Int, Int) => Int = scalaWrap): Unit = {
     try {
       //val (width, height, input) = readInputImage(lenaPGM)
 
@@ -310,7 +323,7 @@ class TestStencil extends TestSlide {
 
       //savePGM(name, outputLocation, output.grouped(width).toArray)
 
-      val gold = Utils.scalaCompute2DStencil(randomData2D, size,step, size,step, left,right, weights, SCALABOUNDARY)
+      val gold = Utils.scalaCompute2DStencil(randomData2D, size1,step1, size2,step2, top,bottom,left,right, weights, SCALABOUNDARY)
       compareGoldWithOutput(gold, output, runtime)
 
     } catch {
@@ -318,9 +331,17 @@ class TestStencil extends TestSlide {
     }
   }
 
+  def run2DStencil(stencil: Lambda2,
+                   size: Int, step: Int,
+                   left : Int, right: Int,
+                   weights: Array[Float],
+                   name: String): Unit = {
+    run2DStencil(stencil, size,step,size,step, left,right,left,right, weights, name)
+  }
+
   @Test def gaussianBlur(): Unit = {
-    val stencil = createSimple2DStencil(3,1, 1,1, gaussWeights, BOUNDARY)
-    run2DStencil(stencil, 3,1, 1,1, gaussWeights, "gauss.pgm", BOUNDARY)
+    val stencil = createSimple2DStencil(3,1, 1,1, gaussWeights, BOUNDARY,2)
+    run2DStencil(stencil, 3,1, 1,1, gaussWeights, "gauss.pgm")
   }
 
   @Ignore // produces EOF exception on fuji
@@ -331,8 +352,14 @@ class TestStencil extends TestSlide {
       7, 26, 41, 26, 7,
       4, 16, 26, 16, 4,
       1, 4, 7, 4, 1).map(_*0.004219409282700422f)
-    val stencil = createSimple2DStencil(5,1, 2,2, weights, BOUNDARY)
-    run2DStencil(stencil, 5,1, 2,2, weights, "gauss25.pgm", BOUNDARY)
+    val stencil = createSimple2DStencil(5,1, 2,2, weights, BOUNDARY,3)
+    run2DStencil(stencil, 5,1, 2,2, weights, "gauss25.pgm")
+  }
+
+  @Test def blurX(): Unit = {
+    val weights = Array(1.0f, 1.0f, 1.0f)
+    val stencil = createSimple2DStencil(1,1,8,1, 0,0,8,8, weights, Pad.Boundary.Wrap,2)
+    run2DStencil(stencil, 1,1,8,1, 0,0,8,8, weights, "notUsed", scalaWrap)
   }
 
  /* **********************************************************
@@ -466,7 +493,7 @@ class TestStencil extends TestSlide {
     val tiled: Lambda = createCopyTilesLambda(4,2 ,1,1, BOUNDARY)
 
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
-    val gold = Utils.scalaGenerate2DNeighbours(data2D, 4,2, 4,2, 1,1, SCALABOUNDARY).flatten.flatten.flatten
+    val gold = Utils.scalaGenerate2DNeighbours(data2D, 4,2, 4,2, 1,1,1,1, SCALABOUNDARY).flatten.flatten.flatten
 
     compareGoldWithOutput(gold, output, runtime)
   }
@@ -476,7 +503,7 @@ class TestStencil extends TestSlide {
     val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
     val tiled: Lambda = createTiled2DStencil(3,1, 10,8, 1,1, gaussWeights, BOUNDARY)
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
-    val gold = Utils.scalaCompute2DStencil(data2D,3,1,3,1,1,1, gaussWeights, SCALABOUNDARY)
+    val gold = Utils.scalaCompute2DStencil(data2D,3,1,3,1,1,1,1,1, gaussWeights, SCALABOUNDARY)
 
     compareGoldWithOutput(gold, output, runtime)
   }
@@ -484,7 +511,7 @@ class TestStencil extends TestSlide {
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiled2D9PointStencil(): Unit = {
     val tiled: Lambda = createTiled2DStencil(3,1, 4,2, 1,1, gaussWeights, BOUNDARY)
-    run2DStencil(tiled, 3,1, 1,1, gaussWeights, "notUsed", BOUNDARY)
+    run2DStencil(tiled, 3,1, 1,1, gaussWeights, "notUsed")
   }
 
    /* **********************************************************
