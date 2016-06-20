@@ -175,7 +175,6 @@ class TestRules {
     assertEquals(gold, outputG.head, 0.001f)
   }
 
-
   @Test
   def testDot2(): Unit = {
 
@@ -537,8 +536,9 @@ class TestRules {
 
   @Test
   def joinSplit(): Unit = {
+    val M = SizeVar("M")
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayType(ArrayType(Float, M), N),
       input => Map(Map(id)) $ input
     )
 
@@ -552,7 +552,7 @@ class TestRules {
     val (result:Array[Float], _) = Execute(128)(h, input)
 
     assertArrayEquals(input.flatten, result, 0.0f)
-    assertEquals(ArrayType(ArrayType(Float, N), N), h.body.t)
+    assertEquals(ArrayType(ArrayType(Float, M), N), h.body.t)
   }
 
   @Test

@@ -456,6 +456,65 @@ class TestRewriteMatrixMatrix {
     checkDistance(f4)
   }
 
+  @Test
+  def clBLAST_kepler(): Unit = {
+
+    LongTestsEnabled()
+
+    val f0 = fun(
+      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, N), K),
+      (A, B) => {
+        Map(fun(aRow =>
+          Map(fun(bCol =>
+            Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(aRow, bCol)
+          )) o Transpose() $ B
+        )) o Transpose() $ A
+      })
+
+    val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
+    val f2 = Rewrite.applyRuleAtId(f1, 13, MacroRules.finishTiling)
+    val f3 = Rewrite.applyRuleAtId(f2, 25, MacroRules.apply2DRegisterBlockingNoReorder)
+    val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.apply2DRegisterBlockingNoReorder)
+    val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.finishTiling)
+    val f6 = Rewrite.applyRuleAtId(f5, 93, Rules.partialReduceToReduce)
+    val f7 = SimplifyAndFuse(f6)
+
+    // Final steps, move transpose inside tiling
+    val f8 = HighLevelRewrite.applyAlwaysRules(f7)
+
+    val numExpressionsHighLevel = NumberExpression.breadthFirst(f8).values.max
+    assertEquals(102, numExpressionsHighLevel)
+
+    // Lower and vectorise
+    val g1 = Rewrite.applyRuleAtId(f8, 90, Rules.implementIdAsDeepCopy)
+    val g2 = Rewrite.applyRuleAtId(g1, 90, Rules.globalMemory)
+    val g3 = Rewrite.applyRuleAtId(g2, 98, Rules.vectorize(4))
+    val g4 = Rewrite.applyRuleAtId(g3, 88, Rules.dropId)
+    val g5 = Lower.simpleMapLoweringStrategy(g4)
+
+    val g6 = Rewrite.applyRuleAtId(g5, 28, Rules.addIdForCurrentValueInReduce)
+
+    val g7 = Rewrite.applyRuleAtId(g6, 43, Rules.localMemory)
+    val g8 = Rewrite.applyRuleAtId(g7, 45, Rules.implementIdAsDeepCopy)
+    val g9 = Rewrite.applyRuleAtId(g8, 55, Rules.joinSplit)
+    val g10 = Rewrite.applyRuleAtId(g9, 56, Rules.splitJoin)
+
+    val g11 = Rewrite.applyRuleAtId(g10, 62, Rules.vectorize(4))
+    val g12 = Rewrite.applyRuleAtId(g11, 51, Rules.vectorize(4))
+
+    val g13 = Lower.lowerNextLevelWithRule(g12, Rules.mapLcl(1))
+    val g14 = Lower.lowerNextLevelWithRule(g13, Rules.mapLcl(0))
+
+    val g15 = Rewrite.applyRuleAtId(g14, 87, Rules.addIdForCurrentValueInReduce)
+    val g16 = Rewrite.applyRuleAtId(g15, 98, Rules.privateMemory)
+    val g17 = Rewrite.applyRuleAtId(g16, 100, Rules.implementIdAsDeepCopy)
+    val g18 = Lower.lowerNextLevelWithRule(g17, Rules.mapSeq)
+
+    val numExpressionsFinal = NumberExpression.breadthFirst(g18).values.max
+    assertEquals(157, numExpressionsFinal)
+  }
+
   @Ignore
   @Test
   def gemmTiled(): Unit = {
