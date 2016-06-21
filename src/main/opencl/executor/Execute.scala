@@ -31,9 +31,8 @@ object Execute {
    * Creates an Execute instance with the given one dimensional global size and a default local
    * size. Neither the global nor the local size is injected in the OpenCL kernel code.
    */
-  def apply(globalSize: Int): Execute = {
+  def apply(globalSize: Int): Execute =
     apply(128, globalSize)
-  }
 
   /**
    *
@@ -44,16 +43,11 @@ object Execute {
   def apply(localSize: Int,
             globalSize: Int,
             injectSizes: (Boolean, Boolean) = (false, false)): Execute = {
-    // sanity checks
-    ValidateNDRange(globalSize, localSize, 0)
     new Execute(localSize, 1, 1, globalSize, 1, 1, injectSizes._1, injectSizes._2)
   }
 
   def apply(localSize1: Int, localSize2: Int, globalSize1: Int,  globalSize2: Int,
             injectSizes: (Boolean, Boolean)): Execute = {
-    // sanity checks
-    ValidateNDRange(globalSize1, localSize1, 0)
-    ValidateNDRange(globalSize2, localSize2, 1)
     new Execute(localSize1, localSize2, 1, globalSize1, globalSize2, 1,
                 injectSizes._1, injectSizes._2)
   }
@@ -61,10 +55,7 @@ object Execute {
   def apply(localSize1: Int, localSize2: Int, localSize3: Int,
             globalSize1: Int,  globalSize2: Int, globalSize3: Int,
             injectSizes: (Boolean, Boolean)): Execute = {
-    // sanity checks
-    ValidateNDRange(globalSize1, localSize1, 0)
-    ValidateNDRange(globalSize2, localSize2, 1)
-    ValidateNDRange(globalSize3, localSize3, 2)
+
     new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
                 injectSizes._1, injectSizes._2)
   }
@@ -126,6 +117,11 @@ object Execute {
       throw new InvalidIndexSpaceException(
         s"Global size ($globalSize) is not divisible by local size ($localSize) in dim $dim")
   }
+
+  private def ValidateGroupSize(localSize: Int): Unit = {
+    if (localSize > Executor.getDeviceMaxWorkGroupSize)
+      throw new DeviceCapabilityException("")
+  }
 }
 
 /**
@@ -143,6 +139,15 @@ object Execute {
 class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
               val globalSize1: Int, val globalSize2: Int, val globalSize3: Int,
               val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
+
+  import Execute._
+
+  // sanity checks
+  ValidateNDRange(globalSize1, localSize1, 0)
+  ValidateNDRange(globalSize2, localSize2, 1)
+  ValidateNDRange(globalSize3, localSize3, 2)
+  ValidateGroupSize(localSize1 * localSize2 * localSize3)
+
 
   /**
    * Given just a string: evaluate the string into a lambda and
