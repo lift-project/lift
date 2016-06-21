@@ -30,6 +30,22 @@ class TestMisc {
   val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
 
   @Test
+  def sameParam(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val f = fun(ArrayType(Float, SizeVar("N")),
+      input => MapGlb(fun(a => add(a, a))) $ input
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, input).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
   def testIterateAmdBug(): Unit = {
 
     Assume.assumeFalse("Wrong AMD IL generated", Utils.isAmdGpu)
