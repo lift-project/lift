@@ -108,11 +108,10 @@ class TestAccessCounts {
 
     val accessCounts = AccessCounts(f)
 
-    // TODO: is the pattern correct?
     assertEquals(N /^ globalSize0,
-      accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
     assertEquals(N /^ globalSize0,
-      accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
   }
 
   @Test
@@ -125,10 +124,9 @@ class TestAccessCounts {
 
     val accessCounts = AccessCounts(f)
 
-    // TODO: is the pattern correct?
     assertEquals(N /^ globalSize0,
-      accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
     assertEquals(N /^ globalSize0,
-      accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
   }
 }
