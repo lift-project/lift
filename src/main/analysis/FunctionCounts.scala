@@ -1,12 +1,24 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic.{ArithExpr, Cst}
+import apart.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast.{AbstractMap, AbstractPartRed, Expr, FPattern, FunCall, Iterate, Lambda, UserFun, VectorizeUserFun}
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg}
 
+object FunctionCounts{
+
+  type SubstitutionMap = collection.immutable.Map[ArithExpr, ArithExpr]
+
+  def apply(
+    lambda: Lambda,
+    localSize: NDRange = Array(?,?,?),
+    globalSize: NDRange = Array(?,?,?),
+    valueMap: SubstitutionMap = collection.immutable.Map()
+  ) = new FunctionCounts(lambda, localSize, globalSize, valueMap)
+
+}
 class FunctionCounts (
   lambda: Lambda,
   localSize: NDRange,
@@ -17,10 +29,13 @@ class FunctionCounts (
   private val functionCounts =
     collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(Cst(0))
 
+  // TODO: Vector length
   private val vectorisedFunctionCounts =
     collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(Cst(0))
 
   private var currentNesting: ArithExpr = Cst(1)
+
+  count(lambda.body)
 
   def getFunctionCount(userFun: UserFun) = functionCounts(userFun)
 
