@@ -37,12 +37,14 @@ class FunctionCounts (
 
   count(lambda.body)
 
-  def getFunctionCount(userFun: UserFun) = functionCounts(userFun)
+  def getFunctionCount(userFun: UserFun, exact: Boolean = false) =
+    getExact(functionCounts(userFun), exact)
 
-  def getVectorisedCount(userFun: UserFun) = vectorisedFunctionCounts(userFun)
+  def getVectorisedCount(userFun: UserFun, exact: Boolean = false) =
+    getExact(vectorisedFunctionCounts(userFun), exact)
 
-  def getTotalCount(userFun: UserFun) =
-    getFunctionCount(userFun) + getVectorisedCount(userFun)
+  def getTotalCount(userFun: UserFun, exact: Boolean = false) =
+    getFunctionCount(userFun, exact) + getVectorisedCount(userFun, exact)
 
   def getFunctions = functionCounts.keySet ++ vectorisedFunctionCounts.keySet
 

@@ -8,7 +8,8 @@ import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator.{IllegalKernel, OpenCLGenerator}
-import opencl.ir.{GlobalMemory, LocalMemory, PrivateMemory, TypedOpenCLMemory}
+import opencl.ir._
+import opencl.ir.ast._
 import rewriting.InferNDRange
 import rewriting.utils.Utils
 
@@ -128,7 +129,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
     "localStores,localLoads,privateStores,privateLoads,barriers," +
     "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads," +
-    "ifStatements,forStatements\n"
+    "ifStatements,forStatements,add,mult,fma,dot\n"
 
   private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
 
@@ -143,6 +144,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val accessCounts = AccessCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
     val barrierCounts = BarrierCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
     val controlFlow = ControlFlow(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
+    val functionCounts = FunctionCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
 
     val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
     val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
@@ -170,12 +172,18 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val ifStatements = controlFlow.getIfStatements(exact).evalDbl
     val forStatements = controlFlow.getForStatements(exact).evalDbl
 
+    val addCount = functionCounts.getFunctionCount(add, exact).evalDbl
+    val multCount = functionCounts.getFunctionCount(mult, exact).evalDbl
+    val fmaCount = functionCounts.getFunctionCount(fma, exact).evalDbl
+    val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
+
     val string =
       s"$hash,$smallSize,${smallGlobalSizes.mkString(",")},${smallLocalSizes.mkString(",")}," +
       s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
       s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
       s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +
-      s"$vectorGlobalLoads,$ifStatements,$forStatements\n"
+      s"$vectorGlobalLoads,$ifStatements,$forStatements,$addCount,$multCount," +
+      s"$fmaCount,$dotCount\n"
 
     val fileWriter = new FileWriter(s"$path/stats_$smallSize.csv", true)
     fileWriter.write(string)
