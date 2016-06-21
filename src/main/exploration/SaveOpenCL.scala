@@ -129,7 +129,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
     "localStores,localLoads,privateStores,privateLoads,barriers," +
     "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads," +
-    "ifStatements,forStatements,add,mult,fma,dot\n"
+    "ifStatements,forStatements,add,mult,addMult,vecAddMult,dot\n"
 
   private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
 
@@ -174,7 +174,8 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
 
     val addCount = functionCounts.getFunctionCount(add, exact).evalDbl
     val multCount = functionCounts.getFunctionCount(mult, exact).evalDbl
-    val fmaCount = functionCounts.getFunctionCount(fma, exact).evalDbl
+    val addMult = functionCounts.getAddMultCount(exact).evalDbl
+    val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDbl
     val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
 
     val string =
@@ -183,7 +184,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
       s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +
       s"$vectorGlobalLoads,$ifStatements,$forStatements,$addCount,$multCount," +
-      s"$fmaCount,$dotCount\n"
+      s"$addMult,$vecAddMult,$dotCount\n"
 
     val fileWriter = new FileWriter(s"$path/stats_$smallSize.csv", true)
     fileWriter.write(string)

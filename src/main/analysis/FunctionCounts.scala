@@ -3,9 +3,10 @@ package analysis
 import analysis.AccessCounts.SubstitutionMap
 import apart.arithmetic.{?, ArithExpr, Cst}
 import ir._
-import ir.ast.{AbstractMap, AbstractPartRed, Expr, FPattern, FunCall, Iterate, Lambda, UserFun, VectorizeUserFun}
+import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
-import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg}
+import opencl.ir._
+import opencl.ir.pattern._
 
 object FunctionCounts{
 
@@ -26,14 +27,31 @@ class FunctionCounts (
   valueMap: SubstitutionMap
 ) extends Analyser(lambda, localSize, globalSize, valueMap) {
 
+  private val addMultiplyPattern: PartialFunction[Expr, Any] =
+  {
+    case FunCall(uf1, FunCall(uf2, _, _), _) if uf1 == add  && uf2 == mult =>
+    case FunCall(uf1, _, FunCall(uf2, _, _)) if uf1 == add  && uf2 == mult =>
+  }
+
+  private val vectorisedAddMultiplyPattern: PartialFunction[Expr, Any] =
+  {
+    case FunCall(VectorizeUserFun(_, uf1), FunCall(VectorizeUserFun(_, uf2), _, _), _)
+      if uf1 == add  && uf2 == mult =>
+    case FunCall(VectorizeUserFun(_, uf1), _, FunCall(VectorizeUserFun(_, uf2), _, _))
+      if uf1 == add  && uf2 == mult =>
+  }
+
   private val functionCounts =
-    collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(Cst(0))
+    collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(0)
 
   // TODO: Vector length
   private val vectorisedFunctionCounts =
-    collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(Cst(0))
+    collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(0)
 
-  private var currentNesting: ArithExpr = Cst(1)
+  private var addMultCount: ArithExpr = 0
+  private var vectorisedAddMultCount: ArithExpr = 0
+
+  private var currentNesting: ArithExpr = 1
 
   count(lambda.body)
 
@@ -48,6 +66,12 @@ class FunctionCounts (
 
   def getFunctions = functionCounts.keySet ++ vectorisedFunctionCounts.keySet
 
+  def getAddMultCount(exact: Boolean = false) =
+    getExact(addMultCount, exact)
+
+  def getVectorisedAddMultCount(exact: Boolean = false) =
+    getExact(vectorisedAddMultCount, exact)
+
   private def count(lambda: Lambda, arithExpr: ArithExpr): Unit = {
     currentNesting *= arithExpr
     count(lambda.body)
@@ -55,6 +79,13 @@ class FunctionCounts (
   }
 
   private def count(expr: Expr): Unit = {
+
+    if (addMultiplyPattern.isDefinedAt(expr))
+      addMultCount += currentNesting
+
+    if (vectorisedAddMultiplyPattern.isDefinedAt(expr))
+      vectorisedAddMultCount += currentNesting
+
     expr match {
       case FunCall(f, args@_*) =>
 
@@ -86,6 +117,7 @@ class FunctionCounts (
             vectorisedFunctionCounts(vuf.userFun) += currentNesting
           case _ =>
         }
+
 
       case _ =>
     }
