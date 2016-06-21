@@ -85,7 +85,7 @@ class TestTranspose {
       input => MapSeq(MapSeq(id)) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) $ input
     )
 
-    val (output: Array[Float], _) = Execute(1024, 1024)(f, input)
+    val (output: Array[Float], _) = Execute(16, 16, 1024, 1024, (false, false))(f, input)
     val gold = input(0) ++ input ++ input(input.size -1)
   }
 
