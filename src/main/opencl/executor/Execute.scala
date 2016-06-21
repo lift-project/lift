@@ -119,8 +119,12 @@ object Execute {
   }
 
   private def ValidateGroupSize(localSize: Int): Unit = {
-    if (localSize > Executor.getDeviceMaxWorkGroupSize)
-      throw new DeviceCapabilityException("")
+    val maxWorkGroupSize = Executor.getDeviceMaxWorkGroupSize
+
+    if (localSize > maxWorkGroupSize)
+      throw new DeviceCapabilityException(
+        s"Device ${Executor.getDeviceName} can't execute kernels with " +
+        s"work-groups larger than $maxWorkGroupSize.")
   }
 }
 
