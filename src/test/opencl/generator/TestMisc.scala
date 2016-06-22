@@ -29,6 +29,82 @@ class TestMisc {
 
   val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
 
+  @Ignore
+  @Test
+  def reverseScatterAndVec(): Unit = {
+
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      Scatter(reverse) o asScalar() o MapGlb(VectorizeUserFun(4, id)) o asVector(4) $ _
+    )
+
+    val (output: Array[Float], _) = Execute(size)(f, input)
+
+    assertArrayEquals(input.reverse, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def reverseGatherAndVec(): Unit = {
+
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      asScalar() o MapGlb(VectorizeUserFun(4, id)) o asVector(4) o Gather(reverse) $ _
+    )
+    val (output: Array[Float], _) = Execute(size)(f, input)
+
+    assertArrayEquals(input.reverse, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def strideScatterAndVec(): Unit = {
+
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      Scatter(ReorderWithStride(32)) o asScalar() o
+        MapGlb(VectorizeUserFun(4, id)) o asVector(4) $ _
+    )
+
+    val (output: Array[Float], _) = Execute(size)(f, input)
+
+    assertArrayEquals(input.reverse, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def strideGatherAndVec(): Unit = {
+
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      asScalar() o MapGlb(VectorizeUserFun(4, id)) o
+        asVector(4) o Gather(ReorderWithStride(32)) $ _
+    )
+    val (output: Array[Float], _) = Execute(size)(f, input)
+
+    assertArrayEquals(input.reverse, output, 0.0f)
+  }
+
   @Test
   def sameParam(): Unit = {
 
