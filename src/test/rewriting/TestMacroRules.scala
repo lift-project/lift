@@ -23,6 +23,22 @@ object TestMacroRules {
 class TestMacroRules {
 
   @Test
+  def reshapeMapMap(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val f = \(
+      ArrayType(ArrayType(Float, M), N),
+      Map(Map(id)) $ _
+    )
+
+    val g = Rewrite.applyRuleAt(f, f.body, MacroRules.reshapeMapMap)
+    TypeChecker(g)
+
+    assertEquals(f.body.t, g.body.t)
+  }
+
+  @Test
   def twoDBlockingNotDefined(): Unit = {
     val v_M_0 = SizeVar("M")
     val v_K_1 = SizeVar("K")

@@ -81,6 +81,17 @@ object MacroRules {
     fused
   }
 
+  val reshapeMapMap =
+    Rule("Map(Map(f)) => Split() o Join() o Map(Map(f)) o Split() o Join()", {
+      case call: FunCall if Rules.joinSplit.isDefinedAt(call) =>
+
+        val joined = Rewrite.applyRuleAt(call, Rules.joinSplit, call)
+        val map = Utils.getExprForPatternInCallChain(joined, mapPattern).get
+        val split = Rewrite.applyRuleAt(joined, Rules.splitJoin, map)
+
+        split
+    })
+
   // transpose both sides + id
   private val transposeMapMapNoFission =
     Rule("Transpose() o Map(Map(_)) => " +
@@ -105,8 +116,10 @@ object MacroRules {
       case fc@FunCall(Reduce(_), _, _) =>
 
         val part = Rewrite.applyRuleAt(fc, Rules.partialReduce, fc)
-        val partRed = Utils.getExprForPatternInCallChain(part, { case FunCall(PartRed(_), _*) => }).get
-        val res = Rewrite.applyRuleAt(part, Rules.partialReduceVectorize(vectorWidth), partRed)
+        val partRed = Utils.getExprForPatternInCallChain(part,
+          { case FunCall(PartRed(_), _*) => }).get
+        val res =
+          Rewrite.applyRuleAt(part, Rules.partialReduceVectorize(vectorWidth), partRed)
 
         res
     })
