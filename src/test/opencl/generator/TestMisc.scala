@@ -105,6 +105,28 @@ class TestMisc {
     assertArrayEquals(input.reverse, output, 0.0f)
   }
 
+  @Ignore
+  @Test
+  def issue38(): Unit = {
+    val N = SizeVar("N")
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+    val a = 2.0f
+
+    val f = \(
+      ArrayType(Float, N),
+      Float,
+      (input, a) =>
+        asScalar() o MapGlb(\(b => VectorizeUserFun(4, mult)(a, b))) o
+          asVector(4) $ input
+    )
+
+    val (output: Array[Float], _) = Execute(size)(f, input, a)
+    val gold = input.map(_*a)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
   @Test
   def sameParam(): Unit = {
 
