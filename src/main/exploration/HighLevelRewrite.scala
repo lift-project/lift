@@ -302,6 +302,9 @@ class HighLevelRewrite(val vectorWidth: Int) {
       .filter((_, times) => times >= 2)
       ._1
 
+    if (!distinctRulesApplied.contains(MacroRules.tileMapMap))
+      dontTryThese = MacroRules.finishTiling +: dontTryThese
+
     if (distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
         || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
         || distinctRulesApplied.contains(MacroRules.tileMapMap))

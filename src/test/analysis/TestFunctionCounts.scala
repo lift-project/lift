@@ -2,7 +2,7 @@ package analysis
 
 import apart.arithmetic.{Cst, SizeVar}
 import ir.ArrayType
-import ir.ast.{VectorizeUserFun, \, asVector}
+import ir.ast.{UserFun, VectorizeUserFun, \, asVector}
 import opencl.ir._
 import opencl.generator.get_global_size
 import opencl.ir.pattern.MapGlb
@@ -148,5 +148,22 @@ class TestFunctionCounts {
 
     assertEquals(Cst(0), functionCounts.getAddMultCount())
     assertEquals(N /^ 4 /^ globalSize0, functionCounts.getVectorisedAddMultCount())
+  }
+
+  @Test
+  def differentObject(): Unit = {
+
+    val f = \(ArrayType(Float, N),
+      MapGlb(plusOne) $ _
+    )
+
+    val x = UserFun("plusOne", "x", "{ return x+1; }", Float, Float)
+    val functionCounts = FunctionCounts(f)
+
+    assertEquals(N /^ globalSize0, functionCounts.getFunctionCount(x))
+    assertEquals(Cst(0), functionCounts.getVectorisedCount(x))
+    assertEquals(N /^ globalSize0, functionCounts.getTotalCount(x))
+    assertEquals(Cst(0), functionCounts.getAddMultCount())
+    assertEquals(Cst(0), functionCounts.getVectorisedAddMultCount())
   }
 }

@@ -1,7 +1,7 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic.{?, ArithExpr, Cst}
+import apart.arithmetic.{?, ArithExpr}
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
@@ -42,11 +42,11 @@ class FunctionCounts (
   }
 
   private val functionCounts =
-    collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(0)
+    collection.mutable.Map[String, ArithExpr]().withDefaultValue(0)
 
   // TODO: Vector length
   private val vectorisedFunctionCounts =
-    collection.mutable.Map[UserFun, ArithExpr]().withDefaultValue(0)
+    collection.mutable.Map[String, ArithExpr]().withDefaultValue(0)
 
   private var addMultCount: ArithExpr = 0
   private var vectorisedAddMultCount: ArithExpr = 0
@@ -56,10 +56,10 @@ class FunctionCounts (
   count(lambda.body)
 
   def getFunctionCount(userFun: UserFun, exact: Boolean = false) =
-    getExact(functionCounts(userFun), exact)
+    getExact(functionCounts(userFun.name), exact)
 
   def getVectorisedCount(userFun: UserFun, exact: Boolean = false) =
-    getExact(vectorisedFunctionCounts(userFun), exact)
+    getExact(vectorisedFunctionCounts(userFun.name), exact)
 
   def getTotalCount(userFun: UserFun, exact: Boolean = false) =
     getFunctionCount(userFun, exact) + getVectorisedCount(userFun, exact)
@@ -112,9 +112,9 @@ class FunctionCounts (
           case l: Lambda => count(l.body)
           case fp: FPattern => count(fp.f.body)
           case uf: UserFun =>
-            functionCounts(uf) += currentNesting
+            functionCounts(uf.name) += currentNesting
           case vuf: VectorizeUserFun =>
-            vectorisedFunctionCounts(vuf.userFun) += currentNesting
+            vectorisedFunctionCounts(vuf.userFun.name) += currentNesting
           case _ =>
         }
 
