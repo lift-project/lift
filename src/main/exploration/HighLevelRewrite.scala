@@ -89,7 +89,7 @@ object HighLevelRewrite {
 
       val folderName = output.value.getOrElse(filename.split("/").last)
 
-      dumpLambdasToFiles(lambdas :+ lambda, folderName)
+      dumpLambdasToFiles(dumpThese :+ (lambda, Seq()), folderName)
     } catch {
       case e: ArgotUsageException => println(e.message)
     }
@@ -170,7 +170,7 @@ object HighLevelRewrite {
       depth <= cutoff
   }
 
-  private def dumpLambdasToFiles(lambdas: Seq[Lambda], topLevelFolder: String): Unit = {
+  private def dumpLambdasToFiles(lambdas: Seq[(Lambda, Seq[Rule])], topLevelFolder: String): Unit = {
     val x = if (sequential.value.isDefined) lambdas else lambdas.par
 
     x.foreach(lambda => {
@@ -180,7 +180,7 @@ object HighLevelRewrite {
 
       try {
 
-        val appliedRules = finishRewriting(lambda)
+        val appliedRules = finishRewriting(lambda._1)
 
         if (filterByDistance(appliedRules)) {
 
@@ -196,6 +196,9 @@ object HighLevelRewrite {
               idxFile.write(folder + "/" + sha256 + "\n")
               idxFile.close()
             }
+
+            val rules = lambda._2.mkString(",")
+            Utils.dumpToFile(rules, sha256 + "_rules", folder)
           }
 
         }
