@@ -359,7 +359,7 @@ object MacroRules {
   val tileMapMap: Rule = tileMapMap(?, ?)
 
   def tileMapMap(x: ArithExpr, y: ArithExpr): Rule =
-    Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
+    Rule("Tile Map(Map(f))", {
       case funCall @ FunCall(Map(Lambda(lambdaParam, chain)), _)
         if getCallForBlocking(chain, lambdaParam).isDefined
       =>
@@ -770,7 +770,7 @@ object MacroRules {
   def apply2DRegisterBlocking(factorX: ArithExpr, factorY: ArithExpr,
     doReorder: Boolean = true): Rule =
 
-    Rule("2D register blocking", {
+    Rule("2D register blocking" + (if (doReorder) "" else " no reorder"), {
       case call@FunCall(Map(Lambda(lambdaArg, innerCall)), arg)
         if getCallForBlocking(innerCall, lambdaArg).isDefined
         // TODO: is the guard good enough?
