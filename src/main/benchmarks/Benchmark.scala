@@ -373,6 +373,8 @@ abstract class Benchmark(val name: String,
 
       if (numErrors != 0)
         println(s"Output differed in $numErrors positions!")
+      else
+        println("Sequential test passed!")
     }
   }
 

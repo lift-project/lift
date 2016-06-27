@@ -28,6 +28,7 @@ class Stencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark(
       case 10 => Stencil2D.runScala(input, weights, 3,1,3,1, 1,1,1,1, Stencil2D.scalaWrap)
       case 11 => Stencil2D.runScala(input, weights, 1,1,17,1, 0,0,8,8, Stencil2D.scalaClamp)
       case 12 => Stencil2D.runScala(input, weights, 1,1,17,1, 0,0,8,8, Stencil2D.scalaClamp)
+      case 13 => Stencil2D.runScala(input, weights, 17,1,1,1, 8,8,0,0, Stencil2D.scalaClamp)
       case _ => throw new IllegalArgumentException("no scala check defined for this benchmark")
     }
   }
@@ -45,8 +46,9 @@ class Stencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark(
       case 0 => Array.fill[Float](3)(1.0f)
       case 1 => Array.fill[Float](3)(1.0f)
       case 2 => Array.fill[Float](3)(1.0f)
-      case 12 => Array.fill[Float](17)(1.0f)
       case 11 => Array.fill[Float](17)(1.0f)
+      case 12 => Array.fill[Float](17)(1.0f)
+      case 13 => Array.fill[Float](17)(1.0f)
       case _ => Array.fill[Float](9)(1.0f)
     })
     //Seq(inputData, weights)
@@ -190,8 +192,10 @@ object Stencil2D{
       ("TILED_9P2D_WRAP_18/16", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 18,16,18,16))),
       ("TILED_9P2D_WRAP_34/32", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 34,32,34,32))),
       ("TILED_9P2D_WRAP_66/64", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 66,64,66,64))),
+      // from here weights.size == 9
       ("BLUR_X_CLAMP_17POINT", Array[Lambda](blurSeperated2DStencil(1,1,17,1, 0,0,8,8,Pad.Boundary.Clamp, 17))),
-      ("BLUR_X_CLAMP_TILED_17POINT", Array[Lambda](tiledNinePoint2DStencil(1,1,17,1, 0,0,8,8,Pad.Boundary.Clamp, 1,1,48,32)))
+      ("BLUR_X_CLAMP_TILED_17POINT", Array[Lambda](tiledNinePoint2DStencil(1,1,17,1, 0,0,8,8,Pad.Boundary.Clamp, 1,1,48,32))),
+      ("BLUR_Y_CLAMP_TILED_17POINT", Array[Lambda](tiledNinePoint2DStencil(17,1,1,1, 8,8,0,0,Pad.Boundary.Clamp, 528,512,1,1)))
     )
   )
 

@@ -536,9 +536,16 @@ class TestStencil extends TestSlide {
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiledBlurX(): Unit = {
-    val weights = Array(1,1,1).map(_.toFloat)
-    val tiled: Lambda = createTiled2DStencil(1,1,3,1, 1,1,4,2, 0,0,1,1, weights, Pad.Boundary.Wrap)
-    run2DStencil(tiled, 1,1,3,1, 0,0,1,1, weights, "notUsed", scalaWrap)
+    val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
+    val tiled: Lambda = createTiled2DStencil(1,1,17,1, 1,1,528,512, 0,0,8,8, weights, Pad.Boundary.Wrap)
+    run2DStencil(tiled, 1,1,17,1, 0,0,8,8, weights, "notUsed", scalaWrap)
+  }
+
+  // be carefull when choosing small input size because of 'StartsFromRange(100)'
+  @Test def tiledBlurY(): Unit = {
+    val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
+    val tiled: Lambda = createTiled2DStencil(17,1,1,1, 528,512,1,1, 8,8,0,0, weights, Pad.Boundary.Wrap)
+    run2DStencil(tiled, 17,1,1,1, 8,8,0,0, weights, "notUsed", scalaWrap)
   }
 
    /* **********************************************************
