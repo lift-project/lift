@@ -366,8 +366,9 @@ abstract class Benchmark(val name: String,
       var numErrors = 0
 
       for (j <- scalaResult.indices) {
-        if (check(output(j), scalaResult(j)))
+        if (check(output(j), scalaResult(j))) {
           numErrors += 1
+        }
       }
 
       if (numErrors != 0)

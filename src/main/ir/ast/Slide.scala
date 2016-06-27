@@ -76,6 +76,6 @@ object Slide2D {
       Map(
         Transpose()
       ) o Slide(size2, step2) o Transpose()
-    ) o Slide(size1, step2)
+    ) o Slide(size1, step1)
   }
 }

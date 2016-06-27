@@ -26,18 +26,29 @@ class Stencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark(
       case 8 => Stencil2D.runScala(input, weights, 3,1,3,1, 1,1,1,1, Stencil2D.scalaWrap)
       case 9 => Stencil2D.runScala(input, weights, 3,1,3,1, 1,1,1,1, Stencil2D.scalaWrap)
       case 10 => Stencil2D.runScala(input, weights, 3,1,3,1, 1,1,1,1, Stencil2D.scalaWrap)
-      case _ => throw new IllegalArgumentException("no scala check defined for benchmark")
+      case 11 => Stencil2D.runScala(input, weights, 1,1,17,1, 0,0,8,8, Stencil2D.scalaClamp)
+      case 12 => Stencil2D.runScala(input, weights, 1,1,17,1, 0,0,8,8, Stencil2D.scalaClamp)
+      case _ => throw new IllegalArgumentException("no scala check defined for this benchmark")
     }
   }
 
   override def generateInputs(): Seq[Any] = {
     val inputSizeN = inputSizes()(0)
     val inputSizeM = inputSizes()(1)
-    //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
-    val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => util.Random.nextFloat())
+    val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 1024.0f + c)
+    //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => util.Random.nextFloat())
 
-    Seq(inputData, if(variant > 2) {Array.fill[Float](3)(1.0f)}
-                              else {Array.fill[Float](9)(1.0f)})
+    //Seq(inputData, if(variant > 2) {Array.fill[Float](17)(1.0f)}
+      //                        else {Array.fill[Float](9)(1.0f)})
+
+    Seq(inputData, variant match {
+      case 0 => Array.fill[Float](3)(1.0f)
+      case 1 => Array.fill[Float](3)(1.0f)
+      case 2 => Array.fill[Float](3)(1.0f)
+      case 12 => Array.fill[Float](17)(1.0f)
+      case 11 => Array.fill[Float](17)(1.0f)
+      case _ => Array.fill[Float](9)(1.0f)
+    })
     //Seq(inputData, weights)
   }
 
@@ -82,10 +93,11 @@ object Stencil2D{
                          size2: Int, step2: Int,
                          top: Int, bottom: Int,
                          left: Int, right: Int,
-                         boundary: BoundaryFun): Lambda2 = {
+                         boundary: BoundaryFun,
+                             weightSize: Int): Lambda2 = {
     fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(Float, 3),
+      ArrayType(Float, weightSize),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -126,10 +138,12 @@ object Stencil2D{
                               size2: Int, step2: Int,
                               top: Int, bottom: Int,
                               left: Int, right: Int,
-                               boundary: Pad.BoundaryFun, tileSize: Int, tileStep: Int) = {
+                              boundary: Pad.BoundaryFun,
+                              tileSize1: Int, tileStep1: Int,
+                              tileSize2: Int, tileStep2: Int) = {
     fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(Float, 9),
+      ArrayType(Float, size1 * size2),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -144,7 +158,7 @@ object Stencil2D{
             })
 
           )) o Slide2D(size1, step1, size2, step2) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-        ))) o Slide2D(tileSize, tileStep) o Pad2D(top, bottom, left, right, boundary) $ matrix
+        ))) o Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o Pad2D(top, bottom, left, right, boundary) $ matrix
       }
     )
   }
@@ -163,19 +177,21 @@ object Stencil2D{
   def apply() = new Stencil2D(
     Seq(
       // from here weights.size == 3
-      ("BLUR_X_CLAMP", Array[Lambda](blurSeperated2DStencil(1,1,3,1, 0,0,1,1,Pad.Boundary.Clamp))),
-      ("BLUR_Y_CLAMP", Array[Lambda](blurSeperated2DStencil(3,1,1,1, 1,1,0,0,Pad.Boundary.Clamp))),
-      ("BLUR_X_AND_Y_CLAMP", Array[Lambda](blurSeperated2DStencil(1,1,3,1, 0,0,1,1,Pad.Boundary.Clamp),
-                                           blurSeperated2DStencil(3,1,1,1, 1,1,0,0,Pad.Boundary.Clamp))),
+      ("BLUR_X_CLAMP", Array[Lambda](blurSeperated2DStencil(1,1,3,1, 0,0,1,1,Pad.Boundary.Clamp, 3))),
+      ("BLUR_Y_CLAMP", Array[Lambda](blurSeperated2DStencil(3,1,1,1, 1,1,0,0,Pad.Boundary.Clamp, 3))),
+      ("BLUR_X_AND_Y_CLAMP", Array[Lambda](blurSeperated2DStencil(1,1,3,1, 0,0,1,1,Pad.Boundary.Clamp, 3),
+                                           blurSeperated2DStencil(3,1,1,1, 1,1,0,0,Pad.Boundary.Clamp, 3))),
       // from here weights.size == 9
       ("9_POINT_2D_STENCIL_CLAMP", Array[Lambda](ninePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Clamp))),
       ("9_POINT_2D_STENCIL_MIRROR_UNSAFE", Array[Lambda](ninePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.MirrorUnsafe))),
       ("9_POINT_2D_STENCIL_WRAP", Array[Lambda](ninePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap))),
       ("9_POINT_2D_STENCIL_MIRROR", Array[Lambda](ninePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Mirror))),
-      ("TILED_9P2D_WRAP_10/8", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 10,8))),
-      ("TILED_9P2D_WRAP_18/16", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 18,16))),
-      ("TILED_9P2D_WRAP_34/32", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 34,32))),
-      ("TILED_9P2D_WRAP_66/64", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 66,64)))
+      ("TILED_9P2D_WRAP_10/8", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 10,8,10,8))),
+      ("TILED_9P2D_WRAP_18/16", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 18,16,18,16))),
+      ("TILED_9P2D_WRAP_34/32", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 34,32,34,32))),
+      ("TILED_9P2D_WRAP_66/64", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 66,64,66,64))),
+      ("BLUR_X_CLAMP_17POINT", Array[Lambda](blurSeperated2DStencil(1,1,17,1, 0,0,8,8,Pad.Boundary.Clamp, 17))),
+      ("BLUR_X_CLAMP_TILED_17POINT", Array[Lambda](tiledNinePoint2DStencil(1,1,17,1, 0,0,8,8,Pad.Boundary.Clamp, 1,1,48,32)))
     )
   )
 

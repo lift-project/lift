@@ -459,6 +459,20 @@ class TestStencil extends TestSlide {
                            tileSize: Int, tileStep: Int,
                            left: Int, right: Int,
                            weights: Array[Float],
+                           boundary: Pad.BoundaryFun): Lambda = {
+     createTiled2DStencil(size, step, size, step,
+       tileSize, tileStep, tileSize, tileStep,
+       left, right, left, right,
+       weights, boundary)
+   }
+
+  def createTiled2DStencil(size1: Int, step1: Int,
+                           size2: Int, step2: Int,
+                           tileSize1: Int, tileStep1: Int,
+                           tileSize2: Int, tileStep2: Int,
+                           top: Int, bottom: Int,
+                           left: Int, right: Int,
+                           weights: Array[Float],
                            boundary: Pad.BoundaryFun): Lambda = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       ArrayType(Float, weights.length),
@@ -475,8 +489,8 @@ class TestStencil extends TestSlide {
                 }), 0.0f) $ Zip(Join() $ elem, weights)
             })
 
-          )) o Slide2D(size, step) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-        ))) o Slide2D(tileSize, tileStep) o Pad2D(left,right, boundary)$ matrix
+          )) o Slide2D(size1, step1, size2, step2) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o Pad2D(top,bottom,left,right, boundary)$ matrix
       }
   )
 
@@ -518,6 +532,13 @@ class TestStencil extends TestSlide {
   @Test def tiled2D9PointStencil(): Unit = {
     val tiled: Lambda = createTiled2DStencil(3,1, 4,2, 1,1, gaussWeights, BOUNDARY)
     run2DStencil(tiled, 3,1, 1,1, gaussWeights, "notUsed")
+  }
+
+  // be carefull when choosing small input size because of 'StartsFromRange(100)'
+  @Test def tiledBlurX(): Unit = {
+    val weights = Array(1,1,1).map(_.toFloat)
+    val tiled: Lambda = createTiled2DStencil(1,1,3,1, 1,1,4,2, 0,0,1,1, weights, Pad.Boundary.Wrap)
+    run2DStencil(tiled, 1,1,3,1, 0,0,1,1, weights, "notUsed", scalaWrap)
   }
 
    /* **********************************************************
@@ -694,6 +715,19 @@ class TestStencil extends TestSlide {
   /* **********************************************************
       MISC
   ***********************************************************/
+  @Test def reorderStride(): Unit = {
+    val lambda = fun(
+      ArrayType(Float, 8),
+      (input) =>
+        MapSeq(id) o ReorderStride(4) $ input
+    )
+    val data = Array(0,1,2,3,4,5,6,7).map(_.toFloat)
+    val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
+    val gold = Array(0,4,1,5,2,6,3,7).map(_.toFloat)
+    println(output.mkString(", "))
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
   @Test def outputViewGroupTest(): Unit = {
     val lambda = fun(
       ArrayType(Float, SizeVar("N")),
