@@ -75,7 +75,7 @@ abstract class Benchmark(val name: String,
   val checkResultOpt = parser.flag[Boolean](List("c", "check"),
     "Check the result")
 
-  val printResultOpt = parser.flag[Boolean](List("p", "print"),
+  val printResultOpt = parser.flag[Boolean](List("print"),
     "Print the result")
 
   val injectLocal = parser.flag[Boolean](List("il", "inject"),

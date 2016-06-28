@@ -310,21 +310,24 @@ class TestStencil extends TestSlide {
                    left : Int, right: Int,
                    weights: Array[Float],
                    name: String,
-                   scalaBoundary: (Int, Int) => Int = scalaWrap): Unit = {
+                   scalaBoundary: (Int, Int) => Int): Unit = {
     try {
       //val (width, height, input) = readInputImage(lenaPGM)
-
       // be carefull when choosing small input size because of 'StartsFromRange(100)'
       val width = randomData2D(0).length
       val height = randomData2D.length
+      val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
 
-      val (output: Array[Float], runtime) = Execute(1, 1, width, height, (false, false))(stencil, randomData2D, weights)
+      // change input used here
+      val input = data2D
+
+      val (output: Array[Float], runtime) = Execute(8, 1, width, height, (false, false))(stencil, input, weights)
       println("Runtime: " + runtime)
 
       //savePGM(name, outputLocation, output.grouped(width).toArray)
 
-      val gold = Utils.scalaCompute2DStencil(randomData2D, size1,step1, size2,step2, top,bottom,left,right, weights, SCALABOUNDARY)
-      compareGoldWithOutput(gold, output, runtime)
+      //val gold = Utils.scalaCompute2DStencil(input, size1,step1, size2,step2, top,bottom,left,right, weights, scalaBoundary)
+      //compareGoldWithOutput(gold, output, runtime)
 
     } catch {
       case x: Exception => x.printStackTrace()
@@ -335,13 +338,14 @@ class TestStencil extends TestSlide {
                    size: Int, step: Int,
                    left : Int, right: Int,
                    weights: Array[Float],
-                   name: String): Unit = {
-    run2DStencil(stencil, size,step,size,step, left,right,left,right, weights, name)
+                   name: String,
+                   scalaBoundary: (Int, Int) => Int): Unit = {
+    run2DStencil(stencil, size,step,size,step, left,right,left,right, weights, name, scalaBoundary)
   }
 
   @Test def gaussianBlur(): Unit = {
     val stencil = createSimple2DStencil(3,1, 1,1, gaussWeights, BOUNDARY,2)
-    run2DStencil(stencil, 3,1, 1,1, gaussWeights, "gauss.pgm")
+    run2DStencil(stencil, 3,1, 1,1, gaussWeights, "gauss.pgm", SCALABOUNDARY)
   }
 
   @Ignore // produces EOF exception on fuji
@@ -353,7 +357,7 @@ class TestStencil extends TestSlide {
       4, 16, 26, 16, 4,
       1, 4, 7, 4, 1).map(_*0.004219409282700422f)
     val stencil = createSimple2DStencil(5,1, 2,2, weights, BOUNDARY,3)
-    run2DStencil(stencil, 5,1, 2,2, weights, "gauss25.pgm")
+    run2DStencil(stencil, 5,1, 2,2, weights, "gauss25.pgm", SCALABOUNDARY)
   }
 
   @Test def blurX(): Unit = {
@@ -482,7 +486,7 @@ class TestStencil extends TestSlide {
           MapLcl(1)(MapLcl(0)(
             fun(elem => {
               toGlobal(MapSeqUnroll(clamp)) o
-                ReduceSeqUnroll(fun((acc, pair) => {
+                ReduceSeq(fun((acc, pair) => {
                   val pixel = Get(pair, 0)
                   val weight = Get(pair, 1)
                   multAndSumUp.apply(acc, pixel, weight)
@@ -491,6 +495,44 @@ class TestStencil extends TestSlide {
 
           )) o Slide2D(size1, step1, size2, step2) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
         ))) o Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o Pad2D(top,bottom,left,right, boundary)$ matrix
+      }
+  )
+
+  def createTiled2DStencilWithTiledLoading(size1: Int, step1: Int,
+                                           size2: Int, step2: Int,
+                                           tileSize1: Int, tileStep1: Int,
+                                           tileSize2: Int, tileStep2: Int,
+                                           top: Int, bottom: Int,
+                                           left: Int, right: Int,
+                                           weights: Array[Float],
+                                           boundary: Pad.BoundaryFun): Lambda = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, weights.length),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            //MapSeq(MapSeq((toGlobal(id))))
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+
+            // create stencil neighbourhoods
+          )) o Slide2D(size1, step1, size2, step2) o Map(Join()) o
+
+            // load chunks to local memory
+            toLocal(MapLcl(1)(MapSeq(MapLcl(0)(id)))) $ tile
+
+          // spliting tile into chunks
+        ))) o Map(Map(Map(Split(8)))) o
+          // creating tiles
+          Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o
+          Pad2D(top,bottom,left,right, boundary)$ matrix
       }
   )
 
@@ -531,7 +573,14 @@ class TestStencil extends TestSlide {
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiled2D9PointStencil(): Unit = {
     val tiled: Lambda = createTiled2DStencil(3,1, 4,2, 1,1, gaussWeights, BOUNDARY)
-    run2DStencil(tiled, 3,1, 1,1, gaussWeights, "notUsed")
+    run2DStencil(tiled, 3,1, 1,1, gaussWeights, "notUsed", SCALABOUNDARY)
+  }
+
+  // be carefull when choosing small input size because of 'StartsFromRange(100)'
+  @Test def cudaSampleConvolutionNotSeperated(): Unit = {
+    val weights = Array.fill[Float](289)(1.0f)
+    val tiled: Lambda = createTiled2DStencil(17,1, 32,16, 8,8, weights, Pad.Boundary.Clamp)
+    run2DStencil(tiled, 17,1, 8,8, weights, "notUsed", scalaClamp)
   }
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
@@ -542,9 +591,16 @@ class TestStencil extends TestSlide {
   }
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
+  @Test def tiledBlurXTiledLoading(): Unit = {
+    val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
+    val tiled: Lambda = createTiled2DStencilWithTiledLoading(1,1,17,1, 1,1,24,8, 0,0,8,8, weights, Pad.Boundary.Clamp)
+    run2DStencil(tiled, 1,1,17,1, 0,0,8,8, weights, "notUsed", scalaClamp)
+  }
+
+  // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiledBlurY(): Unit = {
     val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
-    val tiled: Lambda = createTiled2DStencil(17,1,1,1, 528,512,1,1, 8,8,0,0, weights, Pad.Boundary.Wrap)
+    val tiled: Lambda = createTiled2DStencil(17,1,1,1, 80,64,16,16, 8,8,0,0, weights, Pad.Boundary.Wrap)
     run2DStencil(tiled, 17,1,1,1, 8,8,0,0, weights, "notUsed", scalaWrap)
   }
 
