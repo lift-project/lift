@@ -12,6 +12,7 @@ import opencl.generator.OpenCLAST._
 import opencl.ir._
 import opencl.ir.pattern._
 import opencl.generator._
+import opencl.ir.pattern.toGlobal
 
 import scala.collection.immutable
 
@@ -162,7 +163,6 @@ class CGenerator extends Generator {
       throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
 
     InferOpenCLAddressSpace(f)
-
     // Allocate the params and set the corresponding type
     f.params.foreach((p) => {
       p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
@@ -1085,11 +1085,20 @@ object GeneratorTest {
   def main(args:Array[String]) = {
     val K = 100
     val myadd = UserFun("myadd",Array("x","y"),"return x + y",Seq(Float,Float),Float)
+    val inc = UserFun("inc", Array("x"), "return x + 1", Seq(Float),Float)
     val f = fun(
       ArrayType(TupleType(Float,Float),K),
       A => {
         MapSeq(myadd) $ A
       })
-    println(Compile(f))
+
+    val f2 = fun (
+      ArrayType(Float, SizeVar("N")),
+      Float,
+      (in,init) => {
+        toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
+      })
+
+    println(Compile(f2))
   }
 }
