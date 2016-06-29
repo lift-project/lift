@@ -316,12 +316,12 @@ class TestStencil extends TestSlide {
       // be carefull when choosing small input size because of 'StartsFromRange(100)'
       val width = randomData2D(0).length
       val height = randomData2D.length
-      val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+      val data2D = Array.tabulate(4096, 4096) { (i, j) => i * 4069.0f + j }
 
       // change input used here
       val input = data2D
 
-      val (output: Array[Float], runtime) = Execute(8, 1, width, height, (false, false))(stencil, input, weights)
+      val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
       println("Runtime: " + runtime)
 
       //savePGM(name, outputLocation, output.grouped(width).toArray)
@@ -486,7 +486,7 @@ class TestStencil extends TestSlide {
           MapLcl(1)(MapLcl(0)(
             fun(elem => {
               toGlobal(MapSeqUnroll(clamp)) o
-                ReduceSeq(fun((acc, pair) => {
+                ReduceSeqUnroll(fun((acc, pair) => {
                   val pixel = Get(pair, 0)
                   val weight = Get(pair, 1)
                   multAndSumUp.apply(acc, pixel, weight)

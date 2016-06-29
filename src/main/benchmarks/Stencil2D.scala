@@ -36,7 +36,7 @@ class Stencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark(
   override def generateInputs(): Seq[Any] = {
     val inputSizeN = inputSizes()(0)
     val inputSizeM = inputSizes()(1)
-    val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 1024.0f + c)
+    val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c)
     //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => util.Random.nextFloat())
 
     //Seq(inputData, if(variant > 2) {Array.fill[Float](17)(1.0f)}
