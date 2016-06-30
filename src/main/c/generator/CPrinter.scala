@@ -4,7 +4,7 @@ import apart.arithmetic._
 import ir._
 import ir.view.AccessVar
 import opencl.generator._
-import opencl.generator.OpenCLAST._
+import c.generator.CAst._
 import opencl.ir._
 
 object CPrinter {
@@ -155,7 +155,7 @@ class CPrinter {
     case c: Cast          => print(c)
     case l: VectorLiteral => print(l)
     case e: OpenCLExtension     => print(e)
-    case i: OpenCLAST.IfThenElse    => print(i)
+    case i: CAst.IfThenElse    => print(i)
     case l: Label         => print(l)
     case g: GOTO          => print(g)
     case s: StructConstructor => print(s)
@@ -395,7 +395,7 @@ class CPrinter {
     * 
     * @param s a [[IfThenElse]] node
     */
-  private def print(s: OpenCLAST.IfThenElse): Unit = {
+  private def print(s: CAst.IfThenElse): Unit = {
     print("if(")
     print(s.cond)
     println(")")
