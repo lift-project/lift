@@ -159,6 +159,7 @@ class CPrinter {
     case l: Label         => print(l)
     case g: GOTO          => print(g)
     case s: StructConstructor => print(s)
+    case p: Pragma => sb ++= s"#pragma ${p.text}"
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
   }

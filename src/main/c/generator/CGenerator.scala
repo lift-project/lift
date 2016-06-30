@@ -398,7 +398,7 @@ class CGenerator extends Generator {
   }
 
 
-  private def generateExpr(expr: Expr, block: Block): Unit = {
+  protected def generateExpr(expr: Expr, block: Block): Unit = {
     assert(expr.t != UndefType)
 
     expr match {

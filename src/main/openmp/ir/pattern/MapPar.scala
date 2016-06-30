@@ -7,8 +7,8 @@ import opencl.ir.pattern.MapSeq
 /**
   * Created by Federico on 29-Jun-16.
   */
-case class MapPar(override val f: Lambda1) extends AbstractMap(f, "MapPar",
-  PosVar("i")) {
-  override def copy(f: Lambda): Pattern = MapSeq(f)
-  var shouldUnroll = false
+class MapPar(override val f: Lambda1) extends MapSeq(f) {
+}
+object MapPar {
+  def apply(f:Lambda1) = new MapPar(f)
 }

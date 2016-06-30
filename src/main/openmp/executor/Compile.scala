@@ -1,4 +1,4 @@
-package c.executor
+package openmp.executor
 
 import apart.arithmetic.{?, ArithExpr}
 import c.generator.CGenerator
@@ -46,7 +46,7 @@ object Compile {
     TypeChecker.check(f.body)
 
     // 2. generate OpenCL kernel
-    val kernel = CGenerator.generate(f,
+    val kernel = OMPGenerator.generate(f,
       Array(localSize0, localSize1, localSize2),
       Array(globalSize1, globalSize2, globalSize3), valueMap)
 

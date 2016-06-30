@@ -88,6 +88,8 @@ object CAst {
     }
   }
 
+  case class Pragma(text:String) extends Declaration
+
   /**
     *
     * @param init      The expression/value initializing the iteration variabel. should either be an ExpressionStatement or VarDecl
