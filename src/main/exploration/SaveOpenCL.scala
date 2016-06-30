@@ -28,7 +28,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
   private var local: NDRange = Array(?, ?, ?)
   private var global: NDRange = Array(?, ?, ?)
 
-  val inputSizes = Seq(1024, 2048, 4096, 8192, 16384)
+  val inputSizes = Seq(512, 1024, 2048, 4096, 8192)
 
   def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
 
@@ -92,7 +92,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val dumped = Utils.dumpToFile(kernel, filename, path)
     if (dumped) {
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
-      dumpStats(lambda, hash, path)
+      inputSizes.foreach(dumpStats(lambda, hash, path, _))
     }
 
     if (dumped) Some(hash) else None
@@ -131,20 +131,28 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads," +
     "ifStatements,forStatements,add,mult,addMult,vecAddMult,dot\n"
 
-  private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
+  private def dumpStats(lambda: Lambda, hash: String, path: String, size: Int): Unit = {
 
-    val smallSize = inputSizes.head
+    val string: String = getStatsString(lambda, hash, size)
+
+    val fileWriter = new FileWriter(s"$path/stats_$size.csv", true)
+    fileWriter.write(string)
+    fileWriter.close()
+
+  }
+
+  def getStatsString(lambda: Lambda, hash: String, size: Int): String = {
     val exact = true
 
-    val smallGlobalSizes = global.map(substituteInputSizes(smallSize, _))
-    val smallLocalSizes = local.map(substituteInputSizes(smallSize, _))
+    val globalSizes = global.map(substituteInputSizes(size, _))
+    val localSizes = local.map(substituteInputSizes(size, _))
     val valueMap = ParameterRewrite.createValueMap(lambda)
 
-    val memoryAmounts = MemoryAmounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
-    val accessCounts = AccessCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
-    val barrierCounts = BarrierCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
-    val controlFlow = ControlFlow(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
-    val functionCounts = FunctionCounts(lambda, smallLocalSizes, smallGlobalSizes, valueMap)
+    val memoryAmounts = MemoryAmounts(lambda, localSizes, globalSizes, valueMap)
+    val accessCounts = AccessCounts(lambda, localSizes, globalSizes, valueMap)
+    val barrierCounts = BarrierCounts(lambda, localSizes, globalSizes, valueMap)
+    val controlFlow = ControlFlow(lambda, localSizes, globalSizes, valueMap)
+    val functionCounts = FunctionCounts(lambda, localSizes, globalSizes, valueMap)
 
     val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
     val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
@@ -179,17 +187,13 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
 
     val string =
-      s"$hash,$smallSize,${smallGlobalSizes.mkString(",")},${smallLocalSizes.mkString(",")}," +
-      s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
-      s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
-      s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +
-      s"$vectorGlobalLoads,$ifStatements,$forStatements,$addCount,$multCount," +
-      s"$addMult,$vecAddMult,$dotCount\n"
-
-    val fileWriter = new FileWriter(s"$path/stats_$smallSize.csv", true)
-    fileWriter.write(string)
-    fileWriter.close()
-
+      s"$hash,$size,${globalSizes.mkString(",")},${localSizes.mkString(",")}," +
+        s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
+        s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
+        s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +
+        s"$vectorGlobalLoads,$ifStatements,$forStatements,$addCount,$multCount," +
+        s"$addMult,$vecAddMult,$dotCount\n"
+    string
   }
 
   private def substituteInputSizes(size: Int, ae: ArithExpr) = {
