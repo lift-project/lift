@@ -316,18 +316,17 @@ class TestStencil extends TestSlide {
       // be carefull when choosing small input size because of 'StartsFromRange(100)'
       val width = randomData2D(0).length
       val height = randomData2D.length
-      val data2D = Array.tabulate(4096, 4096) { (i, j) => i * 4069.0f + j }
 
       // change input used here
-      val input = data2D
+      val input = randomData2D
 
-      val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+      val (output: Array[Float], runtime) = Execute(1, 1, width, height, (false, false))(stencil, input, weights)
       println("Runtime: " + runtime)
 
       //savePGM(name, outputLocation, output.grouped(width).toArray)
 
-      //val gold = Utils.scalaCompute2DStencil(input, size1,step1, size2,step2, top,bottom,left,right, weights, scalaBoundary)
-      //compareGoldWithOutput(gold, output, runtime)
+      val gold = Utils.scalaCompute2DStencil(input, size1,step1, size2,step2, top,bottom,left,right, weights, scalaBoundary)
+      compareGoldWithOutput(gold, output, runtime)
 
     } catch {
       case x: Exception => x.printStackTrace()
@@ -360,18 +359,17 @@ class TestStencil extends TestSlide {
     run2DStencil(stencil, 5,1, 2,2, weights, "gauss25.pgm", SCALABOUNDARY)
   }
 
-  @Test def blurX(): Unit = {
+  @Test def blurX3Point(): Unit = {
     val weights = Array.fill[Float](3)(1.0f)
     val stencil = createSimple2DStencil(1,1,3,1, 0,0,1,1, weights, Pad.Boundary.Wrap,2)
     run2DStencil(stencil, 1,1,3,1, 0,0,1,1, weights, "notUsed", scalaWrap)
   }
 
-  @Test def blurY(): Unit = {
+  @Test def blurY3Point(): Unit = {
     val weights = Array.fill[Float](3)(1.0f)
     val stencil = createSimple2DStencil(3,1,1,1, 1,1,0,0, weights, Pad.Boundary.Wrap,2)
     run2DStencil(stencil, 3,1,1,1, 1,1,0,0, weights, "notUsed", scalaWrap)
   }
-
  /* **********************************************************
       STENCILS WITH MULTIPLE INPUT ARRAYS
   ***********************************************************/
@@ -485,7 +483,7 @@ class TestStencil extends TestSlide {
 
           MapLcl(1)(MapLcl(0)(
             fun(elem => {
-              toGlobal(MapSeqUnroll(clamp)) o
+              toGlobal(MapSeqUnroll(id)) o
                 ReduceSeqUnroll(fun((acc, pair) => {
                   val pixel = Get(pair, 0)
                   val weight = Get(pair, 1)
@@ -586,7 +584,7 @@ class TestStencil extends TestSlide {
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiledBlurX(): Unit = {
     val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
-    val tiled: Lambda = createTiled2DStencil(1,1,17,1, 1,1,528,512, 0,0,8,8, weights, Pad.Boundary.Wrap)
+    val tiled: Lambda = createTiled2DStencil(1,1,17,1, 4,4,80,64, 0,0,8,8, weights, Pad.Boundary.Wrap)
     run2DStencil(tiled, 1,1,17,1, 0,0,8,8, weights, "notUsed", scalaWrap)
   }
 
@@ -595,13 +593,6 @@ class TestStencil extends TestSlide {
     val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
     val tiled: Lambda = createTiled2DStencilWithTiledLoading(1,1,17,1, 1,1,24,8, 0,0,8,8, weights, Pad.Boundary.Clamp)
     run2DStencil(tiled, 1,1,17,1, 0,0,8,8, weights, "notUsed", scalaClamp)
-  }
-
-  // be carefull when choosing small input size because of 'StartsFromRange(100)'
-  @Test def tiledBlurY(): Unit = {
-    val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
-    val tiled: Lambda = createTiled2DStencil(17,1,1,1, 80,64,16,16, 8,8,0,0, weights, Pad.Boundary.Wrap)
-    run2DStencil(tiled, 17,1,1,1, 8,8,0,0, weights, "notUsed", scalaWrap)
   }
 
    /* **********************************************************
@@ -877,4 +868,244 @@ class TestStencil extends TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
+  /* **********************************************************
+       CUDA SAMPLE CONVOLUTION
+  ***********************************************************/
+  @Test def convolutionSimple(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17*17),
+      (matrix, weights) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeq(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ neighbours, weights)
+          }))
+        ) o Slide2D(17,1, 17,1) o Pad2D(8,8, 8,8, Pad.Boundary.Wrap)$ matrix
+      })
+
+    val weights = Array.fill[Float](17*17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 16, 256, 256, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+  }
+
+  @Test def convolutionTiled(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17*17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeq(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(17,1, 17,1) o
+            // load to local memory
+            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o
+          // tiling
+          Slide2D(32,16, 32,16) o
+          Pad2D(8,8, 8,8, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+    val weights = Array.fill[Float](17*17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 32, 1024, 1024, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    // idle threads -- or start 16 32 to load in three columns
+    //val (output: Array[Float], runtime) = Execute(32, 32, 4096, 4096, (true, true))(stencil, input, weights)
+    // blocked loading to local mem
+    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+  }
+
+  @Test def blurY(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ neighbours, weights)
+          }))
+        ) o Slide2D(17,1, 1,1) o Pad2D(8,8, 0,0, Pad.Boundary.Clamp)$ matrix
+      })
+
+    val weights = Array.fill[Float](17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 16, 1024, 1024, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+  }
+
+  @Test def blurYTiled(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(17,1, 1,1) o
+            // load to local memory
+            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o
+          // tiling
+          Slide2D(80,64, 1,1) o
+          Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+    val weights = Array.fill[Float](17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val (output: Array[Float], runtime) = Execute(1, 4, 1024, 64, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(1, 8, 4096, 512, (true, true))(stencil, input, weights)
+  }
+
+  @Test def blurYTiled2D(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(17,1, 1,1) o
+            // load to local memory
+            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o
+          // tiling
+          Slide2D(80,64, 16,16) o
+          Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+    val weights = Array.fill[Float](17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+  }
+
+  @Test def blurYTiled2DTransposed(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(17,1, 1,1) o
+            // transposed load
+            Transpose() o
+            toLocal(MapLcl(0)(MapLcl(1)(id))) o
+            Transpose() $ tile
+        ))) o
+          // tiling
+          Slide2D(80,64, 16,16) o
+          Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+    val weights = Array.fill[Float](17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+
+  }
 }
