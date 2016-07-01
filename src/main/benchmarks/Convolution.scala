@@ -45,7 +45,6 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
   }
 
   override def globalSize: Array[Int] = {
-    println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ variant: " + variant)
     variant match {
       case 0 => Array(4096, 4096, 1)
       case 1 => Array(4096, 4096, 1)
