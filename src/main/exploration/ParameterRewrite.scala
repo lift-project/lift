@@ -208,15 +208,17 @@ object ParameterRewrite {
   def readLambdaFromFile(filename: String) =
     Eval(readFromFile(filename))
 
-  def createValueMap(lambda: Lambda): Map[ArithExpr, ArithExpr] = {
+  def createValueMap(lambda: Lambda, sizes: Seq[ArithExpr] = Seq()): Map[ArithExpr, ArithExpr] = {
     val vars = getVars(lambda)
 
-    vars.foldLeft(Map[ArithExpr, ArithExpr]())((st, v) =>
-      st.updated(v, SearchParameters.matrix_size))
+    val actualSizes: Seq[ArithExpr] =
+      if (sizes.isEmpty) Seq.fill(vars.length)(SearchParameters.matrix_size) else sizes
+
+    (vars, actualSizes).zipped.toMap
   }
 
   def getVars(lambda: Lambda) =
-    lambda.params.flatMap(_.t.varList).distinct
+    lambda.params.flatMap(_.t.varList).sortBy(_.name).distinct
 
   def replaceInputTypes(lambda: Lambda, st: Map[ArithExpr, ArithExpr]): Lambda = {
     val tunable_nodes = Utils.findTunableNodes(lambda).reverse
