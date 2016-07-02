@@ -379,7 +379,10 @@ abstract class Benchmark(val name: String,
   }
 
   private def printResult(output: Array[Float]): Unit = {
-    println("output: " + output.mkString(", "))
+    val fw = new FileWriter("result.txt")
+      try {
+        fw.write(output.map(_.toInt).mkString("\n"))
+      } finally fw.close()
   }
 
   protected def bandwidth(time: Double): Double = {

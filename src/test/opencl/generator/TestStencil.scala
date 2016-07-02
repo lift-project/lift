@@ -885,7 +885,7 @@ class TestStencil extends TestSlide {
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }))
-        ) o Slide2D(17,1, 17,1) o Pad2D(8,8, 8,8, Pad.Boundary.Wrap)$ matrix
+        ) o Slide2D(17,1, 17,1) o Pad2D(8,8, 8,8, Pad.Boundary.Clamp)$ matrix
       })
 
     val weights = Array.fill[Float](17*17)(1.0f)
@@ -942,7 +942,7 @@ class TestStencil extends TestSlide {
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    // idle threads -- or start 16 32 to load in three columns
+    // idle threads
     //val (output: Array[Float], runtime) = Execute(32, 32, 4096, 4096, (true, true))(stencil, input, weights)
     // blocked loading to local mem
     //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)

@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.{SizeVar, StartFromRange, Var}
+import apart.arithmetic.{StartFromRange, Var}
 import ir._
 import ir.ast.{Pad2D, _}
 import opencl.ir._
@@ -16,25 +16,30 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
     //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => util.Random.nextFloat())
 
     Seq(inputData, variant match {
-      case 0 => Array.fill[Float](17*17)(1.0f)
-      case 1 => Array.fill[Float](17*17)(1.0f)
-      case 2 => Array.fill[Float](17)(1.0f)
-      case 3 => Array.fill[Float](17)(1.0f)
-      case 4 => Array.fill[Float](17)(1.0f)
-      case 5 => Array.fill[Float](17)(1.0f)
+      case 0 => Array.fill[Float](17*17)(1.0f) // convolution simple
+      case 1 => Array.fill[Float](17*17)(1.0f) // convolution tiled idle
+      case 2 => Array.fill[Float](17*17)(1.0f) // convolution tiled
+      case 3 => Array.fill[Float](17)(1.0f)    // blur y
+      case 4 => Array.fill[Float](17)(1.0f)    // blur y tiled
+      case 5 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d
+      case 6 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d transposed
     })
   }
 
+  // no scala checks because 4k x 4k is too big
   override def runScala(inputs: Any*): Array[Float] = {
     val input = inputs(0).asInstanceOf[Array[Array[Float]]]
     val weights = inputs(1).asInstanceOf[Array[Float]]
     variant match {
+        /*
       case 0 => Stencil2D.runScala(input, weights, 17,1,17,1, 8,8,8,8, Stencil2D.scalaClamp)
       case 1 => Stencil2D.runScala(input, weights, 17,1,17,1, 8,8,8,8, Stencil2D.scalaClamp)
-      case 2 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
+      case 2 => Stencil2D.runScala(input, weights, 17,1,17,1, 8,8,8,8, Stencil2D.scalaClamp)
       case 3 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
       case 4 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
       case 5 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
+      case 6 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
+      */
       case _ => throw new IllegalArgumentException("no scala check defined for this benchmark")
     }
   }
@@ -46,23 +51,25 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
 
   override def globalSize: Array[Int] = {
     variant match {
-      case 0 => Array(4096, 4096, 1)
-      case 1 => Array(4096, 4096, 1)
-      case 2 => Array(4096, 4096, 1)
-      case 3 => Array(4096, 512, 1)
-      case 4 => Array(4096, 512, 1)
-      case 5 => Array(4096, 512, 1)
+      case 0 => Array(4096, 4096, 1) // convolution simple
+      case 1 => Array(4096, 4096, 1) // convolution tiled idle
+      case 2 => Array(4096, 4096, 1) // convolution tiled
+      case 3 => Array(4096, 4096, 1) // blur y
+      case 4 => Array(4096, 512, 1)  // blur y tiled
+      case 5 => Array(4096, 512, 1)  // blur y tiled 2d
+      case 6 => Array(4096, 512, 1)  // blur y tiled 2d transposed
     }
   }
 
   override def localSize: Array[Int] = {
     variant match {
-      case 0 => Array(16, 16, 1)
-      case 1 => Array(16, 16, 1)
-      case 2 => Array(16, 16, 1)
-      case 3 => Array(1, 8, 1)
-      case 4 => Array(16, 8, 1)
-      case 5 => Array(16, 8, 1)
+      case 0 => Array(16, 16, 1) // convolution simple
+      case 1 => Array(32, 32, 1) // convolution tiled idle
+      case 2 => Array(16, 16, 1) // convolution tiled
+      case 3 => Array(16, 16, 1) // blur y
+      case 4 => Array(1, 8, 1)   // blur y tiled
+      case 5 => Array(16, 8, 1)  // blur y tiled 2d
+      case 6 => Array(16, 8, 1)  // blur y tiled 2d transposed
     }
   }
 }
@@ -249,6 +256,7 @@ object Convolution{
   def apply() = new Convolution(
     Seq(
       ("CONVOLUTION_SIMPLE", Array[Lambda](convolutionSimple())),
+      ("CONVOLUTION_TILED_IDLE", Array[Lambda](convolutionTiled())),
       ("CONVOLUTION_TILED", Array[Lambda](convolutionTiled())),
       ("BLUR_Y", Array[Lambda](blurY)),
       ("BLUR_Y_TILED", Array[Lambda](blurYTiled)),
