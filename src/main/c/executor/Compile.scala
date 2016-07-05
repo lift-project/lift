@@ -44,7 +44,7 @@ object Compile {
             valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
     // 1. type check
     TypeChecker.check(f.body)
-
+    
     // 2. generate OpenCL kernel
     val kernel = CGenerator.generate(f,
       Array(localSize0, localSize1, localSize2),

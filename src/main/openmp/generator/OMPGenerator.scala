@@ -28,10 +28,10 @@ object OMPGenerator extends CGenerator{
                                  m: OmpMap,
                                  call: FunCall,
                                  block: Block): Unit = {
-    (block: Block) += CAst.Comment("map_par")
+    (block: Block) += CAst.Comment("omp_map")
     (block: Block) += CAst.Pragma(pragma)
     generateForLoop(block, m.loopVar, generateExpr(m.f.body, _), m.shouldUnroll)
-    (block: Block) += CAst.Comment("end map_par")
+    (block: Block) += CAst.Comment("end omp_map")
   }
 }
 
