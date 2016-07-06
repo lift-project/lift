@@ -10,9 +10,9 @@ import opencl.executor.Utils
 class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Convolution", Seq(4096, 4096), f, 0.01f) {
 
   override def generateInputs(): Seq[Any] = {
-    val inputSizeN = inputSizes()(0)
-    val inputSizeM = inputSizes()(1)
-    val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c)
+    val inputSizeN = if(variant < 7) inputSizes()(0) else 3072
+    val inputSizeM = if(variant < 7) inputSizes()(1) else 3072
+    //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c)
     //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => util.Random.nextFloat())
 
     Seq(variant match {
@@ -24,6 +24,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 5 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d
       case 6 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d transposed
       case 7 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled
+      case 8 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled transposed
     }, variant match {
       case 0 => Array.fill[Float](17*17)(1.0f) // convolution simple
       case 1 => Array.fill[Float](17*17)(1.0f) // convolution tiled idle
@@ -32,7 +33,8 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 4 => Array.fill[Float](17)(1.0f)    // blur y tiled
       case 5 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d
       case 6 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d transposed
-      case 7 => Array.fill[Float](17)(1.0f)    // 3k blur y tiled
+      case 7 => Array.fill[Float](17)(1.0f)    // 3k blur y tiled 2d
+      case 8 => Array.fill[Float](17)(1.0f)    // 3k blur y tiled 2d transposed
     })
   }
 
@@ -56,6 +58,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 5 => Array(4096, 512, 1)  // blur y tiled 2d
       case 6 => Array(4096, 512, 1)  // blur y tiled 2d transposed
       case 7 => Array(3072, 384, 1)  // 3k blur y tiled 2d
+      case 8 => Array(3072, 384, 1)  // 3k blur y tiled 2d transposed
     }
   }
 
@@ -69,6 +72,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 5 => Array(16, 8, 1)  // blur y tiled 2d
       case 6 => Array(16, 8, 1)  // blur y tiled 2d transposed
       case 7 => Array(16, 8, 1)  // 3k blur y tiled 2d
+      case 8 => Array(16, 8, 1)  // 3k blur y tiled 2d transposed
     }
   }
 }
@@ -261,7 +265,8 @@ object Convolution{
       ("BLUR_Y_TILED", Array[Lambda](blurYTiled)),
       ("BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D)),
       ("BLUR_Y_TILED_2D_TRANSPOSED", Array[Lambda](blurYTiled2DTransposed)),
-      ("3K_ BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D))
+      ("3K_ BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D)),
+      ("3K_ BLUR_Y_TILED_2D_TRANSPOSED", Array[Lambda](blurYTiled2DTransposed))
     )
   )
 
