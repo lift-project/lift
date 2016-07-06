@@ -1,10 +1,11 @@
 package openmp.executor
 
-import apart.arithmetic.?
+import apart.arithmetic.{?, SizeVar}
 import c.generator.CGenerator
 import ir.{ArrayType, TupleType, Type, TypeChecker}
 import ir.ast.{Lambda, Param, fun}
 import opencl.ir._
+import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
 import openmp.ir.pattern.MapPar
 
@@ -24,11 +25,10 @@ object Harness {
     val stringBuilder = new StringBuilder
     stringBuilder.append("//Auto-generated runtime harness\n")
     stringBuilder.append("int main(char** argv) {\nint arrCount;\n")
-    stringBuilder.append("TODO: Properly load data here. From file? From Command line?")
+    stringBuilder.append("char* data = argv[0];\n")
     kernel.params.foreach {x => stringBuilder.append(generateParameterCode(x))}
     stringBuilder.append(generateInvocationCode(kernel))
-    stringBuilder.append("TODO: Reverse the original protocol to return data to the caller!!")
-    stringBuilder.append("\n}")
+    stringBuilder.append("}")
     stringBuilder.toString()
   }
 
@@ -37,25 +37,62 @@ object Harness {
   def readInputVariable(t:Type, param :String) = {
     val sb = new StringBuilder
     val str = t match {
-      case Float => generateSimpleParam(typeName(t), param)
-      case Int => generateSimpleParam(typeName(t), param)
-      case t:TupleType => generateTupleType(t,param)
-      case t:ArrayType => generateArrayParam(t,param)
+      case Float => readSimple(t, param)
+      case Int => readSimple(t, param)
+      case t:TupleType => readTuple(t,param)
+      case t:ArrayType => readArray(t,param)
       case t => throw new Exception("Unsupported type " ++ t.toString)
     }
     sb.append(str)
     sb.toString
   }
 
-  def generateSimpleParam(typeName:String, varName:String) = {
-    s"$typeName $varName = ${getData(typeName)};\n${advanceData(typeName)};\n"
+  def writeVariable(t:Type, varName:String):String = {
+    val str = t match {
+      case Float => writeSimple(t,varName)
+      case Int => writeSimple(t,varName)
+      case t:TupleType => writeTuple(t,varName)
+      case t:ArrayType => writeArray(t,varName)
+      case _ => throw new Exception("Cannot write variable of unsupported type " ++ t.toString)
+    }
+    str
   }
 
-  def generateTupleType(tupleType: TupleType, varName:String):String = {
+  def declareVariable(t:Type, varName:String):String = {
     val sb = new StringBuilder
-    val tupleTypeName = typeName(tupleType)
+    val tName = typeName(t)
+    sb.append(s"$tName $varName")
+    t match {
+      case t:ArrayType => sb.append(s"[${t.len}]")
+      case _ =>
+    }
+    sb.append(";\n")
+    sb.toString
+  }
+
+  def readSimple(t:Type, varName:String) = {
+    val init = s"$varName = ${getData(typeName(t))};\n${advanceData(typeName(t))};\n"
+    declareVariable(t,varName) ++ init
+  }
+
+  def writeSimple(t:Type, varName:String):String = {
+    val pattern = t match {
+      case Int => "%d"
+      case Float => "%f"
+      case _ => throw new Exception(s"Cannot output ${typeName(t)}, it is not a simple type")
+    }
+    val sb = new StringBuilder
+    sb.append("printf(\"")
+    sb.append(pattern)
+    sb.append("\"")
+    sb.append(s",$varName);\n")
+    sb.toString
+  }
+
+  def readTuple(tupleType: TupleType, varName:String):String = {
+    val sb = new StringBuilder
     sb.append(s"//generating tuple type ${tupleType.toString}\n")
-    sb.append(s"$tupleTypeName $varName;\n")
+    sb.append(declareVariable(tupleType,varName))
     sb.append("{\n")
     for(i <- 0 to tupleType.elemsT.size-1) {
       val t = tupleType.elemsT(i)
@@ -66,16 +103,38 @@ object Harness {
     sb.toString
   }
 
-  def generateArrayParam(t:ArrayType, varName:String):String = {
+  def writeTuple(t:TupleType, varName:String):String = {
+    val sb = new StringBuilder
+    sb.append(s"//Outputting tuple of type ${typeName(t)}\n")
+    for(i <- 0 to t.elemsT.size-1) {
+      sb.append(writeVariable(t.elemsT(i),s"${varName}._$i"))
+      if(i < t.elemsT.size-1) {
+        sb.append(separator)
+      }
+    }
+    sb.toString
+  }
+
+  def readArray(t:ArrayType, varName:String):String = {
     val sb = new StringBuilder
     val arrayTypeName = typeName(t)
     val elemTypeName = typeName(t.elemT)
     sb.append(s"//generating array of type $arrayTypeName\n")
     sb.append(getSizeFromData)
-    sb.append(s"$arrayTypeName $varName[${t.len}];\n") // = malloc(arrCount * sizeof($elemTypeName));\n")
+    sb.append(declareVariable(t,varName))
     sb.append(s"for(int i = 0; i < arrCount; i++){\n")
     sb.append(readInputVariable(t.elemT,"temp"))
     sb.append(s"$varName[i] = temp;\n")
+    sb.append("}\n")
+    sb.toString
+  }
+
+  def writeArray(t:ArrayType, varName:String):String = {
+    val sb = new StringBuilder
+    sb.append(s"//Outputting array of type ${typeName(t)}\n")
+    sb.append("printf(\"%d \"," ++  s"${t.len});\n")
+    sb.append(s"for(int i = 0; i < ${t.len};i++{\n")
+    sb.append(writeVariable(t.elemT,s"$varName[i]"))
     sb.append("}\n")
     sb.toString
   }
@@ -84,12 +143,16 @@ object Harness {
   def getData(typeName:String) = s"(($typeName*)data)[0]"
   def advanceData(typeName: String) = s"data += sizeof($typeName)"
   def getDataAndAdvance(typeName: String) = getData(typeName) ++ ";" ++ advanceData(typeName) ++ ";"
+  def separator = "printf(\" \");\n"
+
 
   def generateInvocationCode(kernel:Lambda):String = {
     val sb = new StringBuilder()
     sb.append("//main invocation\n")
-    val paramList = kernel.params.foldLeft("")((x,y) => x ++ "," ++ y.toString).substring(1)
+    sb.append(declareVariable(kernel.body.t,"output"))
+    val paramList = (kernel.params.foldLeft("")((x,y) => x ++ ", " ++ y.toString) ++ ", output").substring(1)
     sb.append(s"liftKernel($paramList);\n")
+    sb.append(writeVariable(kernel.body.t, "output"))
     sb.toString
   }
 
@@ -105,7 +168,13 @@ object Harness {
     val f = fun(
       ArrayType(TupleType(Float,Float),100),
       A => {
-        MapPar(add) $ A
+        MapSeq(add) $ A
+      })
+    val f2 = fun (
+      ArrayType(Float, SizeVar("N")),
+      Float,
+      (in,init) => {
+        toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
       })
     println(Harness(OMPGenerator,f))
   }

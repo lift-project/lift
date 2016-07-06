@@ -381,10 +381,11 @@ class CGenerator extends Generator {
       kernel.body += decl
     }) */
 
+    val temp = Kernel.memory.map((x => CAst.ParamDecl(x.mem.variable.toString,x.t))).toList
     val liftKernel = CAst.Function(
       name = "liftKernel",
       ret = UndefType,
-      params = f.params.map(x => CAst.ParamDecl(x.toString,x.t)).toList,
+      params = Kernel.memory.map((x => CAst.ParamDecl(x.mem.variable.toString,x.t))).toList, //f.params.map(x => CAst.ParamDecl(x.toString,x.t)).toList,
       body = Block(),
       kernel = true
     )
@@ -1093,12 +1094,6 @@ object GeneratorTest {
         MapSeq(add) $ A
       })
 
-    val f2 = fun (
-      ArrayType(Float, SizeVar("N")),
-      Float,
-      (in,init) => {
-        toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
-      })
 
     println(Compile(f))
   }

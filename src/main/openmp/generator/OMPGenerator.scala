@@ -1,11 +1,13 @@
 package openmp.generator
 
+import apart.arithmetic.SizeVar
 import openmp.executor.Compile
 import c.generator.CAst.Block
 import c.generator.{CAst, CGenerator}
 import ir.{ArrayType, TupleType}
 import ir.ast.{Expr, FunCall, fun}
 import opencl.ir._
+import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.ir.pattern.{MapPar, MapVec, OmpMap}
 
 /**
@@ -41,6 +43,12 @@ object Test {
       ArrayType(TupleType(Float,Float),100),
       A => {
         MapPar(add) $ A
+      })
+    val f2 = fun (
+      ArrayType(Float, SizeVar("N")),
+      Float,
+      (in,init) => {
+        toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
       })
     println(Compile(f))
   }
