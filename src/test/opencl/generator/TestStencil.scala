@@ -1062,6 +1062,10 @@ class TestStencil extends TestSlide {
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
     //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+
+    // for generating 3k kernel
+    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
   }
 
   @Test def blurYTiled2DTransposed(): Unit = {
@@ -1096,6 +1100,54 @@ class TestStencil extends TestSlide {
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
+    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+
+  }
+
+  @Test def blurYTiled2DTransposedPadded(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(17,1, 1,1) o
+            // transposed load
+            Transpose() o
+            toLocal(MapLcl(0)(MapLcl(1)(id))) o
+            Transpose() o
+            // pad to avoid bank conflicts
+            Pad(0,1, Pad.Boundary.Clamp) $ tile
+        ))) o
+          // tiling
+          Slide2D(80,64, 16,16) o
+          Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+    val weights = Array.fill[Float](17)(1.0f)
+
+    // testing
+
     val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
     val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)

@@ -15,7 +15,16 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
     val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c)
     //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => util.Random.nextFloat())
 
-    Seq(inputData, variant match {
+    Seq(variant match {
+      case 0 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // convolution simple
+      case 1 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // convolution tiled idle
+      case 2 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // convolution tiled
+      case 3 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y
+      case 4 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled
+      case 5 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d
+      case 6 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d transposed
+      case 7 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled
+    }, variant match {
       case 0 => Array.fill[Float](17*17)(1.0f) // convolution simple
       case 1 => Array.fill[Float](17*17)(1.0f) // convolution tiled idle
       case 2 => Array.fill[Float](17*17)(1.0f) // convolution tiled
@@ -23,25 +32,13 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 4 => Array.fill[Float](17)(1.0f)    // blur y tiled
       case 5 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d
       case 6 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d transposed
+      case 7 => Array.fill[Float](17)(1.0f)    // 3k blur y tiled
     })
   }
 
   // no scala checks because 4k x 4k is too big
   override def runScala(inputs: Any*): Array[Float] = {
-    val input = inputs(0).asInstanceOf[Array[Array[Float]]]
-    val weights = inputs(1).asInstanceOf[Array[Float]]
-    variant match {
-        /*
-      case 0 => Stencil2D.runScala(input, weights, 17,1,17,1, 8,8,8,8, Stencil2D.scalaClamp)
-      case 1 => Stencil2D.runScala(input, weights, 17,1,17,1, 8,8,8,8, Stencil2D.scalaClamp)
-      case 2 => Stencil2D.runScala(input, weights, 17,1,17,1, 8,8,8,8, Stencil2D.scalaClamp)
-      case 3 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
-      case 4 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
-      case 5 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
-      case 6 => Stencil2D.runScala(input, weights, 17,1,1,1, 0,0,8,8, Stencil2D.scalaClamp)
-      */
-      case _ => throw new IllegalArgumentException("no scala check defined for this benchmark")
-    }
+    throw new IllegalArgumentException("no scala check defined for this benchmark")
   }
 
   override def runOpenCL(inputs: Any*): (Array[Float], Double) = {
@@ -58,6 +55,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 4 => Array(4096, 512, 1)  // blur y tiled
       case 5 => Array(4096, 512, 1)  // blur y tiled 2d
       case 6 => Array(4096, 512, 1)  // blur y tiled 2d transposed
+      case 7 => Array(3072, 384, 1)  // 3k blur y tiled 2d
     }
   }
 
@@ -70,6 +68,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 4 => Array(1, 8, 1)   // blur y tiled
       case 5 => Array(16, 8, 1)  // blur y tiled 2d
       case 6 => Array(16, 8, 1)  // blur y tiled 2d transposed
+      case 7 => Array(16, 8, 1)  // 3k blur y tiled 2d
     }
   }
 }
@@ -261,7 +260,8 @@ object Convolution{
       ("BLUR_Y", Array[Lambda](blurY)),
       ("BLUR_Y_TILED", Array[Lambda](blurYTiled)),
       ("BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D)),
-      ("BLUR_Y_TILED_2D_TRANSPOSED", Array[Lambda](blurYTiled2DTransposed))
+      ("BLUR_Y_TILED_2D_TRANSPOSED", Array[Lambda](blurYTiled2DTransposed)),
+      ("3K_ BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D))
     )
   )
 
