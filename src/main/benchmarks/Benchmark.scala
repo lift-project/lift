@@ -381,7 +381,8 @@ abstract class Benchmark(val name: String,
   private def printResult(output: Array[Float]): Unit = {
     val fw = new FileWriter("result.txt")
       try {
-        fw.write(output.map(_.toInt).mkString("\n"))
+        //fw.write(output.map(_.toInt).mkString("\n"))
+        fw.write(output.mkString("\n"))
       } finally fw.close()
   }
 
