@@ -41,7 +41,7 @@ object StencilRefs{
 
   /////////////////// LAMBDAS
   def shoc(): Lambda = {
-    val stencil = fun(
+    fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(10))), Var("M", StartFromRange(10))),
       ArrayType(Float, 9),
       (matrix, weights) => {
