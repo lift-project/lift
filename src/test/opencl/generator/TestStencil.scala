@@ -1160,4 +1160,84 @@ class TestStencil extends TestSlide {
     //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
 
   }
+
+  /* **********************************************************
+      SHOC STENCIL 2D
+  ***********************************************************/
+  /*
+  on fuji
+  $ cd /home/v1bhaged/shoc/src/opencl/level1/stencil2d
+  $ ./Stencil2D --customSize 8,8 --lsize 8,8 --weight-center 0.25 --weight-cardinal 0.15 --weight-diagonal 0.05 --verbose --num-iters 1
+
+  compare to 10x10 array. SHOC does not handle boundary but provides a padded input array
+   */
+  @Test def shocStencil2D(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayType(Float, 9),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(3,1, 3,1) o
+            // load to local memory
+            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o
+          // tiling
+          Slide2D(18,16, 18,16) $ matrix
+      }
+    )
+    val weights = Array(0.05, 0.15, 0.05,
+                        0.15, 0.25, 0.15,
+                        0.05, 0.15, 0.05).map(_.toFloat)
+
+    // testing - change tilesize!
+    //val inputSize = 10
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+    // testing - change tilesize!
+    val inputSize = 256
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+    // 4k
+    //val inputSize = 4096
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i-haloSize) * (j-haloSize) * 1.0f }
+    input(0) = input(0).map((_*0.0f))
+    input(inputSize -1) = input(inputSize -1).map(_*0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_*0.0f)
+    input(inputSize -1) = input(inputSize -1).map(_*0.0f)
+    input = input.transpose
+
+    val (output: Array[Float], runtime) = Execute(16, 16, 128, 128, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    //input.map(x => println(x.mkString(", ")))
+    //output.grouped(8).toArray.map(x => println(x.mkString(", ")))
+
+    //val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
+    //compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+
+    // for generating 3k kernel
+    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
+  }
 }
