@@ -76,7 +76,9 @@ object SHOCStencil2D{
       ("SHOC_STENCIL2D_16_16", Array[Lambda](shoc(16,16))),
       ("SHOC_STENCIL2D_32_32", Array[Lambda](shoc(32,32))),
       ("SHOC_STENCIL2D_32_16", Array[Lambda](shoc(32,16))),
-      ("SHOC_STENCIL2D_16_32", Array[Lambda](shoc(16,32)))
+      ("SHOC_STENCIL2D_16_32", Array[Lambda](shoc(16,32))),
+      ("SHOC_STENCIL2D_256_8", Array[Lambda](shoc(256,8))),
+      ("SHOC_STENCIL2D_8_256", Array[Lambda](shoc(8,256)))
     )
   )
 
