@@ -23,8 +23,11 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 4 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled
       case 5 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d
       case 6 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d transposed
-      case 7 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled
-      case 8 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled transposed
+      case 7 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x
+      case 8 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x tiled
+      case 9 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x tiled 2d
+      case 10 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled
+      case 11 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled transposed
     }, variant match {
       case 0 => Array.fill[Float](17*17)(1.0f) // convolution simple
       case 1 => Array.fill[Float](17*17)(1.0f) // convolution tiled idle
@@ -33,8 +36,11 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 4 => Array.fill[Float](17)(1.0f)    // blur y tiled
       case 5 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d
       case 6 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d transposed
-      case 7 => Array.fill[Float](17)(1.0f)    // 3k blur y tiled 2d
-      case 8 => Array.fill[Float](17)(1.0f)    // 3k blur y tiled 2d transposed
+      case 7 => Array.fill[Float](17)(1.0f)    // blur x
+      case 8 => Array.fill[Float](17)(1.0f)    // blur x tiled
+      case 9 => Array.fill[Float](17)(1.0f)    // blur x tiled 2d
+      case 10 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d
+      case 11 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d transposed
     })
   }
 
@@ -57,8 +63,11 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 4 => Array(4096, 512, 1)  // blur y tiled
       case 5 => Array(4096, 512, 1)  // blur y tiled 2d
       case 6 => Array(4096, 512, 1)  // blur y tiled 2d transposed
-      case 7 => Array(3072, 384, 1)  // 3k blur y tiled 2d
-      case 8 => Array(3072, 384, 1)  // 3k blur y tiled 2d transposed
+      case 7 => Array(512, 4096, 1)  // blur x
+      case 8 => Array(512, 4096, 1)  // blur x tiled
+      case 9 => Array(512, 4096, 1)  // blur x tiled 2d
+      case 10 => Array(3072, 384, 1)  // 3k blur y tiled 2d
+      case 11 => Array(3072, 384, 1)  // 3k blur y tiled 2d transposed
     }
   }
 
@@ -71,8 +80,11 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 4 => Array(1, 8, 1)   // blur y tiled
       case 5 => Array(16, 8, 1)  // blur y tiled 2d
       case 6 => Array(16, 8, 1)  // blur y tiled 2d transposed
-      case 7 => Array(16, 8, 1)  // 3k blur y tiled 2d
-      case 8 => Array(16, 8, 1)  // 3k blur y tiled 2d transposed
+      case 7 => Array(16, 4, 1)  // blur x
+      case 8 => Array(16, 4, 1)  // blur x tiled
+      case 9 => Array(16, 4, 1)  // blur x tiled 2d
+      case 10 => Array(16, 8, 1)  // 3k blur y tiled 2d
+      case 11 => Array(16, 8, 1)  // 3k blur y tiled 2d transposed
     }
   }
 }
@@ -256,6 +268,82 @@ object Convolution{
     )
   }
 
+  def blurX(): Lambda = {
+    fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ neighbours, weights)
+          }))
+        ) o Slide2D(1,1, 17,1) o Pad2D(0,0, 8,8, Pad.Boundary.Clamp)$ matrix
+      })
+  }
+
+  def blurXTiled(): Lambda = {
+    fun(
+    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(Float, 17),
+    (matrix, weights) => {
+      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+        MapLcl(1)(MapLcl(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(1,1, 17,1) o
+          // load to local memory
+          toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+      ))) o
+        // tiling
+        Slide2D(1,1, 160,144) o
+        Pad2D(0,0, 8,8, Pad.Boundary.Clamp) $ matrix
+    }
+    )
+  }
+
+  def blurXTiled2D(): Lambda = {
+    fun(
+    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(Float, 17),
+    (matrix, weights) => {
+      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+        MapLcl(1)(MapLcl(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(1,1, 17,1) o
+          // load to local memory
+          toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+      ))) o
+        // tiling
+        Slide2D(4,4, 160,144) o
+        Pad2D(0,0, 8,8, Pad.Boundary.Clamp) $ matrix
+    }
+  )
+  }
+
   def apply() = new Convolution(
     Seq(
       ("CONVOLUTION_SIMPLE", Array[Lambda](convolutionSimple())),
@@ -265,6 +353,9 @@ object Convolution{
       ("BLUR_Y_TILED", Array[Lambda](blurYTiled)),
       ("BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D)),
       ("BLUR_Y_TILED_2D_TRANSPOSED", Array[Lambda](blurYTiled2DTransposed)),
+      ("BLUR_X", Array[Lambda](blurX)),
+      ("BLUR_X_TILED", Array[Lambda](blurXTiled)),
+      ("BLUR_X_TILED_2D", Array[Lambda](blurXTiled2D)),
       ("3K_ BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D)),
       ("3K_ BLUR_Y_TILED_2D_TRANSPOSED", Array[Lambda](blurYTiled2DTransposed))
     )

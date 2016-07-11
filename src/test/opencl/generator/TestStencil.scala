@@ -1161,6 +1161,129 @@ class TestStencil extends TestSlide {
 
   }
 
+  @Ignore //fix
+  @Test def blurX(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ neighbours, weights)
+          }))
+        ) o Slide2D(1,1, 17,1) o Pad2D(0,0, 8,8, Pad.Boundary.Clamp)$ matrix
+      })
+
+    val weights = Array.fill[Float](17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 16, 256, 256, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 1,1, 17,1, 0,0,8,8, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+  }
+
+  @Ignore //fix
+  @Test def blurXTiled(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(1,1, 17,1) o
+            // load to local memory
+            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o
+          // tiling
+          Slide2D(1,1, 160,144) o
+          Pad2D(0,0, 8,8, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+    val weights = Array.fill[Float](17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 4, 128, 3072, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 1,1, 17,1, 0,0,8,8, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+  }
+
+  @Ignore //fix
+  @Test def blurXTiled2D(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(17,1, 1,1) o
+            // load to local memory
+            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o
+          // tiling
+          Slide2D(80,64, 16,16) o
+          Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+    val weights = Array.fill[Float](17)(1.0f)
+
+    // testing
+    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
+    compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+
+    // for generating 3k kernel
+    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
+  }
+
   /* **********************************************************
       SHOC STENCIL 2D
   ***********************************************************/
