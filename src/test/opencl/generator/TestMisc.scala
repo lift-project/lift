@@ -29,6 +29,104 @@ class TestMisc {
 
   val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
 
+  @Ignore
+  @Test
+  def reverseScatterAndVec(): Unit = {
+
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      Scatter(reverse) o asScalar() o MapGlb(VectorizeUserFun(4, id)) o asVector(4) $ _
+    )
+
+    val (output: Array[Float], _) = Execute(size)(f, input)
+
+    assertArrayEquals(input.reverse, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def reverseGatherAndVec(): Unit = {
+
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      asScalar() o MapGlb(VectorizeUserFun(4, id)) o asVector(4) o Gather(reverse) $ _
+    )
+    val (output: Array[Float], _) = Execute(size)(f, input)
+
+    assertArrayEquals(input.reverse, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def strideScatterAndVec(): Unit = {
+
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      Scatter(ReorderWithStride(32)) o asScalar() o
+        MapGlb(VectorizeUserFun(4, id)) o asVector(4) $ _
+    )
+
+    val (output: Array[Float], _) = Execute(size)(f, input)
+
+    assertArrayEquals(input.reverse, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def strideGatherAndVec(): Unit = {
+
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      asScalar() o MapGlb(VectorizeUserFun(4, id)) o
+        asVector(4) o Gather(ReorderWithStride(32)) $ _
+    )
+    val (output: Array[Float], _) = Execute(size)(f, input)
+
+    assertArrayEquals(input.reverse, output, 0.0f)
+  }
+
+  @Ignore
+  @Test
+  def issue38(): Unit = {
+    val N = SizeVar("N")
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
+    val a = 2.0f
+
+    val f = \(
+      ArrayType(Float, N),
+      Float,
+      (input, a) =>
+        asScalar() o MapGlb(\(b => VectorizeUserFun(4, mult)(a, b))) o
+          asVector(4) $ input
+    )
+
+    val (output: Array[Float], _) = Execute(size)(f, input, a)
+    val gold = input.map(_*a)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
   @Test
   def sameParam(): Unit = {
 
