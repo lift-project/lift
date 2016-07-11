@@ -1,6 +1,6 @@
 package analysis
 
-import apart.arithmetic.{Cst, SizeVar}
+import apart.arithmetic._
 import ir.ArrayType
 import ir.ast._
 import opencl.generator._

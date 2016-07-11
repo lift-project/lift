@@ -1,6 +1,5 @@
 package analysis
 
-import apart.arithmetic.ArithExpr._
 import apart.arithmetic._
 import ir._
 import ir.ast.{Map => _, _}
