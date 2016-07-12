@@ -10,8 +10,8 @@ import opencl.executor.Utils
 class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Convolution", Seq(4096, 4096), f, 0.01f) {
 
   override def generateInputs(): Seq[Any] = {
-    val inputSizeN = if(variant < 7) inputSizes()(0) else 3072
-    val inputSizeM = if(variant < 7) inputSizes()(1) else 3072
+    val inputSizeN = if(variant < 12) inputSizes()(0) else 3072
+    val inputSizeM = if(variant < 12) inputSizes()(1) else 3072
     //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c)
     //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => util.Random.nextFloat())
 
@@ -22,12 +22,14 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 3 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y
       case 4 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled
       case 5 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d
-      case 6 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d transposed
-      case 7 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x
-      case 8 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x tiled
-      case 9 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x tiled 2d
-      case 10 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled
-      case 11 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled transposed
+      case 6 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d tiled loading
+      case 7 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d transposed
+      case 8 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d tiled loading transposed
+      case 9 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x
+      case 10 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x tiled
+      case 11 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x tiled 2d
+      case 12 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled
+      case 13 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled transposed
     }, variant match {
       case 0 => Array.fill[Float](17*17)(1.0f) // convolution simple
       case 1 => Array.fill[Float](17*17)(1.0f) // convolution tiled idle
@@ -35,12 +37,14 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 3 => Array.fill[Float](17)(1.0f)    // blur y
       case 4 => Array.fill[Float](17)(1.0f)    // blur y tiled
       case 5 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d
-      case 6 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d transposed
-      case 7 => Array.fill[Float](17)(1.0f)    // blur x
-      case 8 => Array.fill[Float](17)(1.0f)    // blur x tiled
-      case 9 => Array.fill[Float](17)(1.0f)    // blur x tiled 2d
-      case 10 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d
-      case 11 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d transposed
+      case 6 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d tiled loading
+      case 7 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d transposed
+      case 8 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d tiled loading transposed
+      case 8 => Array.fill[Float](17)(1.0f)    // blur x
+      case 9 => Array.fill[Float](17)(1.0f)    // blur x tiled
+      case 10 => Array.fill[Float](17)(1.0f)    // blur x tiled 2d
+      case 11 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d
+      case 12 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d transposed
     })
   }
 
@@ -62,12 +66,14 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 3 => Array(4096, 4096, 1) // blur y
       case 4 => Array(4096, 512, 1)  // blur y tiled
       case 5 => Array(4096, 512, 1)  // blur y tiled 2d
-      case 6 => Array(4096, 512, 1)  // blur y tiled 2d transposed
-      case 7 => Array(512, 4096, 1)  // blur x
-      case 8 => Array(512, 4096, 1)  // blur x tiled
-      case 9 => Array(512, 4096, 1)  // blur x tiled 2d
-      case 10 => Array(3072, 384, 1)  // 3k blur y tiled 2d
-      case 11 => Array(3072, 384, 1)  // 3k blur y tiled 2d transposed
+      case 6 => Array(4096, 512, 1)  // blur y tiled 2d tiled loading
+      case 7 => Array(4096, 512, 1)  // blur y tiled 2d transposed
+      case 8 => Array(4096, 512, 1)  // blur y tiled 2d tiled loading transposed
+      case 9 => Array(512, 4096, 1)  // blur x
+      case 10 => Array(512, 4096, 1)  // blur x tiled
+      case 11 => Array(512, 4096, 1)  // blur x tiled 2d
+      case 12 => Array(3072, 384, 1)  // 3k blur y tiled 2d
+      case 13 => Array(3072, 384, 1)  // 3k blur y tiled 2d transposed
     }
   }
 
@@ -79,12 +85,14 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 3 => Array(16, 16, 1) // blur y
       case 4 => Array(1, 8, 1)   // blur y tiled
       case 5 => Array(16, 8, 1)  // blur y tiled 2d
-      case 6 => Array(16, 8, 1)  // blur y tiled 2d transposed
-      case 7 => Array(16, 4, 1)  // blur x
-      case 8 => Array(16, 4, 1)  // blur x tiled
-      case 9 => Array(16, 4, 1)  // blur x tiled 2d
-      case 10 => Array(16, 8, 1)  // 3k blur y tiled 2d
-      case 11 => Array(16, 8, 1)  // 3k blur y tiled 2d transposed
+      case 6 => Array(16, 8, 1)  // blur y tiled 2d tiled loading
+      case 7 => Array(16, 8, 1)  // blur y tiled 2d transposed
+      case 8 => Array(16, 8, 1)  // blur y tiled 2d tiled loading transposed
+      case 9 => Array(16, 4, 1)  // blur x
+      case 10 => Array(16, 4, 1)  // blur x tiled
+      case 11 => Array(16, 4, 1)  // blur x tiled 2d
+      case 12 => Array(16, 8, 1)  // 3k blur y tiled 2d
+      case 13 => Array(16, 8, 1)  // 3k blur y tiled 2d transposed
     }
   }
 }
@@ -237,6 +245,36 @@ object Convolution{
   )
   }
 
+  def blurYTiled2DTiledLoading(): Lambda = {
+    fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(17,1, 1,1) o Join() o
+            // load to local memory
+            toLocal(MapSeqUnroll(MapLcl(1)(MapLcl(0)(id)))) o Split(8) $ tile
+          // split tiles into chunks
+        ))) o
+          // tiling
+          Slide2D(80,64, 16,16) o
+          Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+  }
+
   def blurYTiled2DTransposed(): Lambda = {
     fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
@@ -259,6 +297,41 @@ object Convolution{
             // transposed load
             Transpose() o
             toLocal(MapLcl(0)(MapLcl(1)(id))) o
+            Transpose() $ tile
+        ))) o
+          // tiling
+          Slide2D(80,64, 16,16) o
+          Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
+      }
+    )
+  }
+
+  def blurYTiled2DTiledLoadingTransposed(): Lambda = {
+    fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(17,1, 1,1) o
+            // transposed load
+            Transpose() o
+              Map(Join()) o
+                // tiled loading
+                toLocal(MapLcl(0)(MapSeqUnroll(MapLcl(1)(id)))) o
+              // split tile into chunks
+              Map(Split(8)) o
             Transpose() $ tile
         ))) o
           // tiling
@@ -352,7 +425,9 @@ object Convolution{
       ("BLUR_Y", Array[Lambda](blurY)),
       ("BLUR_Y_TILED", Array[Lambda](blurYTiled)),
       ("BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D)),
+      ("BLUR_Y_TILED_2D_TILED_LOADING", Array[Lambda](blurYTiled2DTiledLoading)),
       ("BLUR_Y_TILED_2D_TRANSPOSED", Array[Lambda](blurYTiled2DTransposed)),
+      ("BLUR_Y_TILED_2D_TILED_LOADING_TRANSPOSED", Array[Lambda](blurYTiled2DTiledLoadingTransposed)),
       ("BLUR_X", Array[Lambda](blurX)),
       ("BLUR_X_TILED", Array[Lambda](blurXTiled)),
       ("BLUR_X_TILED_2D", Array[Lambda](blurXTiled2D)),

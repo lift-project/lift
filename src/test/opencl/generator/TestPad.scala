@@ -337,6 +337,23 @@ class TestPad {
 
     validate2D(gold, 2,2,2,2, Wrap)
   }
+  /* **********************************************************
+      THESIS
+  ***********************************************************/
+  @Test def reducePad(): Unit = {
+    val input = Array(0,1,2,3,4,5).map(_.toFloat)
+    val gold = Array(20.0f)
+    val bf = Pad.Boundary.Wrap
+    val fct = fun(
+      ArrayType(Float, SizeVar("N")),
+      (input) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Pad(1,1,bf) $ input
+    )
+
+    val (output: Array[Float], _) = Execute(1,1)(fct, input)
+    println(output.mkString(", "))
+    println("test")
+    //assertArrayEquals(gold, output, 0.0f)
+  }
 
     /* **********************************************************
         OLD STUFF WHICH MIGHT TURN OUT TO BE USEFUL
