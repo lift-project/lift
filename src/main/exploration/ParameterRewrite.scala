@@ -59,7 +59,9 @@ object ParameterRewrite {
 
       parser.parse(args)
 
-      topFolder = input.value.get
+      val inputArgument = input.value.get
+
+      topFolder = Paths.get(inputArgument).toString
 
       lambdaFilename = topFolder + "Scala/lambdaFile"
 
@@ -76,17 +78,21 @@ object ParameterRewrite {
       val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
       val highLevelCount = all_files.size
 
+      val parentFolder = Paths.get(topFolder).getParent
+
       var expr_counter = 0
       all_files.foreach(filename => {
 
-        if (Files.exists(Paths.get(filename))) {
+        val fullFilename = parentFolder + "/" + filename
+
+        if (Files.exists(Paths.get(fullFilename))) {
           val high_level_hash = filename.split("/").last
           expr_counter = expr_counter + 1
           println(s"High-level expression : $expr_counter / $highLevelCount")
 
           try {
 
-            val high_level_expr_orig = readLambdaFromFile(filename)
+            val high_level_expr_orig = readLambdaFromFile(fullFilename)
 
             val st = createValueMap(high_level_expr_orig)
             val sizesForFilter = st.values.toSeq
@@ -117,7 +123,8 @@ object ParameterRewrite {
                 try {
 
                   val low_level_hash = low_level_filename.split("/").last
-                  val low_level_str = readFromFile(low_level_filename)
+                  val fullLowLevelFilename = parentFolder + "/" + low_level_filename
+                  val low_level_str = readFromFile(fullLowLevelFilename)
                   val low_level_factory = Eval.getMethod(low_level_str)
 
                   println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
