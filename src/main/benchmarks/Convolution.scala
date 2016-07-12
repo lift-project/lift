@@ -40,11 +40,11 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 6 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d tiled loading
       case 7 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d transposed
       case 8 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d tiled loading transposed
-      case 8 => Array.fill[Float](17)(1.0f)    // blur x
-      case 9 => Array.fill[Float](17)(1.0f)    // blur x tiled
-      case 10 => Array.fill[Float](17)(1.0f)    // blur x tiled 2d
-      case 11 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d
-      case 12 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d transposed
+      case 9 => Array.fill[Float](17)(1.0f)    // blur x
+      case 10 => Array.fill[Float](17)(1.0f)    // blur x tiled
+      case 11 => Array.fill[Float](17)(1.0f)    // blur x tiled 2d
+      case 12 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d
+      case 13 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d transposed
     })
   }
 
