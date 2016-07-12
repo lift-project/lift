@@ -62,15 +62,13 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
           .map(l => l :+ l.last)
         inputCombinations ++= combinations.toSeq
       }
-
-      println(inputCombinations.mkString(", "))
     }
   }
 
   private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
     try {
       val kernel = generateKernel(pair)
-      dumpOpenCLToFiles(pair._1, kernel)
+      dumpOpenCLToFiles(pair, kernel)
     } catch {
       case _: IllegalKernel =>
         None
@@ -104,9 +102,10 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     Utils.findAndReplaceVariableNames(kernel)
   }
 
-  private def dumpOpenCLToFiles(lambda: Lambda, kernel: String): Option[String] = {
+  private def dumpOpenCLToFiles(pair: (Lambda, Seq[ArithExpr]), kernel: String): Option[String] = {
 
-    val hash = Utils.Sha256Hash(kernel)
+    val lambda = pair._1
+    val hash = lowLevelHash + "_" + pair._2.mkString("_")
     val filename = hash + ".cl"
 
     val path = s"${topFolder}Cl/$lowLevelHash"
