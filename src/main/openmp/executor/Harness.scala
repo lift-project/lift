@@ -3,7 +3,7 @@ package openmp.executor
 import apart.arithmetic.{?, SizeVar}
 import c.generator.CGenerator
 import ir.{ArrayType, TupleType, Type, TypeChecker}
-import ir.ast.{Lambda, Param, fun}
+import ir.ast.{Lambda, Param, UserFun, fun}
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
@@ -25,17 +25,17 @@ object Harness {
     val stringBuilder = new StringBuilder
     stringBuilder.append("//Auto-generated runtime harness\n")
     stringBuilder.append(harnessIncludes)
-    stringBuilder.append("int main(argc, char** argv) {\nint arrCount;\n")
-    stringBuilder.append("char* inputData = argv[0];\n")
+    stringBuilder.append("int main(int argc, char** argv) {\nint arrCount;\n")
+    stringBuilder.append("char* inputData = strtok(argv[1],\"_\");\n")
     kernel.params.foreach {x => stringBuilder.append(generateParameterCode(x))}
     stringBuilder.append(generateInvocationCode(kernel))
     stringBuilder.append("}")
     stringBuilder.toString()
   }
 
-  def harnessIncludes = "#include <stdio.h>\n"
+  def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n"
 
-  def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++ scanInput(param.t, param.toString)
+  def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
 
   def readInputVariable(t:Type, param :String) = {
     val sb = new StringBuilder
@@ -88,17 +88,20 @@ object Harness {
   }
 
   def scanSimple(format:String, varName:String) = {
-    "sscanf(inputData," ++ "\"" ++ format ++ "\"" ++ s",&($varName));\n"
+    val sb = new StringBuilder
+    sb.append("inputData = strtok(NULL, \"_\"); ")
+    sb.append("sscanf(inputData,\"" ++ format ++ "\"" ++ s",&($varName));\n")
+    sb.toString
   }
   def scanTuple(tupleType: TupleType, varName:String):String = {
     val sb = new StringBuilder
     sb.append(s"//reading tuple of t ype ${tupleType.toString}\n")
-    sb.append(declareVariable(tupleType,varName))
+    //sb.append(declareVariable(tupleType,varName))
     //Instantiate elements
     sb.append("{\n")
     for(i <- 0 to tupleType.elemsT.size -1) {
       val t = tupleType.elemsT(i)
-      sb.append(scanInput(t,s"varName._$i;\n"))
+      sb.append(scanInput(t,s"$varName._$i"))
     }
     sb.append("\n}\n")
     sb.toString
@@ -109,9 +112,9 @@ object Harness {
     val arrayInnerType = typeName(t.elemT)
     val elemTypeName = typeName(t.elemT)
     sb.append(s"//generating array of type $arrayInnerType\n")
-    sb.append(getSizeFromData)
-    sb.append(declareVariable(t,varName))
-    sb.append(s"for(int i = 0; i < arrCount; i++){\n")
+    //sb.append(scanInput(Int, "arrCount"))
+    //sb.append(declareVariable(t,varName))
+    sb.append(s"for(int i = 0; i < ${t.len}; i++){\n")
     //sb.append(readInputVariable(t.elemT,"temp"))
     //sb.append(s"$varName[i] = temp;\n")
     sb.append(scanInput(t.elemT, s"$varName[i]"))
@@ -210,7 +213,7 @@ object Harness {
 
   def main(args:Array[String]) = {
     val f = fun(
-      ArrayType(TupleType(Float,Float),100),
+      ArrayType(TupleType(Float,Float),1),
       A => {
         MapSeq(add) $ A
       })
@@ -221,7 +224,7 @@ object Harness {
         toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
       })
     val trivial = fun(Float, x => toGlobal(id) $ x)
-    println(Harness(OMPGenerator,trivial))
+    println(Harness(OMPGenerator,f))
 
   }
 }
