@@ -1,7 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.{ArithExpr, Cst}
-import apart.arithmetic.SizeVar
+import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.executor.Utils
@@ -12,19 +11,19 @@ import org.clapper.argot.ArgotConverters._
 class GEMM (override val f: Seq[(String, Array[Lambda])])
   extends Benchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
 
-  val tileX = parser.option[Int](List("x", "tileX"), "size",
+  val tileX = parser.option[Long](List("x", "tileX"), "size",
     "Tile size in the M and N dimension")
 
-  val tileY = parser.option[Int](List("y", "tileY"), "size",
+  val tileY = parser.option[Long](List("y", "tileY"), "size",
     "Tile size in the K dimension")
 
-  val registerBlockM = parser.option[Int](List("bm", "blockM"), "size",
+  val registerBlockM = parser.option[Long](List("bm", "blockM"), "size",
    "Register blocking factor in M dimension")
 
-  val registerBlockN = parser.option[Int](List("bn", "blockN"), "size",
+  val registerBlockN = parser.option[Long](List("bn", "blockN"), "size",
     "Register blocking factor in N dimension")
 
-  val vectorWidth = parser.option[Int](List("vw", "vectorWidth"), "width",
+  val vectorWidth = parser.option[Long](List("vw", "vectorWidth"), "width",
     "Vector width for loading values")
 
   override def runScala(inputs: Any*): Array[Float] = {

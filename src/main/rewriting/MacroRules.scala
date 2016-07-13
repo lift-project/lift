@@ -751,7 +751,12 @@ object MacroRules {
 
   val apply2DRegisterBlocking: Rule = apply2DRegisterBlocking(?, ?)
 
-  def apply2DRegisterBlocking(factorX: ArithExpr, factorY: ArithExpr): Rule =
+  val apply2DRegisterBlockingNoReorder: Rule =
+    apply2DRegisterBlocking(?, ?, doReorder = false)
+
+  def apply2DRegisterBlocking(factorX: ArithExpr, factorY: ArithExpr,
+    doReorder: Boolean = true): Rule =
+
     Rule("2D register blocking", {
       case call@FunCall(Map(Lambda(lambdaArg, innerCall)), arg)
         if getCallForBlocking(innerCall, lambdaArg).isDefined
@@ -762,7 +767,12 @@ object MacroRules {
         // Reorder both sides of the inner map
         val realY = if (factorY != ?) factorY else Utils.validSplitVariable(innerMap.t)
         val stride = Type.getLength(innerMap.t) / realY
-        val reorderReplaced = Rewrite.applyRuleAt(call, Rules.reorderBothSidesWithStride(stride), innerMap)
+
+        val reorderReplaced =
+          if (doReorder)
+            Rewrite.applyRuleAt(call, Rules.reorderBothSidesWithStride(stride), innerMap)
+          else
+            call
 
         val tiled = tileMapMap(factorX, realY, reorderReplaced)
 

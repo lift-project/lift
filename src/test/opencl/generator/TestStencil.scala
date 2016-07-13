@@ -536,20 +536,6 @@ class TestStencil extends TestSlide {
     run2DStencil(tiled, 3,1, 1,1, gaussWeights, "notUsed", SCALABOUNDARY)
   }
 
-  // be carefull when choosing small input size because of 'StartsFromRange(100)'
-  @Test def cudaSampleConvolutionNotSeperated(): Unit = {
-    val weights = Array.fill[Float](289)(1.0f)
-    val tiled: Lambda = createTiled2DStencil(17,1, 32,16, 8,8, weights, Pad.Boundary.Clamp)
-    run2DStencil(tiled, 17,1, 8,8, weights, "notUsed", scalaClamp)
-  }
-
-  // be carefull when choosing small input size because of 'StartsFromRange(100)'
-  @Test def tiledBlurX(): Unit = {
-    val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
-    val tiled: Lambda = createTiled2DStencil(1,1,17,1, 4,4,80,64, 0,0,8,8, weights, Pad.Boundary.Wrap)
-    run2DStencil(tiled, 1,1,17,1, 0,0,8,8, weights, "notUsed", scalaWrap)
-  }
-
   def createTiled2DStencilWithTiledLoading(size1: Int, step1: Int,
                                            size2: Int, step2: Int,
                                            tileSize1: Int, tileStep1: Int,
@@ -1238,6 +1224,7 @@ class TestStencil extends TestSlide {
 
   }
 
+  @Ignore // pad is not the right primitive here, just to try things out
   @Test def blurYTiled2DTransposedPadded(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
