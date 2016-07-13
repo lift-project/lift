@@ -126,14 +126,14 @@ class CGenerator extends Generator {
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
-  private val openCLCodeGen = new CPrinter
+  protected val openCLCodeGen = new CPrinter
 
-  private var replacements: ValueTable = immutable.Map.empty
-  private var replacementsWithFuns: ValueTable = immutable.Map.empty
-  private var privateMems = Array[TypedOpenCLMemory]()
-  private var privateDecls = immutable.Map[Var, CAst.VarDecl]()
+  protected var replacements: ValueTable = immutable.Map.empty
+  protected var replacementsWithFuns: ValueTable = immutable.Map.empty
+  protected var privateMems = Array[TypedOpenCLMemory]()
+  protected var privateDecls = immutable.Map[Var, CAst.VarDecl]()
 
-  private var varDecls: SymbolTable = immutable.Map.empty
+  protected var varDecls: SymbolTable = immutable.Map.empty
 
   private def printMemories(expr: Expr): Unit = {
     Expr.visit(expr, {
@@ -656,37 +656,38 @@ class CGenerator extends Generator {
 
     // TODO: Information needed elsewhere. See analysis.ControlFlow
     // try to see if we really need a loop
-    indexVar.range.numVals match {
-      case Cst(0) =>
-        // zero iterations
-        (block: Block) += CAst.Comment("iteration count is 0, no loop emitted")
-        return
+    //Optimized introduced in order to stop messing with OpenMP loops!!
+      indexVar.range.numVals match {
+        case Cst(0) =>
+          // zero iterations
+          (block: Block) += CAst.Comment("iteration count is 0, no loop emitted")
+          return
 
-      case Cst(1) =>
-        generateStatement(block, indexVar, generateBody, init)
-        return
+        case Cst(1) =>
+          generateStatement(block, indexVar, generateBody, init)
+          return
 
-      // TODO: See TestInject.injectExactlyOneIterationVariable
-      // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
-      case _ if range.start.min.min == Cst(0) &&
-        range.stop.substituteDiv == range.step.substituteDiv =>
+        // TODO: See TestInject.injectExactlyOneIterationVariable
+        // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
+        case _ if range.start.min.min == Cst(0) &&
+          range.stop.substituteDiv == range.step.substituteDiv =>
 
-        generateStatement(block, indexVar, generateBody, init)
-        return
+          generateStatement(block, indexVar, generateBody, init)
+          return
 
-      // TODO: See TestOclFunction.numValues and issue #62
-      case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
-        generateIfStatement(block, indexVar, generateBody, init, stop)
-        return
-      case _ =>
-        (indexVar.range.numVals.min, indexVar.range.numVals.max) match {
-          case (Cst(0), Cst(1)) =>
-            // one or less iteration
-            generateIfStatement(block, indexVar, generateBody, init, stop)
-            return
+        // TODO: See TestOclFunction.numValues and issue #62
+        case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
+          generateIfStatement(block, indexVar, generateBody, init, stop)
+          return
+        case _ =>
+          (indexVar.range.numVals.min, indexVar.range.numVals.max) match {
+            case (Cst(0), Cst(1)) =>
+              // one or less iteration
+              generateIfStatement(block, indexVar, generateBody, init, stop)
+              return
 
-          case _ =>
-        }
+            case _ =>
+          }
     }
 
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
@@ -695,7 +696,7 @@ class CGenerator extends Generator {
     generateBody(innerBlock)
   }
 
-  private def generateStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression): Unit = {
+  protected def generateStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression): Unit = {
     // one iteration
     (block: Block) += CAst.Comment("iteration count is exactly 1, no loop emitted")
     val innerBlock = CAst.Block(Vector.empty)
@@ -704,7 +705,7 @@ class CGenerator extends Generator {
     (block: Block) += innerBlock
   }
 
-  private def generateIfStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression, stop: ArithExpr): Unit = {
+  protected def generateIfStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression, stop: ArithExpr): Unit = {
     (block: Block) += CAst.Comment("iteration count is exactly 1 or less, no loop emitted")
     val innerBlock = CAst.Block(Vector.empty)
     innerBlock += CAst.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
@@ -1080,21 +1081,5 @@ class CGenerator extends Generator {
     */
   private def valueAccessNode(v: Var): CAst.VarRef = {
     CAst.VarRef(v)
-  }
-}
-
-object GeneratorTest {
-  def main(args:Array[String]) = {
-    val K = 100
-    val myadd = UserFun("myadd",Array("x","y"),"return x + y",Seq(Float,Float),Float)
-    val inc = UserFun("inc", Array("x"), "return x + 1", Seq(Float),Float)
-    val f = fun(
-      ArrayType(TupleType(Float,Float),K),
-      A => {
-        MapSeq(add) $ A
-      })
-
-
-    println(Compile(f))
   }
 }

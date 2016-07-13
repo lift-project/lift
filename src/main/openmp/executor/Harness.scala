@@ -1,9 +1,11 @@
 package openmp.executor
 
+import java.util.Scanner
+
 import apart.arithmetic.{?, SizeVar}
 import c.generator.CGenerator
 import ir.{ArrayType, TupleType, Type, TypeChecker}
-import ir.ast.{Lambda, Param, UserFun, fun}
+import ir.ast.{Lambda, Param, fun}
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
@@ -14,14 +16,21 @@ import openmp.ir.pattern.MapPar
   * Created by Federico on 05-Jul-16.
   */
 object Harness {
-  def apply(gen:CGenerator, kernel: Lambda):String = {
+
+  def apply(gen:CGenerator, kernel:Lambda):String = {
+    val cstring = this.generate(gen,kernel)
+    //Must now strip comments because the can screw up with openmp
+    cstring
+  }
+
+  def generate(gen:CGenerator, kernel: Lambda):String = {
     TypeChecker.check(kernel.body)
     val kernelSource = gen.generate(kernel,Array(?,?,?),Array(?,?,?), Map())
     val mainMethod = generateMainMethod(kernel)
     kernelSource ++ "\n" ++ mainMethod
   }
 
-  def generateMainMethod(kernel:Lambda):String = {
+  private def generateMainMethod(kernel:Lambda):String = {
     val stringBuilder = new StringBuilder
     stringBuilder.append("//Auto-generated runtime harness\n")
     stringBuilder.append(harnessIncludes)
@@ -33,11 +42,11 @@ object Harness {
     stringBuilder.toString()
   }
 
-  def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n"
+  private def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n"
 
-  def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
+  private def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
 
-  def writeVariable(t:Type, varName:String):String = {
+  private def writeVariable(t:Type, varName:String):String = {
     val str = t match {
       case Float => writeSimple(t,varName)
       case Int => writeSimple(t,varName)
@@ -48,7 +57,7 @@ object Harness {
     str
   }
 
-  def declareVariable(t:Type, varName:String):String = {
+  private def declareVariable(t:Type, varName:String):String = {
     val sb = new StringBuilder
     val tName = typeName(t)
     t match {
@@ -59,7 +68,7 @@ object Harness {
     sb.toString
   }
 
-  def scanInput(t:Type, varName:String):String = {
+  private def scanInput(t:Type, varName:String):String = {
     t match {
       case Float => scanSimple("%f",varName)
       case Int => scanSimple("%d", varName)
@@ -69,13 +78,13 @@ object Harness {
     }
   }
 
-  def scanSimple(format:String, varName:String) = {
+  private def scanSimple(format:String, varName:String) = {
     val sb = new StringBuilder
     sb.append("inputData = strtok(NULL, \"_\"); ")
     sb.append("sscanf(inputData,\"" ++ format ++ "\"" ++ s",&($varName));\n")
     sb.toString
   }
-  def scanTuple(tupleType: TupleType, varName:String):String = {
+  private def scanTuple(tupleType: TupleType, varName:String):String = {
     val sb = new StringBuilder
     sb.append(s"//reading tuple of t ype ${tupleType.toString}\n")
     //sb.append(declareVariable(tupleType,varName))
@@ -89,10 +98,9 @@ object Harness {
     sb.toString
   }
 
-  def scanArray(t: ArrayType, varName:String):String = {
+  private def scanArray(t: ArrayType, varName:String):String = {
     val sb = new StringBuilder
     val arrayInnerType = typeName(t.elemT)
-    val elemTypeName = typeName(t.elemT)
     sb.append(s"//generating array of type $arrayInnerType\n")
     //sb.append(scanInput(Int, "arrCount"))
     //sb.append(declareVariable(t,varName))
@@ -104,7 +112,7 @@ object Harness {
     sb.toString
   }
 
-  def writeSimple(t:Type, varName:String):String = {
+  private def writeSimple(t:Type, varName:String):String = {
     val pattern = t match {
       case Int => "%d"
       case Float => "%f"
@@ -118,7 +126,7 @@ object Harness {
     sb.toString
   }
 
-  def writeTuple(t:TupleType, varName:String):String = {
+  private def writeTuple(t:TupleType, varName:String):String = {
     val sb = new StringBuilder
     sb.append(s"//Outputting tuple of type ${typeName(t)}\n")
     for(i <- 0 to t.elemsT.size-1) {
@@ -130,7 +138,7 @@ object Harness {
     sb.toString
   }
 
-  def writeArray(t:ArrayType, varName:String):String = {
+  private def writeArray(t:ArrayType, varName:String):String = {
     val sb = new StringBuilder
     sb.append(s"//Outputting array of type ${typeName(t)}\n")
     sb.append("printf(\"%d \"," ++  s"${t.len});\n")
@@ -140,14 +148,14 @@ object Harness {
     sb.toString
   }
 
-  def getSizeFromData = s"arrCount = ${getData("int")};${advanceData("int")};\n"
-  def getData(typeName:String) = s"(($typeName*)data)[0]"
-  def advanceData(typeName: String) = s"data += sizeof($typeName)"
-  def getDataAndAdvance(typeName: String) = getData(typeName) ++ ";" ++ advanceData(typeName) ++ ";"
-  def separator = "printf(\" \");\n"
-  def block(str:String) = s"{\n $str }\n"
+  private  def getSizeFromData = s"arrCount = ${getData("int")};${advanceData("int")};\n"
+  private def getData(typeName:String) = s"(($typeName*)data)[0]"
+  private def advanceData(typeName: String) = s"data += sizeof($typeName)"
+  private def getDataAndAdvance(typeName: String) = getData(typeName) ++ ";" ++ advanceData(typeName) ++ ";"
+  private def separator = "printf(\" \");\n"
+  private def block(str:String) = s"{\n $str }\n"
 
-  def generateInvocationCode(kernel:Lambda):String = {
+  private def generateInvocationCode(kernel:Lambda):String = {
     val sb = new StringBuilder()
     sb.append("//main invocation\n")
     sb.append(declareVariable(kernel.body.t,"output"))
@@ -157,12 +165,23 @@ object Harness {
     sb.toString
   }
 
-  def typeName(t: Type):String = t match {
+  private def typeName(t: Type):String = t match {
     case Float => "float"
     case Int => "int"
     case t:TupleType => t.elemsT.foldLeft("Tuple")((x,y) => s"${x}_${typeName(y)}")
     case t:ArrayType => s"${typeName(t.elemT)}*"
     case t => throw new Exception("Unsupported type " ++ t.toString)
+  }
+
+  private def stripComments(input:String) = {
+    val sb = new StringBuilder
+    val scanner = new Scanner(input)
+    while(scanner.hasNext()) {
+      val line = scanner.nextLine()
+      if(!(line.contains("//") || line.contains("/*") || line.contains("*/")))
+        sb.append(line + "\n")
+    }
+    sb.toString
   }
 
   def main(args:Array[String]) = {
