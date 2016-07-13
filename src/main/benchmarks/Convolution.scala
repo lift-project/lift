@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.{StartFromRange, Var}
+import apart.arithmetic.{StartFromRange, Var, Cst}
 import ir._
 import ir.ast.{Pad2D, _}
 import opencl.ir._
@@ -124,7 +124,8 @@ object Convolution{
   /////////////////// LAMBDAS
   def convolutionSimple(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17*17),
       (matrix, weights) => {
         MapGlb(1)(
@@ -142,7 +143,8 @@ object Convolution{
 
   def convolutionTiled(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17*17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -171,7 +173,8 @@ object Convolution{
 
   def blurY(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
@@ -189,7 +192,8 @@ object Convolution{
 
   def blurYTiled(): Lambda = {
     fun(
-    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(ArrayType(Float, 4096), 4096),
     ArrayType(Float, 17),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -218,7 +222,8 @@ object Convolution{
 
   def blurYTiled2D(): Lambda = {
     fun(
-    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(ArrayType(Float, 4096), 4096),
     ArrayType(Float, 17),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -247,7 +252,8 @@ object Convolution{
 
   def blurYTiled2DTiledLoading(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -277,7 +283,8 @@ object Convolution{
 
   def blurYTiled2DTransposed(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -308,7 +315,8 @@ object Convolution{
 
   def blurYTiled2DTiledLoadingTransposed(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -343,7 +351,8 @@ object Convolution{
 
   def blurX(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
@@ -361,7 +370,8 @@ object Convolution{
 
   def blurXTiled(): Lambda = {
     fun(
-    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(ArrayType(Float, 4096), 4096),
     ArrayType(Float, 17),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -390,7 +400,8 @@ object Convolution{
 
   def blurXTiled2D(): Lambda = {
     fun(
-    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(ArrayType(Float, 4096), 4096),
     ArrayType(Float, 17),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>

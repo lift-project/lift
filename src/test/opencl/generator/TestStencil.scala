@@ -1057,8 +1057,8 @@ class TestStencil extends TestSlide {
 
   @Test def blurYTiled2DTiledLoading(): Unit = {
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, Cst(1024)), Cst(1024)),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, Cst(1024)), Cst(1024)),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
