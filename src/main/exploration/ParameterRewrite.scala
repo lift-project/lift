@@ -1,7 +1,7 @@
 package exploration
 
 import java.io.{File, IOException}
-import java.nio.file.{Files, Paths}
+import java.nio.file.{FileSystems, Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import apart.arithmetic.ArithExpr
@@ -78,7 +78,7 @@ object ParameterRewrite {
       val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
       val highLevelCount = all_files.size
 
-      val parentFolder = Paths.get(topFolder).getParent
+      val parentFolder = Paths.get(topFolder).toAbsolutePath.getParent
 
       var expr_counter = 0
       all_files.foreach(filename => {
