@@ -24,15 +24,18 @@ object Harness {
   def generateMainMethod(kernel:Lambda):String = {
     val stringBuilder = new StringBuilder
     stringBuilder.append("//Auto-generated runtime harness\n")
-    stringBuilder.append("int main(char** argv) {\nint arrCount;\n")
-    stringBuilder.append("char* data = argv[0];\n")
+    stringBuilder.append(harnessIncludes)
+    stringBuilder.append("int main(argc, char** argv) {\nint arrCount;\n")
+    stringBuilder.append("char* inputData = argv[0];\n")
     kernel.params.foreach {x => stringBuilder.append(generateParameterCode(x))}
     stringBuilder.append(generateInvocationCode(kernel))
     stringBuilder.append("}")
     stringBuilder.toString()
   }
 
-  def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ readInputVariable(param.t, param.toString)
+  def harnessIncludes = "#include <stdio.h>\n"
+
+  def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++ scanInput(param.t, param.toString)
 
   def readInputVariable(t:Type, param :String) = {
     val sb = new StringBuilder
@@ -61,10 +64,9 @@ object Harness {
   def declareVariable(t:Type, varName:String):String = {
     val sb = new StringBuilder
     val tName = typeName(t)
-    sb.append(s"$tName $varName")
     t match {
-      case t:ArrayType => sb.append(s"[${t.len}]")
-      case _ =>
+      case t:ArrayType => sb.append(s"${typeName(t.elemT)} $varName [${t.len}]")
+      case x => sb.append(s"$tName $varName")
     }
     sb.append(";\n")
     sb.toString
@@ -73,6 +75,48 @@ object Harness {
   def readSimple(t:Type, varName:String) = {
     val init = s"$varName = ${getData(typeName(t))};\n${advanceData(typeName(t))};\n"
     declareVariable(t,varName) ++ init
+  }
+
+  def scanInput(t:Type, varName:String):String = {
+    t match {
+      case Float => scanSimple("%f",varName)
+      case Int => scanSimple("%d", varName)
+      case t:TupleType => scanTuple(t,varName)
+      case arr:ArrayType => scanArray(arr,varName)
+      case _ => throw new Exception("Cannot read variable of unsupported type " ++ t.toString)
+    }
+  }
+
+  def scanSimple(format:String, varName:String) = {
+    "sscanf(inputData," ++ "\"" ++ format ++ "\"" ++ s",&($varName));\n"
+  }
+  def scanTuple(tupleType: TupleType, varName:String):String = {
+    val sb = new StringBuilder
+    sb.append(s"//reading tuple of t ype ${tupleType.toString}\n")
+    sb.append(declareVariable(tupleType,varName))
+    //Instantiate elements
+    sb.append("{\n")
+    for(i <- 0 to tupleType.elemsT.size -1) {
+      val t = tupleType.elemsT(i)
+      sb.append(scanInput(t,s"varName._$i;\n"))
+    }
+    sb.append("\n}\n")
+    sb.toString
+  }
+
+  def scanArray(t: ArrayType, varName:String):String = {
+    val sb = new StringBuilder
+    val arrayInnerType = typeName(t.elemT)
+    val elemTypeName = typeName(t.elemT)
+    sb.append(s"//generating array of type $arrayInnerType\n")
+    sb.append(getSizeFromData)
+    sb.append(declareVariable(t,varName))
+    sb.append(s"for(int i = 0; i < arrCount; i++){\n")
+    //sb.append(readInputVariable(t.elemT,"temp"))
+    //sb.append(s"$varName[i] = temp;\n")
+    sb.append(scanInput(t.elemT, s"$varName[i]"))
+    sb.append("}\n")
+    sb.toString
   }
 
   def writeSimple(t:Type, varName:String):String = {
@@ -117,9 +161,9 @@ object Harness {
 
   def readArray(t:ArrayType, varName:String):String = {
     val sb = new StringBuilder
-    val arrayTypeName = typeName(t)
+    val arrayInnerType = typeName(t.elemT)
     val elemTypeName = typeName(t.elemT)
-    sb.append(s"//generating array of type $arrayTypeName\n")
+    sb.append(s"//generating array of type $arrayInnerType\n")
     sb.append(getSizeFromData)
     sb.append(declareVariable(t,varName))
     sb.append(s"for(int i = 0; i < arrCount; i++){\n")
@@ -133,7 +177,7 @@ object Harness {
     val sb = new StringBuilder
     sb.append(s"//Outputting array of type ${typeName(t)}\n")
     sb.append("printf(\"%d \"," ++  s"${t.len});\n")
-    sb.append(s"for(int i = 0; i < ${t.len};i++{\n")
+    sb.append(s"for(int i = 0; i < ${t.len};i++){\n")
     sb.append(writeVariable(t.elemT,s"$varName[i]"))
     sb.append("}\n")
     sb.toString
@@ -144,7 +188,7 @@ object Harness {
   def advanceData(typeName: String) = s"data += sizeof($typeName)"
   def getDataAndAdvance(typeName: String) = getData(typeName) ++ ";" ++ advanceData(typeName) ++ ";"
   def separator = "printf(\" \");\n"
-
+  def block(str:String) = s"{\n $str }\n"
 
   def generateInvocationCode(kernel:Lambda):String = {
     val sb = new StringBuilder()
@@ -176,6 +220,8 @@ object Harness {
       (in,init) => {
         toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
       })
-    println(Harness(OMPGenerator,f))
+    val trivial = fun(Float, x => toGlobal(id) $ x)
+    println(Harness(OMPGenerator,trivial))
+
   }
 }
