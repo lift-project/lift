@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{SizeVar, StartFromRange, Var}
+import apart.arithmetic.{SizeVar, StartFromRange, Var, Cst}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
@@ -575,6 +575,7 @@ class TestStencil extends TestSlide {
   )
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
+  @Ignore // falsely classified as not valid because of barriers
   @Test def tiledBlurXTiledLoading(): Unit = {
     val weights = Array(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1).map(_.toFloat)
     val tiled: Lambda = createTiled2DStencilWithTiledLoading(1,1,17,1, 1,1,24,8, 0,0,8,8, weights, Pad.Boundary.Clamp)
@@ -920,7 +921,7 @@ class TestStencil extends TestSlide {
 
     // testing
     val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 32, 1024, 1024, (true, true))(stencil, input, weights)
+    val (output: Array[Float], runtime) = Execute(32, 8, 256, 256, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)
 
     val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
@@ -1057,6 +1058,7 @@ class TestStencil extends TestSlide {
   @Test def blurYTiled2DTiledLoading(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Cst(1024)), Cst(1024)),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1147,35 +1149,6 @@ class TestStencil extends TestSlide {
   }
 
   @Test def blurYTiled2DTiledLoadingTransposed(): Unit = {
-//      //    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-//      ArrayType(Float, weights.length),
-//      (matrix, weights) => {
-//        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
-//
-//          MapLcl(1)(MapLcl(0)(
-//            //MapSeq(MapSeq((toGlobal(id))))
-//            fun(elem => {
-//              toGlobal(MapSeqUnroll(id)) o
-//                ReduceSeqUnroll(fun((acc, pair) => {
-//                  val pixel = Get(pair, 0)
-//                  val weight = Get(pair, 1)
-//                  multAndSumUp.apply(acc, pixel, weight)
-//                }), 0.0f) $ Zip(Join() $ elem, weights)
-//            })
-//
-//            // create stencil neighbourhoods
-//          )) o Slide2D(size1, step1, size2, step2) o Map(Join()) o
-//
-//            // load chunks to local memory
-//            toLocal(MapLcl(1)(MapSeqUnroll(MapLcl(0)(id)))) $ tile
-//
-//          // spliting tile into chunks
-//        ))) o Map(Map(Map(Split(8)))) o
-//          // creating tiles
-//          Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o
-//          Pad2D(top,bottom,left,right, boundary)$ matrix
-//      }
-
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       ArrayType(Float, 17),

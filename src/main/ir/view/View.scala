@@ -531,7 +531,13 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       case pad: ViewPad =>
         val idx = arrayAccessStack.head
         val stack = arrayAccessStack.tail
-        val newIdx = pad.fct(idx._1 - pad.left, pad.iv.t.asInstanceOf[ArrayType].len)
+        val currentIdx = idx._1 - pad.left
+        val length = pad.iv.t.asInstanceOf[ArrayType].len
+        val newIdx = if(ArithExpr.mightBeNegative(currentIdx) || ArithExpr.isSmaller(length -1, currentIdx.max).getOrElse(true))
+          pad.fct(currentIdx, length)
+        else
+          currentIdx
+
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView (pad.iv, newAAS, tupleAccessStack)
