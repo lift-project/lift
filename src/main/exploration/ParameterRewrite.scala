@@ -96,7 +96,7 @@ object ParameterRewrite {
 
             val st = createValueMap(high_level_expr_orig)
             val sizesForFilter = st.values.toSeq
-            val vars = getVars(high_level_expr_orig)
+            val vars = high_level_expr_orig.params.flatMap(_.t.varList).distinct
 
             val high_level_expr = replaceInputTypes(high_level_expr_orig, st)
 
