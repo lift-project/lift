@@ -37,19 +37,6 @@ object Harness {
 
   def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
 
-  def readInputVariable(t:Type, param :String) = {
-    val sb = new StringBuilder
-    val str = t match {
-      case Float => readSimple(t, param)
-      case Int => readSimple(t, param)
-      case t:TupleType => readTuple(t,param)
-      case t:ArrayType => readArray(t,param)
-      case t => throw new Exception("Unsupported type " ++ t.toString)
-    }
-    sb.append(str)
-    sb.toString
-  }
-
   def writeVariable(t:Type, varName:String):String = {
     val str = t match {
       case Float => writeSimple(t,varName)
@@ -70,11 +57,6 @@ object Harness {
     }
     sb.append(";\n")
     sb.toString
-  }
-
-  def readSimple(t:Type, varName:String) = {
-    val init = s"$varName = ${getData(typeName(t))};\n${advanceData(typeName(t))};\n"
-    declareVariable(t,varName) ++ init
   }
 
   def scanInput(t:Type, varName:String):String = {
@@ -136,20 +118,6 @@ object Harness {
     sb.toString
   }
 
-  def readTuple(tupleType: TupleType, varName:String):String = {
-    val sb = new StringBuilder
-    sb.append(s"//generating tuple type ${tupleType.toString}\n")
-    sb.append(declareVariable(tupleType,varName))
-    sb.append("{\n")
-    for(i <- 0 to tupleType.elemsT.size-1) {
-      val t = tupleType.elemsT(i)
-      sb.append(readInputVariable(t,s"tuple_temp_$i"))
-      sb.append(s"$varName._$i = tuple_temp_$i;\n")
-    }
-    sb.append("}\n")
-    sb.toString
-  }
-
   def writeTuple(t:TupleType, varName:String):String = {
     val sb = new StringBuilder
     sb.append(s"//Outputting tuple of type ${typeName(t)}\n")
@@ -159,20 +127,6 @@ object Harness {
         sb.append(separator)
       }
     }
-    sb.toString
-  }
-
-  def readArray(t:ArrayType, varName:String):String = {
-    val sb = new StringBuilder
-    val arrayInnerType = typeName(t.elemT)
-    val elemTypeName = typeName(t.elemT)
-    sb.append(s"//generating array of type $arrayInnerType\n")
-    sb.append(getSizeFromData)
-    sb.append(declareVariable(t,varName))
-    sb.append(s"for(int i = 0; i < arrCount; i++){\n")
-    sb.append(readInputVariable(t.elemT,"temp"))
-    sb.append(s"$varName[i] = temp;\n")
-    sb.append("}\n")
     sb.toString
   }
 
