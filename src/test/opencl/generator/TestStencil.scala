@@ -861,6 +861,7 @@ class TestStencil extends TestSlide {
   @Test def convolutionSimple(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17*17),
       (matrix, weights) => {
         MapGlb(1)(

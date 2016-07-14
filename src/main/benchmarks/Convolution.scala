@@ -9,28 +9,30 @@ import opencl.executor.Utils
 
 class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Convolution", Seq(4096, 4096), f, 0.01f) {
 
-  override def generateInputs(): Seq[Any] = {
-    val inputSizeN = if(variant < 12) inputSizes()(0) else 3072
-    val inputSizeM = if(variant < 12) inputSizes()(1) else 3072
-    //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c)
-    //val inputData = Array.tabulate(inputSizeM, inputSizeN)((r, c) => util.Random.nextFloat())
+  // change in singleton object as well!
+  //val inputSize = 4096
+  //val smallerGlobalSize = 512
+  val inputSize = 3072
+  val smallerGlobalSize = 384
 
-    Seq(variant match {
-      case 0 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // convolution simple
-      case 1 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // convolution tiled idle
-      case 2 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // convolution tiled
-      case 3 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y
-      case 4 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled
-      case 5 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d
-      case 6 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d tiled loading
-      case 7 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d transposed
-      case 8 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur y tiled 2d tiled loading transposed
-      case 9 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x
-      case 10 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x tiled
-      case 11 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 4096.0f + c) // blur x tiled 2d
-      case 12 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled
-      case 13 => Array.tabulate(inputSizeM, inputSizeN)((r, c) => r * 3072.0f + c) // 3k blur y tiled transposed
-    }, variant match {
+  override def generateInputs(): Seq[Any] = {
+    Seq(Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c)
+      /*
+      variant match {
+      case 0 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // convolution simple
+      case 1 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // convolution tiled idle
+      case 2 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // convolution tiled
+      case 3 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur y
+      case 4 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur y tiled
+      case 5 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur y tiled 2d
+      case 6 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur y tiled 2d tiled loading
+      case 7 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur y tiled 2d transposed
+      case 8 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur y tiled 2d tiled loading transposed
+      case 9 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur x
+      case 10 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur x tiled
+      case 11 => Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c) // blur x tiled 2d
+    }*/
+      , variant match {
       case 0 => Array.fill[Float](17*17)(1.0f) // convolution simple
       case 1 => Array.fill[Float](17*17)(1.0f) // convolution tiled idle
       case 2 => Array.fill[Float](17*17)(1.0f) // convolution tiled
@@ -43,8 +45,6 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 9 => Array.fill[Float](17)(1.0f)    // blur x
       case 10 => Array.fill[Float](17)(1.0f)    // blur x tiled
       case 11 => Array.fill[Float](17)(1.0f)    // blur x tiled 2d
-      case 12 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d
-      case 13 => Array.fill[Float](17)(1.0f)   // 3k blur y tiled 2d transposed
     })
   }
 
@@ -60,20 +60,18 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
 
   override def globalSize: Array[Int] = {
     variant match {
-      case 0 => Array(4096, 4096, 1) // convolution simple
-      case 1 => Array(4096, 4096, 1) // convolution tiled idle
-      case 2 => Array(4096, 4096, 1) // convolution tiled
-      case 3 => Array(4096, 4096, 1) // blur y
-      case 4 => Array(4096, 512, 1)  // blur y tiled
-      case 5 => Array(4096, 512, 1)  // blur y tiled 2d
-      case 6 => Array(4096, 512, 1)  // blur y tiled 2d tiled loading
-      case 7 => Array(4096, 512, 1)  // blur y tiled 2d transposed
-      case 8 => Array(4096, 512, 1)  // blur y tiled 2d tiled loading transposed
-      case 9 => Array(512, 4096, 1)  // blur x
-      case 10 => Array(512, 4096, 1)  // blur x tiled
-      case 11 => Array(512, 4096, 1)  // blur x tiled 2d
-      case 12 => Array(3072, 384, 1)  // 3k blur y tiled 2d
-      case 13 => Array(3072, 384, 1)  // 3k blur y tiled 2d transposed
+      case 0 => Array(inputSize, inputSize, 1) // convolution simple
+      case 1 => Array(inputSize, inputSize, 1) // convolution tiled idle
+      case 2 => Array(inputSize, inputSize, 1) // convolution tiled
+      case 3 => Array(inputSize, inputSize, 1) // blur y
+      case 4 => Array(inputSize, smallerGlobalSize, 1)  // blur y tiled
+      case 5 => Array(inputSize, smallerGlobalSize, 1)  // blur y tiled 2d
+      case 6 => Array(inputSize, smallerGlobalSize, 1)  // blur y tiled 2d tiled loading
+      case 7 => Array(inputSize, smallerGlobalSize, 1)  // blur y tiled 2d transposed
+      case 8 => Array(inputSize, smallerGlobalSize, 1)  // blur y tiled 2d tiled loading transposed
+      case 9 => Array(smallerGlobalSize, inputSize, 1)  // blur x
+      case 10 => Array(smallerGlobalSize, inputSize, 1)  // blur x tiled
+      case 11 => Array(smallerGlobalSize, inputSize, 1)  // blur x tiled 2d
     }
   }
 
@@ -91,13 +89,14 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 9 => Array(16, 4, 1)  // blur x
       case 10 => Array(16, 4, 1)  // blur x tiled
       case 11 => Array(16, 4, 1)  // blur x tiled 2d
-      case 12 => Array(16, 8, 1)  // 3k blur y tiled 2d
-      case 13 => Array(16, 8, 1)  // 3k blur y tiled 2d transposed
     }
   }
 }
 
 object Convolution{
+
+  //val inputSize = 4096
+  val inputSize = 3072
 
   val scalaClamp = (idx: Int, length: Int) => {
     if(idx<0) 0 else if(idx>length-1) length-1 else idx
@@ -125,7 +124,7 @@ object Convolution{
   def convolutionSimple(): Lambda = {
     fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 4096), 4096),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17*17),
       (matrix, weights) => {
         MapGlb(1)(
@@ -144,7 +143,7 @@ object Convolution{
   def convolutionTiled(): Lambda = {
     fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 4096), 4096),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17*17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -174,7 +173,7 @@ object Convolution{
   def blurY(): Lambda = {
     fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 4096), 4096),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
@@ -193,7 +192,7 @@ object Convolution{
   def blurYTiled(): Lambda = {
     fun(
     //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayType(ArrayType(Float, 4096), 4096),
+    ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -223,7 +222,7 @@ object Convolution{
   def blurYTiled2D(): Lambda = {
     fun(
     //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayType(ArrayType(Float, 4096), 4096),
+    ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -253,7 +252,7 @@ object Convolution{
   def blurYTiled2DTiledLoading(): Lambda = {
     fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 4096), 4096),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -284,7 +283,7 @@ object Convolution{
   def blurYTiled2DTransposed(): Lambda = {
     fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 4096), 4096),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -316,7 +315,7 @@ object Convolution{
   def blurYTiled2DTiledLoadingTransposed(): Lambda = {
     fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 4096), 4096),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -352,7 +351,7 @@ object Convolution{
   def blurX(): Lambda = {
     fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 4096), 4096),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
@@ -371,7 +370,7 @@ object Convolution{
   def blurXTiled(): Lambda = {
     fun(
     //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayType(ArrayType(Float, 4096), 4096),
+    ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -401,7 +400,7 @@ object Convolution{
   def blurXTiled2D(): Lambda = {
     fun(
     //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayType(ArrayType(Float, 4096), 4096),
+    ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
       Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -442,8 +441,6 @@ object Convolution{
       ("BLUR_X", Array[Lambda](blurX)),
       ("BLUR_X_TILED", Array[Lambda](blurXTiled)),
       ("BLUR_X_TILED_2D", Array[Lambda](blurXTiled2D)),
-      ("3K_ BLUR_Y_TILED_2D", Array[Lambda](blurYTiled2D)),
-      ("3K_ BLUR_Y_TILED_2D_TRANSPOSED", Array[Lambda](blurYTiled2DTransposed))
     )
   )
 
