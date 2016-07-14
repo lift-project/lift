@@ -440,7 +440,7 @@ object Convolution{
       ("BLUR_Y_TILED_2D_TILED_LOADING_TRANSPOSED", Array[Lambda](blurYTiled2DTiledLoadingTransposed)),
       ("BLUR_X", Array[Lambda](blurX)),
       ("BLUR_X_TILED", Array[Lambda](blurXTiled)),
-      ("BLUR_X_TILED_2D", Array[Lambda](blurXTiled2D)),
+      ("BLUR_X_TILED_2D", Array[Lambda](blurXTiled2D))
     )
   )
 
