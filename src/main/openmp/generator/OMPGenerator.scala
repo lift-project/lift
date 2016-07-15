@@ -91,7 +91,7 @@ object OMPGenerator extends CGenerator{
     // TODO: Information needed elsewhere. See analysis.ControlFlow
     // try to see if we really need a loop
     //Optimized introduced in order to stop messing with OpenMP loops!!
-      indexVar.range.numVals match {
+      /*indexVar.range.numVals match {
         case Cst(0) =>
           // zero iterations
           (block: Block) += CAst.Comment("iteration count is 0, no loop emitted")
@@ -122,7 +122,7 @@ object OMPGenerator extends CGenerator{
 
             case _ =>
       }
-    }
+    }*/
 
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val innerBlock = CAst.Block(Vector.empty)

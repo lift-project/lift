@@ -188,7 +188,7 @@ object Harness {
     val f = fun(
       ArrayType(TupleType(Float,Float),1),
       A => {
-        MapSeq(add) $ A
+        MapPar(add) $ A
       })
     val f2 = fun (
       ArrayType(Float, SizeVar("N")),
