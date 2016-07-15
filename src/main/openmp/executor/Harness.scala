@@ -5,11 +5,10 @@ import java.util.Scanner
 import apart.arithmetic.{?, SizeVar}
 import c.generator.CGenerator
 import ir.{ArrayType, TupleType, Type, TypeChecker}
-import ir.ast.{Lambda, Param, fun}
+import ir.ast.{Lambda, Param, UserFun, fun}
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
-import openmp.ir.pattern.MapPar
 
 
 /**
@@ -35,7 +34,7 @@ object Harness {
     stringBuilder.append("//Auto-generated runtime harness\n")
     stringBuilder.append(harnessIncludes)
     stringBuilder.append("int main(int argc, char** argv) {\nint arrCount;\n")
-    stringBuilder.append("char* inputData = strtok(argv[1],\"_\");\n")
+    stringBuilder.append("char* inputData = strtok(argv[1],\"@\");\n")
     kernel.params.foreach {x => stringBuilder.append(generateParameterCode(x))}
     stringBuilder.append(generateInvocationCode(kernel))
     stringBuilder.append("}")
@@ -118,41 +117,47 @@ object Harness {
       case Float => "%f"
       case _ => throw new Exception(s"Cannot output ${typeName(t)}, it is not a simple type")
     }
-    val sb = new StringBuilder
-    sb.append("printf(\"")
-    sb.append(pattern)
-    sb.append("\"")
-    sb.append(s",$varName);\n")
-    sb.toString
+    cprintf(pattern, List(varName))
   }
 
   private def writeTuple(t:TupleType, varName:String):String = {
     val sb = new StringBuilder
     sb.append(s"//Outputting tuple of type ${typeName(t)}\n")
+    sb.append(cprintf("["))
     for(i <- 0 to t.elemsT.size-1) {
       sb.append(writeVariable(t.elemsT(i),s"${varName}._$i"))
       if(i < t.elemsT.size-1) {
-        sb.append(separator)
+        sb.append(cprintf(","))
       }
     }
+    sb.append(cprintf("]"))
     sb.toString
   }
 
   private def writeArray(t:ArrayType, varName:String):String = {
     val sb = new StringBuilder
     sb.append(s"//Outputting array of type ${typeName(t)}\n")
-    sb.append("printf(\"%d \"," ++  s"${t.len});\n")
+    //sb.append("printf(\"%d \"," ++  s"${t.len});\n")
+    sb.append(cprintf("["))
     sb.append(s"for(int i = 0; i < ${t.len};i++){\n")
     sb.append(writeVariable(t.elemT,s"$varName[i]"))
+    sb.append(s"if(i < ${t.len}-1)")
+    sb.append(cprintf(","))
     sb.append("}\n")
+    sb.append(cprintf("]"))
     sb.toString
+  }
+
+  private def cprintf(pattern:String):String = "printf(\"" ++ pattern ++ "\");\n"
+  private def cprintf(pattern:String, vals:List[String]):String = {
+    val valString = vals.reduce((x,y) => x ++ ", " ++ y)
+    "printf(\"" ++ pattern ++ "\"," ++ valString ++ ");\n"
   }
 
   private  def getSizeFromData = s"arrCount = ${getData("int")};${advanceData("int")};\n"
   private def getData(typeName:String) = s"(($typeName*)data)[0]"
   private def advanceData(typeName: String) = s"data += sizeof($typeName)"
   private def getDataAndAdvance(typeName: String) = getData(typeName) ++ ";" ++ advanceData(typeName) ++ ";"
-  private def separator = "printf(\" \");\n"
   private def block(str:String) = s"{\n $str }\n"
 
   private def generateInvocationCode(kernel:Lambda):String = {
@@ -185,10 +190,11 @@ object Harness {
   }
 
   def main(args:Array[String]) = {
+    def genID(t:Type) = UserFun("id","x", "return x;",t,t)
     val f = fun(
-      ArrayType(TupleType(Float,Float),5),
+      ArrayType(TupleType(Float,Float),2),
       A => {
-        MapPar(add) $ A
+        MapSeq(genID(TupleType(Float,Float))) $ A
       })
     val f2 = fun (
       ArrayType(Float, SizeVar("N")),
@@ -198,6 +204,5 @@ object Harness {
       })
     val trivial = fun(Float, x => toGlobal(id) $ x)
     println(Harness(OMPGenerator,f))
-
   }
 }
