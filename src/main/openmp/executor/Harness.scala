@@ -186,7 +186,7 @@ object Harness {
 
   def main(args:Array[String]) = {
     val f = fun(
-      ArrayType(TupleType(Float,Float),1),
+      ArrayType(TupleType(Float,Float),5),
       A => {
         MapPar(add) $ A
       })

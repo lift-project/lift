@@ -32,15 +32,14 @@ object OMPGenerator extends CGenerator{
                                  call: FunCall,
                                  block: Block): Unit = {
     (block: Block) += CAst.Comment("omp_map")
-    (block: Block) += CAst.Pragma(pragma)
-    generateOpenMPLoop(block, m.loopVar, generateExpr(m.f.body, _), m.shouldUnroll)
+    generateOpenMPLoop(block, m.loopVar, generateExpr(m.f.body, _), m.shouldUnroll, pragma)
     (block: Block) += CAst.Comment("end omp_map")
   }
 
   protected def generateOpenMPLoop(block: Block,
                                 indexVar: Var,
                                 generateBody: (Block) => Unit,
-                                needUnroll: Boolean = false): Unit = {
+                                needUnroll: Boolean = false, pragma:String): Unit = {
 
     val range = indexVar.range.asInstanceOf[RangeAdd]
     val step = range.step
@@ -91,7 +90,7 @@ object OMPGenerator extends CGenerator{
     // TODO: Information needed elsewhere. See analysis.ControlFlow
     // try to see if we really need a loop
     //Optimized introduced in order to stop messing with OpenMP loops!!
-      /*indexVar.range.numVals match {
+      indexVar.range.numVals match {
         case Cst(0) =>
           // zero iterations
           (block: Block) += CAst.Comment("iteration count is 0, no loop emitted")
@@ -122,10 +121,11 @@ object OMPGenerator extends CGenerator{
 
             case _ =>
       }
-    }*/
+    }
 
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val innerBlock = CAst.Block(Vector.empty)
+    (block:Block) += CAst.Pragma(pragma)
     (block: Block) += CAst.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
     generateBody(innerBlock)
   }
