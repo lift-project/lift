@@ -15,29 +15,38 @@ import openmp.generator.OMPGenerator
   * Created by Federico on 15-Jul-16.
   */
 object Executor {
-  def apply(kernel:Lambda, data:Any) = {
+  def apply(kernel:Lambda, data:Any) = compileAndRun(kernel, data)
+
+  def compileAndGenerateScript(kernel: Lambda, data:Any, path:String) = {
+    val commands = compileAndGenerateCommands(kernel,data, path)
+    val text = commands.reduce((x,y) => { x ++ "\n" ++ y})
+    new PrintWriter(path + "/run.sh") { write(text); close}
+  }
+
+  def compileAndRun(kernel:Lambda, data:Any) = {
+    val commands = compileAndGenerateCommands(kernel,data, "")
+    runCommands(commands)
+  }
+
+  private def compileAndGenerateCommands(kernel:Lambda, data:Any, path:String):List[String] = {
     val programSource = Harness.generate(OMPGenerator, kernel)
-    compile(programSource)
-    run("./a.out", data)
+    new PrintWriter(path + "/lift.c") { write(programSource); close }
+    val commands = generateCommands(data)
+    commands
   }
 
-  def compile(programSource:String) = {
-    new PrintWriter("lift.c") { write(programSource); close }
-    try {
-      val compilation = "gcc lift.c -o a.out -std=c99 -fopenmp".!!
-      println(compilation)
-    }catch {
-      case x:RuntimeException => { throw new Exception("Compilation failed")}
-    }
+  private def runCommands(ls:List[String]) = {
+    ls.foreach{x => x.! }
   }
 
-  def run(programName:String, data:Any) = {
+  private def generateCommands(data:Any):List[String] = {
+    val compileCommand = "gcc lift.c -o a.out -std=c99 -fopenmp"
+    val programName = "./a.out"
     val args = generateCommandLineArgs(data)
-    val command = if (isWindows) (s"$programName $args") else (s"./$programName $args")
-    println(command)
-    val text = command.!!
-    println(text)
+    val runCommmand = if (isWindows) (s"$programName $args") else (s"./$programName $args")
+    List(compileCommand,runCommmand)
   }
+
 
   private def generateCommandLineArgs(data:Any) = "\"#@" ++ encode(data) ++ "\""
 
@@ -67,6 +76,6 @@ object Executor {
         toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
       })
     val trivial = fun(Float, x => toGlobal(id) $ x)
-    this(f,List(List(3,2),List(4,5)))
+    this.compileAndGenerateScript(f,List(List(3,2),List(4,5)),"D:/Test")
   }
 }

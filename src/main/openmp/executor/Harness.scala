@@ -154,11 +154,8 @@ object Harness {
     "printf(\"" ++ pattern ++ "\"," ++ valString ++ ");\n"
   }
 
-  private  def getSizeFromData = s"arrCount = ${getData("int")};${advanceData("int")};\n"
   private def getData(typeName:String) = s"(($typeName*)data)[0]"
   private def advanceData(typeName: String) = s"data += sizeof($typeName)"
-  private def getDataAndAdvance(typeName: String) = getData(typeName) ++ ";" ++ advanceData(typeName) ++ ";"
-  private def block(str:String) = s"{\n $str }\n"
 
   private def generateInvocationCode(kernel:Lambda):String = {
     val sb = new StringBuilder()
@@ -167,6 +164,7 @@ object Harness {
     val paramList = (kernel.params.foldLeft("")((x,y) => x ++ ", " ++ y.toString) ++ ", output").substring(1)
     sb.append(s"liftKernel($paramList);\n")
     sb.append(writeVariable(kernel.body.t, "output"))
+    sb.append(cprintf("\\n"))
     sb.toString
   }
 
@@ -176,17 +174,6 @@ object Harness {
     case t:TupleType => t.elemsT.foldLeft("Tuple")((x,y) => s"${x}_${typeName(y)}")
     case t:ArrayType => s"${typeName(t.elemT)}*"
     case t => throw new Exception("Unsupported type " ++ t.toString)
-  }
-
-  private def stripComments(input:String) = {
-    val sb = new StringBuilder
-    val scanner = new Scanner(input)
-    while(scanner.hasNext()) {
-      val line = scanner.nextLine()
-      if(!(line.contains("//") || line.contains("/*") || line.contains("*/")))
-        sb.append(line + "\n")
-    }
-    sb.toString
   }
 
   def main(args:Array[String]) = {
