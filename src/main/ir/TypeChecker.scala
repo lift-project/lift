@@ -27,6 +27,7 @@ object TypeChecker {
         }
 
         // 2. check type of function with the given arguments type
+
         call.f.checkType(argType, setType)
     }
 
