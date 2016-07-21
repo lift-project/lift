@@ -1,7 +1,7 @@
 package exploration
 
 import java.io.{File, IOException}
-import java.nio.file.{FileSystems, Files, Paths}
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import apart.arithmetic.ArithExpr
