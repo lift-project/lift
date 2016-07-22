@@ -986,7 +986,7 @@ class OpenCLGenerator extends Generator {
       // TODO: See TestInject.injectExactlyOneIterationVariable
       // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
       case _ if range.start.min.min == Cst(0) &&
-        range.stop.substituteDiv == range.step.substituteDiv =>
+        ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
 
         generateStatement(block, indexVar, generateBody, init)
         return

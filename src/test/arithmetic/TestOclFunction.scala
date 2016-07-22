@@ -14,7 +14,6 @@ class TestOclFunction {
     assertFalse(g0.equals(g1))
   }
 
-  @Ignore
   @Test
   def substitution(): Unit = {
     val M = SizeVar("M")
