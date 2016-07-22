@@ -1,7 +1,6 @@
 package openmp.ir.pattern
 
-import apart.arithmetic.PosVar
-import ir.ast.{AbstractMap, Lambda, Lambda1, Pattern}
+import ir.ast.{Lambda1}
 import opencl.ir.pattern.MapSeq
 
 /**

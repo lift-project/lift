@@ -1,7 +1,5 @@
 package openmp.executor
 
-import java.util.Scanner
-
 import apart.arithmetic.{?, SizeVar}
 import c.generator.CGenerator
 import ir.{ArrayType, TupleType, Type, TypeChecker}
@@ -9,6 +7,7 @@ import ir.ast.{Lambda, Param, UserFun, fun}
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
+import openmp.ir.pattern.{:+, ReducePar}
 
 
 /**
@@ -189,7 +188,14 @@ object Harness {
       (in,init) => {
         toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
       })
+    val reducePar = fun(
+      ArrayType(Float, SizeVar("N")),
+      Float,
+      (in, init) => {
+        toGlobal(MapSeq(id)) o ReducePar(:+(Float), init) $ in
+      }
+    )
     val trivial = fun(Float, x => toGlobal(id) $ x)
-    println(Harness(OMPGenerator,f))
+    println(Harness(OMPGenerator,reducePar))
   }
 }

@@ -2,14 +2,14 @@ package openmp.generator
 
 import apart.arithmetic.{Cst, _}
 import openmp.executor.Compile
-import c.generator.CAst.{ArithExpression, AssignmentExpression, Block, CondExpression, ExpressionStatement, VarDecl}
+import c.generator.CAst.{ArithExpression, AssignmentExpression, Block, CondExpression, Expression, ExpressionStatement, VarDecl}
 import c.generator.{CAst, CGenerator}
 import ir.{ArrayType, TupleType}
 import ir.ast.{Expr, FunCall, fun}
 import opencl.generator.{OclFunction, OpenCLGeneratorException}
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
-import openmp.ir.pattern.{MapPar, MapVec, OmpMap}
+import openmp.ir.pattern.{MapPar, MapVec, OmpMap, ReduceParImpl}
 
 /**
   * Created by Federico on 30-Jun-16.
@@ -20,6 +20,7 @@ object OMPGenerator extends CGenerator{
         case call:FunCall => call.f match {
           case m:MapPar => generateOmpMapCall("omp parallel for",m,call,block)
           case m:MapVec => generateOmpMapCall("omp parallel for simd",m,call,block)
+          case r:ReduceParImpl => generateReducePar(r, call, block)
           case _ => super.generateExprPostArguments(expr, block)
         }
         case _ => super.generateExprPostArguments(expr, block)
@@ -128,5 +129,36 @@ object OMPGenerator extends CGenerator{
     (block:Block) += CAst.Pragma(pragma)
     (block: Block) += CAst.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
     generateBody(innerBlock)
+  }
+
+  // === Reduce ===
+  //TODO:Check if it actually works through call...
+  private def generateReducePar(r: ReduceParImpl,
+                                    call: FunCall,
+                                    block: Block): Unit = {
+
+    val innerBlock = CAst.Block(Vector.empty)
+    (block: Block) += CAst.Comment("reduce_par")
+
+    val inputLen = generateLength(call.args(1))
+    inputLen match {
+
+      case Left(len: Expression) =>
+        val indexVar = r.loopVar
+        val range = indexVar.range.asInstanceOf[RangeAdd]
+
+        val init = ArithExpression(range.start)
+        val cond = CondExpression(ArithExpression(r.loopVar), len, CondExpression.Operator.<)
+        val increment = AssignmentExpression(ArithExpression(r.loopVar), ArithExpression(r.loopVar + range.step))
+
+        (block: Block) += CAst.ForLoop(VarDecl(r.loopVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
+
+        generateExpr(r.f.body, innerBlock)
+
+      case Right(len: ArithExpr) =>
+        generateOpenMPLoop(block, r.loopVar, generateExpr(r.f.body, _), r.shouldUnroll, s"omp parallel reduce (${r.op.pragmaSymbol})")
+    }
+
+    (block: Block) += CAst.Comment("end reduce_par")
   }
 }

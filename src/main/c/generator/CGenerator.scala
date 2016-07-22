@@ -448,7 +448,7 @@ class CGenerator extends Generator {
   }
 
   // Expr should be an array
-  private def generateLength(e: Expr): Either[Expression, ArithExpr] = {
+  protected def generateLength(e: Expr): Either[Expression, ArithExpr] = {
     e match {
       case e: Expr =>
         e.t match {
