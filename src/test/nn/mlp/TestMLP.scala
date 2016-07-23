@@ -50,7 +50,7 @@ class TestMLP {
         w_arr(i)(j) = aline(j).toFloat
       }
     }
-    return w_arr
+    w_arr // return
   }
 
   val layer_idim = SizeVar("layer_idim")
@@ -81,43 +81,85 @@ class TestMLP {
     ArrayType(Float, idim),
     (W1, b1, W2, b2, Wout, bout, X) => {
       f_layer_seq(Wout, bout, f_layer_seq(W2, b2, f_layer_seq(W1, b1, X)))}
-    //toGlobal(MapGlb(id)) $ f_layer(W2, b2, f_layer(W1, b1, X))}
+  )
+
+  // Test values
+  val input_W1 = Array(Array(0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f),
+                       Array(0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.0f),
+                       Array(0.2f, 0.3f, 0.4f, 0.5f, 0.0f, 0.1f),
+                       Array(0.3f, 0.4f, 0.5f, 0.0f, 0.1f, 0.2f))
+
+  val input_b1 = Array(0.1f, 0.1f, 0.1f, 0.1f)
+  val input_W2 = Array(Array(0.0f, 0.1f, 0.2f, 0.3f),
+                       Array(0.1f, 0.2f, 0.3f, 0.0f),
+                       Array(0.2f, 0.3f, 0.0f, 0.1f),
+                       Array(0.3f, 0.0f, 0.1f, 0.2f),
+                       Array(0.0f, 0.1f, 0.2f, 0.3f),
+                       Array(0.1f, 0.2f, 0.3f, 0.0f),
+                       Array(0.2f, 0.3f, 0.0f, 0.1f),
+                       Array(0.3f, 0.0f, 0.1f, 0.2f))
+  val input_b2 = Array(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f)
+  val input_Wout = Array(Array(0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f),
+                         Array(0.1f, 0.2f, 0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f),
+                         Array(0.2f, 0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f),
+                         Array(0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.0f, 0.1f, 0.2f),
+                         Array(0.4f, 0.5f, 0.6f, 0.7f, 0.0f, 0.1f, 0.2f, 0.3f),
+                         Array(0.5f, 0.6f, 0.7f, 0.0f, 0.1f, 0.2f, 0.3f, 0.4f))
+  val input_bout = Array(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f)
+  val input_X = Array(6f, 7f, 8f, 9f, 5f, 4f)
+  val gold = Array(17.492f, 11.356f, 14.406f, 17.636f, 17.492f, 17.732f)
+
+  @Test
+  def MLPSequential(): Unit = {
+    val (lift_result: Array[Float], runtime) = Execute(1,1)(mlp_fprop_seq, input_W1, input_b1, input_W2,
+                                                              input_b2, input_Wout, input_bout, input_X)
+    println(f"1. Everything sequential, runtime: $runtime%1.5f ms")
+    //println(lift_result.mkString(", "))
+    //println(gold.mkString(", "))
+
+    assertArrayEquals(gold, lift_result, 0.0001f)
+    //val W1 = load_2d_float_json("W1.json")
+    //val test_images = load_2d_float_json("test_images.json")
+  }
+
+  @Test
+  def MLPThreeSeqKernels(): Unit = {
+    val (output_layer1: Array[Float], runtime_layer1) = Execute(1,1)(f_layer_seq, input_W1, input_b1, input_X)
+    val (output_layer2: Array[Float], runtime_layer2) = Execute(1,1)(f_layer_seq, input_W2, input_b2, output_layer1)
+    val (lift_result: Array[Float], runtime_layerout) = Execute(1,1)(f_layer_seq, input_Wout, input_bout, output_layer2)
+    println(f"2. 3 sequential kernels, runtime: $runtime_layer1%1.5f + $runtime_layer2%1.5f + $runtime_layerout%1.5f = " +
+            f"${runtime_layer1 + runtime_layer2 + runtime_layerout}%1.5f ms")
+
+    assertArrayEquals(gold, lift_result, 0.0001f)
+  }
+
+  def f_layer(tile_per_neuron_size: Int, tile_per_mult_op_size: Int) = fun(
+    ArrayType(ArrayType(Float, layer_idim), layer_odim),
+    ArrayType(Float, layer_odim),
+    ArrayType(Float, layer_idim),
+    (W, B, X) => {
+      Join() o MapWrg(MapSeq(fun((ws_per_neuron, b_per_neuron) => {
+        toGlobal(MapSeq(id)) o ReduceSeq(add, id(b_per_neuron)) o Join() o MapLcl(
+          toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o
+        Split(tile_per_mult_op_size) $ Zip(X, ws_per_neuron)
+      }))) o Split(tile_per_neuron_size) $ Zip(W, B)
+    }
   )
 
   @Test
-  def mlpScalaVsLift(): Unit = {
-
-    val input_W1 = Array(Array(0.0f, 0.1f, 0.2f, 0.3f, 0.4f),
-                         Array(0.1f, 0.2f, 0.3f, 0.4f, 0.0f),
-                         Array(0.2f, 0.3f, 0.4f, 0.0f, 0.1f),
-                         Array(0.3f, 0.4f, 0.0f, 0.1f, 0.2f))
-    val input_b1 = Array(0.1f, 0.1f, 0.1f, 0.1f)
-    val input_W2 = Array(Array(0.0f, 0.1f, 0.2f, 0.3f),
-                         Array(0.1f, 0.2f, 0.3f, 0.0f),
-                         Array(0.2f, 0.3f, 0.0f, 0.1f))
-    val input_b2 = Array(0.1f, 0.1f, 0.1f)
-    val input_Wout = Array(Array(0.0f, 0.1f, 0.2f),
-                           Array(0.1f, 0.2f, 0.0f),
-                           Array(0.2f, 0.0f, 0.1f),
-                           Array(0.0f, 0.1f, 0.2f),
-                           Array(0.1f, 0.2f, 0.0f))
-    // TODO: fix bug that causes function to return random deviation in the first element of the output array
-    // To reproduce: run multiple times until error is fired. Then change input_bout, run, revert input_bout,
-    // and run again. The test will pass.
-    //val input_bout = Array(1f, 0.1f, 0.1f, 0.1f, 0.1f)
-    val input_bout = Array(0.1f, 0.1f, 0.1f, 0.1f, 0.1f)
-    val input_X = Array(6f, 7f, 8f, 9f, 5f)
-
-    val gold = Array(1.478f, 1.443f, 1.423f, 1.478f, 1.443f)
-
-    val (lift_result: Array[Float], _) = Execute(1,1)(mlp_fprop_seq, input_W1, input_b1, input_W2,
-                                                      input_b2, input_Wout, input_bout, input_X)
+  def MLPThreeSplitKernels(): Unit = {
+    val (output_layer1: Array[Float], runtime_layer1) =
+      Execute(2, 12)(f_layer(tile_per_neuron_size=1, tile_per_mult_op_size=2), input_W1, input_b1, input_X)
+    val (output_layer2: Array[Float], runtime_layer2) =
+      Execute(2, 8)(f_layer(tile_per_neuron_size=2, tile_per_mult_op_size=2), input_W2, input_b2, output_layer1)
+    val (lift_result: Array[Float], runtime_layerout) =
+      Execute(2, 12)(f_layer(tile_per_neuron_size=2, tile_per_mult_op_size=2), input_Wout, input_bout, output_layer2)
+    println(f"3. 3 parallel kernels, runtime: $runtime_layer1%1.5f + $runtime_layer2%1.5f + $runtime_layerout%1.5f = " +
+      f"${runtime_layer1 + runtime_layer2 + runtime_layerout}%1.5f ms")
+    println(output_layer1.mkString(", "))
+    println(output_layer2.mkString(", "))
     println(lift_result.mkString(", "))
-    println(gold.mkString(", "))
 
     assertArrayEquals(gold, lift_result, 0.0001f)
-
-    val W1 = load_2d_float_json("W1.json")
-    val test_images = load_2d_float_json("test_images.json")
   }
 }
