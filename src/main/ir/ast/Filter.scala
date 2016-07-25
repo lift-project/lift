@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import ir.{TypeException, ArrayType, TupleType, Type}
+import ir._
 import opencl.ir.Int
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
@@ -28,6 +28,10 @@ case class Filter() extends Pattern(arity = 2) with isGenerable {
         throw new TypeException(argType,
                                 "TupleType(ArrayType(_, _), ArrayType(Int, _))")
     }
+  }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+   UndefType
+    //need to fix
   }
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {

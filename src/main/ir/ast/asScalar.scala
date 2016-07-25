@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter.ValueMap
-import ir.{ArrayType, Type, TypeException, VectorType}
+import ir._
 
 /**
  * asScalar pattern. (a.k.a., joinVec).
@@ -26,6 +26,10 @@ case class asScalar() extends Pattern(arity = 1) with isGenerable {
       case at@ArrayType(VectorType(_, _), _) => Type.asScalarType(at)
       case _ => throw new TypeException(argType, "ArrayType(VectorType(_, _), _)")
     }
+  }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    UndefType
+    //need to fix
   }
 
   override def eval(valueMap: ValueMap, args: Any*): Any =

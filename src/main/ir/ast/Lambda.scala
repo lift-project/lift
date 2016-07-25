@@ -28,7 +28,10 @@ abstract case class Lambda private[ast] (params: Array[Param],
     TypeChecker.checkAndSetTypeForParams(params, argType)
     TypeChecker.check(body, setType)
   }
-
+  override  def revCheckType(outputType:Type,setType:Boolean):Type={
+    UndefType
+    //!!!
+  }
   override def apply(args : Expr*) : Expr = {
     assert (args.length == arity)
 

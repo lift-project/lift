@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter.ValueMap
-import ir.{TypeException, ArrayType, Type}
+import ir.{ArrayType, Type, TypeException, UndefType}
 
 /**
  * Transpose pattern. Performs the transpose on the next read.
@@ -26,7 +26,10 @@ case class Transpose() extends Pattern(arity = 1) with isGenerable {
       case _ => throw new TypeException(argType, "ArrayType(ArrayType(_,_),_)")
     }
   }
-
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    UndefType
+    //need to fix
+  }
   override def eval(valueMap: ValueMap, args: Any*): Vector[Vector[_]] = {
     assert(args.length == arity)
     args.head match {

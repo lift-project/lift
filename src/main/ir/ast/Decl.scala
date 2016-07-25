@@ -29,7 +29,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
 
 
   def checkType(argType: Type, setType: Boolean): Type
-
+  def revCheckType(outputType: Type,setType: Boolean):Type
 
 
   /**

@@ -2,7 +2,7 @@ package ir.ast
 
 import apart.arithmetic.Cst
 import ir.interpreter.Interpreter.ValueMap
-import ir.{TypeException, ArrayType, Type}
+import ir.{ArrayType, Type, TypeException, UndefType}
 
 /**
  * Tail pattern.
@@ -27,6 +27,10 @@ case class Tail() extends Pattern(arity = 1) with isGenerable {
 
       case _ => throw new TypeException(argType, "ArrayType")
     }
+  }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    UndefType
+    //need to fix
   }
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {

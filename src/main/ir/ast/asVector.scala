@@ -2,7 +2,7 @@ package ir.ast
 
 import apart.arithmetic.ArithExpr
 import ir.interpreter.Interpreter._
-import ir.{ArrayType, ScalarType, Type, TypeException}
+import ir._
 
 /**
  * asVector pattern. (a.k.a., splitVec).
@@ -30,6 +30,10 @@ case class asVector(n: ArithExpr) extends Pattern(arity = 1) with isGenerable {
       case at@ArrayType(ScalarType(_, _), _) => at.vectorize(n)
       case _ => throw new TypeException(argType, "ArrayType(ScalarType, _)")
     }
+  }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    UndefType
+    //need to fix
   }
 
   override def eval(valueMap: ValueMap, args: Any*): Any =

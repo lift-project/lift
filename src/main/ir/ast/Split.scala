@@ -2,7 +2,7 @@ package ir.ast
 
 import apart.arithmetic.ArithExpr
 import ir.interpreter.Interpreter._
-import ir.{TypeException, ArrayType, Type}
+import ir.{ArrayType, Type, TypeException, UndefType}
 
 /**
  * Split pattern.
@@ -33,6 +33,12 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
         ArrayType(ArrayType(t, chunkSize), n /^ chunkSize)
 
       case _ => throw new TypeException(argType, "ArrayType")
+    }
+  }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    outputType match{
+      case ArrayType(ArrayType(t,m),n) =>
+        ArrayType(t,n*m)
     }
   }
 

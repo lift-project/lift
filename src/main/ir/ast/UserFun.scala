@@ -2,7 +2,7 @@ package ir.ast
 
 import apart.arithmetic.ArithExpr
 import ir.interpreter.Interpreter._
-import ir.{TupleType, VectorType, ScalarType, Type}
+import ir._
 
 /**
  * Representation of a "user function" declaration which usually operates on scala values.
@@ -67,6 +67,10 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
                          setType: Boolean): Type = {
     val substitutions = Type.reify(inT, argType)
     Type.substitute(outT, substitutions.toMap)
+  }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    UndefType
+    //need to fix
   }
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
@@ -163,6 +167,10 @@ case class VectorizeUserFun(n: ArithExpr, userFun: UserFun)
                          setType: Boolean): Type = {
     val substitutions = Type.reify(userFun.inT.vectorize(n), argType)
     Type.substitute(userFun.outT.vectorize(n), substitutions.toMap)
+  }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    UndefType
+    //need to fix
   }
 
   lazy val vectorizedFunction = userFun.vectorize(n)

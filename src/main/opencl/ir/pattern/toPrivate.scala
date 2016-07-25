@@ -15,6 +15,10 @@ case class toPrivate(f: Lambda) extends Pattern(arity = f.arity)
     TypeChecker.checkAndSetTypeForParams(f.params, argType)
     TypeChecker.check(f.body, setType)
   }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    UndefType
+    //need to fix
+  }
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

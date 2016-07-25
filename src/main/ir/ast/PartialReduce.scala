@@ -35,6 +35,10 @@ abstract class AbstractPartRed(val f: Lambda,
       case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
     }
   }
+  override def revCheckType(outputType: Type,setType: Boolean):Type ={
+    UndefType
+    //need to fix
+  }
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
