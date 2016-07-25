@@ -13,7 +13,7 @@ class codeGeneratorTest {
 
   @Test
   def testJoin():Unit={
-    val l = codeGenerator.generateLambda( ArrayType(Float,128))
+    val l = codeGenerator.generateLambda( ArrayType(Float,1024))
     assert(true)
 
   }
