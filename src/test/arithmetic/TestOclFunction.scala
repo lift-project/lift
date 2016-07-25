@@ -14,6 +14,23 @@ class TestOclFunction {
     assertFalse(g0.equals(g1))
   }
 
+  @Test
+  def substitution(): Unit = {
+    val M = SizeVar("M")
+    val g0 = get_global_size(0, RangeAdd(0,M,1))
+
+    val valueMap = Map[ArithExpr, ArithExpr](M -> 1024)
+    val gold = RangeAdd(0,1024,1)
+
+    val substituted = ArithExpr.substitute(g0, valueMap)
+
+    assertTrue(substituted.isInstanceOf[OclFunction])
+    val g1 = substituted.asInstanceOf[OclFunction]
+    assertEquals(g0.name, g1.name)
+    assertEquals(g0.param, g1.param)
+    assertEquals(gold, g1.range)
+  }
+
   @Ignore
   @Test
   def numValues(): Unit = {
