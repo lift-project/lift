@@ -37,10 +37,10 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
 
     prepare(expressions)
 
-    s"mkdir -p ${topFolder}Cl/$lowLevelHash".!
+    s"mkdir -p ${topFolder}Cl/".!
 
     val fileWriter =
-      new FileWriter(topFolder + "Cl/" + lowLevelHash + "/stats_1024.csv")
+      new FileWriter(topFolder + "Cl/stats_header.csv")
     fileWriter.write(statsHeader)
     fileWriter.close()
 
