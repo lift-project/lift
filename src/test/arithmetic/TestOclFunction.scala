@@ -15,6 +15,19 @@ class TestOclFunction {
   }
 
   @Test
+  def numValsNotSimplifying(): Unit = {
+    val M = SizeVar("M")
+    val p = SizeVar("p")
+    val rangeStart = get_group_id(0, RangeAdd(0, M/^p, 1))
+
+    val range = RangeAdd(rangeStart, M /^ p, M/^ p)
+
+    assertTrue(ArithExpr.isSmaller(range.start, range.stop).getOrElse(false))
+    assertTrue(ArithExpr.isSmaller(range.max, range.start + range.step).getOrElse(false))
+    assertEquals(Cst(1), range.numVals)
+  }
+
+  @Test
   def substitution(): Unit = {
     val M = SizeVar("M")
     val g0 = get_global_size(0, RangeAdd(0,M,1))
