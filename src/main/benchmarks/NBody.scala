@@ -1,6 +1,5 @@
 package benchmarks
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
@@ -109,6 +108,22 @@ object NBody {
         |}
         | """.stripMargin,
       Seq(Float4, Float4, Float, Float, Float4), Float4)
+
+    val calcAccNoAdd =
+    UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr"),
+      """|{
+        |  float4 r;
+        |  r.xyz = p1.xyz - p2.xyz;
+        |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
+        |  float invDist = 1.0f / sqrt(distSqr + espSqr);
+        |  float invDistCube = invDist * invDist * invDist;
+        |  float s = invDistCube * p2.w;
+        |  float4 res;
+        |  res.xyz = s * r.xyz;
+        |  return res;
+        |}
+        | """.stripMargin,
+      Seq(Float4, Float4, Float, Float), Float4)
 
   val update =
     UserFun("update", Array("pos", "vel", "deltaT", "acceleration"),

@@ -90,6 +90,10 @@ class BarrierElimination(lambda: Lambda) {
                   .foreach(_.emitBarrier = false)
               case _ =>
             }
+
+            // TODO: Also gets rid of necessary barriers
+            if (mapLcl.f.body.addressSpace == PrivateMemory)
+              mapLcl.emitBarrier = false
           }
 
         })

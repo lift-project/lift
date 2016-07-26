@@ -191,7 +191,7 @@ class OpenCLGenerator extends Generator {
 
     View(f)
 
-    val globalBlock = new OpenCLAST.Block(Vector.empty, global = true)
+    val globalBlock = OpenCLAST.Block(Vector.empty, global = true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
       case (expr, _) if expr.t == Double => true
@@ -368,11 +368,13 @@ class OpenCLGenerator extends Generator {
 
     kernel.body += OpenCLAST.Comment("Private Memory")
     privateMems.foreach(x => {
-      val length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
+      var length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
 
+      // TODO: Fix this
       if (!length.isEvaluable)
-        throw new IllegalKernel("Private memory length has to be" +
-          s"evaluable, but found $length")
+        length = Cst(1)
+//        throw new IllegalKernel("Private memory length has to be" +
+//          s" evaluable, but found $length")
 
       val decl = OpenCLAST.VarDecl(x.mem.variable, x.t,
         addressSpace = x.mem.addressSpace,
@@ -523,7 +525,15 @@ class OpenCLGenerator extends Generator {
   private def generateMapLclCall(m: MapLcl,
                                  call: FunCall,
                                  block: Block): Unit = {
-    generateForLoop(block, m.loopVar, generate(m.f.body, _), m.shouldUnroll)
+    println(m.shouldUnroll)
+    println(m.iterationCount)
+    if (m.iterationCount.isEvaluable)
+      generateForLoop(block, m.loopVar, generate(m.f.body, _), m.shouldUnroll)
+    else {
+      // TODO: Do properly
+      replacements = replacements.updated(m.loopVar, 0)
+      generateIfStatement(block, m.loopVar, generate(m.f.body, _), ArithExpression(get_local_id(1)), Cst(1))
+    }
 
     if (m.emitBarrier)
       (block: Block) += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
