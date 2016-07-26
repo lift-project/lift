@@ -1,7 +1,8 @@
 package openmp.executor
 
 import apart.arithmetic.{?, SizeVar}
-import c.generator.CGenerator
+import c.generator.CAst.ParamDecl
+import c.generator.{CAst, CGenerator}
 import ir.{ArrayType, TupleType, Type, TypeChecker}
 import ir.ast.{Lambda, Param, UserFun, fun}
 import opencl.ir._
@@ -24,18 +25,33 @@ object Harness {
   def generate(gen:CGenerator, kernel: Lambda):String = {
     TypeChecker.check(kernel.body)
     val kernelSource = gen.generate(kernel,Array(?,?,?),Array(?,?,?), Map())
-    val mainMethod = generateMainMethod(kernel)
+    //This function is the actual C function, rather then lift function. We need it because the
+    //parameters of this function who are not in the kernel proper need to be allocated nevertheless.
+    //To obtain this information, for now, simply re-run the internal generator function which produced the
+    //kernel in the first place. Call this function the cKernel.
+    val cKernel = gen.generateKernel(kernel).asInstanceOf[CAst.Function]
+    val mainMethod = generateMainMethod(kernel, cKernel)
     kernelSource ++ "\n" ++ mainMethod
   }
 
-  private def generateMainMethod(kernel:Lambda):String = {
+  private def generateMainMethod(kernel:Lambda, cKernel:CAst.Function):String = {
     val stringBuilder = new StringBuilder
     stringBuilder.append("//Auto-generated runtime harness\n")
     stringBuilder.append(harnessIncludes)
     stringBuilder.append("int main(int argc, char** argv) {\nint arrCount;\n")
+    //The code that loads the actual lift program parameters (those of the lambda)
     stringBuilder.append("char* inputData = strtok(argv[1],\"@\");\n")
     kernel.params.foreach {x => stringBuilder.append(generateParameterCode(x))}
-    stringBuilder.append(generateInvocationCode(kernel))
+    //The code that allocates the intermediate arrays.
+    //These are going to be those parameters which come after the proper parameters, minus the last one
+    //which is the final output parameter
+    val intermediateParameters = cKernel.params.slice(kernel.params.size,cKernel.params.size-1)
+    if(intermediateParameters.size > 0) {
+      stringBuilder.append("//Code for intermediate parameters\n")
+      intermediateParameters.foreach { x => stringBuilder.append(generateIntermediateParameterAllocation(x)) }
+    }
+    //The invocation line
+    stringBuilder.append(generateInvocationCode(kernel, intermediateParameters.map(_.name)))
     stringBuilder.append("}")
     stringBuilder.toString()
   }
@@ -43,6 +59,12 @@ object Harness {
   private def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n#include <time.h>\n"
 
   private def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
+
+  private def generateIntermediateParameterAllocation(param:ParamDecl) = {
+    if(!param.t.isInstanceOf[ArrayType])
+      throw new Exception(s"Intermediate collection parameter ${param} is not of an array type: what is a poor compiler to do?")
+    declareVariable(param.t,param.name)
+  }
 
   private def writeVariable(t:Type, varName:String):String = {
     val str = t match {
@@ -156,11 +178,12 @@ object Harness {
   private def getData(typeName:String) = s"(($typeName*)data)[0]"
   private def advanceData(typeName: String) = s"data += sizeof($typeName)"
 
-  private def generateInvocationCode(kernel:Lambda):String = {
+  private def generateInvocationCode(kernel:Lambda, intermediateParameterNames:List[String]):String = {
     val sb = new StringBuilder()
     sb.append("//main invocation\n")
     sb.append(declareVariable(kernel.body.t,"output"))
-    val paramList = (kernel.params.foldLeft("")((x,y) => x ++ ", " ++ y.toString) ++ ", output").substring(1)
+    val paramNames = kernel.params.map(x => x.toString) ++ intermediateParameterNames
+    val paramList = (paramNames.foldLeft("")((x,y) => x ++ ", " ++ y.toString) ++ ", output").substring(1)
     sb.append(s"liftKernel($paramList);\n")
     sb.append(writeVariable(kernel.body.t, "output"))
     sb.append(cprintf("\\n"))
@@ -187,7 +210,7 @@ object Harness {
       ArrayType(Float, 100),
       Float,
       (in,init) => {
-        toGlobal(MapSeq(id)) o ReduceSeq(add, init) o MapSeq(increment)  $ in
+        toGlobal(MapSeq(id)) o ReduceSeq(add, init) o MapSeq(increment) o MapSeq(increment)  $ in
       })
     val reducePar = fun(
       ArrayType(Float, SizeVar("N")),

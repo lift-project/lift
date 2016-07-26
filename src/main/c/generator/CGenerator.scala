@@ -300,7 +300,7 @@ class CGenerator extends Generator {
   }
 
 
-  private def generateKernel(f: Lambda): Declaration = {
+  def generateKernel(f: Lambda): Declaration = {
 
 
     val someMemories = CGenerator.getDifferentMemories(f)

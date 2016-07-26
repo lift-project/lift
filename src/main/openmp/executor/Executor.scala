@@ -65,7 +65,7 @@ object Executor {
   def main(args: Array[String]) {
     val N = 1000
     def genID(t:Type) = UserFun("id","x", "return x;",t,t)
-    def increment = UserFun("inc","x", "return x;", Float, Float)
+    def increment = UserFun("inc","x", "return x+1;", Float, Float)
     val f = fun(
       ArrayType(Float,N),
       A => {
@@ -74,11 +74,11 @@ object Executor {
     val f2 = fun (
       ArrayType(Float, N),
       Float,
-      (in, init) => {
-        toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
+      (in,init) => {
+        toGlobal(MapSeq(id)) o ReduceSeq(add, init) o MapSeq(increment) o MapSeq(increment)  $ in
       })
     val trivial = fun(Float, x => toGlobal(id) $ x)
-    val ls = List.iterate(0,N)(x => x + 1)
+    val ls = (List.iterate(0,N)(x => x + 1)).map(_ => 1)
     this.compileAndGenerateScript(f2,ls ++ List(0.0f),"D:/Test")
   }
 }
