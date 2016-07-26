@@ -318,7 +318,7 @@ class TestNBody {
       Float,
       (pos, vel, espSqr, deltaT) =>
         Join() o
-          MapWrg(fun(p1Chunk => // ArrayType(Flat4, 128)
+          MapWrg(0)(fun(p1Chunk => // ArrayType(Flat4, 128)
 
             toGlobal(MapLcl( fun( p1 =>
               NBody.update(Get(Get(p1,0), 0), Get(Get(p1, 0), 1), deltaT, Get(p1,1))
@@ -340,6 +340,90 @@ class TestNBody {
 
     val (output: Array[Float], _) =
       Execute(128, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
+  @Test
+  def nBodyLocalMem2(): Unit = {
+
+    val inputSize = 512
+
+    val deltaT = 0.005f
+    val espSqr = 500.0f
+
+    // x, y, z, velocity x, y, z, mass
+    val input = Array.fill(inputSize)((util.Random.nextFloat(),
+      util.Random.nextFloat(),
+      util.Random.nextFloat(),
+      0.0f, 0.0f, 0.0f,
+      util.Random.nextFloat()))
+
+    val x = input.map(_._1)
+    val y = input.map(_._2)
+    val z = input.map(_._3)
+
+    val velX = input.map(_._4)
+    val velY = input.map(_._5)
+    val velZ = input.map(_._6)
+
+    val mass = input.map(_._7)
+
+    val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
+
+    val pos = Array.ofDim[Float](inputSize*4)
+    val vel = Array.ofDim[Float](inputSize*4)
+
+    for (i <- 0 until inputSize) {
+      pos(4*i) = x(i)
+      pos(4*i+1) = y(i)
+      pos(4*i+2) = z(i)
+      pos(4*i+3) = mass(i)
+
+      vel(4*i) = velX(i)
+      vel(4*i+1) = velY(i)
+      vel(4*i+2) = velZ(i)
+      vel(4*i+3) = mass(i)
+    }
+
+    val N = SizeVar("N")
+
+    val tileX = 32
+    val tileY = 1
+    val threadsX = inputSize
+    val threadsY = tileY
+
+    val numGroups1 = threadsY / tileY
+
+    val function = fun(
+      ArrayType(Float4, N),
+      ArrayType(Float4, N),
+      Float,
+      Float,
+      (pos, vel, espSqr, deltaT) =>
+        Join() o
+          MapWrg(fun(p1Chunk => // ArrayType(Flat4, 128)
+            \(newP1Chunk =>
+              toGlobal(MapLcl( fun( p1 =>
+                NBody.update(Get(Get(p1,0), 0), Get(Get(p1, 0), 1), deltaT, Get(p1,1))
+              ))) $ Zip(newP1Chunk,
+                Join() o
+                  ReduceSeq(fun((acc, p2) =>
+                    Let(p2Local =>
+                      Join() o
+                        MapLcl(fun(p1 => // ( (float4, float4), float4 )
+
+                          ReduceSeq(fun((acc, p2) =>
+                            NBody.calcAcc(Get(Get(p1,0), 0), p2, deltaT, espSqr, acc)),
+                            Get(p1,1)) $ p2Local
+                        )) $ Zip(newP1Chunk, acc)
+                    ) o toLocal(MapLcl(idF4)) $ p2
+                  ), MapLcl(idF4) $ Value("0.0f", ArrayType(Float4, tileX))) o Split(tileX) $ pos)
+            ) $ Zip(toPrivate(MapLcl(idF4)) $ Get(Unzip() $ p1Chunk, 0), Get(Unzip() $ p1Chunk, 1))
+          )) o Split(tileX) $ Zip(pos, vel)
+    )
+
+    val (output: Array[Float], _) =
+      Execute(tileX, tileY, threadsX, threadsY, (true, false))(function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
