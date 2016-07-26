@@ -12,8 +12,8 @@ import opencl.ir._
 class codeGeneratorTest {
 
   @Test
-  def testJoin():Unit={
-    val l = codeGenerator.generateLambda( ArrayType(Float,1024))
+  def testGen():Unit={
+    val l = codeGenerator.generateLambda( ArrayType(Float,1024),0,20)
     assert(true)
 
   }
