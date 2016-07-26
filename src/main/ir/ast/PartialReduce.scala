@@ -36,8 +36,8 @@ abstract class AbstractPartRed(val f: Lambda,
     }
   }
   override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
+    //TODO: should I try to generate a random number for "1024"?
+    TupleType(f.params(0).t,ArrayType(f.params(1).t,1024))
   }
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {

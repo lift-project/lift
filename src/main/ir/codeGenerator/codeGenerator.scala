@@ -1,7 +1,7 @@
 package ir.codeGenerator
 
 import collection.mutable.ArrayBuffer
-import ir.{ArrayType, Type, TypeException}
+import ir.{ArrayType, TupleType, Type, TypeException}
 import ir.ast._
 /**
   * Created by potato on 24/07/16.
@@ -65,6 +65,17 @@ object codeGenerator {
           choiceNum = randChoice
           true
 
+        //Reduce
+        case 5 =>
+          //here we use a Join o Reduce() to fit all array cases
+          //TODO: we can also use a map to fit single elements
+          outputType match{
+            case ArrayType(_,n) =>
+              choiceNum = randChoice
+              true
+            case _ => false
+          }
+
         case _ => false
       }
     }
@@ -74,68 +85,155 @@ object codeGenerator {
 
       //Join
       case 0 =>
+        //generate f
         val (f,pl_f) = generateJoin(outputType)
         val argNum = f.arity
         val argType = f.revCheckType(outputType,true)
-        val randChoice = util.Random.nextInt(2)
-        val (arg,pl_arg) = randChoice match{
-          case 0 => generateParam(argType)
-          case 1 => generateFunCall(argType,currDepth+1,maxDepth)
+
+        //generate param
+        if(currDepth<maxDepth) {
+          val randChoice = util.Random.nextInt(2)
+          val (arg, pl_arg) = randChoice match {
+            case 0 => generateParam(argType)
+            case 1 => generateFunCall(argType, currDepth + 1, maxDepth)
+          }
+          return (new FunCall(f, arg), pl_f ++= pl_arg)
         }
-        return (new FunCall(f,arg),pl_f++=pl_arg)
+        else{
+          val (arg,pl_arg) = generateParam(argType)
+          return (new FunCall(f, arg), pl_f ++= pl_arg)
+        }
 
       //Split
       case 1 =>
+        //generate f
         val (f,pl_f) = generateSplit(outputType)
         val argNum = f.arity
         val argType = f.revCheckType(outputType,true)
-        val randChoice = util.Random.nextInt(2)
-        val (arg,pl_arg) = randChoice match{
-          case 0 => generateParam(argType)
-          case 1 => generateFunCall(argType,currDepth+1,maxDepth)
+
+        //generate param
+        if(currDepth < maxDepth) {
+          val randChoice = util.Random.nextInt(2)
+          val (arg, pl_arg) = randChoice match {
+            case 0 => generateParam(argType)
+            case 1 => generateFunCall(argType, currDepth + 1, maxDepth)
+          }
+          return (new FunCall(f, arg), pl_f ++= pl_arg)
         }
-        return (new FunCall(f,arg),pl_f++=pl_arg)
+        else{
+          val (arg,pl_arg) = generateParam(argType)
+          return (new FunCall(f, arg), pl_f ++= pl_arg)
+        }
 
       //Lambda
       case 2 =>
+        //generate f
         val f = generateLambda(outputType,currDepth+1,maxDepth)
         val argNum = f.params.length
         val pl_f = ArrayBuffer[Param]()
+
+        //generate arg
         val arg = ArrayBuffer[Expr]()
         for(i <- 0 until argNum)
         {
-          val randChoice = util.Random.nextInt(2)
-          val (arg_t,pl_arg) = randChoice match{
-            case 0 => generateParam(f.params(i).t)
-            case 1 => generateFunCall(f.params(i).t,currDepth+1,maxDepth)
+          if(currDepth<maxDepth){
+            val randChoice = util.Random.nextInt(2)
+            val (arg_t,pl_arg) = randChoice match{
+              case 0 => generateParam(f.params(i).t)
+              case 1 => generateFunCall(f.params(i).t,currDepth+1,maxDepth)
+            }
+            pl_f ++= pl_arg
+            arg += arg_t
           }
-          pl_f ++= pl_arg
-          arg += arg_t
+          else{
+            val (arg_t,pl_arg) = generateParam(f.params(i).t)
+            pl_f ++= pl_arg
+            arg += arg_t
+          }
+
         }
         return (new FunCall(f,arg: _*),pl_f)
 
       //Map
       case 3 =>
+        //generate f
         val (f,pl_f) = generateMap(outputType,currDepth+1,maxDepth)
-        val argType = f.revCheckType(outputType,true)
 
-        val randChoice = util.Random.nextInt(2)
-        val (arg,pl_arg) = randChoice match{
-          case 0 => generateParam(argType)
-          case 1 => generateFunCall(argType,currDepth+1,maxDepth)
+        //generate arg
+        val argType = f.revCheckType(outputType,true)
+        if(currDepth<maxDepth) {
+          val randChoice = util.Random.nextInt(2)
+          val (arg, pl_arg) = randChoice match {
+            case 0 => generateParam(argType)
+            case 1 => generateFunCall(argType, currDepth + 1, maxDepth)
+          }
+          return (new FunCall(f, arg), pl_f ++= pl_arg)
         }
-        return (new FunCall(f,arg),pl_f++=pl_arg)
+        else {
+          val (arg,pl_arg) = generateParam(argType)
+          return (new FunCall(f,arg),pl_f ++= pl_arg)
+        }
 
       //Id
       case 4 =>
+        //generate f
         val (f,pl_f) = generateId(outputType)
+
+        //generate arg
         val argType = f.revCheckType(outputType,true)
-        val randChoice = util.Random.nextInt(2)
-        val (arg,pl_arg) = randChoice match{
-          case 0 => generateParam(argType)
-          case 1 => generateFunCall(argType,currDepth+1,maxDepth)
+        if(currDepth<maxDepth) {
+          val randChoice = util.Random.nextInt(2)
+          val (arg, pl_arg) = randChoice match {
+            case 0 => generateParam(argType)
+            case 1 => generateFunCall(argType, currDepth + 1, maxDepth)
+          }
+          return (new FunCall(f, arg), pl_f ++= pl_arg)
         }
-        return (new FunCall(f,arg),pl_f++=pl_arg)
+        else{
+          val (arg,pl_arg) = generateParam(argType)
+          return (new FunCall(f,arg),pl_f ++= pl_arg)
+        }
+
+      //Reduce
+      case 5 =>
+        outputType match{
+          case ArrayType(t,n) =>
+            //generate f
+            val reduceOutType = ArrayType(ArrayType(t,n),1)
+            val (f,pl_f) = generateRed(reduceOutType,currDepth+1,maxDepth)
+
+            //generate args
+            val arg = ArrayBuffer[Expr]()
+            val argType = f.revCheckType(reduceOutType,true)
+            argType match{
+              case a:TupleType =>
+                for(i <- 0 until f.f.params.length){
+                  if(currDepth<maxDepth){
+                    val randChoice = util.Random.nextInt(2)
+                    val (arg_t,pl_arg) = randChoice match{
+                      case 0 => generateParam(a.elemsT(i))
+                      case 1 => generateFunCall(a.elemsT(i),currDepth+1,maxDepth)
+                    }
+                    pl_f ++= pl_arg
+                    arg += arg_t
+                  }
+                  else{
+                    val (arg_t,pl_arg) = generateParam(a.elemsT(i))
+                    pl_f ++= pl_arg
+                    arg += arg_t
+                  }
+                }
+                return (new FunCall(new Join,FunCall(f,arg:_*)),pl_f)
+              case _ =>
+                throw new TypeException(argType,"TupleType")
+
+            }
+
+
+          //TODO: we can also use map to fit single elements!
+          case _ =>
+            throw new TypeException(outputType,"ArrayType(t,n)")
+        }
 
 
         
@@ -176,6 +274,60 @@ object codeGenerator {
   }
   //def generateReduce(outputType:Type,currDepth:Int,maxDepth:Int):(Reduce,ParamList) = {
     //val (body,pl) = generateFunCall(outputType,currDepth+1,maxDepth)
+  def matchParamType(p:ParamList,T:Type):Int ={
+    for(i <- 0 until p.length) {
+      p(i).t match {
+        case T =>
+          i
+        case _ =>
+      }
+    }
+    -1
+  }
+  def generateRed(outputType:Type,currDepth:Int,maxDepth:Int):(Reduce,ParamList) ={
+    val reduceOutType = outputType match{
+      case ArrayType(t,n) =>
+        if(n.eval == 1)
+          t
+        else
+          throw new TypeException(outputType,"ArrayType(t,1)")
+      case _=>
+        throw new TypeException(outputType,"ArrayType(t,1)")
+    }
+    val forceToUseAllParam = false
+    if(forceToUseAllParam) {
+      val failMax = 1024
+      var failCount = 0
+      do {
+        val (body, pl) = generateFunCall(reduceOutType, currDepth + 1, maxDepth)
+        val initId = matchParamType(pl,reduceOutType)
+        if(pl.length >= 2 && initId >=0){
+          val param_init = pl.remove(initId)
+          val randChoice = util.Random.nextInt(pl.length)
+          val param_array = pl.remove(randChoice)
+          return (Reduce(Lambda(Array(param_init,param_array),body)),pl)
+        }
+        else{
+          failCount += 1
+        }
 
+      } while (failCount < failMax)
+    }
+    val (body, pl) = generateFunCall(reduceOutType, currDepth + 1, maxDepth)
+    if(pl.length >= 2){
+      val initId = matchParamType(pl,reduceOutType)
+      if(initId >=0){
+        val param_init = pl.remove(initId)
+        val randChoice = util.Random.nextInt(pl.length)
+        val param_array = pl.remove(randChoice)
+        return (Reduce(Lambda(Array(param_init,param_array),body)),pl)
+      }
+    }
+
+    val (param_init,_) = generateParam(reduceOutType)
+    val randChoice = util.Random.nextInt(pl.length)
+    val param_array = pl.remove(randChoice)
+    return (Reduce(Lambda(Array(param_init,param_array),body)),pl)
+  }
   //}
 }
