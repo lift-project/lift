@@ -40,7 +40,7 @@ object Harness {
     stringBuilder.toString()
   }
 
-  private def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n"
+  private def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n#include <time.h>\n"
 
   private def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
 
@@ -177,16 +177,17 @@ object Harness {
 
   def main(args:Array[String]) = {
     def genID(t:Type) = UserFun("id","x", "return x;",t,t)
+    def increment = UserFun("increment", "x", "return x + 1", Float,Float)
     val f = fun(
       ArrayType(TupleType(Float,Float),2),
       A => {
         MapSeq(genID(TupleType(Float,Float))) $ A
       })
     val f2 = fun (
-      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, 100),
       Float,
       (in,init) => {
-        toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
+        toGlobal(MapSeq(id)) o ReduceSeq(add, init) o MapSeq(increment)  $ in
       })
     val reducePar = fun(
       ArrayType(Float, SizeVar("N")),
@@ -196,6 +197,6 @@ object Harness {
       }
     )
     val trivial = fun(Float, x => toGlobal(id) $ x)
-    println(Harness(OMPGenerator,reducePar))
+    println(Harness(OMPGenerator,f2))
   }
 }

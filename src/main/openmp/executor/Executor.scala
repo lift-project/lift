@@ -7,7 +7,7 @@ import ir.{ArrayType, TupleType, Type}
 import sys.process._
 import scala.language.postfixOps
 import ir.ast.{Lambda, UserFun, fun}
-import opencl.ir._
+import opencl.ir.{pattern, _}
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
 
@@ -63,19 +63,22 @@ object Executor {
   private def isWindows:Boolean = System.getProperty("os.name").startsWith("Windows")
 
   def main(args: Array[String]) {
+    val N = 1000
     def genID(t:Type) = UserFun("id","x", "return x;",t,t)
+    def increment = UserFun("inc","x", "return x;", Float, Float)
     val f = fun(
-      ArrayType(TupleType(Float,Float),2),
+      ArrayType(Float,N),
       A => {
-        MapSeq(genID(TupleType(Float,Float))) $ A
+        MapSeq(increment) $ A
       })
     val f2 = fun (
-      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, N),
       Float,
-      (in,init) => {
+      (in, init) => {
         toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in
       })
     val trivial = fun(Float, x => toGlobal(id) $ x)
-    this.compileAndGenerateScript(f,List(List(3,2),List(4,5)),"D:/Test")
+    val ls = List.iterate(0,N)(x => x + 1)
+    this.compileAndGenerateScript(f2,ls ++ List(0.0f),"D:/Test")
   }
 }
