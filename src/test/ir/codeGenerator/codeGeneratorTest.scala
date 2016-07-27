@@ -6,6 +6,8 @@ import ir.ast._
 import ir.interpreter.Interpreter
 import org.junit._
 import opencl.ir._
+import opencl.ir.pattern.MapGlb
+import org.junit.Assert._
 
 import scala.collection.mutable.ArrayBuffer
 /**
@@ -35,6 +37,38 @@ class codeGeneratorTest {
   def testHlGen():Unit={
     hlGenerator.generateProgram()
     val res = hlGenerator.LambdaList
+    for(i <- res.indices){
+      val l = res(i)
+      if(l.params.length == 1){
+        val test = l.checkType(l.params.head.t,true)
+      }
+      else {
+        val argType = ArrayBuffer[Type]()
+        for (i <- 0 until l.params.length) {
+          argType += l.params(i).t
+        }
+        val test = l.checkType(TupleType(argType.toArray[Type]: _*), true)
+      }
+    }
+    assert(true)
+  }
+  @Test
+  def replaceArg(): Unit = {
+    val lambda: Lambda = fun(x => MapGlb(id) $ x)
+
+    /*
+    val arg1 = lambda match {
+      case Lambda(_, FunCall(_, a)) => a
+    }
+    val arg = arg1 match {
+      case p: Param => p
+    }*/
+    val arg = lambda.params(0)
+
+    val replacementArg = Param()
+
+    val result = hlGenerator.replaceParam(lambda, arg, replacementArg)
+
     assert(true)
   }
 }
