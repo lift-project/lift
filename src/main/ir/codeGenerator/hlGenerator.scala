@@ -35,8 +35,8 @@ object hlGenerator{
     val totalRounds = 16
     for(i<- 0 until totalRounds){
      generateLambda()
-      val test = LambdaList
-      val test1 = FunCallList
+      //val test = LambdaList
+      //val test1 = FunCallList
     }
   }
 
@@ -140,8 +140,8 @@ object hlGenerator{
     val totChoiceNum = 4
     val SplitChunkSize = 4
     val randChoice = util.Random.nextInt(totChoiceNum)
-    //randChoice match{
-    AssignedChoiceNum match{
+    randChoice match{
+    //AssignedChoiceNum match{
 
       //Join
       case 0 =>
