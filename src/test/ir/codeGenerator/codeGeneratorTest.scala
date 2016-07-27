@@ -18,6 +18,7 @@ class codeGeneratorTest {
     val l = codeGenerator.generateLambda( ArrayType(Float,1024),0,20)
     if(l.params.length == 1){
       val test = l.checkType(l.params.head.t,true)
+      assert(test == ArrayType(Float,1024))
     }
     else {
       val argType = ArrayBuffer[Type]()
@@ -25,9 +26,15 @@ class codeGeneratorTest {
         argType += l.params(i).t
       }
       val test = l.checkType(TupleType(argType.toArray[Type]: _*), true)
-      //assert(l.checkType(TupleType(argType.toArray[Type]:_*),true) == ArrayType(Float,1024))
+      assert(l.checkType(TupleType(argType.toArray[Type]:_*),true) == ArrayType(Float,1024))
     }
     assert(true)
 
+  }
+  @Test
+  def testHlGen():Unit={
+    hlGenerator.generateProgram()
+    val res = hlGenerator.LambdaList
+    assert(true)
   }
 }

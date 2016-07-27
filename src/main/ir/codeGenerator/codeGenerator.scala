@@ -1,7 +1,7 @@
 package ir.codeGenerator
 
 import collection.mutable.ArrayBuffer
-import ir.{ArrayType, TupleType, Type, TypeException}
+import ir.{ArrayType, TupleType, Type, TypeException,ScalarType}
 import ir.ast._
 /**
   * Created by potato on 24/07/16.
@@ -10,6 +10,7 @@ object codeGenerator {
   type ParamList = ArrayBuffer[Param]
   def generateLambda(outputType:Type,currDepth:Int,maxDepth:Int): (Lambda) = {
     val (body,pl) = generateFunCall(outputType,currDepth+1,maxDepth)
+    //TODO: the params in pl witch have same types may share the same one!(They are used multiple times)
     return Lambda(pl.toArray[Param],body)
 
   }
@@ -75,6 +76,18 @@ object codeGenerator {
               true
             case _ => false
           }
+
+        //UserFun
+        //add
+        case 6 =>
+          outputType match{
+            case s:ScalarType =>
+              choiceNum = randChoice
+              true
+            case _=>false
+
+          }
+
 
         case _ => false
       }
@@ -234,11 +247,6 @@ object codeGenerator {
           case _ =>
             throw new TypeException(outputType,"ArrayType(t,n)")
         }
-
-
-        
-
-
     }
 
   }
@@ -284,50 +292,50 @@ object codeGenerator {
     }
     -1
   }
-  def generateRed(outputType:Type,currDepth:Int,maxDepth:Int):(Reduce,ParamList) ={
-    val reduceOutType = outputType match{
-      case ArrayType(t,n) =>
-        if(n.eval == 1)
+  def generateRed(outputType:Type,currDepth:Int,maxDepth:Int):(Reduce,ParamList) = {
+    val reduceOutType = outputType match {
+      case ArrayType(t, n) =>
+        if (n.eval == 1)
           t
         else
-          throw new TypeException(outputType,"ArrayType(t,1)")
-      case _=>
-        throw new TypeException(outputType,"ArrayType(t,1)")
+          throw new TypeException(outputType, "ArrayType(t,1)")
+      case _ =>
+        throw new TypeException(outputType, "ArrayType(t,1)")
     }
     val forceToUseAllParam = false
-    if(forceToUseAllParam) {
+    if (forceToUseAllParam) {
       val failMax = 1024
       var failCount = 0
       do {
         val (body, pl) = generateFunCall(reduceOutType, currDepth + 1, maxDepth)
-        val initId = matchParamType(pl,reduceOutType)
-        if(pl.length >= 2 && initId >=0){
+        val initId = matchParamType(pl, reduceOutType)
+        if (pl.length >= 2 && initId >= 0) {
           val param_init = pl.remove(initId)
           val randChoice = util.Random.nextInt(pl.length)
           val param_array = pl.remove(randChoice)
-          return (Reduce(Lambda(Array(param_init,param_array),body)),pl)
+          return (Reduce(Lambda(Array(param_init, param_array), body)), pl)
         }
-        else{
+        else {
           failCount += 1
         }
 
       } while (failCount < failMax)
     }
     val (body, pl) = generateFunCall(reduceOutType, currDepth + 1, maxDepth)
-    if(pl.length >= 2){
-      val initId = matchParamType(pl,reduceOutType)
-      if(initId >=0){
+    if (pl.length >= 2) {
+      val initId = matchParamType(pl, reduceOutType)
+      if (initId >= 0) {
         val param_init = pl.remove(initId)
         val randChoice = util.Random.nextInt(pl.length)
         val param_array = pl.remove(randChoice)
-        return (Reduce(Lambda(Array(param_init,param_array),body)),pl)
+        return (Reduce(Lambda(Array(param_init, param_array), body)), pl)
       }
     }
 
-    val (param_init,_) = generateParam(reduceOutType)
+    val (param_init, _) = generateParam(reduceOutType)
     val randChoice = util.Random.nextInt(pl.length)
     val param_array = pl.remove(randChoice)
-    return (Reduce(Lambda(Array(param_init,param_array),body)),pl)
+    return (Reduce(Lambda(Array(param_init, param_array), body)), pl)
   }
   //}
 }
