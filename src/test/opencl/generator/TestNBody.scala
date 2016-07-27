@@ -166,47 +166,49 @@ class TestNBody {
     println("runtime = " + runtime)
   }
 
+  val inputSize = 512
+
+  val deltaT = 0.005f
+  val espSqr = 500.0f
+
+  // x, y, z, velocity x, y, z, mass
+  val input = Array.fill(inputSize)((util.Random.nextFloat(),
+    util.Random.nextFloat(),
+    util.Random.nextFloat(),
+    0.0f, 0.0f, 0.0f,
+    util.Random.nextFloat()))
+
+  val x = input.map(_._1)
+  val y = input.map(_._2)
+  val z = input.map(_._3)
+
+  val velX = input.map(_._4)
+  val velY = input.map(_._5)
+  val velZ = input.map(_._6)
+
+  val mass = input.map(_._7)
+
+  val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
+
+  val pos = Array.ofDim[Float](inputSize*4)
+  val vel = Array.ofDim[Float](inputSize*4)
+
+  for (i <- 0 until inputSize) {
+    pos(4*i) = x(i)
+    pos(4*i+1) = y(i)
+    pos(4*i+2) = z(i)
+    pos(4*i+3) = mass(i)
+
+    vel(4*i) = velX(i)
+    vel(4*i+1) = velY(i)
+    vel(4*i+2) = velZ(i)
+    vel(4*i+3) = mass(i)
+  }
+
+  val N = SizeVar("N")
+
   @Test
   def nBodyAMD(): Unit = {
-
-    val inputSize = 512
-
-    val deltaT = 0.005f
-    val espSqr = 500.0f
-
-    // x, y, z, velocity x, y, z, mass
-    val input = Array.fill(inputSize)((util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      0.0f, 0.0f, 0.0f,
-      util.Random.nextFloat()))
-
-    val x = input.map(_._1)
-    val y = input.map(_._2)
-    val z = input.map(_._3)
-
-    val velX = input.map(_._4)
-    val velY = input.map(_._5)
-    val velZ = input.map(_._6)
-
-    val mass = input.map(_._7)
-
-    val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
-
-    val pos = Array.ofDim[Float](inputSize*4)
-    val vel = Array.ofDim[Float](inputSize*4)
-
-    for (i <- 0 until inputSize) {
-      pos(4*i) = x(i)
-      pos(4*i+1) = y(i)
-      pos(4*i+2) = z(i)
-      pos(4*i+3) = mass(i)
-
-      vel(4*i) = velX(i)
-      vel(4*i+1) = velY(i)
-      vel(4*i+2) = velZ(i)
-      vel(4*i+3) = mass(i)
-    }
 
     val function = NBody.function
 
@@ -219,45 +221,6 @@ class TestNBody {
   @Test
   def nBodyPrivateMem(): Unit = {
 
-    val inputSize = 512
-
-    val deltaT = 0.005f
-    val espSqr = 500.0f
-
-    // x, y, z, velocity x, y, z, mass
-    val input = Array.fill(inputSize)((util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      0.0f, 0.0f, 0.0f,
-      util.Random.nextFloat()))
-
-    val x = input.map(_._1)
-    val y = input.map(_._2)
-    val z = input.map(_._3)
-
-    val velX = input.map(_._4)
-    val velY = input.map(_._5)
-    val velZ = input.map(_._6)
-
-    val mass = input.map(_._7)
-
-    val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
-
-    val pos = Array.ofDim[Float](inputSize*4)
-    val vel = Array.ofDim[Float](inputSize*4)
-
-    for (i <- 0 until inputSize) {
-      pos(4*i) = x(i)
-      pos(4*i+1) = y(i)
-      pos(4*i+2) = z(i)
-      pos(4*i+3) = mass(i)
-
-      vel(4*i) = velX(i)
-      vel(4*i+1) = velY(i)
-      vel(4*i+2) = velZ(i)
-      vel(4*i+3) = mass(i)
-    }
-
     val function = NBody.lessLoadsToGlobal
 
     val (output: Array[Float], _) =
@@ -269,47 +232,6 @@ class TestNBody {
 
   @Test
   def nBodyLocalMem(): Unit = {
-
-    val inputSize = 512
-
-    val deltaT = 0.005f
-    val espSqr = 500.0f
-
-    // x, y, z, velocity x, y, z, mass
-    val input = Array.fill(inputSize)((util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      0.0f, 0.0f, 0.0f,
-      util.Random.nextFloat()))
-
-    val x = input.map(_._1)
-    val y = input.map(_._2)
-    val z = input.map(_._3)
-
-    val velX = input.map(_._4)
-    val velY = input.map(_._5)
-    val velZ = input.map(_._6)
-
-    val mass = input.map(_._7)
-
-    val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
-
-    val pos = Array.ofDim[Float](inputSize*4)
-    val vel = Array.ofDim[Float](inputSize*4)
-
-    for (i <- 0 until inputSize) {
-      pos(4*i) = x(i)
-      pos(4*i+1) = y(i)
-      pos(4*i+2) = z(i)
-      pos(4*i+3) = mass(i)
-
-      vel(4*i) = velX(i)
-      vel(4*i+1) = velY(i)
-      vel(4*i+2) = velZ(i)
-      vel(4*i+3) = mass(i)
-    }
-
-    val N = SizeVar("N")
 
     val function = fun(
       ArrayType(Float4, N),
@@ -345,47 +267,6 @@ class TestNBody {
 
   @Test
   def nBodyLocalMem2(): Unit = {
-
-    val inputSize = 512
-
-    val deltaT = 0.005f
-    val espSqr = 500.0f
-
-    // x, y, z, velocity x, y, z, mass
-    val input = Array.fill(inputSize)((util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      0.0f, 0.0f, 0.0f,
-      util.Random.nextFloat()))
-
-    val x = input.map(_._1)
-    val y = input.map(_._2)
-    val z = input.map(_._3)
-
-    val velX = input.map(_._4)
-    val velY = input.map(_._5)
-    val velZ = input.map(_._6)
-
-    val mass = input.map(_._7)
-
-    val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
-
-    val pos = Array.ofDim[Float](inputSize*4)
-    val vel = Array.ofDim[Float](inputSize*4)
-
-    for (i <- 0 until inputSize) {
-      pos(4*i) = x(i)
-      pos(4*i+1) = y(i)
-      pos(4*i+2) = z(i)
-      pos(4*i+3) = mass(i)
-
-      vel(4*i) = velX(i)
-      vel(4*i+1) = velY(i)
-      vel(4*i+2) = velZ(i)
-      vel(4*i+3) = mass(i)
-    }
-
-    val N = SizeVar("N")
 
     val tileX = 32
 
@@ -425,47 +306,6 @@ class TestNBody {
 
   @Test
   def nBodyLocalMem_nvidia_no_MT(): Unit = {
-
-    val inputSize = 512
-
-    val deltaT = 0.005f
-    val espSqr = 500.0f
-
-    // x, y, z, velocity x, y, z, mass
-    val input = Array.fill(inputSize)((util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      0.0f, 0.0f, 0.0f,
-      util.Random.nextFloat()))
-
-    val x = input.map(_._1)
-    val y = input.map(_._2)
-    val z = input.map(_._3)
-
-    val velX = input.map(_._4)
-    val velY = input.map(_._5)
-    val velZ = input.map(_._6)
-
-    val mass = input.map(_._7)
-
-    val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
-
-    val pos = Array.ofDim[Float](inputSize*4)
-    val vel = Array.ofDim[Float](inputSize*4)
-
-    for (i <- 0 until inputSize) {
-      pos(4*i) = x(i)
-      pos(4*i+1) = y(i)
-      pos(4*i+2) = z(i)
-      pos(4*i+3) = mass(i)
-
-      vel(4*i) = velX(i)
-      vel(4*i+1) = velY(i)
-      vel(4*i+2) = velZ(i)
-      vel(4*i+3) = mass(i)
-    }
-
-    val N = SizeVar("N")
 
     val tileX = 32
     val tileY = 1
@@ -513,47 +353,6 @@ class TestNBody {
   @Test
   def nBodyLocalMem_nvidia_MT(): Unit = {
 
-    val inputSize = 512
-
-    val deltaT = 0.005f
-    val espSqr = 500.0f
-
-    // x, y, z, velocity x, y, z, mass
-    val input = Array.fill(inputSize)((util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      util.Random.nextFloat(),
-      0.0f, 0.0f, 0.0f,
-      util.Random.nextFloat()))
-
-    val x = input.map(_._1)
-    val y = input.map(_._2)
-    val z = input.map(_._3)
-
-    val velX = input.map(_._4)
-    val velY = input.map(_._5)
-    val velZ = input.map(_._6)
-
-    val mass = input.map(_._7)
-
-    val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
-
-    val pos = Array.ofDim[Float](inputSize*4)
-    val vel = Array.ofDim[Float](inputSize*4)
-
-    for (i <- 0 until inputSize) {
-      pos(4*i) = x(i)
-      pos(4*i+1) = y(i)
-      pos(4*i+2) = z(i)
-      pos(4*i+3) = mass(i)
-
-      vel(4*i) = velX(i)
-      vel(4*i+1) = velY(i)
-      vel(4*i+2) = velZ(i)
-      vel(4*i+3) = mass(i)
-    }
-
-    val N = SizeVar("N")
-
     val tileX = 32
     val tileY = 2
     val threadsX = inputSize
@@ -563,8 +362,6 @@ class TestNBody {
 
     // TODO: Without extra Reduction, adding toLocal(MapSeq(MapLcl(...))) won't be unrolled though it needs to be
     // TODO: Unnecessary barrier in the final reduction which makes the kernel illegal.
-    // TODO: Can't generate if statement around expression using an array in private memory (unrolling)
-    // TODO: Can't allocate private memory where if statement needed
     // TODO: Non correctness issue: can't do the WRAP optimisation
 
     // Problems in the NVIDIA OpenCL version:
@@ -586,8 +383,9 @@ class TestNBody {
               MapLcl(1)(\(bla =>
                 toGlobal(MapLcl(0)( fun( p1 =>
                   NBody.update(Get(Get(p1,0), 0), Get(Get(p1, 0), 1), deltaT, Get(p1,1))
-                ))) $ Zip(newP1Chunk, bla))) o
-                Join() o MapLcl(1)(ReduceSeq(\( (acc, x) => MapLcl(0)(VectorizeUserFun(4, add)) $ Zip(acc, x)), MapLcl(0)(idF4) $ Value(0.0f, ArrayType(Float4, tileX)))) o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(idF4)))) o
+                ))) $ Zip(newP1Chunk, bla)) o
+                Join() o
+                ReduceSeq(\( (acc, x) => MapLcl(0)(VectorizeUserFun(4, add)) $ Zip(acc, x)), MapLcl(0)(idF4) $ Value(0.0f, ArrayType(Float4, tileX)))) o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(idF4)))) o
                 ReduceSeq(fun((acc, p2) =>
                   Let(p2Local =>
                     MapLcl(1)(\(accDim2 =>

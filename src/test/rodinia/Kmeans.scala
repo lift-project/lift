@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import rodinia.Kmeans._
 
 object Kmeans {
   @BeforeClass def before(): Unit = {
@@ -18,9 +19,6 @@ object Kmeans {
   @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
-}
-
-class Kmeans {
 
   val P = SizeVar("P") // number of points
   val C = SizeVar("C") // number of clusters
@@ -55,6 +53,9 @@ class Kmeans {
   val select = UserFun("select_", Array("tuple"),
     "{ return tuple._2; }",
     Seq(TupleType(Float, Int, Int)), Int)
+}
+
+class Kmeans {
 
   @Test def kMeansMembership2Dim(): Unit = {
     val inputSize = 512
