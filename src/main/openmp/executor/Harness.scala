@@ -221,6 +221,6 @@ object Harness {
       }
     )
     val trivial = fun(Float, x => toGlobal(id) $ x)
-    println(Harness(OMPGenerator,f2))
+    println(Harness(OMPGenerator,reducePar))
   }
 }

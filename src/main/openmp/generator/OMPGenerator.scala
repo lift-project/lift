@@ -156,7 +156,8 @@ object OMPGenerator extends CGenerator{
         generateExpr(r.f.body, innerBlock)
 
       case Right(len: ArithExpr) =>
-        generateOpenMPLoop(block, r.loopVar, generateExpr(r.f.body, _), r.shouldUnroll, s"omp parallel reduce (${r.op.pragmaSymbol})")
+        val accumulatorName = call.mem.variable.toString //For some mysterious reason, .name on variable is empty...
+        generateOpenMPLoop(block, r.loopVar, generateExpr(r.f.body, _), r.shouldUnroll, s"omp parallel reduction (${r.op.pragmaSymbol}:$accumulatorName)")
     }
 
     (block: Block) += CAst.Comment("end reduce_par")
