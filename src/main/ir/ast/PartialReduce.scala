@@ -28,7 +28,7 @@ abstract class AbstractPartRed(val f: Lambda,
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
         if (bodyType != initT)
-          throw new TypeException(s"Reduce operator returns $bodyType instead of the expected $initT")
+          throw TypeException(s"Reduce operator returns $bodyType instead of the expected $initT")
 
         ArrayType(initT, 1)
 

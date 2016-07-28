@@ -10,7 +10,7 @@ import org.junit.Assume
 object LongTestsEnabled {
   def apply(): Unit =
     Assume.assumeTrue("Needs long tests enabled.",
-      /*true ||*/ System.getenv("APART_LONG_TESTS") != null)
+     System.getenv("APART_LONG_TESTS") != null)
 }
 
 object Utils {

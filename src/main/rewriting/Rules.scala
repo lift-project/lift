@@ -859,6 +859,11 @@ object Rules {
       f o Id() $ arg
   })
 
+  val addIdRed = Rule("f => f o Id()", {
+    case FunCall(f: Reduce, init, arg) =>
+      f(init, Id() $ arg)
+  })
+
   val addIdAfterReduce = Rule("f => Id() o f", {
     case call@FunCall(_: ReduceSeq, _*) =>
       FunCall(MapSeq(Id()), call)
@@ -890,7 +895,8 @@ object Rules {
 
       val tempBody = Expr.replace(body, paramForCurrent, newParam)
 
-      val newBody = Lambda(Array(newParam), tempBody) o Id() $ paramForCurrent
+      // TODO: Check performance. Also see issue #73
+      val newBody = new Let(Array(newParam), tempBody) o Id() $ paramForCurrent
 
       Expr.replace(call, body, newBody)
   })
