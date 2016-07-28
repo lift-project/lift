@@ -936,4 +936,62 @@ class TestRules {
 
     assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
   }
+
+  @Test
+  def mapFissionWhenArgUsedInBoth0(): Unit = {
+    // Map o Map
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x => Map(fun(y => add(x, y))) o Map(plusOne) $ input)) $ input
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
+    TypeChecker(f1)
+  }
+
+  @Test
+  def mapFissionWhenArgUsedInBoth1(): Unit = {
+  // Map o Reduce
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x => Map(fun(y => add(x, y))) o Reduce(add, 0.0f) $ input)) $ input
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
+    TypeChecker(f1)
+  }
+
+  @Test
+  def mapFissionWhenArgUsedInBoth2(): Unit = {
+    // Reduce o Map
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x =>
+          ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
+            Map(plusOne) $ input
+        )) $ input
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
+    TypeChecker(f1)
+  }
+
+  @Test
+  def mapFissionWhenArgUsedInBoth3(): Unit = {
+ // Reduce o Reduce
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x =>
+          ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
+            Reduce(add, 0.0f) $ input
+        )) $ input
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
+    TypeChecker(f1)
+  }
 }

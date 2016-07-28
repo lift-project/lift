@@ -250,11 +250,10 @@ class TestNBody {
       (pos, vel, espSqr, deltaT) =>
         Join() o
           MapWrg(fun(p1Chunk => // ArrayType(Flat4, 128)
-
-            toGlobal(MapLcl( fun( p1 =>
-              NBody.update(Get(Get(p1,0), 0), Get(Get(p1, 0), 1), deltaT, Get(p1,1))
-            ))) $ Zip(p1Chunk,
-              Join() o
+            toGlobal(MapLcl(fun(x => MapSeq( fun( p1 =>
+              NBody.update(Get(Get(x,0), 0), Get(Get(x, 0), 1), deltaT, p1)
+            )) $ Get(x, 1)))) $ Zip(p1Chunk,
+              TransposeW() o
                 ReduceSeq(fun((acc, p2) =>
                 Let(p2Local =>
                   Join() o
