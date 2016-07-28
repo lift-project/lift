@@ -25,7 +25,6 @@ object TestRewriteNbody {
 
 class TestRewriteNbody {
 
-  @Ignore
   @Test
   def nBodyLocalMem(): Unit = {
 
