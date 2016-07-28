@@ -4,7 +4,7 @@ import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 class TestTypeChecker {
 
@@ -75,6 +75,19 @@ class TestTypeChecker {
       a => ReduceSeq(
         fun((acc, x) => MapSeq(fun(a => add(acc, a))) $ x),
         0.0f) o Split(1) $ a
+    )
+
+    TypeChecker(lambda)
+  }
+
+  @Ignore
+  @Test(expected = classOf[TypeException])
+  def incorrectReduceCustomisingFunctionIssue74(): Unit = {
+    val lambda = fun(
+      ArrayType(Float, K),
+      input =>
+        Reduce(fun((acc, next) =>
+          multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(input, input)
     )
 
     TypeChecker(lambda)
