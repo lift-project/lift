@@ -52,6 +52,7 @@ class codeGeneratorTest {
     }
     assert(true)
   }
+  /*
   @Test
   def replaceArg(): Unit = {
     val lambda: Lambda = fun(x => MapGlb(id) $ x)
@@ -70,5 +71,5 @@ class codeGeneratorTest {
     val result = hlGenerator.replaceParam(lambda, arg, replacementArg)
 
     assert(true)
-  }
+  }*/
 }

@@ -23,24 +23,27 @@ object hlGenerator{
   //Reduce
   var Reduce_L_I_E = scala.collection.mutable.Set[(Int,(Int,Int),(Int,Int))]()
   var Reduce_Lambda_Check = scala.collection.mutable.Set[Int]()
+  //Map
+  var Map_L_E = scala.collection.mutable.Set[(Int,(Int,Int))]()
 
   //UserFun
   var Add_Check = scala.collection.mutable.Set[((Int,Int),(Int,Int))]()
   var Add_Check_FunCall = scala.collection.mutable.Set[Int]()
 
   def generateProgram(): Unit = {
-    ParamList += Param(ArrayType(Float,1024))
+    ParamList += Param(ArrayType(ArrayType(Float,32),32))
+    ParamList += Param(ArrayType(Float,32))
     ParamList += Param(Float)
     ParamList += Param(Float)
     val totalRounds = 16
     for(i<- 0 until totalRounds){
      generateLambda()
-      //val test = LambdaList
-      //val test1 = FunCallList
+      val test = LambdaList
+      val test1 = FunCallList
     }
   }
 
-  def replaceParam(p:Param,oldP:Param,newP:Param):Param ={
+  private def replaceParam(p:Param,oldP:Param,newP:Param):Param ={
     if(p.eq(oldP)){
       newP
     }
@@ -48,7 +51,7 @@ object hlGenerator{
       p
     }
   }
-  def replaceParam(l: Lambda, oldP: Param, newP: Param) : Lambda = {
+  private def replaceParam(l: Lambda, oldP: Param, newP: Param) : Lambda = {
     val newBody = replaceParam(l.body, oldP, newP)
     val newParams = l.params.map((p) => replaceParam(p,oldP,newP))
     if (!newBody.eq(l.body) || (newParams, l.params).zipped.exists( (e1, e2) => !e1.eq(e2)) )
@@ -56,7 +59,7 @@ object hlGenerator{
     else
       l
   }
-  def replaceParam(e: Expr, oldP: Param, newP: Param): Expr = {
+  private def replaceParam(e: Expr, oldP: Param, newP: Param): Expr = {
     if (e.eq(oldP)) {
       newP
     } else {
@@ -137,30 +140,32 @@ object hlGenerator{
     }
   }
   private def generateLambda(): Unit ={
-    val totChoiceNum = 4
+    val totChoiceNum = 5
     val SplitChunkSize = 4
     val randChoice = util.Random.nextInt(totChoiceNum)
-    randChoice match{
-    //AssignedChoiceNum match{
-
+    //randChoice match{
+    AssignedChoiceNum match{
       //Join
       case 0 =>
-        matchJoin()
+        matchJoin(30)
         AssignedChoiceNum += 1
       case 1 =>
-        matchSplit(SplitChunkSize)
+        matchSplit(SplitChunkSize,30)
         AssignedChoiceNum += 1
       case 2 =>
-        matchUserFun()
+        matchUserFun(20)
         AssignedChoiceNum += 1
       case 3 =>
-        matchReduce()
+        matchReduce(20)
+        AssignedChoiceNum += 1
+      case 4 =>
+        matchMap(20)
         AssignedChoiceNum = 0
 
 
     }
   }
-  private def matchReduce(): Unit ={
+  private def matchReduce(limitNum:Int): Unit ={
     val tempFunCallList = ArrayBuffer[FunCall]()
     val tempLambdaList = ArrayBuffer[Lambda]()
     //1. Search for proper Lambda
@@ -174,9 +179,14 @@ object hlGenerator{
           val TofJ = LambdaList(i).params(j).t
           if(LambdaList(i).body.t == TofJ){
             satisfied = true
+            var k = -1
+            do{
+              k = util.Random.nextInt(LambdaList(i).params.length)
+            }while(k==j)
             //3. choose a Ele -> k, k!= j
-            for(k <- LambdaList(i).params.indices){
-              if(k!= j){
+            //Here we use random-choice.. maybe enumerations is better,who knows?
+            //for(k <- LambdaList(i).params.indices){
+              //if(k!= j){
                 val TofK = LambdaList(i).params(k).t
                 //4. choose arg1, arg1.t == init.t => j1
                 for(j1 <- ParamList.indices){
@@ -277,8 +287,8 @@ object hlGenerator{
                     }
                   }
                 }
-              }
-            }
+              //}
+            //}
           }
         }
         if(!satisfied){
@@ -286,10 +296,20 @@ object hlGenerator{
         }
       }
     }
-    FunCallList++=tempFunCallList
-    LambdaList++=tempLambdaList
+    val resLen = tempFunCallList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        FunCallList += tempFunCallList(randRes)
+        LambdaList += tempLambdaList(randRes)
+      }
+    }
+    else {
+      FunCallList ++= tempFunCallList
+      LambdaList ++= tempLambdaList
+    }
   }
-  private def matchJoin(): Unit = {
+  private def matchJoin(limitNum:Int): Unit = {
     val tempFunCallList = ArrayBuffer[FunCall]()
     val tempLambdaList = ArrayBuffer[Lambda]()
     for(i<- Join_P until ParamList.length){
@@ -309,21 +329,36 @@ object hlGenerator{
     for(i<- Join_F until FunCallList.length){
       FunCallList(i).t match{
         case ArrayType(ArrayType(t,m),n) =>
-        //Pass the type check!
-          val F = FunCall(new Join(),FunCallList(i))
-          F.t = ArrayType(t,m*n)
-          val Args = countParam(F)
-          val L = Lambda(Args.toArray[Param],F)
-          tempFunCallList += F
-          tempLambdaList += L
+          //Pass the type check!
+          FunCallList(i).f match {
+            case s: Split =>
+              //Join a Split is meaningless
+            case _ =>
+              val F = FunCall(new Join(), FunCallList(i))
+              F.t = ArrayType(t, m * n)
+              val Args = countParam(F)
+              val L = Lambda(Args.toArray[Param], F)
+              tempFunCallList += F
+              tempLambdaList += L
+          }
         case _=>
       }
     }
     Join_F = FunCallList.length
-    FunCallList++=tempFunCallList
-    LambdaList++=tempLambdaList
+    val resLen = tempFunCallList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        FunCallList += tempFunCallList(randRes)
+        LambdaList += tempLambdaList(randRes)
+      }
+    }
+    else {
+      FunCallList ++= tempFunCallList
+      LambdaList ++= tempLambdaList
+    }
   }
-  private def matchSplit(ChunkSize:Int): Unit ={
+  private def matchSplit(ChunkSize:Int,limitNum:Int): Unit ={
     val tempFunCallList = ArrayBuffer[FunCall]()
     val tempLambdaList = ArrayBuffer[Lambda]()
     for(i<- Split_P until ParamList.length){
@@ -358,10 +393,20 @@ object hlGenerator{
       }
     }
     Split_F = FunCallList.length
-    FunCallList++=tempFunCallList
-    LambdaList++=tempLambdaList
+    val resLen = tempFunCallList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        FunCallList += tempFunCallList(randRes)
+        LambdaList += tempLambdaList(randRes)
+      }
+    }
+    else {
+      FunCallList ++= tempFunCallList
+      LambdaList ++= tempLambdaList
+    }
   }
-  private def matchUserFun():Unit ={
+  private def matchUserFun(limitNum:Int):Unit ={
     val tempFunCallList = ArrayBuffer[FunCall]()
     val tempLambdaList = ArrayBuffer[Lambda]()
     val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
@@ -432,8 +477,80 @@ object hlGenerator{
         }
       }
     }
-    FunCallList++=tempFunCallList
-    LambdaList++=tempLambdaList
+    val resLen = tempFunCallList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        FunCallList += tempFunCallList(randRes)
+        LambdaList += tempLambdaList(randRes)
+      }
+    }
+    else {
+      FunCallList ++= tempFunCallList
+      LambdaList ++= tempLambdaList
+    }
+  }
+  private def matchMap(limitNum:Int):Unit ={
+    val tempFunCallList = ArrayBuffer[FunCall]()
+    val tempLambdaList = ArrayBuffer[Lambda]()
+    //1. Search for proper lambda
+    for( i<-LambdaList.indices){
+      //can use all lambdas
+      //2. choose one as the param -> j
+      val j = util.Random.nextInt(LambdaList(i).params.length)
+      //for (j <- LambdaList(i).params.indices){
+        val TofJ = LambdaList(i).params(j).t
+        //3. search for a proper Arg.t == ArrayType(j.t)  -> j1
+        for( j1 <- ParamList.indices){
+          ParamList(j1).t match{
+            case ArrayType(TofJ,eleLength) =>
+              //Pass the Type check!
+              if(!Map_L_E((i,(1,j1)))){
+                val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)),LambdaList(i).body)
+                  , LambdaList(i).params(j),Param(TofJ))
+                val F = FunCall(ir.ast.Map(L2),ParamList(j1))
+                F.t = ArrayType(LambdaList(i).body.t,eleLength)
+                val Args = countParam(F)
+                val L3 = Lambda(Args.toArray[Param], F)
+                tempFunCallList += F
+                tempLambdaList += L3
+                Map_L_E += ((i,(1,j1)))
+              }
+            case _=>
+          }
+        }
+        for( j1 <- FunCallList.indices){
+          FunCallList(j1).t match{
+            case ArrayType(TofJ,eleLength) =>
+              //Pass the Type check!
+              if(!Map_L_E((i,(2,j1)))){
+                val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)),LambdaList(i).body)
+                  , LambdaList(i).params(j),Param(TofJ))
+                val F = FunCall(ir.ast.Map(L2),FunCallList(j1))
+                F.t = ArrayType(LambdaList(i).body.t,eleLength)
+                val Args = countParam(F)
+                val L3 = Lambda(Args.toArray[Param], F)
+                tempFunCallList += F
+                tempLambdaList += L3
+                Map_L_E += ((i,(2,j1)))
+              }
+            case _=>
+          }
+        }
+      //}
+    }
+    val resLen = tempFunCallList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        FunCallList += tempFunCallList(randRes)
+        LambdaList += tempLambdaList(randRes)
+      }
+    }
+    else {
+      FunCallList ++= tempFunCallList
+      LambdaList ++= tempLambdaList
+    }
   }
 
   /*This is a random-pick version,now we will use a enumeration version!
