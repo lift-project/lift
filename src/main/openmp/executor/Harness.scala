@@ -56,7 +56,7 @@ object Harness {
     stringBuilder.toString()
   }
 
-  private def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n#include <time.h>\n"
+  private def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n#include <malloc.h>\n"
 
   private def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
 
@@ -81,7 +81,7 @@ object Harness {
     val sb = new StringBuilder
     val tName = typeName(t)
     t match {
-      case t:ArrayType => sb.append(s"${typeName(t.elemT)} $varName [${t.len}]")
+      case t:ArrayType => sb.append(s"${typeName(t.elemT)} *$varName = malloc(sizeof(${typeName(t.elemT)}) * ${t.len})")
       case x => sb.append(s"$tName $varName")
     }
     sb.append(";\n")
@@ -177,6 +177,7 @@ object Harness {
 
   private def getData(typeName:String) = s"(($typeName*)data)[0]"
   private def advanceData(typeName: String) = s"data += sizeof($typeName)"
+
 
   private def generateInvocationCode(kernel:Lambda, intermediateParameterNames:List[String]):String = {
     val sb = new StringBuilder()
