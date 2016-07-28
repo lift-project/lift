@@ -73,6 +73,8 @@ class TestRewriteNbody {
     val f27 = Rewrite.applyRuleAtId(f26, 17, Rules.localMemory)
 
     // TODO: f27 fails in OutputView for some mysterious reason
+    // TODO: Caused by the same object FunCall(Get(0),..) appearing twice...
+    // TODO: The reconstruction will create 2 objects.
     val f28 = Eval(Utils.dumpLambdaToString(f27))
 
     val (output: Array[Float], _) =

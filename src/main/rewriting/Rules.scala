@@ -450,7 +450,7 @@ object Rules {
 
       val fp = fun1.asInstanceOf[FPattern]
       val origLambda = fp.f
-      val newParam= Param()
+      val newParam = Param()
       val get0 = Get(newParam, 0)
       val get1 = Get(newParam, 1)
 
@@ -976,8 +976,9 @@ object Rules {
 
       val tempBody = Expr.replace(body, paramForCurrent, newParam)
 
-      // TODO: Check performance. Also see issue #73
-      val newBody = new Let(Array(newParam), tempBody) o Id() $ paramForCurrent
+      // Construct the FunCall directly to avoid inlining
+      val newBody =
+        FunCall(Lambda(Array(newParam), tempBody),  FunCall(Id(), paramForCurrent))
 
       Expr.replace(call, body, newBody)
   })
