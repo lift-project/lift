@@ -3,12 +3,11 @@ package rewriting
 import benchmarks.NBody
 import ir._
 import ir.ast._
-import opencl.executor.{Eval, Execute, Executor}
+import opencl.executor.{Execute, Executor}
 import opencl.generator.TestNBody._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit._
-import rewriting.utils.Utils
 
 object TestRewriteNbody {
    @BeforeClass
@@ -72,13 +71,8 @@ class TestRewriteNbody {
     val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapLcl)
     val f27 = Rewrite.applyRuleAtId(f26, 17, Rules.localMemory)
 
-    // TODO: f27 fails in OutputView for some mysterious reason
-    // TODO: Caused by the same object FunCall(Get(0),..) appearing twice...
-    // TODO: The reconstruction will create 2 objects.
-    val f28 = Eval(Utils.dumpLambdaToString(f27))
-
     val (output: Array[Float], _) =
-      Execute(128, inputSize, (true, false))(f28, pos, vel, espSqr, deltaT)
+      Execute(128, inputSize, (true, false))(f27, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
   }
 

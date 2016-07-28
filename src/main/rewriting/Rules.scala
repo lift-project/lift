@@ -451,10 +451,13 @@ object Rules {
       val fp = fun1.asInstanceOf[FPattern]
       val origLambda = fp.f
       val newParam = Param()
-      val get0 = Get(newParam, 0)
       val get1 = Get(newParam, 1)
 
-      val newBody = Expr.replace(fp.f.body, p1.head, get0)
+      // Use a partial function to make sure every replacement gets a different object
+      val replaceP1: PartialFunction[Expr, Expr] =
+      { case p: Param if p eq p1.head => Get(newParam, 0) }
+
+      val newBody = Expr.replace(fp.f.body, p1.head, replaceP1)
 
       val newLambda = Lambda(origLambda.params, newBody)
       val newFp = fp.copy(newLambda)
@@ -469,13 +472,16 @@ object Rules {
 
       val origLambda = r.f
       val newParam = Param()
-      val get0 = Get(newParam, 0)
       val get1 = Get(newParam, 1)
 
-      val newBody = Expr.replace(origLambda.body, p1.head, get0)
+      // Use a partial function to make sure every replacement gets a different object
+      val replaceP1: PartialFunction[Expr, Expr] =
+      { case p: Param if p eq p1.head => Get(newParam, 0) }
+
+      val newBody = Expr.replace(origLambda.body, p1.head, replaceP1)
 
       val newLambda = Lambda(origLambda.params, newBody)
-      val newInit = Expr.replace(init, p1.head, get0)
+      val newInit = Expr.replace(init, p1.head, replaceP1)
 
       Map(Lambda(Array(newParam), Reduce(newLambda, newInit) $ get1)) $
         Zip(arg, Map(Lambda(p1, fun2(p2))) $ arg)
@@ -488,10 +494,13 @@ object Rules {
       val fp = fun1.asInstanceOf[FPattern]
       val origLambda = fp.f
       val newParam= Param()
-      val get0 = Get(newParam, 0)
       val get1 = Get(newParam, 1)
 
-      val newBody = Expr.replace(fp.f.body, p1.head, get0)
+      // Use a partial function to make sure every replacement gets a different object
+      val replaceP1: PartialFunction[Expr, Expr] =
+      { case p: Param if p eq p1.head => Get(newParam, 0) }
+
+      val newBody = Expr.replace(fp.f.body, p1.head, replaceP1)
 
       val newLambda = Lambda(origLambda.params, newBody)
       val newFp = fp.copy(newLambda)
@@ -507,13 +516,16 @@ object Rules {
 
       val origLambda = r1.f
       val newParam = Param()
-      val get0 = Get(newParam, 0)
       val get1 = Get(newParam, 1)
 
-      val newBody = Expr.replace(origLambda.body, p1.head, get0)
+      // Use a partial function to make sure every replacement gets a different object
+      val replaceP1: PartialFunction[Expr, Expr] =
+      { case p: Param if p eq p1.head => Get(newParam, 0) }
+
+      val newBody = Expr.replace(origLambda.body, p1.head, replaceP1)
 
       val newLambda = Lambda(origLambda.params, newBody)
-      val newInit = Expr.replace(init1, p1.head, get0)
+      val newInit = Expr.replace(init1, p1.head, replaceP1)
 
       Map(Lambda(Array(newParam), Reduce(newLambda, newInit) $ get1)) $
         Zip(arg,  Map(Lambda(p1, Reduce(r2.f, init2)(p2))) $ arg)
