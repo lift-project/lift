@@ -417,23 +417,27 @@ object Rules {
 
   val mapFission = Rule("Map(f o g) => Map(f) o Map(g)", {
     case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2)))), arg)
-      if p2.contains({ case a => a eq p1.head })
+      if !fun1.isInstanceOf[FPattern] ||
+        !fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
     =>
       Map(fun1) o Map(Lambda(p1, fun2(p2))) $ arg
 
     case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
-      if p2.contains({ case a => a eq p1.head })
+      if !r.f.body.contains({ case a if a eq p1.head => }) &&
+        !init.contains({ case a if a eq p1.head => })
     =>
       Map(Reduce(r.f, init)) o Map(Lambda(p1, fun2(p2))) $ arg
 
     case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(r: AbstractPartRed, init, p2)))), arg)
-      if p2.contains({ case a => a eq p1.head })
+      if !fun1.isInstanceOf[FPattern] ||
+        !fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
     =>
       Map(fun1) o Map(Lambda(p1, Reduce(r.f, init)(p2))) $ arg
 
     case FunCall(Map(Lambda(p1, FunCall(r1: AbstractPartRed, init1,
-                FunCall(r2: AbstractPartRed, init2, p2)))), arg)
-      if p2.contains({ case a => a eq p1.head })
+    FunCall(r2: AbstractPartRed, init2, p2)))), arg)
+      if !r1.f.body.contains({ case a if a eq p1.head => }) &&
+        !init1.contains({ case a if a eq p1.head => })
     =>
       Map(Reduce(r1.f, init1)) o Map(Lambda(p1, Reduce(r2.f, init2)(p2))) $ arg
   })

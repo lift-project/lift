@@ -25,8 +25,7 @@ class TestRules {
 
   def applyRule(lambda: Lambda, expr: Expr, rule: Rule) = {
     TypeChecker.check(lambda.body)
-    val newLambda = FunDecl.replace(lambda, expr, rule.rewrite(expr))
-    newLambda
+    FunDecl.replace(lambda, expr, rule.rewrite(expr))
   }
 
   val N = SizeVar("N")
@@ -881,5 +880,60 @@ class TestRules {
 
     val mResult = Rewrite.applyRuleAtId(m, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternWithMap.isDefinedAt(mResult.body))
+  }
+
+  @Test
+  def mapFissionNotAllowed0(): Unit = {
+    // Map o Map
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x => Map(fun(y => add(x, y))) o Map(plusOne) $ input)) $ input
+    )
+
+    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapFissionNotAllowed1(): Unit = {
+    // Map o Reduce
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x => Map(fun(y => add(x, y))) o Reduce(add, 0.0f) $ input)) $ input
+    )
+
+    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapFissionNotAllowed2(): Unit = {
+
+    // Reduce o Map
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x =>
+          ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
+            Map(plusOne) $ input
+        )) $ input
+    )
+
+    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapFissionNotAllowed3(): Unit = {
+    // Reduce o Reduce
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x =>
+          ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
+            Reduce(add, 0.0f) $ input
+        )) $ input
+    )
+
+    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
   }
 }
