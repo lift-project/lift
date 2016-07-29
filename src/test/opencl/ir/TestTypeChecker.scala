@@ -80,7 +80,6 @@ class TestTypeChecker {
     TypeChecker(lambda)
   }
 
-  @Ignore
   @Test(expected = classOf[TypeException])
   def incorrectReduceCustomisingFunctionIssue74(): Unit = {
     val lambda = fun(

@@ -25,6 +25,10 @@ abstract class AbstractPartRed(val f: Lambda,
       case TupleType(initT, ArrayType(elemT, _)) =>
         f.params(0).t = initT // initial elem type
         f.params(1).t = elemT // array element type
+
+        if (initT != elemT)
+          throw TypeException(s"Illegal customising function in Reduce. $initT != $elemT")
+
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
         if (bodyType != initT)
