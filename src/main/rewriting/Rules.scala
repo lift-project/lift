@@ -581,13 +581,13 @@ object Rules {
 
   // TODO: Should use Reduce instead of PartRed, as PartRed can return something that is
   // TODO: not length one, and the output type can break. Will need to check some
-  // TODO: other way that both fs are the same.
+  // TODO: other way that both fs and init are the same.
   val mapReducePartialReduce =
     Rule("Map(Reduce(f, init) o Join() o Map(PartRed(f, init2)) ) => " +
       "Transpose() o Reduce((acc, a) => Join() o Map(x => PartRed(f, Get(x, 0)) $ Get(x, 1)) $ Zip(acc, a) , Array(init)) o Transpose()", {
       case c@ FunCall(Map(Lambda(p1,
-      FunCall(ReduceSeq(f1), init: Value, FunCall(Join(), FunCall(Map(Lambda(p2,
-        FunCall(PartRed(f2), _, a2))), a1)))
+      FunCall(ReduceSeq(f1), _, FunCall(Join(), FunCall(Map(Lambda(p2,
+        FunCall(PartRed(f2), init: Value, a2))), a1)))
       )), arg)
         if (p1.head eq a1) && (p2.head eq a2)
       =>

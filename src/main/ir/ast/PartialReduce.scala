@@ -48,6 +48,11 @@ abstract class AbstractPartRed(val f: Lambda,
   }
 }
 
+object AbstractPartRed {
+  def unapply(arg: AbstractPartRed): Option[(Lambda)] =
+    Some(arg.f)
+}
+
 /**
  * Concrete class for the partial reduce pattern.
  * No code can be generated for this class.

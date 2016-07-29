@@ -4,6 +4,7 @@ import apart.arithmetic.{?, ArithExpr}
 import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
+import opencl.ir.pattern.ReduceSeq
 
 object MacroRules {
 
@@ -349,8 +350,15 @@ object MacroRules {
     =>
       val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapSeq)
       val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeq)
-      val e2 = Rewrite.applyRuleAtId(e1, 1, Rules.reduceSeqMapSeqFusion)
+      val e2 = Rewrite.applyRuleAtId(e1, 0, Rules.reduceSeqMapSeqFusion)
       e2
+
+    case funCall @ FunCall(ReduceSeq(_), _, mapCall@FunCall(Map(_), _))
+      if Rules.mapSeq.isDefinedAt(mapCall)
+    =>
+      val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapSeq)
+      val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)
+      e1
   })
 
   /**

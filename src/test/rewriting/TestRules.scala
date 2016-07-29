@@ -324,7 +324,7 @@ class TestRules {
   def nestPartialReduceInReduce(): Unit = {
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, 16), 16), 16),
-      a => Map( Reduce(add, 0.0f) o Join() o Map(PartRed(fun((x, y) => add(x, y)), 0.0f)) ) $ a)
+      a => Map( ReduceSeq(add, 0.0f) o Join() o Map(PartRed(fun((x, y) => add(x, y)), 0.0f)) ) $ a)
 
     val fResult = Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce)
     TypeChecker(fResult)
@@ -963,7 +963,7 @@ class TestRules {
 
   @Test
   def mapFissionWhenArgUsedInBoth1(): Unit = {
-  // Map o Reduce
+    // Map o Reduce
     val f = fun(
       ArrayType(Float, N),
       input =>
@@ -988,11 +988,13 @@ class TestRules {
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
     TypeChecker(f1)
+
+    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
   }
 
   @Test
   def mapFissionWhenArgUsedInBoth3(): Unit = {
- // Reduce o Reduce
+    // Reduce o Reduce
     val f = fun(
       ArrayType(Float, N),
       input =>
@@ -1004,6 +1006,52 @@ class TestRules {
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
     TypeChecker(f1)
+
+    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
+  }
+
+  @Test
+  def mapReduceReduceNesting0(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      input => Map(ReduceSeq(add, 0.0f) o Join() o Map(PartRed(mult, 1.0f))) $ input
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapReduceReduceNesting1(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      input => Map(ReduceSeq(add, 0.0f) o Join() o Map(Reduce(mult, 1.0f))) $ input
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapReduceReduceNesting2(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      input => Map(ReduceSeq(add, 0.0f) o Join() o Map(Reduce(add, 1.0f))) $ input
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapReduceReduceNesting3(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      input => Map(ReduceSeq(add, 0.0f) o Join() o Map(PartRed(add, 1.0f))) $ input
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
   }
 
 }

@@ -322,7 +322,7 @@ class TestRewriteMatrixMatrix {
     val f2 = SimplifyAndFuse(f1)
 
     val numExpressions = NumberExpression.breadthFirst(f2).values.max
-    assertEquals(32, numExpressions)
+    assertEquals(29, numExpressions)
     checkDepth(f2)
     checkDistance(f2)
   }
@@ -345,7 +345,7 @@ class TestRewriteMatrixMatrix {
     val f2 = SimplifyAndFuse(f1)
 
     val numExpressions = NumberExpression.breadthFirst(f2).values.max
-    assertEquals(51, numExpressions)
+    assertEquals(48, numExpressions)
     checkDepth(f2)
     checkDistance(f2)
   }
@@ -395,6 +395,7 @@ class TestRewriteMatrixMatrix {
     val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
     val f2 = Rewrite.applyRuleAtId(f1, 12, MacroRules.finishTiling)
     val f3 = Rewrite.applyRuleAtId(f2, 6, MacroRules.moveTransposeInsideTiling)
+    TypeChecker(f3)
     val f4 = Rewrite.applyRuleAtId(f3, 17, MacroRules.finishTiling)
     val f5 = SimplifyAndFuse(f4)
 
@@ -451,7 +452,7 @@ class TestRewriteMatrixMatrix {
     val f4 = SimplifyAndFuse(f3)
 
     val numExpressions = NumberExpression.breadthFirst(f4).values.max
-    assertEquals(27, numExpressions)
+    assertEquals(24, numExpressions)
     checkDepth(f4)
     checkDistance(f4)
   }
