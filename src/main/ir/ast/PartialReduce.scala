@@ -27,7 +27,7 @@ abstract class AbstractPartRed(val f: Lambda,
         f.params(1).t = elemT // array element type
 
         if (initT != elemT)
-          throw TypeException(s"Illegal customising function in Reduce. $initT != $elemT")
+          throw TypeException(s"Illegal customising function in\n$this.\n$initT != $elemT")
 
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 

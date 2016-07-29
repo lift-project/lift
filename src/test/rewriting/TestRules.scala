@@ -326,7 +326,8 @@ class TestRules {
       ArrayType(ArrayType(ArrayType(Float, 16), 16), 16),
       a => Map( Reduce(add, 0.0f) o Join() o Map(PartRed(fun((x, y) => add(x, y)), 0.0f)) ) $ a)
 
-    println(Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce))
+    val fResult = Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce)
+    TypeChecker(fResult)
   }
 
   @Test
@@ -430,6 +431,8 @@ class TestRules {
     )
 
     assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
+    TypeChecker(f0)
   }
 
   @Test
@@ -854,6 +857,8 @@ class TestRules {
     val fResult = Rewrite.applyRuleAtId(f, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternSimple.isDefinedAt(fResult.body))
 
+    TypeChecker(fResult)
+
     val g = fun(
       ArrayType(ArrayType(Float, N), N),
       input => Map(Reduce(add, 0.0f) o Gather(reverse)) $ input
@@ -861,6 +866,8 @@ class TestRules {
 
     val gResult = Rewrite.applyRuleAtId(g, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternSimple.isDefinedAt(gResult.body))
+
+    TypeChecker(gResult)
 
     val patternWithMap: PartialFunction[Expr, Unit] =
       { case FunCall(Map(_), FunCall(TransposeW(), FunCall(Reduce(_), _, _))) => }
@@ -873,6 +880,8 @@ class TestRules {
     val hResult = Rewrite.applyRuleAtId(h, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternWithMap.isDefinedAt(hResult.body))
 
+    TypeChecker(hResult)
+
     val m = fun(
       ArrayType(ArrayType(Float, N), N),
       input => Map(Scatter(reverse) o Scatter(reverse) o Reduce(add, 0.0f) o Gather(reverse)) $ input
@@ -880,6 +889,8 @@ class TestRules {
 
     val mResult = Rewrite.applyRuleAtId(m, 0, MacroRules.moveReduceOutOneLevel)
     assertTrue(patternWithMap.isDefinedAt(mResult.body))
+
+    TypeChecker(mResult)
   }
 
   @Test
@@ -994,4 +1005,5 @@ class TestRules {
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
     TypeChecker(f1)
   }
+
 }
