@@ -290,7 +290,7 @@ object Rules {
 
       val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
 
-      MapSeq(Id()) o ReduceSeq(f, newInit) $ arg
+      ReduceSeq(f, newInit) $ arg
   })
 
   /* Stride accesses or normal accesses */
@@ -426,20 +426,21 @@ object Rules {
       if !r.f.body.contains({ case a if a eq p1.head => }) &&
         !init.contains({ case a if a eq p1.head => })
     =>
-      Map(Reduce(r.f, init)) o Map(Lambda(p1, fun2(p2))) $ arg
+
+      Map(fun((x) => r(init, x))) o Map(Lambda(p1, fun2(p2))) $ arg
 
     case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(r: AbstractPartRed, init, p2)))), arg)
       if !fun1.isInstanceOf[FPattern] ||
         !fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
     =>
-      Map(fun1) o Map(Lambda(p1, Reduce(r.f, init)(p2))) $ arg
+      Map(fun1) o Map(Lambda(p1, r(init, p2))) $ arg
 
     case FunCall(Map(Lambda(p1, FunCall(r1: AbstractPartRed, init1,
     FunCall(r2: AbstractPartRed, init2, p2)))), arg)
       if !r1.f.body.contains({ case a if a eq p1.head => }) &&
         !init1.contains({ case a if a eq p1.head => })
     =>
-      Map(Reduce(r1.f, init1)) o Map(Lambda(p1, Reduce(r2.f, init2)(p2))) $ arg
+      Map(fun((x) => r1(init1, x))) o Map(Lambda(p1, r2(init2, p2))) $ arg
   })
 
   val mapFission2 = Rule("Map(x => f(x, g(...)) => Map(f) $ Zip(..., Map(g)  )", {
@@ -578,18 +579,21 @@ object Rules {
         ), newInit) o Transpose() $ newArg
     })
 
+  // TODO: Should use Reduce instead of PartRed, as PartRed can return something that is
+  // TODO: not length one, and the output type can break. Will need to check some
+  // TODO: other way that both fs are the same.
   val mapReducePartialReduce =
     Rule("Map(Reduce(f, init) o Join() o Map(PartRed(f, init2)) ) => " +
       "Transpose() o Reduce((acc, a) => Join() o Map(x => PartRed(f, Get(x, 0)) $ Get(x, 1)) $ Zip(acc, a) , Array(init)) o Transpose()", {
       case c@ FunCall(Map(Lambda(p1,
-      FunCall(Reduce(f1), init: Value, FunCall(Join(), FunCall(Map(Lambda(p2,
+      FunCall(ReduceSeq(f1), init: Value, FunCall(Join(), FunCall(Map(Lambda(p2,
         FunCall(PartRed(f2), _, a2))), a1)))
       )), arg)
         if (p1.head eq a1) && (p2.head eq a2)
       =>
         val newInit = Value(init.value, ArrayType(init.t, Type.getLength(arg.t)))
 
-        TransposeW() o Reduce(fun((acc, a) =>
+        TransposeW() o ReduceSeq(fun((acc, a) =>
           Join() o Map(fun(x =>
             PartRed(f1, Get(x, 0)) $ Get(x,1)
           )) $ Zip(acc, a)
