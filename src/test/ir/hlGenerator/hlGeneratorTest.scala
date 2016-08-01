@@ -1,5 +1,7 @@
 package ir.hlGenerator
 
+import java.io.PrintWriter
+
 import apart.arithmetic.{ArithExpr, Log, SizeVar}
 import ir._
 import ir.ast._
@@ -124,7 +126,7 @@ class hlGeneratorTest {
   @Ignore
   @Test
   def testLoops():Unit={
-    hlGenerator.tryPrograms()
+    hlGenerator.tryPrograms(new PrintWriter("/home/potato/testLambda.txt"))
   }
   /*
   @Test

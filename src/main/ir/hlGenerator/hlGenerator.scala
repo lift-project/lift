@@ -1,5 +1,7 @@
 package ir.hlGenerator
 
+import java.io.{PrintWriter, Writer}
+
 import collection.mutable._
 import ir._
 import ir.ast._
@@ -35,7 +37,11 @@ object hlGenerator{
   var Add_Check = scala.collection.mutable.Set[((Int,Int),(Int,Int))]()
   var Add_Check_FunCall = scala.collection.mutable.Set[Int]()
 
-  private def trySingleLambda(l:Lambda):Unit = {
+  private def writeln(w:PrintWriter,s:String):Unit={
+    w.write(s+"\n")
+  }
+
+  private def trySingleLambda(l:Lambda,w:PrintWriter):Unit = {
     //Requires an add in it
     if (l.toString.contains("add")) {
       //1. Generate Input Data
@@ -60,9 +66,10 @@ object hlGenerator{
             output = Interpreter(l).->[Vector[Float]].run(Args: _*)
           }
           catch{
-            case e =>
-              println("catch a exception in Interpreter")
-              e.printStackTrace()
+            case e:Throwable =>
+              //println("catch a exception in Interpreter")
+              writeln(w,"catch a exception in Interpreter")
+              e.printStackTrace(w)
               return
           }
 
@@ -72,22 +79,25 @@ object hlGenerator{
             fs = Lower.mapCombinations(l, new EnabledMappings(true, false, false, false, false, false))
           }
           catch{
-            case e =>
-              println("catch a exception in lower-parser")
-              e.printStackTrace()
+            case e:Throwable =>
+              //println("catch a exception in lower-parser")
+              writeln(w,"catch a exception in lower-parser")
+              e.printStackTrace(w)
               return
           }
 
           //3. compile the lambda
           var code = ""
           try {
-            println(fs.head.toString)
+            //println(fs.head.toString)
+            writeln(w,fs.head.toString)
             code = Compile(fs.head)
           }
           catch{
-            case e =>
-              println("catch a exception in compiler")
-              e.printStackTrace()
+            case e:Throwable =>
+              //println("catch a exception in compiler")
+              writeln(w,"catch a exception in compiler")
+              e.printStackTrace(w)
               return
           }
 
@@ -96,26 +106,32 @@ object hlGenerator{
 
           //val code = Compile(fs.head)
         case _ =>
-          println("Unimplemented outType,Ignored")
+          //println("Unimplemented outType,Ignored")
+          writeln(w,"Unimplemented outType,Ignored")
           return
       }
     }
     else{
-      println("Doesn't contains UserFun, Ignored")
+      //println("Doesn't contains UserFun, Ignored")
+      writeln(w,"Doesn't contains UserFun, Ignored")
       return
     }
   }
 
-  def tryPrograms():Unit = {
+  def tryPrograms(w:PrintWriter):Unit = {
     generateProgram()
     val res = LambdaList
     for(i <- 0 until res.length){
       val l = res(i)
       //prints the basic informations about l
-      println("Lambda Num:" + i)
-      println(l.toString)
-      l.params.foreach(p => println(p.t.toString))
-      trySingleLambda(l)
+      //println("Lambda Num:" + i)
+      //println(l.toString)
+      //l.params.foreach(p => println(p.t.toString))
+      writeln(w,"Lambda Num:" + i)
+      writeln(w,l.toString)
+      l.params.foreach(p => writeln(w,p.t.toString))
+      trySingleLambda(l,w)
+      w.flush()
     }
   }
 
@@ -124,7 +140,7 @@ object hlGenerator{
     ParamList += Param(ArrayType(Float,32))
     ParamList += Param(Float)
     ParamList += Param(Float)
-    val totalRounds = 32
+    val totalRounds = 16
     for(i<- 0 until totalRounds){
      generateLambda()
       val test = LambdaList
