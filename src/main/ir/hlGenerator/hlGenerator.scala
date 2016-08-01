@@ -59,6 +59,7 @@ object hlGenerator{
       }
       //2. Pass the TypeChecker
       val outType = TypeChecker(l)
+      /*
       outType match {
         case ArrayType(Float, _) =>
           //1. pass the Interpreter
@@ -72,49 +73,95 @@ object hlGenerator{
               writeln(w,"catch a exception in Interpreter")
               e.printStackTrace(w)
               return
-          }
+          }*/
 
-          //2. lower the lambda
-          var fs = List[Lambda]()
-          try {
-            fs = Lower.mapCombinations(l, new EnabledMappings(true, false, false, false, false, false))
-          }
-          catch{
-            case e:Throwable =>
-              //println("catch a exception in lower-parser")
-              writeln(w,"catch a exception in lower-parser")
-              e.printStackTrace(w)
-              return
-          }
-
-          //3. compile the lambda
-          var code = ""
-          try {
-            //println(fs.head.toString)
-            writeln(w,fs.head.toString)
-            code = Compile(fs.head)
-          }
-          catch{
-            case e:Throwable =>
-              //println("catch a exception in compiler")
-              writeln(w,"catch a exception in compiler")
-              e.printStackTrace(w)
-              return
-          }
-
-          //4.execute the opencl kernel
-          //just test above, do it later
-
-          //val code = Compile(fs.head)
-        case _ =>
-          //println("Unimplemented outType,Ignored")
-          writeln(w,"Unimplemented outType,Ignored")
+      //2. lower the lambda
+      var fs = List[Lambda]()
+      try {
+        fs = Lower.mapCombinations(l, new EnabledMappings(true, false, false, false, false, false))
+      }
+      catch{
+        case e:Throwable =>
+          //println("catch a exception in lower-parser")
+          writeln(w,"catch a exception in lower-parser-by-user")
+          e.printStackTrace(w)
           return
       }
+
+      //3. compile the lambda
+      var code = ""
+      try {
+        //println(fs.head.toString)
+        writeln(w,fs.head.toString)
+        code = Compile(fs.head)
+      }
+      catch{
+        case e:Throwable =>
+          //println("catch a exception in compiler")
+          writeln(w,"catch a exception in compiler-by-user")
+          e.printStackTrace(w)
+          return
+      }
+      outType match{
+        case Float =>
+          try {
+            Execute(1)(code,l,Args:_*)
+          }
+          catch{
+            case e:Throwable =>
+              writeln(w,"catch a exception in execator-by-user")
+              e.printStackTrace(w)
+              return
+          }
+        case ArrayType(Float,d1) =>
+          try {
+            Execute(d1.eval)(code,l,Args:_*)
+          }
+          catch{
+            case e:Throwable =>
+              writeln(w,"catch a exception in execator-by-user")
+              e.printStackTrace(w)
+              return
+          }
+        case ArrayType(ArrayType(Float,d1),d2)=>
+          try {
+            Execute(d1.eval*d2.eval)(code,l,Args:_*)
+          }
+          catch{
+            case e:Throwable =>
+              writeln(w,"catch a exception in execator-by-user")
+              e.printStackTrace(w)
+              return
+          }
+        case ArrayType(ArrayType(ArrayType(Float,d1),d2),d3)=>
+          try {
+            Execute(d1.eval*d2.eval*d3.eval)(code,l,Args:_*)
+          }
+          catch{
+            case e:Throwable =>
+              writeln(w,"catch a exception in execator-by-user")
+              e.printStackTrace(w)
+              return
+          }
+        case _=>
+          writeln(w,"Type unimplemented,Ignored-by-user")
+      }
+
+
+      //4.execute the opencl kernel
+      //just test above, do it later
+
+      //val code = Compile(fs.head)
+      /*
+      case _ =>
+        //println("Unimplemented outType,Ignored")
+        writeln(w,"Unimplemented outType,Ignored")
+        return
+    }*/
     }
     else{
       //println("Doesn't contains UserFun, Ignored")
-      writeln(w,"Doesn't contains UserFun, Ignored")
+      writeln(w,"Doesn't contains UserFun, Ignored-by-user")
       return
     }
   }
@@ -138,14 +185,16 @@ object hlGenerator{
 
   def generateProgram(): Unit = {
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
+    ParamList += Param(ArrayType(ArrayType(Float,32),32))
+    ParamList += Param(ArrayType(Float,32))
     ParamList += Param(ArrayType(Float,32))
     ParamList += Param(Float)
     ParamList += Param(Float)
-    val totalRounds = 16
+    val totalRounds = 24
     for(i<- 0 until totalRounds){
-     generateLambda()
-      val test = LambdaList
-      val test1 = FunCallList
+      generateLambda()
+      //val test = LambdaList
+      //val test1 = FunCallList
     }
   }
 
@@ -292,108 +341,108 @@ object hlGenerator{
             //3. choose a Ele -> k, k!= j
             //Here we use random-choice.. maybe enumerations is better,who knows?
             //for(k <- LambdaList(i).params.indices){
-              //if(k!= j){
-                val TofK = LambdaList(i).params(k).t
-                //4. choose arg1, arg1.t == init.t => j1
-                for(j1 <- ParamList.indices){
-                  if(ParamList(j1).t == LambdaList(i).params(j).t){
-                    //5. choose arg2, arg2.t == ArrayType(Ele) => k1
-                    for(k1 <- ParamList.indices){
-                      ParamList(k1).t match{
-                        case ArrayType(TofK,eleLength) =>
-                          if(eleLength.eval > 1) {
-                            //Pass the type check!!!!!!!!!!!!!!!
-                            if (!Reduce_L_I_E((i, (1, j1), (1, k1)))) {
-                              val L2 = replaceParam(
-                                replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
-                                  LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
-                                LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
-                              val F = FunCall(Reduce(L2), ParamList(j1), ParamList(k1))
-                              F.t = ArrayType(TofJ, 1)
-                              val Args = countParam(F)
-                              val L3 = Lambda(Args.toArray[Param], F)
-                              tempFunCallList += F
-                              tempLambdaList += L3
-                              Reduce_L_I_E += ((i, (1, j1), (1, k1)))
-                            }
-                          }
-                        case _=>
+            //if(k!= j){
+            val TofK = LambdaList(i).params(k).t
+            //4. choose arg1, arg1.t == init.t => j1
+            for(j1 <- ParamList.indices){
+              if(ParamList(j1).t == LambdaList(i).params(j).t){
+                //5. choose arg2, arg2.t == ArrayType(Ele) => k1
+                for(k1 <- ParamList.indices){
+                  ParamList(k1).t match{
+                    case ArrayType(TofK,eleLength) =>
+                      if(eleLength.eval > 1) {
+                        //Pass the type check!!!!!!!!!!!!!!!
+                        if (!Reduce_L_I_E((i, (1, j1), (1, k1)))) {
+                          val L2 = replaceParam(
+                            replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
+                              LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
+                            LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
+                          val F = FunCall(Reduce(L2), ParamList(j1), ParamList(k1))
+                          F.t = ArrayType(TofJ, 1)
+                          val Args = countParam(F)
+                          val L3 = Lambda(Args.toArray[Param], F)
+                          tempFunCallList += F
+                          tempLambdaList += L3
+                          Reduce_L_I_E += ((i, (1, j1), (1, k1)))
+                        }
                       }
-                    }
-                    for(k1 <- FunCallList.indices){
-                      FunCallList(k1).t match {
-                        case ArrayType(TofK, eleLength) =>
-                          if (eleLength.eval > 1) {
-                            //Pass the type check!!!!!!!!!!!
-                            if (!Reduce_L_I_E((i, (1, j1), (2, k1)))) {
-                              val L2 = replaceParam(
-                                replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
-                                  LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
-                                LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
-                              val F = FunCall(Reduce(L2), ParamList(j1), FunCallList(k1))
-                              F.t = ArrayType(TofJ, 1)
-                              val Args = countParam(F)
-                              val L3 = Lambda(Args.toArray[Param], F)
-                              tempFunCallList += F
-                              tempLambdaList += L3
-                              Reduce_L_I_E += ((i, (1, j1), (2, k1)))
-                            }
-                          }
-                        case _=>
-                      }
-                    }
+                    case _=>
                   }
                 }
-                for(j1 <- FunCallList.indices){
-                  if(FunCallList(j1).t == LambdaList(i).params(j).t){
-                    //5. choose arg2, arg2.t == ArrayType(Ele) => k1
-                    for(k1 <- ParamList.indices){
-                      ParamList(k1).t match{
-                        case ArrayType(TofK,eleLength) =>
-                          if(eleLength.eval > 1) {
-                            //Pass the type check!!!!!!!!!!!!!!!
-                            if (!Reduce_L_I_E((i, (2, j1), (1, k1)))) {
-                              val L2 = replaceParam(
-                                replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
-                                  LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
-                                LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
-                              val F = FunCall(Reduce(L2), FunCallList(j1), ParamList(k1))
-                              F.t = ArrayType(TofJ, 1)
-                              val Args = countParam(F)
-                              val L3 = Lambda(Args.toArray[Param], F)
-                              tempFunCallList += F
-                              tempLambdaList += L3
-                              Reduce_L_I_E += ((i, (2, j1), (1, k1)))
-                            }
-                          }
-                        case _=>
+                for(k1 <- FunCallList.indices){
+                  FunCallList(k1).t match {
+                    case ArrayType(TofK, eleLength) =>
+                      if (eleLength.eval > 1) {
+                        //Pass the type check!!!!!!!!!!!
+                        if (!Reduce_L_I_E((i, (1, j1), (2, k1)))) {
+                          val L2 = replaceParam(
+                            replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
+                              LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
+                            LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
+                          val F = FunCall(Reduce(L2), ParamList(j1), FunCallList(k1))
+                          F.t = ArrayType(TofJ, 1)
+                          val Args = countParam(F)
+                          val L3 = Lambda(Args.toArray[Param], F)
+                          tempFunCallList += F
+                          tempLambdaList += L3
+                          Reduce_L_I_E += ((i, (1, j1), (2, k1)))
+                        }
                       }
-                    }
-                    for(k1 <- FunCallList.indices){
-                      FunCallList(k1).t match{
-                        case ArrayType(TofK,eleLength) =>
-                          if(eleLength.eval>1) {
-                            //Pass the type check!!!!!!!!!!!
-                            if (!Reduce_L_I_E((i, (2, j1), (2, k1)))) {
-                              val L2 = replaceParam(
-                                replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
-                                  LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
-                                LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
-                              val F = FunCall(Reduce(L2), FunCallList(j1), FunCallList(k1))
-                              F.t = ArrayType(TofJ, 1)
-                              val Args = countParam(F)
-                              val L3 = Lambda(Args.toArray[Param], F)
-                              tempFunCallList += F
-                              tempLambdaList += L3
-                              Reduce_L_I_E += ((i, (2, j1), (2, k1)))
-                            }
-                          }
-                        case _=>
-                      }
-                    }
+                    case _=>
                   }
                 }
-              //}
+              }
+            }
+            for(j1 <- FunCallList.indices){
+              if(FunCallList(j1).t == LambdaList(i).params(j).t){
+                //5. choose arg2, arg2.t == ArrayType(Ele) => k1
+                for(k1 <- ParamList.indices){
+                  ParamList(k1).t match{
+                    case ArrayType(TofK,eleLength) =>
+                      if(eleLength.eval > 1) {
+                        //Pass the type check!!!!!!!!!!!!!!!
+                        if (!Reduce_L_I_E((i, (2, j1), (1, k1)))) {
+                          val L2 = replaceParam(
+                            replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
+                              LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
+                            LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
+                          val F = FunCall(Reduce(L2), FunCallList(j1), ParamList(k1))
+                          F.t = ArrayType(TofJ, 1)
+                          val Args = countParam(F)
+                          val L3 = Lambda(Args.toArray[Param], F)
+                          tempFunCallList += F
+                          tempLambdaList += L3
+                          Reduce_L_I_E += ((i, (2, j1), (1, k1)))
+                        }
+                      }
+                    case _=>
+                  }
+                }
+                for(k1 <- FunCallList.indices){
+                  FunCallList(k1).t match{
+                    case ArrayType(TofK,eleLength) =>
+                      if(eleLength.eval>1) {
+                        //Pass the type check!!!!!!!!!!!
+                        if (!Reduce_L_I_E((i, (2, j1), (2, k1)))) {
+                          val L2 = replaceParam(
+                            replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
+                              LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
+                            LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
+                          val F = FunCall(Reduce(L2), FunCallList(j1), FunCallList(k1))
+                          F.t = ArrayType(TofJ, 1)
+                          val Args = countParam(F)
+                          val L3 = Lambda(Args.toArray[Param], F)
+                          tempFunCallList += F
+                          tempLambdaList += L3
+                          Reduce_L_I_E += ((i, (2, j1), (2, k1)))
+                        }
+                      }
+                    case _=>
+                  }
+                }
+              }
+            }
+            //}
             //}
           }
         }
@@ -438,7 +487,7 @@ object hlGenerator{
           //Pass the type check!
           FunCallList(i).f match {
             case s: Split =>
-              //Join a Split is meaningless
+            //Join a Split is meaningless
             case _ =>
               val F = FunCall(new Join(), FunCallList(i))
               F.t = ArrayType(t, m * n)
@@ -605,48 +654,48 @@ object hlGenerator{
       //2. choose one as the param -> j
       val j = util.Random.nextInt(LambdaList(i).params.length)
       //for (j <- LambdaList(i).params.indices){
-        val TofJ = LambdaList(i).params(j).t
-        //3. search for a proper Arg.t == ArrayType(j.t)  -> j1
-        for( j1 <- ParamList.indices){
-          ParamList(j1).t match{
-            case ArrayType(TofJ,eleLength) =>
-              //if(eleLength.eval > 1) {
-                //Pass the Type check!
-                if (!Map_L_E((i, (1, j1)))) {
-                  val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)), LambdaList(i).body)
-                    , LambdaList(i).params(j), Param(TofJ))
-                  val F = FunCall(ir.ast.Map(L2), ParamList(j1))
-                  F.t = ArrayType(LambdaList(i).body.t, eleLength)
-                  val Args = countParam(F)
-                  val L3 = Lambda(Args.toArray[Param], F)
-                  tempFunCallList += F
-                  tempLambdaList += L3
-                  Map_L_E += ((i, (1, j1)))
-                }
-              //}
-            case _=>
-          }
+      val TofJ = LambdaList(i).params(j).t
+      //3. search for a proper Arg.t == ArrayType(j.t)  -> j1
+      for( j1 <- ParamList.indices){
+        ParamList(j1).t match{
+          case ArrayType(TofJ,eleLength) =>
+            //if(eleLength.eval > 1) {
+            //Pass the Type check!
+            if (!Map_L_E((i, (1, j1)))) {
+              val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)), LambdaList(i).body)
+                , LambdaList(i).params(j), Param(TofJ))
+              val F = FunCall(ir.ast.Map(L2), ParamList(j1))
+              F.t = ArrayType(LambdaList(i).body.t, eleLength)
+              val Args = countParam(F)
+              val L3 = Lambda(Args.toArray[Param], F)
+              tempFunCallList += F
+              tempLambdaList += L3
+              Map_L_E += ((i, (1, j1)))
+            }
+          //}
+          case _=>
         }
-        for( j1 <- FunCallList.indices){
-          FunCallList(j1).t match{
-            case ArrayType(TofJ,eleLength) =>
-              //if(eleLength.eval>1) {
-                //Pass the Type check!
-                if (!Map_L_E((i, (2, j1)))) {
-                  val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)), LambdaList(i).body)
-                    , LambdaList(i).params(j), Param(TofJ))
-                  val F = FunCall(ir.ast.Map(L2), FunCallList(j1))
-                  F.t = ArrayType(LambdaList(i).body.t, eleLength)
-                  val Args = countParam(F)
-                  val L3 = Lambda(Args.toArray[Param], F)
-                  tempFunCallList += F
-                  tempLambdaList += L3
-                  Map_L_E += ((i, (2, j1)))
-                }
-              //}
-            case _=>
-          }
+      }
+      for( j1 <- FunCallList.indices){
+        FunCallList(j1).t match{
+          case ArrayType(TofJ,eleLength) =>
+            //if(eleLength.eval>1) {
+            //Pass the Type check!
+            if (!Map_L_E((i, (2, j1)))) {
+              val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)), LambdaList(i).body)
+                , LambdaList(i).params(j), Param(TofJ))
+              val F = FunCall(ir.ast.Map(L2), FunCallList(j1))
+              F.t = ArrayType(LambdaList(i).body.t, eleLength)
+              val Args = countParam(F)
+              val L3 = Lambda(Args.toArray[Param], F)
+              tempFunCallList += F
+              tempLambdaList += L3
+              Map_L_E += ((i, (2, j1)))
+            }
+          //}
+          case _=>
         }
+      }
       //}
     }
     val resLen = tempFunCallList.length
@@ -681,10 +730,10 @@ object hlGenerator{
             val AId = scala.collection.mutable.ArrayBuffer[Int](i)
             for(j <- 0 until ParamLength + FunCallLength){
               val An:Expr = j match{
-              case jn if jn < ParamLength =>
-                ParamList(jn)
-              case jn if jn >= ParamLength =>
-                FunCallList(jn - ParamLength)
+                case jn if jn < ParamLength =>
+                  ParamList(jn)
+                case jn if jn >= ParamLength =>
+                  FunCallList(jn - ParamLength)
               }
               //2.An should be an arrayType and have the same length with A0
               An.t match {
