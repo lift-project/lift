@@ -35,12 +35,7 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    outputType match{
-      case ArrayType(ArrayType(t,m),n) =>
-        ArrayType(t,n*m)
-    }
-  }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[Vector[_]] = {
     assert(args.length == arity)

@@ -32,14 +32,7 @@ abstract class AbstractMap(val f: Lambda,
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
 
-    outputType match{
-      case ArrayType(t,n) =>
-        ArrayType(f.params(0).t,n)
-      case _=>throw new TypeException(outputType,"ArrayType")
-    }
-  }
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)

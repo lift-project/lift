@@ -27,10 +27,7 @@ case class asScalar() extends Pattern(arity = 1) with isGenerable {
       case _ => throw new TypeException(argType, "ArrayType(VectorType(_, _), _)")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Any =
     Join().eval(valueMap, args:_*)

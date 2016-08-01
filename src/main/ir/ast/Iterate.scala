@@ -46,10 +46,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
         })
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {

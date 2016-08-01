@@ -27,10 +27,7 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
 
   /**
    * Define equality operator based on ID to be able to insert [[Slide]] instances

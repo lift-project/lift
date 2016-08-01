@@ -23,9 +23,16 @@ object tinyInterpreter {
         }
       }
       //visitNodes(f)
+      /*
       def run(args: Any*): Vector[Float] = {
         val res = visitLambda(f,Map[Param,Any](),argsArrayToVector(args): _*).asInstanceOf[Vector[Float]]
         res
+      }*/
+      def ->[R] = new {
+        def run(args: Any*): R = {
+          val res = visitLambda(f,Map[Param, Any](), argsArrayToVector(args): _*).asInstanceOf[R]
+          res
+        }
       }
     }
 

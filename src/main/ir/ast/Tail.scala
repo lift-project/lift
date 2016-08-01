@@ -28,10 +28,7 @@ case class Tail() extends Pattern(arity = 1) with isGenerable {
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

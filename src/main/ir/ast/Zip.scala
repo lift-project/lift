@@ -42,10 +42,7 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
       case _ => throw new TypeException(argType, "TupleType")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)

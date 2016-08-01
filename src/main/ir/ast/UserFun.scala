@@ -68,10 +68,7 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
     val substitutions = Type.reify(inT, argType)
     Type.substitute(outT, substitutions.toMap)
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
     if (scalaFun != null) {
@@ -168,10 +165,7 @@ case class VectorizeUserFun(n: ArithExpr, userFun: UserFun)
     val substitutions = Type.reify(userFun.inT.vectorize(n), argType)
     Type.substitute(userFun.outT.vectorize(n), substitutions.toMap)
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
 
   lazy val vectorizedFunction = userFun.vectorize(n)
 

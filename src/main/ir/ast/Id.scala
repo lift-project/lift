@@ -10,7 +10,5 @@ case class Id() extends FunDecl(arity = 1) {
   override def isGenerable: Boolean = false
 
   override def checkType(argType: Type, setType: Boolean): Type = argType
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    outputType
-  }
+
 }

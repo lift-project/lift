@@ -14,10 +14,7 @@ case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)

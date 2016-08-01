@@ -35,10 +35,7 @@ abstract class AbstractPartRed(val f: Lambda,
       case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    //TODO: should I try to generate a random number for "1024"?
-    TupleType(f.params(0).t,ArrayType(f.params(1).t,1024))
-  }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)

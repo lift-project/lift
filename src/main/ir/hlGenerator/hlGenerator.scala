@@ -1,10 +1,12 @@
-package ir.codeGenerator
+package ir.hlGenerator
 
 import collection.mutable._
 import ir._
-import ir.Type
 import ir.ast._
+import ir.interpreter.Interpreter
+import opencl.executor.{Compile, Execute}
 import opencl.ir._
+import rewriting.{EnabledMappings, Lower}
 
 object hlGenerator{
   var ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
@@ -25,10 +27,97 @@ object hlGenerator{
   var Reduce_Lambda_Check = scala.collection.mutable.Set[Int]()
   //Map
   var Map_L_E = scala.collection.mutable.Set[(Int,(Int,Int))]()
+  //Zip
+  var Zip_P = 0
+  var Zip_F = 0
 
   //UserFun
   var Add_Check = scala.collection.mutable.Set[((Int,Int),(Int,Int))]()
   var Add_Check_FunCall = scala.collection.mutable.Set[Int]()
+
+  private def trySingleLambda(l:Lambda):Unit = {
+    //Requires an add in it
+    if (l.toString.contains("add")) {
+      //1. Generate Input Data
+      val Args = scala.collection.mutable.ArrayBuffer[Any]()
+      for (j <- l.params.indices) {
+        l.params(j).t match {
+          case ArrayType(ArrayType(Float, l1), l2) =>
+            Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          case ArrayType(Float, l1) =>
+            Args += Array.fill(l1.eval)(2.0f)
+          case Float =>
+            Args += 3.0f
+        }
+      }
+      //2. Pass the TypeChecker
+      val outType = TypeChecker(l)
+      outType match {
+        case ArrayType(Float, _) =>
+          //1. pass the Interpreter
+          var output = Vector[Float]()
+          try {
+            output = Interpreter(l).->[Vector[Float]].run(Args: _*)
+          }
+          catch{
+            case e =>
+              println("catch a exception in Interpreter")
+              e.printStackTrace()
+              return
+          }
+
+          //2. lower the lambda
+          var fs = List[Lambda]()
+          try {
+            fs = Lower.mapCombinations(l, new EnabledMappings(true, false, false, false, false, false))
+          }
+          catch{
+            case e =>
+              println("catch a exception in lower-parser")
+              e.printStackTrace()
+              return
+          }
+
+          //3. compile the lambda
+          var code = ""
+          try {
+            println(fs.head.toString)
+            code = Compile(fs.head)
+          }
+          catch{
+            case e =>
+              println("catch a exception in compiler")
+              e.printStackTrace()
+              return
+          }
+
+          //4.execute the opencl kernel
+          //just test above, do it later
+
+          //val code = Compile(fs.head)
+        case _ =>
+          println("Unimplemented outType,Ignored")
+          return
+      }
+    }
+    else{
+      println("Doesn't contains UserFun, Ignored")
+      return
+    }
+  }
+
+  def tryPrograms():Unit = {
+    generateProgram()
+    val res = LambdaList
+    for(i <- 0 until res.length){
+      val l = res(i)
+      //prints the basic informations about l
+      println("Lambda Num:" + i)
+      println(l.toString)
+      l.params.foreach(p => println(p.t.toString))
+      trySingleLambda(l)
+    }
+  }
 
   def generateProgram(): Unit = {
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
@@ -409,7 +498,7 @@ object hlGenerator{
   private def matchUserFun(limitNum:Int):Unit ={
     val tempFunCallList = ArrayBuffer[FunCall]()
     val tempLambdaList = ArrayBuffer[Lambda]()
-    val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+    val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])
     for(i1<- ParamList.indices){
       for(i2<- ParamList.indices){
         if(!Add_Check(((1,i1),(1,i2)))){
@@ -504,35 +593,39 @@ object hlGenerator{
         for( j1 <- ParamList.indices){
           ParamList(j1).t match{
             case ArrayType(TofJ,eleLength) =>
-              //Pass the Type check!
-              if(!Map_L_E((i,(1,j1)))){
-                val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)),LambdaList(i).body)
-                  , LambdaList(i).params(j),Param(TofJ))
-                val F = FunCall(ir.ast.Map(L2),ParamList(j1))
-                F.t = ArrayType(LambdaList(i).body.t,eleLength)
-                val Args = countParam(F)
-                val L3 = Lambda(Args.toArray[Param], F)
-                tempFunCallList += F
-                tempLambdaList += L3
-                Map_L_E += ((i,(1,j1)))
-              }
+              //if(eleLength.eval > 1) {
+                //Pass the Type check!
+                if (!Map_L_E((i, (1, j1)))) {
+                  val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)), LambdaList(i).body)
+                    , LambdaList(i).params(j), Param(TofJ))
+                  val F = FunCall(ir.ast.Map(L2), ParamList(j1))
+                  F.t = ArrayType(LambdaList(i).body.t, eleLength)
+                  val Args = countParam(F)
+                  val L3 = Lambda(Args.toArray[Param], F)
+                  tempFunCallList += F
+                  tempLambdaList += L3
+                  Map_L_E += ((i, (1, j1)))
+                }
+              //}
             case _=>
           }
         }
         for( j1 <- FunCallList.indices){
           FunCallList(j1).t match{
             case ArrayType(TofJ,eleLength) =>
-              //Pass the Type check!
-              if(!Map_L_E((i,(2,j1)))){
-                val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)),LambdaList(i).body)
-                  , LambdaList(i).params(j),Param(TofJ))
-                val F = FunCall(ir.ast.Map(L2),FunCallList(j1))
-                F.t = ArrayType(LambdaList(i).body.t,eleLength)
-                val Args = countParam(F)
-                val L3 = Lambda(Args.toArray[Param], F)
-                tempFunCallList += F
-                tempLambdaList += L3
-                Map_L_E += ((i,(2,j1)))
+              if(eleLength.eval>1) {
+                //Pass the Type check!
+                if (!Map_L_E((i, (2, j1)))) {
+                  val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)), LambdaList(i).body)
+                    , LambdaList(i).params(j), Param(TofJ))
+                  val F = FunCall(ir.ast.Map(L2), FunCallList(j1))
+                  F.t = ArrayType(LambdaList(i).body.t, eleLength)
+                  val Args = countParam(F)
+                  val L3 = Lambda(Args.toArray[Param], F)
+                  tempFunCallList += F
+                  tempLambdaList += L3
+                  Map_L_E += ((i, (2, j1)))
+                }
               }
             case _=>
           }
@@ -552,7 +645,62 @@ object hlGenerator{
       LambdaList ++= tempLambdaList
     }
   }
+  private def matchZip(limitNum:Int,zipArrayLimit:Int):Unit ={
+    val tempFunCallList = ArrayBuffer[FunCall]()
+    val tempLambdaList = ArrayBuffer[Lambda]()
+    val ParamLength = ParamList.length
+    val FunCallLength = FunCallList.length
+    for(i <- 0 until ParamLength + FunCallLength){
+      if((i>=Zip_P && i<ParamLength) || i>=ParamLength + Zip_F){
+        val A0:Expr = i match{
+          case i0 if i0 < ParamLength =>
+            ParamList(i0)
+          case i0 if i0 >= ParamLength =>
+            FunCallList(i0 - ParamLength)
+        }
+        //1.A0 should have an arrayType
+        A0.t match{
+          case ArrayType(a0T,a0Len) =>
+            val AId = scala.collection.mutable.ArrayBuffer[Int](i)
+            for(j <- 0 until ParamLength + FunCallLength){
+              val An:Expr = j match{
+              case jn if jn < ParamLength =>
+                ParamList(jn)
+              case jn if jn >= ParamLength =>
+                FunCallList(jn - ParamLength)
+              }
+              //2.An should be an arrayType and have the same length with A0
+              An.t match {
+                case ArrayType(_,`a0Len`) =>
+                  AId += j
+                case _ =>
+              }
+            }
+            //we have AId : a list of array with the same length!
+            //3.should have at lease two elements
+            if(AId.length > 1){
+              //Pass the type check!
+              val randArgs = AId.length match{
+                case temp1 if temp1 < zipArrayLimit =>
+                  util.Random.nextInt(temp1)
+                case _ =>
+                  util.Random.nextInt(zipArrayLimit)
+              }
+              val Args = scala.collection.mutable.ArrayBuffer[Expr]()
 
+            }
+          case _ =>
+        }
+      }
+
+    }
+    Zip_P = ParamList.length
+    Zip_F = FunCallList.length
+
+  }
+  private def matchGet(limitNum:Int):Unit ={
+
+  }
   /*This is a random-pick version,now we will use a enumeration version!
   private def matchJoin(): Unit = {
     val paramLength = ParamList.length

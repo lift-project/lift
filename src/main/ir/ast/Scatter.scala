@@ -19,9 +19,7 @@ case class Scatter(idx: IndexFunction) extends Pattern(arity = 1)
                                        with isGenerable {
 
   override def checkType(argType: Type, setType: Boolean): Type = argType
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    outputType
-  }
+
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
 

@@ -58,10 +58,7 @@ abstract class AbstractSearch(val f: Lambda,
       case _ => throw new TypeException(argType, "TupleType(a, ArrayType(a, _)")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    UndefType
-    //need to fix
-  }
+
   override def eval(valueMap: ValueMap, args: Any*): Any =
     throw new NotImplementedError("AbstractSearch.eval is not implemented")
 }

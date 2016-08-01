@@ -29,10 +29,7 @@ case class Filter() extends Pattern(arity = 2) with isGenerable {
                                 "TupleType(ArrayType(_, _), ArrayType(Int, _))")
     }
   }
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-   UndefType
-    //need to fix
-  }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

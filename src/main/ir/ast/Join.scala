@@ -30,14 +30,7 @@ case class Join() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
-  override def revCheckType(outputType: Type,setType: Boolean):Type ={
-    val chunkSize = 4
-    outputType match {
-      case ArrayType(t, n) =>
-        ArrayType(ArrayType(t, chunkSize), n /^ chunkSize)
-      case _ => throw new TypeException(outputType, "ArrayType(_,_)")
-    }
-  }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
