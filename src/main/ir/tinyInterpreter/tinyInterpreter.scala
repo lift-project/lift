@@ -1,7 +1,10 @@
 package ir.tinyInterpreter
 
 
+import ir.TypeException
 import ir.ast._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
+
 import scala.collection.immutable.Map
 
 
@@ -61,6 +64,8 @@ object tinyInterpreter {
         case p:Param =>
           ParamToValue get p match{
             case Some(x) => x
+            case None => throw new Error("This expression is not evaluable")
+
           }
       }
     }
@@ -71,11 +76,13 @@ object tinyInterpreter {
         case m:AbstractMap => visitMap(m,ParamToValue,args:_*)
         case red:AbstractPartRed => visitRed(red,ParamToValue,args:_*)
         case j:Join => visitJoin(j,ParamToValue,args:_*)
+        case _=>
+          throw new NotImplementedException()
       }
     }
     def visitJoin(j:Join,ParamToValue:ParamToValueMap,args:Any*):Vector[_]={
       args.head match{
-        case v: Vector[Vector[_]] => v.flatten
+        case v: Vector[Vector[_] @unchecked] => v.flatten
       }
     }
     //Notes: More types should be implemented!!!

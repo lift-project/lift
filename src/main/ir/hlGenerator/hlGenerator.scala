@@ -9,7 +9,7 @@ import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Execute}
 import opencl.ir._
 import rewriting.{EnabledMappings, Lower}
-
+import scala.language.reflectiveCalls
 object hlGenerator{
   var ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
   var FunCallList: ArrayBuffer[FunCall] = new ArrayBuffer[FunCall]()
@@ -54,6 +54,7 @@ object hlGenerator{
             Args += Array.fill(l1.eval)(2.0f)
           case Float =>
             Args += 3.0f
+          case _=>
         }
       }
       //2. Pass the TypeChecker
