@@ -38,13 +38,11 @@ class TestMLP {
     val jsonString = source.getLines mkString "\n"
     source.close()
     val json:Option[Any] = JSON.parseFull(jsonString)
-    var w_list: List[List[Double]] = json.get.asInstanceOf[List[List[Double]]]
+    val w_list: List[List[Double]] = json.get.asInstanceOf[List[List[Double]]]
 
     // Convert from List[List[Double]] to Array[Array[Float]]
-    var i = 0
-    var w_arr = Array.fill[Array[Float]](w_list.length)(Array.fill[Float](w_list.head.length)(0))
+    val w_arr = Array.fill[Array[Float]](w_list.length)(Array.fill[Float](w_list.head.length)(0))
     var aline = Array.fill[Double](w_list.head.length)(0)
-    var j = 0
     for (i <- w_list.indices) {
       aline = w_list(i).to[Array]
       for (j <- aline.indices) {
@@ -61,11 +59,10 @@ class TestMLP {
     val jsonString = source.getLines mkString "\n"
     source.close()
     val json:Option[Any] = JSON.parseFull(jsonString)
-    var w_list: List[Double] = json.get.asInstanceOf[List[Double]]
+    val w_list: List[Double] = json.get.asInstanceOf[List[Double]]
 
     // Convert from List[List[Double]] to Array[Array[Float]]
-    var i = 0
-    var w_arr = Array.fill[Float](w_list.length)(0)
+    val w_arr = Array.fill[Float](w_list.length)(0)
     var aline = Array.fill[Double](w_list.length)(0)
     aline = w_list.to[Array]
     for (i <- aline.indices) {
@@ -73,6 +70,10 @@ class TestMLP {
     }
     w_arr
   }
+
+  val floatSize = 4
+  val localMemSize = Executor.getDeviceLocalMemSize.toInt
+  val maxWorkGroupSize = Executor.getDeviceMaxWorkGroupSize.toInt
 
   val layer_idim = SizeVar("layer_idim")
   val layer_odim = SizeVar("layer_odim")
@@ -187,25 +188,31 @@ class TestMLP {
   )
 
   /* Parallel layer (across inputs as well), 2-dimensional, multiple threads per neuron *
-  * Each workgroup processes all inputs. This is done so that the X array can be shared in local memory
-  *  for faster access times (in f_layer_complex_neuron_mrgd_wrgs_local()).
+  * Each workgroup processes a tile of inputs.
   * For the case of a bit of neurons and a lot of inputs */
-  def f_layer_complex_neuron_mrgd_wrgs_in_1d(activation_f: UserFun, tile_of_mults_size: Int) = fun(
+  def f_layer_complex_neuron_mrgd_wrgs_in_1d(activation_f: UserFun,
+                                             tile_of_mults_size: Int,
+                                             tile_of_inputs_size: Int,
+                                             odim: Int) = fun(
     ArrayType(ArrayType(Float, layer_idim), layer_odim),
     ArrayType(Float, layer_odim),
     ArrayType(ArrayType(Float, layer_idim), layer_ninputs),
     (W, B, X) => {
-      MapWrg(1)(fun((X_) => {
+      Join() o
+      MapWrg(1)(fun((X_tile) => {
+        Scatter(ReorderWithStride(odim)) o
         MapWrg(0)(fun((ws_per_neuron, b_per_neuron) => {
-          MapLcl(1)(fun((X_per_input) => {
-            toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(b_per_neuron)) o Join() o
-            MapLcl(0)(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o
-            Split(tile_of_mults_size) $ Zip(X_per_input, ws_per_neuron)})) $ X_})) $
-        Zip(W, B)})) o Split(1) $ X
+          MapLcl(1)(fun((X_single) => {
+            TransposeW() o MapLcl(0)(toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(b_per_neuron)) ) o Transpose() o
+              MapLcl(0)(
+                toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o
+              Split(tile_of_mults_size) $ Zip(X_single, ws_per_neuron)})) $
+            X_tile})) $
+          Zip(W, B)})) o Split(tile_of_inputs_size) $ X
     }
   )
 
-  /* Parallel layer (across inputs as well), 2-dimensional, multiple threads per neuron *
+  /* Parallel layer (across inputs as well), 2-dimensional, multiple threads per neuron
   * Each workgroup processes all inputs. This is done so that weights can be shared in
   * local memory for faster access times.
   * For the case of a bit of neurons and a lot of inputs */
@@ -283,7 +290,7 @@ class TestMLP {
   val tf_result = load_2d_float_json("test_tf_results.json")
 
   //@Test
-  def MLPSequential(): Unit = {
+  def Sanity_MLPSequential(): Unit = {
     val (lift_result: Array[Float], runtime) = Execute(1,1)(
       mlp_fprop_seq(Linear), input_W1, input_b1, input_W2, input_b2, input_Wout, input_bout, input_X)
     println(f"\n1. Everything sequential, single kernel.\n" +
@@ -295,7 +302,7 @@ class TestMLP {
   }
 
   //@Test
-  def MLPThreeSeqKernels(): Unit = {
+  def Sanity_MLPThreeSeqKernels(): Unit = {
     val (output_layer1: Array[Float], runtime_layer1) = Execute(1,1)(
       f_layer_seq(Linear), input_W1, input_b1, input_X)
     val (output_layer2: Array[Float], runtime_layer2) = Execute(1,1)(
@@ -310,7 +317,7 @@ class TestMLP {
   }
 
   //@Test
-  def MLP(): Unit = {
+  def Sanity_MLP(): Unit = {
     val (output_layer1: Array[Float], runtime_layer1) =
       Execute(2, 12)(
         f_layer_par(Linear, tile_of_neurons_size=1, tile_of_mults_size=2), input_W1, input_b1, input_X)
@@ -332,7 +339,7 @@ class TestMLP {
   }
 
   //@Test
-  def MLP_in_1d(): Unit = {
+  def Sanity_MLP_in_1d(): Unit = {
     val (output_layer1_flat: Array[Float], runtime_layer1) =
       Execute(2, 12)(f_layer_par_across_inp_1d(Linear, tile_of_neurons_size=1, tile_of_mults_size=2, n_inputs = 2),
         input_W1, input_b1, Array(input_X, input_X2))
@@ -365,33 +372,33 @@ class TestMLP {
   }
 
   //@Test
-  def MLP_in_2d(): Unit = {
+  def Sanity_MLP_in_2d(): Unit = {
     val N_inputs = 2
-    var input_size = input_W1(0).length
+    var input_len = input_W1(0).length
     val N_neurons_h1 = input_W1.length
     var mults_per_thread = 2
     val (output_layer1_flat: Array[Float], runtime_layer1) =
-      Execute(input_size / mults_per_thread, 1, N_neurons_h1 * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, 1, N_neurons_h1 * input_len / mults_per_thread,
               N_inputs, (false, false))(
                 f_layer_complex_neuron(Linear, tile_of_mults_size=mults_per_thread),
                                        input_W1, input_b1, Array(input_X, input_X2))
     val output_layer1 = output_layer1_flat.grouped(N_neurons_h1).toArray
 
-    input_size = N_neurons_h1
+    input_len = N_neurons_h1
     val N_neurons_h2 = input_W2.length
     mults_per_thread = 2
     val (output_layer2_flat: Array[Float], runtime_layer2) =
-      Execute(input_size / mults_per_thread, 1, N_neurons_h2 * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, 1, N_neurons_h2 * input_len / mults_per_thread,
               N_inputs, (false, false))(
                 f_layer_complex_neuron(Linear, tile_of_mults_size=mults_per_thread),
                 input_W2, input_b2, output_layer1)
     val output_layer2 = output_layer2_flat.grouped(input_W2.length).toArray
 
-    input_size = N_neurons_h2
+    input_len = N_neurons_h2
     val N_neurons_hout = input_Wout.length
     mults_per_thread = 2
     val (lift_result_flat: Array[Float], runtime_layerout) =
-      Execute(input_size / mults_per_thread, 1, N_neurons_hout * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, 1, N_neurons_hout * input_len / mults_per_thread,
               N_inputs, (false, false))(
                 f_layer_complex_neuron(Linear, tile_of_mults_size=mults_per_thread),
                 input_Wout, input_bout, output_layer2)
@@ -414,33 +421,33 @@ class TestMLP {
   }
 
   //@Test
-  def MLP_in_2d_Local(): Unit = {
+  def Sanity_MLP_in_2d_Local(): Unit = {
     val N_inputs = 2
-    var input_size = input_W1(0).length
+    var input_len = input_W1(0).length
     val N_neurons_h1 = input_W1.length
     var mults_per_thread = 2
     val (output_layer1_flat: Array[Float], runtime_layer1) =
-      Execute(input_size / mults_per_thread, 1, N_neurons_h1 * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, 1, N_neurons_h1 * input_len / mults_per_thread,
               N_inputs, (false, false))(
                 f_layer_complex_neuron_local(Linear, tile_of_mults_size=mults_per_thread),
                                        input_W1, input_b1, Array(input_X, input_X2))
     val output_layer1 = output_layer1_flat.grouped(N_neurons_h1).toArray
 
-    input_size = N_neurons_h1
+    input_len = N_neurons_h1
     val N_neurons_h2 = input_W2.length
     mults_per_thread = 2
     val (output_layer2_flat: Array[Float], runtime_layer2) =
-      Execute(input_size / mults_per_thread, 1, N_neurons_h2 * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, 1, N_neurons_h2 * input_len / mults_per_thread,
               N_inputs, (false, false))(
                 f_layer_complex_neuron_local(Linear, tile_of_mults_size=mults_per_thread),
                 input_W2, input_b2, output_layer1)
     val output_layer2 = output_layer2_flat.grouped(input_W2.length).toArray
 
-    input_size = N_neurons_h2
+    input_len = N_neurons_h2
     val N_neurons_hout = input_Wout.length
     mults_per_thread = 2
     val (lift_result_flat: Array[Float], runtime_layerout) =
-      Execute(input_size / mults_per_thread, 1, N_neurons_hout * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, 1, N_neurons_hout * input_len / mults_per_thread,
               N_inputs, (false, false))(
                 f_layer_complex_neuron_local(Linear, tile_of_mults_size=mults_per_thread),
                 input_Wout, input_bout, output_layer2)
@@ -463,36 +470,53 @@ class TestMLP {
   }
 
   //@Test
-  def MLP_in_2d_MrgdGrps_in_1d(): Unit = {
+  def Sanity_MLP_in_2d_MrgdGrps_in_1d(): Unit = {
     val N_inputs = 2
-    var input_size = input_W1(0).length
+    var input_len = input_W1(0).length
     val N_neurons_h1 = input_W1.length
     var mults_per_thread = 2
+    // TODO: discuss group sizes with Cristophe
+    assert(mults_per_thread % 2 == 0)
+    var local_size_0 = input_len / mults_per_thread
+    var local_size_1 = Math.min(N_inputs, Math.floor(maxWorkGroupSize.toFloat / local_size_0).toInt)
+    var global_size_0 = N_neurons_h1 * local_size_0
+    var global_size_1 = local_size_1 * Math.ceil(N_inputs.toFloat / local_size_1).toInt
+
     val (output_layer1_flat: Array[Float], runtime_layer1) =
-      Execute(input_size / mults_per_thread, N_inputs, N_neurons_h1 * input_size / mults_per_thread,
-              N_inputs, (false, false))(
-                f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread),
-                input_W1, input_b1, Array(input_X, input_X2))
+      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (false, false))(
+          f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread,
+                                                 tile_of_inputs_size = local_size_1, odim = N_neurons_h1),
+          input_W1, input_b1, Array(input_X, input_X2))
     val output_layer1 = output_layer1_flat.grouped(N_neurons_h1).toArray
 
-    input_size = N_neurons_h1
+    input_len = N_neurons_h1
     val N_neurons_h2 = input_W2.length
     mults_per_thread = 2
+    local_size_0 = input_len / mults_per_thread
+    local_size_1 = Math.min(N_inputs, Math.floor(maxWorkGroupSize.toFloat / local_size_0).toInt)
+    global_size_0 = N_neurons_h2 * local_size_0
+    global_size_1 = local_size_1 * Math.ceil(N_inputs.toFloat / local_size_1).toInt
+
     val (output_layer2_flat: Array[Float], runtime_layer2) =
-      Execute(input_size / mults_per_thread, N_inputs, N_neurons_h2 * input_size / mults_per_thread,
-              N_inputs, (false, false))(
-                f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread),
-                input_W2, input_b2, output_layer1)
+      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (false, false))(
+          f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread,
+                                                 tile_of_inputs_size = local_size_1, odim = N_neurons_h2),
+          input_W2, input_b2, output_layer1)
     val output_layer2 = output_layer2_flat.grouped(input_W2.length).toArray
 
-    input_size = N_neurons_h2
+    input_len = N_neurons_h2
     val N_neurons_hout = input_Wout.length
     mults_per_thread = 2
+    local_size_0 = input_len / mults_per_thread
+    local_size_1 = Math.min(N_inputs, Math.floor(maxWorkGroupSize.toFloat / local_size_0).toInt)
+    global_size_0 = N_neurons_hout * local_size_0
+    global_size_1 = local_size_1 * Math.ceil(N_inputs.toFloat / local_size_1).toInt
+
     val (lift_result_flat: Array[Float], runtime_layerout) =
-      Execute(input_size / mults_per_thread, N_inputs, N_neurons_hout * input_size / mults_per_thread,
-              N_inputs, (false, false))(
-                f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread),
-                input_Wout, input_bout, output_layer2)
+      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (false, false))(
+          f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread,
+                                                 tile_of_inputs_size = local_size_1, odim = N_neurons_hout),
+          input_Wout, input_bout, output_layer2)
     val lift_result = lift_result_flat.grouped(input_Wout.length).toArray
 
     println(f"\n7. x3 2D-parallel kernels (across inputs). Each workgroup processes all inputs.\n" +
@@ -512,33 +536,33 @@ class TestMLP {
   }
 
   //@Test
-  def MLP_in_2d_MrgdGrps_in_1d_Local(): Unit = {
+  def Sanity_MLP_in_2d_MrgdGrps_in_1d_Local(): Unit = {
     val N_inputs = 2
-    var input_size = input_W1(0).length
+    var input_len = input_W1(0).length
     val N_neurons_h1 = input_W1.length
     var mults_per_thread = 2
     val (output_layer1_flat: Array[Float], runtime_layer1) =
-      Execute(input_size / mults_per_thread, N_inputs, N_neurons_h1 * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, N_inputs, N_neurons_h1 * input_len / mults_per_thread,
         N_inputs, (false, false))(
         f_layer_complex_neuron_mrgd_wrgs_in_1d_local(Linear, tile_of_mults_size=mults_per_thread),
         input_W1, input_b1, Array(input_X, input_X2))
     val output_layer1 = output_layer1_flat.grouped(N_neurons_h1).toArray
 
-    input_size = N_neurons_h1
+    input_len = N_neurons_h1
     val N_neurons_h2 = input_W2.length
     mults_per_thread = 2
     val (output_layer2_flat: Array[Float], runtime_layer2) =
-      Execute(input_size / mults_per_thread, N_inputs, N_neurons_h2 * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, N_inputs, N_neurons_h2 * input_len / mults_per_thread,
         N_inputs, (false, false))(
         f_layer_complex_neuron_mrgd_wrgs_in_1d_local(Linear, tile_of_mults_size=mults_per_thread),
         input_W2, input_b2, output_layer1)
     val output_layer2 = output_layer2_flat.grouped(input_W2.length).toArray
 
-    input_size = N_neurons_h2
+    input_len = N_neurons_h2
     val N_neurons_hout = input_Wout.length
     mults_per_thread = 2
     val (lift_result_flat: Array[Float], runtime_layerout) =
-      Execute(input_size / mults_per_thread, N_inputs, N_neurons_hout * input_size / mults_per_thread,
+      Execute(input_len / mults_per_thread, N_inputs, N_neurons_hout * input_len / mults_per_thread,
         N_inputs, (false, false))(
         f_layer_complex_neuron_mrgd_wrgs_in_1d_local(Linear, tile_of_mults_size=mults_per_thread),
         input_Wout, input_bout, output_layer2)
@@ -561,51 +585,134 @@ class TestMLP {
     assertArrayEquals(gold2, lift_result(1), 0.0001f)
   }
 
-  @Test
-  def MLP_MNIST_in_2d_Local(): Unit = {
-    MLP_test("9. (MNIST dataset) x3 2D-parallel kernels (across inputs). Each workgroup processes all inputs and " +
-             f"inputs are stored in local memory.",
-             f_layer_complex_neuron_local, mults_per_thread=2, tf_X, tf_W, tf_B, Array(ReLU, ReLU, Linear))
+
+  abstract class MLP_test_generic() {
+
+    var _Activation_fs: Array[UserFun] = Array[UserFun]()
+    val _mults_per_thread: Int
+    var _n_inputs: Int = 0
+    var _n_neurons: Int = 0
+    var _input_len: Int = 0
+    var _local_size_0: Int = 0
+    var _local_size_1: Int = 0
+    var _global_size_0: Int = 0
+    var _global_size_1: Int = 0
+
+    def call_layer_f(layer_i: Int): Lambda
+    def get_local_size_0(): Int =
+      (_input_len.toFloat / _mults_per_thread).toInt
+    def get_local_size_1(): Int = 1
+    def get_global_size_0(): Int =
+      _n_neurons * _local_size_0
+    def get_global_size_1(): Int = _n_inputs
+
+    def apply(description: String,
+              Inputs: Array[Array[Float]],
+              Weights: Array[Array[Array[Float]]], Biases: Array[Array[Float]],
+              Activation_fs: Array[UserFun]): Unit = {
+      _Activation_fs = Activation_fs
+      _n_inputs = Inputs.length
+
+
+      val n_layers = Biases.length
+      val runtimes = Array.fill[Double](n_layers)(0)
+      var Input = Inputs
+      // Size of the last two dimensions will be different for each layer, and determined in the for loop
+      val outputs = Array.ofDim[Float](n_layers, _n_inputs, 1)
+
+      print(f"\n" + description + "\nRuntime:\n")
+      for (layer_i <- 0 until n_layers) {
+        _input_len = Weights(layer_i)(0).length
+        _n_neurons = Biases(layer_i).length
+        _local_size_0 = get_local_size_0()
+        _local_size_1 = get_local_size_1()
+        _global_size_0 = get_global_size_0()
+        _global_size_1 = get_global_size_1()
+
+        assert(_n_inputs % _local_size_1 == 0, "If the number of inputs is not a multiple of work group size in the " +
+          "respective dimension, slide() will leave out some inputs.")
+
+        val (output_layer_flat: Array[Float], runtime) =
+          Execute(_local_size_0, _local_size_1, _global_size_0, _global_size_1, (true, false))(
+            call_layer_f(layer_i), Weights(layer_i), Biases(layer_i), Input)
+
+        runtimes(layer_i) = runtime
+        outputs(layer_i) = output_layer_flat.grouped(_n_neurons).toArray
+
+        if (layer_i != n_layers - 1)
+          Input = outputs(layer_i)
+
+        println(f"Layer $layer_i%d: $runtime%1.5f ms")
+      }
+      println()
+
+      val input_no = 327
+      print(f"Input $input_no%d: ")
+      println(Inputs(input_no).mkString(", "))
+      println(f"Output $input_no%d: ")
+      print("Layer 0: ")
+      println(outputs(0)(input_no).mkString(", "))
+      print("Layer 1: ")
+      println(outputs(1)(input_no).mkString(", "))
+      print("Layer 2: ")
+      println(outputs.last(input_no).mkString(", "))
+      println(f"TF output $input_no%d: ")
+      print("Layer X: ")
+      println(tf_result(input_no).mkString(", "))
+
+      // TODO: do something about such big error
+      val deviation = 0.002f
+      var i = 0
+      for ((lift_single_result, tf_single_result) <- outputs.last zip tf_result) {
+        /*println(f"i = $i%d")
+        println(Inputs(i).mkString(", "))
+        println(lift_single_result.mkString(", "))
+        println(tf_single_result.mkString(", "))*/
+        assertArrayEquals("The lift output is different to the Tensorflow output.", tf_single_result, lift_single_result, deviation)
+        i = i + 1
+      }
+      println(f"Done. Processed ${_n_inputs}%d inputs, the results were equal to that of Tensorflow (deviation=$deviation%1.4f)")
+    }
   }
 
-  def MLP_test(description: String, layer_f: (UserFun, Int) => Lambda3,
-               mults_per_thread: Int, Inputs: Array[Array[Float]],
-               Weights: Array[Array[Array[Float]]], Biases: Array[Array[Float]],
-               Activation_fs: Array[UserFun]): Unit = {
-    var input_size = 0
-    val N_inputs = Inputs.length
-    val N_layers = Biases.length
-    var N_neurons = 0
-    val runtimes = Array.fill[Double](N_layers)(0)
-    var Input = Inputs
-    //var outputs = Array.fill[Array[Float]](N_layers)(Array.fill[Float](N_layers)(0))
-    // Size of the last two dimensions will be different for each layer, and determined in the for loop
-    var outputs = Array.ofDim[Float](N_layers, N_inputs, 1)
 
-    print(f"\n" + description + "\nRuntime:\n")
-    for (layer_i <- 0 until N_layers) {
-      input_size = Weights(layer_i)(0).length
-      N_neurons = Biases(layer_i).length
+  class MLP_test(layer_f: (UserFun, Int) => Lambda,
+                 mults_per_thread: Int) extends MLP_test_generic() {
+    val _mults_per_thread: Int = mults_per_thread
 
-      val (output_layer_flat: Array[Float], runtime) =
-        Execute(input_size / mults_per_thread, 1, N_neurons * input_size / mults_per_thread,
-                N_inputs, (false, false))(
-                layer_f(Activation_fs(layer_i), mults_per_thread),
-                  Weights(layer_i), Biases(layer_i), Input)
+    override def call_layer_f(layer_i: Int): Lambda =
+      layer_f(_Activation_fs(layer_i), _mults_per_thread)
+  }
 
-      runtimes(layer_i) = runtime
-      outputs(layer_i) = output_layer_flat.grouped(N_neurons).toArray
 
-      if (layer_i != N_layers - 1)
-        Input = outputs(layer_i)
+  //@Test
+  def MLP_MNIST_in_2d_Local(): Unit = {
+    new MLP_test(f_layer_complex_neuron_local, mults_per_thread=2)(
+      "9. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per input. " +
+      f"Inputs are stored in local memory.",
+      tf_X, tf_W, tf_B, Array(ReLU, ReLU, Linear))
+  }
 
-      println(f"Layer $layer_i%d: $runtime%1.5f ms")
-    }
-    println()
 
-    var i = 0
-    for ((lift_single_result, tf_single_result) <- outputs.last zip tf_result) {
-      assertArrayEquals(tf_single_result, lift_single_result, 0.002f) // TODO: do something about such big error
-    }
+  class MLP_test2(layer_f: (UserFun, Int, Int, Int) => Lambda,
+                  mults_per_thread: Int) extends MLP_test_generic() {
+    val _mults_per_thread: Int = mults_per_thread
+
+    override def get_local_size_1(): Int =
+      Math.min(_n_inputs, Math.floor(maxWorkGroupSize.toFloat / _local_size_0).toInt)
+
+    override def get_global_size_1(): Int =
+      _local_size_1 * Math.ceil(_n_inputs.toFloat / _local_size_1).toInt
+
+    override def call_layer_f(layer_i: Int): Lambda =
+      layer_f(_Activation_fs(layer_i), _mults_per_thread, _local_size_1, _n_neurons)
+  }
+
+  @Test
+  def MNIST_MLP_in_2d_MrgdGrps_in_1d(): Unit = {
+    new MLP_test2(f_layer_complex_neuron_mrgd_wrgs_in_1d, mults_per_thread=2)(
+      f"10. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per all inputs. " +
+      f"Inputs are stored in local memory.",
+      tf_X, tf_W, tf_B, Array(ReLU, ReLU, Linear))
   }
 }
