@@ -22,7 +22,7 @@ class TestPartialReduce {
       case FunCall(AbstractPartRed(reduceLambda), _, _) => reduceLambda
     }
 
-    assertTrue(x.eq(lambda))
+    assertSame(lambda, x)
   }
 
   @Test
@@ -39,7 +39,7 @@ class TestPartialReduce {
       case FunCall(AbstractPartRed(reduceLambda), _, _) => reduceLambda
     }
 
-    assertTrue(x.eq(lambda))
+    assertSame(lambda, x)
   }
 
 }

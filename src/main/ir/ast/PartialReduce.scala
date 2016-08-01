@@ -34,6 +34,7 @@ abstract class AbstractPartRed(val f: Lambda,
         if (bodyType != initT)
           throw TypeException(s"Reduce operator returns $bodyType instead of the expected $initT")
 
+        // TODO: Output length of a partial reduce might not be 1
         ArrayType(initT, 1)
 
       case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")

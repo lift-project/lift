@@ -484,7 +484,7 @@ object Rules {
       val newLambda = Lambda(origLambda.params, newBody)
       val newInit = Expr.replace(init, p1.head, replaceP1)
 
-      Map(Lambda(Array(newParam), Reduce(newLambda, newInit) $ get1)) $
+      Map(Lambda(Array(newParam), r.copy(newLambda)(newInit, get1))) $
         Zip(arg, Map(Lambda(p1, fun2(p2))) $ arg)
 
     case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(r: AbstractPartRed, init, p2)))), arg)
@@ -507,7 +507,7 @@ object Rules {
       val newFp = fp.copy(newLambda)
 
       Map(Lambda(Array(newParam), newFp $ get1)) $
-        Zip(arg, Map(Lambda(p1, Reduce(r.f, init)(p2))) $ arg)
+        Zip(arg, Map(Lambda(p1, r.copy(r.f)(init, p2))) $ arg)
 
     case FunCall(Map(Lambda(p1, FunCall(r1: AbstractPartRed, init1,
     FunCall(r2: AbstractPartRed, init2, p2)))), arg)
@@ -528,8 +528,8 @@ object Rules {
       val newLambda = Lambda(origLambda.params, newBody)
       val newInit = Expr.replace(init1, p1.head, replaceP1)
 
-      Map(Lambda(Array(newParam), Reduce(newLambda, newInit) $ get1)) $
-        Zip(arg,  Map(Lambda(p1, Reduce(r2.f, init2)(p2))) $ arg)
+      Map(Lambda(Array(newParam), r1.copy(newLambda)(newInit, get1))) $
+        Zip(arg,  Map(Lambda(p1, r2.copy(r2.f)(init2, p2))) $ arg)
   })
 
   val mapMapInterchange = Rule("Map(fun(a => Map(fun( b => ... ) $ B) $ A => " +
@@ -542,7 +542,7 @@ object Rules {
 
   val mapReduceInterchange = Rule("Map(Reduce(f)) => Transpose() o Reduce(Map(f)) o Transpose()", {
     case FunCall(Map(Lambda(lambdaParams,
-          FunCall(Reduce(Lambda(innerParams, expr)), init: Value, arg)
+          FunCall(r@AbstractPartRed(Lambda(innerParams, expr)), init: Value, arg)
          )), mapArg)
       if lambdaParams.head eq arg
     =>
@@ -552,15 +552,15 @@ object Rules {
       val newExpr = innerParams.zipWithIndex.foldLeft(expr)((e, pair) =>
         Expr.replace(e, pair._1, Get(pair._2)(newMapParam)))
 
-      TransposeW() o Reduce(fun((acc, c) => Map(Lambda(Array(newMapParam), newExpr)) $ Zip(acc, c)),
-        newInit) o Transpose() $ mapArg
+      val lambda = fun((acc, c) => Map(Lambda(Array(newMapParam), newExpr)) $ Zip(acc, c))
+      TransposeW()( r.copy(lambda)(newInit, Transpose() $ mapArg))
   })
 
   val mapReduceInterchangeWithZipOutside =
     Rule("Map(fun(x => Reduce(f, Get(x, 0)) $ Get(x, 1) ) $ Zip(a, b) => " +
          "Transpose() o Reduce(fun((acc, y) => Map(f) $ Zip(acc, y) ), a ) o Transpose() $ b", {
       case FunCall(Map(Lambda(lambdaParams,
-      FunCall(Reduce(Lambda(innerParams, expr)), FunCall(Get(i), a1), FunCall(Get(j), a2))
+      FunCall(r@AbstractPartRed(Lambda(innerParams, expr)), FunCall(Get(i), a1), FunCall(Get(j), a2))
       )), FunCall(Zip(2), zipArgs@_*))
         if (lambdaParams.head eq a1) && (lambdaParams.head eq a2)
       =>
@@ -574,9 +574,9 @@ object Rules {
         val interimExpr = Expr.replace(expr, innerParams(i), Get(i)(mapParam))
         val finalExpr = Expr.replace(interimExpr, innerParams(j), Get(j)(mapParam))
 
-        Transpose() o Reduce(Lambda(Array(acc, next),
+        Transpose() ( r.copy(Lambda(Array(acc, next),
           Map(Lambda(Array(mapParam), finalExpr)) $ Zip(acc, next)
-        ), newInit) o Transpose() $ newArg
+        ))(newInit, Transpose() $ newArg))
     })
 
   // TODO: Should use Reduce instead of PartRed, as PartRed can return something that is

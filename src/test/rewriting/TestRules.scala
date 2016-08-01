@@ -383,17 +383,21 @@ class TestRules {
     )
 
     assertTrue(Rules.mapFission.rewrite.isDefinedAt(f.body))
-    println(Lambda(f.params, Rules.mapFission.rewrite(f.body)))
+    val f0 = Lambda(f.params, Rules.mapFission.rewrite(f.body))
+    TypeChecker(f0)
 
     val M = SizeVar("M")
 
     val g = fun(
       ArrayType(ArrayType(Float, M), N),
-      input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ Zip(x, x))) $ input
+      input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ x)) $ input
     )
 
     assertTrue(Rules.mapFission.rewrite.isDefinedAt(g.body))
-    println(Lambda(g.params, Rules.mapFission.rewrite(g.body)))
+    val g0 = Lambda(g.params, Rules.mapFission.rewrite(g.body))
+
+    println(g0)
+    TypeChecker(g0)
   }
 
   @Test
@@ -411,7 +415,7 @@ class TestRules {
   }
 
   @Test
-  def mapReduceInterchange(): Unit = {
+  def mapReduceInterchange0(): Unit = {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
@@ -422,6 +426,49 @@ class TestRules {
     assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
     TypeChecker(f0)
+    assertTrue(f0.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[Reduce])
+  }
+
+  @Test
+  def mapReduceInterchange1(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(ReduceSeq(add, 0.0f)) $ input
+    )
+
+    assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
+    TypeChecker(f0)
+    assertTrue(f0.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
+  }
+
+  @Test
+  def mapReduceInterchange2(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(ReduceSeq(add, id(0.0f))) $ input
+    )
+
+    assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
+    TypeChecker(f0)
+    assertTrue(f0.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
+  }
+
+  @Test
+  def mapReduceInterchangeWithZipOutside0(): Unit = {
+    // TODO: Reduce
+
+  }
+
+  @Test
+  def mapReduceInterchangeWithZipOutside1(): Unit = {
+    // TODO: ReduceSeq
+
   }
 
   @Test
@@ -456,7 +503,8 @@ class TestRules {
     )
 
     assertTrue(Rules.mapMapTransposeZipInside.rewrite.isDefinedAt(f.body))
-    println(Rules.mapMapTransposeZipInside.rewrite(f.body))
+    val f0 = Rules.mapMapTransposeZipInside.rewrite(f.body)
+    TypeChecker(f0)
   }
 
   @Test
@@ -464,13 +512,17 @@ class TestRules {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val f = fun(ArrayType(ArrayType(Float, M), N),
+    val f = fun(ArrayType(ArrayType(Float, N), M),
       ArrayType(Float, M),
-      (in1, in2) => Map(fun(x => Map(fun(y => add(y, Get(x, 1)))) $ Get(x, 0))) $ Zip(in1, in2)
+      (in1, in2) =>
+        Map(fun(x =>
+          Map(fun(y => add(y, Get(x, 1)))) $ Get(x, 0)
+        )) $ Zip(in1, in2)
     )
 
     assertTrue(Rules.mapMapTransposeZipOutside.rewrite.isDefinedAt(f.body))
-    println(Rules.mapMapTransposeZipOutside.rewrite(f.body))
+    val f0 = Rules.mapMapTransposeZipOutside.rewrite(f.body)
+    TypeChecker(f0)
   }
 
   @Test
@@ -927,8 +979,7 @@ class TestRules {
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
     TypeChecker(f1)
-
-    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
+    assertTrue(f1.body.asInstanceOf[FunCall].f.asInstanceOf[Map].f.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
   }
 
   @Test
@@ -945,12 +996,12 @@ class TestRules {
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
     TypeChecker(f1)
-
-    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
+    assertTrue(f1.body.asInstanceOf[FunCall].f.asInstanceOf[Map].f.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
   }
 
   @Test
   def mapReduceReduceNesting0(): Unit = {
+    // Different f and init
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, N), N), N),
       input => Map(ReduceSeq(add, 0.0f) o Join() o Map(PartRed(mult, 1.0f))) $ input
@@ -962,6 +1013,7 @@ class TestRules {
 
   @Test
   def mapReduceReduceNesting1(): Unit = {
+    // Different f and init
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, N), N), N),
       input => Map(ReduceSeq(add, 0.0f) o Join() o Map(Reduce(mult, 1.0f))) $ input
@@ -973,6 +1025,7 @@ class TestRules {
 
   @Test
   def mapReduceReduceNesting2(): Unit = {
+    // Different init
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, N), N), N),
       input => Map(ReduceSeq(add, 0.0f) o Join() o Map(Reduce(add, 1.0f))) $ input
@@ -984,6 +1037,7 @@ class TestRules {
 
   @Test
   def mapReduceReduceNesting3(): Unit = {
+    // Different init
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, N), N), N),
       input => Map(ReduceSeq(add, 0.0f) o Join() o Map(PartRed(add, 1.0f))) $ input
