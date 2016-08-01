@@ -124,7 +124,7 @@ object hlGenerator{
     ParamList += Param(ArrayType(Float,32))
     ParamList += Param(Float)
     ParamList += Param(Float)
-    val totalRounds = 16
+    val totalRounds = 32
     for(i<- 0 until totalRounds){
      generateLambda()
       val test = LambdaList
@@ -613,7 +613,7 @@ object hlGenerator{
         for( j1 <- FunCallList.indices){
           FunCallList(j1).t match{
             case ArrayType(TofJ,eleLength) =>
-              if(eleLength.eval>1) {
+              //if(eleLength.eval>1) {
                 //Pass the Type check!
                 if (!Map_L_E((i, (2, j1)))) {
                   val L2 = replaceParam(Lambda(Array[Param](LambdaList(i).params(j)), LambdaList(i).body)
@@ -626,7 +626,7 @@ object hlGenerator{
                   tempLambdaList += L3
                   Map_L_E += ((i, (2, j1)))
                 }
-              }
+              //}
             case _=>
           }
         }
