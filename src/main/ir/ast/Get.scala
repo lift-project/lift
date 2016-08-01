@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import ir.{TypeException, TupleType, Type}
+import ir.{TupleType, Type, TypeException, UndefType}
 
 case class Get(n: Int) extends Pattern(arity = 1) with isGenerable {
 
@@ -12,6 +12,7 @@ case class Get(n: Int) extends Pattern(arity = 1) with isGenerable {
       case _ => throw new TypeException(argType, "TupleType")
     }
   }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter.ValueMap
-import ir.{TypeException, TupleType, ArrayType, Type}
+import ir._
 
 /**
  * Unzip pattern.
@@ -26,6 +26,7 @@ case class Unzip() extends Pattern(arity = 1) with isGenerable {
       case _ => throw new TypeException(argType, "ArrayType(TupleType, _)")
     }
   }
+
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

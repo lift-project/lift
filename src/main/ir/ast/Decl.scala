@@ -31,7 +31,6 @@ abstract class FunDecl(val arity: Int) extends Decl {
   def checkType(argType: Type, setType: Boolean): Type
 
 
-
   /**
    * Sequentially compose with a FunDecl (convert it to a Lambda).
    * @param f A FunDecl object.
