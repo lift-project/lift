@@ -49,6 +49,7 @@ class hlGeneratorTest {
     assert(true)
 
   }*/
+  /*
   @Ignore
   @Test
   def testHlGen():Unit={
@@ -106,7 +107,7 @@ class hlGeneratorTest {
 
     }
     assert(true)
-  }
+  }*/
 
   @Ignore
   @Test
