@@ -395,8 +395,6 @@ class TestRules {
 
     assertTrue(Rules.mapFission.rewrite.isDefinedAt(g.body))
     val g0 = Lambda(g.params, Rules.mapFission.rewrite(g.body))
-
-    println(g0)
     TypeChecker(g0)
   }
 
@@ -530,7 +528,6 @@ class TestRules {
     assertTrue(options.nonEmpty)
 
     options.foreach(l => {
-      println("execute: " + l)
       val (result: Array[Float], _) = Execute(128)(l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
@@ -702,14 +699,14 @@ class TestRules {
     )
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f,
-      Seq(Rules.reduceSeq, Rules.implementIdAsDeepCopy, Rules.globalMemory), 3)
+      Seq(Rules.reduceSeq, Rules.addIdAfterReduce, Rules.implementIdAsDeepCopy, Rules.globalMemory), 4)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
     assertTrue(lambdaOptions.nonEmpty)
 
-      val (result: Array[Float], _) = Execute(1, 1)(lambdaOptions(1), A)
-      assertArrayEquals(lambdaOptions(1) + " failed", gold, result, 0.0f)
+    val (result: Array[Float], _) = Execute(1, 1)(lambdaOptions(0), A)
+    assertArrayEquals(lambdaOptions(1) + " failed", gold, result, 0.0f)
   }
 
   @Test
@@ -816,8 +813,6 @@ class TestRules {
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A, a)
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
-
-    println(lambdaOptions)
 
     assertTrue(lambdaOptions.nonEmpty)
 

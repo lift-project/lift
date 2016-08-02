@@ -489,8 +489,7 @@ class TestRewriteMatrixMatrix {
     val g2 = Rewrite.applyRuleAtId(g1, 78, Rules.globalMemory)
     val g3 = Rewrite.applyRuleAtId(g2, 86, Rules.vectorize(4))
     val g4 = Rewrite.applyRuleAtId(g3, 32, Rules.addIdValue)
-    val gx = Rewrite.applyRuleAtId(g4, 32, Rules.implementIdAsDeepCopy)
-    val g5 = Lower.simpleMapLoweringStrategy(gx)
+    val g5 = Lower.simpleMapLoweringStrategy(g4)
 
     val g6 = Rewrite.applyRuleAtId(g5, 28, Rules.addIdForCurrentValueInReduce)
     val g7 = Rewrite.applyRuleAtId(g6, 43, Rules.localMemory)
