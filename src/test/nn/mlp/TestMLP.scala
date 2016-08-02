@@ -15,6 +15,8 @@ import opencl.executor.{Execute, Executor}
 import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.util.parsing.json._
+import java.io._
+import java.util.Calendar
 
 object TestMLP {
   @BeforeClass def before(): Unit = {
@@ -30,6 +32,22 @@ object TestMLP {
 }
 
 class TestMLP {
+
+  val now = Calendar.getInstance()
+  def results_filename = new String(System.getProperty("user.dir") + "/../../src/test/nn/mlp/results/" +
+    "%02d.%02d.%04d-%02d.%02d.%02d.%03d.csv".format(
+      now.get(Calendar.DATE), now.get(Calendar.MONTH), now.get(Calendar.YEAR),
+      now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
+      now.get(Calendar.MILLISECOND)))
+
+  //@Test
+  def testSuite(): Unit = {
+    val reruns = 2
+    for (i <- 0 until reruns) {
+      MLP_MNIST_in_2d_Local()
+      MNIST_MLP_in_2d_MrgdGrps_in_1d()
+    }
+  }
 
   def load_2d_float_json(json_file_name: String): Array[Array[Float]] = {
     /* Load an array from a JSON file */
@@ -200,7 +218,7 @@ class TestMLP {
     (W, B, X) => {
       Join() o
       MapWrg(1)(fun((X_tile) => {
-        Scatter(ReorderWithStride(odim)) o
+        Scatter(ReorderWithStride(odim)) o Join() o
         MapWrg(0)(fun((ws_per_neuron, b_per_neuron) => {
           MapLcl(1)(fun((X_single) => {
             TransposeW() o MapLcl(0)(toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(b_per_neuron)) ) o Transpose() o
@@ -483,7 +501,7 @@ class TestMLP {
     var global_size_1 = local_size_1 * Math.ceil(N_inputs.toFloat / local_size_1).toInt
 
     val (output_layer1_flat: Array[Float], runtime_layer1) =
-      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (false, false))(
+      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (true, false))(
           f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread,
                                                  tile_of_inputs_size = local_size_1, odim = N_neurons_h1),
           input_W1, input_b1, Array(input_X, input_X2))
@@ -498,7 +516,7 @@ class TestMLP {
     global_size_1 = local_size_1 * Math.ceil(N_inputs.toFloat / local_size_1).toInt
 
     val (output_layer2_flat: Array[Float], runtime_layer2) =
-      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (false, false))(
+      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (true, false))(
           f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread,
                                                  tile_of_inputs_size = local_size_1, odim = N_neurons_h2),
           input_W2, input_b2, output_layer1)
@@ -513,7 +531,7 @@ class TestMLP {
     global_size_1 = local_size_1 * Math.ceil(N_inputs.toFloat / local_size_1).toInt
 
     val (lift_result_flat: Array[Float], runtime_layerout) =
-      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (false, false))(
+      Execute(local_size_0, local_size_1, global_size_0, global_size_1, (true, false))(
           f_layer_complex_neuron_mrgd_wrgs_in_1d(Linear, tile_of_mults_size = mults_per_thread,
                                                  tile_of_inputs_size = local_size_1, odim = N_neurons_hout),
           input_Wout, input_bout, output_layer2)
@@ -587,7 +605,6 @@ class TestMLP {
 
 
   abstract class MLP_test_generic() {
-
     var _Activation_fs: Array[UserFun] = Array[UserFun]()
     val _mults_per_thread: Int
     var _n_inputs: Int = 0
@@ -606,7 +623,8 @@ class TestMLP {
       _n_neurons * _local_size_0
     def get_global_size_1(): Int = _n_inputs
 
-    def apply(description: String,
+    def apply(f_name: String,
+              description: String,
               Inputs: Array[Array[Float]],
               Weights: Array[Array[Array[Float]]], Biases: Array[Array[Float]],
               Activation_fs: Array[UserFun]): Unit = {
@@ -619,6 +637,7 @@ class TestMLP {
       var Input = Inputs
       // Size of the last two dimensions will be different for each layer, and determined in the for loop
       val outputs = Array.ofDim[Float](n_layers, _n_inputs, 1)
+      var input_no = 0
 
       print(f"\n" + description + "\nRuntime:\n")
       for (layer_i <- 0 until n_layers) {
@@ -646,32 +665,55 @@ class TestMLP {
       }
       println()
 
-      val input_no = 327
-      print(f"Input $input_no%d: ")
-      println(Inputs(input_no).mkString(", "))
-      println(f"Output $input_no%d: ")
-      print("Layer 0: ")
-      println(outputs(0)(input_no).mkString(", "))
-      print("Layer 1: ")
-      println(outputs(1)(input_no).mkString(", "))
-      print("Layer 2: ")
-      println(outputs.last(input_no).mkString(", "))
-      println(f"TF output $input_no%d: ")
-      print("Layer X: ")
-      println(tf_result(input_no).mkString(", "))
+      val pw = new PrintWriter(new File(results_filename))
+      var finished_without_errors = false
+      try {
+        pw.write("f_name,n_inputs,layer_len0,layer_len1,layer_len2,activation_f0,activation_f1," +
+          "activation_f2,runtime_l0,runtime_l1,runtime_l2\n")
+        pw.write(f_name + f",${_n_inputs}%d,")
+        for (layer_i <- 0 until n_layers) {
+          pw.write(f"${Biases(layer_i).length}%d,")
+        }
+        for (layer_i <- 0 until n_layers) {
+          pw.write(_Activation_fs(layer_i).toString + ",")
+        }
+        pw.write(f"${runtimes(0)}%1.5f,${runtimes(1)}%1.5f,${runtimes(2)}%1.5f\n")
 
-      // TODO: do something about such big error
-      val deviation = 0.002f
-      var i = 0
-      for ((lift_single_result, tf_single_result) <- outputs.last zip tf_result) {
-        /*println(f"i = $i%d")
-        println(Inputs(i).mkString(", "))
-        println(lift_single_result.mkString(", "))
-        println(tf_single_result.mkString(", "))*/
-        assertArrayEquals("The lift output is different to the Tensorflow output.", tf_single_result, lift_single_result, deviation)
-        i = i + 1
+        // TODO: do something about such big error
+        val deviation = 0.002f
+        for ((lift_single_result, tf_single_result) <- outputs.last zip tf_result) {
+//          println(lift_single_result.mkString(", "))
+//          println(tf_single_result.mkString(", "))
+          assertArrayEquals(f"The lift output($input_no%d) is different to the Tensorflow output", tf_single_result, lift_single_result, deviation)
+          input_no = input_no + 1
+        }
+        finished_without_errors = true
+        println(f"Done. Processed ${_n_inputs}%d inputs, the results were equal to that of Tensorflow (deviation=$deviation%1.4f)")
       }
-      println(f"Done. Processed ${_n_inputs}%d inputs, the results were equal to that of Tensorflow (deviation=$deviation%1.4f)")
+      finally {
+        pw.close()
+        if (!finished_without_errors) {
+          new File(results_filename).delete()
+          print(f"Input $input_no%d: ")
+          println(Inputs(input_no).mkString("\t"))
+          println(f"Output $input_no%d: ")
+          print("\nWeights L0, N0: ")
+          println(Weights(0)(0).mkString("\t"))
+          print("Layer 0: ")
+          println(outputs(0)(input_no).mkString("\t"))
+          print("\nWeights L1, N0: ")
+          println(Weights(1)(0).mkString("\t"))
+          print("Layer 1: ")
+          println(outputs(1)(input_no).mkString("\t"))
+          print("\nWeights L2, N0: ")
+          println(Weights(2)(0).mkString("\t"))
+          print("Layer 2: ")
+          println(outputs.last(input_no).mkString("\t"))
+          println(f"TF output $input_no%d: ")
+          print("Layer X: ")
+          println(tf_result(input_no).mkString("\t"))
+        }
+      }
     }
   }
 
@@ -687,9 +729,8 @@ class TestMLP {
 
   //@Test
   def MLP_MNIST_in_2d_Local(): Unit = {
-    new MLP_test(f_layer_complex_neuron_local, mults_per_thread=2)(
-      "9. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per input. " +
-      f"Inputs are stored in local memory.",
+    new MLP_test(f_layer_complex_neuron_local, mults_per_thread=2)("f_layer_complex_neuron_local",
+      "9. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per input.",
       tf_X, tf_W, tf_B, Array(ReLU, ReLU, Linear))
   }
 
@@ -710,9 +751,8 @@ class TestMLP {
 
   @Test
   def MNIST_MLP_in_2d_MrgdGrps_in_1d(): Unit = {
-    new MLP_test2(f_layer_complex_neuron_mrgd_wrgs_in_1d, mults_per_thread=2)(
-      f"10. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per all inputs. " +
-      f"Inputs are stored in local memory.",
+    new MLP_test2(f_layer_complex_neuron_mrgd_wrgs_in_1d, mults_per_thread=2)("f_layer_complex_neuron_mrgd_wrgs_in_1d",
+      f"10. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per a partition of inputs.",
       tf_X, tf_W, tf_B, Array(ReLU, ReLU, Linear))
   }
 }
