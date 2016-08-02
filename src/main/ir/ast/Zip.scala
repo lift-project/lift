@@ -43,6 +43,7 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
     }
   }
 
+
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
     (n, args) match {

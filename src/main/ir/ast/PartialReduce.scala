@@ -41,6 +41,7 @@ abstract class AbstractPartRed(val f: Lambda,
     }
   }
 
+
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
     val init = args.head
