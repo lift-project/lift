@@ -445,21 +445,6 @@ class TestRules {
   }
 
   @Test
-  def mapReduceInterchange2(): Unit = {
-    val N = SizeVar("N")
-    val M = SizeVar("M")
-
-    val f = fun(ArrayType(ArrayType(Float, M), N),
-      input => Map(ReduceSeq(add, id(0.0f))) $ input
-    )
-
-    assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
-    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
-    TypeChecker(f0)
-    assertTrue(f0.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
-  }
-
-  @Test
   def mapReduceInterchangeWithZipOutside0(): Unit = {
     // TODO: Reduce
 

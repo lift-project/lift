@@ -157,13 +157,13 @@ object Rules {
   /* Fusion Rules */
 
   val reduceSeqMapSeqFusion = Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
-    case FunCall(ReduceSeq(f: Lambda2), init, FunCall(MapSeq(g : Lambda1), arg))
+    case FunCall(ReduceSeq(f: Lambda), init, FunCall(MapSeq(g : Lambda), arg))
     =>
       val acc = f.params.head
       val a = Param()
       val newG = Expr.replace(g.body, g.params.head, a)
       val newF = Expr.replace(f.body, f.params(1), newG)
-      ReduceSeq(new Lambda2(Array(acc, a), newF), init) $ arg
+      ReduceSeq(Lambda(Array(acc, a), newF), init) $ arg
   })
 
   val mapFusion = Rule("Map(f) o Map(g) => Map(f o g)", {
@@ -284,13 +284,7 @@ object Rules {
 
   val reduceSeq = Rule("Reduce(f) => ReduceSeq(f)", {
     case FunCall(Reduce(f), init, arg) =>
-
-      // Construct id functions using the type of init
-      val idFunction: FunDecl = generateCopy(init.t)
-
-      val newInit = if (init.isInstanceOf[Value]) idFunction $ init else init
-
-      ReduceSeq(f, newInit) $ arg
+      ReduceSeq(f, init) $ arg
   })
 
   /* Stride accesses or normal accesses */
@@ -582,6 +576,7 @@ object Rules {
   // TODO: Should use Reduce instead of PartRed, as PartRed can return something that is
   // TODO: not length one, and the output type can break. Will need to check some
   // TODO: other way that both fs and init are the same.
+  // TODO: id goes missing, add later?
   val mapReducePartialReduce =
     Rule("Map(Reduce(f, init) o Join() o Map(PartRed(f, init2)) ) => " +
       "Transpose() o Reduce((acc, a) => Join() o Map(x => PartRed(f, Get(x, 0)) $ Get(x, 1)) $ Zip(acc, a) , Array(init)) o Transpose()", {
@@ -964,6 +959,11 @@ object Rules {
   val addIdAfterReduce = Rule("f => Id() o f", {
     case call@FunCall(_: ReduceSeq, _*) =>
       FunCall(MapSeq(Id()), call)
+  })
+
+  val addIdValue = Rule("Value(...) => Id() $ Value(...)", {
+    case v: Value =>
+      FunCall(Id(), v)
   })
 
   def isId(expr: Expr): Boolean =

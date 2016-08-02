@@ -603,6 +603,13 @@ object MacroRules {
       var fissioned: Expr = call
 
       if (patternId != -1) {
+
+        val reduceOption = Utils.getExprForPatternInCallChain(innerCall,
+          { case FunCall(Reduce(_), _, _) => })
+
+        if (reduceOption.isDefined)
+          fissioned = Rewrite.applyRuleAt(fissioned, Rules.reduceSeq, reduceOption.get)
+
         rule = Rules.mapReducePartialReduce
         offset = 3
       }

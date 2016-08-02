@@ -352,8 +352,17 @@ object Lower {
   def lowerPartialReduces(lambda: Lambda): Lambda =
     lowerPatternWithRule(lambda, { case FunCall(PartRed(_), _, _) => }, Rules.partialReduceToReduce)
 
-  def lowerReduces(lambda: Lambda): Lambda =
-    lowerPatternWithRule(lambda, { case FunCall(Reduce(_), _, _) => }, Rules.reduceSeq)
+  def lowerReduces(lambda: Lambda): Lambda = {
+    val stepOne =
+      lowerPatternWithRule(lambda, { case FunCall(Reduce(_), _, _) => }, Rules.reduceSeq)
+
+    val reduceSeqs = Rewrite.listAllPossibleRewrites(stepOne, Rules.addIdAfterReduce)
+
+    val idsAfterAdded = reduceSeqs.foldLeft(stepOne)((lambda, pair) =>
+      Rewrite.applyRuleAt(lambda, pair._2, pair._1))
+
+    idsAfterAdded
+  }
 
   @scala.annotation.tailrec
   def lowerPatternWithRule(lambda: Lambda, pattern: PartialFunction[Expr, Unit], rule: Rule): Lambda = {
