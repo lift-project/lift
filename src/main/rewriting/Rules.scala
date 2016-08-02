@@ -54,7 +54,7 @@ object Rules {
   /* Reduce rules */
 
   val partialReduce = Rule("Reduce(f) => Reduce(f) o PartRed(f)", {
-    case FunCall(Reduce(f), init, arg) =>
+    case FunCall(Reduce(f), init: Value, arg) =>
 
       // Need to replace the parameters for the partial reduce
       // Otherwise the 2 will end up sharing and give the wrong result
@@ -64,7 +64,12 @@ object Rules {
       val expr = Expr.replace(f.body, f.params.head, newAcc)
       val finalExpr = Expr.replace(expr, f.params(1), newElem)
 
-      Reduce(f, init) o PartRed(Lambda(Array(newAcc, newElem), finalExpr), init) $ arg
+      // Make sure both get different objects, otherwise
+      // there can be problems with sharing
+      val initCopy = init.copy
+
+      Reduce(f, init) o
+        PartRed(Lambda(Array(newAcc, newElem), finalExpr), initCopy) $ arg
   })
 
   val partialReduceToReduce = Rule("PartRed(f) => Reduce(f)", {
@@ -575,18 +580,17 @@ object Rules {
 
   // TODO: Should use Reduce instead of PartRed, as PartRed can return something that is
   // TODO: not length one, and the output type can break. Will need to check some
-  // TODO: other way that both fs and init are the same.
-  // TODO: id goes missing, add later?
+  // TODO: other way that both fs are the same.
   val mapReducePartialReduce =
     Rule("Map(Reduce(f, init) o Join() o Map(PartRed(f, init2)) ) => " +
       "Transpose() o Reduce((acc, a) => Join() o Map(x => PartRed(f, Get(x, 0)) $ Get(x, 1)) $ Zip(acc, a) , Array(init)) o Transpose()", {
       case c@ FunCall(Map(Lambda(p1,
-      FunCall(ReduceSeq(f1), _, FunCall(Join(), FunCall(Map(Lambda(p2,
-        FunCall(PartRed(f2), init: Value, a2))), a1)))
+      FunCall(ReduceSeq(f1), init1: Value, FunCall(Join(), FunCall(Map(Lambda(p2,
+        FunCall(PartRed(f2), init2: Value, a2))), a1)))
       )), arg)
-        if (p1.head eq a1) && (p2.head eq a2)
+        if (p1.head eq a1) && (p2.head eq a2) && init1 == init2
       =>
-        val newInit = Value(init.value, ArrayType(init.t, Type.getLength(arg.t)))
+        val newInit = Value(init2.value, ArrayType(init2.t, Type.getLength(arg.t)))
 
         TransposeW() o ReduceSeq(fun((acc, a) =>
           Join() o Map(fun(x =>
@@ -963,7 +967,7 @@ object Rules {
 
   val addIdValue = Rule("Value(...) => Id() $ Value(...)", {
     case v: Value =>
-      FunCall(Id(), v)
+      FunCall(generateCopy(v.t), v)
   })
 
   def isId(expr: Expr): Boolean =
