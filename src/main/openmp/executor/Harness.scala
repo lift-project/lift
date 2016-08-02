@@ -1,7 +1,7 @@
 package openmp.executor
 
 import apart.arithmetic.{?, SizeVar}
-import c.generator.CAst.ParamDecl
+import c.generator.CAst.{ForLoop, ParamDecl}
 import c.generator.{CAst, CGenerator}
 import ir.{ArrayType, TupleType, Type, TypeChecker}
 import ir.ast.{Lambda, Param, UserFun, fun}
@@ -16,6 +16,8 @@ import openmp.ir.pattern.{:+, ReducePar}
   */
 object Harness {
 
+  private var counter = 0
+
   def apply(gen:CGenerator, kernel:Lambda):String = {
     val cstring = this.generate(gen,kernel)
     //Must now strip comments because the can screw up with openmp
@@ -23,6 +25,7 @@ object Harness {
   }
 
   def generate(gen:CGenerator, kernel: Lambda):String = {
+    this.counter = 0
     TypeChecker.check(kernel.body)
     val kernelSource = gen.generate(kernel,Array(?,?,?),Array(?,?,?), Map())
     //This function is the actual C function, rather then lift function. We need it because the
@@ -82,11 +85,18 @@ object Harness {
     val sb = new StringBuilder
     val tName = typeName(t)
     t match {
-      case t:ArrayType => sb.append(s"${typeName(t.elemT)} *$varName = malloc(sizeof(${typeName(t.elemT)}) * ${t.len})")
+      case t:ArrayType => sb.append(declareArray(t, varName))//sb.append(s"${typeName(t.elemT)} *$varName = malloc(sizeof(${typeName(t.elemT)}) * ${t.len})")
       case x => sb.append(s"$tName $varName")
     }
     sb.append(";\n")
     sb.toString
+  }
+
+  private def declareArray(t:ArrayType, varName:String) = {
+    val context = ArrayContext(varName,t)
+    val elemT = typeName(context.groundType)
+    val size = context.totalSize
+    s"$elemT *$varName = malloc(sizeof($elemT) * $size)"
   }
 
   private def scanInput(t:Type, varName:String):String = {
@@ -119,17 +129,12 @@ object Harness {
     sb.toString
   }
 
-  private def scanArray(t: ArrayType, varName:String):String = {
+  private def scanArray(t:ArrayType, varName:String):String = {
     val sb = new StringBuilder
-    val arrayInnerType = typeName(t.elemT)
-    sb.append(s"//generating array of type $arrayInnerType\n")
-    //sb.append(scanInput(Int, "arrCount"))
-    //sb.append(declareVariable(t,varName))
-    sb.append(s"for(int i = 0; i < ${t.len}; i++){\n")
-    //sb.append(readInputVariable(t.elemT,"temp"))
-    //sb.append(s"$varName[i] = temp;\n")
-    sb.append(scanInput(t.elemT, s"$varName[i]"))
-    sb.append("}\n")
+    sb.append(s"//geerating array of type ${typeName(t.elemT)}\n")
+    val context = ArrayContext(varName,t)
+    val body = scanInput(context.groundType, context.accessFormula)
+    sb.append(context.embed(body))
     sb.toString
   }
 
@@ -156,18 +161,81 @@ object Harness {
     sb.toString
   }
 
-  private def writeArray(t:ArrayType, varName:String):String = {
+  private def writeArray2(t:ArrayType, varName:String):String = {
     val sb = new StringBuilder
     sb.append(s"//Outputting array of type ${typeName(t)}\n")
     //sb.append("printf(\"%d \"," ++  s"${t.len});\n")
     sb.append(cprintf("["))
-    sb.append(s"for(int i = 0; i < ${t.len};i++){\n")
-    sb.append(writeVariable(t.elemT,s"$varName[i]"))
-    sb.append(s"if(i < ${t.len}-1)")
+    val forLoop = CFor(t.len.toString)
+    sb.append(forLoop.toString)
+    sb.append(writeVariable(t.elemT,s"$varName[${forLoop.i}]"))
+    sb.append(s"if(${forLoop.i} < ${t.len}-1)")
     sb.append(cprintf(","))
     sb.append("}\n")
     sb.append(cprintf("]"))
     sb.toString
+  }
+
+  private def writeArray(t:ArrayType, varName:String):String = {
+    val sb = new StringBuilder
+    sb.append(s"//Outputting array of type ${typeName(t)}\n")
+    val context = ArrayContext(varName,t)
+    val bb = new StringBuilder
+    bb.append(writeVariable(context.groundType, context.accessFormula))
+    bb.append(cprintf(","))
+
+    sb.append(context.wrap(bb.toString, cprintf("["), cprintf("]")))
+    sb.toString
+  }
+
+  //Represents a ForLoop's iteration variable and limit
+  private case class CFor(limit:String) {
+    val i = "i" ++ freshCount.toString
+    override def toString: String = s"for(int $i = 0; $i < $limit; $i++){\n"
+  }
+
+  //An abstraction operations that have to execute within an array, independently of the
+  //dimension
+  private case class ArrayContext(varName:String,t:ArrayType) {
+    val dimensions = arrayDimensions(t, List())
+    val groundType = arrayGroundType(t)
+    val totalSize = dimensions.map(_.limit).reduce(_ ++ " * " ++ _)
+
+    private def arrayDimensions(t:ArrayType, accum:List[CFor]):List[CFor] = t.elemT match {
+      case inner:ArrayType => arrayDimensions(inner, accum ++ List(CFor(t.len.toString)))
+      case _ => accum ++List(CFor(t.len.toString))
+    }
+
+    private def arrayGroundType(t:ArrayType):Type = t.elemT match {
+      case inner:ArrayType => arrayGroundType(inner)
+      case x => x
+    }
+
+    //Embeds a piece of code within the loops level of this array
+    def embed(str:String):String = wrap(str,"","")
+
+    //Same as embed, only with prologue and epilogue after each iteration but the innermost
+    def wrap(str:String, prologue:String, epilogue:String) = {
+      val sb = new StringBuilder
+      dimensions.foreach{sb.append(prologue);x => sb.append(x)}
+      sb.append(str)
+      dimensions.foreach{_ => sb.append("}\n");sb.append(epilogue)}
+      sb.toString()
+    }
+
+    def accessFormula:String = {
+      //Pair up the dimension variable names with the size of the following dimension,
+      //using a null for the last dimension as a size is missing
+      val names = dimensions.map(_.i)
+      val sizes = dimensions.map(_.limit).take(dimensions.length-1) ++ List(null)
+      val bundled = names.zip(sizes)
+      //Now, for each pair, generate something of the form(size * variable) and then reduce with +
+      val index = bundled.map{
+        case (x,null) => x
+        case (x,y) => s"($y * $x)"
+      }.reduce(_ ++ " + " ++ _)
+      s"$varName[$index]"
+    }
   }
 
   private def cprintf(pattern:String):String = "printf(\"" ++ pattern ++ "\");\n"
@@ -178,6 +246,11 @@ object Harness {
 
   private def getData(typeName:String) = s"(($typeName*)data)[0]"
   private def advanceData(typeName: String) = s"data += sizeof($typeName)"
+
+  private def freshCount = {
+    counter = counter + 1
+    counter - 1
+  }
 
 
   private def generateInvocationCode(kernel:Lambda, intermediateParameterNames:List[String]):String = {
@@ -203,7 +276,13 @@ object Harness {
     case Float => "float"
     case Int => "int"
     case t:TupleType => t.elemsT.foldLeft("Tuple")((x,y) => s"${x}_${typeName(y)}")
-    case t:ArrayType => s"${typeName(t.elemT)}*"
+    case t:ArrayType =>  {
+      if(!t.isInstanceOf[ArrayType])
+        s"${typeName(t.elemT)}*"
+      else
+        //If nested array, just forward deeper
+        typeName(t.elemT)
+    }
     case t => throw new Exception("Unsupported type " ++ t.toString)
   }
 
