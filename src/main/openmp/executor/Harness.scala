@@ -56,7 +56,8 @@ object Harness {
     stringBuilder.toString()
   }
 
-  private def harnessIncludes = "#include <stdio.h>\n#include <string.h>\n#include <malloc.h>\n"
+  private def harnessIncludes = List("stdio.h","string.h", "sys/types.h", "sys/time.h", "malloc.h")
+    .map(x => s"#include <$x>").reduce(_ ++ "\n" ++ _) ++ "\n"
 
   private def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
 
@@ -185,9 +186,16 @@ object Harness {
     sb.append(declareVariable(kernel.body.t,"output"))
     val paramNames = kernel.params.map(x => x.toString) ++ intermediateParameterNames
     val paramList = (paramNames.foldLeft("")((x,y) => x ++ ", " ++ y.toString) ++ ", output").substring(1)
+    sb.append("struct timeval tv;\n")
+    sb.append("gettimeofday(&tv, NULL);\n")
+    sb.append("suseconds_t startTime = tv.tv_usec;\n")
     sb.append(s"liftKernel($paramList);\n")
+    sb.append("gettimeofday(&tv, NULL);\n")
+    sb.append("suseconds_t endTime = tv.tv_usec;\n")
+    sb.append("suseconds_t totalTime = endTime - startTime;\n")
     sb.append(writeVariable(kernel.body.t, "output"))
     sb.append(cprintf("\\n"))
+    sb.append(cprintf("Elapsed time = %d\\n",List("totalTime")))
     sb.toString
   }
 

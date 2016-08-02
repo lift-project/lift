@@ -1,5 +1,5 @@
 package openmp.executor
-import java.io.PrintWriter
+import java.io.{BufferedWriter, FileWriter, PrintWriter}
 
 import apart.arithmetic.SizeVar
 import ir.{ArrayType, TupleType, Type}
@@ -10,6 +10,7 @@ import ir.ast.{Lambda, UserFun, fun}
 import opencl.ir.{pattern, _}
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
+import openmp.ir.pattern.{:+, MapPar, ReducePar}
 
 /**
   * Created by Federico on 15-Jul-16.
@@ -20,7 +21,7 @@ object Executor {
   def compileAndGenerateScript(kernel: Lambda, data:Any, path:String) = {
     val commands = compileAndGenerateCommands(kernel,data, path)
     val text = commands.reduce((x,y) => { x ++ "\n" ++ y})
-    new PrintWriter(path + "/run.sh") { write(text); close}
+    new PrintWriter(new BufferedWriter(new FileWriter(path + "/run.sh"))) { write(text); close}
   }
 
   def compileAndRun(kernel:Lambda, data:Any) = {
@@ -63,22 +64,28 @@ object Executor {
   private def isWindows:Boolean = System.getProperty("os.name").startsWith("Windows")
 
   def main(args: Array[String]) {
-    val N = 1000
+    val N = 100000
     def genID(t:Type) = UserFun("id","x", "return x;",t,t)
-    def increment = UserFun("inc","x", "return x+1;", Float, Float)
+    def increment = UserFun("inc","x", "return x + 1;", Float, Float)
     val f = fun(
       ArrayType(Float,N),
       A => {
         MapSeq(increment) $ A
       })
-    val f2 = fun (
+    val f2Seq = fun (
       ArrayType(Float, N),
       Float,
       (in,init) => {
-        toGlobal(MapSeq(id)) o ReduceSeq(add, init) o MapSeq(increment) o MapSeq(increment)  $ in
+        toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in//o MapSeq(increment) o MapSeq(increment)  $ in
+      })
+    val f2Par = fun (
+      ArrayType(Float, N),
+      Float,
+      (in,init) => {
+        toGlobal(MapSeq(id)) o ReducePar(:+(Float), init) $ in //o MapPar(increment) o MapPar(increment)  $ in
       })
     val trivial = fun(Float, x => toGlobal(id) $ x)
     val ls = (List.iterate(0,N)(x => x + 1)).map(_ => 1)
-    this.compileAndGenerateScript(f2,ls ++ List(0.0f),"D:/Test")
+    this.compileAndGenerateScript(f2Seq,ls ++ List(0.0f),"D:/Test")
   }
 }

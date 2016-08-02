@@ -16,12 +16,12 @@ object ReduceParImpl {
 class ReduceOp(val f:Lambda, val pragmaSymbol:String)
 
 //Some reductions: addition and subtraction
-class :+(t:Type) extends ReduceOp(UserFun("ompAdd"+t,Array("x","y"),"return x + y", Seq(t,t),t),"+")
+class :+(t:Type) extends ReduceOp(UserFun("ompAdd"+t,Array("x","y"),"return x + y;", Seq(t,t),t),"+")
 object :+ {
   def apply(t:Type) = new :+(t)
 }
 
-class :-(t:Type) extends ReduceOp(UserFun("ompAdd"+t,Array("x","y"),"return x - y", Seq(t,t),t),"-")
+class :-(t:Type) extends ReduceOp(UserFun("ompSub"+t,Array("x","y"),"return x - y;", Seq(t,t),t),"-")
 object :- {
   def apply(t:Type) = new :-(t)
 }
