@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import ir.Type
+import ir.{Type, UndefType}
 
 /**
  * Gather pattern. Performs a reorder on the next read.

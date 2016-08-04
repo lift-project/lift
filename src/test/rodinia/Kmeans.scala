@@ -53,6 +53,24 @@ object Kmeans {
   val select = UserFun("select_", Array("tuple"),
     "{ return tuple._2; }",
     Seq(TupleType(Float, Int, Int)), Int)
+
+  def calculateMembership(points: Array[(Float, Float)], centres: Array[(Float, Float, Int)]): Array[Int] = {
+    points.map(x => {
+      centres
+        .map(c => ((x._1 - c._1) * (x._1 - c._1) + (x._2 - c._2) * (x._2 - c._2), c._3))
+        .reduce((p1, p2) => if (p1._1 < p2._1) p1 else p2)
+        ._2
+    })
+  }
+
+  def calculateMembership(points: Array[Array[Float]], centres: Array[Array[Float]]): Array[Int] = {
+    points.map(x => {
+      centres.zipWithIndex
+        .map(c => ((c._1,x).zipped.map((p1, p2) => (p1-p2)*(p1-p2)).sum, c._2))
+        .reduce((p1, p2) => if (p1._1 < p2._1) p1 else p2)
+        ._2
+    })
+  }
 }
 
 class Kmeans {
@@ -101,24 +119,6 @@ class Kmeans {
       Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices)
 
     assertArrayEquals(gold, output)
-  }
-
-  def calculateMembership(points: Array[(Float, Float)], centres: Array[(Float, Float, Int)]): Array[Int] = {
-     points.map(x => {
-      centres
-        .map(c => ((x._1 - c._1) * (x._1 - c._1) + (x._2 - c._2) * (x._2 - c._2), c._3))
-        .reduce((p1, p2) => if (p1._1 < p2._1) p1 else p2)
-        ._2
-    })
-  }
-
-  def calculateMembership(points: Array[Array[Float]], centres: Array[Array[Float]]): Array[Int] = {
-    points.map(x => {
-      centres.zipWithIndex
-        .map(c => ((c._1,x).zipped.map((p1, p2) => (p1-p2)*(p1-p2)).sum, c._2))
-        .reduce((p1, p2) => if (p1._1 < p2._1) p1 else p2)
-        ._2
-    })
   }
 
   @Test
@@ -182,6 +182,8 @@ class Kmeans {
           )
         )) :>> Join()
       })
+
+    println(kMeans)
 
     val (output: Array[Int], _) = Execute(numPoints)(kMeans, points.transpose, clusters)
     assertArrayEquals(gold, output)
