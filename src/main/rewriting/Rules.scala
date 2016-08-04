@@ -175,6 +175,12 @@ object Rules {
     case FunCall(Map(Lambda(p1, f)), FunCall(Map(Lambda(p2, g)), arg)) =>
       val newLambda = Lambda(p2, Expr.replace(f, p1.head, g))
       Map(newLambda) $ arg
+
+    case FunCall(map@Map(Lambda(p1, f1)),
+    call@FunCall(Lambda(p, FunCall(Map(Lambda(p2, f2)), _)), arg)) =>
+
+      val newBody = Expr.replace(f1, p1.head, f2)
+      Expr.replace(call, f2, newBody)
   })
 
   /* Map rules */
@@ -413,6 +419,34 @@ object Rules {
   })
 
   /* Other */
+
+  // More restricted than necessary. Could pull out any arg.
+  val extractFromMap = Rule("Map(x => f(x, g(...))) $ in => " +
+  "(y => Map(x => f(x, y)) $ in) o g(...)", {
+    case call@FunCall(Map(Lambda(Array(p), FunCall(f, arg))) , _)
+      if !arg.contains({ case y if y eq p => })
+    =>
+      val newParam = Param()
+
+      val newCall = Expr.replace(call, arg, newParam)
+
+      val lambda = Lambda(Array(newParam), newCall)
+      val newExpr = FunCall(lambda, arg)
+
+      newExpr
+
+    case call@FunCall(Map(Lambda(Array(p), FunCall(f, _, arg))), _)
+      if !arg.contains({ case y if y eq p => })
+    =>
+      val newParam = Param()
+
+      val newCall = Expr.replace(call, arg, newParam)
+
+      val lambda = Lambda(Array(newParam), newCall)
+      val newExpr = FunCall(lambda, arg)
+
+      newExpr
+  })
 
   val mapFission = Rule("Map(f o g) => Map(f) o Map(g)", {
     case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2)))), arg)
@@ -956,7 +990,7 @@ object Rules {
   })
 
   val addIdRed = Rule("f => f o Id()", {
-    case FunCall(f: Reduce, init, arg) =>
+    case FunCall(f: AbstractPartRed, init, arg) =>
       f(init, Id() $ arg)
   })
 

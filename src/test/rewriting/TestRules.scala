@@ -144,7 +144,49 @@ class TestRules {
   }
 
   @Test
-  def testDot(): Unit = {
+  def extract0(): Unit = {
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (in1, in2) => Map(fun(x => Map(fun(y => add(x,y))) o Map(id) $ in2)) $ in1
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.extractFromMap)
+    TypeChecker(f1)
+
+    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
+  }
+
+  @Test
+  def extract1(): Unit = {
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (in1, in2) => Map(fun(x =>
+        ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o Map(id) $ in2
+      )) $ in1
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.extractFromMap)
+    TypeChecker(f1)
+
+    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
+  }
+
+  @Test
+  def mapFusionAfterExtract(): Unit = {
+    val f0 = fun(
+      ArrayType(Float, N),
+      Map(plusOne) o Let(Map(id) $ _) $ _
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.mapFusion)
+    TypeChecker(f1)
+    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
+  }
+
+  @Test
+  def testDot0(): Unit = {
 
     val input = Array.fill(4)(util.Random.nextFloat())
     val gold = (input, input).zipped.map(_*_).sum
@@ -175,7 +217,7 @@ class TestRules {
   }
 
   @Test
-  def testDot2(): Unit = {
+  def testDot1(): Unit = {
 
     val input = Array.fill(16)(util.Random.nextFloat())
     val gold = (input, input).zipped.map(_*_).sum
