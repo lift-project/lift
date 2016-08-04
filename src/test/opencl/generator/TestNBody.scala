@@ -283,6 +283,8 @@ class TestNBody {
   @Test
   def nBodyLocalMem(): Unit = {
 
+    val tileX = 256
+
     val function = fun(
       ArrayType(Float4, N),
       ArrayType(Float4, N),
@@ -306,12 +308,12 @@ class TestNBody {
                         Get(p1,1)) $ p2Local
                     )) $ Zip(p1Chunk, acc)
                 ) o toLocal(MapLcl(idF4)) $ p2
-              ), MapLcl(idF4) $ Value("0.0f", ArrayType(Float4, 128))) o Split(128) $ pos)
-          )) o Split(128) $ Zip(pos, vel)
+              ), MapLcl(idF4) $ Value("0.0f", ArrayType(Float4, tileX))) o Split(tileX) $ pos)
+          )) o Split(tileX) $ Zip(pos, vel)
     )
 
     val (output: Array[Float], _) =
-      Execute(128, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
+      Execute(tileX, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -396,7 +398,7 @@ class TestNBody {
     )
 
     val (output: Array[Float], _) =
-      Execute(tileX, tileY, threadsX, threadsY, (true, false))(function, pos, vel, espSqr, deltaT)
+      Execute(tileX, tileY, threadsX, threadsY, (true, true))(function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -404,14 +406,14 @@ class TestNBody {
   def nBodyLocalMem_nvidia_MT(): Unit = {
 
     val tileX = 32
-    val tileY = 2
+    val tileY = 8
     val threadsX = inputSize
     val threadsY = tileY
 
     val numGroups1 = threadsY / tileY
 
-    // TODO: Without extra Reduction, adding toLocal(MapSeq(MapLcl(...))) won't be unrolled though it needs to be
     // TODO: Unnecessary barrier in the final reduction which makes the kernel illegal.
+    // TODO: And missing a barrier after toLocal(MapSeq(MapLcl(1)(MapLcl(0)(idF4))))
     // TODO: Non correctness issue: can't do the WRAP optimisation
 
     // Problems in the NVIDIA OpenCL version:
@@ -435,7 +437,8 @@ class TestNBody {
                   NBody.update(Get(Get(p1,0), 0), Get(Get(p1, 0), 1), deltaT, Get(p1,1))
                 ))) $ Zip(newP1Chunk, bla)) o
                 Join() o
-                ReduceSeq(\( (acc, x) => MapLcl(0)(VectorizeUserFun(4, add)) $ Zip(acc, x)), MapLcl(0)(idF4) $ Value(0.0f, ArrayType(Float4, tileX)))) o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(idF4)))) o
+                ReduceSeq(\( (acc, x) => MapLcl(0)(VectorizeUserFun(4, add)) $ Zip(acc, x)), MapLcl(0)(idF4) $ Value(0.0f, ArrayType(Float4, tileX))))
+                o toLocal(MapSeq(MapLcl(1)(MapLcl(0)(idF4)))) o
                 ReduceSeq(fun((acc, p2) =>
                   Let(p2Local =>
                     MapLcl(1)(\(accDim2 =>

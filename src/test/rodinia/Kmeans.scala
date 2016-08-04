@@ -183,8 +183,6 @@ class Kmeans {
         )) :>> Join()
       })
 
-    println(kMeans)
-
     val (output: Array[Int], _) = Execute(numPoints)(kMeans, points.transpose, clusters)
     assertArrayEquals(gold, output)
   }
