@@ -370,7 +370,6 @@ class OpenCLGenerator extends Generator {
     privateMems.foreach(x => {
       val length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
 
-      // TODO: Fix this
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +
           s" evaluable, but found $length")
