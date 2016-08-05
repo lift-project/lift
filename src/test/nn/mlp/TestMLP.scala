@@ -33,9 +33,22 @@ object TestMLP {
 
 class TestMLP {
 
+  val current_dir = try {
+    // Launching from IntelliJ
+    val intellij_path = System.getProperty("user.dir") + "/../../src/test/nn/mlp"
+    new File(intellij_path)
+    intellij_path
+  } catch {
+    case ex: java.io.FileNotFoundException =>
+      // Launching from console
+      val console_path = System.getProperty("user.dir") + "/src/test/nn/mlp"
+      new File(console_path)
+      console_path
+  }
+
   def results_filename() = {
     val now = Calendar.getInstance()
-    new String(System.getProperty("user.dir") + "/../../src/test/nn/mlp/results_lift/" +
+    new String(current_dir + "/results_lift/" +
     "%02d.%02d.%04d-%02d.%02d.%02d.%03d.csv".format(
       now.get(Calendar.DATE), now.get(Calendar.MONTH), now.get(Calendar.YEAR),
       now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
@@ -53,14 +66,7 @@ class TestMLP {
 
   def load_2d_float_json(json_file_name: String): Array[Array[Float]] = {
     /* Load an array from a JSON file */
-    val source = try {
-      // Launching from IntelliJ
-      scala.io.Source.fromFile(System.getProperty("user.dir") + "/../../src/test/nn/mlp/" + json_file_name)
-    } catch {
-      case ex: java.io.FileNotFoundException =>
-        // Launching from console
-        scala.io.Source.fromFile(System.getProperty("user.dir") + "/src/test/nn/mlp/" + json_file_name)
-    }
+    val source = scala.io.Source.fromFile(current_dir + "/" + json_file_name)
     val jsonString = source.getLines mkString "\n"
     source.close()
     val json:Option[Any] = JSON.parseFull(jsonString)
@@ -80,14 +86,7 @@ class TestMLP {
 
   def load_1d_float_json(json_file_name: String): Array[Float] = {
     /* Load an array from a JSON file */
-    val source = try {
-      // Launching from IntelliJ
-      scala.io.Source.fromFile(System.getProperty("user.dir") + "/../../src/test/nn/mlp/" + json_file_name)
-    } catch {
-      case ex: java.io.FileNotFoundException =>
-        // Launching from console
-        scala.io.Source.fromFile(System.getProperty("user.dir") + "/src/test/nn/mlp/" + json_file_name)
-    }
+    val source = scala.io.Source.fromFile(current_dir + "/" + json_file_name)
     val jsonString = source.getLines mkString "\n"
     source.close()
     val json:Option[Any] = JSON.parseFull(jsonString)
