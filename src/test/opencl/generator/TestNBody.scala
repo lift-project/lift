@@ -9,7 +9,7 @@ import opencl.generator.TestNBody._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 
 object TestNBody {
 
@@ -402,6 +402,7 @@ class TestNBody {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
+  @Ignore
   @Test
   def nBodyLocalMem_nvidia_MT(): Unit = {
 
