@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{?, ArithExpr, Cst, IntDiv}
+import apart.arithmetic.{?, ArithExpr, Cst, IntDiv, Range, RangeAdd}
 import rewriting.utils._
 import ir.ast._
 import opencl.ir._
@@ -52,11 +52,12 @@ class BarrierElimination(lambda: Lambda) {
 
         calls.foreach(call => {
           call.f match {
-            case m: AbstractMap => apply(m.f.body, insideLoop || isLoop(m.iterationCount))
+            case m: AbstractMap =>
+              apply(m.f.body, insideLoop || isLoop(m.loopVar.range))
             case r: AbstractPartRed =>
               apply(call.args.head, insideLoop)
-              apply(r.f.body, insideLoop || isLoop(r.iterationCount))
-            case i: Iterate => apply(i.f.body, insideLoop || isLoop(i.iterationCount))
+              apply(r.f.body, insideLoop || isLoop(r.loopVar.range))
+            case i: Iterate => apply(i.f.body, insideLoop || isLoop(i.indexVar.range))
             case toLocal(f) => apply(insideLoop, f)
             case toGlobal(f) => apply(insideLoop, f)
             case toPrivate(f) => apply(insideLoop, f)
@@ -90,6 +91,10 @@ class BarrierElimination(lambda: Lambda) {
                   .foreach(_.emitBarrier = false)
               case _ =>
             }
+
+            // TODO: Also gets rid of necessary barriers
+//            if (mapLcl.f.body.addressSpace == PrivateMemory)
+//              mapLcl.emitBarrier = false
           }
 
         })
@@ -121,8 +126,49 @@ class BarrierElimination(lambda: Lambda) {
     }
   }
 
-  private def isLoop(ae: ArithExpr) =
-    !(ae == Cst(1) || ae == Cst(0) || ae == IntDiv(1, ?))
+  private def isLoop(range: Range): Boolean = {
+
+    // TODO: Inforamtion needed in several places
+    // TODO: Information needed elsewhere. See analysis.ControlFlow
+    // try to see if we really need a loop
+    range.numVals match {
+      case Cst(0) =>
+        // zero iterations
+        return false
+
+      case Cst(1) =>
+        return false
+
+      // TODO: See TestInject.injectExactlyOneIterationVariable
+      // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
+      case _ if range.isInstanceOf[RangeAdd] && {
+        val rangeAdd = range.asInstanceOf[RangeAdd]
+        rangeAdd.start.min.min == Cst(0) &&
+          ArithExpr.substituteDiv(rangeAdd.stop) == ArithExpr.substituteDiv(rangeAdd.step)
+      }
+
+      =>
+
+        return false
+
+      // TODO: See TestOclFunction.numValues and issue #62
+      case _ if range.isInstanceOf[RangeAdd] && {
+        val rangeAdd = range.asInstanceOf[RangeAdd]
+        rangeAdd.start.min.min == Cst(0) && rangeAdd.stop == Cst(1)
+      } =>
+        return false
+      case _ =>
+        (range.numVals.min, range.numVals.max) match {
+          case (Cst(0), Cst(1)) =>
+            // one or less iteration
+            return false
+
+          case _ =>
+        }
+    }
+
+    true
+  }
 
   private def markLevel(calls: Seq[FunCall], insideLoop: Boolean): Unit = {
 

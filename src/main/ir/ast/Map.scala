@@ -33,6 +33,7 @@ abstract class AbstractMap(val f: Lambda,
     }
   }
 
+
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
     args.head match {

@@ -1,6 +1,6 @@
 package ir.ast
 
-import ir.Type
+import ir.{Type, UndefType}
 import ir.interpreter.Interpreter.ValueMap
 
 /**

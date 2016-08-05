@@ -9,7 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-import rewriting.utils.{NumberExpression, NumberPrinter}
+import rewriting.utils.NumberExpression
 
 object TestRewriteMatrixMatrix {
   @BeforeClass def before(): Unit = {
@@ -72,7 +72,7 @@ class TestRewriteMatrixMatrix {
     )
 
     val numExpressionsFinal = NumberExpression.breadthFirst(f10).values.max
-    assertEquals(128, numExpressionsFinal)
+    assertEquals(113, numExpressionsFinal)
     checkDepth(f10, ruleSeq)
     checkDistance(f10)
   }
@@ -203,8 +203,6 @@ class TestRewriteMatrixMatrix {
       })
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, MacroRules.tileMapMap)
-
-    println(NumberPrinter(f1))
     val f2 = Rewrite.applyRuleAtId(f1, 12, MacroRules.finishTiling)
 
 
@@ -216,7 +214,6 @@ class TestRewriteMatrixMatrix {
     val f7 = Rewrite.applyRuleAtId(f6, 82, Rules.partialReduceToReduce)
     val f8 = SimplifyAndFuse(f7)
 
-
     val ruleSeq = Seq(
       MacroRules.tileMapMap, MacroRules.finishTiling,
       MacroRules.apply1DRegisterBlocking, MacroRules.apply1DRegisterBlocking,
@@ -224,7 +221,7 @@ class TestRewriteMatrixMatrix {
     )
 
     val numExpressions = NumberExpression.breadthFirst(f8).values.max
-    assertEquals(79, numExpressions)
+    assertEquals(66, numExpressions)
     checkDepth(f8, ruleSeq)
     checkDistance(f8)
   }
@@ -322,7 +319,7 @@ class TestRewriteMatrixMatrix {
     val f2 = SimplifyAndFuse(f1)
 
     val numExpressions = NumberExpression.breadthFirst(f2).values.max
-    assertEquals(32, numExpressions)
+    assertEquals(26, numExpressions)
     checkDepth(f2)
     checkDistance(f2)
   }
@@ -345,7 +342,7 @@ class TestRewriteMatrixMatrix {
     val f2 = SimplifyAndFuse(f1)
 
     val numExpressions = NumberExpression.breadthFirst(f2).values.max
-    assertEquals(51, numExpressions)
+    assertEquals(43, numExpressions)
     checkDepth(f2)
     checkDistance(f2)
   }
@@ -399,7 +396,7 @@ class TestRewriteMatrixMatrix {
     val f5 = SimplifyAndFuse(f4)
 
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
-    assertEquals(66, numExpressions)
+    assertEquals(58, numExpressions)
     checkDepth(f5)
     checkDistance(f5)
   }
@@ -426,7 +423,7 @@ class TestRewriteMatrixMatrix {
     val f5 = HighLevelRewrite.finishRewriting(f4)
 
     val numExpressions = NumberExpression.breadthFirst(f5).values.max
-    assertEquals(64, numExpressions)
+    assertEquals(56, numExpressions)
     checkDepth(f5)
     checkDistance(f5)
   }
@@ -451,7 +448,7 @@ class TestRewriteMatrixMatrix {
     val f4 = SimplifyAndFuse(f3)
 
     val numExpressions = NumberExpression.breadthFirst(f4).values.max
-    assertEquals(27, numExpressions)
+    assertEquals(23, numExpressions)
     checkDepth(f4)
     checkDistance(f4)
   }
@@ -484,21 +481,20 @@ class TestRewriteMatrixMatrix {
     val f8 = HighLevelRewrite.applyAlwaysRules(f7)
 
     val numExpressionsHighLevel = NumberExpression.breadthFirst(f8).values.max
-    assertEquals(102, numExpressionsHighLevel)
-
+    assertEquals(87, numExpressionsHighLevel)
     // Lower and vectorise
-    val g1 = Rewrite.applyRuleAtId(f8, 90, Rules.implementIdAsDeepCopy)
-    val g2 = Rewrite.applyRuleAtId(g1, 90, Rules.globalMemory)
-    val g3 = Rewrite.applyRuleAtId(g2, 98, Rules.vectorize(4))
-    val g4 = Rewrite.applyRuleAtId(g3, 88, Rules.dropId)
+
+    val g0 = Rewrite.applyRuleAtId(f8, 27, Rules.addIdAfterReduce)
+    val g1 = Rewrite.applyRuleAtId(g0, 78, Rules.implementIdAsDeepCopy)
+    val g2 = Rewrite.applyRuleAtId(g1, 78, Rules.globalMemory)
+    val g3 = Rewrite.applyRuleAtId(g2, 86, Rules.vectorize(4))
+    val g4 = Rewrite.applyRuleAtId(g3, 32, Rules.addIdValue)
     val g5 = Lower.simpleMapLoweringStrategy(g4)
 
     val g6 = Rewrite.applyRuleAtId(g5, 28, Rules.addIdForCurrentValueInReduce)
-
     val g7 = Rewrite.applyRuleAtId(g6, 43, Rules.localMemory)
     val g8 = Rewrite.applyRuleAtId(g7, 45, Rules.implementIdAsDeepCopy)
-    val g9 = Rewrite.applyRuleAtId(g8, 55, Rules.joinSplit)
-    val g10 = Rewrite.applyRuleAtId(g9, 56, Rules.splitJoin)
+    val g10 = Rewrite.applyRuleAtId(g8, 55, MacroRules.reshapeMapMap)
 
     val g11 = Rewrite.applyRuleAtId(g10, 62, Rules.vectorize(4))
     val g12 = Rewrite.applyRuleAtId(g11, 51, Rules.vectorize(4))
@@ -506,13 +502,13 @@ class TestRewriteMatrixMatrix {
     val g13 = Lower.lowerNextLevelWithRule(g12, Rules.mapLcl(1))
     val g14 = Lower.lowerNextLevelWithRule(g13, Rules.mapLcl(0))
 
-    val g15 = Rewrite.applyRuleAtId(g14, 87, Rules.addIdForCurrentValueInReduce)
-    val g16 = Rewrite.applyRuleAtId(g15, 98, Rules.privateMemory)
-    val g17 = Rewrite.applyRuleAtId(g16, 100, Rules.implementIdAsDeepCopy)
+    val g15 = Rewrite.applyRuleAtId(g14, 86, Rules.addIdForCurrentValueInReduce)
+    val g16 = Rewrite.applyRuleAtId(g15, 97, Rules.privateMemory)
+    val g17 = Rewrite.applyRuleAtId(g16, 99, Rules.implementIdAsDeepCopy)
     val g18 = Lower.lowerNextLevelWithRule(g17, Rules.mapSeq)
 
     val numExpressionsFinal = NumberExpression.breadthFirst(g18).values.max
-    assertEquals(157, numExpressionsFinal)
+    assertEquals(155, numExpressionsFinal)
   }
 
   @Ignore

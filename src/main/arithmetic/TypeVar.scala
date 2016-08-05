@@ -9,7 +9,10 @@ import scala.language.implicitConversions
 
 /** a special variable that should only be used for defining function type*/
 class TypeVar private(range : Range, fixedId: Option[Long] = None) extends ExtensibleVar("", range, fixedId) {
-  override def makeCopy(r: Range) = new TypeVar(r, Some(this.id))
+  override def copy(r: Range) = new TypeVar(r, Some(id))
+
+  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
+    f(new TypeVar(range.visitAndRebuild(f), Some(id)))
 
   override lazy val toString = "tv_" + name + "_" + id
 }

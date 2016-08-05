@@ -1,6 +1,6 @@
 package analysis
 
-import apart.arithmetic.{ArithExpr, Cst, SizeVar}
+import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.get_global_size

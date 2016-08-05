@@ -89,7 +89,7 @@ object HighLevelRewrite {
 
       val folderName = output.value.getOrElse(filename.split("/").last)
 
-      dumpLambdasToFiles(lambdas :+ lambda, folderName)
+      dumpLambdasToFiles(dumpThese :+ (lambda, Seq()), folderName)
     } catch {
       case e: ArgotUsageException => println(e.message)
     }
@@ -170,7 +170,7 @@ object HighLevelRewrite {
       depth <= cutoff
   }
 
-  private def dumpLambdasToFiles(lambdas: Seq[Lambda], topLevelFolder: String): Unit = {
+  private def dumpLambdasToFiles(lambdas: Seq[(Lambda, Seq[Rule])], topLevelFolder: String): Unit = {
     val x = if (sequential.value.isDefined) lambdas else lambdas.par
 
     x.foreach(lambda => {
@@ -180,7 +180,7 @@ object HighLevelRewrite {
 
       try {
 
-        val appliedRules = finishRewriting(lambda)
+        val appliedRules = finishRewriting(lambda._1)
 
         if (filterByDistance(appliedRules)) {
 
@@ -196,6 +196,9 @@ object HighLevelRewrite {
               idxFile.write(folder + "/" + sha256 + "\n")
               idxFile.close()
             }
+
+            val rules = lambda._2.mkString(",")
+            Utils.dumpToFile(rules, sha256 + "_rules", folder)
           }
 
         }
@@ -242,6 +245,7 @@ class HighLevelRewrite(val vectorWidth: Int) {
   private val highLevelRules =
     Seq(
       MacroRules.apply2DRegisterBlocking,
+      MacroRules.apply2DRegisterBlockingNoReorder,
       MacroRules.apply1DRegisterBlocking,
       MacroRules.tileMapMap,
       MacroRules.finishTiling,
@@ -302,15 +306,26 @@ class HighLevelRewrite(val vectorWidth: Int) {
       .filter((_, times) => times >= 2)
       ._1
 
+    if (!distinctRulesApplied.contains(MacroRules.tileMapMap))
+      dontTryThese = MacroRules.finishTiling +: dontTryThese
+
+    if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking))
+      dontTryThese = MacroRules.apply2DRegisterBlockingNoReorder +: dontTryThese
+
+    if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlockingNoReorder))
+      dontTryThese = MacroRules.apply2DRegisterBlocking +: dontTryThese
+
     if (distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
         || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
+        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlockingNoReorder)
         || distinctRulesApplied.contains(MacroRules.tileMapMap))
       dontTryThese = MacroRules.tileMapMap +: dontTryThese
 
     if (distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking))
-      dontTryThese = MacroRules.apply2DRegisterBlocking +: MacroRules.tileMapMap +: dontTryThese
+      dontTryThese = MacroRules.apply2DRegisterBlocking +: MacroRules.apply2DRegisterBlockingNoReorder +: MacroRules.tileMapMap +: dontTryThese
 
-    if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking))
+    if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
+        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlockingNoReorder))
       dontTryThese = MacroRules.apply1DRegisterBlocking +: dontTryThese
 
     if (distinctRulesApplied.contains(vecZip)
@@ -321,6 +336,7 @@ class HighLevelRewrite(val vectorWidth: Int) {
     if (distinctRulesApplied.contains(MacroRules.tileMapMap)
         || distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
         || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
+        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlockingNoReorder)
         || distinctRulesApplied.contains(vecRed))
       dontTryThese = vecRed +: dontTryThese
 

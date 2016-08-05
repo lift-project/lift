@@ -211,6 +211,28 @@ class HighLevel {
   }
 
   @Test
+  def gesummv3(): Unit = {
+    // y = A . x * alpha + B . x * beta
+    val n = 128
+
+    val alpha = 2.0f
+    val beta = 1.5f
+    val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
+    val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+    val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+
+    val tmp1Gold = Utils.matrixVector(A, x, alpha)
+    val tmp2Gold = Utils.matrixVector(B, x, beta)
+    val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
+
+    val gesummv = GESUMMV.simpleUserFun
+
+    val y = Execute(n)(gesummv, A, B, x, alpha, beta)._1.asInstanceOf[Array[Float]]
+
+    assertArrayEquals(yGold, y, 0.001f)
+  }
+
+  @Test
   def gesummvKepler(): Unit = {
     // y = A . x * alpha + B . x * beta
     val n = 1024

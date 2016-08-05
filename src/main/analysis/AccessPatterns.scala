@@ -3,6 +3,7 @@ package analysis
 import analysis.AccessCounts.SubstitutionMap
 import apart.arithmetic.ArithExpr._
 import apart.arithmetic._
+import ir.Type
 import ir.ast.{Map => _, _}
 import ir.view._
 import opencl.generator.OpenCLGenerator.NDRange
@@ -47,9 +48,10 @@ class AccessPatterns(
     (readPatterns, writePatterns)
 
   private def isCoalesced(view: View): Boolean = {
-    // TODO: vector accesses
     val newVar = Var("")
     val accessLocation = ViewPrinter.emit(view)
+
+    val length = Type.getLength(Type.getValueType(view.t))
 
     if (coalescingId.isEmpty)
       return false
@@ -57,7 +59,7 @@ class AccessPatterns(
     val i0 = substitute(accessLocation, Map(coalescingId.get -> (newVar + 0)))
     val i1 = substitute(accessLocation, Map(coalescingId.get -> (newVar + 1)))
 
-    i1 - i0 == Cst(1)
+    i1 - i0 == length
   }
 
   private def getPattern(view: View) = {
@@ -86,11 +88,9 @@ class AccessPatterns(
 
           case lambda: Lambda => determinePatterns(lambda.body)
           case fp: FPattern => determinePatterns(fp.f.body)
-          case uf: UserFun =>
+          case _: UserFun | _: VectorizeUserFun =>
 
-            args.foreach(arg =>
-              readPatterns += arg -> getPattern(arg.view)
-            )
+            args.foreach(arg => readPatterns += arg -> getPattern(arg.view))
 
             writePatterns += expr -> getPattern(expr.outputView)
 

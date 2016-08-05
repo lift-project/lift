@@ -1,38 +1,25 @@
-FROM ubuntu:15.10
+FROM java:8-jdk
 
-RUN (echo "deb http://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list) && \
-    apt-get update && apt-get install -y --force-yes \
-     bzip2 \
-     clang \
-     cmake \
-     g++ \
-     libclang-dev \
-     libedit-dev \
-     libssl-dev \
-     llvm \
-     ocl-icd-opencl-dev \
-     openjdk-8-jdk \
-     sbt \
-     unzip \
-     wget \
-     zlib1g-dev
+# install opencl, dependencies for SkelCL, and prepare installation of sbt
+RUN sed -e 's/$/ contrib non-free/' -i /etc/apt/sources.list \
+  && apt-get update && apt-get install -y \
+    opencl-headers \
+    ocl-icd-opencl-dev \
+    amd-opencl-icd \
+    clinfo \
+    cmake \
+    g++ \
+    wget \
+    libclang-dev \
+    libssl-dev \
+    llvm \
+    apt-transport-https
 
-RUN mkdir /root/.ssh/
+# install sbt
+RUN (  echo "deb https://dl.bintray.com/sbt/debian /" \
+     | tee -a /etc/apt/sources.list.d/sbt.list) \
+  && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 \
+                 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823 \
+  && apt-get update && apt-get install -y \
+    sbt
 
-ADD id_rsa /root/.ssh/id_rsa
-
-RUN chmod 0600 /root/.ssh/id_rsa && \
-    touch /root/.ssh/known_hosts && \
-    ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts
-
-ADD . lift_src/
-
-# Install dependencies, including skelcl:
-RUN cd lift_src && (export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 && echo y | ./skelcl.sh)
-
-RUN cd lift_src && sbt compile
-
-RUN wget https://www.dropbox.com/s/a5tuh1l0zn135bt/AMD-APP-SDK-linux-v2.9-1.599.381-GA-x64.tar.bz2?dl=0 && \
-    tar xjf AMD-APP-SDK-linux-v2.9-1.599.381-GA-x64.tar.bz2\?dl\=0 && \
-    ./AMD-APP-SDK-v2.9-1.599.381-GA-linux64.sh --target /tmp --noexec && \
-    cd /tmp && bash install.sh -s -a "y"

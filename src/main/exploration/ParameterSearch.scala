@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic._
 import rewriting.utils.Utils
 import ir.ArrayType
 import ir.ast._
@@ -28,7 +28,10 @@ object ParameterSearch {
       splits.head match {
         // If the stride is not set and the input length is constant, compute all divisors
         case (v: Var, Cst(len)) =>
-          ((if (len == 1) 1 else 2) to (if (len == 1) len else len - 1)).filter(len % _ == 0).foldLeft(table)((table, x) =>
+          val start = if (len == 1) 1 else 2
+          val intLen = len.toInt
+          val end = if (len == 1) intLen else intLen - 1
+          (start to end).filter(len % _ == 0).foldLeft(table)((table, x) =>
             substitute(propagate(splits.tail, Map(v -> x)), substitutions + (v -> x), table))
 
         // If the input AND the stride are already set, make sure they are multiple

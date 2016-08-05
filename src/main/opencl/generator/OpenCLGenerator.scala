@@ -191,7 +191,7 @@ class OpenCLGenerator extends Generator {
 
     View(f)
 
-    val globalBlock = new OpenCLAST.Block(Vector.empty, global = true)
+    val globalBlock = OpenCLAST.Block(Vector.empty, global = true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
       case (expr, _) if expr.t == Double => true
@@ -372,7 +372,7 @@ class OpenCLGenerator extends Generator {
 
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +
-          s"evaluable, but found $length")
+          s" evaluable, but found $length")
 
       val decl = OpenCLAST.VarDecl(x.mem.variable, x.t,
         addressSpace = x.mem.addressSpace,
@@ -986,7 +986,7 @@ class OpenCLGenerator extends Generator {
       // TODO: See TestInject.injectExactlyOneIterationVariable
       // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
       case _ if range.start.min.min == Cst(0) &&
-        range.stop.substituteDiv == range.step.substituteDiv =>
+        ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
 
         generateStatement(block, indexVar, generateBody, init)
         return

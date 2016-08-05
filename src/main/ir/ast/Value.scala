@@ -23,7 +23,7 @@ case class Value(var value: String) extends Param {
   /**
    * Perform a copy of `this`
    */
-  override def copy: Value = this.clone().asInstanceOf[Value]
+  override def copy: Value = Value(value, t)
 
   /**
    * Vectorize the current value.
