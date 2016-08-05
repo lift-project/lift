@@ -381,7 +381,8 @@ class CGenerator extends Generator {
       kernel.body += decl
     }) */
 
-    val temp = Kernel.memory.map((x => CAst.ParamDecl(x.mem.variable.toString,x.t))).toList
+    //val temp = Kernel.memory.map((x => CAst.ParamDecl(x.mem.variable.toString,x.t))).toList
+
     val liftKernel = CAst.Function(
       name = "liftKernel",
       ret = UndefType,
@@ -389,6 +390,40 @@ class CGenerator extends Generator {
       body = Block(),
       kernel = true
     )
+
+    //Declaration of various other variables
+    liftKernel.body += CAst.Comment("Static local memory")
+    Kernel.staticLocalMemory.foreach(x =>
+      liftKernel.body +=
+        CAst.VarDecl(x.mem.variable, x.t,
+          addressSpace = x.mem.addressSpace,
+          length = (x.mem.size /^ Type.getMaxSize(Type.getBaseType(x.t))).eval))
+
+    liftKernel.body += CAst.Comment("Typed Value memory")
+    typedValueMems.foreach(x =>
+      liftKernel.body +=
+        CAst.VarDecl(x.mem.variable,
+          Type.getValueType(x.t),
+          addressSpace = x.mem.addressSpace))
+
+    liftKernel.body += CAst.Comment("Private Memory")
+    privateMems.foreach(x => {
+      val length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
+
+      if (!length.isEvaluable)
+        throw new IllegalKernel("Private memory length has to be" +
+          s"evaluable, but found $length")
+
+      val decl = CAst.VarDecl(x.mem.variable, x.t,
+        addressSpace = x.mem.addressSpace,
+        length = length.eval)
+
+      privateDecls += x.mem.variable -> decl
+
+      liftKernel.body += decl
+    })
+
+
 
     generateExpr(f.body, liftKernel.body)
 

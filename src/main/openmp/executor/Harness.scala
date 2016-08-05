@@ -4,7 +4,8 @@ import apart.arithmetic.{?, SizeVar}
 import c.generator.CAst.{ForLoop, ParamDecl}
 import c.generator.{CAst, CGenerator}
 import ir.{ArrayType, TupleType, Type, TypeChecker}
-import ir.ast.{Lambda, Param, UserFun, fun}
+import ir.ast.{Lambda, Param, Transpose, UserFun, Zip, fun}
+import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
@@ -161,20 +162,6 @@ object Harness {
     sb.toString
   }
 
-  private def writeArray2(t:ArrayType, varName:String):String = {
-    val sb = new StringBuilder
-    sb.append(s"//Outputting array of type ${typeName(t)}\n")
-    //sb.append("printf(\"%d \"," ++  s"${t.len});\n")
-    sb.append(cprintf("["))
-    val forLoop = CFor(t.len.toString)
-    sb.append(forLoop.toString)
-    sb.append(writeVariable(t.elemT,s"$varName[${forLoop.i}]"))
-    sb.append(s"if(${forLoop.i} < ${t.len}-1)")
-    sb.append(cprintf(","))
-    sb.append("}\n")
-    sb.append(cprintf("]"))
-    sb.toString
-  }
 
   private def writeArray(t:ArrayType, varName:String):String = {
     val sb = new StringBuilder
@@ -217,7 +204,8 @@ object Harness {
     //Same as embed, only with prologue and epilogue after each iteration but the innermost
     def wrap(str:String, prologue:String, epilogue:String) = {
       val sb = new StringBuilder
-      dimensions.foreach{sb.append(prologue);x => sb.append(x)}
+      dimensions.foreach{x => sb.append(prologue);sb.append(x)}
+      val t = sb.toString
       sb.append(str)
       dimensions.foreach{_ => sb.append("}\n");sb.append(epilogue)}
       sb.toString()
@@ -309,5 +297,31 @@ object Harness {
     )
     val trivial = fun(Float, x => toGlobal(id) $ x)
     println(Harness(OMPGenerator,reducePar))
+  }
+}
+
+object Other {
+  def reduceExample(N:Int) = fun(
+    ArrayType(Float,N),
+    arr => { toGlobal(MapSeq(id)) o ReduceSeq(add,0.0f) $ arr}
+  )
+
+  def naiveMatrixMult(M:Int, N:Int) = fun(
+    ArrayType(ArrayType(Float, N), M),
+    ArrayType(ArrayType(Float, N), N),
+    (A, B) => {
+      toGlobal(MapSeq(MapSeq(MapSeq(id)))) o MapSeq(fun( Arow =>
+        MapSeq(fun( Bcol =>
+          //ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+          toGlobal(MapSeq(id)) o ReduceSeq(add,0.0f) o MapSeq(mult) $ Zip(Arow,Bcol)
+        )) o Transpose() $ B
+      )) $ A
+    })
+
+  def main(args: Array[String]) {
+    val f = naiveMatrixMult(3,3)
+    TypeChecker.check(f.body)
+    println(OpenCLGenerator.generate(f))
+
   }
 }

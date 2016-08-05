@@ -59,7 +59,10 @@ object Executor {
     case x => throw new Exception("Cannot encode scala value " + x.toString)
   }
 
-  private def encodeList(ls:List[Any]):String = ls.reduce((x,y) => encode(x) ++ "_" ++ encode(y)).asInstanceOf[String]
+  private def encodeList(ls:List[Any]):String = ls match {
+    case _::_ => ls.reduce((x,y) => encode(x) ++ "_" ++ encode(y)).asInstanceOf[String]
+    case Nil => ""
+  }
 
   private def isWindows:Boolean = System.getProperty("os.name").startsWith("Windows")
 
