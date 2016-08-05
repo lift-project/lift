@@ -173,7 +173,7 @@ def forward_propagate():
         tl = timeline.Timeline(run_metadata.step_stats)
         ctf = tl.generate_chrome_trace_format()
         current_time = datetime.datetime.now()
-        if not os.path.isfile("results_tensorflow")
+        if not os.path.isfile("results_tensorflow"):
             os.mkdir("results_tensorflow")
         with open("results_tensorflow/" + current_time.strftime("%d.%m.%Y-%H.%M.%S.") + 
                   str(int(current_time.microsecond / 1000)).zfill(3) + 
