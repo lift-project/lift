@@ -14,6 +14,7 @@ import numpy as np
 import json
 import datetime
 from tensorflow.python.client import timeline
+import os
 
 # Import MINST data
 from tensorflow.examples.tutorials.mnist import input_data
@@ -172,6 +173,8 @@ def forward_propagate():
         tl = timeline.Timeline(run_metadata.step_stats)
         ctf = tl.generate_chrome_trace_format()
         current_time = datetime.datetime.now()
+        if not os.path.isfile("results_tensorflow")
+            os.mkdir("results_tensorflow")
         with open("results_tensorflow/" + current_time.strftime("%d.%m.%Y-%H.%M.%S.") + 
                   str(int(current_time.microsecond / 1000)).zfill(3) + 
                   ".timeline.json", 'w') as f:

@@ -680,7 +680,9 @@ class TestMLP {
       }
       println()
 
-      val pw = new PrintWriter(new File(results_filename()))
+      val file = new File(results_filename())
+      file.getParentFile.mkdirs()
+      val pw = new PrintWriter(file)
       var finished_without_errors = false
       try {
         pw.write("device_name,f_name,n_inputs,layer_len0,layer_len1,layer_len2,activation_f0,activation_f1," +
