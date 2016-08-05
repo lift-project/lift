@@ -1,9 +1,11 @@
 package rewriting
 
+
 import rewriting.utils._
 import ir.ast._
 import ir.{Context, TypeChecker}
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq}
+
 
 case class EnabledMappings(
   global0: Boolean,
@@ -105,6 +107,23 @@ object Lower {
 
     mapsOnLevelTwo == 1
   }
+  private def testHasOneMapOnSecondLevel(depthMap: collection.Map[Expr,Int],maxDepth:Int): Boolean ={
+    val UnLoweredMap = depthMap.filterKeys({
+      case  FunCall(m: ir.ast.Map, _) if m.f.body.isConcrete => true
+      case _=> false
+    })
+    for(i <- 0 until maxDepth){
+      val mapOnCurrDepth = UnLoweredMap.filter({
+        case (FunCall(m:ir.ast.Map,_),`i`) => true
+        case _ => false
+      })
+      if(mapOnCurrDepth.nonEmpty){
+        val levelTwoBody = MacroRules.getMapBody(mapOnCurrDepth.head._1)
+        Utils.countMapsAtCurrentLevel(levelTwoBody) == 1
+      }
+    }
+    false
+  }
 
 //  private def hasOneMapOnThirdLevel(lambda: Lambda): Boolean = {
 //    val body = lambda.body
@@ -118,16 +137,20 @@ object Lower {
 
   def lowerMaps(lambda: Lambda, enabledMappings: EnabledMappings) : List[Lambda] = {
 
-    val depthMap = NumberExpression.byDepth(lambda)
-    val depthsOfUnLowered = depthMap.collect({ case (FunCall(Map(_), _*), depth) => depth })
+    val depthMap: collection.Map[Expr, Int] = NumberExpression.byDepth(lambda)
+    val depthsOfUnLowered = depthMap.collect({ case (FunCall(ir.ast.Map(_), _*), depth) => depth })
+    /*val UnLoweredMap = depthMap.filterKeys({
+      case FunCall(Map(_),_*) => true
+      case _=> false
+    })*/
 
     if (depthsOfUnLowered.isEmpty)
       return List(lambda)
 
     val maxDepth = depthsOfUnLowered.max + 1
-
+    val oneMapOnLevelTwo = if(maxDepth> 1) testHasOneMapOnSecondLevel(depthMap,maxDepth) else false
     var lambdas = List[Lambda]()
-    val oneMapOnLevelTwo = if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
+    //val oneMapOnLevelTwo = if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
 //    val oneMapOnLevelThree = if (maxDepth > 2) hasOneMapOnThirdLevel(lambda) else false
 
     /* Global only */
@@ -306,7 +329,7 @@ object Lower {
   private def lastMapToGlobal(lambda: Lambda): Lambda = {
     val lastWrite = getLastWrite(lambda).get
     val lastMap = findExpressionForPattern(lambda,
-      { case FunCall(Map(Lambda(_, body)), _) if body eq lastWrite => }: PartialFunction[Expr, Unit] ).get
+      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if body eq lastWrite => }: PartialFunction[Expr, Unit] ).get
 
     Rewrite.applyRuleAt(lambda, lastMap, Rules.globalMemory)
   }
@@ -442,7 +465,7 @@ class FindNextMapsToLower {
       case call: FunCall =>
 
         call.f match {
-          case Map(f) if f.body.isConcrete => expressions = idMap(call) +: expressions
+          case ir.ast.Map(f) if f.body.isConcrete => expressions = idMap(call) +: expressions
           case _ => find(call.f)
         }
 

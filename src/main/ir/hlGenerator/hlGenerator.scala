@@ -41,9 +41,9 @@ object hlGenerator{
     w.write(s+"\n")
   }
 
-  private def trySingleLambda(l:Lambda,w:PrintWriter):Unit = {
+  def trySingleLambda(l:Lambda,w:PrintWriter):Unit = {
     //Requires an add in it
-    if (l.toString.contains("add")) {
+    if (l.toString.contains("add") && l.toString.contains("Map")) {
       //1. Generate Input Data
       val Args = scala.collection.mutable.ArrayBuffer[Any]()
       for (j <- l.params.indices) {
@@ -59,23 +59,8 @@ object hlGenerator{
       }
       //2. Pass the TypeChecker
       val outType = TypeChecker(l)
-      /*
-      outType match {
-        case ArrayType(Float, _) =>
-          //1. pass the Interpreter
-          var output = Vector[Float]()
-          try {
-            output = Interpreter(l).->[Vector[Float]].run(Args: _*)
-          }
-          catch{
-            case e:Throwable =>
-              //println("catch a exception in Interpreter")
-              writeln(w,"catch a exception in Interpreter")
-              e.printStackTrace(w)
-              return
-          }*/
 
-      //2. lower the lambda
+      //3. lower the lambda
       var fs = List[Lambda]()
       try {
         fs = Lower.mapCombinations(l, new EnabledMappings(true, false, false, false, false, false))
@@ -88,7 +73,7 @@ object hlGenerator{
           return
       }
 
-      //3. compile the lambda
+      //4. compile the lambda
       var code = ""
       try {
         //println(fs.head.toString)
@@ -102,10 +87,19 @@ object hlGenerator{
           e.printStackTrace(w)
           return
       }
+      //5. execute the OpenCL kernel and the interpreter
       outType match{
         case Float =>
           try {
-            Execute(1)(code,l,Args:_*)
+            val(output_exe:Float,runtime) = Execute(1,1)(code,fs.head,Args:_*)
+            val output_int = Interpreter(l).->[Float].run(Args:_*)
+            if(output_exe == output_int){
+             writeln(w,"results eq-by-user")
+            }
+            else{
+              writeln(w,"results ne-by-user")
+            }
+
           }
           catch{
             case e:Throwable =>
@@ -115,7 +109,14 @@ object hlGenerator{
           }
         case ArrayType(Float,d1) =>
           try {
-            Execute(d1.eval)(code,l,Args:_*)
+            val(output_exe:Array[Float],runtime)= Execute(1,d1.eval)(code,fs.head,Args:_*)
+            val output_int = Interpreter(l).->[Vector[Float]].run(Args:_*).toArray[Float]
+            if(output_exe.corresponds(output_int)(_==_)){
+              writeln(w,"results eq-by-user")
+            }
+            else{
+              writeln(w,"results ne-by-user")
+            }
           }
           catch{
             case e:Throwable =>
@@ -125,7 +126,14 @@ object hlGenerator{
           }
         case ArrayType(ArrayType(Float,d1),d2)=>
           try {
-            Execute(d1.eval*d2.eval)(code,l,Args:_*)
+            val(output_exe:Array[Float],runtime)= Execute(1,d1.eval*d2.eval)(code,fs.head,Args:_*)
+            val output_int = Interpreter(l).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
+            if(output_exe.corresponds(output_int)(_==_)){
+              writeln(w,"results eq-by-user")
+            }
+            else{
+              writeln(w,"results ne-by-user")
+            }
           }
           catch{
             case e:Throwable =>
@@ -135,7 +143,14 @@ object hlGenerator{
           }
         case ArrayType(ArrayType(ArrayType(Float,d1),d2),d3)=>
           try {
-            Execute(d1.eval*d2.eval*d3.eval)(code,l,Args:_*)
+            val(output_exe:Array[Float],runtime) = Execute(1,d1.eval*d2.eval*d3.eval)(code,fs.head,Args:_*)
+            val output_int = Interpreter(l).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args:_*).toArray[Float]
+            if(output_exe.corresponds(output_int)(_==_)){
+              writeln(w,"results eq-by-user")
+            }
+            else{
+              writeln(w,"results ne-by-user")
+            }
           }
           catch{
             case e:Throwable =>
@@ -148,20 +163,11 @@ object hlGenerator{
       }
 
 
-      //4.execute the opencl kernel
-      //just test above, do it later
 
-      //val code = Compile(fs.head)
-      /*
-      case _ =>
-        //println("Unimplemented outType,Ignored")
-        writeln(w,"Unimplemented outType,Ignored")
-        return
-    }*/
     }
     else{
       //println("Doesn't contains UserFun, Ignored")
-      writeln(w,"Doesn't contains UserFun, Ignored-by-user")
+      writeln(w,"Doesn't contains UserFun or Map, Ignored-by-user")
       return
     }
   }
@@ -190,7 +196,7 @@ object hlGenerator{
     ParamList += Param(ArrayType(Float,32))
     ParamList += Param(Float)
     ParamList += Param(Float)
-    val totalRounds = 24
+    val totalRounds = 30
     for(i<- 0 until totalRounds){
       generateLambda()
       //val test = LambdaList
