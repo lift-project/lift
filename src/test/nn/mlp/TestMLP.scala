@@ -80,8 +80,14 @@ class TestMLP {
 
   def load_1d_float_json(json_file_name: String): Array[Float] = {
     /* Load an array from a JSON file */
-
-    val source = scala.io.Source.fromFile(System.getProperty("user.dir") + "/../../src/test/nn/mlp/" + json_file_name)
+    val source = try {
+      // Launching from IntelliJ
+      scala.io.Source.fromFile(System.getProperty("user.dir") + "/../../src/test/nn/mlp/" + json_file_name)
+    } catch {
+      case ex: java.io.FileNotFoundException =>
+        // Launching from console
+        scala.io.Source.fromFile(System.getProperty("user.dir") + "/src/test/nn/mlp/" + json_file_name)
+    }
     val jsonString = source.getLines mkString "\n"
     source.close()
     val json:Option[Any] = JSON.parseFull(jsonString)
