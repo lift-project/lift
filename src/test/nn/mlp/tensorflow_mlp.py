@@ -12,6 +12,8 @@ import tensorflow as tf
 import pickle
 import numpy as np
 import json
+import datetime
+from tensorflow.python.client import timeline
 
 # Import MINST data
 from tensorflow.examples.tutorials.mnist import input_data
@@ -161,9 +163,19 @@ def forward_propagate():
 
     # Launch the graph
     with tf.Session() as sess:
+        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+        run_metadata = tf.RunMetadata()
         sess.run(init)
         # Produce outputs
-        result = sess.run([pred], feed_dict={x: test_batch_images})
+        result = sess.run([pred], feed_dict={x: test_batch_images}, options=run_options, run_metadata=run_metadata)
+        # Create the Timeline object, and write it to a json
+        tl = timeline.Timeline(run_metadata.step_stats)
+        ctf = tl.generate_chrome_trace_format()
+        current_time = datetime.datetime.now()
+        with open("results_tensorflow/" + current_time.strftime("%d.%m.%Y-%H.%M.%S.") + 
+                  str(int(current_time.microsecond / 1000)).zfill(3) + 
+                  ".timeline.json", 'w') as f:
+            f.write(ctf)
         
     # Print results
     print("Output[:2]:")

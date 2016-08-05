@@ -33,14 +33,16 @@ object TestMLP {
 
 class TestMLP {
 
-  val now = Calendar.getInstance()
-  def results_filename = new String(System.getProperty("user.dir") + "/../../src/test/nn/mlp/results/" +
+  def results_filename() = {
+    val now = Calendar.getInstance()
+    new String(System.getProperty("user.dir") + "/../../src/test/nn/mlp/results_lift/" +
     "%02d.%02d.%04d-%02d.%02d.%02d.%03d.csv".format(
       now.get(Calendar.DATE), now.get(Calendar.MONTH), now.get(Calendar.YEAR),
       now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
       now.get(Calendar.MILLISECOND)))
+  }
 
-  //@Test
+  @Test
   def testSuite(): Unit = {
     val reruns = 2
     for (i <- 0 until reruns) {
@@ -51,8 +53,14 @@ class TestMLP {
 
   def load_2d_float_json(json_file_name: String): Array[Array[Float]] = {
     /* Load an array from a JSON file */
-
-    val source = scala.io.Source.fromFile(System.getProperty("user.dir") + "/../../src/test/nn/mlp/" + json_file_name)
+    val source = try {
+      // Launching from IntelliJ
+      scala.io.Source.fromFile(System.getProperty("user.dir") + "/../../src/test/nn/mlp/" + json_file_name)
+    } catch {
+      case ex: java.io.FileNotFoundException =>
+        // Launching from console
+        scala.io.Source.fromFile(System.getProperty("user.dir") + "/src/test/nn/mlp/" + json_file_name)
+    }
     val jsonString = source.getLines mkString "\n"
     source.close()
     val json:Option[Any] = JSON.parseFull(jsonString)
@@ -92,6 +100,7 @@ class TestMLP {
   val floatSize = 4
   val localMemSize = Executor.getDeviceLocalMemSize.toInt
   val maxWorkGroupSize = Executor.getDeviceMaxWorkGroupSize.toInt
+  val deviceName = Executor.getDeviceName
 
   val layer_idim = SizeVar("layer_idim")
   val layer_odim = SizeVar("layer_odim")
@@ -665,12 +674,12 @@ class TestMLP {
       }
       println()
 
-      val pw = new PrintWriter(new File(results_filename))
+      val pw = new PrintWriter(new File(results_filename()))
       var finished_without_errors = false
       try {
-        pw.write("f_name,n_inputs,layer_len0,layer_len1,layer_len2,activation_f0,activation_f1," +
+        pw.write("device_name,f_name,n_inputs,layer_len0,layer_len1,layer_len2,activation_f0,activation_f1," +
           "activation_f2,runtime_l0,runtime_l1,runtime_l2\n")
-        pw.write(f_name + f",${_n_inputs}%d,")
+        pw.write(deviceName + "," + f_name + f",${_n_inputs}%d,")
         for (layer_i <- 0 until n_layers) {
           pw.write(f"${Biases(layer_i).length}%d,")
         }
@@ -693,7 +702,7 @@ class TestMLP {
       finally {
         pw.close()
         if (!finished_without_errors) {
-          new File(results_filename).delete()
+          new File(results_filename()).delete()
           print(f"Input $input_no%d: ")
           println(Inputs(input_no).mkString("\t"))
           println(f"Output $input_no%d: ")
@@ -749,7 +758,7 @@ class TestMLP {
       layer_f(_Activation_fs(layer_i), _mults_per_thread, _local_size_1, _n_neurons)
   }
 
-  @Test
+  //@Test
   def MNIST_MLP_in_2d_MrgdGrps_in_1d(): Unit = {
     new MLP_test2(f_layer_complex_neuron_mrgd_wrgs_in_1d, mults_per_thread=2)("f_layer_complex_neuron_mrgd_wrgs_in_1d",
       f"10. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per a partition of inputs.",
