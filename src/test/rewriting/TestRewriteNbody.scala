@@ -1,6 +1,8 @@
 package rewriting
 
+import apart.arithmetic.ArithExpr
 import benchmarks.NBody
+import exploration.{ExpressionFilter, ParameterRewrite}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -68,9 +70,19 @@ class TestRewriteNbody {
     val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapLcl)
     val f27 = Rewrite.applyRuleAtId(f26, 14, Rules.localMemory)
 
+    val replacement = collection.immutable.Map[ArithExpr, ArithExpr](N -> inputSize)
+    val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
+
+    val (local, global) = InferNDRange(f27)
+
+    val replacedGlobal = global.map(ArithExpr.substitute(_, replacement))
+
     val (output: Array[Float], _) =
-      Execute(128, inputSize, (true, false))(f27, pos, vel, espSqr, deltaT)
+      Execute(local, replacedGlobal, (true, false))(f27, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
-  }
+
+    val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)
+    assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x))
+ }
 
 }

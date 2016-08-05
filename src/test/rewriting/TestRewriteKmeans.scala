@@ -27,7 +27,7 @@ class TestRewriteKmeans {
       Seq(Float, Float), Float)
 
   @Test
-  def kMeans(): Unit = {
+  def kMeansLocalMemory(): Unit = {
 
     val f = fun(
       featuresType, clustersType,
