@@ -829,6 +829,7 @@ object Rules {
         Transpose() o Map(Transpose()) o Transpose() $ arg
     })
 
+  // TODO: Does it matter there is a Map after the Split?
   val splitZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
                       "Map(x => Map() $ Zip(Get(n, x) ... ) $ Zip(Split $ ...)", {
     case FunCall(Map(Lambda(lambdaParam, FunCall(Map(mapLambda), mapArg))), FunCall(Split(n), FunCall(Zip(_), zipArgs@_*)))
