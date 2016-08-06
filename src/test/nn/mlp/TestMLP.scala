@@ -22,7 +22,7 @@ object TestMLP {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init()
+    Executor.init(0, 0)
   }
 
   @AfterClass def after(): Unit = {
