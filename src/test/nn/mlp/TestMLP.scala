@@ -207,7 +207,7 @@ class TestMLP {
     (W, B, X) => {
       MapWrg(1)(fun((tup_per_inp) => {
         MapWrg(0)(fun((ws_per_neuron, b_per_neuron) => {
-          toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(b_per_neuron))   o Join() o
+          toGlobal(MapSeq(activation_f)) o ReduceSeq(add, toPrivate(id) $ b_per_neuron) o Join() o
           MapLcl(0)(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o
           Split(tile_of_mults_size) o fun((X_local) => Zip(X_local, ws_per_neuron)) o
           toLocal(MapLcl(1)(id)) $ Get(tup_per_inp, 2)/*X*/})) $
