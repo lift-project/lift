@@ -33,17 +33,14 @@ object TestMLP {
 
 class TestMLP {
 
-  val current_dir = try {
-    // Launching from IntelliJ
+  val current_dir = {
+    // Launching from IntelliJ or from console
     val intellij_path = System.getProperty("user.dir") + "/../../src/test/nn/mlp"
-    new File(intellij_path)
-    intellij_path
-  } catch {
-    case ex: java.io.FileNotFoundException =>
-      // Launching from console
-      val console_path = System.getProperty("user.dir") + "/src/test/nn/mlp"
-      new File(console_path)
-      console_path
+    val console_path = System.getProperty("user.dir") + "/src/test/nn/mlp"
+    if (java.nio.file.Files.exists(java.nio.file.Paths.get(intellij_path)))
+	intellij_path
+    else
+        console_path 
   }
 
   def results_filename() = {

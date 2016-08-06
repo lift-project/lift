@@ -24,8 +24,8 @@ test_images, test_targets = mnist.test.next_batch(10000)
 # Shuffle manually, as next_batch() returns the same result after initialization
 perm = np.arange(10000)
 np.random.shuffle(perm)
-test_images = test_images[perm]
-test_targets = test_targets[perm]
+#test_images = test_images[perm]
+#test_targets = test_targets[perm]
 test_batch_no = 0
 
 # Parameters
@@ -58,7 +58,7 @@ def multilayer_perceptron(x, weights, biases):
     layer_2 = tf.nn.relu(layer_2)
     # Output layer with linear activation
     out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
-    return out_layer
+    return layer_1
 
 def train():
     # Store layers weight & bias
@@ -173,7 +173,7 @@ def forward_propagate():
         tl = timeline.Timeline(run_metadata.step_stats)
         ctf = tl.generate_chrome_trace_format()
         current_time = datetime.datetime.now()
-        if not os.path.isfile("results_tensorflow"):
+        if not os.path.isdir("results_tensorflow"):
             os.mkdir("results_tensorflow")
         with open("results_tensorflow/" + current_time.strftime("%d.%m.%Y-%H.%M.%S.") + 
                   str(int(current_time.microsecond / 1000)).zfill(3) + 
@@ -181,8 +181,13 @@ def forward_propagate():
             f.write(ctf)
         
     # Print results
-    print("Output[:2]:")
-    print(result[0][:2])
+    print("Weights:")
+    np.set_printoptions(threshold=np.inf, suppress=True)
+    print(trained_weights['h1'].transpose()[1])
+    print("Inputs[0]:")
+    print(test_batch_images[0])
+    print("Output[0]:")
+    print(result[0][0])
     print("Output[:2] maxed:")
     print([list(decision).index(max(decision)) for decision in result[0][:2]])
     print("Correct[:2]:")
