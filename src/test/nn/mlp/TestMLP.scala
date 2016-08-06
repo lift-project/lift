@@ -22,7 +22,7 @@ object TestMLP {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init(0, 0)
+    Executor.init(1, 0)
   }
 
   @AfterClass def after(): Unit = {
@@ -57,7 +57,7 @@ class TestMLP {
     val reruns = 2
     for (i <- 0 until reruns) {
       MLP_MNIST_in_2d_Local()
-      MNIST_MLP_in_2d_MrgdGrps_in_1d()
+      //MNIST_MLP_in_2d_MrgdGrps_in_1d()
     }
   }
 
@@ -207,7 +207,7 @@ class TestMLP {
     (W, B, X) => {
       MapWrg(1)(fun((tup_per_inp) => {
         MapWrg(0)(fun((ws_per_neuron, b_per_neuron) => {
-          toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(b_per_neuron)) o Join() o
+          toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(b_per_neuron))   o Join() o
           MapLcl(0)(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o
           Split(tile_of_mults_size) o fun((X_local) => Zip(X_local, ws_per_neuron)) o
           toLocal(MapLcl(1)(id)) $ Get(tup_per_inp, 2)/*X*/})) $
