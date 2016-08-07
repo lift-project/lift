@@ -57,7 +57,7 @@ class TestMLP {
     val reruns = 2
     for (i <- 0 until reruns) {
       MLP_MNIST_in_2d_Local()
-      //MNIST_MLP_in_2d_MrgdGrps_in_1d()
+      MNIST_MLP_in_2d_MrgdGrps_in_1d()
     }
   }
 
