@@ -164,11 +164,22 @@ object Rules {
   val reduceSeqMapSeqFusion = Rule("ReduceSeq o MapSeq => ReduceSeq(fused)", {
     case FunCall(ReduceSeq(f: Lambda), init, FunCall(MapSeq(g : Lambda), arg))
     =>
-      val acc = f.params.head
-      val a = Param()
-      val newG = Expr.replace(g.body, g.params.head, a)
-      val newF = Expr.replace(f.body, f.params(1), newG)
-      ReduceSeq(Lambda(Array(acc, a), newF), init) $ arg
+      val paramUsedMultipleTimes =
+        Expr.visitWithState(0)(f.body, (e, c) => {
+          e match {
+            case p2: Param => if (f.params(1).eq(p2)) c + 1 else c
+            case _ => c
+          }}) > 1
+
+      if (!paramUsedMultipleTimes) {
+        val acc = f.params.head
+        val a = Param()
+        val newG = Expr.replace(g.body, g.params.head, a)
+        val newF = Expr.replace(f.body, f.params(1), newG)
+        ReduceSeq(Lambda(Array(acc, a), newF), init) $ arg
+      } else {
+        ReduceSeq(fun((acc, next) => f(acc, g(next))), init) $ arg
+      }
   })
 
   val mapFusion = Rule("Map(f) o Map(g) => Map(f o g)", {

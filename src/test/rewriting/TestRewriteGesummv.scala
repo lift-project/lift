@@ -60,8 +60,6 @@ class TestRewriteGesummv {
     val f9 = Rewrite.applyRuleAtId(f8, 7, Rules.reduceFusionInZip)
     val f10 = Rewrite.applyRuleAtId(f9, 8, Rules.mapFusionInZip)
     val f11 = Rewrite.applyRuleAtId(f10, 5, Rules.mapFusion)
-
-    // TODO: Tuple call inlined...
     val f12 = Rewrite.applyRuleAtId(f11, 6, MacroRules.reduceMapFusion)
 
     TypeChecker(f12)
