@@ -172,7 +172,10 @@ object Rules {
   })
 
   val mapFusion = Rule("Map(f) o Map(g) => Map(f o g)", {
-    case FunCall(Map(Lambda(p1, f)), FunCall(Map(Lambda(p2, g)), arg)) =>
+
+    case FunCall(Map(l1@Lambda(p1, f)), FunCall(Map(l2@Lambda(p2, g)), arg)) =>
+
+//      Map(fun(x => l1 o l2 $ x)) $ arg
       val newLambda = Lambda(p2, Expr.replace(f, p1.head, g))
       Map(newLambda) $ arg
 
@@ -180,6 +183,7 @@ object Rules {
     call@FunCall(Lambda(p, FunCall(Map(Lambda(p2, f2)), _)), arg)) =>
 
       val newBody = Expr.replace(f1, p1.head, f2)
+
       Expr.replace(call, f2, newBody)
   })
 
@@ -1047,7 +1051,7 @@ object Rules {
     "Unzip() o Map(x => Tuple(f $ Get(x, 0), g $ Get(x, 1), ...) $ Zip(...) ", {
     case FunCall(Tuple(_), args@_*)
       if args.forall({
-        case arg@FunCall(Map(_), _) => arg.t.isInstanceOf[ArrayType]
+        case FunCall(Map(_), _) => true
         case _ => false
       }) && args.map(_.t.asInstanceOf[ArrayType].len).distinct.length == 1
     =>
@@ -1062,6 +1066,27 @@ object Rules {
       })
 
       Unzip() o Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)
+  })
+
+  val mapFusionInZip = Rule("mapFusionInZip", {
+    case call@ FunCall(Zip(_), args@_*)
+      if args.forall({
+        case FunCall(Map(_), _) => true
+        case _ => false
+      }) && args.map(_.t.asInstanceOf[ArrayType].len).distinct.length == 1
+    =>
+
+      val zipArgs = args.map({
+        case FunCall(_, mapArgs) => mapArgs
+      })
+
+      val lambdaParam = Param()
+
+      val maps = args.zipWithIndex.map({
+        case (FunCall(Map(f), _), n) => f $ Get(lambdaParam, n)
+      })
+
+      Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)
   })
 
   val tupleFission =
