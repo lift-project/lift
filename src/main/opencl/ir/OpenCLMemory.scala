@@ -264,9 +264,16 @@ object TypedOpenCLMemory {
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
         addressSpace match {
-          // TODO: Incorrect type for PrivateMemory, but OpenCLCodeGen
-          // TODO: crashes with the correct one...
-          case GlobalMemory | PrivateMemory =>
+          // TODO: figure out if this is actually helpful
+          case PrivateMemory =>
+            m match {
+              case _: MapSeq =>
+                TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+              case _ =>
+                tm
+            }
+
+          case GlobalMemory => //| PrivateMemory =>
             TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
 
             // TODO: Incorrect type returned for PrivateMemory.

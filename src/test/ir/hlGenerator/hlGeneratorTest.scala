@@ -122,7 +122,7 @@ class hlGeneratorTest {
         Map(fun((p199)=>
           Reduce(fun((p51,p177)=>
             add(p51,p177)
-          ))(add(p104,p104),p243)
+          ))(add(p104,p199),p243)
         ))(Reduce(fun((p223,p14) =>
           add(p223,p14)
         ))(add(p104,p104),p10))
