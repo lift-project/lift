@@ -1099,6 +1099,33 @@ object Rules {
       Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)
   })
 
+  val fuseZipTuple = Rule("fuseZipTuple", {
+    case call@FunCall(Lambda(Array(p), body), FunCall(Tuple(n), tupleArgs@_*))
+      if getZipForZipTupleFusion(body, n, p).isDefined
+    =>
+
+      val zip = getZipForZipTupleFusion(body, n, p)
+
+      val zipArgs = zip.get.asInstanceOf[FunCall].args
+      val zipArgIds = zipArgs.collect({ case FunCall(Get(i), _) => i })
+
+      zipArgIds.zipWithIndex.foldLeft(body)({
+        case (currentExpr,(i, j)) =>
+          Expr.replace(currentExpr, zipArgs(j), tupleArgs(i))
+      })
+
+  })
+
+  def getZipForZipTupleFusion(body: Expr, n: Int, p: Param): Option[Expr] = {
+    Utils.getExprForPatternInCallChain(body, {
+      case FunCall(Zip(n2), args@_*)
+        if n == n2 && args.collect({
+          case FunCall(Get(n3), p2) if p eq p2 => n3
+        }).distinct.length == n
+      =>
+    })
+  }
+
   val tupleFission =
     Rule("Tuple(f $... , g $ ..., ...) => " +
          "Tuple(f $ Get( , 0), g $ Get( , 1), ...) o Tuple(...)", {

@@ -52,7 +52,8 @@ class TestRewriteGesummv {
     val f4 = Rewrite.applyRuleAtId(f3, 3, Rules.splitJoinId)
     val f5 = Rewrite.applyRuleAtId(f4, 2, Rules.mapFusionInZip)
     val f6 = Rewrite.applyRuleAtId(f5, 1, Rules.mapFusion)
-    println(NumberPrinter(f6))
+    val f7 = Rewrite.applyRuleAtId(f6, 5, Rules.fuseZipTuple)
+    println(NumberPrinter(f7))
 
   }
 
