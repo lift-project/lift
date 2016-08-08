@@ -1099,6 +1099,39 @@ object Rules {
       Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)
   })
 
+  val reduceFusionInZip = Rule("reduceFusionInZip", {
+    case call@FunCall(Zip(_), args@_*)
+      if args.forall({
+        case FunCall(Reduce(_), _: Value, _) => true
+        case _ => false
+      })
+    =>
+
+      val initVals = args.map({
+        case FunCall(_, v: Value, _) => v
+      })
+
+      val newInitType = TupleType(initVals.map(_.t):_*)
+
+      val newInitString = "{ " + initVals.mkString(", ") + " }"
+
+      val newInitValue = Value(newInitString, newInitType)
+      val newAcc = Param()
+      val newParam = Param()
+
+      val reduces = args.zipWithIndex.map({
+        case (FunCall(Reduce(f), _, arg), n) =>
+          f(Get(newAcc, n), Get(newParam, n))
+      })
+
+      val newZipArgs = args.map({
+        case FunCall(_, _, a) => a
+      })
+
+      Reduce(Lambda(Array(newAcc, newParam), Tuple(reduces:_*)), newInitValue) $
+      Zip(newZipArgs:_*)
+  })
+
   val fuseZipTuple = Rule("fuseZipTuple", {
     case call@FunCall(Lambda(Array(p), body), FunCall(Tuple(n), tupleArgs@_*))
       if getZipForZipTupleFusion(body, n, p).isDefined

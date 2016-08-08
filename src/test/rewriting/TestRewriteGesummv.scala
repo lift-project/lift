@@ -34,6 +34,9 @@ class TestRewriteGesummv {
       (a,b) => Map(fun(x => add(x._0, x._1))) $ Zip(a, b)
     )
 
+    TypeChecker(mvAlpha)
+    TypeChecker(vecAdd)
+
     val f0 = fun(
       ArrayType(ArrayType(Float, K), N),
       ArrayType(ArrayType(Float, K), N),
@@ -53,8 +56,15 @@ class TestRewriteGesummv {
     val f5 = Rewrite.applyRuleAtId(f4, 2, Rules.mapFusionInZip)
     val f6 = Rewrite.applyRuleAtId(f5, 1, Rules.mapFusion)
     val f7 = Rewrite.applyRuleAtId(f6, 5, Rules.fuseZipTuple)
-    println(NumberPrinter(f7))
+    val f8 = Rewrite.applyRuleAtId(f7, 6, Rules.mapFusionInZip)
+    val f9 = Rewrite.applyRuleAtId(f8, 7, Rules.reduceFusionInZip)
+    val f10 = Rewrite.applyRuleAtId(f9, 8, Rules.mapFusionInZip)
+    val f11 = Rewrite.applyRuleAtId(f10, 5, Rules.mapFusion)
 
+    // TODO: Tuple call inlined...
+    val f12 = Rewrite.applyRuleAtId(f11, 6, MacroRules.reduceMapFusion)
+
+    TypeChecker(f12)
   }
 
 }
