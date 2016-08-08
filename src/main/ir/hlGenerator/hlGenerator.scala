@@ -8,14 +8,20 @@ import ir.ast._
 import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Execute}
 import opencl.ir._
+import opencl.ir.pattern.toGlobal
 import rewriting.{EnabledMappings, Lower}
+
 import scala.language.reflectiveCalls
 object hlGenerator{
   var ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
   var FunCallList: ArrayBuffer[FunCall] = new ArrayBuffer[FunCall]()
   var LambdaList: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
 
+
+
   //Used for debug
+  val LoopNum = 16
+  val ReduceInitToGlobal = false
   var AssignedChoiceNum = 0
   //avoid for redundant
   //Join
@@ -67,7 +73,8 @@ object hlGenerator{
       }
       catch{
         case e:Throwable =>
-          //println("catch a exception in lower-parser")
+          println("catch a exception in lower-parser-by-user")
+          e.printStackTrace()
           writeln(w,"catch a exception in lower-parser-by-user")
           e.printStackTrace(w)
           return
@@ -76,13 +83,13 @@ object hlGenerator{
       //4. compile the lambda
       var code = ""
       try {
-        //println(fs.head.toString)
+        println(fs.head.toString)
         writeln(w,fs.head.toString)
         code = Compile(fs.head)
       }
       catch{
         case e:Throwable =>
-          //println("catch a exception in compiler")
+          println("catch a exception in compiler-by-user")
           writeln(w,"catch a exception in compiler-by-user")
           e.printStackTrace(w)
           return
@@ -94,15 +101,19 @@ object hlGenerator{
             val(output_exe:Float,runtime) = Execute(1,1)(code,fs.head,Args:_*)
             val output_int = Interpreter(l).->[Float].run(Args:_*)
             if(output_exe == output_int){
-             writeln(w,"results eq-by-user")
+              println("results eq-by-user")
+              writeln(w,"results eq-by-user")
             }
             else{
+              println("results ne-by-user")
               writeln(w,"results ne-by-user")
             }
 
           }
           catch{
             case e:Throwable =>
+              println("catch a exception in execator-by-user")
+              e.printStackTrace()
               writeln(w,"catch a exception in execator-by-user")
               e.printStackTrace(w)
               return
@@ -120,6 +131,8 @@ object hlGenerator{
           }
           catch{
             case e:Throwable =>
+              println("catch a exception in execator-by-user")
+              e.printStackTrace()
               writeln(w,"catch a exception in execator-by-user")
               e.printStackTrace(w)
               return
@@ -137,6 +150,8 @@ object hlGenerator{
           }
           catch{
             case e:Throwable =>
+              println("catch a exception in execator-by-user")
+              e.printStackTrace()
               writeln(w,"catch a exception in execator-by-user")
               e.printStackTrace(w)
               return
@@ -154,11 +169,14 @@ object hlGenerator{
           }
           catch{
             case e:Throwable =>
+              println("catch a exception in execator-by-user")
+              e.printStackTrace()
               writeln(w,"catch a exception in execator-by-user")
               e.printStackTrace(w)
               return
           }
         case _=>
+          println("Type unimplemented,Ignored-by-user")
           writeln(w,"Type unimplemented,Ignored-by-user")
       }
 
@@ -166,7 +184,7 @@ object hlGenerator{
 
     }
     else{
-      //println("Doesn't contains UserFun, Ignored")
+      println("Doesn't contains UserFun, Ignored-by-user")
       writeln(w,"Doesn't contains UserFun or Map, Ignored-by-user")
       return
     }
@@ -178,14 +196,15 @@ object hlGenerator{
     for(i <- 0 until res.length){
       val l = res(i)
       //prints the basic informations about l
-      //println("Lambda Num:" + i)
-      //println(l.toString)
-      //l.params.foreach(p => println(p.t.toString))
+      println("Lambda Num:" + i)
+      println(l.toString)
+      l.params.foreach(p => println(p.t.toString))
       writeln(w,"Lambda Num:" + i)
       writeln(w,l.toString)
       l.params.foreach(p => writeln(w,p.t.toString))
       trySingleLambda(l,w)
       w.flush()
+      System.out.flush()
     }
   }
 
@@ -196,7 +215,7 @@ object hlGenerator{
     ParamList += Param(ArrayType(Float,32))
     ParamList += Param(Float)
     ParamList += Param(Float)
-    val totalRounds = 30
+    val totalRounds = LoopNum
     for(i<- 0 until totalRounds){
       generateLambda()
       //val test = LambdaList
@@ -204,6 +223,16 @@ object hlGenerator{
     }
   }
 
+  private def getArg(id:Int):Expr = {
+    val ParamLength = ParamList.length
+    val FunCallLength = FunCallList.length
+    id match{
+      case t if t<ParamLength =>
+        ParamList(t)
+      case t if t >= ParamLength =>
+        FunCallList(t-ParamLength)
+    }
+  }
   private def replaceParam(p:Param,oldP:Param,newP:Param):Param ={
     if(p.eq(oldP)){
       newP
@@ -363,7 +392,9 @@ object hlGenerator{
                             replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
                               LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
                             LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
-                          val F = FunCall(Reduce(L2), ParamList(j1), ParamList(k1))
+                          //to avoid use init value multiple times:
+                          //val F = FunCall(Reduce(L2), ParamList(j1), ParamList(k1))
+                          val F = FunCall(Reduce(L2), Param(ParamList(j1).t), ParamList(k1))
                           F.t = ArrayType(TofJ, 1)
                           val Args = countParam(F)
                           val L3 = Lambda(Args.toArray[Param], F)
@@ -385,7 +416,9 @@ object hlGenerator{
                             replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
                               LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
                             LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
-                          val F = FunCall(Reduce(L2), ParamList(j1), FunCallList(k1))
+                          //to avoid use init value multiple times:
+                          //val F = FunCall(Reduce(L2), ParamList(j1), FunCallList(k1))
+                          val F = FunCall(Reduce(L2), Param(ParamList(j1).t), FunCallList(k1))
                           F.t = ArrayType(TofJ, 1)
                           val Args = countParam(F)
                           val L3 = Lambda(Args.toArray[Param], F)
@@ -412,13 +445,24 @@ object hlGenerator{
                             replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
                               LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
                             LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
-                          val F = FunCall(Reduce(L2), FunCallList(j1), ParamList(k1))
-                          F.t = ArrayType(TofJ, 1)
-                          val Args = countParam(F)
-                          val L3 = Lambda(Args.toArray[Param], F)
-                          tempFunCallList += F
-                          tempLambdaList += L3
-                          Reduce_L_I_E += ((i, (2, j1), (1, k1)))
+                          if(ReduceInitToGlobal){
+                            val F = FunCall(Reduce(L2), FunCall(toGlobal(FunCallList(j1).f),FunCallList(j1).args:_*), ParamList(k1))
+                            F.t = ArrayType(TofJ, 1)
+                            val Args = countParam(F)
+                            val L3 = Lambda(Args.toArray[Param], F)
+                            tempFunCallList += F
+                            tempLambdaList += L3
+                            Reduce_L_I_E += ((i, (2, j1), (1, k1)))
+                          }
+                          else {
+                            val F = FunCall(Reduce(L2), FunCallList(j1), ParamList(k1))
+                            F.t = ArrayType(TofJ, 1)
+                            val Args = countParam(F)
+                            val L3 = Lambda(Args.toArray[Param], F)
+                            tempFunCallList += F
+                            tempLambdaList += L3
+                            Reduce_L_I_E += ((i, (2, j1), (1, k1)))
+                          }
                         }
                       }
                     case _=>
@@ -434,13 +478,24 @@ object hlGenerator{
                             replaceParam(Lambda(Array(LambdaList(i).params(j), LambdaList(i).params(k)), LambdaList(i).body),
                               LambdaList(i).params(j), Param(LambdaList(i).params(j).t)),
                             LambdaList(i).params(k), Param(LambdaList(i).params(k).t))
-                          val F = FunCall(Reduce(L2), FunCallList(j1), FunCallList(k1))
-                          F.t = ArrayType(TofJ, 1)
-                          val Args = countParam(F)
-                          val L3 = Lambda(Args.toArray[Param], F)
-                          tempFunCallList += F
-                          tempLambdaList += L3
-                          Reduce_L_I_E += ((i, (2, j1), (2, k1)))
+                          if(ReduceInitToGlobal){
+                            val F = FunCall(Reduce(L2), FunCall(toGlobal(FunCallList(j1).f),FunCallList(j1).args:_*), FunCallList(k1))
+                            F.t = ArrayType(TofJ, 1)
+                            val Args = countParam(F)
+                            val L3 = Lambda(Args.toArray[Param], F)
+                            tempFunCallList += F
+                            tempLambdaList += L3
+                            Reduce_L_I_E += ((i, (2, j1), (2, k1)))
+                          }
+                          else {
+                            val F = FunCall(Reduce(L2), FunCallList(j1), FunCallList(k1))
+                            F.t = ArrayType(TofJ, 1)
+                            val Args = countParam(F)
+                            val L3 = Lambda(Args.toArray[Param], F)
+                            tempFunCallList += F
+                            tempLambdaList += L3
+                            Reduce_L_I_E += ((i, (2, j1), (2, k1)))
+                          }
                         }
                       }
                     case _=>
@@ -759,18 +814,38 @@ object hlGenerator{
                   util.Random.nextInt(zipArrayLimit)
               }
               val Args = scala.collection.mutable.ArrayBuffer[Expr]()
-
+              for(i <- 0 until randArgs){
+                Args += getArg(AId(util.Random.nextInt(randArgs)))
+              }
+              val F =FunCall(Zip(a0Len.eval), Args:_*)
+              val params = countParam(F)
+              val L = Lambda(params.toArray[Param],F)
+              TypeChecker(L)
+              tempFunCallList += F
+              tempLambdaList += L
             }
           case _ =>
         }
       }
-
     }
     Zip_P = ParamList.length
     Zip_F = FunCallList.length
+    val resLen = tempFunCallList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        FunCallList += tempFunCallList(randRes)
+        LambdaList += tempLambdaList(randRes)
+      }
+    }
+    else {
+      FunCallList ++= tempFunCallList
+      LambdaList ++= tempLambdaList
+    }
 
   }
   private def matchGet(limitNum:Int):Unit ={
+
 
   }
   /*This is a random-pick version,now we will use a enumeration version!
