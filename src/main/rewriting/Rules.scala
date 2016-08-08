@@ -174,10 +174,20 @@ object Rules {
   val mapFusion = Rule("Map(f) o Map(g) => Map(f o g)", {
 
     case FunCall(Map(l1@Lambda(p1, f)), FunCall(Map(l2@Lambda(p2, g)), arg)) =>
+      val paramUsedMultipleTimes =
+        Expr.visitWithState(0)(f, (e, c) => {
+          e match {
+            case p2: Param => if (p1.head.eq(p2)) c + 1 else c
+            case _ => c
+          }}) > 1
 
-//      Map(fun(x => l1 o l2 $ x)) $ arg
-      val newLambda = Lambda(p2, Expr.replace(f, p1.head, g))
-      Map(newLambda) $ arg
+      // TODO: Avoid simplifier getting stuck. Figure out what's different
+      if (paramUsedMultipleTimes) {
+        Map(l1 o l2) $ arg
+      } else {
+        val newLambda = Lambda(p2, Expr.replace(f, p1.head, g))
+        Map(newLambda) $ arg
+      }
 
     case FunCall(map@Map(Lambda(p1, f1)),
     call@FunCall(Lambda(p, FunCall(Map(Lambda(p2, f2)), _)), arg)) =>
