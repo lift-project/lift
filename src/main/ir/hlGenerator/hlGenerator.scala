@@ -20,7 +20,7 @@ object hlGenerator{
 
 
   //Used for debug
-  val LoopNum = 16
+  val LoopNum = 30
   val ReduceInitToGlobal = false
   var AssignedChoiceNum = 0
   //avoid for redundant
