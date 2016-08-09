@@ -263,31 +263,19 @@ object TypedOpenCLMemory {
       @scala.annotation.tailrec
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
+        // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
         addressSpace match {
-          // TODO: figure out if this is actually helpful
           case PrivateMemory =>
             m match {
-              case _: MapSeq =>
-                TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
-              case _ =>
+              case _: MapGlb | _: MapWrg  | _: Map =>
                 tm
+              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
+
+                var privateMultiplier = m.iterationCount
+                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+
+                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
             }
-
-          case GlobalMemory => //| PrivateMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
-
-            // TODO: Incorrect type returned for PrivateMemory.
-//          case PrivateMemory =>
-//            m match {
-//              case _: MapGlb | _: MapWrg  | _: Map =>
-//                tm
-//              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-//
-//                var privateMultiplier = m.iterationCount
-//                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
-//
-//                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
-//            }
           case LocalMemory =>
             m match {
               case _: MapGlb | _: MapWrg  | _: Map =>
@@ -295,6 +283,9 @@ object TypedOpenCLMemory {
               case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
                 TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
             }
+          case GlobalMemory =>
+            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+
           case coll: AddressSpaceCollection =>
             changeType(coll.findCommonAddressSpace(), tm)
         }

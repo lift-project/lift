@@ -382,10 +382,6 @@ class Reuse {
     assertArrayEquals(gold, output, 0.0001f)
   }
 
-  // TODO: Not enough private memory allocated!
-  // TODO: Uses one same accumulator where there should be 2 and where
-  // TODO: it explicitly says that (Value("0.0f", ArrayType(Float, blockSize))),
-  // TODO: consequently writes the same value to 2 locations.
   @Test def mmTiledReuseA(): Unit = {
     val mSize = 16
     val kSize = 16
