@@ -848,8 +848,7 @@ class TestMisc {
     assertEquals(9, "l_id".r.findAllMatchIn(kernel).length)
   }
 
-  // Maybe this is correct now   ...
-  // TODO: figure out if that's true
+  // TODO: Definitely not correct, see issue 47 and issue 55.
   @Test(expected = classOf[OpenCLGeneratorException])
   def issue47(): Unit = {
     val factory = (variables: Seq[ArithExpr]) => {
