@@ -3,10 +3,22 @@ package rewriting
 import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
-import org.junit.Test
-import rewriting.utils.NumberPrinter
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Test}
 
+object TestRewriteGesummv {
+  @BeforeClass
+  def before(): Unit = {
+    Executor.loadLibrary()
+    Executor.init()
+  }
+
+  @AfterClass def after(): Unit = {
+    Executor.shutdown()
+  }
+}
 
 class TestRewriteGesummv {
 
@@ -62,7 +74,33 @@ class TestRewriteGesummv {
     val f11 = Rewrite.applyRuleAtId(f10, 5, Rules.mapFusion)
     val f12 = Rewrite.applyRuleAtId(f11, 6, MacroRules.reduceMapFusion)
 
-    TypeChecker(f12)
+    // Not strictly necessary, but makes it look nicer
+    val f13 = Rewrite.applyRuleAtId(f12, 47, Rules.tupleInline)
+    val f14 = Rewrite.applyRuleAtId(f13, 17, Rules.tupleInline)
+
+    val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapGlb)
+    val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapSeq)
+
+    val f17 = Rewrite.applyRuleAtId(f16, 5, Rules.globalMemory)
+
+    // Won't write to accumulator without this
+    val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
+
+    val n = 128
+
+    val alpha = 2.0f
+    val beta = 1.5f
+    val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
+    val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+    val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+
+    val tmp1Gold = Utils.matrixVector(A, x, alpha)
+    val tmp2Gold = Utils.matrixVector(B, x, beta)
+    val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
+
+    val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
+
+    assertArrayEquals(yGold, y, 0.001f)
   }
 
 }

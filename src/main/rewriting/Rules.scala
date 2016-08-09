@@ -1068,6 +1068,73 @@ object Rules {
       f o generateCopy(arg.t) $ arg
   })
 
+  val tupleInline = Rule("tupleInline", {
+    case call@FunCall(Lambda(params, body), args@_*)
+      if {
+        val id = args.indexWhere({
+          case FunCall(Tuple(_), _*) => true
+          case _ => false
+        })
+
+        if (id != -1) {
+          val param = params(id)
+
+          val containsNonGetUsage =
+            body.contains({
+              case FunCall(f, args@_*)
+                if args.contains(param) && !f.isInstanceOf[Get] =>
+            })
+
+          !containsNonGetUsage
+        } else {
+          false
+        }
+      }
+    =>
+
+      val id = args.indexWhere({
+        case FunCall(Tuple(_), _*) => true
+        case _ => false
+      })
+
+      val tupleCall = args(id)
+      val tupleArgs = tupleCall.asInstanceOf[FunCall].args
+
+      val param = params(id)
+
+      val gets = Utils.findGets(body, param)
+
+      val bodyReplaced = gets.foldLeft(body)({
+        case (current, get@FunCall(Get(n), _)) =>
+          Expr.replace(current, get, tupleArgs(n))
+      })
+
+     if (args.length > 1) {
+       val newLambda = Lambda(params.diff(Array(param)), bodyReplaced)
+       newLambda(args.diff(Seq(tupleCall)): _*)
+     } else {
+       bodyReplaced
+     }
+  })
+
+  val tupleToStruct = Rule("tupleToStruct", {
+    case call@FunCall(Tuple(_), args@_*)
+      if {
+        var containsArray = false
+
+        Type.visit(call.t, _ => Unit,
+          t => if (t.isInstanceOf[ArrayType]) containsArray = true)
+
+        !containsArray
+      }
+    =>
+
+      val copyFun = UserFun(s"id_${Type.name(call.t)}", "x",
+        "{ return x; }", call.t, call.t)
+
+      copyFun $ call
+  })
+
   val tupleMap = Rule("Tuple(Map(f) $ .. , Map(g) $ .., ...) => " +
     "Unzip() o Map(x => Tuple(f $ Get(x, 0), g $ Get(x, 1), ...) $ Zip(...) ", {
     case FunCall(Tuple(_), args@_*)
