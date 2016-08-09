@@ -1,6 +1,5 @@
 package ir.ast
 
-import apart.arithmetic.Var
 import apart.arithmetic.SizeVar
 import ir.{ArrayType, TupleType}
 import opencl.ir._
