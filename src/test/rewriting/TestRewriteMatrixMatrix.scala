@@ -9,7 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-import rewriting.utils.{NumberExpression, NumberPrinter}
+import rewriting.utils.NumberExpression
 
 object TestRewriteMatrixMatrix {
   @BeforeClass def before(): Unit = {
@@ -117,20 +117,20 @@ class TestRewriteMatrixMatrix {
     val f2 = Rewrite.applyRuleAtId(f1, 31, Rules.addIdForCurrentValueInReduce)
     val f3 = Rewrite.applyRuleAtId(f2, 46, Rules.implementIdAsDeepCopy)
     val f4 = Rewrite.applyRuleAtId(f3, 91, Rules.implementOneLevelOfId)
-    println(NumberPrinter(f4))
-    val f5 = Rewrite.applyRuleAtId(f4, 99, Rules.dropId)
-    val f6 = Rewrite.applyRuleAtId(f5, 96, Rules.implementIdAsDeepCopy)
-    val f7 = Rewrite.applyRuleAtId(f6, 105, Rules.addCopy)
-    val f8 = Rewrite.applyRuleAtId(f7, 48, Rules.tupleMap)
-    val f9 = Rewrite.applyRuleAtId(f8, 55, Rules.tupleMap)
+    val f5 = Rewrite.applyRuleAtId(f4, 95, Rules.dropId)
+    val f6 = Rewrite.applyRuleAtId(f5, 92, Rules.implementIdAsDeepCopy)
+    val f7 = Rewrite.applyRuleAtId(f6, 101, Rules.addCopy)
+    val f8 = Rewrite.applyRuleAtId(f7, 46, Rules.tupleMap)
+    val f9 = Rewrite.applyRuleAtId(f8, 53, Rules.tupleMap)
 
     // Lower to OpenCL execution model
     val f10 = Lower.simpleMapLoweringStrategy(f9)
 
+
     // Lower to OpenCL memory model
-    val f11 = Rewrite.applyRuleAtId(f10, 49, Rules.localMemory)
-    val f12 = Rewrite.applyRuleAtId(f11, 114, Rules.privateMemory)
-    val f13 = Rewrite.applyRuleAtId(f12, 104, Rules.privateMemory)
+    val f11 = Rewrite.applyRuleAtId(f10, 47, Rules.localMemory)
+    val f12 = Rewrite.applyRuleAtId(f11, 110, Rules.privateMemory)
+    val f13 = Rewrite.applyRuleAtId(f12, 103, Rules.privateMemory)
 
     val mSize = 256
     val kSize = 256
@@ -483,8 +483,8 @@ class TestRewriteMatrixMatrix {
 
     val numExpressionsHighLevel = NumberExpression.breadthFirst(f8).values.max
     assertEquals(87, numExpressionsHighLevel)
-    // Lower and vectorise
 
+    // Lower and vectorise
     val g0 = Rewrite.applyRuleAtId(f8, 27, Rules.addIdAfterReduce)
     val g1 = Rewrite.applyRuleAtId(g0, 78, Rules.implementIdAsDeepCopy)
     val g2 = Rewrite.applyRuleAtId(g1, 78, Rules.globalMemory)
@@ -495,21 +495,21 @@ class TestRewriteMatrixMatrix {
     val g6 = Rewrite.applyRuleAtId(g5, 28, Rules.addIdForCurrentValueInReduce)
     val g7 = Rewrite.applyRuleAtId(g6, 43, Rules.localMemory)
     val g8 = Rewrite.applyRuleAtId(g7, 45, Rules.implementIdAsDeepCopy)
-    val g10 = Rewrite.applyRuleAtId(g8, 55, MacroRules.reshapeMapMap)
+    val g10 = Rewrite.applyRuleAtId(g8, 53, MacroRules.reshapeMapMap)
 
-    val g11 = Rewrite.applyRuleAtId(g10, 62, Rules.vectorize(4))
-    val g12 = Rewrite.applyRuleAtId(g11, 51, Rules.vectorize(4))
+    val g11 = Rewrite.applyRuleAtId(g10, 60, Rules.vectorize(4))
+    val g12 = Rewrite.applyRuleAtId(g11, 49, Rules.vectorize(4))
 
     val g13 = Lower.lowerNextLevelWithRule(g12, Rules.mapLcl(1))
     val g14 = Lower.lowerNextLevelWithRule(g13, Rules.mapLcl(0))
 
-    val g15 = Rewrite.applyRuleAtId(g14, 86, Rules.addIdForCurrentValueInReduce)
-    val g16 = Rewrite.applyRuleAtId(g15, 97, Rules.privateMemory)
-    val g17 = Rewrite.applyRuleAtId(g16, 99, Rules.implementIdAsDeepCopy)
+    val g15 = Rewrite.applyRuleAtId(g14, 84, Rules.addIdForCurrentValueInReduce)
+    val g16 = Rewrite.applyRuleAtId(g15, 95, Rules.privateMemory)
+    val g17 = Rewrite.applyRuleAtId(g16, 97, Rules.implementIdAsDeepCopy)
     val g18 = Lower.lowerNextLevelWithRule(g17, Rules.mapSeq)
 
     val numExpressionsFinal = NumberExpression.breadthFirst(g18).values.max
-    assertEquals(155, numExpressionsFinal)
+    assertEquals(151, numExpressionsFinal)
   }
 
   @Ignore
