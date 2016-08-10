@@ -21,6 +21,7 @@ object hlGenerator{
 
   //Used for debug
   val LoopNum = 30
+  val consequentUserFun = false
   val ReduceInitToGlobal = false
   var AssignedChoiceNum = 0
   //avoid for redundant
@@ -626,70 +627,150 @@ object hlGenerator{
     val tempFunCallList = ArrayBuffer[FunCall]()
     val tempLambdaList = ArrayBuffer[Lambda]()
     val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])
-    for(i1<- ParamList.indices){
-      for(i2<- ParamList.indices){
-        if(!Add_Check(((1,i1),(1,i2)))){
-          if(ParamList(i1).t == Float && ParamList(i2).t == Float){
-            val F = FunCall(add,ParamList(i1),ParamList(i2))
-            F.t = Float
-            val Args = countParam(F)
-            val L =Lambda(Args.toArray[Param],F)
-            tempFunCallList += F
-            tempLambdaList += L
+    if(!consequentUserFun){
+      for (i1 <- ParamList.indices) {
+        for (i2 <- ParamList.indices) {
+          if (!Add_Check(((1, i1), (1, i2)))) {
+            if (ParamList(i1).t == Float && ParamList(i2).t == Float) {
+              val F = FunCall(add, ParamList(i1), ParamList(i2))
+              F.t = Float
+              val Args = countParam(F)
+              val L = Lambda(Args.toArray[Param], F)
+              tempFunCallList += F
+              tempLambdaList += L
+            }
+            Add_Check += (((1, i1), (1, i2)))
+            Add_Check += (((1, i2), (1, i1)))
           }
-          Add_Check += (((1,i1),(1,i2)))
-          Add_Check += (((1,i2),(1,i1)))
+        }
+        for (i2 <- FunCallList.indices) {
+          if (!Add_Check(((1, i1), (2, i2)))) {
+            if (ParamList(i1).t == Float && FunCallList(i2).t == Float ) {
+              FunCallList(i2).f match {
+                case u:UserFun =>
+                case _=>
+                  val F = FunCall (add, ParamList (i1), FunCallList (i2) )
+                  F.t = Float
+                  val Args = countParam (F)
+                  val L = Lambda (Args.toArray[Param], F)
+                  tempFunCallList += F
+                  tempLambdaList += L
+              }
+            }
+            Add_Check += (((1, i1), (2, i2)))
+            Add_Check += (((1, i2), (2, i1)))
+
+          }
         }
       }
-      for(i2<- FunCallList.indices){
-        if(!Add_Check_FunCall(i2) && !Add_Check(((1,i1),(2,i2)))){
-          if(ParamList(i1).t == Float && FunCallList(i2).t == Float){
-            val F = FunCall(add,ParamList(i1),FunCallList(i2))
-            F.t = Float
-            val Args = countParam(F)
-            val L =Lambda(Args.toArray[Param],F)
-            tempFunCallList += F
-            tempLambdaList += L
-            Add_Check_FunCall += i2
-          }
-          Add_Check += (((1,i1),(2,i2)))
-          Add_Check += (((1,i2),(2,i1)))
+      for (i1 <- FunCallList.indices) {
+        FunCallList(i1).f match{
+          case u:UserFun =>
+          case _=>
+            for (i2 <- ParamList.indices) {
+              if (Add_Check(((2, i1), (1, i2)))) {
+                if (FunCallList(i1).t == Float && ParamList(i2).t == Float) {
 
+                      val F = FunCall (add, FunCallList (i1), ParamList (i2) )
+                      F.t = Float
+                      val Args = countParam (F)
+                      val L = Lambda (Args.toArray[Param], F)
+                      tempFunCallList += F
+                      tempLambdaList += L
+                }
+                Add_Check += (((2, i1), (1, i2)))
+                Add_Check += (((2, i2), (1, i1)))
+              }
+            }
+            for (i2 <- FunCallList.indices) {
+              if (!Add_Check(((2, i1), (2, i2)))) {
+                if (FunCallList(i1).t == Float && FunCallList(i2).t == Float) {
+                  FunCallList(i2).f match {
+                    case u:UserFun =>
+                    case _=>
+                      val F = FunCall (add, FunCallList (i1), FunCallList (i2) )
+                      F.t = Float
+                      val Args = countParam (F)
+                      val L = Lambda (Args.toArray[Param], F)
+                      tempFunCallList += F
+                      tempLambdaList += L
+                  }
+                }
+                Add_Check += (((2, i1), (2, i2)))
+                Add_Check += (((2, i2), (2, i1)))
+
+              }
+            }
         }
+
       }
     }
-    for(i1<-FunCallList.indices){
-      for(i2<-ParamList.indices){
-        if(!Add_Check_FunCall(i1) && !Add_Check(((2,i1),(1,i2)))){
-          if(FunCallList(i1).t == Float && ParamList(i2).t == Float){
-            val F = FunCall(add,FunCallList(i1),ParamList(i2))
-            F.t = Float
-            val Args = countParam(F)
-            val L =Lambda(Args.toArray[Param],F)
-            tempFunCallList += F
-            tempLambdaList += L
-            Add_Check_FunCall += i1
+    else {
+      for (i1 <- ParamList.indices) {
+        for (i2 <- ParamList.indices) {
+          if (!Add_Check(((1, i1), (1, i2)))) {
+            if (ParamList(i1).t == Float && ParamList(i2).t == Float) {
+              val F = FunCall(add, ParamList(i1), ParamList(i2))
+              F.t = Float
+              val Args = countParam(F)
+              val L = Lambda(Args.toArray[Param], F)
+              tempFunCallList += F
+              tempLambdaList += L
+            }
+            Add_Check += (((1, i1), (1, i2)))
+            Add_Check += (((1, i2), (1, i1)))
           }
-          Add_Check += (((2,i1),(1,i2)))
-          Add_Check += (((2,i2),(1,i1)))
+        }
+        for (i2 <- FunCallList.indices) {
+          if (!Add_Check_FunCall(i2) && !Add_Check(((1, i1), (2, i2)))) {
+            if (ParamList(i1).t == Float && FunCallList(i2).t == Float) {
+              val F = FunCall(add, ParamList(i1), FunCallList(i2))
+              F.t = Float
+              val Args = countParam(F)
+              val L = Lambda(Args.toArray[Param], F)
+              tempFunCallList += F
+              tempLambdaList += L
+              Add_Check_FunCall += i2
+            }
+            Add_Check += (((1, i1), (2, i2)))
+            Add_Check += (((1, i2), (2, i1)))
 
+          }
         }
       }
-      for(i2<-FunCallList.indices){
-        if(!Add_Check_FunCall(i1) && !Add_Check_FunCall(i2) && !Add_Check(((2,i1),(2,i2)))){
-          if(FunCallList(i1).t == Float && FunCallList(i2).t == Float){
-            val F = FunCall(add,FunCallList(i1),FunCallList(i2))
-            F.t = Float
-            val Args = countParam(F)
-            val L =Lambda(Args.toArray[Param],F)
-            tempFunCallList += F
-            tempLambdaList += L
-            Add_Check_FunCall += i1
-            Add_Check_FunCall += i2
-          }
-          Add_Check += (((2,i1),(2,i2)))
-          Add_Check += (((2,i2),(2,i1)))
+      for (i1 <- FunCallList.indices) {
+        for (i2 <- ParamList.indices) {
+          if (!Add_Check_FunCall(i1) && !Add_Check(((2, i1), (1, i2)))) {
+            if (FunCallList(i1).t == Float && ParamList(i2).t == Float) {
+              val F = FunCall(add, FunCallList(i1), ParamList(i2))
+              F.t = Float
+              val Args = countParam(F)
+              val L = Lambda(Args.toArray[Param], F)
+              tempFunCallList += F
+              tempLambdaList += L
+              Add_Check_FunCall += i1
+            }
+            Add_Check += (((2, i1), (1, i2)))
+            Add_Check += (((2, i2), (1, i1)))
 
+          }
+        }
+        for (i2 <- FunCallList.indices) {
+          if (!Add_Check_FunCall(i1) && !Add_Check_FunCall(i2) && !Add_Check(((2, i1), (2, i2)))) {
+            if (FunCallList(i1).t == Float && FunCallList(i2).t == Float) {
+              val F = FunCall(add, FunCallList(i1), FunCallList(i2))
+              F.t = Float
+              val Args = countParam(F)
+              val L = Lambda(Args.toArray[Param], F)
+              tempFunCallList += F
+              tempLambdaList += L
+              Add_Check_FunCall += i1
+              Add_Check_FunCall += i2
+            }
+            Add_Check += (((2, i1), (2, i2)))
+            Add_Check += (((2, i2), (2, i1)))
+
+          }
         }
       }
     }
