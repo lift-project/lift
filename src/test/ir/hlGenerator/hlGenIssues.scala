@@ -23,6 +23,75 @@ object hlGenIssues{
   }
 }
 class hlGenIssues{
+  @Ignore @Test def IssuePrivateMemoryNotEvaluable():Unit={
+    val f = fun(
+      Float,
+      ArrayType(ArrayType(Float,32),32),
+      Float,
+      ArrayType(Float,32),
+      (p99,p102,p226,p239) =>{
+        Map(fun((p24) =>
+          Join() o Map(fun((p157) =>
+            Reduce(fun((p20,p195)=>
+              add(p20,p195)
+            ))(add(p24,p99),p157)
+          )) $ p102
+        ))(Reduce(fun((p215,p49) =>
+          add(p215,p49)
+        ))(add(p226,p226),p239))
+      }
+    )
+    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    TypeChecker(fs.head)
+    val code = Compile(fs.head)
+    val Args = scala.collection.mutable.ArrayBuffer[Any]()
+    for (j <- f.params.indices) {
+      f.params(j).t match {
+        case ArrayType(ArrayType(Float, l1), l2) =>
+          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+        case ArrayType(Float, l1) =>
+          Args += Array.fill(l1.eval)(2.0f)
+        case Float =>
+          Args += 3.0f
+        case _=>
+      }
+    }
+    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
+    val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
+    assert(output_exe.corresponds(output_int)(_==_))
+  }
+  @Ignore @Test def IssueWriteIntoReadonlyMemory():Unit={
+    val f = fun(
+      ArrayType(Float,32),
+      ArrayType(Float,32),
+      (p101,p241) =>{
+        Map(fun((p66) =>
+          Reduce(fun((p171,p223)=>
+            add(p171,p223)
+          ))(p66,p101)
+        ))(p241)
+      }
+    )
+    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    TypeChecker(fs.head)
+    val code = Compile(fs.head)
+    val Args = scala.collection.mutable.ArrayBuffer[Any]()
+    for (j <- f.params.indices) {
+      f.params(j).t match {
+        case ArrayType(ArrayType(Float, l1), l2) =>
+          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+        case ArrayType(Float, l1) =>
+          Args += Array.fill(l1.eval)(2.0f)
+        case Float =>
+          Args += 3.0f
+        case _=>
+      }
+    }
+    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
+    val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
+    assert(output_exe.corresponds(output_int)(_==_))
+
+  }
   @Ignore @Test def issue76(): Unit ={
     val f = fun(
       Float,
