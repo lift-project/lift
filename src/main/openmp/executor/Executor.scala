@@ -6,11 +6,11 @@ import ir.{ArrayType, TupleType, Type}
 
 import sys.process._
 import scala.language.postfixOps
-import ir.ast.{Lambda, UserFun, Zip, fun}
+import ir.ast.{Get, Lambda, UserFun, Value, Zip, fun}
 import opencl.ir.{pattern, _}
-import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
+import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
-import openmp.ir.pattern.{:+, MapPar, ReducePar}
+import openmp.ir.pattern.{:+, MapOMP$, ReduceOMP}
 
 /**
   * Created by Federico on 15-Jul-16.
@@ -22,6 +22,8 @@ object Executor {
     val commands = compileAndGenerateCommands(kernel,data, path)
     val text = commands.reduce((x,y) => { x ++ "\n" ++ y})
     new PrintWriter(new BufferedWriter(new FileWriter(path + "/run.sh"))) { write(text); close}
+    val params = generateDataParameter(data)
+    new PrintWriter(new BufferedWriter(new FileWriter(path + "/data.txt"))) {write(params); close}
   }
 
   def compileAndRun(kernel:Lambda, data:Any) = {
@@ -30,8 +32,10 @@ object Executor {
   }
 
   private def compileAndGenerateCommands(kernel:Lambda, data:Any, path:String):List[String] = {
-    val programSource = Harness.generate(OMPGenerator, kernel)
+    val programSource = Harness.generate(OMPGenerator, kernel, Harness.GenerationOption(true,false,false))
     new PrintWriter(path + "/lift.c") { write(programSource); close }
+   // new PrintWriter(path + "/data.txt") { write(generateDataParameter(data)); close}
+
     val commands = generateCommands(data)
     commands
   }
@@ -41,64 +45,38 @@ object Executor {
   }
 
   private def generateCommands(data:Any):List[String] = {
-    val compileCommand = "gcc lift.c -o a.out -std=c99 -fopenmp"
+    val compileCommand = "gcc lift.c -o a.out -std=c99 -fopenmp -O3 -ftree-vectorize -lm"
     val programName = "./a.out"
-    val args = generateCommandLineArgs(data)
-    val runCommmand = if (isWindows) (s"$programName $args") else (s"./$programName $args")
+    val runCommmand = if (isWindows) (s"$programName") else (s"./$programName")
     List(compileCommand,runCommmand)
   }
 
 
-  private def generateCommandLineArgs(data:Any) = "\"#@" ++ encode(data) ++ "\""
+  private def generateDataParameter(data:Any) = {
+    val sb = new StringBuilder
+    sb.append("\"#@")
+    encode(data,sb)
+    sb.append("\"")
+    sb.toString()
+  }
 
-  private def encode(data:Any):String = data match {
-    case f:Float => f.toString
-    case i:Int => i.toString
-    case s:String => s
-    case xs:List[Any] => encodeList(xs)
+  private def encode(data:Any,sb:StringBuilder):Unit = data match {
+    case f:Float => sb.append(f.toString)
+    case i:Int => sb.append(i.toString)
+    case s:String => sb.append(s)
+    case xs:List[Any] => encodeList(xs,sb)
     case x => throw new Exception("Cannot encode scala value " + x.toString)
   }
 
-  private def encodeList(ls:List[Any]):String = ls match {
-    case _::_ => ls.reduce((x,y) => encode(x) ++ "_" ++ encode(y)).asInstanceOf[String]
-    case Nil => ""
+  private def encodeList(ls:List[Any],sb:StringBuilder):Unit = ls match {
+    case x::xs => {
+      encode(x,sb)
+      sb.append("_")
+      encodeList(xs,sb)
+      //ls.reduce((x,y) => encode(x) ++ "_" ++ encode(y)).asInstanceOf[String]
+    }
+    case Nil =>
   }
 
   private def isWindows:Boolean = System.getProperty("os.name").startsWith("Windows")
-
-  def main(args: Array[String]) {
-    val N = 1000
-    def genID(t:Type) = UserFun("id","x", "return x;",t,t)
-    def increment = UserFun("inc","x", "return x + 1;", Float, Float)
-    val f = fun(
-      ArrayType(Float,N),
-      A => {
-        MapSeq(increment) $ A
-      })
-    val f2Seq = fun (
-      ArrayType(Float, N),
-      Float,
-      (in,init) => {
-        toGlobal(MapSeq(id)) o ReduceSeq(add, init) $ in//o MapSeq(increment) o MapSeq(increment)  $ in
-      })
-    val f2Par = fun (
-      ArrayType(Float, N),
-      Float,
-      (in,init) => {
-        toGlobal(MapSeq(id)) o ReducePar(:+(Float), init) $ in //o MapPar(increment) o MapPar(increment)  $ in
-      })
-    val trivial = fun(Float, x => toGlobal(id) $ x)
-
-    val dotProdSeq = fun(
-      ArrayType(Float,N),
-      ArrayType(Float,N),
-      Float,
-      (inA,inB, init) => {
-          toGlobal(MapSeq(id)) o ReduceSeq(add, init) o MapSeq(mult) $ Zip(inA,inB)
-      }
-    )
-
-    val ls = (List.iterate(0,N)(x => x + 1)).map(_ => 1)
-    this.compileAndGenerateScript(dotProdSeq,ls ++ ls ++ List(0.0f),"D:/Test")
-  }
 }

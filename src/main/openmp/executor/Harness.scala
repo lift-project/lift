@@ -9,7 +9,7 @@ import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
-import openmp.ir.pattern.{:+, ReducePar}
+import openmp.ir.pattern.{:+, ReduceOMP}
 
 
 /**
@@ -19,32 +19,36 @@ object Harness {
 
   private var counter = 0
 
-  def apply(gen:CGenerator, kernel:Lambda):String = {
-    val cstring = this.generate(gen,kernel)
+  case class GenerationOption(val timing:Boolean, val ouput:Boolean, val debug:Boolean)
+  private val defaultOpt = GenerationOption(true,true,false)
+
+  def apply(gen:CGenerator, kernel:Lambda, opt:GenerationOption = defaultOpt):String = {
+    val cstring = this.generate(gen,kernel, opt)
     //Must now strip comments because the can screw up with openmp
     cstring
   }
 
-  def generate(gen:CGenerator, kernel: Lambda):String = {
+  def generate(gen:CGenerator, kernel: Lambda, opt:GenerationOption = defaultOpt):String = {
     this.counter = 0
     TypeChecker.check(kernel.body)
     val kernelSource = gen.generate(kernel,Array(?,?,?),Array(?,?,?), Map())
+    println(kernelSource)
     //This function is the actual C function, rather then lift function. We need it because the
     //parameters of this function who are not in the kernel proper need to be allocated nevertheless.
     //To obtain this information, for now, simply re-run the internal generator function which produced the
     //kernel in the first place. Call this function the cKernel.
     val cKernel = gen.generateKernel(kernel).asInstanceOf[CAst.Function]
-    val mainMethod = generateMainMethod(kernel, cKernel)
-    kernelSource ++ "\n" ++ mainMethod
+    val mainMethod = generateMainMethod(kernel, cKernel, opt)
+    harnessIncludes ++ kernelSource ++ "\n" ++ mainMethod
   }
 
-  private def generateMainMethod(kernel:Lambda, cKernel:CAst.Function):String = {
+  private def generateMainMethod(kernel:Lambda, cKernel:CAst.Function, opt:GenerationOption):String = {
     val stringBuilder = new StringBuilder
     stringBuilder.append("//Auto-generated runtime harness\n")
-    stringBuilder.append(harnessIncludes)
+    stringBuilder.append(readFileCode)
     stringBuilder.append("int main(int argc, char** argv) {\nint arrCount;\n")
     //The code that loads the actual lift program parameters (those of the lambda)
-    stringBuilder.append("char* inputData = strtok(argv[1],\"@\");\n")
+    stringBuilder.append("char* inputData = strtok(readFile(),\"@\");\n")
     kernel.params.foreach {x => stringBuilder.append(generateParameterCode(x))}
     //The code that allocates the intermediate arrays.
     //These are going to be those parameters which come after the proper parameters, minus the last one
@@ -55,13 +59,30 @@ object Harness {
       intermediateParameters.foreach { x => stringBuilder.append(generateIntermediateParameterAllocation(x)) }
     }
     //The invocation line
-    stringBuilder.append(generateInvocationCode(kernel, intermediateParameters.map(_.name)))
+    stringBuilder.append(generateInvocationCode(kernel, intermediateParameters.map(_.name),opt))
     stringBuilder.append("}")
     stringBuilder.toString()
   }
 
-  private def harnessIncludes = List("stdio.h","string.h", "sys/types.h", "sys/time.h", "malloc.h")
+  private def harnessIncludes = List("stdio.h","string.h", "sys/types.h", "sys/time.h", "malloc.h", "math.h")
     .map(x => s"#include <$x>").reduce(_ ++ "\n" ++ _) ++ "\n"
+
+
+  private val readFileCode =
+    """
+      |char *readFile() {
+      |  FILE* f = fopen("data.txt", "rb");
+      |  fseek(f, 0, SEEK_END);
+      |  long length = ftell(f);
+      |  fseek(f, 0, SEEK_SET);
+      |  char* buffer = malloc(length);
+      |  if(buffer) {
+      |    fread(buffer, 1, length, f);
+      |  }
+      |  fclose(f);
+      |  return buffer;
+      |}
+    """.stripMargin
 
   private def generateParameterCode(param:Param):String =s"//code for parameter $param\n" ++ declareVariable(param.t, param.toString) ++  scanInput(param.t, param.toString)
 
@@ -178,7 +199,7 @@ object Harness {
   //Represents a ForLoop's iteration variable and limit
   private case class CFor(limit:String) {
     val i = "i" ++ freshCount.toString
-    override def toString: String = s"for(int $i = 0; $i < $limit; $i++){\n"
+    override def toString: String = s"for(unsigned long $i = 0; $i < $limit; $i++){\n"
   }
 
   //An abstraction operations that have to execute within an array, independently of the
@@ -212,17 +233,20 @@ object Harness {
     }
 
     def accessFormula:String = {
-      //Pair up the dimension variable names with the size of the following dimension,
-      //using a null for the last dimension as a size is missing
-      val names = dimensions.map(_.i)
-      val sizes = dimensions.map(_.limit).take(dimensions.length-1) ++ List(null)
-      val bundled = names.zip(sizes)
-      //Now, for each pair, generate something of the form(size * variable) and then reduce with +
-      val index = bundled.map{
-        case (x,null) => x
-        case (x,y) => s"($y * $x)"
-      }.reduce(_ ++ " + " ++ _)
+      //For each dimension, generate triple name, size and limit
+      val index = dimensions
+        .zip(computeDimensionStride(dimensions,totalSize))
+        .map{case(dim,stride) => s"(${dim.i} * $stride)"}
+        .reduce(_ ++ " + " ++ _)
       s"$varName[$index]"
+    }
+
+    private def computeDimensionStride(dimensions:List[CFor], memorySize:String):List[String] = dimensions match {
+      case Nil => Nil
+      case x::xs => {
+        val stride = s"$memorySize/${x.limit}"
+        stride::computeDimensionStride(xs, stride)
+      }
     }
   }
 
@@ -241,22 +265,35 @@ object Harness {
   }
 
 
-  private def generateInvocationCode(kernel:Lambda, intermediateParameterNames:List[String]):String = {
+  private def generateInvocationCode(kernel:Lambda, intermediateParameterNames:List[String], opt:GenerationOption):String = {
     val sb = new StringBuilder()
     sb.append("//main invocation\n")
     sb.append(declareVariable(kernel.body.t,"output"))
     val paramNames = kernel.params.map(x => x.toString) ++ intermediateParameterNames
     val paramList = (paramNames.foldLeft("")((x,y) => x ++ ", " ++ y.toString) ++ ", output").substring(1)
-    sb.append("struct timeval tv;\n")
-    sb.append("gettimeofday(&tv, NULL);\n")
-    sb.append("suseconds_t startTime = tv.tv_usec;\n")
+    if(opt.debug) {
+      sb.append(cprintf("Calling liftKernel...\\n"))
+    }
+    if(opt.timing) {
+      sb.append("struct timeval startTime;\n")
+      sb.append("gettimeofday(&startTime, NULL);\n")
+    }
     sb.append(s"liftKernel($paramList);\n")
-    sb.append("gettimeofday(&tv, NULL);\n")
-    sb.append("suseconds_t endTime = tv.tv_usec;\n")
-    sb.append("suseconds_t totalTime = endTime - startTime;\n")
-    sb.append(writeVariable(kernel.body.t, "output"))
+    if(opt.timing) {
+      sb.append("struct timeval endTime;")
+      sb.append("gettimeofday(&endTime, NULL);\n")
+      sb.append("float totalTime = ((endTime.tv_sec * 1e6 + endTime.tv_usec) - (startTime.tv_sec * 1e6 + startTime.tv_usec))/1000;\n")
+    }
+    if(opt.debug) {
+      sb.append(cprintf("liftKernel returned...\\n"))
+    }
+    if(opt.ouput) {
+      sb.append(writeVariable(kernel.body.t, "output"))
+    }
     sb.append(cprintf("\\n"))
-    sb.append(cprintf("Elapsed time = %d\\n",List("totalTime")))
+    if(opt.timing) {
+      sb.append(cprintf("Elapsed time = %f\\n", List("totalTime")))
+    }
     sb.toString
   }
 
@@ -272,56 +309,5 @@ object Harness {
         typeName(t.elemT)
     }
     case t => throw new Exception("Unsupported type " ++ t.toString)
-  }
-
-  def main(args:Array[String]) = {
-    def genID(t:Type) = UserFun("id","x", "return x;",t,t)
-    def increment = UserFun("increment", "x", "return x + 1", Float,Float)
-    val f = fun(
-      ArrayType(TupleType(Float,Float),2),
-      A => {
-        MapSeq(genID(TupleType(Float,Float))) $ A
-      })
-    val f2 = fun (
-      ArrayType(Float, 100),
-      Float,
-      (in,init) => {
-        toGlobal(MapSeq(id)) o ReduceSeq(add, init) o MapSeq(increment) o MapSeq(increment)  $ in
-      })
-    val reducePar = fun(
-      ArrayType(Float, SizeVar("N")),
-      Float,
-      (in, init) => {
-        toGlobal(MapSeq(id)) o ReducePar(:+(Float), init) $ in
-      }
-    )
-    val trivial = fun(Float, x => toGlobal(id) $ x)
-    println(Harness(OMPGenerator,reducePar))
-  }
-}
-
-object Other {
-  def reduceExample(N:Int) = fun(
-    ArrayType(Float,N),
-    arr => { toGlobal(MapSeq(id)) o ReduceSeq(add,0.0f) $ arr}
-  )
-
-  def naiveMatrixMult(M:Int, N:Int) = fun(
-    ArrayType(ArrayType(Float, N), M),
-    ArrayType(ArrayType(Float, N), N),
-    (A, B) => {
-      toGlobal(MapSeq(MapSeq(MapSeq(id)))) o MapSeq(fun( Arow =>
-        MapSeq(fun( Bcol =>
-          //ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
-          toGlobal(MapSeq(id)) o ReduceSeq(add,0.0f) o MapSeq(mult) $ Zip(Arow,Bcol)
-        )) o Transpose() $ B
-      )) $ A
-    })
-
-  def main(args: Array[String]) {
-    val f = naiveMatrixMult(3,3)
-    TypeChecker.check(f.body)
-    println(OpenCLGenerator.generate(f))
-
   }
 }

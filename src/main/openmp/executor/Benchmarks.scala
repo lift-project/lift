@@ -1,10 +1,13 @@
 package openmp.executor
 
 import ir.{ArrayType, TupleType, Type}
-import ir.ast.{Get, Split, Transpose, Unzip, UserFun, Zip, fun}
+import ir.ast.{Get, Lambda2, Pad, Split, Transpose, Unzip, UserFun, Value, Zip, fun}
 import opencl.ir._
-import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
-import openmp.ir.pattern.{:+, MapPar, ReducePar}
+import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
+import openmp.ir.AuxTypes._
+import openmp.ir.pattern.{:+, MapOMP, ReduceOMP}
+
+import scala.util.Random
 
 /**
   * Created by Federico on 02-Aug-16.
@@ -30,51 +33,296 @@ object Benchmarks {
     }
   )
 
-  //Sequential dot product
-  def dotProductSeq(N:Int) = fun(
-    ArrayType(Float,N),
-    ArrayType(Float,N),
-    Float,
-    (inA,inB, init) => {
-      toGlobal(MapSeq(id)) o ReduceSeq(add, init) o MapSeq(mult) $ Zip(inA,inB)
-    }
-  )
-  //Parallel dot product
-  def dotProductPar(N:Int) = fun(
-    ArrayType(Float,N),
-    ArrayType(Float,N),
-    (inA,inB) => {
-      toGlobal(MapSeq(id)) o ReducePar(:+(Float), 0.0f) o MapPar(mult) $ Zip(inA,inB)
-    }
-  )
 
-  def naiveMatrixMult(M:Int, N:Int) = fun(
-    ArrayType(ArrayType(Float, N), M),
+  def matrixMultSeqAcc(N:Int) = fun(
+    ArrayType(ArrayType(Float, N), N),
     ArrayType(ArrayType(Float, N), N),
     (A, B) => {
       toGlobal(MapSeq(MapSeq(MapSeq(id)))) o MapSeq(fun( Arow =>
         MapSeq(fun( Bcol =>
-            //ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
-          toGlobal(MapSeq(id)) o ReduceSeq(add,0.0f) o MapSeq(mult) $ Zip(Arow,Bcol)
+          toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
         )) o Transpose() $ B
       )) $ A
     })
 
-  def reduceExample(N:Int) = fun(
-    ArrayType(Float,N),
-    arr => { toGlobal(MapSeq(id)) o ReduceSeq(add,0.0f) $ arr }
+  def matrixMultSeq(N:Int) = fun(
+    ArrayType(ArrayType(Float, N), N),
+    ArrayType(ArrayType(Float, N), N),
+    (A, B) => {
+      toGlobal(MapSeq(MapSeq(MapSeq(id)))) o MapSeq(fun( Arow =>
+        MapSeq(fun( Bcol =>
+          toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)  $ Zip(Arow, Bcol)
+        )) o Transpose() $ B
+      )) $ A
+    })
+
+
+  def matrixMultPar(N:Int) = fun(
+    ArrayType(ArrayType(Float, N), N),
+    ArrayType(ArrayType(Float, N), N),
+    (A, B) => {
+      toGlobal(MapSeq(MapSeq(MapSeq(id)))) o  MapOMP(fun(Arow =>
+        MapOMP(fun(Bcol =>
+          toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)  $ Zip(Arow, Bcol)
+        )) o Transpose() $ B
+      )) $ A
+    })
+
+  //NBody
+
+  val mapCalc =
+    UserFun("mapCalc", Array("p1", "p2"),
+    """
+      |{ Tuple_float_float_float_float r;
+      |  r._0 = p1._0 - p2._0;
+      |  r._1 = p1._1 - p2._1;
+      |  r._2 = p1._2 - p2._2;
+      |  return r;
+      |}
+    """.stripMargin, Seq(float4, float4), float4)
+
+  val reduceCalc =
+    UserFun("reduceCalc", Array("r", "detlaT", "espSqr", "acc"),
+      """
+        | {
+        |  float distSqr = r._0*r._0 + r._1*r._1 + r._2*r._2;
+        |  float invDist = 1.0f / sqrt(distSqr + espSqr);
+        |  float invDistCube = invDist * invDist * invDist;
+        |  float s = invDistCube * p2._3;
+        |  Tuple_float_float_float_float res;
+        |  res._0 = acc._0 + s * r._0;
+        |  res._1 = acc._1 + s * r._1;
+        |  res._2 = acc._2 + s * r._2;
+        |  return res;
+        | }
+      """.stripMargin,
+      Seq(float4, Float, Float, float4), float4)
+
+  val calcAcc =
+    UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr", "acc"),
+      """|{
+        |  Tuple_float_float_float_float r;
+        |  r._0 = p1._0 - p2._0;
+        |  r._1 = p1._1 - p2._1;
+        |  r._2 = p1._2 - p2._2;
+        |  float distSqr = r._0*r._0 + r._1*r._1 + r._2*r._2;
+        |  float invDist = 1.0f / sqrt(distSqr + espSqr);
+        |  float invDistCube = invDist * invDist * invDist;
+        |  float s = invDistCube * p2._3;
+        |  Tuple_float_float_float_float res;
+        |  res._0 = acc._0 + s * r._0;
+        |  res._1 = acc._1 + s * r._1;
+        |  res._2 = acc._2 + s * r._2;
+        |  return res;
+        |}
+        | """.stripMargin,
+      Seq(float4, float4, Float, Float, float4), float4)
+
+  val update =
+    UserFun("update", Array("pos", "vel", "deltaT", "acceleration"),
+      """|{
+        |  Tuple_float_float_float_float newPos;
+        |  newPos._0 = pos._0 + vel._0 * deltaT + 0.5f * acceleration._0 * deltaT * deltaT;
+        |  newPos._1 = pos._1 + vel._1 * deltaT + 0.5f * acceleration._1 * deltaT * deltaT;
+        |  newPos._2 = pos._2 + vel._2 * deltaT + 0.5f * acceleration._2 * deltaT * deltaT;
+        |  newPos._3 = pos._3;
+        |  Tuple_float_float_float_float newVel;
+        |  newVel._0 = vel._0 + acceleration._0 * deltaT;
+        |  newVel._1 = vel._1 + acceleration._1 * deltaT;
+        |  newVel._2 = vel._2 + acceleration._2 * deltaT;
+        |  newVel._3 = vel._3;
+        |  Tuple_Tuple_float_float_float_float_Tuple_float_float_float_float t = {newPos, newVel};
+        |  return t;
+        |}
+      """.stripMargin,
+      Seq(float4, float4, Float, float4), TupleType(float4, float4))
+
+  def nbodyID = genID(TupleType(float4,float4))
+
+  val float4zero = Value("(Tuple_float_float_float_float) { 0.0f, 0.0f, 0.0f, 0.0f }",float4)
+
+  def nbodySeq(N:Int) = fun(
+    ArrayType(float4, N),
+    ArrayType(float4, N),
+    Float,
+    Float,
+    (pos, vel, espSqr, deltaT) =>
+      MapSeq(fun(p1 =>
+
+        toGlobal(MapSeq(fun(acceleration =>
+          update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
+
+          o ReduceSeq(fun((acc, p2) =>
+          calcAcc(Get(p1,0), p2, deltaT, espSqr, acc)),
+          float4zero) $ pos
+
+      )) $ Zip(pos, vel)
   )
 
+  def nbodyPar(N:Int) = fun(
+    ArrayType(float4, N),
+    ArrayType(float4, N),
+    Float,
+    Float,
+    (pos, vel, espSqr, deltaT) =>
+      toGlobal(MapOMP(fun(p1 =>
 
+        (MapSeq(fun(acceleration =>
+          update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
+
+          o ReduceSeq(fun((acc, p2) =>
+          calcAcc(Get(p1,0), p2, deltaT, espSqr, acc)),
+          float4zero) $ pos
+
+      ))) $ Zip(pos, vel)
+  )
+
+  val blackScholesComp =
+    UserFun("blackScholesComp", "inRand",
+      """|{
+        |  #define S_LOWER_LIMIT 10.0f
+        |  #define S_UPPER_LIMIT 100.0f
+        |  #define K_LOWER_LIMIT 10.0f
+        |  #define K_UPPER_LIMIT 100.0f
+        |  #define T_LOWER_LIMIT 1.0f
+        |  #define T_UPPER_LIMIT 10.0f
+        |  #define R_LOWER_LIMIT 0.01f
+        |  #define R_UPPER_LIMIT 0.05f
+        |  #define SIGMA_LOWER_LIMIT 0.01f
+        |  #define SIGMA_UPPER_LIMIT 0.10f
+        |  Tuple p;
+        |
+        |  float S = S_LOWER_LIMIT * inRand + S_UPPER_LIMIT * (1.0f - inRand);
+        |  float K = K_LOWER_LIMIT * inRand + K_UPPER_LIMIT * (1.0f - inRand);
+        |  float T = T_LOWER_LIMIT * inRand + T_UPPER_LIMIT * (1.0f - inRand);
+        |  float R = R_LOWER_LIMIT * inRand + R_UPPER_LIMIT * (1.0f - inRand);
+        |  float V = SIGMA_LOWER_LIMIT * inRand + SIGMA_UPPER_LIMIT * (1.0f - inRand);
+        |
+        |  float sqrtT = sqrt(T);
+        |  float d1 = (log(S / K) + ((R + V * V * 0.05f) * T)) / V * sqrtT;
+        |  float d2 = d1 - (V * sqrtT);
+        |
+        |  float CNDD1;
+        |  {
+        |    float L;
+        |    float K1;
+        |    float w;
+        |    float a1 = 0.319381530f;
+        |    float a2 = -0.356563782f;
+        |    float a3 = 1.781477937f;
+        |    float a4 = -1.821255978f;
+        |    float a5 = 1.330274429f;
+        |    float a6 = 2.506628273f;
+        |    L = fabs(d1);
+        |    K1 = 1.0f / (1.0f + 0.2316419f * L);
+        |    w = 1.0f - 1.0f / 1 * a6 * exp((-1 * L) * L / 2) * (a1 * K1 + a2 * K1 * K1 * 1 + a3 * K1 * K1 * K1 * +a4 * K1 * K1 * K1 * K1 * 1 + a5 * K1 * K1 * K1 * K1 * K1);
+        |    if (d1 < 0) {
+        |      CNDD1 = 1.0f - w;
+        |    } else {
+        |      CNDD1 = w;
+        |    }
+        |  }
+        |  float CNDD2;
+        |  {
+        |    float L;
+        |    float K2;
+        |    float w;
+        |    float a1 = 0.319381530f;
+        |    float a2 = -0.356563782f;
+        |    float a3 = 1.781477937f;
+        |    float a4 = -1.821255978f;
+        |    float a5 = 1.330274429f;
+        |    float a6 = 2.506628273f;
+        |    L = fabs(d2);
+        |    K2 = 1.0f / (1.0f + 0.2316419f * L);
+        |    w = 1.0f - 1.0f / 1 * a6 * exp((-1 * L) * L / 2) * (a1 * K2 + a2 * K2 * K2 * 1 + a3 * K2 * K2 * K2 * +a4 * K2 * K2 * K2 * K2 * 1 + a5 * K2 * K2 * K2 * K2 * K2);
+        |    if (d2 < 0) {
+        |      CNDD2 = 1.0f - w;
+        |    } else {
+        |      CNDD2 = w;
+        |    }
+        |  }
+        |  float expRT = exp(-T * R);
+        |  Tuple result;
+        |  result._0 = S * CNDD1 - K * expRT * CNDD2;
+        |  result._1 = K * expRT * (1.0f - CNDD2) - S * (1.0f - CNDD1);
+        |  return result;
+        |}
+      """.stripMargin
+      , Float, TupleType(Float, Float))
+
+  def blackScholesSeq(N:Int) = fun(
+    ArrayType(Float, N),
+    inRand => MapSeq(blackScholesComp)  $ inRand
+  )
+
+  def blackScholesPar(N:Int) = fun(
+    ArrayType(Float,N),
+    inRand => MapOMP(blackScholesComp) $ inRand
+  )
+
+  def other(args: Array[String]) {
+    val N = 40000
+    val big = 800
+    val ls = List.iterate(0,N)(x => x + 1)
+    val bigList = (List.iterate(0,big)(x => x + 1)).map(_ => (List.iterate(0,big)(x => x + 1).map(_ => 1)))
+    val NSize = 1000
+    //Executor.compileAndGenerateScript(matrixMultPar(big),bigList ++ bigList,"D:/Test")
+  }
 
   def main(args: Array[String]) {
-    val N = 1000
-    val ls = (List.iterate(0,N)(x => x + 1)).map(_ => 1)
-    val tenList = (List.iterate(0,10)(x => x + 1)).map(_ => (List.iterate(0,10)(x => x + 1).map(_ => 1)))
-    val m1 = List(List(1f,0f,0f),List(0f,1f,0f),List(0f,0f,1f))
-    val m2 = List(List(1f,1f,1f),List(1f,1f,1f),List(1f,1f,1f))
-    Executor.compileAndGenerateScript(dotProductSeq(N),ls ++ ls ++ List(0.0f),"D:/Test")
-    //Executor.compileAndGenerateScript(nestedTrivial(10,10),tenList,"D:/Test")
-    //Executor.compileAndGenerateScript(naiveMatrixMult(3,3),m1 ++ m2 ++ List(0.0f), "D:/Test")
+    blackScholes(1000,Parallel)
   }
+
+  def benchPath(tName:String, tSize:String, parSeq:String) = s"D:/Benchmarks/$tName$tSize/$parSeq"
+
+  abstract class Algotype
+  object Sequential extends Algotype {
+    override def toString = "Seq"
+  }
+  object Parallel extends Algotype {
+    override def toString = "Par"
+  }
+
+  def matrixMult(size:Int, algotype: Algotype) = {
+    val rand = new Random(22)
+    val input1 = randomSquare(size,size,rand)
+    val input2 = randomSquare(size,size,rand)
+    val params = input1 ++ input2
+    val kernel = algotype match {
+      case Sequential => matrixMultSeq(size)
+      case Parallel => matrixMultPar(size)
+    }
+    Executor.compileAndGenerateScript(kernel,params, benchPath("MM", size.toString, algotype.toString))
+  }
+
+  def nBody(size:Int, algo:Algotype):Unit = {
+    val rand = new Random(32)
+    val deltaT = 0.005f
+    val espSqr = 500.0f
+    val input1 = List.fill(size)(List(rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat())).flatten
+    val input2 = List.fill(size)(List(rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat())).flatten
+    val params = input1 ++ input2 ++ List(espSqr) ++ List(deltaT)
+    val kernel = algo match {
+      case Sequential => nbodySeq(size)
+      case Parallel => nbodyPar(size)
+    }
+
+    Executor.compileAndGenerateScript(kernel, params, benchPath("NBody",size.toString,algo.toString))
+  }
+
+  def blackScholes(size:Int, algo:Algotype):Unit = {
+    val rand = new Random(32)
+    val input = List.fill(size)(rand.nextFloat())
+    val kernel = algo match {
+      case Sequential => blackScholesSeq(size)
+      case Parallel => blackScholesPar(size)
+    }
+    Executor.compileAndGenerateScript(kernel, input, benchPath("BlackScholes", size.toString, algo.toString))
+  }
+
+
+
+  private def randomList(size:Int, random:Random) = List.fill(size)(random.nextFloat())
+  private def randomSquare(sizeX:Int, sizeY:Int, random:Random) = List.fill(sizeX, sizeY)(random.nextFloat()).flatten
 }

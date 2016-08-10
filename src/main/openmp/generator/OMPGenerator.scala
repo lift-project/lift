@@ -4,12 +4,14 @@ import apart.arithmetic.{Cst, _}
 import openmp.executor.Compile
 import c.generator.CAst.{ArithExpression, AssignmentExpression, Block, CondExpression, Expression, ExpressionStatement, VarDecl}
 import c.generator.{CAst, CGenerator}
-import ir.{ArrayType, TupleType}
-import ir.ast.{Expr, FunCall, fun}
+import ir.{ArrayType, Memory, TupleType}
+import ir.ast.{Expr, FunCall, Lambda, Param, UserFun, fun}
 import opencl.generator.{OclFunction, OpenCLGeneratorException}
 import opencl.ir._
+import opencl.ir.PrivateMemory
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
-import openmp.ir.pattern.{MapPar, MapVec, OmpMap, ReduceParImpl}
+import openmp.ir.pattern._
+
 
 /**
   * Created by Federico on 30-Jun-16.
@@ -18,7 +20,7 @@ object OMPGenerator extends CGenerator{
   override protected def generateExprPostArguments(expr: Expr, block: Block): Unit = {
       expr match {
         case call:FunCall => call.f match {
-          case m:MapPar => generateOmpMapCall("omp parallel for",m,call,block)
+          case m:MapOMP => generateOmpMapCall("omp parallel for",m,call,block)
           case m:MapVec => generateOmpMapCall("omp parallel for simd",m,call,block)
           case r:ReduceParImpl => generateReducePar(r, call, block)
           case _ => super.generateExprPostArguments(expr, block)
@@ -27,13 +29,40 @@ object OMPGenerator extends CGenerator{
       }
   }
 
+
+  private def params(f:Lambda):Set[Param] = {
+    val mine = f.params.toSet
+    mine ++ params(f.body)
+  }
+
+  private def params(expr:Expr):Set[Param] = {
+    expr match {
+      case call:FunCall => call.f match {
+        case mp:MapSeq => params(mp.f)
+        case rd:ReduceSeq => params(rd.f)
+        case _ => Set.empty[Param]
+      }
+      case _ => Set.empty[Param]
+    }
+  }
+
+  private def privateClause(f:Lambda) = {
+    val privates = params(f).filter(_.addressSpace.toString.equals("private")).map(_.mem.variable.toString)
+    if(privates.size > 0) {
+      val inner = privates.reduce(_ + ", " + _)
+      s" private($inner)"
+    } else ""
+  }
+
   // MapPar
   private def generateOmpMapCall(pragma:String,
                                  m: OmpMap,
                                  call: FunCall,
                                  block: Block): Unit = {
     (block: Block) += CAst.Comment("omp_map")
-    generateOpenMPLoop(block, m.loopVar, generateExpr(m.f.body, _), m.shouldUnroll, pragma)
+    //Collect private variables in call...
+    val pClause = privateClause(call.f)
+    generateOpenMPLoop(block, m.loopVar, generateExpr(m.f.body, _), m.shouldUnroll, pragma + pClause)
     (block: Block) += CAst.Comment("end omp_map")
   }
 

@@ -9,10 +9,10 @@ import opencl.ir.pattern.MapSeq
 
 abstract class OmpMap(override val f: Lambda1) extends MapSeq(f)
 
-class MapPar(override val f: Lambda1) extends OmpMap(f) {
+class MapOMP(override val f: Lambda1) extends OmpMap(f) {
 }
-object MapPar {
-  def apply(f:Lambda1) = new MapPar(f)
+object MapOMP {
+  def apply(f:Lambda1) = new MapOMP(f)
 }
 
 class MapVec(override val f: Lambda1) extends OmpMap(f)
