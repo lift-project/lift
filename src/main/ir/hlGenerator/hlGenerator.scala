@@ -6,11 +6,13 @@ import collection.mutable._
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Compile, Execute}
+import opencl.executor.{Compile, Eval, Execute}
 import opencl.ir._
 import opencl.ir.pattern.toGlobal
 import rewriting.{EnabledMappings, Lower}
+import java.nio.file.{Files, Paths}
 
+import scala.sys.process._
 import scala.language.reflectiveCalls
 object hlGenerator{
   var ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
@@ -23,6 +25,7 @@ object hlGenerator{
   val LoopNum = 30
   val consequentUserFun = false
   val ReduceInitToGlobal = false
+  var RunInterpreter = false
   var AssignedChoiceNum = 0
   //avoid for redundant
   //Join
@@ -100,14 +103,21 @@ object hlGenerator{
         case Float =>
           try {
             val(output_exe:Float,runtime) = Execute(1,1)(code,fs.head,Args:_*)
-            val output_int = Interpreter(l).->[Float].run(Args:_*)
-            if(output_exe == output_int){
-              println("results eq-by-user")
-              writeln(w,"results eq-by-user")
+            if(RunInterpreter) {
+
+              val output_int = Interpreter(l).->[Float].run(Args: _*)
+              if (output_exe == output_int) {
+                println("results eq-by-user")
+                writeln(w, "results eq-by-user")
+              }
+              else {
+                println("results ne-by-user")
+                writeln(w, "results ne-by-user")
+              }
             }
             else{
-              println("results ne-by-user")
-              writeln(w,"results ne-by-user")
+              println("pass-by-user")
+              writeln(w,"pass-by-user")
             }
 
           }
@@ -122,12 +132,18 @@ object hlGenerator{
         case ArrayType(Float,d1) =>
           try {
             val(output_exe:Array[Float],runtime)= Execute(1,d1.eval)(code,fs.head,Args:_*)
-            val output_int = Interpreter(l).->[Vector[Float]].run(Args:_*).toArray[Float]
-            if(output_exe.corresponds(output_int)(_==_)){
-              writeln(w,"results eq-by-user")
+            if(RunInterpreter) {
+              val output_int = Interpreter(l).->[Vector[Float]].run(Args: _*).toArray[Float]
+              if (output_exe.corresponds(output_int)(_ == _)) {
+                writeln(w, "results eq-by-user")
+              }
+              else {
+                writeln(w, "results ne-by-user")
+              }
             }
             else{
-              writeln(w,"results ne-by-user")
+              println("pass-by-user")
+              writeln(w,"pass-by-user")
             }
           }
           catch{
@@ -141,12 +157,18 @@ object hlGenerator{
         case ArrayType(ArrayType(Float,d1),d2)=>
           try {
             val(output_exe:Array[Float],runtime)= Execute(1,d1.eval*d2.eval)(code,fs.head,Args:_*)
-            val output_int = Interpreter(l).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-            if(output_exe.corresponds(output_int)(_==_)){
-              writeln(w,"results eq-by-user")
+            if(RunInterpreter) {
+              val output_int = Interpreter(l).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
+              if (output_exe.corresponds(output_int)(_ == _)) {
+                writeln(w, "results eq-by-user")
+              }
+              else {
+                writeln(w, "results ne-by-user")
+              }
             }
             else{
-              writeln(w,"results ne-by-user")
+              println("pass-by-user")
+              writeln(w,"pass-by-user")
             }
           }
           catch{
@@ -160,12 +182,18 @@ object hlGenerator{
         case ArrayType(ArrayType(ArrayType(Float,d1),d2),d3)=>
           try {
             val(output_exe:Array[Float],runtime) = Execute(1,d1.eval*d2.eval*d3.eval)(code,fs.head,Args:_*)
-            val output_int = Interpreter(l).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args:_*).toArray[Float]
-            if(output_exe.corresponds(output_int)(_==_)){
-              writeln(w,"results eq-by-user")
+            if(RunInterpreter) {
+              val output_int = Interpreter(l).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
+              if (output_exe.corresponds(output_int)(_ == _)) {
+                writeln(w, "results eq-by-user")
+              }
+              else {
+                writeln(w, "results ne-by-user")
+              }
             }
             else{
-              writeln(w,"results ne-by-user")
+              println("pass-by-user")
+              writeln(w,"pass-by-user")
             }
           }
           catch{
@@ -185,7 +213,7 @@ object hlGenerator{
 
     }
     else{
-      println("Doesn't contains UserFun, Ignored-by-user")
+      println("Doesn't contains UserFun or Map, Ignored-by-user")
       writeln(w,"Doesn't contains UserFun or Map, Ignored-by-user")
       return
     }
@@ -195,7 +223,11 @@ object hlGenerator{
     generateProgram()
     val res = LambdaList
     for(i <- 0 until res.length){
-      val l = res(i)
+      val lStr = rewriting.utils.Utils.dumpLambdaToString(res(i))
+      //val UserFunIndex = lStr.indexOf('\n')
+
+      val l:Lambda = Eval(lStr)
+      //val l = res(i)
       //prints the basic informations about l
       println("Lambda Num:" + i)
       println(l.toString)
@@ -206,6 +238,7 @@ object hlGenerator{
       trySingleLambda(l,w)
       w.flush()
       System.out.flush()
+      //("rm ~/TempLambdas/tempLambda.txt").!
     }
   }
 

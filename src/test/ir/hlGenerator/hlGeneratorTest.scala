@@ -33,7 +33,7 @@ class hlGeneratorTest {
   @Ignore
   @Test
   def testLoops():Unit={
-    hlGenerator.tryPrograms(new PrintWriter("/home/potato/testLambda.txt"))
+    hlGenerator.tryPrograms(new PrintWriter("/home/potato/8-10/test2.txt"))
   }
 
 
@@ -61,7 +61,7 @@ class hlGeneratorTest {
           Split(4) o Join() o Map(fun((p157) =>
             Reduce(fun((p20,p195)=>
               add(p20,p195)
-            ))(add(p24,p99),p157)
+            ))(toGlobal(add)(p24,p99),p157)
           )) $ p102
         ))(Reduce(fun((p215,p49) =>
         add(p215,p49)
@@ -129,17 +129,21 @@ class hlGeneratorTest {
   @Ignore
   @Test
   def seekExeBugs1():Unit={
+    for(i<-0 until 10000){
+
     val f = fun(
-      ArrayType(Float,32),
       Float,
-      (p241,p29) =>{
-      Map(fun((p55) =>
-      Reduce(fun((p3,p38) =>
-        add(p3,p38)
-      ))(p55,p241)
-      ))(Reduce(fun((p3,p38) =>
-        add(p3,p38)
-      ))(p29,p241))
+      ArrayType(Float,32),
+      ArrayType(Float,32),
+      (p236,p116,p93) =>{
+        Reduce(fun((p183,p247) =>
+          Map(fun((p18) =>
+            add(p247,p18)
+          )) $ p183
+        ))(Map(fun((p18) =>
+          add(p236,p18)
+        ))(p116),p93)
+
     }
     )
     val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
@@ -158,11 +162,11 @@ class hlGeneratorTest {
       }
     }
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe1:Array[Float],_)= Execute(1,32)(fs.head,Args:_*)
+    //val(output_exe1:Array[Float],_)= Execute(1,32)(fs.head,Args:_*)
     val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
     assert(output_exe.corresponds(output_int)(_==_))
 
-  }
+  }}
 
   @Ignore
   @Test

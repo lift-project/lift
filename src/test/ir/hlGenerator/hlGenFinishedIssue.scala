@@ -40,7 +40,6 @@ class hlGenFinishedIssue{
     )
     TypeChecker(f)
     val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
-    val code = Compile(fs.head)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
@@ -53,6 +52,7 @@ class hlGenFinishedIssue{
         case _=>
       }
     }
+    val code = Compile(fs.head)
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
     val(output_exe:Array[Float],runtime)= Execute(1,1)(code,fs.head,Args:_*)
     assert(output_exe.corresponds(output_int)(_==_))
