@@ -10,9 +10,7 @@ import opencl.executor.{Compile, Eval, Execute}
 import opencl.ir._
 import opencl.ir.pattern.toGlobal
 import rewriting.{EnabledMappings, Lower}
-import java.nio.file.{Files, Paths}
 
-import scala.sys.process._
 import scala.language.reflectiveCalls
 object hlGenerator{
   var ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()

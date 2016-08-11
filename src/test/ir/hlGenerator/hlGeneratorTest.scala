@@ -8,7 +8,7 @@ import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Execute, Executor}
 import org.junit._
 import opencl.ir._
-import opencl.ir.pattern.{toGlobal, toPrivate}
+import opencl.ir.pattern.{toGlobal}
 import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
