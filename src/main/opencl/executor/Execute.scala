@@ -424,7 +424,7 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
       (memories._1 ++ memories._2).
         partition(_.mem.addressSpace == GlobalMemory)
 
-    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval_Long)
+    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
     val totalSizeOfGlobal = globalSizes.sum
     val totalSizeOfLocal = localMemories.map(mem =>
       ArithExpr.substitute(mem.mem.size, valueMap).eval).sum
