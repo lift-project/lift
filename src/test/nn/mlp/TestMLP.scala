@@ -13,6 +13,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import opencl.executor.{Execute, Executor}
 import org.junit.{AfterClass, BeforeClass, Test}
+import scala.collection.mutable.{Map => DictMap}
 
 import scala.util.parsing.json._
 import java.io._
@@ -60,11 +61,17 @@ class TestMLP {
     val hidden_layers = Array(256, 256)
     val n_inputs = 1896
     val reruns = 1
+    val experiments = Array(DictMap("mults_per_thread" -> 2, "neurons_per_wrg" -> 2))
     for (i <- 0 until reruns) {
-      MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, mults_per_thread=2)
-      MNIST_MLP_in_2d_MrgdGrps_in_1d(hidden_layers, n_inputs, mults_per_thread=2)
-      MNIST_MLP_in_2d_MrgdGrps_in_2d(hidden_layers, n_inputs, mults_per_thread=4, neurons_per_wrg=2)
-      MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(hidden_layers, n_inputs, mults_per_thread=4, neurons_per_wrg=2)
+      for (e <- experiments) {
+        MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, e("mults_per_thread"))
+        MNIST_MLP_in_2d_MrgdGrps_in_1d(hidden_layers, n_inputs,
+          e("mults_per_thread"))
+        MNIST_MLP_in_2d_MrgdGrps_in_2d(hidden_layers, n_inputs,
+          e("mults_per_thread"), e("neurons_per_wrg"))
+        MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(hidden_layers, n_inputs,
+          e("mults_per_thread"), e("neurons_per_wrg"))
+      }
     }
   }
 
@@ -585,7 +592,8 @@ class TestMLP {
 
   abstract class MLP_test_generic() {
     var _Activation_fs: Array[UserFun] = Array[UserFun]()
-    val _mults_per_thread: Int
+    val _mults_per_thread: Int = 0
+    val _neurons_per_wrg: Int = 0
     var _n_inputs: Int = 0
     var _n_neurons: Int = 0
     var _input_len: Int = 0
@@ -650,9 +658,10 @@ class TestMLP {
       val pw = new PrintWriter(file)
       var finished_without_errors = false
       try {
-        pw.write("device_name,f_name,n_inputs,layer_len0,layer_len1,layer_len2,activation_f0,activation_f1," +
-                 "activation_f2,runtime_l0,runtime_l1,runtime_l2\n")
-        pw.write(deviceName + "," + f_name + f",${_n_inputs}%d,")
+        pw.write("device_name,f_name,n_inputs,mults_per_thread,neurons_per_wrg,layer_len0,"+
+          "layer_len1,layer_len2,activation_f0,activation_f1," +
+          "activation_f2,runtime_l0,runtime_l1,runtime_l2\n")
+        pw.write(deviceName + "," + f_name + f",${_n_inputs}%d,${_mults_per_thread}%d,${_neurons_per_wrg}%d,")
         for (layer_i <- 0 until n_layers) {
           pw.write(f"${Biases(layer_i).length}%d,")
         }
@@ -702,7 +711,7 @@ class TestMLP {
 
   class MLP_test(layer_f: (UserFun, Int) => Lambda,
                  mults_per_thread: Int) extends MLP_test_generic() {
-    val _mults_per_thread: Int = mults_per_thread
+    override val _mults_per_thread: Int = mults_per_thread
 
     override def call_layer_f(layer_i: Int): Lambda =
       layer_f(_Activation_fs(layer_i), _mults_per_thread)
@@ -711,7 +720,7 @@ class TestMLP {
 
   class MLP_test2(layer_f: (UserFun, Int, Int, Int) => Lambda,
                             mults_per_thread: Int) extends MLP_test_generic() {
-    val _mults_per_thread: Int = mults_per_thread
+    override val _mults_per_thread: Int = mults_per_thread
 
     override def get_local_size_1(): Int =
       Math.min(_n_inputs, Math.floor(maxWorkGroupSize.toFloat / _local_size_0).toInt)
@@ -726,8 +735,8 @@ class TestMLP {
 
   class MLP_test3(layer_f: (UserFun, Int, Int, Int, Int, Int, Int) => Lambda,
                             mults_per_thread: Int, neurons_per_wrg: Int) extends MLP_test_generic() {
-    val _mults_per_thread: Int = mults_per_thread
-    val _neurons_per_wrg: Int = neurons_per_wrg
+    override val _mults_per_thread: Int = mults_per_thread
+    override val _neurons_per_wrg: Int = neurons_per_wrg
 
     override def get_local_size_0(): Int =
       ((_neurons_per_wrg * _input_len).toFloat / _mults_per_thread).toInt
