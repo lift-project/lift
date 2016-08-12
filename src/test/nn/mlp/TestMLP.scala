@@ -40,6 +40,8 @@ object TestMLP {
 
 class TestMLP {
 
+  val precision: Float = 0.01f
+
   //@Test
   def testSuite_328(): Unit = {
     val hidden_layers = Array(256, 256)
@@ -54,9 +56,9 @@ class TestMLP {
   }
 
   @Test
-  def testSuite_3000(): Unit = {
+  def testSuite_alot(): Unit = {
     val hidden_layers = Array(256, 256)
-    val n_inputs = 3000
+    val n_inputs = 1896
     val reruns = 1
     for (i <- 0 until reruns) {
       MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, mults_per_thread=2)
@@ -407,7 +409,7 @@ class TestMLP {
     //println(lift_result.mkString(", "))
     //println(gold.mkString(", "))
 
-    assertArrayEquals(gold, lift_result, 0.0001f)
+    assertArrayEquals(gold, lift_result, precision)
   }
 
   //@Test
@@ -422,7 +424,7 @@ class TestMLP {
             f"Runtime: $runtime_layer1%1.5f + $runtime_layer2%1.5f + $runtime_layerout%1.5f = " +
             f"${runtime_layer1 + runtime_layer2 + runtime_layerout}%1.5f ms")
 
-    assertArrayEquals(gold, lift_result, 0.0001f)
+    assertArrayEquals(gold, lift_result, precision)
   }
 
   //@Test
@@ -444,7 +446,7 @@ class TestMLP {
     println(output_layer2.mkString(", "))
     println(lift_result.mkString(", "))
 
-    assertArrayEquals(gold, lift_result, 0.0001f)
+    assertArrayEquals(gold, lift_result, precision)
   }
 
   //@Test
@@ -476,8 +478,8 @@ class TestMLP {
     println(output_layer2(1).mkString(", "))
     println(lift_result(1).mkString(", "))
 
-    assertArrayEquals(gold, lift_result(0), 0.0001f)
-    assertArrayEquals(gold2, lift_result(1), 0.0001f)
+    assertArrayEquals(gold, lift_result(0), precision)
+    assertArrayEquals(gold2, lift_result(1), precision)
   }
 
   //@Test
@@ -525,8 +527,8 @@ class TestMLP {
     println(output_layer2(1).mkString(", "))
     println(lift_result(1).mkString(", "))
 
-    assertArrayEquals(gold, lift_result(0), 0.0001f)
-    assertArrayEquals(gold2, lift_result(1), 0.0001f)
+    assertArrayEquals(gold, lift_result(0), precision)
+    assertArrayEquals(gold2, lift_result(1), precision)
   }
 
   //@Test
@@ -574,8 +576,8 @@ class TestMLP {
     println(output_layer2(1).mkString(", "))
     println(lift_result(1).mkString(", "))
 
-    assertArrayEquals(gold, lift_result(0), 0.0001f)
-    assertArrayEquals(gold2, lift_result(1), 0.0001f)
+    assertArrayEquals(gold, lift_result(0), precision)
+    assertArrayEquals(gold2, lift_result(1), precision)
   }
 
 
@@ -660,16 +662,15 @@ class TestMLP {
         pw.write(f"${runtimes(0)}%1.5f,${runtimes(1)}%1.5f,${runtimes(2)}%1.5f\n")
 
         // TODO: do something about such big error
-        val deviation = 0.002f
         for ((lift_single_result, target_single_result) <- outputs.last zip Targets) {
 //          println(lift_single_result.mkString(", "))
 //          println(tf_single_result.mkString(", "))
           assertArrayEquals(f"The lift output #$input_no%d is different to the Tensorflow output", target_single_result,
-                            lift_single_result, deviation)
+                            lift_single_result, precision)
           input_no = input_no + 1
         }
         finished_without_errors = true
-        println(f"Done. Processed ${_n_inputs}%d inputs, the results were equal to targets (deviation=$deviation%1.4f)")
+        println(f"Done. Processed ${_n_inputs}%d inputs, the results were equal to targets (precision=$precision%1.4f)")
       }
       finally {
         pw.close()

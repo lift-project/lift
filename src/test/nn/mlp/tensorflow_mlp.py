@@ -239,7 +239,7 @@ def forward_propagate(hidden_layers, inputs_tofeed):
     print("Weights[0][0]:")
     np.set_printoptions(threshold=np.inf, suppress=True)
     print(trained_weights[0].transpose()[0])
-    i = 0
+    i = 701
     print("Inputs[" + str(i) + "]:")
     print(test_batch_images[i])
     print("Output[" + str(i) + "]:")
