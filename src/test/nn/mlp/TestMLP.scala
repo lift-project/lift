@@ -40,6 +40,32 @@ object TestMLP {
 
 class TestMLP {
 
+  //@Test
+  def testSuite_328(): Unit = {
+    val hidden_layers = Array(256, 256)
+    val n_inputs = 328
+    val reruns = 1
+    for (i <- 0 until reruns) {
+      MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, mults_per_thread=2)
+      MNIST_MLP_in_2d_MrgdGrps_in_1d(hidden_layers, n_inputs, mults_per_thread=2)
+      MNIST_MLP_in_2d_MrgdGrps_in_2d(hidden_layers, n_inputs, mults_per_thread=4, neurons_per_wrg=2)
+      MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(hidden_layers, n_inputs, mults_per_thread=4, neurons_per_wrg=2)
+    }
+  }
+
+  @Test
+  def testSuite_3000(): Unit = {
+    val hidden_layers = Array(256, 256)
+    val n_inputs = 3000
+    val reruns = 1
+    for (i <- 0 until reruns) {
+      MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, mults_per_thread=2)
+      MNIST_MLP_in_2d_MrgdGrps_in_1d(hidden_layers, n_inputs, mults_per_thread=2)
+      MNIST_MLP_in_2d_MrgdGrps_in_2d(hidden_layers, n_inputs, mults_per_thread=4, neurons_per_wrg=2)
+      MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(hidden_layers, n_inputs, mults_per_thread=4, neurons_per_wrg=2)
+    }
+  }
+
   var runnerIsConsole: Boolean = false
 
   val current_dir = {
@@ -54,22 +80,13 @@ class TestMLP {
     }
   }
 
-  def results_filename() = {
+  def results_filename(exp_dir_name: String) = {
     val now = Calendar.getInstance()
-    new String(current_dir + "/results_lift/" +
+    new String(current_dir + "/" + exp_dir_name + "/results_lift/" +
     "%02d.%02d.%04d-%02d.%02d.%02d.%03d.csv".format(
       now.get(Calendar.DATE), now.get(Calendar.MONTH), now.get(Calendar.YEAR),
       now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
       now.get(Calendar.MILLISECOND)))
-  }
-
-  //@Test
-  def testSuite(): Unit = {
-    val reruns = 2
-    for (i <- 0 until reruns) {
-      MLP_MNIST_in_2d_Local()
-      MNIST_MLP_in_2d_MrgdGrps_in_1d()
-    }
   }
 
   def load_2d_float_json(json_file_name: String): Array[Array[Float]] = {
@@ -108,6 +125,26 @@ class TestMLP {
       w_arr(i) = aline(i).toFloat
     }
     w_arr
+  }
+
+  def load_experiment(hidden_layers: Array[Int], n_inputs: Int) = {
+    var dir_name = "experiment.784"
+    for (hidden_layer_n <- hidden_layers)
+      dir_name = dir_name + "-" + hidden_layer_n.toString
+    dir_name = dir_name + "-10"
+
+    var tf_W = Array(load_2d_float_json(dir_name + "/W1.json"))
+    var tf_B = Array(load_1d_float_json(dir_name + "/b1.json"))
+    for (i <- Range(2, hidden_layers.length + 1)) {
+      tf_W = tf_W :+ load_2d_float_json(dir_name + "/W" + i.toString + ".json")
+      tf_B = tf_B :+ load_1d_float_json(dir_name + "/b" + i.toString + ".json")
+    }
+    tf_W = tf_W :+ load_2d_float_json(dir_name + "/Wout.json")
+    tf_B = tf_B :+ load_1d_float_json(dir_name + "/bout.json")
+    val tf_X = load_2d_float_json(dir_name + "/test_images_n" + n_inputs + ".json")
+    val tf_result = load_2d_float_json(dir_name + "/test_tf_results_n" + n_inputs + ".json")
+
+    (tf_X, tf_W, tf_B, tf_result, dir_name)
   }
 
   val floatSize = 4
@@ -283,6 +320,38 @@ class TestMLP {
     }
   )
 
+  /* Parallel layer (across inputs as well), 2-dimensional, multiple threads per neuron
+  * TODO */
+  def f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced(activation_f: UserFun,
+                                                       tile_of_mults_size: Int,
+                                                       tile_of_inputs_size: Int,
+                                                       tile_of_neurons_size: Int,
+                                                       odim: Int, idim: Int, ninputs: Int) = fun(
+    ArrayType(ArrayType(Float, idim), odim),
+    ArrayType(Float, odim),
+    ArrayType(ArrayType(Float, idim), ninputs),
+    (W, B, X) => {
+      Join() o
+      MapWrg(1)(fun((X_tile) => {
+        Scatter(ReorderWithStride(odim / tile_of_neurons_size)) o Join() o
+        MapWrg(0)(fun((ws_per_tile, bs_per_tile) => {
+          MapLcl(1)(fun((X_single) => {
+            MapLcl(0)(fun((b_per_neuron, partial_sums_per_neuron) => {
+              TransposeW() o
+              MapSeq(toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(b_per_neuron)) ) o
+              Transpose() $ partial_sums_per_neuron})) o
+              fun((partial_sums) => Zip(bs_per_tile, partial_sums)) o
+              Split(idim / tile_of_mults_size) o
+              MapLcl(0)(
+                toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o
+              Split(tile_of_mults_size) o Join() o
+              MapSeq(fun((ws_per_neuron) => {ReorderStride(tile_of_mults_size) $
+                Zip(X_single, ws_per_neuron)})) $ ws_per_tile})) $
+          X_tile})) $ Zip(Split(tile_of_neurons_size) $ W, Split(tile_of_neurons_size) $ B)})) o
+      Split(tile_of_inputs_size) $ X
+    }
+  )
+
   /* Parallel layer (across inputs as well), 2-dimensional, single thread per neuron */
   /* For the case of a lot of neurons and a bit of inputs */
   def f_layer_simplex_neuron(activation_f: UserFun, tile_of_mults_size: Int) = fun(
@@ -328,17 +397,6 @@ class TestMLP {
   val input_X2 = Array(3f, 4f, 5f, 0f, 1f, 2f)
   val gold = Array(17.492f, 11.356f, 14.406f, 17.636f, 17.492f, 17.732f)
   val gold2 = Array(6.884f, 4.486f, 5.784f, 7.244f, 6.884f, 6.86f)
-
-  val tf_W1 = load_2d_float_json("W1.json")
-  val tf_W2 = load_2d_float_json("W2.json")
-  val tf_Wout = load_2d_float_json("Wout.json")
-  val tf_W = Array(tf_W1, tf_W2, tf_Wout)
-  val tf_B1 = load_1d_float_json("b1.json")
-  val tf_B2 = load_1d_float_json("b2.json")
-  val tf_Bout = load_1d_float_json("bout.json")
-  val tf_B = Array(tf_B1, tf_B2, tf_Bout)
-  val tf_X = load_2d_float_json("test_images.json")
-  val tf_result = load_2d_float_json("test_tf_results.json")
 
   //@Test
   def Sanity_MLPSequential(): Unit = {
@@ -542,8 +600,7 @@ class TestMLP {
       _n_neurons * _local_size_0
     def get_global_size_1(): Int = _n_inputs
 
-    def apply(f_name: String,
-              description: String,
+    def apply(f_name: String, description: String, exp_dir_name: String,
               Inputs: Array[Array[Float]],
               Weights: Array[Array[Array[Float]]], Biases: Array[Array[Float]],
               Targets: Array[Array[Float]],
@@ -573,7 +630,7 @@ class TestMLP {
           f"respective dimension (${_local_size_1}%d), slide() will leave out some inputs.")
 
         val (output_layer_flat: Array[Float], runtime) =
-          Execute(_local_size_0, _local_size_1, _global_size_0, _global_size_1, (true, false))(
+          Execute(_local_size_0, _local_size_1, _global_size_0, _global_size_1, (true, true))(
             call_layer_f(layer_i), Weights(layer_i), Biases(layer_i), Input)
 
         runtimes(layer_i) = runtime
@@ -586,7 +643,7 @@ class TestMLP {
       }
       println()
 
-      val file = new File(results_filename())
+      val file = new File(results_filename(exp_dir_name))
       file.getParentFile.mkdirs()
       val pw = new PrintWriter(file)
       var finished_without_errors = false
@@ -617,7 +674,7 @@ class TestMLP {
       finally {
         pw.close()
         if (!finished_without_errors) {
-          new File(results_filename()).delete()
+          new File(results_filename(exp_dir_name)).delete()
           print(f"Input $input_no%d: ")
           println(Inputs(input_no).mkString("\t"))
           println(f"Output $input_no%d: ")
@@ -668,8 +725,8 @@ class TestMLP {
 
   class MLP_test3(layer_f: (UserFun, Int, Int, Int, Int, Int, Int) => Lambda,
                             mults_per_thread: Int, neurons_per_wrg: Int) extends MLP_test_generic() {
-    override val _mults_per_thread: Int = mults_per_thread
-    val _neurons_per_wrg: Int = mults_per_thread
+    val _mults_per_thread: Int = mults_per_thread
+    val _neurons_per_wrg: Int = neurons_per_wrg
 
     override def get_local_size_0(): Int =
       ((_neurons_per_wrg * _input_len).toFloat / _mults_per_thread).toInt
@@ -688,43 +745,59 @@ class TestMLP {
   //@Test
   def Sanity_MLP_in_2d_MrgdGrps_in_1d(): Unit = {
     new MLP_test2(f_layer_complex_neuron_mrgd_wrgs_in_1d, mults_per_thread=2)("f_layer_complex_neuron_mrgd_wrgs_in_1d",
-      f"7. x3 2D-parallel kernels (across inputs). Each workgroup processes all inputs.",
+      f"7. x3 2D-parallel kernels (across inputs). Each workgroup processes all inputs.", "experiment.sanity_check",
       Array(input_X, input_X2), Array(input_W1, input_W2, input_Wout),
       Array(input_b1, input_b2, input_bout), Array(gold, gold2),
       Array(ReLU, ReLU, Linear))
   }
 
-  @Test
+  //@Test
   def Sanity_MLP_in_2d_MrgdGrps_in_2d(): Unit = {
     new MLP_test3(f_layer_complex_neuron_mrgd_wrgs_in_2d, mults_per_thread=2, neurons_per_wrg=2)("f_layer_complex_neuron_mrgd_wrgs_in_1d",
       f"\n8. x3 2D-parallel kernels (across inputs). Each workgroup processes all inputs and " +
-      f"inputs are stored in local memory.\n",
+      f"inputs are stored in local memory.", "experiment.sanity_check",
       Array(input_X, input_X2), Array(input_W1, input_W2, input_Wout),
       Array(input_b1, input_b2, input_bout), Array(gold, gold2),
       Array(ReLU, ReLU, Linear))
   }
 
 
-
   //@Test
-  def MLP_MNIST_in_2d_Local(): Unit = {
-    new MLP_test(f_layer_complex_neuron_local, mults_per_thread=2)("f_layer_complex_neuron_local",
+  def MNIST_MLP_in_2d_Local(hidden_layers: Array[Int], n_inputs: Int, mults_per_thread: Int): Unit = {
+    val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers, n_inputs)
+    new MLP_test(f_layer_complex_neuron_local, mults_per_thread)("f_layer_complex_neuron_local",
       "9. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per input.",
+      dir_name, tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
+  }
+
+  //@Test
+  def MNIST_MLP_in_2d_MrgdGrps_in_1d(hidden_layers: Array[Int], n_inputs: Int, mults_per_thread: Int): Unit = {
+    val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers, n_inputs)
+    new MLP_test2(f_layer_complex_neuron_mrgd_wrgs_in_1d, mults_per_thread)("f_layer_complex_neuron_mrgd_wrgs_in_1d",
+      f"10. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per partition of inputs.",
+      dir_name, tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
+  }
+
+  //@Test
+  def MNIST_MLP_in_2d_MrgdGrps_in_2d(hidden_layers: Array[Int], n_inputs: Int,
+                                     mults_per_thread: Int, neurons_per_wrg: Int): Unit = {
+    val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers=Array(256, 256), n_inputs)
+    new MLP_test3(f_layer_complex_neuron_mrgd_wrgs_in_2d, mults_per_thread, neurons_per_wrg)(
+      f"f_layer_complex_neuron_mrgd_wrgs_in_1d",
+      f"11. (MNIST dataset) x3 2D-parallel kernels (across inputs). " +
+      f"Workgroup per partition of neurons per partition of inputs.", dir_name,
       tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
   }
 
   //@Test
-  def MNIST_MLP_in_2d_MrgdGrps_in_1d(): Unit = {
-    new MLP_test2(f_layer_complex_neuron_mrgd_wrgs_in_1d, mults_per_thread=2)("f_layer_complex_neuron_mrgd_wrgs_in_1d",
-      f"10. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per a partition of inputs.",
+  def MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(hidden_layers: Array[Int], n_inputs: Int,
+                                               mults_per_thread: Int, neurons_per_wrg: Int): Unit = {
+    val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers=Array(256, 256), n_inputs)
+    new MLP_test3(f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced, mults_per_thread, neurons_per_wrg)(
+      f"f_layer_complex_neuron_mrgd_wrgs_in_1d",
+      f"12. (MNIST dataset) x3 2D-parallel kernels (across inputs). " +
+      f"Workgroup per partition of neurons per partition of inputs." +
+       "Memory accesses are coalesced.", dir_name,
       tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
-  }
-
-  @Test
-  def MNIST_MLP_in_2d_MrgdGrps_in_2d(): Unit = {
-    new MLP_test3(f_layer_complex_neuron_mrgd_wrgs_in_2d, mults_per_thread=2, neurons_per_wrg=2)("f_layer_complex_neuron_mrgd_wrgs_in_1d",
-      f"11. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per a partition of inputs. " +
-      f"Parameters are stored locally",
-      tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
-  }
+   }
 }

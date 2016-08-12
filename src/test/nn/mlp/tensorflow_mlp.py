@@ -35,8 +35,8 @@ batch_size = 100
 display_step = 1
 
 # Network Parameters
-n_hidden_1 = 256 # 1st layer number of features
-n_hidden_2 = 256 # 2nd layer number of features
+#n_hidden_1 = 256 # 1st layer number of features
+#n_hidden_2 = 256 # 2nd layer number of features
 n_input = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 
@@ -49,32 +49,69 @@ def SimpleEncode(ndarray):
     return json.dumps(ndarray.tolist())
 
 # Create model
-def multilayer_perceptron(x, weights, biases):
+def multilayer_perceptron(x, weights, biases, funcs):
+    input_data = x
+    i = 0
+    for (weights_layer, biases_layer, func_layer) in zip(weights, biases, funcs):
+        layer_output = tf.add(tf.matmul(input_data, weights_layer), biases_layer)
+        if func_layer is not None:
+            layer_output = func_layer(layer_output)
+        input_data = layer_output
+        #if i == 0:
+        #    break
+        i = i + 1
     # Hidden layer with RELU activation
-    layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
-    layer_1 = tf.nn.relu(layer_1)
+    #layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
+    #layer_1 = tf.nn.relu(layer_1)
     # Hidden layer with RELU activation
-    layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
-    layer_2 = tf.nn.relu(layer_2)
+    #layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
+    #layer_2 = tf.nn.relu(layer_2)
     # Output layer with linear activation
-    out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
-    return out_layer
+    #out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
+    return layer_output
 
-def train():
+def create_exp_dir_name(hidden_layers):
+    dir_name = "experiment." + str(n_input)
+    for n_hidden in hidden_layers:
+        dir_name = dir_name + "-" + str(n_hidden)
+    dir_name = dir_name + "-" + str(n_classes)
+
+    # Create directory
+    if not os.path.isdir(dir_name):
+        os.mkdir(dir_name)
+
+    return dir_name
+
+
+def train_and_forward_propagate(hidden_layers, inputs_tofeed):
+    dir_name = create_exp_dir_name(hidden_layers)
     # Store layers weight & bias
-    weights = {
-        'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
-        'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-        'out': tf.Variable(tf.random_normal([n_hidden_2, n_classes]))
-    }
-    biases = {
-        'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-        'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-        'out': tf.Variable(tf.random_normal([n_classes]))
-    }
+    weights = []
+    biases = []
+    funcs = []
+    previous_layer_n = n_input
+    for n_hidden in hidden_layers:
+        weights.append(tf.Variable(tf.random_normal([previous_layer_n, n_hidden])))
+        biases.append(tf.Variable(tf.random_normal([n_hidden])))
+        funcs.append(tf.nn.relu)
+        previous_layer_n = n_hidden
+
+    weights.append(tf.Variable(tf.random_normal([previous_layer_n, n_classes])))
+    biases.append(tf.Variable(tf.random_normal([n_classes])))
+    funcs.append(None)
+    #weights = {
+    #    'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
+    #    'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
+    #    'out': tf.Variable(tf.random_normal([n_hidden_2, n_classes]))
+    #}
+    #biases = {
+    #    'b1': tf.Variable(tf.random_normal([n_hidden_1])),
+    #    'b2': tf.Variable(tf.random_normal([n_hidden_2])),
+    #    'out': tf.Variable(tf.random_normal([n_classes]))
+    #}
 
     # Construct model
-    pred = multilayer_perceptron(x, weights, biases)
+    pred = multilayer_perceptron(x, weights, biases, funcs)
 
     # Define loss and optimizer
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
@@ -114,33 +151,51 @@ def train():
         
         # Backup params
         trained_weights = sess.run(weights)
-        trained_biases = sess.run(biases)
-        
-    pickle.dump((trained_weights, trained_biases), open("pickled_params.p", "wb"))
+        trained_biases = sess.run(biases)        
 
-    param_names = ["W1", "b1", "W2", "b2", "Wout", "bout"]
-    params = [trained_weights['h1'].transpose(), trained_biases['b1'],
-              trained_weights['h2'].transpose(), trained_biases['b2'],
-              trained_weights['out'].transpose(), trained_biases['out']]
+    pickle.dump((trained_weights, trained_biases, funcs),
+                open(dir_name + "/pickled_params.p", "wb"))
+
+    param_names = []
+    params = []
+    for i in range(0, len(weights)):
+        param_names.append("W" + str(i+1))
+        param_names.append("b" + str(i+1))
+        params.append(trained_weights[i].transpose())
+        params.append(trained_biases[i].transpose())
+    param_names.append("Wout")
+    param_names.append("bout")
+    params.append(trained_weights[-1].transpose())
+    params.append(trained_biases[-1].transpose())
+    #param_names = ["W1", "b1", "W2", "b2", "Wout", "bout"]
+    #params = [trained_weights['h1'].transpose(), trained_biases['b1'],
+    #          trained_weights['h2'].transpose(), trained_biases['b2'],
+    #          trained_weights['out'].transpose(), trained_biases['out']]
 
     i = 0
     for param_name in param_names:
-        print(str(i) + ". Saved param \"" + param_name + "\", shape: ", end='')
         json_string = SimpleEncode(params[i].astype(np.float32))
         print(params[i].shape)
         #%timeit SimpleDecode(json_string)
-        with open(param_name + '.json', 'w') as outfile:
+        with open(dir_name + '/' + param_name + '.json', 'w') as outfile:
             outfile.write(json_string)
             outfile.close
+        print(str(i) + ". Saved param \"" + param_name + "\", shape: ", end='')
         #print(params[i][0])
         i = i + 1
+
+    # Generate appriate outputs
+    forward_propagate(hidden_layers, inputs_tofeed)
         
-def forward_propagate():
+def forward_propagate(hidden_layers, inputs_tofeed):
     global test_batch_no
+
+    dir_name = create_exp_dir_name(hidden_layers)
+
     ### Save parameters, inputs, outputs and targets into JSON files
-    trained_weights, trained_biases = pickle.load(open("pickled_params.p", "rb"))
-    
-    inputs_tofeed = 328
+    trained_weights, trained_biases, funcs = \
+        pickle.load(open(dir_name + "/pickled_params.p", "rb"))
+
     start = test_batch_no * inputs_tofeed
     end = min(10000, start + inputs_tofeed)
     test_batch_images = test_images[start:end]
@@ -148,7 +203,7 @@ def forward_propagate():
 
     # Save test images
     json_string = SimpleEncode(test_batch_images.astype(np.float32))
-    with open('test_images.json', 'w') as outfile:
+    with open(dir_name + '/test_images_n' + str(end-start) +'.json', 'w') as outfile:
         outfile.write(json_string)
         outfile.close
     print("Saved " + str(test_batch_images.shape[0]) + " images, shape: ", end='')
@@ -159,7 +214,7 @@ def forward_propagate():
     x = tf.placeholder("float", [None, n_input])
 
     # Construct model
-    pred = multilayer_perceptron(x, trained_weights, trained_biases)
+    pred = multilayer_perceptron(x, trained_weights, trained_biases, funcs)
     init = tf.initialize_all_variables()
 
     # Launch the graph
@@ -173,29 +228,30 @@ def forward_propagate():
         tl = timeline.Timeline(run_metadata.step_stats)
         ctf = tl.generate_chrome_trace_format()
         current_time = datetime.datetime.now()
-        if not os.path.isdir("results_tensorflow"):
-            os.mkdir("results_tensorflow")
-        with open("results_tensorflow/" + current_time.strftime("%d.%m.%Y-%H.%M.%S.") + 
-                  str(int(current_time.microsecond / 1000)).zfill(3) + 
+        if not os.path.isdir(dir_name + "/results_tensorflow"):
+            os.mkdir(dir_name + "/results_tensorflow")
+        with open(dir_name + "/results_tensorflow/" + current_time.strftime("%d.%m.%Y-%H.%M.%S.") + 
+                  str(int(current_time.microsecond / 1000)).zfill(3) + ".n" + str(end-start) +
                   ".timeline.json", 'w') as f:
             f.write(ctf)
         
     # Print results
-    print("Weights:")
+    print("Weights[0][0]:")
     np.set_printoptions(threshold=np.inf, suppress=True)
-    print(trained_weights['h1'].transpose()[1])
-    print("Inputs[0]:")
-    print(test_batch_images[0])
-    print("Output[0]:")
-    print(result[0][0])
-    print("Output[:2] maxed:")
-    print([list(decision).index(max(decision)) for decision in result[0][:2]])
-    print("Correct[:2]:")
-    print([list(decision).index(max(decision)) for decision in test_batch_targets[0:2]])
+    print(trained_weights[0].transpose()[0])
+    i = 0
+    print("Inputs[" + str(i) + "]:")
+    print(test_batch_images[i])
+    print("Output[" + str(i) + "]:")
+    print(result[0][i])
+    print("Output[0:" + str(i+1) + "] maxed:")
+    print([list(decision).index(max(decision)) for decision in result[0][:i+1]])
+    print("Correct[0:" + str(i+1) + "]:")
+    print([list(decision).index(max(decision)) for decision in test_batch_targets[:i+1]])
         
     # Save results
     json_string = SimpleEncode(result[0].astype(np.float32))
-    with open('test_tf_results.json', 'w') as outfile:
+    with open(dir_name + '/test_tf_results_n' + str(end-start) + '.json', 'w') as outfile:
         outfile.write(json_string)
         outfile.close
     print("Saved results, shape: ", end='')
