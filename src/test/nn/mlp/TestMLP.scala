@@ -56,12 +56,37 @@ class TestMLP {
     }
   }
 
-  @Test
+  //@Test
   def testSuite_alot(): Unit = {
     val hidden_layers = Array(256, 256)
     val n_inputs = 1896
     val reruns = 1
-    val experiments = Array(DictMap("mults_per_thread" -> 2, "neurons_per_wrg" -> 2))
+    val experiments = Array(
+      /* Parallel neuron, a lot of inputs */
+      DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1),
+      DictMap("mults_per_thread" -> 2, "neurons_per_wrg" -> 2))
+    for (i <- 0 until reruns) {
+      for (e <- experiments) {
+        MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, e("mults_per_thread"))
+        MNIST_MLP_in_2d_MrgdGrps_in_1d(hidden_layers, n_inputs,
+          e("mults_per_thread"))
+        MNIST_MLP_in_2d_MrgdGrps_in_2d(hidden_layers, n_inputs,
+          e("mults_per_thread"), e("neurons_per_wrg"))
+        MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(hidden_layers, n_inputs,
+          e("mults_per_thread"), e("neurons_per_wrg"))
+      }
+    }
+  }
+
+  @Test
+  def testSuite(): Unit = {
+    val hidden_layers = Array(256, 256)
+    val n_inputs = 1896
+    val reruns = 1
+    val experiments = Array(
+      /* Parallel neuron, a lot of inputs */
+      DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1),
+      DictMap("mults_per_thread" -> 2, "neurons_per_wrg" -> 2))
     for (i <- 0 until reruns) {
       for (e <- experiments) {
         MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, e("mults_per_thread"))
@@ -635,9 +660,17 @@ class TestMLP {
         _global_size_0 = get_global_size_0()
         _global_size_1 = get_global_size_1()
 
-        assert(_n_inputs % _local_size_1 == 0,
-          f"If the number of inputs (${_n_inputs}%d) is not a multiple of work group size in the " +
-          f"respective dimension (${_local_size_1}%d), slide() will leave out some inputs.")
+        val error_message = f"If the number of inputs (${_n_inputs}%d) is not a multiple of work group size in the " +
+                            f"respective dimension (${_local_size_1}%d), slide() will leave out some inputs."
+        try
+          assert(_n_inputs % _local_size_1 == 0, error_message)
+        catch {
+          case e: AssertionError => {
+            println(error_message)
+            return
+            // For large test suite we don't want to stop execution
+          }
+        }
 
         val (output_layer_flat: Array[Float], runtime) =
           Execute(_local_size_0, _local_size_1, _global_size_0, _global_size_1, (true, true))(
@@ -793,7 +826,7 @@ class TestMLP {
                                      mults_per_thread: Int, neurons_per_wrg: Int): Unit = {
     val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers=Array(256, 256), n_inputs)
     new MLP_test3(f_layer_complex_neuron_mrgd_wrgs_in_2d, mults_per_thread, neurons_per_wrg)(
-      f"f_layer_complex_neuron_mrgd_wrgs_in_1d",
+      f"f_layer_complex_neuron_mrgd_wrgs_in_2d",
       f"11. (MNIST dataset) x3 2D-parallel kernels (across inputs). " +
       f"Workgroup per partition of neurons per partition of inputs.", dir_name,
       tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
@@ -804,7 +837,7 @@ class TestMLP {
                                                mults_per_thread: Int, neurons_per_wrg: Int): Unit = {
     val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers=Array(256, 256), n_inputs)
     new MLP_test3(f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced, mults_per_thread, neurons_per_wrg)(
-      f"f_layer_complex_neuron_mrgd_wrgs_in_1d",
+      f"f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced",
       f"12. (MNIST dataset) x3 2D-parallel kernels (across inputs). " +
       f"Workgroup per partition of neurons per partition of inputs." +
        "Memory accesses are coalesced.", dir_name,

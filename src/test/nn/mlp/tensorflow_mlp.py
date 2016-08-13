@@ -16,6 +16,8 @@ import datetime
 from tensorflow.python.client import timeline
 import os
 
+verbose = False
+
 # Import MINST data
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
@@ -197,9 +199,13 @@ def forward_propagate(hidden_layers, inputs_tofeed):
         pickle.load(open(dir_name + "/pickled_params.p", "rb"))
 
     start = test_batch_no * inputs_tofeed
-    end = min(10000, start + inputs_tofeed)
+    end = start + inputs_tofeed
+    if end > 10000:
+        end = 10000
+        test_batch_no = 0
     test_batch_images = test_images[start:end]
     test_batch_targets = test_targets[start:end]
+    print(start, end, inputs_tofeed)
 
     # Save test images
     json_string = SimpleEncode(test_batch_images.astype(np.float32))
@@ -236,25 +242,27 @@ def forward_propagate(hidden_layers, inputs_tofeed):
             f.write(ctf)
         
     # Print results
-    print("Weights[0][0]:")
-    np.set_printoptions(threshold=np.inf, suppress=True)
-    print(trained_weights[0].transpose()[0])
-    i = 701
-    print("Inputs[" + str(i) + "]:")
-    print(test_batch_images[i])
-    print("Output[" + str(i) + "]:")
-    print(result[0][i])
-    print("Output[0:" + str(i+1) + "] maxed:")
-    print([list(decision).index(max(decision)) for decision in result[0][:i+1]])
-    print("Correct[0:" + str(i+1) + "]:")
-    print([list(decision).index(max(decision)) for decision in test_batch_targets[:i+1]])
+    if verbose:
+        print("Weights[0][0]:")
+        np.set_printoptions(threshold=np.inf, suppress=True)
+        print(trained_weights[0].transpose()[0])
+        i = 0
+        print("Inputs[" + str(i) + "]:")
+        print(test_batch_images[i])
+        print("Output[" + str(i) + "]:")
+        print(result[0][i])
+        print("Output[0:" + str(i+1) + "] maxed:")
+        print([list(decision).index(max(decision)) for decision in result[0][:i+1]])
+        print("Correct[0:" + str(i+1) + "]:")
+        print([list(decision).index(max(decision)) for decision in test_batch_targets[:i+1]])
         
     # Save results
     json_string = SimpleEncode(result[0].astype(np.float32))
     with open(dir_name + '/test_tf_results_n' + str(end-start) + '.json', 'w') as outfile:
         outfile.write(json_string)
         outfile.close
-    print("Saved results, shape: ", end='')
-    print(result[0].shape)
+    if verbose:
+        print("Saved results, shape: ", end='')
+        print(result[0].shape)
 
     test_batch_no = test_batch_no + 1
