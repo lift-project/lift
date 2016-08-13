@@ -10,7 +10,6 @@ import ir.ast.{Get, Lambda, UserFun, Value, Zip, fun}
 import opencl.ir.{pattern, _}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import openmp.generator.OMPGenerator
-import openmp.ir.pattern.{:+, MapOMP$, ReduceOMP}
 
 /**
   * Created by Federico on 15-Jul-16.

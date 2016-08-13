@@ -1,7 +1,9 @@
 package openmp.executor
 
-import ir.{ArrayType, TupleType, Type}
+import apart.arithmetic.SizeVar
+import ir.{ArrayType, TupleType, Type, TypeChecker}
 import ir.ast.{Get, Lambda2, Pad, Split, Transpose, Unzip, UserFun, Value, Zip, fun}
+import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import openmp.ir.AuxTypes._
@@ -64,6 +66,19 @@ object Benchmarks {
       toGlobal(MapSeq(MapSeq(MapSeq(id)))) o  MapOMP(fun(Arow =>
         MapOMP(fun(Bcol =>
           toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)  $ Zip(Arow, Bcol)
+        )) o Transpose() $ B
+      )) $ A
+    })
+
+  val sN = SizeVar("N")
+
+  def matrixMultCL() =  fun(
+    ArrayType(ArrayType(Float, sN), sN),
+    ArrayType(ArrayType(Float, sN), sN),
+    (A, B) => {
+      MapGlb(1)(fun( Arow =>
+        MapGlb(0)(fun( Bcol =>
+          toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(Arow, Bcol)
         )) o Transpose() $ B
       )) $ A
     })
@@ -177,6 +192,24 @@ object Benchmarks {
       ))) $ Zip(pos, vel)
   )
 
+  val nbodyCL = fun(
+    ArrayType(float4, sN),
+    ArrayType(float4, sN),
+    Float,
+    Float,
+    (pos, vel, espSqr, deltaT) =>
+      toGlobal(MapGlb(fun(p1 =>
+
+        (MapSeq(fun(acceleration =>
+          update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
+
+          o ReduceSeq(fun((acc, p2) =>
+          calcAcc(Get(p1,0), p2, deltaT, espSqr, acc)),
+          float4zero) $ pos
+
+      ))) $ Zip(pos, vel)
+  )
+
   val blackScholesComp =
     UserFun("blackScholesComp", "inRand",
       """|{
@@ -270,8 +303,11 @@ object Benchmarks {
     //Executor.compileAndGenerateScript(matrixMultPar(big),bigList ++ bigList,"D:/Test")
   }
 
-  def main(args: Array[String]) {
-    blackScholes(1000,Parallel)
+  def main(args: Array[String]): Unit = {
+    val mm = matrixMultCL
+    TypeChecker.check(mm.body,true)
+    val out = OpenCLGenerator.generate(mm)
+    println(out)
   }
 
   def benchPath(tName:String, tSize:String, parSeq:String) = s"D:/Benchmarks/$tName$tSize/$parSeq"
@@ -321,7 +357,16 @@ object Benchmarks {
     Executor.compileAndGenerateScript(kernel, input, benchPath("BlackScholes", size.toString, algo.toString))
   }
 
-
+  /*def dotProduct(size:Int, algo:Algotype) = {
+    val rand = new Random(2)
+    val input1 = List.fill(size)(rand.nextFloat())
+    val input2 = List.fill(size)(rand.nextFloat())
+    val kernel = algo match {
+      case Sequential => dotProductSeq(size)
+      case Parallel => dotProductPar(size)
+    }
+    Executor.compileAndGenerateScript(kernel, input1 ++ input2, benchPath("DP", size.toString, algo.toString))
+  }*/
 
   private def randomList(size:Int, random:Random) = List.fill(size)(random.nextFloat())
   private def randomSquare(sizeX:Int, sizeY:Int, random:Random) = List.fill(sizeX, sizeY)(random.nextFloat()).flatten
