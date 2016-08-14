@@ -399,6 +399,14 @@ object Benchmarks {
     val (total, runtime) = opencl.executor.Execute(N)(blackScholesCL(N),input)
     println(s"BS$N total = ${total.toString}, runtime = $runtime")
   }
+
+  def runMMCL(N:Int):Unit = {
+    val rand = new Random
+    val matrixA = Array.tabulate(N, N)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(N, N)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val (total, runtime) = opencl.executor.Execute(N*N)(matrixMultCL(N),matrixA, matrixB)
+    println(s"MM$N runtime = $runtime")
+  }
   
   def main(args: Array[String]): Unit = {
     //matrixMult(200,Parallel)
@@ -407,9 +415,11 @@ object Benchmarks {
     runBlackScholesCL(1280)
     runBlackScholesCL(12800)
     runBlackScholesCL(51200)
-    val before = System.currentTimeMillis()
     runBlackScholesCL(128000)
-    println(System.currentTimeMillis() - before)
+    runMMCL(256)
+    runMMCL(512)
+    runMMCL(640)
+    runMMCL(896)
     opencl.executor.Executor.shutdown()
 
   }
