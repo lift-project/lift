@@ -440,8 +440,8 @@ object Benchmarks {
 
   def runNBody(N:Int):Unit = {
     val rand = new Random()
-    val inputsA = Array.fill(N)(Array(rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
-    val inputsB = Array.fill(N)(Array(rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
+    val inputsA = Array.fill(N)(rand.nextFloat())
+    val inputsB = Array.fill(N)(rand.nextFloat())
     val deltaT = 0.005f
     val espSqr = 500.0f
     val (_, runtime) = opencl.executor.Execute(N)(nbodyCL(N), inputsA, inputsB, deltaT, espSqr)
