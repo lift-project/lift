@@ -155,12 +155,14 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
         trained_weights = sess.run(weights)
         trained_biases = sess.run(biases)        
 
+    (start, end) = get_start_end(inputs_tofeed, test_batch_no)
+    
     pickle.dump((trained_weights, trained_biases, funcs),
-                open(dir_name + "/pickled_params.p", "wb"))
+                open(dir_name + "/pickled_params_n" + str(end-start) +".p", "wb"))
 
     param_names = []
     params = []
-    for i in range(0, len(weights)):
+    for i in range(0, len(weights) - 1):
         param_names.append("W" + str(i+1))
         param_names.append("b" + str(i+1))
         params.append(trained_weights[i].transpose())
@@ -174,7 +176,6 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
     #          trained_weights['h2'].transpose(), trained_biases['b2'],
     #          trained_weights['out'].transpose(), trained_biases['out']]
 
-    (start, end) = get_start_end(inputs_tofeed, test_batch_no)
     i = 0
     for param_name in param_names:
         json_string = SimpleEncode(params[i].astype(np.float32))
@@ -191,11 +192,8 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
     forward_propagate(hidden_layers, inputs_tofeed)
 
 def get_start_end(inputs_tofeed, test_batch_no):
-    start = test_batch_no * inputs_tofeed
+    start = inputs_tofeed
     end = start + inputs_tofeed
-    if end > 10000:
-        end = 10000
-        test_batch_no = 0
 
     return (start, end)
 
@@ -205,14 +203,14 @@ def forward_propagate(hidden_layers, inputs_tofeed):
 
     dir_name = create_exp_dir_name(hidden_layers)
 
-    ### Save parameters, inputs, outputs and targets into JSON files
-    trained_weights, trained_biases, funcs = \
-        pickle.load(open(dir_name + "/pickled_params.p", "rb"))
-
     (start, end) = get_start_end(inputs_tofeed, test_batch_no)
     test_batch_images = test_images[start:end]
     test_batch_targets = test_targets[start:end]
     print(start, end, inputs_tofeed)
+
+    ### Save parameters, inputs, outputs and targets into JSON files
+    trained_weights, trained_biases, funcs = \
+        pickle.load(open(dir_name + "/pickled_params_n" + str(end-start) +".p", "rb"))
 
     # Save test images
     json_string = SimpleEncode(test_batch_images.astype(np.float32))

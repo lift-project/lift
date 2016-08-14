@@ -81,28 +81,35 @@ class TestMLP {
   @Test
   def testSuite_1_1(): Unit = {
     val reruns = 1
+    val append_results: Boolean = false
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1,
-        "hidden_layer_0_range" -> Array.range(start=32, end=1024, step=32),
-        "n_inputs_range" -> Array.range(start=32, end=1024, step=32)))
+        "hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
+        "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
+        //"n_inputs_range" -> Array.range(start=576, end=1024, step=32)))
 
     for (i <- 0 until reruns) {
       for (e <- experiments) {
         for (hidden_layer_0_size <- e("hidden_layer_0_range").asInstanceOf[Array[Int]]) {
+          val lift_results_dir = new File(current_dir + f"/experiment.784-$hidden_layer_0_size%d-32-10/results_lift")
           for (n_inputs <- e("n_inputs_range").asInstanceOf[Array[Int]]) {
-            println(f"Starting the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
-            f"neurons_per_wrg=${e("neurons_per_wrg").asInstanceOf[Int]}%d, " +
-            f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
-            f"n_inputs=$n_inputs%d)")
-            MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
-              e("mults_per_thread").asInstanceOf[Int])
-            MNIST_MLP_in_2d_MrgdGrps_in_1d(Array(hidden_layer_0_size, 32), n_inputs,
-              e("mults_per_thread").asInstanceOf[Int])
-            MNIST_MLP_in_2d_MrgdGrps_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
-              e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
-            MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
-              e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
+            // Ensures that there is only one set of results per experiment if append_results == true
+            if (append_results || !lift_results_dir.listFiles.exists(f => ".*._n%d.csv".format(n_inputs).
+                r.findFirstIn(lift_results_dir.getName).isDefined)) {
+              println(f"Starting the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
+                f"neurons_per_wrg=${e("neurons_per_wrg").asInstanceOf[Int]}%d, " +
+                f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
+                f"n_inputs=$n_inputs%d)")
+              MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
+                e("mults_per_thread").asInstanceOf[Int])
+              MNIST_MLP_in_2d_MrgdGrps_in_1d(Array(hidden_layer_0_size, 32), n_inputs,
+                e("mults_per_thread").asInstanceOf[Int])
+              MNIST_MLP_in_2d_MrgdGrps_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
+                e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
+              MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
+                e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
+            }
           }
         }
       }
@@ -123,13 +130,13 @@ class TestMLP {
     }
   }
 
-  def results_filename(exp_dir_name: String) = {
+  def results_filename(exp_dir_name: String, n_inputs: Int) = {
     val now = Calendar.getInstance()
     new String(current_dir + "/" + exp_dir_name + "/results_lift/" +
-    "%02d.%02d.%04d-%02d.%02d.%02d.%03d.csv".format(
+    "%02d.%02d.%04d-%02d.%02d.%02d.%03d_n%d.csv".format(
       now.get(Calendar.DATE), now.get(Calendar.MONTH), now.get(Calendar.YEAR),
       now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
-      now.get(Calendar.MILLISECOND)))
+      now.get(Calendar.MILLISECOND), n_inputs))
   }
 
   def load_2d_float_json(json_file_name: String): Array[Array[Float]] = {
@@ -182,8 +189,8 @@ class TestMLP {
       tf_W = tf_W :+ load_2d_float_json(dir_name + "/W" + i.toString + "_n" + n_inputs + ".json")
       tf_B = tf_B :+ load_1d_float_json(dir_name + "/b" + i.toString + "_n" + n_inputs + ".json")
     }
-    tf_W = tf_W :+ load_2d_float_json(dir_name + "/Wout.json")
-    tf_B = tf_B :+ load_1d_float_json(dir_name + "/bout.json")
+    tf_W = tf_W :+ load_2d_float_json(dir_name + "/Wout_n" + n_inputs + ".json")
+    tf_B = tf_B :+ load_1d_float_json(dir_name + "/bout_n" + n_inputs + ".json")
     val tf_X = load_2d_float_json(dir_name + "/test_images_n" + n_inputs + ".json")
     val tf_result = load_2d_float_json(dir_name + "/test_tf_results_n" + n_inputs + ".json")
 
@@ -695,7 +702,7 @@ class TestMLP {
       }
       println()
 
-      val file = new File(results_filename(exp_dir_name))
+      val file = new File(results_filename(exp_dir_name, _n_inputs))
       file.getParentFile.mkdirs()
       val pw = new PrintWriter(file)
       var finished_without_errors = false
@@ -726,7 +733,7 @@ class TestMLP {
       finally {
         pw.close()
         if (!finished_without_errors) {
-          new File(results_filename(exp_dir_name)).delete()
+          new File(results_filename(exp_dir_name, _n_inputs)).delete()
           print(f"Input $input_no%d: ")
           println(Inputs(input_no).mkString("\t"))
           println(f"Output $input_no%d: ")
