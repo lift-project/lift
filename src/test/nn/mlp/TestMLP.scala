@@ -95,8 +95,8 @@ class TestMLP {
           val lift_results_dir = new File(current_dir + f"/experiment.784-$hidden_layer_0_size%d-32-10/results_lift")
           for (n_inputs <- e("n_inputs_range").asInstanceOf[Array[Int]]) {
             // Ensures that there is only one set of results per experiment if append_results == true
-            if (append_results || !lift_results_dir.listFiles.exists(f => ".*._n%d.csv".format(n_inputs).
-                r.findFirstIn(lift_results_dir.getName).isDefined)) {
+            if (lift_results_dir.isDirectory || append_results || !lift_results_dir.listFiles.exists(f => ".*._n%d.csv".format(n_inputs).
+                r.findFirstIn(f.getName).isDefined)) {
               println(f"Starting the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
                 f"neurons_per_wrg=${e("neurons_per_wrg").asInstanceOf[Int]}%d, " +
                 f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
@@ -109,6 +109,12 @@ class TestMLP {
                 e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
               MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
                 e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
+            }
+            else {
+              println(f"Skipping the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
+                f"neurons_per_wrg=${e("neurons_per_wrg").asInstanceOf[Int]}%d, " +
+                f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
+                f"n_inputs=$n_inputs%d)")
             }
           }
         }
@@ -681,11 +687,10 @@ class TestMLP {
         try
           assert(_n_inputs % _local_size_1 == 0, error_message)
         catch {
-          case e: AssertionError => {
+          case e: AssertionError =>
             println(error_message)
             return
             // For large test suite we don't want to stop execution
-          }
         }
 
         val (output_layer_flat: Array[Float], runtime) =
