@@ -285,6 +285,7 @@ object Benchmarks {
       """.stripMargin
       , Float, TupleType(Float, Float))
 
+
   def blackScholesSeq(N:Int) = fun(
     ArrayType(Float, N),
     inRand => MapSeq(blackScholesComp)  $ inRand
@@ -297,7 +298,7 @@ object Benchmarks {
 
   def blackScholesCL(N:Int)  = fun(
     ArrayType(Float, N),
-    inRand => MapWrg(blackScholesComp) $ inRand
+    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(1280) $ inRand
   )
 
   val squareAdd = UserFun("squareAdd", Array("x","y"),"return x + sqrt(((y * y)/52));",Seq(Float,Float),Float)
@@ -394,7 +395,7 @@ object Benchmarks {
 
   def runBlackScholesCL(N:Int):Unit = {
     val rand = new Random
-    val input = Array.fill(N)(0.0f)
+    val input = Array.fill(N)(rand.nextFloat())
     val (total, runtime) = opencl.executor.Execute(N)(blackScholesCL(N),input)
     println(s"BS$N total = ${total.toString}, runtime = $runtime")
   }
@@ -403,9 +404,12 @@ object Benchmarks {
     //matrixMult(200,Parallel)
     opencl.executor.Executor.loadLibrary()
     opencl.executor.Executor.init()
-    //runBlackScholesCL(12800)
-    //runBlackScholesCL(128000)
-    runBlackScholesCL(128000000)
+    runBlackScholesCL(1280)
+    runBlackScholesCL(12800)
+    runBlackScholesCL(51200)
+    val before = System.currentTimeMillis()
+    runBlackScholesCL(128000)
+    println(System.currentTimeMillis() - before)
     opencl.executor.Executor.shutdown()
 
   }
