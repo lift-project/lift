@@ -298,7 +298,7 @@ object Benchmarks {
 
   def blackScholesCL(N:Int)  = fun(
     ArrayType(Float, N),
-    inRand => Zip(Join() o MapWrg(MapLcl(blackScholesComp)) o Split(1280) $ inRand, 1.0f)
+    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(1280) $ inRand)
   )
 
   val squareAdd = UserFun("squareAdd", Array("x","y"),"return x + sqrt(((y * y)/52));",Seq(Float,Float),Float)
