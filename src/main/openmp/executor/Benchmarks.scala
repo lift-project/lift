@@ -197,13 +197,17 @@ object Benchmarks {
     UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr", "acc"),
       """|{
         |  float4 r;
-        |  r.xyz = p1.xyz - p2.xyz;
+        |  r.x = p1.x - p2.x;
+        |  r.y = p1.y - p2.y;
+        |  r.z = p1.z - p2.z
         |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
         |  float invDistCube = invDist * invDist * invDist;
         |  float s = invDistCube * p2.w;
         |  float4 res;
-        |  res.xyz = acc.xyz + s * r.xyz;
+        |  res.x = acc.x + s * r.x;
+        |  res.y = acc.y + s * r.y;
+        |  res.z = acc.z + s * r.z;
         |  return res;
         |}
         | """.stripMargin,
@@ -213,10 +217,14 @@ object Benchmarks {
     UserFun("update", Array("pos", "vel", "deltaT", "acceleration"),
       """|{
         |  float4 newPos;
-        |  newPos.xyz = pos.xyz + vel.xyz * deltaT + 0.5f * acceleration.xyz * deltaT * deltaT;
+        |  newPos.x = pos.x + vel.x * deltaT + 0.5f * acceleration.x * deltaT * deltaT;
+        |  newPos.y = pos.y + vel.y * deltaT + 0.5f * acceleration.y * deltaT * deltaT;
+        |  newPos.z = pos.z + vel.z * deltaT + 0.5f * acceleration.z * deltaT * deltaT;
         |  newPos.w = pos.w;
         |  float4 newVel;
-        |  newVel.xyz = vel.xyz + acceleration.xyz * deltaT;
+        |  newVel.x = vel.x + acceleration.x * deltaT;
+        |  newVel.y = vel.y + acceleration.y * deltaT;
+        |  newVel.z = vel.z + acceleration.z * deltaT;
         |  newVel.w = vel.w;
         |  Tuple t = {newPos, newVel};
         |  return t;
