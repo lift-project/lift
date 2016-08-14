@@ -193,9 +193,9 @@ object Benchmarks {
       ))) $ Zip(pos, vel)
   )
 
-  val nbodyCL = fun(
-    ArrayType(float4, sN),
-    ArrayType(float4, sN),
+  def nbodyCL(N:Int) = fun(
+    ArrayType(float4, N),
+    ArrayType(float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>
@@ -390,7 +390,6 @@ object Benchmarks {
     Executor.compileAndGenerateScript(kernel, input1 ++ input2, benchPath("DP", size.toString, algo.toString))
   }*/
 
-  private def randomList(size:Int, random:Random) = List.fill(size)(random.nextFloat())
   private def randomSquare(sizeX:Int, sizeY:Int, random:Random) = List.fill(sizeX, sizeY)(random.nextFloat()).flatten
 
   def runBlackScholesCL(N:Int):Unit = {
@@ -407,7 +406,17 @@ object Benchmarks {
     val (total, runtime) = opencl.executor.Execute(N*N)(matrixMultCL(N),matrixA, matrixB)
     println(s"MM$N runtime = $runtime")
   }
-  
+
+  def runNBody(N:Int):Unit = {
+    val rand = new Random()
+    val inputsA = Array.fill(N)((rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
+    val inputsB = Array.fill(N)((rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
+    val deltaT = 0.005f
+    val espSqr = 500.0f
+    val (_, runtime) = opencl.executor.Execute(N)(nbodyCL(N), inputsA, inputsB, deltaT, espSqr)
+    println(s"NBody$N runtime = $runtime")
+  }
+
   def main(args: Array[String]): Unit = {
     //matrixMult(200,Parallel)
     opencl.executor.Executor.loadLibrary()
@@ -420,6 +429,10 @@ object Benchmarks {
     runMMCL(512)
     runMMCL(640)
     runMMCL(896)
+    runNBody(512)
+    runNBody(1280)
+    runNBody(5120)
+    runNBody(12800)
     opencl.executor.Executor.shutdown()
 
   }
