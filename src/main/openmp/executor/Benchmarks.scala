@@ -394,15 +394,18 @@ object Benchmarks {
 
   def runBlackScholesCL(N:Int):Unit = {
     val rand = new Random
-    val input = Array.fill(N)(rand.nextFloat())
-    opencl.executor.Execute(N)(blackScholesCL(N),input)
+    val input = Array.fill(N)(0.0f)
+    val (total, runtime) = opencl.executor.Execute(N)(blackScholesCL(N),input)
+    println(s"BS$N total = ${total.toString}, runtime = $runtime")
   }
   
   def main(args: Array[String]): Unit = {
     //matrixMult(200,Parallel)
     opencl.executor.Executor.loadLibrary()
-    opencl.executor.Executor.init();
-    runBlackScholesCL(12800)
+    opencl.executor.Executor.init()
+    //runBlackScholesCL(12800)
+    //runBlackScholesCL(128000)
+    runBlackScholesCL(128000000)
     opencl.executor.Executor.shutdown()
 
   }
