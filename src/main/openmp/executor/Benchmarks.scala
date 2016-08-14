@@ -298,7 +298,7 @@ object Benchmarks {
 
   def blackScholesCL(N:Int)  = fun(
     ArrayType(Float, N),
-    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(1280) $ inRand
+    inRand => Zip(Join() o MapWrg(MapLcl(blackScholesComp)) o Split(1280) $ inRand, 1.0f)
   )
 
   val squareAdd = UserFun("squareAdd", Array("x","y"),"return x + sqrt(((y * y)/52));",Seq(Float,Float),Float)
@@ -409,8 +409,8 @@ object Benchmarks {
 
   def runNBody(N:Int):Unit = {
     val rand = new Random()
-    val inputsA = Array.fill(N)((rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
-    val inputsB = Array.fill(N)((rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
+    val inputsA = Array.fill(N)(Tuple(rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
+    val inputsB = Array.fill(N)(Tuple4(rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
     val deltaT = 0.005f
     val espSqr = 500.0f
     val (_, runtime) = opencl.executor.Execute(N)(nbodyCL(N), inputsA, inputsB, deltaT, espSqr)
@@ -422,18 +422,18 @@ object Benchmarks {
     opencl.executor.Executor.loadLibrary()
     opencl.executor.Executor.init()
     runBlackScholesCL(1280)
-    runBlackScholesCL(12800)
-    runBlackScholesCL(51200)
-    runBlackScholesCL(128000)
-    runMMCL(256)
-    runMMCL(512)
-    runMMCL(640)
+    //runBlackScholesCL(12800)
+    //runBlackScholesCL(51200)
+    //runBlackScholesCL(128000)
+    //runMMCL(256)
+    //runMMCL(512)
+    //runMMCL(640)
     //runMMCL(896)
-    println("MMCL 896 goes here...sigh :(")
-    runNBody(512)
-    runNBody(1280)
-    runNBody(5120)
-    runNBody(12800)
+    //println("MMCL 896 goes here...sigh :(")
+    //runNBody(512)
+    //runNBody(1280)
+    //runNBody(5120)
+    //runNBody(12800)
     opencl.executor.Executor.shutdown()
 
   }
