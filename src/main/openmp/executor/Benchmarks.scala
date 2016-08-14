@@ -3,7 +3,7 @@ package openmp.executor
 import apart.arithmetic.SizeVar
 import benchmarks.NBody
 import ir.{ArrayType, TupleType, Type, TypeChecker}
-import ir.ast.{Get, Join, Lambda2, Pad, Split, Transpose, Unzip, UserFun, Value, Zip, fun}
+import ir.ast.{Get, Join, Lambda2, Pad, Split, Transpose, Tuple, Unzip, UserFun, Value, Zip, fun}
 import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern.{MapLcl, _}
@@ -409,8 +409,8 @@ object Benchmarks {
 
   def runNBody(N:Int):Unit = {
     val rand = new Random()
-    val inputsA = Array.fill(N)((rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
-    val inputsB = Array.fill(N)((rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
+    val inputsA = Array.fill(N)(Tuple(rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
+    val inputsB = Array.fill(N)(Tuple(rand.nextFloat(),rand.nextFloat(),rand.nextFloat(),rand.nextFloat()))
     val deltaT = 0.005f
     val espSqr = 500.0f
     val (_, runtime) = opencl.executor.Execute(N)(nbodyCL(N), inputsA, inputsB, deltaT, espSqr)
