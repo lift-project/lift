@@ -42,10 +42,6 @@ display_step = 1
 n_input = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 
-# tf Graph input
-x = tf.placeholder("float", [None, n_input])
-y = tf.placeholder("float", [None, n_classes])
-
 
 def SimpleEncode(ndarray):
     return json.dumps(ndarray.tolist())
@@ -87,6 +83,10 @@ def create_exp_dir_name(hidden_layers):
 
 def train_and_forward_propagate(hidden_layers, inputs_tofeed):
     dir_name = create_exp_dir_name(hidden_layers)
+    # tf Graph input
+    x = tf.placeholder("float", [None, n_input])
+    y = tf.placeholder("float", [None, n_classes])
+
     # Store layers weight & bias
     weights = []
     biases = []
@@ -174,12 +174,13 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
     #          trained_weights['h2'].transpose(), trained_biases['b2'],
     #          trained_weights['out'].transpose(), trained_biases['out']]
 
+    (start, end) = get_start_end(inputs_tofeed, test_batch_no)
     i = 0
     for param_name in param_names:
         json_string = SimpleEncode(params[i].astype(np.float32))
         print(params[i].shape)
         #%timeit SimpleDecode(json_string)
-        with open(dir_name + '/' + param_name + '.json', 'w') as outfile:
+        with open(dir_name + '/' + param_name + '_n' + str(end-start) + '.json', 'w') as outfile:
             outfile.write(json_string)
             outfile.close
         print(str(i) + ". Saved param \"" + param_name + "\", shape: ", end='')
@@ -188,6 +189,16 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
 
     # Generate appriate outputs
     forward_propagate(hidden_layers, inputs_tofeed)
+
+def get_start_end(inputs_tofeed, test_batch_no):
+    start = test_batch_no * inputs_tofeed
+    end = start + inputs_tofeed
+    if end > 10000:
+        end = 10000
+        test_batch_no = 0
+
+    return (start, end)
+
         
 def forward_propagate(hidden_layers, inputs_tofeed):
     global test_batch_no
@@ -198,11 +209,7 @@ def forward_propagate(hidden_layers, inputs_tofeed):
     trained_weights, trained_biases, funcs = \
         pickle.load(open(dir_name + "/pickled_params.p", "rb"))
 
-    start = test_batch_no * inputs_tofeed
-    end = start + inputs_tofeed
-    if end > 10000:
-        end = 10000
-        test_batch_no = 0
+    (start, end) = get_start_end(inputs_tofeed, test_batch_no)
     test_batch_images = test_images[start:end]
     test_batch_targets = test_targets[start:end]
     print(start, end, inputs_tofeed)
