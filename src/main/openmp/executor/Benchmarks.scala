@@ -193,22 +193,53 @@ object Benchmarks {
       ))) $ Zip(pos, vel)
   )
 
+  val calcAccCL =
+    UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr", "acc"),
+      """|{
+        |  float4 r;
+        |  r.xyz = p1.xyz - p2.xyz;
+        |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
+        |  float invDist = 1.0f / sqrt(distSqr + espSqr);
+        |  float invDistCube = invDist * invDist * invDist;
+        |  float s = invDistCube * p2.w;
+        |  float4 res;
+        |  res.xyz = acc.xyz + s * r.xyz;
+        |  return res;
+        |}
+        | """.stripMargin,
+      Seq(Float4, Float4, Float, Float, Float4), Float4)
+
+  val updateCL =
+    UserFun("update", Array("pos", "vel", "deltaT", "acceleration"),
+      """|{
+        |  float4 newPos;
+        |  newPos.xyz = pos.xyz + vel.xyz * deltaT + 0.5f * acceleration.xyz * deltaT * deltaT;
+        |  newPos.w = pos.w;
+        |  float4 newVel;
+        |  newVel.xyz = vel.xyz + acceleration.xyz * deltaT;
+        |  newVel.w = vel.w;
+        |  Tuple t = {newPos, newVel};
+        |  return t;
+        |}
+      """.stripMargin,
+      Seq(Float4, Float4, Float, Float4), TupleType(Float4, Float4))
+
   def nbodyCL(N:Int) = fun(
-    ArrayType(float4, N),
-    ArrayType(float4, N),
+    ArrayType(Float4, N),
+    ArrayType(Float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>
-      toGlobal(MapGlb(fun(p1 =>
+      MapGlb(fun(p1 =>
 
-        (MapSeq(fun(acceleration =>
-          update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
+        toGlobal(MapSeq(fun(acceleration =>
+          updateCL(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
 
           o ReduceSeq(fun((acc, p2) =>
-          calcAcc(Get(p1,0), p2, deltaT, espSqr, acc)),
-          float4zero) $ pos
+          calcAccCL(Get(p1,0), p2, deltaT, espSqr, acc)),
+          Value("(float4) 0.0f", Float4)) $ pos
 
-      ))) $ Zip(pos, vel)
+      )) $ Zip(pos, vel)
   )
 
   val blackScholesComp =
