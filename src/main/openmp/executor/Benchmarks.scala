@@ -1,11 +1,12 @@
 package openmp.executor
 
 import apart.arithmetic.SizeVar
+import benchmarks.NBody
 import ir.{ArrayType, TupleType, Type, TypeChecker}
-import ir.ast.{Get, Lambda2, Pad, Split, Transpose, Unzip, UserFun, Value, Zip, fun}
+import ir.ast.{Get, Join, Lambda2, Pad, Split, Transpose, Unzip, UserFun, Value, Zip, fun}
 import opencl.generator.OpenCLGenerator
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
+import opencl.ir.pattern.{MapLcl, _}
 import openmp.ir.AuxTypes._
 import openmp.ir.pattern.{:+, MapOMP, ReduceOMP}
 
@@ -72,9 +73,9 @@ object Benchmarks {
 
   val sN = SizeVar("N")
 
-  def matrixMultCL() =  fun(
-    ArrayType(ArrayType(Float, sN), sN),
-    ArrayType(ArrayType(Float, sN), sN),
+  def matrixMultCL(N:Int) =  fun(
+    ArrayType(ArrayType(Float, N), N),
+    ArrayType(ArrayType(Float, N), N),
     (A, B) => {
       MapGlb(1)(fun( Arow =>
         MapGlb(0)(fun( Bcol =>
@@ -157,21 +158,21 @@ object Benchmarks {
   val float4zero = Value("(Tuple_float_float_float_float) { 0.0f, 0.0f, 0.0f, 0.0f }",float4)
 
   def nbodySeq(N:Int) = fun(
-    ArrayType(float4, N),
-    ArrayType(float4, N),
-    Float,
-    Float,
-    (pos, vel, espSqr, deltaT) =>
-      MapSeq(fun(p1 =>
+        ArrayType(float4, N),
+        ArrayType(float4, N),
+        Float,
+        Float,
+        (pos, vel, espSqr, deltaT) =>
+          MapSeq(fun(p1 =>
 
-        toGlobal(MapSeq(fun(acceleration =>
-          update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
+            toGlobal(MapSeq(fun(acceleration =>
+              update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
 
-          o ReduceSeq(fun((acc, p2) =>
-          calcAcc(Get(p1,0), p2, deltaT, espSqr, acc)),
-          float4zero) $ pos
+              o ReduceSeq(fun((acc, p2) =>
+              calcAcc(Get(p1,0), p2, deltaT, espSqr, acc)),
+              float4zero) $ pos
 
-      )) $ Zip(pos, vel)
+          )) $ Zip(pos, vel)
   )
 
   def nbodyPar(N:Int) = fun(
@@ -182,7 +183,7 @@ object Benchmarks {
     (pos, vel, espSqr, deltaT) =>
       toGlobal(MapOMP(fun(p1 =>
 
-        (MapSeq(fun(acceleration =>
+        toGlobal(MapSeq(fun(acceleration =>
           update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
 
           o ReduceSeq(fun((acc, p2) =>
@@ -294,6 +295,22 @@ object Benchmarks {
     inRand => MapOMP(blackScholesComp) $ inRand
   )
 
+  def blackScholesCL(N:Int)  = fun(
+    ArrayType(Float, N),
+    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(8192) $ inRand
+  )
+
+  val squareAdd = UserFun("squareAdd", Array("x","y"),"return x + sqrt(((y * y)/52));",Seq(Float,Float),Float)
+  val square = UserFun("square", "x", "return sqrt(((x * x)/52));;",Float,Float)
+  def squareAccSeq(N:Int) = fun(
+    ArrayType(Float,N),
+    in =>  toGlobal(MapSeq(id)) o ReduceSeq(add,0.0f) o MapOMP(square) $ in
+  )
+  def squareAccPar(N:Int) = fun(
+    ArrayType(Float,N),
+    in =>  toGlobal(MapSeq(id)) o ReduceOMP(:+(Float),squareAdd,0.0f) $ in
+  )
+
   def other(args: Array[String]) {
     val N = 40000
     val big = 800
@@ -304,11 +321,12 @@ object Benchmarks {
   }
 
   def main(args: Array[String]): Unit = {
-    val mm = matrixMultCL
-    TypeChecker.check(mm.body,true)
-    val out = OpenCLGenerator.generate(mm)
-    println(out)
-  }
+    //matrixMult(200,Parallel)
+    val inputSize = 10000
+    val rand = new Random
+    val input = Array.fill(inputSize)(rand.nextFloat())
+    opencl.executor.Execute(inputSize)(blackScholesCL(10000),input)
+ }
 
   def benchPath(tName:String, tSize:String, parSeq:String) = s"D:/Benchmarks/$tName$tSize/$parSeq"
 
@@ -355,6 +373,16 @@ object Benchmarks {
       case Parallel => blackScholesPar(size)
     }
     Executor.compileAndGenerateScript(kernel, input, benchPath("BlackScholes", size.toString, algo.toString))
+  }
+
+  def squareAcc(size:Int, algo:Algotype):Unit = {
+    val rand = new Random(32)
+    val input = List.fill(size)(rand.nextFloat())
+    val kernel = algo match {
+      case Sequential => squareAccSeq(size)
+      case Parallel => squareAccPar(size)
+    }
+    Executor.compileAndGenerateScript(kernel, input, benchPath("SquareAcc", size.toString, algo.toString))
   }
 
   /*def dotProduct(size:Int, algo:Algotype) = {
