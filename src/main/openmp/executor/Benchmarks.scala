@@ -297,7 +297,7 @@ object Benchmarks {
 
   def blackScholesCL(N:Int)  = fun(
     ArrayType(Float, N),
-    inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(8192) $ inRand
+    inRand => MapWrg(blackScholesComp) $ inRand
   )
 
   val squareAdd = UserFun("squareAdd", Array("x","y"),"return x + sqrt(((y * y)/52));",Seq(Float,Float),Float)
@@ -320,13 +320,6 @@ object Benchmarks {
     //Executor.compileAndGenerateScript(matrixMultPar(big),bigList ++ bigList,"D:/Test")
   }
 
-  def main(args: Array[String]): Unit = {
-    //matrixMult(200,Parallel)
-    val inputSize = 10000
-    val rand = new Random
-    val input = Array.fill(inputSize)(rand.nextFloat())
-    opencl.executor.Execute(inputSize)(blackScholesCL(10000),input)
- }
 
   def benchPath(tName:String, tSize:String, parSeq:String) = s"D:/Benchmarks/$tName$tSize/$parSeq"
 
@@ -398,4 +391,19 @@ object Benchmarks {
 
   private def randomList(size:Int, random:Random) = List.fill(size)(random.nextFloat())
   private def randomSquare(sizeX:Int, sizeY:Int, random:Random) = List.fill(sizeX, sizeY)(random.nextFloat()).flatten
+
+  def runBlackScholesCL(N:Int):Unit = {
+    val rand = new Random
+    val input = Array.fill(N)(rand.nextFloat())
+    opencl.executor.Execute(N)(blackScholesCL(N),input)
+  }
+  
+  def main(args: Array[String]): Unit = {
+    //matrixMult(200,Parallel)
+    opencl.executor.Executor.loadLibrary()
+    opencl.executor.Executor.init();
+    runBlackScholesCL(12800)
+    opencl.executor.Executor.shutdown()
+
+  }
 }
