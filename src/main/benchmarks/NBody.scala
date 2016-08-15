@@ -97,7 +97,7 @@ object NBody {
     UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr", "acc"),
       """|{
         |  float4 r;
-        |  r.xyz = p1.xyz - p2.xyz;
+        |  r.xyz = p2.xyz - p1.xyz ;
         |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
         |  float invDistCube = invDist * invDist * invDist;
@@ -113,7 +113,7 @@ object NBody {
     UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr"),
       """|{
         |  float4 r;
-        |  r.xyz = p1.xyz - p2.xyz;
+        |  r.xyz = p2.xyz - p1.xyz ;
         |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
         |  float invDistCube = invDist * invDist * invDist;

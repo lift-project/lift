@@ -29,9 +29,9 @@ object TestNBody {
       val acceleration = input.map(y => {
         val r = Array(0.0f, 0.0f, 0.0f)
 
-        r(0) = x._1 - y._1
-        r(1) = x._2 - y._2
-        r(2) = x._3 - y._3
+        r(0) = y._1 - x._1
+        r(1) = y._2 - x._2
+        r(2) = y._3 - x._3
 
         val distSqr = r(0) * r(0) + r(1) * r(1) + r(2) * r(2)
 
@@ -142,7 +142,7 @@ class TestNBody {
         Array("x1", "y1", "z1", "x2", "y2", "z2", "mass2", "espSqr"),
         """|{
           |  float4 r = (x1 - x2, y1 - y2, z1 - z2, 0.0f);
-          |  float distSqr = r.x + r.y + r.z;
+          |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
           |  float invDist = 1.0f / sqrt(distSqr + espSqr);
           |  float invDistCube = invDist * invDist * invDist;
           |  float s = invDistCube * mass2;
@@ -215,47 +215,6 @@ class TestNBody {
 
     assertArrayEquals(gold, output, 0.0001f)
   }
-
-  val inputSize = 512
-
-  val deltaT = 0.005f
-  val espSqr = 500.0f
-
-  // x, y, z, velocity x, y, z, mass
-  val input = Array.fill(inputSize)((util.Random.nextFloat(),
-    util.Random.nextFloat(),
-    util.Random.nextFloat(),
-    0.0f, 0.0f, 0.0f,
-    util.Random.nextFloat()))
-
-  val x = input.map(_._1)
-  val y = input.map(_._2)
-  val z = input.map(_._3)
-
-  val velX = input.map(_._4)
-  val velY = input.map(_._5)
-  val velZ = input.map(_._6)
-
-  val mass = input.map(_._7)
-
-  val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
-
-  val pos = Array.ofDim[Float](inputSize*4)
-  val vel = Array.ofDim[Float](inputSize*4)
-
-  for (i <- 0 until inputSize) {
-    pos(4*i) = x(i)
-    pos(4*i+1) = y(i)
-    pos(4*i+2) = z(i)
-    pos(4*i+3) = mass(i)
-
-    vel(4*i) = velX(i)
-    vel(4*i+1) = velY(i)
-    vel(4*i+2) = velZ(i)
-    vel(4*i+3) = mass(i)
-  }
-
-  val N = SizeVar("N")
 
   @Test
   def nBodyAMD(): Unit = {
