@@ -156,9 +156,10 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
         trained_biases = sess.run(biases)        
 
     (start, end) = get_start_end(inputs_tofeed, test_batch_no)
-    
+
     pickle.dump((trained_weights, trained_biases, funcs),
-                open(dir_name + "/pickled_params_n" + str(end-start) +".p", "wb"))
+                open(dir_name + "/pickled_params.p", "wb"))
+                #open(dir_name + "/pickled_params_n" + str(end-start) +".p", "wb"))
 
     param_names = []
     params = []
@@ -210,7 +211,8 @@ def forward_propagate(hidden_layers, inputs_tofeed):
 
     ### Save parameters, inputs, outputs and targets into JSON files
     trained_weights, trained_biases, funcs = \
-        pickle.load(open(dir_name + "/pickled_params_n" + str(end-start) +".p", "rb"))
+         pickle.load(open(dir_name + "/pickled_params.p", "rb"))
+    #    pickle.load(open(dir_name + "/pickled_params_n" + str(end-start) +".p", "rb"))
 
     # Save test images
     json_string = SimpleEncode(test_batch_images.astype(np.float32))
