@@ -92,29 +92,32 @@ class TestMLP {
     for (i <- 0 until reruns) {
       for (e <- experiments) {
         for (hidden_layer_0_size <- e("hidden_layer_0_range").asInstanceOf[Array[Int]]) {
-          val lift_results_dir = new File(current_dir + f"/experiment.784-$hidden_layer_0_size%d-32-10/results_lift")
-          for (n_inputs <- e("n_inputs_range").asInstanceOf[Array[Int]]) {
-            // Ensures that there is only one set of results per experiment if append_results == true
-            if (lift_results_dir.isDirectory || append_results || !lift_results_dir.listFiles.exists(f => ".*._n%d.csv".format(n_inputs).
-                r.findFirstIn(f.getName).isDefined)) {
-              println(f"Starting the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
-                f"neurons_per_wrg=${e("neurons_per_wrg").asInstanceOf[Int]}%d, " +
-                f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
-                f"n_inputs=$n_inputs%d)")
-              MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
-                e("mults_per_thread").asInstanceOf[Int])
-              MNIST_MLP_in_2d_MrgdGrps_in_1d(Array(hidden_layer_0_size, 32), n_inputs,
-                e("mults_per_thread").asInstanceOf[Int])
-              MNIST_MLP_in_2d_MrgdGrps_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
-                e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
-              MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
-                e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
-            }
-            else {
-              println(f"Skipping the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
-                f"neurons_per_wrg=${e("neurons_per_wrg").asInstanceOf[Int]}%d, " +
-                f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
-                f"n_inputs=$n_inputs%d)")
+          val lift_results_dir_path = current_dir + f"/experiment.784-$hidden_layer_0_size%d-32-10/results_lift"
+          if (java.nio.file.Files.exists(java.nio.file.Paths.get(lift_results_dir_path))) {
+            val lift_results_dir = new File(lift_results_dir_path)
+            for (n_inputs <- e("n_inputs_range").asInstanceOf[Array[Int]]) {
+              // Ensures that there is only one set of results per experiment if append_results == true
+              if (append_results || lift_results_dir.listFiles.toList.count {
+                file => file.getName.endsWith("_n%d.csv".format(n_inputs)) } > 0) {
+                println(f"Starting the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
+                  f"neurons_per_wrg=${e("neurons_per_wrg").asInstanceOf[Int]}%d, " +
+                  f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
+                  f"n_inputs=$n_inputs%d)")
+                MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
+                  e("mults_per_thread").asInstanceOf[Int])
+                MNIST_MLP_in_2d_MrgdGrps_in_1d(Array(hidden_layer_0_size, 32), n_inputs,
+                  e("mults_per_thread").asInstanceOf[Int])
+                MNIST_MLP_in_2d_MrgdGrps_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
+                  e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
+                MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
+                  e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
+              }
+              else {
+                println(f"Skipping the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
+                  f"neurons_per_wrg=${e("neurons_per_wrg").asInstanceOf[Int]}%d, " +
+                  f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
+                  f"n_inputs=$n_inputs%d)")
+              }
             }
           }
         }
