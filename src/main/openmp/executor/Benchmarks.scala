@@ -199,7 +199,7 @@ object Benchmarks {
         |  float4 r;
         |  r.x = p1.x - p2.x;
         |  r.y = p1.y - p2.y;
-        |  r.z = p1.z - p2.z
+        |  r.z = p1.z - p2.z;
         |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
         |  float invDistCube = invDist * invDist * invDist;
@@ -460,15 +460,16 @@ object Benchmarks {
     //matrixMult(200,Parallel)
     opencl.executor.Executor.loadLibrary()
     opencl.executor.Executor.init()
-    //runBlackScholesCL(1280)
-    //runBlackScholesCL(12800)
-    //runBlackScholesCL(51200)
-    //runBlackScholesCL(128000)
-    //runMMCL(256)
-    //runMMCL(512)
-    //runMMCL(640)
+    runBlackScholesCL(1280)
+    runBlackScholesCL(12800)
+    runBlackScholesCL(51200)
+    runBlackScholesCL(128000)
+    runMMCL(128)
+    runMMCL(256)
+    runMMCL(512)
+    runMMCL(640)
     //runMMCL(896)
-    //println("MMCL 896 goes here...sigh :(")
+    println("MMCL 896 goes here...sigh :(")
     runNBody(512)
     runNBody(1280)
     runNBody(5120)
