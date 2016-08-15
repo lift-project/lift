@@ -50,7 +50,7 @@ class TestMLP2 {
     val append_results: Boolean = true
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
-      DictMap("mults_per_thread" -> 16, "neurons_per_wrg" -> 16,
+      DictMap("mults_per_thread" -> 2, "neurons_per_wrg" -> 2,
         "hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
         "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
 
