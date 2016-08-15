@@ -52,7 +52,7 @@ class TestMLP {
       /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1,
         //"hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
-        "hidden_layer_0_range" -> Array.range(start=544, end=1024+1, step=32),
+        "hidden_layer_0_range" -> Array.range(start=576, end=1024+1, step=32),
         "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
         //"n_inputs_range" -> Array.range(start=576, end=1024, step=32)))
 
