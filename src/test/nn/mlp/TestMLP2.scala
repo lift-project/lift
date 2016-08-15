@@ -19,7 +19,7 @@ import scala.util.parsing.json._
 import java.io._
 import java.util.Calendar
 
-object TestMLP {
+object TestMLP2 {
   @BeforeClass def before(): Unit = {
 
     Executor.loadLibrary()
@@ -29,8 +29,8 @@ object TestMLP {
       // Use GPU on the development machine
       Executor.init()
     else
-      // Use GPU on the testing machine
-      Executor.init(1, 0)
+      // Use GPU on the testing machine (card #2)
+      Executor.init(1, 1)
   }
 
   @AfterClass def after(): Unit = {
@@ -39,7 +39,7 @@ object TestMLP {
   }
 }
 
-class TestMLP {
+class TestMLP2 {
 
   val precision: Float = 0.01f
   var runnerIsConsole: Boolean = false
@@ -47,14 +47,12 @@ class TestMLP {
   @Test
   def testSuite(): Unit = {
     val reruns = 1
-    val append_results: Boolean = false
+    val append_results: Boolean = true
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
-      DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1,
-        //"hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
-        "hidden_layer_0_range" -> Array.range(start=544, end=1024+1, step=32),
+      DictMap("mults_per_thread" -> 16, "neurons_per_wrg" -> 16,
+        "hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
         "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
-        //"n_inputs_range" -> Array.range(start=576, end=1024, step=32)))
 
     for (i <- 0 until reruns) {
       for (e <- experiments) {
