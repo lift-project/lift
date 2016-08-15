@@ -42,50 +42,17 @@ object TestMLP {
 class TestMLP {
 
   val precision: Float = 0.01f
-
-  //@Test
-  def testSuite_328(): Unit = {
-    val hidden_layers = Array(256, 256)
-    val n_inputs = 328
-    val reruns = 1
-    for (i <- 0 until reruns) {
-      MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, mults_per_thread=2)
-      MNIST_MLP_in_2d_MrgdGrps_in_1d(hidden_layers, n_inputs, mults_per_thread=2)
-      MNIST_MLP_in_2d_MrgdGrps_in_2d(hidden_layers, n_inputs, mults_per_thread=4, neurons_per_wrg=2)
-      MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(hidden_layers, n_inputs, mults_per_thread=4, neurons_per_wrg=2)
-    }
-  }
-
-  //@Test
-  def testSuite_alot(): Unit = {
-    val hidden_layers = Array(256, 256)
-    val n_inputs = 1896
-    val reruns = 1
-    val experiments = Array(
-      /* Parallel neuron, a lot of inputs */
-      DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1),
-      DictMap("mults_per_thread" -> 2, "neurons_per_wrg" -> 2))
-    for (i <- 0 until reruns) {
-      for (e <- experiments) {
-        MNIST_MLP_in_2d_Local(hidden_layers, n_inputs, e("mults_per_thread"))
-        MNIST_MLP_in_2d_MrgdGrps_in_1d(hidden_layers, n_inputs,
-          e("mults_per_thread"))
-        MNIST_MLP_in_2d_MrgdGrps_in_2d(hidden_layers, n_inputs,
-          e("mults_per_thread"), e("neurons_per_wrg"))
-        MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(hidden_layers, n_inputs,
-          e("mults_per_thread"), e("neurons_per_wrg"))
-      }
-    }
-  }
+  var runnerIsConsole: Boolean = false
 
   @Test
-  def testSuite_1_1(): Unit = {
+  def testSuite(): Unit = {
     val reruns = 1
     val append_results: Boolean = false
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1,
-        "hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
+        //"hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
+        "hidden_layer_0_range" -> Array.range(start=96, end=1024+1, step=32),
         "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
         //"n_inputs_range" -> Array.range(start=576, end=1024, step=32)))
 
@@ -124,8 +91,6 @@ class TestMLP {
       }
     }
   }
-
-  var runnerIsConsole: Boolean = false
 
   val current_dir = {
     // Launching from IntelliJ or from console?
