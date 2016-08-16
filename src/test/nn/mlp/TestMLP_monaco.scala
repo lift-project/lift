@@ -19,7 +19,7 @@ import scala.util.parsing.json._
 import java.io._
 import java.util.Calendar
 
-object TestMLP {
+object TestMLP_monaco {
   @BeforeClass def before(): Unit = {
 
     Executor.loadLibrary()
@@ -39,7 +39,7 @@ object TestMLP {
   }
 }
 
-class TestMLP {
+class TestMLP_monaco {
 
   val precision: Float = 0.01f
   var runnerIsConsole: Boolean = false
