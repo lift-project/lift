@@ -65,10 +65,11 @@ class TestRewriteNbody {
     val f21 = Rewrite.applyRuleAtId(f16, 9, Rules.addIdForCurrentValueInReduce)
     val f22 = Rewrite.applyRuleAtId(f21, 14, Rules.implementIdAsDeepCopy)
     val f23 = Rewrite.applyRuleAtId(f22, 6, Rules.globalMemory)
-    val f24 = Rewrite.applyRuleAtId(f23, 37, Rules.mapSeq)
-    val f25 = Lower.lowerNextLevelWithRule(f24, Rules.mapWrg)
-    val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapLcl)
+    val f24 = Lower.lowerNextLevelWithRule(f23, Rules.mapWrg)
+    val f25 = Lower.lowerNextLevelWithRule(f24, Rules.mapLcl)
+    val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapSeq)
     val f27 = Rewrite.applyRuleAtId(f26, 14, Rules.localMemory)
+
 
     val replacement = collection.immutable.Map[ArithExpr, ArithExpr](N -> inputSize)
     val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
