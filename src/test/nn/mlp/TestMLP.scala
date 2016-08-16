@@ -5,7 +5,7 @@ package nn.mlp
   * This file implements the Lift version of the Multilayer Perceptron forward-propagation.
   */
 
-import apart.arithmetic.SizeVar
+import apart.arithmetic.{NotEvaluableException, SizeVar}
 import ir.ArrayType
 import ir.ast._
 import opencl.ir._
@@ -52,7 +52,7 @@ class TestMLP {
       /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1,
         //"hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
-        "hidden_layer_0_range" -> Array.range(start=576, end=1024+1, step=32),
+        "hidden_layer_0_range" -> Array.range(start=704, end=1024+1, step=32),
         "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
         //"n_inputs_range" -> Array.range(start=576, end=1024, step=32)))
 
@@ -85,6 +85,7 @@ class TestMLP {
                     e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
                 } catch {
                   case e: DeviceCapabilityException =>
+                  case e: NotEvaluableException =>
                     println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                 }
               }
