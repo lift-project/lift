@@ -3,12 +3,12 @@ package ir.hlGenerator
 
 import ir._
 import ir.ast._
-import ir.hlGenerator.hlGenerator.testSolve
+
 import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Execute, Executor}
 import org.junit._
 import opencl.ir._
-import opencl.ir.pattern.toGlobal
+
 import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
