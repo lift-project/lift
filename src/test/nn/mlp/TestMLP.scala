@@ -47,14 +47,12 @@ class TestMLP {
   @Test
   def testSuite(): Unit = {
     val reruns = 1
-    val append_results: Boolean = false
+    val append_results: Boolean = true
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1,
-        //"hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
-        "hidden_layer_0_range" -> Array.range(start=704, end=1024+1, step=32),
+        "hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
         "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
-        //"n_inputs_range" -> Array.range(start=576, end=1024, step=32)))
 
     for (i <- 0 until reruns) {
       for (e <- experiments) {
@@ -77,14 +75,17 @@ class TestMLP {
                 try {
                   MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int])
+                  /*MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
+                    e("mults_per_thread").asInstanceOf[Int])
                   MNIST_MLP_in_2d_MrgdGrps_in_1d(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int])
                   MNIST_MLP_in_2d_MrgdGrps_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
                   MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
-                    e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
+                    e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])*/
                 } catch {
                   case e: DeviceCapabilityException =>
+                    println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                   case e: NotEvaluableException =>
                     println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                 }
@@ -817,6 +818,14 @@ class TestMLP {
     val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers, n_inputs)
     new MLP_test(f_layer_complex_neuron_local, mults_per_thread)("f_layer_complex_neuron_local",
       "9. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per input.",
+      dir_name, tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
+  }
+
+  //@Test
+  def MNIST_MLP_in_2d(hidden_layers: Array[Int], n_inputs: Int, mults_per_thread: Int): Unit = {
+    val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers, n_inputs)
+    new MLP_test(f_layer_complex_neuron, mults_per_thread)("f_layer_complex_neuron",
+      "9.2. (MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per neuron per input.",
       dir_name, tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
   }
 
