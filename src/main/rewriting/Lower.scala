@@ -4,7 +4,9 @@ package rewriting
 import rewriting.utils._
 import ir.ast._
 import ir.{Context, TypeChecker}
-import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq}
+import opencl.ir.pattern._
+
+import scala.collection.mutable.Seq
 
 
 case class EnabledMappings(
@@ -156,7 +158,7 @@ object Lower {
     /* Global only */
     if (enabledMappings.global0) {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
-      var lambdaN = lambda1
+      var lambdaN = mapGlbArgsToGlobal(lambda1)
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
@@ -325,6 +327,36 @@ object Lower {
       lastReduceToGlobal(lambda)
     else
       lastMapToGlobal(lambda)
+
+  private def mapGlbArgsToGlobal(lambda:Lambda):Lambda = {
+    val mapGlbs = getExprForPattern(lambda,{
+      case FunCall(MapGlb(_,_),_) =>
+      }
+    )
+    val toGlobalAdded = mapGlbs.foldLeft(lambda)({
+      case (currentLambda,expr) =>
+        val currArg = expr.asInstanceOf[FunCall].args(0)
+        val updated = currArg match{
+          case p:Param =>
+            expr
+          case fc:FunCall =>
+            val currentToGlobal = FunCall(expr.asInstanceOf[FunCall].f,toGlobal(fun((idIn) => Id()(idIn))) $ currArg)
+            val Id2 = currentToGlobal.asInstanceOf[FunCall].args(0).asInstanceOf[FunCall].f.asInstanceOf[toGlobal].f.body
+            val currIdsImplemented = Rewrite.applyRuleAt(currentToGlobal,Rules.implementIdAsDeepCopy,Id2)
+            currIdsImplemented
+        }
+        Lambda(currentLambda.params,Expr.replace(currentLambda.body,expr,updated))
+    }
+    )
+
+    toGlobalAdded
+  }
+  def getExprForPattern(lambda: Lambda, pattern: PartialFunction[Expr, Unit]): Seq[Expr] = {
+    Expr.visitWithState(Seq[Expr]())(lambda.body, {
+      case (expr, matches) if pattern.isDefinedAt(expr) => matches :+ expr
+      case (_, matches) => matches
+    })
+  }
 
   private def lastMapToGlobal(lambda: Lambda): Lambda = {
     val lastWrite = getLastWrite(lambda).get

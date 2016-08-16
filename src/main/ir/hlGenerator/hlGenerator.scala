@@ -8,8 +8,9 @@ import ir.ast._
 import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Eval, Execute}
 import opencl.ir._
-import opencl.ir.pattern.toGlobal
-import rewriting.{EnabledMappings, Lower}
+import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
+import rewriting.Rules._
+import rewriting.{EnabledMappings, Lower, Rewrite, Rules}
 
 import scala.language.reflectiveCalls
 object hlGenerator{
@@ -23,7 +24,7 @@ object hlGenerator{
   val LoopNum = 30
   val consequentUserFun = false
   val ReduceInitToGlobal = false
-  var RunInterpreter = false
+  var RunInterpreter = true
   var AssignedChoiceNum = 0
   //avoid for redundant
   //Join
@@ -49,7 +50,7 @@ object hlGenerator{
     w.write(s+"\n")
   }
 
-  def trySingleLambda(l:Lambda,w:PrintWriter):Unit = {
+  def trySingleLambda(l:Lambda,oril:Lambda,w:PrintWriter):Unit = {
     //Requires an add in it
     if (l.toString.contains("add") && l.toString.contains("Map")) {
       //1. Generate Input Data
@@ -82,12 +83,14 @@ object hlGenerator{
           return
       }
 
+      val lowLevel = fs.head
+
       //4. compile the lambda
       var code = ""
       try {
-        println(fs.head.toString)
-        writeln(w,fs.head.toString)
-        code = Compile(fs.head)
+        println(lowLevel.toString)
+        writeln(w,lowLevel.toString)
+        code = Compile(lowLevel)
       }
       catch{
         case e:Throwable =>
@@ -100,10 +103,10 @@ object hlGenerator{
       outType match{
         case Float =>
           try {
-            val(output_exe:Float,runtime) = Execute(1,1)(code,fs.head,Args:_*)
+            val(output_exe:Float,runtime) = Execute(1,1)(code,lowLevel,Args:_*)
             if(RunInterpreter) {
 
-              val output_int = Interpreter(l).->[Float].run(Args: _*)
+              val output_int = Interpreter(oril).->[Float].run(Args: _*)
               if (output_exe == output_int) {
                 println("results eq-by-user")
                 writeln(w, "results eq-by-user")
@@ -129,9 +132,9 @@ object hlGenerator{
           }
         case ArrayType(Float,d1) =>
           try {
-            val(output_exe:Array[Float],runtime)= Execute(1,d1.eval)(code,fs.head,Args:_*)
+            val(output_exe:Array[Float],runtime)= Execute(1,d1.eval)(code,lowLevel,Args:_*)
             if(RunInterpreter) {
-              val output_int = Interpreter(l).->[Vector[Float]].run(Args: _*).toArray[Float]
+              val output_int = Interpreter(oril).->[Vector[Float]].run(Args: _*).toArray[Float]
               if (output_exe.corresponds(output_int)(_ == _)) {
                 writeln(w, "results eq-by-user")
               }
@@ -154,9 +157,9 @@ object hlGenerator{
           }
         case ArrayType(ArrayType(Float,d1),d2)=>
           try {
-            val(output_exe:Array[Float],runtime)= Execute(1,d1.eval*d2.eval)(code,fs.head,Args:_*)
+            val(output_exe:Array[Float],runtime)= Execute(1,d1.eval*d2.eval)(code,lowLevel,Args:_*)
             if(RunInterpreter) {
-              val output_int = Interpreter(l).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
+              val output_int = Interpreter(oril).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
               if (output_exe.corresponds(output_int)(_ == _)) {
                 writeln(w, "results eq-by-user")
               }
@@ -179,9 +182,9 @@ object hlGenerator{
           }
         case ArrayType(ArrayType(ArrayType(Float,d1),d2),d3)=>
           try {
-            val(output_exe:Array[Float],runtime) = Execute(1,d1.eval*d2.eval*d3.eval)(code,fs.head,Args:_*)
+            val(output_exe:Array[Float],runtime) = Execute(1,d1.eval*d2.eval*d3.eval)(code,lowLevel,Args:_*)
             if(RunInterpreter) {
-              val output_int = Interpreter(l).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
+              val output_int = Interpreter(oril).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
               if (output_exe.corresponds(output_int)(_ == _)) {
                 writeln(w, "results eq-by-user")
               }
@@ -233,7 +236,7 @@ object hlGenerator{
       writeln(w,"Lambda Num:" + i)
       writeln(w,l.toString)
       l.params.foreach(p => writeln(w,p.t.toString))
-      trySingleLambda(l,w)
+      trySingleLambda(l,res(i),w)
       w.flush()
       System.out.flush()
       //("rm ~/TempLambdas/tempLambda.txt").!
@@ -254,6 +257,9 @@ object hlGenerator{
       //val test1 = FunCallList
     }
   }
+
+
+
 
   private def getArg(id:Int):Expr = {
     val ParamLength = ParamList.length

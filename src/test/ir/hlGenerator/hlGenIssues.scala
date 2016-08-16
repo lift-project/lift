@@ -3,6 +3,7 @@ package ir.hlGenerator
 
 import ir._
 import ir.ast._
+import ir.hlGenerator.hlGenerator.testSolve
 import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Execute, Executor}
 import org.junit._
@@ -31,22 +32,23 @@ class hlGenIssues{
       ArrayType(ArrayType(Float,32),32),
       Float,
       ArrayType(Float,32),
-      ArrayType(Float,1),
-      (p99,p102,p226,p239,p1901) =>{
+      (p99,p102,p226,p239) =>{
         Map(fun((p24) =>
           Join() o Map(fun((p157) =>
             Reduce(fun((p20,p195)=>
               add(p20,p195)
             ))(add(p24,p99),p157)
           )) $ p102
-        )) $ p1901/*(Reduce(fun((p215,p49) =>
+        )) $ Reduce(fun((p215,p49) =>
           add(p215,p49)
-        ))(add(p226,p226),p239))*/
+        ))(add(p226,p226),p239)
       }
     )
     val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
     TypeChecker(fs.head)
-    val code = Compile(fs.head)
+    //val lowLevel = testSolve(fs.head)
+    val lowLevel = fs.head
+    val code = Compile(lowLevel)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
@@ -60,7 +62,7 @@ class hlGenIssues{
       }
     }
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
+    val(output_exe:Array[Float],_)= Execute(1,32)(code,lowLevel,Args:_*)
     assert(output_exe.corresponds(output_int)(_==_))
   }
   @Ignore @Test def IssuePrivateMemoryNotEvaluable1():Unit={
@@ -112,8 +114,10 @@ class hlGenIssues{
       }
     )
     val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
-    TypeChecker(fs.head)
-    val code = Compile(fs.head)
+    //val lower = hlGenerator.testSolve(fs.head)
+    val lower = fs.head
+    TypeChecker(lower)
+    val code = Compile(lower)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
@@ -127,7 +131,7 @@ class hlGenIssues{
       }
     }
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
+    val(output_exe:Array[Float],_)= Execute(1,32)(code,lower,Args:_*)
     assert(output_exe.corresponds(output_int)(_==_))
 
   }

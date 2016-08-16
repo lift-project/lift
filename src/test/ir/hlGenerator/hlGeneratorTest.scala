@@ -33,7 +33,7 @@ class hlGeneratorTest {
   @Ignore
   @Test
   def testLoops():Unit={
-    hlGenerator.tryPrograms(new PrintWriter("/home/potato/8-10/test2.txt"))
+    hlGenerator.tryPrograms(new PrintWriter("/home/potato/8-10/test_solve.txt"))
   }
 
 
