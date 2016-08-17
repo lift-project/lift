@@ -65,7 +65,7 @@ class TestMLP {
 
             val lift_results_dir = new File(lift_results_dir_path)
             for (n_inputs <- e("n_inputs_range").asInstanceOf[Array[Int]]) {
-              // Ensures that there is only one set of results per experiment if append_results == true
+              // Ensures that there is only one set of results per experiment if append_results == false
               if (append_results || runAll || lift_results_dir.listFiles.toList.count {
                 file => file.getName.endsWith("_n%d.csv".format(n_inputs)) } == 0) {
                 println(f"Starting the experiment (mults_per_thread=${e("mults_per_thread").asInstanceOf[Int]}%d, " +
