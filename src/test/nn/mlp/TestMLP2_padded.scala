@@ -705,6 +705,10 @@ class TestMLP2_padded {
         Array.fill[Float](_input_len)(0))
       val new_Weights0 : Array[Array[Float]] = Weights(0) ++ array
       val new_Biases0 = Biases(0) ++ Array.fill[Float](_n_neurons_new - _n_neurons)(0)
+      if (_n_neurons != _n_neurons_new)
+        println(f"Changed _n_neurons from ${_n_neurons}%d to ${_n_neurons_new}%d.")
+      _n_neurons = _n_neurons_new
+
 
       val (output_layer_flat: Array[Float], runtime) =
         Execute(_local_size_0, _local_size_1, _global_size_0, _global_size_1, (true, true))(
@@ -729,7 +733,7 @@ class TestMLP2_padded {
         pw.write(f"1\n")
 
         // TODO: do something about such big error
-        println(outputs(0)(0).mkString("\t"))
+        //println(outputs(0)(0).mkString("\t"))
         finished_without_errors = true
         println(f"Done. Processed ${_n_inputs}%d inputs.")
       }
