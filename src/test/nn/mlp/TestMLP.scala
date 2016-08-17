@@ -51,7 +51,7 @@ class TestMLP {
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1,
-        "hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
+        "hidden_layer_0_range" -> Array.range(start=384, end=1024+1, step=32),
         "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
 
     for (i <- 0 until reruns) {
@@ -73,7 +73,7 @@ class TestMLP {
                   f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
                   f"n_inputs=$n_inputs%d)")
                 try {
-                  MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
+                  MNIST_MLP_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int])
                   /*MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int])
