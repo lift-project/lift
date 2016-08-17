@@ -50,7 +50,7 @@ class TestMLP2_padded {
     val append_results: Boolean = true
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
-      DictMap("mults_per_thread" -> Array.range(start=1, end=16+1, step=1),
+      DictMap("mults_per_thread" -> Array.range(start=14, end=16+1, step=1),
         "neurons_per_wrg" -> Array.range(start=1, end=16+1, step=1),
         "hidden_layer_0_range" -> Array.range(start=224, end=224+1, step=32),
         "n_inputs_range" -> Array.range(start=416, end=416+1, step=32)))
@@ -681,6 +681,14 @@ class TestMLP2_padded {
       _global_size_0 = get_global_size_0()
       _global_size_1 = get_global_size_1()
 
+      var changed_ls1 = false
+      val original_ls1 = _local_size_1
+      while (_n_inputs % _local_size_1 != 0) {
+        _local_size_1 = _local_size_1 - 1
+        changed_ls1 = true
+      }
+      if (changed_ls1)
+        println(f"Changed local size 1 from $original_ls1%d to ${_local_size_1}%d.")
       assert(_n_inputs % _local_size_1 == 0,
         f"If the number of inputs (${_n_inputs}%d) is not a multiple of work group size in the " +
         f"respective dimension (${_local_size_1}%d), slide() will leave out some inputs.")
