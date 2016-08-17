@@ -21,10 +21,10 @@ object hlGenerator{
 
 
   //Used for debug
-  val LoopNum = 30
+  val LoopNum = 25
   val consequentUserFun = false
   val ReduceInitToGlobal = false
-  var RunInterpreter = true
+  var RunInterpreter = false
   var AssignedChoiceNum = 0
   //avoid for redundant
   //Join
@@ -45,6 +45,32 @@ object hlGenerator{
   //UserFun
   var Add_Check = scala.collection.mutable.Set[((Int,Int),(Int,Int))]()
   var Add_Check_FunCall = scala.collection.mutable.Set[Int]()
+
+  def resetAll():Unit={
+    ParamList = new ArrayBuffer[Param]()
+    FunCallList = new ArrayBuffer[FunCall]()
+    LambdaList = new ArrayBuffer[Lambda]()
+
+    //avoid for redundant
+    //Join
+    Join_P = 0
+    Join_F = 0
+    //Split
+    Split_P = 0
+    Split_F = 0
+    //Reduce
+    Reduce_L_I_E = scala.collection.mutable.Set[(Int,(Int,Int),(Int,Int))]()
+    Reduce_Lambda_Check = scala.collection.mutable.Set[Int]()
+    //Map
+    Map_L_E = scala.collection.mutable.Set[(Int,(Int,Int))]()
+    //Zip
+    Zip_P = 0
+    Zip_F = 0
+
+    //UserFun
+    Add_Check = scala.collection.mutable.Set[((Int,Int),(Int,Int))]()
+    Add_Check_FunCall = scala.collection.mutable.Set[Int]()
+  }
 
   private def writeln(w:PrintWriter,s:String):Unit={
     w.write(s+"\n")
