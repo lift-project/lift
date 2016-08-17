@@ -3,12 +3,11 @@ package ir.hlGenerator
 
 import ir._
 import ir.ast._
-
 import ir.interpreter.Interpreter
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Eval, Execute, Executor}
 import org.junit._
 import opencl.ir._
-
+import opencl.ir.pattern.toGlobal
 import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
@@ -26,7 +25,7 @@ object hlGenIssues{
   }
 }
 class hlGenIssues{
-  @Ignore @Test def IssuePrivateMemoryNotEvaluable():Unit={
+  @Test def IssuePrivateMemoryNotEvaluable():Unit={
     val f = fun(
       Float,
       ArrayType(ArrayType(Float,32),32),
@@ -65,7 +64,7 @@ class hlGenIssues{
     val(output_exe:Array[Float],_)= Execute(1,32)(code,lowLevel,Args:_*)
     assert(output_exe.corresponds(output_int)(_==_))
   }
-  @Ignore @Test def IssuePrivateMemoryNotEvaluable1():Unit={
+  @Test def IssuePrivateMemoryNotEvaluable1():Unit={
     val f = fun(
       Float,
       ArrayType(ArrayType(Float,32),32),
@@ -102,7 +101,7 @@ class hlGenIssues{
     assert(output_exe.corresponds(output_int)(_==_))
   }
   @Ignore @Test def IssueWriteIntoReadonlyMemory():Unit={
-    val f = fun(
+    /*val f = fun(
       ArrayType(Float,32),
       ArrayType(Float,32),
       (p101,p241) =>{
@@ -112,7 +111,8 @@ class hlGenIssues{
           ))(p66,p101)
         ))(p241)
       }
-    )
+    )*/
+    val f = Eval("val add = UserFun(\"add\", Array(\"x\", \"y\"), \"\"\"|{ return x+y; }\"\"\".stripMargin, Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])\nfun(ArrayType(Float, 32), ArrayType(Float, 32),(p_0, p_1) => FunCall(Map(fun((p_2) => FunCall(Map(fun((p_3) => FunCall(add, p_3, p_3))), p_2))), FunCall(Reduce(fun((p_4, p_5) => FunCall(Map(fun((p_6) => FunCall(add, p_6, p_5))), p_4))), FunCall(Map(fun((p_7) => FunCall(add, p_7, p_7))), p_0), FunCall(Map(fun((p_8) => FunCall(add, p_8, p_8))), p_1))))")
     val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
     //val lower = hlGenerator.testSolve(fs.head)
     val lower = fs.head

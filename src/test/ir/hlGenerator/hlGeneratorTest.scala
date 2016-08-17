@@ -32,8 +32,14 @@ class hlGeneratorTest {
 
   @Ignore
   @Test
+  def testNewGen():Unit={
+    val hlGen = new hlGenerator
+    hlGen.generateProgram()
+  }
+  @Ignore
+  @Test
   def testLoops():Unit={
-    hlGenerator.tryPrograms(new PrintWriter("/home/potato/8-10/test_solve.txt"))
+    hlGenerator.tryPrograms(new PrintWriter("/home/potato/exprs/8-10/test_solve.txt"))
   }
 
 
