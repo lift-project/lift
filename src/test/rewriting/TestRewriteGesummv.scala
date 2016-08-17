@@ -59,8 +59,6 @@ class TestRewriteGesummv {
       vecAdd(mvAlpha(A, x, alpha), mvAlpha(B, x, beta))
     )
 
-    TypeChecker(f0)
-
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.splitJoin(1))
     val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.splitZip)
     val f3 = Rewrite.applyRuleAtId(f2, 25, Rules.splitJoinId)
@@ -77,6 +75,9 @@ class TestRewriteGesummv {
     // Not strictly necessary, but makes it look nicer
     val f13 = Rewrite.applyRuleAtId(f12, 47, Rules.tupleInline)
     val f14 = Rewrite.applyRuleAtId(f13, 17, Rules.tupleInline)
+
+    // Still uses x twice. Flatten zips and get rid of duplicates?
+    // Could issue only one load. Would it make a difference?
 
     val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapGlb)
     val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapSeq)
