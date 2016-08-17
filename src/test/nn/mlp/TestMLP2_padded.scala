@@ -19,6 +19,8 @@ import scala.util.parsing.json._
 import java.io._
 import java.util.Calendar
 
+import opencl.executor.Executor.ExecutorFailureException
+
 import scala.collection.mutable
 
 object TestMLP2_padded {
@@ -29,7 +31,7 @@ object TestMLP2_padded {
     val intellij_path = System.getProperty("user.dir") + "/../../src/test/nn/mlp"
     if (java.nio.file.Files.exists(java.nio.file.Paths.get(intellij_path)))
     // Use GPU on the development machine
-      Executor.init()
+      Executor.init(1, 1)
     else
     // Use GPU on the testing machine
       Executor.init(1, 1)
@@ -52,10 +54,10 @@ class TestMLP2_padded {
     val append_results: Boolean = true
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
-      DictMap("mults_per_thread" -> Array.range(start=14, end=16+1, step=1),
-        "neurons_per_wrg" -> Array.range(start=1, end=16+1, step=1),
+      DictMap("mults_per_thread" -> Array.range(start=3, end=16+1, step=1),
+        "neurons_per_wrg" -> Array.range(start=3, end=16+1, step=1),
         "hidden_layer_0_range" -> Array(224, 228, 230, 231, 234),
-        "n_inputs_range" -> Array.range(start=416, end=416+1, step=32)))
+        "n_inputs_range" -> Array(416)))
 
     for (i <- 0 until reruns) {
       for (e <- experiments) {
@@ -86,6 +88,8 @@ class TestMLP2_padded {
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                       case e: NotEvaluableException =>
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
+                      case e: ExecutorFailureException  =>
+                        println("ERROR: OpenCL error: CL_OUT_OF_RESOURCES.")
                       case e: AssertionError =>
                         println(e.getMessage)
                     }
@@ -97,6 +101,8 @@ class TestMLP2_padded {
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                       case e: NotEvaluableException =>
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
+                      case e: ExecutorFailureException  =>
+                        println("ERROR: OpenCL error: CL_OUT_OF_RESOURCES.")
                       case e: AssertionError =>
                         println(e.getMessage)
                     }
@@ -676,6 +682,27 @@ class TestMLP2_padded {
       print(f"\n" + description + "\nRuntime:\n")
       _input_len = Weights(0)(0).length
       _n_neurons = Biases(0).length
+
+
+      /* Padding */
+      val _n_neurons_new: Int = _neurons_per_wrg * Math.ceil(_n_neurons.toFloat / _neurons_per_wrg).toInt
+      val new_Weights0 : Array[Array[Float]] = Weights(0) ++ Array.fill[Array[Float]](_n_neurons_new - _n_neurons)(
+        Array.fill[Float](_input_len)(0))
+      val new_Biases0 = Biases(0) ++ Array.fill[Float](_n_neurons_new - _n_neurons)(0)
+      if (_n_neurons != _n_neurons_new)
+        println(f"Changed _n_neurons from ${_n_neurons}%d to ${_n_neurons_new}%d.")
+      _n_neurons = _n_neurons_new
+
+      val _input_len_new: Int = _mults_per_thread * Math.ceil(_input_len.toFloat / _mults_per_thread).toInt
+      val arr: Array[Float] = Array.fill[Float](_input_len_new - _input_len)(0)
+      var new_Input = Array.fill[Array[Float]](_n_inputs)(Array.fill[Float](_input_len_new)(0))
+      for {i <- 0 until _n_inputs
+           j <- 0 until _input_len}
+        new_Input(i)(j) = Input(i)(j)
+      if (_input_len != _input_len_new)
+        println(f"Changed _input_len from ${_input_len}%d to ${_input_len_new}%d.")
+      _input_len = _input_len_new
+
       _local_size_0 = get_local_size_0()
       assert(_local_size_0 <= maxWorkGroupSize,
         f"Local size 0 must be equal or less than maxWorkGroupSize ($maxWorkGroupSize%d).")
@@ -693,21 +720,12 @@ class TestMLP2_padded {
       _global_size_0 = get_global_size_0()
       _global_size_1 = get_global_size_1()
 
+
       assert(_n_inputs % _local_size_1 == 0,
         f"If the number of inputs (${_n_inputs}%d) is not a multiple of work group size in the " +
-        f"respective dimension (${_local_size_1}%d), slide() will leave out some inputs.")
+          f"respective dimension (${_local_size_1}%d), slide() will leave out some inputs.")
       assert(_n_neurons >= _neurons_per_wrg,
         f"_n_neurons(${_n_neurons}%d) must be bigger or equal to _neurons_per_wrg(${_neurons_per_wrg}%d).")
-
-      /* Padding */
-      val _n_neurons_new: Int = _neurons_per_wrg * Math.ceil(_n_neurons.toFloat / _neurons_per_wrg).toInt
-      val array: Array[Array[Float]] = Array.fill[Array[Float]](_n_neurons_new - _n_neurons)(
-        Array.fill[Float](_input_len)(0))
-      val new_Weights0 : Array[Array[Float]] = Weights(0) ++ array
-      val new_Biases0 = Biases(0) ++ Array.fill[Float](_n_neurons_new - _n_neurons)(0)
-      if (_n_neurons != _n_neurons_new)
-        println(f"Changed _n_neurons from ${_n_neurons}%d to ${_n_neurons_new}%d.")
-      _n_neurons = _n_neurons_new
 
 
       val (output_layer_flat: Array[Float], runtime) =
@@ -729,7 +747,7 @@ class TestMLP2_padded {
         pw.write(deviceName + "," + f_name + f",${_n_inputs}%d,${_mults_per_thread}%d,${_neurons_per_wrg}%d,")
         pw.write(f"${new_Biases0.length}%d,")
         pw.write(_Activation_fs(0).toString + ",")
-        pw.write(f"${runtimes(0)}%1.5f")
+        pw.write(f"${runtimes(0)}%1.5f,")
         pw.write(f"1\n")
 
         // TODO: do something about such big error
@@ -742,10 +760,10 @@ class TestMLP2_padded {
         if (!finished_without_errors) {
           new File(results_filename(exp_dir_name, _n_inputs)).delete()
           print(f"Input $input_no%d: ")
-          println(Inputs(input_no).mkString("\t"))
+          println(new_Input(input_no).mkString("\t"))
           println(f"Output $input_no%d: ")
           print("\nWeights L0, N0: ")
-          println(Weights(0)(0).mkString("\t"))
+          println(new_Weights0(0).mkString("\t"))
           print("Layer 0: ")
           println(outputs(0)(input_no).mkString("\t"))
           println(f"Target output $input_no%d: ")
