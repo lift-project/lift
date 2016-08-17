@@ -53,9 +53,9 @@ class TestMLP2_padded {
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> Array.range(start=14, end=16+1, step=1),
-        "neurons_per_wrg" -> Array.range(start=1, end=16+1, step=1),
+        "neurons_per_wrg" -> Array.range(start=9, end=16+1, step=1),
         "hidden_layer_0_range" -> Array(224, 228, 230, 231, 234),
-        "n_inputs_range" -> Array.range(start=416, end=416+1, step=32)))
+        "n_inputs_range" -> Array(416)))
 
     for (i <- 0 until reruns) {
       for (e <- experiments) {
