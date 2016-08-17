@@ -19,6 +19,8 @@ import scala.util.parsing.json._
 import java.io._
 import java.util.Calendar
 
+import scala.collection.mutable
+
 object TestMLP2_padded {
   @BeforeClass def before(): Unit = {
 
@@ -699,9 +701,10 @@ class TestMLP2_padded {
 
       /* Padding */
       val _n_neurons_new: Int = _neurons_per_wrg * Math.ceil(_n_neurons.toFloat / _neurons_per_wrg).toInt
-      val new_Weights0 = Weights(0) ++ Array.fill[Array[Double]](_n_neurons_new - _n_neurons)(
-        Array.fill[Double](_input_len)(0))
-      val new_Biases0 = Biases(0) ++ Array.fill[Double](_n_neurons_new - _n_neurons)(0)
+      val array: Array[Array[Float]] = Array.fill[Array[Float]](_n_neurons_new - _n_neurons)(
+        Array.fill[Float](_input_len)(0))
+      val new_Weights0 : Array[Array[Float]] = Weights(0) ++ array
+      val new_Biases0 = Biases(0) ++ Array.fill[Float](_n_neurons_new - _n_neurons)(0)
 
       val (output_layer_flat: Array[Float], runtime) =
         Execute(_local_size_0, _local_size_1, _global_size_0, _global_size_1, (true, true))(
