@@ -183,7 +183,7 @@ object Benchmarks {
     (pos, vel, espSqr, deltaT) =>
       toGlobal(MapOMP(fun(p1 =>
 
-        toGlobal(MapSeq(fun(acceleration =>
+        (MapSeq(fun(acceleration =>
           update(Get(p1, 0), Get(p1, 1), deltaT, acceleration))))
 
           o ReduceSeq(fun((acc, p2) =>
@@ -405,7 +405,7 @@ object Benchmarks {
       case Sequential => blackScholesSeq(size)
       case Parallel => blackScholesPar(size)
     }
-    Executor.compileAndGenerateScript(kernel, input, benchPath("BlackScholes", size.toString, algo.toString))
+    Executor.compileAndGenerateScript(kernel, input, benchPath("BS", size.toString, algo.toString))
   }
 
   def squareAcc(size:Int, algo:Algotype):Unit = {
@@ -456,7 +456,11 @@ object Benchmarks {
     println(s"NBody$N runtime = $runtime")
   }
 
-  def main(args: Array[String]): Unit = {
+  def main(args:Array[String]): Unit = {
+    squareAcc(10000,Parallel)
+  }
+
+  def mainOCL(args: Array[String]): Unit = {
     //matrixMult(200,Parallel)
     opencl.executor.Executor.loadLibrary()
     opencl.executor.Executor.init()

@@ -40,6 +40,7 @@ object OMPGenerator extends CGenerator{
       case call:FunCall => call.f match {
         case mp:MapSeq => params(mp.f)
         case rd:ReduceSeq => params(rd.f)
+        case tg:toGlobal => params(tg.f)
         case _ => Set.empty[Param]
       }
       case _ => Set.empty[Param]
@@ -47,7 +48,8 @@ object OMPGenerator extends CGenerator{
   }
 
   private def privateClause(f:Lambda) = {
-    val privates = params(f).filter(_.addressSpace.toString.equals("private")).map(_.mem.variable.toString)
+    val vars = params(f)
+    val privates = vars.filter(_.addressSpace.toString.equals("private")).map(_.mem.variable.toString)
     if(privates.size > 0) {
       val inner = privates.reduce(_ + ", " + _)
       s" private($inner)"
