@@ -35,6 +35,8 @@ class hlGeneratorTest {
   def testNewGen():Unit={
     val hlGen = new hlGenerator
     hlGen.generateProgram()
+    val result = hlGen.RefinedResult
+    assert(true)
   }
   @Ignore
   @Test

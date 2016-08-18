@@ -24,7 +24,7 @@ object hlGenerator{
   val LoopNum = 35
   val consequentUserFun = false
   val ReduceInitToGlobal = false
-  var RunInterpreter = true
+  var RunInterpreter = false
   var AssignedChoiceNum = 0
   //avoid for redundant
   //Join
@@ -286,8 +286,8 @@ object hlGenerator{
     val totalRounds = LoopNum
     for(i<- 0 until totalRounds){
       generateLambda()
-      //val test = LambdaList
-      //val test1 = FunCallList
+      val test = LambdaList
+      val test1 = FunCallList
     }
   }
 
@@ -1080,6 +1080,7 @@ object hlGenerator{
 }
 
 class hlGenerator{
+  var RefinedResult: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
   var ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
   //var FunCallList: ArrayBuffer[FunCall] = new ArrayBuffer[FunCall]()
   var LambdaList: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
@@ -1087,13 +1088,17 @@ class hlGenerator{
 
   //Used for debug
   var AssignedChoiceNum = 0
-  val PassParamUpPossibility = 0.0
+  val PassParamUpPossibility = 0.5
 
   //controllers
   val LoopNum = 35
   val consequentUserFun = false
-  val ReduceInitToGlobal = false
-  var RunInterpreter = true
+  //val ReduceInitToGlobal = false
+  val AllowJoinASplit = false
+  val RunInterpreter = true
+  val MustContainsUserFun = true
+  val MustContainsMap = false
+
 
   //Avoid for redundant
   var Join_P = 0
@@ -1122,6 +1127,7 @@ class hlGenerator{
       val test1 = ParamList
       val test2 = ParamToFunCall
     }
+    refineResult()
   }
 
   private def generateLambda(): Unit ={
@@ -1170,27 +1176,57 @@ class hlGenerator{
         case ArrayType(ArrayType(t,m),n) =>
           //pass the type check
 
-          //get the argument of FunCall
-          val fArg = getArg(i)
+          var joinSplit:Boolean = false
+          if (ParamToFunCall.contains(ParamList(i))){
+            ParamToFunCall(ParamList(i)).f match{
+              case sp:Split =>
+                joinSplit = true
+              case _=>
+            }
+          }
 
-          //build the FunCall
-          val F = FunCall(new Join(),fArg)
 
-          //set output type
-          F.t = ArrayType(t,m*n)
 
-          //build the param corresponds to the FunCall
-          val P = Param(F.t)
+          //check for Join a split
+          /*
+          val joinSplit:Boolean = fArg match{
+            case fc:FunCall =>
+              fc.f match{
+                case sp:Split =>
+                  true
+                case _=>
+                  false
+              }
+            case _=>
+              false
+          }*/
 
-          //count the parameters of lambda
-          val lParams = countParam(F)
+          if(joinSplit && !AllowJoinASplit){
 
-          //build the lambda
-          val L = Lambda(lParams.toArray[Param],F)
+          }
+          else {
+            //get the argument of FunCall
+            val fArg = getArg(i)
 
-          tempParamList += P
-          tempLambdaList += L
-          tempParamToFunCall += ((P,F))
+            //build the FunCall
+            val F = FunCall(new Join(), fArg)
+
+            //set output type
+            F.t = ArrayType(t, m * n)
+
+            //build the param corresponds to the FunCall
+            val P = Param(F.t)
+
+            //count the parameters of lambda
+            val lParams = countParam(F)
+
+            //build the lambda
+            val L = Lambda(lParams.toArray[Param], F)
+
+            tempParamList += P
+            tempLambdaList += L
+            tempParamToFunCall += ((P, F))
+          }
         case _=>
       }
     }
@@ -1281,11 +1317,23 @@ class hlGenerator{
         for (i2 <- ParamList.indices) {
           if (!Add_Check((i1,i2))) {
             if (ParamList(i1).t == Float && ParamList(i2).t == Float) {
-              val arg1 = getArg(i1)
-              val arg2 = getArg(i2)
-
               //check for consequentUserFun
               var containsUserFun = false
+              if(ParamToFunCall.contains(ParamList(i1))){
+                ParamToFunCall(ParamList(i1)).f match{
+                  case u:UserFun =>
+                    containsUserFun = true
+                  case _=>
+                }
+              }
+              if(ParamToFunCall.contains(ParamList(i2))){
+                ParamToFunCall(ParamList(i2)).f match{
+                  case u:UserFun =>
+                    containsUserFun = true
+                  case _=>
+                }
+              }
+              /*
               arg1 match{
                 case fc:FunCall =>
                   fc.f match{
@@ -1304,10 +1352,18 @@ class hlGenerator{
                   }
                 case _=>
               }
+              */
+
+
+
+
               if(containsUserFun && !consequentUserFun){
                 //Don't allow for UserFun(UserFun(...))
               }
               else {
+                val arg1 = getArg(i1)
+                val arg2 = getArg(i2)
+
                 val F = FunCall(add, arg1,arg2)
                 F.t = Float
                 val P = Param(F.t)
@@ -1459,6 +1515,51 @@ class hlGenerator{
 
 
   //helper functions
+  private def refineResult():Unit={
+    for(i <- LambdaList.indices){
+      val oriLambda = LambdaList(i)
+      if((MustContainsMap && !oriLambda.toString.contains("Map")) ||
+        MustContainsUserFun && !oriLambda.toString.contains("add")){
+
+      }
+      else{
+        //the params in refine param list will be replace as funcalls
+        val refineParamList = ArrayBuffer[Param]()
+        for(j <- oriLambda.params.indices){
+          if(ParamToFunCall.contains(oriLambda.params(j))){
+            refineParamList += oriLambda.params(j)
+          }
+        }
+        if(refineParamList.nonEmpty) {
+          //create a lambda without unknown params
+          var L2 = Lambda(refineParamList.toArray[Param],oriLambda.body)
+
+
+          //replace them with new param
+          for (j <- refineParamList.indices) {
+             L2 = replaceParam(L2,refineParamList(j),Param(refineParamList(j).t))
+          }
+
+          //create a funcall for it
+          val F = FunCall(L2,refineParamList.map(
+            ParamToFunCall(_)
+          ).toArray[Expr]:_*)
+
+          val lParam = countParam(F)
+
+          assert(lParam.forall(!ParamToFunCall.contains(_)))
+
+          val L = Lambda(lParam.toArray[Param],F)
+
+          RefinedResult += L
+
+        }
+        else{
+          RefinedResult += oriLambda
+        }
+      }
+    }
+  }
   private def getArg(id:Int):Expr ={
     if(ParamToFunCall.contains(ParamList(id))) {
       val randF = scala.util.Random.nextFloat()
