@@ -1095,7 +1095,6 @@ class hlGenerator{
   val ReduceInitToGlobal = false
   var RunInterpreter = true
 
-
   //Avoid for redundant
   var Join_P = 0
 
@@ -1104,6 +1103,9 @@ class hlGenerator{
   //Reduce
   val Reduce_L_PI_PE = scala.collection.mutable.Set[(Int,Int,Int)]()
   val Reduce_Lambda_Check = scala.collection.mutable.Set[Int]()
+
+  //UserFun
+  val Add_Check = scala.collection.mutable.Set[(Int,Int)]()
 
   //genrators
   def generateProgram(): Unit = {
@@ -1123,7 +1125,7 @@ class hlGenerator{
   }
 
   private def generateLambda(): Unit ={
-    val totChoiceNum = 2
+    val totChoiceNum = 7
     val SplitChunkSize = 4
     val ZipLimit = 4
     val randChoice = util.Random.nextInt(totChoiceNum)
@@ -1135,9 +1137,9 @@ class hlGenerator{
         AssignedChoiceNum += 1
       case 1 =>
         generateSplit(SplitChunkSize,30)
-        AssignedChoiceNum = 0
+        AssignedChoiceNum += 1
       case 2 =>
-        //matchUserFun(30)
+        generateUserFun(30)
         AssignedChoiceNum += 1
       case 3 =>
         //matchZip(30,ZipLimit)
@@ -1149,7 +1151,7 @@ class hlGenerator{
         //matchMap(30)
         AssignedChoiceNum += 1
       case 6 =>
-        //matchReduce(30)
+        generateReduce(30)
         AssignedChoiceNum = 0
 
 
@@ -1266,6 +1268,80 @@ class hlGenerator{
       ParamToFunCall ++= tempParamToFunCall
     }
 
+  }
+
+  private def generateUserFun(limitNum:Int):Unit ={
+    val tempLambdaList = ArrayBuffer[Lambda]()
+    val tempParamList = ArrayBuffer[Param]()
+    val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
+    val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])
+
+
+      for (i1 <- ParamList.indices) {
+        for (i2 <- ParamList.indices) {
+          if (!Add_Check((i1,i2))) {
+            if (ParamList(i1).t == Float && ParamList(i2).t == Float) {
+              val arg1 = getArg(i1)
+              val arg2 = getArg(i2)
+
+              //check for consequentUserFun
+              var containsUserFun = false
+              arg1 match{
+                case fc:FunCall =>
+                  fc.f match{
+                    case u:UserFun =>
+                      containsUserFun = true
+                    case _=>
+                  }
+                case _=>
+              }
+              arg2 match{
+                case fc:FunCall =>
+                  fc.f match{
+                    case u:UserFun =>
+                      containsUserFun = true
+                    case _=>
+                  }
+                case _=>
+              }
+              if(containsUserFun && !consequentUserFun){
+                //Don't allow for UserFun(UserFun(...))
+              }
+              else {
+                val F = FunCall(add, arg1,arg2)
+                F.t = Float
+                val P = Param(F.t)
+                //count the parameters of lambda
+                val lParams = countParam(F)
+
+                //build the lambda
+                val L = Lambda(lParams.toArray[Param],F)
+
+                tempParamList += P
+                tempLambdaList += L
+                tempParamToFunCall += ((P,F))
+              }
+            }
+            Add_Check += ((i1,i2))
+            Add_Check += ((i2,i1))
+          }
+        }
+      }
+
+    val resLen = tempParamList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        LambdaList += tempLambdaList(randRes)
+        ParamList += tempParamList(randRes)
+        ParamToFunCall += ((tempParamList(randRes),tempParamToFunCall(tempParamList(randRes))))
+      }
+    }
+    else {
+      LambdaList ++= tempLambdaList
+      ParamList ++= tempParamList
+      ParamToFunCall ++= tempParamToFunCall
+    }
   }
 
   private def generateReduce(limitNum:Int): Unit ={
