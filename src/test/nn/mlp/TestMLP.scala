@@ -27,7 +27,7 @@ object TestMLP {
     val intellij_path = System.getProperty("user.dir") + "/../../src/test/nn/mlp"
     if (java.nio.file.Files.exists(java.nio.file.Paths.get(intellij_path)))
       // Use GPU on the development machine
-      Executor.init()
+      Executor.init(1, 0)
     else
       // Use GPU on the testing machine
       Executor.init(1, 0)
@@ -51,7 +51,7 @@ class TestMLP {
     val experiments = Array(
       /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> 1, "neurons_per_wrg" -> 1,
-        "hidden_layer_0_range" -> Array.range(start=384, end=1024+1, step=32),
+        "hidden_layer_0_range" -> Array.range(start=32, end=1024+1, step=32),
         "n_inputs_range" -> Array.range(start=32, end=1024+1, step=32)))
 
     for (i <- 0 until reruns) {
@@ -73,16 +73,16 @@ class TestMLP {
                   f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
                   f"n_inputs=$n_inputs%d)")
                 try {
-                  MNIST_MLP_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
+                  /*MNIST_MLP_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int])
-                  /*MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
+                  MNIST_MLP_in_2d_Local(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int])
                   MNIST_MLP_in_2d_MrgdGrps_in_1d(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int])
                   MNIST_MLP_in_2d_MrgdGrps_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
-                    e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
-                  MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
                     e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])*/
+                  MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced_fixed(Array(hidden_layer_0_size, 32), n_inputs,
+                    e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
                 } catch {
                   case e: DeviceCapabilityException =>
                     println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
@@ -388,10 +388,40 @@ class TestMLP {
               MapLcl(0)(
                 toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o
               Split(tile_of_mults_size) o Join() o
-              MapSeq(fun((ws_per_neuron) => {ReorderStride(tile_of_mults_size) $
+              MapSeq(fun((ws_per_neuron) => {ReorderStride(idim / tile_of_mults_size) $
                 Zip(X_single, ws_per_neuron)})) $ ws_per_tile})) $
           X_tile})) $ Zip(Split(tile_of_neurons_size) $ W, Split(tile_of_neurons_size) $ B)})) o
       Split(tile_of_inputs_size) $ X
+    }
+  )
+
+  def f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced_fixed(activation_f: UserFun,
+                                                             tile_of_mults_size: Int,
+                                                             tile_of_inputs_size: Int,
+                                                             tile_of_neurons_size: Int,
+                                                             odim: Int, idim: Int, ninputs: Int) = fun(
+    ArrayType(ArrayType(Float, idim), odim),
+    ArrayType(Float, odim),
+    ArrayType(ArrayType(Float, idim), ninputs),
+    (W, B, X) => {
+      Join() o
+        MapWrg(1)(fun((X_tile) => {
+          Scatter(ReorderWithStride(odim / tile_of_neurons_size)) o Join() o
+            MapWrg(0)(fun((ws_per_tile, bs_per_tile) => {
+              MapLcl(1)(fun((X_single) => {
+                MapLcl(0)(fun((b_per_neuron, partial_sums_per_neuron) => {
+                  TransposeW() o
+                    MapSeq(toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(b_per_neuron)) ) o
+                    Transpose() $ partial_sums_per_neuron})) o
+                  fun((partial_sums) => Zip(bs_per_tile, partial_sums)) o
+                  Split(idim / tile_of_mults_size) o
+                  MapLcl(0)(
+                    toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o
+                  Split(tile_of_mults_size) o Join() o
+                  MapSeq(fun((ws_per_neuron) => {ReorderStride(idim / tile_of_mults_size) $
+                    Zip(X_single, ws_per_neuron)})) $ ws_per_tile})) $
+                X_tile})) $ Zip(Split(tile_of_neurons_size) $ W, Split(tile_of_neurons_size) $ B)})) o
+        Split(tile_of_inputs_size) $ X
     }
   )
 
@@ -855,6 +885,18 @@ class TestMLP {
     new MLP_test3(f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced, mults_per_thread, neurons_per_wrg)(
       f"f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced",
       f"12. (MNIST dataset) x3 2D-parallel kernels (across inputs). " +
+      f"Workgroup per partition of neurons per partition of inputs." +
+       "Memory accesses are coalesced.", dir_name,
+      tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
+   }
+
+  //@Test
+  def MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced_fixed(hidden_layers: Array[Int], n_inputs: Int,
+                                                     mults_per_thread: Int, neurons_per_wrg: Int): Unit = {
+    val (tf_X, tf_W, tf_B, tf_result, dir_name) = load_experiment(hidden_layers, n_inputs)
+    new MLP_test3(f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced_fixed, mults_per_thread, neurons_per_wrg)(
+      f"f_layer_complex_neuron_mrgd_wrgs_in_2d_coalesced_fixed",
+      f"12b. (MNIST dataset) x3 2D-parallel kernels (across inputs). " +
       f"Workgroup per partition of neurons per partition of inputs." +
        "Memory accesses are coalesced.", dir_name,
       tf_X, tf_W, tf_B, tf_result, Array(ReLU, ReLU, Linear))
