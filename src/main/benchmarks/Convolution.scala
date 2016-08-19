@@ -10,10 +10,10 @@ import opencl.executor.Utils
 class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Convolution", Seq(4096, 4096), f, 0.01f) {
 
   // change in singleton object as well!
-  //val inputSize = 4096
-  //val smallerGlobalSize = 512
-  val inputSize = 3072
-  val smallerGlobalSize = 384
+  val inputSize = 4096
+  val smallerGlobalSize = 512
+  //val inputSize = 3072
+  //val smallerGlobalSize = 384
 
   override def generateInputs(): Seq[Any] = {
     Seq(Array.tabulate(inputSize, inputSize)((r, c) => r * inputSize * 1.0f + c)
@@ -95,8 +95,8 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
 
 object Convolution{
 
-  //val inputSize = 4096
-  val inputSize = 3072
+  val inputSize = 4096
+  //val inputSize = 3072
 
   val scalaClamp = (idx: Int, length: Int) => {
     if(idx<0) 0 else if(idx>length-1) length-1 else idx

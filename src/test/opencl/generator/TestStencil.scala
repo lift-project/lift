@@ -97,6 +97,26 @@ class TestStencil extends TestSlide {
     )
   }
 
+  def createThesisChapter4Example(boundary: BoundaryFun,
+                           size: Int, step: Int,
+                           left: Int, right: Int): Lambda1 = {
+    fun(
+      ArrayType(Float, Var("N", StartFromRange(2))),
+      (input) =>
+        toGlobal(MapGlb(id)) o Join() o MapGlb(ReduceSeq(add, 0.0f)) o
+          Slide(size, step) o Pad(left, right, boundary) $ input
+    )
+  }
+
+  @Test def chapterFourExample(): Unit = {
+    val data = Array(0,1,2,3,4,5).map(_.toFloat)
+    val gold = Array(1,3,6,9,12,14).map(_.toFloat)
+    val f = createThesisChapter4Example(Pad.Boundary.Clamp, 3,1, 1,1)
+    val (output: Array[Float], runtime) = Execute(data.length, data.length)(f, data)
+    println(output.mkString(","))
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
   @Test def group3ElementsPadWrap(): Unit = {
     val boundary = Pad.Boundary.Wrap
     val gold = Array(4,0,1, 0,1,2, 1,2,3, 2,3,4, 3,4,0).map(_.toFloat)
@@ -894,6 +914,7 @@ class TestStencil extends TestSlide {
   @Test def convolutionTiled(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17*17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
