@@ -34,9 +34,10 @@ class hlGeneratorTest {
   @Test
   def testNewGen():Unit={
     val hlGen = new hlGenerator
-    hlGen.generateProgram()
-    val result = hlGen.RefinedResult
-    assert(true)
+    //hlGen.generateProgram()
+    hlGen.tryPrograms(new PrintWriter("/home/potato/exprs/8-19/test_new_generator.txt"))
+    //val result = hlGen.RefinedResult
+    //assert(true)
   }
   @Ignore
   @Test
@@ -112,25 +113,31 @@ class hlGeneratorTest {
         ))(p241)
       }
     )
+    //val test = rewriting.Rewrite.rewrite(f,rewriting.allRules,1)
     val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
-    TypeChecker(fs.head)
-    val code = Compile(fs.head)
-    val Args = scala.collection.mutable.ArrayBuffer[Any]()
-    for (j <- f.params.indices) {
-      f.params(j).t match {
-        case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
-        case ArrayType(Float, l1) =>
-          Args += Array.fill(l1.eval)(2.0f)
-        case Float =>
-          Args += 3.0f
-        case _=>
+    val test = rewriting.Rewrite.rewriteJustGenerable(fs.head,rewriting.allRules,5)
+    for(i<- test.indices) {
+      val rewrited = test(i)
+
+      TypeChecker(rewrited)
+      val code = Compile(rewrited)
+      val Args = scala.collection.mutable.ArrayBuffer[Any]()
+      for (j <- f.params.indices) {
+        f.params(j).t match {
+          case ArrayType(ArrayType(Float, l1), l2) =>
+            Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          case ArrayType(Float, l1) =>
+            Args += Array.fill(l1.eval)(2.0f)
+          case Float =>
+            Args += 3.0f
+          case _ =>
+        }
       }
+      val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
+      //val (output_exe1: Array[Float], _) = Execute(1, 32)(fs.head, Args: _*)
+      val (output_exe: Array[Float], _) = Execute(1, 32)(code, rewrited, Args: _*)
+      assert(output_exe.corresponds(output_int)(_ == _))
     }
-    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe1:Array[Float],_)= Execute(1,32)(fs.head,Args:_*)
-    val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
 
   }
 
