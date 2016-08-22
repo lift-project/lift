@@ -391,7 +391,7 @@ object Convolution{
           toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
       ))) o
         // tiling
-        Slide2D(1,1, 160,144) o
+        Slide2D(1,1, 144,128) o
         Pad2D(0,0, 8,8, Pad.Boundary.Clamp) $ matrix
     }
     )
@@ -421,7 +421,7 @@ object Convolution{
           toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
       ))) o
         // tiling
-        Slide2D(4,4, 160,144) o
+        Slide2D(4,4, 144,128) o
         Pad2D(0,0, 8,8, Pad.Boundary.Clamp) $ matrix
     }
   )

@@ -1348,7 +1348,7 @@ class TestStencil extends TestSlide {
 
     // for generating 4k kernel
     val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+    val (output: Array[Float], runtime) = Execute(16, 4, 512, 4096, (true, true))(stencil, input, weights)
   }
 
   @Ignore //fix
