@@ -960,6 +960,7 @@ class TestStencil extends TestSlide {
   @Test def blurY(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
@@ -992,6 +993,7 @@ class TestStencil extends TestSlide {
   @Test def blurYTiled(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1034,6 +1036,7 @@ class TestStencil extends TestSlide {
   @Test def blurYTiled2D(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1081,6 +1084,7 @@ class TestStencil extends TestSlide {
     val stencil = fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       ArrayType(ArrayType(Float, Cst(1024)), Cst(1024)),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1128,6 +1132,7 @@ class TestStencil extends TestSlide {
   @Test def blurYTiled2DTransposed(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1173,6 +1178,7 @@ class TestStencil extends TestSlide {
   @Test def blurYTiled2DTiledLoadingTransposed(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1268,10 +1274,10 @@ class TestStencil extends TestSlide {
 
   }
 
-  @Ignore //fix
   @Test def blurX(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
@@ -1304,7 +1310,8 @@ class TestStencil extends TestSlide {
   @Ignore //fix
   @Test def blurXTiled(): Unit = {
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1325,23 +1332,23 @@ class TestStencil extends TestSlide {
             toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
         ))) o
           // tiling
-          Slide2D(1,1, 160,144) o
+          Slide2D(1,1, 144,128) o
           Pad2D(0,0, 8,8, Pad.Boundary.Clamp) $ matrix
       }
     )
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
-    val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 4, 128, 3072, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 4, 128, 3072, (true, true))(stencil, input, weights)
+    //println("Runtime: " + runtime)
 
-    val gold = Utils.scalaCompute2DStencil(input, 1,1, 17,1, 0,0,8,8, weights, scalaClamp)
-    compareGoldWithOutput(gold, output, runtime)
+    //val gold = Utils.scalaCompute2DStencil(input, 1,1, 17,1, 0,0,8,8, weights, scalaClamp)
+    //compareGoldWithOutput(gold, output, runtime)
 
     // for generating 4k kernel
-    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+    val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
   }
 
   @Ignore //fix
