@@ -45,6 +45,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 9 => Array.fill[Float](17)(1.0f)    // blur x
       case 10 => Array.fill[Float](17)(1.0f)    // blur x tiled
       case 11 => Array.fill[Float](17)(1.0f)    // blur x tiled 2d
+      case 12 => Array.fill[Float](17)(1.0f)    // blur y tiled 2d 32
     })
   }
 
@@ -72,6 +73,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 9 => Array(inputSize, inputSize, 1)  // blur x
       case 10 => Array(smallerGlobalSize, inputSize, 1)  // blur x tiled
       case 11 => Array(smallerGlobalSize, inputSize, 1)  // blur x tiled 2d
+      case 12 => Array(inputSize, smallerGlobalSize, 1)  // blur y tiled 2d
     }
   }
 
@@ -89,6 +91,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 9 => Array(16, 16, 1)  // blur x
       case 10 => Array(16, 1, 1)  // blur x tiled
       case 11 => Array(16, 4, 1)  // blur x tiled 2d
+      case 12 => Array(32, 4, 1)  // blur y tiled 2d
     }
   }
 }
@@ -244,6 +247,36 @@ object Convolution{
       ))) o
         // tiling
         Slide2D(80,64, 16,16) o
+        Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
+    }
+  )
+  }
+
+  def blurYTiled2D32(): Lambda = {
+    fun(
+    //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(ArrayType(Float, inputSize), inputSize),
+    ArrayType(Float, 17),
+    (matrix, weights) => {
+      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+        MapLcl(1)(MapLcl(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(17,1, 1,1) o
+          // load to local memory
+          toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+      ))) o
+        // tiling
+        Slide2D(80,64, 32,32) o
         Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
     }
   )
@@ -441,6 +474,7 @@ object Convolution{
       ("BLUR_X", Array[Lambda](blurX)),
       ("BLUR_X_TILED", Array[Lambda](blurXTiled)),
       ("BLUR_X_TILED_2D", Array[Lambda](blurXTiled2D))
+      ("BLUR_Y_TILED_2D_32", Array[Lambda](blurYTiled2D32)),
     )
   )
 
