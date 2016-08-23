@@ -157,8 +157,11 @@ object Lower {
 
     /* Global only */
     if (enabledMappings.global0) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
+      //only allows one mapGlb!
+      val lambda1 = Lower.lowerFirstNWithRule(lambda,Rules.mapGlb(0),1)
+      //val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
       var lambdaN = mapGlbArgsToGlobal(lambda1)
+      //var lambdaN = reduceResultToGlobal(lambda1)
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
 
@@ -328,6 +331,38 @@ object Lower {
     else
       lastMapToGlobal(lambda)
 
+  private def reduceResultToGlobal(f0:Lambda):Lambda ={
+    val reduces = Rewrite.listAllPossibleRewrites(f0, Rules.addIdAfterReduce)
+    val idsAdded = reduces.foldLeft(f0)({
+      case (currentLambda, (rule, expr)) =>
+        Rewrite.applyRuleAt(currentLambda, expr, rule)
+    })
+
+    val ids = getExprForPattern(idsAdded,
+      { case FunCall(MapSeq(l), _) if {
+        l.asInstanceOf[Lambda] match {
+          case Lambda(Array(p), FunCall(Id(), arg)) if arg eq p => true
+          case _ => false
+        }
+      } => })
+
+    val toGlobalsAdded = ids.foldLeft(idsAdded)({
+      case (currentLambda, expr) =>
+        Rewrite.applyRuleAt(currentLambda, expr, Rules.globalMemory)
+    })
+
+
+    val ids2 = getExprForPattern(toGlobalsAdded, { case FunCall(Id(), _) => })
+
+    val idsImplemented = ids2.foldLeft(toGlobalsAdded)({
+      case (currentLambda, expr) =>
+        Rewrite.applyRuleAt(currentLambda, expr, Rules.implementIdAsDeepCopy)
+    })
+
+    idsImplemented
+  }
+
+
   private def mapGlbArgsToGlobal(lambda:Lambda):Lambda = {
     val mapGlbs = getExprForPattern(lambda,{
       case FunCall(MapGlb(_,_),_) =>
@@ -468,6 +503,10 @@ object Lower {
     val nextToLower = FindNextMapsToLower()(lambda)
     applyRuleToExpressions(lambda, nextToLower, rule)
   }
+  def lowerFirstNWithRule(lambda:Lambda,rule:Rule,firstN:Int) ={
+    val nextToLower = FindNextMapsToLower()(lambda,firstN)
+    applyRuleToExpressions(lambda,nextToLower,rule)
+  }
 
   def lower(lambda: Lambda): List[Lambda] = {
     lowerByLevels(lastWriteToGlobal(lowerReduces(lambda)))
@@ -490,6 +529,18 @@ class FindNextMapsToLower {
     idMap = NumberExpression.breadthFirst(expr)
     find(expr)
     expressions
+  }
+  def apply(lambda:Lambda,firstN:Int):List[Int] =
+    apply(lambda.body,firstN)
+  def apply(expr:Expr,firstN:Int):List[Int] = {
+    idMap = NumberExpression.breadthFirst(expr)
+    find(expr)
+    if(firstN>expressions.length){
+      expressions
+    }
+    else {
+      expressions.takeRight(firstN)
+    }
   }
 
   private def find(expr: Expr): Unit = {
