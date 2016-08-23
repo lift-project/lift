@@ -87,7 +87,7 @@ class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmar
       case 7 => Array(16, 8, 1)  // blur y tiled 2d transposed
       case 8 => Array(16, 8, 1)  // blur y tiled 2d tiled loading transposed
       case 9 => Array(16, 16, 1)  // blur x
-      case 10 => Array(16, 4, 1)  // blur x tiled
+      case 10 => Array(16, 1, 1)  // blur x tiled
       case 11 => Array(16, 4, 1)  // blur x tiled 2d
     }
   }
