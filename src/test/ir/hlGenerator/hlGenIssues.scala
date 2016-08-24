@@ -47,11 +47,34 @@ class hlGenIssues{
       }
     }
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
+    val(output_exe:Array[Float],_)= Execute(1,1)(code,lower,Args:_*)
+    assert(output_exe.corresponds(output_int)(_==_))
+
+  }
+  @Ignore @Test def hlGenResultNotEqual1():Unit={
+    val f = Eval("val add = UserFun(\"add\", Array(\"x\", \"y\"), \"\"\"|{ return x+y; }\"\"\".stripMargin, Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])\nfun(Float, ArrayType(ArrayType(Float, 32), 32), ArrayType(Float, 32),(p_0, p_1, p_2) => FunCall(Map(fun((p_3) => FunCall(Reduce(fun((p_4, p_5) => FunCall(add, p_4, p_5))), FunCall(add, p_0, p_3), FunCall(Map(fun((p_6) => FunCall(add, p_6, p_6))), FunCall(Join(), p_1))))), FunCall(Map(fun((p_7) => FunCall(add, p_7, p_7))), p_2)))")
+    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    //val lower = hlGenerator.testSolve(fs.head)
+    val lower = fs.head
+    TypeChecker(lower)
+    val code = Compile(lower)
+    val Args = scala.collection.mutable.ArrayBuffer[Any]()
+    for (j <- f.params.indices) {
+      f.params(j).t match {
+        case ArrayType(ArrayType(Float, l1), l2) =>
+          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+        case ArrayType(Float, l1) =>
+          Args += Array.fill(l1.eval)(2.0f)
+        case Float =>
+          Args += 3.0f
+        case _=>
+      }
+    }
+    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
     val(output_exe:Array[Float],_)= Execute(1,32)(code,lower,Args:_*)
     assert(output_exe.corresponds(output_int)(_==_))
 
   }
-
   @Ignore @Test def issue76(): Unit ={
     val f = fun(
       Float,

@@ -129,7 +129,11 @@ object Lower {
 //
 //    mapsOnLevelThree == 1
 //  }
+
+
   def lowerMapsByLevels(lambda:Lambda,enabledMappings: EnabledMappings):List[Lambda] = {
+
+  val restrictGlobalNum = false
 
   val depthMap: collection.Map[Expr, Int] = NumberExpression.byDepth(lambda)
   val depthsOfUnLowered = depthMap.collect({ case (FunCall(ir.ast.Map(_), _*), depth) => depth })
@@ -140,6 +144,7 @@ object Lower {
   val mapTree = (new MapTree)
   mapTree.parse(lambda)
 
+  //Nothing need to be lowered
   if(mapTree.MaxDepth == 0){
     return List(lambda)
   }
@@ -152,7 +157,7 @@ object Lower {
   /* Global only */
   if (enabledMappings.global0 && mapTree.MaxAvaDepth >= 1) {
     val mapsOnLevel1 = mapTree.getMapsOnLevel(1)
-    if (mapsOnLevel1.length > 1) {
+    if (mapsOnLevel1.length > 1 && restrictGlobalNum) {
       //only allows one mapGlb!
     }
     else {
@@ -172,7 +177,7 @@ object Lower {
   if (enabledMappings.global10 && mapTree.MaxAvaDepth >= 2) {
     val mapsOnLevel1 = mapTree.getMapsOnLevel(1)
     val mapsOnLevel2 = mapTree.getMapsOnLevel(2)
-    if (mapsOnLevel1.length > 1 || mapsOnLevel2.length > 1) {
+    if (restrictGlobalNum && (mapsOnLevel1.length > 1 || mapsOnLevel2.length > 1)) {
       //only allows one mapGlb!
     }
     else {
@@ -227,29 +232,42 @@ object Lower {
     }
     lambdas = lambdaN :: lambdas
   }
-  /*
-  def addWrgLocalMapping(first: Int, second: Int): Unit = {
-    if (maxDepth > 3 && oneMapOnLevelTwo) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(first))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(second))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(first))
-      val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(second))
-
-      var lambdaN = lambda4
-
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-
-      lambdas = lambdaN :: lambdas
+  if(enabledMappings.group01 && mapTree.MaxAvaDepth >= 4){
+    val mapsOnLevel1 = mapTree.getMapsOnLevel(1)
+    val mapsOnLevel2 = mapTree.getMapsOnLevel(2)
+    val mapsOnLevel3 = mapTree.getMapsOnLevel(3)
+    val mapsOnLevel4 = mapTree.getMapsOnLevel(4)
+    val lambda1 = Lower.applyRuleToExpressions(lambda,mapsOnLevel1.toList,Rules.mapWrg(0))
+    val lambda2 = Lower.applyRuleToExpressions(lambda1,mapsOnLevel2.toList,Rules.mapWrg(1))
+    val lambda3 = Lower.applyRuleToExpressions(lambda2,mapsOnLevel3.toList,Rules.mapLcl(0))
+    val lambda4 = Lower.applyRuleToExpressions(lambda3,mapsOnLevel4.toList,Rules.mapLcl(1))
+    var lambdaN = lambda4
+    if (mapTree.MaxDepth > 4) {
+      for (i <- 5 to mapTree.MaxDepth) {
+        val mapsOnCurrLevel = mapTree.getMapsOnLevel(i)
+        lambdaN = Lower.applyRuleToExpressions(lambdaN, mapsOnCurrLevel.toList, Rules.mapSeq)
+      }
     }
+    lambdas = lambdaN :: lambdas
   }
-
-  if (enabledMappings.group01)
-    addWrgLocalMapping(0, 1)
-
-  if (enabledMappings.group10)
-    addWrgLocalMapping(1, 0)
-*/
+  if(enabledMappings.group10 && mapTree.MaxAvaDepth >= 4){
+    val mapsOnLevel1 = mapTree.getMapsOnLevel(1)
+    val mapsOnLevel2 = mapTree.getMapsOnLevel(2)
+    val mapsOnLevel3 = mapTree.getMapsOnLevel(3)
+    val mapsOnLevel4 = mapTree.getMapsOnLevel(4)
+    val lambda1 = Lower.applyRuleToExpressions(lambda,mapsOnLevel1.toList,Rules.mapWrg(1))
+    val lambda2 = Lower.applyRuleToExpressions(lambda1,mapsOnLevel2.toList,Rules.mapWrg(0))
+    val lambda3 = Lower.applyRuleToExpressions(lambda2,mapsOnLevel3.toList,Rules.mapLcl(1))
+    val lambda4 = Lower.applyRuleToExpressions(lambda3,mapsOnLevel4.toList,Rules.mapLcl(0))
+    var lambdaN = lambda4
+    if (mapTree.MaxDepth > 4) {
+      for (i <- 5 to mapTree.MaxDepth) {
+        val mapsOnCurrLevel = mapTree.getMapsOnLevel(i)
+        lambdaN = Lower.applyRuleToExpressions(lambdaN, mapsOnCurrLevel.toList, Rules.mapSeq)
+      }
+    }
+    lambdas = lambdaN :: lambdas
+  }
   lambdas
 }
 

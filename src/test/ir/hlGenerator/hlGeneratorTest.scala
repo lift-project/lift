@@ -5,10 +5,10 @@ import java.io.PrintWriter
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Eval, Execute, Executor}
 import org.junit._
 import opencl.ir._
-import opencl.ir.pattern.{toGlobal}
+import opencl.ir.pattern.toGlobal
 import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
@@ -186,6 +186,27 @@ class hlGeneratorTest {
   @Ignore
   @Test
   def ResultNotEqualBugs():Unit={
+    val f = Eval("val add = UserFun(\"add\", Array(\"x\", \"y\"), \"\"\"|{ return x+y; }\"\"\".stripMargin, Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])\nfun(ArrayType(ArrayType(Float, 32), 32),(p_0) => FunCall(Map(fun((p_1) => FunCall(Join(), FunCall(Reduce(fun((p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(add, p_3, p_4))), p_2))), p_1, FunCall(Join(), p_0))))), p_0))")
+    val fs = Lower.mapCombinations(f,new EnabledMappings(true, true, true, true, true, true))
+    //val lower = hlGenerator.testSolve(fs.head)
+    val lower = fs.head
+    TypeChecker(lower)
+    val code = Compile(lower)
+    val Args = scala.collection.mutable.ArrayBuffer[Any]()
+    for (j <- f.params.indices) {
+      f.params(j).t match {
+        case ArrayType(ArrayType(Float, l1), l2) =>
+          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+        case ArrayType(Float, l1) =>
+          Args += Array.fill(l1.eval)(2.0f)
+        case Float =>
+          Args += 3.0f
+        case _=>
+      }
+    }
+    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
+    val(output_exe:Array[Float],_)= Execute(1,1)(code,lower,Args:_*)
+    assert(output_exe.corresponds(output_int)(_==_))
 
   }
 

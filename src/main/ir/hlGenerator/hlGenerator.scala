@@ -1144,7 +1144,7 @@ class hlGenerator {
     //3. lower the lambda
     var fs = List[Lambda]()
     try {
-      fs = Lower.mapCombinations(l, new EnabledMappings(true, false, false, false, false, false))
+      fs = Lower.mapCombinations(l, new EnabledMappings(true, true, true, true, true, true))
     }
     catch {
       case e: Throwable =>
