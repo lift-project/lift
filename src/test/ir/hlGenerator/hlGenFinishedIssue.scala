@@ -237,7 +237,7 @@ class hlGenFinishedIssue{
 
   }
   @Ignore @Test def hlGenResultNotEqual1():Unit={
-    val f = Eval("val add = UserFun(\"add\", Array(\"x\", \"y\"), \"\"\"|{ return x+y; }\"\"\".stripMargin, Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])\nfun(ArrayType(Float, 32), ArrayType(Float, 32),(p_0, p_1) => FunCall(Map(fun((p_2) => FunCall(Map(fun((p_3) => FunCall(add, p_3, p_3))), p_2))), FunCall(Reduce(fun((p_4, p_5) => FunCall(Map(fun((p_6) => FunCall(add, p_6, p_5))), p_4))), FunCall(Map(fun((p_7) => FunCall(add, p_7, p_7))), p_0), FunCall(Map(fun((p_8) => FunCall(add, p_8, p_8))), p_1))))")
+    val f = Eval("val add = UserFun(\"add\", Array(\"x\", \"y\"), \"\"\"|{ return x+y; }\"\"\".stripMargin, Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])\nfun(Float, ArrayType(ArrayType(Float, 32), 32), ArrayType(Float, 32),(p_0, p_1, p_2) => FunCall(Map(fun((p_3) => FunCall(Reduce(fun((p_4, p_5) => FunCall(add, p_4, p_5))), FunCall(add, p_0, p_3), FunCall(Map(fun((p_6) => FunCall(add, p_6, p_6))), FunCall(Join(), p_1))))), FunCall(Map(fun((p_7) => FunCall(add, p_7, p_7))), p_2)))")
     val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
     //val lower = hlGenerator.testSolve(fs.head)
     val lower = fs.head

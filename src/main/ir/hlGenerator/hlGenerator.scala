@@ -1089,6 +1089,8 @@ class hlGenerator {
   //Used for debug
   var AssignedChoiceNum = 0
   val PassParamUpPossibility = 0.0
+  val GlobalSize = 1
+  val LocalSize = 1
 
   //controllers
   val LoopNum = 28
@@ -1099,7 +1101,7 @@ class hlGenerator {
   val RunInterpreter = true
   val MustContainsUserFun = true
   val MustContainsMap = true
-  val LimitNum = 50
+  val LimitNum = 40
 
 
   //Avoid for redundant
@@ -1177,7 +1179,7 @@ class hlGenerator {
         outType match {
           case Float =>
             try {
-              val (output_exe: Float, runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
+              val (output_exe: Float, runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
               if (RunInterpreter) {
 
                 val output_int = Interpreter(oril).->[Float].run(Args: _*)
@@ -1206,7 +1208,7 @@ class hlGenerator {
             }
           case ArrayType(Float, d1) =>
             try {
-              val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
+              val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
               if (RunInterpreter) {
                 val output_int = Interpreter(oril).->[Vector[Float]].run(Args: _*).toArray[Float]
                 if (output_exe.corresponds(output_int)(_ == _)) {
@@ -1233,7 +1235,7 @@ class hlGenerator {
             }
           case ArrayType(ArrayType(Float, d1), d2) =>
             try {
-              val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
+              val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
               if (RunInterpreter) {
                 val output_int = Interpreter(oril).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
                 if (output_exe.corresponds(output_int)(_ == _)) {
@@ -1260,7 +1262,7 @@ class hlGenerator {
             }
           case ArrayType(ArrayType(ArrayType(Float, d1), d2), d3) =>
             try {
-              val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
+              val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
               if (RunInterpreter) {
                 val output_int = Interpreter(oril).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
                 if (output_exe.corresponds(output_int)(_ == _)) {
