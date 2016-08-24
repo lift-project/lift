@@ -5,6 +5,7 @@ import rewriting.utils._
 import ir.ast._
 import ir.{Context, TypeChecker}
 import opencl.ir.pattern._
+import rewriting.MapTree._
 
 import scala.collection.mutable.Seq
 
@@ -55,7 +56,7 @@ object Lower {
 
     val removeOtherIds = SimplifyAndFuse(patchLambda(lambda))
 
-    lowerMaps(removeOtherIds, enabledMappings)
+    lowerMapsByLevels(removeOtherIds, enabledMappings)
   }
 
   def simpleMapStrategy(lambda: Lambda) = {
@@ -136,7 +137,113 @@ object Lower {
 //
 //    mapsOnLevelThree == 1
 //  }
+  def lowerMapsByLevels(lambda:Lambda,enabledMappings: EnabledMappings):List[Lambda] = {
+  val depthMap: collection.Map[Expr, Int] = NumberExpression.byDepth(lambda)
+  val depthsOfUnLowered = depthMap.collect({ case (FunCall(ir.ast.Map(_), _*), depth) => depth })
+  /*val UnLoweredMap = depthMap.filterKeys({
+    case FunCall(Map(_),_*) => true
+    case _=> false
+  })*/
+  val test111 = (new MapTree)
+  test111.parse(lambda)
+  if (depthsOfUnLowered.isEmpty)
+    return List(lambda)
 
+  val maxDepth = depthsOfUnLowered.max + 1
+  val oneMapOnLevelTwo = if(maxDepth> 1) testHasOneMapOnSecondLevel(depthMap,maxDepth) else false
+  var lambdas = List[Lambda]()
+  //val oneMapOnLevelTwo = if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
+  //    val oneMapOnLevelThree = if (maxDepth > 2) hasOneMapOnThirdLevel(lambda) else false
+
+  /* Global only */
+  if (enabledMappings.global0) {
+    //only allows one mapGlb!
+    val lambda1 = Lower.lowerFirstNWithRule(lambda,Rules.mapGlb(0),1)
+    //val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
+    var lambdaN = mapGlbArgsToGlobal(lambda1)
+    //var lambdaN = reduceResultToGlobal(lambda1)
+    while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+    lambdas = lambdaN :: lambdas
+  }
+
+  if (enabledMappings.global10 && maxDepth > 1 && oneMapOnLevelTwo) {
+    val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
+    val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(0))
+    var lambdaN = lambda2
+    while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+    lambdas = lambdaN :: lambdas
+  }
+
+  if (enabledMappings.global01 && maxDepth > 1 && oneMapOnLevelTwo) {
+    val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
+    val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
+    var lambdaN = lambda2
+    while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+    lambdas = lambdaN :: lambdas
+  }
+
+  /*    def addGlobalMapping(first: Int, second: Int, third: Int): Unit = {
+        if (maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
+          val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(first))
+          val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(second))
+          val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(third))
+          var lambdaN = lambda3
+          while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+            lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+          lambdas = lambdaN :: lambdas
+        }
+      }
+      addGlobalMapping(0,1,2)
+      addGlobalMapping(1,0,2)
+      addGlobalMapping(0,2,1)
+      addGlobalMapping(2,1,0)
+      addGlobalMapping(2,0,1)
+      addGlobalMapping(1,2,0)*/
+
+  /** Workgroup */
+  if(enabledMappings.group0 && maxDepth > 1) {
+    val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
+    val lambda3 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
+
+    var lambdaN = lambda3
+
+    while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+    lambdas = lambdaN :: lambdas
+  }
+
+  def addWrgLocalMapping(first: Int, second: Int): Unit = {
+    if (maxDepth > 3 && oneMapOnLevelTwo) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(first))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(second))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(first))
+      val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(second))
+
+      var lambdaN = lambda4
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN :: lambdas
+    }
+  }
+
+  if (enabledMappings.group01)
+    addWrgLocalMapping(0,1)
+
+  if (enabledMappings.group10)
+    addWrgLocalMapping(1,0)
+
+  lambdas
+  }
   def lowerMaps(lambda: Lambda, enabledMappings: EnabledMappings) : List[Lambda] = {
 
     val depthMap: collection.Map[Expr, Int] = NumberExpression.byDepth(lambda)
@@ -330,37 +437,6 @@ object Lower {
       lastReduceToGlobal(lambda)
     else
       lastMapToGlobal(lambda)
-
-  private def reduceResultToGlobal(f0:Lambda):Lambda ={
-    val reduces = Rewrite.listAllPossibleRewrites(f0, Rules.addIdAfterReduce)
-    val idsAdded = reduces.foldLeft(f0)({
-      case (currentLambda, (rule, expr)) =>
-        Rewrite.applyRuleAt(currentLambda, expr, rule)
-    })
-
-    val ids = getExprForPattern(idsAdded,
-      { case FunCall(MapSeq(l), _) if {
-        l.asInstanceOf[Lambda] match {
-          case Lambda(Array(p), FunCall(Id(), arg)) if arg eq p => true
-          case _ => false
-        }
-      } => })
-
-    val toGlobalsAdded = ids.foldLeft(idsAdded)({
-      case (currentLambda, expr) =>
-        Rewrite.applyRuleAt(currentLambda, expr, Rules.globalMemory)
-    })
-
-
-    val ids2 = getExprForPattern(toGlobalsAdded, { case FunCall(Id(), _) => })
-
-    val idsImplemented = ids2.foldLeft(toGlobalsAdded)({
-      case (currentLambda, expr) =>
-        Rewrite.applyRuleAt(currentLambda, expr, Rules.implementIdAsDeepCopy)
-    })
-
-    idsImplemented
-  }
 
 
   private def mapGlbArgsToGlobal(lambda:Lambda):Lambda = {
