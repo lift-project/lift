@@ -149,11 +149,15 @@ object Lower {
   if (depthsOfUnLowered.isEmpty)
     return List(lambda)
 
+
+  //delete below
   val maxDepth = depthsOfUnLowered.max + 1
   val oneMapOnLevelTwo = if(maxDepth> 1) testHasOneMapOnSecondLevel(depthMap,maxDepth) else false
+  //..
+
+
   var lambdas = List[Lambda]()
-  //val oneMapOnLevelTwo = if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
-  //    val oneMapOnLevelThree = if (maxDepth > 2) hasOneMapOnThirdLevel(lambda) else false
+
 
   /* Global only */
   if (enabledMappings.global0) {
