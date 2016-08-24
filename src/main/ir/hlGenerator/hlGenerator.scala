@@ -1099,6 +1099,7 @@ class hlGenerator {
   val RunInterpreter = true
   val MustContainsUserFun = true
   val MustContainsMap = true
+  val LimitNum = 50
 
 
   //Avoid for redundant
@@ -1151,139 +1152,148 @@ class hlGenerator {
         e.printStackTrace(w)
         return
     }
-    val lowLevel = fs.head
+    if(fs.length > 0) {
+      for (lowId <- fs.indices) {
 
-    //4. compile the lambda
-    var code = ""
-    try {
-      println(lowLevel.toString)
-      writeln(w, lowLevel.toString)
-      code = Compile(lowLevel)
+        val lowLevel = fs(lowId)
+
+        //4. compile the lambda
+        var code = ""
+        try {
+          println(lowLevel.toString)
+          writeln(w, lowLevel.toString)
+          code = Compile(lowLevel)
+        }
+        catch {
+          case e: Throwable =>
+            println("catch a exception in compiler-by-user")
+            writeln(w, "catch a exception in compiler-by-user")
+            e.printStackTrace(w)
+            return
+        }
+
+
+        //5. execute the OpenCL kernel and the interpreter
+        outType match {
+          case Float =>
+            try {
+              val (output_exe: Float, runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
+              if (RunInterpreter) {
+
+                val output_int = Interpreter(oril).->[Float].run(Args: _*)
+                if (output_exe == output_int) {
+                  println("results eq-by-user")
+                  writeln(w, "results eq-by-user")
+                }
+                else {
+                  println("results ne-by-user")
+                  writeln(w, "results ne-by-user")
+                }
+              }
+              else {
+                println("pass-by-user")
+                writeln(w, "pass-by-user")
+              }
+
+            }
+            catch {
+              case e: Throwable =>
+                println("catch a exception in execator-by-user")
+                e.printStackTrace()
+                writeln(w, "catch a exception in execator-by-user")
+                e.printStackTrace(w)
+                return
+            }
+          case ArrayType(Float, d1) =>
+            try {
+              val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
+              if (RunInterpreter) {
+                val output_int = Interpreter(oril).->[Vector[Float]].run(Args: _*).toArray[Float]
+                if (output_exe.corresponds(output_int)(_ == _)) {
+                  writeln(w, "results eq-by-user")
+                  println("results eq-by-user")
+                }
+                else {
+                  writeln(w, "results ne-by-user")
+                  println("results ne-by-user")
+                }
+              }
+              else {
+                println("pass-by-user")
+                writeln(w, "pass-by-user")
+              }
+            }
+            catch {
+              case e: Throwable =>
+                println("catch a exception in execator-by-user")
+                e.printStackTrace()
+                writeln(w, "catch a exception in execator-by-user")
+                e.printStackTrace(w)
+                return
+            }
+          case ArrayType(ArrayType(Float, d1), d2) =>
+            try {
+              val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
+              if (RunInterpreter) {
+                val output_int = Interpreter(oril).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
+                if (output_exe.corresponds(output_int)(_ == _)) {
+                  writeln(w, "results eq-by-user")
+                  println("results eq-by-user")
+                }
+                else {
+                  writeln(w, "results ne-by-user")
+                  println("results ne-by-user")
+                }
+              }
+              else {
+                println("pass-by-user")
+                writeln(w, "pass-by-user")
+              }
+            }
+            catch {
+              case e: Throwable =>
+                println("catch a exception in execator-by-user")
+                e.printStackTrace()
+                writeln(w, "catch a exception in execator-by-user")
+                e.printStackTrace(w)
+                return
+            }
+          case ArrayType(ArrayType(ArrayType(Float, d1), d2), d3) =>
+            try {
+              val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
+              if (RunInterpreter) {
+                val output_int = Interpreter(oril).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
+                if (output_exe.corresponds(output_int)(_ == _)) {
+                  writeln(w, "results eq-by-user")
+                  println("results eq-by-user")
+                }
+                else {
+                  writeln(w, "results ne-by-user")
+                  println("results ne-by-user")
+                }
+              }
+              else {
+                println("pass-by-user")
+                writeln(w, "pass-by-user")
+              }
+            }
+            catch {
+              case e: Throwable =>
+                println("catch a exception in execator-by-user")
+                e.printStackTrace()
+                writeln(w, "catch a exception in execator-by-user")
+                e.printStackTrace(w)
+                return
+            }
+          case _ =>
+            println("Type unimplemented,Ignored-by-user")
+            writeln(w, "Type unimplemented,Ignored-by-user")
+        }
+      }
     }
-    catch {
-      case e: Throwable =>
-        println("catch a exception in compiler-by-user")
-        writeln(w, "catch a exception in compiler-by-user")
-        e.printStackTrace(w)
-        return
-    }
-
-
-    //5. execute the OpenCL kernel and the interpreter
-    outType match {
-      case Float =>
-        try {
-          val (output_exe: Float, runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
-          if (RunInterpreter) {
-
-            val output_int = Interpreter(oril).->[Float].run(Args: _*)
-            if (output_exe == output_int) {
-              println("results eq-by-user")
-              writeln(w, "results eq-by-user")
-            }
-            else {
-              println("results ne-by-user")
-              writeln(w, "results ne-by-user")
-            }
-          }
-          else {
-            println("pass-by-user")
-            writeln(w, "pass-by-user")
-          }
-
-        }
-        catch {
-          case e: Throwable =>
-            println("catch a exception in execator-by-user")
-            e.printStackTrace()
-            writeln(w, "catch a exception in execator-by-user")
-            e.printStackTrace(w)
-            return
-        }
-      case ArrayType(Float, d1) =>
-        try {
-          val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
-          if (RunInterpreter) {
-            val output_int = Interpreter(oril).->[Vector[Float]].run(Args: _*).toArray[Float]
-            if (output_exe.corresponds(output_int)(_ == _)) {
-              writeln(w, "results eq-by-user")
-              println("results eq-by-user")
-            }
-            else {
-              writeln(w, "results ne-by-user")
-              println("results ne-by-user")
-            }
-          }
-          else {
-            println("pass-by-user")
-            writeln(w, "pass-by-user")
-          }
-        }
-        catch {
-          case e: Throwable =>
-            println("catch a exception in execator-by-user")
-            e.printStackTrace()
-            writeln(w, "catch a exception in execator-by-user")
-            e.printStackTrace(w)
-            return
-        }
-      case ArrayType(ArrayType(Float, d1), d2) =>
-        try {
-          val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
-          if (RunInterpreter) {
-            val output_int = Interpreter(oril).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
-            if (output_exe.corresponds(output_int)(_ == _)) {
-              writeln(w, "results eq-by-user")
-              println("results eq-by-user")
-            }
-            else {
-              writeln(w, "results ne-by-user")
-              println("results ne-by-user")
-            }
-          }
-          else {
-            println("pass-by-user")
-            writeln(w, "pass-by-user")
-          }
-        }
-        catch {
-          case e: Throwable =>
-            println("catch a exception in execator-by-user")
-            e.printStackTrace()
-            writeln(w, "catch a exception in execator-by-user")
-            e.printStackTrace(w)
-            return
-        }
-      case ArrayType(ArrayType(ArrayType(Float, d1), d2), d3) =>
-        try {
-          val (output_exe: Array[Float], runtime) = Execute(1, 32)(code, lowLevel, Args: _*)
-          if (RunInterpreter) {
-            val output_int = Interpreter(oril).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
-            if (output_exe.corresponds(output_int)(_ == _)) {
-              writeln(w, "results eq-by-user")
-              println("results eq-by-user")
-            }
-            else {
-              writeln(w, "results ne-by-user")
-              println("results ne-by-user")
-            }
-          }
-          else {
-            println("pass-by-user")
-            writeln(w, "pass-by-user")
-          }
-        }
-        catch {
-          case e: Throwable =>
-            println("catch a exception in execator-by-user")
-            e.printStackTrace()
-            writeln(w, "catch a exception in execator-by-user")
-            e.printStackTrace(w)
-            return
-        }
-      case _ =>
-        println("Type unimplemented,Ignored-by-user")
-        writeln(w, "Type unimplemented,Ignored-by-user")
+    else{
+      println("No suitable lower-expressions, Ignored-by-user")
+      writeln(w,"No suitable lower-expressions, Ignored-by-user")
     }
 }
 
@@ -1343,13 +1353,13 @@ class hlGenerator {
     AssignedChoiceNum match{
       //Join
       case 0 =>
-        generateJoin(30)
+        generateJoin(LimitNum)
         AssignedChoiceNum += 1
       case 1 =>
-        generateSplit(SplitChunkSize,30)
+        generateSplit(SplitChunkSize,LimitNum)
         AssignedChoiceNum += 1
       case 2 =>
-        generateUserFun(30)
+        generateUserFun(LimitNum)
         AssignedChoiceNum += 1
       case 3 =>
         //matchZip(30,ZipLimit)
@@ -1358,10 +1368,10 @@ class hlGenerator {
         //matchGet(30)
         AssignedChoiceNum += 1
       case 5 =>
-        generateMap(30)
+        generateMap(LimitNum)
         AssignedChoiceNum += 1
       case 6 =>
-        generateReduce(30)
+        generateReduce(LimitNum)
         AssignedChoiceNum = 0
 
 

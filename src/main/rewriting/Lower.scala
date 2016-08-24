@@ -138,21 +138,21 @@ object Lower {
 //    mapsOnLevelThree == 1
 //  }
   def lowerMapsByLevels(lambda:Lambda,enabledMappings: EnabledMappings):List[Lambda] = {
+
   val depthMap: collection.Map[Expr, Int] = NumberExpression.byDepth(lambda)
   val depthsOfUnLowered = depthMap.collect({ case (FunCall(ir.ast.Map(_), _*), depth) => depth })
   /*val UnLoweredMap = depthMap.filterKeys({
     case FunCall(Map(_),_*) => true
     case _=> false
   })*/
-  val test111 = (new MapTree)
-  test111.parse(lambda)
-  if (depthsOfUnLowered.isEmpty)
-    return List(lambda)
-
+  val mapTree = (new MapTree)
+  mapTree.parse(lambda)
 
   //delete below
+  if (depthsOfUnLowered.isEmpty)
+    return List(lambda)
   val maxDepth = depthsOfUnLowered.max + 1
-  val oneMapOnLevelTwo = if(maxDepth> 1) testHasOneMapOnSecondLevel(depthMap,maxDepth) else false
+  val oneMapOnLevelTwo = if (maxDepth > 1) testHasOneMapOnSecondLevel(depthMap, maxDepth) else false
   //..
 
 
@@ -160,16 +160,23 @@ object Lower {
 
 
   /* Global only */
-  if (enabledMappings.global0) {
-    //only allows one mapGlb!
-    val lambda1 = Lower.lowerFirstNWithRule(lambda,Rules.mapGlb(0),1)
-    //val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
-    var lambdaN = mapGlbArgsToGlobal(lambda1)
-    //var lambdaN = reduceResultToGlobal(lambda1)
-    while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-
-    lambdas = lambdaN :: lambdas
+  if (enabledMappings.global0 && mapTree.MaxAvaDepth >= 1) {
+    val mapsOnLevel1 = mapTree.getMapsOnLevel(1)
+    if(mapsOnLevel1.length > 1) {
+      //only allows one mapGlb!
+    }
+    else {
+      val lambda1 = Lower.applyRuleToExpressions(lambda,mapsOnLevel1.toList,Rules.mapGlb(0))
+      //TODO:Here we should ensure the input of MapGlb is in GlobalMemory!
+      var lambdaN = lambda1//mapGlb0ArgsToGlobal(lambda1)
+      if(mapTree.MaxDepth > 1){
+        for(i <- 2 to mapTree.MaxDepth){
+          val mapsOnCurrLevel = mapTree.getMapsOnLevel(i)
+          lambdaN = Lower.applyRuleToExpressions(lambdaN,mapsOnCurrLevel.toList,Rules.mapSeq)
+        }
+      }
+      lambdas = lambdaN :: lambdas
+    }
   }
 
   if (enabledMappings.global10 && maxDepth > 1 && oneMapOnLevelTwo) {
@@ -192,27 +199,8 @@ object Lower {
     lambdas = lambdaN :: lambdas
   }
 
-  /*    def addGlobalMapping(first: Int, second: Int, third: Int): Unit = {
-        if (maxDepth > 2 && oneMapOnLevelTwo && oneMapOnLevelThree) {
-          val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(first))
-          val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(second))
-          val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(third))
-          var lambdaN = lambda3
-          while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-            lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
-
-          lambdas = lambdaN :: lambdas
-        }
-      }
-      addGlobalMapping(0,1,2)
-      addGlobalMapping(1,0,2)
-      addGlobalMapping(0,2,1)
-      addGlobalMapping(2,1,0)
-      addGlobalMapping(2,0,1)
-      addGlobalMapping(1,2,0)*/
-
   /** Workgroup */
-  if(enabledMappings.group0 && maxDepth > 1) {
+  if (enabledMappings.group0 && maxDepth > 1) {
     val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
     val lambda3 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
 
@@ -241,13 +229,37 @@ object Lower {
   }
 
   if (enabledMappings.group01)
-    addWrgLocalMapping(0,1)
+    addWrgLocalMapping(0, 1)
 
   if (enabledMappings.group10)
-    addWrgLocalMapping(1,0)
+    addWrgLocalMapping(1, 0)
 
   lambdas
   }
+  private def mapGlb0ArgsToGlobal(lambda:Lambda):Lambda = {
+    val mapGlbs = getExprForPattern(lambda,{
+      case FunCall(MapGlb(_,_),_) =>
+    }
+    )
+    val toGlobalAdded = mapGlbs.foldLeft(lambda)({
+      case (currentLambda,expr) =>
+        val currArg = expr.asInstanceOf[FunCall].args(0)
+        val updated = currArg match{
+          case p:Param =>
+            expr
+          case fc:FunCall =>
+            val currentToGlobal = FunCall(expr.asInstanceOf[FunCall].f,toGlobal(fun((idIn) => Id()(idIn))) $ currArg)
+            val Id2 = currentToGlobal.asInstanceOf[FunCall].args(0).asInstanceOf[FunCall].f.asInstanceOf[toGlobal].f.body
+            val currIdsImplemented = Rewrite.applyRuleAt(currentToGlobal,Rules.implementIdAsDeepCopy,Id2)
+            currIdsImplemented
+        }
+        Lambda(currentLambda.params,Expr.replace(currentLambda.body,expr,updated))
+    }
+    )
+
+    toGlobalAdded
+  }
+
   def lowerMaps(lambda: Lambda, enabledMappings: EnabledMappings) : List[Lambda] = {
 
     val depthMap: collection.Map[Expr, Int] = NumberExpression.byDepth(lambda)

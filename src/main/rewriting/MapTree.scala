@@ -16,7 +16,7 @@ class MapTree{
     build(RootNode,l.body,1)(numbering)
   }
 
-  def build(parentNode:MapTreeNode,expr:Expr,depth:Int)(implicit numbering:collection.Map[Expr,Int]):Unit =  {
+  private def build(parentNode:MapTreeNode,expr:Expr,depth:Int)(implicit numbering:collection.Map[Expr,Int]):Unit =  {
     expr match{
       case call:FunCall =>
 
@@ -49,6 +49,11 @@ class MapTree{
       case _=>
     }
   }
+
+  def getMapsOnLevel(level:Int):Array[Int] = {
+    NodesMap.filterKeys(_.Depth == level).values.toArray[Int]
+  }
+
   /*def build(parentNode: MapTreeNode,funDecl:FunDecl,depth:Int):Unit = {
 
       funDecl match{
