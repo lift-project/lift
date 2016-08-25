@@ -83,7 +83,7 @@ class MapTreeNode{
 object findAllMapsLowering{
   def findAllLowering(mapTree: MapTree,totalLevels:Int):Unit = {
     val answerSet = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
-    var remainSet = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
+    var remainSet = scala.collection.immutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
 
     var initSet = scala.collection.immutable.Map[MapTreeNode,Int]()
     //get init input
@@ -100,12 +100,13 @@ object findAllMapsLowering{
     remainSet += initSet
 
     while(!remainSet.isEmpty){
-      val nextToDeal = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
+      var nextToDeal = scala.collection.immutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
       remainSet.foreach(
         currState => {
           nextToDeal ++= trySwitch(mapTree,currState)
         }
       )
+      answerSet ++= remainSet
       remainSet = nextToDeal
     }
   }
