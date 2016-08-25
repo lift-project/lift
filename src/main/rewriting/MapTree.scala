@@ -50,8 +50,11 @@ class MapTree{
     }
   }
 
-  def getMapsOnLevel(level:Int):Array[Int] = {
+  def getMapsIdOnLevel(level:Int):Array[Int] = {
     NodesMap.filterKeys(_.Depth == level).values.toArray[Int]
+  }
+  def getMapsNodeOnLevel(level:Int):Array[MapTreeNode] = {
+    NodesMap.filterKeys(_.Depth == level).keys.toArray[MapTreeNode]
   }
 
   /*def build(parentNode: MapTreeNode,funDecl:FunDecl,depth:Int):Unit = {
@@ -76,3 +79,62 @@ class MapTreeNode{
   var shouldConsequence = false
 
 }
+
+object findAllMapsLowering{
+  def findAllLowering(mapTree: MapTree,totalLevels:Int):Unit = {
+    val answerSet = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
+    var remainSet = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
+
+    var initSet = scala.collection.immutable.Map[MapTreeNode,Int]()
+    //get init input
+    mapTree.NodesMap.keys.foreach(
+        currNode => {
+          if (currNode.Depth <= totalLevels && currNode.Depth != 0) {
+            initSet += (currNode -> currNode.Depth)
+          }
+          if (currNode.Depth > totalLevels) {
+            initSet += (currNode -> -1)
+          }
+        }
+    )
+    remainSet += initSet
+
+    while(!remainSet.isEmpty){
+      val nextToDeal = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
+      remainSet.foreach(
+        currState => {
+          nextToDeal ++= trySwitch(mapTree,currState)
+        }
+      )
+      remainSet = nextToDeal
+    }
+  }
+  private def trySwitch(mapTree: MapTree,currState:scala.collection.immutable.Map[MapTreeNode,Int]):scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]  ={
+    val nextToDeal = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
+    currState.foreach(
+      currNode =>{
+        val currTreeNode:MapTreeNode = currNode._1
+        val currMaping:Int = currNode._2
+        if(currMaping != -1 && (!currTreeNode.shouldConsequence) && currTreeNode.Child.forall(currState(_) == -1)){
+          //nextToDeal += (currState - currTreeNode -- currTreeNode.Child + (currTreeNode -> -1) + (currTreeNode.Child.map()))
+          nextToDeal += currState.map(x => {
+            if (x._1 == currTreeNode) {
+              (currTreeNode -> -1)
+            }
+            else{
+              if(currTreeNode.Child.contains(x._1)){
+                (x._1 -> currMaping)
+              }
+              else{
+                x
+              }
+            }
+          })
+        }
+      }
+    )
+    nextToDeal
+
+  }
+}
+
