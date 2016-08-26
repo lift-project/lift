@@ -2,6 +2,8 @@ package rewriting.MapTree
 import ir.ast._
 import rewriting.utils.NumberExpression
 
+import scala.collection.mutable.ArrayBuffer
+
 
 case class ControlMapNum(
                           level1:Boolean,
@@ -148,7 +150,64 @@ object findAllMapsLowering{
 
   }
 
-  def findAllLoweringByEnum(mapTree: MapTree,totalLevels:Int,controlMapNum: ControlMapNum):Unit ={
+  def findAllLoweringByEnum(mapTree: MapTree,totalLevel:Int,controlMapNum: ControlMapNum):ArrayBuffer[scala.collection.immutable.Map[Int,Int]] ={
+
+    lowerNext(mapTree.RootNode,0,totalLevel)(controlMapNum,mapTree.NodesMap)
+
+  }
+
+  private def lowerNext(currNode:MapTreeNode,currLevel:Int,totalLevel:Int)(implicit controlMapNum: ControlMapNum,nodesMap:collection.mutable.Map[MapTreeNode,Int]):ArrayBuffer[scala.collection.immutable.Map[Int,Int]]={
+    val res = ArrayBuffer[scala.collection.immutable.Map[Int,Int]]()
+
+    //currNode should be sequential, but we can't reach the lowest level, so back trace
+    if(currNode.shouldSequential && currLevel < totalLevel -1)
+      return res
+
+    //currNode doesn't have child, but we can't reach the lowest level, so back trace
+    if(currNode.Child.length == 0 && currLevel < totalLevel -1){
+      return res
+    }
+
+    //currNode does't have child, so we finally reach an end
+    if(currNode.Child.length == 0){
+
+      //should not lower this level
+      if(currLevel == totalLevel){
+        return ArrayBuffer[scala.collection.immutable.Map[Int,Int]](scala.collection.immutable.Map[Int,Int](nodesMap(currNode) -> 0))
+      }
+
+      //should lower this level
+      if(currLevel == totalLevel -1){
+        return ArrayBuffer[scala.collection.immutable.Map[Int,Int]](scala.collection.immutable.Map[Int,Int](nodesMap(currNode) -> totalLevel))
+      }
+      assert(false)
+    }
+
+    //lower this level
+    if(currLevel < totalLevel){
+
+      currNode.Child.foreach((childNode) =>{
+        val childResult = lowerNext(childNode,currLevel+1,totalLevel)
+        childResult.foreach((oneResult) =>{
+          res += (oneResult + (nodesMap(currNode) -> currLevel))
+        })
+      })
+
+    }
+
+
+
+    //don't lower this level
+    currNode.Child.foreach((childNode) =>{
+      val childResult = lowerNext(childNode,currLevel,totalLevel)
+      childResult.foreach((oneResult) =>{
+        res += (oneResult + (nodesMap(currNode) -> 0 ))
+      })
+    })
+
+    res
+
+
 
   }
 }
