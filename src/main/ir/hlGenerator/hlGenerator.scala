@@ -1092,7 +1092,7 @@ class hlGenerator {
   val GlobalSize = 1
   val LocalSize = 1
 
-  //controllers
+  //controllers global
   val LoopNum = 28
   val consequentUserFun = false
   //val ReduceInitToGlobal = false
@@ -1102,6 +1102,10 @@ class hlGenerator {
   val MustContainsUserFun = true
   val MustContainsMap = true
   val LimitNum = 40
+
+  //controllers for patterns
+  val ZipLimit = 2
+  val SplitChunkSize = 4
 
 
   //Avoid for redundant
@@ -1358,8 +1362,8 @@ class hlGenerator {
 
   private def generateLambda(): Unit ={
     val totChoiceNum = 7
-    val SplitChunkSize = 4
-    val ZipLimit = 4
+
+
     val randChoice = util.Random.nextInt(totChoiceNum)
     //randChoice match{
     AssignedChoiceNum match{
@@ -1374,10 +1378,10 @@ class hlGenerator {
         generateUserFun(LimitNum)
         AssignedChoiceNum += 1
       case 3 =>
-        //generateZip(LimitNum,ZipLimit)
+        generateZip(LimitNum,ZipLimit)
         AssignedChoiceNum += 1
       case 4 =>
-        //matchGet(30)
+        generateGet(LimitNum)
         AssignedChoiceNum += 1
       case 5 =>
         generateMap(LimitNum)
