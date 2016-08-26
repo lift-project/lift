@@ -135,12 +135,6 @@ object Lower {
 
   val restrictGlobalNum = false
 
-  val depthMap: collection.Map[Expr, Int] = NumberExpression.byDepth(lambda)
-  val depthsOfUnLowered = depthMap.collect({ case (FunCall(ir.ast.Map(_), _*), depth) => depth })
-  /*val UnLoweredMap = depthMap.filterKeys({
-    case FunCall(Map(_),_*) => true
-    case _=> false
-  })*/
   val mapTree = (new MapTree)
   mapTree.parse(lambda)
 
@@ -272,6 +266,19 @@ object Lower {
 }
 
   def findAllMapsLowering(lambda:Lambda,enabledMappings:EnabledMappings):List[Lambda] = {
+    val mapTree = (new MapTree)
+    mapTree.parse(lambda)
+
+    //Nothing need to be lowered
+    if(mapTree.MaxDepth == 0){
+      return List(lambda)
+    }
+
+
+
+    var lambdas = List[Lambda]()
+
+    lambdas
 
   }
 

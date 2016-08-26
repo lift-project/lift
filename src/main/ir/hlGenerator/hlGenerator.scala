@@ -1080,11 +1080,11 @@ object hlGenerator{
 }
 
 class hlGenerator {
-  var RefinedResult: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
-  var ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
+  val RefinedResult: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
+  val ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
   //var FunCallList: ArrayBuffer[FunCall] = new ArrayBuffer[FunCall]()
-  var LambdaList: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
-  var ParamToFunCall = collection.mutable.Map[Param, FunCall]()
+  val LambdaList: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
+  val ParamToFunCall = collection.mutable.Map[Param, FunCall]()
 
   //Used for debug
   var AssignedChoiceNum = 0
@@ -1119,7 +1119,14 @@ class hlGenerator {
   val Add_Check = scala.collection.mutable.Set[(Int, Int)]()
 
   //Map
-  var Map_L_E = scala.collection.mutable.Set[(Int, Int)]()
+  val Map_L_E = scala.collection.mutable.Set[(Int, Int)]()
+
+  //Zip
+  var Zip_P = 0
+
+  //Get
+  var Get_P = 0
+
 
   //Testing methods
   def trySingleLambda(l: Lambda, oril: Lambda, w: PrintWriter): Unit = {
@@ -1330,12 +1337,15 @@ class hlGenerator {
 
   //genrators
   def generateProgram(): Unit = {
+    //initial input..
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
     ParamList += Param(ArrayType(Float,32))
     ParamList += Param(ArrayType(Float,32))
     ParamList += Param(Float)
     ParamList += Param(Float)
+
+
     val totalRounds = LoopNum
     for(i<- 0 until totalRounds){
       generateLambda()
@@ -1364,7 +1374,7 @@ class hlGenerator {
         generateUserFun(LimitNum)
         AssignedChoiceNum += 1
       case 3 =>
-        //matchZip(30,ZipLimit)
+        //generateZip(LimitNum,ZipLimit)
         AssignedChoiceNum += 1
       case 4 =>
         //matchGet(30)
@@ -1809,6 +1819,146 @@ class hlGenerator {
       ParamList ++= tempParamList
       ParamToFunCall ++= tempParamToFunCall
     }
+  }
+
+  private def generateZip(limitNum:Int,zipArrayLimit:Int):Unit ={
+    assert(zipArrayLimit >= 2)
+    val tempLambdaList = ArrayBuffer[Lambda]()
+    val tempParamList = ArrayBuffer[Param]()
+    val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
+
+
+    for(i <- Zip_P until ParamList.length){
+      ParamList(i).t match{
+        //1. A0 should have an arrayType
+        case ArrayType(a0T,a0Len) =>
+
+          //2. AId : id of params that have the same type with A0
+          val AId = scala.collection.mutable.ArrayBuffer[Int](i)
+          for(j <- 0 until ParamList.length){
+            ParamList(j).t match{
+              case ArrayType(_,`a0Len`) =>
+                AId += j
+              case _=>
+            }
+          }
+
+          //3. should have at least 2 elements
+          if(AId.length >= 2){
+            //Pass the type check!
+
+            //randomly choose 'argNum' of params from AId
+            val argNum = AId.length match{
+              case temp1 if temp1 < zipArrayLimit =>
+                util.Random.nextInt(temp1 - 1) + 2
+              case _ =>
+                util.Random.nextInt(zipArrayLimit - 1) + 2
+            }
+
+            //get the argument of f
+            val Args = scala.collection.mutable.ArrayBuffer[Expr](getArg(AId(0)))
+            for(i <- 0 until argNum - 1){
+              Args += getArg(AId(util.Random.nextInt(AId.length)))
+            }
+
+            //build the funcall
+            val F = FunCall(Zip(argNum),Args:_*)
+
+            //set the output type
+            F.t = TypeChecker(F)
+
+            //build the param corresponds to the FunCall
+            val P = Param(F.t)
+
+            //count the parameters of lambda
+            val lParams = countParam(F)
+
+            //build the lambda
+            val L = Lambda(lParams.toArray[Param], F)
+
+            tempParamList += P
+            tempLambdaList += L
+            tempParamToFunCall += ((P, F))
+          }
+
+        case _=>
+
+      }
+    }
+    Zip_P = ParamList.length
+
+    val resLen = tempParamList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        if(!ParamToFunCall.contains(tempParamList(randRes))) {
+          LambdaList += tempLambdaList(randRes)
+          ParamList += tempParamList(randRes)
+          ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
+        }
+      }
+    }
+    else {
+      LambdaList ++= tempLambdaList
+      ParamList ++= tempParamList
+      ParamToFunCall ++= tempParamToFunCall
+    }
+
+  }
+  private def generateGet(limitNum:Int):Unit ={
+    val tempLambdaList = ArrayBuffer[Lambda]()
+    val tempParamList = ArrayBuffer[Param]()
+    val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
+
+
+    for(i <- Get_P until ParamList.length){
+      ParamList(i).t match{
+        case tt: TupleType =>
+
+          //Pass the type check!
+
+          //build the funcall
+          val F = FunCall(Get(util.Random.nextInt(tt.elemsT.length)),getArg(i))
+
+          //set the output type
+          F.t = TypeChecker(F)
+
+          //build the param corresponds to the FunCall
+          val P = Param(F.t)
+
+          //count the parameters of lambda
+          val lParams = countParam(F)
+
+          //build the lambda
+          val L = Lambda(lParams.toArray[Param], F)
+
+          tempParamList += P
+          tempLambdaList += L
+          tempParamToFunCall += ((P, F))
+
+        case _=>
+      }
+    }
+
+    Get_P = ParamList.length
+
+    val resLen = tempParamList.length
+    if(resLen > limitNum){
+      for(i <- 0 until limitNum){
+        val randRes = util.Random.nextInt(resLen)
+        if(!ParamToFunCall.contains(tempParamList(randRes))) {
+          LambdaList += tempLambdaList(randRes)
+          ParamList += tempParamList(randRes)
+          ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
+        }
+      }
+    }
+    else {
+      LambdaList ++= tempLambdaList
+      ParamList ++= tempParamList
+      ParamToFunCall ++= tempParamToFunCall
+    }
+
   }
   //helper functions
   private def refineResult():Unit={
