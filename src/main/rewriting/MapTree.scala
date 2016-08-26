@@ -3,6 +3,13 @@ import ir.ast._
 import rewriting.utils.NumberExpression
 
 
+case class ControlMapNum(
+                          level1:Boolean,
+                          level2:Boolean,
+                          level3:Boolean,
+                          level4:Boolean
+                        )
+
 class MapTree{
   val NodesMap = collection.mutable.Map[MapTreeNode,Int]()
   val RootNode = new MapTreeNode
@@ -39,7 +46,7 @@ class MapTree{
           case fp:FPattern => build(parentNode,fp.f.body,depth)
 
           case uf:UserFun =>
-            parentNode.shouldConsequence = true
+            parentNode.shouldSequential = true
             if(MaxAvaDepth >= depth)
               MaxAvaDepth = depth -1
 
@@ -76,12 +83,14 @@ class MapTree{
 class MapTreeNode{
   var Depth:Int = 0
   val Child = collection.mutable.ArrayBuffer[MapTreeNode]()
-  var shouldConsequence = false
+  var shouldSequential = false
 
 }
 
+
+
 object findAllMapsLowering{
-  def findAllLowering(mapTree: MapTree,totalLevels:Int):Unit = {
+  def findAllLoweringBySwitch(mapTree: MapTree,totalLevels:Int):Unit = {
     val answerSet = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
     var remainSet = scala.collection.immutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
 
@@ -110,13 +119,14 @@ object findAllMapsLowering{
       remainSet = nextToDeal
     }
   }
+
   private def trySwitch(mapTree: MapTree,currState:scala.collection.immutable.Map[MapTreeNode,Int]):scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]  ={
     val nextToDeal = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
     currState.foreach(
       currNode =>{
         val currTreeNode:MapTreeNode = currNode._1
         val currMaping:Int = currNode._2
-        if(currMaping != -1 && (!currTreeNode.shouldConsequence) && currTreeNode.Child.forall(currState(_) == -1)){
+        if(currMaping != -1 && (!currTreeNode.shouldSequential) && currTreeNode.Child.forall(currState(_) == -1)){
           //nextToDeal += (currState - currTreeNode -- currTreeNode.Child + (currTreeNode -> -1) + (currTreeNode.Child.map()))
           nextToDeal += currState.map(x => {
             if (x._1 == currTreeNode) {
@@ -135,6 +145,10 @@ object findAllMapsLowering{
       }
     )
     nextToDeal
+
+  }
+
+  def findAllLoweringByEnum(mapTree: MapTree,totalLevels:Int,controlMapNum: ControlMapNum):Unit ={
 
   }
 }
