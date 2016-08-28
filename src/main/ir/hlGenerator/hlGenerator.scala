@@ -1101,7 +1101,7 @@ class hlGenerator {
   //val ReduceInitToGlobal = false
   val ReduceOnOneElement = false
   val AllowJoinASplit = false
-  val RunInterpreter = false
+  val RunInterpreter = true
   val MustContainsUserFun = true
   val MustContainsMap = true
   val StrictMatchUnpack = true

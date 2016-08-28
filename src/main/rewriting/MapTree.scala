@@ -167,11 +167,11 @@ object FindAllMapsLowering{
     val res = ArrayBuffer[scala.collection.immutable.Map[Int,Int]]()
 
     //currNode should be sequential, but we can't reach the lowest level, so back trace
-    if(currNode.shouldSequential && currLevel < totalLevel -1)
+    if(currNode.shouldSequential && currLevel < totalLevel)
       return res
 
     //currNode doesn't have child, but we can't reach the lowest level, so back trace
-    if(currNode.Child.length == 0 && currLevel < totalLevel -1){
+    if(currNode.Child.length == 0 && currLevel < totalLevel){
       return res
     }
 
@@ -196,33 +196,54 @@ object FindAllMapsLowering{
       //lower this level
       if (currLevel <= totalLevel) {
 
+        var collectedRes = Array[scala.collection.immutable.Map[Int,Int]](scala.collection.immutable.Map[Int,Int](nodesMap(currNode) -> currLevel))
+        //actually we are doing cartesian product
         currNode.Child.foreach((childNode) => {
-          val childResult = lowerNext(childNode, currLevel + 1, totalLevel)
+          val resOfOneChild = lowerNext(childNode, currLevel + 1, totalLevel)
+          /*
           childResult.foreach((oneResult) => {
             res += (oneResult + (nodesMap(currNode) -> currLevel))
-          })
+          })*/
+          collectedRes = (for { x<- collectedRes; y<-resOfOneChild} yield(x ++ y))
         })
 
+        res ++= collectedRes
       }
 
 
 
       //don't lower this level
-      currNode.Child.foreach((childNode) => {
-        val childResult = lowerNext(childNode, currLevel, totalLevel)
-        childResult.foreach((oneResult) => {
+      if((!currNode.shouldSequential) || currLevel > totalLevel) {
+
+        var collectedRes = Array[scala.collection.immutable.Map[Int, Int]](scala.collection.immutable.Map[Int, Int](nodesMap(currNode) -> 0))
+
+        currNode.Child.foreach((childNode) => {
+          val resOfOneChild = lowerNext(childNode, currLevel, totalLevel)
+          /*childResult.foreach((oneResult) => {
           res += (oneResult + (nodesMap(currNode) -> 0))
+        })*/
+          collectedRes = (for { x<- collectedRes; y<-resOfOneChild} yield(x ++ y))
         })
-      })
+
+        res ++= collectedRes
+      }
 
      return res
     }
     else{
+      //the temprory root node
+
+      //actually we are doing cartesian product
+      var collectedRes = Array[scala.collection.immutable.Map[Int,Int]](scala.collection.immutable.Map[Int,Int](-1 -> -1))
       currNode.Child.foreach((childNode) =>{
-        res ++= lowerNext(childNode,currLevel + 1,totalLevel)
-      })
+        val resOfOneChild = lowerNext(childNode,currLevel + 1,totalLevel)
+        collectedRes = (for { x<- collectedRes; y<-resOfOneChild} yield(x ++ y))
+        })
+      res ++= collectedRes
       return res
     }
+
+
 
 
 
