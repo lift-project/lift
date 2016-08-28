@@ -1080,11 +1080,13 @@ object hlGenerator{
 }
 
 class hlGenerator {
+
   val RefinedResult: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
   val ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
   //var FunCallList: ArrayBuffer[FunCall] = new ArrayBuffer[FunCall]()
   val LambdaList: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
   val ParamToFunCall = collection.mutable.Map[Param, FunCall]()
+  val UnpackedToExpr = collection.mutable.Map[Param,Expr]()
 
   //Used for debug
   var AssignedChoiceNum = 0
@@ -1093,14 +1095,15 @@ class hlGenerator {
   val LocalSize = 1
 
   //controllers global
-  val LoopNum = 28
+  val LoopNum = 35
   val consequentUserFun = false
   //val ReduceInitToGlobal = false
   val ReduceOnOneElement = false
   val AllowJoinASplit = false
-  val RunInterpreter = true
+  val RunInterpreter = false
   val MustContainsUserFun = true
   val MustContainsMap = true
+  val StrictMatchUnpack = true
   val LimitNum = 40
 
   //controllers for patterns
@@ -1131,6 +1134,9 @@ class hlGenerator {
   //Get
   var Get_P = 0
 
+  //UnpackParam
+  var UnPack_P = 0
+
 
   //Testing methods
   def trySingleLambda(l: Lambda, oril: Lambda, w: PrintWriter): Unit = {
@@ -1145,12 +1151,35 @@ class hlGenerator {
         case Float =>
           Args += 3.0f
         case _ =>
-          throw new NotImplementedError()
+          println("input type not inplemented, Ignored-by-user")
+          writeln(w, "input type not inplemented, Ignored-by-user")
+          return
       }
     }
 
     //2. Pass the TypeChecker
     val outType = TypeChecker(l)
+
+    //2.5 run the interpreter if we want
+    val output_int:Array[Float] = RunInterpreter match{
+      case true =>
+        outType match{
+          case Float =>
+            Array[Float](Interpreter(oril).->[Float].run(Args: _*))
+          case ArrayType(Float,d1) =>
+            Interpreter(oril).->[Vector[Float]].run(Args: _*).toArray[Float]
+          case ArrayType(ArrayType(Float, d1), d2) =>
+            Interpreter(oril).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
+          case ArrayType(ArrayType(ArrayType(Float, d1), d2), d3) =>
+            Interpreter(oril).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
+          case _=>
+            println("OutPut Type unimplemented,Ignored-by-user")
+            writeln(w, "OutPut Type unimplemented,Ignored-by-user")
+            return
+        }
+      case false =>
+        Array[Float](0)
+    }
 
     //3. lower the lambda
     var fs = List[Lambda]()
@@ -1185,8 +1214,36 @@ class hlGenerator {
             return
         }
 
+        //5. execute the OpenCL kernel
+        try{
+          val (output_exe:Array[Float],runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
+          if (RunInterpreter) {
+            if (output_exe.corresponds(output_int)(_ == _)) {
+              writeln(w, "results eq-by-user")
+              println("results eq-by-user")
+            }
+            else {
+              writeln(w, "results ne-by-user")
+              println("results ne-by-user")
+            }
+          }
+          else {
+            println("pass-by-user")
+            writeln(w, "pass-by-user")
+          }
+        }
+        catch {
+          case e: Throwable =>
+            println("catch a exception in execator-by-user")
+            e.printStackTrace()
+            writeln(w, "catch a exception in execator-by-user")
+            e.printStackTrace(w)
+            return
+        }
 
-        //5. execute the OpenCL kernel and the interpreter
+
+
+        /*//5. execute the OpenCL kernel and the interpreter
         outType match {
           case Float =>
             try {
@@ -1302,6 +1359,7 @@ class hlGenerator {
             println("Type unimplemented,Ignored-by-user")
             writeln(w, "Type unimplemented,Ignored-by-user")
         }
+        */
       }
     }
     else{
@@ -1356,6 +1414,7 @@ class hlGenerator {
       val test = LambdaList
       val test1 = ParamList
       val test2 = ParamToFunCall
+      val test3 = UnpackedToExpr
     }
     refineResult()
   }
@@ -1369,24 +1428,31 @@ class hlGenerator {
     AssignedChoiceNum match{
       //Join
       case 0 =>
+        unpackParams()
         generateJoin(LimitNum)
         AssignedChoiceNum += 1
       case 1 =>
+        unpackParams()
         generateSplit(SplitChunkSize,LimitNum)
         AssignedChoiceNum += 1
       case 2 =>
+        unpackParams()
         generateUserFun(LimitNum)
         AssignedChoiceNum += 1
       case 3 =>
+        unpackParams()
         generateZip(LimitNum,ZipLimit)
         AssignedChoiceNum += 1
       case 4 =>
+        unpackParams()
         generateGet(LimitNum)
         AssignedChoiceNum += 1
       case 5 =>
+        unpackParams()
         generateMap(LimitNum)
         AssignedChoiceNum += 1
       case 6 =>
+        unpackParams()
         generateReduce(LimitNum)
         AssignedChoiceNum = 0
 
@@ -1436,7 +1502,7 @@ class hlGenerator {
           }
           else {
             //get the argument of FunCall
-            val fArg = getArg(i)
+            val fArg = getArg(i,PassParamUpPossibility)
 
             //build the FunCall
             val F = FunCall(new Join(), fArg)
@@ -1492,7 +1558,7 @@ class hlGenerator {
             //Pass the type check!
 
             //get the argument of FunCall
-            val fArg = getArg(i)
+            val fArg = getArg(i,PassParamUpPossibility)
 
             //build the FunCall
             val F = FunCall(new Split(ChunkSize),fArg)
@@ -1593,8 +1659,8 @@ class hlGenerator {
               //Don't allow for UserFun(UserFun(...))
             }
             else {
-              val arg1 = getArg(i1)
-              val arg2 = getArg(i2)
+              val arg1 = getArg(i1,PassParamUpPossibility)
+              val arg2 = getArg(i2,PassParamUpPossibility)
 
               val F = FunCall(add, arg1, arg2)
               F.t = Float
@@ -1635,99 +1701,176 @@ class hlGenerator {
   }
 
   private def generateReduce(limitNum:Int): Unit ={
+
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
-    val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
+    val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
 
-    //1. Search for proper Lambda
+    if(StrictMatchUnpack) {
+      //1. Search for proper Lambda
 
-    for(oriLambdaIndex <- LambdaList.indices){
+      for (oriLambdaIndex <- LambdaList.indices) {
 
-      //1. Have at least 2 params
-      if(LambdaList(oriLambdaIndex).params.length >= 2 && (!Reduce_Lambda_Check(oriLambdaIndex))){
-        //flag satisfied means: this lambda "could be" a lambda for a reduction
-        var satisfied = false
+        //1. Have at least 2 params
+        if (LambdaList(oriLambdaIndex).params.length >= 2 && (!Reduce_Lambda_Check(oriLambdaIndex))) {
 
-        //2. Exist a Init Init.t == L.t
-        for(initParamIndexOfLambda <- LambdaList(oriLambdaIndex).params.indices){
-          val TofInit = LambdaList(oriLambdaIndex).params(initParamIndexOfLambda).t
-          if(LambdaList(oriLambdaIndex).body.t == TofInit){
-            satisfied = true
+          val oriLambda = LambdaList(oriLambdaIndex)
 
-            //3. choose a Ele, Ele != Init
-            //Note: Here I use random-choice..
-            //It seems strange but I just want to avoid meaningless ones
-            //Maybe enumerations is better,who knows?
-            //for(k <- LambdaList(i).params.indices){
-            //if(k!= j){
-            var eleParamIndexOfLambda = -1
-            do{
-              eleParamIndexOfLambda = util.Random.nextInt(LambdaList(oriLambdaIndex).params.length)
-            }while( eleParamIndexOfLambda == initParamIndexOfLambda)
-            val TofEle = LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda).t
+          //2. Exist a Init Init.t == L.t
+          for (initParamIndexOfLambda <- oriLambda.params.indices) {
+            val TofInit = oriLambda.params(initParamIndexOfLambda).t
+            if (oriLambda.body.t == TofInit) {
 
-            //4. choose argInit, argInit.t == Init.t
-            for(argInitIndex <- ParamList.indices){
-              if(ParamList(argInitIndex).t == TofInit){
+              //3. choose a Ele, ele comes from unpack and ele != Init
+              for(eleParamIndexOfLambda <- oriLambda.params.indices){
+                if((eleParamIndexOfLambda != initParamIndexOfLambda) && UnpackedToExpr.contains(oriLambda.params(eleParamIndexOfLambda))){
 
-                //5. choose argEle, argEle.t == ArrayType(EleT)
-                for(argEleIndex <- ParamList.indices){
-                  ParamList(argEleIndex).t match{
-                    case ArrayType(TofEle,eleLength) =>
+                  //4. choose argInit, argInit.t == Init.t
+                  for (argInitIndex <- ParamList.indices) {
+                    if (ParamList(argInitIndex).t == TofInit) {
+
+                      //5. argEle comes from unpack
+                      val argEle = UnpackedToExpr(oriLambda.params(eleParamIndexOfLambda))
+
 
                       //Don't do reductions on array with length 1
                       //The opencl generator causes bugs here
-                      if(eleLength.eval > 1) {
-
+                      if(argEle.t.asInstanceOf[ArrayType].len.eval > 1){
                         //Pass the type check!!!!!!!!!!!!!!!
-                        if (!Reduce_L_PI_PE((oriLambdaIndex, argInitIndex,argEleIndex))) {
 
+                        //create new lambda for reduction(base on the original one)
+                        //only use two param for this lambda ,deal with other params outside
+                        val L2 = replaceParam(
+                          replaceParam(Lambda(Array(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda)), LambdaList(oriLambdaIndex).body),
+                            LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda).t)),
+                          LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda).t))
 
-                          //create new lambda for reduction(base one the original one)
-                          //only use two param for this lambda ,deal with other params outside
-                          val L2 = replaceParam(
-                            replaceParam(Lambda(Array(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda)), LambdaList(oriLambdaIndex).body),
-                              LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda).t)),
-                            LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda).t))
+                        //generate args
 
-                          //generate args
-
-                          val argInit:Expr = ParamList(argInitIndex) match{
-                            case p if ParamToFunCall.contains(p) =>
-                              //TODO: allow for passing up
-                              ParamToFunCall(p)
-                            case _=>
-                              //to avoid use init value multiple times:
-                              Param(ParamList(argInitIndex).t)
-                          }
-                          val argEle:Expr = getArg(argEleIndex)
-
-                          //to avoid use init value multiple times:
-                          //val F = FunCall(Reduce(L2), ParamList(j1), ParamList(k1))
-                          val F = FunCall(Reduce(L2), argInit, argEle)
-                          F.t = ArrayType(TofInit, 1)
-                          val P = Param(F.t)
-                          val Args = countParam(F)
-                          val L3 = Lambda(Args.toArray[Param], F)
-
-                          //TypeChecker(L3)
-
-                          tempLambdaList += L3
-                          tempParamList+= P
-                          tempParamToFunCall += ((P,F))
-
-                          Reduce_L_PI_PE += ((oriLambdaIndex,argInitIndex,argEleIndex ))
+                        val argInit: Expr = ParamList(argInitIndex) match {
+                          case p if ParamToFunCall.contains(p) =>
+                            //TODO: allow for passing up
+                            ParamToFunCall(p)
+                          case _ =>
+                            //to avoid use init value multiple times:
+                            Param(ParamList(argInitIndex).t)
                         }
+
+                        val F = FunCall(Reduce(L2), argInit, argEle)
+                        F.t = ArrayType(TofInit, 1)
+                        val P = Param(F.t)
+                        val Args = countParam(F)
+                        val L3 = Lambda(Args.toArray[Param], F)
+
+                        //TypeChecker(L3)
+
+                        tempLambdaList += L3
+                        tempParamList += P
+                        tempParamToFunCall += ((P, F))
+
                       }
-                    case _=>
+                    }
                   }
                 }
               }
             }
           }
         }
-        if(!satisfied){
-          Reduce_Lambda_Check += oriLambdaIndex
+        Reduce_Lambda_Check += oriLambdaIndex
+      }
+    }
+    else {
+
+      //1. Search for proper Lambda
+
+      for (oriLambdaIndex <- LambdaList.indices) {
+
+        //1. Have at least 2 params
+        if (LambdaList(oriLambdaIndex).params.length >= 2 && (!Reduce_Lambda_Check(oriLambdaIndex))) {
+          //flag satisfied means: this lambda "could be" a lambda for a reduction
+          var satisfied = false
+
+          //2. Exist a Init Init.t == L.t
+          for (initParamIndexOfLambda <- LambdaList(oriLambdaIndex).params.indices) {
+            val TofInit = LambdaList(oriLambdaIndex).params(initParamIndexOfLambda).t
+            if (LambdaList(oriLambdaIndex).body.t == TofInit) {
+              satisfied = true
+
+              //3. choose a Ele, Ele != Init
+              //Note: Here I use random-choice..
+              //It seems strange but I just want to avoid meaningless ones
+              //Maybe enumerations is better,who knows?
+              //for(k <- LambdaList(i).params.indices){
+              //if(k!= j){
+              var eleParamIndexOfLambda = -1
+              do {
+                eleParamIndexOfLambda = util.Random.nextInt(LambdaList(oriLambdaIndex).params.length)
+              } while (eleParamIndexOfLambda == initParamIndexOfLambda)
+              val TofEle = LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda).t
+
+              //4. choose argInit, argInit.t == Init.t
+              for (argInitIndex <- ParamList.indices) {
+                if (ParamList(argInitIndex).t == TofInit) {
+
+                  //5. choose argEle, argEle.t == ArrayType(EleT)
+                  for (argEleIndex <- ParamList.indices) {
+                    ParamList(argEleIndex).t match {
+                      case ArrayType(TofEle, eleLength) =>
+
+                        //Don't do reductions on array with length 1
+                        //The opencl generator causes bugs here
+                        if (eleLength.eval > 1) {
+
+                          //Pass the type check!!!!!!!!!!!!!!!
+                          if (!Reduce_L_PI_PE((oriLambdaIndex, argInitIndex, argEleIndex))) {
+
+
+                            //create new lambda for reduction(base one the original one)
+                            //only use two param for this lambda ,deal with other params outside
+                            val L2 = replaceParam(
+                              replaceParam(Lambda(Array(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda)), LambdaList(oriLambdaIndex).body),
+                                LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda).t)),
+                              LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda).t))
+
+                            //generate args
+
+                            val argInit: Expr = ParamList(argInitIndex) match {
+                              case p if ParamToFunCall.contains(p) =>
+                                //TODO: allow for passing up
+                                ParamToFunCall(p)
+                              case _ =>
+                                //to avoid use init value multiple times:
+                                Param(ParamList(argInitIndex).t)
+                            }
+                            val argEle: Expr = getArg(argEleIndex, PassParamUpPossibility)
+
+                            //to avoid use init value multiple times:
+                            //val F = FunCall(Reduce(L2), ParamList(j1), ParamList(k1))
+                            val F = FunCall(Reduce(L2), argInit, argEle)
+                            F.t = ArrayType(TofInit, 1)
+                            val P = Param(F.t)
+                            val Args = countParam(F)
+                            val L3 = Lambda(Args.toArray[Param], F)
+
+                            //TypeChecker(L3)
+
+                            tempLambdaList += L3
+                            tempParamList += P
+                            tempParamToFunCall += ((P, F))
+
+                            Reduce_L_PI_PE += ((oriLambdaIndex, argInitIndex, argEleIndex))
+                          }
+                        }
+                      case _ =>
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (!satisfied) {
+            Reduce_Lambda_Check += oriLambdaIndex
+          }
         }
       }
     }
@@ -1755,54 +1898,59 @@ class hlGenerator {
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
     //1. Search for proper lambda
-    for( i<-LambdaList.indices){
-      //can use all lambdas
+    for( i<-LambdaList.indices) {
+
+      //the map must contains a userfun nested deep inside
       val oriLambda = LambdaList(i)
 
-      //2. choose one as the param
-      val paramIndexOfLambda = util.Random.nextInt(oriLambda.params.length)
-
-      //for (j <- LambdaList(i).params.indices){
-      //Get the type of it
-      val TofParam = oriLambda.params(paramIndexOfLambda).t
-
-      //3. search for a proper Arg.t == ArrayType(TofParam)
-      for( argIndex <- ParamList.indices){
-        ParamList(argIndex).t match{
-          case ArrayType(TofParam,eleLength) =>
-
-            //Pass the Type check!
-            if (!Map_L_E((i, argIndex))) {
-
-              //create new lambda for map(base one the original one)
-              //only use one param for this lambda ,deal with other params outside the map
-              val L2 = replaceParam(Lambda(Array[Param](oriLambda.params(paramIndexOfLambda)), oriLambda.body)
-                , oriLambda.params(paramIndexOfLambda), Param(TofParam))
-
-              //generate args
-              val argEle = getArg(argIndex)
-
-              //build the funcall
-              val F = FunCall(ir.ast.Map(L2), argEle)
-              F.t = ArrayType(LambdaList(i).body.t, eleLength)
-
-              //build the param corresponds to the funcall
-              val P = Param(F.t)
-
-              //count the params
-              val lParam = countParam(F)
-              val L3 = Lambda(lParam.toArray[Param], F)
-
-              //TypeChecker(L3)
+      if (oriLambda.toString.contains("add")) {
 
 
-              tempLambdaList += L3
-              tempParamList+= P
-              tempParamToFunCall += ((P,F))
-              Map_L_E += ((i, argIndex))
-            }
+        //2. choose one as the param
+        val paramIndexOfLambda = util.Random.nextInt(oriLambda.params.length)
 
-          case _=>
+        //for (j <- LambdaList(i).params.indices){
+        //Get the type of it
+        val TofParam = oriLambda.params(paramIndexOfLambda).t
+
+        //3. search for a proper Arg.t == ArrayType(TofParam)
+        for (argIndex <- ParamList.indices) {
+          ParamList(argIndex).t match {
+            case ArrayType(TofParam, eleLength) =>
+
+              //Pass the Type check!
+              if (!Map_L_E((i, argIndex))) {
+
+                //create new lambda for map(base one the original one)
+                //only use one param for this lambda ,deal with other params outside the map
+                val L2 = replaceParam(Lambda(Array[Param](oriLambda.params(paramIndexOfLambda)), oriLambda.body)
+                  , oriLambda.params(paramIndexOfLambda), Param(TofParam))
+
+                //generate args
+                val argEle = getArg(argIndex, PassParamUpPossibility)
+
+                //build the funcall
+                val F = FunCall(ir.ast.Map(L2), argEle)
+                F.t = ArrayType(LambdaList(i).body.t, eleLength)
+
+                //build the param corresponds to the funcall
+                val P = Param(F.t)
+
+                //count the params
+                val lParam = countParam(F)
+                val L3 = Lambda(lParam.toArray[Param], F)
+
+                //TypeChecker(L3)
+
+
+                tempLambdaList += L3
+                tempParamList += P
+                tempParamToFunCall += ((P, F))
+                Map_L_E += ((i, argIndex))
+              }
+
+            case _ =>
+          }
         }
       }
     }
@@ -1860,9 +2008,9 @@ class hlGenerator {
             }
 
             //get the argument of f
-            val Args = scala.collection.mutable.ArrayBuffer[Expr](getArg(AId(0)))
+            val Args = scala.collection.mutable.ArrayBuffer[Expr](getArg(AId(0),PassParamUpPossibility))
             for(i <- 0 until argNum - 1){
-              Args += getArg(AId(util.Random.nextInt(AId.length)))
+              Args += getArg(AId(util.Random.nextInt(AId.length)),PassParamUpPossibility)
             }
 
             //build the funcall
@@ -1923,7 +2071,7 @@ class hlGenerator {
           //Pass the type check!
 
           //build the funcall
-          val F = FunCall(Get(util.Random.nextInt(tt.elemsT.length)),getArg(i))
+          val F = FunCall(Get(util.Random.nextInt(tt.elemsT.length)),getArg(i,PassParamUpPossibility))
 
           //set the output type
           F.t = TypeChecker(F)
@@ -1965,6 +2113,35 @@ class hlGenerator {
     }
 
   }
+
+  private def unpackParams():Unit={
+    if(StrictMatchUnpack){
+      val tempParamList = ArrayBuffer[Param]()
+      for(i <- UnPack_P until ParamList.length){
+        ParamList(i).t match{
+          case ArrayType(t, n) =>
+            val tempParam = Param(t)
+            tempParamList += tempParam
+            UnpackedToExpr += ((tempParam -> getArg(i,0)))
+          case _ =>
+        }
+      }
+      ParamList ++= tempParamList
+      UnPack_P = ParamList.length
+    }
+    else {
+      val tempParamList = ArrayBuffer[Param]()
+      for (i <- UnPack_P until ParamList.length) {
+        ParamList(i).t match {
+          case ArrayType(t, n) =>
+            tempParamList += Param(t)
+          case _ =>
+        }
+      }
+      ParamList ++= tempParamList
+      UnPack_P = ParamList.length
+    }
+  }
   //helper functions
   private def refineResult():Unit={
     for(i <- LambdaList.indices){
@@ -1998,7 +2175,8 @@ class hlGenerator {
 
           val lParam = countParam(F)
 
-          //assert(lParam.forall(!ParamToFunCall.contains(_)))
+          assert(lParam.forall(!ParamToFunCall.contains(_)))
+          /*
           for(i <- lParam.indices){
             if(ParamToFunCall.contains(lParam(i))){
               val test1 = oriLambda
@@ -2007,7 +2185,7 @@ class hlGenerator {
               val test4 = L2
 
             }
-          }
+          }*/
 
           val L = Lambda(lParam.toArray[Param],F)
 
@@ -2020,10 +2198,10 @@ class hlGenerator {
       }
     }
   }
-  private def getArg(id:Int):Expr ={
+  private def getArg(id:Int,possibility:Double):Expr ={
     if(ParamToFunCall.contains(ParamList(id))) {
       val randF = scala.util.Random.nextFloat()
-      if (randF < PassParamUpPossibility) {
+      if (randF < possibility) {
         //pass the param up, return the param
         ParamList(id)
       }
