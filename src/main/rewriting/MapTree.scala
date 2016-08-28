@@ -91,7 +91,7 @@ class MapTreeNode{
 
 
 
-object findAllMapsLowering{
+object FindAllMapsLowering{
   def findAllLoweringBySwitch(mapTree: MapTree,totalLevels:Int):Unit = {
     val answerSet = scala.collection.mutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
     var remainSet = scala.collection.immutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
@@ -152,11 +152,18 @@ object findAllMapsLowering{
 
   def findAllLoweringByEnum(mapTree: MapTree,totalLevel:Int,controlMapNum: ControlMapNum):ArrayBuffer[scala.collection.immutable.Map[Int,Int]] ={
 
-    lowerNext(mapTree.RootNode,0,totalLevel)(controlMapNum,mapTree.NodesMap)
+    val beforeFilter = lowerNext(mapTree.RootNode,0,totalLevel)(mapTree.NodesMap)
+    val afterFilter = beforeFilter.filter( (oneResult) =>{
+      (!controlMapNum.level1 || oneResult.count((p) => {p._2 == 1}) <= 1) &&
+        (!controlMapNum.level2 || oneResult.count((p) => {p._2 == 2}) <= 1) &&
+        (!controlMapNum.level3 || oneResult.count((p) => {p._2 == 3}) <= 1) &&
+        (!controlMapNum.level4 || oneResult.count((p) => {p._2 == 4}) <= 1)
+    })
+    afterFilter
 
   }
 
-  private def lowerNext(currNode:MapTreeNode,currLevel:Int,totalLevel:Int)(implicit controlMapNum: ControlMapNum,nodesMap:collection.mutable.Map[MapTreeNode,Int]):ArrayBuffer[scala.collection.immutable.Map[Int,Int]]={
+  private def lowerNext(currNode:MapTreeNode,currLevel:Int,totalLevel:Int)(implicit nodesMap:collection.mutable.Map[MapTreeNode,Int]):ArrayBuffer[scala.collection.immutable.Map[Int,Int]]={
     val res = ArrayBuffer[scala.collection.immutable.Map[Int,Int]]()
 
     //currNode should be sequential, but we can't reach the lowest level, so back trace
@@ -172,40 +179,50 @@ object findAllMapsLowering{
     if(currNode.Child.length == 0){
 
       //should not lower this level
-      if(currLevel == totalLevel){
+      if(currLevel == totalLevel + 1){
         return ArrayBuffer[scala.collection.immutable.Map[Int,Int]](scala.collection.immutable.Map[Int,Int](nodesMap(currNode) -> 0))
       }
 
       //should lower this level
-      if(currLevel == totalLevel -1){
+      if(currLevel == totalLevel ){
         return ArrayBuffer[scala.collection.immutable.Map[Int,Int]](scala.collection.immutable.Map[Int,Int](nodesMap(currNode) -> totalLevel))
       }
       assert(false)
     }
 
-    //lower this level
-    if(currLevel < totalLevel){
+    if(currNode.Depth!= 0) {
 
-      currNode.Child.foreach((childNode) =>{
-        val childResult = lowerNext(childNode,currLevel+1,totalLevel)
-        childResult.foreach((oneResult) =>{
-          res += (oneResult + (nodesMap(currNode) -> currLevel))
+
+      //lower this level
+      if (currLevel <= totalLevel) {
+
+        currNode.Child.foreach((childNode) => {
+          val childResult = lowerNext(childNode, currLevel + 1, totalLevel)
+          childResult.foreach((oneResult) => {
+            res += (oneResult + (nodesMap(currNode) -> currLevel))
+          })
+        })
+
+      }
+
+
+
+      //don't lower this level
+      currNode.Child.foreach((childNode) => {
+        val childResult = lowerNext(childNode, currLevel, totalLevel)
+        childResult.foreach((oneResult) => {
+          res += (oneResult + (nodesMap(currNode) -> 0))
         })
       })
 
+     return res
     }
-
-
-
-    //don't lower this level
-    currNode.Child.foreach((childNode) =>{
-      val childResult = lowerNext(childNode,currLevel,totalLevel)
-      childResult.foreach((oneResult) =>{
-        res += (oneResult + (nodesMap(currNode) -> 0 ))
+    else{
+      currNode.Child.foreach((childNode) =>{
+        res ++= lowerNext(childNode,currLevel + 1,totalLevel)
       })
-    })
-
-    res
+      return res
+    }
 
 
 
