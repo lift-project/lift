@@ -13,6 +13,7 @@ import rewriting.Rules._
 import rewriting.{EnabledMappings, Lower, Rewrite, Rules}
 
 import scala.language.reflectiveCalls
+/*
 object hlGenerator{
   var ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
   var FunCallList: ArrayBuffer[FunCall] = new ArrayBuffer[FunCall]()
@@ -1078,7 +1079,7 @@ object hlGenerator{
   }*/
 
 }
-
+*/
 class hlGenerator {
 
   val RefinedResult: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
@@ -1104,11 +1105,18 @@ class hlGenerator {
   val MustContainsUserFun = true
   val MustContainsMap = true
   val StrictMatchUnpack = true
-  val LimitNum = 40
+  var LimitNum = 40
 
   //controllers for patterns
   val ZipLimit = 2
   val SplitChunkSize = 4
+  val GenJoin = true
+  val GenSplit = true
+  val GenUserFun = true
+  val GenZip = false
+  val GenGet = false
+  val GenMap = true
+  val GenReduce = true
 
 
   //Avoid for redundant
@@ -1140,6 +1148,11 @@ class hlGenerator {
 
   //Testing methods
   def trySingleLambda(l: Lambda, oril: Lambda, w: PrintWriter): Unit = {
+    if(l.params.length > 7){
+      println("too many argument, Ignored-by-user")
+      writeln(w,"too many argument, Ignored-by-user")
+      return
+    }
     //1. Generate Input Data
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- l.params.indices) {
@@ -1428,32 +1441,48 @@ class hlGenerator {
     AssignedChoiceNum match{
       //Join
       case 0 =>
-        unpackParams()
-        generateJoin(LimitNum)
+        if(GenJoin) {
+          unpackParams()
+          generateJoin(LimitNum)
+        }
         AssignedChoiceNum += 1
       case 1 =>
-        unpackParams()
-        generateSplit(SplitChunkSize,LimitNum)
+        if(GenSplit) {
+          unpackParams()
+          generateSplit(SplitChunkSize, LimitNum)
+        }
         AssignedChoiceNum += 1
       case 2 =>
-        unpackParams()
-        generateUserFun(LimitNum)
+        if(GenUserFun) {
+          unpackParams()
+          //generateUserFun(LimitNum)
+          generateUserFun(30)
+        }
         AssignedChoiceNum += 1
       case 3 =>
-        unpackParams()
-        generateZip(LimitNum,ZipLimit)
+        if(GenZip) {
+          unpackParams()
+          generateZip(LimitNum, ZipLimit)
+        }
         AssignedChoiceNum += 1
       case 4 =>
-        unpackParams()
-        generateGet(LimitNum)
+        if(GenGet) {
+          unpackParams()
+          generateGet(LimitNum)
+        }
         AssignedChoiceNum += 1
       case 5 =>
-        unpackParams()
-        generateMap(LimitNum)
+        if(GenMap) {
+          unpackParams()
+          generateMap(LimitNum)
+        }
         AssignedChoiceNum += 1
       case 6 =>
-        unpackParams()
-        generateReduce(LimitNum)
+        if(GenReduce) {
+          unpackParams()
+          generateReduce(LimitNum)
+        }
+        LimitNum += 10
         AssignedChoiceNum = 0
 
 

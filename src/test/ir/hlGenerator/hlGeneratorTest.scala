@@ -39,11 +39,7 @@ class hlGeneratorTest {
     //val result = hlGen.RefinedResult
     //assert(true)
   }
-  @Ignore
-  @Test
-  def testLoops():Unit={
-    hlGenerator.tryPrograms(new PrintWriter("/home/potato/exprs/8-10/test_solve.txt"))
-  }
+
 
 
   @Ignore
