@@ -25,11 +25,16 @@ abstract class AbstractPartRed(val f: Lambda,
       case TupleType(initT, ArrayType(elemT, _)) =>
         f.params(0).t = initT // initial elem type
         f.params(1).t = elemT // array element type
+
+        if (initT != elemT)
+          throw TypeException(s"Illegal customising function in\n$this.\n$initT != $elemT")
+
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
         if (bodyType != initT)
           throw TypeException(s"Reduce operator returns $bodyType instead of the expected $initT")
 
+        // TODO: Output length of a partial reduce might not be 1
         ArrayType(initT, 1)
 
       case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
@@ -43,6 +48,11 @@ abstract class AbstractPartRed(val f: Lambda,
     val input = args(1) match { case a: Vector[_] => a }
     Vector( input.foldLeft(init)( (acc, x) => f.eval(valueMap, acc, x) ))
   }
+}
+
+object AbstractPartRed {
+  def unapply(arg: AbstractPartRed): Option[(Lambda)] =
+    Some(arg.f)
 }
 
 /**

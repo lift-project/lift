@@ -1,6 +1,8 @@
 package rewriting
 
+import apart.arithmetic.ArithExpr
 import benchmarks.NBody
+import exploration.{ExpressionFilter, ParameterRewrite}
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
@@ -38,7 +40,7 @@ class TestRewriteNbody {
             NBody.update(Get(p1, 0), Get(p1, 1), deltaT, acceleration)
           )) o Reduce(VectorizeUserFun(4, add), Value("0.0f", Float4)
           ) o Map(\(p2 =>
-            NBody.calcAcc(Get(p1,0), p2, deltaT, espSqr)
+            NBody.calcAccNoAdd(Get(p1,0), p2, deltaT, espSqr)
           )) $ pos
         )) $ Zip(pos, vel)
     )
@@ -49,31 +51,39 @@ class TestRewriteNbody {
     val f4 = Rewrite.applyRuleAtId(f3, 19, Rules.partialReduce)
     val f5 = Rewrite.applyRuleAtId(f4, 20, Rules.partialReduceSplitJoin(128))
     val f6 = Rewrite.applyRuleAtId(f5, 8, MacroRules.mapFissionAtPosition(2))
-    val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.mapReducePartialReduce)
+    val g1 = Rewrite.applyRuleAtId(f6, 22, Rules.reduceSeq)
+    val f7 = Rewrite.applyRuleAtId(g1, 8, Rules.mapReducePartialReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(128))
     val f9 = Rewrite.applyRuleAtId(f8, 11, Rules.mapFusion)
     val f10 = Rewrite.applyRuleAtId(f9, 13, Rules.splitJoinId)
     val f11 = Rewrite.applyRuleAtId(f10, 11, MacroRules.mapMapInterchange)
     val f12 = Rewrite.applyRuleAtId(f11, 10, Rules.transposeTransposeId)
     val f13 = Rewrite.applyRuleAtId(f12, 9, MacroRules.reduceMapFusion)
-    val f14 = Rewrite.applyRuleAtId(f13, 18, Rules.mapFusionWithZip)
-    val f15 = Rewrite.applyRuleAtId(f14, 22, Rules.partialReduceToReduce)
-    val f16 = Rewrite.applyRuleAtId(f15, 22, MacroRules.reduceMapFusion)
-    val f17 = Rewrite.applyRuleAtId(f16, 38, Rules.dropId)
-    val f18 = Rewrite.applyRuleAtId(f17, 36, Rules.dropId)
-    val f19 = Rewrite.applyRuleAtId(f18, 22, Rules.removeEmptyMap)
-    val f20 = Rewrite.applyRuleAtId(f19, 9, Rules.removeEmptyMap)
-    val f21 = Rewrite.applyRuleAtId(f20, 9, Rules.addIdForCurrentValueInReduce)
-    val f22 = Rewrite.applyRuleAtId(f21, 17, Rules.implementIdAsDeepCopy)
+    val f14 = Rewrite.applyRuleAtId(f13, 14, Rules.mapFusionWithZip)
+    val f15 = Rewrite.applyRuleAtId(f14, 18, Rules.partialReduceToReduce)
+    val f16 = Rewrite.applyRuleAtId(f15, 18, MacroRules.reduceMapFusion)
+    val f21 = Rewrite.applyRuleAtId(f16, 9, Rules.addIdForCurrentValueInReduce)
+    val f22 = Rewrite.applyRuleAtId(f21, 14, Rules.implementIdAsDeepCopy)
     val f23 = Rewrite.applyRuleAtId(f22, 6, Rules.globalMemory)
-    val f24 = Rewrite.applyRuleAtId(f23, 42, Rules.mapSeq)
-    val f25 = Lower.lowerNextLevelWithRule(f24, Rules.mapWrg)
-    val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapLcl)
-    val f27 = Rewrite.applyRuleAtId(f26, 17, Rules.localMemory)
+    val f24 = Lower.lowerNextLevelWithRule(f23, Rules.mapWrg)
+    val f25 = Lower.lowerNextLevelWithRule(f24, Rules.mapLcl)
+    val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapSeq)
+    val f27 = Rewrite.applyRuleAtId(f26, 14, Rules.localMemory)
+
+
+    val replacement = collection.immutable.Map[ArithExpr, ArithExpr](N -> inputSize)
+    val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
+
+    val (local, global) = InferNDRange(f27)
+
+    val replacedGlobal = global.map(ArithExpr.substitute(_, replacement))
 
     val (output: Array[Float], _) =
-      Execute(128, inputSize, (true, false))(f27, pos, vel, espSqr, deltaT)
+      Execute(local, replacedGlobal, (true, false))(f27, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
-  }
+
+    val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)
+    assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x))
+ }
 
 }

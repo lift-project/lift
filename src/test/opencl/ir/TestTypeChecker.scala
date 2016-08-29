@@ -4,7 +4,7 @@ import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class TestTypeChecker {
 
@@ -80,7 +80,6 @@ class TestTypeChecker {
     TypeChecker(lambda)
   }
 
-  @Ignore
   @Test(expected = classOf[TypeException])
   def incorrectReduceCustomisingFunctionIssue74(): Unit = {
     val lambda = fun(

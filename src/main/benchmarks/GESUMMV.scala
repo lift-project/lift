@@ -74,6 +74,29 @@ object GESUMMV {
       }))
   )
 
+  val simpleUserFun = fun(
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(Float, K),
+    Float, Float,
+    (A, B, x, alpha, beta) =>
+      Zip(A, B) :>> MapGlb(\( p => {
+        val aRow = p._0
+        val bRow = p._1
+        Zip(aRow, bRow, x) :>>
+          ReduceSeq(\( (acc, p) => {
+            val a = p._0
+            val b = p._1
+            val x = p._2
+
+            idFF $ Tuple(add(acc._0, mult(a, x)), add(acc._1, mult(b, x)))
+
+          }), Value("{0.0f, 0.0f}", TupleType(Float, Float))) :>>
+          MapSeq(\( p =>  add(mult(alpha, p._0), mult(beta, p._1)) )) :>>
+          toGlobal(MapSeq(id))
+      }))
+  )
+
   val h = UserFun("h", Array("a", "b"), "{ Tuple t = {a._0 + b._0, a._1 + b._1}; return t; }",
     Seq(TupleType(Float, Float), TupleType(Float, Float)),
     TupleType(Float, Float))

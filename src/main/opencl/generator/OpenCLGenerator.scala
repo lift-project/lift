@@ -191,7 +191,7 @@ class OpenCLGenerator extends Generator {
 
     View(f)
 
-    val globalBlock = new OpenCLAST.Block(Vector.empty, global = true)
+    val globalBlock = OpenCLAST.Block(Vector.empty, global = true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
       case (expr, _) if expr.t == Double => true
@@ -372,7 +372,7 @@ class OpenCLGenerator extends Generator {
 
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +
-          s"evaluable, but found $length")
+          s" evaluable, but found $length")
 
       val decl = OpenCLAST.VarDecl(x.mem.variable, x.t,
         addressSpace = x.mem.addressSpace,

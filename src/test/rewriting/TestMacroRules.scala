@@ -23,6 +23,69 @@ object TestMacroRules {
 class TestMacroRules {
 
   @Test
+  def moveReduceOutOneLevel(): Unit = {
+
+    val N = SizeVar("N")
+
+    val patternSimple: PartialFunction[Expr, Unit] =
+    { case FunCall(TransposeW(), FunCall(Reduce(_), _, _)) => }
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Reduce(add, 0.0f)) $ input
+    )
+
+    val fResult = Rewrite.applyRuleAtId(f, 0, MacroRules.moveReduceOutOneLevel)
+    assertTrue(patternSimple.isDefinedAt(fResult.body))
+
+    TypeChecker(fResult)
+
+    val g = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Reduce(add, 0.0f) o Gather(reverse)) $ input
+    )
+
+    val gResult = Rewrite.applyRuleAtId(g, 0, MacroRules.moveReduceOutOneLevel)
+    assertTrue(patternSimple.isDefinedAt(gResult.body))
+
+    TypeChecker(gResult)
+
+    val patternWithMap: PartialFunction[Expr, Unit] =
+    { case FunCall(Map(_), FunCall(TransposeW(), FunCall(Reduce(_), _, _))) => }
+
+    val h = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Scatter(reverse) o Reduce(add, 0.0f)) $ input
+    )
+
+    val hResult = Rewrite.applyRuleAtId(h, 0, MacroRules.moveReduceOutOneLevel)
+    assertTrue(patternWithMap.isDefinedAt(hResult.body))
+
+    TypeChecker(hResult)
+
+    val m = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Scatter(reverse) o Scatter(reverse) o Reduce(add, 0.0f) o Gather(reverse)) $ input
+    )
+
+    val mResult = Rewrite.applyRuleAtId(m, 0, MacroRules.moveReduceOutOneLevel)
+    assertTrue(patternWithMap.isDefinedAt(mResult.body))
+
+    TypeChecker(mResult)
+  }
+
+  @Test
+  def fissionAtPosition(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      a => Map(Reduce(add, 0.0f) o Map(plusOne) o Map(plusOne) o Map(plusOne)) $ a)
+
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(0))
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(1))
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(2))
+  }
+
+  @Test
   def reshapeMapMap(): Unit = {
     val N = SizeVar("N")
     val M = SizeVar("M")
