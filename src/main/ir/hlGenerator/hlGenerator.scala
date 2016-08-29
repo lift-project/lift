@@ -8,7 +8,7 @@ import ir.ast._
 import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Eval, Execute}
 import opencl.ir._
-import opencl.ir.pattern.{toGlobal}
+import opencl.ir.pattern.{ReduceSeq, toGlobal}
 import rewriting.Rules._
 import rewriting.{EnabledMappings, Lower, Rewrite, Rules}
 
@@ -1092,16 +1092,21 @@ class hlGenerator {
   //Used for debug
   var AssignedChoiceNum = 0
   val PassParamUpPossibility = 0.0
+
+
+
+  //controllers for run programs
   val GlobalSize = 1
   val LocalSize = 1
+  val RunInterpreter = false
+  val rewriteDepth = 1
 
-  //controllers global
+  //controllers for generate programs
   val LoopNum = 35
   val consequentUserFun = false
   //val ReduceInitToGlobal = false
   val ReduceOnOneElement = false
   val AllowJoinASplit = false
-  val RunInterpreter = true
   val MustContainsUserFun = true
   val MustContainsMap = true
   val StrictMatchUnpack = true
@@ -1193,70 +1198,83 @@ class hlGenerator {
       case false =>
         Array[Float](0)
     }
-
-    //3. lower the lambda
-    var fs = List[Lambda]()
+    //3. random rewriting
+    val afterRewriting:scala.Seq[Lambda] =
     try {
-      fs = Lower.mapCombinations(l, new EnabledMappings(true, true, true, true, true, true))
+      Rewrite.rewriteWithoutLowering(l,rewriting.allRulesWithoutLowering,rewriteDepth)
     }
-    catch {
+    catch{
       case e: Throwable =>
-        println("catch a exception in lower-parser-by-user")
+        println("catch a exception in random-rewrite-by-user")
         e.printStackTrace()
-        writeln(w, "catch a exception in lower-parser-by-user")
+        writeln(w,"catch a exception in random-rewrite-by-user")
         e.printStackTrace(w)
         return
     }
-    if(fs.length > 0) {
-      for (lowId <- fs.indices) {
+    for(rewriteId <- afterRewriting.indices) {
 
-        val lowLevel = fs(lowId)
+      //3. lower the lambda
+      var fs = List[Lambda]()
+      try {
+        fs = Lower.mapCombinations(afterRewriting(rewriteId), new EnabledMappings(true, true, true, true, true, true))
+      }
+      catch {
+        case e: Throwable =>
+          println("catch a exception in lower-parser-by-user")
+          e.printStackTrace()
+          writeln(w, "catch a exception in lower-parser-by-user")
+          e.printStackTrace(w)
+          return
+      }
+      if (fs.length > 0) {
+        for (lowId <- fs.indices) {
 
-        //4. compile the lambda
-        var code = ""
-        try {
-          println(lowLevel.toString)
-          writeln(w, lowLevel.toString)
-          code = Compile(lowLevel)
-        }
-        catch {
-          case e: Throwable =>
-            println("catch a exception in compiler-by-user")
-            writeln(w, "catch a exception in compiler-by-user")
-            e.printStackTrace(w)
-            return
-        }
+          val lowLevel = fs(lowId)
 
-        //5. execute the OpenCL kernel
-        try{
-          val (output_exe:Array[Float],runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
-          if (RunInterpreter) {
-            if (output_exe.corresponds(output_int)(_ == _)) {
-              writeln(w, "results eq-by-user")
-              println("results eq-by-user")
+          //4. compile the lambda
+          var code = ""
+          try {
+            println(lowLevel.toString)
+            writeln(w, lowLevel.toString)
+            code = Compile(lowLevel)
+          }
+          catch {
+            case e: Throwable =>
+              println("catch a exception in compiler-by-user")
+              writeln(w, "catch a exception in compiler-by-user")
+              e.printStackTrace(w)
+              return
+          }
+
+          //5. execute the OpenCL kernel
+          try {
+            val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
+            if (RunInterpreter) {
+              if (output_exe.corresponds(output_int)(_ == _)) {
+                writeln(w, "results eq-by-user")
+                println("results eq-by-user")
+              }
+              else {
+                writeln(w, "results ne-by-user")
+                println("results ne-by-user")
+              }
             }
             else {
-              writeln(w, "results ne-by-user")
-              println("results ne-by-user")
+              println("pass-by-user")
+              writeln(w, "pass-by-user")
             }
           }
-          else {
-            println("pass-by-user")
-            writeln(w, "pass-by-user")
+          catch {
+            case e: Throwable =>
+              println("catch a exception in execator-by-user")
+              e.printStackTrace()
+              writeln(w, "catch a exception in execator-by-user")
+              e.printStackTrace(w)
           }
-        }
-        catch {
-          case e: Throwable =>
-            println("catch a exception in execator-by-user")
-            e.printStackTrace()
-            writeln(w, "catch a exception in execator-by-user")
-            e.printStackTrace(w)
-            return
-        }
 
 
 
-        /*//5. execute the OpenCL kernel and the interpreter
+          /*//5. execute the OpenCL kernel and the interpreter
         outType match {
           case Float =>
             try {
@@ -1373,11 +1391,12 @@ class hlGenerator {
             writeln(w, "Type unimplemented,Ignored-by-user")
         }
         */
+        }
       }
-    }
-    else{
-      println("No suitable lower-expressions, Ignored-by-user")
-      writeln(w,"No suitable lower-expressions, Ignored-by-user")
+      else {
+        println("No suitable lower-expressions, Ignored-by-user")
+        writeln(w, "No suitable lower-expressions, Ignored-by-user")
+      }
     }
 }
 
@@ -1785,7 +1804,10 @@ class hlGenerator {
                             Param(ParamList(argInitIndex).t)
                         }
 
-                        val F = FunCall(Reduce(L2), argInit, argEle)
+                        val F = TofInit match{
+                          case t1 if t1 == oriLambda.params(eleParamIndexOfLambda).t => FunCall(Reduce(L2), argInit, argEle)
+                          case _ => FunCall(ReduceSeq(L2), argInit, argEle)
+                        }
                         F.t = ArrayType(TofInit, 1)
                         val P = Param(F.t)
                         val Args = countParam(F)

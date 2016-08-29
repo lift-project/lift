@@ -137,7 +137,7 @@ def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
       rewritten
     }
     else{
-      rewritten.flatMap(l => rewrite(l,rules,levels - 1 ))
+      rewritten.flatMap(l => rewriteWithoutLowering(l,rules,levels - 1 ))
     }
   }
 

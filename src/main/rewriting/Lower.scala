@@ -136,7 +136,7 @@ object Lower {
 //  }
 
 
-  def lowerMapsByLevels(lambda:Lambda,enabledMappings: EnabledMappings,restrictGlobalNum:Boolean = false):List[Lambda] = {
+  def lowerMapsByLevels(lambda:Lambda,enabledMappings: EnabledMappings,restrictGlobalNum:Boolean = true):List[Lambda] = {
 
 
   val mapTree = (new MapTree)
@@ -269,7 +269,7 @@ object Lower {
   lambdas
 }
 
-  def findAllMapsLowering(lambda:Lambda,enabledMappings:EnabledMappings,restrictGlobalNum:Boolean = false):List[Lambda] = {
+  def findAllMapsLowering(lambda:Lambda,enabledMappings:EnabledMappings,restrictGlobalNum:Boolean = true):List[Lambda] = {
     val mapTree = (new MapTree)
     mapTree.parse(lambda)
 
