@@ -120,4 +120,16 @@ package object rewriting {
         mapLoweringRules ++
         reduceLoweringRule
 
+  val allRulesWithoutLowering =
+    otherRules ++
+      tupleRules ++
+      idRules ++
+      interchangeRules ++
+      fissionRules ++
+      fusionRules++
+      reduceRules ++
+      simplificationRules ++
+      addressSpaceRules
+
+
 }

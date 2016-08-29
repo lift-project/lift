@@ -50,7 +50,8 @@ object Rewrite {
 
   /**
    * Apply rules one by one until no rules apply anymore
-   * @param lambda The lambda where to apply rules
+    *
+    * @param lambda The lambda where to apply rules
    * @param rules The rules to apply
    * @return
    */
@@ -124,17 +125,37 @@ def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
     })
   }
 
+  def rewriteWithoutLowering(lambda:Lambda,rules:Seq[Rule],levels:Int):Seq[Lambda] ={
+    val lStr = rewriting.utils.Utils.dumpLambdaToString(lambda)
+    println(lStr)
+
+    TypeChecker.check(lambda.body)
+    val allRulesAt = listAllPossibleRewritesForRules(lambda,rules)
+    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda,ruleAt._2,ruleAt._1))
+
+    if(levels == 1){
+      rewritten
+    }
+    else{
+      rewritten.flatMap(l => rewrite(l,rules,levels - 1 ))
+    }
+  }
+
   def rewrite(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] = {
+
+
     TypeChecker.check(lambda.body)
 
     val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
+
     val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt._2, ruleAt._1))
 
-    if (levels == 1) {
-      rewritten
-    } else {
-      rewritten.flatMap( l => rewriteJustGenerable(l, rules, levels-1))
-    }
+
+      if (levels == 1) {
+        rewritten
+      } else {
+        rewritten.flatMap( l => rewriteJustGenerable(l, rules, levels-1))
+      }
   }
 
   def rewriteJustGenerable(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] =

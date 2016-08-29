@@ -9,7 +9,7 @@ import opencl.executor.{Compile, Eval, Execute, Executor}
 import org.junit._
 import opencl.ir._
 import opencl.ir.pattern.toGlobal
-import rewriting.{EnabledMappings, Lower}
+import rewriting.{EnabledMappings, Lower, Rewrite}
 
 import scala.language.reflectiveCalls
 
@@ -192,6 +192,7 @@ class hlGeneratorTest {
   @Test
   def ResultNotEqualBugs():Unit={
     val f = Eval("val add = UserFun(\"add\", Array(\"x\", \"y\"), \"\"\"|{ return x+y; }\"\"\".stripMargin, Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])\nfun(ArrayType(Float, 4), ArrayType(Float, 32), Float, ArrayType(ArrayType(Float, 32), 32),(p_0, p_1, p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(Join(), FunCall(Reduce(fun((p_5, p_6) => FunCall(Map(fun((p_7) => FunCall(add, p_6, p_7))), p_5))), FunCall(Map(fun((p_8) => FunCall(add, p_8, p_4))), p_0), p_1)))), FunCall(Map(fun((p_9) => FunCall(add, p_9, p_2))), FunCall(Join(), p_3))))")
+    val fAfterRewrite = Rewrite.rewriteWithoutLowering(f,rewriting.allRulesWithoutLowering,5)
     val fs = Lower.mapCombinations(f,new EnabledMappings(true, true, true, true, true, true),true)
     //val lower = hlGenerator.testSolve(fs.head)
     val lower = fs.head
