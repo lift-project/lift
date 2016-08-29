@@ -1099,7 +1099,8 @@ class hlGenerator {
   val GlobalSize = 1
   val LocalSize = 1
   val RunInterpreter = false
-  val rewriteDepth = 1
+  val useRandomRewrite = true
+  val rewriteDepth = 2
 
   //controllers for generate programs
   val LoopNum = 35
@@ -1199,17 +1200,22 @@ class hlGenerator {
         Array[Float](0)
     }
     //3. random rewriting
-    val afterRewriting:scala.Seq[Lambda] =
-    try {
-      Rewrite.rewriteWithoutLowering(l,rewriting.allRulesWithoutLowering,rewriteDepth)
-    }
-    catch{
-      case e: Throwable =>
-        println("catch a exception in random-rewrite-by-user")
-        e.printStackTrace()
-        writeln(w,"catch a exception in random-rewrite-by-user")
-        e.printStackTrace(w)
-        return
+    val afterRewriting:scala.Seq[Lambda] = useRandomRewrite match {
+      case true =>
+        try {
+          //Rewrite.rewriteWithoutLowering(l,rewriting.allRulesWithoutLowering,rewriteDepth)
+          Rewrite.rewriteWithoutLowering (l, rewriting.allRulesWithoutMapsLowering (1, 1, 1), rewriteDepth)
+        }
+        catch {
+          case e: Throwable =>
+            println ("catch a exception in random-rewrite-by-user")
+            e.printStackTrace ()
+            writeln (w, "catch a exception in random-rewrite-by-user")
+            e.printStackTrace (w)
+            return
+        }
+      case false =>
+        Seq(l)
     }
     for(rewriteId <- afterRewriting.indices) {
 
@@ -1230,46 +1236,48 @@ class hlGenerator {
         for (lowId <- fs.indices) {
 
           val lowLevel = fs(lowId)
+          if(lowLevel.isGenerable) {
 
-          //4. compile the lambda
-          var code = ""
-          try {
-            println(lowLevel.toString)
-            writeln(w, lowLevel.toString)
-            code = Compile(lowLevel)
-          }
-          catch {
-            case e: Throwable =>
-              println("catch a exception in compiler-by-user")
-              writeln(w, "catch a exception in compiler-by-user")
-              e.printStackTrace(w)
-              return
-          }
+            //4. compile the lambda
+            var code = ""
+            try {
+              println(lowLevel.toString)
+              writeln(w, lowLevel.toString)
+              code = Compile(lowLevel)
+            }
+            catch {
+              case e: Throwable =>
+                println("catch a exception in compiler-by-user")
+                writeln(w, "catch a exception in compiler-by-user")
+                e.printStackTrace(w)
+                return
+            }
 
-          //5. execute the OpenCL kernel
-          try {
-            val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
-            if (RunInterpreter) {
-              if (output_exe.corresponds(output_int)(_ == _)) {
-                writeln(w, "results eq-by-user")
-                println("results eq-by-user")
+            //5. execute the OpenCL kernel
+            try {
+              val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
+              if (RunInterpreter) {
+                if (output_exe.corresponds(output_int)(_ == _)) {
+                  writeln(w, "results eq-by-user")
+                  println("results eq-by-user")
+                }
+                else {
+                  writeln(w, "results ne-by-user")
+                  println("results ne-by-user")
+                }
               }
               else {
-                writeln(w, "results ne-by-user")
-                println("results ne-by-user")
+                println("pass-by-user")
+                writeln(w, "pass-by-user")
               }
             }
-            else {
-              println("pass-by-user")
-              writeln(w, "pass-by-user")
+            catch {
+              case e: Throwable =>
+                println("catch a exception in execator-by-user")
+                e.printStackTrace()
+                writeln(w, "catch a exception in execator-by-user")
+                e.printStackTrace(w)
             }
-          }
-          catch {
-            case e: Throwable =>
-              println("catch a exception in execator-by-user")
-              e.printStackTrace()
-              writeln(w, "catch a exception in execator-by-user")
-              e.printStackTrace(w)
           }
 
 
