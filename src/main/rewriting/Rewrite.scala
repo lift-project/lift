@@ -126,8 +126,8 @@ def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
   }
 
   def rewriteWithoutLowering(lambda:Lambda,rules:Seq[Rule],levels:Int):Seq[Lambda] ={
-    val lStr = rewriting.utils.Utils.dumpLambdaToString(lambda)
-    println(lStr)
+    //val lStr = rewriting.utils.Utils.dumpLambdaToString(lambda)
+    //println(lStr)
 
     TypeChecker.check(lambda.body)
     val allRulesAt = listAllPossibleRewritesForRules(lambda,rules)

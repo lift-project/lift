@@ -1091,6 +1091,7 @@ class hlGenerator {
 
   //Used for debug
   var AssignedChoiceNum = 0
+  var PassCounter = 0
   val PassParamUpPossibility = 0.0
 
 
@@ -1100,7 +1101,7 @@ class hlGenerator {
   val LocalSize = 1
   val RunInterpreter = false
   val useRandomRewrite = true
-  val rewriteDepth = 2
+  val rewriteDepth = 3
 
   //controllers for generate programs
   val LoopNum = 35
@@ -1269,6 +1270,9 @@ class hlGenerator {
               else {
                 println("pass-by-user")
                 writeln(w, "pass-by-user")
+                PassCounter += 1
+                println(PassCounter + "passed for now")
+                writeln(w,PassCounter + "passed for now")
               }
             }
             catch {
@@ -1418,7 +1422,15 @@ class hlGenerator {
       //val UserFunIndex = lStr.indexOf('\n')
 
       //The compiler have a bug here, so we need to convert it to string and convert back
-      val l:Lambda = Eval(lStr)
+      //val l:Lambda = Eval(lStr)
+      val l:Lambda = try{
+        Eval(lStr)
+      }
+      catch{
+        case e:Throwable=>
+          println("parse back failed")
+          return
+      }
 
       //prints the basic informations about l
       println("Lambda Num:" + i)
