@@ -1097,11 +1097,11 @@ class hlGenerator {
 
 
   //controllers for run programs
-  val GlobalSize = 1
-  val LocalSize = 1
+  val GlobalSize = 512
+  val LocalSize = 32
   val RunInterpreter = false
   val useRandomRewrite = true
-  val rewriteDepth = 3
+  val rewriteDepth = 5
 
   //controllers for generate programs
   val LoopNum = 35
@@ -1256,23 +1256,38 @@ class hlGenerator {
 
             //5. execute the OpenCL kernel
             try {
-              val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
-              if (RunInterpreter) {
-                if (output_exe.corresponds(output_int)(_ == _)) {
-                  writeln(w, "results eq-by-user")
-                  println("results eq-by-user")
+              //val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
+              //val (output_exe: Array[Float], runtime1) = Execute(GlobalSize, GlobalSize)(code, lowLevel, Args: _*)
+
+              var currGlobalSize = GlobalSize
+              while(currGlobalSize >= 1) {
+                var currLclSize = currGlobalSize
+                while(currLclSize >= 1) {
+                  val (output_exe: Array[Float], runtime) = Execute(currLclSize, currGlobalSize)(code, lowLevel, Args: _*)
+                  if (RunInterpreter) {
+                    if (output_exe.corresponds(output_int)(_ == _)) {
+                      writeln(w, "results eq-by-user")
+                      println("results eq-by-user")
+                    }
+                    else {
+                      writeln(w, "results ne-by-user")
+                      println("results ne-by-user")
+                    }
+                  }
+                  else {
+                    println("pass-by-user")
+                    println("globalsize = " + currGlobalSize + " localsize = " + currLclSize)
+                    println("time = " + runtime)
+                    writeln(w, "pass-by-user")
+                    writeln(w,"globalsize = " + currGlobalSize + " localsize = " + currLclSize)
+                    writeln(w,"time = " + runtime)
+                    PassCounter += 1
+                    println(PassCounter + "passed for now")
+                    writeln(w, PassCounter + "passed for now")
+                  }
+                  currLclSize /= 4
                 }
-                else {
-                  writeln(w, "results ne-by-user")
-                  println("results ne-by-user")
-                }
-              }
-              else {
-                println("pass-by-user")
-                writeln(w, "pass-by-user")
-                PassCounter += 1
-                println(PassCounter + "passed for now")
-                writeln(w,PassCounter + "passed for now")
+                currGlobalSize /= 4
               }
             }
             catch {

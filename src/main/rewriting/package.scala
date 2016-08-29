@@ -136,7 +136,7 @@ package object rewriting {
   def allRulesWithoutMapsLowering(split:ArithExpr,vectorWidth:ArithExpr,stride:ArithExpr):Seq[Rule] ={
     val rulesWithOutVariable =
       tupleRules ++
-        idRules ++
+        //idRules ++
     interchangeRules ++
     fissionRules ++
     fusionRules ++
@@ -146,8 +146,10 @@ package object rewriting {
       scatterToGather,
       splitZip,
       partialReduceToReduce,
-      mapSeq,
-      reduceSeq
+      reduceSeq,
+      implementIdAsDeepCopy,
+      dropId,
+      addIdForCurrentValueInReduce
     )
 
     rulesWithOutVariable ++

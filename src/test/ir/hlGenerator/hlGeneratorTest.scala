@@ -35,7 +35,7 @@ class hlGeneratorTest {
   def testNewGen():Unit={
     val hlGen = new hlGenerator
     //hlGen.generateProgram()
-    hlGen.tryPrograms(new PrintWriter("/home/potato/exprs/8-19/test_new_generator.txt"))
+    hlGen.tryPrograms(new PrintWriter("/home/v1ddu/exprs/8-30/test_new_generator.txt"))
     //val result = hlGen.RefinedResult
     //assert(true)
   }
