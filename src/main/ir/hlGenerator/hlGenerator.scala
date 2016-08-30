@@ -1093,7 +1093,7 @@ class hlGenerator {
   var AssignedChoiceNum = 0
   var PassCounter = 0
   val PassParamUpPossibility = 0.0
-  val PrintDebugInfo = false
+  val PrintDebugInfo = true
 
 
 
