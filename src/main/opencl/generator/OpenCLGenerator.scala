@@ -1352,7 +1352,13 @@ class OpenCLGenerator extends Generator {
         throw new TypeException(valueType, "A valid non array type")
     }
 
-    val real = ArithExpr.substitute(i, replacements).eval
+    val real: Int = try {
+      ArithExpr.substitute(i, replacements).eval
+    } catch {
+      case _: NotEvaluableException =>
+        throw new OpenCLGeneratorException(s"Could not access private array, as index $i could " +
+          s"not be evaluated statically (given these replacements: $replacements)")
+    }
 
     if (real >= declaration.length) {
       throw new OpenCLGeneratorException(s"Out of bounds access to $v with $real")
