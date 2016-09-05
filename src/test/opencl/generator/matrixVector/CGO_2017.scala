@@ -7,7 +7,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object CGO_2017 {
   @BeforeClass def before(): Unit =
@@ -43,6 +43,7 @@ class CGO_2017 {
 
   }
 
+  @Ignore
   @Test
   def clblas_gemv_hawaii_N(): Unit = {
 
@@ -53,17 +54,27 @@ class CGO_2017 {
     Float,
     Float,
     (matrix, vectorX, vectorY, alpha, beta) =>
-      Join() o MapWrg(MapLcl(fun( t =>
-        MapSeq(fun( x => multAndSumUp(mult(alpha, x), Get(t, 1), beta))) o
-          toGlobal(MapSeq(id)) o
-          ReduceSeq(fun((acc, y) =>
-            multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
-          ), 0.0f) $ Zip(vectorX, Get(t, 0)))
-      )) o Split(16) $ Zip(matrix, vectorY)
+
+      MapWrg(1)(
+        MapWrg(0)(fun(x =>
+          MapSeq(
+            Join() o MapLcl(1)(
+              Join() o MapLcl(0)(
+                MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))
+              ) o Split(2) ) o Split(16)
+          ) o
+            toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id)))) o
+          ReduceSeq(fun((acc, next) =>
+            MapLcl(0)(Join() o MapLcl(1)(ReduceSeq(add, 0.0f)) o Split(4)) $ next._0),
+          Value(0.0f, ArrayType(ArrayType(Float, 8), 16))) $ Zip(x, Split(32) $ vectorX)
+        )) o Tile(16, 32)
+      ) o Split(M) $ matrix
     )
 
     val (result: Array[Float], _) =
-      Execute(64, n)(f, matrix, vectorX, vectorY, alpha, beta)
+      Execute(8, 8, m/2, 8, (true, true))(f, matrix, vectorX, vectorY, alpha, beta)
+
+    println(f.body.t)
 
     assertArrayEquals(gold, result, 0.001f)
   }
