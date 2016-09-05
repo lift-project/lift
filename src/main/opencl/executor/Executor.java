@@ -57,6 +57,11 @@ public class Executor {
         System.loadLibrary("executor-jni");
     }
 
+    public static void loadAndInit() {
+        loadLibrary();
+        init();
+    }
+
     /** Compute matrix-matrix multiply natively */
     public static float[] nativeMatrixMultiply(float[] aa, float[] bb, int n, int m, int k) {
         float[] cc = new float[n*m];
