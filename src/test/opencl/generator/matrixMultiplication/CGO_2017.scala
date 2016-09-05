@@ -341,4 +341,73 @@ class CGO_2017 {
       Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(f, matrixA.transpose, matrixB)
     assertArrayEquals(gold, output, 0.0f)
   }
+
+  @Test
+  def clblast_hawaii_sgemm_TN(): Unit = {
+    val mSize = 256
+    val kSize = 256
+    val nSize = 256
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
+
+    val v__3 = 4
+    val v__4 = 8
+    val vectorWidth = 4
+
+    val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+    val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), K),
+      ArrayType(ArrayType(Float, N), K),
+      (p_0, p_1) =>
+        FunCall(Map(fun((p_2) =>
+          p_2)),
+          FunCall(Join(),
+            FunCall(MapGlb(1)(fun((p_3) =>
+              FunCall(TransposeW(),
+                FunCall(Join(),
+                  FunCall(MapGlb(0)(fun((p_4) =>
+                    FunCall(TransposeW(),
+                      FunCall(Map(fun((p_5) =>
+                        FunCall(TransposeW(), p_5))),
+                        FunCall(TransposeW(),
+                          toGlobal(MapSeq(MapSeq(asScalar() o MapSeq(VectorizeUserFun(4, id)) o asVector(4)))) $
+                            FunCall(ReduceSeq(fun((p_6, p_7) =>
+                              fun(x =>
+                                FunCall(MapSeq(fun((p_8) =>
+                                  FunCall(MapSeq(fun((p_9) =>
+                                    FunCall(add,
+                                      FunCall(Get(0), p_9),
+                                      FunCall(mult,
+                                        FunCall(Get(1), p_8),
+                                        FunCall(Get(1), p_9))))),
+                                    FunCall(Zip(2),
+                                      FunCall(Get(0), p_8),
+                                      FunCall(Get(1), x))))),
+                                  FunCall(Zip(2), p_6,
+                                    FunCall(Get(0), x)))
+                              ) $ Tuple(
+                                toPrivate(MapSeq(id)) o Get(0) $ p_7,
+                                asScalar() o toPrivate(MapSeq(VectorizeUserFun(4, id))) o asVector(vectorWidth) o Get(1) $ p_7
+                              ))),
+                              toPrivate(MapSeq(MapSeq(id))) $
+                                Value("0.0f", ArrayType(ArrayType(Float, v__3), v__4)),
+                              FunCall(Zip(2),
+                                FunCall(Transpose(), p_3),
+                                FunCall(Transpose(), p_4)))))))),
+                    FunCall(Split(v__3),
+                      /*FunCall(Gather(ReorderWithStride(N / v__3)), */Transpose() $ p_1)))))),
+              FunCall(Split(v__4), Transpose() $ p_0)))))
+
+    val code = Compile(f, 32, 8, 1, N/v__3, M/v__4,1, collection.immutable.Map())
+
+    val (output: Array[Float], _) =
+      Execute(32, 8, nSize/v__3, mSize/v__4,
+        (true, true))(code, f, matrixA.transpose, matrixB)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
 }
