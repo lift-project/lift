@@ -31,7 +31,7 @@ class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchm
 
     var matrix = Array.fill(inputSizeN, inputSizeM)(util.Random.nextInt(5).toFloat)
     val vectorX = Array.fill(inputSizeM)(util.Random.nextInt(5).toFloat)
-    val vectorY = Array.fill(inputSizeN, 1)(util.Random.nextInt(5).toFloat)
+    val vectorY = Array.fill(inputSizeN)(util.Random.nextInt(5).toFloat)
 
     val alpha = 2.5f
     val beta = 1.5f

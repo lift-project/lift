@@ -34,7 +34,7 @@ class GEMM (override val f: Seq[(String, Array[Lambda])])
     val beta = inputs(4).asInstanceOf[Float]
 
     val variant = variantOpt.value.getOrElse(0)
-    if (variant == 1)
+    if (variant != 0)
       A = A.transpose
 
     val res = Utils.matrixMatrixMultiply(A, B, C, alpha, beta)
