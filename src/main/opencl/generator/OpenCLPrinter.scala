@@ -320,7 +320,7 @@ class OpenCLPrinter {
         case LocalMemory if vd.length != 0 =>
           val baseType = Type.getBaseType(vd.t)
           print(s"${vd.addressSpace} ${toString(baseType)} " +
-                  s"${toString(vd.v)}[${vd.length}];")
+                  s"${toString(vd.v)}[${vd.length}] __attribute__ ((aligned(16)));")
 
         case x =>
           val baseType = Type.getBaseType(vd.t)
