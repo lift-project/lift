@@ -93,7 +93,7 @@ object KMeans {
       })
 
 
-  def apply() = new NBody(Seq(
+  def apply() = new KMeans(Seq(
     ("rodinia", Array[Lambda](rodinia))
   ))
 
