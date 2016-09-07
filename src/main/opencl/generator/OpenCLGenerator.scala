@@ -115,7 +115,7 @@ object OpenCLGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case _: NotEvaluableException => false
+      case NotEvaluableException => false
     }
   }
 }
@@ -939,7 +939,7 @@ class OpenCLGenerator extends Generator {
       val iterationCount = try {
         indexVar.range.numVals.eval
       } catch {
-        case _: NotEvaluableException =>
+        case NotEvaluableException =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
             "could not be determined statically.")
       }
@@ -1355,7 +1355,7 @@ class OpenCLGenerator extends Generator {
     val real: Int = try {
       ArithExpr.substitute(i, replacements).eval
     } catch {
-      case _: NotEvaluableException =>
+      case NotEvaluableException =>
         throw new OpenCLGeneratorException(s"Could not access private array, as index $i could " +
           s"not be evaluated statically (given these replacements: $replacements)")
     }
