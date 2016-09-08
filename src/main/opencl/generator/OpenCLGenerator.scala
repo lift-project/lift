@@ -982,7 +982,8 @@ class OpenCLGenerator extends Generator {
     }
 
     // TODO: Information needed elsewhere. See analysis.ControlFlow
-    // try to see if we really need a loop
+    // try to see if we really need a looA
+    if (PerformLoopOptimisation())
     indexVar.range.numVals match {
       case Cst(0) =>
         // zero iterations
