@@ -17,8 +17,8 @@ case class ReduceSeq(override val f: Lambda)
 
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
-         if (bodyType != initT)
-           throw TypeException(s"ReduceSeq operator returns $bodyType instead of the expected $initT")
+        if (bodyType != initT)
+          throw TypeException(s"ReduceSeq operator returns $bodyType instead of the expected $initT")
 
         ArrayType(initT, 1)
 
