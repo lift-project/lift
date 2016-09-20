@@ -941,7 +941,7 @@ class OpenCLGenerator extends Generator {
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
 
-      val temp =PerformSimplification.simplify
+      val temp = PerformSimplification.simplify
 
       PerformSimplification.simplify = true
       val iterationCount = try {
@@ -982,7 +982,7 @@ class OpenCLGenerator extends Generator {
     }
 
     // TODO: Information needed elsewhere. See analysis.ControlFlow
-    // try to see if we really need a looA
+    // try to see if we really need a loop
     if (PerformLoopOptimisation())
     indexVar.range.numVals match {
       case Cst(0) =>

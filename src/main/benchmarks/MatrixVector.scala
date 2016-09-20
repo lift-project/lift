@@ -158,7 +158,7 @@ object MatrixVector {
        )
      })
 
-  val clblast_N =fun(
+  val clblast_N = fun(
       ArrayType(ArrayType(Float, N), M),
       ArrayType(Float, N),
       ArrayType(Float,M),

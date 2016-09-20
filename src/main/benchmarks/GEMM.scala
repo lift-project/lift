@@ -187,7 +187,7 @@ object GEMM {
 
 
   val clblas_kepler = {
-     val tileSizeM = 8
+    val tileSizeM = 8
     val tileSizeK = 4
     val tileSizeN = 8
 

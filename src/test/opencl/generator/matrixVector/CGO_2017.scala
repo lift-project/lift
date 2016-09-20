@@ -7,7 +7,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object CGO_2017 {
   @BeforeClass def before(): Unit =
@@ -32,57 +32,6 @@ class CGO_2017 {
   val matrix = Array.fill(n, m)(util.Random.nextInt(5).toFloat)
 
   val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
-
-  @Test
-  def clblas_gemv_kepler_N(): Unit = {
-
-  }
-
-  @Test
-  def clblas_gemv_kepler_T(): Unit = {
-
-  }
-
-  @Ignore
-  @Test
-  def clblas_gemv_hawaii_N(): Unit = {
-
-  val f = fun(
-    ArrayType(ArrayType(Float, N), M),
-    ArrayType(Float, N),
-    ArrayType(Float,M),
-    Float,
-    Float,
-    (matrix, vectorX, vectorY, alpha, beta) =>
-
-      MapWrg(1)(
-        MapWrg(0)(fun(x =>
-          MapSeq(
-            Join() o MapLcl(1)(
-              Join() o MapLcl(0)(
-                MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))
-              ) o Split(2) ) o Split(16)
-          ) o
-            toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id)))) o
-          ReduceSeq(fun((acc, next) =>
-            MapLcl(0)(Join() o MapLcl(1)(ReduceSeq(add, 0.0f)) o Split(4)) $ next._0),
-          Value(0.0f, ArrayType(ArrayType(Float, 8), 16))) $ Zip(x, Split(32) $ vectorX)
-        )) o Tile(16, 32)
-      ) o Split(M) $ matrix
-    )
-
-    val (result: Array[Float], _) =
-      Execute(8, 8, m/2, 8, (true, true))(f, matrix, vectorX, vectorY, alpha, beta)
-
-    println(f.body.t)
-
-    assertArrayEquals(gold, result, 0.001f)
-  }
-
-  @Test
-  def clblas_gemv_hawaii_T(): Unit = {
-
-  }
 
   @Test
   def clblast_gemv_N(): Unit = {
