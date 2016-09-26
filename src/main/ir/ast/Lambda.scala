@@ -42,7 +42,10 @@ abstract case class Lambda private[ast] (params: Array[Param],
     // don't inline if one param is used multiple times
     val inline = !paramUsedMultipleTimes
 
-    if (!inline) {
+    val allParams = args.forall(_.isInstanceOf[Param])
+
+    if (!inline && !allParams) {
+//    if (!inline) {
       super.apply(args:_*)
     } else {
 

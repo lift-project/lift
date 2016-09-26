@@ -659,7 +659,7 @@ class TestBarrier {
       )) $ input
     )
 
-    Execute(32, 16, inputSize, inputSize, (true, true))(f, input)
+    Execute(32, 8, inputSize, inputSize, (true, true))(f, input)
   }
 
   @Test

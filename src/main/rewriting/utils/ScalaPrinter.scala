@@ -18,6 +18,7 @@ object ScalaPrinter {
 
   def apply(funDecl: FunDecl): String = {
     funDecl match {
+      case lambda: Let => s"new Let((${lambda.params.map(apply).mkString(", ")}) => ${apply(lambda.body)})"
       case lambda: Lambda => s"fun((${lambda.params.map(apply).mkString(", ")}) => ${apply(lambda.body)})"
       case map: Map => s"Map(${apply(map.f)})"
       case mapSeq: MapSeq => s"MapSeq(${apply(mapSeq.f)})"

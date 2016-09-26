@@ -4,6 +4,7 @@ import apart.arithmetic.{?, ArithExpr}
 import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
+import opencl.ir.pattern.{MapSeq, ReduceSeq}
 
 object MacroRules {
 
@@ -81,6 +82,17 @@ object MacroRules {
     fused
   }
 
+  val reshapeMapMap =
+    Rule("Map(Map(f)) => Split() o Join() o Map(Map(f)) o Split() o Join()", {
+      case call: FunCall if Rules.joinSplit.isDefinedAt(call) =>
+
+        val joined = Rewrite.applyRuleAt(call, Rules.joinSplit, call)
+        val map = Utils.getExprForPatternInCallChain(joined, mapPattern).get
+        val split = Rewrite.applyRuleAt(joined, Rules.splitJoin, map)
+
+        split
+    })
+
   // transpose both sides + id
   private val transposeMapMapNoFission =
     Rule("Transpose() o Map(Map(_)) => " +
@@ -105,8 +117,10 @@ object MacroRules {
       case fc@FunCall(Reduce(_), _, _) =>
 
         val part = Rewrite.applyRuleAt(fc, Rules.partialReduce, fc)
-        val partRed = Utils.getExprForPatternInCallChain(part, { case FunCall(PartRed(_), _*) => }).get
-        val res = Rewrite.applyRuleAt(part, Rules.partialReduceVectorize(vectorWidth), partRed)
+        val partRed = Utils.getExprForPatternInCallChain(part,
+          { case FunCall(PartRed(_), _*) => }).get
+        val res =
+          Rewrite.applyRuleAt(part, Rules.partialReduceVectorize(vectorWidth), partRed)
 
         res
     })
@@ -336,8 +350,21 @@ object MacroRules {
     =>
       val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapSeq)
       val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeq)
-      val e2 = Rewrite.applyRuleAtId(e1, 1, Rules.reduceSeqMapSeqFusion)
+      val e2 = Rewrite.applyRuleAtId(e1, 0, Rules.reduceSeqMapSeqFusion)
       e2
+
+    case funCall @ FunCall(ReduceSeq(_), _, mapCall@FunCall(Map(_), _))
+      if Rules.mapSeq.isDefinedAt(mapCall)
+    =>
+      val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapSeq)
+      val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)
+      e1
+
+    case funCall @ FunCall(Reduce(_), _, mapCall@FunCall(MapSeq(_), _))
+    =>
+      val e0 = Rewrite.applyRuleAtId(funCall, 0, Rules.reduceSeq)
+      val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)
+      e1
   })
 
   /**
@@ -346,7 +373,7 @@ object MacroRules {
   val tileMapMap: Rule = tileMapMap(?, ?)
 
   def tileMapMap(x: ArithExpr, y: ArithExpr): Rule =
-    Rule("Tile a computation in the form Map(fun(y => Map(f) $ y )) $ x", {
+    Rule("Tile Map(Map(f))", {
       case funCall @ FunCall(Map(Lambda(lambdaParam, chain)), _)
         if getCallForBlocking(chain, lambdaParam).isDefined
       =>
@@ -582,6 +609,13 @@ object MacroRules {
       var fissioned: Expr = call
 
       if (patternId != -1) {
+
+        val reduceOption = Utils.getExprForPatternInCallChain(innerCall,
+          { case FunCall(Reduce(_), _, _) => })
+
+        if (reduceOption.isDefined)
+          fissioned = Rewrite.applyRuleAt(fissioned, Rules.reduceSeq, reduceOption.get)
+
         rule = Rules.mapReducePartialReduce
         offset = 3
       }
@@ -751,8 +785,13 @@ object MacroRules {
 
   val apply2DRegisterBlocking: Rule = apply2DRegisterBlocking(?, ?)
 
-  def apply2DRegisterBlocking(factorX: ArithExpr, factorY: ArithExpr): Rule =
-    Rule("2D register blocking", {
+  val apply2DRegisterBlockingNoReorder: Rule =
+    apply2DRegisterBlocking(?, ?, doReorder = false)
+
+  def apply2DRegisterBlocking(factorX: ArithExpr, factorY: ArithExpr,
+    doReorder: Boolean = true): Rule =
+
+    Rule("2D register blocking" + (if (doReorder) "" else " no reorder"), {
       case call@FunCall(Map(Lambda(lambdaArg, innerCall)), arg)
         if getCallForBlocking(innerCall, lambdaArg).isDefined
         // TODO: is the guard good enough?
@@ -762,7 +801,12 @@ object MacroRules {
         // Reorder both sides of the inner map
         val realY = if (factorY != ?) factorY else Utils.validSplitVariable(innerMap.t)
         val stride = Type.getLength(innerMap.t) / realY
-        val reorderReplaced = Rewrite.applyRuleAt(call, Rules.reorderBothSidesWithStride(stride), innerMap)
+
+        val reorderReplaced =
+          if (doReorder)
+            Rewrite.applyRuleAt(call, Rules.reorderBothSidesWithStride(stride), innerMap)
+          else
+            call
 
         val tiled = tileMapMap(factorX, realY, reorderReplaced)
 

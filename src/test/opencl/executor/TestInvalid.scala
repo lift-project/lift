@@ -349,7 +349,7 @@ class TestInvalid {
         e.consume()
 
       case _: Throwable =>
-      // This might be acceptable depending on how we handle insufficient ressources
+      // This might be acceptable depending on how we handle insufficient resources
         assert(assertion = false)
     }
 
@@ -360,6 +360,21 @@ class TestInvalid {
     } catch {
       case _: Throwable => assert(assertion = false)
     }
+  }
+
+  @Test(expected = classOf[DeviceCapabilityException])
+  def workgroupTooBig(): Unit = {
+
+    val maxGroupSize = Executor.getDeviceMaxWorkGroupSize.asInstanceOf[Int]
+
+    val f = fun(ArrayType(Float, SizeVar("N")),
+      input => MapGlb(id) $ input
+    )
+
+    val size = maxGroupSize * 2
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    Execute(size, size)(f, input)
   }
 
   @Ignore

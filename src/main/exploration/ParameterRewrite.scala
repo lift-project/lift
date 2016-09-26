@@ -59,7 +59,9 @@ object ParameterRewrite {
 
       parser.parse(args)
 
-      topFolder = input.value.get
+      val inputArgument = input.value.get
+
+      topFolder = Paths.get(inputArgument).toString
 
       lambdaFilename = topFolder + "Scala/lambdaFile"
 
@@ -76,21 +78,25 @@ object ParameterRewrite {
       val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
       val highLevelCount = all_files.size
 
+      val parentFolder = Paths.get(topFolder).toAbsolutePath.getParent
+
       var expr_counter = 0
       all_files.foreach(filename => {
 
-        if (Files.exists(Paths.get(filename))) {
+        val fullFilename = parentFolder + "/" + filename
+
+        if (Files.exists(Paths.get(fullFilename))) {
           val high_level_hash = filename.split("/").last
           expr_counter = expr_counter + 1
           println(s"High-level expression : $expr_counter / $highLevelCount")
 
           try {
 
-            val high_level_expr_orig = readLambdaFromFile(filename)
+            val high_level_expr_orig = readLambdaFromFile(fullFilename)
 
             val st = createValueMap(high_level_expr_orig)
             val sizesForFilter = st.values.toSeq
-            val vars = getVars(high_level_expr_orig)
+            val vars = high_level_expr_orig.params.flatMap(_.t.varList).distinct
 
             val high_level_expr = replaceInputTypes(high_level_expr_orig, st)
 
@@ -117,7 +123,8 @@ object ParameterRewrite {
                 try {
 
                   val low_level_hash = low_level_filename.split("/").last
-                  val low_level_str = readFromFile(low_level_filename)
+                  val fullLowLevelFilename = parentFolder + "/" + low_level_filename
+                  val low_level_str = readFromFile(fullLowLevelFilename)
                   val low_level_factory = Eval.getMethod(low_level_str)
 
                   println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
@@ -208,15 +215,17 @@ object ParameterRewrite {
   def readLambdaFromFile(filename: String) =
     Eval(readFromFile(filename))
 
-  def createValueMap(lambda: Lambda): Map[ArithExpr, ArithExpr] = {
+  def createValueMap(lambda: Lambda, sizes: Seq[ArithExpr] = Seq()): Map[ArithExpr, ArithExpr] = {
     val vars = getVars(lambda)
 
-    vars.foldLeft(Map[ArithExpr, ArithExpr]())((st, v) =>
-      st.updated(v, SearchParameters.matrix_size))
+    val actualSizes: Seq[ArithExpr] =
+      if (sizes.isEmpty) Seq.fill(vars.length)(SearchParameters.matrix_size) else sizes
+
+    (vars, actualSizes).zipped.toMap
   }
 
   def getVars(lambda: Lambda) =
-    lambda.params.flatMap(_.t.varList).distinct
+    lambda.params.flatMap(_.t.varList).sortBy(_.name).distinct
 
   def replaceInputTypes(lambda: Lambda, st: Map[ArithExpr, ArithExpr]): Lambda = {
     val tunable_nodes = Utils.findTunableNodes(lambda).reverse

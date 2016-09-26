@@ -25,8 +25,7 @@ class TestRules {
 
   def applyRule(lambda: Lambda, expr: Expr, rule: Rule) = {
     TypeChecker.check(lambda.body)
-    val newLambda = FunDecl.replace(lambda, expr, rule.rewrite(expr))
-    newLambda
+    FunDecl.replace(lambda, expr, rule.rewrite(expr))
   }
 
   val N = SizeVar("N")
@@ -145,7 +144,49 @@ class TestRules {
   }
 
   @Test
-  def testDot(): Unit = {
+  def extract0(): Unit = {
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (in1, in2) => Map(fun(x => Map(fun(y => add(x,y))) o Map(id) $ in2)) $ in1
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.extractFromMap)
+    TypeChecker(f1)
+
+    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
+  }
+
+  @Test
+  def extract1(): Unit = {
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (in1, in2) => Map(fun(x =>
+        ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o Map(id) $ in2
+      )) $ in1
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.extractFromMap)
+    TypeChecker(f1)
+
+    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
+  }
+
+  @Test
+  def mapFusionAfterExtract(): Unit = {
+    val f0 = fun(
+      ArrayType(Float, N),
+      Map(plusOne) o Let(Map(id) $ _) $ _
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.mapFusion)
+    TypeChecker(f1)
+    assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
+  }
+
+  @Test
+  def testDot0(): Unit = {
 
     val input = Array.fill(4)(util.Random.nextFloat())
     val gold = (input, input).zipped.map(_*_).sum
@@ -175,9 +216,8 @@ class TestRules {
     assertEquals(gold, outputG.head, 0.001f)
   }
 
-
   @Test
-  def testDot2(): Unit = {
+  def testDot1(): Unit = {
 
     val input = Array.fill(16)(util.Random.nextFloat())
     val gold = (input, input).zipped.map(_*_).sum
@@ -326,20 +366,10 @@ class TestRules {
   def nestPartialReduceInReduce(): Unit = {
     val f = fun(
       ArrayType(ArrayType(ArrayType(Float, 16), 16), 16),
-      a => Map( Reduce(add, 0.0f) o Join() o Map(PartRed(fun((x, y) => add(x, y)), 0.0f)) ) $ a)
+      a => Map( ReduceSeq(add, 0.0f) o Join() o Map(PartRed(fun((x, y) => add(x, y)), 0.0f)) ) $ a)
 
-    println(Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce))
-  }
-
-  @Test
-  def fissionAtPosition(): Unit = {
-    val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      a => Map(Reduce(add, 0.0f) o Map(plusOne) o Map(plusOne) o Map(plusOne)) $ a)
-
-    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(0))
-    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(1))
-    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(2))
+    val fResult = Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce)
+    TypeChecker(fResult)
   }
 
   @Test
@@ -395,17 +425,19 @@ class TestRules {
     )
 
     assertTrue(Rules.mapFission.rewrite.isDefinedAt(f.body))
-    println(Lambda(f.params, Rules.mapFission.rewrite(f.body)))
+    val f0 = Lambda(f.params, Rules.mapFission.rewrite(f.body))
+    TypeChecker(f0)
 
     val M = SizeVar("M")
 
     val g = fun(
       ArrayType(ArrayType(Float, M), N),
-      input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ Zip(x, x))) $ input
+      input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ x)) $ input
     )
 
     assertTrue(Rules.mapFission.rewrite.isDefinedAt(g.body))
-    println(Lambda(g.params, Rules.mapFission.rewrite(g.body)))
+    val g0 = Lambda(g.params, Rules.mapFission.rewrite(g.body))
+    TypeChecker(g0)
   }
 
   @Test
@@ -423,7 +455,7 @@ class TestRules {
   }
 
   @Test
-  def mapReduceInterchange(): Unit = {
+  def mapReduceInterchange0(): Unit = {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
@@ -432,6 +464,36 @@ class TestRules {
     )
 
     assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
+    TypeChecker(f0)
+    assertTrue(f0.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[Reduce])
+  }
+
+  @Test
+  def mapReduceInterchange1(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val f = fun(ArrayType(ArrayType(Float, M), N),
+      input => Map(ReduceSeq(add, 0.0f)) $ input
+    )
+
+    assertTrue(Rules.mapReduceInterchange.rewrite.isDefinedAt(f.body))
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
+    TypeChecker(f0)
+    assertTrue(f0.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
+  }
+
+  @Test
+  def mapReduceInterchangeWithZipOutside0(): Unit = {
+    // TODO: Reduce
+
+  }
+
+  @Test
+  def mapReduceInterchangeWithZipOutside1(): Unit = {
+    // TODO: ReduceSeq
+
   }
 
   @Test
@@ -466,7 +528,8 @@ class TestRules {
     )
 
     assertTrue(Rules.mapMapTransposeZipInside.rewrite.isDefinedAt(f.body))
-    println(Rules.mapMapTransposeZipInside.rewrite(f.body))
+    val f0 = Rules.mapMapTransposeZipInside.rewrite(f.body)
+    TypeChecker(f0)
   }
 
   @Test
@@ -474,13 +537,17 @@ class TestRules {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val f = fun(ArrayType(ArrayType(Float, M), N),
+    val f = fun(ArrayType(ArrayType(Float, N), M),
       ArrayType(Float, M),
-      (in1, in2) => Map(fun(x => Map(fun(y => add(y, Get(x, 1)))) $ Get(x, 0))) $ Zip(in1, in2)
+      (in1, in2) =>
+        Map(fun(x =>
+          Map(fun(y => add(y, Get(x, 1)))) $ Get(x, 0)
+        )) $ Zip(in1, in2)
     )
 
     assertTrue(Rules.mapMapTransposeZipOutside.rewrite.isDefinedAt(f.body))
-    println(Rules.mapMapTransposeZipOutside.rewrite(f.body))
+    val f0 = Rules.mapMapTransposeZipOutside.rewrite(f.body)
+    TypeChecker(f0)
   }
 
   @Test
@@ -503,7 +570,6 @@ class TestRules {
     assertTrue(options.nonEmpty)
 
     options.foreach(l => {
-      println("execute: " + l)
       val (result: Array[Float], _) = Execute(128)(l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
@@ -537,6 +603,27 @@ class TestRules {
 
   @Test
   def joinSplit(): Unit = {
+    val M = SizeVar("M")
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input => Map(Map(id)) $ input
+    )
+
+    TypeChecker(f)
+
+    val g = Rewrite.applyRuleAt(f, f.body, Rules.joinSplit)
+    val h = Rewrite.applyRulesUntilCannot(g, Seq(Rules.mapGlb))
+
+    val input = Array.fill[Float](128, 128)(util.Random.nextFloat())
+
+    val (result:Array[Float], _) = Execute(128)(h, input)
+
+    assertArrayEquals(input.flatten, result, 0.0f)
+    assertEquals(ArrayType(ArrayType(Float, M), N), h.body.t)
+  }
+
+  @Test
+  def joinSplitId(): Unit = {
     val goldF = fun(
       ArrayType(Float, N),
       input => MapGlb(id) $ input
@@ -561,7 +648,7 @@ class TestRules {
   }
 
   @Test
-  def splitJoin(): Unit = {
+  def splitJoinId(): Unit = {
     val A = Array.fill[Float](128, 4)(0.5f)
 
     val goldF = fun(
@@ -654,14 +741,14 @@ class TestRules {
     )
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f,
-      Seq(Rules.reduceSeq, Rules.implementIdAsDeepCopy, Rules.globalMemory), 3)
+      Seq(Rules.reduceSeq, Rules.addIdAfterReduce, Rules.implementIdAsDeepCopy, Rules.globalMemory), 4)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
     assertTrue(lambdaOptions.nonEmpty)
 
-      val (result: Array[Float], _) = Execute(1, 1)(lambdaOptions(1), A)
-      assertArrayEquals(lambdaOptions(1) + " failed", gold, result, 0.0f)
+    val (result: Array[Float], _) = Execute(1, 1)(lambdaOptions(0), A)
+    assertArrayEquals(lambdaOptions(1) + " failed", gold, result, 0.0f)
   }
 
   @Test
@@ -769,8 +856,6 @@ class TestRules {
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
-    println(lambdaOptions)
-
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
@@ -822,44 +907,166 @@ class TestRules {
   }
 
   @Test
-  def moveReduceOutOneLevel(): Unit = {
-
-    val patternSimple: PartialFunction[Expr, Unit] =
-      { case FunCall(TransposeW(), FunCall(Reduce(_), _, _)) => }
-
+  def mapFissionNotAllowed0(): Unit = {
+    // Map o Map
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      input => Map(Reduce(add, 0.0f)) $ input
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x => Map(fun(y => add(x, y))) o Map(plusOne) $ input)) $ input
     )
 
-    val fResult = Rewrite.applyRuleAtId(f, 0, MacroRules.moveReduceOutOneLevel)
-    assertTrue(patternSimple.isDefinedAt(fResult.body))
-
-    val g = fun(
-      ArrayType(ArrayType(Float, N), N),
-      input => Map(Reduce(add, 0.0f) o Gather(reverse)) $ input
-    )
-
-    val gResult = Rewrite.applyRuleAtId(g, 0, MacroRules.moveReduceOutOneLevel)
-    assertTrue(patternSimple.isDefinedAt(gResult.body))
-
-    val patternWithMap: PartialFunction[Expr, Unit] =
-      { case FunCall(Map(_), FunCall(TransposeW(), FunCall(Reduce(_), _, _))) => }
-
-    val h = fun(
-      ArrayType(ArrayType(Float, N), N),
-      input => Map(Scatter(reverse) o Reduce(add, 0.0f)) $ input
-    )
-
-    val hResult = Rewrite.applyRuleAtId(h, 0, MacroRules.moveReduceOutOneLevel)
-    assertTrue(patternWithMap.isDefinedAt(hResult.body))
-
-    val m = fun(
-      ArrayType(ArrayType(Float, N), N),
-      input => Map(Scatter(reverse) o Scatter(reverse) o Reduce(add, 0.0f) o Gather(reverse)) $ input
-    )
-
-    val mResult = Rewrite.applyRuleAtId(m, 0, MacroRules.moveReduceOutOneLevel)
-    assertTrue(patternWithMap.isDefinedAt(mResult.body))
+    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
   }
+
+  @Test
+  def mapFissionNotAllowed1(): Unit = {
+    // Map o Reduce
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x => Map(fun(y => add(x, y))) o Reduce(add, 0.0f) $ input)) $ input
+    )
+
+    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapFissionNotAllowed2(): Unit = {
+
+    // Reduce o Map
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x =>
+          ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
+            Map(plusOne) $ input
+        )) $ input
+    )
+
+    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapFissionNotAllowed3(): Unit = {
+    // Reduce o Reduce
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x =>
+          ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
+            Reduce(add, 0.0f) $ input
+        )) $ input
+    )
+
+    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapFissionWhenArgUsedInBoth0(): Unit = {
+    // Map o Map
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x => Map(fun(y => add(x, y))) o Map(plusOne) $ input)) $ input
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
+    TypeChecker(f1)
+  }
+
+  @Test
+  def mapFissionWhenArgUsedInBoth1(): Unit = {
+    // Map o Reduce
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x => Map(fun(y => add(x, y))) o Reduce(add, 0.0f) $ input)) $ input
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
+    TypeChecker(f1)
+  }
+
+  @Test
+  def mapFissionWhenArgUsedInBoth2(): Unit = {
+    // Reduce o Map
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x =>
+          ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
+            Map(plusOne) $ input
+        )) $ input
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
+    TypeChecker(f1)
+    assertTrue(f1.body.asInstanceOf[FunCall].f.asInstanceOf[Map].f.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
+  }
+
+  @Test
+  def mapFissionWhenArgUsedInBoth3(): Unit = {
+    // Reduce o Reduce
+    val f = fun(
+      ArrayType(Float, N),
+      input =>
+        Map(fun(x =>
+          ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
+            Reduce(add, 0.0f) $ input
+        )) $ input
+    )
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFission2)
+    TypeChecker(f1)
+    assertTrue(f1.body.asInstanceOf[FunCall].f.asInstanceOf[Map].f.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
+  }
+
+  @Test
+  def mapReduceReduceNesting0(): Unit = {
+    // Different f and init
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      input => Map(ReduceSeq(add, 0.0f) o Join() o Map(PartRed(mult, 1.0f))) $ input
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapReduceReduceNesting1(): Unit = {
+    // Different f and init
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      input => Map(ReduceSeq(add, 0.0f) o Join() o Map(Reduce(mult, 1.0f))) $ input
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapReduceReduceNesting2(): Unit = {
+    // Different init
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      input => Map(ReduceSeq(add, 0.0f) o Join() o Map(Reduce(add, 1.0f))) $ input
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+  }
+
+  @Test
+  def mapReduceReduceNesting3(): Unit = {
+    // Different init
+    val f = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      input => Map(ReduceSeq(add, 0.0f) o Join() o Map(PartRed(add, 1.0f))) $ input
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+  }
+
 }

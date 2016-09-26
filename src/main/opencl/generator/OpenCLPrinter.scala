@@ -248,7 +248,7 @@ class OpenCLPrinter {
     print(f.name + "(")
     f.args.foreach(x => {
       print(x)
-      if(x != f.args.last) print(", ")
+      if(!x.eq(f.args.last)) print(", ")
     })
     print(")")
   }
@@ -271,7 +271,7 @@ class OpenCLPrinter {
     sb ++= s" ${f.name}("
     f.params.foreach(x => {
       print(x)
-      if(x != f.params.last) sb ++= ", "
+      if(!x.eq(f.params.last)) sb ++= ", "
     })
     sb ++= ")"
     if(f.kernel)
@@ -427,7 +427,7 @@ class OpenCLPrinter {
     print(s"(${toString(s.t)}){")
     s.args.foreach(x => {
       print(x)
-      if(x != s.args.last) print(", ")
+      if(!x.eq(s.args.last)) print(", ")
     })
     print("}")
   }

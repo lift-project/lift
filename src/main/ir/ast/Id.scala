@@ -1,6 +1,6 @@
 package ir.ast
 
-import ir.Type
+import ir.{Type, UndefType}
 
 case class Id() extends FunDecl(arity = 1) {
   /**
@@ -10,4 +10,5 @@ case class Id() extends FunDecl(arity = 1) {
   override def isGenerable: Boolean = false
 
   override def checkType(argType: Type, setType: Boolean): Type = argType
+
 }

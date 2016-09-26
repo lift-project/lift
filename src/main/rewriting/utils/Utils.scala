@@ -214,7 +214,7 @@ object Utils {
     val withIndex: List[(String, Int)] = findVariables(fullString)
 
     val decls = withIndex.map(pair =>
-      "val " + getNewName(pair) + " = Var(\"" + getIdentifier(pair) + "\")\n"
+      "val " + getNewName(pair) + " = SizeVar(\"" + getIdentifier(pair) + "\")\n"
     ).mkString("")
 
     decls + "\n" + replaceVariableNames(fullString, withIndex)

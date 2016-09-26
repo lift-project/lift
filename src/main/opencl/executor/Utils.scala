@@ -10,7 +10,7 @@ import org.junit.Assume
 object LongTestsEnabled {
   def apply(): Unit =
     Assume.assumeTrue("Needs long tests enabled.",
-      /*true ||*/ System.getenv("APART_LONG_TESTS") != null)
+     System.getenv("APART_LONG_TESTS") != null)
 }
 
 object Utils {
@@ -209,7 +209,7 @@ object Utils {
     val neighbours = scalaGenerate2DNeighbours(data, size1, step1, size2, step2, left, right, boundary)
     val result = neighbours.map(x => x.map(y => y.flatten.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)))
     def clamp(i: Float) = Math.max(0.0f, i)
-    result.flatten.map(clamp(_))
+    result.flatten.map(clamp)
   }
 
   def scalaGenerate2DNeighbours(data: Array[Array[Float]],

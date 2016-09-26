@@ -1,9 +1,8 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-
 import apart.arithmetic.Cst
-import ir.{TypeException, ArrayType, Type}
+import ir.{ArrayType, Type, TypeException, UndefType}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
@@ -28,6 +27,7 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
+
 
   /**
    * Define equality operator based on ID to be able to insert [[Slide]] instances

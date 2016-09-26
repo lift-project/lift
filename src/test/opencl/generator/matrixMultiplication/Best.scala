@@ -519,7 +519,8 @@ class Best {
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
   @Test
-  def clblast_TN(): Unit = {
+  def clblast_TN_kepler(): Unit = {
+
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
       val v_K_1 = variables(1)
@@ -529,114 +530,19 @@ class Best {
       val v__5 = variables(5)
       val v__6 = variables(6)
       val v__7 = variables(7)
+      val v__8 = variables(8)
 
-      fun(
-        ArrayType(ArrayType(Float, v_M_0), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_K_1),
-        (p_0, p_1) =>
-          FunCall(Join(),
-            FunCall(MapWrg(1)(fun((p_2) =>
-              FunCall(TransposeW(),
-                FunCall(Join(),
-                  FunCall(MapWrg(0)(fun((p_3) =>
-                    FunCall(TransposeW(),
-                      FunCall(Join(),
-                        FunCall(Map(fun((p_4) =>
-                            FunCall(TransposeW(),
-                              FunCall(Join(),
-                                FunCall(Map(fun((p_6) =>
-                                  FunCall(TransposeW(),
-                                    FunCall(Map(fun((p_7) =>
-                                      FunCall(TransposeW(), p_7))),
-                                      FunCall(TransposeW(), p_6))))),
-                                  FunCall(TransposeW(), p_4)))))),
-                          FunCall(TransposeW(),
-                            FunCall(toGlobal(fun((p_8) =>
-                              FunCall(MapSeq(fun((p_9) =>
-                                FunCall(MapLcl(1)(fun((p_10) =>
-                                  FunCall(MapLcl(0)(fun((p_11) =>
-                                    FunCall(MapSeq(fun((p_12) =>
-                                      FunCall(asScalar() o MapSeq(fun((p_13) =>
-                                        FunCall(VectorizeUserFun(4, id), p_13))) o asVector(4), p_12))), p_11))), p_10))), p_9))), p_8))),
-                              FunCall(ReduceSeq(fun((p_14, p_15) =>
-                                FunCall(fun((p_16) =>
-                                  FunCall(MapLcl(1)(fun((p_17) =>
-                                    FunCall(Join(),
-                                      FunCall(MapLcl(0)(fun((p_18) =>
-                                        FunCall(MapSeq(fun((p_19) => p_19)),
-                                          FunCall(ReduceSeq(fun((p_20, p_21) =>
-                                            FunCall(fun((p_22) =>
-                                              FunCall(MapSeq(fun((p_23) =>
-                                                FunCall(MapSeq(fun((p_24) =>
-                                                  FunCall(add,
-                                                    FunCall(Get(0), p_24),
-                                                    FunCall(mult,
-                                                      FunCall(Get(1), p_23),
-                                                      FunCall(Get(1), p_24))))),
-                                                  FunCall(Zip(2),
-                                                    FunCall(Get(0), p_23),
-                                                    FunCall(Get(1), p_22))))),
-                                                FunCall(Zip(2), p_20,
-                                                  FunCall(Get(0), p_22)))),
-                                              FunCall(toPrivate(fun((p_25) =>
-                                                FunCall(fun((p_26) =>
-                                                  FunCall(Tuple(2),
-                                                    FunCall(MapSeq(fun((p_27) =>
-                                                      FunCall(id, p_27))),
-                                                      FunCall(Get(0), p_26)),
-                                                    FunCall(MapSeq(fun((p_28) =>
-                                                      FunCall(id, p_28))),
-                                                      FunCall(Get(1), p_26)))), p_25))), p_21)))),
-                                            FunCall(Get(0), p_18),
-                                            FunCall(Zip(2),
-                                              FunCall(Transpose(),
-                                                FunCall(Get(1), p_17)),
-                                              FunCall(Transpose(),
-                                                FunCall(Get(1), p_18))))))),
-                                        FunCall(Zip(2),
-                                          FunCall(Get(0), p_17),
-                                          FunCall(Split(v__4),
-                                              FunCall(Transpose(),
-                                                FunCall(Get(1), p_16)))))))),
-                                    FunCall(Zip(2), p_14,
-                                      FunCall(Split(v__5),
-                                        FunCall(Transpose(),
-                                          FunCall(Get(0), p_16)))))),
-                                  FunCall(toLocal(fun((p_29) =>
-                                    FunCall(fun((p_30) =>
-                                        fun(x => Tuple(
-                                          Split(64) o Join() o toLocal(MapLcl(1)(asScalar() o MapLcl(0)(VectorizeUserFun(4, id)) o asVector(4))) o Split(128) o Join() $ Get(x, 0),
-                                          toLocal(MapLcl(1)(asScalar() o MapLcl(0)(VectorizeUserFun(4, id)) o asVector(4))) $ Get(x, 1)
-                                        )) o Unzip() $
-                                          FunCall(Zip(2),
-                                            FunCall(Get(0), p_30),
-                                            FunCall(Get(1), p_30))), p_29))), p_15)))),
-                                FunCall(MapLcl(1)(fun((p_34) =>
-                                  FunCall(MapLcl(0)(fun((p_35) =>
-                                    FunCall(MapSeq(fun((p_36) =>
-                                      FunCall(MapSeq(fun((p_37) =>
-                                        FunCall(id, p_37))), p_36))), p_35))), p_34))),
-                                  Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))),
-                                FunCall(Zip(2), p_2, p_3))))))))),
-                    FunCall(Transpose(),
-                      FunCall(Map(fun((p_38) =>
-                        FunCall(Transpose(), p_38))),
-                        FunCall(Split(v__7),
-                          FunCall(Map(fun((p_39) =>
-                            FunCall(Split(v__3), p_39))), p_1))))))))),
-              FunCall(Transpose(),
-                FunCall(Map(fun((p_40) =>
-                  FunCall(Transpose(), p_40))),
-                  FunCall(Split(v__7),
-                    FunCall(Map(fun((p_41) =>
-                      FunCall(Split(v__6), p_41))), p_0)))))))
+      val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+      val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+      val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1),(p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_5) => FunCall(TransposeW(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), p_6))), FunCall(TransposeW(), p_5))))), FunCall(TransposeW(), p_4)))))), FunCall(TransposeW(), FunCall(MapSeq(fun((p_7) => FunCall(toGlobal(fun((p_8) => FunCall(MapLcl(1)(fun((p_9) => FunCall(MapLcl(0)(fun((p_10) => FunCall(MapSeq(fun((p_11) => FunCall(asScalar(), FunCall(MapSeq(fun((p_12) => FunCall(VectorizeUserFun(4,idfloat), p_12))), FunCall(asVector(4), p_11))))), p_10))), p_9))), p_8))), p_7))), FunCall(ReduceSeq(fun((p_13, p_14) => FunCall(fun((p_15) => FunCall(MapLcl(1)(fun((p_16) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_17) => FunCall(MapSeq(fun((p_18) => p_18)), FunCall(ReduceSeq(fun((p_19, p_20) => FunCall(fun((p_21) => FunCall(MapSeq(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(add, FunCall(Get(0), p_23), FunCall(mult, FunCall(Get(1), p_22), FunCall(Get(1), p_23))))), FunCall(Zip(2), FunCall(Get(0), p_22), FunCall(Get(1), p_21))))), FunCall(Zip(2), p_19, FunCall(Get(0), p_21)))), FunCall(toPrivate(fun((p_24) => FunCall(fun((p_25) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_26) => FunCall(idfloat, p_26))), FunCall(Get(0), p_25)), FunCall(MapSeq(fun((p_27) => FunCall(idfloat, p_27))), FunCall(Get(1), p_25)))), p_24))), p_20)))), FunCall(Get(0), p_17), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_16)), FunCall(Transpose(), FunCall(Get(1), p_17))))))), FunCall(Zip(2), FunCall(Get(0), p_16), FunCall(Split(v__3), FunCall(Transpose(), FunCall(Get(1), p_15)))))))), FunCall(Zip(2), p_13, FunCall(Split(v__4), FunCall(Transpose(), FunCall(Get(0), p_15)))))), FunCall(toLocal(fun((p_28) => FunCall(fun((p_29) => FunCall(Tuple(2), FunCall(Split(v__5), FunCall(Join(), FunCall(MapLcl(1)(fun((p_30) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_31) => FunCall(VectorizeUserFun(4,idfloat), p_31))), FunCall(asVector(4), p_30))))), FunCall(Split(v__6), FunCall(Join(), FunCall(Get(0), p_29)))))), FunCall(MapLcl(1)(fun((p_32) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_33) => FunCall(VectorizeUserFun(4,idfloat), p_33))), FunCall(asVector(4), p_32))))), FunCall(Get(1), p_29)))), p_28))), p_14)))), FunCall(MapLcl(1)(fun((p_34) => FunCall(MapLcl(0)(fun((p_35) => FunCall(MapSeq(fun((p_36) => FunCall(MapSeq(fun((p_37) => FunCall(idfloat, p_37))), p_36))), p_35))), p_34))), Value("0.0f", ArrayType(ArrayType(ArrayType(ArrayType(Float, v__3), v__4), v__7 * 1 /^ v__3), v__5 * 1 /^ v__4))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__8), FunCall(Map(fun((p_39) => FunCall(Split(v__7), p_39))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_40) => FunCall(Transpose(), p_40))), FunCall(Split(v__8), FunCall(Map(fun((p_41) => FunCall(Split(v__5), p_41))), p_0)))))))
     }
 
     val v_M_0 = SizeVar("M")
     val v_K_1 = SizeVar("K")
     val v_N_2 = SizeVar("N")
 
-    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,8, 64 ,16))
+    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,4,8,64, 128, 128, 16))
 
     val size = 1024
 
@@ -644,9 +550,10 @@ class Best {
     val matrixB = Array.tabulate(size, size)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
+    val code = Compile(f, 32, 8, 1, v_N_2/4, v_M_0/8,1, collection.immutable.Map())
 
     val (output: Array[Float], _) =
-      Execute(32, 8, 1, 1024/4, 1024/8, 1, (true, true))(f, matrixA.transpose, matrixB)
+      Execute(32, 8, 1, 1024/4, 1024/8, 1, (true, true))(code, f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -670,7 +577,7 @@ class Best {
     val v_K_1 = SizeVar("K")
     val v_N_2 = SizeVar("N")
 
-    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,8, 64 ,8))
+    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2, 128, 4, 8, 64 ,8))
 
     val size = 1024
 
