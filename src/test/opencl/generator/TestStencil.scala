@@ -109,8 +109,8 @@ class TestStencil extends TestSlide {
   }
 
   @Test def chapterFourExample(): Unit = {
-    val data = Array(0,1,2,3,4,5).map(_.toFloat)
-    val gold = Array(1,3,6,9,12,14).map(_.toFloat)
+    val data = Array(0,1,2,3).map(_.toFloat)
+    val gold = Array(1,3,6,8).map(_.toFloat)
     val f = createThesisChapter4Example(Pad.Boundary.Clamp, 3,1, 1,1)
     val (output: Array[Float], runtime) = Execute(data.length, data.length)(f, data)
     println(output.mkString(","))
@@ -313,7 +313,7 @@ class TestStencil extends TestSlide {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeqOrMapSeqUnroll(clamp)) o
-              ReduceSeqOrReduceSeqUnroll(fun((acc, pair) => {
+              ReduceSeqUnroll(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
                 multAndSumUp.apply(acc, pixel, weight)
@@ -1479,4 +1479,65 @@ class TestStencil extends TestSlide {
     //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
   }
 
+ /* **********************************************************
+      ARI PJS TEST
+  ***********************************************************/
+  @Test def ariStencil2D(): Unit = {
+    val stencil = fun(
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayType(ArrayType(Float, 1038), 1038),
+      ArrayType(Float, 225),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(
+          fun( wgBlock =>
+            MapSeq(MapSeq(
+              fun( cacheBlock =>
+                MapLcl(1)(MapLcl(0)(
+                  fun(elem => {
+                    toGlobal(MapSeqUnroll(id)) o
+                      ReduceSeqUnroll(fun((acc, pair) => {
+                        val pixel = Get(pair, 0)
+                        val weight = Get(pair, 1)
+                        multAndSumUp.apply(acc, pixel, weight)
+                      }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            )) o Slide2D(15,1, 15,1) $ cacheBlock
+         ))) o Slide2D(22,8, 78,64) $ wgBlock
+        ))) o Slide2D(78,64, 526,512) $ matrix
+      }
+    )
+
+    val weights = Array.fill[Float](225)(1.0f)
+    val haloSize = 7
+    val outputSize = 1024
+    val inputSize = outputSize + 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => i+j * 1.0f }
+   /*
+    input(0) = input(0).map((_*0.0f))
+    input(inputSize -1) = input(inputSize -1).map(_*0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_*0.0f)
+    input(inputSize -1) = input(inputSize -1).map(_*0.0f)
+    input = input.transpose
+    */
+
+    val (output: Array[Float], runtime) = Execute(16, 16, 128, 128, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+
+    //input.map(x => println(x.mkString(", ")))
+    //output.grouped(8).toArray.map(x => println(x.mkString(", ")))
+
+    //val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
+    //compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
+
+    // for generating 3k kernel
+    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
+    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
+  }
 }
