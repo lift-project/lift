@@ -577,7 +577,7 @@ class Best {
     val v_K_1 = SizeVar("K")
     val v_N_2 = SizeVar("N")
 
-    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,8, 64 ,8))
+    val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2, 128, 4, 8, 64 ,8))
 
     val size = 1024
 

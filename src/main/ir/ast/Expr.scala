@@ -110,13 +110,8 @@ abstract class Expr extends IRNode {
    */
   def copy: Expr
 
-  def contains(pattern: PartialFunction[Expr, Unit]): Boolean = {
-    Expr.visitWithState(false)(this, (e, s) => {
-      if (pattern.isDefinedAt(e)) {
-        true
-      } else s
-    })
-  }
+  def contains(pattern: PartialFunction[Expr, Unit]) =
+    Expr.visitWithState(false)(this, (e, s) => pattern.isDefinedAt(e) || s)
 
   /**
    * Reverse function application.

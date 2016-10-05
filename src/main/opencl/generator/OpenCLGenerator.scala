@@ -115,7 +115,7 @@ object OpenCLGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case _: NotEvaluableException => false
+      case NotEvaluableException => false
     }
   }
 }
@@ -191,7 +191,7 @@ class OpenCLGenerator extends Generator {
 
     View(f)
 
-    val globalBlock = new OpenCLAST.Block(Vector.empty, global = true)
+    val globalBlock = OpenCLAST.Block(Vector.empty, global = true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
       case (expr, _) if expr.t == Double => true
@@ -372,7 +372,7 @@ class OpenCLGenerator extends Generator {
 
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +
-          s"evaluable, but found $length")
+          s" evaluable, but found $length")
 
       val decl = OpenCLAST.VarDecl(x.mem.variable, x.t,
         addressSpace = x.mem.addressSpace,
@@ -939,7 +939,7 @@ class OpenCLGenerator extends Generator {
       val iterationCount = try {
         indexVar.range.numVals.eval
       } catch {
-        case _: NotEvaluableException =>
+        case NotEvaluableException =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
             "could not be determined statically.")
       }
@@ -986,7 +986,7 @@ class OpenCLGenerator extends Generator {
       // TODO: See TestInject.injectExactlyOneIterationVariable
       // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
       case _ if range.start.min.min == Cst(0) &&
-        range.stop.substituteDiv == range.step.substituteDiv =>
+        ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
 
         generateStatement(block, indexVar, generateBody, init)
         return
@@ -1352,7 +1352,13 @@ class OpenCLGenerator extends Generator {
         throw new TypeException(valueType, "A valid non array type")
     }
 
-    val real = ArithExpr.substitute(i, replacements).eval
+    val real: Int = try {
+      ArithExpr.substitute(i, replacements).eval
+    } catch {
+      case NotEvaluableException =>
+        throw new OpenCLGeneratorException(s"Could not access private array, as index $i could " +
+          s"not be evaluated statically (given these replacements: $replacements)")
+    }
 
     if (real >= declaration.length) {
       throw new OpenCLGeneratorException(s"Out of bounds access to $v with $real")

@@ -16,6 +16,7 @@ case class toPrivate(f: Lambda) extends Pattern(arity = f.arity)
     TypeChecker.check(f.body, setType)
   }
 
+
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     f.eval(valueMap, args:_*)

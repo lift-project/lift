@@ -3,6 +3,7 @@ package opencl.executor
 import apart.arithmetic.{ArithExpr, Cst, Var}
 import ir._
 import ir.ast._
+import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator.{OpenCLGenerator, Verbose}
 import opencl.ir._
 
@@ -57,6 +58,15 @@ object Execute {
             injectSizes: (Boolean, Boolean)): Execute = {
 
     new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
+                injectSizes._1, injectSizes._2)
+  }
+
+  def apply(localSize: NDRange,
+            globalSize: NDRange,
+            injectSizes: (Boolean, Boolean)): Execute = {
+
+    new Execute(localSize(0).eval, localSize(1).eval, localSize(2).eval,
+                globalSize(0).eval, globalSize(1).eval, globalSize(2).eval,
                 injectSizes._1, injectSizes._2)
   }
 

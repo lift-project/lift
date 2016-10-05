@@ -81,6 +81,18 @@ class TestTypeChecker {
   }
 
   @Test(expected = classOf[TypeException])
+  def incorrectReduceCustomisingFunctionIssue74(): Unit = {
+    val lambda = fun(
+      ArrayType(Float, K),
+      input =>
+        Reduce(fun((acc, next) =>
+          multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(input, input)
+    )
+
+    TypeChecker(lambda)
+  }
+
+  @Test(expected = classOf[TypeException])
   def incorrectZip(): Unit = {
     val lambda = fun(
       ArrayType(Float, K),

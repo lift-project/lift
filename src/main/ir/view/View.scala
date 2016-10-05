@@ -13,7 +13,10 @@ import opencl.generator.OpenCLPrinter
  * @param idx Index to access in the array
  */
 class AccessVar(val array: String, val idx: ArithExpr, r : Range = RangeUnknown, fixedId: Option[Long] = None) extends ExtensibleVar("",r,fixedId) {
-  override def makeCopy(r: Range) = new AccessVar(array, idx, r, Some(this.id))
+  override def copy(r: Range) = new AccessVar(array, idx, r, Some(id))
+
+  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
+    f(new AccessVar(array, idx.visitAndRebuild(f), range.visitAndRebuild(f), Some(id)))
 }
 
 /**
@@ -40,20 +43,20 @@ abstract class View(val t: Type = UndefType) {
 
   def replaced(subst: collection.Map[ArithExpr, ArithExpr]): View = {
     this match {
-      case map: ViewMap => new ViewMap(map.iv.replaced(subst), map.itVar, t)
-      case access: ViewAccess => new ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(subst), t)
-      case zip: ViewZip => new ViewZip(zip.iv.replaced(subst), t)
-      case unzip: ViewUnzip => new ViewUnzip(unzip.iv.replaced(subst), t)
-      case split: ViewSplit => new ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(subst), t)
-      case join: ViewJoin => new ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(subst), t)
-      case gather: ViewReorder => new ViewReorder(gather.f, gather.iv.replaced(subst), t)
-      case asVector: ViewAsVector => new ViewAsVector(asVector.n, asVector.iv.replaced(subst), t)
-      case asScalar: ViewAsScalar => new ViewAsScalar(asScalar.iv.replaced(subst), asScalar.n, t)
-      case filter: ViewFilter => new ViewFilter(filter.iv.replaced(subst), filter.ids.replaced(subst), t)
-      case tuple: ViewTuple => new ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
-      case component: ViewTupleComponent => new ViewTupleComponent(component.i, component.iv.replaced(subst), t)
-      case slide: ViewSlide => new ViewSlide(slide.iv.replaced(subst), slide.slide, slide.t)
-      case pad: ViewPad => new ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
+      case map: ViewMap => ViewMap(map.iv.replaced(subst), map.itVar, t)
+      case access: ViewAccess => ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(subst), t)
+      case zip: ViewZip => ViewZip(zip.iv.replaced(subst), t)
+      case unzip: ViewUnzip => ViewUnzip(unzip.iv.replaced(subst), t)
+      case split: ViewSplit => ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(subst), t)
+      case join: ViewJoin => ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(subst), t)
+      case gather: ViewReorder => ViewReorder(gather.f, gather.iv.replaced(subst), t)
+      case asVector: ViewAsVector => ViewAsVector(asVector.n, asVector.iv.replaced(subst), t)
+      case asScalar: ViewAsScalar => ViewAsScalar(asScalar.iv.replaced(subst), asScalar.n, t)
+      case filter: ViewFilter => ViewFilter(filter.iv.replaced(subst), filter.ids.replaced(subst), t)
+      case tuple: ViewTuple => ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
+      case component: ViewTupleComponent => ViewTupleComponent(component.i, component.iv.replaced(subst), t)
+      case slide: ViewSlide => ViewSlide(slide.iv.replaced(subst), slide.slide, slide.t)
+      case pad: ViewPad => ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
       case _ => this
     }
   }
@@ -65,7 +68,7 @@ abstract class View(val t: Type = UndefType) {
    * @return The view for position `idx`
    */
   def access(idx: ArithExpr): View = {
-    new ViewAccess(idx, this, t.asInstanceOf[ArrayType].elemT)
+    ViewAccess(idx, this, t.asInstanceOf[ArrayType].elemT)
   }
 
   /**
@@ -77,7 +80,7 @@ abstract class View(val t: Type = UndefType) {
    */
   def split(chunkSize: ArithExpr): View = {
     this.t match {
-      case ArrayType(elemT, n) => new ViewSplit(chunkSize, this,
+      case ArrayType(elemT, n) => ViewSplit(chunkSize, this,
         ArrayType(ArrayType(elemT, chunkSize), n / chunkSize))
       case _ => throw new IllegalArgumentException("PANIC: split expects an array type")
     }
@@ -93,7 +96,7 @@ abstract class View(val t: Type = UndefType) {
   def join(chunkSize: ArithExpr): View = {
     this.t match {
       case ArrayType(ArrayType(elemT, n), m) =>
-        new ViewJoin(chunkSize, this, ArrayType(elemT, n * m))
+        ViewJoin(chunkSize, this, ArrayType(elemT, n * m))
       case _ => throw new IllegalArgumentException("PANIC: join expects an array type")
     }
   }
@@ -106,7 +109,7 @@ abstract class View(val t: Type = UndefType) {
    * @param f Function to use for reordering.
    */
   def reorder(f: (ArithExpr) => ArithExpr): View = {
-    new ViewReorder(f, this, this.t)
+    ViewReorder(f, this, this.t)
   }
 
   /**
@@ -120,7 +123,7 @@ abstract class View(val t: Type = UndefType) {
   def asVector(n: ArithExpr): View = {
     t match {
       case ArrayType(st: ScalarType, len) =>
-        new ViewAsVector(n, this, ArrayType(st.vectorize(n), len /^ n))
+        ViewAsVector(n, this, ArrayType(st.vectorize(n), len /^ n))
       case _ =>
         throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into vector types")
     }
@@ -137,7 +140,7 @@ abstract class View(val t: Type = UndefType) {
   def asScalar(): View = {
     t match {
       case ArrayType(VectorType(st, n), len) =>
-        new ViewAsScalar(this, n, ArrayType(st, len * n))
+        ViewAsScalar(this, n, ArrayType(st, len * n))
       case st: ScalarType => this
       case _ =>
         throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
@@ -152,7 +155,7 @@ abstract class View(val t: Type = UndefType) {
    * @param ids Indices to use for filtering.
    */
   def filter(ids: View): View = {
-    new ViewFilter(this, ids,
+    ViewFilter(this, ids,
       ArrayType(this.t.asInstanceOf[ArrayType].elemT, ids.t.asInstanceOf[ArrayType].len))
   }
 
@@ -165,7 +168,7 @@ abstract class View(val t: Type = UndefType) {
    * @param i The index of the element to project.
    */
   def get(i: Int): View = {
-    new ViewTupleComponent(i, this, t.asInstanceOf[TupleType].elemsT(i))
+    ViewTupleComponent(i, this, t.asInstanceOf[TupleType].elemsT(i))
   }
 
   /**
@@ -179,7 +182,7 @@ abstract class View(val t: Type = UndefType) {
       case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType]) =>
         val arrayTs: Seq[ArrayType] = ts.map(_.asInstanceOf[ArrayType])
         val newT =ArrayType(TupleType(arrayTs.map(_.elemT):_*), arrayTs.head.len)
-        new ViewZip(this, newT)
+        ViewZip(this, newT)
       case other => throw new IllegalArgumentException("Can't zip " + other)
     }
 
@@ -192,7 +195,7 @@ abstract class View(val t: Type = UndefType) {
   def unzip(): View = {
     t match {
       case ArrayType(TupleType(ts@_*), len) =>
-        new ViewUnzip(this, TupleType(ts.map(ArrayType(_, len)): _*))
+        ViewUnzip(this, TupleType(ts.map(ArrayType(_, len)): _*))
       case other => throw new IllegalArgumentException("Can't unzip " + other)
     }
   }
@@ -200,7 +203,7 @@ abstract class View(val t: Type = UndefType) {
   def slide(s: Slide): View = {
     this.t match {
       case ArrayType(_, _) =>
-        new ViewSlide(this, s, s.checkType(this.t, setType=false))
+        ViewSlide(this, s, s.checkType(this.t, setType=false))
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
@@ -208,12 +211,11 @@ abstract class View(val t: Type = UndefType) {
   def pad(left: Int, right: Int, boundary: Pad.BoundaryFun): View = {
     this.t match {
       case ArrayType(elemT, len) =>
-        new ViewPad(this, left, right, boundary, ArrayType(elemT, len + left + right))
+        ViewPad(this, left, right, boundary, ArrayType(elemT, len + left + right))
       case other => throw new IllegalArgumentException("Can't pad " + other)
     }
   }
 
-  // new MatrixView(Type.getElemT(call.t), new MatrixCreation(innerView, Type.getWidth(call.t), Type.getHeight(call.t), call.loopVar))
 }
 
 /**
@@ -381,9 +383,9 @@ object View {
    * @param name A name for the array.
    * @return
    */
-  def apply(t: Type, name: String): View = new ViewMem(name, t)
+  def apply(t: Type, name: String): View = ViewMem(name, t)
 
-  private[view] def tuple(ivs: View*) = new ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
+  private[view] def tuple(ivs: View*) = ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
 
   /**
    * Visit the expression and construct all views for all sub-expressions.

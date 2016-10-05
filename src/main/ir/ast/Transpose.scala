@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter.ValueMap
-import ir.{TypeException, ArrayType, Type}
+import ir.{ArrayType, Type, TypeException, UndefType}
 
 /**
  * Transpose pattern. Performs the transpose on the next read.

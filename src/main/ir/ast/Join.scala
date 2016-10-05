@@ -30,6 +30,8 @@ case class Join() extends Pattern(arity = 1) with isGenerable {
     }
   }
 
+
+
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
     args.head match {
