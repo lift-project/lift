@@ -91,3 +91,9 @@ object Pad2D {
     Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary)
   }
 }
+
+object Pad3D {
+  def apply(z: Int, y: Int, x: Int, b: Pad.BoundaryFun): Lambda = {
+    Map(Pad2D(y,y,x,x,b)) o Pad(z,z,b)
+  }
+}

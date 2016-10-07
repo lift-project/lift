@@ -1485,8 +1485,8 @@ class TestStencil extends TestSlide {
   @Test def ariStencil2D(): Unit = {
     val stencil = fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
-      ArrayType(ArrayType(Float, 1038), 1038),
-      ArrayType(Float, 225),
+      ArrayType(ArrayType(Float, 8192), 8192),
+      ArrayType(Float, 15),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(
           fun( wgBlock =>
@@ -1501,16 +1501,16 @@ class TestStencil extends TestSlide {
                         multAndSumUp.apply(acc, pixel, weight)
                       }), 0.0f) $ Zip(Join() $ elem, weights)
             })
-            )) o Slide2D(15,1, 15,1) $ cacheBlock
-         ))) o Slide2D(22,8, 78,64) $ wgBlock
-        ))) o Slide2D(78,64, 526,512) $ matrix
+            )) o Slide2D(15,1, 1,1) $ cacheBlock
+         ))) o Slide2D(78,64, 8,8) $ wgBlock
+        ))) o Slide2D(526,512, 64,64) o Pad2D(7,7, Pad.Boundary.Clamp) $ matrix
       }
     )
 
-    val weights = Array.fill[Float](225)(1.0f)
+    val weights = Array.fill[Float](15)(1.0f)
     val haloSize = 7
-    val outputSize = 1024
-    val inputSize = outputSize + 2 * haloSize
+    val outputSize = 8192
+    val inputSize = 8192
 
     // create already padded input array with inner elements (i,j) = i * j
     var input = Array.tabulate(inputSize, inputSize) { (i, j) => i+j * 1.0f }
@@ -1523,7 +1523,7 @@ class TestStencil extends TestSlide {
     input = input.transpose
     */
 
-    val (output: Array[Float], runtime) = Execute(16, 16, 128, 128, (true, true))(stencil, input, weights)
+    val (output: Array[Float], runtime) = Execute(64, 4, 1024, 512, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)
 
     //input.map(x => println(x.mkString(", ")))
