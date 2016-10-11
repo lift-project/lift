@@ -59,6 +59,7 @@ package object ir {
                              Seq(Float, Float, Float), Float)
 
   val multTuple = UserFun("multTuple", "x", "{return x._0 * x._1;}", TupleType(Float, Float), Float)
+  val addTuple = UserFun("addTuple", "x", "{return x._0 + x._1;}", TupleType(Float, Float), Float)
 
   val addPair = UserFun(
                          "pair",
