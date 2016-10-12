@@ -291,5 +291,196 @@ class TestHarrisCornerDetection extends TestSlide {
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
     //compareGoldWithOutput(gold, output, runtime)
   }
+    /* **********************************************************
+       Zipping before or after computation - that is the question
+  ***********************************************************/
+  @Ignore //fix
+  @Test def zipMultiInput(): Unit = {
 
+    //////////////////// COMPUTE BEFORE ZIP
+    val sum = fun(neighbours => {toGlobal(MapSeqUnroll(id)) o ReduceSeq(add, 0.0f) o Join() $ neighbours})
+    val stencil = MapLcl(1)(Join() o MapLcl(0)(sum)) o Slide2D(3,1)
+
+    val fuseTupleTile = MapLcl(1)(MapLcl(0)(addTuple))
+
+    val computeBeforeZip = fun(inputTile => fuseTupleTile o Split(18) $ Zip(
+      Join() o stencil $ inputTile,
+      Join() o stencil $ inputTile
+    ))
+
+    //////////////////// DATA BEFORE COMPUTE
+
+    val computeTwoStencils = MapLcl(1)(Join() o MapLcl(0)(fun(tuple => {
+      val left = Get(tuple, 0)
+      val right = Get(tuple, 1)
+      // only possible because reduce returns array of size 1!
+      Zip(
+      ReduceSeq(add, 1337.0f) o Join() $ left,
+      ReduceSeq(add, 42.0f) o Join() $ right)
+    })))
+
+    val dataBeforeCompute = fun(inputTile => Join() o computeTwoStencils o Split(18) $ Zip(
+      Join() o Slide2D(3,1) $ inputTile,
+      Join() o Slide2D(3,1) $ inputTile
+    ))
+
+    //////////////////// ZIP BEFORE COMPUTE
+    val stencilLeft = fun(neighbours => {toGlobal(MapSeqUnroll(id)) o ReduceSeq(fun((acc, pair) => {
+                val left = Get(pair, 0)
+                add.apply(acc, left)
+              }), 0.0f) o Join() $ neighbours})
+    val stencilRight = fun(neighbours => {toGlobal(MapSeqUnroll(id)) o ReduceSeq(fun((acc, pair) => {
+                val right = Get(pair, 1)
+                add.apply(acc, right)
+              }), 0.0f) o Join() $ neighbours})
+
+    val tupleSquareLeft= UserFun(
+                         "squareLeft",
+                         "x",
+                         "{ x._0 = x._0 * x._0;" +
+                         "return x; }",
+                         TupleType(Float, Float),
+                         TupleType(Float, Float))
+    val squareLeft = MapLcl(1)(MapLcl(0)(tupleSquareLeft))
+
+    val computeStencils = MapLcl(1)(Join() o MapLcl(0)(/*stencilRight o*/ stencilLeft)) o Slide2D(3,1)
+
+    val zipBeforeCompute = fun(inputTile => fuseTupleTile o squareLeft o Split(20) $ Zip(
+      Join() $ inputTile,
+      Join() $ inputTile
+    ))
+
+    /////////////////////////// MAIN
+    val cornerDetection = fun(
+      ArrayType(ArrayType(Float, 1536), 2560),
+      (input) => {MapWrg(1)(MapWrg(0)(
+        toGlobal(MapSeq(addTuple)) o dataBeforeCompute o
+          toLocal(MapLcl(1)(MapLcl(0)(id))))) o
+        Slide2D(20,16) $ input
+      })
+
+    val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    println("Runtime: " + runtime)
+
+    // todo implement
+    //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
+    //compareGoldWithOutput(gold, output, runtime)
+  }
+
+  /* **********************************************************
+       COMPUTE BEFORE ZIP - 1D
+  ***********************************************************/
+  @Test def simpleZipProblem(): Unit = {
+
+    val f = MapGlb(square)
+    val g = MapGlb(square) o MapGlb(square)
+
+    val lambda = fun(
+      ArrayType(Float, 4),
+      (input) => {
+        MapGlb(addTuple) $ Zip(f $ input, g $ input)
+      })
+
+    val input = Array(0,1,2,3).map(_.toFloat)
+    val (output: Array[Float], runtime) = Execute(1, 1, 1, 1, (true, true))(lambda, input)
+    println("Runtime: " + runtime)
+
+    println(output.mkString(","))
+    val gold = Array(0,2,20,90).map(_.toFloat)
+    compareGoldWithOutput(gold, output, runtime)
+  }
+
+  /* **********************************************************
+       HALIDE AUTO KERNEL - Different approach
+  ***********************************************************/
+  @Ignore //fix
+  @Test def halideHarrisSchedule2(): Unit = {
+    val sum = fun(neighbours => {toGlobal(MapSeqUnroll(id)) o ReduceSeq(add, 0.0f) o Join() $ neighbours})
+    // include sobel weights
+    val sobelX = MapLcl(1)(Join() o MapLcl(0)(sum)) o Slide2D(3,1)
+    val sobelY = MapLcl(1)(Join() o MapLcl(0)(sum)) o Slide2D(3,1)
+
+    val determinant = UserFun("det", Array("a","b","c"), "{ return a*c-b*b; }", Seq(Float,Float,Float), Float)
+    val threeTupleToDeterminant = fun((tuple) => {
+            val a = Get(tuple, 0)
+            val b = Get(tuple, 1)
+            val c = Get(tuple, 2)
+            determinant.apply(a,b,c)
+          })
+
+    val computeDeterminants = MapLcl(1)(MapLcl(0)(threeTupleToDeterminant))
+    val computeTrace  = MapLcl(1)(MapLcl(0)(addTuple))
+
+    val har = UserFun("har", Array("a","b"), "{ return a - 0.04f * b * b; }", Seq(Float,Float), Float)
+    val harris = fun((tuple) => {
+            val a = Get(tuple, 0)
+            val b = Get(tuple, 1)
+            har.apply(a,b)})
+
+    // missing sums computation
+    val detectCorners = fun(derivatives =>
+      MapLcl(1)(MapLcl(0)(
+        toGlobal(MapSeq(id)) o
+          harris)) o
+        Split(18) $
+      Zip(
+        Join() o computeDeterminants $ derivatives,
+        Join() o computeTrace $ derivatives))
+
+    //val computeIxx = fun(inputTile => MapLcl(1)(MapLcl(0)(square)) o sobelX $ inputTile)
+    //val computeIyy = fun(inputTile => MapLcl(1)(MapLcl(0)(square)) o sobelY $ inputTile)
+    /*val computeIxy = fun(inputTile => MapLcl(1)(MapLcl(0)(multTuple)) o
+      Split(18) $ Zip(
+        Join() o sobelX $ inputTile,
+        Join() o sobelY $ inputTile))*/
+
+    // todo change to sobel x and y stencil
+    // flatten and reduce 3x3 nbh
+    val computeIxx = Map(square) o ReduceSeq(add, 0.0f) o Join()
+    val computeIyy = Map(square) o ReduceSeq(add, 1.0f) o Join()
+    // todo change to xy computation
+    val computeIxy = ReduceSeq(add, 2.0f) o Join()
+
+    val computeDerivatives =
+      MapLcl(1)(
+        Join() o MapLcl(0)(
+          fun(tuple => {
+            // flattened array containing 3x3 nbhs of input tiles
+            val nbhIxx = Get(tuple, 0)
+            val nbhIyy = Get(tuple, 1)
+            val nbhIxy = Get(tuple, 2)
+            Zip(
+              computeIxx $ nbhIxx,
+              computeIyy $ nbhIyy,
+              computeIxy $ nbhIxy
+            )
+          })))
+
+    val nbh = Slide2D(3,1)
+    val handleInputTile = fun(inputTile =>
+      //              18x18 3-tuples       20x20 3x3 nbh 3-tuple
+      detectCorners o computeDerivatives o Split(20) $ Zip(
+        Join() o nbh $ inputTile,
+        Join() o nbh $ inputTile,
+        Join() o nbh $ inputTile
+    ))
+
+    val cornerDetection = fun(
+      ArrayType(ArrayType(Float, 1536), 2560),
+      (input) => {MapWrg(1)(MapWrg(0)(
+          toGlobal(MapSeq(id)) o
+            handleInputTile) o
+        toLocal(MapLcl(1)(MapLcl(0)(id)))) o
+        Slide2D(20,16) $ input
+      })
+
+    val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    println("Runtime: " + runtime)
+
+    // todo implement
+    //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
+    //compareGoldWithOutput(gold, output, runtime)
+  }
 }

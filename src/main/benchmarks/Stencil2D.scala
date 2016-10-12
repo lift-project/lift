@@ -91,7 +91,7 @@ object Stencil2D{
     Utils.scalaCompute2DStencil(input, size1,step1, size2,step2, top,bottom,left,right, weights, scalaClamp)
   }
 
-  def blurSeperated2DStencil(size1: Int, step1: Int,
+  def blurSeparated2DStencil(size1: Int, step1: Int,
                          size2: Int, step2: Int,
                          top: Int, bottom: Int,
                          left: Int, right: Int,
@@ -103,7 +103,7 @@ object Stencil2D{
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
-            toGlobal(MapSeqUnroll(makePositive)) o
+            toGlobal(MapSeqUnroll(id)) o
               ReduceSeqUnroll(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
@@ -179,10 +179,10 @@ object Stencil2D{
   def apply() = new Stencil2D(
     Seq(
       // from here weights.size == 3
-      ("BLUR_X_CLAMP", Array[Lambda](blurSeperated2DStencil(1,1,3,1, 0,0,1,1,Pad.Boundary.Clamp, 3))),
-      ("BLUR_Y_CLAMP", Array[Lambda](blurSeperated2DStencil(3,1,1,1, 1,1,0,0,Pad.Boundary.Clamp, 3))),
-      ("BLUR_X_AND_Y_CLAMP", Array[Lambda](blurSeperated2DStencil(1,1,3,1, 0,0,1,1,Pad.Boundary.Clamp, 3),
-                                           blurSeperated2DStencil(3,1,1,1, 1,1,0,0,Pad.Boundary.Clamp, 3))),
+      ("BLUR_X_CLAMP", Array[Lambda](blurSeparated2DStencil(1,1,3,1, 0,0,1,1,Pad.Boundary.Clamp, 3))),
+      ("BLUR_Y_CLAMP", Array[Lambda](blurSeparated2DStencil(3,1,1,1, 1,1,0,0,Pad.Boundary.Clamp, 3))),
+      ("BLUR_X_AND_Y_CLAMP", Array[Lambda](blurSeparated2DStencil(1,1,3,1, 0,0,1,1,Pad.Boundary.Clamp, 3),
+                                           blurSeparated2DStencil(3,1,1,1, 1,1,0,0,Pad.Boundary.Clamp, 3))),
       // from here weights.size == 9
       ("9_POINT_2D_STENCIL_CLAMP", Array[Lambda](ninePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Clamp))),
       ("9_POINT_2D_STENCIL_MIRROR_UNSAFE", Array[Lambda](ninePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.MirrorUnsafe))),
@@ -193,7 +193,7 @@ object Stencil2D{
       ("TILED_9P2D_WRAP_34/32", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 34,32,34,32))),
       ("TILED_9P2D_WRAP_66/64", Array[Lambda](tiledNinePoint2DStencil(3,1,3,1, 1,1,1,1, Pad.Boundary.Wrap, 66,64,66,64))),
       // from here weights.size == 9
-      ("BLUR_X_CLAMP_17POINT", Array[Lambda](blurSeperated2DStencil(1,1,17,1, 0,0,8,8,Pad.Boundary.Clamp, 17))),
+      ("BLUR_X_CLAMP_17POINT", Array[Lambda](blurSeparated2DStencil(1,1,17,1, 0,0,8,8,Pad.Boundary.Clamp, 17))),
       ("BLUR_X_CLAMP_TILED_17POINT", Array[Lambda](tiledNinePoint2DStencil(1,1,17,1, 0,0,8,8,Pad.Boundary.Clamp, 1,1,48,32))),
       ("BLUR_Y_CLAMP_TILED_17POINT", Array[Lambda](tiledNinePoint2DStencil(17,1,1,1, 8,8,0,0,Pad.Boundary.Clamp, 528,512,1,1)))
     )
