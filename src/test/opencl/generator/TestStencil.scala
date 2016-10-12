@@ -1405,13 +1405,14 @@ class TestStencil extends TestSlide {
   /*
   on fuji
   $ cd /home/v1bhaged/shoc/src/opencl/level1/stencil2d
-  $ ./Stencil2D --customSize 8,8 --lsize 8,8 --weight-center 0.25 --weight-cardinal 0.15 --weight-diagonal 0.05 --verbose --num-iters 1
+  $ ./Stencil2D --customSize 8,8 --weight-center 0.25 --weight-cardinal 0.15 --weight-diagonal 0.05 --verbose --num-iters 1
 
   compare to 10x10 array. SHOC does not handle boundary but provides a padded input array
    */
   @Test def shocStencil2D(): Unit = {
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayType(ArrayType(Float, 8192), 8192),
       ArrayType(Float, 9),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1432,7 +1433,7 @@ class TestStencil extends TestSlide {
             toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
         ))) o
           // tiling
-          Slide2D(18,16, 18,16) $ matrix
+          Slide2D(258,256, 3,1) $ matrix
       }
     )
     val weights = Array(0.05, 0.15, 0.05,
@@ -1444,7 +1445,7 @@ class TestStencil extends TestSlide {
     //val haloSize = 1
     //val outputSize = inputSize - 2 * haloSize
     // testing - change tilesize!
-    val inputSize = 256
+    val inputSize = 8192
     val haloSize = 1
     val outputSize = inputSize - 2 * haloSize
     // 4k
@@ -1461,7 +1462,7 @@ class TestStencil extends TestSlide {
     input(inputSize -1) = input(inputSize -1).map(_*0.0f)
     input = input.transpose
 
-    val (output: Array[Float], runtime) = Execute(16, 16, 128, 128, (true, true))(stencil, input, weights)
+    val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)
 
     //input.map(x => println(x.mkString(", ")))

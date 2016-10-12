@@ -6,7 +6,7 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class SHOCStencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("SHOCStencil2D", Seq(4096, 4096), f, 0.01f) {
+class SHOCStencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("SHOCStencil2D", Seq(8192, 8192), f, 0.01f) {
 
   override def generateInputs(): Seq[Any] = {
     val shocHaloSize = 1
@@ -44,7 +44,8 @@ object SHOCStencil2D{
   /////////////////// LAMBDAS
   def shoc(tileCenterX: Int, tileCenterY: Int): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayType(ArrayType(Float, 8192), 8192),
       ArrayType(Float, 9),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -73,7 +74,7 @@ object SHOCStencil2D{
   def apply() = new SHOCStencil2D(
     Seq(
       ("SHOC_TEST", Array[Lambda](shoc(2,2))),
-      ("SHOC_STENCIL2D_16_16", Array[Lambda](shoc(16,16))),
+      ("SHOC_STENCIL2D_256_1", Array[Lambda](shoc(256,1))),
       ("SHOC_STENCIL2D_32_32", Array[Lambda](shoc(32,32))),
       ("SHOC_STENCIL2D_32_16", Array[Lambda](shoc(32,16))),
       ("SHOC_STENCIL2D_16_32", Array[Lambda](shoc(16,32))),
