@@ -1445,7 +1445,7 @@ class TestStencil extends TestSlide {
     //val haloSize = 1
     //val outputSize = inputSize - 2 * haloSize
     // testing - change tilesize!
-    val inputSize = 8192
+    val inputSize = 8194
     val haloSize = 1
     val outputSize = inputSize - 2 * haloSize
     // 4k
