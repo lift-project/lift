@@ -296,6 +296,7 @@ object CAst {
       case f: Function => visitExpressionsInNode(f.body)
       case v: VarDecl => if (v.init != null) visitExpressionsInNode(v.init)
       case Label(_) | ParamDecl(_, _, _, _) =>
+      case other => throw new Exception("Unknown declaration " + other.toString)
     }
   }
 
@@ -318,6 +319,7 @@ object CAst {
       case d: Declaration => d match {
         case f: Function => visitBlocks(f.body, fun)
         case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
+        case other => throw new Exception("Unknown declaration " + other.toString)
       }
 
       case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>

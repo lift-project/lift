@@ -1,6 +1,6 @@
 package openmp.generator
 
-import apart.arithmetic.{Cst, _}
+import apart.arithmetic.{Cst, NotEvaluableException, _}
 import openmp.executor.Compile
 import c.generator.CAst.{ArithExpression, AssignmentExpression, Block, CondExpression, Expression, ExpressionStatement, VarDecl}
 import c.generator.{CAst, CGenerator}
@@ -87,7 +87,7 @@ object OMPGenerator extends CGenerator{
       val iterationCount = try {
         indexVar.range.numVals.eval
       } catch {
-        case _: NotEvaluableException =>
+        case NotEvaluableException =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
             "could not be determined statically.")
       }
@@ -135,7 +135,7 @@ object OMPGenerator extends CGenerator{
         // TODO: See TestInject.injectExactlyOneIterationVariable
         // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
         case _ if range.start.min.min == Cst(0) &&
-          range.stop.substituteDiv == range.step.substituteDiv =>
+          ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
 
           generateStatement(block, indexVar, generateBody, init)
           return

@@ -115,7 +115,7 @@ object CGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case _: NotEvaluableException => false
+      case NotEvaluableException => false
     }
   }
 }
@@ -657,7 +657,7 @@ class CGenerator extends Generator {
       val iterationCount = try {
         indexVar.range.numVals.eval
       } catch {
-        case _: NotEvaluableException =>
+        case NotEvaluableException =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
             "could not be determined statically.")
       }
@@ -705,7 +705,7 @@ class CGenerator extends Generator {
         // TODO: See TestInject.injectExactlyOneIterationVariable
         // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
         case _ if range.start.min.min == Cst(0) &&
-          range.stop.substituteDiv == range.step.substituteDiv =>
+          ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
 
           generateStatement(block, indexVar, generateBody, init)
           return
