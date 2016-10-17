@@ -21,12 +21,10 @@ class SHOCStencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchm
     input(inputSizeM -1) = input(inputSizeM -1).map(_*0.0f)
     input = input.transpose
 
-    /*
     val weights = Array(0.05, 0.15, 0.05,
                         0.15, 0.25, 0.15,
                         0.05, 0.15, 0.05).map(_.toFloat)
-                        */
-    val weights = Array(0.05, 0.15, 0.05)
+    //val weights = Array(0.05, 0.15, 0.05)
     Seq(input, weights)
   }
 
@@ -138,7 +136,8 @@ object SHOCStencil2D{
       ("SHOC_STENCIL2D_256_8", Array[Lambda](shoc(256,8))),
       ("SHOC_STENCIL2D_8_256", Array[Lambda](shoc(8,256))),
       ("SHOC_STENCIL2D_256_8", Array[Lambda](shocX(256,8))),
-      ("SHOC_STENCIL2D_256_8", Array[Lambda](shocY(256,8)))
+      ("SHOC_STENCIL2D_256_8", Array[Lambda](shocY(256,8))),
+      ("SHOC_STENCIL2D_TILE", Array[Lambda](shoc(128,16)))
     )
   )
 
