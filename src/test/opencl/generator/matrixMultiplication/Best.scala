@@ -334,6 +334,102 @@ class Best {
     assertArrayEquals(gold, output2, 0.0001f)
   }
 
+  @Test
+  def maliGEMM(): Unit = {
+    val maliFactory =
+      (variables: Seq[ArithExpr]) => {
+        val v_K_0 = variables(0)
+        val v_M_1 = variables(1)
+        val v_N_2 = variables(2)
+        val v__3 = variables(3)
+        val v__4 = variables(4)
+        val v__5 = variables(5)
+
+        val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+        val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+        val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+        fun(
+          ArrayType(ArrayType(Float, v_K_0), v_M_1),
+          ArrayType(ArrayType(Float, v_K_0), v_N_2),
+          ArrayType(ArrayType(Float, v_N_2), v_M_1),
+          Float, Float,
+          (p_0, p_1, C, alpha, beta) =>
+            FunCall(Join(),
+              FunCall(MapGlb(0)(fun((p_2) =>
+                FunCall(TransposeW(),
+                  FunCall(Join(),
+                    FunCall(MapGlb(1)(fun((p_3) =>
+                      FunCall(TransposeW(),
+                        FunCall(Map(fun((p_4) =>
+                          FunCall(TransposeW(), p_4))),
+                          FunCall(TransposeW(),
+                            FunCall(toGlobal(fun((p_5) =>
+                              FunCall(MapSeq(fun((p_6) =>
+                                FunCall(MapSeq(fun((p_7) =>
+                                  FunCall(MapSeq(fun((p_8) =>
+                                    add(mult(p_8._0, alpha),
+                                      mult(p_8._1, beta))
+                                  )), Zip(p_7._0, p_7._1)))),
+                                  Zip(p_6, Transpose() $ p_3._1)))), p_5))),
+                              FunCall(ReduceSeq(fun((p_9, p_10) =>
+                                FunCall(fun((p_11) =>
+                                  FunCall(MapSeq(fun((p_12) =>
+                                    FunCall(Join(),
+                                      FunCall(MapSeq(fun((p_13) =>
+                                        FunCall(MapSeq(fun((p_14) => p_14)),
+                                          FunCall(ReduceSeq(fun((p_15, p_16) =>
+                                            FunCall(add, p_15, p_16))),
+                                            FunCall(Get(0), p_13),
+                                            FunCall(asScalar(),
+                                              FunCall(MapSeq(fun((p_17) =>
+                                                FunCall(VectorizeUserFun(4,mult),
+                                                  FunCall(Get(0), p_17),
+                                                  FunCall(Get(1), p_17)))),
+                                                FunCall(Zip(2),
+                                                  FunCall(asVector(4),
+                                                    FunCall(Get(1), p_12)),
+                                                  FunCall(asVector(4),
+                                                    FunCall(Get(1), p_13))))))))),
+                                        FunCall(Zip(2),
+                                          FunCall(Get(0), p_12),
+                                          FunCall(Transpose(),
+                                            FunCall(Get(1), p_11))))))),
+                                    FunCall(Zip(2), p_9,
+                                      FunCall(Transpose(),
+                                        FunCall(Get(0), p_11))))), p_10))),
+                                FunCall(MapSeq(fun((p_18) =>
+                                  FunCall(MapSeq(fun((p_19) =>
+                                    FunCall(idfloat, p_19))), p_18))), Value("0.0f", ArrayType(ArrayType(Float, v__3), v__4))),
+                                FunCall(Zip(2),
+                                  FunCall(Split(v__5),
+                                    FunCall(Transpose(), p_2._0)),
+                                  FunCall(Split(v__5),
+                                    FunCall(Transpose(), p_3._0)))))))))),
+                      Zip(FunCall(Split(v__3), p_1), Split(v__3) o Transpose() $ p_2._1)))))),
+                Zip(FunCall(Split(v__4), p_0), Split(v__4) $ C))))
+      }
+
+    val mSize = 16
+    val kSize = 16
+    val nSize = 16
+    val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
+    val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val matrixC = Array.tabulate(nSize, mSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+
+    val alpha = 2.5f
+    val beta = 1.5f
+
+    val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta).flatten
+
+    val f = maliFactory(Seq[ArithExpr](K, M, N, 2, 2, 4))
+
+    val (output: Array[Float], _) =
+      Execute(2, 2, mSize/2, nSize/2, (true, true))(
+        f, matrixA, matrixB.transpose, matrixC, alpha, beta)
+
+    assertArrayEquals(gold, output, 0.0001f)
+  }
+
 
   @Test
   def hawaiiBest(): Unit = {
