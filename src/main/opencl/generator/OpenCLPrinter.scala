@@ -322,6 +322,8 @@ class OpenCLPrinter {
           val declaration =
             s"${vd.addressSpace} ${toString(baseType)} ${toString(vd.v)}[${vd.length}]"
 
+          // Make sure the memory is correctly aligned when using pointer casts
+          // for forcing vector loads on NVIDIA.
           val optionalAttribute =
             if (UseCastsForVectors()) " __attribute__ ((aligned(16)));" else ";"
 

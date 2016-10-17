@@ -368,10 +368,9 @@ class OpenCLGenerator extends Generator {
 
     kernel.body += OpenCLAST.Comment("Private Memory")
     privateMems.foreach(x => {
-      val temp =PerformSimplification.simplify
-      PerformSimplification.simplify = true
 
-      val length = (x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))).visitAndRebuild(x => x)
+      val length =
+        (x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))).enforceSimplification
 
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +
@@ -381,7 +380,6 @@ class OpenCLGenerator extends Generator {
         addressSpace = x.mem.addressSpace,
         length = length.eval)
 
-      PerformSimplification.simplify = temp
       privateDecls += x.mem.variable -> decl
 
       kernel.body += decl
@@ -941,17 +939,12 @@ class OpenCLGenerator extends Generator {
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
 
-      val temp = PerformSimplification.simplify
-
-      PerformSimplification.simplify = true
       val iterationCount = try {
-        indexVar.range.numVals.visitAndRebuild(x => x).eval
+        indexVar.range.numVals.enforceSimplification.eval
       } catch {
         case NotEvaluableException =>
-          throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
-            "could not be determined statically.")
-      } finally {
-        PerformSimplification.simplify = temp
+          throw new OpenCLGeneratorException("Trying to unroll loop, " +
+            "but iteration count could not be determined statically.")
       }
 
       if (iterationCount > 0) {
