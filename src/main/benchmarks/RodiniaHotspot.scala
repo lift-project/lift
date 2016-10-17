@@ -9,25 +9,10 @@ import opencl.ir.pattern._
 class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("RodiniaHotspot", Seq(1036, 1036), f, 0.01f) {
 
   override def generateInputs(): Seq[Any] = {
-    val shocHaloSize = 1
-    val inputSizeN = inputSizes()(0) + 2 * shocHaloSize
-    val inputSizeM = inputSizes()(1) + 2 * shocHaloSize
+    val heat = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    val power = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
 
-    var input = Array.tabulate(inputSizeN, inputSizeM) { (i, j) => (i-shocHaloSize) * (j-shocHaloSize) * 1.0f }
-    input(0) = input(0).map((_*0.0f))
-    input(inputSizeN -1) = input(inputSizeN -1).map(_*0.0f)
-    input = input.transpose
-    input(0) = input(0).map(_*0.0f)
-    input(inputSizeM -1) = input(inputSizeM -1).map(_*0.0f)
-    input = input.transpose
-
-    /*
-    val weights = Array(0.05, 0.15, 0.05,
-                        0.15, 0.25, 0.15,
-                        0.05, 0.15, 0.05).map(_.toFloat)
-                        */
-    val weights = Array(0.05, 0.15, 0.05)
-    Seq(input, weights)
+    Seq(heat, power)
   }
 
   // no scala checks
