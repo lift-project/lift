@@ -21,10 +21,12 @@ class SHOCStencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchm
     input(inputSizeM -1) = input(inputSizeM -1).map(_*0.0f)
     input = input.transpose
 
+    /*
     val weights = Array(0.05, 0.15, 0.05,
                         0.15, 0.25, 0.15,
                         0.05, 0.15, 0.05).map(_.toFloat)
-
+                        */
+    val weights = Array(0.05, 0.15, 0.05)
     Seq(input, weights)
   }
 
@@ -70,27 +72,60 @@ object SHOCStencil2D{
       }
     )
   }
-
-  def shoc2(tileCenterX: Int, tileCenterY: Int): Lambda = {
+    def shocX(tileCenterX: Int, tileCenterY: Int): Lambda = {
     fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
       ArrayType(ArrayType(Float, 8194), 8194),
-      (matrix) => {
+      ArrayType(Float, 3),
+      (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
             fun(elem => {
               toGlobal(MapSeqUnroll(id)) o
-                ReduceSeqUnroll(add, 0.0f) $ Zip(Join() $ elem)
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
             })
             // create neighbourhoods in tiles
-          )) o Slide2D(3,1, 3,1) o
+          )) o Slide2D(1,1, 3,1) o
             // load to local memory
             toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
         ))) o
           // tiling
-          Slide2D(tileCenterY + 2,tileCenterY, tileCenterX + 2,tileCenterX) $ matrix
+          Slide2D(tileCenterY ,tileCenterY, tileCenterX + 2,tileCenterX) $ matrix
+      }
+    )
+  }
+
+    def shocY(tileCenterX: Int, tileCenterY: Int): Lambda = {
+    fun(
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayType(ArrayType(Float, 8194), 8194),
+      ArrayType(Float, 3),
+      (matrix, weights) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() $ elem, weights)
+            })
+            // create neighbourhoods in tiles
+          )) o Slide2D(3,1, 1,1) o
+            // load to local memory
+            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o
+          // tiling
+          Slide2D(tileCenterY + 2 ,tileCenterY, tileCenterX, tileCenterX) $ matrix
       }
     )
   }
@@ -102,10 +137,8 @@ object SHOCStencil2D{
       ("SHOC_STENCIL2D_256_1", Array[Lambda](shoc(1,256))),
       ("SHOC_STENCIL2D_256_8", Array[Lambda](shoc(256,8))),
       ("SHOC_STENCIL2D_8_256", Array[Lambda](shoc(8,256))),
-      ("SHOC2_STENCIL2D_256_1", Array[Lambda](shoc2(256,1))),
-      ("SHOC2_STENCIL2D_256_1", Array[Lambda](shoc2(1,256))),
-      ("SHOC2_STENCIL2D_256_8", Array[Lambda](shoc2(256,8))),
-      ("SHOC2_STENCIL2D_8_256", Array[Lambda](shoc2(8,256)))
+      ("SHOC_STENCIL2D_256_8", Array[Lambda](shocX(256,8))),
+      ("SHOC_STENCIL2D_256_8", Array[Lambda](shocY(256,8)))
     )
   )
 

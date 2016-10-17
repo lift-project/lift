@@ -1412,7 +1412,7 @@ class TestStencil extends TestSlide {
   @Test def shocStencil2D(): Unit = {
     val stencil = fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
-      ArrayType(ArrayType(Float, 8192), 8192),
+      ArrayType(ArrayType(Float, 8194), 8194),
       ArrayType(Float, 9),
       (matrix, weights) => {
         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
@@ -1433,7 +1433,7 @@ class TestStencil extends TestSlide {
             toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
         ))) o
           // tiling
-          Slide2D(258,256, 3,1) $ matrix
+          Slide2D(10,8, 258,256) $ matrix
       }
     )
     val weights = Array(0.05, 0.15, 0.05,
@@ -1462,7 +1462,7 @@ class TestStencil extends TestSlide {
     input(inputSize -1) = input(inputSize -1).map(_*0.0f)
     input = input.transpose
 
-    val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (true, true))(stencil, input, weights)
+    val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
     println("Runtime: " + runtime)
 
     //input.map(x => println(x.mkString(", ")))
@@ -1540,5 +1540,45 @@ class TestStencil extends TestSlide {
     // for generating 3k kernel
     //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
     //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
+  }
+
+   /* **********************************************************
+      RODINIA HOTSPOT
+  ***********************************************************/
+    @Test def rodiniaHotspot(): Unit = {
+    val stencil = fun(
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      //ArrayType(Float, 17*17),
+      (heat, power) => {
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+
+          MapLcl(1)(MapLcl(0)(
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeq(add, 0.0f) o Join() $ elem
+            })
+          )) o Slide2D(3,1, 3,1) o
+            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        ))) o
+          Slide2D(16,14, 16,14) o
+          Pad2D(1,1, 1,1, Pad.Boundary.MirrorUnsafe) $ heat
+      }
+    )
+    // testing
+    val input = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    val (output: Array[Float], runtime) = Execute(16,16, 1184, 1184, (true, true))(stencil, input, input)
+    println("Runtime: " + runtime)
+
+    //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
+    //compareGoldWithOutput(gold, output, runtime)
+
+    // for generating 4k kernel
+    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
+    // idle threads
+    //val (output: Array[Float], runtime) = Execute(32, 32, 4096, 4096, (true, true))(stencil, input, weights)
+    // blocked loading to local mem
+    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
   }
 }
