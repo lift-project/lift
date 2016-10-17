@@ -5,6 +5,7 @@ import ir._
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -326,12 +327,39 @@ class Best {
         )), FunCall(Split(tileSize), B))))
       )), FunCall(Split(tileSize), A))))
 
+    val fdot = fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (A, B) =>
+      FunCall(Join(), FunCall(MapGlb(0)(fun((p_1545087375) =>
+        FunCall(TransposeW(), FunCall(Join(), FunCall(MapGlb(1)(fun((p_668210649) =>
+          FunCall(TransposeW(), FunCall(Map(fun((p_1434041222) =>
+            FunCall(TransposeW(), p_1434041222)
+          )), FunCall(TransposeW(), FunCall(MapSeq(fun((p_1308109015) =>
+            FunCall(toGlobal(MapSeq(MapSeq(id))), p_1308109015))), FunCall(ReduceSeq(fun((p_2050404090, p_280265505) =>
+            FunCall(MapSeq(fun((p_827084938) =>
+              FunCall(Join(), FunCall(MapSeq(fun((p_306206744) =>
+                FunCall(ReduceSeq(fun((p_1597655940, p_2619171) =>
+                  FunCall(add, p_1597655940, p_2619171))),
+                  FunCall(Get(0), p_306206744), FunCall(MapSeq(fun((p_1983025922) =>
+                    FunCall(dot, FunCall(Get(0), p_1983025922), FunCall(Get(1), p_1983025922))
+                  )), FunCall(Zip(2), FunCall(asVector(4), FunCall(Get(1), p_827084938)), FunCall(asVector(4), FunCall(Get(1), p_306206744))))))), FunCall(Zip(2), FunCall(Get(0), p_827084938), FunCall(Transpose(), FunCall(Get(1), p_280265505)))))
+            )), FunCall(Zip(2), p_2050404090, FunCall(Transpose(), FunCall(Get(0), p_280265505))))
+          )), FunCall(MapSeq(fun((p_824208363) =>
+            FunCall(MapSeq(fun((p_500179317) =>
+              FunCall(idfloat, p_500179317)
+            )), p_824208363))), Value("0.0f", ArrayType(ArrayType(Float, tileSize), tileSize))), FunCall(Zip(2), FunCall(Split(vectorLength), FunCall(Transpose(), p_1545087375)), FunCall(Split(vectorLength), FunCall(Transpose(), p_668210649))))))))
+        )), FunCall(Split(tileSize), B))))
+      )), FunCall(Split(tileSize), A))))
+
 
     val (output1: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
     val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
+    val (output3: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fdot, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output1, 0.0001f)
     assertArrayEquals(gold, output2, 0.0001f)
+    assertArrayEquals(gold, output3, 0.0001f)
   }
 
   @Test
@@ -380,16 +408,15 @@ class Best {
                                           FunCall(ReduceSeq(fun((p_15, p_16) =>
                                             FunCall(add, p_15, p_16))),
                                             FunCall(Get(0), p_13),
-                                            FunCall(asScalar(),
                                               FunCall(MapSeq(fun((p_17) =>
-                                                FunCall(VectorizeUserFun(4,mult),
+                                                FunCall(dot,
                                                   FunCall(Get(0), p_17),
                                                   FunCall(Get(1), p_17)))),
                                                 FunCall(Zip(2),
                                                   FunCall(asVector(4),
                                                     FunCall(Get(1), p_12)),
                                                   FunCall(asVector(4),
-                                                    FunCall(Get(1), p_13))))))))),
+                                                    FunCall(Get(1), p_13)))))))),
                                         FunCall(Zip(2),
                                           FunCall(Get(0), p_12),
                                           FunCall(Transpose(),
