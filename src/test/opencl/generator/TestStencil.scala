@@ -1546,24 +1546,40 @@ class TestStencil extends TestSlide {
       RODINIA HOTSPOT
   ***********************************************************/
     @Test def rodiniaHotspot(): Unit = {
+    val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
     val stencil = fun(
-      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       ArrayType(ArrayType(Float, 1036), 1036),
       ArrayType(ArrayType(Float, 1036), 1036),
-      //ArrayType(Float, 17*17),
       (heat, power) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
-
-          MapLcl(1)(MapLcl(0)(
-            fun(elem => {
-              toGlobal(MapSeqUnroll(id)) o
-                ReduceSeq(add, 0.0f) o Join() $ elem
-            })
-          )) o Slide2D(3,1, 3,1) o
-            toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-        ))) o
-          Slide2D(16,14, 16,14) o
-          Pad2D(1,1, 1,1, Pad.Boundary.MirrorUnsafe) $ heat
+        MapWrg(1)(MapWrg(0)(
+          fun(tiles => {
+            val powerTile = Get(tiles, 0)
+            val heatTile = Get(tiles, 1)
+            toGlobal(MapLcl(1)(MapLcl(0)((
+              fun(nbhs => {
+                val powerValue = Get(nbhs, 0) //Float
+                val heatNbh = Get(nbhs, 1)    //[[Float]_3]_3
+                // p = powerValue, t = heatNbh; userfun has to compute:
+                // out = t[0,0] + c(p + y(t[-1,0] + t[1,0] - 2t[0,0]) +
+                //                      x(t[0,-1] + t[0,1] - 2t[0,0]) +
+                //                      z(a - t[0,0]));
+                // a, c, x, y, z are constants
+                //hotspot.apply(nbhs)
+                id.apply(powerValue)
+              })
+            )))) o
+              Split(14) $
+                Zip(Join() $ powerTile,
+                    Join() $ heatTile)
+          })
+        )) o
+          Split(74) $
+            Zip(Join() o MapWrg(1)(MapWrg(0)(toLocal(MapLcl(1)(MapLcl(0)(id))))) o
+                         Slide2D(14,14) $ power,
+                Join() o Map(Map(Slide2D(3,1,3,1))) o
+                         MapWrg(1)(MapWrg(0)(toLocal(MapLcl(1)(MapLcl(0)(id))))) o
+                         Slide2D(16,14) o
+                         Pad2D(1,1,Pad.Boundary.Wrap) $ heat) //actually its mirror
       }
     )
     // testing
