@@ -47,6 +47,11 @@ object Lower {
 
     assignedAddressSpaces
   }
+  //restrictGlobalNum:Boolean (default as true)
+  //  => Since we do not have a global sync tech, when this is set as True, we will have only one mapGlb or one pair of mapGlb(0) & mapGlb(1)
+  //findAllLowering:Boolean(default as true)
+  //  => If true, it will find all the possible lower mappings
+  //  => If false, it will only give the one lower by levels (just like the old one)
 
   def mapCombinations(lambda: Lambda,
     enabledMappings: EnabledMappings =

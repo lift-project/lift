@@ -1,3 +1,49 @@
+//Basicly, this high-level program generator generate Lambdas in a loop:
+
+//First, it try to use options(i.e patterns, like join,split,map,reduce..) that takes the initial input (Note that FPatterns also need a Lambda as input)
+//Each round, it will generate :
+//A FunCall
+//A Lambda using the funcall
+//A param that have the same type with the lambda
+//A param that unpack the result array(only when 1.the result type is an ArrayType 2.MapStrictMatchUnpack or ReduceStrictMatchUnpack or both of them are set as True)
+
+//For example: if we have a Param x with x.t == ArrayType(Float,64),then it can generate:
+//1. Split(8) $ x
+//2. fun(ArrayType(Float,64),x =>{ Split(8) $ x})
+//3. Param(ArrayType(ArrayType(Float,8),8)
+//4. Param(ArrayType(8))
+
+//Second, it will use the Params(and Lambdas for FPatterns) that comes form initial input or the first step, to generate deeper programs
+
+//Then, repeatedly generate Lambdas using the Params and Lambdas we have, until reach the loop limit(also the depth limit)
+
+//Finally, refine the result,deal with the Params that comes from FunCall or unpack
+
+//The final result is stored in RefinedResult:ArrayBuffer[Lambda]
+
+//Now we have Join, Split,UserFun, Zip,Get,Map,Reduce, and can generate the features of Matrix Mult
+//It's simple to support more patterns.. Just tell me
+
+//Then the usage of the controllers:
+
+
+//1.LoopNum : Int                => The loop limit (max depth)
+//2.ConsequentUserFun: Boolean   => allow for UserFun() o UserFun()
+//3.ReduceOnOneElement: Boolean  => allow for reduction on only one element. The compiler have a problem with that.
+//4.AllowJoinASplit: Boolean     => allow for Join()o Split(). It is identical
+//5.MustContainsUserFun: Boolean => filter the result that does not contains any userfun
+//6.MustContainsMap:Boolean      => filter the result that does not contains any maps
+//7.MapStrictMatchUnpack:Boolean => When generate Map, like:
+//                                  Map(Lambda1) o Param2, the input of Lambda1 is Param1
+//                                  If MapStrictMatchUnpack is set to True, then it will ensure: Param1 comes form the unpack of Param2
+//8.ReduceStrictMatchUnpack:Boolean  => similar with (7)
+//9.LimitNum:Int                 => the max number of Lambda generated each cycle
+
+//10.ZipLimit:Int                => Max number of Param to zip
+//11.GenJoin/GenSplit... :Boolean=> Whether generate a certain pattern
+
+
+
 package ir.hlGenerator
 
 import java.io.PrintWriter
@@ -30,7 +76,6 @@ class hlGenerator {
   val PrintDebugInfo = true
 
 
-
   //controllers for run programs
   val GlobalSize = 512
   val LocalSize = 32
@@ -40,7 +85,7 @@ class hlGenerator {
 
   //controllers for generate programs
   val LoopNum = 30
-  val consequentUserFun = false
+  val ConsequentUserFun = false
   //val ReduceInitToGlobal = false
   val ReduceOnOneElement = false
   val AllowJoinASplit = false
@@ -706,7 +751,7 @@ class hlGenerator {
 
 
 
-            if (containsUserFun && !consequentUserFun) {
+            if (containsUserFun && !ConsequentUserFun) {
               //Don't allow for UserFun(UserFun(...))
             }
             else {
