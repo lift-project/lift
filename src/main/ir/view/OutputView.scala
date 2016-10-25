@@ -173,14 +173,14 @@ object OutputView {
   private def buildViewMap(m: AbstractMap, call: FunCall, writeView: View): View = {
     // traverse into call.f
     visitAndBuildViews(m.f.body, writeView.access(m.loopVar))
-    new ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
+    ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
   }
 
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
     // traverse into call.f
     visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
-    new ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
+    ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
   private def buildViewSearch(s: AbstractSearch,

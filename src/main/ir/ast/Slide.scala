@@ -69,9 +69,9 @@ object Slide2D {
   /** Asymmetrical sliding */
   def apply(sizeRow: Int, stepRow: Int,
             sizeCol: Int, stepCol: Int): Lambda = {
-    //Map(Transpose()) o Slide(sizeRow, stepRow) o Map(Slide(sizeCol, stepCol))
+    Map(Transpose()) o Slide(sizeRow, stepRow) o Map(Slide(sizeCol, stepCol))
     // other possible implementation
-    Map(Map(Transpose()) o Slide(sizeCol, stepCol) o Transpose()) o Slide(sizeRow, stepRow)
+//    Map(Map(Transpose()) o Slide(sizeCol, stepCol) o Transpose()) o Slide(sizeRow, stepRow)
   }
 }
 
