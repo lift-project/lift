@@ -403,4 +403,53 @@ class TestSlide {
     val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
     compareGoldWithOutput(gold, output, runtime)
   }
+
+  /* **********************************************************
+   SLIDE 3D
+  ***********************************************************/
+  @Test def slide3D(): Unit = {
+    val size = 2
+    val step = 1
+    val N = SizeVar("N")
+    val b = Pad.Boundary.Clamp
+    val fct = fun(
+      //ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      ArrayType(ArrayType(ArrayType(Float, 3), 3), 3),
+      (input) => MapGlb(0)(MapGlb(1)(MapGlb(2)(
+        //MapSeq(MapSeq(MapSeq(id)))))) o
+        toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join() o Join()))) o
+        // another slide3d
+      Slide3D(size, step) $ input
+        /*
+        Map(Map(Transpose()) o Transpose()) o
+        Slide(size, step) o
+        Map(Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))) $ input
+        */
+        // toomas slide3d
+        /*
+        Map(Map(Transpose()) o Transpose() o
+          Map(
+            Map(Transpose() o Map(Slide(size, step))
+            ) o Slide(size, step))
+        ) o Slide(size, step) $ input
+        */
+        /*
+        Transpose() o Map(Transpose()) o Transpose() o
+        Map(Map(Slide(2,1))) o Map(Transpose()) o Transpose() o
+        Map(Slide2D(2,1)) $ input
+        */
+    )
+
+    val input3D = Array.tabulate(3, 3, 3) { (i, j, k) => i * 9.0f + j * 3.0f + k}
+    val test: Array[Array[Array[Array[Array[Array[Float]]]]]] = input3D.map(_.sliding(2,1).toArray.map(_.transpose.sliding(2,1).toArray).map(_.transpose)).transpose.map(_.transpose).map(_.map(_.sliding(2,1).toArray)).transpose
+    val nbh= test.map(_.map(_.map(_.flatten.flatten.foldLeft(0.0f)((acc, p) => acc + p))))
+    val gold = Array(52,60,76,84,124,132,148,156).map(_.toFloat)
+    //val first = nbh.head.head.head
+    val (output: Array[Float],runtime) = Execute(2,2,2,2,2,2,(true,true))(fct, input3D)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
+    //println("lift:  " + output.map(_.toInt).map(_+97).map(_.asInstanceOf[Char]).mkString(","))
+    println("scala: " + test.flatten.flatten.flatten.flatten.flatten.map(_.toInt).map(_+97).map(_.asInstanceOf[Char]).mkString(","))
+    println(output.map(_.toInt).mkString(","))
+  }
 }

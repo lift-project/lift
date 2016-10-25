@@ -223,6 +223,7 @@ class TestStencil extends TestSlide {
 
     testCombinationPadGroup(boundary, gold, 3,1, 2,0)
   }
+
  /* **********************************************************
       SLIDE o PAD 2D
   ***********************************************************/
@@ -390,6 +391,7 @@ class TestStencil extends TestSlide {
     val stencil = createSimple2DStencil(3,1,1,1, 1,1,0,0, weights, Pad.Boundary.Wrap,2)
     run2DStencil(stencil, 3,1,1,1, 1,1,0,0, weights, "notUsed", scalaWrap)
   }
+
  /* **********************************************************
       STENCILS WITH MULTIPLE INPUT ARRAYS
   ***********************************************************/
@@ -996,7 +998,7 @@ class TestStencil extends TestSlide {
       //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
@@ -1464,20 +1466,6 @@ class TestStencil extends TestSlide {
 
     val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
     println("Runtime: " + runtime)
-
-    //input.map(x => println(x.mkString(", ")))
-    //output.grouped(8).toArray.map(x => println(x.mkString(", ")))
-
-    //val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
-
-    // for generating 4k kernel
-    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
-
-    // for generating 3k kernel
-    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
   }
 
  /* **********************************************************
@@ -1526,20 +1514,6 @@ class TestStencil extends TestSlide {
 
     val (output: Array[Float], runtime) = Execute(64, 4, 1024, 512, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)
-
-    //input.map(x => println(x.mkString(", ")))
-    //output.grouped(8).toArray.map(x => println(x.mkString(", ")))
-
-    //val gold = Utils.scalaCompute2DStencil(input, 17,1, 1,1, 8,8,0,0, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
-
-    // for generating 4k kernel
-    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
-
-    // for generating 3k kernel
-    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
   }
 
    /* **********************************************************
@@ -1582,19 +1556,103 @@ class TestStencil extends TestSlide {
                          Pad2D(1,1,Pad.Boundary.Wrap) $ heat) //actually its mirror
       }
     )
-    // testing
     val input = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
     val (output: Array[Float], runtime) = Execute(16,16, 1184, 1184, (true, true))(stencil, input, input)
     println("Runtime: " + runtime)
+  }
 
-    //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
+  /* **********************************************************
+      HOTSPOT 3D RODINIA
+  ***********************************************************/
+    @Test def rodiniaHotspot3D(): Unit = {
+    @Ignore //fix
+    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
+      // segfaults
+    val stencil = fun(
+      ArrayType(ArrayType(ArrayType(Float, 128), 128), 8),
+      ArrayType(ArrayType(ArrayType(Float, 3), 3), 3),
+      (input, weights) => {
+        MapWrg(2)(MapWrg(1)(MapWrg(0)( \(tile =>
+          MapLcl(2)(MapLcl(1)(MapLcl(0)( \(nbh =>
+            toGlobal(MapSeq(id)) o
+            ReduceSeq( \((acc, next) => add(acc, mult(next._0, next._1))), 0.0f)
+            $ Zip(Join() o Join() $ nbh,
+                  Join() o Join() $ weights)
+           )))) o
+          Slide3D(3,1) o
+          toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ tile
+        )))) o  Slide3D(4,2) $ input
+      }
+    )
 
-    // for generating 4k kernel
-    //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    // idle threads
-    //val (output: Array[Float], runtime) = Execute(32, 32, 4096, 4096, (true, true))(stencil, input, weights)
-    // blocked loading to local mem
-    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+    // testing
+    val input = Array.fill(8)(Array.fill(8)(Array.fill(8)(1.0f)))
+    val weights = Array.fill(3)(Array.fill(3)(Array.fill(3)(1.0f)))
+      //val input = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    val (output: Array[Float], runtime) = Execute(4,4,4, 128,128,8, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+    //println(output.mkString(","))
+  }
+
+  // rodinia 3d opt1
+  @Test def rodiniaHotspot3DOpt1(): Unit = {
+    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
+    val stencil = fun(
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      ArrayType(ArrayType(Float, 3), 3),
+      (input, weights) => {
+        MapSeq(MapGlb(1)(MapGlb(0)( \(tower =>
+           MapSeq( \(level =>
+            toGlobal(MapSeq(id)) o
+            ReduceSeq(add, 0.0f) o
+            Join() $ level))
+          $ tower
+        )))) o Slide3D(3,1, 3,1, 8,8) $ input
+      }
+    )
+
+    val input = Array.fill(512)(Array.fill(512)(Array.fill(8)(1.0f)))
+    val weights = Array.fill(3)(Array.fill(3)(1.0f))
+    val (output: Array[Float], runtime) = Execute(64,4,1, 512,512,8, (true, true))(stencil, input, weights)
+    println("Runtime: " + runtime)
+    //println(output.mkString(","))
+  }
+
+    // 3d simple
+  @Test def simple3d(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      (input) => {
+        MapSeq(MapGlb(1)(MapGlb(0)(
+          toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join() o Join()
+        ))) o Slide3D(3,1, 3,1, 3,1) o Pad3D(1,1,1,Pad.Boundary.Clamp) $ input
+      }
+    )
+
+    val input = Array.fill(512)(Array.fill(512)(Array.fill(8)(1.0f)))
+    val (output: Array[Float], runtime) = Execute(64,4,1, 512,512,8, (true, true))(stencil, input)
+    println("Runtime: " + runtime)
+    //println(output.mkString(","))
   }
 }
+      /*
+      val stencil = fun(
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      ArrayType(ArrayType(ArrayType(Float, 3), 3), 3),
+      (input, weights) => {
+        MapWrg(2)(MapWrg(1)(MapWrg(0)( \(nbh =>
+          toGlobal(
+          MapLcl(2)( \(planes =>
+            MapLcl(1)( \(rows =>
+              MapLcl(0)( \(elems =>
+                 (add.apply(elems._0, elems._1))
+              )) $ Zip(rows._0, rows._1)
+            )) $ Zip(planes._0, planes._1)
+          ))) $ Zip(
+            toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ weights,
+            Slide3D(3,1) o
+            toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ nbh)
+        )))) o Slide3D(4,2) /*o Pad3D(1,1,1,Pad.Boundary.Mirror)*/ $ input
+      }
+    )
+    */

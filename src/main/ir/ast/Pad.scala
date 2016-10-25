@@ -16,7 +16,6 @@ case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
     }
   }
 
-
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
     args.head match {
@@ -83,17 +82,21 @@ object Pad {
 
 object Pad2D {
   def apply(top: Int, bottom: Int, left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
+    //Map(Pad(left, right, boundary)) o Pad(top, bottom, boundary)
+    // other possible implementation using transpose
     Transpose() o Pad(left, right, boundary) o Transpose() o Pad(top, bottom, boundary)
   }
 
   // Symmetric 2D padding
   def apply(left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
+    //Map(Pad(left, right, boundary)) o Pad(left, right, boundary)
+    // other possible implementation using transpose
     Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary)
   }
 }
 
 object Pad3D {
   def apply(z: Int, y: Int, x: Int, b: Pad.BoundaryFun): Lambda = {
-    Map(Pad2D(y,y,x,x,b)) o Pad(z,z,b)
+    Map(Map(Pad(x,x,b)) o Pad(y,y,b)) o Pad(z,z,b)
   }
 }

@@ -28,7 +28,6 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
     }
   }
 
-
   /**
    * Define equality operator based on ID to be able to insert [[Slide]] instances
    * into a set properly.
@@ -62,20 +61,38 @@ object Slide {
 object Slide2D {
   /** Symmetrical sliding */
   def apply(size: Int, step: Int): Lambda = {
-    Map(
-      Map(
-        Transpose()
-      ) o Slide(size, step) o Transpose()
-    ) o Slide(size, step)
+    //Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))
+    // other possible implementation
+    Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
   }
 
   /** Asymmetrical sliding */
-  def apply(size1: Int, step1: Int,
-            size2: Int, step2: Int): Lambda = {
-    Map(
-      Map(
-        Transpose()
-      ) o Slide(size2, step2) o Transpose()
-    ) o Slide(size1, step1)
+  def apply(sizeRow: Int, stepRow: Int,
+            sizeCol: Int, stepCol: Int): Lambda = {
+    //Map(Transpose()) o Slide(sizeRow, stepRow) o Map(Slide(sizeCol, stepCol))
+    // other possible implementation
+    Map(Map(Transpose()) o Slide(sizeCol, stepCol) o Transpose()) o Slide(sizeRow, stepRow)
+  }
+}
+
+object Slide3D {
+  /** Symmetrical sliding */
+  def apply(size: Int, step: Int): Lambda = {
+    Map(Map(Transpose()) o Transpose()) o
+    Slide(size, step) o
+    Map(Map(Transpose()) o Slide(size, step) o Map(Slide(size, step)))
+    /* other possible implementation
+    Map(Map(Transpose()) o Transpose() o
+      Map(Map(Transpose() o Map(Slide(size, step))
+        ) o Slide(size, step))) o Slide(size, step)
+    */
+  }
+
+  def apply(sizeX: Int, stepX: Int,
+            sizeY: Int, stepY: Int,
+            sizeZ: Int, stepZ: Int): Lambda = {
+    Map(Map(Transpose()) o Transpose()) o
+    Slide(sizeZ, stepZ) o
+    Map(Map(Transpose()) o Slide(sizeY, stepY) o Map(Slide(sizeX, stepX)))
   }
 }
