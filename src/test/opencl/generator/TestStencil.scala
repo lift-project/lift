@@ -1520,6 +1520,7 @@ class TestStencil extends TestSlide {
       RODINIA HOTSPOT
   ***********************************************************/
     @Test def rodiniaHotspot(): Unit = {
+      @Ignore //todo implement
     val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
     val stencil = fun(
       ArrayType(ArrayType(Float, 1036), 1036),
