@@ -1519,30 +1519,40 @@ class TestStencil extends TestSlide {
    /* **********************************************************
       RODINIA HOTSPOT
   ***********************************************************/
-    @Ignore //todo implement
+  @Ignore //segfaults
     @Test def rodiniaHotspot(): Unit = {
-    val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
-    val stencil = fun(
-      ArrayType(ArrayType(Float, 1036), 1036),
-      ArrayType(ArrayType(Float, 1036), 1036),
-      (heat, power) => {
-        MapWrg(1)(MapWrg(0)(
-          fun(tiles => {
-            val powerTile = Get(tiles, 0)
-            val heatTile = Get(tiles, 1)
-            toGlobal(MapLcl(1)(MapLcl(0)((
-              fun(nbhs => {
-                val powerValue = Get(nbhs, 0) //Float
-                val heatNbh = Get(nbhs, 1)    //[[Float]_3]_3
-                // p = powerValue, t = heatNbh; userfun has to compute:
+      // p = powerValue, t = heatNbh; userfun has to compute:
                 // out = t[0,0] + c(p + y(t[-1,0] + t[1,0] - 2t[0,0]) +
                 //                      x(t[0,-1] + t[0,1] - 2t[0,0]) +
                 //                      z(a - t[0,0]));
                 // a, c, x, y, z are constants
                 //hotspot.apply(nbhs)
-                id.apply(powerValue)
+    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
+    //val addAmbientTemp = UserFun("addAmbientTemp", "x", "{ return x + (0.1f * 1.068e-7f * 80.0f); }", Float, Float)
+    val addAmbientTemp = UserFun("addAmbientTemp", "x", "{ return x + (0.1 * 1.068 * 80.0); }", Float, Float)
+    val N = Var("N", StartFromRange(2))
+    val M = Var("M", StartFromRange(2))
+    val stencil = fun(
+      //ArrayType(ArrayType(Float, N), M),
+      //ArrayType(ArrayType(Float, N), M),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(Float, 9),
+      (heat, power, coeff) => {
+        MapWrg(1)(MapWrg(0)(
+          fun(tiles => {
+            val powerTile = Get(tiles, 0)
+            val heatTile = Get(tiles, 1)
+            MapLcl(1)(MapLcl(0)(
+              fun(nbhs => {
+                val powerValue = Get(nbhs, 0) //Float
+                val heatNbh = Get(nbhs, 1)    //[[Float]_3]_3
+                toGlobal(MapSeq(id)) o
+                MapSeq( \(x => addAmbientTemp(add(powerValue, x)))) o
+                ReduceSeqUnroll(\((acc, next) =>
+                  add(acc, mult(next._0, next._1))), 0.0f) $ Zip(Join() $ heatNbh, coeff)
               })
-            )))) o
+            )) o
               Split(14) $
                 Zip(Join() $ powerTile,
                     Join() $ heatTile)
@@ -1557,8 +1567,13 @@ class TestStencil extends TestSlide {
                          Pad2D(1,1,Pad.Boundary.Wrap) $ heat) //actually its mirror
       }
     )
-    val input = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
-    val (output: Array[Float], runtime) = Execute(16,16, 1184, 1184, (true, true))(stencil, input, input)
+
+    val heat = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    val power = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    val x = 0.1f; val y = 0.1f; val z = 1024000; val c = 1.068e-7f
+    val coeff = Array(0, c*y, 0, c*x, c*(-2*y-2*x-z+1), c*x, 0, c*y, 0)
+
+    val (output: Array[Float], runtime) = Execute(16,16, 1184, 1184, (true, true))(stencil, heat, power, coeff)
     println("Runtime: " + runtime)
   }
 
