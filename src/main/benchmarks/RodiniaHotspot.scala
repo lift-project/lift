@@ -17,6 +17,13 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
     Seq(heat, power, coeff)
   }
 
+  override def globalSize: Array[Int] = {
+    Array(1184,1184,1)
+  }
+
+  override def localSize: Array[Int] = {
+    Array(16,16,1)
+  }
   // no scala checks
   override def runScala(inputs: Any*): Array[Float] = {
     throw new IllegalArgumentException("no scala check defined for this benchmark")
@@ -31,32 +38,44 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
 object RodiniaHotspot{
 
   /////////////////// LAMBDAS
-  def hotspot(tilesize: Int): Lambda = {
-  fun(
-    //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayType(ArrayType(Float, 1036), 1036),
-    ArrayType(ArrayType(Float, 1036), 1036),
-    //ArrayType(Float, 17*17),
-    (heat, power) => {
-      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
-
-        MapLcl(1)(MapLcl(0)(
-          fun(elem => {
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeq(add, 0.0f) o Join() $ elem
+  val addAmbientTemp = UserFun("addAmbientTemp", Array("x", "y"), "{ return x + y + (0.1f * 1.068e-7f * 80.0f); }", Seq(Float, Float), Float)
+  def hotspot(): Lambda = {
+    fun(
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(Float, 9),
+      (heat, power, coeff) => {
+        MapWrg(1)(MapWrg(0)(
+          fun(tiles => {
+            val powerTile = Get(tiles, 0)
+            val heatTile = Get(tiles, 1)
+            MapLcl(1)(MapLcl(0)(
+              fun(nbhs => {
+                val powerValue = Get(nbhs, 0) // Float
+                val heatNbh = Get(nbhs, 1)    // [[Float]_3]_3
+                toGlobal(MapSeq(id)) o
+                  MapSeq( \(x => addAmbientTemp(powerValue, x))) o
+                  ReduceSeqUnroll(\((acc, next) =>
+                    multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() $ heatNbh, coeff)
+              })
+            )) o
+              Split(14) $
+              Zip(Join() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ powerTile,
+                Join() o Slide2D(3,1,3,1) o
+                  toLocal(MapLcl(1)(MapLcl(0)(id))) $ heatTile)
           })
-        )) o Slide2D(3,1, 3,1) o
-          toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-      ))) o
-        Slide2D(tilesize,tilesize-2, tilesize,tilesize-2) o
-        Pad2D(1,1, 1,1, Pad.Boundary.MirrorUnsafe) $ heat
-    }
-  )}
+        )) o
+          Split(74) $
+          Zip(Join() o Slide2D(14,14) $ power,
+            Join() o Slide2D(16,14) o
+              Pad2D(1,1,Pad.Boundary.Wrap) $ heat) //actually its mirror
+      }
+    )
+  }
 
   def apply() = new RodiniaHotspot(
     Seq(
-      ("HOTSPOT_16", Array[Lambda](hotspot(16))),
-      ("HOTSPOT_32", Array[Lambda](hotspot(32)))
+      ("HOTSPOT", Array[Lambda](hotspot()))
   ))
 
   def main(args: Array[String]): Unit = {
