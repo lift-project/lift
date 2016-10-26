@@ -98,8 +98,8 @@ class TestStencil extends TestSlide {
   }
 
   def createThesisChapter4Example(boundary: BoundaryFun,
-                           size: Int, step: Int,
-                           left: Int, right: Int): Lambda1 = {
+                                  size: Int, step: Int,
+                                  left: Int, right: Int): Lambda1 = {
     fun(
       ArrayType(Float, Var("N", StartFromRange(2))),
       (input) =>
@@ -224,9 +224,9 @@ class TestStencil extends TestSlide {
     testCombinationPadGroup(boundary, gold, 3,1, 2,0)
   }
 
- /* **********************************************************
-      SLIDE o PAD 2D
-  ***********************************************************/
+  /* **********************************************************
+       SLIDE o PAD 2D
+   ***********************************************************/
   def create2DPadSlideLambda(boundary: BoundaryFun,
                              size: Int, step: Int,
                              left: Int, right: Int): Lambda1 = {
@@ -289,9 +289,9 @@ class TestStencil extends TestSlide {
     runCombinedPadGroupTest(3,1, 1,1, boundary, scalaBoundary)
   }
 
- /* **********************************************************
-      2D STENCILS
-  ***********************************************************/
+  /* **********************************************************
+       2D STENCILS
+   ***********************************************************/
   def createSimple2DStencil(size: Int, step: Int,
                             left: Int, right: Int,
                             weights: Array[Float],
@@ -392,9 +392,9 @@ class TestStencil extends TestSlide {
     run2DStencil(stencil, 3,1,1,1, 1,1,0,0, weights, "notUsed", scalaWrap)
   }
 
- /* **********************************************************
-      STENCILS WITH MULTIPLE INPUT ARRAYS
-  ***********************************************************/
+  /* **********************************************************
+       STENCILS WITH MULTIPLE INPUT ARRAYS
+   ***********************************************************/
   def create1DMultiInputLambda(inputLength: Int,
                                weights: Array[Float],
                                size: Int, step:
@@ -405,18 +405,18 @@ class TestStencil extends TestSlide {
       (input, weights) => {
 
         Join() o
-        MapGlb(
-          fun(tuple => {
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeqUnroll(
-                fun((acc, y) => {
-                  multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
-                }), 0.0f) $
-              Zip(weights, Get(tuple, 0))
-          })
+          MapGlb(
+            fun(tuple => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(
+                  fun((acc, y) => {
+                    multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+                  }), 0.0f) $
+                Zip(weights, Get(tuple, 0))
+            })
 
-        ) $ Zip(Slide(size, step) o Pad(left, right, BOUNDARY) $ input,
-                input)
+          ) $ Zip(Slide(size, step) o Pad(left, right, BOUNDARY) $ input,
+          input)
       }
     )
   }
@@ -430,9 +430,9 @@ class TestStencil extends TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
-   /* **********************************************************
-      TILING 1D
-  ***********************************************************/
+  /* **********************************************************
+     TILING 1D
+ ***********************************************************/
   def createTiled1DStencilLambda(weights: Array[Float],
                                  size: Int, step: Int,
                                  tileSize: Int, tileStep: Int,
@@ -443,13 +443,13 @@ class TestStencil extends TestSlide {
       (input, weights) => {
         MapWrg(fun(tile =>
           MapLcl(
-          fun(neighbourhood => {
-            toGlobal(MapSeqOrMapSeqUnroll(id)) o
-              ReduceSeqOrReduceSeqUnroll(add, 0.0f) o
-              MapSeqOrMapSeqUnroll(mult) $
-              Zip(weights, neighbourhood)
-          })
-        ) o Slide(size, step) o MapLcl(toLocal(id)) $ tile
+            fun(neighbourhood => {
+              toGlobal(MapSeqOrMapSeqUnroll(id)) o
+                ReduceSeqOrReduceSeqUnroll(add, 0.0f) o
+                MapSeqOrMapSeqUnroll(mult) $
+                Zip(weights, neighbourhood)
+            })
+          ) o Slide(size, step) o MapLcl(toLocal(id)) $ tile
 
         )) o Slide(tileSize, tileStep) o Pad(left, right, BOUNDARY) $ input
       }
@@ -476,19 +476,19 @@ class TestStencil extends TestSlide {
     compareGoldWithOutput(gold, output, runtime)
   }
 
-   /* **********************************************************
-      TILING 2D
-  ***********************************************************/
+  /* **********************************************************
+     TILING 2D
+ ***********************************************************/
   def createTiled2DStencil(size: Int, step: Int,
                            tileSize: Int, tileStep: Int,
                            left: Int, right: Int,
                            weights: Array[Float],
                            boundary: Pad.BoundaryFun): Lambda = {
-     createTiled2DStencil(size, step, size, step,
-       tileSize, tileStep, tileSize, tileStep,
-       left, right, left, right,
-       weights, boundary)
-   }
+    createTiled2DStencil(size, step, size, step,
+      tileSize, tileStep, tileSize, tileStep,
+      left, right, left, right,
+      weights, boundary)
+  }
 
   def createTiled2DStencil(size1: Int, step1: Int,
                            size2: Int, step2: Int,
@@ -498,38 +498,38 @@ class TestStencil extends TestSlide {
                            left: Int, right: Int,
                            weights: Array[Float],
                            boundary: Pad.BoundaryFun): Lambda = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(Float, weights.length),
-      (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(Float, weights.length),
+    (matrix, weights) => {
+      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
 
-          MapLcl(1)(MapLcl(0)(
-            fun(elem => {
-              toGlobal(MapSeqUnroll(id)) o
-                ReduceSeqUnroll(fun((acc, pair) => {
-                  val pixel = Get(pair, 0)
-                  val weight = Get(pair, 1)
-                  multAndSumUp.apply(acc, pixel, weight)
-                }), 0.0f) $ Zip(Join() $ elem, weights)
-            })
+        MapLcl(1)(MapLcl(0)(
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
 
-          )) o Slide2D(size1, step1, size2, step2) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
-        ))) o Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o Pad2D(top,bottom,left,right, boundary)$ matrix
-      }
+        )) o Slide2D(size1, step1, size2, step2) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile
+      ))) o Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o Pad2D(top,bottom,left,right, boundary)$ matrix
+    }
   )
 
   def createCopyTilesLambda(size: Int, step: Int,
                             left: Int, right: Int,
                             boundary: Pad.BoundaryFun): Lambda = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(Float, 9),
-      (matrix, weights) => {
-        MapWrg(1)(MapWrg(0)(fun( tile =>
+    ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+    ArrayType(Float, 9),
+    (matrix, weights) => {
+      MapWrg(1)(MapWrg(0)(fun( tile =>
 
-         toGlobal(MapLcl(1)(MapLcl(0)(id))) $ tile
+        toGlobal(MapLcl(1)(MapLcl(0)(id))) $ tile
 
-        ))) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
-      }
+      ))) o Slide2D(size, step) o Pad2D(left, right, boundary)$ matrix
+    }
   )
 
   @Test def copyTilesIdentity(): Unit = {
@@ -566,34 +566,34 @@ class TestStencil extends TestSlide {
                                            left: Int, right: Int,
                                            weights: Array[Float],
                                            boundary: Pad.BoundaryFun): Lambda = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(Float, weights.length),
-      (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(Float, weights.length),
+    (matrix, weights) => {
+      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
 
-          MapLcl(1)(MapLcl(0)(
-            //MapSeq(MapSeq((toGlobal(id))))
-            fun(elem => {
-              toGlobal(MapSeqUnroll(id)) o
-                ReduceSeqUnroll(fun((acc, pair) => {
-                  val pixel = Get(pair, 0)
-                  val weight = Get(pair, 1)
-                  multAndSumUp.apply(acc, pixel, weight)
-                }), 0.0f) $ Zip(Join() $ elem, weights)
-            })
+        MapLcl(1)(MapLcl(0)(
+          //MapSeq(MapSeq((toGlobal(id))))
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
 
-            // create stencil neighbourhoods
-          )) o Slide2D(size1, step1, size2, step2) o Map(Join()) o
+          // create stencil neighbourhoods
+        )) o Slide2D(size1, step1, size2, step2) o Map(Join()) o
 
-            // load chunks to local memory
-            toLocal(MapLcl(1)(MapSeqUnroll(MapLcl(0)(id)))) $ tile
+          // load chunks to local memory
+          toLocal(MapLcl(1)(MapSeqUnroll(MapLcl(0)(id)))) $ tile
 
-          // spliting tile into chunks
-        ))) o Map(Map(Map(Split(8)))) o
-          // creating tiles
-          Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o
-          Pad2D(top,bottom,left,right, boundary)$ matrix
-      }
+        // spliting tile into chunks
+      ))) o Map(Map(Map(Split(8)))) o
+        // creating tiles
+        Slide2D(tileSize1, tileStep1, tileSize2, tileStep2) o
+        Pad2D(top,bottom,left,right, boundary)$ matrix
+    }
   )
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
@@ -604,9 +604,9 @@ class TestStencil extends TestSlide {
     run2DStencil(tiled, 1,1,17,1, 0,0,8,8, weights, "notUsed", scalaClamp)
   }
 
-   /* **********************************************************
-      TEMPORAL BLOCKING
-  ***********************************************************/
+  /* **********************************************************
+     TEMPORAL BLOCKING
+ ***********************************************************/
   def createTempAndSpatialBlockingLambda(n: Int, s: Int,
                                          tileSize: Int, tileStep: Int,
                                          l: Int, r: Int, b: Pad.BoundaryFun) = {
@@ -616,32 +616,32 @@ class TestStencil extends TestSlide {
         Join() o MapWrg(
           //temporal blocking
           Join() o MapLcl(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o
-              Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f)))) o
-        //spatial blocking
-        Split(2) o
-        // create data differently
-        Map(Slide(n,s)) o Slide(n+2,1) o Pad(2,2,b) $ input
+            Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f)))) o
+          //spatial blocking
+          Split(2) o
+          // create data differently
+          Map(Slide(n,s)) o Slide(n+2,1) o Pad(2,2,b) $ input
 
-//        Join() o MapWrg(
-//          //temporal blocking
-//          Join() o MapLcl(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o
-//            //Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o
-//              Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f)))) o
-//        //spatial blocking
-//        Split(2) o //Slide(2,2) o
-//        //Slide(n,s) o Pad(l,r,b) o
-//          Slide(n,s) o Pad(l,r,b) o
-//            Slide(n,s) o Pad(l,r,b) $ input
+        //        Join() o MapWrg(
+        //          //temporal blocking
+        //          Join() o MapLcl(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o
+        //            //Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o
+        //              Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f)))) o
+        //        //spatial blocking
+        //        Split(2) o //Slide(2,2) o
+        //        //Slide(n,s) o Pad(l,r,b) o
+        //          Slide(n,s) o Pad(l,r,b) o
+        //            Slide(n,s) o Pad(l,r,b) $ input
 
         // temp than spatial
-//        MapGlb( fun(tile =>
-//          //temporal blocking
-//          Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o
-//            Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f))) o
-//            Slide(n,s) o /*Pad(l,r,b) o*/
-//            Slide(n,s) /*o Pad(l,r,b)*/ $ tile
-//          // spatial blocking
-//        )) o Slide(tileSize, tileStep) o Pad(l,r,b) $ input
+        //        MapGlb( fun(tile =>
+        //          //temporal blocking
+        //          Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o
+        //            Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f))) o
+        //            Slide(n,s) o /*Pad(l,r,b) o*/
+        //            Slide(n,s) /*o Pad(l,r,b)*/ $ tile
+        //          // spatial blocking
+        //        )) o Slide(tileSize, tileStep) o Pad(l,r,b) $ input
       }
     )
   }
@@ -679,15 +679,15 @@ class TestStencil extends TestSlide {
         MapWrg( fun(tile =>
           toGlobal(MapSeqUnroll(id)) o Iterate(2) (fun(localTile =>
             Join() o
-            MapLcl(
-             fun(neighbourhood => {
-               toLocal(MapSeqUnroll(id)) o
-                 ReduceSeqUnroll(fun((acc, y) => {
-                  multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
-                }), 0.0f) $
-                Zip(weights, neighbourhood)
-          })
-        ) o Slide(size, step) $ localTile)) o MapLcl(toLocal(id)) $ tile
+              MapLcl(
+                fun(neighbourhood => {
+                  toLocal(MapSeqUnroll(id)) o
+                    ReduceSeqUnroll(fun((acc, y) => {
+                      multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
+                    }), 0.0f) $
+                    Zip(weights, neighbourhood)
+                })
+              ) o Slide(size, step) $ localTile)) o MapLcl(toLocal(id)) $ tile
 
         )) o Slide(tileSize, tileStep) o Pad(left, right, boundary) $ input
       }
@@ -706,19 +706,19 @@ class TestStencil extends TestSlide {
 
         Join() o MapGlb(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o  //first iteration
           Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o   //second iteration
-            Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f)))) o  //third iteration
-              //Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f))))) o  //fourth iteration
-        Slide(n,s) o Pad(l,r,b) o
+          Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f)))) o  //third iteration
+          //Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f))))) o  //fourth iteration
           Slide(n,s) o Pad(l,r,b) o
-            Slide(n,s) o Pad(l,r,b) $ input //o
-              //Slide(n,s) o Pad(l,r,b) $ input
+          Slide(n,s) o Pad(l,r,b) o
+          Slide(n,s) o Pad(l,r,b) $ input //o
+        //Slide(n,s) o Pad(l,r,b) $ input
 
         // fused maps - two iterations
         //Join() o
         //MapSeq(
-//          toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o  //f
-//            Join() o MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o //map f
-//        Slide(n,s) o Pad(l,r,b) o Slide(n,s) o Pad(l,r,b) $ input
+        //          toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o  //f
+        //            Join() o MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o //map f
+        //        Slide(n,s) o Pad(l,r,b) o Slide(n,s) o Pad(l,r,b) $ input
 
         // before fused map
         //Join() o MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o
@@ -728,7 +728,7 @@ class TestStencil extends TestSlide {
         //christophes map f: Join() o MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))
         // Pad and Map f vertauscht
         //Join() o MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Slide(n,s) o
-          //Join() o MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o
+        //Join() o MapSeq(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o
         //Pad(l,r,b) o Slide(n,s) o Pad(l,r,b) $ input
 
         // simple two iterations after each other
@@ -795,22 +795,22 @@ class TestStencil extends TestSlide {
     val lambda = fun(
       ArrayType(Float, SizeVar("N")),
       (input) =>
-      MapSeq(MapSeq(id)) o Slide(3,1) o MapSeq(id) $ input
+        MapSeq(MapSeq(id)) o Slide(3,1) o MapSeq(id) $ input
     )
     Compile(lambda)
   }
 
   def create2DModSimplifyLambda(boundary: BoundaryFun,
-                             size: Int, step: Int,
-                             left: Int, right: Int): Lambda1 = {
+                                size: Int, step: Int,
+                                left: Int, right: Int): Lambda1 = {
     fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
       (domain) => {
         MapSeq(
           MapSeq(
             fun(neighbours =>
-            MapSeqUnroll(MapSeqUnroll(id)) $ neighbours)
-            )
+              MapSeqUnroll(MapSeqUnroll(id)) $ neighbours)
+          )
         ) o Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step) o
           Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary) $ domain
       }
@@ -826,53 +826,53 @@ class TestStencil extends TestSlide {
     val lambda = create2DModSimplifyLambda(Pad.Boundary.Wrap, size, step, left, right)
     val (output: Array[Float], runtime) = Execute(data2D.length, data2D.length)(lambda, data2D)
     val gold = Array(15.0,12.0,13.0,
-    3.0,0.0,1.0,
-    7.0,4.0,5.0,
-    12.0,13.0,14.0,
-    0.0,1.0,2.0,
-    4.0,5.0,6.0,
-    13.0,14.0,15.0,
-    1.0,2.0,3.0,
-    5.0,6.0,7.0,
-    14.0,15.0,12.0,
-    2.0,3.0,0.0,
-    6.0,7.0,4.0,
-    3.0,0.0,1.0,
-    7.0,4.0,5.0,
-    11.0,8.0,9.0,
-    0.0,1.0,2.0,
-    4.0,5.0,6.0,
-    8.0,9.0,10.0,
-    1.0,2.0,3.0,
-    5.0,6.0,7.0,
-    9.0,10.0,11.0,
-    2.0,3.0,0.0,
-    6.0,7.0,4.0,
-    10.0,11.0,8.0,
-    7.0,4.0,5.0,
-    11.0,8.0,9.0,
-    15.0,12.0,13.0,
-    4.0,5.0,6.0,
-    8.0,9.0,10.0,
-    12.0,13.0,14.0,
-    5.0,6.0,7.0,
-    9.0,10.0,11.0,
-    13.0,14.0,15.0,
-    6.0,7.0,4.0,
-    10.0,11.0,8.0,
-    14.0,15.0,12.0,
-    11.0,8.0,9.0,
-    15.0,12.0,13.0,
-    3.0,0.0,1.0,
-    8.0,9.0,10.0,
-    12.0,13.0,14.0,
-    0.0,1.0,2.0,
-    9.0,10.0,11.0,
-    13.0,14.0,15.0,
-    1.0,2.0,3.0,
-    10.0,11.0,8.0,
-    14.0,15.0,12.0,
-    2.0,3.0,0.0).map(_.toFloat)
+      3.0,0.0,1.0,
+      7.0,4.0,5.0,
+      12.0,13.0,14.0,
+      0.0,1.0,2.0,
+      4.0,5.0,6.0,
+      13.0,14.0,15.0,
+      1.0,2.0,3.0,
+      5.0,6.0,7.0,
+      14.0,15.0,12.0,
+      2.0,3.0,0.0,
+      6.0,7.0,4.0,
+      3.0,0.0,1.0,
+      7.0,4.0,5.0,
+      11.0,8.0,9.0,
+      0.0,1.0,2.0,
+      4.0,5.0,6.0,
+      8.0,9.0,10.0,
+      1.0,2.0,3.0,
+      5.0,6.0,7.0,
+      9.0,10.0,11.0,
+      2.0,3.0,0.0,
+      6.0,7.0,4.0,
+      10.0,11.0,8.0,
+      7.0,4.0,5.0,
+      11.0,8.0,9.0,
+      15.0,12.0,13.0,
+      4.0,5.0,6.0,
+      8.0,9.0,10.0,
+      12.0,13.0,14.0,
+      5.0,6.0,7.0,
+      9.0,10.0,11.0,
+      13.0,14.0,15.0,
+      6.0,7.0,4.0,
+      10.0,11.0,8.0,
+      14.0,15.0,12.0,
+      11.0,8.0,9.0,
+      15.0,12.0,13.0,
+      3.0,0.0,1.0,
+      8.0,9.0,10.0,
+      12.0,13.0,14.0,
+      0.0,1.0,2.0,
+      9.0,10.0,11.0,
+      13.0,14.0,15.0,
+      1.0,2.0,3.0,
+      10.0,11.0,8.0,
+      14.0,15.0,12.0,
+      2.0,3.0,0.0).map(_.toFloat)
     //output.grouped(3).toArray.map(x => println(x.mkString(",")))
     compareGoldWithOutput(gold, output, runtime)
   }
@@ -998,7 +998,7 @@ class TestStencil extends TestSlide {
       //ArrayType(ArrayType(Float, 4096), 4096),
       ArrayType(Float, 17),
       (matrix, weights) => {
-         Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
@@ -1108,7 +1108,7 @@ class TestStencil extends TestSlide {
           // split tiles into chunks
         ))) o
           // tiling
-           Slide2D(80,64, 16,16) o
+          Slide2D(80,64, 16,16) o
           Pad2D(8,8, 0,0, Pad.Boundary.Clamp) $ matrix
       }
     )
@@ -1199,11 +1199,11 @@ class TestStencil extends TestSlide {
           )) o Slide2D(17,1, 1,1) o
             // transposed load
             Transpose() o
-              Map(Join()) o
-                // tiled loading
-                toLocal(MapLcl(0)(MapSeqUnroll(MapLcl(1)(id)))) o
-              // split tile into chunks
-              Map(Split(8)) o
+            Map(Join()) o
+            // tiled loading
+            toLocal(MapLcl(0)(MapSeqUnroll(MapLcl(1)(id)))) o
+            // split tile into chunks
+            Map(Split(8)) o
             Transpose() $ tile
         ))) o
           // tiling
@@ -1439,8 +1439,8 @@ class TestStencil extends TestSlide {
       }
     )
     val weights = Array(0.05, 0.15, 0.05,
-                        0.15, 0.25, 0.15,
-                        0.05, 0.15, 0.05).map(_.toFloat)
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05).map(_.toFloat)
 
     // testing - change tilesize!
     //val inputSize = 10
@@ -1468,9 +1468,9 @@ class TestStencil extends TestSlide {
     println("Runtime: " + runtime)
   }
 
- /* **********************************************************
-      ARI PJS TEST
-  ***********************************************************/
+  /* **********************************************************
+       ARI PJS TEST
+   ***********************************************************/
   @Test def ariStencil2D(): Unit = {
     val stencil = fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
@@ -1489,10 +1489,10 @@ class TestStencil extends TestSlide {
                         val weight = Get(pair, 1)
                         multAndSumUp.apply(acc, pixel, weight)
                       }), 0.0f) $ Zip(Join() $ elem, weights)
-            })
-            )) o Slide2D(15,1, 1,1) $ cacheBlock
-         ))) o Slide2D(78,64, 8,8) $ wgBlock
-        ))) o Slide2D(526,512, 64,64) o Pad2D(7,7, Pad.Boundary.Clamp) $ matrix
+                  })
+                )) o Slide2D(15,1, 1,1) $ cacheBlock
+              ))) o Slide2D(78,64, 8,8) $ wgBlock
+          ))) o Slide2D(526,512, 64,64) o Pad2D(7,7, Pad.Boundary.Clamp) $ matrix
       }
     )
 
@@ -1503,38 +1503,30 @@ class TestStencil extends TestSlide {
 
     // create already padded input array with inner elements (i,j) = i * j
     var input = Array.tabulate(inputSize, inputSize) { (i, j) => i+j * 1.0f }
-   /*
-    input(0) = input(0).map((_*0.0f))
-    input(inputSize -1) = input(inputSize -1).map(_*0.0f)
-    input = input.transpose
-    input(0) = input(0).map(_*0.0f)
-    input(inputSize -1) = input(inputSize -1).map(_*0.0f)
-    input = input.transpose
-    */
+    /*
+     input(0) = input(0).map((_*0.0f))
+     input(inputSize -1) = input(inputSize -1).map(_*0.0f)
+     input = input.transpose
+     input(0) = input(0).map(_*0.0f)
+     input(inputSize -1) = input(inputSize -1).map(_*0.0f)
+     input = input.transpose
+     */
 
     val (output: Array[Float], runtime) = Execute(64, 4, 1024, 512, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)
   }
 
-   /* **********************************************************
-      RODINIA HOTSPOT
-  ***********************************************************/
-  @Ignore //segfaults
-    @Test def rodiniaHotspot(): Unit = {
-      // p = powerValue, t = heatNbh; userfun has to compute:
-                // out = t[0,0] + c(p + y(t[-1,0] + t[1,0] - 2t[0,0]) +
-                //                      x(t[0,-1] + t[0,1] - 2t[0,0]) +
-                //                      z(a - t[0,0]));
-                // a, c, x, y, z are constants
-                //hotspot.apply(nbhs)
-    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
-    //val addAmbientTemp = UserFun("addAmbientTemp", "x", "{ return x + (0.1f * 1.068e-7f * 80.0f); }", Float, Float)
-    val addAmbientTemp = UserFun("addAmbientTemp", "x", "{ return x + (0.1 * 1.068 * 80.0); }", Float, Float)
-    val N = Var("N", StartFromRange(2))
-    val M = Var("M", StartFromRange(2))
+  /* **********************************************************
+     RODINIA HOTSPOT
+ ***********************************************************/
+  @Test def rodiniaHotspot(): Unit = {
+    // p = powerValue, t = heatNbh; userfun has to compute:
+    // out = t[0,0] + c(p + y(t[-1,0] + t[1,0] - 2t[0,0]) +
+    //                      x(t[0,-1] + t[0,1] - 2t[0,0]) +
+    //                      z(a - t[0,0]));
+    // a, c, x, y, z are constants
+    val addAmbientTemp = UserFun("addAmbientTemp", Array("x", "y"), "{ return x + y + (0.1f * 1.068e-7f * 80.0f); }", Seq(Float, Float), Float)
     val stencil = fun(
-      //ArrayType(ArrayType(Float, N), M),
-      //ArrayType(ArrayType(Float, N), M),
       ArrayType(ArrayType(Float, 1036), 1036),
       ArrayType(ArrayType(Float, 1036), 1036),
       ArrayType(Float, 9),
@@ -1545,26 +1537,24 @@ class TestStencil extends TestSlide {
             val heatTile = Get(tiles, 1)
             MapLcl(1)(MapLcl(0)(
               fun(nbhs => {
-                val powerValue = Get(nbhs, 0) //Float
-                val heatNbh = Get(nbhs, 1)    //[[Float]_3]_3
+                val powerValue = Get(nbhs, 0) // Float
+                val heatNbh = Get(nbhs, 1)    // [[Float]_3]_3
                 toGlobal(MapSeq(id)) o
-                MapSeq( \(x => addAmbientTemp(add(powerValue, x)))) o
-                ReduceSeqUnroll(\((acc, next) =>
-                  add(acc, mult(next._0, next._1))), 0.0f) $ Zip(Join() $ heatNbh, coeff)
+                  MapSeq( \(x => addAmbientTemp(powerValue, x))) o
+                  ReduceSeqUnroll(\((acc, next) =>
+                    multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() $ heatNbh, coeff)
               })
             )) o
               Split(14) $
-                Zip(Join() $ powerTile,
-                    Join() $ heatTile)
+              Zip(Join() o toLocal(MapLcl(1)(MapLcl(0)(id))) $ powerTile,
+                  Join() o Slide2D(3,1,3,1) o
+                           toLocal(MapLcl(1)(MapLcl(0)(id))) $ heatTile)
           })
         )) o
           Split(74) $
-            Zip(Join() o MapWrg(1)(MapWrg(0)(toLocal(MapLcl(1)(MapLcl(0)(id))))) o
-                         Slide2D(14,14) $ power,
-                Join() o Map(Map(Slide2D(3,1,3,1))) o
-                         MapWrg(1)(MapWrg(0)(toLocal(MapLcl(1)(MapLcl(0)(id))))) o
-                         Slide2D(16,14) o
-                         Pad2D(1,1,Pad.Boundary.Wrap) $ heat) //actually its mirror
+          Zip(Join() o Slide2D(14,14) $ power,
+              Join() o Slide2D(16,14) o
+                Pad2D(1,1,Pad.Boundary.Wrap) $ heat) //actually its mirror
       }
     )
 
@@ -1580,10 +1570,10 @@ class TestStencil extends TestSlide {
   /* **********************************************************
       HOTSPOT 3D RODINIA
   ***********************************************************/
-    @Test def rodiniaHotspot3D(): Unit = {
+  @Test def rodiniaHotspot3D(): Unit = {
     @Ignore //fix
     //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
-      // segfaults
+    // segfaults
     val stencil = fun(
       ArrayType(ArrayType(ArrayType(Float, 128), 128), 8),
       ArrayType(ArrayType(ArrayType(Float, 3), 3), 3),
@@ -1591,12 +1581,12 @@ class TestStencil extends TestSlide {
         MapWrg(2)(MapWrg(1)(MapWrg(0)( \(tile =>
           MapLcl(2)(MapLcl(1)(MapLcl(0)( \(nbh =>
             toGlobal(MapSeq(id)) o
-            ReduceSeq( \((acc, next) => add(acc, mult(next._0, next._1))), 0.0f)
-            $ Zip(Join() o Join() $ nbh,
-                  Join() o Join() $ weights)
-           )))) o
-          Slide3D(3,1) o
-          toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ tile
+              ReduceSeq( \((acc, next) => add(acc, mult(next._0, next._1))), 0.0f)
+              $ Zip(Join() o Join() $ nbh,
+              Join() o Join() $ weights)
+          )))) o
+            Slide3D(3,1) o
+            toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ tile
         )))) o  Slide3D(4,2) $ input
       }
     )
@@ -1604,7 +1594,7 @@ class TestStencil extends TestSlide {
     // testing
     val input = Array.fill(8)(Array.fill(8)(Array.fill(8)(1.0f)))
     val weights = Array.fill(3)(Array.fill(3)(Array.fill(3)(1.0f)))
-      //val input = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    //val input = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
     val (output: Array[Float], runtime) = Execute(4,4,4, 128,128,8, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)
     //println(output.mkString(","))
@@ -1618,11 +1608,11 @@ class TestStencil extends TestSlide {
       ArrayType(ArrayType(Float, 3), 3),
       (input, weights) => {
         MapSeq(MapGlb(1)(MapGlb(0)( \(tower =>
-           MapSeq( \(level =>
+          MapSeq( \(level =>
             toGlobal(MapSeq(id)) o
-            ReduceSeq(add, 0.0f) o
-            Join() $ level))
-          $ tower
+              ReduceSeq(add, 0.0f) o
+              Join() $ level))
+            $ tower
         )))) o Slide3D(3,1, 3,1, 8,8) $ input
       }
     )
@@ -1634,7 +1624,7 @@ class TestStencil extends TestSlide {
     //println(output.mkString(","))
   }
 
-    // 3d simple
+  // 3d simple
   @Test def simple3d(): Unit = {
     val stencil = fun(
       ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
@@ -1651,24 +1641,24 @@ class TestStencil extends TestSlide {
     //println(output.mkString(","))
   }
 }
-      /*
-      val stencil = fun(
-      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
-      ArrayType(ArrayType(ArrayType(Float, 3), 3), 3),
-      (input, weights) => {
-        MapWrg(2)(MapWrg(1)(MapWrg(0)( \(nbh =>
-          toGlobal(
-          MapLcl(2)( \(planes =>
-            MapLcl(1)( \(rows =>
-              MapLcl(0)( \(elems =>
-                 (add.apply(elems._0, elems._1))
-              )) $ Zip(rows._0, rows._1)
-            )) $ Zip(planes._0, planes._1)
-          ))) $ Zip(
-            toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ weights,
-            Slide3D(3,1) o
-            toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ nbh)
-        )))) o Slide3D(4,2) /*o Pad3D(1,1,1,Pad.Boundary.Mirror)*/ $ input
-      }
-    )
-    */
+/*
+val stencil = fun(
+ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+ArrayType(ArrayType(ArrayType(Float, 3), 3), 3),
+(input, weights) => {
+  MapWrg(2)(MapWrg(1)(MapWrg(0)( \(nbh =>
+    toGlobal(
+    MapLcl(2)( \(planes =>
+      MapLcl(1)( \(rows =>
+        MapLcl(0)( \(elems =>
+           (add.apply(elems._0, elems._1))
+        )) $ Zip(rows._0, rows._1)
+      )) $ Zip(planes._0, planes._1)
+    ))) $ Zip(
+      toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ weights,
+      Slide3D(3,1) o
+      toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ nbh)
+  )))) o Slide3D(4,2) /*o Pad3D(1,1,1,Pad.Boundary.Mirror)*/ $ input
+}
+)
+*/

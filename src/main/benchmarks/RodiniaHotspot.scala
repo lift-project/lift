@@ -11,8 +11,10 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
   override def generateInputs(): Seq[Any] = {
     val heat = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
     val power = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    val x = 0.1f; val y = 0.1f; val z = 1024000; val c = 1.068e-7f
+    val coeff = Array(0, c*y, 0, c*x, c*(-2*y-2*x-z+1), c*x, 0, c*y, 0)
 
-    Seq(heat, power)
+    Seq(heat, power, coeff)
   }
 
   // no scala checks
