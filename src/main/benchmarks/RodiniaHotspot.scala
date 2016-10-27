@@ -10,8 +10,8 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
 
   override def generateInputs(): Seq[Any] = {
     // change below as well //
-    //val inputSize = 1036
-    val inputSize = 4102
+    val inputSize = 1036
+    //val inputSize = 4102
     //val inputSize = 8204
 
     val heat = Array.tabulate(inputSize, inputSize) { (i, j) => i * inputSize.toFloat + j }
@@ -23,8 +23,8 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
   }
 
   override def globalSize: Array[Int] = {
-    //Array(1184,1184,1) // 1024
-    Array(4736,4736,1) // 4096
+    Array(1184,1184,1) // 1024
+    //Array(4736,4736,1) // 4096
     //Array(9376,9376,1) // 8192
   }
 
@@ -45,12 +45,12 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
 object RodiniaHotspot{
 
   // input rodinia 1024:
-  //val inputSize = 1036
-  //val nbhs = 74
+  val inputSize = 1036
+  val nbhs = 74
 
-  // input rodinia 8192:
-  val inputSize = 4102
-  val nbhs = 293
+  // input rodinia 4096:
+  //val inputSize = 4102
+  //val nbhs = 293
 
   // input rodinia 8192:
   //val inputSize = 8204
