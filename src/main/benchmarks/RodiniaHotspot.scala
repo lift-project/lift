@@ -9,8 +9,12 @@ import opencl.ir.pattern._
 class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("RodiniaHotspot", Seq(1036, 1036), f, 0.01f) {
 
   override def generateInputs(): Seq[Any] = {
-    val heat = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
-    val power = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    // change below as well //
+    //val inputSize = 1036
+    val inputSize = 8204
+
+    val heat = Array.tabulate(inputSize, inputSize) { (i, j) => i * inputSize.toFloat + j }
+    val power = Array.tabulate(inputSize, inputSize) { (i, j) => i * inputSize.toFloat + j }
     val x = 0.1f; val y = 0.1f; val z = 1024000; val c = 1.068e-7f
     val coeff = Array(0, c*y, 0, c*x, c*(-2*y-2*x-z+1), c*x, 0, c*y, 0)
 
@@ -18,7 +22,8 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
   }
 
   override def globalSize: Array[Int] = {
-    Array(1184,1184,1)
+    //Array(1184,1184,1) // 1024
+    Array(9376,9376,1) // 8192
   }
 
   override def localSize: Array[Int] = {
@@ -37,12 +42,20 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
 
 object RodiniaHotspot{
 
+  // input rodinia 1024:
+  //val inputSize = 1036
+  //val nbhs = 74
+
+  // input rodinia 8192:
+  val inputSize = 8204
+  val nbhs = 586
+
   /////////////////// LAMBDAS
   val addAmbientTemp = UserFun("addAmbientTemp", Array("x", "y"), "{ return x + y + (0.1f * 1.068e-7f * 80.0f); }", Seq(Float, Float), Float)
   def hotspot(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, 1036), 1036),
-      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
+      ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 9),
       (heat, power, coeff) => {
         MapWrg(1)(MapWrg(0)(
@@ -65,7 +78,7 @@ object RodiniaHotspot{
                   toLocal(MapLcl(1)(MapLcl(0)(id))) $ heatTile)
           })
         )) o
-          Split(74) $
+          Split(nbhs) $
           Zip(Join() o Slide2D(14,14) $ power,
             Join() o Slide2D(16,14) o
               Pad2D(1,1,Pad.Boundary.Wrap) $ heat) //actually its mirror
