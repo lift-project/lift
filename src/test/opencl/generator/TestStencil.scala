@@ -1526,6 +1526,57 @@ class TestStencil extends TestSlide {
     //                      z(a - t[0,0]));
     // a, c, x, y, z are constants
     val addAmbientTemp = UserFun("addAmbientTemp", Array("x", "y"), "{ return x + y + (0.1f * 1.068e-7f * 80.0f); }", Seq(Float, Float), Float)
+
+    // the two outermost dimensions of A and B have to be the same
+    // zip matrices elementwise
+    val zip2d = \((A,B) =>
+       Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(A,B)
+    )
+
+    // create 16x16 heat tile and 14x14 power tile
+    val createTiles = \((heat, power) =>
+      zip2d( Slide2D(16,14) o Pad2D(1,1,Pad.Boundary.Clamp) $ heat,
+             Slide2D(14,14) $ power)
+    )
+
+    // load into local memory and prepare data for single work-item
+    // < < coeff, heat> :: [9] , power >
+    val prepareData = \((coeff, tiles) =>
+      zip2d(
+        // first component
+        Map(Map( \(heatNbh =>
+          Zip(coeff, Join() $ heatNbh)
+        ))) o Slide2D(3,1) o
+        toLocal(MapLcl(1)(MapLcl(0)(id))) $ tiles._0,
+        // second component
+        toLocal(MapLcl(1)(MapLcl(0)(id))) $ tiles._1)
+    )
+
+    // how to compute output using required data:
+    val stencil = fun(requiredData => {
+      val coeffHeatTuple = requiredData._0
+      val powerValue = requiredData._1
+
+      toGlobal(MapSeq(id)) o
+      MapSeq( \(x => addAmbientTemp(powerValue, x))) o
+      ReduceSeqUnroll(\((acc, next) =>
+       multAndSumUp(acc, next._0, next._1)), 0.0f) $ coeffHeatTuple
+    })
+
+    val rodinia = fun(
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      //ArrayType(ArrayType(Float, 8204), 8204),
+      //ArrayType(ArrayType(Float, 8204), 8204),
+      ArrayType(Float, 9),
+      (heat, power, coeff) => {
+        MapWrg(1)(MapWrg(0)( \(tiles =>
+          MapLcl(1)(MapLcl(0)(stencil)) o prepareData(coeff) $ tiles)
+        )) $ createTiles(heat, power)
+
+      }
+    )
+    /*
     val stencil = fun(
       ArrayType(ArrayType(Float, 1036), 1036),
       ArrayType(ArrayType(Float, 1036), 1036),
@@ -1557,13 +1608,17 @@ class TestStencil extends TestSlide {
                 Pad2D(1,1,Pad.Boundary.Wrap) $ heat) //actually its mirror
       }
     )
+    */
 
     val heat = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
     val power = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
+    //val heat = Array.tabulate(8204, 8204) { (i, j) => i * 8204.0f + j }
+    //val power = Array.tabulate(8204, 8204) { (i, j) => i * 8204.0f + j }
     val x = 0.1f; val y = 0.1f; val z = 1024000; val c = 1.068e-7f
     val coeff = Array(0, c*y, 0, c*x, c*(-2*y-2*x-z+1), c*x, 0, c*y, 0)
 
-    val (output: Array[Float], runtime) = Execute(16,16, 1184, 1184, (true, true))(stencil, heat, power, coeff)
+    val (output: Array[Float], runtime) = Execute(16,16, 1184, 1184, (true, true))(rodinia, heat, power, coeff)
+    //val (output: Array[Float], runtime) = Execute(16,16, 9376, 9376, (true, true))(rodinia, heat, power, coeff)
     println("Runtime: " + runtime)
   }
 
