@@ -96,11 +96,14 @@ object RodiniaHotspot{
   })
 
   def hotspot(): Lambda = {
+    val N = Var("N", StartFromRange(2))
     fun(
+    ArrayType(ArrayType(Float, N), N),
+    ArrayType(ArrayType(Float, N), N),
     //ArrayType(ArrayType(Float, 1036), 1036),
     //ArrayType(ArrayType(Float, 1036), 1036),
-    ArrayType(ArrayType(Float, 8204), 8204),
-    ArrayType(ArrayType(Float, 8204), 8204),
+    //ArrayType(ArrayType(Float, 8204), 8204),
+    //ArrayType(ArrayType(Float, 8204), 8204),
     ArrayType(Float, 9),
     (heat, power, coeff) => {
       MapWrg(1)(MapWrg(0)( \(tiles =>
