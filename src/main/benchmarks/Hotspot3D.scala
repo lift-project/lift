@@ -41,8 +41,7 @@ object Hotspot3D{
     val N = Var("N", StartFromRange(2))
     fun(
       ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
-      ArrayType(ArrayType(Float, 3), 3),
-      (input, weights) => {
+      (input) => {
         MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
           toGlobal(MapSeq(id)) o
             ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)
