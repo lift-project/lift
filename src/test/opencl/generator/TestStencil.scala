@@ -1631,17 +1631,23 @@ class TestStencil extends TestSlide {
     // segfaults
     val stencil = fun(
       ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
-      (input) => {
+      ArrayType(Float, 27),
+      (input, weights) => {
         MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
+
           toGlobal(MapSeq(id)) o
-            ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)
-        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
+            ReduceSeqUnroll(\((acc, next) =>
+              multAndSumUp(acc, next._0, next._1)), 0.0f) $
+          Zip(Join() o Join() $ nbh,
+              weights))
+        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.MirrorUnsafe) $ input
       }
     )
 
     // testing
     val input = Array.tabulate(512, 512, 8) { (i, j, k) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(64,4,1, 512,512,1, (true, true))(stencil, input)
+    val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(64,4,1, 512,512,1, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)
     //println(output.mkString(","))
   }
