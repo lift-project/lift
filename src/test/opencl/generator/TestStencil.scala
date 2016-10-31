@@ -1657,18 +1657,14 @@ class TestStencil extends TestSlide {
 
   // rodinia 3d opt1
   @Test def rodiniaHotspot3DOpt1(): Unit = {
-    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
     val stencil = fun(
       ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
       ArrayType(ArrayType(Float, 3), 3),
       (input, weights) => {
-        MapSeq(MapGlb(1)(MapGlb(0)( \(tower =>
-          MapSeq( \(level =>
-            toGlobal(MapSeq(id)) o
-              ReduceSeq(add, 0.0f) o
-              Join() $ level))
-            $ tower
-        )))) o Slide3D(3,1, 3,1, 8,8) $ input
+        MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
+          toGlobal(MapSeq(id)) o
+          ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)
+        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
       }
     )
 

@@ -82,16 +82,16 @@ object Pad {
 
 object Pad2D {
   def apply(top: Int, bottom: Int, left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
-    //Map(Pad(left, right, boundary)) o Pad(top, bottom, boundary)
+    Map(Pad(left, right, boundary)) o Pad(top, bottom, boundary)
     // other possible implementation using transpose
-    Transpose() o Pad(left, right, boundary) o Transpose() o Pad(top, bottom, boundary)
+    //Transpose() o Pad(left, right, boundary) o Transpose() o Pad(top, bottom, boundary)
   }
 
   // Symmetric 2D padding
   def apply(left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
-    //Map(Pad(left, right, boundary)) o Pad(left, right, boundary)
+    Map(Pad(left, right, boundary)) o Pad(left, right, boundary)
     // other possible implementation using transpose
-    Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary)
+    //Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary)
   }
 }
 
