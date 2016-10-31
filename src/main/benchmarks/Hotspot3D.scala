@@ -46,7 +46,7 @@ object Hotspot3D{
         MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
           toGlobal(MapSeq(id)) o
             ReduceSeqUnroll(add, 0.0f) o Join() o Join() $ nbh)
-        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
+        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.MirrorUnsafe) $ input
       }
     )
   }
@@ -58,7 +58,7 @@ object Hotspot3D{
         MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
           toGlobal(MapSeq(id)) o
             ReduceSeqUnroll(add, 0.0f) o Join() o Join() $ nbh)
-        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
+        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.MirrorUnsafe) $ input
       }
     )
   }
@@ -73,7 +73,7 @@ object Hotspot3D{
               ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)))) o
             Slide3D(3,1) o
             toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id)))) $ tiles)
-        ))) o Slide3D(66,64, 6,4, 10,10) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
+        ))) o Slide3D(66,64, 6,4, 10,10) o Pad3D(1,1,1, Pad.Boundary.MirrorUnsafe) $ input
       }
     )
   }
