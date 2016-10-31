@@ -44,16 +44,33 @@ object Hotspot3D{
       (input) => {
         MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
           toGlobal(MapSeq(id)) o
-            ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)
+            ReduceSeqUnroll(add, 0.0f) o Join() o Join() $ nbh)
         ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
+      }
+    )
+  }
+
+  def hotspotSM(): Lambda = {
+    fun(
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      (input) => {
+        MapSeq(MapWrg(1)(MapWrg(0)( \(tiles =>
+          MapSeq(MapLcl(1)(MapLcl(0)( \(nbh =>
+            toGlobal(MapSeq(id)) o
+              ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)))) o
+            Slide3D(3,1) o
+            toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id)))) $ tiles)
+        ))) o Slide3D(66,64, 6,4, 10,10) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
       }
     )
   }
 
   def apply() = new Hotspot3D(
     Seq(
-      ("HOTSPOT", Array[Lambda](hotspot()))
-    ))
+      ("HOTSPOT", Array[Lambda](hotspot())),
+      ("HOTSPOT_SM", Array[Lambda](hotspotSM()))
+        )
+    )
 
   def main(args: Array[String]): Unit = {
     Hotspot3D().run(args)

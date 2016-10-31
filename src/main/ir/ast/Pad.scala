@@ -96,7 +96,7 @@ object Pad2D {
 }
 
 object Pad3D {
-  def apply(z: Int, y: Int, x: Int, b: Pad.BoundaryFun): Lambda = {
+  def apply(x: Int, y: Int, z: Int, b: Pad.BoundaryFun): Lambda = {
     Map(Map(Pad(x,x,b)) o Pad(y,y,b)) o Pad(z,z,b)
   }
 }

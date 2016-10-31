@@ -1630,47 +1630,66 @@ class TestStencil extends TestSlide {
     //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
     // segfaults
     val stencil = fun(
-      ArrayType(ArrayType(ArrayType(Float, 128), 128), 8),
-      ArrayType(ArrayType(ArrayType(Float, 3), 3), 3),
-      (input, weights) => {
-        MapWrg(2)(MapWrg(1)(MapWrg(0)( \(tile =>
-          MapLcl(2)(MapLcl(1)(MapLcl(0)( \(nbh =>
-            toGlobal(MapSeq(id)) o
-              ReduceSeq( \((acc, next) => add(acc, mult(next._0, next._1))), 0.0f)
-              $ Zip(Join() o Join() $ nbh,
-              Join() o Join() $ weights)
-          )))) o
-            Slide3D(3,1) o
-            toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ tile
-        )))) o  Slide3D(4,2) $ input
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      (input) => {
+        MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
+          toGlobal(MapSeq(id)) o
+            ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)
+        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
       }
     )
 
     // testing
-    val input = Array.fill(8)(Array.fill(8)(Array.fill(8)(1.0f)))
-    val weights = Array.fill(3)(Array.fill(3)(Array.fill(3)(1.0f)))
-    //val input = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
-    val (output: Array[Float], runtime) = Execute(4,4,4, 128,128,8, (true, true))(stencil, input, weights)
+    val input = Array.tabulate(512, 512, 8) { (i, j, k) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(64,4,1, 512,512,1, (true, true))(stencil, input)
     println("Runtime: " + runtime)
     //println(output.mkString(","))
   }
 
   // rodinia 3d opt1
   @Test def rodiniaHotspot3DOpt1(): Unit = {
+    val zip3d = \((A,B,C) =>
+       Map(Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2)))) o Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(A,B,C)
+    )
+
     val stencil = fun(
       ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
-      ArrayType(ArrayType(Float, 3), 3),
-      (input, weights) => {
+      (input) => {
         MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
-          toGlobal(MapSeq(id)) o
-          ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)
-        ))) o Slide3D(3,1) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
+          toGlobal(MapSeq( \(acc => add(acc, nbh._2)))) o
+          MapSeq( \(acc => add(acc, nbh._1))) o
+          ReduceSeqUnroll(add, 0.0f) o Join() o Join() $ nbh._0)
+        ))) $ zip3d(
+          Slide3D(3,1, 3,1, 1,1) o Pad3D(1,1,0, Pad.Boundary.Clamp) $ input,
+          input, // leftshift z - upper element
+          input) // rightshift z - lower element
       }
     )
 
     val input = Array.fill(512)(Array.fill(512)(Array.fill(8)(1.0f)))
     val weights = Array.fill(3)(Array.fill(3)(1.0f))
-    val (output: Array[Float], runtime) = Execute(64,4,1, 512,512,8, (true, true))(stencil, input, weights)
+    val (output: Array[Float], runtime) = Execute(64,4,1, 512,512,8, (true, true))(stencil, input)
+    println("Runtime: " + runtime)
+    //println(output.mkString(","))
+  }
+
+  @Test def rodiniaHotspot3DLocalMemory(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      (input) => {
+        MapSeq(MapWrg(1)(MapWrg(0)( \(tiles =>
+          MapSeq(MapLcl(1)(MapLcl(0)( \(nbh =>
+            toGlobal(MapSeq(id)) o
+            ReduceSeq(add, 0.0f) o Join() o Join() $ nbh)))) o
+            Slide3D(3,1) o
+          toLocal(MapSeq(MapLcl(1)(MapLcl(0)(id)))) $ tiles)
+        ))) o Slide3D(66,64, 6,4, 10,10) o Pad3D(1,1,1, Pad.Boundary.Clamp) $ input
+      }
+    )
+
+    // testing
+    val input = Array.tabulate(512, 512, 8) { (i, j, k) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(64,4,1, 512,512,1, (true, true))(stencil, input)
     println("Runtime: " + runtime)
     //println(output.mkString(","))
   }
