@@ -130,6 +130,8 @@ abstract class Expr extends IRNode {
    */
   def <<:(f: FunDecl) = f.apply(this)
 
+  def at(i: ArithExpr) = ArrayAccess(i) $ this
+
   def eval(valueMap: ValueMap): Any
 }
 
