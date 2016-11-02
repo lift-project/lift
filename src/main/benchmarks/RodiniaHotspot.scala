@@ -95,15 +95,11 @@ object RodiniaHotspot{
         multAndSumUp(acc, next._0, next._1)), 0.0f) $ coeffHeatTuple
   })
 
-  def hotspot(): Lambda = {
+  def hotspotGeneric(): Lambda = {
     val N = Var("N", StartFromRange(2))
     fun(
     ArrayType(ArrayType(Float, N), N),
     ArrayType(ArrayType(Float, N), N),
-    //ArrayType(ArrayType(Float, 1036), 1036),
-    //ArrayType(ArrayType(Float, 1036), 1036),
-    //ArrayType(ArrayType(Float, 8204), 8204),
-    //ArrayType(ArrayType(Float, 8204), 8204),
     ArrayType(Float, 9),
     (heat, power, coeff) => {
       MapWrg(1)(MapWrg(0)( \(tiles =>
@@ -113,9 +109,25 @@ object RodiniaHotspot{
     )
   }
 
+  def hotspotInject(): Lambda = {
+    val N = Var("N", StartFromRange(2))
+    fun(
+    //ArrayType(ArrayType(Float, 1036), 1036),
+    //ArrayType(ArrayType(Float, 1036), 1036),
+    ArrayType(ArrayType(Float, 8204), 8204),
+    ArrayType(ArrayType(Float, 8204), 8204),
+    ArrayType(Float, 9),
+    (heat, power, coeff) => {
+      MapWrg(1)(MapWrg(0)( \(tiles =>
+        MapLcl(1)(MapLcl(0)(stencil)) o prepareData(coeff) $ tiles)
+      )) $ createTiles(heat, power)
+    }
+    )
+  }
   def apply() = new RodiniaHotspot(
     Seq(
-      ("HOTSPOT", Array[Lambda](hotspot()))
+      ("HOTSPOT_GENERIC", Array[Lambda](hotspotGeneric())),
+      ("HOTSPOT_INJECT", Array[Lambda](hotspotInject()))
   ))
 
   def main(args: Array[String]): Unit = {
