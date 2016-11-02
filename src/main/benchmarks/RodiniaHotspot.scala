@@ -67,7 +67,7 @@ object RodiniaHotspot{
 
   // create 16x16 heat tile and 14x14 power tile
   val createTiles = \((heat, power) =>
-    zip2d( Slide2D(16,14) o Pad2D(1,1,Pad.Boundary.Clamp) $ heat,
+    zip2d( Slide2D(16,14) o Pad2D(1,1,Pad.Boundary.MirrorUnsafe) $ heat,
       Slide2D(14,14) $ power)
   )
 
