@@ -101,7 +101,6 @@ object SHOCStencil2D{
 
   def apply() = new SHOCStencil2D(
     Seq(
-      ("SHOC_TEST", Array[Lambda](shoc(2,2))),
       ("SHOC_STENCIL2D_BASE", Array[Lambda](shoc(256,1))),
       ("SHOC_STENCIL2D_TUNE", Array[Lambda](shoc(128,16))),
       ("SHOC_STENCIL2D_TILE_GENERIC", Array[Lambda](shocGeneric(256,1)))
