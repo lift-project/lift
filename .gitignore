@@ -10,3 +10,4 @@ lib/Executor/build
 .kernels
 *.out
 *.log
+*.iml
