@@ -1,10 +1,9 @@
-package opencl.generator
+package opencl.generator.stencil
 
-import apart.arithmetic.{SizeVar, StartFromRange, Var, Cst}
 import ir._
-import ir.ast.Pad.BoundaryFun
 import ir.ast._
 import opencl.executor._
+import opencl.generator.TestSlide
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
