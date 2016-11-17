@@ -2,27 +2,27 @@ package opencl.generator
 
 import java.io._
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
 import opencl.executor._
 import opencl.ir._
-import opencl.ir.ast._
+import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.sys.process._
-import opencl.ir.pattern._
+
+import scala.language.postfixOps
 
 object TestGraphTheory {
-  @BeforeClass def TestMatrixBasic() {
+  @BeforeClass def TestMatrixBasic(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -45,7 +45,7 @@ class TestGraphTheory {
     val fringe = Array.fill(inputSize)(0.0f)
     fringe(util.Random.nextInt(inputSize)) = 1.0f
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val denseBFSIteration = fun(
       ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
       ArrayType(Float, N),
@@ -60,21 +60,21 @@ class TestGraphTheory {
     val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe)
     val gold:Array[Float] = scalaBFSIteration(graph,fringe)
     println(fringe.toList)
-    println("Fringe sum = "+ (fringe.reduce(_+_)))
+    println("Fringe sum = "+ fringe.sum)
     println(gold.toList)
-    println("Gold sum = "+ (gold.reduce(_+_)))
+    println("Gold sum = "+ gold.sum)
     println(output.toList)
-    println("Output sum = "+ (output.reduce(_+_)))
+    println("Output sum = "+ output.sum)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def DENSE_PAGERANK_ITERATION(): Unit = {
     println("DENSE_PAGERANK_ITERATION")
-    val inputSize = 1024;
+    val inputSize = 1024
     val graph = buildPageRankMatrix(Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>20) 0 else 1).toFloat))
     val ranks = Array.fill(inputSize)(1.0f/inputSize.toFloat)
-    val N = Var("N")
+    val N = SizeVar("N")
     val densePageRankIteration = fun(
       ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
       ArrayType(Float, N),
@@ -89,11 +89,11 @@ class TestGraphTheory {
     val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(densePageRankIteration, graph, ranks)
     val gold:Array[Float] = scalaDotProductIteration(graph,ranks)
     println(ranks.toList)
-    println("Fringe sum = "+ (ranks.reduce(_+_)))
+    println("Fringe sum = "+ ranks.sum)
     println(gold.toList)
-    println("Gold sum = "+ (gold.reduce(_+_)))
+    println("Gold sum = "+ gold.sum)
     println(output.toList)
-    println("Output sum = "+ (output.reduce(_+_)))
+    println("Output sum = "+ output.sum)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -117,45 +117,11 @@ class TestGraphTheory {
     val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe)
     val gold:Array[Float] = scalaBFSIteration(graph,fringe)
     println(fringe.toList)
-    println("Fringe sum = "+ (fringe.reduce(_+_)))
+    println("Fringe sum = "+ fringe.sum)
     println(gold.toList)
-    println("Gold sum = "+ (gold.reduce(_+_)))
+    println("Gold sum = "+ gold.sum)
     println(output.toList)
-    println("Output sum = "+ (output.reduce(_+_)))
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.0f)
-
-  }
-
-  @Test def DENSE_BFS_MULTI_ITERATION(): Unit = {
-    println("DENSE_BFS_MULTI_ITERATION")
-    val inputSize = 512
-    val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(1000)>2) 0 else 1).toFloat)
-    val fringeArr = Array.fill(inputSize)(0.0f)
-    fringeArr(util.Random.nextInt(inputSize)) = 1.0f
-    val N = Var("N")
-
-    val BFSMultiIteration  = fun(
-      ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
-    ArrayType(Float, N),
-    (graph, bfsFringe) => {
-      Iterate(5)( fun((fr) =>
-        Join() o MapGlb(
-        Join() o MapLcl(
-          fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))
-        )) o Split(512) $ graph
-      )) $ bfsFringe
-    })
-
-    val (output:Array[Float], runtime) = Execute(1,inputSize)(BFSMultiIteration, graphArr, fringeArr)
-    val gold = scalaIterateBFS(5,graphArr,fringeArr)
-
-    println(fringeArr.toList)
-    println("Fringe sum = "+ (fringeArr.reduce(_+_)))
-    println(gold.toList)
-    println("Gold sum = "+ (gold.reduce(_+_)))
-    println(output.toList)
-    println("Output sum = "+ (output.reduce(_+_)))
+    println("Output sum = "+ output.sum)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
 
@@ -163,10 +129,10 @@ class TestGraphTheory {
 
   @Test def DENSE_PAGERANK_MULTI_ITERATION(): Unit = {
     println("DENSE_PAGERANK_MULTI_ITERATION")
-    val inputSize = 1024;
+    val inputSize = 1024
     val graph = buildPageRankMatrix(Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(100)>20) 0 else 1).toFloat))
     val ranks = Array.fill(inputSize)(1.0f/inputSize.toFloat)
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val pageRankMultiIteration = fun(
       ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
@@ -183,16 +149,16 @@ class TestGraphTheory {
     val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(pageRankMultiIteration, graph, ranks)
     val gold = scalaIterateDotProduct(1,graph,ranks)
     println(ranks.toList)
-    println("Fringe sum = "+ (ranks.reduce(_+_)))
+    println("Fringe sum = "+ ranks.sum)
     println(gold.toList)
-    println("Gold sum = "+ (gold.reduce(_+_)))
+    println("Gold sum = "+ gold.sum)
     println(output.toList)
-    println("Output sum = "+ (output.reduce(_+_)))
+    println("Output sum = "+ output.sum)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
+  @Test @Ignore def DENSE_BFS_MULTI_ITERATION_FIXED_SIZE() : Unit = {
     println("DENSE_BFS_MULTI_ITERATION_FIXED_SIZE")
     val inputSize = 64
     val graphArr = Array.tabulate(inputSize, inputSize)((r:Int,c:Int) => (if(util.Random.nextInt(25)>2) 0 else 1).toFloat)
@@ -212,11 +178,11 @@ class TestGraphTheory {
     val (output:Array[Float], runtime) = Execute(1,1)(BFSMultiIteration, graphArr, fringeArr)
     val gold = scalaIterateBFS(5,graphArr,fringeArr)
     println(fringeArr.toList)
-    println("Fringe sum = "+ (fringeArr.reduce(_+_)))
+    println("Fringe sum = "+ fringeArr.sum)
     println(gold.toList)
-    println("Gold sum = "+ (gold.reduce(_+_)))
+    println("Gold sum = "+ gold.sum)
     println(output.toList)
-    println("Output sum = "+ (output.reduce(_+_)))
+    println("Output sum = "+ output.sum)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -231,7 +197,7 @@ class TestGraphTheory {
   }
 
   def scalaDotProductIteration(matrix:Array[Array[Float]],vector:Array[Float]) : Array[Float] = {
-    matrix.map((row) => (row, vector).zipped.map((a,b) => a*b).reduce((a,b) => a+b))
+    matrix.map((row) => (row, vector).zipped.map((a, b) => a * b).sum)
   }
 
   def scalaIterateBFS(iterations: Int,graph:Array[Array[Float]],fringe:Array[Float]) : Array[Float] = {
@@ -259,14 +225,13 @@ class TestGraphTheory {
     var tGraph = graph.transpose
     /* For each row, calculate the number of edges, and divide each weight by that number */
     tGraph = tGraph.map {
-      case (row: Array[Float]) => {
+      case (row: Array[Float]) =>
         val edge_count = row.sum
         if(edge_count>0) {
           row.map((x: Float) => x / edge_count)
         }else{
           row
         }
-      }
     }
     /* Transpose the graph back, so we can work with it using standard linear algebra stuff */
     tGraph = tGraph.transpose
@@ -274,50 +239,49 @@ class TestGraphTheory {
   }
 
   def printDFSDotFile(graph:Array[Array[Float]], fringe:Array[Float], gold: Array[Float], init: Array[Float]) : Unit = {
-    "pwd" !
+    "pwd".!
     val writer = new PrintWriter(new File("dfsGraph.dot"))
     writer.write("digraph DFSIteration {\n")
-    graph.zipWithIndex.map {
-      case (row: Array[Float], v1: Int) => row.zipWithIndex.map {
-        case (w: Float, v2: Int) => {
+    graph.zipWithIndex.foreach {
+      case (row: Array[Float], v1: Int) => row.zipWithIndex.foreach {
+        case (w: Float, v2: Int) =>
           //          if (w > 0.0f && (fringe(v1) > 0.0f || fringe(v2) > 0.0f)) {
           if (w > 0.0f) {
-            writer.write(v2.toString() + " -> " + v1.toString() + ";\n")
+            writer.write(v2.toString + " -> " + v1.toString + ";\n")
           }
-        }
       }
     }
-    fringe.zipWithIndex.map {
+    fringe.zipWithIndex.foreach {
       case (w, v) =>
         if (w > 0.0f) {
-          writer.write(v.toString() + "[shape=square]\n")
+          writer.write(v.toString + "[shape=square]\n")
           if (gold(v) <= 0.0f) {
-            writer.write(v.toString() + "[color=red]\n")
+            writer.write(v.toString + "[color=red]\n")
           }
         }
     }
-    gold.zipWithIndex.map {
+    gold.zipWithIndex.foreach {
       case (w, v) =>
         if (w > 0.0f) {
           if (fringe(v) <= 0.0f) {
-            writer.write(v.toString() + "[shape=triangle]\n")
-            writer.write(v.toString() + "[color=red]\n")
+            writer.write(v.toString + "[shape=triangle]\n")
+            writer.write(v.toString + "[color=red]\n")
           } else {
-            writer.write(v.toString() + "[color=green]\n")
+            writer.write(v.toString + "[color=green]\n")
           }
         }
     }
-    init.zipWithIndex.map {
+    init.zipWithIndex.foreach {
       case (w, v) =>
         if (w > 0.0f) {
-          writer.write(v.toString() + "[color=blue]\n")
+          writer.write(v.toString + "[color=blue]\n")
         }
     }
     writer.write("}\n")
     writer.close()
-    "dot -Tpng dfsGraph.dot -odotgraph.png -v -Goverlap=scale" !
+    "dot -Tpng dfsGraph.dot -odotgraph.png -v -Goverlap=scale".!
 
-    "open dotgraph.png" !
+    "open dotgraph.png".!
   }
 
 }

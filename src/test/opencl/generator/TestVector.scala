@@ -1,23 +1,23 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import benchmarks.VectorScaling
 import ir._
 import ir.ast._
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir.pattern._
 
 object TestVector {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -25,7 +25,7 @@ object TestVector {
 
 class TestVector {
 
-  @Test def VECTOR_ADD_SIMPLE() {
+  @Test def VECTOR_ADD_SIMPLE(): Unit = {
 
     val inputSize = 1024
 
@@ -34,7 +34,7 @@ class TestVector {
 
     val gold = (leftInputData, rightInputData).zipped.map(_+_)
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val addFun = fun(
       ArrayType(Float, N),
@@ -45,24 +45,19 @@ class TestVector {
         ) o Split(1024) $ Zip(left, right)
     )
 
-    val code = Compile(addFun)
-    val (output: Array[Float], runtime) =
-      Execute(inputSize)(code, addFun, leftInputData, rightInputData)
+    val (output: Array[Float], _) =
+      Execute(inputSize)(addFun, leftInputData, rightInputData)
 
     assertArrayEquals(gold, output, 0.0f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-
   }
 
-  @Test def VECTOR_NEG_SIMPLE() {
+  @Test def VECTOR_NEG_SIMPLE(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_)
 
-    val negFun = fun(ArrayType(Float, Var("N")), (input) =>
+    val negFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
 
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(neg)) o Split(4)
@@ -79,14 +74,14 @@ class TestVector {
 
   }
 
-  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID() {
+  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_)
 
     val negFun = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => Join() o MapGlb(
         MapSeq(neg)
       ) o Split(4) $ input
@@ -101,13 +96,13 @@ class TestVector {
 
   }
 
-  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID_REORDER_REVERSE() {
+  @Test def VECTOR_NEG_SIMPLE_GLOBAL_ID_REORDER_REVERSE(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_).reverse
 
-    val negFun = fun(ArrayType(Float, Var("N")), (input) =>
+    val negFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
 
       Join() o MapGlb(
         MapSeq(neg)
@@ -122,7 +117,7 @@ class TestVector {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Test def VECTOR_SCAL() {
+  @Test def VECTOR_SCAL(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -139,7 +134,7 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def SCAL_NVIDIA() {
+  @Test def SCAL_NVIDIA(): Unit = {
 
     val inputSize = 4096
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -156,7 +151,7 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def SCAL_AMD() {
+  @Test def SCAL_AMD(): Unit = {
 
     val inputSize = 2048
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -173,7 +168,7 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def SCAL_INTEL() {
+  @Test def SCAL_INTEL(): Unit = {
 
     val inputSize = 65536
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -190,14 +185,14 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_SCAL_REDUCE() {
+  @Test def VECTOR_SCAL_REDUCE(): Unit = {
 
     val inputSize = 2048
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
     val gold = inputArray.map(_ * alpha).sum
 
-    val scalFun = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+    val scalFun = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
       Join() o MapWrg(
         Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(
           fun( x => mult(alpha, x) )
@@ -215,14 +210,14 @@ class TestVector {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_NORM() {
+  @Test def VECTOR_NORM(): Unit = {
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = scala.math.sqrt(inputArray.map(x => x*x).sum).toFloat
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
@@ -253,7 +248,7 @@ class TestVector {
     assertArrayEquals(gold, test, 0.001f)
 
     val f = fun(
-      ArrayType(ArrayType(Float, new Var("M")), new Var("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       input => MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose() $ input
     )
 

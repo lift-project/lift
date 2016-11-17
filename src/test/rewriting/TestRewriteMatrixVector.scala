@@ -1,31 +1,32 @@
 package rewriting
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import exploration.HighLevelRewrite
 import ir.ArrayType
 import ir.ast._
-import opencl.executor.{Executor, Utils, Execute}
+import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestRewriteMatrixVector {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }
 
 class TestRewriteMatrixVector {
 
+  val N = SizeVar("N")
+  val M = SizeVar("M")
+
   @Test
   def gemvAMD(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -85,13 +86,11 @@ class TestRewriteMatrixVector {
       Execute(local(0).eval, global(0).eval)(f21, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output,0.0f)
-     assertTrue(HighLevelRewrite.filterByDistance(f11))
+    assertTrue(HighLevelRewrite.filterByDistance(f11))
   }
 
   @Test
   def gemvAMDMacro(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -116,13 +115,11 @@ class TestRewriteMatrixVector {
 
     val f2 = SimplifyAndFuse(f1)
     assertTrue(HighLevelRewrite.filterByDistance(f2))
-    val f3 = Lower.mapCombinations(f2)
+    Lower.mapCombinations(f2)
   }
 
   @Test
   def gemvVectorised(): Unit = {
-    val N = Var("N")
-    val M = Var("M")
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -148,10 +145,6 @@ class TestRewriteMatrixVector {
     val f3 = Rewrite.applyRuleAtId(f2, 7, Rules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
     assertTrue(HighLevelRewrite.filterByDistance(f4))
-
-    val stringRep = rewriting.utils.Utils.dumpLambdaToString(f4)
-    val sha256 = rewriting.utils.Utils.Sha256Hash(stringRep)
-    println(sha256)
   }
 
 }

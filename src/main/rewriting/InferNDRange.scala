@@ -5,7 +5,7 @@ import ir._
 import ir.ast.{Expr, FunCall, Lambda}
 import opencl.executor.Execute
 import opencl.generator.OpenCLGenerator.NDRange
-import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg}
+import opencl.ir.pattern._
 
 object InferNDRange {
   def apply(lambda: Lambda): (NDRange, NDRange) = (new InferNDRange)(lambda)
@@ -44,7 +44,9 @@ class InferNDRange {
       case FunCall(MapGlb(dim, _), arg) => mapGlobals = (dim, Type.getLength(arg.t)) +: mapGlobals
       case FunCall(MapLcl(dim, _), arg) => mapLocals = (dim, Type.getLength(arg.t)) +: mapLocals
       case FunCall(MapWrg(dim, _), arg) => mapWorkGroups = (dim, Type.getLength(arg.t)) +: mapWorkGroups
-      case _ =>
+      case FunCall(MapAtomLcl(dim, _, _), arg) => mapLocals = (dim, Type.getLength(arg.t)) +: mapLocals
+      case FunCall(MapAtomWrg(dim, _, _), arg) => mapWorkGroups = (dim, Type.getLength(arg.t)) +: mapWorkGroups
+       case _ =>
     }, (_) => Unit)
 
     mapGlb = getMostCommonLengthsForDimensions(mapGlobals)

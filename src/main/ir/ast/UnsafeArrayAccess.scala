@@ -2,6 +2,7 @@ package ir.ast
 
 import apart.arithmetic.{?, ArithExpr, Var, Cst}
 import ir._
+import ir.interpreter.Interpreter.ValueMap
 
 /**
  * Indexed array UnsafeArrayAccess pattern
@@ -17,11 +18,17 @@ case class UnsafeArrayAccess(index: Expr) extends Pattern(arity = 1)
 		TypeChecker.check(index)
 	  argType match {
 	      case ArrayType(t, Cst(1)) =>
-	        ArrayType(t, 1) // match the definition of searches/reductions
+	        ArrayType(t, Cst(1)) // match the definition of searches/reductions
 
-	      case ArrayType(t, n) => ArrayType(t, 1)
+	      case ArrayType(t, n) => ArrayType(t, Cst(1))
 
 	      case _ => throw new TypeException(argType, "ArrayType")
 	    }
 	}
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    args.head match {
+      case a: Array[_] => a(index.eval(valueMap).asInstanceOf[Int])
+    }
+  }
 }

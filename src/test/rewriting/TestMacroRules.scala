@@ -1,22 +1,21 @@
 package rewriting
 
-import apart.arithmetic.Var
-import rewriting.utils.{NumberPrinter, NumberExpression}
+import apart.arithmetic.SizeVar
+import rewriting.utils.NumberExpression
 import ir._
 import ir.ast._
-import jdk.nashorn.internal.ir.annotations.Ignore
 import opencl.executor.Executor
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestMacroRules {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }
@@ -24,10 +23,89 @@ object TestMacroRules {
 class TestMacroRules {
 
   @Test
+  def moveReduceOutOneLevel(): Unit = {
+
+    val N = SizeVar("N")
+
+    val patternSimple: PartialFunction[Expr, Unit] =
+    { case FunCall(TransposeW(), FunCall(Reduce(_), _, _)) => }
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Reduce(add, 0.0f)) $ input
+    )
+
+    val fResult = Rewrite.applyRuleAtId(f, 0, MacroRules.moveReduceOutOneLevel)
+    assertTrue(patternSimple.isDefinedAt(fResult.body))
+
+    TypeChecker(fResult)
+
+    val g = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Reduce(add, 0.0f) o Gather(reverse)) $ input
+    )
+
+    val gResult = Rewrite.applyRuleAtId(g, 0, MacroRules.moveReduceOutOneLevel)
+    assertTrue(patternSimple.isDefinedAt(gResult.body))
+
+    TypeChecker(gResult)
+
+    val patternWithMap: PartialFunction[Expr, Unit] =
+    { case FunCall(Map(_), FunCall(TransposeW(), FunCall(Reduce(_), _, _))) => }
+
+    val h = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Scatter(reverse) o Reduce(add, 0.0f)) $ input
+    )
+
+    val hResult = Rewrite.applyRuleAtId(h, 0, MacroRules.moveReduceOutOneLevel)
+    assertTrue(patternWithMap.isDefinedAt(hResult.body))
+
+    TypeChecker(hResult)
+
+    val m = fun(
+      ArrayType(ArrayType(Float, N), N),
+      input => Map(Scatter(reverse) o Scatter(reverse) o Reduce(add, 0.0f) o Gather(reverse)) $ input
+    )
+
+    val mResult = Rewrite.applyRuleAtId(m, 0, MacroRules.moveReduceOutOneLevel)
+    assertTrue(patternWithMap.isDefinedAt(mResult.body))
+
+    TypeChecker(mResult)
+  }
+
+  @Test
+  def fissionAtPosition(): Unit = {
+    val f = fun(
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      a => Map(Reduce(add, 0.0f) o Map(plusOne) o Map(plusOne) o Map(plusOne)) $ a)
+
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(0))
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(1))
+    Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(2))
+  }
+
+  @Test
+  def reshapeMapMap(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val f = \(
+      ArrayType(ArrayType(Float, M), N),
+      Map(Map(id)) $ _
+    )
+
+    val g = Rewrite.applyRuleAt(f, f.body, MacroRules.reshapeMapMap)
+    TypeChecker(g)
+
+    assertEquals(f.body.t, g.body.t)
+  }
+
+  @Test
   def twoDBlockingNotDefined(): Unit = {
-    val v_M_0 = Var("M")
-    val v_K_1 = Var("K")
-    val v_N_2 = Var("N")
+    val v_M_0 = SizeVar("M")
+    val v_K_1 = SizeVar("K")
+    val v_N_2 = SizeVar("N")
 
     val f = fun(
       ArrayType(ArrayType(Float, v_M_0), v_K_1),
@@ -53,11 +131,11 @@ class TestMacroRules {
 
   @Test
   def twoDBlockingNotDefined2(): Unit = {
-    val v_M_0 = Var("M")
-    val v_K_1 = Var("K")
-    val v_N_2 = Var("N")
-    val v__3 = Var("")
-    val v__4 = Var("")
+    val v_M_0 = SizeVar("M")
+    val v_K_1 = SizeVar("K")
+    val v_N_2 = SizeVar("N")
+    val v__3 = SizeVar("")
+    val v__4 = SizeVar("")
 
     val f = fun(
       ArrayType(ArrayType(Float, v_M_0), v_K_1),
@@ -111,9 +189,9 @@ class TestMacroRules {
 
   @Test
   def finishTiling(): Unit = {
-    val v_M_0 = Var("M")
-    val v_K_1 = Var("K")
-    val v_N_2 = Var("N")
+    val v_M_0 = SizeVar("M")
+    val v_K_1 = SizeVar("K")
+    val v_N_2 = SizeVar("N")
 
     val f =
       fun(

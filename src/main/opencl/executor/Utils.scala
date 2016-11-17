@@ -1,12 +1,23 @@
 package opencl.executor
 
 import java.awt.image.BufferedImage
-import java.io.{IOException, File}
+import java.io.{File, IOException}
 import javax.imageio.ImageIO
 
 import ir.ast.Lambda
+import org.junit.Assume
+
+object LongTestsEnabled {
+  def apply(): Unit =
+    Assume.assumeTrue("Needs long tests enabled.",
+     System.getenv("APART_LONG_TESTS") != null)
+}
 
 object Utils {
+
+  def isAmdGpu =
+    Executor.getPlatformName == "AMD Accelerated Parallel Processing" && 
+    Executor.getDeviceType == "GPU"
 
   def writeMD(width: Int, height: Int, data: Array[Float], name: String): Unit = {
     val out = new File(name + ".png")
@@ -33,29 +44,32 @@ object Utils {
   def myPrint(m: Array[Array[Array[Float]]]): Unit = {
     m.foreach( r => {
       println(r.map( e => {
-        "(" + e.map("%2.0f".format(_)).reduce(_ + ", " + _) + ")"
+        "(" + e.map(x => f"$x%2.0f").reduce(_ + ", " + _) + ")"
       }).reduce(_ + " " + _))
     } )
   }
 
   def myPrint(m: Array[Array[Float]]): Unit = {
     m.foreach( r => {
-      println(r.map("%2.0f".format(_)).reduce(_ + " " + _))
+      println(r.map(x => f"$x%2.0f").reduce(_ + " " + _))
     } )
   }
 
+  @scala.annotation.tailrec
   def myPrint(m: Array[Float], cols: Int): Unit = {
     val (row, rest) = m.splitAt(cols)
-    if (row.nonEmpty) println(row.map("%2.0f".format(_)).reduce(_ + " " + _))
+    if (row.nonEmpty) println(row.map(x => f"$x%2.0f").reduce(_ + " " + _))
     if (rest.nonEmpty) myPrint(rest, cols)
   }
 
+  @scala.annotation.tailrec
   def printRow(r: Array[Float], elems: Int): Unit = {
     val (elem, rest) = r.splitAt(elems)
-    if (elem.nonEmpty) print("(" + elem.map("%2.0f".format(_)).reduce(_ + ", " + _) + ") ")
+    if (elem.nonEmpty) print("(" + elem.map(x => f"$x%2.0f").reduce(_ + ", " + _) + ") ")
     if (rest.nonEmpty) printRow(rest, elems)
   }
 
+  @scala.annotation.tailrec
   def myPrint(m: Array[Float], cols: Int, elems: Int): Unit = {
     val (row, rest) = m.splitAt(cols*elems)
     if (row.nonEmpty) printRow(row, elems); println("")
@@ -90,7 +104,7 @@ object Utils {
     if (A.head.length != B.length)
       throw new IllegalArgumentException
 
-    @inline def computeRow(row: Int) {
+    @inline def computeRow(row: Int): Unit = {
       // while statements are much faster than for statements
       var col = 0
       while(col < bCols) { var i = 0; var sum = 0.0f
@@ -122,7 +136,7 @@ object Utils {
     if (A.head.length != B.length)
       throw new IllegalArgumentException
 
-    @inline def computeRow(row: Int) {
+    @inline def computeRow(row: Int): Unit = {
       // while statements are much faster than for statements
       var col = 0
       while(col < bCols) { var i = 0; var sum = 0.0f
@@ -171,6 +185,60 @@ object Utils {
   }
 
   /*
+   * Stencil util functions
+   */
+  def scalaCompute1DStencil(data: Array[Float],
+                            size: Int, step: Int,
+                            left: Int, right: Int,
+                            weights: Array[Float],
+                            boundary: (Int, Int) => Int) = {
+    val leftPadding = Array.tabulate(left)(x => data(boundary((x + 1) * -1, data.length))).reverse
+    val rightPadding = Array.tabulate(right)(x => data(boundary(x + data.length, data.length)))
+    val paddedInput = leftPadding ++ data ++ rightPadding
+
+    val neighbourhoodArray = paddedInput.sliding(size, step).toArray
+    neighbourhoodArray.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2))
+  }
+
+  def scalaCompute2DStencil(data: Array[Array[Float]],
+                            size1: Int, step1: Int,
+                            size2: Int, step2: Int,
+                            left: Int, right: Int,
+                            weights: Array[Float],
+                            boundary: (Int, Int) => Int) = {
+    val neighbours = scalaGenerate2DNeighbours(data, size1, step1, size2, step2, left, right, boundary)
+    val result = neighbours.map(x => x.map(y => y.flatten.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)))
+    def clamp(i: Float) = Math.max(0.0f, i)
+    result.flatten.map(clamp)
+  }
+
+  def scalaGenerate2DNeighbours(data: Array[Array[Float]],
+                                size1: Int, step1: Int,
+                                size2: Int, step2: Int,
+                                left: Int, right: Int,
+                                boundary: (Int, Int) => Int): Array[Array[Array[Array[Float]]]] = {
+    //padding
+    val topPadding = Array.tabulate(left)(x => data(boundary((x + 1) * -1, data.length))).reverse
+    val bottomPadding = Array.tabulate(right)(x => data(boundary(x + data.length, data.length)))
+    val verticalPaddedInput = (topPadding ++ data ++ bottomPadding).transpose
+    val leftPadding = Array.tabulate(left)(
+      x => verticalPaddedInput(
+        boundary((x + 1) * -1, verticalPaddedInput.length))).reverse
+    val rightPadding = Array.tabulate(right)(
+      x => verticalPaddedInput(
+        boundary(x + data.length, verticalPaddedInput.length)))
+    val paddedInput = (leftPadding ++ verticalPaddedInput ++ rightPadding).transpose
+    //paddedInput.map(x => println(x.mkString(",")))
+
+    //sliding
+    val firstSlide = paddedInput.sliding(size1, step1).toArray
+    val secondSlide = firstSlide.map(x => x.transpose.sliding(size2, step2).toArray)
+    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
+    neighbours
+  }
+
+
+  /*
    * Some helper methods for execution
    */
 
@@ -190,21 +258,21 @@ object Utils {
               globalSize1: Int,  globalSize2: Int, globalSize3: Int,
               injectSizes: (Boolean, Boolean)): (Array[Float], Double, String) = {
 
-    val code = compile(f, values, localSize1, localSize2, localSize3,
+    val kernel = compile(f, values, localSize1, localSize2, localSize3,
       globalSize1, globalSize2, globalSize3,
       injectSizes)
 
     val (output: Array[Float], runtime) = Execute(localSize1, localSize2, localSize3,
                                                   globalSize1, globalSize2, globalSize3,
-                                                  injectSizes)(code, f, values:_*)
+                                                  injectSizes)(kernel, f, values:_*)
 
-    (output, runtime, code)
+    (output, runtime, kernel)
   }
 
   def compile(f: Lambda, values: Seq[Any],
               localSize1: Int, localSize2: Int, localSize3: Int,
               globalSize1: Int,  globalSize2: Int, globalSize3: Int,
-              injectSizes: (Boolean, Boolean)) : String = {
+              injectSizes: (Boolean, Boolean)) : String= {
     val valueMap = Execute.createValueMap(f, values:_*)
 
     if (injectSizes._1)

@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{?, ArithExpr, Cst, IntDiv}
+import apart.arithmetic.{?, ArithExpr, Cst, IntDiv, Range, RangeAdd}
 import rewriting.utils._
 import ir.ast._
 import opencl.ir._
@@ -25,6 +25,22 @@ object BarrierElimination {
    * @param lambda The starting lambda.
    */
   def apply(lambda: Lambda): Unit = {
+    new BarrierElimination(lambda).apply(lambda.body, insideLoop = false)
+  }
+
+  private[generator] def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
+    Expr.visitWithState(false)(funCall, (expr, contains) => {
+      expr match {
+        case FunCall(declaration, _*) => declaration.getClass == patternClass || contains
+        case _ => contains
+      }
+    }, visitArgs = false)
+  }
+}
+
+class BarrierElimination(lambda: Lambda) {
+
+  def apply(lambda: Lambda): Unit = {
     apply(lambda.body, insideLoop = false)
   }
 
@@ -36,11 +52,12 @@ object BarrierElimination {
 
         calls.foreach(call => {
           call.f match {
-            case m: AbstractMap => apply(m.f.body, insideLoop || isLoop(m.iterationCount))
+            case m: AbstractMap =>
+              apply(m.f.body, insideLoop || isLoop(m.loopVar.range))
             case r: AbstractPartRed =>
               apply(call.args.head, insideLoop)
-              apply(r.f.body, insideLoop || isLoop(r.iterationCount))
-            case i: Iterate => apply(i.f.body, insideLoop || isLoop(i.iterationCount))
+              apply(r.f.body, insideLoop || isLoop(r.loopVar.range))
+            case i: Iterate => apply(i.f.body, insideLoop || isLoop(i.indexVar.range))
             case toLocal(f) => apply(insideLoop, f)
             case toGlobal(f) => apply(insideLoop, f)
             case toPrivate(f) => apply(insideLoop, f)
@@ -74,6 +91,10 @@ object BarrierElimination {
                   .foreach(_.emitBarrier = false)
               case _ =>
             }
+
+            // TODO: Also gets rid of necessary barriers
+//            if (mapLcl.f.body.addressSpace == PrivateMemory)
+//              mapLcl.emitBarrier = false
           }
 
         })
@@ -105,8 +126,49 @@ object BarrierElimination {
     }
   }
 
-  private def isLoop(ae: ArithExpr) =
-    !(ae == Cst(1) || ae == Cst(0) || ae == IntDiv(1, ?))
+  private def isLoop(range: Range): Boolean = {
+
+    // TODO: Inforamtion needed in several places
+    // TODO: Information needed elsewhere. See analysis.ControlFlow
+    // try to see if we really need a loop
+    range.numVals match {
+      case Cst(0) =>
+        // zero iterations
+        return false
+
+      case Cst(1) =>
+        return false
+
+      // TODO: See TestInject.injectExactlyOneIterationVariable
+      // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
+      case _ if range.isInstanceOf[RangeAdd] && {
+        val rangeAdd = range.asInstanceOf[RangeAdd]
+        rangeAdd.start.min.min == Cst(0) &&
+          ArithExpr.substituteDiv(rangeAdd.stop) == ArithExpr.substituteDiv(rangeAdd.step)
+      }
+
+      =>
+
+        return false
+
+      // TODO: See TestOclFunction.numValues and issue #62
+      case _ if range.isInstanceOf[RangeAdd] && {
+        val rangeAdd = range.asInstanceOf[RangeAdd]
+        rangeAdd.start.min.min == Cst(0) && rangeAdd.stop == Cst(1)
+      } =>
+        return false
+      case _ =>
+        (range.numVals.min, range.numVals.max) match {
+          case (Cst(0), Cst(1)) =>
+            // one or less iteration
+            return false
+
+          case _ =>
+        }
+    }
+
+    true
+  }
 
   private def markLevel(calls: Seq[FunCall], insideLoop: Boolean): Unit = {
 
@@ -147,6 +209,15 @@ object BarrierElimination {
         val group = x._1
         val id = x._2
 
+        if (argumentToPossibleSharing(group.last)) {
+          needsBarrier(id) = true
+
+         // If int local, also needs a barrier after being consumed
+          if (OpenCLMemory.containsLocalMemory(group.last.mem) && id > 1 && insideLoop &&
+            !groups.slice(0, id - 1).map(_.exists(c => isMapLcl(c.f))).reduce(_ || _))
+            needsBarrier(id - 1) = true
+        }
+
         if (possibleSharing(group.last) && id < groups.length - 1) {
           needsBarrier(id + 1) = true
 
@@ -156,7 +227,7 @@ object BarrierElimination {
 
         // Conservative assumption. TODO: Not if only has matching splits and joins
         if (group.exists(call => isPattern(call, classOf[Split]) || isPattern(call, classOf[Join])
-           || isPattern(call, classOf[asVector]) || isPattern(call, classOf[asScalar])) && id > 0) {
+           || isPattern(call, classOf[asVector]) || isPattern(call, classOf[asScalar]) || isPattern(call, classOf[Slide])) && id > 0) {
           needsBarrier(id) = true
 
           // Split/Join in local also needs a barrier after being consumed (two in total), if in a loop.
@@ -169,7 +240,7 @@ object BarrierElimination {
         // Scatter affects the writing of this group and therefore the reading of the
         // group before. Gather in init affects the reading of the group before
         if (group.exists(call => isPattern(call, classOf[Scatter]) || isPattern(call, classOf[Gather])
-          || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW])
+          || isPattern(call, classOf[Transpose]) || isPattern(call, classOf[TransposeW]) || isPattern(call, classOf[Slide])
           || isPattern(call, classOf[Tail])) && id > 0) {
 
           needsBarrier(id) = true
@@ -182,7 +253,7 @@ object BarrierElimination {
         }
 
         // Gather in last affects the reading of this group
-        if ((isPattern(group.last, classOf[Gather]) || isPattern(group.last, classOf[Transpose])) && id < groups.length - 1) {
+        if ((isPattern(group.last, classOf[Gather]) || isPattern(group.last, classOf[Transpose]) || isPattern(group.last, classOf[Slide])) && id < groups.length - 1) {
           needsBarrier(id + 1) = true
 
           // Reorder in local also needs a barrier after being consumed (two in total), if in a loop.
@@ -196,6 +267,20 @@ object BarrierElimination {
       (groups, needsBarrier).zipped.foreach((group, valid) =>
         if (!valid) invalidateBarrier(group))
     }
+  }
+
+
+  private[generator] def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
+    BarrierElimination.isPattern(funCall, patternClass)
+  }
+
+  private def argumentToPossibleSharing(call: FunCall): Boolean = {
+    Expr.visitWithState(false)(lambda.body, {
+      case (FunCall(Lambda(params, FunCall(_, nestedArgs@_*)), args@_*), _ )
+      if args.contains(call) && !params.sameElements(nestedArgs)=>
+       true
+      case (_, state) => state
+    })
   }
 
   // If a map calls its function with something other than
@@ -217,14 +302,6 @@ object BarrierElimination {
     }
   }
 
-  private[generator] def isPattern[T](funCall: FunCall, patternClass: Class[T]): Boolean = {
-    Expr.visitWithState(false)(funCall, (expr, contains) => {
-      expr match {
-        case FunCall(declaration, _*) => declaration.getClass == patternClass || contains
-        case _ => contains
-      }
-    }, visitArgs = false)
-  }
 
   private def isMapLcl(funDecl: FunDecl): Boolean = {
     def isMapLclLambda(f: Lambda1): Boolean = {
@@ -261,10 +338,14 @@ object BarrierElimination {
   }
 
   private def invalidateBarrier(group: Seq[FunCall]): Unit = {
-    group.foreach(c => getMapLcl(c.f) match {
+    group.foreach(invalidateBarrier)
+  }
+
+  private def invalidateBarrier(c: FunCall): Unit = {
+    getMapLcl(c.f) match {
       case Some(b) => b.emitBarrier = false
       case None =>
-    })
+    }
   }
 
   private def readsFromLocal(call: FunCall): Boolean = {

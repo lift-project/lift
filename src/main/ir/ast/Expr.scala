@@ -2,7 +2,9 @@ package ir.ast
 
 import apart.arithmetic.ArithExpr
 import ir._
-import ir.view.{NoView, View}
+import ir.interpreter.Interpreter.ValueMap
+import ir.view.{AccessInfo, NoView, View}
+import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
 import scala.language.implicitConversions
 
@@ -26,10 +28,14 @@ abstract class Expr extends IRNode {
    */
   var mem: Memory = UnallocatedMemory
 
+  var addressSpace: OpenCLAddressSpace = UndefAddressSpace
+
   /**
    * The view of this expression explaining how to access the memory object
    */
   var view: View = NoView
+
+  var outputView: View = NoView
 
   /**
    * The context keeps track where this expression is inside a bigger
@@ -44,6 +50,8 @@ abstract class Expr extends IRNode {
    * Used for constructing input views.
    */
   var inputDepth: List[(ArithExpr, ArithExpr)] = List()
+
+  var accessInf = AccessInfo()
 
   /**
    * A list storing variable, length pairs that describe the full type and loop variables
@@ -102,13 +110,8 @@ abstract class Expr extends IRNode {
    */
   def copy: Expr
 
-  def contains(pattern: PartialFunction[Expr, Unit]): Boolean = {
-    Expr.visitWithState(false)(this, (e, s) => {
-      if (pattern.isDefinedAt(e)) {
-        true
-      } else s
-    })
-  }
+  def contains(pattern: PartialFunction[Expr, Unit]) =
+    Expr.visitWithState(false)(this, (e, s) => pattern.isDefinedAt(e) || s)
 
   /**
    * Reverse function application.
@@ -126,6 +129,8 @@ abstract class Expr extends IRNode {
    * @return `f.apply(this)`
    */
   def <<:(f: FunDecl) = f.apply(this)
+
+  def eval(valueMap: ValueMap): Any
 }
 
 object Expr {
@@ -304,6 +309,7 @@ object Expr {
           val newArgs = call.args.map((arg) => replace(arg, oldE, newE))
 
           val newCall = call.f match {
+
             case fp: FPattern =>
               // Try to do the replacement in the body
               val replaced = replace(fp.f.body, oldE, newE)

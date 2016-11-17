@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import ir.ast.UserFun._
@@ -33,7 +33,7 @@ class TestUnsafeArrayAccess {
     val index = util.Random.nextInt(inputSize)
     val inputArr = Array.tabulate(inputSize)(_.toFloat)
     val gold = inputArr(index)
-    val N = Var("N")
+    val N = SizeVar("N")
     val accessKernel = fun(
       ArrayType(Float, N),
       ArrayType(Int, 1),
@@ -57,7 +57,7 @@ class TestUnsafeArrayAccess {
     val inputArr = Array.tabulate(inputSize)((i) => Array.tabulate(inputSize)(_.toFloat))
     val index = util.Random.nextInt(inputSize)
     val gold = inputArr.map((row) => row(index))
-    val N = Var("N")
+    val N = SizeVar("N")
     val accessKernel = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(Int, 1),
@@ -85,7 +85,7 @@ class TestUnsafeArrayAccess {
     val inputArr = Array.tabulate(inputSize)((i) => Array.tabulate(inputSize)(_.toFloat))
     val indexArr = Array.tabulate(inputSize)((i) => i)
     val gold = inputArr.zip(indexArr).map{ case (row, index) => row(index) }
-    val N = Var("N")
+    val N = SizeVar("N")
     val accessKernel = fun(
       ArrayType(ArrayType(Float, N), N),
       ArrayType(Int, N),
@@ -108,7 +108,7 @@ class TestUnsafeArrayAccess {
     val inputArr = Array.tabulate(inputSize)((i) => (i,i))
     val gold = inputArr(index)
     val passArr = inputArr.map{case (i,j) => Array(i, j)}.flatten
-    val N = Var("N")
+    val N = SizeVar("N")
     val accessKernel = fun(
       ArrayType(TupleType(Int, Int), N),
       ArrayType(Int, 1),
@@ -116,7 +116,7 @@ class TestUnsafeArrayAccess {
         MapSeq(
           fun((index) => 
             // MapSeq(idII) o Head() $ arr
-            MapSeq(idII) o UnsafeArrayAccess(index) $ arr
+            MapSeq(t_id) o UnsafeArrayAccess(index) $ arr
             // UnsafeArrayAccess(index) $ arr
           )
         ) $ ix

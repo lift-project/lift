@@ -87,13 +87,6 @@ function configure(){
         exit
         ;;
     esac
-  else
-    if [ ! -d libraries/gtest ]; then
-      wget http://googletest.googlecode.com/files/gtest-1.7.0.zip
-      unzip -q gtest-1.7.0.zip
-      mv gtest-1.7.0 libraries/gtest
-      rm gtest-1.7.0.zip
-    fi
   fi
 
   (cd build && cmake ${SKELCL_CMAKE_COMMON_FLAGS} ${SKELCL_CMAKE_FLAGS} ..)
@@ -106,7 +99,7 @@ function build(){
 
   # SkelCL
   pushd lib/SkelCL/build
-  make -j 4
+  make -j 4 executor
   popd
 }
 

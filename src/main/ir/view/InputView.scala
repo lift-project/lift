@@ -64,12 +64,12 @@ object InputView {
       case asVector(n) => buildViewAsVector(n, argView)
       case _: asScalar => buildViewAsScalar(argView)
       case f: Filter => buildViewFilter(call, argView)
-      case g: Group => buildViewGroup(g, call, argView)
+      case g: Slide => buildViewGroup(g, call, argView)
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case uaa: UnsafeArrayAccess => buildViewUnsafeArrayAccess(uaa, call, argView)
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
-      case Pad(size,boundary) => buildViewPad(size, boundary, argView)
+      case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case _ => argView
     }
   }
@@ -84,8 +84,8 @@ object InputView {
     argView.get(n)
   }
 
-  private def buildViewGroup(g: Group, call: FunCall, argView: View): View = {
-      argView.group(g)
+  private def buildViewGroup(g: Slide, call: FunCall, argView: View): View = {
+    argView.slide(g)
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
@@ -184,8 +184,9 @@ object InputView {
       case ArrayType(ArrayType(typ, m), n) =>
         argView.
           join(n).
-          reorder((i:ArithExpr) => { transpose(i, call.t) }).
-          split(m)
+          reorder((i: ArithExpr) => { transpose(i, call.t) }).split(m)
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
+        throw new TypeException(call.t, "Array")
     }
   }
 
@@ -195,6 +196,8 @@ object InputView {
         argView.
           join(n).
           split(m)
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+        throw new TypeException(call.t, "Array")
     }
   }
 
@@ -210,13 +213,13 @@ object InputView {
     new ViewTail(argView, tail.t)
   }
 
-   private def buildViewUnsafeArrayAccess(a: UnsafeArrayAccess, call: FunCall, argView: View) : View = {
-     // visit the index
-     visitAndBuildViews(a.index)
-     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
-   }
+  private def buildViewUnsafeArrayAccess(a: UnsafeArrayAccess, call: FunCall, argView: View) : View = {
+   // visit the index
+   visitAndBuildViews(a.index)
+   View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+  }
 
-  private def buildViewPad(size: Int, boundary: (ArithExpr, ArithExpr) => ArithExpr, argView: View) : View = {
-    argView.pad(size, boundary)
+  private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
+    argView.pad(left, right, boundary)
   }
 }

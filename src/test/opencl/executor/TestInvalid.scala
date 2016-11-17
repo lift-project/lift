@@ -4,7 +4,7 @@
 
 package opencl.executor
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.generator.IllegalKernel
@@ -13,13 +13,13 @@ import opencl.ir.pattern._
 import org.junit._
 
 object TestInvalid {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -29,10 +29,10 @@ class TestInvalid {
   // Dummy user function
   val fct = UserFun("afunc", "array", " return array * 2.0f; ", Float, Float)
   // Dummy function
-  val f = fun(ArrayType(Float, Var("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
-  val f2 = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")),
+  val f = fun(ArrayType(Float, SizeVar("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
+  val f2 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")),
     (in1, in2) => MapGlb(fun(a => fct(a))) $ in1 )
-  val f3 = fun(ArrayType(Float, Var("N")), ArrayType(Float, Var("N")), ArrayType(Float, Var("N")),
+  val f3 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")),
     (in1, in2, in3) => MapGlb(fun(a => fct(a))) $ in1 )
 
   // Test invalid 1D array with default local size
@@ -259,6 +259,64 @@ class TestInvalid {
     Execute(1, inputSize)(f, input)
   }
 
+  @Test(expected = classOf[IllegalKernel])
+  def concreteMap(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o
+        MapGlb(Map(id)) o
+        Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def localWithoutMapWrg(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o
+        MapGlb(toGlobal(MapSeq(id)) o toLocal(MapSeq(id))) o
+        Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def mapLocalWithoutMapWrg(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o
+        MapGlb(toGlobal(MapSeq(id)) o MapLcl(id)) o
+        Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
+  @Test(expected = classOf[IllegalKernel])
+  def illegalMapNesting(): Unit = {
+    val inputSize = 1024
+    val input = Array.ofDim[Float](inputSize)
+
+    val f = fun(
+      ArrayType(Float, inputSize),
+      in => Join() o MapGlb(MapGlb(id)) o Split(inputSize) $ in
+    )
+
+    Execute(1, inputSize)(f, input)
+  }
+
   // Trigger an error in the executor in the executor and recover
   @Test
   def ExecutorFailureRecovery(): Unit = {
@@ -291,7 +349,7 @@ class TestInvalid {
         e.consume()
 
       case _: Throwable =>
-      // This might be acceptable depending on how we handle insufficient ressources
+      // This might be acceptable depending on how we handle insufficient resources
         assert(assertion = false)
     }
 
@@ -303,4 +361,59 @@ class TestInvalid {
       case _: Throwable => assert(assertion = false)
     }
   }
+
+  @Test(expected = classOf[DeviceCapabilityException])
+  def workgroupTooBig(): Unit = {
+
+    val maxGroupSize = Executor.getDeviceMaxWorkGroupSize.asInstanceOf[Int]
+
+    val f = fun(ArrayType(Float, SizeVar("N")),
+      input => MapGlb(id) $ input
+    )
+
+    val size = maxGroupSize * 2
+    val input = Array.fill(size)(util.Random.nextFloat())
+
+    Execute(size, size)(f, input)
+  }
+
+  @Ignore
+  @Test(expected = classOf[IllegalKernel])
+  def illegalGather(): Unit = {
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => Gather(reverse) o MapSeq(id) $ input
+    )
+
+    Compile(f)
+  }
+
+  @Ignore
+  @Test(expected = classOf[IllegalKernel])
+  def illegalScatter(): Unit = {
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => MapSeq(id) o Scatter(reverse) $ input
+    )
+
+    Compile(f)
+  }
+
+  @Ignore
+  @Test(expected = classOf[IllegalKernel])
+  def conflictingScatter(): Unit = {
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayType(Float, N),
+      input => fun(x => MapSeq(fun(y => add(y._0, y._1))) $ Zip(x, Scatter(reverse) $ x)) o MapSeq(id) $ input
+    )
+
+    Compile(f)
+  }
+
 }

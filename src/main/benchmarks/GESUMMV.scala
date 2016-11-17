@@ -1,6 +1,6 @@
 package benchmarks
 
-import arithmetic.SizeVar
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.Utils
@@ -74,8 +74,62 @@ object GESUMMV {
       }))
   )
 
+  val simpleUserFun = fun(
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(Float, K),
+    Float, Float,
+    (A, B, x, alpha, beta) =>
+      Zip(A, B) :>> MapGlb(\( p => {
+        val aRow = p._0
+        val bRow = p._1
+        Zip(aRow, bRow, x) :>>
+          ReduceSeq(\( (acc, p) => {
+            val a = p._0
+            val b = p._1
+            val x = p._2
+
+            idFF $ Tuple(add(acc._0, mult(a, x)), add(acc._1, mult(b, x)))
+
+          }), Value("{0.0f, 0.0f}", TupleType(Float, Float))) :>>
+          MapSeq(\( p =>  add(mult(alpha, p._0), mult(beta, p._1)) )) :>>
+          toGlobal(MapSeq(id))
+      }))
+  )
+
+  val h = UserFun("h", Array("a", "b"), "{ Tuple t = {a._0 + b._0, a._1 + b._1}; return t; }",
+    Seq(TupleType(Float, Float), TupleType(Float, Float)),
+    TupleType(Float, Float))
+
+  val stride = 128
+
+  val fusedOptimised = fun(
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(Float, K),
+    Float, Float,
+    (A, B, x, alpha, beta) =>
+      MapWrg(fun(matrices =>
+        toGlobal(MapLcl(fun(partials => g(alpha, partials._0, beta, partials._1)))) o
+          MapSeq(toLocal(idFF)) o
+          ReduceSeq(h, Value("{0.0f, 0.0f}", TupleType(Float, Float))) o
+          Join() o
+          MapLcl(MapSeq(toLocal(idFF)) o
+            ReduceSeq(fun((acc, next) =>
+              fun(inPrivate =>
+                f(acc, Get(inPrivate, 1), Get(inPrivate,2), Get(inPrivate,0))
+              ) o toPrivate(fun(next => Tuple(id(Get(next, 0)), id(Get(next,1)), id(Get(next,2))))) $ next
+            ), Value("{0.0f, 0.0f}", TupleType(Float, Float)))
+          ) o
+          Split(K/^stride) o
+          ReorderStride(stride) $
+          Zip(x, Get(matrices, 0), Get(matrices, 1))
+      )) $ Zip(A, B)
+  )
+
   def apply() = new GESUMMV(Seq(
-    ("fused", Array[Lambda](fused)))
+    ("fused", Array[Lambda](fused)),
+    ("fusedOptimised", Array[Lambda](fusedOptimised)))
   )
 
   def main(args: Array[String]): Unit = {

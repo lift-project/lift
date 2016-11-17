@@ -1,7 +1,8 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
-import ir.{TypeException, ArrayType, Type}
+import ir.interpreter.Interpreter._
+import ir._
 
 /**
  * asVector pattern. (a.k.a., splitVec).
@@ -18,17 +19,20 @@ import ir.{TypeException, ArrayType, Type}
  * (so far):
  *  - `asScalar() o asVector(n) | asVector(n) o asScalar() => id`
  *
- * @param len The vector length used to split the input array in to.
- *            The size of the input array must be a multiple of `len`.
+ * @param n The vector length used to split the input array in to.
+ *          The size of the input array must be a multiple of `len`.
  */
-case class asVector(len: ArithExpr) extends Pattern(arity = 1) with isGenerable {
+case class asVector(n: ArithExpr) extends Pattern(arity = 1) with isGenerable {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case at: ArrayType => at.vectorize(len)
-      case _ => throw new TypeException(argType, "ArrayType")
+      case at@ArrayType(ScalarType(_, _), _) => at.vectorize(n)
+      case _ => throw new TypeException(argType, "ArrayType(ScalarType, _)")
     }
   }
 
+
+  override def eval(valueMap: ValueMap, args: Any*): Any =
+    Split(n).eval(valueMap, args:_*)
 }

@@ -1,10 +1,14 @@
 package ir.ast
 
+import ir.interpreter.Interpreter.ValueMap
+
 /**
  * Abstract base class for all patterns (i.e., primitives defined in our
  * language)
  */
-abstract class Pattern(override val arity: Int) extends FunDecl(arity)
+abstract class Pattern(override val arity: Int) extends FunDecl(arity) {
+  def eval(valueMap: ValueMap, args: Any*): Any
+}
 
 object Pattern {
   def unapply(l: Lambda): Option[(Pattern)] = l match {
