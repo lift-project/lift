@@ -1,9 +1,11 @@
 package ir
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic._
 import arithmetic.TypeVar
 
+import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
+
 
 
 /**
@@ -38,8 +40,8 @@ sealed abstract class Type {
    * @return A vectorized type derived from `this`
    */
   def vectorize(n: ArithExpr): Type = this match {
-    case sT: ScalarType => new VectorType(sT, n)
-    case tT: TupleType => new TupleType( tT.elemsT.map( _.vectorize(n) ):_* )
+    case sT: ScalarType => VectorType(sT, n)
+    case tT: TupleType => TupleType( tT.elemsT.map( _.vectorize(n) ):_* )
     case aT: ArrayType => asVector(aT, n)
     case v: VectorType => v
     case _ => throw new TypeException(this, "anything else")
@@ -47,11 +49,14 @@ sealed abstract class Type {
 
   private def asVector(at0: ArrayType, len: ArithExpr): Type = {
     at0.elemT match {
-      case pt:ScalarType => new ArrayType(new VectorType(pt,len), at0.len/^len)
-      case at1:ArrayType => new ArrayType(asVector(at1,len), at0.len)
+      case pt:ScalarType => ArrayType(VectorType(pt,len), at0.len/^len)
+      case at1:ArrayType => ArrayType(asVector(at1,len), at0.len)
       case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
     }
   }
+
+  def hasFixedSize : Boolean
+
 }
 
 /**
@@ -62,6 +67,7 @@ sealed abstract class Type {
  */
 case class ScalarType(name: String, size: ArithExpr) extends Type {
   override def toString = name
+  override def hasFixedSize = true
 }
 
 /**
@@ -73,6 +79,7 @@ case class ScalarType(name: String, size: ArithExpr) extends Type {
  */
 case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
   override def toString = scalarT.toString + len.toString
+  override def hasFixedSize = true
 }
 
 /**
@@ -84,7 +91,11 @@ case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
 case class TupleType(elemsT: Type*) extends Type {
   override def toString
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
+
+  override def hasFixedSize = elemsT.forall(_.hasFixedSize)
+
 }
+
 
 /**
  * Instances of this class represent array types with length information
@@ -95,32 +106,72 @@ case class TupleType(elemsT: Type*) extends Type {
  */
 case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
 
+  // TODO: remove the need to check for unknown (but this is used currently in a few places)
+  if (len != ? & len.sign != Sign.Positive)
+    // TODO: turn this back into an error (eventually)
+    //throw new TypeException("Length must be provably positive! (len="+len+")")
+    println(s"Warning: Length must be provably positive! (len=$len)")
+
   if (len.isEvaluable) {
     val length = len.evalDbl
 
     if (!length.isValidInt || length < 1)
-      throw new TypeException(length + " is not a valid length for an array!")
+      throw TypeException(length + " is not a valid length for an array!")
   }
 
   override def toString = "Arr(" +elemT+","+len+ ")"
+
+  override def hasFixedSize = elemT.hasFixedSize
+}
+
+
+// todo make sure we can distinguish between different unkownlengtharraytype (override hashCode and equals)
+class UnknownLengthArrayType(override val elemT: Type, override val len: Var = PosVar("unknown_length")) extends ArrayType(elemT, len) {
+  override def hasFixedSize = false
+}
+
+object UnknownLengthArrayType {
+  def apply(elemT: Type, len: Var = PosVar("unknown_length")) = {
+    new UnknownLengthArrayType(elemT, len)
+  }
+  def unapply(array: UnknownLengthArrayType): Option[(Type, Var)] =
+    Some((array.elemT, array.len))
 }
 
 /**
  * This instance indicates that a type has not been determined yet, e.g., prior
  * to type checking
  */
-object UndefType extends Type {override def toString = "UndefType"}
+object UndefType extends Type {
+  override def toString = "UndefType"
+  override def hasFixedSize = false
+}
 
 /**
  * This instance indicates that there should be nothing, i.e., this corresponds
  * to `void` or `bottom` in other type systems.
  */
-object NoType extends Type {override def toString = "NoType"}
+object NoType extends Type {
+  override def toString = "NoType"
+  override def hasFixedSize = true
+}
 
 /**
  * Collection of operations on types
  */
 object Type {
+
+  def fromAny(a: Any): Type = {
+    a match {
+      case f: Float => ScalarType("float", 4)
+      case i: Int => ScalarType("int", 4)
+      case a: Seq[_] if a.nonEmpty => ArrayType(fromAny(a.head), a.length)
+      case t: (_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2)):_*)
+      case t: (_,_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2), fromAny(t._3)):_*)
+      case _ => throw new NotImplementedError()
+    }
+  }
+
   /**
    * A string representation of a type
    *
@@ -152,7 +203,7 @@ object Type {
    * @param pre The function to be invoked before traversing `t`
    * @param post The function to be invoked after travering `t`
    */
-  def visit(t: Type, pre: Type => Unit, post: Type => Unit) : Unit = {
+  def visit(t: Type, pre: Type => Unit, post: Type => Unit = _ => {}) : Unit = {
     pre(t)
     t match {
       case vt: VectorType => visit(vt.scalarT, pre, post)
@@ -189,18 +240,37 @@ object Type {
     var newT = pre(t)
     newT = newT match {
       case vt: VectorType =>
-        new VectorType(visitAndRebuild(vt.scalarT,
+        VectorType(visitAndRebuild(vt.scalarT,
                                     pre, post).asInstanceOf[ScalarType],vt.len)
 
       case tt: TupleType =>
-        new TupleType(tt.elemsT.map(et => visitAndRebuild(et,pre,post)):_*)
+        TupleType(tt.elemsT.map(et => visitAndRebuild(et,pre,post)):_*)
 
       case at: ArrayType =>
-        new ArrayType(visitAndRebuild(at.elemT, pre, post), at.len)
+        ArrayType(visitAndRebuild(at.elemT, pre, post), at.len)
 
       case _ => newT // nothing to do
     }
     post(newT)
+  }
+
+  /**
+    * This function returns a new type which has been constructed from the given
+    * type `t` by recursively visiting it and applying `f` to any arithmetic expression.
+    * @param t The type to be visited
+    * @param f The function to be invoked on any arithmetic expression
+    * @return The rebuilt type
+    */
+  def visitAndRebuild(t: Type,
+                      f: ArithExpr => ArithExpr) : Type = {
+    Type.visitAndRebuild(t, {
+      case at: ArrayType => ArrayType(at.elemT, f(at.len))
+      case vt: VectorType => VectorType(vt.scalarT, f(vt.len))
+      case tt: TupleType => tt
+      case st: ScalarType => st
+      case NoType => NoType
+      case UndefType => UndefType
+    }, t => t)
   }
 
 
@@ -215,6 +285,7 @@ object Type {
    * @param t A type
    * @return The base type of `t`
    */
+  @scala.annotation.tailrec
   def getBaseType(t: Type): Type = {
     t match {
       case vt: VectorType => vt.scalarT
@@ -233,6 +304,7 @@ object Type {
    * @param t A type
    * @return The value type of `t`
    */
+  @scala.annotation.tailrec
   def getValueType(t: Type): Type = {
     t match {
       case at: ArrayType  => getValueType(at.elemT)
@@ -284,8 +356,8 @@ object Type {
    */
   def asScalarType(at: ArrayType): ArrayType = {
     at.elemT match {
-      case vt: VectorType => new ArrayType(vt.scalarT, at.len*vt.len)
-      case at: ArrayType =>  new ArrayType(asScalarType(at),at.len)
+      case vt: VectorType => ArrayType(vt.scalarT, at.len*vt.len)
+      case at: ArrayType =>  ArrayType(asScalarType(at),at.len)
       case _ => throw new TypeException(at.elemT , "ArrayType or VectorType")
     }
   }
@@ -306,6 +378,22 @@ object Type {
     }
   }
 
+  def getMaxSize(t: Type) : ArithExpr = {
+    // quick hack (set all the type var to theur max value)
+    // TODO: need to be fixed
+    val size = getSize(t)
+    val map = TypeVar.getTypeVars(size).map(tv => (tv, tv.range.max)).toMap
+    ArithExpr.substitute(size, map.toMap)
+  }
+
+  def getMaxLength(t: Type) : ArithExpr = {
+    // quick hack (set all the type var to theur max value)
+    // TODO: need to be fixed
+    val size = getLength(t)
+    val map = TypeVar.getTypeVars(size).map(tv => (tv, tv.range.max)).toMap
+    ArithExpr.substitute(size, map.toMap)
+  }
+
   /**
    * Returns the length (i.e., the number of values represented by this type)
    *
@@ -318,7 +406,7 @@ object Type {
       case vt: VectorType => vt.len
       case tt: TupleType  => Cst(1)
       case at: ArrayType  => at.len
-      case _ => throw new IllegalArgumentException
+      case _ => throw new IllegalArgumentException(t.toString)
     }
   }
 
@@ -342,9 +430,6 @@ object Type {
 
   /**
    * TODO: document (christophe?)
-   * @param t1
-   * @param t2
-   * @return
    */
   def reify(t1: Type, t2: Type): immutable.Map[TypeVar, ArithExpr] = {
     val result = mutable.Map[TypeVar, ArithExpr]()
@@ -367,9 +452,6 @@ object Type {
 
   /**
    * TODO: document (christophe?)
-   * @param e1
-   * @param e2
-   * @return
    */
   private def reifyExpr(e1: ArithExpr,
                         e2: ArithExpr) : immutable.Map[TypeVar, ArithExpr] = {
@@ -380,6 +462,10 @@ object Type {
       case _ => // todo check that the two expressions are equivalent
     }
     result.toMap
+  }
+
+  def substitute(t: Type, oldVal: ArithExpr, newVal: ArithExpr) : Type ={
+    Type.substitute(t,new HashMap[ArithExpr,ArithExpr]() + ((oldVal, newVal)))
   }
 
   /**
@@ -394,13 +480,15 @@ object Type {
    *         `t`
    */
   def substitute(t: Type,
-                 substitutions: immutable.Map[ArithExpr, ArithExpr]) : Type = {
+                 substitutions: scala.collection.Map[ArithExpr, ArithExpr]) : Type = {
     Type.visitAndRebuild(t, t1 => t1, {
+      case UnknownLengthArrayType(et,len) => // TODO add substitution here
+        new UnknownLengthArrayType(et,len)
       case ArrayType(et,len) =>
-        new ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
+        ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
 
       case VectorType(st,len) =>
-        new VectorType(st, ArithExpr.substitute(len, substitutions.toMap))
+        VectorType(st, ArithExpr.substitute(len, substitutions.toMap))
 
       case t: Type => t
     })
@@ -450,9 +538,6 @@ object Type {
     l.len == r.len && isEqual(l.scalarT, r.scalarT)
   }
 
-  @deprecated("replaced by Type.vectorize(n)")
-  def vectorize(t: Type, n: ArithExpr): Type = t.vectorize(n)
-
   /**
    * Devecorize a given type.
    * I.e. removes all vector types in it by replacing them with corresponding
@@ -464,7 +549,7 @@ object Type {
   def devectorize(t: Type): Type = {
     t match {
       case vt: VectorType => vt.scalarT
-      case tt: TupleType  => TupleType( tt.elemsT.map( devectorize ):_* )
+      case tt: TupleType  => TupleType( tt.elemsT:_* )
       case at: ArrayType  => ArrayType(devectorize(at.elemT), at.len)
       case _ => t
     }
@@ -476,6 +561,7 @@ object Type {
  * @param msg A string message presented to the user
  */
 case class TypeException(msg: String) extends Exception(msg) {
+
   def this(found: Type, expected: String) =
     this(found + " found but " + expected + " expected")
 
@@ -484,8 +570,15 @@ case class TypeException(msg: String) extends Exception(msg) {
 
 }
 
+class ZipTypeException(val tt: TupleType)
+  extends TypeException(s"Can not statically prove that sizes ( ${tt.elemsT.mkString(", ")} ) match!")
+
+object ZipTypeException {
+  def apply(tt: TupleType) = new ZipTypeException(tt)
+}
+
 /**
- * Exceptiong thrown by the type checker on an arity missmatch
+ * Exception thrown by the type checker on an arity mismatch
  * @param msg A string message presented to the user
  */
 case class NumberOfArgumentsException(msg: String) extends Exception(msg) {

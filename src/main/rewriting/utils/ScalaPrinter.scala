@@ -2,6 +2,8 @@ package rewriting.utils
 
 import ir._
 import ir.ast._
+import opencl.generator.NotPrintableExpression
+import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
 
 object ScalaPrinter {
@@ -16,11 +18,14 @@ object ScalaPrinter {
 
   def apply(funDecl: FunDecl): String = {
     funDecl match {
+      case lambda: Let => s"new Let((${lambda.params.map(apply).mkString(", ")}) => ${apply(lambda.body)})"
       case lambda: Lambda => s"fun((${lambda.params.map(apply).mkString(", ")}) => ${apply(lambda.body)})"
       case map: Map => s"Map(${apply(map.f)})"
       case mapSeq: MapSeq => s"MapSeq(${apply(mapSeq.f)})"
       case mapWrg: MapWrg => s"MapWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
       case mapLcl: MapLcl => s"MapLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
+      case mapWrg: MapAtomWrg => s"MapAtomWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
+      case mapLcl: MapAtomLcl => s"MapAtomLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
       case mapGlb: MapGlb => s"MapGlb(${mapGlb.dim})(${apply(mapGlb.f)})"
       case reduceSeq: ReduceSeq => s"ReduceSeq(${apply(reduceSeq.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
@@ -43,6 +48,9 @@ object ScalaPrinter {
       case TupleType(tt@_*) => s"TupleType(${tt.map(apply).mkString(", ")})"
       case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, $len)"
       case ArrayType(elemT, len) => s"ArrayType(${apply(elemT)}, $len)"
+      case NoType => throw new NotPrintableExpression(s"Can not print NoType")
+      case UndefType => throw new NotPrintableExpression(s"Can not print UndefType")
+      case s: ScalarType => throw new NotPrintableExpression(s"Can not print ScalaType: $s")
     }
   }
 
@@ -56,4 +64,6 @@ object ScalaPrinter {
 
     s"val ${uf.name} = UserFun($name, Array($paramNames), $body, Seq($inTs), $outT)"
   }
+
+  def apply(uf: OpenCLBuiltInFun): String = ""
 }

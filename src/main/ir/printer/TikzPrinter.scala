@@ -14,7 +14,7 @@ class TikzPrinter(w: Writer) {
   // keeps track of the visited node
   lazy val visited : collection.mutable.Set[Any] = collection.mutable.HashSet()
 
-  def writeln(s: String) = {
+  def writeln(s: String): Unit = {
     w.write(s+"\n")
   }
 
@@ -22,7 +22,7 @@ class TikzPrinter(w: Writer) {
     "n"+Math.abs(n.hashCode())
   }
 
-  def print(decl: Decl) = {
+  def print(decl: Decl): Unit = {
     writeln("\\begin{tikzpicture}[baseline,>=stealth',shorten >=1pt,auto,node distance=1.3cm,minimum size=0pt,every node/.style={rectangle,draw=black!80,rounded corners=3pt,thick}]")
     printNodes(decl, "")
 
@@ -47,7 +47,7 @@ class TikzPrinter(w: Writer) {
 
     expr match {
       case fc: FunCall =>
-        printEdges(fc.args(0), nodeId,"arg")
+        printEdges(fc.args.head, nodeId,"arg")
         printEdges(fc.f, nodeId,"f")
       case p : Param =>
     }
@@ -62,7 +62,7 @@ class TikzPrinter(w: Writer) {
 
     decl match {
       case l: Lambda =>
-        printEdges(l.params(0), nodeId, "param");
+        printEdges(l.params(0), nodeId, "param")
         printEdges(l.body, nodeId, "body")
       case z: Zip =>
 
@@ -86,7 +86,7 @@ class TikzPrinter(w: Writer) {
             printEdges(r.f, nodeId, "f");
 
         }
-      case uf: UserFun => ""
+      case uf: UserFun =>
     }
   }
 
@@ -101,7 +101,7 @@ class TikzPrinter(w: Writer) {
     expr match {
       case fc: FunCall =>
         writeln("\\node ("+nodeId+") ["+pos+"] {FunCall};")
-        printNodes(fc.args(0), "below of="+nodeId)
+        printNodes(fc.args.head, "below of="+nodeId)
         printNodes(fc.f, "right of="+nodeId)
       case p : Param =>
         writeln("\\node ("+nodeId+") ["+pos+"] {Param};")
@@ -120,7 +120,7 @@ class TikzPrinter(w: Writer) {
   decl match {
       case l: Lambda =>
         writeln("\\node ("+nodeId+") ["+pos+"] {$\\lambda$};")
-        printNodes(l.params(0), "below of="+nodeId);
+        printNodes(l.params(0), "below of="+nodeId)
         printNodes(l.body, "right of="+getNodeId(l.params(0)))
       case z: Zip =>
         writeln("\\node ("+nodeId+") ["+pos+"] {zip};")

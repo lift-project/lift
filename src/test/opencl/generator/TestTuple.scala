@@ -1,22 +1,22 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestTuple {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -24,18 +24,18 @@ object TestTuple {
 
 class TestTuple {
 
-  @Test def  MAKE_TUPLE_FROM_ZIP_EXPLICIT() {
+  val makeTupleFromZip = UserFun("id",
+    Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
+    Seq(Float, Float),
+    TupleType(Float, Float))
+
+  @Test def  MAKE_TUPLE_FROM_ZIP_EXPLICIT(): Unit = {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
 
-    val makeTupleFromZip = UserFun("id",
-                                   Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
-                                   Seq(Float, Float),
-                                   TupleType(Float, Float))
-
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
@@ -44,14 +44,53 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inArrA, inArrB)
-
+    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
     assertArrayEquals(gold, output, 0.0f)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
-  @Test def  MAKE_TUPLE_FROM_ZIP_IMPLICIT() {
+  @Test
+  @Ignore
+  def zip(): Unit = {
+    val inputSize = 1024
+    val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
+
+    val N = SizeVar("N")
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a,b) => {
+        toGlobal(MapGlb(makeTupleFromZip)) o Zip(2) $ Tuple(a, b)
+      }
+    )
+
+    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test
+  @Ignore
+  def zip2(): Unit = {
+    val inputSize = 1024
+    val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
+
+    val N = SizeVar("N")
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a,b) => {
+        toGlobal(MapGlb(makeTupleFromZip)) o Zip(2) o Unzip() $ Zip(a, b)
+      }
+    )
+
+    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  @Test def  MAKE_TUPLE_FROM_ZIP_IMPLICIT(): Unit = {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -59,7 +98,7 @@ class TestTuple {
 
     val id =  UserFun("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(
                  ArrayType(Float, N),
                  ArrayType(Float, N),
@@ -75,7 +114,7 @@ class TestTuple {
     println("runtime = " + runtime)
   }
   
-  @Test def VECTOR_NEG_PAIR() {
+  @Test def VECTOR_NEG_PAIR(): Unit = {
     val inputSize = 1024
     val inputArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
 
@@ -84,7 +123,7 @@ class TestTuple {
     val negPair = UserFun("pair", "x", "{ x._0 = -x._0; x._1 = -x._1; return x; }",
       TupleType(Float, Float), TupleType(Float, Float))
 
-    val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
+    val f = fun(ArrayType(TupleType(Float, Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
       ) o Split(1024) $ input
@@ -98,14 +137,14 @@ class TestTuple {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_ADD_PAIRS() {
+  @Test def VECTOR_ADD_PAIRS(): Unit = {
     val inputSize = 1024
     val leftArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
     val rightArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
 
     val gold = (leftArray zip rightArray).map({case (l, r) => l + r})
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(TupleType(Float, Float), N),
@@ -124,7 +163,7 @@ class TestTuple {
     println("runtime = " + runtime)
   }
 
-  @Test def VECTOR_PAIR() {
+  @Test def VECTOR_PAIR(): Unit = {
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
@@ -133,7 +172,7 @@ class TestTuple {
     val pair = UserFun("pair", "x", "{ Tuple t = {x, x}; return t; }",
                           Float, TupleType(Float, Float))
 
-    val pairFun = fun(ArrayType(Float, Var("N")), (input) =>
+    val pairFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(pair)) o Split(4)
       ) o Split(1024) $ input
@@ -155,7 +194,7 @@ class TestTuple {
 
     val inputSize = 512
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val input2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
 
@@ -181,7 +220,7 @@ class TestTuple {
 
     val inputSize = 512
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val input2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
 
@@ -210,8 +249,8 @@ class TestTuple {
     val array = Array.fill(nSize)(util.Random.nextInt(5).toFloat)
     val gold = (input, array).zipped.map((x, y) => (x.map(_+1), y)._1.map(_+y)).flatten
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val function = fun(
       ArrayType(ArrayType(Float, M), N),
@@ -234,7 +273,6 @@ class TestTuple {
     assertArrayEquals(gold, output, 0.0f)
   }
 
-  @Ignore
   @Test
   def patternGetOfTuple(): Unit = {
     val inputSize = 1024
@@ -242,9 +280,9 @@ class TestTuple {
 
     val gold = inputArray.zipWithIndex.filter(_._2 % 2 == 0).map(_._1)
 
-    val f = fun(ArrayType(TupleType(Float, Float), Var("N")), (input) =>
+    val f = fun(ArrayType(TupleType(Float, Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
-        Join() o  MapLcl(MapSeq(fun(x => Get(x, 0)))) o Split(4)
+        Join() o  MapLcl(MapSeq(fun(x => id $ Get(x, 0)))) o Split(4)
       ) o Split(1024) $ input
     )
 
@@ -259,7 +297,7 @@ class TestTuple {
   @Test def projectFirstComponentFromTuple() : Unit = {
     val idII = UserFun("idII", "x", "{ return x; }", TupleType(Int, Int), TupleType(Int, Int))
 
-    val N = Var("N")
+    val N = SizeVar("N")
     val f = fun(ArrayType(TupleType(Int, Int), N), A => {
       MapSeq( fun((a) => idI(a._0)) ) o MapSeq(idII) $ A
     })

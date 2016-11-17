@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
+import apart.arithmetic._
 import ir._
 import ir.ast._
 import opencl.executor.Utils
@@ -11,19 +11,19 @@ import org.clapper.argot.ArgotConverters._
 class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
   extends Benchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
 
-  val tileX = parser.option[Int](List("x", "tileX"), "size",
+  val tileX = parser.option[Long](List("x", "tileX"), "size",
     "Tile size in the M and N dimension")
 
-  val tileY = parser.option[Int](List("y", "tileY"), "size",
+  val tileY = parser.option[Long](List("y", "tileY"), "size",
     "Tile size in the K dimension")
 
-  val registerBlockM = parser.option[Int](List("bm", "blockM"), "size",
+  val registerBlockM = parser.option[Long](List("bm", "blockM"), "size",
    "Register blocking factor in M dimension")
 
-  val registerBlockN = parser.option[Int](List("bn", "blockN"), "size",
+  val registerBlockN = parser.option[Long](List("bn", "blockN"), "size",
     "Register blocking factor in N dimension")
 
-  val vectorWidth = parser.option[Int](List("vw", "vectorWidth"), "width",
+  val vectorWidth = parser.option[Long](List("vw", "vectorWidth"), "width",
     "Vector width for loading values")
 
   override def runScala(inputs: Any*): Array[Float] = {
@@ -58,10 +58,10 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
     globalSizes
   }
 
-  override protected def beforeBenchmark() = {
-    f(1)._2(0) = MatrixMultiplication.tiled(tileX.value.getOrElse(16))
-    f(2)._2(0) = MatrixMultiplication.moreWorkPerThread(tileX.value.getOrElse(16),
-      registerBlockM.value.getOrElse(4))
+  override protected def beforeBenchmark(): Unit = {
+    f(1)._2(0) = MatrixMultiplication.tiled(Cst(tileX.value.getOrElse(16)))
+    f(2)._2(0) = MatrixMultiplication.moreWorkPerThread(Cst(tileX.value.getOrElse(16)),
+      Cst(registerBlockM.value.getOrElse(4)))
     f(3)._2(0) = MatrixMultiplication.tiledAndBlockedBInnermost(Cst(tileX.value.getOrElse(16)),
       Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
       Cst(registerBlockM.value.getOrElse(4)))
@@ -83,9 +83,9 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
 }
 
 object MatrixMultiplication {
-  val N = Var("N")
-  val M = Var("M")
-  val K = Var("K")
+  val N = SizeVar("N")
+  val M = SizeVar("M")
+  val K = SizeVar("K")
 
   val naive = fun(
     ArrayType(ArrayType(Float, K), M),
@@ -98,7 +98,7 @@ object MatrixMultiplication {
       )) $ A
     })
 
-  def tiled(tileSize: Int = 4) = fun(
+  def tiled(tileSize: ArithExpr = 4) = fun(
     ArrayType(ArrayType(Float, K), M),
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
@@ -138,7 +138,7 @@ object MatrixMultiplication {
         )) o Tile(tileSize) $ A
     })
 
-  def moreWorkPerThread(tileSize: Int = 8, workPerThread: Int = 4) = fun(
+  def moreWorkPerThread(tileSize: ArithExpr = 8, workPerThread: ArithExpr = 4) = fun(
     ArrayType(ArrayType(Float, K), M),
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {

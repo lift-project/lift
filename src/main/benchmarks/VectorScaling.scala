@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -27,7 +27,7 @@ class VectorScaling(override val name: String,
 
 object VectorScaling {
 
-  val vectorScal = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val vectorScal = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
     Join() o MapWrg(
       Join() o MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
@@ -35,7 +35,7 @@ object VectorScaling {
     ) o Split(1024) $ input
   )
 
-  val vectorScal_ = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val vectorScal_ = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
     input :>>
     Split(1024) :>>
     MapWrg(
@@ -48,7 +48,7 @@ object VectorScaling {
     Join()
   )
 
-  val scalAMD = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val scalAMD = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
     Join() o MapWrg(
       Join() o  MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
@@ -56,7 +56,7 @@ object VectorScaling {
     ) o Split(128) $ input
   )
 
-  val scalAMD_ = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val scalAMD_ = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
     input :>>
     Split(128) :>>
     MapWrg(
@@ -69,7 +69,7 @@ object VectorScaling {
     Join()
   )
 
-  val scalNVIDIA = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val scalNVIDIA = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
     Join() o MapWrg(
       Join() o  MapLcl(MapSeq(
         fun( x => mult(alpha, x) )
@@ -77,7 +77,7 @@ object VectorScaling {
     ) o Split(2048) $ input
   )
 
-  val scalNVIDIA_ = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val scalNVIDIA_ = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
     input :>>
     Split(2048) :>>
     MapWrg(
@@ -90,7 +90,7 @@ object VectorScaling {
     Join()
   )
 
-  val scalINTEL = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val scalINTEL = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
     Join() o MapWrg(
       Join() o  MapLcl(MapSeq(
         fun( x => mult.vectorize(4).apply(alpha.vectorize(4), x) )
@@ -98,7 +98,7 @@ object VectorScaling {
     ) o Split(4*128*128) $ input
   )
 
-  val scalINTEL_ = fun( ArrayType(Float, Var("N")), Float, (input, alpha) =>
+  val scalINTEL_ = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
     input :>>
     Split(4*128*128) :>>
     MapWrg(
@@ -120,7 +120,7 @@ object VectorScaling {
         ("SCAL_AMD", Array[Lambda](scalAMD)),
         ("SCAL_INTEL", Array[Lambda](scalINTEL))))
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]): Unit = {
     VectorScaling().run(args)
   }
 }

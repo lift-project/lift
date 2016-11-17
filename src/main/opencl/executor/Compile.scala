@@ -15,9 +15,9 @@ object Compile {
    * Evaluates the given string under the assumption that the string defines a lambda and compiles it afterwards.
    * Returns a pair consisting of the compiled OpenCL code and the lambda evaluated from the input string.
    */
-  def apply(code: String): (String, Lambda) = {
+  def apply(code: String): String = {
     val f = Eval(code)
-    (apply(f), f)
+    apply(f)
   }
 
   /**
@@ -44,16 +44,16 @@ object Compile {
     TypeChecker.check(f.body)
 
     // 2. generate OpenCL kernel
-    val kernelCode = OpenCLGenerator.generate(f,
+    val kernel = OpenCLGenerator.generate(f,
       Array(localSize0, localSize1, localSize2),
       Array(globalSize1, globalSize2, globalSize3), valueMap)
 
     // 3. print and return kernel code
     if (Verbose()) {
       println("Kernel code:")
-      println(kernelCode)
+      println(kernel)
     }
-    kernelCode
+    kernel
   }
 
 }

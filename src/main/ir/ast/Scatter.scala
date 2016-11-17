@@ -1,6 +1,7 @@
 package ir.ast
 
-import ir.Type
+import ir.{Type, UndefType}
+import ir.interpreter.Interpreter.ValueMap
 
 /**
  * Scatter pattern. Performs a reorder on the previous write.
@@ -19,4 +20,12 @@ case class Scatter(idx: IndexFunction) extends Pattern(arity = 1)
 
   override def checkType(argType: Type, setType: Boolean): Type = argType
 
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+
+    args.head match {
+      case a: Array[_] =>
+        (0 to a.length).map(i => a(idx.f(i, Type.fromAny(a)).eval))
+    }
+  }
 }

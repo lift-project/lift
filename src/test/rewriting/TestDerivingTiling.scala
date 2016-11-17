@@ -1,21 +1,22 @@
 package rewriting
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
+import org.junit.Assume._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestDerivingTiling {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }
@@ -32,8 +33,8 @@ class TestDerivingTiling {
     val matrix = Array.fill(nSize, mSize)(util.Random.nextInt(nSize*mSize).toFloat)
     val gold = matrix.flatMap(_.map(_ + 1))
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     // Starting expression
     def f = fun(
@@ -106,6 +107,9 @@ class TestDerivingTiling {
 
   @Test
   def mmSquareTiles(): Unit = {
+
+    assumeFalse("Disabled on AMD GPUs. See issue #64.", Utils.isAmdGpu)
+
     val nSize = 16
     val mSize = 16
     val kSize = 16
@@ -116,9 +120,9 @@ class TestDerivingTiling {
     val transposedMatrixB = matrixB.transpose
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
-    val N = Var("N")
-    val M = Var("M")
-    val K = Var("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
 
     // Starting expression
     val f = fun(

@@ -2,13 +2,18 @@ package exploration
 
 import java.io.FileWriter
 
-import apart.arithmetic.{?, ArithExpr, Cst}
-import rewriting.InferNDRange
-import rewriting.utils.Utils
+import analysis._
+import apart.arithmetic.{?, ArithExpr, Cst, Var}
+import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator.{IllegalKernel, OpenCLGenerator}
-import opencl.ir.{LocalMemory, TypedOpenCLMemory}
+import opencl.ir._
+import opencl.ir.ast._
+import rewriting.InferNDRange
+import rewriting.utils.Utils
+
+import scala.sys.process._
 
 object SaveOpenCL {
   def apply(topFolder: String, lowLevelHash: String, highLevelHash: String,
@@ -18,20 +23,58 @@ object SaveOpenCL {
 
 class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String) {
 
-  private var local: NDRange = Array(?, ?, ?)
-  private var global: NDRange = Array(?, ?, ?)
+  private val logger = Logger(this.getClass)
 
-  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Unit = {
-    expressions.foreach(processLambda)
+  var local: NDRange = Array(?, ?, ?)
+  var global: NDRange = Array(?, ?, ?)
+  private var sizeArgs: Seq[Var] = Seq()
+  private var numSizes = 0
+
+  val inputSizes = Seq(512, 1024, 2048, 4096, 8192)
+  private var inputCombinations: Seq[Seq[ArithExpr]] = Seq()
+
+  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
+
+    prepare(expressions)
+
+    s"mkdir -p ${topFolder}Cl/".!
+
+    val fileWriter =
+      new FileWriter(topFolder + "Cl/stats_header.csv")
+    fileWriter.write(statsHeader)
+    fileWriter.close()
+
+    expressions.map(processLambda)
+  }
+
+  def prepare(expressions: List[(Lambda, Seq[ArithExpr])]): Unit = {
+    if (expressions.nonEmpty) {
+      val lambda = expressions.head._1
+      sizeArgs = lambda.params.flatMap(_.t.varList).sortBy(_.name).distinct
+      numSizes = sizeArgs.length
+      inputCombinations = inputSizes.map(Seq.fill[ArithExpr](numSizes)(_))
+
+      if (sizeArgs.size == 3) {
+        val combinations = inputSizes
+          .map(Cst(_))
+          .combinations(2)
+          .flatMap(_.permutations)
+          .map(l => l :+ l.last)
+        inputCombinations ++= combinations.toSeq
+      }
+    }
   }
 
   private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
     try {
       val kernel = generateKernel(pair)
-      dumpOpenCLToFiles(pair._1, kernel)
+      dumpOpenCLToFiles(pair, kernel)
     } catch {
-      case x:Throwable =>
-        println(x)
+      case _: IllegalKernel =>
+        None
+      case t: Throwable =>
+        logger.warn(s"Failed compilation $highLevelHash (${pair._2.mkString(",")})", t)
+        None
     }
   }
 
@@ -40,7 +83,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val substitutionMap = pair._2
 
     InferNDRange(lambda) match { case (l, g) => local = l; global = g }
-    val valueMap = GenerateOpenCL.createValueMap(lambda)
+    val valueMap = ParameterRewrite.createValueMap(lambda)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     val code = OpenCLGenerator.generate(lambda, local, globalSubstituted, valueMap)
@@ -59,59 +102,151 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     Utils.findAndReplaceVariableNames(kernel)
   }
 
-  private def dumpOpenCLToFiles(lambda: Lambda, kernel: String): Unit = {
+  private def dumpOpenCLToFiles(pair: (Lambda, Seq[ArithExpr]), kernel: String): Option[String] = {
 
-    val hash = Utils.Sha256Hash(kernel)
+    val lambda = pair._1
+    val hash = lowLevelHash + "_" + pair._2.mkString("_")
     val filename = hash + ".cl"
 
     val path = s"${topFolder}Cl/$lowLevelHash"
 
-    // FIXME(tlutz): some buffer sizes overflow
     val (_, buffers) = OpenCLGenerator.getMemories(lambda)
     val (localBuffers, globalBuffers) = buffers.partition(_.mem.addressSpace == LocalMemory)
 
-    // Dump only the code if the minimal amount of temporary global arrays doesn't overflow
-    val min_map = getBufferSizes(1024, globalBuffers)
-
-    if (!min_map.forall(_ > 0))
-      throw new IllegalKernel("Buffer size overflow")
-
     val dumped = Utils.dumpToFile(kernel, filename, path)
-    if (dumped)
+    if (dumped) {
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
+      dumpStats(lambda, hash, path)
+    }
+
+    if (dumped) Some(hash) else None
   }
 
   private def createCsv(hash: String, path: String, numParams: Int,
                         globalBuffers: Array[TypedOpenCLMemory],
                         localBuffers: Array[TypedOpenCLMemory]): Unit = {
-    Seq(1024, 2048, 4096, 8192, 16384).foreach(i => {
+
+    inputCombinations.foreach(sizes => {
+
+      val inputVarMapping: Map[ArithExpr, ArithExpr] = (sizeArgs, sizes).zipped.toMap
+
+      val size = sizes.head
 
       // Add to the CSV if there are no overflow
-      val allBufferSizes = getBufferSizes(i, globalBuffers)
+      val allBufferSizes =
+        globalBuffers.map(mem => ArithExpr.substitute(mem.mem.size, inputVarMapping).eval)
       val globalTempAlloc = allBufferSizes.drop(numParams + 1)
-      val localTempAlloc = getBufferSizes(i, localBuffers)
+      val localTempAlloc =
+        localBuffers.map(mem => ArithExpr.substitute(mem.mem.size, inputVarMapping).eval)
 
       if (allBufferSizes.forall(_ > 0)) {
-        val fw = new FileWriter(s"$path/exec_$i.csv", true)
-        fw.write(i + "," +
-          global.map(substituteInputSizes(i, _)).mkString(",") + "," +
-          local.map(substituteInputSizes(i, _)).mkString(",") +
+
+        val sizeId = getSizeId(sizes)
+
+        val fileWriter = new FileWriter(s"$path/exec_$sizeId.csv", true)
+
+        fileWriter.write(size + "," +
+          global.map(ArithExpr.substitute(_, inputVarMapping)).mkString(",") + "," +
+          local.map(ArithExpr.substitute(_, inputVarMapping)).mkString(",") +
           s",$hash," + globalTempAlloc.length + "," +
           globalTempAlloc.mkString(",") +
           (if (globalTempAlloc.length == 0) "" else ",") +
           localTempAlloc.length +
           (if (localTempAlloc.length == 0) "" else ",") +
           localTempAlloc.mkString(",")+ "\n")
-        fw.close()
+
+        fileWriter.close()
       }
     })
   }
 
-  private def substituteInputSizes(size: Int, ae: ArithExpr) = {
-    val subst = Map(ae.varList.map((_: ArithExpr, Cst(size): ArithExpr)).toSeq: _*)
-    ArithExpr.substitute(ae, subst)
+  def statsHeader =
+    "hash," + (0 until numSizes).map("size" + _).mkString(",") +
+    ",globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
+    "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
+    "localStores,localLoads,privateStores,privateLoads,barriers," +
+    "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads," +
+    "ifStatements,forStatements,add,mult,addMult,vecAddMult,dot\n"
+
+  private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
+
+    inputCombinations.foreach(sizes => {
+
+      val string = getStatsString(lambda, hash, sizes)
+      val sizeId = getSizeId(sizes)
+
+      val fileWriter = new FileWriter(s"$path/stats_$sizeId.csv", true)
+      fileWriter.write(string)
+      fileWriter.close()
+    })
   }
 
-  private def getBufferSizes(inputSize: Int, globalBuffers: Array[TypedOpenCLMemory]) =
-    globalBuffers.map(x => substituteInputSizes(inputSize, x.mem.size).eval)
+  private def getSizeId(sizes: Seq[ArithExpr]): String = {
+    val sizeId =
+      if (sizes.distinct.length == 1)
+        sizes.head.toString
+      else
+        sizes.mkString("_")
+    sizeId
+  }
+
+  def getStatsString(lambda: Lambda, hash: String, sizes: Seq[ArithExpr]): String = {
+
+    val exact = true
+    val inputVarMapping: Map[ArithExpr, ArithExpr] = (sizeArgs, sizes).zipped.toMap
+
+    val globalSizes = global.map(ArithExpr.substitute(_, inputVarMapping))
+    val localSizes = local.map(ArithExpr.substitute(_, inputVarMapping))
+
+    val valueMap = ParameterRewrite.createValueMap(lambda, sizes)
+
+    val memoryAmounts = MemoryAmounts(lambda, localSizes, globalSizes, valueMap)
+    val accessCounts = AccessCounts(lambda, localSizes, globalSizes, valueMap)
+    val barrierCounts = BarrierCounts(lambda, localSizes, globalSizes, valueMap)
+    val controlFlow = ControlFlow(lambda, localSizes, globalSizes, valueMap)
+    val functionCounts = FunctionCounts(lambda, localSizes, globalSizes, valueMap)
+
+    val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
+    val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
+    val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDbl
+
+    val globalStores = accessCounts.getStores(GlobalMemory, exact).evalDbl
+    val globalLoads = accessCounts.getLoads(GlobalMemory, exact).evalDbl
+    val localStores = accessCounts.getStores(LocalMemory, exact).evalDbl
+    val localLoads = accessCounts.getLoads(LocalMemory, exact).evalDbl
+    val privateStores = accessCounts.getStores(PrivateMemory, exact).evalDbl
+    val privateLoads = accessCounts.getLoads(PrivateMemory, exact).evalDbl
+
+    val barriers = barrierCounts.getTotalCount(exact).evalDbl
+
+    val coalescedGlobalStores =
+      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDbl
+    val coalescedGlobalLoads =
+      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDbl
+
+    val vectorGlobalStores =
+      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDbl
+    val vectorGlobalLoads =
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDbl
+
+    val ifStatements = controlFlow.getIfStatements(exact).evalDbl
+    val forStatements = controlFlow.getForStatements(exact).evalDbl
+
+    val addCount = functionCounts.getFunctionCount(add, exact).evalDbl
+    val multCount = functionCounts.getFunctionCount(mult, exact).evalDbl
+    val addMult = functionCounts.getAddMultCount(exact).evalDbl
+    val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDbl
+    val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
+
+    val string =
+      s"$hash,${sizes.mkString(",")},${globalSizes.mkString(",")},${localSizes.mkString(",")}," +
+        s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
+        s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
+        s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +
+        s"$vectorGlobalLoads,$ifStatements,$forStatements,$addCount,$multCount," +
+        s"$addMult,$vecAddMult,$dotCount\n"
+
+    string
+  }
+
 }

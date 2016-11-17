@@ -1,21 +1,21 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq}
 import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestTail {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     Executor.shutdown()
   }
 }
@@ -28,7 +28,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.tail).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -50,7 +50,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.reverse.tail).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -73,7 +73,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.tail.reverse).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -96,7 +96,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.reverse.tail.reverse).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -118,7 +118,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.tail.reverse).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -140,7 +140,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.tail).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -162,7 +162,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.reverse.tail).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -184,7 +184,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.tail.reverse).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -206,7 +206,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.reverse.tail.reverse).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),
@@ -228,7 +228,7 @@ class TestTail {
 
     val gold = input.grouped(128).map(_.reverse.tail.reverse).flatten.toArray
 
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayType(Float, N),

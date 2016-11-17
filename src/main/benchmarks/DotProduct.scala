@@ -1,11 +1,9 @@
 package benchmarks
 
-import java.io.{PrintWriter, File, OutputStreamWriter}
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
-import ir.printer.{DotPrinter, TikzPrinter}
 import opencl.ir._
 import opencl.ir.pattern._
 
@@ -35,7 +33,7 @@ class DotProduct(override val name: String,
 
 object DotProduct {
 
-  val N = Var("N")
+  val N = SizeVar("N")
 
   val dotProductSimple = fun(ArrayType(Float, N),
     ArrayType(Float, N), (left, right) => {
@@ -104,16 +102,7 @@ object DotProduct {
         ("cpu", Array[Lambda](dotProductCPU1, dotProductCPU2)),
         ("gpu", Array[Lambda](dotProduct1, dotProduct2))))
 
-  def main(args: Array[String]) = {
-   // DotProduct().run(args)
-    println(dotProduct3)
-    //new TikzPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/graph.tkz"))).print(ReduceSeq(add, 0.0f))
-    //new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/graph.dot"))).print(ReduceSeq(add, 0.0f))
-    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpGraph.dot"))).print(dotProduct3)
-
-    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpMapWrg.dot"))).print(dpMapWrg)
-    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpReadGlbToLcl.dot"))).print(dpReadGlbToLcl)
-    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpWriteLclToGlb.dot"))).print(dpWriteLclToGlb)
-    new DotPrinter(new PrintWriter(new File("/home/cdubach/svn/cdubach/papers/pact2016_michel/figures/dpIterate.dot"))).print(dpIterate)
+  def main(args: Array[String]): Unit = {
+    DotProduct().run(args)
   }
 }

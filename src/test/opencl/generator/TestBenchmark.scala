@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import benchmarks.{BlackScholes, MolecularDynamics}
 import ir._
 import ir.ast._
@@ -11,13 +11,13 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestBenchmark {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -33,70 +33,13 @@ class TestBenchmark {
     val gold = BlackScholes.runScala(input)
 
     val kernel = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       inRand => MapGlb(BlackScholes.blackScholesComp) $ inRand
     )
 
     val (output: Array[Float], runtime) = Execute(inputSize)(kernel, input)
 
     assertArrayEquals(gold, output, 0.01f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
-  }
-
-  @Test def kMeansMembership(): Unit = {
-    val inputSize = 512
-    val k = 16
-
-    val pointsX = Array.fill(inputSize)(util.Random.nextFloat())
-    val pointsY = Array.fill(inputSize)(util.Random.nextFloat())
-    val centresX = Array.fill(k)(util.Random.nextFloat())
-    val centresY = Array.fill(k)(util.Random.nextFloat())
-    val indices = Array.range(0, k)
-
-    val distance = UserFun("dist", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
-    val minimum = UserFun("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
-    val getSecond = UserFun("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
-
-    val points = pointsX zip pointsY
-    val centres = (centresX, centresY, indices).zipped
-
-    val gold = points.map(x => {
-      centres
-        .map((a, b, id) => ((x._1 - a) * (x._1 - a) + (x._2 - b) * (x._2 - b), id))
-        .reduce((p1, p2) => if (p1._1 < p2._1) p1 else p2)
-        ._2
-    })
-
-    val N = Var("N")
-    val K = Var("K")
-
-    val function = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      ArrayType(Float, K),
-      ArrayType(Float, K),
-      ArrayType(Int, K),
-      (x, y, a, b, i) => {
-        MapGlb(fun(xy => {
-          toGlobal(MapSeq(idI)) o
-          MapSeq(getSecond) o
-          ReduceSeq(minimum, (scala.Float.MaxValue, -1)) o
-          MapSeq(fun(ab => {
-            distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2))
-          })) $ Zip(a, b, i)
-        })) $ Zip(x, y)
-      }
-    )
-
-    println(inputSize)
-    println(k)
-
-    val (output: Array[Int], runtime) =
-      Execute(inputSize)(function, pointsX, pointsY, centresX, centresY, indices)
-
-    assertArrayEquals(gold, output)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -156,7 +99,7 @@ class TestBenchmark {
          |""".stripMargin, Seq(Int, Int, Int, Int), Int)
 
     val f = fun(
-      ArrayType(Int, Var("N")),
+      ArrayType(Int, SizeVar("N")),
       Int,
       Int,
       (in, niters, size) => MapGlb(fun(i => MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
@@ -169,145 +112,6 @@ class TestBenchmark {
 
 
     assertArrayEquals(gold, output)
-  }
-
-  @Test def nBody(): Unit = {
-
-    val inputSize = 512
-
-    val deltaT = 0.005f
-    val espSqr = 500.0f
-
-    // x, y, z, velocity x, y, z, mass
-    val input = Array.fill(inputSize)((util.Random.nextFloat(),
-                                       util.Random.nextFloat(),
-                                       util.Random.nextFloat(),
-                                       0.0f, 0.0f, 0.0f,
-                                       util.Random.nextFloat()))
-
-    val x = input.map(_._1)
-    val y = input.map(_._2)
-    val z = input.map(_._3)
-
-    val velX = input.map(_._4)
-    val velY = input.map(_._5)
-    val velZ = input.map(_._6)
-
-    val mass = input.map(_._7)
-
-    val gold = input.map(x => {
-      val acceleration = input.map(y => {
-        val r = Array(0.0f, 0.0f, 0.0f)
-
-        r(0) = x._1 - y._1
-        r(1) = x._2 - y._2
-        r(2) = x._3 - y._3
-
-        val distSqr = r.sum
-
-        val invDist = 1.0f / math.sqrt(distSqr + espSqr)
-
-        val s = invDist * invDist * invDist * y._7
-
-        (s * r(0), s * r(1), s * r(2))
-      }).reduce((y, z) => (y._1 + z._1, y._2 + z._2, y._3 + z._3))
-
-      val px = x._4 * deltaT + 0.5f * acceleration._1 * deltaT * deltaT
-      val py = x._5 * deltaT + 0.5f * acceleration._2 * deltaT * deltaT
-      val pz = x._6 * deltaT + 0.5f * acceleration._3 * deltaT * deltaT
-
-      (x._1 + px.toFloat,
-       x._2 + py.toFloat,
-       x._3 + pz.toFloat,
-       x._4 + acceleration._1.toFloat * deltaT,
-       x._5 + acceleration._2.toFloat * deltaT,
-       x._6 + acceleration._3.toFloat * deltaT,
-       x._7)
-    }).map(_.productIterator)
-      .reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
-
-    val calcAcc =
-      UserFun("calcAcc",
-              Array("x1", "y1", "z1", "x2", "y2", "z2", "mass2", "espSqr"),
-      """|{
-         |  float4 r = (x1 - x2, y1 - y2, z1 - z2, 0.0f);
-         |  float distSqr = r.x + r.y + r.z;
-         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
-         |  float invDistCube = invDist * invDist * invDist;
-         |  float s = invDistCube * mass2;
-         |  Tuple acc = {s * r.x, s * r.y, s * r.z};
-         |  return acc;
-         |}
-         | """.stripMargin,
-              Seq(Float, Float, Float, Float, Float, Float, Float, Float),
-              TupleType(Float, Float, Float))
-
-    val reduce =
-      UserFun("reduce",
-              Array("x", "y"),
-              "{ Tuple t = {x._0 + y._0, x._1 + y._1, x._2 + y._2}; return t;}",
-              Seq(TupleType(Float, Float, Float),
-                  TupleType(Float, Float, Float)),
-              TupleType(Float, Float, Float))
-
-    val update =
-      UserFun("update",
-              Array("x", "y", "z", "velX", "velY", "velZ", "mass",
-                    "deltaT", "acceleration"),
-      """|{
-         |  float px = velX * deltaT + 0.5f * acceleration._0 * deltaT * deltaT;
-         |  float py = velY * deltaT + 0.5f * acceleration._1 * deltaT * deltaT;
-         |  float pz = velZ * deltaT + 0.5f * acceleration._2 * deltaT * deltaT;
-         |  Tuple1 t = {x + px, y + py, z + pz,
-         |              velX + acceleration._0 * deltaT,
-         |              velY + acceleration._1 * deltaT,
-         |              velZ + acceleration._2 * deltaT, mass};
-         |  return t;
-         |}
-      """.stripMargin,
-              Seq(Float, Float, Float, Float, Float, Float, Float,
-                  Float, TupleType(Float, Float, Float)),
-              TupleType(Float, Float, Float, Float, Float, Float, Float))
-
-    val N = Var("N")
-
-    val function = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      Float,
-      Float,
-      (x, y, z, velX, velY, velZ, mass, espSqr, deltaT) =>
-        MapGlb(fun(x1y1z1 =>
-
-            toGlobal(MapSeq(fun(acceleration =>
-              update(Get(x1y1z1, 0), Get(x1y1z1, 1), Get(x1y1z1, 2),
-                     Get(x1y1z1, 3), Get(x1y1z1, 4), Get(x1y1z1, 5),
-                     Get(x1y1z1, 6), deltaT, acceleration))))
-
-          o ReduceSeq(reduce, (0.0f, 0.0f, 0.0f))
-
-          o toLocal(MapSeq(fun(x2y2z2 =>
-              calcAcc(Get(x1y1z1, 0), Get(x1y1z1, 1), Get(x1y1z1, 2),
-                      Get(x2y2z2, 0), Get(x2y2z2, 1), Get(x2y2z2, 2),
-                      Get(x2y2z2, 6), espSqr))))
-                $ Zip(x, y, z, velX, velY, velZ, mass)
-
-        )) $ Zip(x, y, z, velX, velY, velZ, mass)
-    )
-
-    val (output: Array[Float], runtime) =
-      Execute(inputSize)(function,
-                         x, y, z, velX, velY, velZ, mass, espSqr, deltaT)
-
-    assertArrayEquals(gold, output, 0.0001f)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
   @Test def md(): Unit = {
@@ -329,8 +133,8 @@ class TestBenchmark {
 
     val gold = MolecularDynamics.mdScala(particlesTuple, neighbours.transpose, cutsq, lj1, lj2).map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val N = new Var("N")
-    val M = new Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val f = fun(
       ArrayType(Float4, N),
@@ -387,11 +191,8 @@ class TestBenchmark {
     val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2)
                .map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val (output: Array[Float], runtime) =
+    val (output: Array[Float], _) =
       Execute(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
 
     assertEquals(output.length, gold.length)
 
@@ -411,7 +212,7 @@ class TestBenchmark {
   @Test def saxpy(): Unit = {
     // domain size
     val inputSize = 128
-    val N = Var("N")
+    val N = SizeVar("N")
 
     // Input variables
     val a: Float = 5.0f
@@ -472,7 +273,7 @@ class TestBenchmark {
     val pair = UserFun("pair", Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
       Seq(Float, Float), TupleType(Float, Float))
 
-    val k = Var("K")
+    val k = SizeVar("K")
 
     val computePhiMag = fun(
       ArrayType(Float, k),
@@ -480,7 +281,7 @@ class TestBenchmark {
       (phiR, phiI) => MapGlb(phiMag) $ Zip(phiR, phiI)
     )
 
-    val x = Var("X")
+    val x = SizeVar("X")
 
     val computeQ = fun(
       ArrayType(Float, x),
@@ -531,7 +332,7 @@ class TestBenchmark {
     val pair = UserFun("pair", Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
       Seq(Float, Float), TupleType(Float, Float))
 
-    val k = Var("K")
+    val k = SizeVar("K")
 
     val computePhiMag = fun(
       ArrayType(Float, k),
@@ -539,7 +340,7 @@ class TestBenchmark {
       (phiR, phiI) => MapGlb(phiMag) $ Zip(phiR, phiI)
     )
 
-    val x = Var("X")
+    val x = SizeVar("X")
 
     val computeQ = fun(
       ArrayType(Float, x),
@@ -550,17 +351,19 @@ class TestBenchmark {
       ArrayType(TupleType(Float, Float, Float, Float), k),
       (x, y, z, Qr, Qi, kvalues) =>
         Zip(x, y, z, Qr, Qi) :>>
-        MapGlb(\(t =>
-          Let( t._0, sX =>
-          Let( t._1, sY =>
-          Let( t._2, sZ =>
-            kvalues :>>
-            ReduceSeq(\((acc, p) =>
-                qFun(sX, sY, sZ, p._0, p._1, p._2, p._3, acc)
-              ), toPrivate(fun(x => pair(x._0, x._1))) $ Tuple(t._3, t._4)) :>>
-            toGlobal(MapSeq(idFF))
-          )))
-        ))
+          MapGlb(\(t =>
+            t._0 :>> toPrivate(id) :>> Let(sX =>
+              t._1 :>> toPrivate(id) :>> Let(sY =>
+                t._2 :>> toPrivate(id) :>> Let(sZ =>
+                  kvalues :>>
+                    ReduceSeq(\((acc, p) =>
+                      qFun(sX, sY, sZ, p._0, p._1, p._2, p._3, acc)
+                    ), toPrivate(fun(x => pair(x._0, x._1))) $ Tuple(t._3, t._4)) :>>
+                    toGlobal(MapSeq(idFF))
+                )
+              )
+            )
+          ))
     )
 
     Compile(computePhiMag)

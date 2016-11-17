@@ -1,7 +1,9 @@
 package ir.ast
 
-import ir.{TypeException, ArrayType, TupleType, Type}
+import ir.interpreter.Interpreter._
+import ir._
 import opencl.ir.Int
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
  * Filter pattern.
@@ -14,7 +16,7 @@ import opencl.ir.Int
  * `Filter() : [a],,I,, -> [Int],,J,, -> [a],,J,,`
  *
  */
-case class Filter() extends FunDecl(arity = 2) with isGenerable {
+case class Filter() extends Pattern(arity = 2) with isGenerable {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -28,6 +30,11 @@ case class Filter() extends FunDecl(arity = 2) with isGenerable {
     }
   }
 
+
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    throw new NotImplementedException
+  }
 }
 
 object Filter {

@@ -1,7 +1,9 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
+import ir.interpreter.Interpreter.ValueMap
 import ir.{Type, TypeException}
+
 
 
 /**
@@ -30,6 +32,12 @@ class Param() extends Expr with Cloneable {
     case x => new VectorParam(x, n)
   }
 
+  override def eval(valueMap: ValueMap): Any = {
+    valueMap get this match {
+      case Some(x) => x
+      case None => throw new Error("This expression is not evaluable")
+    }
+  }
   // These methods allow for writing an easy access syntax for tuples
   def _0 = Get(this, 0)
   def _1 = Get(this, 1)
@@ -61,9 +69,6 @@ object Param {
     p.t = t
     p
   }
-
-  @deprecated("used Param.vectorize(n)")
-  def vectorize(p: Param, n: ArithExpr): Param = p.vectorize(n)
 }
 
 /**
@@ -72,7 +77,7 @@ object Param {
  * @param p An existing parameter
  * @param n The vector width
  */
-class VectorParam(val p: Param, n: ArithExpr) extends Param {
+class VectorParam(val p: Param, val n: ArithExpr) extends Param {
   t = p.t.vectorize(n) // set the type
   override def toString = "v" + p.toString + "_" + n
 }

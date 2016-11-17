@@ -8,34 +8,39 @@ import scala.language.implicitConversions
 package object ir {
   // commonly used user functions
 
+  val id = UserFun("id", "x", "{ return x; }", Float, Float).
+    setScalaFun(x => x.head)
+
   val t_id = UserFun("tuple_id", "x", "return x;", TupleType(Int, Int), TupleType(Int, Int))
   val tf_id = UserFun("tuple_id", "x", "return x;", TupleType(Float, Float), TupleType(Float, Float))
   val i_id = UserFun("int_id", "x", "return x;", Int, Int)
   val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
 
-  val id = UserFun("id", "x", "{ return x; }", Float, Float)
-
-  val idI = UserFun("idI", "x", "{ return x; }", Int, Int)
+  val idI = UserFun("id", "x", "{ return x; }", Int, Int)
 
   val idfloat = UserFun("idfloat", "x", "{ return x; }", Float, Float)
 
   val iddouble = UserFun("iddouble", "x", "{ return x; }", Double, Double)
 
-  val idFI = UserFun("idFI", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
+  val idF4 = UserFun("id", "x", "{ return x; }", Float4, Float4)
+  
+  val idFI = UserFun("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
 
   val idFF = UserFun("idFF", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
-
-  val idII = UserFun("idII", "x", "{ return x; }", TupleType(Int, Int), TupleType(Int, Int))
 
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)
 
-  val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float)
-  val addI = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Int, Int), Int)
+  val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).
+    setScalaFun( xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float] )
+
+  val addI = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Int, Int), Int).
+    setScalaFun( xs => xs.head.asInstanceOf[Int] + xs(1).asInstanceOf[Int] )
 
   val adddouble = UserFun("adddouble", Array("x", "y"), "{ return x+y; }", Seq(Double, Double), Double)
 
-  val plusOne = UserFun("plusOne", "x", "{ return x+1; }", Float, Float)
+  val plusOne = UserFun("plusOne", "x", "{ return x+1; }", Float, Float).
+    setScalaFun( xs => xs.head.asInstanceOf[Float] + 1.0f )
 
   val doubleItAndSumUp = UserFun("doubleItAndSumUp", Array("x", "y"), "{ return x + (y * y); }",
                                  Seq(Float, Float), Float)
@@ -44,7 +49,8 @@ package object ir {
 
   val abs = UserFun("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
-  val neg = UserFun("neg", "x", "{ return -x; }", Float, Float)
+  val neg = UserFun("neg", "x", "{ return -x; }", Float, Float).
+    setScalaFun( x => - x.head.asInstanceOf[Float] )
 
   val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 

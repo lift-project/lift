@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.Var
+import apart.arithmetic.{PosVar, Var}
 
 /**
  * Abstract class for the (full) reduce pattern.
@@ -14,7 +14,7 @@ import apart.arithmetic.Var
  * @param f A lambda to be applied in the partial reduction
  */
 abstract class AbstractReduce(override val f: Lambda,
-                              override val loopVar: Var)
+                              loopVar: Var)
   extends AbstractPartRed(f, loopVar)
 
 /**
@@ -37,7 +37,7 @@ abstract class AbstractReduce(override val f: Lambda,
  * @param f A lambda to be applied as the binary reduction operator in the
  *          reduction
  */
-case class Reduce(override val f: Lambda) extends AbstractReduce(f, Var("")) {
+case class Reduce(override val f: Lambda) extends AbstractReduce(f, PosVar("")) {
   override def copy(f: Lambda): Pattern = Reduce(f)
 
   /**

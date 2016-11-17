@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.Var
+import apart.arithmetic.SizeVar
 import benchmarks.SumAbsoluteValues
 import ir._
 import ir.ast._
@@ -11,13 +11,13 @@ import org.junit._
 import opencl.ir.pattern._
 
 object TestReduce {
-  @BeforeClass def before() {
+  @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
   }
 
-  @AfterClass def after() {
+  @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -30,7 +30,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l = fun (
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       Float,
       (in, init) => {
       Join() o MapWrg(
@@ -51,8 +51,8 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(0.0f)
     val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val l = fun(
       ArrayType(ArrayType(Float, N), M),
@@ -78,8 +78,8 @@ class TestReduce {
     val inputSize = 1024
     val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
 
-    val N = Var("N")
-    val M = Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val l = fun(
       ArrayType(ArrayType(Float, N), M),
@@ -105,7 +105,7 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")),
+    val l = fun (ArrayType(Float, SizeVar("N")),
       Float,
       (in, init) => {
         Join() o MapWrg(
@@ -127,7 +127,7 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")),
+    val l = fun (ArrayType(Float, SizeVar("N")),
       Float,
       (in, init) => {
         Join() o MapWrg(
@@ -147,7 +147,7 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")),
+    val l = fun (ArrayType(Float, SizeVar("N")),
       in => {
         Join() o MapWrg(
           Join() o  MapLcl(toGlobal(MapSeq(id)) o
@@ -167,7 +167,7 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(Array(util.Random.nextInt(5).toFloat))
 
-    val l = fun (ArrayType(ArrayType(Float, 1), Var("N")),
+    val l = fun (ArrayType(ArrayType(Float, 1), SizeVar("N")),
       in => {
         Join() o MapWrg(
           Join() o  MapLcl(ReduceSeq(fun((acc, x) => {
@@ -184,12 +184,12 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-  @Test def SIMPLE_REDUCE_FIRST() {
+  @Test def SIMPLE_REDUCE_FIRST(): Unit = {
 
     val inputSize = 4194304
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, Var("N")), (in) => {
+    val l = fun (ArrayType(Float, SizeVar("N")), (in) => {
       Join() o MapWrg(
         Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2048)
       ) o Split(262144) $ in
@@ -204,14 +204,14 @@ class TestReduce {
   }
 
 
-  @Test def SIMPLE_REDUCE_SECOND() {
+  @Test def SIMPLE_REDUCE_SECOND(): Unit = {
 
     val inputSize = 4194304
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (output: Array[Float], runtime) = Execute(inputData.length)(
-      fun(ArrayType(Float, Var("N")), (in) => {
+      fun(ArrayType(Float, SizeVar("N")), (in) => {
         Join() o Join() o  MapWrg(
            MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))
         ) o Split(128) o Split(2048) $ in
@@ -223,18 +223,21 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-  @Test def NVIDIA_A() {
+  @Test def NVIDIA_A(): Unit = {
+
+    // TODO: Workaround for AMD GPUs. See issue 42
+    if (Utils.isAmdGpu)
+      AllocateLocalMemoryStatically(false)
 
     // for input size of 16777216 the first kernel has to be executed 3 times and the second
     // kernel once to perform a full reduction
 
     val inputSize = 1024
-    //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
       val (output: Array[Float], runtime) = Execute(inputData.length)(
-        fun(ArrayType(Float, Var("N")), (in) => {
+        fun(ArrayType(Float, SizeVar("N")), (in) => {
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
               Iterate(7)(
@@ -243,17 +246,12 @@ class TestReduce {
           ) o Split(128) $ in
         }), inputData)
 
-      assertEquals(inputData.sum, output.sum, 0.0)
-
-      println("first output(0) = " + output(0))
-      println("first runtime = " + runtime)
-
       (output, runtime)
     }
 
     {
-      val (output: Array[Float], runtime) = Execute(8, firstOutput.length)(
-        fun(ArrayType(Float, Var("N")), (in) => {
+      val (output: Array[Float], _) = Execute(8, firstOutput.length)(
+        fun(ArrayType(Float, SizeVar("N")), (in) => {
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
               Iterate(3)(
@@ -262,25 +260,27 @@ class TestReduce {
           ) o Split(8) $ in
         }), firstOutput)
 
+      AllocateLocalMemoryStatically(true)
+
+      assertEquals(firstOutput.sum, output.sum, 0.0)
       assertEquals(inputData.sum, output.sum, 0.0)
 
-      println("second output(0) = " + output(0))
-      println("second runtime = " + runtime)
-
     }
-
   }
 
 
-  @Test def NVIDIA_B() {
+  @Test def NVIDIA_B(): Unit = {
     // for an input size of 16777216 the kernel has to executed 3 times to perform a full reduction
 
+    // TODO: Workaround for AMD GPUs. See issue 42
+    if (Utils.isAmdGpu)
+      AllocateLocalMemoryStatically(false)
+
     val inputSize = 1024
-    //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output: Array[Float], runtime) = Execute(inputData.length)(
-      fun(ArrayType(Float, Var("N")), (in) => {
+    val (output: Array[Float], _) = Execute(inputData.length)(
+      fun(ArrayType(Float, SizeVar("N")), (in) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
           Iterate(7)(
@@ -290,22 +290,20 @@ class TestReduce {
         ) o Split(256) $ in
       }), inputData)
 
-    assertEquals(inputData.sum, output.sum, 0.0)
+    AllocateLocalMemoryStatically(true)
 
-    println("outputArray(0) = " + output(0))
-    println("Runtime = " + runtime)
+    assertEquals(inputData.sum, output.sum, 0.0)
   }
 
-  @Test def NVIDIA_C() {
+  @Test def NVIDIA_C(): Unit = {
     Assume.assumeTrue("Only valid on NVIDIA", Executor.getPlatformName == "NVIDIA CUDA")
 
     val inputSize = 16777216
-    //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
       val (output: Array[Float], runtime) = Execute(128, inputData.length, (true, true))(
-        fun(ArrayType(Float, Var("N")), (in) => {
+        fun(ArrayType(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -320,72 +318,14 @@ class TestReduce {
 
         }), inputData)
 
-      assertEquals("Note that this benchmark is only valid on device with a warp_size of 32!",
-                   inputData.sum, output.sum, 0.1)
-
-      println("first output(0) = " + output(0))
-      println("first runtime = " + runtime)
-
-      (output, runtime)
-    }
-
-    {
-      val (output: Array[Float], runtime) = Execute(64, firstOutput.length)(
-        fun(ArrayType(Float, Var("N")), (in) => {
-
-          Join() o MapWrg(
-            Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(5)(
-              Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
-            ) o Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o
-            Split(2)
-          ) o Split(64) $ in
-
-        }), firstOutput)
-
-
       assertEquals(inputData.sum, output.sum, 0.1)
 
-      println("second output(0) = " + output(0))
-      println("second runtime = " + runtime)
-
-    }
-
-  }
-
-  @Test def NVIDIA_C_NO_WARPS() {
-
-    val inputSize = 16777216
-    //val inputData = Array.fill(inputSize)(1.0f)
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
-
-    val (firstOutput, _) = {
-
-      val f = fun(
-        ArrayType(Float, Var("N")),
-        (in) => {
-          Join() o MapWrg(
-            Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-            Iterate(7)(
-              Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
-            ) o Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o
-            Split(2048) o ReorderStride(262144 / 2048)
-          ) o Split(262144) $ in
-        })
-
-      val (output: Array[Float], runtime) = Execute(inputData.length)(f, inputData)
-
-      assertEquals(inputData.sum, output.sum, 0.0)
-
-      println("first output(0) = " + output(0))
-      println("first runtime = " + runtime)
-
       (output, runtime)
     }
 
     {
-      val (output: Array[Float], runtime) = Execute(64, firstOutput.length)(
-        fun(ArrayType(Float, Var("N")), (in) => {
+      val (output: Array[Float], _) = Execute(64, firstOutput.length)(
+        fun(ArrayType(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -397,27 +337,71 @@ class TestReduce {
 
         }), firstOutput)
 
-      assertEquals(inputData.sum, output.sum, 0.0)
 
-      println("second output(0) = " + output(0))
-      println("second runtime = " + runtime)
-
+      assertEquals(firstOutput.sum, output.sum, 0.1f)
+      assertEquals(inputData.sum, output.sum, 0.1f)
     }
 
   }
 
-  @Test def AMD_A() {
+  @Test def NVIDIA_C_NO_WARPS(): Unit = {
+
+    // TODO: Workaround for AMD GPUs. See issue 42
+    if (Utils.isAmdGpu)
+      AllocateLocalMemoryStatically(false)
+
+    val inputSize = 16777216
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val f = fun(
+      ArrayType(Float, SizeVar("N")),
+      (in) => {
+        Join() o MapWrg(
+          Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+          Iterate(7)(
+            Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
+          ) o Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o
+        Split(2048) o ReorderStride(262144 / 2048)
+      ) o Split(262144) $ in
+      })
+
+    val (firstOutput: Array[Float], _) =
+      Execute(inputData.length)(f, inputData)
+
+    val (output: Array[Float], _) = Execute(64, firstOutput.length)(
+      fun(ArrayType(Float, SizeVar("N")), (in) => {
+
+        Join() o MapWrg(
+          Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+          Iterate(5)(
+            Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
+          ) o Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o
+        Split(2)
+      ) o Split(64) $ in
+
+      }), firstOutput)
+
+    AllocateLocalMemoryStatically(true)
+    val gold = inputData.sum
+    assertTrue(math.abs(firstOutput.sum - gold) / gold < 0.001)
+    assertTrue(math.abs(output.sum - gold) / gold < 0.001)
+  }
+
+  @Test def AMD_A(): Unit = {
     // for an input size of 16777216 the first kernel has to be executed twice and the second
     // kernel once to perform a full reduction
+    
+    // TODO: Workaround for AMD GPUs. See issue 42
+    if (Utils.isAmdGpu)
+      AllocateLocalMemoryStatically(false)
 
     val inputSize = 32768
-    //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
 
       val (output: Array[Float], runtime) = Execute(inputData.length)(
-        fun(ArrayType(Float, Var("N")), (in) => {
+        fun(ArrayType(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg( asScalar() o
             Join() o  toGlobal(MapLcl(MapSeq(id.vectorize(4)))) o Split(1) o
@@ -432,108 +416,83 @@ class TestReduce {
 
         }), inputData)
 
-      println("first output(0) = " + output(0))
-      println("first runtime = " + runtime)
-
-      assertEquals(inputData.sum, output.sum, 0.1)
 
       (output, runtime)
     }
 
-    {
-      val (output: Array[Float], runtime) = Execute(64, firstOutput.length)(
-        fun(ArrayType(Float, Var("N")), (in) => {
 
-          Join() o MapWrg(
-            Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
-              Iterate(6)(
-                Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
-              ) o Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o MapSeq(id))) o Split(1)
-          ) o Split(64) $ in
+    val (output: Array[Float], _) = Execute(64, firstOutput.length)(
+      fun(ArrayType(Float, SizeVar("N")), (in) => {
+        Join() o MapWrg(
+          Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
+          Iterate(6)(
+            Join() o  MapLcl(toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
+          ) o Join() o  toLocal(MapLcl(toLocal(MapSeq(id)) o MapSeq(id))) o Split(1)
+        ) o Split(64) $ in
 
-        }), firstOutput)
+      }), firstOutput)
 
-      assertEquals(inputData.sum, output.sum, 0.0)
+    AllocateLocalMemoryStatically(true)
 
-      println("second output(0) = " + output(0))
-      println("second runtime = " + runtime)
-
-    }
-
+    assertEquals(inputData.sum, firstOutput.sum, 0.1)
+    assertEquals(inputData.sum, output.sum, 0.1)
   }
 
-  @Test def NVIDIA_DERIVED() {
+  @Test def NVIDIA_DERIVED(): Unit = {
+
+    // TODO: Workaround for AMD GPUs. See issue 42
+    if (Utils.isAmdGpu)
+      AllocateLocalMemoryStatically(false)
 
     val inputSize = 16777216
-    //val inputData = Array.fill(inputSize)(1.0f)
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
       val (output: Array[Float], runtime) =
         Execute(inputData.length)(SumAbsoluteValues.nvidiaDerived1, inputData)
 
-      assertEquals(inputData.sum, output.sum, 0.0)
-
-      println("first output(0) = " + output(0))
-      println("first runtime = " + runtime)
 
       (output, runtime)
     }
 
-    {
-      val (output: Array[Float], runtime) =
-        Execute(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2, firstOutput)
+    val (output: Array[Float], _) =
+      Execute(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2, firstOutput)
 
-      assertEquals(inputData.sum, output.sum, 0.0)
+    AllocateLocalMemoryStatically(true)
+    val gold = inputData.sum
+    assertTrue(math.abs(firstOutput.sum - gold) / gold < 0.001)
+    assertTrue(math.abs(output.sum - gold) / gold < 0.001)
+ }
 
-      println("second output(0) = " + output(0))
-      println("second runtime = " + runtime)
+  @Test def AMD_DERIVED(): Unit = {
 
-    }
-
-  }
-
-  @Test def AMD_DERIVED() {
-
-    val inputSize = 16777216
-//    val inputData = Array.fill(inputSize)(1.0f)
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
-
-    val (firstOutput, _) = {
-      val (output: Array[Float], runtime) =
-        Execute(inputData.length)(SumAbsoluteValues.amdDerived1, inputData)
-
-      println("output size = " + output.length)
-      println("first output(0) = " + output(0))
-      println("first runtime = " + runtime)
-
-      assertEquals(inputData.sum, output.sum, 0.0)
-
-      (output, runtime)
-    }
-
-    {
-      val (output: Array[Float], runtime) =
-        Execute(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2, firstOutput)
-
-      println("second output(0) = " + output(0))
-      println("second runtime = " + runtime)
-
-      assertEquals(inputData.sum, output.sum, 0.0)
-
-    }
-
-  }
-
-  @Test def INTEL_DERIVED() {
+    // TODO: Workaround for AMD GPUs. See issue 42
+    if (opencl.executor.Utils.isAmdGpu)
+      AllocateLocalMemoryStatically(false)
 
     val inputSize = 16777216
-    //val inputData = Array.fill(inputSize)(1.0f)
+    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val (firstOutput: Array[Float], _) = 
+      Execute(inputData.length)(SumAbsoluteValues.amdDerived1, inputData)
+
+    val (output: Array[Float], _) =
+      Execute(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2, firstOutput)
+
+    AllocateLocalMemoryStatically(true)
+    val gold = inputData.sum
+    assertTrue(math.abs(firstOutput.sum - gold) / gold < 0.001)
+    assertTrue(math.abs(output.sum - gold) / gold < 0.001)
+  }
+
+  @Test def INTEL_DERIVED(): Unit = {
+
+    val inputSize = 16777216
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
       val (output: Array[Float], runtime) = Execute(128, inputData.length, (true, true))(
-        fun(ArrayType(Float, Var("N")), (in) => {
+        fun(ArrayType(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
             asScalar() o Join() o Join() o MapWarp(
@@ -566,10 +525,9 @@ class TestReduce {
 
   }
 
-  @Test def INTEL_DERIVED_NO_WARP() {
+  @Test def INTEL_DERIVED_NO_WARP(): Unit = {
 
     val inputSize = 16777216
-    //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
@@ -601,12 +559,17 @@ class TestReduce {
    * This generates an out-of-bound memory access in iterate.
    */
   @Test def issue_30(): Unit = {
+
+    // TODO: Workaround for AMD GPUs. See issue 42
+    if (Utils.isAmdGpu)
+      AllocateLocalMemoryStatically(false)
+
     val inputSize = 512
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.sum
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -616,13 +579,11 @@ class TestReduce {
         ) o Split(inputSize) $ input
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+    val (output: Array[Float], _) = Execute(inputSize)(f, inputArray)
 
+    AllocateLocalMemoryStatically(true)
     assertEquals(gold, output(0), 0.1)
     assertEquals(1, output.length)
-
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
   }
 
   @Test def issue_31(): Unit = {
@@ -631,13 +592,13 @@ class TestReduce {
     val gold = inputArray.sum
 
     val f = fun(
-      ArrayType(Float, Var("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
             Iterate((scala.math.log(inputSize)/scala.math.log(2)).toInt)(
               Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2)
-            ) o Join() o toLocal(MapLcl(toGlobal(MapSeq(id)))) o Split(1)
+            ) o Join() o MapLcl(toGlobal(MapSeq(id))) o Split(1)
         ) o Split(inputSize) $ input
       })
 
@@ -654,7 +615,7 @@ class TestReduce {
     val inputSize = Math.pow(2, 12).toInt
     val search_arr = Array.tabulate(inputSize)((i:Int) => i.toFloat)
     val gold = search_arr.sum
-    val N = Var("N")
+    val N = SizeVar("N")
 
     val reduce_kernel = fun(
       ArrayType(Float, N),

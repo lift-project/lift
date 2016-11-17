@@ -78,14 +78,14 @@ object jToLocal {
   def create(f: FunDecl) = toLocal(Lambda1.FunDefToLambda(f))
 }
 
-object jGroup {
-  def create(relIndices: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group(relIndices)
+object jSlide {
+  def create(size: Int, step: Int, negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Slide(size, step)
 }
 
 object jGroup2D {
-  def create(relColumns: Array[Int], relRows: Array[Int], negOOB: (ArithExpr, ArithExpr) => ArithExpr,
-             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Group2D(relColumns, relRows)
+  def create(size1: Int, step1: Int, size2: Int, step2: Int, negOOB: (ArithExpr, ArithExpr) => ArithExpr,
+             posOOB: (ArithExpr, ArithExpr) => ArithExpr) = Slide2D(size1, step1, size2, step2)
 }
 
 object jGet {

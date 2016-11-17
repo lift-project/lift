@@ -1,7 +1,8 @@
 package ir.ast
 
 import apart.arithmetic.ArithExpr
-import ir.{TupleType, VectorType, ScalarType, Type}
+import ir.interpreter.Interpreter._
+import ir._
 
 /**
  * Representation of a "user function" declaration which usually operates on scala values.
@@ -12,14 +13,20 @@ import ir.{TupleType, VectorType, ScalarType, Type}
  * @param outT The return type of the user function.
  */
 case class UserFun(name: String, paramNames: Array[String], body: String,
-                   inTs: Seq[Type], outT: Type) extends FunDecl(inTs.length)
-                                                        with isGenerable {
+                   inTs: Seq[Type], outT: Type)
+  extends FunDecl(inTs.length) with isGenerable {
 
   // enforce at runtime that types and names match
   if (paramNames.length != inTs.length || !namesAndTypesMatch())
     throw new IllegalArgumentException(s"Structure of parameter names ( $paramNamesString ) " +
                                        s"and the input type ( $inT ) doesn't match!")
 
+  var scalaFun: Seq[Any] => Any = null
+
+  def setScalaFun(f: Seq[Any] => Any): UserFun = {
+    scalaFun = f
+    this
+  }
 
   /**
    * Represent the types of the parameters as a single type.
@@ -40,9 +47,13 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
    * @param n The vector width
    * @return
    */
-  def vectorize(n: ArithExpr): UserFun =
-    new UserFun(s"$name$n", paramNames, body,
-                inTs.map(_.vectorize(n)), outT.vectorize(n))
+  def vectorize(n: ArithExpr): UserFun = {
+    val uf = new UserFun(s"$name$n", paramNames, body,
+                 inTs.map(_.vectorize(n)), outT.vectorize(n))
+    uf.setScalaFun(xs => {
+      xs.asInstanceOf[Seq[Vector[Any]]].transpose.map(scalaFun).toVector
+    })
+  }
 
   /**
    * Get all unique tuple types from the types of this user function.
@@ -56,6 +67,15 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
                          setType: Boolean): Type = {
     val substitutions = Type.reify(inT, argType)
     Type.substitute(outT, substitutions.toMap)
+  }
+
+
+  def eval(valueMap: ValueMap, args: Any*): Any = {
+    if (scalaFun != null) {
+      scalaFun(Seq(args:_*))
+    } else {
+      throw new NotImplementedError()
+    }
   }
 
   /**
@@ -80,7 +100,7 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
       param match {
         case (tt: TupleType, _:String) => Seq(tt)
         case (tt: TupleType, names: Array[Any]) =>
-          (tt.elemsT zip names).flatMap { case (t, n) => emit(t, n) }
+          (tt.elemsT zip names).flatMap { case (t, n) => emit((t, n)) }
         case _ => Seq()
       }
     }
@@ -146,6 +166,7 @@ case class VectorizeUserFun(n: ArithExpr, userFun: UserFun)
     Type.substitute(userFun.outT.vectorize(n), substitutions.toMap)
   }
 
+
   lazy val vectorizedFunction = userFun.vectorize(n)
 
   /**
@@ -168,11 +189,9 @@ object UserFun {
    * @param outT The return type of the user function.
    * @return
    */
-  def apply(name: String, paramName: String, body: String, inT: Type, outT: Type): UserFun = {
+  def apply(name: String, paramName: String, body: String,
+            inT: Type, outT: Type): UserFun = {
     UserFun(name, Array(paramName), body, Seq(inT), outT)
   }
-
-  @deprecated("replaced by UserFun.vectorize(n)")
-  def vectorize(uf: UserFun, n: ArithExpr): UserFun = uf.vectorize(n)
 
 }

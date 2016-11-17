@@ -1,6 +1,7 @@
 package ir.ast
 
 import ir._
+import ir.interpreter.Interpreter.ValueMap
 
 import scala.language.implicitConversions
 
@@ -41,7 +42,10 @@ abstract case class Lambda private[ast] (params: Array[Param],
     // don't inline if one param is used multiple times
     val inline = !paramUsedMultipleTimes
 
-    if (!inline) {
+    val allParams = args.forall(_.isInstanceOf[Param])
+
+    if (!inline && !allParams) {
+//    if (!inline) {
       super.apply(args:_*)
     } else {
 
@@ -60,6 +64,15 @@ abstract case class Lambda private[ast] (params: Array[Param],
         case _ => s
       }
     })
+  }
+
+  def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    val updatedMap =
+      (params zip args).
+        foldLeft(valueMap)((m, kv) => m updated (kv._1, kv._2))
+
+    body.eval(updatedMap)
   }
 }
 

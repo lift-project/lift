@@ -10,21 +10,21 @@ import org.junit.Test
 class ViewTest {
 
   @Test
-  def test1() {
+  def test1(): Unit = {
 
     val a = View(ArrayType(Int, 8), "a")
     val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
 
     // map(b => zip(a,b)) o B
-    val var_i = new Var("i", RangeUnknown)
+    val var_i = Var("i", RangeUnknown)
     val b = B.access(var_i)
     val zip_ab = View.tuple(a, b).zip()
     val map_zip_ab = new ViewMap(zip_ab, var_i, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
 
     // map(map(f)) o ...
-    val var_j = new Var("j", RangeUnknown)
+    val var_j = Var("j", RangeUnknown)
     val mapf = map_zip_ab.access(var_j)
-    val var_k = new Var("k")
+    val var_k = SizeVar("K")
     val map_mapf = mapf.access(var_k)
 
     val map_mapf0 = map_mapf.get(0)
@@ -35,7 +35,7 @@ class ViewTest {
   }
 
   @Test
-  def test2() {
+  def test2(): Unit = {
     val A = View(ArrayType(ArrayType(Int, 8), 8), "A")
     val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
 
@@ -43,10 +43,10 @@ class ViewTest {
     // map(a => map(b => map(f) $ zip(a,b)) o B) o A
 
     // map(a => ... ) $ A
-    val var_i = new Var("i", RangeUnknown)
+    val var_i =  Var("i", RangeUnknown)
     val a = A.access(var_i)
     // ... map(b => ...) $ B ...
-    val var_j = new Var("j", RangeUnknown)
+    val var_j = Var("j", RangeUnknown)
     val b = B.access(var_j)
     // ... $ zip(a, b) ...
     val zip_ab = View.tuple(a, b).zip()
@@ -56,8 +56,8 @@ class ViewTest {
     // ... map(f) $ ...
 
     // map(map (f)) o ...
-    val var_k = new Var("k", RangeUnknown)
-    val var_l = new Var("l", RangeUnknown)
+    val var_k = Var("k", RangeUnknown)
+    val var_l = Var("l", RangeUnknown)
     val map_f = map_map_zip_ab.access(var_k)
     val map_map_f = map_f.access(var_l)
 
@@ -71,13 +71,13 @@ class ViewTest {
   }
 
   @Test
-  def test3() {
+  def test3(): Unit = {
     val A = View(ArrayType(ArrayType(Int, 8), 8), "A")
     val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
 
     // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
-    val var_i = new Var("i", RangeUnknown)
-    val var_j = new Var("j", RangeUnknown)
+    val var_i = Var("i", RangeUnknown)
+    val var_j = Var("j", RangeUnknown)
     val a = A.access(var_i)
     val b = B.access(var_j)
     val zip_ab = View.tuple(a, b).zip()
@@ -93,14 +93,14 @@ class ViewTest {
   }
 
   @Test
-  def testSplit() {
+  def testSplit(): Unit = {
 
     val A = View(ArrayType(Int, 8), "A")
 
     // split-2 o A
     val split2A = A.split(2)
-    val var_i = new Var("i", RangeUnknown)
-    val var_j = new Var("j", RangeUnknown)
+    val var_i = Var("i", RangeUnknown)
+    val var_j = Var("j", RangeUnknown)
 
     val split2A_i = split2A.access(var_i)
     val split2A_i_j = split2A_i.access(var_j)
@@ -109,9 +109,9 @@ class ViewTest {
   }
 
   @Test
-  def testReorder() {
+  def testReorder(): Unit = {
 
-    val A = View(ArrayType(Int, new Var("N")), "A")
+    val A = View(ArrayType(Int, SizeVar("N")), "A")
 
     // reorder o A
     val reorder_A = A.reorder((idx) => 40-idx)
@@ -129,14 +129,14 @@ class ViewTest {
   def transposeWrite(): Unit = {
     // Map(Map(g)) o Split() o Scatter(transpose) o Join() o Map(Map(f))
     // Write view for f
-    val N = new Var("N")
-    val M = new Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val origArray = ArrayType(ArrayType(Float, M), N)
     val transposedArray = ArrayType(ArrayType(Float, N), M)
 
-    val i = new Var("i", ContinuousRange(0, N))
-    val j = new Var("j", ContinuousRange(0, M))
+    val i = Var("i", ContinuousRange(0, N))
+    val j = Var("j", ContinuousRange(0, M))
 
     val goal = View(transposedArray, "").access(j).access(i)
 
@@ -150,15 +150,15 @@ class ViewTest {
   def joinScatter(): Unit = {
     // Map(g) o Scatter() o Join() o Map(Map(f))
     // Write view for f
-    val N = new Var("N")
-    val M = new Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val origArray = ArrayType(ArrayType(Float, M), N)
     val finalArray = ArrayType(Float, M*N)
     val transposedArray = ArrayType(ArrayType(Float, N), M)
 
-    val i = new Var("i", ContinuousRange(0, N))
-    val j = new Var("j", ContinuousRange(0, M))
+    val i = Var("i", ContinuousRange(0, N))
+    val j = Var("j", ContinuousRange(0, M))
 
     val goal = View(transposedArray, "").access(j).access(i)
 
@@ -171,15 +171,15 @@ class ViewTest {
   @Test
   def transposeWriteJoin(): Unit = {
     // Map(f) o Join() o Split() o Scatter(transpose) o Join() o Map(Map(g))
-    val N = new Var("N")
-    val M = new Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val origArray = ArrayType(ArrayType(Float, M), N)
     val transposedArray = ArrayType(ArrayType(Float, N), M)
     val finalArray = ArrayType(Float, M*N)
 
-    val i = new Var("i", ContinuousRange(0, N))
-    val j = new Var("j", ContinuousRange(0, M))
+    val i = Var("i", ContinuousRange(0, N))
+    val j = Var("j", ContinuousRange(0, M))
 
     // Write for g
     val goal = View(transposedArray, "").access(j).access(i)
@@ -194,15 +194,15 @@ class ViewTest {
   @Test
   def transposeWriteSplitJoin(): Unit = {
     // Map(Map(f)) o Split() o Join() o Split() o Scatter(transpose) o Join() o Map(Map(g))
-    val N = new Var("N")
-    val M = new Var("M")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
 
     val origArray = ArrayType(ArrayType(Float, M), N)
     val transposedArray = ArrayType(ArrayType(Float, N), M)
     val finalArray = ArrayType(ArrayType(Float, N), M)
 
-    val i = new Var("i", ContinuousRange(0, N))
-    val j = new Var("j", ContinuousRange(0, M))
+    val i = Var("i", ContinuousRange(0, N))
+    val j = Var("j", ContinuousRange(0, M))
 
     // Write for g
     val goal = View(transposedArray, "").access(j).access(i)
@@ -211,20 +211,22 @@ class ViewTest {
       join(N).split(N).join(N).reorder(i => transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
+    val accGoal = ViewPrinter.emit(goal)
+    val accView = ViewPrinter.emit(view)
+    assertEquals(accGoal, accView)
   }
 
   @Test
   def twiceTransposeWrite(): Unit = {
     // Split() o Scatter(transpose) o Join() o Map(Split() o
     // Scatter(transpose) o Join() o Map(Map(f)))
-    val N = new Var("N")
-    val M = new Var("M")
-    val L = new Var("L")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val L = SizeVar("L")
 
-    val i = new Var("i", ContinuousRange(0, N))
-    val j = new Var("j", ContinuousRange(0, M))
-    val k = new Var("k", ContinuousRange(0, L))
+    val i = Var("i", ContinuousRange(0, N))
+    val j = Var("j", ContinuousRange(0, M))
+    val k = Var("k", ContinuousRange(0, L))
 
     // origArray = ArrayType(ArrayType(ArrayType(Float, L), M), N)
     val middleArray = ArrayType(ArrayType(ArrayType(Float, M), L), N)

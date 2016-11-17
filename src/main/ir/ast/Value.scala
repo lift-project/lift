@@ -2,6 +2,10 @@ package ir.ast
 
 import apart.arithmetic.ArithExpr
 import ir.Type
+import ir.interpreter.Interpreter.ValueMap
+
+import scala.reflect.runtime._
+import scala.tools.reflect.ToolBox
 
 /**
  * Values, i.e.: 4, 128, ...
@@ -19,7 +23,7 @@ case class Value(var value: String) extends Param {
   /**
    * Perform a copy of `this`
    */
-  override def copy: Value = this.clone().asInstanceOf[Value]
+  override def copy: Value = Value(value, t)
 
   /**
    * Vectorize the current value.
@@ -27,6 +31,26 @@ case class Value(var value: String) extends Param {
    * @return A vectorized value
    */
   override def vectorize(n: ArithExpr): Value = Value(value, t.vectorize(n))
+
+  override def eval(valueMap: ValueMap): Any = {
+         if (toFloat.isDefined) { toFloat.get }
+    else if (toInt.isDefined)   { toInt.get   }
+    else toAny
+  }
+
+  private lazy val toFloat =
+    try   { Some(value.toFloat) }
+    catch { case _: java.lang.NumberFormatException => None}
+
+  private lazy val toInt =
+    try   { Some(value.toInt) }
+    catch { case _: java.lang.NumberFormatException => None }
+
+  private lazy val toAny = {
+    println("Warning: expensive function for evaluating a Value object called")
+    val tb = universe.runtimeMirror(getClass.getClassLoader).mkToolBox()
+    tb.eval(tb.parse(value))
+  }
 }
 
 object Value {
@@ -71,6 +95,4 @@ object Value {
    */
   def apply(v: Value) = v
 
-  @deprecated("Replaced by Value.vectorize(n)")
-  def vectorize(v: Value, n: ArithExpr): Value = v.vectorize(n)
 }

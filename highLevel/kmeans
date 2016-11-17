@@ -2,8 +2,8 @@ val distance = UserFun("distance", Array("x", "y", "a", "b", "id"), "{ Tuple t =
 val minimum = UserFun("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
 val getSecond = UserFun("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
 
-val N = Var("N")
-val K = Var("K")
+val N = SizeVar("N")
+val K = SizeVar("K")
 
 fun(
   ArrayType(Float, N),

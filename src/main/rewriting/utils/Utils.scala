@@ -6,6 +6,7 @@ import java.security.MessageDigest
 import apart.arithmetic._
 import ir.ast._
 import ir.{ArrayType, Type, TypeException}
+import opencl.ir.ast.OpenCLBuiltInFun
 
 import scala.sys.process._
 
@@ -129,6 +130,7 @@ object Utils {
     }
   }
 
+  @scala.annotation.tailrec
   def getExprForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
     if (pattern.isDefinedAt(expr))
       Some(expr)
@@ -140,6 +142,7 @@ object Utils {
       }
   }
 
+  @scala.annotation.tailrec
   def getIndexForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit], currentId: Int = 0): Int = {
     if (pattern.isDefinedAt(expr))
       currentId
@@ -151,6 +154,7 @@ object Utils {
       }
   }
 
+  @scala.annotation.tailrec
   def visitFunCallChain(expr: Expr, visitFun: Expr => Unit): Unit = {
     visitFun(expr)
     expr match {
@@ -172,6 +176,7 @@ object Utils {
     }
   }
 
+  @scala.annotation.tailrec
   def getFinalArg(expr: Expr): Expr = {
     expr match {
       case FunCall(_, arg) => getFinalArg(arg)
@@ -191,7 +196,7 @@ object Utils {
     val md = MessageDigest.getInstance("SHA-256")
     md.update(value.getBytes("UTF-8"))
     val digest = md.digest()
-    String.format("%064x", new java.math.BigInteger(1, digest))
+    f"${new java.math.BigInteger(1, digest)}%064x"
   }
 
   /**
@@ -209,15 +214,37 @@ object Utils {
     val withIndex: List[(String, Int)] = findVariables(fullString)
 
     val decls = withIndex.map(pair =>
-      "val " + getNewName(pair) + " = Var(\"" + getIdentifier(pair) + "\")\n"
+      "val " + getNewName(pair) + " = SizeVar(\"" + getIdentifier(pair) + "\")\n"
     ).mkString("")
 
     decls + "\n" + replaceVariableNames(fullString, withIndex)
   }
 
-  private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String =
-    withIndex.foldRight(fullString)((toReplace, currentString) =>
-      currentString.replaceAll(toReplace._1 + "(\\D)", getNewName(toReplace) + "$1"))
+  private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {
+
+    val numVariables = withIndex.length
+
+    var tempIds = Set[Int]()
+
+    while (tempIds.size != numVariables) {
+      tempIds += util.Random.nextInt()
+    }
+
+    val withTemps = (withIndex, tempIds).zipped
+
+    val tempString =
+      withTemps.foldRight(fullString)((toReplace, currentString) =>
+      currentString.replaceAll(
+        toReplace._1._1 + "(\\D)",
+        getNewName((toReplace._1._1, toReplace._2)) + "$1"
+      ))
+
+    withTemps.foldRight(tempString)((toReplace, currentString) =>
+      currentString.replaceAll(
+        getNewName((toReplace._1._1, toReplace._2)) + "(\\D)",
+        getNewName(toReplace._1) + "$1"
+      ))
+  }
 
   def findAndReplaceVariableNames(code: String) = {
     val variables = findVariables(code)
@@ -257,7 +284,7 @@ object Utils {
     method
   }
 
-  private[utils] def findVariables(fullString: String): List[(String, Int)] = {
+  def findVariables(fullString: String): List[(String, Int)] = {
     val variable = """v_\p{Alnum}*(_id)?_\d+""".r
 
     val vars = variable
@@ -275,13 +302,13 @@ object Utils {
   }
 
   private def getNewName(toReplace: (String, Int)): String = {
-    "v_" + getIdentifier(toReplace) + toReplace._2 + "_" + toReplace._2
+    "v_" + getIdentifier(toReplace) + "_" + toReplace._2
   }
 
   private def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {
     val userFuns = Expr.visitWithState(Set[UserFun]())(lambda.body, (expr, state) => {
       expr match {
-        case FunCall(uf: UserFun, _*) => state + uf
+        case FunCall(uf: UserFun, _*) if !uf.isInstanceOf[OpenCLBuiltInFun] => state + uf
         case FunCall(VectorizeUserFun(_, uf:UserFun), _*) => state + uf
         case _ => state
       }
@@ -326,7 +353,6 @@ object Utils {
         println(warningString + "Content is different, adding System.currentTimeMillis().")
         uniqueFilename = uniqueFilename + "_" + System.currentTimeMillis()
       } else {
-        println(warningString + "Content is the same, skipping.")
         return false
       }
 

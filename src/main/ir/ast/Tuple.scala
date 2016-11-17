@@ -1,6 +1,7 @@
 package ir.ast
 
-import ir.{TypeException, NumberOfArgumentsException, TupleType, Type}
+import ir.interpreter.Interpreter.ValueMap
+import ir._
 
 /**
  * Tuple pattern.
@@ -16,7 +17,7 @@ import ir.{TypeException, NumberOfArgumentsException, TupleType, Type}
  *
  * @param n The number of elements which are combined. Must be >= 2
  */
-case class Tuple(n: Int) extends FunDecl(arity = n) with isGenerable {
+case class Tuple(n: Int) extends Pattern(arity = n) with isGenerable {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -30,6 +31,16 @@ case class Tuple(n: Int) extends FunDecl(arity = n) with isGenerable {
     }
   }
 
+
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
+    assert(args.length == arity)
+    (n, args) match {
+      case (2, Seq(a, b)) => (a, b)
+      case (3, Seq(a, b, c)) => (a, b, c)
+      case (4, Seq(a, b, c, d)) => (a, b, c, d)
+      case _ => throw new NotImplementedError()
+    }
+  }
 }
 
 object Tuple {
