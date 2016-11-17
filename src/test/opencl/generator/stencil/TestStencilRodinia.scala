@@ -1,6 +1,5 @@
 package opencl.generator.stencil
 
-import apart.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast._
 import opencl.executor._
@@ -23,7 +22,7 @@ object TestStencilRodinia {
   }
 }
 
-class TestStencilRodinia extends TestStencil2D {
+class TestStencilRodinia {
   /* **********************************************************
      RODINIA HOTSPOT
  ***********************************************************/
@@ -122,9 +121,9 @@ class TestStencilRodinia extends TestStencil2D {
     val power = Array.tabulate(1036, 1036) { (i, j) => i * 1036.0f + j }
     //val heat = Array.tabulate(8204, 8204) { (i, j) => i * 8204.0f + j }
     //val power = Array.tabulate(8204, 8204) { (i, j) => i * 8204.0f + j }
-    val x = 0.1f;
-    val y = 0.1f;
-    val z = 1024000;
+    val x = 0.1f
+    val y = 0.1f
+    val z = 1024000
     val c = 1.068e-7f
     val coeff = Array(0, c * y, 0, c * x, c * (-2 * y - 2 * x - z + 1), c * x, 0, c * y, 0)
 

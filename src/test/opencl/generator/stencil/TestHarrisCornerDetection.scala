@@ -3,9 +3,9 @@ package opencl.generator.stencil
 import ir._
 import ir.ast._
 import opencl.executor._
-import opencl.generator.TestSlide
 import opencl.ir._
 import opencl.ir.pattern._
+import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.util.Random
@@ -27,7 +27,7 @@ object TestHarrisCornerDetection {
   * Tests computation stages of the harris corner detection application.
   * Inherits from TestSlide to avoid code duplication
   */
-class TestHarrisCornerDetection extends TestSlide {
+class TestHarrisCornerDetection {
 
 
   val sobelX = Array(-1, 0, 1, 2, 0, 2, -1, 0, 1).map(_.toFloat)
@@ -59,7 +59,6 @@ class TestHarrisCornerDetection extends TestSlide {
 
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
   }
 
   /* **********************************************************
@@ -77,8 +76,9 @@ class TestHarrisCornerDetection extends TestSlide {
     val (output: Array[Float], runtime) = Execute(16, 8, 1536, 2560, (true, true))(mult, input)
     println("Runtime: " + runtime)
 
-    val gold = input.flatten.map((x => x * x))
-    compareGoldWithOutput(gold, output, runtime)
+    val gold = input.flatten.map(x => x * x)
+    assertArrayEquals(gold, output, 0.1f)
+    assertArrayEquals(gold,output,0.2f)
   }
 
   @Test def computeDerivativeXY(): Unit = {
@@ -118,7 +118,6 @@ class TestHarrisCornerDetection extends TestSlide {
 
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
   }
 
   /* **********************************************************
@@ -147,7 +146,6 @@ class TestHarrisCornerDetection extends TestSlide {
 
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
   }
 
   /* **********************************************************
@@ -185,7 +183,6 @@ class TestHarrisCornerDetection extends TestSlide {
 
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
   }
 
     /* **********************************************************
@@ -223,7 +220,6 @@ class TestHarrisCornerDetection extends TestSlide {
 
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
   }
     /* **********************************************************
        HALIDE AUTO KERNEL
@@ -288,7 +284,6 @@ class TestHarrisCornerDetection extends TestSlide {
 
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
   }
     /* **********************************************************
        Zipping before or after computation - that is the question
@@ -364,7 +359,6 @@ class TestHarrisCornerDetection extends TestSlide {
 
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
   }
 
   /* **********************************************************
@@ -387,7 +381,7 @@ class TestHarrisCornerDetection extends TestSlide {
 
     println(output.mkString(","))
     val gold = Array(0,2,20,90).map(_.toFloat)
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
   /* **********************************************************
@@ -480,6 +474,5 @@ class TestHarrisCornerDetection extends TestSlide {
 
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
-    //compareGoldWithOutput(gold, output, runtime)
   }
 }

@@ -2,11 +2,11 @@ package opencl.generator.stencil
 
 import apart.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
-import ir.ast.Pad.BoundaryFun
 import ir.ast._
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
+import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestTemporalBlocking {
@@ -22,7 +22,7 @@ object TestTemporalBlocking {
   }
 }
 
-class TestTemporalBlocking extends TestStencil2D {
+class TestTemporalBlocking {
   /* **********************************************************
      TEMPORAL BLOCKING
  ***********************************************************/
@@ -65,6 +65,22 @@ class TestTemporalBlocking extends TestStencil2D {
     )
   }
 
+  def create1DStencilLambda(weights: Array[Float], size: Int, step: Int, left: Int, right: Int): Lambda2 = {
+    fun(
+      ArrayType(Float, Var("N", StartFromRange(3))),
+      ArrayType(Float, weights.length),
+      (input, weights) => {
+        MapGlb(
+          fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(add, 0.0f) o
+              MapSeqUnroll(mult) $
+              Zip(weights, neighbourhood)
+          })
+        ) o Slide(size, step) o Pad(left, right, Pad.Boundary.Clamp) $ input
+      }
+    )
+  }
   @Test def tempAndSpatialBlocking1D(): Unit = {
     val weights = Array(1, 1, 1).map(_.toFloat)
     val randomData = Array(0, 1, 2, 3, 4, 5).map(_.toFloat)
@@ -171,10 +187,10 @@ class TestTemporalBlocking extends TestStencil2D {
     val (secondIteration: Array[Float], _) = Execute(length, length)(newLambda, firstIteration, weights)
     val (gold: Array[Float], _) = Execute(length, length)(newLambda, secondIteration, weights)
 
-    val stencil = createTemporalBlockingUsingRewriteLambda(BOUNDARY, 3, 1, 1, 1)
+    val stencil = createTemporalBlockingUsingRewriteLambda(Pad.Boundary.Clamp, 3, 1, 1, 1)
     val (output: Array[Float], runtime) = Execute(length, length)(stencil, randomData)
 
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
   @Ignore // output shrinks because it cant handle padding for multiple iterations
@@ -191,7 +207,7 @@ class TestTemporalBlocking extends TestStencil2D {
 
     //val (secondIteration: Array[Float], runtime5) = Execute(length, length)(newLambda, firstIteration, weights)
     //val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, secondIteration, weights)
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
 }

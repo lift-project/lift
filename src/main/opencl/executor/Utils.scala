@@ -240,6 +240,19 @@ object Utils {
     neighbours
   }
 
+  // Boundary conditions implemented as scala functions for gold versions
+  val scalaClamp = (idx: Int, length: Int) => {
+    if (idx < 0) 0 else if (idx > length - 1) length - 1 else idx
+  }
+
+  val scalaWrap = (idx: Int, length: Int) => {
+    (idx % length + length) % length
+  }
+
+  val scalaMirror = (idx: Int, length: Int) => {
+    val id = (if (idx < 0) -1 - idx else idx) % (2 * length)
+    if (id >= length) length + length - id - 1 else id
+  }
 
   /*
    * Some helper methods for execution

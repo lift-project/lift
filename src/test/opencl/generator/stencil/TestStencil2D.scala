@@ -7,9 +7,8 @@ import ir.ast._
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
+import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
-
-import scala.util.Random
 
 object TestStencil2D {
   @BeforeClass def before(): Unit = {
@@ -27,7 +26,7 @@ object TestStencil2D {
 class TestStencil2D extends TestStencil {
 
   /* **********************************************************
-       SLIDE o PAD 2D
+       SLIDE 2D o PAD 2D
    ***********************************************************/
   def create2DPadSlideLambda(boundary: BoundaryFun,
                              size: Int, step: Int,
@@ -55,38 +54,34 @@ class TestStencil2D extends TestStencil {
     val lambda = create2DPadSlideLambda(boundary, size, step, left, right)
     val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
 
-    compareGoldWithOutput(goldFlat, output, runtime)
+    assertArrayEquals(goldFlat, output, 0.1f)
   }
 
-  @Ignore
   @Test def groupClampPaddedData2D(): Unit = {
     val boundary = Pad.Boundary.Clamp
-    val scalaBoundary = scalaClamp
+    val scalaBoundary = Utils.scalaClamp
 
     runCombinedPadGroupTest(3, 1, 1, 1, boundary, scalaBoundary)
   }
 
-  @Ignore // takes ages leads to EOF Exceoption on Fuji
   @Test def groupBigClampPaddedData2D(): Unit = {
     val data2D = Array.tabulate(10, 10) { (i, j) => i * 10.0f + j }
     val boundary = Pad.Boundary.Clamp
-    val scalaBoundary = scalaClamp
+    val scalaBoundary = Utils.scalaClamp
 
     runCombinedPadGroupTest(5, 1, 2, 2, boundary, scalaBoundary, data2D)
   }
 
-  @Ignore // Takes ages!!!
   @Test def groupMirrorPaddedData2D(): Unit = {
     val boundary = Pad.Boundary.Mirror
-    val scalaBoundary = scalaMirror
+    val scalaBoundary = Utils.scalaMirror
 
     runCombinedPadGroupTest(3, 1, 1, 1, boundary, scalaBoundary)
   }
 
-  @Ignore
   @Test def groupWrapPaddedData2D(): Unit = {
     val boundary = Pad.Boundary.Wrap
-    val scalaBoundary = scalaWrap
+    val scalaBoundary = Utils.scalaWrap
 
     runCombinedPadGroupTest(3, 1, 1, 1, boundary, scalaBoundary)
   }
@@ -115,7 +110,7 @@ class TestStencil2D extends TestStencil {
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
-            toGlobal(MapSeqOrMapSeqUnroll(clamp)) o
+            toGlobal(MapSeqUnroll(id)) o
               ReduceSeqUnroll(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
@@ -149,7 +144,7 @@ class TestStencil2D extends TestStencil {
       //savePGM(name, outputLocation, output.grouped(width).toArray)
 
       val gold = Utils.scalaCompute2DStencil(input, size1, step1, size2, step2, top, bottom, left, right, weights, scalaBoundary)
-      compareGoldWithOutput(gold, output, runtime)
+      assertArrayEquals(gold, output, 0.1f)
 
     } catch {
       case x: Exception => x.printStackTrace()
@@ -165,12 +160,16 @@ class TestStencil2D extends TestStencil {
     run2DStencil(stencil, size, step, size, step, left, right, left, right, weights, name, scalaBoundary)
   }
 
+  val gaussWeights = Array(
+      0.08f, 0.12f, 0.08f,
+      0.12f, 0.20f, 0.12f,
+      0.08f, 0.12f, 0.08f)
+
   @Test def gaussianBlur(): Unit = {
     val stencil = createSimple2DStencil(3, 1, 1, 1, gaussWeights, BOUNDARY, 2)
     run2DStencil(stencil, 3, 1, 1, 1, gaussWeights, "gauss.pgm", SCALABOUNDARY)
   }
 
-  @Ignore // produces EOF exception on fuji
   @Test def gaussianBlur25PointStencil(): Unit = {
     val weights = Array(
       1, 4, 7, 4, 1,
@@ -185,13 +184,13 @@ class TestStencil2D extends TestStencil {
   @Test def blurX3Point(): Unit = {
     val weights = Array.fill[Float](3)(1.0f)
     val stencil = createSimple2DStencil(1, 1, 3, 1, 0, 0, 1, 1, weights, Pad.Boundary.Wrap, 2)
-    run2DStencil(stencil, 1, 1, 3, 1, 0, 0, 1, 1, weights, "notUsed", scalaWrap)
+    run2DStencil(stencil, 1, 1, 3, 1, 0, 0, 1, 1, weights, "notUsed", Utils.scalaWrap)
   }
 
   @Test def blurY3Point(): Unit = {
     val weights = Array.fill[Float](3)(1.0f)
     val stencil = createSimple2DStencil(3, 1, 1, 1, 1, 1, 0, 0, weights, Pad.Boundary.Wrap, 2)
-    run2DStencil(stencil, 3, 1, 1, 1, 1, 1, 0, 0, weights, "notUsed", scalaWrap)
+    run2DStencil(stencil, 3, 1, 1, 1, 1, 1, 0, 0, weights, "notUsed", Utils.scalaWrap)
   }
 
   /* **********************************************************
@@ -256,7 +255,7 @@ class TestStencil2D extends TestStencil {
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
     val gold = Utils.scalaGenerate2DNeighbours(data2D, 4, 2, 4, 2, 1, 1, 1, 1, SCALABOUNDARY).flatten.flatten.flatten
 
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
@@ -266,7 +265,7 @@ class TestStencil2D extends TestStencil {
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
     val gold = Utils.scalaCompute2DStencil(data2D, 3, 1, 3, 1, 1, 1, 1, 1, gaussWeights, SCALABOUNDARY)
 
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
@@ -318,7 +317,7 @@ class TestStencil2D extends TestStencil {
   @Test def tiledBlurXTiledLoading(): Unit = {
     val weights = Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1).map(_.toFloat)
     val tiled: Lambda = createTiled2DStencilWithTiledLoading(1, 1, 17, 1, 1, 1, 24, 8, 0, 0, 8, 8, weights, Pad.Boundary.Clamp)
-    run2DStencil(tiled, 1, 1, 17, 1, 0, 0, 8, 8, weights, "notUsed", scalaClamp)
+    run2DStencil(tiled, 1, 1, 17, 1, 0, 0, 8, 8, weights, "notUsed", Utils.scalaClamp)
   }
 
 }

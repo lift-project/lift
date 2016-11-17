@@ -5,9 +5,9 @@ import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
 import opencl.executor._
-import opencl.generator.TestSlide
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
+import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.util.Random
@@ -30,31 +30,20 @@ object TestStencil {
   * and pad pattern.
   * Inherits from TestSlide to avoid code duplication
   */
-class TestStencil extends TestSlide {
-  // Boundary conditions implemented as scala functions for gold versions
-  val scalaClamp = (idx: Int, length: Int) => {
-    if (idx < 0) 0 else if (idx > length - 1) length - 1 else idx
-  }
-
-  val scalaWrap = (idx: Int, length: Int) => {
-    (idx % length + length) % length
-  }
-
-  val scalaMirror = (idx: Int, length: Int) => {
-    val id = (if (idx < 0) -1 - idx else idx) % (2 * length)
-    if (id >= length) length + length - id - 1 else id
-  }
+class TestStencil {
 
   /* **********************************************************
       STENCIL TEST SETTINGS
    ***********************************************************/
-  override val UNROLL = true
+  val UNROLL = true
   val randomData = Seq.fill(1024)(Random.nextFloat()).toArray
   val randomData2D = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
   // currently used for 2D stencils / refactor to run with every boundary condition
   val BOUNDARY = Pad.Boundary.Wrap
-  val SCALABOUNDARY: (Int, Int) => Int = scalaWrap
+  val SCALABOUNDARY: (Int, Int) => Int = Utils.scalaWrap
 
+  val data = Array.tabulate(5)(_ * 1.0f)
+  val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
   def createFused1DStencilLambda(weights: Array[Float],
                                  size: Int, step: Int,
                                  left: Int, right: Int): Lambda2 = {
@@ -64,8 +53,8 @@ class TestStencil extends TestSlide {
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
-            toGlobal(MapSeqOrMapSeqUnroll(id)) o
-              ReduceSeqOrReduceSeqUnroll(fun((acc, y) => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, y) => {
                 multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))
               }), 0.0f) $
               Zip(weights, neighbourhood)
@@ -83,8 +72,8 @@ class TestStencil extends TestSlide {
                               size: Int, step: Int,
                               left: Int, right: Int): Unit = {
     val f = createPadGroupLambda(boundary, size, step, left, right)
-    val (output: Array[Float], runtime) = createGroups1D(f, data)
-    compareGoldWithOutput(gold, output, runtime)
+    val (output: Array[Float], runtime) = Execute(data.length, data.length)(f, data)
+    assertArrayEquals(gold, output, 0.2f)
   }
 
   def createPadGroupLambda(boundary: BoundaryFun,
@@ -93,7 +82,7 @@ class TestStencil extends TestSlide {
     fun(
       ArrayType(Float, Var("N", StartFromRange(2))),
       (input) =>
-        MapGlb(MapSeqOrMapSeqUnroll(id)) o
+        MapGlb(MapSeqUnroll(id)) o
           Slide(size, step) o Pad(left, right, boundary) $ input
     )
   }
@@ -115,7 +104,7 @@ class TestStencil extends TestSlide {
     val f = createThesisChapter4Example(Pad.Boundary.Clamp, 3, 1, 1, 1)
     val (output: Array[Float], runtime) = Execute(data.length, data.length)(f, data)
     println(output.mkString(","))
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.2f)
   }
 
   @Test def group3ElementsPadWrap(): Unit = {
@@ -206,7 +195,7 @@ class TestStencil extends TestSlide {
     val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
     val stencil = create1DStencilFusedMapReduceLambda(randomData.length, weights, 3, 1, 1, 1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.2f)
   }
 
   @Test def simple5Point1DStencil(): Unit = {
@@ -215,7 +204,7 @@ class TestStencil extends TestSlide {
     val gold = Utils.scalaCompute1DStencil(randomData, 5, 1, 2, 2, weights, SCALABOUNDARY)
     val stencil = create1DStencilLambda(weights, 5, 1, 2, 2)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.2f)
   }
 
   @Test def createGroupsForOneSidedPadding(): Unit = {
@@ -260,7 +249,7 @@ class TestStencil extends TestSlide {
     val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
     val stencil = create1DMultiInputLambda(randomData.length, weights, 3, 1, 1, 1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
   /* **********************************************************
@@ -277,9 +266,9 @@ class TestStencil extends TestSlide {
         MapWrg(fun(tile =>
           MapLcl(
             fun(neighbourhood => {
-              toGlobal(MapSeqOrMapSeqUnroll(id)) o
-                ReduceSeqOrReduceSeqUnroll(add, 0.0f) o
-                MapSeqOrMapSeqUnroll(mult) $
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeqUnroll(add, 0.0f) o
+                MapSeqUnroll(mult) $
                 Zip(weights, neighbourhood)
             })
           ) o Slide(size, step) o MapLcl(toLocal(id)) $ tile
@@ -296,7 +285,7 @@ class TestStencil extends TestSlide {
     val newLambda = create1DStencilLambda(weights, 3, 1, 1, 1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
     val (gold: Array[Float], _) = Execute(randomData.length)(newLambda, randomData, weights)
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
   @Test def tiling1DBiggerTiles(): Unit = {
@@ -306,7 +295,7 @@ class TestStencil extends TestSlide {
     val newLambda = create1DStencilLambda(weights, 3, 1, 1, 1)
     val (output: Array[Float], runtime) = Execute(randomData.length)(stencil, randomData, weights)
     val (gold: Array[Float], _) = Execute(randomData.length)(newLambda, randomData, weights)
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
 
@@ -323,7 +312,7 @@ class TestStencil extends TestSlide {
     val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
     val gold = Array(0, 4, 1, 5, 2, 6, 3, 7).map(_.toFloat)
     println(output.mkString(", "))
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
   @Test def outputViewGroupTest(): Unit = {
@@ -409,7 +398,7 @@ class TestStencil extends TestSlide {
       14.0, 15.0, 12.0,
       2.0, 3.0, 0.0).map(_.toFloat)
     //output.grouped(3).toArray.map(x => println(x.mkString(",")))
-    compareGoldWithOutput(gold, output, runtime)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
 
