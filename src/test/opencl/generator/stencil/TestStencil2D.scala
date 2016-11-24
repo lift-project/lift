@@ -320,4 +320,59 @@ class TestStencil2D extends TestStencil {
     run2DStencil(tiled, 1, 1, 17, 1, 0, 0, 8, 8, weights, "notUsed", Utils.scalaClamp)
   }
 
+  @Ignore // todo compN(p, i) = p^i, but map^i = map o ... o map does not work yet
+  @Test def alternative2DStencilExpression(): Unit = {
+    val clamp = Pad.Boundary.Clamp
+
+    // apply primitive in X and Y Dimension
+    val dim2: (FunDecl) => Lambda = (primitive: FunDecl) =>
+      primitive o Map(primitive)
+
+    // compose primitive n-times
+    def compN: (FunDecl, Int) => FunDecl = (primitive: FunDecl, i: Int) =>
+      if (i > 1)
+        primitive o compN(primitive, i-1)
+      else
+        primitive
+
+    def dimN: (FunDecl, Int) => FunDecl = (primitive: FunDecl, dim: Int) =>
+      if (dim > 1)
+        // should be `Map` inside the compN
+        dimN(primitive, dim-1) o compN(Map.asInstanceOf[FunDecl], dim-1) o primitive
+      else
+        primitive
+
+    // apply 2D boundary handling
+    //val boundary = (size: Int, b: Pad.BoundaryFun) => dim2(Pad(size,size,b))
+    val boundary = (size: Int, b: Pad.BoundaryFun) => dimN(Pad(size,size,b), 2)
+
+    // create 2D neighborhoods
+    //val nbh = (size: Int) => Map(Transpose()) o dim2(Slide(size, size-2))
+    val nbh = (size: Int) => Map(Transpose()) o dimN(Slide(size, size-2), 2)
+
+    // 2D stencil function
+    val f = toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join()
+
+
+    val lambda = fun(
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      (input) => {
+        MapGlb(1)(MapGlb(0)(f)) o nbh(3) o boundary(1, clamp) $ input
+      })
+
+    val lambda2 = fun(
+      ArrayType(Float, SizeVar("N")),
+      (input) => {
+        MapGlb(1)(id) o compN(Pad(1,1,clamp), 3) $ input
+      })
+
+    /*
+    val input = Array.tabulate(512, 512) { (i,j) => scala.util.Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(16, 16, 512, 512, (false, false))(lambda, input)
+    val weights = Array.tabulate(9) { i => 1.0f}
+    val gold = Utils.scalaCompute2DStencil(input, 3,1,3,1, 1,1,1,1, weights, Utils.scalaClamp)
+    assertArrayEquals(gold, output, 0.1f)
+    */
+  }
+
 }
