@@ -138,6 +138,12 @@ class TestRules {
 
     assertArrayEquals(gold9.flatten.flatten, test9.flatten.flatten)
 
+    // slide(n, s) => join() o map(slide(n, s)) o slide(u, v)
+    val slideGold = a.sliding(3,1).toArray
+    val slideTest = a.sliding(5,3).toArray.map(_.sliding(3,1).toArray).flatten
+
+    assertArrayEquals(slideGold.flatten, slideTest.flatten)
+
     // split o map(transpose) =>
 
     // transpose o split =>
@@ -452,6 +458,29 @@ class TestRules {
 
     assertTrue(Rules.transposeTransposeId.rewrite.isDefinedAt(f.body))
     assertSame(f.params.head, Rules.transposeTransposeId.rewrite(f.body))
+  }
+
+  @Test
+  def slideTiling(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    // n/s need to be positive
+    val n = SizeVar("n")
+    val s = SizeVar("s")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input => Slide(n, s) $ input
+    )
+
+    assertTrue(Rules.slideTiling(n).rewrite.isDefinedAt(f.body))
+    assertTrue(Rules.slideTiling(n+1).rewrite.isDefinedAt(f.body))
+    assertFalse(Rules.slideTiling(n-2).rewrite.isDefinedAt(f.body))
+
+    val result = Rules.slideTiling(n+1).rewrite(f.body)
+    TypeChecker.check(result)
+    val y = 3
   }
 
   @Test

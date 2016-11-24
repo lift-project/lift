@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import apart.arithmetic.Cst
+import apart.arithmetic.{ArithExpr, Cst}
 import ir.{ArrayType, Type, TypeException, UndefType}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
@@ -9,7 +9,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
  * Slide pattern.
  * Create sliding windows of input
  */
-case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerable {
+case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) with isGenerable {
   Slide.cnt += 1
   val id = Slide.cnt
 
