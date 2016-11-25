@@ -144,6 +144,12 @@ class TestRules {
 
     assertArrayEquals(slideGold.flatten, slideTest.flatten)
 
+    // map(id) o join => join o map(map(id))
+    val gold10 = A.flatten.map(x => x)
+    val test10 = A.map(_.map(x => x)).flatten
+
+    assertArrayEquals(gold10, test10)
+
     // split o map(transpose) =>
 
     // transpose o split =>
@@ -480,7 +486,21 @@ class TestRules {
 
     val result = Rules.slideTiling(n+1).rewrite(f.body)
     TypeChecker.check(result)
-    val y = 3
+  }
+
+  @Test
+  def mapJoin(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input => Map(id) o Join() $ input
+    )
+
+    assertTrue(Rules.mapJoin.rewrite.isDefinedAt(f.body))
+    val result = Rules.mapJoin.rewrite(f.body)
+    TypeChecker.check(result)
   }
 
   @Test

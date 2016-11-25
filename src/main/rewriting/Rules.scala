@@ -36,11 +36,18 @@ object Rules {
 
   /* Slide rules */
 
-  def slideTiling(tileSize: ArithExpr) = Rule("Slide(n, s) => Join() o Map(Slide(n, s)) o Slide(u, v)", {
+  def slideTiling(tileStep: ArithExpr) = Rule("Slide(n, s) => Join() o Map(Slide(n, s)) o Slide(u, v)", {
     case FunCall(Slide(n,s), arg) if
-    !ArithExpr.isSmaller(tileSize,n).getOrElse(true) =>
+    !ArithExpr.isSmaller(tileStep,s).getOrElse(true) =>
       val overlap = n-s
-      Join() o Map(Slide(n, s)) o Slide(tileSize, tileSize - overlap) $ arg
+      Join() o Map(Slide(n, s)) o Slide(tileStep + overlap, tileStep) $ arg
+  })
+
+  /* Map-join rule */
+
+  val mapJoin = Rule("Map(f) o Join() => Join() o Map(Map(f))", {
+    case FunCall(Map(f), FunCall(Join(), arg)) =>
+      Join() o Map(Map(f)) $ arg
   })
 
   /* Split-join rule */
