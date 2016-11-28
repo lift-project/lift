@@ -5,7 +5,7 @@ import rewriting.utils._
 import ir.ast._
 import ir.{Context, TypeChecker}
 import opencl.ir.pattern._
-import rewriting.MapTree._
+import rewriting._
 
 import scala.collection.mutable.Seq
 

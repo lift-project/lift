@@ -4,9 +4,9 @@ package ir.hlGenerator
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Compile, Eval, Execute, Executor}
-import org.junit._
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
+import org.junit._
 import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
@@ -23,6 +23,7 @@ object hlGenFinishedIssue{
     Executor.shutdown()
   }
 }
+
 class hlGenFinishedIssue{
   @Ignore @Test def hlGenTest1(): Unit ={
     val f = fun(
@@ -40,12 +41,14 @@ class hlGenFinishedIssue{
       }
     )
     TypeChecker(f)
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    val fs = Lower.mapCombinations(f,
+      EnabledMappings(global0 = true, global01 = false, global10 = false,
+        group0 = false, group01 = false, group10 = false))
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>
@@ -55,7 +58,7 @@ class hlGenFinishedIssue{
     }
     val code = Compile(fs.head)
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],runtime)= Execute(1,1)(code,fs.head,Args:_*)
+    val(output_exe:Array[Float],_) = Execute(1,1)(code,fs.head,Args:_*)
     assert(output_exe.corresponds(output_int)(_==_))
   }
   //The result should be Nan
@@ -73,13 +76,15 @@ class hlGenFinishedIssue{
         ))(p10,p40)
       })
     TypeChecker(f)
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    val fs = Lower.mapCombinations(f,
+      EnabledMappings(global0 = true, global01 = false, global10 = false,
+        group0 = false, group01 = false, group10 = false))
     val code = Compile(fs.head)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>
@@ -109,13 +114,15 @@ class hlGenFinishedIssue{
       }
     )
     TypeChecker(f)
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    val fs = Lower.mapCombinations(f,
+      EnabledMappings(global0 = true, global01 = false, global10 = false,
+        group0 = false, group01 = false, group10 = false))
     val code = Compile(fs.head)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>
@@ -146,7 +153,9 @@ class hlGenFinishedIssue{
         ))(add(p226,p226),p239)
       }
     )
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    val fs = Lower.mapCombinations(f,
+      EnabledMappings(global0 = true, global01 = false, global10 = false,
+        group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
     //val lowLevel = testSolve(fs.head)
     val lowLevel = fs.head
@@ -155,7 +164,7 @@ class hlGenFinishedIssue{
     for (j <- f.params.indices) {
       f.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>
@@ -182,14 +191,16 @@ class hlGenFinishedIssue{
         ))(add(p226,p99),Join() $ p243))
       }
     )
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    val fs = Lower.mapCombinations(f,
+      EnabledMappings(global0 = true, global01 = false, global10 = false,
+        group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
     val code = Compile(fs.head)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>
@@ -214,7 +225,9 @@ class hlGenFinishedIssue{
         ))(p241)
       }
     )
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    val fs = Lower.mapCombinations(f,
+      EnabledMappings(global0 = true, global01 = false, global10 = false,
+        group0 = false, group01 = false, group10 = false))
     //val lower = hlGenerator.testSolve(fs.head)
     val lower = fs.head
     TypeChecker(lower)
@@ -223,7 +236,7 @@ class hlGenFinishedIssue{
     for (j <- f.params.indices) {
       f.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>

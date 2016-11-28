@@ -48,16 +48,15 @@ package ir.hlGenerator
 
 import java.io.PrintWriter
 
-import collection.mutable._
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Eval, Execute}
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
-import rewriting.{EnabledMappings, Lower, Rewrite, Rules}
+import rewriting.{EnabledMappings, Lower, Rewrite}
 
-import scala.collection.JavaConverters._
+import scala.collection.mutable._
 import scala.language.reflectiveCalls
 
 class hlGenerator {
@@ -136,31 +135,30 @@ class hlGenerator {
 
 
   private def tryRewriting(l:Lambda,w:PrintWriter):scala.Seq[Lambda] ={
-    useRandomRewrite match {
-      case true =>
-        try {
-          //Rewrite.rewriteWithoutLowering(l,rewriting.allRulesWithoutLowering,rewriteDepth)
-          Rewrite.rewriteWithoutLowering (l, rewriting.allRulesWithoutMapsLowering (1, 1, 1), rewriteDepth)
-        }
-        catch {
-          case e: Throwable =>
-            println ("catch a exception in random-rewrite-by-user")
-            writeln (w, "catch a exception in random-rewrite-by-user")
+    if (useRandomRewrite) {
+      try {
+        //Rewrite.rewriteWithoutLowering(l,rewriting.allRulesWithoutLowering,rewriteDepth)
+        Rewrite.rewriteWithoutLowering(l, rewriting.allRulesWithoutMapsLowering(1, 1, 1), rewriteDepth)
+      }
+      catch {
+        case e: Throwable =>
+          println("catch a exception in random-rewrite-by-user")
+          writeln(w, "catch a exception in random-rewrite-by-user")
 
-            if(PrintDebugInfo) {
-              e.printStackTrace(w)
-              e.printStackTrace ()
-            }
-            return Seq[Lambda]()
-        }
-      case false =>
-        Seq(l)
+          if (PrintDebugInfo) {
+            e.printStackTrace(w)
+            e.printStackTrace()
+          }
+          Seq()
+      }
+    } else {
+      Seq(l)
     }
   }
 
   private def tryLowering(l:Lambda,w:PrintWriter):List[Lambda] ={
     try {
-      Lower.mapCombinations(l, new EnabledMappings(true, true, true, true, true, true))
+      Lower.mapCombinations(l, EnabledMappings(global0 = true, global01 = true, global10 = true, group0 = true, group01 = true, group10 = true))
     }
     catch {
       case e: Throwable =>
@@ -170,7 +168,7 @@ class hlGenerator {
           e.printStackTrace(w)
           e.printStackTrace ()
         }
-        return List[Lambda]()
+        List[Lambda]()
     }
   }
 
@@ -189,7 +187,7 @@ class hlGenerator {
           writeln(w, "catch a exception in compiler-by-user")
         }
         e.printStackTrace(w)
-        return("",false)
+        ("",false)
     }
   }
   //Testing methods
@@ -206,7 +204,7 @@ class hlGenerator {
     for (j <- l.params.indices) {
       l.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>
@@ -224,26 +222,25 @@ class hlGenerator {
     val outType = TypeChecker(l)
 
     //2.5 run the interpreter if we want
-    val output_int:Array[Float] = RunInterpreter match{
-      case true =>
-        outType match{
-          case Float =>
-            Array[Float](Interpreter(oril).->[Float].run(Args: _*))
-          case ArrayType(Float,d1) =>
-            Interpreter(oril).->[Vector[Float]].run(Args: _*).toArray[Float]
-          case ArrayType(ArrayType(Float, d1), d2) =>
-            Interpreter(oril).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
-          case ArrayType(ArrayType(ArrayType(Float, d1), d2), d3) =>
-            Interpreter(oril).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
-          case _=>
-            if(PrintDebugInfo) {
-              println("OutPut Type unimplemented,Ignored-by-user")
-              writeln(w, "OutPut Type unimplemented,Ignored-by-user")
-            }
-            return
-        }
-      case false =>
-        Array[Float](0)
+    val output_int:Array[Float] = if (RunInterpreter) {
+      outType match {
+        case Float =>
+          Array[Float](Interpreter(oril).->[Float].run(Args: _*))
+        case ArrayType(Float, _) =>
+          Interpreter(oril).->[Vector[Float]].run(Args: _*).toArray[Float]
+        case ArrayType(ArrayType(Float, _), _) =>
+          Interpreter(oril).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
+        case ArrayType(ArrayType(ArrayType(Float, _), _), _) =>
+          Interpreter(oril).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
+        case _ =>
+          if (PrintDebugInfo) {
+            println("OutPut Type unimplemented,Ignored-by-user")
+            writeln(w, "OutPut Type unimplemented,Ignored-by-user")
+          }
+          return
+      }
+    } else {
+      Array[Float](0)
     }
 
     //3. random rewriting
@@ -446,7 +443,7 @@ class hlGenerator {
   def tryPrograms(w:PrintWriter):Unit = {
     generateProgram()
     val res = RefinedResult
-    for(i <- 0 until res.length){
+    for(i <- res.indices){
       val lStr = rewriting.utils.Utils.dumpLambdaToString(res(i))
       println(lStr)
       writeln(w,lStr)
@@ -458,7 +455,7 @@ class hlGenerator {
         Eval(lStr)
       }
       catch{
-        case e:Throwable=>
+        case _:Throwable=>
           println("parse back failed")
           return
       }
@@ -492,7 +489,7 @@ class hlGenerator {
 
 
     val totalRounds = LoopNum
-    for(i<- 0 until totalRounds){
+    for(_ <- 0 until totalRounds){
       generateLambda()
     }
     refineResult()
@@ -571,7 +568,7 @@ class hlGenerator {
           var joinSplit:Boolean = false
           if (ParamToFunCall.contains(ParamList(i))){
             ParamToFunCall(ParamList(i)).f match{
-              case sp:Split =>
+              case _:Split =>
                 joinSplit = true
               case _=>
             }
@@ -601,7 +598,7 @@ class hlGenerator {
             val fArg = getArg(i,PassParamUpPossibility)
 
             //build the FunCall
-            val F = FunCall(new Join(), fArg)
+            val F = FunCall(Join(), fArg)
 
             //set output type
             F.t = ArrayType(t, m * n)
@@ -626,7 +623,7 @@ class hlGenerator {
 
     val resLen = tempParamList.length
     if(resLen > limitNum){
-      for(i <- 0 until limitNum){
+      for(_ <- 0 until limitNum){
         val randRes = util.Random.nextInt(resLen)
         if(!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
@@ -657,7 +654,7 @@ class hlGenerator {
             val fArg = getArg(i,PassParamUpPossibility)
 
             //build the FunCall
-            val F = FunCall(new Split(ChunkSize),fArg)
+            val F = FunCall(Split(ChunkSize),fArg)
 
             //set output type
             F.t = ArrayType(ArrayType(t,ChunkSize),n /^ ChunkSize)
@@ -683,7 +680,7 @@ class hlGenerator {
 
     val resLen = tempParamList.length
     if(resLen > limitNum){
-      for(i <- 0 until limitNum){
+      for(_ <- 0 until limitNum){
         val randRes = util.Random.nextInt(resLen)
         if(!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
@@ -715,14 +712,14 @@ class hlGenerator {
             var containsUserFun = false
             if (ParamToFunCall.contains(ParamList(i1))) {
               ParamToFunCall(ParamList(i1)).f match {
-                case u: UserFun =>
+                case _: UserFun =>
                   containsUserFun = true
                 case _ =>
               }
             }
             if (ParamToFunCall.contains(ParamList(i2))) {
               ParamToFunCall(ParamList(i2)).f match {
-                case u: UserFun =>
+                case _: UserFun =>
                   containsUserFun = true
                 case _ =>
               }
@@ -780,7 +777,7 @@ class hlGenerator {
 
     val resLen = tempParamList.length
     if (resLen > limitNum) {
-      for (i <- 0 until limitNum) {
+      for (_ <- 0 until limitNum) {
         val randRes = util.Random.nextInt(resLen)
         if (!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
@@ -975,7 +972,7 @@ class hlGenerator {
     }
     val resLen = tempParamList.length
     if(resLen > limitNum){
-      for(i <- 0 until limitNum){
+      for(_ <- 0 until limitNum){
         val randRes = util.Random.nextInt(resLen)
         if(!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
@@ -1104,7 +1101,7 @@ class hlGenerator {
 
     val resLen = tempParamList.length
     if(resLen > limitNum){
-      for(i <- 0 until limitNum){
+      for(_ <- 0 until limitNum){
         val randRes = util.Random.nextInt(resLen)
         if(!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
@@ -1130,11 +1127,11 @@ class hlGenerator {
     for(i <- Zip_P until ParamList.length){
       ParamList(i).t match{
         //1. A0 should have an arrayType
-        case ArrayType(a0T,a0Len) =>
+        case ArrayType(_,a0Len) =>
 
           //2. AId : id of params that have the same type with A0
           val AId = scala.collection.mutable.ArrayBuffer[Int](i)
-          for(j <- 0 until ParamList.length){
+          for(j <- ParamList.indices){
             ParamList(j).t match{
               case ArrayType(_,`a0Len`) =>
                 AId += j
@@ -1156,7 +1153,7 @@ class hlGenerator {
 
             //get the argument of f
             val Args = scala.collection.mutable.ArrayBuffer[Expr](getArg(AId(0),PassParamUpPossibility))
-            for(i <- 0 until argNum - 1){
+            for(_ <- 0 until argNum - 1){
               Args += getArg(AId(util.Random.nextInt(AId.length)),PassParamUpPossibility)
             }
 
@@ -1188,7 +1185,7 @@ class hlGenerator {
 
     val resLen = tempParamList.length
     if(resLen > limitNum){
-      for(i <- 0 until limitNum){
+      for(_ <- 0 until limitNum){
         val randRes = util.Random.nextInt(resLen)
         if(!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
@@ -1244,7 +1241,7 @@ class hlGenerator {
 
     val resLen = tempParamList.length
     if(resLen > limitNum){
-      for(i <- 0 until limitNum){
+      for(_ <- 0 until limitNum){
         val randRes = util.Random.nextInt(resLen)
         if(!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
@@ -1266,10 +1263,10 @@ class hlGenerator {
       val tempParamList = ArrayBuffer[Param]()
       for(i <- UnPack_P until ParamList.length){
         ParamList(i).t match{
-          case ArrayType(t, n) =>
+          case ArrayType(t, _) =>
             val tempParam = Param(t)
             tempParamList += tempParam
-            UnpackedToExpr += ((tempParam -> getArg(i,0)))
+            UnpackedToExpr += (tempParam -> getArg(i, 0))
           case _ =>
         }
       }
@@ -1280,7 +1277,7 @@ class hlGenerator {
       val tempParamList = ArrayBuffer[Param]()
       for (i <- UnPack_P until ParamList.length) {
         ParamList(i).t match {
-          case ArrayType(t, n) =>
+          case ArrayType(t, _) =>
             tempParamList += Param(t)
           case _ =>
         }

@@ -1,4 +1,5 @@
-package rewriting.MapTree
+package rewriting
+
 import ir.ast._
 import rewriting.utils.NumberExpression
 
@@ -17,10 +18,12 @@ class MapTree{
   val RootNode = new MapTreeNode
   var MaxAvaDepth:Int = 1000000
   var MaxDepth:Int = 0
-  def apply(l:Lambda)={
+
+  def apply(l:Lambda) = {
     parse(l)
   }
-  def parse(l:Lambda):Unit ={
+
+  def parse(l:Lambda): Unit ={
     val numbering = NumberExpression.breadthFirst(l)
     build(RootNode,l.body,1)(numbering)
   }
@@ -47,7 +50,7 @@ class MapTree{
 
           case fp:FPattern => build(parentNode,fp.f.body,depth)
 
-          case uf:UserFun =>
+          case _: UserFun =>
             parentNode.shouldSequential = true
             if(MaxAvaDepth >= depth)
               MaxAvaDepth = depth -1
@@ -110,7 +113,7 @@ object FindAllMapsLowering{
     )
     remainSet += initSet
 
-    while(!remainSet.isEmpty){
+    while(remainSet.nonEmpty){
       var nextToDeal = scala.collection.immutable.Set[scala.collection.immutable.Map[MapTreeNode,Int]]()
       remainSet.foreach(
         currState => {
@@ -132,11 +135,11 @@ object FindAllMapsLowering{
           //nextToDeal += (currState - currTreeNode -- currTreeNode.Child + (currTreeNode -> -1) + (currTreeNode.Child.map()))
           nextToDeal += currState.map(x => {
             if (x._1 == currTreeNode) {
-              (currTreeNode -> -1)
+              currTreeNode -> -1
             }
             else{
               if(currTreeNode.Child.contains(x._1)){
-                (x._1 -> currMaping)
+                x._1 -> currMaping
               }
               else{
                 x
@@ -171,12 +174,12 @@ object FindAllMapsLowering{
       return res
 
     //currNode doesn't have child, but we can't reach the lowest level, so back trace
-    if(currNode.Child.length == 0 && currLevel < totalLevel){
+    if(currNode.Child.isEmpty && currLevel < totalLevel){
       return res
     }
 
     //currNode does't have child, so we finally reach an end
-    if(currNode.Child.length == 0){
+    if(currNode.Child.isEmpty){
 
       //should not lower this level
       if(currLevel == totalLevel + 1){
@@ -204,7 +207,7 @@ object FindAllMapsLowering{
           childResult.foreach((oneResult) => {
             res += (oneResult + (nodesMap(currNode) -> currLevel))
           })*/
-          collectedRes = (for { x<- collectedRes; y<-resOfOneChild} yield(x ++ y))
+          collectedRes = for {x <- collectedRes; y <- resOfOneChild} yield x ++ y
         })
 
         res ++= collectedRes
@@ -222,13 +225,13 @@ object FindAllMapsLowering{
           /*childResult.foreach((oneResult) => {
           res += (oneResult + (nodesMap(currNode) -> 0))
         })*/
-          collectedRes = (for { x<- collectedRes; y<-resOfOneChild} yield(x ++ y))
+          collectedRes = for {x <- collectedRes; y <- resOfOneChild} yield x ++ y
         })
 
         res ++= collectedRes
       }
 
-     return res
+     res
     }
     else{
       //the temprory root node
@@ -237,10 +240,10 @@ object FindAllMapsLowering{
       var collectedRes = Array[scala.collection.immutable.Map[Int,Int]](scala.collection.immutable.Map[Int,Int](-1 -> -1))
       currNode.Child.foreach((childNode) =>{
         val resOfOneChild = lowerNext(childNode,currLevel + 1,totalLevel)
-        collectedRes = (for { x<- collectedRes; y<-resOfOneChild} yield(x ++ y))
+        collectedRes = for {x <- collectedRes; y <- resOfOneChild} yield x ++ y
         })
       res ++= collectedRes
-      return res
+      res
     }
 
 

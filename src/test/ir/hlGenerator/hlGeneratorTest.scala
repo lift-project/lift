@@ -1,14 +1,12 @@
 package ir.hlGenerator
 
-import java.io.PrintWriter
-
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Compile, Eval, Execute, Executor}
-import org.junit._
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.toGlobal
+import org.junit._
 import rewriting.{EnabledMappings, Lower, Rewrite}
 
 import scala.language.reflectiveCalls
@@ -82,7 +80,9 @@ class hlGeneratorTest {
         ))(add(p226,p226),p239))
       }
     )
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    val fs = Lower.mapCombinations(f,
+      EnabledMappings(global0 = true, global01 = false, global10 = false,
+        group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
     val code = Compile(fs.head)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
@@ -119,7 +119,9 @@ class hlGeneratorTest {
       }
     )
     //val test = rewriting.Rewrite.rewrite(f,rewriting.allRules,1)
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
+    val fs = Lower.mapCombinations(f,
+      EnabledMappings(global0 = true, global01 = false, global10 = false,
+        group0 = false, group01 = false, group10 = false))
     val test = rewriting.Rewrite.rewriteJustGenerable(fs.head,rewriting.allRules,5)
     for(i<- test.indices) {
       val rewrited = test(i)
@@ -130,7 +132,7 @@ class hlGeneratorTest {
       for (j <- f.params.indices) {
         f.params(j).t match {
           case ArrayType(ArrayType(Float, l1), l2) =>
-            Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+            Args += Array.fill(l1.eval, l2.eval)(1.0f)
           case ArrayType(Float, l1) =>
             Args += Array.fill(l1.eval)(2.0f)
           case Float =>
@@ -149,44 +151,47 @@ class hlGeneratorTest {
   @Ignore
   @Test
   def seekExeBugs1():Unit={
-    for(i<-0 until 10000){
+    for(_ <- 0 until 10000){
 
-    val f = fun(
-      Float,
-      ArrayType(Float,32),
-      ArrayType(Float,32),
-      (p236,p116,p93) =>{
-        Reduce(fun((p183,p247) =>
-          Map(fun((p18) =>
-            add(p247,p18)
-          )) $ p183
-        ))(Map(fun((p18) =>
-          add(p236,p18)
-        ))(p116),p93)
+      val f = fun(
+        Float,
+        ArrayType(Float,32),
+        ArrayType(Float,32),
+        (p236,p116,p93) =>{
+          Reduce(fun((p183,p247) =>
+            Map(fun((p18) =>
+              add(p247,p18)
+            )) $ p183
+          ))(Map(fun((p18) =>
+            add(p236,p18)
+          ))(p116),p93)
 
-    }
-    )
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, false, false, false, false, false))
-    TypeChecker(fs.head)
-    val code = Compile(fs.head)
-    val Args = scala.collection.mutable.ArrayBuffer[Any]()
-    for (j <- f.params.indices) {
-      f.params(j).t match {
-        case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
-        case ArrayType(Float, l1) =>
-          Args += Array.fill(l1.eval)(2.0f)
-        case Float =>
-          Args += 3.0f
-        case _=>
+        }
+      )
+      val fs = Lower.mapCombinations(f,
+        EnabledMappings(global0 = true, global01 = false, global10 = false,
+          group0 = false, group01 = false, group10 = false))
+      TypeChecker(fs.head)
+      val code = Compile(fs.head)
+      val Args = scala.collection.mutable.ArrayBuffer[Any]()
+      for (j <- f.params.indices) {
+        f.params(j).t match {
+          case ArrayType(ArrayType(Float, l1), l2) =>
+            Args += Array.fill(l1.eval, l2.eval)(1.0f)
+          case ArrayType(Float, l1) =>
+            Args += Array.fill(l1.eval)(2.0f)
+          case Float =>
+            Args += 3.0f
+          case _=>
+        }
       }
-    }
-    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    //val(output_exe1:Array[Float],_)= Execute(1,32)(fs.head,Args:_*)
-    val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
+      val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
+      //val(output_exe1:Array[Float],_)= Execute(1,32)(fs.head,Args:_*)
+      val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
+      assert(output_exe.corresponds(output_int)(_==_))
 
-  }}
+    }
+  }
 
   @Ignore
   @Test
@@ -209,7 +214,7 @@ class hlGeneratorTest {
     )
     TypeChecker(f)
     val fAfterRewrite = Rewrite.rewriteWithoutLowering(f,rewriting.allRulesWithoutLowering,1)
-    val fs = Lower.mapCombinations(f,new EnabledMappings(true, true, true, true, true, true),true)
+    val fs = Lower.mapCombinations(f, EnabledMappings(global0 = true, global01 = true, global10 = true, group0 = true, group01 = true, group10 = true))
     //val lower = hlGenerator.testSolve(fs.head)
     val lower = fs.head
     TypeChecker(lower)
@@ -218,7 +223,7 @@ class hlGeneratorTest {
     for (j <- f.params.indices) {
       f.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>
