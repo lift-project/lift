@@ -260,7 +260,7 @@ class TestStencil2D extends TestStencil {
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiling2DBiggerTiles(): Unit = {
-    val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 24.0f + j }
     val tiled: Lambda = createTiled2DStencil(3, 1, 10, 8, 1, 1, gaussWeights, BOUNDARY)
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
     val gold = Utils.scalaCompute2DStencil(data2D, 3, 1, 3, 1, 1, 1, 1, 1, gaussWeights, SCALABOUNDARY)
