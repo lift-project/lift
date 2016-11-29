@@ -23,7 +23,7 @@ class OpenCLMemory(var variable: Var,
     if (size.eval == 0)
       throw new IllegalArgumentException("Cannot have a memory of 0 bytes!")
   } catch {
-    case _: NotEvaluableException => // nothing to do
+    case NotEvaluableException => // nothing to do
     case e: Exception => throw e
   }
 
@@ -237,6 +237,7 @@ object TypedOpenCLMemory {
         case m: AbstractMap => collectMap(call.t, m)
         case r: AbstractPartRed => collectReduce(r, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
+        case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
         case i: Iterate     => collectIterate(call, i)
         case fp: FPattern   => collect(fp.f.body)
         case _              => Seq()
@@ -325,6 +326,10 @@ object TypedOpenCLMemory {
 
         !isAlreadyInArgs && !isAlreadyInParams
       })
+    }
+
+    def collectUnsafeArrayAccess(ua: UnsafeArrayAccess, call: FunCall, argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      Seq(TypedOpenCLMemory(call))
     }
 
     def collectIterate(call: FunCall, i: Iterate): Seq[TypedOpenCLMemory] = {

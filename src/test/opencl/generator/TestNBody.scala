@@ -108,7 +108,7 @@ class TestNBody {
   @Test
   def nBodyAMD(): Unit = {
 
-    val function = NBody.function
+    val function = NBody.amd
 
     val (output: Array[Float], _) =
       Execute(inputSize)(function, pos, vel, espSqr, deltaT)
@@ -207,43 +207,12 @@ class TestNBody {
   @Test
   def nBodyLocalMem_nvidia_no_MT(): Unit = {
 
-    val tileX = 32
+    val tileX = 256
     val tileY = 1
     val threadsX = inputSize
     val threadsY = tileY
 
-    val numGroups1 = threadsY / tileY
-
-    val function = fun(
-      ArrayType(Float4, N),
-      ArrayType(Float4, N),
-      Float,
-      Float,
-      (pos, vel, espSqr, deltaT) =>
-        Join() o
-          MapWrg(1)(Join() o MapWrg(0)(fun(p1Chunk => // ArrayType(Flat4, tileX)
-            \(newP1Chunk =>
-              MapLcl(1)(\(bla =>
-                toGlobal(MapLcl(0)( fun( p1 =>
-                  NBody.update(Get(Get(p1,0), 0), Get(Get(p1, 0), 1), deltaT, Get(p1,1))
-                ))) $ Zip(newP1Chunk, bla))) o
-                Join() o
-                ReduceSeq(fun((acc, p2) =>
-                  Let(p2Local =>
-                    MapLcl(1)(\(accDim2 =>
-                      Join() o
-                        MapLcl(0)(fun(p1 => // ( (float4, float4), float4 )
-
-                          ReduceSeq(fun((acc, p2) =>
-                            NBody.calcAccAndAccumulate(Get(Get(p1,0), 0), p2, deltaT, espSqr, acc)),
-                            Get(p1,1)) $ accDim2._0
-                        )) $ Zip(newP1Chunk, accDim2._1)
-                    )) $ Zip(p2Local, acc)
-                  ) o toLocal(MapLcl(1)(MapLcl(0)(idF4))) $ p2
-                ), MapLcl(1)(MapLcl(0)(idF4)) $ Value("0.0f", ArrayType(ArrayType(Float4, tileX), tileY))) o Split(tileY) o Split(tileX) $ pos
-            ) $ Zip(toPrivate(MapLcl(idF4)) $ Get(Unzip() $ p1Chunk, 0), Get(Unzip() $ p1Chunk, 1))
-          )) o Split(tileX)) o Split(N/numGroups1) $ Zip(pos, vel)
-    )
+    val function = NBody.nvidia
 
     val (output: Array[Float], _) =
       Execute(tileX, tileY, threadsX, threadsY, (true, true))(function, pos, vel, espSqr, deltaT)

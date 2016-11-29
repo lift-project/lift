@@ -1,14 +1,15 @@
-package opencl.generator
+package opencl.generator.matrixVector
 
 import apart.arithmetic.{ArithExpr, Log, SizeVar}
 import benchmarks.MatrixVector
 import ir._
 import ir.ast._
 import opencl.executor._
+import opencl.generator.AllocateLocalMemoryStatically
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir.pattern._
 import rewriting.utils.ScalaPrinter
 
 object TestMatrixVector {
