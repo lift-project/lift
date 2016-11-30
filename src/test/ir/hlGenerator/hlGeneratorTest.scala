@@ -7,40 +7,35 @@ import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.toGlobal
 import org.junit._
-import rewriting.{EnabledMappings, Lower, Rewrite}
+import org.junit.Assert._
+import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-/**
-  * Created by potato on 25/07/16.
-  */
 object hlGeneratorTest{
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
 
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
+  @BeforeClass
+  def before(): Unit =
+    Executor.loadLibrary()
+
+  @AfterClass
+  def after(): Unit =
     Executor.shutdown()
-  }
+
 }
+
 class hlGeneratorTest {
 
-  @Ignore
   @Test
-  def testNewGen():Unit={
+  def testNewGen(): Unit = {
     val hlGen = new hlGenerator
     hlGen.generateProgram()
-    //hlGen.tryPrograms(new PrintWriter("/home/v1ddu/exprs/8-30/test_new_generator.txt"))
-    val result = hlGen.RefinedResult
-    assert(true)
+    assertTrue(hlGen.RefinedResult.nonEmpty)
   }
 
   @Ignore
   @Test
-  def seekCompilerBugs():Unit={
+  def seekCompilerBugs(): Unit = {
     val f = fun(
       Float,
       ArrayType(ArrayType(Float,32),32),
@@ -67,7 +62,7 @@ class hlGeneratorTest {
     for (j <- f.params.indices) {
       f.params(j).t match {
         case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.tabulate(l1.eval, l2.eval)((r, c) => 1.0f)
+          Args += Array.fill(l1.eval, l2.eval)(1.0f)
         case ArrayType(Float, l1) =>
           Args += Array.fill(l1.eval)(2.0f)
         case Float =>
@@ -75,16 +70,16 @@ class hlGeneratorTest {
         case _=>
       }
     }
+
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe1:Array[Float],_)= Execute(1,32)(fs.head,Args:_*)
     val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
+    assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
 
   @Ignore
   @Test
-  def seekExeBugs():Unit={
+  def seekExeBugs(): Unit = {
     val f = fun(
       ArrayType(Float,32),
       ArrayType(Float,32),
@@ -96,7 +91,6 @@ class hlGeneratorTest {
         ))(p241)
       }
     )
-    //val test = rewriting.Rewrite.rewrite(f,rewriting.allRules,1)
     val fs = Lower.mapCombinations(f,
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
@@ -119,16 +113,15 @@ class hlGeneratorTest {
         }
       }
       val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
-      //val (output_exe1: Array[Float], _) = Execute(1, 32)(fs.head, Args: _*)
       val (output_exe: Array[Float], _) = Execute(1, 32)(code, rewrited, Args: _*)
-      assert(output_exe.corresponds(output_int)(_ == _))
+      assertArrayEquals(output_int, output_exe, 0.0f)
     }
 
   }
 
   @Ignore
   @Test
-  def seekExeBugs1():Unit={
+  def seekExeBugs1(): Unit = {
     for(_ <- 0 until 10000){
 
       val f = fun(
@@ -164,17 +157,15 @@ class hlGeneratorTest {
         }
       }
       val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-      //val(output_exe1:Array[Float],_)= Execute(1,32)(fs.head,Args:_*)
       val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
-      assert(output_exe.corresponds(output_int)(_==_))
+      assertArrayEquals(output_int, output_exe, 0.0f)
 
     }
   }
 
   @Ignore
   @Test
-  def ResultNotEqualBugs():Unit={
-    //val f = Eval("val add = UserFun(\"add\", Array(\"x\", \"y\"), \"\"\"|{ return x+y; }\"\"\".stripMargin, Seq(Float, Float), Float).setScalaFun (xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])\nfun(ArrayType(Float, 4), ArrayType(Float, 32), Float, ArrayType(ArrayType(Float, 32), 32),(p_0, p_1, p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(Join(), FunCall(Reduce(fun((p_5, p_6) => FunCall(Map(fun((p_7) => FunCall(add, p_6, p_7))), p_5))), FunCall(Map(fun((p_8) => FunCall(add, p_8, p_4))), p_0), p_1)))), FunCall(Map(fun((p_9) => FunCall(add, p_9, p_2))), FunCall(Join(), p_3))))")
+  def ResultNotEqualBugs(): Unit = {
     val f = fun(
       Float,
       ArrayType(Float,32),
@@ -191,9 +182,7 @@ class hlGeneratorTest {
       }
     )
     TypeChecker(f)
-    val fAfterRewrite = Rewrite.rewriteWithoutLowering(f,rewriting.allRulesWithoutLowering,1)
     val fs = Lower.mapCombinations(f, EnabledMappings(global0 = true, global01 = true, global10 = true, group0 = true, group01 = true, group10 = true))
-    //val lower = hlGenerator.testSolve(fs.head)
     val lower = fs.head
     TypeChecker(lower)
     val code = Compile(lower)
@@ -209,10 +198,10 @@ class hlGeneratorTest {
         case _=>
       }
     }
+
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
     val(output_exe:Array[Float],_)= Execute(1,1)(code,lower,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
-
+    assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
 

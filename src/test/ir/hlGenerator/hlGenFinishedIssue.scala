@@ -1,31 +1,32 @@
 package ir.hlGenerator
 
-
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import org.junit.Assert._
 import org.junit._
 import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
 object hlGenFinishedIssue{
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
+  @BeforeClass
+  def before(): Unit =
+    Executor.loadAndInit()
 
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
+  @AfterClass
+  def after(): Unit =
     Executor.shutdown()
-  }
 }
 
 class hlGenFinishedIssue{
-  @Ignore @Test def hlGenTest1(): Unit ={
+
+  @Ignore
+  @Test
+  def hlGenTest1(): Unit = {
+
     val f = fun(
       ArrayType(Float,32),
       Float,
@@ -56,13 +57,17 @@ class hlGenFinishedIssue{
         case _=>
       }
     }
-    val code = Compile(fs.head)
+
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_) = Execute(1,1)(code,fs.head,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
+    val(output_exe:Array[Float],_) = Execute(1,1)(fs.head,Args:_*)
+    assertArrayEquals(output_int, output_exe, 0.0f)
   }
+
   //The result should be Nan
-  @Ignore @Test def hlGenLower1(): Unit= {
+  @Ignore
+  @Test
+  def hlGenLower1(): Unit = {
+
     val f = fun(
       ArrayType(Float,32),
       ArrayType(ArrayType(Float,32),32),
@@ -79,7 +84,6 @@ class hlGenFinishedIssue{
     val fs = Lower.mapCombinations(f,
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
-    val code = Compile(fs.head)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
@@ -92,13 +96,17 @@ class hlGenFinishedIssue{
         case _=>
       }
     }
+
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1024)(code,fs.head,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
+    val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
+    assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
   //The high-level expression could not find a correct lower one
-  @Ignore @Test def hlGenCompiler1():Unit={
+  @Ignore
+  @Test
+  def hlGenCompiler1(): Unit = {
+
     val f = fun(
       Float,
       ArrayType(Float,32),
@@ -117,7 +125,6 @@ class hlGenFinishedIssue{
     val fs = Lower.mapCombinations(f,
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
-    val code = Compile(fs.head)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
@@ -130,9 +137,10 @@ class hlGenFinishedIssue{
         case _=>
       }
     }
+
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1024)(code,fs.head,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
+    val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
+    assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
   @Ignore @Test def hlGenCompiler2():Unit={
@@ -159,7 +167,6 @@ class hlGenFinishedIssue{
     TypeChecker(fs.head)
     //val lowLevel = testSolve(fs.head)
     val lowLevel = fs.head
-    val code = Compile(lowLevel)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
@@ -172,11 +179,16 @@ class hlGenFinishedIssue{
         case _=>
       }
     }
+
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(code,lowLevel,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
+    val(output_exe:Array[Float],_)= Execute(1,32)(lowLevel,Args:_*)
+    assertArrayEquals(output_int, output_exe, 0.0f)
   }
-  @Ignore @Test def hlGenWriteIntoReadonlyMemory1():Unit={
+
+  @Ignore
+  @Test
+  def hlGenWriteIntoReadonlyMemory1(): Unit = {
+
     val f = fun(
       Float,
       ArrayType(ArrayType(Float,32),32),
@@ -195,7 +207,6 @@ class hlGenFinishedIssue{
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
-    val code = Compile(fs.head)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
@@ -208,12 +219,15 @@ class hlGenFinishedIssue{
         case _=>
       }
     }
-    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1)(code,fs.head,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
 
+    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
+    val(output_exe:Array[Float],_)= Execute(1,1)(fs.head,Args:_*)
+    assertArrayEquals(output_int, output_exe, 0.0f)
   }
-  @Test def hlGenWriteIntoReadonlyMemory2():Unit={
+
+  @Test
+  def hlGenWriteIntoReadonlyMemory2():Unit={
+
     val f = fun(
       ArrayType(Float,32),
       ArrayType(Float,32),
@@ -225,13 +239,13 @@ class hlGenFinishedIssue{
         ))(p241)
       }
     )
+
     val fs = Lower.mapCombinations(f,
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
     //val lower = hlGenerator.testSolve(fs.head)
     val lower = fs.head
     TypeChecker(lower)
-    val code = Compile(lower)
     val Args = scala.collection.mutable.ArrayBuffer[Any]()
     for (j <- f.params.indices) {
       f.params(j).t match {
@@ -244,10 +258,10 @@ class hlGenFinishedIssue{
         case _=>
       }
     }
-    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(code,lower,Args:_*)
-    assert(output_exe.corresponds(output_int)(_==_))
 
+    val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
+    val(output_exe:Array[Float],_)= Execute(1,32)(lower,Args:_*)
+    assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
 }
