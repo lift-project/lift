@@ -79,7 +79,7 @@ class hlGenerator {
   val GlobalSize = 512
   val LocalSize = 32
   val RunInterpreter = false
-  val useRandomRewrite = true
+  val useRandomRewrite = false
   val rewriteDepth = 3
 
   //controllers for generate programs
@@ -156,7 +156,7 @@ class hlGenerator {
     }
   }
 
-  private def tryLowering(l:Lambda,w:PrintWriter):List[Lambda] ={
+  private def tryLowering(l:Lambda,w:PrintWriter):List[Lambda] = {
     try {
       Lower.mapCombinations(l, EnabledMappings(global0 = true, global01 = true, global10 = true, group0 = true, group01 = true, group10 = true))
     }
@@ -482,8 +482,8 @@ class hlGenerator {
     //initial input..
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
-    //ParamList += Param(ArrayType(Float,32))
-    //ParamList += Param(ArrayType(Float,32))
+    ParamList += Param(ArrayType(Float,32))
+    ParamList += Param(ArrayType(Float,32))
     ParamList += Param(Float)
     ParamList += Param(Float)
 
@@ -701,7 +701,7 @@ class hlGenerator {
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
-    val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).setScalaFun(xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])
+//    val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).setScalaFun(xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])
 
 
     for (i1 <- ParamList.indices) {

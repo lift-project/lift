@@ -38,28 +38,6 @@ class hlGeneratorTest {
     assert(true)
   }
 
-
-
-  @Ignore
-  @Test
-  def seekTestBugs():Unit={
-    val t1 = ArrayType(ArrayType(Float,32),32)
-    val t2 = ArrayType(ArrayType(Float,32),32)
-    if(t1 == t2){
-      println("true")
-    }
-    else{
-      println("false")
-    }
-    assert(true)
-
-  }
-
-  @Ignore
-  @Test
-  def seekParserBugs():Unit= {
-  }
-
   @Ignore
   @Test
   def seekCompilerBugs():Unit={
