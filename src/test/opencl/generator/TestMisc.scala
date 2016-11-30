@@ -262,7 +262,7 @@ class TestMisc {
 
     val input = Array.tabulate(32)(_.toFloat)
 
-    val gold = input.flatMap(a => input.map(b => a + a + b))
+    val gold = input.flatMap(a => input.map(b => a + b + b))
 
     val (result: Array[Float], _) = Execute(1,1)(f, input, input)
     assertArrayEquals(gold, result, 0.0f)
@@ -279,7 +279,7 @@ class TestMisc {
 
     val input = Array.tabulate(32)(_.toFloat)
 
-    val gold = input.flatMap(a => input.map(b => a + a + b))
+    val gold = input.flatMap(a => input.map(b => a + b + b))
 
     val (result: Array[Float], _) = Execute(1,1)(f, input, input)
     assertArrayEquals(gold, result, 0.0f)
