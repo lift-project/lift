@@ -213,6 +213,25 @@ class TestMisc {
     assertArrayEquals(gold, output2, 0.0f)
   }
 
+  @Test
+  def issue76(): Unit = {
+    val f = \(
+      Float,
+      ArrayType(Float, 32),
+      (const, arr) =>
+        MapGlb(\(a => add(const, add(const, a)))) $ arr
+    )
+
+    val input = Array.tabulate(32)(_.toFloat)
+    val const = 2.0f
+
+    val gold = input.map(_ + 2*const)
+
+    val (result: Array[Float], _) = Execute(1,1)(f, const, input)
+
+    assertArrayEquals(gold, result, 0.0f)
+  }
+
   @Test def issue22(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
