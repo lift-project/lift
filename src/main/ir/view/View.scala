@@ -357,6 +357,15 @@ private[view] case class ViewHead(iv: View, override val t: Type) extends View(t
 private[view] case class ViewTail(iv: View, override val t: Type) extends View(t)
 
 /**
+ * A view for getting the unsafearrayacess of a view.
+ *
+ * @param iv The view to get the unsafeArrayAccess of.
+ * @param t The type of view.
+ */
+// private[view] case class ViewUnsafeArrayAccess(ix: Param, iv: View, override val t: Type) extends View(t)
+
+
+/**
  * A view for padding an array.
  *
  * @param iv The view to pad.
@@ -515,6 +524,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView(tail.iv, newAAS, tupleAccessStack)
+      // case uua: ViewUnsafeArrayAccess =>
+      //   emitView(uua.iv, arrayAccessStack, tupleAccessStack)
 
       case ag: ViewSlide =>
         val outerId = arrayAccessStack.head

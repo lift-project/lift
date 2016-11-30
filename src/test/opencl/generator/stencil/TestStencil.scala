@@ -8,7 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit._
 
 import scala.util.Random
 
@@ -465,8 +465,13 @@ class TestStencil {
     input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
     input = input.transpose
 
-    val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+      println("Runtime: " + runtime)
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
   }
 
   /* **********************************************************
@@ -513,8 +518,13 @@ class TestStencil {
      input = input.transpose
      */
 
-    val (output: Array[Float], runtime) = Execute(64, 4, 1024, 512, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    try {
+      val (output: Array[Float], runtime) = Execute(64, 4, 1024, 512, (true, true))(stencil, input, weights)
+      println("Runtime: " + runtime)
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
   }
 
 

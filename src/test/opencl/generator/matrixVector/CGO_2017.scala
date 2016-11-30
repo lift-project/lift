@@ -1,4 +1,4 @@
-package opencl.generator
+package opencl.generator.matrixVector
 
 import apart.arithmetic.SizeVar
 import ir._

@@ -427,10 +427,12 @@ class OpenCLGenerator extends Generator {
 
         case fp: FPattern => generate(fp.f.body, block)
         case l: Lambda => generate(l.body, block)
+        case ua: UnsafeArrayAccess => generateUnsafeArrayAccess(ua, call, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | ArrayAccess(_) =>
-
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
+             ArrayAccess(_) =>
+        case _ => (block: Block) += OpenCLAST.Comment("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
       case p: Param =>
@@ -813,6 +815,28 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.Comment("linear_search")
   }
 
+  private def generateUnsafeArrayAccess(ua: UnsafeArrayAccess,
+                                        call: FunCall,
+                                        block: Block): Unit = {
+    val index = ua.index
+    val clIndexMem = OpenCLMemory.asOpenCLMemory(index.mem)
+
+    val loadIndex = generateLoadNode(clIndexMem, index.t, index.view)
+
+    val indexVar = Var("index")
+    (block: Block) += OpenCLAST.VarDecl(indexVar, Int, init=loadIndex)
+
+    val inArr = call.args(0)
+    val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
+
+    val loadFromArray = generateLoadNode(clInArrMem, inArr.t, inArr.view.access(indexVar))
+
+    val storeToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
+                                          call.view.access(0), loadFromArray)
+
+    (block: Block) += storeToOutput
+  }
+
   private def generateValue(v: Value, block: Block): Unit = {
     val temp = Var("tmp")
 
@@ -1133,7 +1157,6 @@ class OpenCLGenerator extends Generator {
           throw new OpenCLGeneratorException(s"Found a OpenCLMemoryCollection for var: " +
             s"${mem.variable}, but corresponding type: $t is " +
             s"not a tuple.")
-
         val tt = t.asInstanceOf[TupleType]
 
         var args: Vector[OclAstNode] = Vector()
