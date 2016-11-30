@@ -43,6 +43,7 @@ object Rules {
       Join() o Map(Slide(n, s)) o Slide(tileStep + overlap, tileStep) $ arg
   })
 
+  // todo possibly duplicate: see rewriting/MacroRules.scala:277
   /* Map-join rule */
 
   val mapJoin = Rule("Map(f) o Join() => Join() o Map(Map(f))", {

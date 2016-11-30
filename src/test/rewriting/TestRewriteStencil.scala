@@ -64,4 +64,15 @@ class TestRewriteStencil {
     val f13 = Rewrite.applyRuleAtId(f12, 13, Rules.globalMemory)
     //val test = NumberExpression.breadthFirst(f13.body)
   }
+
+  @Test
+  def stencil1DMacroRule(): Unit = {
+    val f = fun(
+      ArrayType(Float, 32),
+      (input) =>
+        Join() o Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
+      )
+
+    val f1 = Rewrite.applyRuleAtId(f, 1, MacroRules.tileStencils)
+  }
 }

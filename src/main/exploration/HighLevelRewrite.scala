@@ -250,6 +250,7 @@ class HighLevelRewrite(val vectorWidth: Int) {
       MacroRules.tileMapMap,
       MacroRules.finishTiling,
       MacroRules.partialReduceWithReorder,
+      MacroRules.tileStencils,
       vecRed,
       vecZip
     )

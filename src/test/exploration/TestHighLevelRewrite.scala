@@ -69,8 +69,22 @@ class TestHighLevelRewrite {
       )) $ Zip(matrix, vectorY)
     })
 
+  val stencil1D = fun(
+    ArrayType(Float, N),
+    input => Join() o Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
+  )
+
   def getHash(lambda: Lambda): String =
     Utils.Sha256Hash(Utils.dumpLambdaToString(lambda))
+
+  @Test
+  def stencil1DRewrite(): Unit = {
+
+    val rewriter = new HighLevelRewrite(4)
+    val rewrittenLambdas = rewriter(stencil1D, 2)
+
+    //todo insert assert
+  }
 
   @Test
   def mmTBRewrite(): Unit = {
