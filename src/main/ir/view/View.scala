@@ -141,7 +141,7 @@ abstract class View(val t: Type = UndefType) {
     t match {
       case ArrayType(VectorType(st, n), len) =>
         ViewAsScalar(this, n, ArrayType(st, len * n))
-      case st: ScalarType => this
+      case _: ScalarType => this
       case _ =>
         throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
     }
@@ -357,15 +357,6 @@ private[view] case class ViewHead(iv: View, override val t: Type) extends View(t
 private[view] case class ViewTail(iv: View, override val t: Type) extends View(t)
 
 /**
- * A view for getting the unsafearrayacess of a view.
- *
- * @param iv The view to get the unsafeArrayAccess of.
- * @param t The type of view.
- */
-// private[view] case class ViewUnsafeArrayAccess(ix: Param, iv: View, override val t: Type) extends View(t)
-
-
-/**
  * A view for padding an array.
  *
  * @param iv The view to pad.
@@ -438,7 +429,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
                          arrayAccessStack: List[(ArithExpr, ArithExpr)], // id, dimension size
                          tupleAccessStack: List[Int]): ArithExpr = {
     sv match {
-      case mem: ViewMem =>
+      case _: ViewMem =>
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => x + y)
 
@@ -524,8 +515,6 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView(tail.iv, newAAS, tupleAccessStack)
-      // case uua: ViewUnsafeArrayAccess =>
-      //   emitView(uua.iv, arrayAccessStack, tupleAccessStack)
 
       case ag: ViewSlide =>
         val outerId = arrayAccessStack.head
@@ -534,7 +523,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val stack2 = stack1.tail
 
         ag.t match {
-          case ArrayType(t, len) =>
+          case ArrayType(_, _) =>
             val newIdx = outerId._1 * ag.slide.step + innerId._1
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
