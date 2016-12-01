@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{ArithExpr, Cst, Pow, Var}
+import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
 import opencl.generator.OpenCLAST._
 import opencl.ir.{Int, PrivateMemory}
 

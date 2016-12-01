@@ -1,6 +1,6 @@
 package opencl.generator.matrixMultiplication
 
-import apart.arithmetic.{ArithExpr, SizeVar}
+import lift.arithmetic.{ArithExpr, SizeVar}
 import ir._
 import ir.ast._
 import opencl.executor._
