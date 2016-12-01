@@ -14,9 +14,6 @@ if (${UNIX})
     set (CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra -pthread"
       CACHE STRING "Flags used by the compiler during all build types.")
   endif (${APPLE})
-
-  set (EXECUTOR_CXX_FLAGS "-Weffc++ -Wold-style-cast -Woverloaded-virtual -Wsign-promo -Werror -pedantic-errors -Wfatal-errors"
-    CACHE STRING "More strict flags used to compile the Executor sources.")
 endif (${UNIX})
 
 # include custom cmake modules (e.g. FindOpenCL.cmake)
@@ -32,8 +29,6 @@ endif (NOT CMAKE_BUILD_TYPE)
 
 find_package (OpenCL)
 find_package (JNI)
-
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXECUTOR_CXX_FLAGS}")
 
 include_directories (
   "${PROJECT_SOURCE_DIR}/include/executor"
