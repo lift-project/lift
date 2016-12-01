@@ -4,21 +4,21 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
-compile <<= (compile in Compile) dependsOn compileSkelcl
+compile <<= (compile in Compile) dependsOn compileExecutor
 
-lazy val compileSkelcl = taskKey[Unit]("Updates and builds the SkelCL submodule.")
+lazy val compileExecutor = taskKey[Unit]("Builds the Executor.")
 
-compileSkelcl := {
+compileExecutor := {
   import scala.language.postfixOps
   import scala.sys.process._
   //noinspection PostfixMethodCall
-  "echo y" #| "./skelcl.sh" !
+  "echo y" #| "./buildExecutor.sh" !
 }
 
 scalacOptions ++= Seq("-Xmax-classfile-name", "100", "-unchecked", "-deprecation", "-feature")
 
 // Executor path
-javaOptions += "-Djava.library.path=" + baseDirectory(_ / "lib/SkelCL/build/executor").value
+javaOptions += "-Djava.library.path=" + baseDirectory(_ / "lib/Executor/build/").value
 
 // Main sources
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
