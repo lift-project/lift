@@ -6,7 +6,10 @@
 #include <thread>
 #include <cassert>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
 #include "opencl_executor_Executor.h"
+#pragma GCC diagnostic pop
 #include "handle.h"
 #include "Executor.h"
 

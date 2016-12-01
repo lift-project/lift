@@ -1,4 +1,7 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
 #include "opencl_executor_GlobalArg.h"
+#pragma GCC diagnostic pop
 #include "handle.h"
 #include "Executor.h"
 
