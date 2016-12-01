@@ -390,7 +390,7 @@ class TestStencil2D extends TestStencil {
 
     // use abbr. notation because of long expressions
     // *=map (as in BMF), J=join, T=transpose, S_ab = slide a b
-    // (0): *T o S_ns o *S_uv
+    // (0): *T o S_ns o *S_ns
     val gold = Map(Transpose()) o Slide(n,s) o Map(Slide(n,s))
 
     // 2D tiling
@@ -513,4 +513,105 @@ class TestStencil2D extends TestStencil {
     assertArrayEquals(outGold, outF16, 0.1f)
   }
 
+  @Test
+  def stencil2DTilingLocalMemIdentities(): Unit = {
+    // stencil shape
+    val n = 3
+    val s = 1
+    // tile size
+    val u = 6
+    val v = 4
+    // pad parameters
+    val l = 1
+    val r = 1
+    val b = Pad.Boundary.Clamp
+
+    // use these values to take powers of two as valid inputs for slide (pad is not used here)
+    val input = Array.tabulate(32, 32) { (i, j) => i * 32.0f + j }
+    // stencil function: nbh:[3][3] -> [1]
+    val f = toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join()
+
+    def lambda(f: Lambda) = {
+      fun(
+        ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")),
+        input => f $ input
+      )
+    }
+
+    // use shorthand notation
+    val P = Pad(l,r,b)
+    val T = Transpose()
+    val T_w = TransposeW()
+    val J = Join()
+    val S_ns = Slide(n,s)
+    val S_uv = Slide(u,v)
+    def *(f: Lambda) = Map(f)
+    def **(f: Lambda) = Map(Map(f))
+    def ***(f: Lambda) = Map(Map(Map((f))))
+
+    val gold = MapGlb(1)(MapGlb(0)(f)) o                  // (C) apply stencil function
+      Map(Transpose()) o Slide(n,s) o Map(Slide(n,s)) o   // (B) 2d neighborhood creation
+        Pad(l,r,b) o Map(Pad(l,r,b))                      // (A) 2d padding
+
+    // same as gold but short
+    val goldShort = MapGlb(1)(MapGlb(0)(f)) o             // (C)
+      *(T) o S_ns o *(S_ns) o                             // (B)
+        P o *(P)                                          // (A)
+
+    // introduce 2d tiles
+    val f1 = MapGlb(1)(MapGlb(0)(f)) o                                            // (C)
+      *(J) o J o *(T) o ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o   // (B) (tiling inclusive)
+        P o *(P)                                                                  // (A)
+
+    // todo proof rewrite from f1 to f2/f3
+
+    // move maps forward to exploit more levels of parallelism
+    // what is untile doing??
+    val f2 = /* *(J) o J o *(T) o */ Untile() o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)))) o // (C) using workgroups
+      ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o                                   // (B)
+        P o *(P)                                                                                // (A)
+
+    // using TransposeW instead of Transpose after stencil computation does the job
+    val f3 = *(J) o J o *(T_w) o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)))) o  // (C)
+      ***(T) o **(S_ns) o ***(S_ns) o         // (%)                              // (B) Create neighborhoods in tiles
+        *(T) o S_uv o *(S_uv) o                                                   // (B) Create tiles
+          P o *(P)                                                                // (A)
+
+    // fuse the expressions (%) from above with the MapWrg's
+    val f4 = *(J) o J o *(T_w) o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)) o  // (C)
+      *(T) o S_ns o *(S_ns))) o                                                 // (B) Create neighborhoods in tiles
+        *(T) o S_uv o *(S_uv) o                                                 // (B) Create tiles
+          P o *(P)                                                              // (A)
+
+    // load tiles to local memory
+    val f5 = *(J) o J o *(T_w) o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)) o // (C)
+      *(T) o S_ns o *(S_ns) o                 // Slide2D n s                   // (B.3) Create neighborhoods in tiles
+        toLocal(MapLcl(1)(MapLcl(0)(id))))) o // whole line = id               // (B.2) Load tiles to local memory
+        *(T) o S_uv o *(S_uv) o               // Slide2D u v                   // (B.1) Create tiles
+          P o *(P)                                                             // (A)
+
+    // try to replace T_w with T by moving it in front of computation
+    // also choose J o **J instead of *J o J
+    val f6 = J o **(J) o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)) o *(T) o  // (C)
+      *(T) o S_ns o *(S_ns) o                 // Slide2D n s                   // (B.3)
+        toLocal(MapLcl(1)(MapLcl(0)(id))))) o // whole line = id               // (B.2)
+        *(T) o S_uv o *(S_uv) o               // Slide2D u v                   // (B.1)
+          P o *(P)                                                             // (A)
+
+    val (outGold: Array[Float], runtime) = Execute(1,1,32,32,(false,false))(lambda(gold), input)
+    val (outGoldShort: Array[Float], runtimeShort) = Execute(1,1,32,32,(false,false))(lambda(goldShort), input)
+    val (outF1: Array[Float], runtime1) = Execute(1,1,32,32,(false,false))(lambda(f1), input)
+    val (outF2: Array[Float], runtime2) = Execute(1,1,32,32,(false,false))(lambda(f2), input)
+    val (outF3: Array[Float], runtime3) = Execute(1,1,32,32,(false,false))(lambda(f3), input)
+    val (outF4: Array[Float], runtime4) = Execute(1,1,32,32,(false,false))(lambda(f4), input)
+    val (outF5: Array[Float], runtime5) = Execute(1,1,32,32,(false,false))(lambda(f5), input)
+    val (outF6: Array[Float], runtime6) = Execute(1,1,32,32,(false,false))(lambda(f6), input)
+
+    assertArrayEquals(outGold, outGoldShort, 0.1f)
+    assertArrayEquals(outGold, outF1, 0.1f)
+    assertArrayEquals(outGold, outF2, 0.1f)
+    assertArrayEquals(outGold, outF4, 0.1f)
+    assertArrayEquals(outGold, outF5, 0.1f)
+    //assertArrayEquals(outGold, outF6, 0.1f)
+  }
 }
