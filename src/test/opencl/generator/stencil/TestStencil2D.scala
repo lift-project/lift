@@ -375,4 +375,142 @@ class TestStencil2D extends TestStencil {
     */
   }
 
+  @Test
+  def stencil2DTilingRewriteIdentities(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val n = 3
+    val s = 1
+    val u = 6
+    val v = 4
+
+    // use these values to take powers of two as valid inputs for slide (pad is not used here)
+    val input = Array.tabulate(34, 34) { (i, j) => i * 34.0f + j }
+
+    // use abbr. notation because of long expressions
+    // *=map (as in BMF), J=join, T=transpose, S_ab = slide a b
+    // (0): *T o S_ns o *S_uv
+    val gold = Map(Transpose()) o Slide(n,s) o Map(Slide(n,s))
+
+    // 2D tiling
+    // J o J o *T o **Slide2d_ns o Slide2d_uv
+    // val desired = Map(Join()) o Join() o Map(Transpose()) o Map(Map(Slide2D(n,s))) o Slide2D(u,v)
+    //
+    // = *J o J o *T o ***T o **S_ns o ***S_ns o *T o S_uv o *S_uv
+    val desired = Map(Join()) o Join() o Map(Transpose()) o Map(Map(Map(Transpose()))) o Map(Map(Slide(n,s))) o Map(Map(Map(Slide(n,s)))) o
+      Map(Transpose()) o Slide(n,s) o Map(Slide(n,s))
+
+    // (1): *T o J o *S_ns o S_uv o *S_ns
+    val f1 = Map(Transpose()) o Join() o Map(Slide(n,s)) o Slide(u,v) o Map(Slide(n,s))
+
+    // (2): J o **T o *S_ns o S_uv o *S_ns
+    val f2 = Join() o Map(Map(Transpose())) o Map(Slide(n,s)) o Slide(u,v) o Map(Slide(n,s))
+
+    // (3): tile first S_ns -> does not lead to anything yet. see (6) for other try
+    // J o **T o *(J o *S_ns o S_uv) o S_uv o *S_ns
+    val f3 = Join() o Map(Map(Transpose())) o Map(Join() o Map(Slide(n,s)) o
+      Slide(u,v)) o Slide(u,v) o Map(Slide(n,s))
+
+    // (4): J o **T o *J o **S_ns o *S_uv o S_uv o *S_ns
+    val f4 = Join() o Map(Map(Transpose())) o Map(Join()) o Map(Map(Slide(n,s))) o
+      Map(Slide(u,v)) o Slide(u,v) o Map(Slide(n,s))
+
+    // (5): J o *J o ***T o **S_ns o *S_uv o S_uv o *S_ns
+    val f5 = Join() o Map(Join()) o Map(Map(Map(Transpose()))) o Map(Map(Slide(n,s))) o
+      Map(Slide(u,v)) o Slide(u,v) o Map(Slide(n,s))
+
+
+    // (6): Try tiling other S_ns from (2)
+    // J o **T o *S_ns o S_uv o *(J o *S_ns o S_uv)
+    val f6 = Join() o Map(Map(Transpose())) o Map(Slide(n,s)) o Slide(u,v) o Map(Join() o Map(Slide(n,s)) o Slide(u,v))
+
+    // (7): J o **T o *S_ns o S_uv o *J o **S_ns o *S_uv
+    val f7 = Join() o Map(Map(Transpose())) o Map(Slide(n,s)) o Slide(u,v) o Map(Join()) o
+      Map(Map(Slide(n,s))) o Map(Slide(u,v))
+
+    // (8): J o **T o *S_ns o **J o S_uv o **S_ns o *S_uv
+    val f8 = Join() o Map(Map(Transpose())) o Map(Slide(n,s)) o Map(Map(Join())) o
+      Slide(u,v) o Map(Map(Slide(n,s))) o Map(Slide(u,v))
+
+    // (9): J o **T o ***J o *S_ns o S_uv o **S_ns o *S_uv
+    val f9 = Join() o Map(Map(Transpose())) o Map(Map(Map(Join()))) o Map(Slide(n,s)) o Slide(u,v) o
+      Map(Map(Slide(n,s))) o Map(Slide(u,v))
+
+    // (10): J o **T o ***J o *S_ns o ***S_ns o S_uv o *S_uv
+    val f10 = Join() o Map(Map(Transpose())) o Map(Map(Map(Join()))) o Map(Slide(n,s)) o
+      Map(Map(Map(Slide(n,s)))) o Slide(u,v) o Map(Slide(u,v))
+
+    // (11): J o **T o ***J o *S_ns o ***S_ns o *(T o T) o S_uv o *S_uv
+    val f11 = Join() o Map(Map(Transpose())) o Map(Map(Map(Join()))) o Map(Slide(n,s)) o
+      Map(Map(Map(Slide(n,s)))) o Map(Transpose() o Transpose()) o Slide(u,v) o Map(Slide(u,v))
+
+    // (12): J o **T o ***J o *S_ns o ***S_ns o *T o *T o S_uv o *S_uv
+    val f12 = Join() o Map(Map(Transpose())) o Map(Map(Map(Join()))) o Map(Slide(n,s)) o
+      Map(Map(Map(Slide(n,s)))) o Map(Transpose()) o Map(Transpose()) o Slide(u,v) o Map(Slide(u,v))
+
+    // (13): J o **T o ***J o *S_ns o *T o ***S_ns o *T o S_uv o *S_uv
+    val f13 = Join() o Map(Map(Transpose())) o Map(Map(Map(Join()))) o Map(Slide(n,s)) o
+      Map(Transpose()) o Map(Map(Map(Slide(n,s)))) o Map(Transpose()) o Slide(u,v) o Map(Slide(u,v))
+
+    // (14): J o **T o ***J o **T o *T o **S_ns_ o ***S_ns o *T o S_uv o *S_uv
+    val f14 = Join() o Map(Map(Transpose())) o Map(Map(Map(Join()))) o Map(Map(Transpose())) o
+      Map(Transpose()) o Map(Map(Slide(n,s))) o Map(Map(Map(Slide(n,s)))) o Map(Transpose()) o
+      Slide(u,v) o Map(Slide(u,v))
+
+    // (15): J o **J o ***T o **T o **T o *T o **S_ns o ***S_ns o *T o S_uv o *S_uv
+    val f15 = Join() o Map(Map(Join())) o Map(Map(Map(Transpose()))) o
+      Map(Map(Transpose())) o Map(Map(Transpose())) o // they cancel out
+      Map(Transpose()) o Map(Map(Slide(n,s))) o Map(Map(Map(Slide(n,s)))) o Map(Transpose()) o
+      Slide(u,v) o Map(Slide(u,v))
+
+    // (16): J o **J o ***T o *T o **S_ns o ***S_ns o *T o S_uv o *S_uv
+    val f16 = Join() o Map(Map(Join())) o Map(Map(Map(Transpose()))) o
+      Map(Transpose()) o Map(Map(Slide(n,s))) o Map(Map(Map(Slide(n,s)))) o Map(Transpose()) o
+      Slide(u,v) o Map(Slide(u,v))
+
+    def lambda(f: Lambda): Lambda1 = fun(
+      ArrayType(ArrayType(Float, M), N),
+      input =>
+        MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(id)))) o f $ input
+    )
+
+    val (outGold: Array[Float], runtime) = Execute(1,1,32,32,(false,false))(lambda(gold), input)
+    val (outDesired: Array[Float], runtime0) = Execute(1,1,32,32,(false,false))(lambda(desired), input)
+    val (outF1: Array[Float], runtime1) = Execute(1,1,32,32,(false,false))(lambda(f1), input)
+    val (outF2: Array[Float], runtime2) = Execute(1,1,32,32,(false,false))(lambda(f2), input)
+    val (outF3: Array[Float], runtime3) = Execute(1,1,32,32,(false,false))(lambda(f3), input)
+    val (outF4: Array[Float], runtime4) = Execute(1,1,32,32,(false,false))(lambda(f4), input)
+    val (outF5: Array[Float], runtime5) = Execute(1,1,32,32,(false,false))(lambda(f5), input)
+    val (outF6: Array[Float], runtime6) = Execute(1,1,32,32,(false,false))(lambda(f6), input)
+    val (outF7: Array[Float], runtime7) = Execute(1,1,32,32,(false,false))(lambda(f7), input)
+    val (outF8: Array[Float], runtime8) = Execute(1,1,32,32,(false,false))(lambda(f8), input)
+    val (outF9: Array[Float], runtime9) = Execute(1,1,32,32,(false,false))(lambda(f9), input)
+    val (outF10: Array[Float], runtime10) = Execute(1,1,32,32,(false,false))(lambda(f10), input)
+    val (outF11: Array[Float], runtime11) = Execute(1,1,32,32,(false,false))(lambda(f11), input)
+    val (outF12: Array[Float], runtime12) = Execute(1,1,32,32,(false,false))(lambda(f12), input)
+    val (outF13: Array[Float], runtime13) = Execute(1,1,32,32,(false,false))(lambda(f13), input)
+    val (outF14: Array[Float], runtime14) = Execute(1,1,32,32,(false,false))(lambda(f14), input)
+    val (outF15: Array[Float], runtime15) = Execute(1,1,32,32,(false,false))(lambda(f15), input)
+    val (outF16: Array[Float], runtime16) = Execute(1,1,32,32,(false,false))(lambda(f16), input)
+
+    assertArrayEquals(outGold, outDesired, 0.1f)
+    assertArrayEquals(outGold, outF1, 0.1f)
+    assertArrayEquals(outGold, outF2, 0.1f)
+    assertArrayEquals(outGold, outF3, 0.1f)
+    assertArrayEquals(outGold, outF4, 0.1f)
+    assertArrayEquals(outGold, outF5, 0.1f)
+    assertArrayEquals(outGold, outF6, 0.1f)
+    assertArrayEquals(outGold, outF7, 0.1f)
+    assertArrayEquals(outGold, outF8, 0.1f)
+    assertArrayEquals(outGold, outF9, 0.1f)
+    assertArrayEquals(outGold, outF10, 0.1f)
+    assertArrayEquals(outGold, outF11, 0.1f)
+    assertArrayEquals(outGold, outF12, 0.1f)
+    assertArrayEquals(outGold, outF13, 0.1f)
+    assertArrayEquals(outGold, outF14, 0.1f)
+    assertArrayEquals(outGold, outF15, 0.1f)
+    assertArrayEquals(outGold, outF16, 0.1f)
+  }
+
 }
