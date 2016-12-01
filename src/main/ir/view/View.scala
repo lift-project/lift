@@ -141,7 +141,7 @@ abstract class View(val t: Type = UndefType) {
     t match {
       case ArrayType(VectorType(st, n), len) =>
         ViewAsScalar(this, n, ArrayType(st, len * n))
-      case st: ScalarType => this
+      case _: ScalarType => this
       case _ =>
         throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
     }
@@ -429,7 +429,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
                          arrayAccessStack: List[(ArithExpr, ArithExpr)], // id, dimension size
                          tupleAccessStack: List[Int]): ArithExpr = {
     sv match {
-      case mem: ViewMem =>
+      case _: ViewMem =>
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => x + y)
 
@@ -523,7 +523,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val stack2 = stack1.tail
 
         ag.t match {
-          case ArrayType(t, len) =>
+          case ArrayType(_, _) =>
             val newIdx = outerId._1 * ag.slide.step + innerId._1
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
