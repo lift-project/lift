@@ -27,5 +27,8 @@ function build() {
   (cd lib/Executor/build &&  make -j 4)
 }
 
+echo "Configure Executor"
 configure
+
+echo "Build executor"
 build
