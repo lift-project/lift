@@ -1,6 +1,6 @@
 # How to Contribute
 
-Although Lift is a primarily research focused project, treating it as the complex software project is is, and therefore maintaining a number of software development practices is in all our interests. With these practices, we aim to interrupt fast iteration of design and code as little as possible, while at the same time maintain sufficient stability (of APIs etc) to allow other users to develop features independently. 
+Although Lift is a primarily research focused project, treating it as the complex software project it is, and therefore maintaining a number of software development practices is in all our interests. With these practices, we aim to interrupt fast iteration of design and code as little as possible, while at the same time maintain sufficient stability (of APIs etc) to allow other users to develop features independently. 
 
 This document describes our core guidelines for working with this project, how new features and changes should be developed, and added to the core codebase.
 
