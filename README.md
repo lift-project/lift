@@ -6,24 +6,22 @@
 3. Launch IntelliJ. On the Welcome Screen select "Configure" and install the "Scala" Plugin form the Plugin Repository. After the installation restart IntelliJ.
 4. On the IntelliJ Welcome Screen select "Open Project" and select the "build.sbt" file in the "lift" folder you just checked out.
 
-To be able to execute computations in OpenCL you need to install the SkelCL library, which is embedded as a submodule.
+To be able to execute computations in OpenCL you need to install the Executor library.
 
-The script `skelcl.sh` builds SkelCL. The script is also called by sbt when running `sbt compile`
+The script `executor.sh` builds the executor. The script is also called by sbt when running `sbt compile`
 ```
-./skelcl.sh
+./executor.sh
 ```
 
-You find more instructions to build &install SkelCL [here](https://github.com/skelcl/skelcl/wiki) if you want to do it manually.
-
-Finally add the SkelCL build directory to the Java library path:
+Finally add the Executor build directory to the Java library path:
 
 * In IntelliJ select "Run -> Edit Configurations ..."
 
 * On the left side select "Defaults -> JUnit"
 
-* On the right side add to the "VM options": "-Djava.library.path=/path-to-the-skelcl-folder/build/executor" (with the proper path from your system)
+* On the right side add to the "VM options": "-Djava.library.path=$LIFT_ROOT/lib/Executor/build/" (with the proper path from your system)
 
-Alternatively, you can add the SkelCL build directory to your LD_LIBRARY_PATH. That will also make it possible to run tests and benchmarks from the command line using "sbt test" and scripts in the "scripts" folder, respectively.
+Alternatively, you can add the Executor build directory to your LD_LIBRARY_PATH. That will also make it possible to run tests and benchmarks from the command line using "sbt test" and scripts in the "scripts" folder, respectively.
 
 ### Documentation ###
 
