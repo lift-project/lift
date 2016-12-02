@@ -37,7 +37,7 @@ class MapTree{
           case lambda:Lambda =>
             build(parentNode,lambda.body,depth)
 
-          case map:ir.ast.Map =>
+          case map:Map if map.f.body.isConcrete =>
             val currNode = new MapTreeNode
             currNode.Depth = depth
             if(MaxDepth < depth)
