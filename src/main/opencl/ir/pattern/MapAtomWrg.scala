@@ -1,6 +1,6 @@
 package opencl.ir.pattern
 
-import apart.arithmetic.{PosVar, Var}
+import lift.arithmetic.{PosVar, Var}
 import ir.ast._
 import ir._
 

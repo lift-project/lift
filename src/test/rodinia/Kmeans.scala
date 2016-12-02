@@ -1,6 +1,6 @@
 package rodinia
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import opencl.executor._

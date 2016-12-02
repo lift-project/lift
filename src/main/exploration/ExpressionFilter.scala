@@ -1,7 +1,7 @@
 package exploration
 
 import analysis.MemoryAmounts
-import apart.arithmetic.Cst
+import lift.arithmetic.Cst
 import com.typesafe.scalalogging.Logger
 import ir.ast._
 import rewriting.InferNDRange

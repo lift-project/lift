@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{Predicate, ArithExpr, Var}
+import lift.arithmetic.{Predicate, ArithExpr, Var}
 import ir.{Type, TupleType, VectorType}
 import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
 

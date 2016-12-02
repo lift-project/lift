@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
 import opencl.ir._

@@ -1,4 +1,4 @@
-name := "Apart"
+name := "Lift"
 
 version := "1.0"
 

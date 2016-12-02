@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic._
+import lift.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.interpreter.Interpreter._

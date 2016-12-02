@@ -1,7 +1,7 @@
 package ir
 
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir.ast.{Value, Zip, fun}
 import opencl.generator.IllegalKernel
 import opencl.ir._

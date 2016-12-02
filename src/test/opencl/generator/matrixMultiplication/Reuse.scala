@@ -1,6 +1,6 @@
 package opencl.generator.matrixMultiplication
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._

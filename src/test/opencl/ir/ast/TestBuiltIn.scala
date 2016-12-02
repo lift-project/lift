@@ -1,6 +1,6 @@
 package opencl.ir.ast
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast.{\, asVector}
 import opencl.executor.{Execute, Executor}
