@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.{?, ArithExpr}
+import lift.arithmetic.{?, ArithExpr}
 import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._

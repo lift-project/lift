@@ -1,6 +1,6 @@
 package opencl.ir
 
-import apart.arithmetic._
+import lift.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.ast._

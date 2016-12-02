@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import apart.arithmetic.Cst
+import lift.arithmetic.Cst
 import ir.{ArrayType, Type, TypeException, UndefType}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 

@@ -1,6 +1,6 @@
 package opencl.ir.pattern
 
-import apart.arithmetic.PosVar
+import lift.arithmetic.PosVar
 import ir.ast._
 
 case class MapSeq(override val f: Lambda1) extends AbstractMap(f, "MapSeq",

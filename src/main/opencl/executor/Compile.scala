@@ -1,9 +1,9 @@
 package opencl.executor
 
-import apart.arithmetic.{?, ArithExpr}
 import ir.{TypeChecker, UnallocatedMemory}
 import ir.ast.{Expr, IRNode, Lambda}
 import ir.view.{AccessInfo, NoView}
+import lift.arithmetic.{?, ArithExpr}
 import opencl.generator.{OpenCLGenerator, Verbose}
 import opencl.ir.UndefAddressSpace
 

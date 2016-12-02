@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic._
+import lift.arithmetic._
 import rewriting.utils.Utils
 import ir.ArrayType
 import ir.ast._

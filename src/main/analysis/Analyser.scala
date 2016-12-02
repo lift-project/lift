@@ -1,8 +1,8 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic.ArithExpr.{contains, substitute}
-import apart.arithmetic._
+import lift.arithmetic.ArithExpr.{contains, substitute}
+import lift.arithmetic._
 import ir._
 import ir.ast.{AbstractMap, Lambda}
 import opencl.generator.OpenCLGenerator.NDRange

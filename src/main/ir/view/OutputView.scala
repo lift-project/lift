@@ -1,6 +1,6 @@
 package ir.view
 
-import apart.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
@@ -51,13 +51,13 @@ object OutputView {
       case t: Transpose => buildViewTranspose(t, call, writeView)
       case asVector(n) => buildViewAsVector(n, writeView)
       case _: asScalar => buildViewAsScalar(call, writeView)
-      case h: Head => buildViewHead(call, writeView)
-      case t: Tail => buildViewTail(call, writeView)
+      case _: Head => buildViewHead(call, writeView)
+      case _: Tail => buildViewTail(call, writeView)
       case _: Zip => buildViewZip(call, writeView)
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
-      case group: Slide =>
+      case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
       case _ => writeView
     }
@@ -90,9 +90,16 @@ object OutputView {
 
             visitAndBuildViews(arg, view)
         }
+      case _: UserFun | _: VectorizeUserFun if result.isInstanceOf[ViewTuple] =>
+
+        val subviews = result.asInstanceOf[ViewTuple].ivs
+        (call.args, subviews).zipped.map((a,v) => visitAndBuildViews(a, v))
+        result
+
       case _ =>
-          val res = call.args.map(visitAndBuildViews(_, result))
-         ViewTuple(res, call.argsType)
+
+        val res = call.args.map(visitAndBuildViews(_, result))
+        ViewTuple(res, call.argsType)
     }
   }
 
@@ -159,9 +166,18 @@ object OutputView {
       case getCall@FunCall(Get(i), param: Param) =>
         buildViewGet(i, param, getCall)
       case _ =>
+
     })
 
-    View.initialiseNewView(call.t, call.outputDepth, "")
+    val newViews = call.args.map(a => {
+      val depth = getAccessDepth(a.accessInf, a.mem)
+      View.initialiseNewView(a.t, depth)
+    })
+
+    if (newViews.length <= 1)
+      newViews.head
+    else
+      ViewTuple(newViews, call.argsType)
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {
@@ -173,14 +189,14 @@ object OutputView {
   private def buildViewMap(m: AbstractMap, call: FunCall, writeView: View): View = {
     // traverse into call.f
     visitAndBuildViews(m.f.body, writeView.access(m.loopVar))
-    new ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
+    ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
   }
 
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
     // traverse into call.f
     visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
-    new ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
+    ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
   private def buildViewSearch(s: AbstractSearch,
@@ -233,7 +249,7 @@ object OutputView {
 
   private def buildViewTranspose(t: Transpose, call: FunCall, writeView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(typ, m), n) =>
+      case ArrayType(ArrayType(_, m), n) =>
         writeView.
           join(m).
           split(n)

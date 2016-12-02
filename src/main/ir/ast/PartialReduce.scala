@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.{PosVar, Var}
+import lift.arithmetic.{PosVar, Var}
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 

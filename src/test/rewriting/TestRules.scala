@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.{RangeMul, SizeVar, Var}
+import lift.arithmetic.{RangeMul, SizeVar, Var}
 import ir.ast._
 import ir.{ArrayType, Type, TypeChecker, VectorType}
 import opencl.executor.{Execute, Executor}

@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import benchmarks.NBody
 import exploration.{ExpressionFilter, ParameterRewrite}
 import ir._

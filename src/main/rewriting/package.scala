@@ -1,4 +1,4 @@
-import apart.arithmetic._
+import lift.arithmetic._
 import rewriting.Rules._
 
 
