@@ -1,7 +1,7 @@
 package benchmarks
 
-import apart.arithmetic.Var
-import apart.arithmetic.SizeVar
+import lift.arithmetic.Var
+import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._

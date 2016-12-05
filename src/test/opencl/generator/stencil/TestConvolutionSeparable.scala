@@ -1,6 +1,6 @@
 package opencl.generator.stencil
 
-import apart.arithmetic.{Cst, StartFromRange, Var}
+import lift.arithmetic.{Cst, StartFromRange, Var}
 import ir._
 import ir.ast._
 import opencl.executor._

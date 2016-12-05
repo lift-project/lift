@@ -1,6 +1,6 @@
 package opencl.generator.matrixVector
 
-import apart.arithmetic.{ArithExpr, Log, SizeVar}
+import lift.arithmetic.{ArithExpr, Log, SizeVar}
 import benchmarks.MatrixVector
 import ir._
 import ir.ast._

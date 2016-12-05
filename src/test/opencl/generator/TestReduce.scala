@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import benchmarks.SumAbsoluteValues
 import ir._
 import ir.ast._

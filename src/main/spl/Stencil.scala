@@ -1,6 +1,6 @@
 package spl
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import ir.ast.{Lambda, Slide$, Pad}
 
 /*

@@ -1,6 +1,6 @@
 package analysis
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir._
 import ir.ast.{Map => _, _}
 import opencl.ir._

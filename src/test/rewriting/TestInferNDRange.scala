@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir._
 import ir.ast._
 import opencl.ir._

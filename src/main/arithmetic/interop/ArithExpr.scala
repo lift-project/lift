@@ -1,6 +1,6 @@
 package arithmetic.interop
 
-import apart.arithmetic.{Cst, Var, Range}
+import lift.arithmetic.{Cst, Var, Range}
 
 object jCst { def create(c: Int) = Cst(c) }
 

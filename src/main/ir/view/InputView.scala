@@ -1,6 +1,6 @@
 package ir.view
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
 
