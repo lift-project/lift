@@ -1,6 +1,6 @@
 package rodinia
 
-import apart.arithmetic.{SizeVar, ArithExpr}
+import lift.arithmetic.{SizeVar, ArithExpr}
 import ir.ast.{UserFun, \, fun}
 import ir.{ArrayType, TupleType}
 import opencl.executor._

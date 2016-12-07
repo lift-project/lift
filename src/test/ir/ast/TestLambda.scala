@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir.{ArrayType, TupleType}
 import opencl.ir._
 import org.junit.Assert._

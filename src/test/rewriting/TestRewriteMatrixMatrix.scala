@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import exploration.HighLevelRewrite
 import ir._
 import ir.ast._

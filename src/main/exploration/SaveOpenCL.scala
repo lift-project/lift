@@ -3,7 +3,7 @@ package exploration
 import java.io.FileWriter
 
 import analysis._
-import apart.arithmetic.{?, ArithExpr, Cst, Var}
+import lift.arithmetic.{?, ArithExpr, Cst, Var}
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import opencl.generator.OpenCLGenerator.NDRange

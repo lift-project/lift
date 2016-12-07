@@ -1,6 +1,6 @@
 package analysis
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir.ArrayType
 import ir.ast._
 import opencl.generator._

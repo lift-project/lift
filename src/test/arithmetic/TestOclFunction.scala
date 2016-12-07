@@ -1,6 +1,6 @@
 package arithmetic
 
-import apart.arithmetic._
+import lift.arithmetic._
 import opencl.generator._
 import org.junit.Assert._
 import org.junit.{Ignore, Test}

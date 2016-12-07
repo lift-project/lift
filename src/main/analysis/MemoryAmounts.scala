@@ -1,7 +1,7 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic.{?, Cst}
+import lift.arithmetic.{?, Cst}
 import ir.ast.{Expr, Lambda}
 import ir.{Memory, UnallocatedMemory}
 import opencl.generator.OpenCLGenerator.NDRange

@@ -3,7 +3,7 @@ package rewriting.utils
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir.ast._
 import ir.{ArrayType, Type, TypeException}
 import opencl.ir.ast.OpenCLBuiltInFun

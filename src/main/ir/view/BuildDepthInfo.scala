@@ -1,9 +1,9 @@
 package ir.view
 
-import apart.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.OpenCLMemory
+import opencl.ir.{LocalMemory, OpenCLMemory, PrivateMemory}
 import opencl.ir.pattern._
 
 /**
@@ -73,7 +73,10 @@ private class BuildDepthInfo() {
   private def visitAndBuildDepthInfo(expr: Expr): AccessInfo = {
     val result = expr match {
       case call: FunCall => buildDepthInfoFunCall(call)
-      case p: Param => p.accessInf
+      case p: Param =>
+        p.inputDepth = getAccessInf(p.addressSpace.containsAddressSpace(PrivateMemory),
+          p.addressSpace.containsAddressSpace(LocalMemory))
+        p.accessInf
     }
 
     expr.accessInf = result
@@ -81,30 +84,27 @@ private class BuildDepthInfo() {
   }
 
   private def buildDepthInfoFunCall(call: FunCall): AccessInfo = {
+
     val argInf = buildDepthForArgs(call)
 
-    val result = call match {
-      case call: FunCall =>
+    val result = call.f match {
+      case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
+      case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
+      case _ =>
+
+        val (readsLocal, readsPrivate) = readsLocalPrivate(call)
+        val (writesLocal, writesPrivate) = writesLocalPrivate(call)
+
+        setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
+
         call.f match {
-          case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
-          case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
-          case _ =>
-
-            val (readsLocal, readsPrivate) = readsLocalPrivate(call)
-            val (writesLocal, writesPrivate) = writesLocalPrivate(call)
-
-            setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
-
-            call.f match {
-              case l: Lambda => buildDepthInfoLambda(l, call, argInf)
-              case fp: FPattern => buildDepthInfoLambda(fp.f, call, argInf)
-              case Get(n) => if (argInf.l.nonEmpty) argInf.l(n) else argInf
-              case _: UserFun =>
-                AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
-              case _ => argInf
-            }
+          case l: Lambda => buildDepthInfoLambda(l, call, argInf)
+          case fp: FPattern => buildDepthInfoLambda(fp.f, call, argInf)
+          case Get(n) => if (argInf.l.nonEmpty) argInf.l(n) else argInf
+          case _: UserFun =>
+            AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+          case _ => argInf
         }
-      case _ => argInf
     }
 
     result

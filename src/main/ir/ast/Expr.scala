@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 import ir.view.{AccessInfo, NoView, View}
@@ -129,6 +129,8 @@ abstract class Expr extends IRNode {
    * @return `f.apply(this)`
    */
   def <<:(f: FunDecl) = f.apply(this)
+
+  def at(i: ArithExpr) = ArrayAccess(i) $ this
 
   def eval(valueMap: ValueMap): Any
 }

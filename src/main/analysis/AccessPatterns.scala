@@ -1,8 +1,8 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic.ArithExpr._
-import apart.arithmetic._
+import lift.arithmetic.ArithExpr._
+import lift.arithmetic._
 import ir.Type
 import ir.ast.{Map => _, _}
 import ir.view._

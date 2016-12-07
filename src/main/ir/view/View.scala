@@ -1,6 +1,6 @@
 package ir.view
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir._
 import ir.ast._
 import scala.collection.immutable
@@ -312,7 +312,7 @@ private[view] case class ViewFilter(iv: View, ids: View, override val t: Type) e
  * @param itVar Iteration variable used for the current dimension
  * @param t Type of the view
  */
-private[view] case class ViewMap(iv: View, itVar: Var, override val t: Type) extends View(t)
+private[view] case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
 
 /**
  * A view for accessing a tuple component.
@@ -533,7 +533,13 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       case pad: ViewPad =>
         val idx = arrayAccessStack.head
         val stack = arrayAccessStack.tail
-        val newIdx = pad.fct(idx._1 - pad.left, pad.iv.t.asInstanceOf[ArrayType].len)
+        val currentIdx = idx._1 - pad.left
+        val length = pad.iv.t.asInstanceOf[ArrayType].len
+        val newIdx = if(ArithExpr.mightBeNegative(currentIdx) || ArithExpr.isSmaller(length -1, currentIdx.max).getOrElse(true))
+          pad.fct(currentIdx, length)
+        else
+          currentIdx
+
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView (pad.iv, newAAS, tupleAccessStack)

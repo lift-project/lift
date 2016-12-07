@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{?, ArithExpr, Cst, SizeVar}
+import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._

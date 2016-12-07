@@ -1,6 +1,6 @@
 package opencl.ir
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
 import opencl.ir.OpenCLMemory._
@@ -106,7 +106,7 @@ object OpenCLMemoryAllocator {
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) |
-           Head() | Tail() | Gather(_) | Scatter(_) =>
+           Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) =>
         inMem
     }
   }

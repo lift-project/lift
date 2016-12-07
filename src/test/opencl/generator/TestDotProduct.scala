@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import benchmarks.DotProduct
 import opencl.executor._
 import org.junit.Assert._

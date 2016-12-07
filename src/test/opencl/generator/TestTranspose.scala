@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
@@ -82,11 +82,11 @@ class TestTranspose {
     val input = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
     val f = fun(
       ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
-      input => MapGlb(1)(MapGlb(0)(id)) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) $ input
+      input => MapSeq(MapSeq(id)) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) $ input
     )
 
-    val (output: Array[Float], _) = Execute(16, 16, 1024, 1024, (false, false))(f, input)
-    val gold = input(0) ++ input ++ input(input.length-1)
+    val (output: Array[Float], _) = Execute(32, 32)(f, input)
+    val gold = input(0) ++ input ++ input(input.size -1)
   }
 
   @Test def idTranspose(): Unit = {
