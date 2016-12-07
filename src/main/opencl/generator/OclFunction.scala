@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic._
+import lift.arithmetic._
 
 class OclFunction private (name: String, val param: Int, range: Range)
   extends ArithExprFunction(name, range) {

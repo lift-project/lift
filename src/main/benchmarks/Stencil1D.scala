@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.Var
+import lift.arithmetic.Var
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._

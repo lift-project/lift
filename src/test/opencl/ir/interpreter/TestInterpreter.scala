@@ -1,6 +1,6 @@
 package opencl.ir.interpreter
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir._
 import ir.ast.{UserFun, fun, _}
 import ir.interpreter.Interpreter

@@ -1,6 +1,6 @@
 package opencl.executor
 
-import apart.arithmetic.{ArithExpr, Cst, Var}
+import lift.arithmetic.{ArithExpr, Cst, Var}
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange

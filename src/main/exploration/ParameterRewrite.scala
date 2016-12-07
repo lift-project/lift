@@ -4,7 +4,7 @@ import java.io.{File, IOException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import ir.{Type, TypeChecker}

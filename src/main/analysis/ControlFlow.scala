@@ -1,7 +1,7 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic._
+import lift.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange

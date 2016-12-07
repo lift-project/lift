@@ -1,6 +1,6 @@
 package ir
 
-import apart.arithmetic._
+import lift.arithmetic._
 import opencl.ir._
 import org.junit.Test
 

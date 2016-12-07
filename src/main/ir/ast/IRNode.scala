@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.{ArithExpr, Var}
+import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}

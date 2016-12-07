@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Execute, Executor}

@@ -1,6 +1,6 @@
 package opencl.ir.pattern
 
-import apart.arithmetic.Var
+import lift.arithmetic.Var
 import ir.ast._
 
 case class LSearch(override val f: Lambda) extends AbstractSearch(f, "LSearch") with isGenerable{

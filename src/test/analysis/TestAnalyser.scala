@@ -1,7 +1,7 @@
 package analysis
 
-import apart.arithmetic._
-import apart.arithmetic.ArithExpr.substitute
+import lift.arithmetic._
+import lift.arithmetic.ArithExpr.substitute
 import ir._
 import ir.ast._
 import opencl.ir._

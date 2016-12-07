@@ -1,6 +1,6 @@
 package ir
 
-import apart.arithmetic._
+import lift.arithmetic._
 import arithmetic.TypeVar
 
 import scala.collection.immutable.HashMap

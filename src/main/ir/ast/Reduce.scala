@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.{PosVar, Var}
+import lift.arithmetic.{PosVar, Var}
 
 /**
  * Abstract class for the (full) reduce pattern.

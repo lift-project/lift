@@ -5,7 +5,7 @@ import java.io.FileInputStream
 import java.util.Scanner
 import scala.util.Random
 
-import apart.arithmetic.{ArithExpr, Cst, SizeVar, Lookup}
+import lift.arithmetic.{ArithExpr, Cst, SizeVar, Lookup}
 import ir.ArrayType
 import ir.ast._
 import opencl.executor.{Execute, Executor}
