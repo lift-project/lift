@@ -49,7 +49,7 @@ object Stencil1D{
   val right = 4
   val scalaBoundary = scalaWrap
   val makePositive = UserFun("makePositive", "i", "{ return (i < 0) ? 0 : i;  }", Float, Float)
-  val weights = Array(025f, 0.5f, 0.25f)
+  val weights = Array(0.25f, 0.5f, 0.25f)
   val weightsBig = Array(1,1,1,1,1,1,1,1,1).map(_.toFloat)
 
 

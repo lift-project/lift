@@ -47,6 +47,8 @@ package object ir {
 
   val sqrtIt = UserFun("sqrtIt", "x", "{ return sqrt(x); }", Float, Float)
 
+  val square = UserFun("square", "x", "{ return x*x; }", Float, Float)
+
   val abs = UserFun("abs", "x", "{ return x >= 0 ? x : -x; }", Float, Float)
 
   val neg = UserFun("neg", "x", "{ return -x; }", Float, Float).
@@ -61,6 +63,9 @@ package object ir {
   val multAndSumUp = UserFun("multAndSumUp", Array("acc", "l", "r"),
                              "{ return acc + (l * r); }",
                              Seq(Float, Float, Float), Float)
+
+  val multTuple = UserFun("multTuple", "x", "{return x._0 * x._1;}", TupleType(Float, Float), Float)
+  val addTuple = UserFun("addTuple", "x", "{return x._0 + x._1;}", TupleType(Float, Float), Float)
 
   val addPair = UserFun(
                          "pair",

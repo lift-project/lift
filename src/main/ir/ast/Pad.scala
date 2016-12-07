@@ -10,11 +10,11 @@ case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(t, n) => ArrayType(t, n + left + right)
+        //todo @bastian include comment again, issue with pad2d(a,b, 0,0)
+      case ArrayType(t, n) /*if (left > 0 || right > 0)*/ => ArrayType(t, n + left + right)
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
-
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
@@ -82,11 +82,21 @@ object Pad {
 
 object Pad2D {
   def apply(top: Int, bottom: Int, left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
-    Transpose() o Pad(left, right, boundary) o Transpose() o Pad(top, bottom, boundary)
+    Map(Pad(left, right, boundary)) o Pad(top, bottom, boundary)
+    // other possible implementation using transpose
+    //Transpose() o Pad(left, right, boundary) o Transpose() o Pad(top, bottom, boundary)
   }
 
   // Symmetric 2D padding
   def apply(left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
-    Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary)
+    Map(Pad(left, right, boundary)) o Pad(left, right, boundary)
+    // other possible implementation using transpose
+    //Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary)
+  }
+}
+
+object Pad3D {
+  def apply(x: Int, y: Int, z: Int, b: Pad.BoundaryFun): Lambda = {
+    Map(Map(Pad(x,x,b)) o Pad(y,y,b)) o Pad(z,z,b)
   }
 }
