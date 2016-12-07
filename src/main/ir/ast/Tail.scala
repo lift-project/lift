@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.Cst
+import lift.arithmetic.Cst
 import ir.interpreter.Interpreter.ValueMap
 import ir.{ArrayType, Type, TypeException, UndefType}
 

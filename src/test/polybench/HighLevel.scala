@@ -1,6 +1,6 @@
 package polybench
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import benchmarks.GESUMMV
 import ir.ArrayType
 import ir.ast._

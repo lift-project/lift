@@ -233,8 +233,8 @@ abstract class Benchmark(val name: String,
     val commit = "git rev-parse HEAD".!!.trim
     val branch = "git rev-parse --abbrev-ref HEAD".!!.trim
     val date = "date".!!.trim
-    val dce = System.getenv("APART_DCE") != null
-    val cse = System.getenv("APART_CSE") != null
+    val dce = System.getenv("LIFT_DCE") != null
+    val cse = System.getenv("LIFT_CSE") != null
 
     if (csvFileName.value.isDefined)
       printCSVFile(csvFileName.value.get, kernel, commit, branch, date, dce, cse)

@@ -1,8 +1,8 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import apart.arithmetic.{ArithExpr, Cst}
-import ir.{ArrayType, Type, TypeException, UndefType}
+import lift.arithmetic.{ArithExpr}
+import ir.{ArrayType, Type, TypeException}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
@@ -19,7 +19,7 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) wi
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        //check that the following holds true!
+        //todo check that the following is true!
         //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
         val innerLength = size
         val outerLength = (n - (size - step)) / step
@@ -63,7 +63,7 @@ object Slide2D {
   def apply(size: Int, step: Int): Lambda = {
     Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))
     // other possible implementation
-    //Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
+    // Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
   }
 
   /** Asymmetrical sliding */

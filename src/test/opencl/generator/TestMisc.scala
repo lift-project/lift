@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.{?, ArithExpr, Cst, SizeVar}
+import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._
@@ -211,6 +211,78 @@ class TestMisc {
 
     val (output2: Array[Float], _) = Execute(inputData.length)(f2, inputData)
     assertArrayEquals(gold, output2, 0.0f)
+  }
+
+  @Test
+  def issue76(): Unit = {
+    val f = \(
+      Float,
+      ArrayType(Float, 32),
+      (const, arr) =>
+        MapGlb(\(a => add(const, add(const, a)))) $ arr
+    )
+
+    val input = Array.tabulate(32)(_.toFloat)
+    val const = 2.0f
+
+    val gold = input.map(_ + 2*const)
+
+    val (result: Array[Float], _) = Execute(1,1)(f, const, input)
+
+    assertArrayEquals(gold, result, 0.0f)
+  }
+
+  @Test
+  def issue76_2(): Unit = {
+    val f = \(
+      Float,
+      ArrayType(Float, 32),
+      (const, arr) =>
+        MapGlb(\(a => add(toGlobal(id) $ const, add(const, a)))) $ arr
+    )
+
+    val input = Array.tabulate(32)(_.toFloat)
+    val const = 2.0f
+
+    val gold = input.map(_ + 2*const)
+
+    val (result: Array[Float], _) = Execute(1,1)(f, const, input)
+
+    assertArrayEquals(gold, result, 0.0f)
+  }
+
+  @Test
+  def issue76_3(): Unit = {
+    val f = \(
+      ArrayType(Float, 32),
+      ArrayType(Float, 32),
+      (arr1, arr2) =>
+        MapGlb(\(a => MapSeq(\(b => add(toPrivate(id) $ b, add(a, b)))) $ arr2)) $ arr1
+    )
+
+    val input = Array.tabulate(32)(_.toFloat)
+
+    val gold = input.flatMap(a => input.map(b => a + b + b))
+
+    val (result: Array[Float], _) = Execute(1,1)(f, input, input)
+    assertArrayEquals(gold, result, 0.0f)
+  }
+
+  @Test
+  def issue76_4(): Unit = {
+    val f = \(
+      ArrayType(Float, 32),
+      ArrayType(Float, 32),
+      (arr1, arr2) =>
+        MapGlb(\(a => MapSeq(\(b => add(add(a, b), toPrivate(id) $ b))) $ arr2)) $ arr1
+    )
+
+    val input = Array.tabulate(32)(_.toFloat)
+
+    val gold = input.flatMap(a => input.map(b => a + b + b))
+
+    val (result: Array[Float], _) = Execute(1,1)(f, input, input)
+    assertArrayEquals(gold, result, 0.0f)
   }
 
   @Test def issue22(): Unit = {

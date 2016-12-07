@@ -2,7 +2,7 @@ package ir.hlGenerator
 
 import java.io.PrintWriter
 
-import apart.arithmetic.{ArithExpr, Log, SizeVar}
+import lift.arithmetic.{ArithExpr, Log, SizeVar}
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter

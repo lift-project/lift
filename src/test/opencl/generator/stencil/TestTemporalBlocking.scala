@@ -1,6 +1,6 @@
 package opencl.generator.stencil
 
-import apart.arithmetic.{SizeVar, StartFromRange, Var}
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast._
 import opencl.executor._
@@ -52,7 +52,7 @@ class TestTemporalBlocking {
         //          Slide(n,s) o Pad(l,r,b) o
         //            Slide(n,s) o Pad(l,r,b) $ input
 
-        // temp than spatial
+        // temp before spatial
         //        MapGlb( fun(tile =>
         //          //temporal blocking
         //          Join() o MapSeq(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o

@@ -29,7 +29,6 @@ object TestHarrisCornerDetection {
   */
 class TestHarrisCornerDetection {
 
-
   val sobelX = Array(-1, 0, 1, 2, 0, 2, -1, 0, 1).map(_.toFloat)
   val sobelY = Array(-1, -2, -1, 0, 0, 0, 1, 2, 1).map(_.toFloat)
 
@@ -221,7 +220,8 @@ class TestHarrisCornerDetection {
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
   }
-    /* **********************************************************
+
+   /* **********************************************************
        HALIDE AUTO KERNEL
   ***********************************************************/
   @Ignore //fix
@@ -285,7 +285,8 @@ class TestHarrisCornerDetection {
     // todo implement
     //val gold = Utils.scalaCompute2DStencil(input, 17,1, 17,1, 8,8,8,8, weights, scalaClamp)
   }
-    /* **********************************************************
+
+  /* **********************************************************
        Zipping before or after computation - that is the question
   ***********************************************************/
   @Ignore //fix

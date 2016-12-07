@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.{StartFromRange, Var, Cst}
+import lift.arithmetic.{StartFromRange, Var, Cst}
 import ir._
 import ir.ast.{Pad2D, _}
 import opencl.ir._

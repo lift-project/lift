@@ -1,6 +1,6 @@
 package opencl.ir
 
-import apart.arithmetic.Cst
+import lift.arithmetic.Cst
 import ir._
 
 // TODO: put this in a more generic backend
