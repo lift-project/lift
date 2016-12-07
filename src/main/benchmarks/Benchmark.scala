@@ -20,6 +20,7 @@ abstract class Benchmark(val name: String,
 
   var variant = -1
   var checkResult = false
+  var printResult = false
   var iterations = 10
   var inputs = Seq[Any]()
   var scalaResult = Array.emptyFloatArray
@@ -73,6 +74,9 @@ abstract class Benchmark(val name: String,
 
   val checkResultOpt = parser.flag[Boolean](List("c", "check"),
     "Check the result")
+
+  val printResultOpt = parser.flag[Boolean](List("print"),
+    "Print the result")
 
   val injectLocal = parser.flag[Boolean](List("il", "inject"),
     "Inject the local size into the kernel as a constant, " +
@@ -290,6 +294,9 @@ abstract class Benchmark(val name: String,
         if (checkResult)
           checkResult(output)
 
+        if (printResult)
+          printResult(output)
+
         println("MEDIAN: " + runtime + " ms")
         printResults(runtime)
         if(csvFileName.value.isDefined) printMedianAndBandwidth(runtime, bandwidth(runtime))
@@ -308,6 +315,9 @@ abstract class Benchmark(val name: String,
 
         if (checkResult)
           checkResult(output)
+
+        if (printResult)
+          printResult(output)
 
         println("MEDIAN: " + runtime + " ms")
         printResults(runtime)
@@ -329,6 +339,10 @@ abstract class Benchmark(val name: String,
 
         if (checkResult && i == 0)
           checkResult(output)
+
+        if (printResult)
+          printResult(output)
+
       }
 
       val sorted = runtimes.sorted
@@ -352,13 +366,24 @@ abstract class Benchmark(val name: String,
       var numErrors = 0
 
       for (j <- scalaResult.indices) {
-        if (check(output(j), scalaResult(j)))
+        if (check(output(j), scalaResult(j))) {
           numErrors += 1
+        }
       }
 
       if (numErrors != 0)
         println(s"Output differed in $numErrors positions!")
+      else
+        println("Sequential test passed!")
     }
+  }
+
+  private def printResult(output: Array[Float]): Unit = {
+    val fw = new FileWriter("result.txt")
+      try {
+        fw.write(output.map(_.toInt).mkString("\n"))
+        //fw.write(output.mkString("\n"))
+      } finally fw.close()
   }
 
   protected def bandwidth(time: Double): Double = {
@@ -387,7 +412,9 @@ abstract class Benchmark(val name: String,
       Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
       Verbose(verbose.value.getOrElse(false))
 
+      variant = variantOpt.value.getOrElse(0)
       checkResult = checkResultOpt.value.getOrElse(false)
+      printResult = printResultOpt.value.getOrElse(false)
 
       iterations = iterationsOpt.value.getOrElse(10)
       inputs = generateInputs()
@@ -420,7 +447,6 @@ abstract class Benchmark(val name: String,
         }
 
       } else {
-        variant = variantOpt.value.getOrElse(0)
         runBenchmark()
       }
 

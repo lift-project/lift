@@ -430,8 +430,9 @@ class OpenCLGenerator extends Generator {
         case ua: UnsafeArrayAccess => generateUnsafeArrayAccess(ua, call, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) =>
-        case _ => block += OpenCLAST.Comment("__" + call.toString + "__")
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
+             ArrayAccess(_) =>
+        case _ => (block: Block) += OpenCLAST.Comment("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
       case p: Param =>
@@ -810,8 +811,8 @@ class OpenCLGenerator extends Generator {
       OpenCLMemory.asOpenCLMemory(call.mem), call.t, call.outputView.access(Cst(0)),
       inArrRef)
     nestedBlock += OpenCLAST.Label(finishLabel)
-    block += nestedBlock
-    block += OpenCLAST.Comment("linear_search")
+    (block: Block) += nestedBlock
+    (block: Block) += OpenCLAST.Comment("linear_search")
   }
 
   private def generateUnsafeArrayAccess(ua: UnsafeArrayAccess,
@@ -823,7 +824,7 @@ class OpenCLGenerator extends Generator {
     val loadIndex = generateLoadNode(clIndexMem, index.t, index.view)
 
     val indexVar = Var("index")
-    block += OpenCLAST.VarDecl(indexVar, Int, init=loadIndex)
+    (block: Block) += OpenCLAST.VarDecl(indexVar, Int, init=loadIndex)
 
     val inArr = call.args(0)
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
@@ -833,7 +834,7 @@ class OpenCLGenerator extends Generator {
     val storeToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
                                           call.view.access(0), loadFromArray)
 
-    block += storeToOutput
+    (block: Block) += storeToOutput
   }
 
   private def generateValue(v: Value, block: Block): Unit = {
