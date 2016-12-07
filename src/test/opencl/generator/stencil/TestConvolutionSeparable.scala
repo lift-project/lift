@@ -545,5 +545,4 @@ class TestConvolutionSeparable {
     //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
     //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
   }
-
 }

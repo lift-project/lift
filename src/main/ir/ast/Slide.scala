@@ -19,7 +19,7 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        //check that the following holds true!
+        //todo check that the following is true!
         //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
         val innerLength = size
         val outerLength = (n - (size - step)) / step
@@ -61,9 +61,9 @@ object Slide {
 object Slide2D {
   /** Symmetrical sliding */
   def apply(size: Int, step: Int): Lambda = {
-    //Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))
+    Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))
     // other possible implementation
-    Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
+    // Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
   }
 
   /** Asymmetrical sliding */
