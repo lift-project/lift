@@ -18,7 +18,6 @@ import opencl.executor.Utils
 
 import scala.language.implicitConversions
 
-
 object TestAcousticStencils {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
@@ -80,6 +79,7 @@ class TestAcousticStencils {
 
   val idIF = UserFun("idIF", "x", "{ return (float)x; }", Int, Float)
 
+  val addZero = UserFun("addTuple", "x", "{return x._0;}", TupleType(Float, Float), Float)  // dud helper
 
   /**** Why doesn't this work?? !!!! *****/
   /*
@@ -120,7 +120,7 @@ class TestAcousticStencils {
 
   }
 
-  def createData() ={
+  def createData() = {
 
     val filling = Array.tabulate(size) { i => i + 1 }
     // val filling = Array.fill(size)(1)
@@ -130,6 +130,15 @@ class TestAcousticStencils {
 
     val mat = Array.fill(size)(line.map(_.toFloat))
     toppad ++ mat ++ toppad
+  }
+
+  def createMaskData() = {
+
+    val initMat = Array.tabulate(size,size){ (i,j) => (i+j+1).toFloat }
+    val matMat = createFakePaddingFloat(initMat,size+2,0)
+    val maskArray = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
+    val mask = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
+    mask.map(i => i.map(j => j.map(k => k.toInt-48)))
   }
 
   /* these helper functions do not work, but it would be nice if they did! */
@@ -600,7 +609,7 @@ class TestAcousticStencils {
   def testSimpleOneGridWithBoundaryCheckMask(): Unit =
   {
 
-    val addZero = UserFun("addTuple", "x", "{return x._0;}", TupleType(Float, Float), Float)
+    /* u[cp] = S*( boundary ? constantBorder : constantOriginal) */
 
     val compareData = Array( 15.0f,30.0f,45.0f,60.0f,75.0f,55.0f,
       20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
@@ -612,12 +621,7 @@ class TestAcousticStencils {
     val constantOriginal = 2.0f
     val constantBorder = 5.0f
 
-
-    val initMat = Array.tabulate(size,size){ (i,j) => (i+j+1).toFloat }
-    val matMat = createFakePaddingFloat(initMat,size+2,0)
-    val maskArray = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
-    val mask = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
-    val mask2 = mask.map(i => i.map(j => j.map(k => k.toInt-48)))
+    val mask = createMaskData()
 
     val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
@@ -652,8 +656,8 @@ class TestAcousticStencils {
 
     //    Compile(lambdaNeigh)
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask2, weights)
-    val (output2: Array[Float], runtime2) = Execute(stencilarr.length, stencilarr.length)(lambdaNeighCompare, stencilarr, mask2, weights)
+    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask, weights)
+    val (output2: Array[Float], runtime2) = Execute(stencilarr.length, stencilarr.length)(lambdaNeighCompare, stencilarr, mask, weights)
     if(printOutput) {
       printOriginalAndOutput(stencilarr, output, size)
       print1DArrayAs2DArray(output2, size)
@@ -663,9 +667,91 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
   @Test
-  def testSimplTwoGridsWithBoundaryCheckMask(): Unit = {
+  def testSimpleGridWithTwoBoundaryCheckMask(): Unit =
+  {
+    /* u[cp] = ( boundary ? constantBorder2 : constantOriginal2) + S*( boundary ? constantBorder : constantOriginal) */
+
+    /* Need to find a way to standardise behaviour at border:
+       MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(idIF)
+     */
+
+
+
+    /*
+
+    Should be:
+
+     (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)
+ (0.0)  (6.0)  (12.0)  (18.0)  (24.0)  (30.0)  (22.0)  (0.0)
+ (0.0)  (8.0)  (16.0)  (24.0)  (32.0)  (40.0)  (34.0)  (0.0)
+ (0.0)  (8.0)  (16.0)  (24.0)  (32.0)  (40.0)  (34.0)  (0.0)
+ (0.0)  (8.0)  (16.0)  (24.0)  (32.0)  (40.0)  (34.0)  (0.0)
+ (0.0)  (8.0)  (16.0)  (24.0)  (32.0)  (40.0)  (34.0)  (0.0)
+ (0.0)  (6.0)  (12.0)  (18.0)  (24.0)  (30.0)  (22.0)  (0.0)
+ (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)
+
+     */
+
+    val compareData = Array( 15.0f,30.0f,45.0f,60.0f,75.0f,55.0f,
+      20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
+      20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
+      20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
+      20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
+      15.0f,30.0f,45.0f,60.0f,75.0f,55.0f)
+
+    val constantOriginal = Array(1.0f,2.0f)
+    val constantBorder = Array(2.0f,4.0f)
+
+    val mask = createMaskData()
+
+    /*
+      1) Use borders with Arrays with what works already
+      2) get same value for both
+      3) update to show case above
+     */
+
+    /*val lambdaNeigh = fun(
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(ArrayType(Int, 1),size), size),
+      ArrayType(ArrayType(Float, weights(0).length), weights.length),
+      (mat1, mask1, weights) => {
+        MapGlb((fun((m) => {
+          toGlobal(MapSeq(id) o MapSeq(addTuple) $ Zip( (MapSeq(multTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m,0), weights),
+            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))),
+            (MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1)))))
+
+        }))
+        ) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  Join() $ mask1)
+      })*/
+
+    val lambdaNeighCompare = fun(
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(ArrayType(Int, 1),size), size),
+      ArrayType(ArrayType(Float, weights(0).length), weights.length),
+      (mat1, mask1, weights) => {
+        MapGlb((fun((m) => {
+          toGlobal(MapSeq(id) o MapSeq(addZero)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m,0), weights),
+            MapSeq(idIF) $ Get(m,1)
+          )
+        }))
+        ) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  Join() $ mask1)
+      })
+
+    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask, weights)
+
+    printOriginalAndOutput(stencilarr, output, size)
+
+    //assertArrayEquals(compareData, output, delta)
+
+  }
+
+  @Test
+  def testSimpleTwoGridsWithBoundaryCheckMask(): Unit =
+  {
+
   }
 
   /////////////////// JUNKYARD ///////////////////
