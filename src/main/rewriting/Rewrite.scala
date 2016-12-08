@@ -49,12 +49,12 @@ object Rewrite {
   }
 
   /**
-   * Apply rules one by one until no rules apply anymore
+    * Apply rules one by one until no rules apply anymore
     *
     * @param lambda The lambda where to apply rules
-   * @param rules The rules to apply
-   * @return
-   */
+    * @param rules The rules to apply
+    * @return
+    */
   def applyRulesUntilCannot(lambda: Lambda, rules: Seq[Rule]): Lambda = {
     val newBody = applyRulesUntilCannot(lambda.body, rules)
 
@@ -65,14 +65,14 @@ object Rewrite {
   }
 
   /**
-   * Apply rules one by one until no rules apply anymore
- *
-   * @param expr The expression where to apply rules
-   * @param rules The rules to apply
-   * @return
+    * Apply rules one by one until no rules apply anymore
+    *
+    * @param expr The expression where to apply rules
+    * @param rules The rules to apply
+    * @return
     */
   @scala.annotation.tailrec
-def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
+  def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
     val allRulesAt = listAllPossibleRewritesForRules(expr, rules)
 
     if (allRulesAt.isEmpty) {
