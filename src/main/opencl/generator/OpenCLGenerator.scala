@@ -316,7 +316,7 @@ class OpenCLGenerator extends Generator {
     Kernel.memory = memories._2
     Kernel.staticLocalMemory = memories._1
 
-    //f.params.foreach(_.mem.readOnly = true)
+    f.params.foreach(_.mem.readOnly = true)
 
     // array of all unique vars (like N, iterSize, etc. )
     val allVars = Kernel.memory.map(_.mem.size.varList)
