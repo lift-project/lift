@@ -82,6 +82,7 @@ object Utils {
   /** Extract an arithmetic expression from an expression. */
   def extractArithExpr(expr: Expr): Option[ArithExpr] = expr match {
     case f@FunCall(s: Split, _) => Some(s.chunkSize)
+    case f@FunCall(sl: Slide, _) => Some(sl.step)
     case f@FunCall(Scatter(ReorderWithStride(arithExpr)), _) => Some(arithExpr)
     case f@FunCall(Gather(ReorderWithStride(arithExpr)), _) => Some(arithExpr)
 

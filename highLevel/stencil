@@ -1,0 +1,7 @@
+val N = SizeVar("N")
+
+fun(
+	ArrayType(Float, N),
+	input => 
+		Join() o Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
+  )
