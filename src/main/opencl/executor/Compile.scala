@@ -1,11 +1,9 @@
 package opencl.executor
 
-import ir.{TypeChecker, UnallocatedMemory}
-import ir.ast.{Expr, IRNode, Lambda}
-import ir.view.{AccessInfo, NoView}
+import ir.TypeChecker
+import ir.ast.Lambda
 import lift.arithmetic.{?, ArithExpr}
 import opencl.generator.{OpenCLGenerator, Verbose}
-import opencl.ir.UndefAddressSpace
 
 import scala.collection.immutable
 
@@ -44,23 +42,6 @@ object Compile {
             valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
     // 1. type check
     TypeChecker.check(f.body)
-
-    //Modified by Dayou.. I know it makes code looks stupid but I just need to avoid the problem for now.
-    //Do some clean up
-    IRNode.visit(f,irn =>
-      irn match{
-        case  e:Expr =>
-          e.mem = UnallocatedMemory
-          e.addressSpace = UndefAddressSpace
-          e.view = NoView
-          e.outputView = NoView
-          e.context = null
-          e.inputDepth = List()
-          e.accessInf = AccessInfo()
-          e.outputDepth = List()
-        case _=>
-      }
-    )
 
     // 2. generate OpenCL kernel
     val kernel = OpenCLGenerator.generate(f,
