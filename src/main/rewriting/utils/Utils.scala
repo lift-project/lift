@@ -35,6 +35,8 @@ object Utils {
           FunCall(Scatter(ReorderWithStride(ArithExpr.substitute(idx.s, st))), x)
         case f@FunCall(s@Gather(idx: ReorderWithStride), x) =>
           FunCall(Gather(ReorderWithStride(ArithExpr.substitute(idx.s, st))), x)
+        case f@FunCall(sl: Slide, x) =>
+          FunCall(Slide(ArithExpr.substitute(sl.size, st), ArithExpr.substitute(sl.step, st)), x)
         case v: Value =>
           Value(v.value, Type.substitute(v.t, st))
         case _ =>
