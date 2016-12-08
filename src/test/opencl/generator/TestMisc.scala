@@ -1,9 +1,9 @@
 package opencl.generator
 
-import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._
+import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import opencl.executor._
 import opencl.generator.OpenCLGenerator._
 import opencl.ir._
@@ -1006,9 +1006,7 @@ class TestMisc {
     val values = Seq(matrix, vectorX, vectorY, alpha, beta)
 
     val expr = factory(Array[ArithExpr](1024,1024,128,128,8,2))
-    val (output_exe: Array[Float], _) = Execute(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
-//    val output_int = Interpreter(expr).->[Vector[Float]].run(values:_*).toArray[Float]
-//    assert(output_exe.corresponds(output_int)(_==_))
+    Execute(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
   }
 
   @Test
