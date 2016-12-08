@@ -1,3 +1,5 @@
+### The _Lift_ language ###
+
 ### Setup ###
 
 1. Install git and the latest Java SDK
@@ -6,12 +8,12 @@
 3. Launch IntelliJ. On the Welcome Screen select "Configure" and install the "Scala" Plugin form the Plugin Repository. After the installation restart IntelliJ.
 4. On the IntelliJ Welcome Screen select "Open Project" and select the "build.sbt" file in the "lift" folder you just checked out.
 
-To be able to execute computations in OpenCL you need to install the Executor library.
-
-The script `executor.sh` builds the executor. The script is also called by sbt when running `sbt compile`
+To be able to execute computations in OpenCL you need to build the Executor library.
+The script `executor.sh` builds the executor.
 ```
 ./executor.sh
 ```
+The script is also called by sbt when running `sbt compile`
 
 Finally add the Executor build directory to the Java library path:
 
