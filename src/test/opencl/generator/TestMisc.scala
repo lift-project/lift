@@ -1,9 +1,9 @@
 package opencl.generator
 
-import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._
+import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import opencl.executor._
 import opencl.generator.OpenCLGenerator._
 import opencl.ir._
