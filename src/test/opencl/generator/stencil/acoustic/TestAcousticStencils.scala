@@ -79,7 +79,9 @@ class TestAcousticStencils {
 
   val idIF = UserFun("idIF", "x", "{ return (float)x; }", Int, Float)
 
-  val addZero = UserFun("addTuple", "x", "{return x._0;}", TupleType(Float, Float), Float)  // dud helper
+  val addZero0 = UserFun("addZero0", "x", "{return x._0;}", TupleType(Float, Float), Float)  // dud helper
+
+  val addZero1 = UserFun("addZero1", "x", "{return x._1;}", TupleType(Float, Float), Float)  // dud helper
 
   /**** Why doesn't this work?? !!!! *****/
   /*
@@ -139,6 +141,10 @@ class TestAcousticStencils {
     val maskArray = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     val mask = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
+  }
+
+  def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
+    MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,c1))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,c2))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
   }
 
   /* these helper functions do not work, but it would be nice if they did! */
@@ -644,7 +650,7 @@ class TestAcousticStencils {
       ArrayType(ArrayType(Float, weights(0).length), weights.length),
       (mat1, mask1, weights) => {
         MapGlb((fun((m) => {
-          toGlobal(MapSeq(id) o MapSeq(addZero)) $ Zip(
+          toGlobal(MapSeq(id) o MapSeq(addZero0)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m,0), weights),
             MapSeq(idIF) $ Get(m,1)
           )
@@ -672,33 +678,14 @@ class TestAcousticStencils {
   {
     /* u[cp] = ( boundary ? constantBorder2 : constantOriginal2) + S*( boundary ? constantBorder : constantOriginal) */
 
-    /* Need to find a way to standardise behaviour at border:
-       MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(idIF)
-     */
-
-
-
-    /*
-
-    Should be:
-
-     (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)
- (0.0)  (6.0)  (12.0)  (18.0)  (24.0)  (30.0)  (22.0)  (0.0)
- (0.0)  (8.0)  (16.0)  (24.0)  (32.0)  (40.0)  (34.0)  (0.0)
- (0.0)  (8.0)  (16.0)  (24.0)  (32.0)  (40.0)  (34.0)  (0.0)
- (0.0)  (8.0)  (16.0)  (24.0)  (32.0)  (40.0)  (34.0)  (0.0)
- (0.0)  (8.0)  (16.0)  (24.0)  (32.0)  (40.0)  (34.0)  (0.0)
- (0.0)  (6.0)  (12.0)  (18.0)  (24.0)  (30.0)  (22.0)  (0.0)
- (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)  (0.0)
-
-     */
-
-    val compareData = Array( 15.0f,30.0f,45.0f,60.0f,75.0f,55.0f,
-      20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
-      20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
-      20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
-      20.0f,16.0f,24.0f,32.0f,40.0f,85.0f,
-      15.0f,30.0f,45.0f,60.0f,75.0f,55.0f)
+    val compareData = Array(
+    10.0f,16.0f,22.0f,28.0f,34.0f,26.0f,
+    12.0f,10.0f,14.0f,18.0f,22.0f,38.0f,
+    12.0f,10.0f,14.0f,18.0f,22.0f,38.0f,
+    12.0f,10.0f,14.0f,18.0f,22.0f,38.0f,
+    12.0f,10.0f,14.0f,18.0f,22.0f,38.0f,
+    10.0f,16.0f,22.0f,28.0f,34.0f,26.0f
+    )
 
     val constantOriginal = Array(1.0f,2.0f)
     val constantBorder = Array(2.0f,4.0f)
@@ -709,6 +696,7 @@ class TestAcousticStencils {
       1) Use borders with Arrays with what works already
       2) get same value for both
       3) update to show case above
+      4) try to pull out into separate function
      */
 
     val lambdaNeigh = fun(
@@ -717,34 +705,22 @@ class TestAcousticStencils {
       ArrayType(ArrayType(Float, weights(0).length), weights.length),
       (mat1, mask1, weights) => {
         MapGlb((fun((m) => {
-          toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
+          val maskedValConst = maskValue(m,constantBorder(1), constantOriginal(1))
+          val maskedValGrid = maskValue(m,constantBorder(0), constantOriginal(0))
+          toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m,0), weights),
-            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder(0)))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal(0)))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
-          )
+            MapSeq(id) $ maskedValGrid
+          ),
+            MapSeq(id) $ maskedValConst)
         }))
         ) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  Join() $ mask1)
       })
 
-    /*val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(ArrayType(Int, 1),size), size),
-      ArrayType(ArrayType(Float, weights(0).length), weights.length),
-      (mat1, mask1, weights) => {
-        MapGlb((fun((m) => {
-          toGlobal(MapSeq(id) o MapSeq(addTuple) $ Zip( (MapSeq(multTuple)) $ Zip(
-            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m,0), weights),
-            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))),
-            (MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1)))))
-
-        }))
-        ) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  Join() $ mask1)
-      })*/
-
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask, weights)
 
-    printOriginalAndOutput(stencilarr, output, size)
+    if(printOutput) printOriginalAndOutput(stencilarr, output, size)
 
- //   assertArrayEquals(compareData, output, delta)
+    assertArrayEquals(compareData, output, delta)
 
   }
 
