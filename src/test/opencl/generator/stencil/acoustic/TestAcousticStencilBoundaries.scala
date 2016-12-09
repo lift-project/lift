@@ -178,9 +178,10 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
   }
 
   @Test
-  def testSimpleTwoGridsWithTwoBoundaryCheckMask(): Unit =
+  def testTwoGridsThreeCalculationsWithMask(): Unit =
   {
     /* u[cp] = ( boundary ? constantBorder2 : constantOriginal2)*u[cp] + S*( boundary ? constantBorder : constantOriginal) */
+    /* u[cp] = X * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u1[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
 
     val compareData = Array(
     10.0f,20.0f,30.0f,40.0f,50.0f,46.0f,
@@ -191,9 +192,8 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
     10.0f,20.0f,30.0f,40.0f,50.0f,46.0f
     )
 
-    val constantOriginal = Array(1.0f,2.0f)
-    val constantBorder = Array(2.0f,4.0f)
-
+    val constantOriginal = Array(1.0f,2.0f,3.0f, 4.0f)
+    val constantBorder = Array(2.0f,4.0f,6.0f, 4.0f)
 
     val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
@@ -204,19 +204,25 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValConst = maskValue(m,constantBorder(1), constantOriginal(1))
-          val maskedValGrid = maskValue(m,constantBorder(0), constantOriginal(0))
+          val maskedValMult = maskValue(m,constantBorder(3), constantOriginal(3))
+          val maskedValConstSec = maskValue(m,constantBorder(2), constantOriginal(2))
+          val maskedValConstOrg = maskValue(m,constantBorder(1), constantOriginal(1))
+          val maskedValStencil = maskValue(m,constantBorder(0), constantOriginal(0))
           val orgMat = Get(Get(m,0),0)
           val secMat = Get(Get(m,0),1)
 
-
-          toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip((MapSeq(multTuple)) $ Zip(
-            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(orgMat, weights),
-            MapSeq(id) $ maskedValGrid
+          toGlobal(MapSeq(id) o MapSeq(fun(x => mult(x,maskedValMult))) o MapSeq(addTuple)) $ Zip( MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(Get(m,0),0), weightsMiddle),
+            MapSeq(id) $ maskedValConstOrg
           ),
+            MapSeq(multTuple) $ Zip(
+              ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(Get(m,0),0), weights),
+              MapSeq(id) $ maskedValStencil
+            ))
+            ,
               (MapSeq(multTuple)) $ Zip(
-              ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(secMat, weightsMiddle),
-              MapSeq(id) $ maskedValConst)
+              ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(Get(m,0),1), weightsMiddle),
+              MapSeq(id) $ maskedValConstSec)
           )
         }))
         ) $ Zip(Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  (Join() $ (Slide2D(slidesize,slidestep) $ mat2))), Join() $ mask1)
@@ -224,11 +230,22 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrsame, mask, weights, weightsMiddle)
 
-    if(printOutput) printOriginalAndOutput(stencilarr, output, size)
+//    if(printOutput)
+    printOriginalAndOutput(stencilarr, output, size)
 
-    assertArrayEquals(compareData, output, delta)
+//    assertArrayEquals(compareData, output, delta)
 
   }
+
+/* Next Steps
+
+ -1) implement stencil27 and run for comparisons - how to run on GPUs?
+  0) implement an actual room code
+     A) standard algorithm
+     B) update to 3D
+  1) How to abstract / standardise the masking / border patrol ?
+  2) is there a way to keep track of changes in the boundaries? Could they become part of the input? or passed in as separate parameters that get upated?
+ */
 
 }
 
