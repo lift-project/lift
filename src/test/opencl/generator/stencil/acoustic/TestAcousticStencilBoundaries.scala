@@ -49,13 +49,14 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
 
   }
 
-  def createMaskData() = {
+  def createMaskData(size: Int) = {
 
     val initMat = Array.tabulate(size,size){ (i,j) => (i+j+1).toFloat }
     val matMat = createFakePaddingFloat(initMat,size+2,0)
     val maskArray = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     val mask = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
+
   }
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
@@ -63,7 +64,7 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
   }
 
   /* globals */
-  val mask = createMaskData()
+  val mask = createMaskData(size)
 
   @Test
   def testSimpleOneGridWithBoundaryCheckMask(): Unit =
@@ -80,8 +81,6 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
 
     val constantOriginal = 2.0f
     val constantBorder = 5.0f
-
-    val mask = createMaskData()
 
     val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
@@ -180,20 +179,21 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
   @Test
   def testTwoGridsThreeCalculationsWithMask(): Unit =
   {
-    /* u[cp] = ( boundary ? constantBorder2 : constantOriginal2)*u[cp] + S*( boundary ? constantBorder : constantOriginal) */
-    /* u[cp] = X * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u1[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
+    /* u[cp] = ( boundary ? constantBorder0 : constantOriginal0 )  * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u1[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
 
     val compareData = Array(
-    10.0f,20.0f,30.0f,40.0f,50.0f,46.0f,
-    12.0f,12.0f,18.0f,24.0f,30.0f,58.0f,
-    12.0f,12.0f,18.0f,24.0f,30.0f,58.0f,
-    12.0f,12.0f,18.0f,24.0f,30.0f,58.0f,
-    12.0f,12.0f,18.0f,24.0f,30.0f,58.0f,
-    10.0f,20.0f,30.0f,40.0f,50.0f,46.0f
+    128.0f,256.0f,384.0f,512.0f,640.0f,656.0f,
+    144.0f,72.0f,108.0f,144.0f,180.0f,752.0f,
+    144.0f,72.0f,108.0f,144.0f,180.0f,752.0f,
+    144.0f,72.0f,108.0f,144.0f,180.0f,752.0f,
+    144.0f,72.0f,108.0f,144.0f,180.0f,752.0f,
+    128.0f,256.0f,384.0f,512.0f,640.0f,656.0f
     )
 
     val constantOriginal = Array(1.0f,2.0f,3.0f, 4.0f)
-    val constantBorder = Array(2.0f,4.0f,6.0f, 4.0f)
+    val constantBorder = Array(2.0f,4.0f,6.0f, 8.0f)
+
+    // why doesn't this work @ end?? MapSeq(fun(x => mult(x,maskedValMult))) o
 
     val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
@@ -211,7 +211,7 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
           val orgMat = Get(Get(m,0),0)
           val secMat = Get(Get(m,0),1)
 
-          toGlobal(MapSeq(id) o MapSeq(fun(x => mult(x,maskedValMult))) o MapSeq(addTuple)) $ Zip( MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
+          toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip( MapSeq(addTuple) $ Zip( MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(Get(m,0),0), weightsMiddle),
             MapSeq(id) $ maskedValConstOrg
           ),
@@ -223,23 +223,24 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
               (MapSeq(multTuple)) $ Zip(
               ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(Get(m,0),1), weightsMiddle),
               MapSeq(id) $ maskedValConstSec)
-          )
+          ),
+            maskedValMult)
         }))
         ) $ Zip(Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  (Join() $ (Slide2D(slidesize,slidestep) $ mat2))), Join() $ mask1)
       })
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrsame, mask, weights, weightsMiddle)
 
-//    if(printOutput)
-    printOriginalAndOutput(stencilarr, output, size)
+    if(printOutput) printOriginalAndOutput(stencilarr, output, size)
 
-//    assertArrayEquals(compareData, output, delta)
+    assertArrayEquals(compareData, output, delta)
 
   }
 
 /* Next Steps
 
  -1) implement stencil27 and run for comparisons - how to run on GPUs?
+  0.5) iterative ... swapping pointers
   0) implement an actual room code
      A) standard algorithm
      B) update to 3D

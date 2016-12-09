@@ -102,7 +102,7 @@ class TestAcousticStencils {
 
   }
 
-  def createData() = {
+  def createData(size: Int, dim: Int) = {
 
     val filling = Array.tabulate(size) { i => i + 1 }
     // val filling = Array.fill(size)(1)
@@ -154,8 +154,8 @@ class TestAcousticStencils {
     Array(0.0f, 1.0f, 0.0f),
     Array(0.0f, 0.0f, 0.0f))
 
-  val stencilarr = createData()
-  val stencilarrsame = createData()
+  val stencilarr = createData(size,dim)
+  val stencilarrsame = createData(size,dim)
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
   @Test
