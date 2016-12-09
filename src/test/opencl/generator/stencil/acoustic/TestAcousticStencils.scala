@@ -1,20 +1,13 @@
-package opencl.generator
+package opencl.generator.stencil.acoustic
 
-import java.io.FileInputStream
-import java.util.Scanner
-
-import scala.util.Random
-import ir.printer.DotPrinter
-import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
-import benchmarks.Stencil1D
-import ir.{ArrayType, TupleType}
 import ir.ast._
-import opencl.executor.{Compile, Execute, Executor}
+import ir.{ArrayType, TupleType}
+import lift.arithmetic.SizeVar
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
-import opencl.executor.Utils
 
 import scala.language.implicitConversions
 
@@ -43,6 +36,13 @@ class TestAcousticStencils {
   val delta = 0.2f
 
   /* helper functions */
+
+  /* to get around casting ints to strings to chars to ints (in order to wrap ints in Arrays quickly) ... */
+  def parseIntAsCharAsInt(inp: Int): Int = { // let's do some voodoo magic
+  val f = inp.toString.toArray.map(i => i.toInt)
+    f(0)
+  }
+
   def print2DArray[T](input: Array[Array[T]]) = {
     println(input.deep.mkString("\n"))
   }
@@ -138,7 +138,7 @@ class TestAcousticStencils {
     val matMat = createFakePaddingFloat(initMat,size+2,0)
     val maskArray = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     val mask = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
-    mask.map(i => i.map(j => j.map(k => k.toInt-48)))
+    mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
   }
 
   /* these helper functions do not work, but it would be nice if they did! */
@@ -711,6 +711,20 @@ class TestAcousticStencils {
       3) update to show case above
      */
 
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(ArrayType(Int, 1),size), size),
+      ArrayType(ArrayType(Float, weights(0).length), weights.length),
+      (mat1, mask1, weights) => {
+        MapGlb((fun((m) => {
+          toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m,0), weights),
+            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder(0)))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal(0)))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
+          )
+        }))
+        ) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  Join() $ mask1)
+      })
+
     /*val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
       ArrayType(ArrayType(ArrayType(Int, 1),size), size),
@@ -726,25 +740,11 @@ class TestAcousticStencils {
         ) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  Join() $ mask1)
       })*/
 
-    val lambdaNeighCompare = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(ArrayType(Int, 1),size), size),
-      ArrayType(ArrayType(Float, weights(0).length), weights.length),
-      (mat1, mask1, weights) => {
-        MapGlb((fun((m) => {
-          toGlobal(MapSeq(id) o MapSeq(addZero)) $ Zip(
-            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m,0), weights),
-            MapSeq(idIF) $ Get(m,1)
-          )
-        }))
-        ) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)),  Join() $ mask1)
-      })
-
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask, weights)
 
     printOriginalAndOutput(stencilarr, output, size)
 
-    //assertArrayEquals(compareData, output, delta)
+ //   assertArrayEquals(compareData, output, delta)
 
   }
 
