@@ -35,6 +35,8 @@ class TestAcousticStencils {
   val size = dim - 2;
   val delta = 0.2f
 
+  val iter = 5
+
   /* helper functions */
 
   def print2DArray[T](input: Array[Array[T]]) = {
@@ -102,6 +104,7 @@ class TestAcousticStencils {
 
   }
 
+  /* Could refactor this to use createFakePaddingFloat */
   def createData(size: Int, dim: Int) = {
 
     val filling = Array.tabulate(size) { i => i + 1 }
@@ -216,7 +219,7 @@ class TestAcousticStencils {
     if (printOutput) printOriginalAndOutput(stencilarr, output, size)
 
     assertArrayEquals(compareData, output, delta)
-    //println(Compile(lambda))
+    //println(ompile(lambda))
 
   }
 
@@ -573,7 +576,104 @@ class TestAcousticStencils {
 
   }
 
+ /* let's iterate */
 
+
+  @Test
+  def testSimpleStencilIterate5(): Unit = {
+
+    /* u[cp] = S */
+
+    val compareData = Array(
+      462.0f,917.0f,1337.0f,1589.0f,1526.0f,938.0f,
+      791.0f,1575.0f,2289.0f,2765.0f,2611.0f,1652.0f,
+      945.0f,1883.0f,2751.0f,3311.0f,3171.0f,1981.0f,
+      945.0f,1883.0f,2751.0f,3311.0f,3171.0f,1981.0f,
+      791.0f,1575.0f,2289.0f,2765.0f,2611.0f,1652.0f,
+      462.0f,917.0f,1337.0f,1589.0f,1526.0f,938.0f
+    )
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayType(Float, weightsArr.length),
+      (mat, weights) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ neighbours, weights)
+          }))
+        ) o Slide2D(slidesize, slidestep) $ mat
+      })
+
+
+    // there must be a better way ...
+    var input = stencilarr
+    var outputX = Array[Float]()
+    var runtime = 0.0f
+
+    for(x <- 1 to iter) {
+      val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, weightsArr)
+      printOriginalAndOutput(input, output, size)
+      // need to re-pad, then slide and iterate
+      input = createFakePaddingFloat(output.sliding(size,size).toArray,dim,0.0f)
+      outputX = output
+    }
+
+    assertArrayEquals(compareData, outputX, delta)
+
+  }
+
+  @Test
+  def testStencil2DTwoGridsSwapIterate5(): Unit = {
+
+    val compareData = Array(3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
+      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
+      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
+      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
+      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
+      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f)
+
+    /* u[cp] = u1[cp] + u[cp] */
+
+    val constant = 3.0f
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(Float, weights(0).length), weights.length),
+      ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
+      (mat1, mat2, weights, weightsMiddle) => {
+        MapGlb((fun((m) => {
+          toGlobal(MapSeq(addTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 1), weightsMiddle)
+          )
+        }))) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)), (Join() $ (Slide2D(slidesize, slidestep) $ mat2)))
+
+      })
+
+    var inputArr = stencilarr
+    var inputArrCopy = stencilarrCopy
+    var outputX = Array[Float]()
+    var runtime = 0.0f
+
+    for(x <- 1 to iter)
+    {
+      // multiple outputs from Execute?
+      // why does this zip work but not the other one ? ? ? (in SimpleRoom..)
+      val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrCopy, weights, weightsMiddle)
+      if (printOutput) printOriginalAndOutput(stencilarr, output, size)
+      inputArr = createFakePaddingFloat(output.sliding(size,size).toArray,dim,0.0f)
+      outputX = output
+    }
+
+//    assertArrayEquals(compareData, output, delta)
+
+  }
 
   /////////////////// JUNKYARD ///////////////////
   @Ignore
