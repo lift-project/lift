@@ -3,7 +3,7 @@ package exploration
 import java.io.FileWriter
 
 import analysis._
-import lift.arithmetic.{?, ArithExpr, Cst, Var}
+import lift.arithmetic._
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import opencl.generator.OpenCLGenerator.NDRange
@@ -73,7 +73,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       case _: IllegalKernel =>
         None
       case t: Throwable =>
-        logger.warn(s"Failed compilation $highLevelHash (${pair._2.mkString(",")})", t)
+        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${pair._2.mkString(",")})", t)
         None
     }
   }
@@ -116,7 +116,13 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val dumped = Utils.dumpToFile(kernel, filename, path)
     if (dumped) {
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
-      dumpStats(lambda, hash, path)
+
+      try {
+        dumpStats(lambda, hash, path)
+      } catch {
+        case t: Throwable =>
+          logger.warn(s"Failed to get stats: $highLevelHash/$lowLevelHash (${pair._2.mkString(",")})", t)
+      }
     }
 
     if (dumped) Some(hash) else None
