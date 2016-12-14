@@ -37,6 +37,11 @@ class TestAcousticStencils {
 
   val iter = 5
 
+
+
+  val asymDimX2 = 6
+  val asymDimY2 = 14
+
   /* helper functions */
 
   def print2DArray[T](input: Array[Array[T]]) = {
@@ -47,10 +52,10 @@ class TestAcousticStencils {
     println(input.mkString(","))
   }
 
-  def print1DArrayAs2DArray[T](input: Array[T], dim: Int) {
+  def print1DArrayAs2DArray[T](input: Array[T], dimX: Int) {
     var count = 1
     println()
-    input.foreach(x => if (count % dim > 0) {
+    input.foreach(x => if (count % dimX > 0) {
       print(x + " ");
       count += 1
     } else {
@@ -60,12 +65,12 @@ class TestAcousticStencils {
     println()
   }
 
-  def printOriginalAndOutput[T](original: Array[Array[T]], output: Array[T], N: Int): Unit = {
+  def printOriginalAndOutput[T](original: Array[Array[T]], output: Array[T], dimX: Int): Unit = {
     println("ORIGINAL:")
     print2DArray(original)
     println("*********************")
     println("OUTPUT:")
-    print1DArrayAs2DArray(output, N)
+    print1DArrayAs2DArray(output, dimX)
   }
 
 
@@ -86,35 +91,34 @@ class TestAcousticStencils {
   */
 
   /* only one (value) layer of padding around 2D matrix */
-  def createFakePaddingFloat(input: Array[Array[Float]], padSize: Int, padValue: Float): Array[Array[Float]] = {
+  def createFakePaddingFloat(input: Array[Array[Float]], padValue: Float): Array[Array[Float]] = {
 
+    val padSize = input(0).length
+    val actualSize = padSize+2
     val padLR = Array.fill(1)(padValue)
-    val toppad = Array.fill(1)(Array.fill(padSize)(padValue))
+    val toppad = Array.fill(1)(Array.fill(actualSize)(padValue))
     val output = input.map(i => padLR ++ i ++ padLR)
     toppad ++ output ++ toppad
 
   }
 
-  def createFakePaddingInt(input: Array[Array[Int]], padSize: Int, padValue: Int): Array[Array[Int]] = {
+  def createFakePaddingInt(input: Array[Array[Int]], padValue: Int): Array[Array[Int]] = {
 
+    val padSize = input(0).length
+    val actualSize = padSize+2
     val padLR = Array.fill(1)(padValue)
-    val toppad = Array.fill(1)(Array.fill(padSize)(padValue))
+    val toppad = Array.fill(1)(Array.fill(actualSize)(padValue))
     val output = input.map(i => padLR ++ i ++ padLR)
     toppad ++ output ++ toppad
 
   }
 
   /* Could refactor this to use createFakePaddingFloat */
-  def createData(size: Int, dim: Int) = {
+  def createDataFloat(sizeX: Int, sizeY: Int) = {
 
-    val filling = Array.tabulate(size) { i => i + 1 }
-    // val filling = Array.fill(size)(1)
-    val padLR = Array.fill(1)(0)
-    val toppad = Array.fill(1)(Array.fill(dim)(0.0f))
-    val line = padLR ++ filling ++ padLR
-
-    val mat = Array.fill(size)(line.map(_.toFloat))
-    toppad ++ mat ++ toppad
+    val dim = sizeX+2
+    val filling = Array.tabulate(sizeX,sizeY) { (i,j) => (j + 1).toFloat }
+    createFakePaddingFloat(filling,0.0f)
   }
 
   /* these helper functions do not work, but it would be nice if they did! */
@@ -157,8 +161,8 @@ class TestAcousticStencils {
     Array(0.0f, 1.0f, 0.0f),
     Array(0.0f, 0.0f, 0.0f))
 
-  val stencilarr = createData(size,dim)
-  val stencilarrsame = createData(size,dim)
+  val stencilarr = createDataFloat(size,size)
+  val stencilarrsame = createDataFloat(size,size)
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
   @Test
@@ -617,9 +621,9 @@ class TestAcousticStencils {
 
     for(x <- 1 to iter) {
       val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, weightsArr)
-      printOriginalAndOutput(input, output, size)
+      if(printOutput) printOriginalAndOutput(input, output, size)
       // need to re-pad, then slide and iterate
-      input = createFakePaddingFloat(output.sliding(size,size).toArray,dim,0.0f)
+      input = createFakePaddingFloat(output.sliding(size,size).toArray,0.0f)
       outputX = output
     }
 
@@ -630,12 +634,14 @@ class TestAcousticStencils {
   @Test
   def testStencil2DTwoGridsSwapIterate5(): Unit = {
 
-    val compareData = Array(3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
-      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
-      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
-      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
-      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
-      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f)
+    val compareData = Array(
+    21.0f,42.0f,63.0f,84.0f,105.0f,126.0f,
+    21.0f,42.0f,63.0f,84.0f,105.0f,126.0f,
+    21.0f,42.0f,63.0f,84.0f,105.0f,126.0f,
+    21.0f,42.0f,63.0f,84.0f,105.0f,126.0f,
+    21.0f,42.0f,63.0f,84.0f,105.0f,126.0f,
+    21.0f,42.0f,63.0f,84.0f,105.0f,126.0f
+    )
 
     /* u[cp] = u1[cp] + u[cp] */
 
@@ -663,17 +669,82 @@ class TestAcousticStencils {
 
     for(x <- 1 to iter)
     {
-      // multiple outputs from Execute?
       // why does this zip work but not the other one ? ? ? (in SimpleRoom..)
-      val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrCopy, weights, weightsMiddle)
-      if (printOutput) printOriginalAndOutput(stencilarr, output, size)
-      inputArr = createFakePaddingFloat(output.sliding(size,size).toArray,dim,0.0f)
+      val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, inputArr, inputArrCopy, weights, weightsMiddle)
+      if(printOutput) printOriginalAndOutput(stencilarr, output, size)
+
+      inputArr = inputArrCopy
+      inputArrCopy = createFakePaddingFloat(output.sliding(size,size).toArray,0.0f)
+
       outputX = output
     }
 
-//    assertArrayEquals(compareData, output, delta)
+    assertArrayEquals(compareData, outputX, delta)
 
   }
+
+
+  @Test
+  def testSimpleStencilAsym1(): Unit = {
+
+    /* u[cp] = S */
+
+    val asymDimX = 10
+    val asymDimY = 14
+
+    val stencilarr = createDataFloat(asymDimY,asymDimX)
+
+    val compareData = Array(
+    462.0f,924.0f,1386.0f,1848.0f,2310.0f,2761.0f,3157.0f,3289.0f,2926.0f,1738.0f,
+    792.0f,1584.0f,2376.0f,3168.0f,3960.0f,4741.0f,5412.0f,5709.0f,5016.0f,3058.0f,
+    957.0f,1914.0f,2871.0f,3828.0f,4785.0f,5731.0f,6567.0f,6919.0f,6171.0f,3718.0f,
+    1012.0f,2024.0f,3036.0f,4048.0f,5060.0f,6061.0f,6952.0f,7359.0f,6556.0f,3993.0f,
+    1023.0f,2046.0f,3069.0f,4092.0f,5115.0f,6127.0f,7029.0f,7447.0f,6655.0f,4048.0f,
+    1024.0f,2048.0f,3072.0f,4096.0f,5120.0f,6133.0f,7036.0f,7455.0f,6664.0f,4058.0f,
+    1024.0f,2048.0f,3072.0f,4096.0f,5120.0f,6133.0f,7036.0f,7455.0f,6664.0f,4058.0f,
+    1024.0f,2048.0f,3072.0f,4096.0f,5120.0f,6133.0f,7036.0f,7455.0f,6664.0f,4058.0f,
+    1024.0f,2048.0f,3072.0f,4096.0f,5120.0f,6133.0f,7036.0f,7455.0f,6664.0f,4058.0f,
+    1023.0f,2046.0f,3069.0f,4092.0f,5115.0f,6127.0f,7029.0f,7447.0f,6655.0f,4048.0f,
+    1012.0f,2024.0f,3036.0f,4048.0f,5060.0f,6061.0f,6952.0f,7359.0f,6556.0f,3993.0f,
+    957.0f,1914.0f,2871.0f,3828.0f,4785.0f,5731.0f,6567.0f,6919.0f,6171.0f,3718.0f,
+    792.0f,1584.0f,2376.0f,3168.0f,3960.0f,4741.0f,5412.0f,5709.0f,5016.0f,3058.0f,
+    462.0f,924.0f,1386.0f,1848.0f,2310.0f,2761.0f,3157.0f,3289.0f,2926.0f,1738.0f
+    )
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayType(Float, weightsArr.length),
+      (mat, weights) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun((acc, pair) => {
+                val pixel = Get(pair, 0)
+                val weight = Get(pair, 1)
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ neighbours, weights)
+          }))
+        ) o Slide2D(slidesize, slidestep) $ mat
+      })
+
+
+    // there must be a better way ...
+    var input = stencilarr
+    var outputX = Array[Float]()
+    var runtime = 0.0f
+
+    for(x <- 1 to iter) {
+      val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, weightsArr)
+      if(printOutput) printOriginalAndOutput(input, output, asymDimX)
+      // need to re-pad, then slide and iterate
+      input = createFakePaddingFloat(output.sliding(asymDimX,asymDimX).toArray,0.0f)
+      outputX = output
+    }
+
+    assertArrayEquals(compareData, outputX, delta)
+
+  }
+
 
   /////////////////// JUNKYARD ///////////////////
   @Ignore
