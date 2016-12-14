@@ -16,12 +16,17 @@ import rewriting.utils.Utils
 import scala.sys.process._
 
 object SaveOpenCL {
-  def apply(topFolder: String, lowLevelHash: String, highLevelHash: String,
+  def apply(topFolder: String, lowLevelHash: String,
+            highLevelHash: String, settings: Settings,
             expressions: List[(Lambda, Seq[ArithExpr])]) =
-    (new SaveOpenCL(topFolder, lowLevelHash, highLevelHash))(expressions)
+    (new SaveOpenCL(topFolder, lowLevelHash, highLevelHash, settings))(expressions)
 }
 
-class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String) {
+class SaveOpenCL(
+  topFolder: String,
+  lowLevelHash: String,
+  highLevelHash: String,
+  settings: Settings) {
 
   private val logger = Logger(this.getClass)
 
@@ -52,16 +57,13 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       val lambda = expressions.head._1
       sizeArgs = lambda.params.flatMap(_.t.varList).sortBy(_.name).distinct
       numSizes = sizeArgs.length
-      inputCombinations = inputSizes.map(Seq.fill[ArithExpr](numSizes)(_))
 
-      if (sizeArgs.size == 3) {
-        val combinations = inputSizes
-          .map(Cst(_))
-          .combinations(2)
-          .flatMap(_.permutations)
-          .map(l => l :+ l.last)
-        inputCombinations ++= combinations.toSeq
-      }
+      val combinations = settings.inputCombinations
+
+      if (combinations.isDefined && combinations.get.sizes.head.length == numSizes)
+        inputCombinations = combinations.get.sizes.map(_.map(Cst(_)))
+      else
+        inputCombinations = inputSizes.map(Seq.fill[ArithExpr](numSizes)(_))
     }
   }
 

@@ -4,13 +4,15 @@ import java.io.{File, IOException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
-import lift.arithmetic.ArithExpr
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import ir.{Type, TypeChecker}
+import lift.arithmetic.ArithExpr
 import opencl.executor.Eval
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
+import play.api.libs.json.Reads._
+import play.api.libs.json._
 import rewriting.utils.Utils
 
 import scala.collection.immutable.Map
@@ -18,7 +20,8 @@ import scala.io.Source
 import scala.sys.process._
 
 /**
-  * This main currently runs a parameter space exploration over the serialized low level expressions.
+  * This main currently runs a parameter space exploration over the
+  * serialized low level expressions.
   */
 object ParameterRewrite {
 
@@ -30,7 +33,7 @@ object ParameterRewrite {
 
   parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
-    (sValue, opt) =>
+    (sValue, _) =>
       parser.usage()
       sValue
   }
@@ -38,20 +41,30 @@ object ParameterRewrite {
   private val input = parser.parameter[String]("input",
     "Input file containing the lambda to use for rewriting",
     optional = false) {
-    (s, opt) =>
+    (s, _) =>
       val file = new File(s)
       if (!file.exists)
         parser.usage("Input file \"" + s + "\" does not exist")
       s
   }
 
-  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"), "Don't execute in parallel.")
+  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+    "Don't execute in parallel.")
 
   private val generateScala = parser.flag[Boolean](List("generate-scala"),
     "Generate lambdas in Scala as well as in OpenCL")
 
-  private var lambdaFilename = ""
+  private val settingsFile = parser.option[String](List("f", "file"), "name",
+    "Store the created lambdas into this folder."
+    ) {
+    (s, _) =>
+      val file = new File(s)
+      if (!file.exists)
+        parser.usage(s"Settings file $file doesn't exist.")
+      s
+  }
 
+  private var lambdaFilename = ""
 
   def main(args: Array[String]): Unit = {
 
@@ -73,6 +86,8 @@ object ParameterRewrite {
           s"mkdir -p ${topFolder}Scala".!
         }
       }
+
+      val settings = ParseSettings(settingsFile.value)
 
       // list all the high level expression
       val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
@@ -140,7 +155,7 @@ object ParameterRewrite {
                       else
                         None
                     } catch {
-                      case x: ir.TypeException => None
+                      case _: ir.TypeException => None
 
                       //noinspection SideEffectsInMonadicTransformation
                       case x: Throwable =>
@@ -156,7 +171,7 @@ object ParameterRewrite {
                   println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
 
                   val hashes = SaveOpenCL(topFolder, low_level_hash,
-                    high_level_hash, potential_expressions)
+                    high_level_hash, settings, potential_expressions)
 
                   if (generateScala.value.isDefined)
                     saveScala(potential_expressions, hashes)
@@ -231,6 +246,56 @@ object ParameterRewrite {
     val tunable_nodes = Utils.findTunableNodes(lambda).reverse
     lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
     Utils.quickAndDirtySubstitution(st, tunable_nodes, lambda)
+  }
+
+}
+
+case class InputCombinations(sizes: Seq[Seq[Int]])
+case class Settings(inputCombinations: Option[InputCombinations])
+
+object ParseSettings {
+
+  private val logger = Logger(this.getClass)
+
+  private implicit val inputCombinationReads: Reads[InputCombinations] =
+    (JsPath \ "sizes").read[Seq[Seq[Int]]].map(InputCombinations)
+
+  private implicit val settingsReads: Reads[Settings] =
+    (JsPath \ "input_combinations").readNullable[InputCombinations].map(Settings)
+
+  def apply(optionFilename: Option[String]): Settings =
+    optionFilename match {
+      case Some(filename) =>
+
+        val settingsString = ParameterRewrite.readFromFile(filename)
+        val json = Json.parse(settingsString)
+        val validated = json.validate[Settings]
+
+        validated match {
+          case JsSuccess(settings, _) =>
+            checkSettings(settings)
+            settings
+          case e: JsError =>
+            logger.error("Failed parsing settings " +
+              e.recoverTotal( e => JsError.toFlatJson(e) ))
+            sys.exit(1)
+        }
+
+      case None =>
+        Settings(None)
+    }
+
+  private def checkSettings(settings: Settings): Unit = {
+
+    // Check all combinations are the same size
+    if (settings.inputCombinations.isDefined) {
+      val sizes = settings.inputCombinations.get.sizes
+
+      if (sizes.map(_.length).distinct.length != 1) {
+        logger.error("Sizes read from settings contain different numbers of parameters")
+        sys.exit(1)
+      }
+    }
   }
 
 }
