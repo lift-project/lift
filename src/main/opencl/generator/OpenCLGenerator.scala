@@ -1265,8 +1265,8 @@ class OpenCLGenerator extends Generator {
               OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
 
             // originally a tuple, now a value. => generate stuff like var[i]._j
-            case (at: ArrayType, st: ScalarType)
-              if Type.getValueType(at).isInstanceOf[TupleType] =>
+            case (t: Type, st: ScalarType)
+              if Type.getValueType(t).isInstanceOf[TupleType] =>
               // get tuple component and generate suffix (._j)
               val vtc = view.asInstanceOf[ViewTupleComponent]
               val suffix = s"._${vtc.i}"
