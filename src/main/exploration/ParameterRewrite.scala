@@ -116,8 +116,8 @@ object ParameterRewrite {
 
             val st =
               if (combinations.isDefined &&
-                  combinations.get.sizes.head.length == vars.length)
-                (vars: Seq[ArithExpr], combinations.get.sizes.head).zipped.toMap
+                  combinations.get.head.length == vars.length)
+                (vars: Seq[ArithExpr], combinations.get.head).zipped.toMap
               else
                 createValueMap(high_level_expr_orig)
 
@@ -259,8 +259,7 @@ object ParameterRewrite {
 
 }
 
-case class InputCombinations(sizes: Seq[Seq[ArithExpr]])
-case class Settings(inputCombinations: Option[InputCombinations])
+case class Settings(inputCombinations: Option[Seq[Seq[ArithExpr]]])
 
 object ParseSettings {
 
@@ -269,11 +268,8 @@ object ParseSettings {
   private implicit val arithExprReads: Reads[ArithExpr] =
     JsPath.read[Long].map(Cst)
 
-  private implicit val inputCombinationReads: Reads[InputCombinations] =
-    (JsPath \ "sizes").read[Seq[Seq[ArithExpr]]].map(InputCombinations)
-
   private implicit val settingsReads: Reads[Settings] =
-    (JsPath \ "input_combinations").readNullable[InputCombinations].map(Settings)
+    (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]].map(Settings)
 
   def apply(optionFilename: Option[String]): Settings =
     optionFilename match {
@@ -301,7 +297,7 @@ object ParseSettings {
 
     // Check all combinations are the same size
     if (settings.inputCombinations.isDefined) {
-      val sizes = settings.inputCombinations.get.sizes
+      val sizes = settings.inputCombinations.get
 
       if (sizes.map(_.length).distinct.length != 1) {
         logger.error("Sizes read from settings contain different numbers of parameters")
