@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import ir.{Type, TypeChecker}
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
@@ -109,9 +109,19 @@ object ParameterRewrite {
 
             val high_level_expr_orig = readLambdaFromFile(fullFilename)
 
-            val st = createValueMap(high_level_expr_orig)
+            val vars = high_level_expr_orig.params.flatMap(_.t.varList)
+              .sortBy(_.name).distinct
+
+            val combinations = settings.inputCombinations
+
+            val st =
+              if (combinations.isDefined &&
+                  combinations.get.sizes.head.length == vars.length)
+                (vars: Seq[ArithExpr], combinations.get.sizes.head).zipped.toMap
+              else
+                createValueMap(high_level_expr_orig)
+
             val sizesForFilter = st.values.toSeq
-            val vars = high_level_expr_orig.params.flatMap(_.t.varList).distinct
 
             val high_level_expr = replaceInputTypes(high_level_expr_orig, st)
 
@@ -146,7 +156,7 @@ object ParameterRewrite {
 
                   println("Propagating parameters...")
                   val potential_expressions = all_substitution_tables.map(st => {
-                    val params = st.map(a => a).toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
+                    val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
                     try {
                       val expr = low_level_factory(sizesForFilter ++ params)
                       TypeChecker(expr)
@@ -178,7 +188,6 @@ object ParameterRewrite {
 
                 } catch {
                   case t: Throwable =>
-                    // TODO: Log all errors to a file, so they could be reproduced in case of bugs
                     // Failed reading file or similar.
                     logger.warn(t.toString)
                 }
@@ -250,15 +259,18 @@ object ParameterRewrite {
 
 }
 
-case class InputCombinations(sizes: Seq[Seq[Int]])
+case class InputCombinations(sizes: Seq[Seq[ArithExpr]])
 case class Settings(inputCombinations: Option[InputCombinations])
 
 object ParseSettings {
 
   private val logger = Logger(this.getClass)
 
+  private implicit val arithExprReads: Reads[ArithExpr] =
+    JsPath.read[Long].map(Cst)
+
   private implicit val inputCombinationReads: Reads[InputCombinations] =
-    (JsPath \ "sizes").read[Seq[Seq[Int]]].map(InputCombinations)
+    (JsPath \ "sizes").read[Seq[Seq[ArithExpr]]].map(InputCombinations)
 
   private implicit val settingsReads: Reads[Settings] =
     (JsPath \ "input_combinations").readNullable[InputCombinations].map(Settings)

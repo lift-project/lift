@@ -61,7 +61,7 @@ class SaveOpenCL(
       val combinations = settings.inputCombinations
 
       if (combinations.isDefined && combinations.get.sizes.head.length == numSizes)
-        inputCombinations = combinations.get.sizes.map(_.map(Cst(_)))
+        inputCombinations = combinations.get.sizes
       else
         inputCombinations = inputSizes.map(Seq.fill[ArithExpr](numSizes)(_))
     }
