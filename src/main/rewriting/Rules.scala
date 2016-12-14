@@ -971,10 +971,19 @@ object Rules {
 
   private def generateCopy(t: Type): FunDecl = {
     t match {
+      // TODO: How to properly distinguish between structs and several variables? This
+      // TODO: could turn variables into a struct. Sometimes this also could be useful
+      // Struct
+      case TupleType(tt@_*) if tt.forall(t =>
+          t.isInstanceOf[ScalarType] || t.isInstanceOf[VectorType]) =>
+        UserFun("id" + Type.name(t), "x", "{ return x; }", t, t)
+
+      // Several variables
       case TupleType(tt@_*) =>
         val newParam = Param()
         val argSequence = tt.zipWithIndex.map(p => generateCopy(p._1) $ Get(newParam, p._2))
         Lambda(Array(newParam), Tuple(argSequence:_*))
+
       case ArrayType(elemT, _) =>
         Map(generateCopy(elemT))
       case _ => generateId(t)
