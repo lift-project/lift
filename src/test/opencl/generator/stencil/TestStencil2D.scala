@@ -755,7 +755,25 @@ class TestStencil2D {
       *(J) o J o *(T) o ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o   // (B) (tiling inclusive)
         P o *(P)                                                                  // (A)
 
-    // todo proof rewrite from f1 to f2/f3
+    ////////////////// trying to get from f1 to f2/f3 //////////////
+    // fuse maps
+    val g1 = MapGlb(1)(MapGlb(0)(f) o J) o J o *(T) o
+        ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o
+          P o *(P)
+
+    // apply mapJoin rule twice - introduce MapWrgs and MapLcls
+    val g2 = J o MapWrg(1)(MapWrg(0)(J o MapLcl(1)(MapLcl(0)(f)))) o *(T) o
+        ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o
+          P o *(P)
+
+    // split to single maps again
+    val g3 = J o **(J) o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)))) o *(T) o
+        ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o
+          P o *(P)
+
+    // the last *T can be moved in front of ****f as T_w -> see 'f3'
+
+    /////////////////// f1 -> f2 ///////////////////////
 
     // move maps forward to exploit more levels of parallelism
     // what is untile doing??
@@ -782,28 +800,25 @@ class TestStencil2D {
         *(T) o S_uv o *(S_uv) o               // Slide2D u v                   // (B.1) Create tiles
           P o *(P)                                                             // (A)
 
-    // try to replace T_w with T by moving it in front of computation
-    // also choose J o **J instead of *J o J
-    val f6 = J o **(J) o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)) o *(T) o  // (C)
-      *(T) o S_ns o *(S_ns) o                 // Slide2D n s                   // (B.3)
-        toLocal(MapLcl(1)(MapLcl(0)(id))))) o // whole line = id               // (B.2)
-        *(T) o S_uv o *(S_uv) o               // Slide2D u v                   // (B.1)
-          P o *(P)                                                             // (A)
-
     val (outGold: Array[Float], runtime) = Execute(1,1,32,32,(false,false))(lambda(gold), input)
     val (outGoldShort: Array[Float], runtimeShort) = Execute(1,1,32,32,(false,false))(lambda(goldShort), input)
-    val (outF1: Array[Float], runtime1) = Execute(1,1,32,32,(false,false))(lambda(f1), input)
-    val (outF2: Array[Float], runtime2) = Execute(1,1,32,32,(false,false))(lambda(f2), input)
-    val (outF3: Array[Float], runtime3) = Execute(1,1,32,32,(false,false))(lambda(f3), input)
-    val (outF4: Array[Float], runtime4) = Execute(1,1,32,32,(false,false))(lambda(f4), input)
-    val (outF5: Array[Float], runtime5) = Execute(1,1,32,32,(false,false))(lambda(f5), input)
-    val (outF6: Array[Float], runtime6) = Execute(1,1,32,32,(false,false))(lambda(f6), input)
+    val (outF1: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f1), input)
+    val (outG1: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(g1), input)
+    val (outG2: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(g2), input)
+    val (outG3: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(g3), input)
+    val (outF2: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f2), input)
+    val (outF3: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f3), input)
+    val (outF4: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f4), input)
+    val (outF5: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f5), input)
 
     assertArrayEquals(outGold, outGoldShort, 0.1f)
     assertArrayEquals(outGold, outF1, 0.1f)
+    assertArrayEquals(outGold, outG1, 0.1f)
+    assertArrayEquals(outGold, outG2, 0.1f)
+    assertArrayEquals(outGold, outG3, 0.1f)
     assertArrayEquals(outGold, outF2, 0.1f)
+    assertArrayEquals(outGold, outF3, 0.1f)
     assertArrayEquals(outGold, outF4, 0.1f)
     assertArrayEquals(outGold, outF5, 0.1f)
-    //assertArrayEquals(outGold, outF6, 0.1f)
   }
 }
