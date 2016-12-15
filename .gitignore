@@ -11,3 +11,4 @@ lib/Executor/build
 *.out
 *.log
 *.iml
+*.html
