@@ -208,6 +208,7 @@ object HighLevelRewrite {
       }
     })
 
+    println()
   }
 
   def finishRewriting(lambda: Lambda): Lambda = {
