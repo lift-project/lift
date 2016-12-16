@@ -242,17 +242,17 @@ class HighLevelRewrite(val vectorWidth: Int) {
   private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
   private[exploration] val vecZip = Rules.vectorizeMapZip(vectorWidth)
 
-  // todo (bastian): comment-in rules again. just took them out to try out high-level stencil rewrites
-  private val highLevelRules = Seq(
-//      MacroRules.apply2DRegisterBlocking,
-//      MacroRules.apply2DRegisterBlockingNoReorder,
-//      MacroRules.apply1DRegisterBlocking,
-//      MacroRules.tileMapMap,
-//      MacroRules.finishTiling,
-//      MacroRules.partialReduceWithReorder,
-      MacroRules.tileStencils
-//      vecRed,
-//      vecZip
+  private val highLevelRules =
+    Seq(
+      MacroRules.apply2DRegisterBlocking,
+      MacroRules.apply2DRegisterBlockingNoReorder,
+      MacroRules.apply1DRegisterBlocking,
+      MacroRules.tileMapMap,
+      MacroRules.finishTiling,
+      MacroRules.partialReduceWithReorder,
+      MacroRules.tileStencils,
+      vecRed,
+      vecZip
     )
 
   private var failures = 0

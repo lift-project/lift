@@ -275,7 +275,6 @@ object MacroRules {
   val tileStencils =
   Rule("Map(f) o Slide(n,s) => Join() o Map(Map(f) o Slide(n,s)) o Slide(u,v)", {
     case funCall@FunCall(Map(_), slideCall@FunCall(Slide(n,s), arg)) =>
-      //val tiled = Rewrite.applyRuleAt(funCall, Rules.slideTiling(4), slideCall)
       val tiled = Rewrite.applyRuleAt(funCall, Rules.slideTiling, slideCall)
       val moved = Rewrite.applyRuleAt(tiled, MacroRules.movingJoin, tiled)
       val fused = Rewrite.applyRuleAtId(moved, 1, Rules.mapFusion)

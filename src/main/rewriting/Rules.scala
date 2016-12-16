@@ -39,10 +39,9 @@ object Rules {
 
   def slideTiling(tileStep: ArithExpr) = Rule("Slide(n, s) => Join() o Map(Slide(n, s)) o Slide(u, v)", {
     case FunCall(Slide(n,s), arg) => //if
-    //!ArithExpr.isSmaller(tileStep,s).getOrElse(true) =>
-      val size = if (tileStep == ?) Utils.validSplitVariable(arg.t) else tileStep
+      val step = if (tileStep == ?) Utils.validSplitVariable(arg.t) else tileStep
       val overlap = n-s
-      Join() o Map(Slide(n, s)) o Slide(size+ overlap, size) $ arg
+      Join() o Map(Slide(n, s)) o Slide(step + overlap, step) $ arg
   })
 
   // todo possibly duplicate: see rewriting/MacroRules.scala:277
