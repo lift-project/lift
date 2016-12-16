@@ -161,11 +161,30 @@ class TestAcousticStencils {
     Array(0.0f, 1.0f, 0.0f),
     Array(0.0f, 0.0f, 0.0f))
 
+  val weights3D = Array(
+    Array(Array(0.0f, 0.0f, 0.0f),
+    Array(0.0f, 1.0f, 0.0f),
+    Array(0.0f, 0.0f, 0.0f)),
+    Array(Array(0.0f, 1.0f, 0.0f),
+    Array(1.0f, 0.0f, 1.0f),
+    Array(0.0f, 1.0f, 0.0f)),
+    Array(Array(0.0f, 0.0f, 0.0f),
+    Array(0.0f, 1.0f, 0.0f),
+    Array(0.0f, 0.0f, 0.0f))
+  )
+
+  val weightsMiddle3D = Array(
+    Array(0.0f, 0.0f, 0.0f),
+    Array(0.0f, 1.0f, 0.0f),
+    Array(0.0f, 0.0f, 0.0f))
+
+
   val stencilarr = createDataFloat(size,size)
   val stencilarrsame = createDataFloat(size,size)
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
-  @Test
+  @Ignore
+@Test
   def testStencil2DSimple(): Unit = {
 
     /* u[cp] = S */
@@ -227,7 +246,8 @@ class TestAcousticStencils {
 
   }
 
-  @Test
+  @Ignore
+@Test
   def testStencil2DSimpleTimesConstant(): Unit = {
 
     val compareData = Array(
@@ -271,7 +291,8 @@ class TestAcousticStencils {
   }
 
 
-  @Test
+  @Ignore
+@Test
   def testStencil2DSimpleTimesConstantPlusSelf(): Unit = {
 
     val compareData = Array(
@@ -318,7 +339,8 @@ class TestAcousticStencils {
 
   }
 
-  @Test
+  @Ignore
+@Test
   def testStencil2DSimpleAccessTwoWeightsMultConstOne(): Unit = {
 
     val compareData = Array(10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 39.0f,
@@ -356,7 +378,7 @@ class TestAcousticStencils {
   }
 
   @Ignore // KEEP THIS
-  @Test
+@Test
   def testStencil2DSimpleTimesConstantPlusSelfPlusPrevious(): Unit = // Nothing here, just aborted ideas
   {
 
@@ -407,7 +429,7 @@ class TestAcousticStencils {
   }
 
   @Ignore // KEEP THIS
-  @Test
+@Test
   def testStencil2DSimpleAccessTwoWeightsBAD(): Unit = {
     /*
         Attempt to pull out using two stencils using zip2D / map2D / reduce2D
@@ -440,7 +462,8 @@ class TestAcousticStencils {
   }
 
 
-  @Test
+  @Ignore
+@Test
   def testStencil2DTwoGridsSwap(): Unit = {
 
     val compareData = Array(3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 18.0f,
@@ -490,7 +513,8 @@ class TestAcousticStencils {
 
   }
 
-  @Test
+  @Ignore
+@Test
   def twoGridSwapWith3DifferentWeightsAndConstants(): Unit = {
 
     val compareData = Array(22.0f, 44.0f, 66.0f, 88.0f, 110.0f, 90.0f,
@@ -526,7 +550,8 @@ class TestAcousticStencils {
 
   }
 
-  @Test
+  @Ignore
+@Test
   def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelf(): Unit = {
 
     val compareData = Array(
@@ -585,7 +610,8 @@ class TestAcousticStencils {
 
  /* let's iterate */
 
-  @Test
+  @Ignore
+@Test
   def testSimpleStencilIterate5(): Unit = {
 
     /* u[cp] = S */
@@ -633,7 +659,8 @@ class TestAcousticStencils {
 
   }
 
-  @Test
+  @Ignore
+@Test
   def testStencil2DTwoGridsSwapIterate5(): Unit = {
 
     val compareData = Array(
@@ -686,15 +713,16 @@ class TestAcousticStencils {
   }
 
 
-  @Test
-  def testSimpleStencilAsym1(): Unit = {
+  @Ignore
+@Test
+  def testSimple2DStencilAsym1(): Unit = {
 
     /* u[cp] = S */
 
-    val asymDimX = 10
-    val asymDimY = 14
+    val asymDimY = 10
+    val asymDimX = 14
 
-    val stencilarr = createDataFloat(asymDimY,asymDimX)
+    val stencilarr = createDataFloat(asymDimX,asymDimY)
 
     val compareData = Array(
     462.0f,924.0f,1386.0f,1848.0f,2310.0f,2761.0f,3157.0f,3289.0f,2926.0f,1738.0f,
@@ -736,9 +764,9 @@ class TestAcousticStencils {
 
     for(x <- 1 to iter) {
       val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, weightsArr)
-      if(printOutput) printOriginalAndOutput(input, output, asymDimX)
+      if(printOutput) printOriginalAndOutput(input, output, asymDimY)
       // need to re-pad, then slide and iterate
-      input = createFakePaddingFloat(output.sliding(asymDimX,asymDimX).toArray,0.0f)
+      input = createFakePaddingFloat(output.sliding(asymDimY,asymDimY).toArray,0.0f)
       outputX = output
     }
 
@@ -746,23 +774,24 @@ class TestAcousticStencils {
 
   }
 
-
-  @Test
+  @Ignore
+@Test
   def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelfIterate5Asym(): Unit = {
 
-    val asymDimX = 14
-    val asymDimY = 6
+    val asymDimY = 14
+    val asymDimX = 6
 
-    val stencilarr = createDataFloat(asymDimY,asymDimX)
+    val stencilarr = createDataFloat(asymDimX,asymDimY)
     val stencilarrCopy = stencilarr.map(i => i.map(j => j*2.0f))
 
     val compareData = Array(
-      11.0f, 22.0f, 33.0f, 44.0f, 55.0f, 52.0f,
-      13.0f, 26.0f, 39.0f, 52.0f, 65.0f, 64.0f,
-      13.0f, 26.0f, 39.0f, 52.0f, 65.0f, 64.0f,
-      13.0f, 26.0f, 39.0f, 52.0f, 65.0f, 64.0f,
-      13.0f, 26.0f, 39.0f, 52.0f, 65.0f, 64.0f,
-      11.0f, 22.0f, 33.0f, 44.0f, 55.0f, 52.0f)
+    421.73438f,843.46875f,1265.2031f,1686.9375f,2108.6719f,2530.4062f,2952.1406f,3373.875f,3795.6094f,4216.4062f,4622.4375f,4911.2812f,4677.9375f,3123.1875f,
+    648.96875f,1297.9375f,1946.9062f,2595.875f,3244.8438f,3893.8125f,4542.7812f,5191.75f,5840.7188f,6488.75f,7117.328f,7579.0312f,7252.7656f,4871.5f,
+    718.53125f,1437.0625f,2155.5938f,2874.125f,3592.6562f,4311.1875f,5029.7188f,5748.25f,6466.7812f,7184.375f,7882.5156f,8404.406f,8068.4844f,5441.3125f,
+    718.53125f,1437.0625f,2155.5938f,2874.125f,3592.6562f,4311.1875f,5029.7188f,5748.25f,6466.7812f,7184.375f,7882.5156f,8404.406f,8068.4844f,5441.3125f,
+    648.96875f,1297.9375f,1946.9062f,2595.875f,3244.8438f,3893.8125f,4542.7812f,5191.75f,5840.7188f,6488.75f,7117.328f,7579.0312f,7252.7656f,4871.5f,
+    421.73438f,843.46875f,1265.2031f,1686.9375f,2108.6719f,2530.4062f,2952.1406f,3373.875f,3795.6094f,4216.4062f,4622.4375f,4911.2812f,4677.9375f,3123.1875f
+    )
 
     /* u[cp] = X * ( S*l1 + u[cp]*l2 + u1[cp]*l3) */
 
@@ -772,8 +801,8 @@ class TestAcousticStencils {
     val Xvalue = 0.25f
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
+      ArrayType(ArrayType(Float, stencilarr(0).length), stencilarr.length),
+      ArrayType(ArrayType(Float, stencilarr(0).length), stencilarr.length),
       ArrayType(ArrayType(Float, weights(0).length), weights.length),
       ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
@@ -792,21 +821,56 @@ class TestAcousticStencils {
     var inputArrCopy = stencilarrCopy
     var outputX = Array[Float]()
 
-//    for(x <- 1 to iter) {
+    for(x <- 1 to iter) {
 //      println("iter: "+x)
-      val (output: Array[Float], runtime) = Execute(input.length, input(0).length)(lambdaNeigh, input, inputArrCopy, weights, weightsMiddle)
-      printOriginalAndOutput(input, output, asymDimX)
+      val (output: Array[Float], runtime) = Execute(2,2)(lambdaNeigh, input, inputArrCopy, weights, weightsMiddle)
       input = inputArrCopy
-      inputArrCopy = createFakePaddingFloat(output.sliding(asymDimX,asymDimX).toArray,0.0f)
+      inputArrCopy = createFakePaddingFloat(output.sliding(asymDimY,asymDimY).toArray,0.0f)
 
       outputX = output
-//    }
+    }
 
+    if(printOutput) printOriginalAndOutput(stencilarr, outputX, asymDimY)
+    assertArrayEquals(compareData, outputX, delta)
 
-//    printOriginalAndOutput(stencilarr, outputX, asymDimX)
+  }
+
+  @Test
+  def testStencil3DSimple(): Unit = {
+
+    /* u[cp] = S */
+
+    val localDim = 9
+    val input3D = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (1+i+j+k).toFloat }
+
+    val compareData = Array(3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 11.0f,
+      4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
+      4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
+      4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
+      4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
+      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 11.0f
+    )
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(ArrayType(Float, localDim), localDim), localDim),
+      ArrayType(Float, localDim*localDim*localDim),
+      (mat, weights) => {
+        MapGlb(1)(MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeq(id)) o
+              ReduceSeqUnroll(\((acc, next) =>
+                multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() o Join()$ neighbours, weights)
+          }))
+        ) o Slide3D(slidesize, slidestep) $ mat
+      })
+
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, input3D, weights3D.flatten.flatten)
+
+    printOriginalAndOutput(stencilarr, output, size)
+
 //    assertArrayEquals(compareData, output, delta)
 
   }
+
 
   /////////////////// JUNKYARD ///////////////////
   @Ignore
