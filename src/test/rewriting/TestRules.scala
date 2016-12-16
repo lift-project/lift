@@ -480,12 +480,11 @@ class TestRules {
       input => Slide(n, s) $ input
     )
 
-    assertTrue(Rules.slideTiling(n).rewrite.isDefinedAt(f.body))
-    assertTrue(Rules.slideTiling(n+1).rewrite.isDefinedAt(f.body))
-    // todo fix - currently not recognised
-    //assertFalse(Rules.slideTiling(n-2).rewrite.isDefinedAt(f.body))
+    assertTrue(Rules.slideTiling(s).rewrite.isDefinedAt(f.body))
+    assertTrue(Rules.slideTiling(s+1).rewrite.isDefinedAt(f.body))
+    assertFalse(Rules.slideTiling(s-2).rewrite.isDefinedAt(f.body))
 
-    val result = Rules.slideTiling(n+1).rewrite(f.body)
+    val result = Rules.slideTiling(s+1).rewrite(f.body)
     TypeChecker.check(result)
   }
 

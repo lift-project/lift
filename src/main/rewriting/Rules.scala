@@ -38,7 +38,11 @@ object Rules {
   val slideTiling: Rule = slideTiling(?)
 
   def slideTiling(tileStep: ArithExpr) = Rule("Slide(n, s) => Join() o Map(Slide(n, s)) o Slide(u, v)", {
-    case FunCall(Slide(n,s), arg) => //if
+    case FunCall(Slide(n,s), arg) if
+      tileStep == ? ||  // either we set it to valid value
+      ArithExpr.isSmaller(s,tileStep).getOrElse(false) || // tile is bigger (valid)
+      tileStep.equals(s) => // tile is as big as previous slide (creates one sliding window, valid)
+
       val step = if (tileStep == ?) Utils.validSplitVariable(arg.t) else tileStep
       val overlap = n-s
       Join() o Map(Slide(n, s)) o Slide(step + overlap, step) $ arg

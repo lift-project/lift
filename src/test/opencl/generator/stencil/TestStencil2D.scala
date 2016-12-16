@@ -577,15 +577,19 @@ class TestStencil2D {
     val u = 6
     val v = 4
 
-    // use these values to take powers of two as valid inputs for slide (pad is not used here)
+    // use non-powers-of-two as input values
+    // to enable powers-of-two as valid inputs for Slide step since Pad is not used here
     val input = Array.tabulate(34, 34) { (i, j) => i * 34.0f + j }
 
-    // use abbr. notation because of long expressions
+    // use abbr. notation to avoid huge expressions and simplify rewriting on paper
     // *=map (as in BMF), J=join, T=transpose, S_ab = slide a b
+
     // (0): *T o S_ns o *S_ns
     val gold = Map(Transpose()) o Slide(n,s) o Map(Slide(n,s))
 
-    // 2D tiling
+    // Desired: 2D tiling
+    // This is what we assume to be correct 2d stencil tiling. Proof by rewriting follows:
+    //
     // J o J o *T o **Slide2d_ns o Slide2d_uv
     // val desired = Map(Join()) o Join() o Map(Transpose()) o Map(Map(Slide2D(n,s))) o Slide2D(u,v)
     //
@@ -718,7 +722,8 @@ class TestStencil2D {
     val r = 1
     val b = Pad.Boundary.Clamp
 
-    // use these values to take powers of two as valid inputs for slide (pad is not used here)
+    // use non-powers-of-two as input values
+    // to enable powers-of-two as valid inputs for Slide step since Pad is not used here
     val input = Array.tabulate(32, 32) { (i, j) => i * 32.0f + j }
     // stencil function: nbh:[3][3] -> [1]
     val f = toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join()
@@ -730,7 +735,7 @@ class TestStencil2D {
       )
     }
 
-    // use shorthand notation
+    // use shorthand notation to avoid huge expressions (partly inspired by BMF)
     val P = Pad(l,r,b)
     val T = Transpose()
     val T_w = TransposeW()
@@ -755,7 +760,7 @@ class TestStencil2D {
       *(J) o J o *(T) o ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o   // (B) (tiling inclusive)
         P o *(P)                                                                  // (A)
 
-    ////////////////// trying to get from f1 to f2/f3 //////////////
+    ////////////////// Promote Two Maps //////////////
     // fuse maps
     val g1 = MapGlb(1)(MapGlb(0)(f) o J) o J o *(T) o
         ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o
@@ -776,12 +781,12 @@ class TestStencil2D {
     /////////////////// f1 -> f2 ///////////////////////
 
     // move maps forward to exploit more levels of parallelism
-    // what is untile doing??
+    // functionally *J o * o *T should do the job, however lifts output view require Untile or ...
     val f2 = /* *(J) o J o *(T) o */ Untile() o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)))) o // (C) using workgroups
       ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o                                   // (B)
         P o *(P)                                                                                // (A)
 
-    // using TransposeW instead of Transpose after stencil computation does the job
+    // ...TransposeW instead of Transpose after stencil computation
     val f3 = *(J) o J o *(T_w) o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)))) o  // (C)
       ***(T) o **(S_ns) o ***(S_ns) o         // (%)                              // (B) Create neighborhoods in tiles
         *(T) o S_uv o *(S_uv) o                                                   // (B) Create tiles
