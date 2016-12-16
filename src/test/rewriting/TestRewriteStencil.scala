@@ -2,8 +2,10 @@ package rewriting
 
 import ir._
 import ir.ast._
+import lift.arithmetic.ArithExpr
 import opencl.ir._
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor, KernelArg}
+import opencl.executor.Execute._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 import rewriting.utils.NumberExpression
@@ -112,7 +114,5 @@ class TestRewriteStencil {
     TypeChecker(f7)
     // kernel contains generic tile size as additional kernel argument
     val kernel = Compile(f7)
-    //val (result: Array[Float], _) = Execute(n)(kernel, f7, A, 4)
-    //assertArrayEquals(gold, result, 0.001f)
   }
 }
