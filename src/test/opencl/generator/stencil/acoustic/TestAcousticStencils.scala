@@ -529,19 +529,21 @@ class TestAcousticStencils {
   @Test
   def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelf(): Unit = {
 
-    val compareData = Array(11.0f, 22.0f, 33.0f, 44.0f, 55.0f, 52.0f,
-      13.0f, 26.0f, 39.0f, 52.0f, 65.0f, 64.0f,
-      13.0f, 26.0f, 39.0f, 52.0f, 65.0f, 64.0f,
-      13.0f, 26.0f, 39.0f, 52.0f, 65.0f, 64.0f,
-      13.0f, 26.0f, 39.0f, 52.0f, 65.0f, 64.0f,
-      11.0f, 22.0f, 33.0f, 44.0f, 55.0f, 52.0f)
+    val compareData = Array(
+    31.51f,63.02f,94.53f,126.04f,157.55f,150.7f,
+    36.99f,73.98f,110.97f,147.96f,184.95f,183.58f,
+    36.99f,73.98f,110.97f,147.96f,184.95f,183.58f,
+    36.99f,73.98f,110.97f,147.96f,184.95f,183.58f,
+    36.99f,73.98f,110.97f,147.96f,184.95f,183.58f,
+    31.51f,63.02f,94.53f,126.04f,157.55f,150.7f
+    )
 
     /* u[cp] = X * ( S*l1 + u[cp]*l2 + u1[cp]*l3) */
 
     val constant0 = 2.0f
     val constant1 = 4.0f
     val constant2 = 3.0f
-    val X = 0.5f
+    val Xvalue = 1.37f
 
     /** ** Why doesn't this work? !!!! ****/
     val lambdaNeigh = fun(
@@ -551,7 +553,7 @@ class TestAcousticStencils {
       ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
-          toGlobal(ReduceSeq(mult, X) o (addTuple)) $ Zip(
+          toGlobal(ReduceSeq(mult, Xvalue) o (addTuple)) $ Zip(
             ReduceSeq(mult, constant1) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
             ReduceSeq(mult, constant2) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(Get(Get(tuple1, 0), 0), Get(Get(tuple1, 0), 0)))) $ Zip(Zip(Get(m, 1), weights), Zip(Get(m, 1), weightsMiddle))
           )
@@ -559,23 +561,23 @@ class TestAcousticStencils {
       })
 
     val lambdaNeigh2 = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
       ArrayType(ArrayType(Float, weights(0).length), weights.length),
       ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
-          toGlobal(MapSeq(id) o ReduceSeq(mult, X) o MapSeq(addTuple)) $ Zip(
-            ReduceSeq(mult, constant1) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
-            MapSeq(addTuple) $ Zip(ReduceSeq(mult, constant0) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, Get(Get(tuple1, 1), 0)))) $ Zip(Get(m, 1), Zip(weights, weightsMiddle)),
-              ReduceSeq(mult, constant2) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, Get(Get(tuple1, 1), 1)))) $ Zip(Get(m, 1), Zip(weights, weightsMiddle)))
+          toGlobal(MapSeq(fun(x => mult(x,Xvalue))) o MapSeq(addTuple)) $ Zip(
+            ReduceSeq(mult, constant2) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
+            MapSeq(addTuple) $ Zip(ReduceSeq(mult, constant0) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, tuple1._1))) $ Zip(Get(m, 1), weights),
+              ReduceSeq(mult, constant1) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, tuple1._1))) $ Zip(Get(m, 1), weightsMiddle))
+
           )
         }))) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)), (Join() $ (Slide2D(slidesize, slidestep) $ mat2)))
       })
 
-
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh2, stencilarr, stencilarrCopy, weights, weightsMiddle)
-    if (printOutput) printOriginalAndOutput(stencilarr, output, size)
+    if(printOutput) printOriginalAndOutput(stencilarr, output, size)
     assertArrayEquals(compareData, output, delta)
 
   }
@@ -748,8 +750,8 @@ class TestAcousticStencils {
   @Test
   def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelfIterate5Asym(): Unit = {
 
-    val asymDimX = 18
-    val asymDimY = 8
+    val asymDimX = 14
+    val asymDimY = 6
 
     val stencilarr = createDataFloat(asymDimY,asymDimX)
     val stencilarrCopy = stencilarr.map(i => i.map(j => j*2.0f))
@@ -767,22 +769,7 @@ class TestAcousticStencils {
     val constant0 = 2.0f
     val constant1 = 4.0f
     val constant2 = 3.0f
-    val X = 0.5f
-
-    val lambdaNeigh2 = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
-      ArrayType(ArrayType(Float, weights(0).length), weights.length),
-      ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
-      (mat1, mat2, weights, weightsMiddle) => {
-        MapGlb((fun((m) => {
-          toGlobal(MapSeq(id) o ReduceSeq(mult, X) o MapSeq(addTuple)) $ Zip(
-            ReduceSeq(mult, constant1) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
-            MapSeq(addTuple) $ Zip(ReduceSeq(mult, constant0) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, Get(Get(tuple1, 1), 0)))) $ Zip(Get(m, 1), Zip(weights, weightsMiddle)),
-              ReduceSeq(mult, constant2) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, Get(Get(tuple1, 1), 1)))) $ Zip(Get(m, 1), Zip(weights, weightsMiddle)))
-          )
-        }))) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)), (Join() $ (Slide2D(slidesize, slidestep) $ mat2)))
-      })
+    val Xvalue = 0.25f
 
     val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
@@ -791,12 +778,13 @@ class TestAcousticStencils {
       ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
-          toGlobal(MapSeq(addTuple)) $ Zip(
-            ReduceSeq(mult, constant1) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
-            ReduceSeq(mult, constant2) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 1), weights)
+          toGlobal(MapSeq(fun(x => mult(x,Xvalue))) o MapSeq(addTuple)) $ Zip(
+            ReduceSeq(mult, constant2) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
+            MapSeq(addTuple) $ Zip(ReduceSeq(mult, constant0) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, tuple1._1))) $ Zip(Get(m, 1), weights),
+                                   ReduceSeq(mult, constant1) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, tuple1._1))) $ Zip(Get(m, 1), weightsMiddle))
+
           )
         }))) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)), (Join() $ (Slide2D(slidesize, slidestep) $ mat2)))
-
       })
 
     // until there's a better way ...
@@ -804,15 +792,15 @@ class TestAcousticStencils {
     var inputArrCopy = stencilarrCopy
     var outputX = Array[Float]()
 
-    for(x <- 1 to iter) {
+//    for(x <- 1 to iter) {
 //      println("iter: "+x)
-      val (output: Array[Float], runtime) = Execute(input.length, input(0).length)(lambdaNeigh2, input, inputArrCopy, weights, weightsMiddle)
-//      printOriginalAndOutput(input, output, asymDimX)
+      val (output: Array[Float], runtime) = Execute(input.length, input(0).length)(lambdaNeigh, input, inputArrCopy, weights, weightsMiddle)
+      printOriginalAndOutput(input, output, asymDimX)
       input = inputArrCopy
       inputArrCopy = createFakePaddingFloat(output.sliding(asymDimX,asymDimX).toArray,0.0f)
 
       outputX = output
-    }
+//    }
 
 
 //    printOriginalAndOutput(stencilarr, outputX, asymDimX)
