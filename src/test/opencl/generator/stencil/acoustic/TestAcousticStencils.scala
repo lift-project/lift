@@ -46,19 +46,19 @@ class TestAcousticStencils {
 
   /* helper functions */
 
+  def print1DArray[T](input: Array[T]) = {
+    println(input.mkString(","))
+  }
+
   def print2DArray[T](input: Array[Array[T]]) = {
     println(input.deep.mkString("\n"))
   }
 
-  def print3DArray[T](input: Array[Array[Array[T]]], dim: Int) = {
-      for (i <- 0 to dim-1){
+  def print3DArray[T](input: Array[Array[Array[T]]]) = {
+      for (i <- 0 to input.length-1){
         print2DArray(input(i))
         println()
       }
-  }
-
-  def print1DArray[T](input: Array[T]) = {
-    println(input.mkString(","))
   }
 
   def print1DArrayAs2DArray[T](input: Array[T], dimX: Int) {
@@ -85,7 +85,6 @@ class TestAcousticStencils {
 
   }
 
-
   def printOriginalAndOutput[T](original: Array[Array[T]], output: Array[T], dimX: Int): Unit = {
     println("ORIGINAL:")
     print2DArray(original)
@@ -105,8 +104,6 @@ class TestAcousticStencils {
 
   }
 
-
-
   val getFirstTuple = UserFun("getFirstTuple", "x", "{return x._0;}", TupleType(Float, Float), Float) // dud helper
 
   val getSecondTuple = UserFun("getSecondTuple", "x", "{return x._1;}", TupleType(Float, Float), Float) // dud helper
@@ -124,15 +121,19 @@ class TestAcousticStencils {
   */
 
   /* only one (value) layer of padding around 2D matrix */
-  def createFakePaddingFloat(input: Array[Array[Float]], padValue: Float): Array[Array[Float]] = {
-
+  def createFakePaddingFloat2D(input: Array[Array[Float]], padValue: Float): Array[Array[Float]] = {
     val padSize = input(0).length
     val actualSize = padSize+2
     val padLR = Array.fill(1)(padValue)
     val toppad = Array.fill(1)(Array.fill(actualSize)(padValue))
     val output = input.map(i => padLR ++ i ++ padLR)
     toppad ++ output ++ toppad
+  }
 
+  def createFakePaddingFloat3D(input: Array[Array[Array[Float]]], padValue: Float, dimX: Int, dimY: Int): Array[Array[Array[Float]]] = {
+    val z0 = Array.fill(dimX+2,dimY+2)(0.0f)
+    for(i <- 0 to input.length-1) input(i) = createFakePaddingFloat2D(input(i),0.0f)
+    Array(z0) ++ input ++ Array(z0)
   }
 
   def createFakePaddingInt(input: Array[Array[Int]], padValue: Int): Array[Array[Int]] = {
@@ -146,12 +147,11 @@ class TestAcousticStencils {
 
   }
 
-  /* Could refactor this to use createFakePaddingFloat */
   def createDataFloat(sizeX: Int, sizeY: Int) = {
 
     val dim = sizeX+2
     val filling = Array.tabulate(sizeX,sizeY) { (i,j) => (j + 1).toFloat }
-    createFakePaddingFloat(filling,0.0f)
+    createFakePaddingFloat2D(filling,0.0f)
   }
 
   /* these helper functions do not work, but it would be nice if they did! */
@@ -207,9 +207,16 @@ class TestAcousticStencils {
   )
 
   val weightsMiddle3D = Array(
+    Array(Array(0.0f, 0.0f, 0.0f),
     Array(0.0f, 0.0f, 0.0f),
+    Array(0.0f, 0.0f, 0.0f)),
+    Array(Array(0.0f, 0.0f, 0.0f),
     Array(0.0f, 1.0f, 0.0f),
+    Array(0.0f, 0.0f, 0.0f)),
+    Array(Array(0.0f, 0.0f, 0.0f),
+    Array(0.0f, 0.0f, 0.0f),
     Array(0.0f, 0.0f, 0.0f))
+  )
 
 
   val stencilarr = createDataFloat(size,size)
@@ -684,7 +691,7 @@ class TestAcousticStencils {
       val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, weightsArr)
       if(printOutput) printOriginalAndOutput(input, output, size)
       // need to re-pad, then slide and iterate
-      input = createFakePaddingFloat(output.sliding(size,size).toArray,0.0f)
+      input = createFakePaddingFloat2D(output.sliding(size,size).toArray,0.0f)
       outputX = output
     }
 
@@ -736,7 +743,7 @@ class TestAcousticStencils {
       if(printOutput) printOriginalAndOutput(stencilarr, output, size)
 
       inputArr = inputArrCopy
-      inputArrCopy = createFakePaddingFloat(output.sliding(size,size).toArray,0.0f)
+      inputArrCopy = createFakePaddingFloat2D(output.sliding(size,size).toArray,0.0f)
 
       outputX = output
     }
@@ -799,7 +806,7 @@ class TestAcousticStencils {
       val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, weightsArr)
       if(printOutput) printOriginalAndOutput(input, output, asymDimY)
       // need to re-pad, then slide and iterate
-      input = createFakePaddingFloat(output.sliding(asymDimY,asymDimY).toArray,0.0f)
+      input = createFakePaddingFloat2D(output.sliding(asymDimY,asymDimY).toArray,0.0f)
       outputX = output
     }
 
@@ -858,7 +865,7 @@ class TestAcousticStencils {
 //      println("iter: "+x)
       val (output: Array[Float], runtime) = Execute(2,2)(lambdaNeigh, input, inputArrCopy, weights, weightsMiddle)
       input = inputArrCopy
-      inputArrCopy = createFakePaddingFloat(output.sliding(asymDimY,asymDimY).toArray,0.0f)
+      inputArrCopy = createFakePaddingFloat2D(output.sliding(asymDimY,asymDimY).toArray,0.0f)
 
       outputX = output
     }
@@ -868,25 +875,34 @@ class TestAcousticStencils {
 
   }
 
+  @Ignore
   @Test
   def testStencil3DSimple(): Unit = {
 
     /* u[cp] = S */
 
-    val localDim = 5
+    val localDim = 3
 
-    val input3D = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (j+1).toFloat }
+    val dim = localDim + 2
 
-    val compareData = Array(3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 11.0f,
-      4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
-      4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
-      4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
-      4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
-      3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 11.0f
+    val input = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (j+1).toFloat }
+
+    val input3D = createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
+
+    val compareData = Array(
+    4.0f,5.0f,4.0f,
+    8.0f,10.0f,8.0f,
+    8.0f,11.0f,8.0f,
+    5.0f,6.0f,5.0f,
+    10.0f,12.0f,10.0f,
+    11.0f,14.0f,11.0f,
+    4.0f,5.0f,4.0f,
+    8.0f,10.0f,8.0f,
+    8.0f,11.0f,8.0f
     )
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(Float, localDim), localDim), localDim),
+      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
       ArrayType(Float, slidesize*slidesize*slidesize),
       (mat, weights) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
@@ -899,15 +915,83 @@ class TestAcousticStencils {
 
     val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, input3D, weights3D.flatten.flatten)
 
-
-    printOriginalAndOutput3Das1D(input3D, output)
-
-    print3DArray(input3D,localDim)
-    print1DArrayAs3DArray(output,localDim-2,localDim-2,localDim)
-
-//    assertArrayEquals(compareData, output, delta)
+    if(printOutput) {
+      printOriginalAndOutput3Das1D(input3D, output)
+      print3DArray(input3D)
+      print1DArrayAs3DArray(output, localDim, localDim, localDim)
+    }
+    assertArrayEquals(compareData, output, delta)
 
   }
+
+ @Test
+  def testStencil3DSwap(): Unit = {
+
+    /* u[cp] = u[cp] + u1[cp] */
+
+    val localDim = 3
+
+    val dim = localDim + 2
+
+    val input = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (j+1).toFloat }
+    val input2 = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (2*(j+1)).toFloat }
+
+    val input3D = createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
+    val input3D2 = createFakePaddingFloat3D(input2, 0.0f, localDim, localDim)
+
+    val compareData = Array(
+      4.0f,5.0f,4.0f,
+      8.0f,10.0f,8.0f,
+      8.0f,11.0f,8.0f,
+      5.0f,6.0f,5.0f,
+      10.0f,12.0f,10.0f,
+      11.0f,14.0f,11.0f,
+      4.0f,5.0f,4.0f,
+      8.0f,10.0f,8.0f,
+      8.0f,11.0f,8.0f
+    )
+
+    val lambdaNeigh2 = fun(
+      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
+      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
+      ArrayType(Float, slidesize*slidesize*slidesize),
+      (mat1, mat2, weightsMiddle) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
+            toGlobal(MapSeq(addTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 1), weightsMiddle))
+        })))
+        ) $ Zip((Join() o Join() $ (Slide3D(slidesize, slidestep) $ mat1)), (Join() o Join() $ (Slide3D(slidesize, slidestep) $ mat2)))
+      })
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(Float, weights(0).length), weights.length),
+      ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
+      (mat1, mat2, weights, weightsMiddle) => {
+        MapGlb((fun((m) => {
+          toGlobal(MapSeq(addTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 1), weightsMiddle)
+          )
+        }))) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)), (Join() $ (Slide2D(slidesize, slidestep) $ mat2)))
+
+      })
+
+
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh2, input3D, input3D2, weightsMiddle3D.flatten.flatten)
+
+    //if(printOutput)
+    {
+      printOriginalAndOutput3Das1D(input3D, output)
+      print3DArray(input3D)
+      print1DArrayAs3DArray(output, localDim, localDim, localDim)
+    }
+   // assertArrayEquals(compareData, output, delta)
+
+  }
+
 
   /////////////////// JUNKYARD ///////////////////
   @Ignore

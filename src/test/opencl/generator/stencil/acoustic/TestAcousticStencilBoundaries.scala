@@ -52,7 +52,7 @@ class TestAcousticStencilBoundaries extends TestAcousticStencils {
   def createMaskData(size: Int) = {
 
     val initMat = Array.tabulate(size,size){ (i,j) => (i+j+1).toFloat }
-    val matMat = createFakePaddingFloat(initMat,0.0f)
+    val matMat = createFakePaddingFloat2D(initMat,0.0f)
     val maskArray = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     val mask = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
