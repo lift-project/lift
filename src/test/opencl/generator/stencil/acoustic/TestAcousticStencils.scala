@@ -50,8 +50,8 @@ class TestAcousticStencils {
     println(input.deep.mkString("\n"))
   }
 
-  def print3Darray[T](input: Array[Array[Array[T]]], dim: Int) = {
-      for (i <- 0 to dim){
+  def print3DArray[T](input: Array[Array[Array[T]]], dim: Int) = {
+      for (i <- 0 to dim-1){
         print2DArray(input(i))
         println()
       }
@@ -74,10 +74,15 @@ class TestAcousticStencils {
     println()
   }
 
-  def print1DArrayAs3DArray[T](input: Array[T], dimX: Int, dimY: Int): Unit = {
+  def print1DArrayAs3DArray[T](input: Array[T], dimX: Int, dimY: Int, dimZ: Int): Unit = {
     val area = dimX*dimY
     val vol = input.length
-// for( i <- 1 to vol if(i%area == 0)) print1DArrayAs2DArray(input())
+
+    for(i <- 0 to dimZ-1)
+      {
+        print1DArrayAs2DArray(input.slice(i*area,i*area+area),dimX)
+      }
+
   }
 
 
@@ -868,9 +873,9 @@ class TestAcousticStencils {
 
     /* u[cp] = S */
 
-    val localDim = 4
+    val localDim = 5
 
-    val input3D = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (1+i+j+k).toFloat }
+    val input3D = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (j+1).toFloat }
 
     val compareData = Array(3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 11.0f,
       4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
@@ -897,6 +902,8 @@ class TestAcousticStencils {
 
     printOriginalAndOutput3Das1D(input3D, output)
 
+    print3DArray(input3D,localDim)
+    print1DArrayAs3DArray(output,localDim-2,localDim-2,localDim)
 
 //    assertArrayEquals(compareData, output, delta)
 
