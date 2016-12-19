@@ -80,12 +80,13 @@ class TestSimpleRoomCode extends TestAcousticStencilBoundaries {
       })
 
 
+      val source = Compile(lambdaNeigh)
       for(x <- 1 to 2)
       {
-   //     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrsame, mask, weights, weightsMiddle)
+        val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source, lambdaNeigh, stencilarr, stencilarrsame, mask, weights, weightsMiddle)
       }
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrsame, mask, weights, weightsMiddle)
+   // val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrsame, mask, weights, weightsMiddle)
 
 //    if (printOutput) printOriginalAndOutput(stencilarr, output, size)
 

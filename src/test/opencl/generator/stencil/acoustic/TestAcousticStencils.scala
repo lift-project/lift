@@ -10,6 +10,8 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.language.implicitConversions
+import scala.reflect.ClassTag
+import scala.util.Random
 
 object TestAcousticStencils {
   @BeforeClass def before(): Unit = {
@@ -48,6 +50,13 @@ class TestAcousticStencils {
     println(input.deep.mkString("\n"))
   }
 
+  def print3Darray[T](input: Array[Array[Array[T]]], dim: Int) = {
+      for (i <- 0 to dim){
+        print2DArray(input(i))
+        println()
+      }
+  }
+
   def print1DArray[T](input: Array[T]) = {
     println(input.mkString(","))
   }
@@ -65,6 +74,13 @@ class TestAcousticStencils {
     println()
   }
 
+  def print1DArrayAs3DArray[T](input: Array[T], dimX: Int, dimY: Int): Unit = {
+    val area = dimX*dimY
+    val vol = input.length
+// for( i <- 1 to vol if(i%area == 0)) print1DArrayAs2DArray(input())
+  }
+
+
   def printOriginalAndOutput[T](original: Array[Array[T]], output: Array[T], dimX: Int): Unit = {
     println("ORIGINAL:")
     print2DArray(original)
@@ -72,6 +88,18 @@ class TestAcousticStencils {
     println("OUTPUT:")
     print1DArrayAs2DArray(output, dimX)
   }
+
+  def printOriginalAndOutput3Das1D[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
+
+    val org = (original.flatten).flatten
+    println("ORIGINAL:"+org.length)
+    print1DArray(org)
+    println("*********************")
+    println("OUTPUT:"+output.length)
+    print1DArray(output)
+
+  }
+
 
 
   val getFirstTuple = UserFun("getFirstTuple", "x", "{return x._0;}", TupleType(Float, Float), Float) // dud helper
@@ -840,7 +868,8 @@ class TestAcousticStencils {
 
     /* u[cp] = S */
 
-    val localDim = 9
+    val localDim = 4
+
     val input3D = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (1+i+j+k).toFloat }
 
     val compareData = Array(3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 11.0f,
@@ -853,24 +882,25 @@ class TestAcousticStencils {
 
     val lambdaNeigh = fun(
       ArrayType(ArrayType(ArrayType(Float, localDim), localDim), localDim),
-      ArrayType(Float, localDim*localDim*localDim),
+      ArrayType(Float, slidesize*slidesize*slidesize),
       (mat, weights) => {
-        MapGlb(1)(MapGlb(0)(fun(neighbours => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeq(id)) o
               ReduceSeqUnroll(\((acc, next) =>
-                multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() o Join()$ neighbours, weights)
-          }))
+                multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
+          })))
         ) o Slide3D(slidesize, slidestep) $ mat
       })
 
     val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, input3D, weights3D.flatten.flatten)
 
-    printOriginalAndOutput(stencilarr, output, size)
+
+    printOriginalAndOutput3Das1D(input3D, output)
+
 
 //    assertArrayEquals(compareData, output, delta)
 
   }
-
 
   /////////////////// JUNKYARD ///////////////////
   @Ignore
