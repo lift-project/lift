@@ -32,7 +32,7 @@ class TestSimpleRoomCode {
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
   /* globals */
-  val mask = BoundaryUtilities.createMaskData(StencilUtilities.stencilSize)
+  val mask = BoundaryUtilities.createMaskData2D(StencilUtilities.stencilSize)
 
   /* test iterating and swapping arrays? */
   @Test

@@ -39,15 +39,16 @@ object BoundaryUtilities
   }
 
   /* should create asym version! */
-  def createMaskData(size: Int) = {
+  def createMaskData2D(size: Int) = {
 
     val initMat = Array.tabulate(size,size){ (i,j) => (i+j+1).toFloat }
     val matMat = StencilUtilities.createFakePaddingFloat2D(initMat,0.0f)
     val maskArray = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     val mask = createMask(initMat,size,0).map(i => i.map(j => j.toString.toArray))
     mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
-
   }
+
+
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
     MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,c1))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,c2))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
@@ -77,7 +78,7 @@ class TestAcousticStencilBoundaries {
 
 
   /* globals */
-  val mask = BoundaryUtilities.createMaskData(StencilUtilities.stencilSize)
+  val mask = BoundaryUtilities.createMaskData2D(StencilUtilities.stencilSize)
 
   @Test
   def testSimpleOneGridWithBoundaryCheckMask(): Unit =
