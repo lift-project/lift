@@ -924,72 +924,122 @@ class TestAcousticStencils {
 
   }
 
+  @Ignore
  @Test
   def testStencil3DSwap(): Unit = {
 
     /* u[cp] = u[cp] + u1[cp] */
 
     val localDim = 3
-
     val dim = localDim + 2
 
-    val input = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (j+1).toFloat }
-    val input2 = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (2*(j+1)).toFloat }
+    val input = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (i+j+k+1).toFloat }
+    val input2 = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (2*(i+j+k+1)).toFloat }
 
     val input3D = createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
     val input3D2 = createFakePaddingFloat3D(input2, 0.0f, localDim, localDim)
 
     val compareData = Array(
-      4.0f,5.0f,4.0f,
-      8.0f,10.0f,8.0f,
-      8.0f,11.0f,8.0f,
-      5.0f,6.0f,5.0f,
-      10.0f,12.0f,10.0f,
-      11.0f,14.0f,11.0f,
-      4.0f,5.0f,4.0f,
-      8.0f,10.0f,8.0f,
-      8.0f,11.0f,8.0f
-    )
+      3.0f,6.0f,9.0f,
+      6.0f,9.0f,12.0f,
+      9.0f,12.0f,15.0f,
+      6.0f,9.0f,12.0f,
+      9.0f,12.0f,15.0f,
+      12.0f,15.0f,18.0f,
+      9.0f,12.0f,15.0f,
+      12.0f,15.0f,18.0f,
+      15.0f,18.0f,21.0f
+   )
 
     val lambdaNeigh2 = fun(
       ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
       ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(Float, slidesize*slidesize*slidesize),
+      ArrayType(ArrayType(ArrayType(Float, weightsMiddle3D(0)(0).length), weightsMiddle3D(0).length), weightsMiddle3D.length),
       (mat1, mat2, weightsMiddle) => {
-        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
+        MapGlb((fun(m => {
             toGlobal(MapSeq(addTuple)) $ Zip(
-            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
-            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 1), weightsMiddle))
-        })))
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip( Join() $ Get(m, 0), Join() $ weightsMiddle),
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip( Join() $ Get(m, 1), Join() $ weightsMiddle))
+        }))
         ) $ Zip((Join() o Join() $ (Slide3D(slidesize, slidestep) $ mat1)), (Join() o Join() $ (Slide3D(slidesize, slidestep) $ mat2)))
       })
 
-    val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, weights(0).length), weights.length),
-      ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
-      (mat1, mat2, weights, weightsMiddle) => {
-        MapGlb((fun((m) => {
-          toGlobal(MapSeq(addTuple)) $ Zip(
-            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
-            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 1), weightsMiddle)
-          )
-        }))) $ Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)), (Join() $ (Slide2D(slidesize, slidestep) $ mat2)))
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh2, input3D, input3D2, weightsMiddle3D)
 
-      })
-
-
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh2, input3D, input3D2, weightsMiddle3D.flatten.flatten)
-
-    //if(printOutput)
+    if(printOutput)
     {
       printOriginalAndOutput3Das1D(input3D, output)
       print3DArray(input3D)
       print1DArrayAs3DArray(output, localDim, localDim, localDim)
     }
-   // assertArrayEquals(compareData, output, delta)
+    assertArrayEquals(compareData, output, delta)
 
+  }
+
+  @Test
+  def twoGridSwapWith3weightsCalculations3D(): Unit = {
+
+    val compareData = Array(
+    8.75f,15.5f,22.25f,24.0f,
+    15.5f,24.25f,32.0f,33.75f,
+    22.25f,32.0f,39.75f,40.5f,
+    24.0f,33.75f,40.5f,39.25f,
+    15.5f,24.25f,32.0f,33.75f,
+    24.25f,35.0f,43.75f,45.5f,
+    32.0f,43.75f,52.5f,53.25f,
+    33.75f,45.5f,53.25f,52.0f,
+    22.25f,32.0f,39.75f,40.5f,
+    32.0f,43.75f,52.5f,53.25f,
+    39.75f,52.5f,61.25f,61.0f,
+    40.5f,53.25f,61.0f,58.75f,
+    24.0f,33.75f,40.5f,39.25f,
+    33.75f,45.5f,53.25f,52.0f,
+    40.5f,53.25f,61.0f,58.75f,
+    39.25f,52.0f,58.75f,54.5f
+    )
+
+    /* u[cp] = X * ( S*l1 + u[cp]*l2 + u1[cp]*l3) */
+
+    val localDim = 4
+    val dim = localDim + 2
+
+    val input = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (i+j+k+1).toFloat }
+    val input2 = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (2*(i+j+k+1)).toFloat }
+
+    val input3D = createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
+    val input3D2 = createFakePaddingFloat3D(input2, 0.0f, localDim, localDim)
+
+    val constant0 = 2.0f
+    val constant1 = 4.0f
+    val constant2 = 3.0f
+    val Xvalue = 0.25f
+
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
+      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
+      ArrayType(ArrayType(ArrayType(Float, weights3D(0)(0).length), weights3D(0).length), weights3D.length),
+      ArrayType(ArrayType(ArrayType(Float, weightsMiddle3D(0)(0).length), weightsMiddle3D(0).length), weightsMiddle3D.length),
+      (mat1, mat2, weights, weightsMiddle) => {
+        MapGlb((fun(m => {
+            toGlobal(MapSeq(fun(x => mult(x,Xvalue))) o MapSeq(addTuple)) $ Zip(
+            ReduceSeq(mult, constant2) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(m, 0), Join() $ weightsMiddle),
+            MapSeq(addTuple) $ Zip(ReduceSeq(mult, constant0) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, tuple1._1))) $ Zip(Join() $ Get(m, 1), Join() $ weights),
+            ReduceSeq(mult, constant1) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(tuple1._0, tuple1._1))) $ Zip(Join() $ Get(m, 1), Join() $ weightsMiddle))
+          )
+        }))
+        ) $ Zip((Join() o Join() $ (Slide3D(slidesize, slidestep) $ mat1)), (Join() o Join() $ (Slide3D(slidesize, slidestep) $ mat2)))
+      })
+
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, input3D, input3D2, weights3D, weightsMiddle3D)
+
+    if(printOutput)
+    {
+      printOriginalAndOutput3Das1D(input3D, output)
+      print3DArray(input3D)
+      print1DArrayAs3DArray(output, localDim, localDim, localDim)
+    }
+    assertArrayEquals(compareData, output, delta)
   }
 
 
