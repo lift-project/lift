@@ -24,8 +24,15 @@ object TestSimpleRoomCode {
   }
 }
 
-class TestSimpleRoomCode extends TestAcousticStencilBoundaries {
+class TestSimpleRoomCode {
 
+  /* currently the same, but in case we want to change .. */
+  val stencilarr = StencilUtilities.createDataFloat(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
+  val stencilarrsame = StencilUtilities.createDataFloat(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
+  val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
+
+  /* globals */
+  val mask = BoundaryUtilities.createMaskData(StencilUtilities.stencilSize)
 
   /* test iterating and swapping arrays? */
   @Test
@@ -50,16 +57,16 @@ class TestSimpleRoomCode extends TestAcousticStencilBoundaries {
     val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(ArrayType(Int, 1), size), size),
-      ArrayType(ArrayType(Float, weights(0).length), weights.length),
-      ArrayType(ArrayType(Float, weightsMiddle(0).length), weightsMiddle.length),
+      ArrayType(ArrayType(ArrayType(Int, 1), StencilUtilities.stencilSize), StencilUtilities.stencilSize),
+      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstSec = maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstOrg = maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
+          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
 
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(Get(m, 0), 0), weightsMiddle),
@@ -76,14 +83,14 @@ class TestSimpleRoomCode extends TestAcousticStencilBoundaries {
           ),
             maskedValMult)
         }))
-        ) $ Zip(Zip((Join() $ (Slide2D(slidesize, slidestep) $ mat1)), (Join() $ (Slide2D(slidesize, slidestep) $ mat2))), Join() $ mask1)
+        ) $ Zip(Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))), Join() $ mask1)
       })
 
 
       val source = Compile(lambdaNeigh)
       for(x <- 1 to 2)
       {
-        val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source, lambdaNeigh, stencilarr, stencilarrsame, mask, weights, weightsMiddle)
+        val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source, lambdaNeigh, stencilarr, stencilarrsame, mask, StencilUtilities.weights, StencilUtilities.weightsMiddle)
       }
 
   }
