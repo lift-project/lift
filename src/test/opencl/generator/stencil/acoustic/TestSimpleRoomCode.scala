@@ -27,8 +27,8 @@ object TestSimpleRoomCode {
 class TestSimpleRoomCode {
 
   /* currently the same, but in case we want to change .. */
-  val stencilarr = StencilUtilities.createDataFloat(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
-  val stencilarrsame = StencilUtilities.createDataFloat(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
+  val stencilarr = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
+  val stencilarrsame = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
   /* globals */

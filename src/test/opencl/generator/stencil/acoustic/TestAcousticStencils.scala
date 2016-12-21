@@ -159,7 +159,7 @@ object StencilUtilities
       Array(z0) ++ input ++ Array(z0)
     }
 
-    def createFakePaddingInt(input: Array[Array[Int]], padValue: Int): Array[Array[Int]] = {
+    def createFakePaddingInt2D(input: Array[Array[Int]], padValue: Int): Array[Array[Int]] = {
 
       val padSize = input(0).length
       val actualSize = padSize+2
@@ -170,7 +170,7 @@ object StencilUtilities
 
     }
 
-    def createDataFloat(sizeX: Int, sizeY: Int) = {
+    def createDataFloat2D(sizeX: Int, sizeY: Int) = {
 
       val dim = sizeX+2
       val filling = Array.tabulate(sizeX,sizeY) { (i,j) => (j + 1).toFloat }
@@ -209,8 +209,8 @@ object TestAcousticStencils {
 class TestAcousticStencils {
 
 
-  val stencilarr = StencilUtilities.createDataFloat(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
-  val stencilarrsame = StencilUtilities.createDataFloat(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
+  val stencilarr = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
+  val stencilarrsame = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
   @Ignore
@@ -752,7 +752,7 @@ class TestAcousticStencils {
     val asymDimY = 10
     val asymDimX = 14
 
-    val stencilarr = StencilUtilities.createDataFloat(asymDimX,asymDimY)
+    val stencilarr = StencilUtilities.createDataFloat2D(asymDimX,asymDimY)
 
     val compareData = Array(
     462.0f,924.0f,1386.0f,1848.0f,2310.0f,2761.0f,3157.0f,3289.0f,2926.0f,1738.0f,
@@ -811,7 +811,7 @@ class TestAcousticStencils {
     val asymDimY = 14
     val asymDimX = 6
 
-    val stencilarr = StencilUtilities.createDataFloat(asymDimX,asymDimY)
+    val stencilarr = StencilUtilities.createDataFloat2D(asymDimX,asymDimY)
     val stencilarrCopy = stencilarr.map(i => i.map(j => j*2.0f))
 
     val compareData = Array(
