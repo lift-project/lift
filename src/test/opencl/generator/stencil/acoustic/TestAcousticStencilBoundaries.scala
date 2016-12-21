@@ -78,14 +78,17 @@ object TestAcousticStencilBoundaries {
 
 class TestAcousticStencilBoundaries {
 
+  val localDim = 3
 
   val stencilarr = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
   val stencilarrsame = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
+  val stencilarr3D = StencilUtilities.createDataFloat3D(localDim,localDim,localDim)
 
   /* globals */
   val mask = BoundaryUtilities.createMaskData2D(StencilUtilities.stencilSize)
+  val mask3D = BoundaryUtilities.createMaskData3D(localDim)
 
   @Test
   def testSimpleOneGridWithBoundaryCheckMask2D(): Unit =
@@ -275,24 +278,38 @@ class TestAcousticStencilBoundaries {
     val constantBorder = 5.0f
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(ArrayType(Int, 1),StencilUtilities.stencilSize), StencilUtilities.stencilSize),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayType(ArrayType(ArrayType(Float, stencilarr3D(0)(0).length), stencilarr3D(0).length),stencilarr3D.length),
+      ArrayType(ArrayType(ArrayType(ArrayType(Int, 1),localDim),localDim),localDim),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       (mat1, mask1, weights) => {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
-            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m,0), weights),
-            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.invertInt) $ Get(m,1))
+            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(m,0), Join() $ weights),
+            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(BoundaryUtilities.idIF)  $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.invertInt)  $ Get(m,1))
           )
         }))
-        ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)),  Join() $ mask1)
+        ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() o Join() $ mask1)
+      })
+
+    val lambdaNeigh2 = fun(
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.stencilSize), StencilUtilities.stencilSize), StencilUtilities.stencilSize),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.stencilSize), StencilUtilities.stencilSize), StencilUtilities.stencilSize),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      (mat1, mat2, weightsMiddle) => {
+        MapGlb((fun(m => {
+          toGlobal(MapSeq(addTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip( Join() $ Get(m, 0), Join() $ weightsMiddle),
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip( Join() $ Get(m, 1), Join() $ weightsMiddle))
+        }))
+        ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
       })
 
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2,(true,true))(lambdaNeigh, stencilarr3D, mask3D, StencilUtilities.weights3D)
 
-    if(StencilUtilities.printOutput) {
-      StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    //if(StencilUtilities.printOutput)
+    {
+      StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
     }
 
    // assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)

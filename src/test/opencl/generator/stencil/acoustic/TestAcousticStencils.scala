@@ -131,6 +131,16 @@ object StencilUtilities
     println("OUTPUT:" + output.length)
     print1DArray(output)
   }
+
+
+  def printOriginalAndOutput3D[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
+
+    println("ORIGINAL:" + original.flatten.flatten.length)
+    print3DArray(original)
+    println("*********************")
+    println("OUTPUT:" + output.length)
+    print1DArrayAs3DArray(output,original(0)(0).length-2,original(0).length-2,original.length-2)
+  }
     /** ** Why doesn't this work?? !!!! *****/
     /*
       def createFakePadding[T](input: Array[Array[T]], padSize: Int, padValue: T): Array[Array[T]] = {
@@ -175,6 +185,14 @@ object StencilUtilities
       val dim = sizeX+2
       val filling = Array.tabulate(sizeX,sizeY) { (i,j) => (j + 1).toFloat }
       createFakePaddingFloat2D(filling,0.0f)
+    }
+
+
+    def createDataFloat3D(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+
+      val dim = sizeX+2
+      val filling = Array.tabulate(sizeX,sizeY,sizeZ) { (i,j,k) => (i + j + k + 1).toFloat }
+      createFakePaddingFloat3D(filling,0.0f,sizeX,sizeY)
     }
 
     /* these helper functions do not work, but it would be nice if they did! */
