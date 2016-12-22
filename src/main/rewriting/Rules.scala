@@ -34,6 +34,28 @@ object Rules {
       Map(f) o Gather(g) $ arg
   })
 
+  /* Slide rules */
+  val slideTiling: Rule = slideTiling(?)
+
+  def slideTiling(tileStep: ArithExpr) = Rule("Slide(n, s) => Join() o Map(Slide(n, s)) o Slide(u, v)", {
+    case FunCall(Slide(n,s), arg) if
+      tileStep == ? ||  // either we set it to valid value
+      ArithExpr.isSmaller(s,tileStep).getOrElse(false) || // tile is bigger (valid)
+      tileStep.equals(s) => // tile is as big as previous slide (creates one sliding window, valid)
+
+      val step = if (tileStep == ?) Utils.validSplitVariable(arg.t) else tileStep
+      val overlap = n-s
+      Join() o Map(Slide(n, s)) o Slide(step + overlap, step) $ arg
+  })
+
+  // todo possibly duplicate: see rewriting/MacroRules.scala:277
+  /* Map-join rule */
+
+  val mapJoin = Rule("Map(f) o Join() => Join() o Map(Map(f))", {
+    case FunCall(Map(f), FunCall(Join(), arg)) =>
+      Join() o Map(Map(f)) $ arg
+  })
+
   /* Split-join rule */
 
   val splitJoin: Rule = splitJoin(?)
