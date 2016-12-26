@@ -40,15 +40,44 @@ It is important to install the Scala plugin, which is possible as part of the fi
 
 To configure the *Lift* project in the IDE perform the following steps:
 
-  1. Launch IDEA and select ``"Import Project"`` from the launch screen or ``"File -> New -> Project from Existing Source ..."``.
+  1. Launch IDEA and select ``"Import Project"`` from the launch screen:
 
-  2. Select the ``build.sbt`` file at the root of the *Lift* repositroy.
+    .. image:: images/IDEAImportDialog.*
+  
+    Or select ``"File -> New -> Project from Existing Source ..."``:
 
-  3. In the appearing ``"Import Project from SBT"`` dialog ensure that there is a *Project SDK* selected with at least *Java version* 1.8. If this is not the case click ``"New ..."`` next to *Project SDK* and select the installed Java SDK of version 1.8 or newer [#sdk]_.
+    .. image:: images/IDEAMenu.*
 
-  4. Click ``OK`` and also ``OK`` in the following dialog ``"SBT Project Data To Import"``.
 
-  5. Click ``"Build -> Build Project"`` to build the *Lift* compiler. This is the equivalent action to ``sbt build`` on the command line.
+  2. Select the ``build.sbt`` file at the root of the *Lift* repositroy:
+
+    .. image:: images/IDEASBTSelection.*
+
+  3. In the appearing ``"Import Project from SBT"`` dialog ensure that there is a *Project SDK* selected with at least *Java version* 1.8:
+
+     .. image:: images/IDEAImportDialog.*
+
+     If this is not the case click ``"New ..."`` next to *Project SDK* and select a Java SDK of version 1.8 or newer installed on your machine [#sdk]_.
+
+  4. Click ``OK`` and also ``OK`` in the following dialog ``"SBT Project Data To Import"``:
+
+     .. image:: images/IDEASBTModules.*
+
+  5. Click ``"Build -> Build Project"`` to build the *Lift* compiler:
+
+     .. image:: images/IDEABuild.*
+  
+     This is the equivalent action to ``sbt build`` on the command line.
+
+  6. To run all unit tests unfold the project structure as shown in the picture:
+
+     .. image:: images/IDEAProjectScreen.*
+
+     Then right click on the ``test`` folder and select ``"Run 'All Tests'"``:
+
+     .. image:: images/IDEARunAllTests.*
+
+     This is the equivalent action to ``sbt test`` on the command line.
 
 There is exhaustive documentation material for IDEA available at https://www.jetbrains.com/help/idea/2016.3/meet-intellij-idea.html, if you are unfamiliar with the IDE.
 
