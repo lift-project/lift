@@ -42,7 +42,7 @@ To configure the *Lift* project in the IDE perform the following steps:
 
   1. Launch IDEA and select ``"Import Project"`` from the launch screen:
 
-    .. image:: images/IDEAImportDialog.*
+    .. image:: images/IDEALaunchScreen.*
   
     Or select ``"File -> New -> Project from Existing Source ..."``:
 
