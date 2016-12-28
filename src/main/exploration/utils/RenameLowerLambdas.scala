@@ -2,7 +2,7 @@ package exploration.utils
 
 import java.io.FileWriter
 
-import apart.arithmetic.{ArithExpr, Var}
+import lift.arithmetic.{ArithExpr, Var}
 import exploration.ParameterRewrite
 import opencl.executor.Eval
 import rewriting.utils.Utils

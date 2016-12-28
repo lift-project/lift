@@ -1,6 +1,6 @@
 package opencl.ir
 
-import apart.arithmetic._
+import lift.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.ast._
@@ -23,7 +23,7 @@ class OpenCLMemory(var variable: Var,
     if (size.eval == 0)
       throw new IllegalArgumentException("Cannot have a memory of 0 bytes!")
   } catch {
-    case _: NotEvaluableException => // nothing to do
+    case NotEvaluableException => // nothing to do
     case e: Exception => throw e
   }
 
@@ -237,6 +237,7 @@ object TypedOpenCLMemory {
         case m: AbstractMap => collectMap(call.t, m)
         case r: AbstractPartRed => collectReduce(r, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
+        case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
         case i: Iterate     => collectIterate(call, i)
         case fp: FPattern   => collect(fp.f.body)
         case _              => Seq()
@@ -263,24 +264,19 @@ object TypedOpenCLMemory {
       @scala.annotation.tailrec
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
+        // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
         addressSpace match {
-          // TODO: Incorrect type for PrivateMemory, but OpenCLCodeGen
-          // TODO: crashes with the correct one...
-          case GlobalMemory | PrivateMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+          case PrivateMemory =>
+            m match {
+              case _: MapGlb | _: MapWrg  | _: Map =>
+                tm
+              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
 
-            // TODO: Incorrect type returned for PrivateMemory.
-//          case PrivateMemory =>
-//            m match {
-//              case _: MapGlb | _: MapWrg  | _: Map =>
-//                tm
-//              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-//
-//                var privateMultiplier = m.iterationCount
-//                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
-//
-//                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
-//            }
+                var privateMultiplier = m.iterationCount
+                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+
+                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
+            }
           case LocalMemory =>
             m match {
               case _: MapGlb | _: MapWrg  | _: Map =>
@@ -288,6 +284,9 @@ object TypedOpenCLMemory {
               case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
                 TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
             }
+          case GlobalMemory =>
+            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+
           case coll: AddressSpaceCollection =>
             changeType(coll.findCommonAddressSpace(), tm)
         }
@@ -327,6 +326,10 @@ object TypedOpenCLMemory {
 
         !isAlreadyInArgs && !isAlreadyInParams
       })
+    }
+
+    def collectUnsafeArrayAccess(ua: UnsafeArrayAccess, call: FunCall, argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      Seq(TypedOpenCLMemory(call))
     }
 
     def collectIterate(call: FunCall, i: Iterate): Seq[TypedOpenCLMemory] = {

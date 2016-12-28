@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast._
 import opencl.executor._
@@ -8,7 +8,6 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-
 
 object TestPad {
   @BeforeClass def before(): Unit = {
@@ -36,6 +35,7 @@ class TestPad {
   /// Input array
   val input = Array(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p)
   val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
+  val input3D = Array.tabulate(2, 2, 2) { (i, j, k) => i * 4.0f + j * 2.0f + k}
 
   def validate1D(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun, input: Array[Float] = input): Unit = {
     val fct = fun(
@@ -44,23 +44,6 @@ class TestPad {
     )
 
     val (output: Array[Float],runtime) = Execute(input.length, input.length)(fct, input)
-    println("runtime = " + runtime)
-    assertArrayEquals(gold, output, 0.0f)
-  }
-
-  def validate2D(gold: Array[Float],
-                 top: Int, bottom: Int,
-                 left: Int, right: Int,
-                 boundary: Pad.BoundaryFun): Unit = {
-    val N = SizeVar("N")
-    val fct = fun(
-      ArrayType(ArrayType(Float, N), N),
-      (domain) => MapGlb(0)(
-        MapGlb(1)(id)) o
-         Pad2D(top, bottom, left, right, boundary) $ domain
-    )
-
-    val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input2D)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -193,6 +176,23 @@ class TestPad {
   /* **********************************************************
         PAD 2D
      ***********************************************************/
+  def validate2D(gold: Array[Float],
+                 top: Int, bottom: Int,
+                 left: Int, right: Int,
+                 boundary: Pad.BoundaryFun): Unit = {
+    val N = SizeVar("N")
+    val fct = fun(
+      ArrayType(ArrayType(Float, N), N),
+      (domain) => MapGlb(0)(
+        MapGlb(1)(id)) o
+        Pad2D(top, bottom, left, right, boundary) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input2D)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
   @Test def pad2DClampSize1(): Unit = {
     val gold = Array(
       A, A, B, C, D, D,
@@ -337,10 +337,85 @@ class TestPad {
 
     validate2D(gold, 2,2,2,2, Wrap)
   }
+  /* **********************************************************
+      THESIS
+  ***********************************************************/
+  @Test def reducePad(): Unit = {
+    val input = Array(0,1,2,3,4,5).map(_.toFloat)
+    val gold = Array(20.0f)
+    val bf = Pad.Boundary.Wrap
+    val fct = fun(
+      ArrayType(Float, SizeVar("N")),
+      (input) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Pad(1,1,bf) $ input
+    )
 
-    /* **********************************************************
-        OLD STUFF WHICH MIGHT TURN OUT TO BE USEFUL
+    val (output: Array[Float], _) = Execute(1,1)(fct, input)
+    println(output.mkString(", "))
+    println("test")
+    //assertArrayEquals(gold, output, 0.0f)
+  }
+
+  /* **********************************************************
+        PAD 3D
      ***********************************************************/
+  def validate3D(gold: Array[Float],
+                 z: Int,
+                 y: Int,
+                 x: Int,
+                 b: Pad.BoundaryFun): Unit = {
+    val N = SizeVar("N")
+    val fct = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      (domain) => MapGlb(0)(MapGlb(1)(MapGlb(2)(id))) o
+        Pad3D(z,y,x,b) $ domain
+    )
+
+    val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input3D)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold, output, 0.0f)
+  }
+
+  val gold3d = Array(A,A,B,B, // boundary = clamp
+    A,A,B,B,
+    C,C,D,D,
+    C,C,D,D,
+    A,A,B,B,
+    A,a,b,B,
+    C,c,d,D,
+    C,C,D,D,
+    E,E,F,F,
+    E,e,f,F,
+    G,g,h,H,
+    G,G,H,H,
+    E,E,F,F,
+    E,E,F,F,
+    G,G,H,H,
+    G,G,H,H)
+
+  @Test def pad3d(): Unit = {
+    println(input3D.transpose.flatten.flatten.mkString(","))
+    validate3D(gold3d,1,1,1,Pad.Boundary.Clamp)
+  }
+
+  @Test def pad3dAlternative(): Unit = {
+    val N = SizeVar("N")
+    val b = Pad.Boundary.Clamp
+    val fct = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      (input) => MapGlb(0)(MapGlb(1)(MapGlb(2)(id))) o
+        Map(Map(Pad(1,1,b))) o Transpose() o
+        Pad(1,1,b) o Transpose() o Pad(1,1,b) $ input
+    )
+
+    val (output: Array[Float],runtime) = Execute(gold3d.length,gold3d.length)(fct, input3D)
+    println("runtime = " + runtime)
+    assertArrayEquals(gold3d, output, 0.0f)
+    println(output.mkString(","))
+  }
+
+  /* **********************************************************
+      OLD STUFF WHICH MIGHT TURN OUT TO BE USEFUL
+   ***********************************************************/
   /*
   // === Test custom boundary condition ===
   @Ignore

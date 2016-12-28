@@ -1,7 +1,7 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import apart.arithmetic._
+import lift.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
@@ -140,24 +140,29 @@ class AccessCounts(
   def vectorLoads(addressSpace: OpenCLAddressSpace,
     accessPattern: AccessPattern, exact: Boolean = false) = {
 
-    loadsToAddressSpacesWithPatternAndWidth.
+    val loads = loadsToAddressSpacesWithPatternAndWidth.
       foldLeft(Cst(0): ArithExpr)((acc, bla) =>
         if (bla._1._3 != Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
           acc + bla._2
         else
           acc
       )
+
+    getExact(loads, exact)
   }
 
   def vectorStores(addressSpace: OpenCLAddressSpace,
     accessPattern: AccessPattern, exact: Boolean = false) = {
-    storesToAddressSpacesWithPatternAndWidth.
+
+    val stores = storesToAddressSpacesWithPatternAndWidth.
       foldLeft(Cst(0): ArithExpr)((acc, bla) =>
         if (bla._1._3 != Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
           acc + bla._2
         else
           acc
       )
+
+    getExact(stores, exact)
   }
 
   def vectorAccesses(addressSpace: OpenCLAddressSpace,
@@ -218,7 +223,7 @@ class AccessCounts(
 
           case l: Lambda => count(l.body)
           case fp: FPattern => count(fp.f.body)
-          case uf: UserFun =>
+          case _: UserFun =>
 
             args.foreach(updateEntry(_, accessPatterns.getReadPatterns, loads))
 

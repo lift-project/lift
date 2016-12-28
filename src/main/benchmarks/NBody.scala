@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -97,7 +97,7 @@ object NBody {
     UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr", "acc"),
       """|{
         |  float4 r;
-        |  r.xyz = p1.xyz - p2.xyz;
+        |  r.xyz = p2.xyz - p1.xyz ;
         |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
         |  float invDistCube = invDist * invDist * invDist;
@@ -113,7 +113,7 @@ object NBody {
     UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr"),
       """|{
         |  float4 r;
-        |  r.xyz = p1.xyz - p2.xyz;
+        |  r.xyz = p2.xyz - p1.xyz ;
         |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
         |  float invDistCube = invDist * invDist * invDist;
@@ -142,7 +142,7 @@ object NBody {
 
   val N = SizeVar("N")
 
-  val function = fun(
+  val amd = fun(
     ArrayType(Float4, N),
     ArrayType(Float4, N),
     Float,
@@ -158,6 +158,40 @@ object NBody {
           Value("(float4) 0.0f", Float4)) $ pos
 
       )) $ Zip(pos, vel)
+  )
+
+  val tileX = 256
+  val tileY = 1
+
+  val nvidia = fun(
+    ArrayType(Float4, N),
+    ArrayType(Float4, N),
+    Float,
+    Float,
+    (pos, vel, espSqr, deltaT) =>
+      Join() o
+        MapWrg(1)(Join() o MapWrg(0)(fun(p1Chunk => // ArrayType(Flat4, tileX)
+          \(newP1Chunk =>
+            MapLcl(1)(\(bla =>
+              toGlobal(MapLcl(0)( fun( p1 =>
+                NBody.update(Get(Get(p1,0), 0), Get(Get(p1, 0), 1), deltaT, Get(p1,1))
+              ))) $ Zip(newP1Chunk, bla))) o
+              Join() o
+              ReduceSeq(fun((acc, p2) =>
+                Let(p2Local =>
+                  MapLcl(1)(\(accDim2 =>
+                    Join() o
+                      MapLcl(0)(fun(p1 => // ( (float4, float4), float4 )
+
+                        ReduceSeq(fun((acc, p2) =>
+                          NBody.calcAccAndAccumulate(Get(Get(p1,0), 0), p2, deltaT, espSqr, acc)),
+                          Get(p1,1)) $ accDim2._0
+                      )) $ Zip(newP1Chunk, accDim2._1)
+                  )) $ Zip(p2Local, acc)
+                ) o toLocal(MapLcl(1)(MapLcl(0)(idF4))) $ p2
+              ), MapLcl(1)(MapLcl(0)(idF4)) $ Value("0.0f", ArrayType(ArrayType(Float4, tileX), tileY))) o Split(tileY) o Split(tileX) $ pos
+          ) $ Zip(toPrivate(MapLcl(idF4)) $ Get(Unzip() $ p1Chunk, 0), Get(Unzip() $ p1Chunk, 1))
+        )) o Split(tileX)) o Split(N) $ Zip(pos, vel)
   )
 
   val lessLoadsToGlobal = fun(
@@ -182,7 +216,8 @@ object NBody {
 
 
   def apply() = new NBody(Seq(
-    ("amd", Array[Lambda](function)),
+    ("amd", Array[Lambda](amd)),
+    ("nvidia", Array[Lambda](nvidia)),
     ("lessLoadsToGlobal", Array[Lambda](lessLoadsToGlobal))
   ))
 

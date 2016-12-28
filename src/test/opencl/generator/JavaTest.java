@@ -1,8 +1,8 @@
 package opencl.generator;
 
-import apart.arithmetic.Cst;
-import apart.arithmetic.StartFromRange;
-import apart.arithmetic.Var;
+import lift.arithmetic.Cst;
+import lift.arithmetic.StartFromRange;
+import lift.arithmetic.Var;
 
 import arithmetic.interop.jVar;
 import ir.Type;

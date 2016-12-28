@@ -1,8 +1,8 @@
 package exploration
 
-import apart.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
@@ -18,6 +18,7 @@ class TestHighLevelRewrite {
   private val N = SizeVar("N")
   private val M = SizeVar("M")
   private val K = SizeVar("K")
+  private val v__1 = SizeVar("")
   private val v__2 = SizeVar("")
   private val v__3 = SizeVar("")
   private val v__4 = SizeVar("")
@@ -69,8 +70,28 @@ class TestHighLevelRewrite {
       )) $ Zip(matrix, vectorY)
     })
 
+  val stencil1D = fun(
+    ArrayType(Float, N),
+    input => Join() o Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
+  )
+
   def getHash(lambda: Lambda): String =
     Utils.Sha256Hash(Utils.dumpLambdaToString(lambda))
+
+  @Test
+  def stencil1DRewrite(): Unit = {
+
+    val rewriter = new HighLevelRewrite(4)
+    val rewrittenLambdas = rewriter(stencil1D, 2)
+
+    val gold = fun(ArrayType(Float, N),(p_0) => FunCall(Join(), FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Map(fun((p_2) => FunCall(Reduce(fun((p_3, p_4) => FunCall(add, p_3, p_4))), Value("0.0f", Float), p_2))), FunCall(Slide(3,1), p_1)))), FunCall(Slide((2+v__1),v__1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0))))))
+    val goldHash = getHash(gold)
+
+    val tiledSeq = Seq(MacroRules.tileStencils)
+    val possibleTiled = rewrittenLambdas.filter(_._2 == tiledSeq)
+
+    assertTrue(possibleTiled.exists(pair => getHash(pair._1) == goldHash))
+  }
 
   @Test
   def mmTBRewrite(): Unit = {

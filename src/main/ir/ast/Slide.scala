@@ -1,15 +1,15 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import apart.arithmetic.Cst
-import ir.{ArrayType, Type, TypeException, UndefType}
+import lift.arithmetic.ArithExpr
+import ir.{ArrayType, Type, TypeException}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
  * Slide pattern.
  * Create sliding windows of input
  */
-case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerable {
+case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) with isGenerable {
   Slide.cnt += 1
   val id = Slide.cnt
 
@@ -19,7 +19,7 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        //check that the following holds true!
+        // todo check that the sliding window always ends at the last element of the input
         //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
         val innerLength = size
         val outerLength = (n - (size - step)) / step
@@ -27,7 +27,6 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
-
 
   /**
    * Define equality operator based on ID to be able to insert [[Slide]] instances
@@ -62,20 +61,38 @@ object Slide {
 object Slide2D {
   /** Symmetrical sliding */
   def apply(size: Int, step: Int): Lambda = {
-    Map(
-      Map(
-        Transpose()
-      ) o Slide(size, step) o Transpose()
-    ) o Slide(size, step)
+    Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))
+    // other possible implementation
+    // Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
   }
 
   /** Asymmetrical sliding */
-  def apply(size1: Int, step1: Int,
-            size2: Int, step2: Int): Lambda = {
-    Map(
-      Map(
-        Transpose()
-      ) o Slide(size2, step2) o Transpose()
-    ) o Slide(size1, step2)
+  def apply(sizeRow: Int, stepRow: Int,
+            sizeCol: Int, stepCol: Int): Lambda = {
+    Map(Transpose()) o Slide(sizeRow, stepRow) o Map(Slide(sizeCol, stepCol))
+    // other possible implementation
+//    Map(Map(Transpose()) o Slide(sizeCol, stepCol) o Transpose()) o Slide(sizeRow, stepRow)
+  }
+}
+
+object Slide3D {
+  /** Symmetrical sliding */
+  def apply(size: Int, step: Int): Lambda = {
+    Map(Map(Transpose()) o Transpose()) o
+    Slide(size, step) o
+    Map(Map(Transpose()) o Slide(size, step) o Map(Slide(size, step)))
+    /* other possible implementation
+    Map(Map(Transpose()) o Transpose() o
+      Map(Map(Transpose() o Map(Slide(size, step))
+        ) o Slide(size, step))) o Slide(size, step)
+    */
+  }
+
+  def apply(sizeX: Int, stepX: Int,
+            sizeY: Int, stepY: Int,
+            sizeZ: Int, stepZ: Int): Lambda = {
+    Map(Map(Transpose()) o Transpose()) o
+    Slide(sizeZ, stepZ) o
+    Map(Map(Transpose()) o Slide(sizeY, stepY) o Map(Slide(sizeX, stepX)))
   }
 }

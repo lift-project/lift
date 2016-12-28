@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.{?, ArithExpr, Cst}
+import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast.{Expr, FunCall, Lambda}
 import opencl.executor.Execute

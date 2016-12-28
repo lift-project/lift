@@ -1,6 +1,6 @@
 package exploration
 
-import apart.arithmetic._
+import lift.arithmetic._
 import rewriting.utils.Utils
 import ir.ArrayType
 import ir.ast._
@@ -58,9 +58,11 @@ object ParameterSearch {
     // find all the nodes using variables
     val tunableNodes = Utils.findTunableNodes(lambda)
 
-    // from that, isolate only the splits
+    // from that, isolate only the splits/slides
     val splits = tunableNodes.collect({
       case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len)
+        // step has to divide len - (size - step)
+      case FunCall(Slide(size, step), x) => (step, x.t.asInstanceOf[ArrayType].len - (size-step))
       case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType].len)
     })
 

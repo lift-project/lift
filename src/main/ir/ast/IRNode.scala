@@ -1,6 +1,6 @@
 package ir.ast
 
-import apart.arithmetic.{ArithExpr, Var}
+import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
@@ -64,7 +64,8 @@ object IRNode {
 
       case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
            Split(_) | Join() | Zip(_) | Tuple(_) | Filter() |
-           Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) | Pad(_,_,_) | Value(_) =>  // nothing to visit here
+           Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) |
+           Pad(_,_,_) | Value(_) | UnsafeArrayAccess(_) =>  // nothing to visit here
 
       case p: Param =>  // nothing to visit here
 

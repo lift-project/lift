@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic._
+import lift.arithmetic._
 import arithmetic.TypeVar
 import generator.Generator
 import ir._
@@ -115,7 +115,7 @@ object OpenCLGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case _: NotEvaluableException => false
+      case NotEvaluableException => false
     }
   }
 }
@@ -368,7 +368,9 @@ class OpenCLGenerator extends Generator {
 
     kernel.body += OpenCLAST.Comment("Private Memory")
     privateMems.foreach(x => {
-      val length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
+
+      val length =
+        (x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))).enforceSimplification
 
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +
@@ -425,10 +427,12 @@ class OpenCLGenerator extends Generator {
 
         case fp: FPattern => generate(fp.f.body, block)
         case l: Lambda => generate(l.body, block)
+        case ua: UnsafeArrayAccess => generateUnsafeArrayAccess(ua, call, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) =>
-
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
+             ArrayAccess(_) =>
+        case _ => (block: Block) += OpenCLAST.Comment("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
       case p: Param =>
@@ -811,6 +815,28 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.Comment("linear_search")
   }
 
+  private def generateUnsafeArrayAccess(ua: UnsafeArrayAccess,
+                                        call: FunCall,
+                                        block: Block): Unit = {
+    val index = ua.index
+    val clIndexMem = OpenCLMemory.asOpenCLMemory(index.mem)
+
+    val loadIndex = generateLoadNode(clIndexMem, index.t, index.view)
+
+    val indexVar = Var("index")
+    (block: Block) += OpenCLAST.VarDecl(indexVar, Int, init=loadIndex)
+
+    val inArr = call.args(0)
+    val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
+
+    val loadFromArray = generateLoadNode(clInArrMem, inArr.t, inArr.view.access(indexVar))
+
+    val storeToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
+                                          call.view.access(0), loadFromArray)
+
+    (block: Block) += storeToOutput
+  }
+
   private def generateValue(v: Value, block: Block): Unit = {
     val temp = Var("tmp")
 
@@ -936,12 +962,13 @@ class OpenCLGenerator extends Generator {
 
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
+
       val iterationCount = try {
-        indexVar.range.numVals.eval
+        indexVar.range.numVals.enforceSimplification.eval
       } catch {
-        case _: NotEvaluableException =>
-          throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
-            "could not be determined statically.")
+        case NotEvaluableException =>
+          throw new OpenCLGeneratorException("Trying to unroll loop, " +
+            "but iteration count could not be determined statically.")
       }
 
       if (iterationCount > 0) {
@@ -973,6 +1000,7 @@ class OpenCLGenerator extends Generator {
 
     // TODO: Information needed elsewhere. See analysis.ControlFlow
     // try to see if we really need a loop
+    if (PerformLoopOptimisation())
     indexVar.range.numVals match {
       case Cst(0) =>
         // zero iterations
@@ -1129,7 +1157,6 @@ class OpenCLGenerator extends Generator {
           throw new OpenCLGeneratorException(s"Found a OpenCLMemoryCollection for var: " +
             s"${mem.variable}, but corresponding type: $t is " +
             s"not a tuple.")
-
         val tt = t.asInstanceOf[TupleType]
 
         var args: Vector[OclAstNode] = Vector()
@@ -1238,8 +1265,8 @@ class OpenCLGenerator extends Generator {
               OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
 
             // originally a tuple, now a value. => generate stuff like var[i]._j
-            case (at: ArrayType, st: ScalarType)
-              if Type.getValueType(at).isInstanceOf[TupleType] =>
+            case (t: Type, st: ScalarType)
+              if Type.getValueType(t).isInstanceOf[TupleType] =>
               // get tuple component and generate suffix (._j)
               val vtc = view.asInstanceOf[ViewTupleComponent]
               val suffix = s"._${vtc.i}"
@@ -1352,7 +1379,13 @@ class OpenCLGenerator extends Generator {
         throw new TypeException(valueType, "A valid non array type")
     }
 
-    val real = ArithExpr.substitute(i, replacements).eval
+    val real: Int = try {
+      ArithExpr.substitute(i, replacements).eval
+    } catch {
+      case NotEvaluableException =>
+        throw new OpenCLGeneratorException(s"Could not access private array, as index $i could " +
+          s"not be evaluated statically (given these replacements: $replacements)")
+    }
 
     if (real >= declaration.length) {
       throw new OpenCLGeneratorException(s"Out of bounds access to $v with $real")

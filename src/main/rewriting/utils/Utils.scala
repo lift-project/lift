@@ -3,7 +3,7 @@ package rewriting.utils
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir.ast._
 import ir.{ArrayType, Type, TypeException}
 import opencl.ir.ast.OpenCLBuiltInFun
@@ -35,6 +35,8 @@ object Utils {
           FunCall(Scatter(ReorderWithStride(ArithExpr.substitute(idx.s, st))), x)
         case f@FunCall(s@Gather(idx: ReorderWithStride), x) =>
           FunCall(Gather(ReorderWithStride(ArithExpr.substitute(idx.s, st))), x)
+        case f@FunCall(sl: Slide, x) =>
+          FunCall(Slide(ArithExpr.substitute(sl.size, st), ArithExpr.substitute(sl.step, st)), x)
         case v: Value =>
           Value(v.value, Type.substitute(v.t, st))
         case _ =>
@@ -82,6 +84,7 @@ object Utils {
   /** Extract an arithmetic expression from an expression. */
   def extractArithExpr(expr: Expr): Option[ArithExpr] = expr match {
     case f@FunCall(s: Split, _) => Some(s.chunkSize)
+    case f@FunCall(sl: Slide, _) => Some(sl.step)
     case f@FunCall(Scatter(ReorderWithStride(arithExpr)), _) => Some(arithExpr)
     case f@FunCall(Gather(ReorderWithStride(arithExpr)), _) => Some(arithExpr)
 

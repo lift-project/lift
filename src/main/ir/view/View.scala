@@ -1,6 +1,6 @@
 package ir.view
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir._
 import ir.ast._
 import scala.collection.immutable
@@ -141,7 +141,7 @@ abstract class View(val t: Type = UndefType) {
     t match {
       case ArrayType(VectorType(st, n), len) =>
         ViewAsScalar(this, n, ArrayType(st, len * n))
-      case st: ScalarType => this
+      case _: ScalarType => this
       case _ =>
         throw new IllegalArgumentException("PANIC: Can't convert elements of type " + t + " into scalar types")
     }
@@ -312,7 +312,7 @@ private[view] case class ViewFilter(iv: View, ids: View, override val t: Type) e
  * @param itVar Iteration variable used for the current dimension
  * @param t Type of the view
  */
-private[view] case class ViewMap(iv: View, itVar: Var, override val t: Type) extends View(t)
+private[view] case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
 
 /**
  * A view for accessing a tuple component.
@@ -429,7 +429,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
                          arrayAccessStack: List[(ArithExpr, ArithExpr)], // id, dimension size
                          tupleAccessStack: List[Int]): ArithExpr = {
     sv match {
-      case mem: ViewMem =>
+      case _: ViewMem =>
         assert(tupleAccessStack.isEmpty)
         arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => x + y)
 
@@ -523,7 +523,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val stack2 = stack1.tail
 
         ag.t match {
-          case ArrayType(t, len) =>
+          case ArrayType(_, _) =>
             val newIdx = outerId._1 * ag.slide.step + innerId._1
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(ag.iv, newAAS, tupleAccessStack)
@@ -533,7 +533,13 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       case pad: ViewPad =>
         val idx = arrayAccessStack.head
         val stack = arrayAccessStack.tail
-        val newIdx = pad.fct(idx._1 - pad.left, pad.iv.t.asInstanceOf[ArrayType].len)
+        val currentIdx = idx._1 - pad.left
+        val length = pad.iv.t.asInstanceOf[ArrayType].len
+        val newIdx = if(ArithExpr.mightBeNegative(currentIdx) || ArithExpr.isSmaller(length -1, currentIdx.max).getOrElse(true))
+          pad.fct(currentIdx, length)
+        else
+          currentIdx
+
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView (pad.iv, newAAS, tupleAccessStack)

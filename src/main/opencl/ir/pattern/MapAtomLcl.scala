@@ -1,6 +1,6 @@
 package opencl.ir.pattern
 
-import apart.arithmetic.{PosVar, Var}
+import lift.arithmetic.{PosVar, Var}
 import ir.ast._
 
 case class MapAtomLcl(dim: Int, override val f: Lambda1, workVar: Var)

@@ -1,6 +1,6 @@
 package ir
 
-import apart.arithmetic._
+import lift.arithmetic._
 import arithmetic.TypeVar
 
 import scala.collection.immutable.HashMap
@@ -40,8 +40,8 @@ sealed abstract class Type {
    * @return A vectorized type derived from `this`
    */
   def vectorize(n: ArithExpr): Type = this match {
-    case sT: ScalarType => new VectorType(sT, n)
-    case tT: TupleType => new TupleType( tT.elemsT.map( _.vectorize(n) ):_* )
+    case sT: ScalarType => VectorType(sT, n)
+    case tT: TupleType => TupleType( tT.elemsT.map( _.vectorize(n) ):_* )
     case aT: ArrayType => asVector(aT, n)
     case v: VectorType => v
     case _ => throw new TypeException(this, "anything else")
@@ -49,8 +49,8 @@ sealed abstract class Type {
 
   private def asVector(at0: ArrayType, len: ArithExpr): Type = {
     at0.elemT match {
-      case pt:ScalarType => new ArrayType(new VectorType(pt,len), at0.len/^len)
-      case at1:ArrayType => new ArrayType(asVector(at1,len), at0.len)
+      case pt:ScalarType => ArrayType(VectorType(pt,len), at0.len/^len)
+      case at1:ArrayType => ArrayType(asVector(at1,len), at0.len)
       case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
     }
   }
@@ -116,7 +116,7 @@ case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
     val length = len.evalDbl
 
     if (!length.isValidInt || length < 1)
-      throw new TypeException(length + " is not a valid length for an array!")
+      throw TypeException(length + " is not a valid length for an array!")
   }
 
   override def toString = "Arr(" +elemT+","+len+ ")"
@@ -240,14 +240,14 @@ object Type {
     var newT = pre(t)
     newT = newT match {
       case vt: VectorType =>
-        new VectorType(visitAndRebuild(vt.scalarT,
+        VectorType(visitAndRebuild(vt.scalarT,
                                     pre, post).asInstanceOf[ScalarType],vt.len)
 
       case tt: TupleType =>
-        new TupleType(tt.elemsT.map(et => visitAndRebuild(et,pre,post)):_*)
+        TupleType(tt.elemsT.map(et => visitAndRebuild(et,pre,post)):_*)
 
       case at: ArrayType =>
-        new ArrayType(visitAndRebuild(at.elemT, pre, post), at.len)
+        ArrayType(visitAndRebuild(at.elemT, pre, post), at.len)
 
       case _ => newT // nothing to do
     }
@@ -264,8 +264,8 @@ object Type {
   def visitAndRebuild(t: Type,
                       f: ArithExpr => ArithExpr) : Type = {
     Type.visitAndRebuild(t, {
-      case at: ArrayType => new ArrayType(at.elemT, f(at.len))
-      case vt: VectorType => new VectorType(vt.scalarT, f(vt.len))
+      case at: ArrayType => ArrayType(at.elemT, f(at.len))
+      case vt: VectorType => VectorType(vt.scalarT, f(vt.len))
       case tt: TupleType => tt
       case st: ScalarType => st
       case NoType => NoType
@@ -356,8 +356,8 @@ object Type {
    */
   def asScalarType(at: ArrayType): ArrayType = {
     at.elemT match {
-      case vt: VectorType => new ArrayType(vt.scalarT, at.len*vt.len)
-      case at: ArrayType =>  new ArrayType(asScalarType(at),at.len)
+      case vt: VectorType => ArrayType(vt.scalarT, at.len*vt.len)
+      case at: ArrayType =>  ArrayType(asScalarType(at),at.len)
       case _ => throw new TypeException(at.elemT , "ArrayType or VectorType")
     }
   }
@@ -485,10 +485,10 @@ object Type {
       case UnknownLengthArrayType(et,len) => // TODO add substitution here
         new UnknownLengthArrayType(et,len)
       case ArrayType(et,len) =>
-        new ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
+        ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
 
       case VectorType(st,len) =>
-        new VectorType(st, ArithExpr.substitute(len, substitutions.toMap))
+        VectorType(st, ArithExpr.substitute(len, substitutions.toMap))
 
       case t: Type => t
     })

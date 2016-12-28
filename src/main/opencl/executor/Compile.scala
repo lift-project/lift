@@ -1,8 +1,8 @@
 package opencl.executor
 
-import apart.arithmetic.{?, ArithExpr}
 import ir.TypeChecker
 import ir.ast.Lambda
+import lift.arithmetic.{?, ArithExpr}
 import opencl.generator.{OpenCLGenerator, Verbose}
 
 import scala.collection.immutable

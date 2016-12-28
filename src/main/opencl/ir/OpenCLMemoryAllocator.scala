@@ -1,6 +1,6 @@
 package opencl.ir
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
 import opencl.ir.OpenCLMemory._
@@ -89,6 +89,7 @@ object OpenCLMemoryAllocator {
           call.t, numGlb, numLcl, numPvt, inMem)
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
+
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
       case it: Iterate => allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
@@ -101,10 +102,11 @@ object OpenCLMemoryAllocator {
       case Zip(_) | Tuple(_) => allocZipTuple(inMem)
       case Get(n) => allocGet(n, inMem)
       case f: Filter => allocFilter(f, numGlb, numLcl, inMem)
+      case ua: UnsafeArrayAccess => allocUnsafeArrayAccess(ua, call, numGlb, numLcl, numPvt, inMem)
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) |
-           Head() | Tail() | Gather(_) | Scatter(_) =>
+           Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) =>
         inMem
     }
   }
@@ -243,6 +245,34 @@ object OpenCLMemoryAllocator {
     }
   }
 
+  private def allocUnsafeArrayAccess(ua: UnsafeArrayAccess,
+                                     call: FunCall,
+                                     numGlb: ArithExpr,
+                                     numLcl: ArithExpr,
+                                     numPvt: ArithExpr,
+                                     inMem: OpenCLMemory): OpenCLMemory = {
+    // let the index allocate memory for itself (most likely a param, so it will know its memory)
+    alloc(ua.index, numGlb, numLcl, numPvt)
+
+    // allocate memory itself
+    val outputSize = getSizeInBytes(call.t)
+    // manually allocate that much memory, storing it in the correct address space
+    if (call.addressSpace != UndefAddressSpace) {
+     // use given address space
+      OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+                           call.addressSpace)
+    } else {
+      // address space is not predetermined
+      //  => figure out the address space based on the input address space(s)
+      val addrSpace =
+        inMem match {
+          case m: OpenCLMemory => m.addressSpace
+          case _ => throw new IllegalArgumentException("PANIC")
+        }
+      OpenCLMemory.allocMemory(outputSize, outputSize, outputSize, addrSpace)
+    }
+  }
+
   private def allocIterate(it: Iterate, call: FunCall,
     numGlb: ArithExpr,
     numLcl: ArithExpr,
@@ -275,11 +305,12 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocGet(n: Int, inMem: OpenCLMemory): OpenCLMemory = {
-    inMem match {
+    inMem match {     
       case coll: OpenCLMemoryCollection =>
         assert(n < coll.subMemories.length)
         coll.subMemories(n)
       case _ => inMem
+      // case _ => throw new IllegalArgumentException("PANIC")
     }
   }
 

@@ -10,7 +10,7 @@ import org.junit.Assume
 object LongTestsEnabled {
   def apply(): Unit =
     Assume.assumeTrue("Needs long tests enabled.",
-     System.getenv("APART_LONG_TESTS") != null)
+     System.getenv("LIFT_LONG_TESTS") != null)
 }
 
 object Utils {
@@ -203,10 +203,12 @@ object Utils {
   def scalaCompute2DStencil(data: Array[Array[Float]],
                             size1: Int, step1: Int,
                             size2: Int, step2: Int,
+                            top: Int, bottom: Int,
                             left: Int, right: Int,
                             weights: Array[Float],
                             boundary: (Int, Int) => Int) = {
-    val neighbours = scalaGenerate2DNeighbours(data, size1, step1, size2, step2, left, right, boundary)
+    val neighbours = scalaGenerate2DNeighbours(data, size1, step1, size2, step2,
+      top, bottom, left, right, boundary)
     val result = neighbours.map(x => x.map(y => y.flatten.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2)))
     def clamp(i: Float) = Math.max(0.0f, i)
     result.flatten.map(clamp)
@@ -215,11 +217,12 @@ object Utils {
   def scalaGenerate2DNeighbours(data: Array[Array[Float]],
                                 size1: Int, step1: Int,
                                 size2: Int, step2: Int,
+                                top: Int, bottom: Int,
                                 left: Int, right: Int,
                                 boundary: (Int, Int) => Int): Array[Array[Array[Array[Float]]]] = {
     //padding
-    val topPadding = Array.tabulate(left)(x => data(boundary((x + 1) * -1, data.length))).reverse
-    val bottomPadding = Array.tabulate(right)(x => data(boundary(x + data.length, data.length)))
+    val topPadding = Array.tabulate(top)(x => data(boundary((x + 1) * -1, data.length))).reverse
+    val bottomPadding = Array.tabulate(bottom)(x => data(boundary(x + data.length, data.length)))
     val verticalPaddedInput = (topPadding ++ data ++ bottomPadding).transpose
     val leftPadding = Array.tabulate(left)(
       x => verticalPaddedInput(
@@ -237,6 +240,19 @@ object Utils {
     neighbours
   }
 
+  // Boundary conditions implemented as scala functions for gold versions
+  val scalaClamp = (idx: Int, length: Int) => {
+    if (idx < 0) 0 else if (idx > length - 1) length - 1 else idx
+  }
+
+  val scalaWrap = (idx: Int, length: Int) => {
+    (idx % length + length) % length
+  }
+
+  val scalaMirror = (idx: Int, length: Int) => {
+    val id = (if (idx < 0) -1 - idx else idx) % (2 * length)
+    if (id >= length) length + length - id - 1 else id
+  }
 
   /*
    * Some helper methods for execution

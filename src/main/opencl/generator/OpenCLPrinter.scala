@@ -1,6 +1,6 @@
 package opencl.generator
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir._
 import ir.view.AccessVar
 import opencl.generator.OpenCLAST._
@@ -58,7 +58,7 @@ class OpenCLPrinter {
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
-      case i: apart.arithmetic.IfThenElse =>
+      case i: lift.arithmetic.IfThenElse =>
         s"( (${toString(i.test.lhs)} ${i.test.op} ${toString(i.test.rhs)}) ? " +
         s"${toString(i.t)} : ${toString(i.e)} )"
       case _ => throw new NotPrintableExpression(e.toString)
@@ -319,8 +319,17 @@ class OpenCLPrinter {
 
         case LocalMemory if vd.length != 0 =>
           val baseType = Type.getBaseType(vd.t)
-          print(s"${vd.addressSpace} ${toString(baseType)} " +
-                  s"${toString(vd.v)}[${vd.length}];")
+          val declaration =
+            s"${vd.addressSpace} ${toString(baseType)} ${toString(vd.v)}[${vd.length}]"
+
+          // Make sure the memory is correctly aligned when using pointer casts
+          // for forcing vector loads on NVIDIA.
+          val optionalAttribute =
+            if (UseCastsForVectors()) " __attribute__ ((aligned(16)));" else ";"
+
+          val fullDeclaration = declaration + optionalAttribute
+
+          print(fullDeclaration)
 
         case x =>
           val baseType = Type.getBaseType(vd.t)

@@ -1,6 +1,6 @@
 package benchmarks
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
@@ -29,12 +29,15 @@ class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchm
     val inputSizeN = inputSizes()(0)
     val inputSizeM = inputSizes()(1)
 
-    val matrix = Array.fill(inputSizeN, inputSizeM)(util.Random.nextInt(5).toFloat)
+    var matrix = Array.fill(inputSizeN, inputSizeM)(util.Random.nextInt(5).toFloat)
     val vectorX = Array.fill(inputSizeM)(util.Random.nextInt(5).toFloat)
     val vectorY = Array.fill(inputSizeN, 1)(util.Random.nextInt(5).toFloat)
 
     val alpha = 2.5f
     val beta = 1.5f
+
+    if (variant == 4)
+      matrix = matrix.transpose
 
     Seq(matrix, vectorX, vectorY, alpha, beta)
   }
@@ -155,10 +158,75 @@ object MatrixVector {
        )
      })
 
+  val clblast_N = fun(
+      ArrayType(ArrayType(Float, N), M),
+      ArrayType(Float, N),
+      ArrayType(Float,M),
+      Float,
+      Float,
+      (matrix, vectorX, vectorY, alpha, beta) =>
+        Join() o MapWrg(fun( matChunk =>
+
+          MapSeq(
+            toGlobal(fun(y =>
+              MapLcl(fun(x =>
+                add(
+                  toPrivate(mult)(x._0, alpha),
+                  toPrivate(mult)(x._1, beta)
+                )
+              )) $ Zip(y, Map(Get(1)) $ matChunk)
+            ))
+          ) o
+            ReduceSeq(fun((acc, next) =>
+              Let(localX =>
+                Join() o MapLcl(fun(x => ReduceSeq(fun((acc2, next2) =>
+                  multAndSumUp(acc2, Get(next2, 0), Get(next2, 1)))
+                  , Get(x, 0)) $ Zip(Get(x, 1), localX))) $ Zip(acc, Get(next, 0))
+              )  o toLocal(MapLcl(id)) $ Get(next, 1)),
+
+              MapLcl(id) $ Value(0.0f, ArrayType(Float, 64)))
+            $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
+        )) o Split(64) $ Zip(matrix, vectorY)
+    )
+
+  val clblast_T = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, N),
+      ArrayType(Float,M),
+      Float,
+      Float,
+      (matrix, vectorX, vectorY, alpha, beta) =>
+        Join() o MapWrg(fun( matChunk =>
+
+          MapSeq(
+            toGlobal(fun(y =>
+              MapLcl(fun(x =>
+                add(
+                  toPrivate(mult)(x._0, alpha),
+                  toPrivate(mult)(x._1, beta)
+                )
+              )) $ Zip(y, Map(Get(1)) $ matChunk)
+            ))
+          ) o
+            ReduceSeq(fun((acc, next) =>
+              Let(localX =>
+                Join() o MapLcl(fun(x => ReduceSeq(fun((acc2, next2) =>
+                  multAndSumUp(acc2, Get(next2, 0), Get(next2, 1)))
+                  , Get(x, 0)) $ Zip(Get(x, 1), localX))) $ Zip(acc, Get(next, 0))
+              )  o toLocal(MapLcl(id)) $ Get(next, 1)),
+
+              MapLcl(id) $ Value(0.0f, ArrayType(Float, 64)))
+            $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
+        )) o Split(64) $ Zip(Transpose() $ matrix, vectorY)
+    )
+
   def apply() = new MatrixVector(Seq(
     ("FULL_MATRIX_VECTOR_FUSED_OPENCL", Array[Lambda](fullMatrixVectorFusedOpenCL)),
     ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD", Array[Lambda](fullMatrixVectorFusedOpenCLAMD)),
-    ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD_", Array[Lambda](fullMatrixVectorFusedOpenCLAMD_))))
+    ("FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD_", Array[Lambda](fullMatrixVectorFusedOpenCLAMD_)),
+    ("clblast_N", Array[Lambda](clblast_N)),
+    ("clblast_T", Array[Lambda](clblast_T))
+  ))
 
   def main(args: Array[String]): Unit = {
     MatrixVector().run(args)

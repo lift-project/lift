@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr
 import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
@@ -49,11 +49,12 @@ object Rewrite {
   }
 
   /**
-   * Apply rules one by one until no rules apply anymore
-   * @param lambda The lambda where to apply rules
-   * @param rules The rules to apply
-   * @return
-   */
+    * Apply rules one by one until no rules apply anymore
+    *
+    * @param lambda The lambda where to apply rules
+    * @param rules The rules to apply
+    * @return
+    */
   def applyRulesUntilCannot(lambda: Lambda, rules: Seq[Rule]): Lambda = {
     val newBody = applyRulesUntilCannot(lambda.body, rules)
 
@@ -64,14 +65,14 @@ object Rewrite {
   }
 
   /**
-   * Apply rules one by one until no rules apply anymore
- *
-   * @param expr The expression where to apply rules
-   * @param rules The rules to apply
-   * @return
+    * Apply rules one by one until no rules apply anymore
+    *
+    * @param expr The expression where to apply rules
+    * @param rules The rules to apply
+    * @return
     */
   @scala.annotation.tailrec
-def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
+  def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
     val allRulesAt = listAllPossibleRewritesForRules(expr, rules)
 
     if (allRulesAt.isEmpty) {
@@ -124,17 +125,37 @@ def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule]): Expr = {
     })
   }
 
+  def rewriteWithoutLowering(lambda:Lambda,rules:Seq[Rule],levels:Int):Seq[Lambda] ={
+    //val lStr = rewriting.utils.Utils.dumpLambdaToString(lambda)
+    //println(lStr)
+
+    TypeChecker.check(lambda.body)
+    val allRulesAt = listAllPossibleRewritesForRules(lambda,rules)
+    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda,ruleAt._2,ruleAt._1))
+
+    if(levels == 1){
+      rewritten
+    }
+    else{
+      rewritten.flatMap(l => rewriteWithoutLowering(l,rules,levels - 1 ))
+    }
+  }
+
   def rewrite(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] = {
+
+
     TypeChecker.check(lambda.body)
 
     val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
+
     val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt._2, ruleAt._1))
 
-    if (levels == 1) {
-      rewritten
-    } else {
-      rewritten.flatMap( l => rewriteJustGenerable(l, rules, levels-1))
-    }
+
+      if (levels == 1) {
+        rewritten
+      } else {
+        rewritten.flatMap( l => rewriteJustGenerable(l, rules, levels-1))
+      }
   }
 
   def rewriteJustGenerable(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] =

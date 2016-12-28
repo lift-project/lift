@@ -1,6 +1,6 @@
 package rewriting
 
-import apart.arithmetic.{?, ArithExpr}
+import lift.arithmetic.{?, ArithExpr}
 import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
@@ -268,6 +268,18 @@ object MacroRules {
 
         Expr.replace(fissioned, applyHere, Rules.mapSplitTranspose.rewrite(applyHere))
     })
+
+  /**
+    * Apply tiling for 1D stencils expressed as Map(f) o Slide(n,s)
+    */
+  val tileStencils =
+  Rule("Map(f) o Slide(n,s) => Join() o Map(Map(f) o Slide(n,s)) o Slide(u,v)", {
+    case funCall@FunCall(Map(_), slideCall@FunCall(Slide(n,s), arg)) =>
+      val tiled = Rewrite.applyRuleAt(funCall, Rules.slideTiling, slideCall)
+      val moved = Rewrite.applyRuleAt(tiled, MacroRules.movingJoin, tiled)
+      val fused = Rewrite.applyRuleAtId(moved, 1, Rules.mapFusion)
+      fused
+  })
 
   /**
    * A rule to move join over a map.

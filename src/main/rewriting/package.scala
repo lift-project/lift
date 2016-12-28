@@ -1,3 +1,4 @@
+import lift.arithmetic._
 import rewriting.Rules._
 
 
@@ -41,9 +42,7 @@ package object rewriting {
       partialReduceToReduce,
       partialReduceReorder,
       partialReduce,
-      partialReduceSplitJoin,
-      partialReduceReorder,
-      partialReduceToReduce
+      partialReduceSplitJoin
     )
 
   val fusionRules =
@@ -119,5 +118,48 @@ package object rewriting {
         addressSpaceRules ++
         mapLoweringRules ++
         reduceLoweringRule
+
+  val allRulesWithoutLowering =
+    otherRules ++
+      tupleRules ++
+      idRules ++
+      interchangeRules ++
+      fissionRules ++
+      fusionRules++
+      reduceRules ++
+      simplificationRules ++
+      Seq(mapSeq,reduceSeq)
+
+
+
+  val allRulesWithoutMapsLowering:Seq[Rule] = allRulesWithoutMapsLowering(?,?,?)
+  def allRulesWithoutMapsLowering(split:ArithExpr,vectorWidth:ArithExpr,stride:ArithExpr):Seq[Rule] ={
+    val rulesWithOutVariable =
+      tupleRules ++
+        //idRules ++
+    interchangeRules ++
+    fissionRules ++
+    fusionRules ++
+    simplificationRules ++
+    Seq(partialReduce,
+      gatherToScatter,
+      scatterToGather,
+      splitZip,
+      partialReduceToReduce,
+      reduceSeq,
+      implementIdAsDeepCopy,
+      dropId,
+      addIdForCurrentValueInReduce
+    )
+
+    rulesWithOutVariable ++
+    Seq(splitJoin(split),
+      vectorize(vectorWidth),
+      reorderBothSidesWithStride(stride),
+      partialReduceReorder(stride),
+      partialReduceSplitJoin(split)
+    )
+
+  }
 
 }

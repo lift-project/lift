@@ -57,6 +57,11 @@ public class Executor {
         System.loadLibrary("executor-jni");
     }
 
+    public static void loadAndInit() {
+        loadLibrary();
+        init();
+    }
+
     /** Compute matrix-matrix multiply natively */
     public static float[] nativeMatrixMultiply(float[] aa, float[] bb, int n, int m, int k) {
         float[] cc = new float[n*m];
@@ -124,8 +129,8 @@ public class Executor {
     public native static String getDeviceType();
 
     public static void init() {
-        String platform = System.getenv("APART_PLATFORM");
-        String device = System.getenv("APART_DEVICE");
+        String platform = System.getenv("LIFT_PLATFORM");
+        String device = System.getenv("LIFT_DEVICE");
 
         int platformId = 0;
         int deviceId = 0;
