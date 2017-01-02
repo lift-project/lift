@@ -1,11 +1,20 @@
-# Make (more) human readable html documents from the .md (markdown) files
-# From: http://stackoverflow.com/a/8050241
-MARKDOWN = pandoc --from markdown_github --to html --standalone
-all: $(patsubst %.md,%.html,$(wildcard *.md)) Makefile
+# Minimal makefile for Sphinx documentation
+#
 
-clean:
-	rm -f $(patsubst %.md,%.html,$(wildcard *.md))
-	rm -f *.bak *~
+# You can set these variables from the command line.
+SPHINXOPTS    =
+SPHINXBUILD   = sphinx-build
+SPHINXPROJ    = Lift
+SOURCEDIR     = source
+BUILDDIR      = build
 
-%.html: %.md
-	$(MARKDOWN) $< --output $@
+# Put it first so that "make" without argument is like "make help".
+help:
+	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+.PHONY: help Makefile
+
+# Catch-all target: route all unknown targets to Sphinx using the new
+# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
+%: Makefile
+	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
