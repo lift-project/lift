@@ -12,3 +12,4 @@ lib/Executor/build
 *.log
 *.iml
 *.html
+*.pyc
