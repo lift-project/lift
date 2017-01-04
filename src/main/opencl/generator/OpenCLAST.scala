@@ -125,6 +125,8 @@ object OpenCLAST {
     */
   case class GOTO(nameVar: Var) extends Statement
 
+  case class Break() extends Statement
+
   case class Barrier(mem: OpenCLMemory) extends Statement
 
   case class TypeDef(t: Type) extends Statement

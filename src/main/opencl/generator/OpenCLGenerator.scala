@@ -415,6 +415,7 @@ class OpenCLGenerator extends Generator {
         case _: Map =>
 
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
+        case r: ReduceWhileSeq => generateReduceWhileCall(r, call, block)
 
         case bs: BSearch => generateBSearchCall(bs, call, block)
         case ls: LSearch => generateLSearchCall(ls, call, block)
@@ -648,6 +649,42 @@ class OpenCLGenerator extends Generator {
     }
 
     (block: Block) += OpenCLAST.Comment("end reduce_seq")
+  }
+
+  // === ReduceWhile ===
+  private def generateReduceWhileCall(r: ReduceWhileSeq, 
+                                      call: FunCall, 
+                                      block: Block) : Unit = {
+    val innerBlock = OpenCLAST.Block(Vector.empty)
+    (block: Block) += OpenCLAST.Comment("reduce_while_seq")
+
+    val generateBody = (ib: Block) =>  {
+      // generate the Predicate
+      generate(r.p.body, ib)
+      // generate the body
+      generate(r.f.body, ib)
+    }
+
+    val inputLen = generateLength(call.args(1))
+    inputLen match {
+
+      case Left(len: Expression) =>
+        val indexVar = r.loopVar
+        val range = indexVar.range.asInstanceOf[RangeAdd]
+
+        val init = ArithExpression(range.start)
+        val cond = CondExpression(ArithExpression(r.loopVar), len, CondExpression.Operator.<)
+        val increment = AssignmentExpression(ArithExpression(r.loopVar), ArithExpression(r.loopVar + range.step))
+
+        (block: Block) += OpenCLAST.ForLoop(VarDecl(r.loopVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
+
+        generateBody(innerBlock)
+
+      case Right(len: ArithExpr) =>
+        generateForLoop(block, r.loopVar, generateBody(_), r.shouldUnroll)
+    }
+
+    (block: Block) += OpenCLAST.Comment("end reduce_while_seq")
   }
 
 

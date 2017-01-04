@@ -306,7 +306,13 @@ object TypedOpenCLMemory {
 
     def collectReduce(r: AbstractPartRed,
                       argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+
       val mems = collect(r.f.body)
+
+      if (r.isInstanceOf[ReduceWhileSeq]){
+        val pmem = r.asInstanceOf[ReduceWhileSeq].pmem
+        mems = mems :+ pmem
+      }
 
       mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)

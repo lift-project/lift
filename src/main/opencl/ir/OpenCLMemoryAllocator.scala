@@ -88,6 +88,8 @@ object OpenCLMemoryAllocator {
         allocMapSeqLcl(call.f.asInstanceOf[AbstractMap],
           call.t, numGlb, numLcl, numPvt, inMem)
 
+      case r: ReduceWhileSeq => allocReduceWhileSeq(r, numGlb, numLcl, numPvt, inMem)
+
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
@@ -217,6 +219,24 @@ object OpenCLMemoryAllocator {
         Expr.visit(r.f.body, e => if (e.mem == bodyM) e.mem = initM, _ => {})
 
         initM // return initM as the memory of the reduction pattern
+      case _ => throw new IllegalArgumentException(inMem.toString)
+    }
+  }
+
+  private def allocReduceWhileSeq(r: ReduceWhileSeq,
+    numGlb: ArithExpr,
+    numLcl: ArithExpr, 
+    numPvt: ArithExpr, 
+    inMem: OpenCLMemory): OpenCLMemory = {
+    inMem match { 
+      case coll: OpenCLMemoryCollection =>
+        val initM = coll.subMemories(0)
+        r.p.params(0).mem = initM
+        r.p.params(1).mem = coll.subMemories(1)
+        // set the predicate return memory to the returned memory
+        r.pmem = alloc(r.p.body, numGlb, numLcl, numPvt)
+        // allocate the actual reduction, and return that
+        allocReduce(r, numGlb, numLcl, numPvt, inMem)
       case _ => throw new IllegalArgumentException(inMem.toString)
     }
   }

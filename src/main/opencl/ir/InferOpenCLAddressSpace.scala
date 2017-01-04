@@ -3,7 +3,7 @@ package opencl.ir
 import ir.ScalarType
 import ir.ast._
 import opencl.generator.IllegalKernel
-import opencl.ir.pattern.{toGlobal, toLocal, toPrivate}
+import opencl.ir.pattern.{ReduceWhileSeq, toGlobal, toLocal, toPrivate}
 
 object InferOpenCLAddressSpace {
 
@@ -69,6 +69,7 @@ object InferOpenCLAddressSpace {
       case Filter() => addressSpaces(0)
       case Get(i) => setAddressSpaceGet(i, addressSpaces.head)
 
+      case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
 
@@ -104,6 +105,15 @@ object InferOpenCLAddressSpace {
     val writeTo = call.args(0).addressSpace
 
     setAddressSpaceLambda(lambda, writeTo, addressSpaces)
+  }
+
+  private def setAddressSpaceReduceWhile(rw: ReduceWhileSeq, call: FunCall,
+                                         addressSpaces: Seq[OpenCLAddressSpace]) = {
+    // default to just writing to private memory
+    setAddressSpaceLambda(rw.p, PrivateMemory, addressSpaces)
+
+    // carry on with the normal reduction address space setting
+    setAddressSpaceReduce(rw.f, call, addressSpaces)
   }
 
   private def setAddressSpaceSearch(s: AbstractSearch, writeTo: OpenCLAddressSpace,
