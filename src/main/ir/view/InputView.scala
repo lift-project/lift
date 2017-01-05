@@ -121,11 +121,13 @@ object InputView {
     // traverse into call.f
     visitAndBuildViews(r.f.body)
 
-    // if the reduction is a while reduction, set views - hacky solution, we should work around this!
-    if (r.isInstanceOf[ReduceWhileSeq]) {
-      r.asInstanceOf[ReduceWhileSeq].p.params(0).view = argView.get(0)
-      r.asInstanceOf[ReduceWhileSeq].p.params(1).view = argView.get(1).access(r.loopVar)
-      visitAndBuildViews(r.asInstanceOf[ReduceWhileSeq].p.body)
+    // if the reduction is a while reduction, visit and set views of the predicate
+    r match {
+      case rws: ReduceWhileSeq =>
+        rws.p.params(0).view = argView.get(0)
+        rws.p.params(1).view = argView.get(1).access(r.loopVar)
+        visitAndBuildViews(rws.p.body)
+      case _ =>
     }
     // create fresh input view for following function
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
