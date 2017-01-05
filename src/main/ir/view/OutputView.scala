@@ -201,7 +201,7 @@ object OutputView {
     if (r.isInstanceOf[ReduceWhileSeq]) {
       println("Setting inner predicate output view")
 
-//      visitAndBuildViews(r.asInstanceOf[ReduceWhileSeq].p.body, writeView.access(Cst(0)))
+      visitAndBuildViews(r.asInstanceOf[ReduceWhileSeq].p.body, writeView.access(Cst(0)))
     }
     ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }

@@ -658,9 +658,22 @@ class OpenCLGenerator extends Generator {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.Comment("reduce_while_seq")
 
+    // get the memory address of the predicate result
+    val pResMem = generateLoadNode(OpenCLMemory.asOpenCLMemory(r.pmem), r.p.body.t, r.p.body.view)
+
+    val pResMemVar =  OpenCLMemory.asOpenCLMemory(r.pmem).variable
     val generateBody = (ib: Block) =>  {
       // generate the Predicate
       generate(r.p.body, ib)
+      // generate the access and break
+      generateConditional(ib,
+        Predicate(pResMemVar, 0, Predicate.Operator.==),
+        (ccb) => {
+          (ccb: Block) += OpenCLAST.Break()
+        },
+        (ccb) => {
+        }
+      )
       // generate the body
       generate(r.f.body, ib)
     }

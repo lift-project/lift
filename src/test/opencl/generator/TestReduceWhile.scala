@@ -31,7 +31,7 @@ class TestReduceWhile {
     val gold = arr.takeWhile(_ < 100).sum
 
     val filter = UserFun("check", Array("acc","v"),
-      "return (!(v < 100));",
+      "return ((v < 100));",
       Seq(Int,Int), Int
     )
 
@@ -46,6 +46,11 @@ class TestReduceWhile {
       }
     )
 
+    val code = Compile(kernel)
+
+    println("Code: ")
+    println(code)
+
     val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
@@ -54,7 +59,7 @@ class TestReduceWhile {
     assert(output(0) == gold)
   }
 
-  @Ignore @Test def twoDimensionBoundedReduction() : Unit = {
+  @Test def twoDimensionBoundedReduction() : Unit = {
     val inputSize = Math.pow(2, 14).toInt
     val splitSize = Math.pow(2, 5).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i).
@@ -80,6 +85,11 @@ class TestReduceWhile {
         ) o Split(splitSize) $ array
       }
     )
+
+    val code = Compile(kernel)
+
+    println("Code: ")
+    println(code)
 
     val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
     println("Time: " + runtime)

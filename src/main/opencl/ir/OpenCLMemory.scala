@@ -306,20 +306,18 @@ object TypedOpenCLMemory {
 
     def collectReduce(r: AbstractPartRed,
                       argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
-
-      val mems = collect(r.f.body)
-
-      if (r.isInstanceOf[ReduceWhileSeq]){
-        val pmem = r.asInstanceOf[ReduceWhileSeq].pmem
-        mems = mems :+ pmem
-      }
-
-      mems.filter(m => {
+      val mems: Seq[TypedOpenCLMemory] = collect(r.f.body) ++ (if (r.isInstanceOf[ReduceWhileSeq]){
+        collect(r.asInstanceOf[ReduceWhileSeq].p.body)
+        } else {
+        Seq[TypedOpenCLMemory]()
+      })
+      val fmems = mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
         val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
 
         !isAlreadyInArgs && !isAlreadyInParams
       })
+      fmems
     }
 
     def collectSearch(s: AbstractSearch, call:FunCall, argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
