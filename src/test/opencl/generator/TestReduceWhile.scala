@@ -46,11 +46,6 @@ class TestReduceWhile {
       }
     )
 
-    val code = Compile(kernel)
-
-    println("Code: ")
-    println(code)
-
     val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
@@ -67,10 +62,10 @@ class TestReduceWhile {
       toArray.
       transpose.
       flatten
-    val gold = arr.grouped(splitSize).map(_.takeWhile(_ < 512).sum).toArray
+    val gold = arr.grouped(splitSize).map(_.takeWhile(_ < 8192).sum).toArray
 
     val filter = UserFun("check", Array("acc","v"),
-      "return ((v < 512));",
+      "return ((v < 8192));",
       Seq(Int,Int), Int
     )
 
@@ -86,10 +81,77 @@ class TestReduceWhile {
       }
     )
 
-    val code = Compile(kernel)
+    val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
+    println("Time: " + runtime)
+    println("input[0:10]:  " + arr.take(10).toList.toString())
+    println("output[0:10]: " + output.take(10).toList.toString())
+    println("gold[0:10]: " + gold.take(10).toList.toString())
+    assertArrayEquals(output,gold)
+  }
 
-    println("Code: ")
-    println(code)
+  @Test def twoDimensionParallelBoundedReduction() : Unit = {
+    val inputSize = Math.pow(2, 14).toInt
+    val splitSize = Math.pow(2, 5).toInt
+    val arr = Array.tabulate(inputSize)((i:Int) => i).
+      grouped(splitSize).
+      toArray.
+      transpose.
+      flatten
+    val gold = arr.grouped(splitSize).map(_.takeWhile(_ < 8192).sum).toArray
+
+    val filter = UserFun("check", Array("acc","v"),
+      "return ((v < 8192));",
+      Seq(Int,Int), Int
+    )
+
+    val N = SizeVar("N")
+
+    val kernel = fun(
+      ArrayType(Int, N),
+      (array) => {
+        Join() o MapGlb(
+          toGlobal(MapSeq(idI)) o
+            ReduceWhileSeq(int_add, filter, 0)
+        ) o Split(splitSize) $ array
+      }
+    )
+
+    val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
+    println("Time: " + runtime)
+    println("input[0:10]:  " + arr.take(10).toList.toString())
+    println("output[0:10]: " + output.take(10).toList.toString())
+    println("gold[0:10]: " + gold.take(10).toList.toString())
+    assertArrayEquals(output,gold)
+  }
+
+  @Test def twoDimensionMultiLevelParallelBoundedReduction() : Unit = {
+    val inputSize = Math.pow(2, 14).toInt
+    val splitSize = Math.pow(2, 5).toInt
+    val arr = Array.tabulate(inputSize)((i:Int) => i).
+      grouped(splitSize).
+      toArray.
+      transpose.
+      flatten
+    val gold = arr.grouped(splitSize).map(_.takeWhile(_ < 8192).sum).toArray
+
+    val filter = UserFun("check", Array("acc","v"),
+      "return ((v < 8192));",
+      Seq(Int,Int), Int
+    )
+
+    val N = SizeVar("N")
+
+    val kernel = fun(
+      ArrayType(Int, N),
+      (array) => {
+        Join() o Join() o MapWrg(
+          MapLcl(
+          toGlobal(MapSeq(idI)) o
+            ReduceWhileSeq(int_add, filter, 0)
+          )
+        ) o Split(8) o Split(splitSize) $ array
+      }
+    )
 
     val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
     println("Time: " + runtime)
