@@ -659,7 +659,7 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.Comment("reduce_while_seq")
 
     // get the memory address of the predicate result
-    val pResMem = generateLoadNode(OpenCLMemory.asOpenCLMemory(r.pmem), r.p.body.t, r.p.body.view).asInstanceOf[Expression]
+    val pResMem = generateLoadNode(OpenCLMemory.asOpenCLMemory(r.pmem), r.p.body.t, r.p.body.view)
 
     val pResMemVar =  OpenCLMemory.asOpenCLMemory(r.pmem).variable
     val generateBody = (ib: Block) =>  {
@@ -1212,7 +1212,7 @@ class OpenCLGenerator extends Generator {
     }).toList
   }
 
-  private def generateLoadNode(mem: OpenCLMemory, t: Type, view: View): OclAstNode = {
+  private def generateLoadNode(mem: OpenCLMemory, t: Type, view: View): Expression = {
     mem match {
       // we want to generate a load for a tuple constructed by a corresponding view (i.e. zip)
       case coll: OpenCLMemoryCollection =>
