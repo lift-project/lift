@@ -659,19 +659,21 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.Comment("reduce_while_seq")
 
     // get the memory address of the predicate result
-    val pResMem = generateLoadNode(OpenCLMemory.asOpenCLMemory(r.pmem), r.p.body.t, r.p.body.view)
+    val pResMem = generateLoadNode(OpenCLMemory.asOpenCLMemory(r.pmem), r.p.body.t, r.p.body.view).asInstanceOf[Expression]
 
     val pResMemVar =  OpenCLMemory.asOpenCLMemory(r.pmem).variable
     val generateBody = (ib: Block) =>  {
       // generate the Predicate
       generate(r.p.body, ib)
       // generate the access and break
-      generateConditional(ib,
-        Predicate(pResMemVar, 0, Predicate.Operator.==),
+      generateExprConditional(ib,
+//        Predicate(pResMemVar, 0, Predicate.Operator.==),
+        pResMem,
         (ccb) => {
-          (ccb: Block) += OpenCLAST.Break()
+
         },
         (ccb) => {
+          (ccb: Block) += OpenCLAST.Break()
         }
       )
       // generate the body
@@ -1122,6 +1124,17 @@ class OpenCLGenerator extends Generator {
     val trueBlock = OpenCLAST.Block(Vector.empty)
     val falseBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.IfThenElse(switchPredicate, trueBody = trueBlock, falseBody = falseBlock)
+    genTrueBranch(trueBlock)
+    genFalseBranch(falseBlock)
+  }
+
+  private def generateExprConditional(block: Block,
+                                      condition: Expression,
+                                      genTrueBranch: (Block) => Unit,
+                                      genFalseBranch: (Block) => Unit): Unit = {
+    val trueBlock = OpenCLAST.Block(Vector.empty)
+    val falseBlock = OpenCLAST.Block(Vector.empty)
+    (block: Block) += OpenCLAST.IfThenElse(condition, trueBody = trueBlock, falseBody = falseBlock)
     genTrueBranch(trueBlock)
     genFalseBranch(falseBlock)
   }

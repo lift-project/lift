@@ -70,7 +70,7 @@ class TestReduceWhile {
     val gold = arr.grouped(splitSize).map(_.takeWhile(_ < 512).sum).toArray
 
     val filter = UserFun("check", Array("acc","v"),
-      "return (!(v < 512));",
+      "return ((v < 512));",
       Seq(Int,Int), Int
     )
 

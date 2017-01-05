@@ -434,7 +434,7 @@ class OpenCLPrinter {
   }
 
   private def print(b: Break) : Unit = {
-    println("break;")
+    print("break;")
   }
 
   private def print(s: StructConstructor): Unit = {
