@@ -13,3 +13,4 @@ lib/Executor/build
 *.iml
 *.html
 *.pyc
+*.swp

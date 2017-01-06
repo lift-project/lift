@@ -30,12 +30,17 @@ def visit_pattern_node_html(self, node):
 def depart_pattern_node_html(self, node):
     self.body.append('</div>')
 
+def visit_pattern_node_latex(self, node):
+    self.body.append("\n\n")
+
+def depart_pattern_node_latex(self, node):
+    pass
+
 def visit_pattern_node(self, node):
-    self.visit_admonition(node)
+    pass
 
 def depart_pattern_node(self, node):
-    self.depart_admonition(node)
-
+    pass
 
 class PatternTitle(nodes.General, nodes.Element):
     pass
@@ -43,7 +48,7 @@ class PatternTitle(nodes.General, nodes.Element):
 def make_pattern_title(content, lineno, state):
     title_node = PatternTitle()
     title_text, _ = state.inline_text(content.strip(), lineno)
-    title_node += nodes.paragraph('', *title_text)
+    title_node += nodes.Text(*title_text)
     return [title_node]
 
 def visit_pattern_title_node_html(self, node):
@@ -52,6 +57,11 @@ def visit_pattern_title_node_html(self, node):
 def depart_pattern_title_node_html(self, node):
     self.body.append(r'</code>')
 
+def visit_pattern_title_node_latex(self, node):
+    self.body.append(r'\sphinxcode{')
+
+def depart_pattern_title_node_latex(self, node):
+    self.body.append(r'}')
 
 class PatternType(nodes.General, nodes.Element): pass
 
@@ -70,12 +80,21 @@ def visit_pattern_type_node_html(self, node):
 def depart_pattern_type_node_html(self, node):
     self.body.append(r'\)</span>')
 
+def visit_pattern_type_node_latex(self, node):
+    self.body.append(' : \\(')
+    paragraph = node.children[0]
+    type_ = paragraph.children[0]
+    self.body.append(type_to_latex(type_))
+    paragraph.replace_self(nodes.raw('', ''))
+
+def depart_pattern_type_node_latex(self, node):
+    self.body.append('\\)\n')
+
 def type_to_latex(type_):
     type_ = type_.replace("->", r"\rightarrow{}")
     type_ = type_.replace("*", r"\times{}")
     type_ = re.sub(r"(.*)\W(.*)/(.*)\W(.*)",
                    r"\1{{}^{\2}\\!/\\!_{\3}}\4",
-                   # r"\1{\\frac{\2}{\3}}\4",
                    type_)
     return type_
 
@@ -97,14 +116,18 @@ class PatternDirective(Directive):
 def setup(app):
     app.add_node(Pattern,
                  html=(visit_pattern_node_html, depart_pattern_node_html),
-                 latex=(visit_pattern_node, depart_pattern_node),
+                 latex=(visit_pattern_node_latex, depart_pattern_node_latex),
                  text=(visit_pattern_node, depart_pattern_node))
 
     app.add_node(PatternTitle,
-                 html=(visit_pattern_title_node_html, depart_pattern_title_node_html))
+                 html=(visit_pattern_title_node_html, depart_pattern_title_node_html),
+                 latex=(visit_pattern_title_node_latex, depart_pattern_title_node_latex),
+                 text=(visit_pattern_node, depart_pattern_node))
 
     app.add_node(PatternType,
-                 html=(visit_pattern_type_node_html, depart_pattern_type_node_html))
+                 html=(visit_pattern_type_node_html, depart_pattern_type_node_html),
+                 latex=(visit_pattern_type_node_latex, depart_pattern_type_node_latex),
+                 text=(visit_pattern_node, depart_pattern_node))
 
     app.add_directive('lift.pattern', PatternDirective)
 
