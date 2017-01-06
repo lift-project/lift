@@ -3,44 +3,34 @@ from docutils import nodes
 from docutils.parsers.rst import Directive
 from sphinx.locale import _
 
+# Nodes
 
 class Pattern(nodes.General, nodes.Element):
     pass
 
 def make_pattern(content, lineno, state):
-    def parseContent(content):
-        match = re.search('^(.*):(.*)$', content)
+    def parse_title_line(title_line):
+        match = re.search('^(.*):(.*)$', title_line)
         if match:
             return match.groups()
         else:
-            return (content, "")
+            return (title_line, "")
 
-    title, type_ = parseContent('\n'.join(content))
+    title, type_ = parse_title_line(content[0])
+    if len(content) > 1: body = '\n'.join(content[1:])
+    else:                body = ""
+
     pattern_node = Pattern()
     pattern_node['classes'] += ['pattern-' + nodes.make_id(title)]
+    # add title
     pattern_node += make_pattern_title(title.strip(), lineno, state)
-    if type_ != "":
-        pattern_node += make_pattern_type(type_.strip(), lineno, state)
+    # add type
+    pattern_node += make_pattern_type(type_.strip(), lineno, state)
+    # add body
+    body_text, _ = state.inline_text(body.strip(), lineno)
+    pattern_node += nodes.paragraph('', *body_text)
 
     return [pattern_node]
-
-def visit_pattern_node_html(self, node):
-    self.body.append(self.starttag(node, 'div', CLASS=('pattern lift ')))
-
-def depart_pattern_node_html(self, node):
-    self.body.append('</div>')
-
-def visit_pattern_node_latex(self, node):
-    self.body.append("\n\n")
-
-def depart_pattern_node_latex(self, node):
-    pass
-
-def visit_pattern_node(self, node):
-    pass
-
-def depart_pattern_node(self, node):
-    pass
 
 class PatternTitle(nodes.General, nodes.Element):
     pass
@@ -51,53 +41,15 @@ def make_pattern_title(content, lineno, state):
     title_node += nodes.Text(*title_text)
     return [title_node]
 
-def visit_pattern_title_node_html(self, node):
-    self.body.append(r'<code class="docutils literal pattern-title">')
-
-def depart_pattern_title_node_html(self, node):
-    self.body.append(r'</code>')
-
-def visit_pattern_title_node_latex(self, node):
-    self.body.append(r'\sphinxcode{')
-
-def depart_pattern_title_node_latex(self, node):
-    self.body.append(r'}')
-
 class PatternType(nodes.General, nodes.Element): pass
 
 def make_pattern_type(content, lineno, state):
     type_node = PatternType()
     type_text, _ = state.inline_text(content.strip(), lineno)
-    type_node += nodes.paragraph('', *type_text)
+    type_node += nodes.Text(*type_text)
     return [type_node]
 
-def visit_pattern_type_node_html(self, node):
-    self.body.append(r' : <span class="math">\(')
-    paragraph = node.children[0]
-    type_ = paragraph.children[0]
-    paragraph.replace_self(nodes.paragraph('', type_to_latex(type_)))
-
-def depart_pattern_type_node_html(self, node):
-    self.body.append(r'\)</span>')
-
-def visit_pattern_type_node_latex(self, node):
-    self.body.append(' : \\(')
-    paragraph = node.children[0]
-    type_ = paragraph.children[0]
-    self.body.append(type_to_latex(type_))
-    paragraph.replace_self(nodes.raw('', ''))
-
-def depart_pattern_type_node_latex(self, node):
-    self.body.append('\\)\n')
-
-def type_to_latex(type_):
-    type_ = type_.replace("->", r"\rightarrow{}")
-    type_ = type_.replace("*", r"\times{}")
-    type_ = re.sub(r"(.*)\W(.*)/(.*)\W(.*)",
-                   r"\1{{}^{\2}\\!/\\!_{\3}}\4",
-                   type_)
-    return type_
-
+# Directives
 
 class PatternDirective(Directive):
     has_content = True
@@ -111,6 +63,78 @@ class PatternDirective(Directive):
         pat = make_pattern(self.content, self.lineno, self.state)
 
         return [targetnode] + pat
+
+# Utility function
+
+def type_to_latex(type_):
+    type_ = type_.replace("->", r"\rightarrow{}")
+    type_ = type_.replace("*", r"\times{}")
+    type_ = re.sub(r"(.*)\W(.*)/(.*)\W(.*)",
+                   r"\1{{}^{\2}\\!/\\!_{\3}}\4",
+                   type_)
+    return type_
+
+
+# HTML printing
+
+def visit_pattern_node_html(self, node):
+    self.body.append(self.starttag(node, 'div', CLASS=('pattern lift ')))
+
+def depart_pattern_node_html(self, node):
+    self.body.append('</div>')
+
+def visit_pattern_title_node_html(self, node):
+    self.body.append(r'<code class="docutils literal pattern-title">')
+
+def depart_pattern_title_node_html(self, node):
+    self.body.append(r'</code>')
+
+def visit_pattern_type_node_html(self, node):
+    self.body.append(r' : <span class="math">\(')
+    type_ = node.children[0]
+    # print the content ourself ...
+    self.body.append(type_to_latex(type_))
+    # ... and then remove the node, so that it is not printed a second time
+    node.remove(type_)
+
+def depart_pattern_type_node_html(self, node):
+    self.body.append(r'\)</span>')
+
+
+# LaTeX printing
+
+def visit_pattern_node_latex(self, node):
+    self.body.append("\n\n")
+
+def depart_pattern_node_latex(self, node):
+    pass
+
+def visit_pattern_title_node_latex(self, node):
+    self.body.append(r'\sphinxcode{')
+
+def depart_pattern_title_node_latex(self, node):
+    self.body.append(r'}')
+
+def visit_pattern_type_node_latex(self, node):
+    self.body.append(' : \\(')
+    type_ = node.children[0]
+    # print the content ourself ...
+    self.body.append(type_to_latex(type_))
+    # ... and then remove the node, so that it is not printed a second time
+    node.remove(type_)
+
+def depart_pattern_type_node_latex(self, node):
+    self.body.append('\\)\n')
+
+
+# Text rendering
+
+def visit_pattern_node(self, node):
+    pass
+
+def depart_pattern_node(self, node):
+    pass
+
 
 
 def setup(app):

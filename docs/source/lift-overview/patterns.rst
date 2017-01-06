@@ -6,33 +6,33 @@ Algorithmic
 
 .. lift.pattern:: Map : (a -> b) -> [a]_n -> [b]_n
 
-The ``map`` pattern
+  The ``map`` pattern
 
 .. lift.pattern:: Zip : [a]_n -> [b]_n -> [(a, b)]_n
 
-The ``zip`` pattern
+  The ``zip`` pattern
 
 .. lift.pattern:: Reduce : ((a, a) -> a) -> a -> [a]_n -> [a]_1
 
-The ``reduce`` pattern 
+  The ``reduce`` pattern 
 
 .. lift.pattern:: ReduceSeq : ((a, b) -> a) -> a -> [b]_n -> [a]_1
 
-The ``reduceSeq`` pattern
+  The ``reduceSeq`` pattern
 
 .. lift.pattern:: Split : n -> [a]_{m} -> [[a]_{n}]_{m/n}
 
-The ``split`` pattern
+  The ``split`` pattern
 
 .. lift.pattern:: Join : [[a]_n]_m -> [a]_{n*m}
 
-The ``join`` pattern
+  The ``join`` pattern
 
 .. lift.pattern:: Iterate : n -> (m -> [a]_{k*m} -> [a]_m) -> [a]_{k^n*l} -> [a]_l
 
-The ``iterate`` pattern
+  The ``iterate`` pattern
 
 .. lift.pattern:: Reorder : [a]_n -> [a]_n
 
-The ``reorder`` pattern
+  The ``reorder`` pattern
 
