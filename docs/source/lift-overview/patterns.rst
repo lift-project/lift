@@ -16,7 +16,7 @@ The ``zip`` pattern
 
 The ``reduce`` pattern 
 
-.. lift.pattern:: ReduceSeq : ((a, b) -> b) -> b -> [a]_n -> [b]_1
+.. lift.pattern:: ReduceSeq : ((a, b) -> a) -> a -> [b]_n -> [a]_1
 
 The ``reduceSeq`` pattern
 
