@@ -157,6 +157,7 @@ class OpenCLPrinter {
     case i: OpenCLAST.IfThenElse    => print(i)
     case l: Label         => print(l)
     case g: GOTO          => print(g)
+    case b: Break         => print(b)
     case s: StructConstructor => print(s)
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
@@ -430,6 +431,10 @@ class OpenCLPrinter {
     */
   private def print(g: GOTO): Unit = {
     println("goto " + g.nameVar.toString + ";")
+  }
+
+  private def print(b: Break) : Unit = {
+    print("break;")
   }
 
   private def print(s: StructConstructor): Unit = {
