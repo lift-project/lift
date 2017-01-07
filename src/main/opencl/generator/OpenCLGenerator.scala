@@ -666,8 +666,7 @@ class OpenCLGenerator extends Generator {
       // generate the Predicate
       generate(r.p.body, ib)
       // generate the access and break
-      generateExprConditional(ib,
-//        Predicate(pResMemVar, 0, Predicate.Operator.==),
+      generateConditional(ib,
         pResMem,
         (ccb) => {
 
@@ -1118,17 +1117,6 @@ class OpenCLGenerator extends Generator {
   }
 
   private def generateConditional(block: Block,
-                                  switchPredicate: Predicate,
-                                  genTrueBranch: (Block) => Unit,
-                                  genFalseBranch: (Block) => Unit): Unit = {
-    val trueBlock = OpenCLAST.Block(Vector.empty)
-    val falseBlock = OpenCLAST.Block(Vector.empty)
-    (block: Block) += OpenCLAST.IfThenElse(switchPredicate, trueBody = trueBlock, falseBody = falseBlock)
-    genTrueBranch(trueBlock)
-    genFalseBranch(falseBlock)
-  }
-
-  private def generateExprConditional(block: Block,
                                       condition: Expression,
                                       genTrueBranch: (Block) => Unit,
                                       genFalseBranch: (Block) => Unit): Unit = {
