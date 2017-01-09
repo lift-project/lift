@@ -75,7 +75,7 @@ OpenCL Patterns
 
   The ``toPrivate`` pattern
 
-.. lift.pattern:: asVector : m -> [a]_{m*n} -> [<a>_n]_m
+.. lift.pattern:: asVector : m -> [a]_{m*n} -> [<a>_m]_n
 
   The ``asVector`` pattern.
 
