@@ -1,11 +1,12 @@
-package nn.mlp
+package lift.nn.mlp
 
 /**
   * Created by Naums Mogers in July 2016.
   * This file implements the Lift version of the Multilayer Perceptron forward-propagation.
   */
 
-import apart.arithmetic.{NotEvaluableException, SizeVar}
+import lift.arithmetic.NotEvaluableException
+import lift.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast._
 import opencl.ir._
@@ -18,6 +19,7 @@ import scala.collection.mutable.{Map => DictMap}
 import scala.util.parsing.json._
 import java.io._
 import java.util.Calendar
+
 
 object TestMLP {
   @BeforeClass def before(): Unit = {
@@ -86,7 +88,7 @@ class TestMLP {
                 } catch {
                   case e: DeviceCapabilityException =>
                     println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
-                  case e: NotEvaluableException =>
+                  case NotEvaluableException =>
                     println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                 }
               }

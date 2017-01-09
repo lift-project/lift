@@ -5,7 +5,7 @@ package nn.mlp
   * This file implements the Lift version of the Multilayer Perceptron forward-propagation.
   */
 
-import apart.arithmetic.{NotEvaluableException, SizeVar}
+import lift.arithmetic.{NotEvaluableException, SizeVar}
 import ir.ArrayType
 import ir.ast._
 import opencl.ir._
@@ -82,7 +82,7 @@ class TestMLP2 {
                     } catch {
                       case e: DeviceCapabilityException =>
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
-                      case e: NotEvaluableException =>
+                      case NotEvaluableException =>
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                       case e: AssertionError =>
                         println(e.getMessage)
@@ -93,7 +93,7 @@ class TestMLP2 {
                     } catch {
                       case e: DeviceCapabilityException =>
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
-                      case e: NotEvaluableException =>
+                      case NotEvaluableException =>
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                       case e: AssertionError =>
                         println(e.getMessage)

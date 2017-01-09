@@ -5,7 +5,7 @@ package nn.mlp
   * This file implements the Lift version of the Multilayer Perceptron forward-propagation.
   */
 
-import apart.arithmetic.{NotEvaluableException, SizeVar}
+import lift.arithmetic.{NotEvaluableException, SizeVar}
 import ir.ArrayType
 import ir.ast._
 import opencl.ir._
@@ -85,7 +85,7 @@ class TestMLP_monaco {
                     e("mults_per_thread").asInstanceOf[Int], e("neurons_per_wrg").asInstanceOf[Int])
                 } catch {
                   case e: DeviceCapabilityException =>
-                  case e: NotEvaluableException =>
+                  case NotEvaluableException =>
                     println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                 }
               }
