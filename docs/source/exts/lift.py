@@ -69,6 +69,8 @@ class PatternDirective(Directive):
 def type_to_latex(type_):
     type_ = type_.replace("->", r"\rightarrow{}")
     type_ = type_.replace("*", r"\times{}")
+    type_ = type_.replace("<", r"\langle{}")
+    type_ = type_.replace(">", r"\rangle{}")
     type_ = re.sub(r"(.*)\W(.*)/(.*)\W(.*)",
                    r"\1{{}^{\2}\\!/\\!_{\3}}\4",
                    type_)
