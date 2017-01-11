@@ -43,7 +43,7 @@
 //11.GenJoin/GenSplit... :Boolean=> Whether generate a certain pattern
 
 
-package ir.hlGenerator
+package prog_gen
 
 import ir._
 import ir.ast._

@@ -1,4 +1,4 @@
-package ir.hlGenerator
+package prog_gen
 
 import java.io.PrintWriter
 

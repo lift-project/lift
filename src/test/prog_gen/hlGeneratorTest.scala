@@ -1,4 +1,4 @@
-package ir.hlGenerator
+package prog_gen
 
 import ir._
 import ir.ast._
