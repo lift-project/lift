@@ -67,7 +67,6 @@ class hlGenerator {
   //controllers for generate programs
   val LoopNum = 30
   val ConsequentUserFun = false
-  //val ReduceInitToGlobal = false
   val ReduceOnOneElement = false
   val AllowJoinASplit = false
   val MustContainsUserFun = true
@@ -137,96 +136,57 @@ class hlGenerator {
   private def generateLambda(): Unit ={
     val totChoiceNum = 7
 
-
     val randChoice = util.Random.nextInt(totChoiceNum)
+
+    unpackParams()
     //randChoice match{
-    AssignedChoiceNum match{
-      //Join
-      case 0 =>
-        if(GenJoin) {
-          unpackParams()
-          generateJoin(LimitNum)
-        }
-        AssignedChoiceNum += 1
-      case 1 =>
-        if(GenSplit) {
-          unpackParams()
-          generateSplit(SplitChunkSize, LimitNum)
-        }
-        AssignedChoiceNum += 1
-      case 2 =>
-        if(GenUserFun) {
-          unpackParams()
-          //generateUserFun(LimitNum)
-          generateUserFun(30)
-        }
-        AssignedChoiceNum += 1
-      case 3 =>
-        if(GenZip) {
-          unpackParams()
-          generateZip(LimitNum, ZipLimit)
-        }
-        AssignedChoiceNum += 1
-      case 4 =>
-        if(GenGet) {
-          unpackParams()
-          generateGet(LimitNum)
-        }
-        AssignedChoiceNum += 1
-      case 5 =>
-        if(GenMap) {
-          unpackParams()
-          generateMap(LimitNum)
-        }
-        AssignedChoiceNum += 1
-      case 6 =>
-        if(GenReduce) {
-          unpackParams()
-          generateReduce(LimitNum)
-        }
+    AssignedChoiceNum match {
+      case 0 if GenJoin =>
+        generateJoin(LimitNum)
+
+      case 1 if GenSplit =>
+        generateSplit(SplitChunkSize, LimitNum)
+
+      case 2 if GenUserFun =>
+        generateUserFun(30)
+
+      case 3 if GenZip =>
+        generateZip(LimitNum, ZipLimit)
+
+      case 4 if GenGet =>
+        generateGet(LimitNum)
+
+      case 5 if GenMap =>
+        generateMap(LimitNum)
+
+      case 6 if GenReduce =>
+        generateReduce(LimitNum)
+
         LimitNum += 10
-        AssignedChoiceNum = 0
-
-
     }
+
+    AssignedChoiceNum = (AssignedChoiceNum + 1) % totChoiceNum
   }
 
   private def generateJoin(limitNum:Int): Unit = {
-    //val tempFunCallList = ArrayBuffer[FunCall]()
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
 
-    for(i<- Join_P until ParamList.length){
+    for(i <- Join_P until ParamList.length) {
       ParamList(i).t match{
         case ArrayType(ArrayType(t,m),n) =>
           //pass the type check
 
-          var joinSplit:Boolean = false
-          if (ParamToFunCall.contains(ParamList(i))){
-            ParamToFunCall(ParamList(i)).f match{
+          var joinSplit: Boolean = false
+          if (ParamToFunCall.contains(ParamList(i))) {
+            ParamToFunCall(ParamList(i)).f match {
               case _:Split =>
                 joinSplit = true
               case _=>
             }
           }
-
-
-
-          //check for Join a split
-          /*
-          val joinSplit:Boolean = fArg match{
-            case fc:FunCall =>
-              fc.f match{
-                case sp:Split =>
-                  true
-                case _=>
-                  false
-              }
-            case _=>
-              false
-          }*/
 
           if(joinSplit && !AllowJoinASplit){
 
@@ -259,22 +219,7 @@ class hlGenerator {
     }
     Join_P = ParamList.length
 
-    val resLen = tempParamList.length
-    if(resLen > limitNum){
-      for(_ <- 0 until limitNum){
-        val randRes = util.Random.nextInt(resLen)
-        if(!ParamToFunCall.contains(tempParamList(randRes))) {
-          LambdaList += tempLambdaList(randRes)
-          ParamList += tempParamList(randRes)
-          ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
-        }
-      }
-    }
-    else {
-      LambdaList ++= tempLambdaList
-      ParamList ++= tempParamList
-      ParamToFunCall ++= tempParamToFunCall
-    }
+    limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
   private def generateSplit(ChunkSize:Int,limitNum:Int): Unit = {
@@ -284,8 +229,7 @@ class hlGenerator {
 
     for(i<- Split_P until ParamList.length){
       ParamList(i).t match{
-        case ArrayType(t,n) =>
-          if(n.eval >=ChunkSize){
+        case ArrayType(t,n) if n.eval >= ChunkSize =>
             //Pass the type check!
 
             //get the argument of FunCall
@@ -310,29 +254,35 @@ class hlGenerator {
             tempLambdaList += L
             tempParamToFunCall += ((P,F))
 
-          }
         case _=>
       }
     }
     Split_P = ParamList.length
 
+    limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
+
+  }
+
+  private def limitResults(limitNum: Int, tempLambdaList: ArrayBuffer[Lambda],
+    tempParamList: ArrayBuffer[Param],
+    tempParamToFunCall: collection.mutable.Map[Param, FunCall]) = {
+
     val resLen = tempParamList.length
-    if(resLen > limitNum){
-      for(_ <- 0 until limitNum){
+
+    if (resLen > limitNum) {
+      for (_ <- 0 until limitNum) {
         val randRes = util.Random.nextInt(resLen)
-        if(!ParamToFunCall.contains(tempParamList(randRes))) {
+        if (!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
           ParamList += tempParamList(randRes)
           ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
         }
       }
-    }
-    else {
+    } else {
       LambdaList ++= tempLambdaList
       ParamList ++= tempParamList
       ParamToFunCall ++= tempParamToFunCall
     }
-
   }
 
   private def generateUserFun(limitNum:Int):Unit = {
@@ -362,28 +312,6 @@ class hlGenerator {
                 case _ =>
               }
             }
-            /*
-              arg1 match{
-                case fc:FunCall =>
-                  fc.f match{
-                    case u:UserFun =>
-                      containsUserFun = true
-                    case _=>
-                  }
-                case _=>
-              }
-              arg2 match{
-                case fc:FunCall =>
-                  fc.f match{
-                    case u:UserFun =>
-                      containsUserFun = true
-                    case _=>
-                  }
-                case _=>
-              }
-              */
-
-
 
 
             if (containsUserFun && !ConsequentUserFun) {
@@ -413,25 +341,10 @@ class hlGenerator {
       }
     }
 
-    val resLen = tempParamList.length
-    if (resLen > limitNum) {
-      for (_ <- 0 until limitNum) {
-        val randRes = util.Random.nextInt(resLen)
-        if (!ParamToFunCall.contains(tempParamList(randRes))) {
-          LambdaList += tempLambdaList(randRes)
-          ParamList += tempParamList(randRes)
-          ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
-        }
-      }
-    }
-    else {
-      LambdaList ++= tempLambdaList
-      ParamList ++= tempParamList
-      ParamToFunCall ++= tempParamToFunCall
-    }
+    limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
-  private def generateReduce(limitNum:Int): Unit ={
+  private def generateReduce(limitNum:Int): Unit = {
 
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
@@ -608,22 +521,7 @@ class hlGenerator {
         }
       }
     }
-    val resLen = tempParamList.length
-    if(resLen > limitNum){
-      for(_ <- 0 until limitNum){
-        val randRes = util.Random.nextInt(resLen)
-        if(!ParamToFunCall.contains(tempParamList(randRes))) {
-          LambdaList += tempLambdaList(randRes)
-          ParamList += tempParamList(randRes)
-          ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
-        }
-      }
-    }
-    else {
-      LambdaList ++= tempLambdaList
-      ParamList ++= tempParamList
-      ParamToFunCall ++= tempParamToFunCall
-    }
+    limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
   private def generateMap(limitNum:Int):Unit = {
@@ -737,22 +635,7 @@ class hlGenerator {
       }
     }
 
-    val resLen = tempParamList.length
-    if(resLen > limitNum){
-      for(_ <- 0 until limitNum){
-        val randRes = util.Random.nextInt(resLen)
-        if(!ParamToFunCall.contains(tempParamList(randRes))) {
-          LambdaList += tempLambdaList(randRes)
-          ParamList += tempParamList(randRes)
-          ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
-        }
-      }
-    }
-    else {
-      LambdaList ++= tempLambdaList
-      ParamList ++= tempParamList
-      ParamToFunCall ++= tempParamToFunCall
-    }
+    limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
   private def generateZip(limitNum:Int,zipArrayLimit:Int):Unit ={
@@ -821,22 +704,7 @@ class hlGenerator {
     }
     Zip_P = ParamList.length
 
-    val resLen = tempParamList.length
-    if(resLen > limitNum){
-      for(_ <- 0 until limitNum){
-        val randRes = util.Random.nextInt(resLen)
-        if(!ParamToFunCall.contains(tempParamList(randRes))) {
-          LambdaList += tempLambdaList(randRes)
-          ParamList += tempParamList(randRes)
-          ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
-        }
-      }
-    }
-    else {
-      LambdaList ++= tempLambdaList
-      ParamList ++= tempParamList
-      ParamToFunCall ++= tempParamToFunCall
-    }
+    limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
 
   }
 
@@ -877,22 +745,7 @@ class hlGenerator {
 
     Get_P = ParamList.length
 
-    val resLen = tempParamList.length
-    if(resLen > limitNum){
-      for(_ <- 0 until limitNum){
-        val randRes = util.Random.nextInt(resLen)
-        if(!ParamToFunCall.contains(tempParamList(randRes))) {
-          LambdaList += tempLambdaList(randRes)
-          ParamList += tempParamList(randRes)
-          ParamToFunCall += ((tempParamList(randRes), tempParamToFunCall(tempParamList(randRes))))
-        }
-      }
-    }
-    else {
-      LambdaList ++= tempLambdaList
-      ParamList ++= tempParamList
-      ParamToFunCall ++= tempParamToFunCall
-    }
+    limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
 
   }
 
