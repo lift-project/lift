@@ -55,14 +55,13 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import rewriting.{EnabledMappings, Lower, Rewrite}
 
-import scala.collection.mutable._
+import scala.collection.mutable.ArrayBuffer
 
 class hlGenerator {
 
-  val RefinedResult: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
-  val ParamList: ArrayBuffer[Param] = new ArrayBuffer[Param]()
-  //var FunCallList: ArrayBuffer[FunCall] = new ArrayBuffer[FunCall]()
-  val LambdaList: ArrayBuffer[Lambda] = new ArrayBuffer[Lambda]()
+  val RefinedResult = ArrayBuffer[Lambda]()
+  val ParamList = ArrayBuffer[Param]()
+  val LambdaList = ArrayBuffer[Lambda]()
   val ParamToFunCall = collection.mutable.Map[Param, FunCall]()
   val UnpackedToExpr = collection.mutable.Map[Param,Expr]()
 
@@ -132,7 +131,7 @@ class hlGenerator {
   var UnPack_P = 0
 
 
-  private def tryRewriting(l:Lambda,w:PrintWriter):scala.Seq[Lambda] ={
+  private def tryRewriting(l:Lambda,w:PrintWriter):Seq[Lambda] ={
     if (useRandomRewrite) {
       try {
         //Rewrite.rewriteWithoutLowering(l,rewriting.allRulesWithoutLowering,rewriteDepth)
@@ -147,10 +146,10 @@ class hlGenerator {
             e.printStackTrace(w)
             e.printStackTrace()
           }
-          scala.Seq()
+          Seq()
       }
     } else {
-      scala.Seq(l)
+      Seq(l)
     }
   }
 
