@@ -319,7 +319,7 @@ class hlGenerator {
       }
     }
 
-}
+  }
 
   def tryPrograms(w:PrintWriter):Unit = {
     generateProgram()
@@ -582,7 +582,7 @@ class hlGenerator {
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
-//    val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).setScalaFun(xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])
+    //    val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).setScalaFun(xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float])
 
 
     for (i1 <- ParamList.indices) {
