@@ -11,7 +11,7 @@ import rewriting.{EnabledMappings, Lower, Rewrite}
 
 import scala.language.reflectiveCalls
 
-class hlRunner {
+class ProgramRunner {
 
   //controllers for run programs
   val PrintDebugInfo = true
@@ -26,7 +26,7 @@ class hlRunner {
     w.write(s+"\n")
   }
 
-  def tryPrograms(w:PrintWriter, generator: hlGenerator):Unit = {
+  def tryPrograms(w:PrintWriter, generator: ProgramGenerator):Unit = {
     generator.generateProgram()
     val res = generator.RefinedResult
     for(i <- res.indices){

@@ -12,7 +12,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object hlGeneratorTest{
+object ProgramGeneratorTest{
 
   @BeforeClass
   def before(): Unit =
@@ -24,11 +24,11 @@ object hlGeneratorTest{
 
 }
 
-class hlGeneratorTest {
+class ProgramGeneratorTest {
 
   @Test
   def testNewGen(): Unit = {
-    val hlGen = new hlGenerator
+    val hlGen = new ProgramGenerator
     hlGen.generateProgram()
     assertTrue(hlGen.RefinedResult.nonEmpty)
   }

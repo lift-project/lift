@@ -52,7 +52,7 @@ import opencl.ir.pattern.ReduceSeq
 
 import scala.collection.mutable.ArrayBuffer
 
-class hlGenerator {
+class ProgramGenerator {
 
   val RefinedResult = ArrayBuffer[Lambda]()
   val ParamList = ArrayBuffer[Param]()
