@@ -11,7 +11,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object hlGenFinishedIssue{
+object ProgGenFinishedIssue {
   @BeforeClass
   def before(): Unit =
     Executor.loadAndInit()
@@ -21,9 +21,8 @@ object hlGenFinishedIssue{
     Executor.shutdown()
 }
 
-class hlGenFinishedIssue{
+class ProgGenFinishedIssue {
 
-  @Ignore
   @Test
   def hlGenTest1(): Unit = {
 
@@ -103,7 +102,6 @@ class hlGenFinishedIssue{
   }
 
   //The high-level expression could not find a correct lower one
-  @Ignore
   @Test
   def hlGenCompiler1(): Unit = {
 

@@ -12,7 +12,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object hlGenIssues{
+object ProgGenIssues{
   @BeforeClass
   def before(): Unit =
     Executor.loadAndInit()
@@ -21,7 +21,7 @@ object hlGenIssues{
   def after(): Unit =
     Executor.shutdown()
 }
-class hlGenIssues{
+class ProgGenIssues{
 
   @Ignore
   @Test
@@ -52,7 +52,6 @@ class hlGenIssues{
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
-  @Ignore
   @Test
   def hlGenResultNotEqual1(): Unit = {
 
@@ -81,7 +80,6 @@ class hlGenIssues{
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
-  @Ignore
   @Test
   def issue76(): Unit = {
 
