@@ -43,7 +43,6 @@
 //11.GenJoin/GenSplit... :Boolean=> Whether generate a certain pattern
 
 
-
 package ir.hlGenerator
 
 import java.io.PrintWriter
@@ -57,7 +56,6 @@ import opencl.ir.pattern.ReduceSeq
 import rewriting.{EnabledMappings, Lower, Rewrite}
 
 import scala.collection.mutable._
-import scala.language.reflectiveCalls
 
 class hlGenerator {
 
@@ -149,10 +147,10 @@ class hlGenerator {
             e.printStackTrace(w)
             e.printStackTrace()
           }
-          Seq()
+          scala.Seq()
       }
     } else {
-      Seq(l)
+      scala.Seq(l)
     }
   }
 
@@ -321,123 +319,7 @@ class hlGenerator {
         }
       }
     }
-          /*//5. execute the OpenCL kernel and the interpreter
-        outType match {
-          case Float =>
-            try {
-              val (output_exe: Float, runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
-              if (RunInterpreter) {
 
-                val output_int = Interpreter(oril).->[Float].run(Args: _*)
-                if (output_exe == output_int) {
-                  println("results eq-by-user")
-                  writeln(w, "results eq-by-user")
-                }
-                else {
-                  println("results ne-by-user")
-                  writeln(w, "results ne-by-user")
-                }
-              }
-              else {
-                println("pass-by-user")
-                writeln(w, "pass-by-user")
-              }
-
-            }
-            catch {
-              case e: Throwable =>
-                println("catch a exception in execator-by-user")
-                e.printStackTrace()
-                writeln(w, "catch a exception in execator-by-user")
-                e.printStackTrace(w)
-                return
-            }
-          case ArrayType(Float, d1) =>
-            try {
-              val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
-              if (RunInterpreter) {
-                val output_int = Interpreter(oril).->[Vector[Float]].run(Args: _*).toArray[Float]
-                if (output_exe.corresponds(output_int)(_ == _)) {
-                  writeln(w, "results eq-by-user")
-                  println("results eq-by-user")
-                }
-                else {
-                  writeln(w, "results ne-by-user")
-                  println("results ne-by-user")
-                }
-              }
-              else {
-                println("pass-by-user")
-                writeln(w, "pass-by-user")
-              }
-            }
-            catch {
-              case e: Throwable =>
-                println("catch a exception in execator-by-user")
-                e.printStackTrace()
-                writeln(w, "catch a exception in execator-by-user")
-                e.printStackTrace(w)
-                return
-            }
-          case ArrayType(ArrayType(Float, d1), d2) =>
-            try {
-              val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
-              if (RunInterpreter) {
-                val output_int = Interpreter(oril).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
-                if (output_exe.corresponds(output_int)(_ == _)) {
-                  writeln(w, "results eq-by-user")
-                  println("results eq-by-user")
-                }
-                else {
-                  writeln(w, "results ne-by-user")
-                  println("results ne-by-user")
-                }
-              }
-              else {
-                println("pass-by-user")
-                writeln(w, "pass-by-user")
-              }
-            }
-            catch {
-              case e: Throwable =>
-                println("catch a exception in execator-by-user")
-                e.printStackTrace()
-                writeln(w, "catch a exception in execator-by-user")
-                e.printStackTrace(w)
-                return
-            }
-          case ArrayType(ArrayType(ArrayType(Float, d1), d2), d3) =>
-            try {
-              val (output_exe: Array[Float], runtime) = Execute(LocalSize, GlobalSize)(code, lowLevel, Args: _*)
-              if (RunInterpreter) {
-                val output_int = Interpreter(oril).->[Vector[Vector[Vector[Float]]]].runAndFlatten(Args: _*).toArray[Float]
-                if (output_exe.corresponds(output_int)(_ == _)) {
-                  writeln(w, "results eq-by-user")
-                  println("results eq-by-user")
-                }
-                else {
-                  writeln(w, "results ne-by-user")
-                  println("results ne-by-user")
-                }
-              }
-              else {
-                println("pass-by-user")
-                writeln(w, "pass-by-user")
-              }
-            }
-            catch {
-              case e: Throwable =>
-                println("catch a exception in execator-by-user")
-                e.printStackTrace()
-                writeln(w, "catch a exception in execator-by-user")
-                e.printStackTrace(w)
-                return
-            }
-          case _ =>
-            println("Type unimplemented,Ignored-by-user")
-            writeln(w, "Type unimplemented,Ignored-by-user")
-        }
-        */
 }
 
   def tryPrograms(w:PrintWriter):Unit = {
@@ -1356,62 +1238,7 @@ class hlGenerator {
       }
     }
   }
-  /*
-  private def refineResult():Unit={
-    for(i <- LambdaList.indices){
-      val oriLambda = LambdaList(i)
-      if((MustContainsMap && !oriLambda.toString.contains("Map")) ||
-        MustContainsUserFun && !oriLambda.toString.contains("add")){
 
-      }
-      else{
-        //the params in refine param list will be replace as funcalls
-        val refineParamList = ArrayBuffer[Param]()
-        for(j <- oriLambda.params.indices){
-          if(ParamToFunCall.contains(oriLambda.params(j))){
-            refineParamList += oriLambda.params(j)
-          }
-        }
-        if(refineParamList.nonEmpty) {
-          //create a lambda without unknown params
-          var L2 = Lambda(refineParamList.toArray[Param],oriLambda.body)
-
-
-          //replace them with new param
-          for (j <- refineParamList.indices) {
-             L2 = replaceParam(L2,refineParamList(j),Param(refineParamList(j).t))
-          }
-
-          //create a funcall for it
-          val F = FunCall(L2,refineParamList.map(
-            ParamToFunCall(_)
-          ).toArray[Expr]:_*)
-
-          val lParam = countParam(F)
-
-          assert(lParam.forall(!ParamToFunCall.contains(_)))
-          /*
-          for(i <- lParam.indices){
-            if(ParamToFunCall.contains(lParam(i))){
-              val test1 = oriLambda
-              val test2 = refineParamList
-              val test3 = ParamList
-              val test4 = L2
-
-            }
-          }*/
-
-          val L = Lambda(lParam.toArray[Param],F)
-
-          RefinedResult += L
-
-        }
-        else{
-          RefinedResult += oriLambda
-        }
-      }
-    }
-  }*/
   private def getArg(id:Int,possibility:Double):Expr ={
     if(ParamToFunCall.contains(ParamList(id))) {
       val randF = scala.util.Random.nextFloat()
