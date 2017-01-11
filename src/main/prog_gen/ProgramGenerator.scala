@@ -228,7 +228,7 @@ class ProgramGenerator {
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
     for(i<- Split_P until ParamList.length){
-      ParamList(i).t match{
+      ParamList(i).t match {
         case ArrayType(t,n) if n.eval >= ChunkSize =>
             //Pass the type check!
 
@@ -344,6 +344,8 @@ class ProgramGenerator {
     limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
+  // TODO: Only allow UserFun, Value combinations that are
+  // TODO: an associative function and the neutral element.
   private def generateReduce(limitNum:Int): Unit = {
 
     val tempLambdaList = ArrayBuffer[Lambda]()
@@ -573,8 +575,7 @@ class ProgramGenerator {
       }
       Map_Checked = LambdaList.length
 
-    }
-    else {
+    } else {
 
       //1. Search for proper lambda
       for (i <- LambdaList.indices) {
@@ -849,30 +850,23 @@ class ProgramGenerator {
   }
 
   private def getArg(id:Int,possibility:Double):Expr ={
-    if(ParamToFunCall.contains(ParamList(id))) {
+    if (ParamToFunCall.contains(ParamList(id))) {
       val randF = scala.util.Random.nextFloat()
       if (randF < possibility) {
         //pass the param up, return the param
         ParamList(id)
-      }
-      else {
+      } else {
         //calculate the param here, return the corresponding
         ParamToFunCall(ParamList(id))
       }
-    }
-    else{
+    } else {
       ParamList(id)
     }
   }
 
-  private def replaceParam(p:Param,oldP:Param,newP:Param):Param ={
-    if(p.eq(oldP)){
-      newP
-    }
-    else{
-      p
-    }
-  }
+  private def replaceParam(p:Param,oldP:Param,newP:Param):Param =
+    Expr.replace(p, oldP, newP).asInstanceOf[Param]
+
   private def replaceParam(l: Lambda, oldP: Param, newP: Param) : Lambda = {
     val newBody = replaceParam(l.body, oldP, newP)
     val newParams = l.params.map((p) => replaceParam(p,oldP,newP))
@@ -881,55 +875,14 @@ class ProgramGenerator {
     else
       l
   }
-  private def replaceParam(e: Expr, oldP: Param, newP: Param): Expr = {
-    if (e.eq(oldP)) {
-      newP
-    } else {
-      e match {
-        case call: FunCall =>
-          val newArgs = call.args.map((arg) => replaceParam(arg, oldP, newP))
 
-          val newCall = call.f match {
+  private def replaceParam(e: Expr, oldP: Param, newP: Param): Expr =
+    Expr.replace(e, oldP, newP)
 
-            case fp: FPattern =>
-              // Try to do the replacement in the body
-              val replaced = replaceParam(fp.f, oldP, newP)
-
-              // If replacement didn't occur return fp
-              // else instantiate a new pattern with the updated lambda
-              if (fp.f.eq(replaced))
-                fp
-              else
-                fp.copy(replaced)
-
-            case l: Lambda =>
-              // Try to do the replacement in the body
-              val replaced = replaceParam(l, oldP, newP)
-
-              // If replacement didn't occur return l
-              // else instantiate the updated lambda
-              if (l.eq(replaced))
-                l
-              else
-                replaced
-
-            case other => other
-          }
-
-          if (!newCall.eq(call.f) || (newArgs, call.args).zipped.exists( (e1, e2) => !e1.eq(e2)) ) {
-            // Instantiate a new FunCall if anything has changed
-            FunCall(newCall, newArgs: _*)
-          } else
-            e // Otherwise return the same FunCall object
-
-        case _ => e
-      }
-    }
-  }
-  private def countParam(L:Lambda):ArrayBuffer[Param]={
+  private def countParam(L: Lambda): ArrayBuffer[Param] =
     (countParam(L.body) -- L.params.toBuffer[Param]).distinct
-  }
-  private def countParam(p:Pattern):ArrayBuffer[Param]={
+
+  private def countParam(p: Pattern): ArrayBuffer[Param]={
     p match{
       case red: ir.ast.Reduce =>
         countParam(red.f)
@@ -939,7 +892,8 @@ class ProgramGenerator {
         ArrayBuffer[Param]()
     }
   }
-  private def countParam(Fc:FunCall):ArrayBuffer[Param] ={
+
+  private def countParam(Fc: FunCall): ArrayBuffer[Param] = {
     val rs = ArrayBuffer[Param]()
     Fc.f match{
       case l:Lambda =>
@@ -953,7 +907,8 @@ class ProgramGenerator {
     }
     rs.distinct
   }
-  private def countParam(E:Expr):ArrayBuffer[Param] ={
+
+  private def countParam(E: Expr): ArrayBuffer[Param] = {
     E match{
       case fc:FunCall =>
         countParam(fc)
