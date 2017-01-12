@@ -812,7 +812,7 @@ class TestAcousticStencils {
   }
 
 @Test
-  def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelfIterate5Asym(): Unit = {
+  def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelfIterate5Asym2D(): Unit = {
 
     val asymDimY = 14
     val asymDimX = 6

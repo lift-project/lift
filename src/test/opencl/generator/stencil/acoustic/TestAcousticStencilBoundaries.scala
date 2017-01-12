@@ -50,6 +50,11 @@ object BoundaryUtilities
     mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
   }
 
+  def createMaskData2D(sizeX: Int, sizeY: Int): Unit =
+  {
+
+  }
+
   def createMaskData3D(size: Int) = {
 
     val pad2D = createMaskData2D(size)
@@ -59,6 +64,13 @@ object BoundaryUtilities
     for(i <- 1 to size-3) addArr = addArr ++ Array(pad2D)
     one2D ++ addArr ++ one2D
   }
+
+  def createMaskData3D(sizeX: Int, sizeY: Int, sizeZ: Int) =
+  {
+
+  }
+
+
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
     MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,c1))) o MapSeq(idIF) o MapSeq(convertInt) $ Get(m,1),MapSeq(fun(x => mult(x,c2))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
