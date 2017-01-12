@@ -8,8 +8,26 @@ import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.pattern._
 
 object InferNDRange {
+
+  /**
+    * Try to automatically pick local and global sizes for an expressions that are
+    * relative to input sizes. The sizes are chosen as to minimise the number of
+    * loops in the generated code.
+    *
+    * @param lambda to infer local and global sizes for
+    * @return (local NDRange, global NDRange)
+    */
   def apply(lambda: Lambda): (NDRange, NDRange) = (new InferNDRange)(lambda)
 
+  /**
+    * Try to automatically pick local and global sizes for an expressions and given
+    * inputs. The sizes are chosen as to minimise the number of loops in
+    * the generated code.
+    *
+    * @param lambda The lambda to infer local and global sizes for
+    * @param values The specific inputs to infer the sizes for
+    * @return (local NDRange, global NDRange)
+    */
   def apply(lambda: Lambda, values: Any*): (NDRange, NDRange) = {
     val nDRanges = apply(lambda)
 
@@ -41,11 +59,21 @@ class InferNDRange {
 
     Expr.visit(lambda.body,
     {
-      case FunCall(MapGlb(dim, _), arg) => mapGlobals = (dim, Type.getLength(arg.t)) +: mapGlobals
-      case FunCall(MapLcl(dim, _), arg) => mapLocals = (dim, Type.getLength(arg.t)) +: mapLocals
-      case FunCall(MapWrg(dim, _), arg) => mapWorkGroups = (dim, Type.getLength(arg.t)) +: mapWorkGroups
-      case FunCall(MapAtomLcl(dim, _, _), arg) => mapLocals = (dim, Type.getLength(arg.t)) +: mapLocals
-      case FunCall(MapAtomWrg(dim, _, _), arg) => mapWorkGroups = (dim, Type.getLength(arg.t)) +: mapWorkGroups
+      case FunCall(MapGlb(dim, _), arg) =>
+        mapGlobals = (dim, Type.getLength(arg.t)) +: mapGlobals
+
+      case FunCall(MapLcl(dim, _), arg) =>
+        mapLocals = (dim, Type.getLength(arg.t)) +: mapLocals
+
+      case FunCall(MapWrg(dim, _), arg) =>
+        mapWorkGroups = (dim, Type.getLength(arg.t)) +: mapWorkGroups
+
+      case FunCall(MapAtomLcl(dim, _, _), arg) =>
+        mapLocals = (dim, Type.getLength(arg.t)) +: mapLocals
+
+      case FunCall(MapAtomWrg(dim, _, _), arg) =>
+        mapWorkGroups = (dim, Type.getLength(arg.t)) +: mapWorkGroups
+
        case _ =>
     }, (_) => Unit)
 
