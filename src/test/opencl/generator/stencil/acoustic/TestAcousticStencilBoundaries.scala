@@ -3,7 +3,7 @@ package opencl.generator.stencil.acoustic
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -26,9 +26,12 @@ object BoundaryUtilities
   def intBang(i:Int) = if (i==1) 0 else 1
 
   val invertInt = UserFun("invertInt", Array("x"), "{ return x ? 0 : 1; }", Seq(Int), Int)
+  val convertInt = UserFun("convertInt", Array("x"), "{ return x ? 1 : 0; }", Seq(Int), Int)
+  val invertFloat = UserFun("invertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 0.0 : 1.0; }", Seq(Float), Float)
+  val convertFloat = UserFun("convertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 1.0 : 0.0; }", Seq(Float), Float)
   val getFirstTuple = UserFun("getFirstTuple", "x", "{return x._0;}", TupleType(Float, Float), Float) // dud helper
   val getSecondTuple = UserFun("getSecondTuple", "x", "{return x._1;}", TupleType(Float, Float), Float) // dud helper
-  val idIF = UserFun("idIF", "x", "{ return (float)x; }", Int, Float)
+  val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
 
   /* create mask of 0s and 1s at the boundary for a 2D Matrix */
   def createMask(input: Array[Array[Float]], msize: Int, maskValue: Int): Array[Array[Int]] = {
@@ -58,7 +61,7 @@ object BoundaryUtilities
   }
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
-    MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,c1))) o MapSeq(idIF) $ Get(m,1),MapSeq(fun(x => mult(x,c2))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
+    MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,c1))) o MapSeq(idIF) o MapSeq(convertInt) $ Get(m,1),MapSeq(fun(x => mult(x,c2))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
   }
 
 }
@@ -91,6 +94,7 @@ class TestAcousticStencilBoundaries {
   /* globals */
   val mask = BoundaryUtilities.createMaskData2D(StencilUtilities.stencilSize)
   val mask3D = BoundaryUtilities.createMaskData3D(localDim)
+  val mask3DF = mask3D.map(w => w.map(x => x.map( y => y.map( z => z.toFloat))))
 
   @Test
   def testSimpleOneGridWithBoundaryCheckMask2D(): Unit =
@@ -266,7 +270,6 @@ class TestAcousticStencilBoundaries {
   @Test
   def testSimpleOneGridWithBoundaryCheckMask3D(): Unit =
   {
-
     /* u[cp] = S*( boundary ? constantBorder : constantOriginal) */
 
     val compareData = Array(
@@ -299,8 +302,8 @@ class TestAcousticStencilBoundaries {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(m,0), Join() $ weights),
-            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(BoundaryUtilities.idIF)  $ Get(m,1),MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.invertInt)  $ Get(m,1))
-          )
+            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,constantBorder))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.convertInt) $ Get(m,1),
+              MapSeq(fun(x => mult(x,constantOriginal))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.invertInt)  $ Get(m,1)))
         }))
         ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() o Join() $ mask1)
       })
@@ -309,6 +312,7 @@ class TestAcousticStencilBoundaries {
 
     if(StencilUtilities.printOutput)
     {
+//      println(Compile(lambdaNeigh))
       StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
     }
 

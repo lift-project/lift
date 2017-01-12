@@ -231,7 +231,6 @@ class TestAcousticStencils {
   val stencilarrsame = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
-  @Ignore
 @Test
   def testStencil2DSimple(): Unit = {
 
@@ -294,7 +293,6 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
 @Test
   def testStencil2DSimpleTimesConstant(): Unit = {
 
@@ -339,7 +337,6 @@ class TestAcousticStencils {
   }
 
 
-  @Ignore
 @Test
   def testStencil2DSimpleTimesConstantPlusSelf(): Unit = {
 
@@ -387,7 +384,6 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
 @Test
   def testStencil2DSimpleAccessTwoWeightsMultConstOne(): Unit = {
 
@@ -509,8 +505,6 @@ class TestAcousticStencils {
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
   }
 
-
-  @Ignore
 @Test
   def testStencil2DTwoGridsSwap(): Unit = {
 
@@ -561,7 +555,6 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
 @Test
   def twoGridSwapWith3DifferentWeightsAndConstants(): Unit = {
 
@@ -598,7 +591,6 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
 @Test
   def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelf(): Unit = {
 
@@ -658,7 +650,6 @@ class TestAcousticStencils {
 
  /* let's iterate */
 
-  @Ignore
 @Test
   def testSimpleStencilIterate5(): Unit = {
 
@@ -707,7 +698,6 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
 @Test
   def testStencil2DTwoGridsSwapIterate5(): Unit = {
 
@@ -761,7 +751,6 @@ class TestAcousticStencils {
   }
 
 
-  @Ignore
 @Test
   def testSimple2DStencilAsym1(): Unit = {
 
@@ -822,7 +811,6 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
 @Test
   def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelfIterate5Asym(): Unit = {
 
@@ -883,7 +871,6 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
   @Test
   def testStencil3DSimple(): Unit = {
 
@@ -932,7 +919,6 @@ class TestAcousticStencils {
 
   }
 
-  @Ignore
  @Test
   def testStencil3DSwap(): Unit = {
 
@@ -1041,11 +1027,9 @@ class TestAcousticStencils {
 
     val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, input3D, input3D2, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
-    if(StencilUtilities.printOutput)
+ //   if(StencilUtilities.printOutput)
     {
-      StencilUtilities.printOriginalAndOutput3Das1D(input3D, output)
-      StencilUtilities.print3DArray(input3D)
-      StencilUtilities.print1DArrayAs3DArray(output, localDim, localDim, localDim)
+      StencilUtilities.printOriginalAndOutput3D(input3D, output)
     }
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
   }
