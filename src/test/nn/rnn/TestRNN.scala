@@ -10,7 +10,7 @@ package nn.rnn
   * To be completed.
   */
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast._
 import opencl.ir._
