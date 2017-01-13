@@ -28,9 +28,10 @@ class ProgramGeneratorTest {
 
   @Test
   def testNewGen(): Unit = {
-    val hlGen = new ProgramGenerator
-    hlGen.generateProgram()
-    assertTrue(hlGen.RefinedResult.nonEmpty)
+    val generatedPrograms = (new ProgramGenerator).generatePrograms()
+
+    assertTrue(generatedPrograms.nonEmpty)
+    assertTrue(generatedPrograms.exists(_.body.contains({ case FunCall(Reduce(_), _*) => })))
   }
 
   @Ignore

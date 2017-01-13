@@ -27,7 +27,7 @@ class ProgramRunner {
   }
 
   def tryPrograms(w:PrintWriter, generator: ProgramGenerator):Unit = {
-    generator.generateProgram()
+    generator.generatePrograms()
     val res = generator.RefinedResult
     for(i <- res.indices){
       val lStr = rewriting.utils.Utils.dumpLambdaToString(res(i))
