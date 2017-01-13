@@ -114,7 +114,7 @@ object StencilUtilities
 
   }
 
-  def printOriginalAndOutput[T](original: Array[Array[T]], output: Array[T], dimX: Int): Unit = {
+  def printOriginalAndOutput2D[T](original: Array[Array[T]], output: Array[T], dimX: Int): Unit = {
     println("ORIGINAL:")
     print2DArray(original)
     println("*********************")
@@ -183,7 +183,7 @@ object StencilUtilities
     def createDataFloat2D(sizeX: Int, sizeY: Int) = {
 
       val dim = sizeX+2
-      val filling = Array.tabulate(sizeX,sizeY) { (i,j) => (j + 1).toFloat }
+      val filling = Array.tabulate(sizeY,sizeX) { (i,j) => (j + 1).toFloat }
       createFakePaddingFloat2D(filling,0.0f)
     }
 
@@ -286,7 +286,7 @@ class TestAcousticStencils {
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
 
-    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
     //println(ompile(lambda))
@@ -330,7 +330,7 @@ class TestAcousticStencils {
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
 
-    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -378,7 +378,7 @@ class TestAcousticStencils {
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
 
-    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -415,7 +415,7 @@ class TestAcousticStencils {
     //    Compile(lambdaNeigh)
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weights, StencilUtilities.weightsMiddle)
-    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -502,7 +502,7 @@ class TestAcousticStencils {
       })
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weights, StencilUtilities.weightsMiddle)
-    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
   }
 
 @Test
@@ -549,7 +549,7 @@ class TestAcousticStencils {
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     //    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(f, stencilarr, stencilarrCopy)
-    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -586,7 +586,7 @@ class TestAcousticStencils {
       })
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
-    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
   }
@@ -642,7 +642,7 @@ class TestAcousticStencils {
       })
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh2, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
-    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
   }
@@ -688,7 +688,7 @@ class TestAcousticStencils {
 
     for(x <- 1 to StencilUtilities.iter) {
       val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, StencilUtilities.weightsArr)
-      if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(input, output, StencilUtilities.stencilSize)
+      if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(input, output, StencilUtilities.stencilSize)
       // need to re-pad, then slide and iterate
       input = StencilUtilities.createFakePaddingFloat2D(output.sliding(StencilUtilities.stencilSize,StencilUtilities.stencilSize).toArray,0.0f)
       outputX = output
@@ -738,7 +738,7 @@ class TestAcousticStencils {
     {
       // why does this zip work but not the other one ? ? ? (in SimpleRoom..)
       val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, inputArr, inputArrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
-      if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, output, StencilUtilities.stencilSize)
+      if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
       inputArr = inputArrCopy
       inputArrCopy = StencilUtilities.createFakePaddingFloat2D(output.sliding(StencilUtilities.stencilSize,StencilUtilities.stencilSize).toArray,0.0f)
@@ -756,8 +756,8 @@ class TestAcousticStencils {
 
     /* u[cp] = S */
 
-    val asymDimY = 10
-    val asymDimX = 14
+    val asymDimX =  10
+    val asymDimY = 14
 
     val stencilarr = StencilUtilities.createDataFloat2D(asymDimX,asymDimY)
 
@@ -801,9 +801,9 @@ class TestAcousticStencils {
 
     for(x <- 1 to StencilUtilities.iter) {
       val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, StencilUtilities.weightsArr)
-      if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(input, output, asymDimY)
+      if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(input, output, asymDimX)
       // need to re-pad, then slide and iterate
-      input = StencilUtilities.createFakePaddingFloat2D(output.sliding(asymDimY,asymDimY).toArray,0.0f)
+      input = StencilUtilities.createFakePaddingFloat2D(output.sliding(asymDimX,asymDimX).toArray,0.0f)
       outputX = output
     }
 
@@ -814,8 +814,8 @@ class TestAcousticStencils {
 @Test
   def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelfIterate5Asym2D(): Unit = {
 
-    val asymDimY = 14
-    val asymDimX = 6
+    val asymDimX = 14
+    val asymDimY = 6
 
     val stencilarr = StencilUtilities.createDataFloat2D(asymDimX,asymDimY)
     val stencilarrCopy = stencilarr.map(i => i.map(j => j*2.0f))
@@ -861,12 +861,12 @@ class TestAcousticStencils {
 //      println("iter: "+x)
       val (output: Array[Float], runtime) = Execute(2,2)(lambdaNeigh, input, inputArrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
       input = inputArrCopy
-      inputArrCopy = StencilUtilities.createFakePaddingFloat2D(output.sliding(asymDimY,asymDimY).toArray,0.0f)
+      inputArrCopy = StencilUtilities.createFakePaddingFloat2D(output.sliding(asymDimX,asymDimX).toArray,0.0f)
 
       outputX = output
     }
 
-    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput(stencilarr, outputX, asymDimY)
+    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, outputX, asymDimX)
     assertArrayEquals(compareData, outputX, StencilUtilities.stencilDelta)
 
   }
@@ -1027,7 +1027,7 @@ class TestAcousticStencils {
 
     val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, input3D, input3D2, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
- //   if(StencilUtilities.printOutput)
+    if(StencilUtilities.printOutput)
     {
       StencilUtilities.printOriginalAndOutput3D(input3D, output)
     }
