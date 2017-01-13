@@ -117,6 +117,7 @@ class ProgramGenerator {
   //genrators
   def generateProgram(): Array[Lambda] = {
     //initial input..
+    // TODO: Non constant
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
     ParamList += Param(ArrayType(Float,32))
@@ -124,11 +125,9 @@ class ProgramGenerator {
     ParamList += Param(Float)
     ParamList += Param(Float)
 
-
-    val totalRounds = LoopNum
-    for(_ <- 0 until totalRounds){
+    for (_ <- 0 until LoopNum)
       generateLambda()
-    }
+
     refineResult()
     RefinedResult.toArray[Lambda]
   }
@@ -168,11 +167,10 @@ class ProgramGenerator {
     AssignedChoiceNum = (AssignedChoiceNum + 1) % totChoiceNum
   }
 
-  private def generateJoin(limitNum:Int): Unit = {
+  private def generateJoin(limitNum: Int): Unit = {
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
-
 
     for(i <- Join_P until ParamList.length) {
       ParamList(i).t match{
@@ -188,10 +186,7 @@ class ProgramGenerator {
             }
           }
 
-          if(joinSplit && !AllowJoinASplit){
-
-          }
-          else {
+          if (!joinSplit || AllowJoinASplit) {
             //get the argument of FunCall
             val fArg = getArg(i,PassParamUpPossibility)
 
@@ -205,7 +200,7 @@ class ProgramGenerator {
             val P = Param(F.t)
 
             //count the parameters of lambda
-            val lParams = countParam(F)
+            val lParams = collectUnboundParams(F)
 
             //build the lambda
             val L = Lambda(lParams.toArray[Param], F)
@@ -227,32 +222,32 @@ class ProgramGenerator {
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
-    for(i<- Split_P until ParamList.length){
+    for (i<- Split_P until ParamList.length) {
       ParamList(i).t match {
         case ArrayType(t,n) if n.eval >= ChunkSize =>
-            //Pass the type check!
+          //Pass the type check!
 
-            //get the argument of FunCall
-            val fArg = getArg(i,PassParamUpPossibility)
+          //get the argument of FunCall
+          val fArg = getArg(i,PassParamUpPossibility)
 
-            //build the FunCall
-            val F = FunCall(Split(ChunkSize),fArg)
+          //build the FunCall
+          val F = FunCall(Split(ChunkSize),fArg)
 
-            //set output type
-            F.t = ArrayType(ArrayType(t,ChunkSize),n /^ ChunkSize)
+          //set output type
+          F.t = ArrayType(ArrayType(t,ChunkSize),n /^ ChunkSize)
 
-            //build the param corresponds to the FunCall
-            val P = Param(F.t)
+          //build the param corresponds to the FunCall
+          val P = Param(F.t)
 
-            //count the parameters of lambda
-            val lParams = countParam(F)
+          //count the parameters of lambda
+          val lParams = collectUnboundParams(F)
 
-            //build the lambda
-            val L = Lambda(lParams.toArray[Param],F)
+          //build the lambda
+          val L = Lambda(lParams.toArray[Param],F)
 
-            tempParamList += P
-            tempLambdaList += L
-            tempParamToFunCall += ((P,F))
+          tempParamList += P
+          tempLambdaList += L
+          tempParamToFunCall += ((P,F))
 
         case _=>
       }
@@ -260,7 +255,6 @@ class ProgramGenerator {
     Split_P = ParamList.length
 
     limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
-
   }
 
   private def limitResults(limitNum: Int, tempLambdaList: ArrayBuffer[Lambda],
@@ -271,6 +265,7 @@ class ProgramGenerator {
 
     if (resLen > limitNum) {
       for (_ <- 0 until limitNum) {
+        // TODO: Seems that it can insert duplicates
         val randRes = util.Random.nextInt(resLen)
         if (!ParamToFunCall.contains(tempParamList(randRes))) {
           LambdaList += tempLambdaList(randRes)
@@ -313,11 +308,8 @@ class ProgramGenerator {
               }
             }
 
-
-            if (containsUserFun && !ConsequentUserFun) {
-              //Don't allow for UserFun(UserFun(...))
-            }
-            else {
+            //Don't allow for UserFun(UserFun(...))
+            if (!containsUserFun || ConsequentUserFun) {
               val arg1 = getArg(i1,PassParamUpPossibility)
               val arg2 = getArg(i2,PassParamUpPossibility)
 
@@ -325,7 +317,7 @@ class ProgramGenerator {
               F.t = Float
               val P = Param(F.t)
               //count the parameters of lambda
-              val lParams = countParam(F)
+              val lParams = collectUnboundParams(F)
 
               //build the lambda
               val L = Lambda(lParams.toArray[Param], F)
@@ -386,8 +378,8 @@ class ProgramGenerator {
 
                         //create new lambda for reduction(base on the original one)
                         //only use two param for this lambda ,deal with other params outside
-                        val L2 = replaceParam(
-                          replaceParam(Lambda(Array(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda)), LambdaList(oriLambdaIndex).body),
+                        val L2 = FunDecl.replace(
+                          FunDecl.replace(Lambda(Array(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda)), LambdaList(oriLambdaIndex).body),
                             LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda).t)),
                           LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda).t))
 
@@ -408,7 +400,7 @@ class ProgramGenerator {
                         }
                         F.t = ArrayType(TofInit, 1)
                         val P = Param(F.t)
-                        val Args = countParam(F)
+                        val Args = collectUnboundParams(F)
                         val L3 = Lambda(Args.toArray[Param], F)
 
                         //TypeChecker(L3)
@@ -476,8 +468,8 @@ class ProgramGenerator {
 
                             //create new lambda for reduction(base one the original one)
                             //only use two param for this lambda ,deal with other params outside
-                            val L2 = replaceParam(
-                              replaceParam(Lambda(Array(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda)), LambdaList(oriLambdaIndex).body),
+                            val L2 = FunDecl.replace(
+                              FunDecl.replace(Lambda(Array(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda)), LambdaList(oriLambdaIndex).body),
                                 LambdaList(oriLambdaIndex).params(initParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(initParamIndexOfLambda).t)),
                               LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda), Param(LambdaList(oriLambdaIndex).params(eleParamIndexOfLambda).t))
 
@@ -498,7 +490,7 @@ class ProgramGenerator {
                             val F = FunCall(Reduce(L2), argInit, argEle)
                             F.t = ArrayType(TofInit, 1)
                             val P = Param(F.t)
-                            val Args = countParam(F)
+                            val Args = collectUnboundParams(F)
                             val L3 = Lambda(Args.toArray[Param], F)
 
                             //TypeChecker(L3)
@@ -526,7 +518,7 @@ class ProgramGenerator {
     limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
-  private def generateMap(limitNum:Int):Unit = {
+  private def generateMap(limitNum: Int): Unit = {
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
@@ -549,7 +541,7 @@ class ProgramGenerator {
 
               //create new lambda for map(base one the original one)
               //only use one param for this lambda ,deal with other params outside the map
-              val L2 = replaceParam(Lambda(Array[Param](oriLambda.params(paramIndexOfLambda)), oriLambda.body)
+              val L2 = FunDecl.replace(Lambda(Array[Param](oriLambda.params(paramIndexOfLambda)), oriLambda.body)
                 , oriLambda.params(paramIndexOfLambda), Param(TofParam))
 
               //build the funcall
@@ -560,7 +552,7 @@ class ProgramGenerator {
               val P = Param(F.t)
 
               //count the params
-              val lParam = countParam(F)
+              val lParam = collectUnboundParams(F)
               val L3 = Lambda(lParam.toArray[Param], F)
 
               //TypeChecker(L3)
@@ -603,7 +595,7 @@ class ProgramGenerator {
 
                   //create new lambda for map(base one the original one)
                   //only use one param for this lambda ,deal with other params outside the map
-                  val L2 = replaceParam(Lambda(Array[Param](oriLambda.params(paramIndexOfLambda)), oriLambda.body)
+                  val L2 = FunDecl.replace(Lambda(Array[Param](oriLambda.params(paramIndexOfLambda)), oriLambda.body)
                     , oriLambda.params(paramIndexOfLambda), Param(TofParam))
 
                   //generate args
@@ -617,7 +609,7 @@ class ProgramGenerator {
                   val P = Param(F.t)
 
                   //count the params
-                  val lParam = countParam(F)
+                  val lParam = collectUnboundParams(F)
                   val L3 = Lambda(lParam.toArray[Param], F)
 
                   //TypeChecker(L3)
@@ -639,7 +631,7 @@ class ProgramGenerator {
     limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
-  private def generateZip(limitNum:Int,zipArrayLimit:Int):Unit ={
+  private def generateZip(limitNum:Int,zipArrayLimit:Int):Unit = {
     assert(zipArrayLimit >= 2)
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
@@ -689,7 +681,7 @@ class ProgramGenerator {
             val P = Param(F.t)
 
             //count the parameters of lambda
-            val lParams = countParam(F)
+            val lParams = collectUnboundParams(F)
 
             //build the lambda
             val L = Lambda(lParams.toArray[Param], F)
@@ -709,7 +701,7 @@ class ProgramGenerator {
 
   }
 
-  private def generateGet(limitNum:Int):Unit ={
+  private def generateGet(limitNum: Int): Unit = {
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
@@ -725,13 +717,13 @@ class ProgramGenerator {
           val F = FunCall(Get(util.Random.nextInt(tt.elemsT.length)),getArg(i,PassParamUpPossibility))
 
           //set the output type
-          F.t = TypeChecker(F)
+          TypeChecker(F)
 
           //build the param corresponds to the FunCall
           val P = Param(F.t)
 
           //count the parameters of lambda
-          val lParams = countParam(F)
+          val lParams = collectUnboundParams(F)
 
           //build the lambda
           val L = Lambda(lParams.toArray[Param], F)
@@ -747,87 +739,68 @@ class ProgramGenerator {
     Get_P = ParamList.length
 
     limitResults(limitNum, tempLambdaList, tempParamList, tempParamToFunCall)
-
   }
 
-  private def unpackParams():Unit={
-    if(ReduceStrictMatchUnpack || MapStrictMatchUnpack){
-      val tempParamList = ArrayBuffer[Param]()
-      for(i <- UnPack_P until ParamList.length){
-        ParamList(i).t match{
-          case ArrayType(t, _) =>
-            val tempParam = Param(t)
-            tempParamList += tempParam
+  private def unpackParams(): Unit = {
+    val tempParamList = ArrayBuffer[Param]()
+    for(i <- UnPack_P until ParamList.length){
+      ParamList(i).t match {
+        case ArrayType(t, _) =>
+          val tempParam = Param(t)
+          tempParamList += tempParam
+
+          if (ReduceStrictMatchUnpack || MapStrictMatchUnpack)
             UnpackedToExpr += (tempParam -> getArg(i, 0))
-          case _ =>
-        }
+
+        case _ =>
       }
-      ParamList ++= tempParamList
-      UnPack_P = ParamList.length
     }
-    else {
-      val tempParamList = ArrayBuffer[Param]()
-      for (i <- UnPack_P until ParamList.length) {
-        ParamList(i).t match {
-          case ArrayType(t, _) =>
-            tempParamList += Param(t)
-          case _ =>
-        }
-      }
-      ParamList ++= tempParamList
-      UnPack_P = ParamList.length
-    }
+    ParamList ++= tempParamList
+    UnPack_P = ParamList.length
   }
+
   //helper functions
+  private def refineParamToFunCall(oriLambda: Lambda): Lambda = {
+    val refineParamList = oriLambda.params.filter(ParamToFunCall.contains)
 
-  private def refineParamToFunCall(oriLambda:Lambda):Lambda={
-    val refineParamList = ArrayBuffer[Param]()
-    for(i <- oriLambda.params.indices){
-      if(ParamToFunCall.contains(oriLambda.params(i))){
-        refineParamList += oriLambda.params(i)
-      }
-    }
-    if(refineParamList.nonEmpty){
-      var L2 = Lambda(refineParamList.toArray[Param],oriLambda.body)
-
+    if (refineParamList.nonEmpty) {
+      var L2 = Lambda(refineParamList, oriLambda.body)
 
       //replace them with new param
-      for (j <- refineParamList.indices) {
-        L2 = replaceParam(L2,refineParamList(j),Param(refineParamList(j).t))
-      }
+      refineParamList.foreach(p =>
+        L2 = FunDecl.replace(L2,p,Param(p.t)))
 
       //create a funcall for it
-      val F = FunCall(L2,refineParamList.map(
-        ParamToFunCall(_)
-      ).toArray[Expr]:_*)
+      val F = FunCall(L2, refineParamList.map(ParamToFunCall):_*)
 
-      val lParam = countParam(F)
+      val lParam = collectUnboundParams(F)
       val L = Lambda(lParam.toArray[Param],F)
 
       refineParamToFunCall(L)
-    }
-    else{
+    } else {
       oriLambda
     }
   }
+
   private def refineUnpack(oriLambda:Lambda):Lambda={
     for(i <- oriLambda.params.indices){
       if(UnpackedToExpr.contains(oriLambda.params(i))){
 
         var L2 = Lambda(Array[Param](oriLambda.params(i)),oriLambda.body)
 
-        L2 = replaceParam(L2,oriLambda.params(i),Param(oriLambda.params(i).t))
+        L2 = FunDecl.replace(L2,oriLambda.params(i),Param(oriLambda.params(i).t))
 
         val argEle = UnpackedToExpr(oriLambda.params(i))
         val F = FunCall(ir.ast.Map(L2), argEle)
 
-        val lParam = countParam(F)
+        val lParam = collectUnboundParams(F)
         val L3 = Lambda(lParam.toArray[Param], F)
         return refineUnpack(L3)
       }
     }
     oriLambda
   }
+
   private def refineOneLambda(oriLambda:Lambda):Lambda={
     for(i <- oriLambda.params.indices){
       if(UnpackedToExpr.contains(oriLambda.params(i)) || ParamToFunCall.contains(oriLambda.params(i))){
@@ -836,6 +809,7 @@ class ProgramGenerator {
     }
     oriLambda
   }
+
   private def refineResult():Unit={
     for(i<- LambdaList.indices){
       val afterRefine = refineOneLambda(LambdaList(i))
@@ -864,54 +838,39 @@ class ProgramGenerator {
     }
   }
 
-  private def replaceParam(p:Param,oldP:Param,newP:Param):Param =
-    Expr.replace(p, oldP, newP).asInstanceOf[Param]
+  private def collectUnboundParams(L: Lambda): ArrayBuffer[Param] =
+    (collectUnboundParams(L.body) -- L.params.toBuffer[Param]).distinct
 
-  private def replaceParam(l: Lambda, oldP: Param, newP: Param) : Lambda = {
-    val newBody = replaceParam(l.body, oldP, newP)
-    val newParams = l.params.map((p) => replaceParam(p,oldP,newP))
-    if (!newBody.eq(l.body) || (newParams, l.params).zipped.exists( (e1, e2) => !e1.eq(e2)) )
-      Lambda(newParams,newBody)
-    else
-      l
-  }
-
-  private def replaceParam(e: Expr, oldP: Param, newP: Param): Expr =
-    Expr.replace(e, oldP, newP)
-
-  private def countParam(L: Lambda): ArrayBuffer[Param] =
-    (countParam(L.body) -- L.params.toBuffer[Param]).distinct
-
-  private def countParam(p: Pattern): ArrayBuffer[Param]={
+  private def collectUnboundParams(p: Pattern): ArrayBuffer[Param]={
     p match{
       case red: ir.ast.Reduce =>
-        countParam(red.f)
+        collectUnboundParams(red.f)
       case m: ir.ast.Map =>
-        countParam(m.f)
+        collectUnboundParams(m.f)
       case _=>
         ArrayBuffer[Param]()
     }
   }
 
-  private def countParam(Fc: FunCall): ArrayBuffer[Param] = {
+  private def collectUnboundParams(Fc: FunCall): ArrayBuffer[Param] = {
     val rs = ArrayBuffer[Param]()
     Fc.f match{
       case l:Lambda =>
-        rs ++= countParam(l)
+        rs ++= collectUnboundParams(l)
       case p:Pattern =>
-        rs ++= countParam(p)
+        rs ++= collectUnboundParams(p)
       case _=>
     }
     for(i<- Fc.args.indices){
-      rs ++= countParam(Fc.args(i))
+      rs ++= collectUnboundParams(Fc.args(i))
     }
     rs.distinct
   }
 
-  private def countParam(E: Expr): ArrayBuffer[Param] = {
+  private def collectUnboundParams(E: Expr): ArrayBuffer[Param] = {
     E match{
       case fc:FunCall =>
-        countParam(fc)
+        collectUnboundParams(fc)
       case p:Param =>
         ArrayBuffer[Param](p)
     }

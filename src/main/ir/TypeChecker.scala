@@ -44,7 +44,7 @@ object TypeChecker {
         (params zip tt.elemsT).foreach({case (p, t) => p.t = t})
       // error cases:
       case (n, tt: TupleType) =>
-        throw new NumberOfArgumentsException(s"Expected $n arguments but " +
+        throw NumberOfArgumentsException(s"Expected $n arguments but " +
                                              s"got ${tt.elemsT.length}")
       case _ => throw new TypeException(argType, "some other type")
     }
