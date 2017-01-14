@@ -18,6 +18,8 @@ import scala.collection.mutable.{Map => DictMap}
 import scala.util.parsing.json._
 import java.io._
 import java.util.Calendar
+import java.nio.file.Files.exists
+import java.nio.file.Paths.get
 
 object TestMLP2 {
   @BeforeClass def before(): Unit = {
@@ -25,12 +27,13 @@ object TestMLP2 {
     Executor.loadLibrary()
     println("Initialize the executor")
     val intellij_path = System.getProperty("user.dir") + "/../../src/test/nn/mlp"
-    if (java.nio.file.Files.exists(java.nio.file.Paths.get(intellij_path)))
+    Executor.init()
+    /*if (exists(get(intellij_path)))
     // Use GPU on the development machine
       Executor.init()
     else
     // Use GPU on the testing machine
-      Executor.init(1, 1)
+      Executor.init(1, 1)*/
   }
 
   @AfterClass def after(): Unit = {
@@ -47,50 +50,51 @@ class TestMLP2 {
   @Test
   def testSuite(): Unit = {
     val reruns = 1
+    // If append_results == False, the experiment will not be rerun if result files from previous iteration
+    // are encountered. Otherwise, new results will be added with datetime timestamp.
     val append_results: Boolean = true
+    // Experiment configurations. For disjoint parameter value ranges, multiple experiments can be defined.
     val experiments = Array(
-      /* Parallel neuron, a lot of inputs */
       DictMap("mults_per_thread" -> Array.range(start=1, end=16+1, step=1),
-        "neurons_per_wrg" -> Array.range(start=1, end=16+1, step=1),
-        "hidden_layer_0_range" -> Array.range(start=224, end=224+1, step=32),
-        "n_inputs_range" -> Array.range(start=416, end=416+1, step=32)))
+              "neurons_per_wrg" -> Array.range(start=1, end=16+1, step=1),
+              "hidden_layer_0_range" -> Array.range(start=288, end=288+1, step=32),
+              "n_inputs_range" -> Array.range(start=512, end=512+1, step=32)))
 
     for (i <- 0 until reruns) {
       for (e <- experiments) {
         for (hidden_layer_0_size <- e("hidden_layer_0_range")) {
+          // Get directory with resources and results
           val experiment_dir_path = current_dir + f"/experiment.784-$hidden_layer_0_size%d-32-10"
-          val lift_results_dir_path = experiment_dir_path + "/results_lift"
-          if (java.nio.file.Files.exists(java.nio.file.Paths.get(experiment_dir_path))) {
-            val runAll = if (java.nio.file.Files.exists(java.nio.file.Paths.get(lift_results_dir_path)))
-              false else true
 
+          val lift_results_dir_path = experiment_dir_path + "/results_lift"
+
+          if (!exists(get(experiment_dir_path)))
+            throw new java.io.FileNotFoundException("Experiment resources not provided (JSON files with test images," +
+                                                    " NN weights and biases)")
+          else {
+            // If results from previous runs do not exist, this is a first run
+            val isAFirstRun = if (exists(get(lift_results_dir_path))) false else true
             val lift_results_dir = new File(lift_results_dir_path)
+
             for (n_inputs <- e("n_inputs_range")) {
               for (mults_per_thread <- e("mults_per_thread")) {
                 for (neurons_per_wrg <- e("neurons_per_wrg")) {
-                  // Ensures that there is only one set of results per experiment if append_results == false
-                  if (append_results || runAll || lift_results_dir.listFiles.toList.count {
-                    file => file.getName.endsWith("_n%d.csv".format(n_inputs))
-                  } == 0) {
+                  // Check if an experiment needs to be run
+                  if (isAFirstRun || append_results || lift_results_dir.listFiles.toList.count {
+                        file => file.getName.endsWith("_n%d.csv".format(n_inputs))} == 0) {
                     println(f"Starting the experiment (mults_per_thread=${mults_per_thread.asInstanceOf[Int]}%d, " +
-                      f"neurons_per_wrg=${neurons_per_wrg.asInstanceOf[Int]}%d, " +
-                      f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
-                      f"n_inputs=$n_inputs%d)")
-                    try {
-                      MNIST_MLP_in_2d_MrgdGrps_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
-                        mults_per_thread.asInstanceOf[Int],neurons_per_wrg.asInstanceOf[Int])
-                    } catch {
-                      case e: DeviceCapabilityException =>
-                        println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
-                      case NotEvaluableException =>
-                        println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
-                      case e: AssertionError =>
-                        println(e.getMessage)
-                    }
-                    try {
-                      MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
-                        mults_per_thread.asInstanceOf[Int],neurons_per_wrg.asInstanceOf[Int])
-                    } catch {
+                            f"neurons_per_wrg=${neurons_per_wrg.asInstanceOf[Int]}%d, " +
+                            f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
+                            f"n_inputs=$n_inputs%d)")
+                    /* Test cases */
+                    for (testCase <-
+                         List(MNIST_MLP_in_2d_MrgdGrps_in_2d(Array(hidden_layer_0_size, 32), n_inputs,
+                                mults_per_thread.asInstanceOf[Int],neurons_per_wrg.asInstanceOf[Int]),
+                              MNIST_MLP_in_2d_MrgdGrps_in_2d_coalesced(Array(hidden_layer_0_size, 32), n_inputs,
+                                mults_per_thread.asInstanceOf[Int],neurons_per_wrg.asInstanceOf[Int])))
+                      try {
+                        testCase
+                      } catch {
                       case e: DeviceCapabilityException =>
                         println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
                       case NotEvaluableException =>
@@ -101,9 +105,9 @@ class TestMLP2 {
                   }
                   else {
                     println(f"Skipping the experiment (mults_per_thread=${mults_per_thread.asInstanceOf[Int]}%d, " +
-                      f"neurons_per_wrg=${neurons_per_wrg.asInstanceOf[Int]}%d, " +
-                      f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
-                      f"n_inputs=$n_inputs%d)")
+                            f"neurons_per_wrg=${neurons_per_wrg.asInstanceOf[Int]}%d, " +
+                            f"hidden_layer_0_size=$hidden_layer_0_size%d, " +
+                            f"n_inputs=$n_inputs%d)")
                   }
                 }
               }
@@ -118,7 +122,7 @@ class TestMLP2 {
     // Launching from IntelliJ or from console?
     val intellij_path = System.getProperty("user.dir") + "/../../src/test/nn/mlp"
     val console_path = System.getProperty("user.dir") + "/src/test/nn/mlp"
-    if (java.nio.file.Files.exists(java.nio.file.Paths.get(intellij_path)))
+    if (exists(get(intellij_path)))
       intellij_path
     else {
       runnerIsConsole = true
@@ -173,7 +177,8 @@ class TestMLP2 {
     w_arr
   }
 
-  def load_experiment(hidden_layers: Array[Int], n_inputs: Int) = {
+  def load_experiment(hidden_layers: Array[Int], n_inputs: Int):
+    (Array[Array[Float]], Array[Array[Array[Float]]], Array[Array[Float]], Array[Array[Float]], String) = {
     var dir_name = "experiment.784"
     for (hidden_layer_n <- hidden_layers)
       dir_name = dir_name + "-" + hidden_layer_n.toString
@@ -181,10 +186,10 @@ class TestMLP2 {
 
     // Temporary hack:
     var n_replacement = n_inputs
-    if (!java.nio.file.Files.exists(java.nio.file.Paths.get(current_dir + "/" + dir_name +
+    if (!exists(get(current_dir + "/" + dir_name +
       "/W1_n" + n_inputs + ".json"))) {
-      n_replacement = 32
-      println("Using Wx_n32...")
+      throw new java.io.FileNotFoundException("Experiment resources not provided (JSON files with test images," +
+                                              " NN weights and biases)")
     }
 
     var tf_W = Array(load_2d_float_json(dir_name + "/W1_n" + n_replacement + ".json"))
@@ -666,21 +671,30 @@ class TestMLP2 {
 
       val n_layers = Biases.length
       val runtimes = Array.fill[Double](n_layers)(0)
-      var Input = Inputs
       // Size of the last two dimensions will be different for each layer, and determined in the for loop
       val outputs = Array.ofDim[Float](n_layers, _n_inputs, 1)
       var input_no = 0
+      // Padding
+      var Input = padInput(Inputs)
 
       print(f"\n" + description + "\nRuntime:\n")
       for (layer_i <- 0 until n_layers) {
         _input_len = Weights(layer_i)(0).length
         _n_neurons = Biases(layer_i).length
+
+        // Padding
+        val (next_Weights, next_Biases) = padParams(Weights(layer_i), Biases(layer_i))
+
+        /* Compute workgroup and global sizes */
         _local_size_0 = get_local_size_0()
         assert(_local_size_0 <= maxWorkGroupSize,
           f"Local size 0 must be equal or less than maxWorkGroupSize ($maxWorkGroupSize%d).")
         _local_size_1 = get_local_size_1()
         _global_size_0 = get_global_size_0()
         _global_size_1 = get_global_size_1()
+
+        // Padding
+        var next_Input = padInputs(Input)
 
         assert(_n_inputs % _local_size_1 == 0,
           f"If the number of inputs (${_n_inputs}%d) is not a multiple of work group size in the " +
@@ -690,13 +704,13 @@ class TestMLP2 {
 
         val (output_layer_flat: Array[Float], runtime) =
           Execute(_local_size_0, _local_size_1, _global_size_0, _global_size_1, (true, true))(
-            call_layer_f(layer_i), Weights(layer_i), Biases(layer_i), Input)
+            call_layer_f(layer_i), next_Weights, next_Biases, next_Input)
 
         runtimes(layer_i) = runtime
         outputs(layer_i) = output_layer_flat.grouped(_n_neurons).toArray
 
         if (layer_i != n_layers - 1)
-          Input = outputs(layer_i)
+          next_Input = outputs(layer_i)
 
         println(f"Layer $layer_i%d: $runtime%1.5f ms")
       }
@@ -755,6 +769,54 @@ class TestMLP2 {
         }
       }
     }
+
+    def padInputs(Inputs: Array[Array[Float]]): Array[Array[Float]] = {
+      // Make sure that all threads have equal amount of input bits to process
+      val n_inputs_new: Int = _local_size_1 * Math.ceil(_n_inputs.toFloat / _local_size_1).toInt
+      if (_n_inputs != n_inputs_new) {
+        var new_Inputs = Inputs ++ Array.fill[Array[Float]](n_inputs_new - _n_inputs)(Array.fill[Float](_input_len)(0))
+        println(f"Changed _n_inputs from ${_n_inputs}%d to ${n_inputs_new}%d.")
+        _n_inputs = n_inputs_new
+        new_Inputs
+      } else Inputs
+    }
+
+    def padInput(Inputs: Array[Array[Float]]): Array[Array[Float]] = {
+      // Make sure that all threads have equal amount of input bits to process
+      val input_len_new: Int = _mults_per_thread * Math.ceil(_input_len.toFloat / _mults_per_thread).toInt
+      if (_input_len != input_len_new) {
+        var new_Input = Array.fill[Array[Float]](_n_inputs)(Array.fill[Float](input_len_new)(0))
+        for {i <- 0 until _n_inputs
+             j <- 0 until _input_len}
+          new_Input(i)(j) = Inputs(i)(j)
+        println(f"Changed _input_len from ${_input_len}%d to ${input_len_new}%d.")
+        _input_len = input_len_new
+        new_Input
+      } else Inputs
+    }
+
+    def padParams(Weights: Array[Array[Float]], Biases: Array[Float]):
+      (Array[Array[Float]], Array[Float]) = {
+      // Make sure that all workgroups have equal amount of inputs to process
+      val n_neurons_new: Int = _neurons_per_wrg * Math.ceil(_n_neurons.toFloat / _neurons_per_wrg).toInt
+      // Padding in both dimensions, to account for padded inputs as well
+      var new_Weights = Array.fill[Array[Float]](n_neurons_new)(Array.fill[Float](_input_len)(0))
+      for {i <- 0 until n_neurons_new
+           j <- 0 until _input_len} {
+        new_Weights(i)(j) = Weights(i)(j)
+      }
+
+      if (_n_neurons != n_neurons_new) {
+        //val new_Weights: Array[Array[Float]] =
+        //  Weights ++ Array.fill[Array[Float]](n_neurons_new - _n_neurons)(Array.fill[Float](_input_len)(0))
+        val new_Biases = Biases ++ Array.fill[Float](n_neurons_new - _n_neurons)(0)
+        println(f"Changed _n_neurons from ${_n_neurons}%d to ${n_neurons_new}%d.")
+        _n_neurons = n_neurons_new
+        (new_Weights, new_Biases)
+      }
+      else (new_Weights, Biases)
+    }
+
   }
 
 
