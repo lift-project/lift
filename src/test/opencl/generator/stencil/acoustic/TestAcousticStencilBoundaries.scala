@@ -158,10 +158,10 @@ class TestAcousticStencilBoundaries {
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
     val (output2: Array[Float], runtime2) = Execute(stencilarr.length, stencilarr.length)(lambdaNeighCompare, stencilarr, mask, StencilUtilities.weights)
-//    if(StencilUtilities.printOutput){
+    if(StencilUtilities.printOutput){
       StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
       StencilUtilities.print1DArrayAs2DArray(output2, StencilUtilities.stencilSize)
-    //}
+    }
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -324,9 +324,8 @@ class TestAcousticStencilBoundaries {
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrsame, mask, StencilUtilities.weights, StencilUtilities.weightsMiddle)
 
-    //if(StencilUtilities.printOutput)
+    if(StencilUtilities.printOutput)
     StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
-//    StencilUtilities.print2DArray(mask)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -408,6 +407,11 @@ class TestAcousticStencilBoundaries {
   @Test
   def testSimpleOneGridWithBoundaryCheckMask3D(): Unit =
   {
+
+    val localDim = 4
+    val stencilarr3D = StencilUtilities.createDataFloat3D(localDim,localDim,localDim)
+    val mask3D = BoundaryUtilities.createMaskData3D(localDim)
+
     /* u[cp] = S*( boundary ? constantBorder : constantOriginal) */
 
     val compareData = Array(
@@ -466,26 +470,27 @@ class TestAcousticStencilBoundaries {
     val stencilarr3D = StencilUtilities.createDataFloat3D(localDim,localDim,localDim)
     val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDim,localDim,localDim)
     val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z*2.0f)))
+    val mask3D = BoundaryUtilities.createMaskData3D(localDim)
 
     /* u[cp] = ( boundary ? constantBorder0 : constantOriginal0 )  * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u1[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
 
     val compareData = Array(
-    16.25f,28.5f,40.75f,43.0f,
-    28.5f,44.75f,59.0f,61.25f,
-    40.75f,59.0f,73.25f,73.5f,
-    43.0f,61.25f,73.5f,69.75f,
-    28.5f,44.75f,59.0f,61.25f,
-    44.75f,17.5f,21.875f,83.5f,
-    59.0f,21.875f,26.25f,97.75f,
-    61.25f,83.5f,97.75f,94.0f,
-    40.75f,59.0f,73.25f,73.5f,
-    59.0f,21.875f,26.25f,97.75f,
-    73.25f,26.25f,30.625f,112.0f,
-    73.5f,97.75f,112.0f,106.25f,
-    43.0f,61.25f,73.5f,69.75f,
-    61.25f,83.5f,97.75f,94.0f,
-    73.5f,97.75f,112.0f,106.25f,
-    69.75f,94.0f,106.25f,96.5f
+    16.25f, 28.5f, 40.75f, 43.0f,
+    28.5f, 44.75f, 59.0f, 61.25f,
+    40.75f, 59.0f, 73.25f, 73.5f,
+    43.0f, 61.25f, 73.5f, 69.75f,
+    28.5f, 44.75f, 59.0f, 61.25f,
+    44.75f, 17.5f, 21.875f, 83.5f,
+    59.0f, 21.875f, 26.25f, 97.75f,
+    61.25f, 83.5f, 97.75f, 94.0f,
+    40.75f, 59.0f, 73.25f, 73.5f,
+    59.0f, 21.875f, 26.25f, 97.75f,
+    73.25f, 26.25f, 30.625f, 112.0f,
+    73.5f, 97.75f, 112.0f, 106.25f,
+    43.0f, 61.25f, 73.5f, 69.75f,
+    61.25f, 83.5f, 97.75f, 94.0f,
+    73.5f, 97.75f, 112.0f, 106.25f,
+    69.75f, 94.0f, 106.25f, 96.5f
     )
 
     val constantOriginal = Array(1.0f,2.0f,1.5f,0.25f)
@@ -527,6 +532,7 @@ class TestAcousticStencilBoundaries {
 
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
 
+
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
   }
@@ -544,23 +550,104 @@ class TestAcousticStencilBoundaries {
 
     /* u[cp] = ( boundary ? constantBorder0 : constantOriginal0 )  * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u1[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
 
+    // s/\.\([0-9]\+\)/\.\1f,/gc   -- helpful vim regex
     val compareData = Array(
-      16.25f,28.5f,40.75f,43.0f,
-      28.5f,44.75f,59.0f,61.25f,
-      40.75f,59.0f,73.25f,73.5f,
-      43.0f,61.25f,73.5f,69.75f,
-      28.5f,44.75f,59.0f,61.25f,
-      44.75f,17.5f,21.875f,83.5f,
-      59.0f,21.875f,26.25f,97.75f,
-      61.25f,83.5f,97.75f,94.0f,
-      40.75f,59.0f,73.25f,73.5f,
-      59.0f,21.875f,26.25f,97.75f,
-      73.25f,26.25f,30.625f,112.0f,
-      73.5f,97.75f,112.0f,106.25f,
-      43.0f,61.25f,73.5f,69.75f,
-      61.25f,83.5f,97.75f,94.0f,
-      73.5f,97.75f,112.0f,106.25f,
-      69.75f,94.0f,106.25f,96.5f
+    16.25f, 28.5f, 40.75f, 53.0f, 65.25f, 63.5f,
+    28.5f, 44.75f, 59.0f, 73.25f, 87.5f, 85.75f,
+    40.75f, 59.0f, 73.25f, 87.5f, 101.75f, 98.0f,
+    53.0f, 73.25f, 87.5f, 101.75f, 116.0f, 110.25f,
+    65.25f, 87.5f, 101.75f, 116.0f, 130.25f, 122.5f,
+    77.5f, 101.75f, 116.0f, 130.25f, 144.5f, 134.75f,
+    89.75f, 116.0f, 130.25f, 144.5f, 158.75f, 147.0f,
+    84.0f, 110.25f, 122.5f, 134.75f, 147.0f, 131.25f,
+    28.5f, 44.75f, 59.0f, 73.25f, 87.5f, 85.75f,
+    44.75f, 17.5f, 21.875f, 26.25f, 30.625f, 112.0f,
+    59.0f, 21.875f, 26.25f, 30.625f, 35.0f, 126.25f,
+    73.25f, 26.25f, 30.625f, 35.0f, 39.375f, 140.5f,
+    87.5f, 30.625f, 35.0f, 39.375f, 43.75f, 154.75f,
+    101.75f, 35.0f, 39.375f, 43.75f, 48.125f, 169.0f,
+    116.0f, 39.375f, 43.75f, 48.125f, 52.5f, 183.25f,
+    110.25f, 140.5f, 154.75f, 169.0f, 183.25f, 167.5f,
+    40.75f, 59.0f, 73.25f, 87.5f, 101.75f, 98.0f,
+    59.0f, 21.875f, 26.25f, 30.625f, 35.0f, 126.25f,
+    73.25f, 26.25f, 30.625f, 35.0f, 39.375f, 140.5f,
+    87.5f, 30.625f, 35.0f, 39.375f, 43.75f, 154.75f,
+    101.75f, 35.0f, 39.375f, 43.75f, 48.125f, 169.0f,
+    116.0f, 39.375f, 43.75f, 48.125f, 52.5f, 183.25f,
+    130.25f, 43.75f, 48.125f, 52.5f, 56.875f, 197.5f,
+    122.5f, 154.75f, 169.0f, 183.25f, 197.5f, 179.75f,
+    53.0f, 73.25f, 87.5f, 101.75f, 116.0f, 110.25f,
+    73.25f, 26.25f, 30.625f, 35.0f, 39.375f, 140.5f,
+    87.5f, 30.625f, 35.0f, 39.375f, 43.75f, 154.75f,
+    101.75f, 35.0f, 39.375f, 43.75f, 48.125f, 169.0f,
+    116.0f, 39.375f, 43.75f, 48.125f, 52.5f, 183.25f,
+    130.25f, 43.75f, 48.125f, 52.5f, 56.875f, 197.5f,
+    144.5f, 48.125f, 52.5f, 56.875f, 61.25f, 211.75f,
+    134.75f, 169.0f, 183.25f, 197.5f, 211.75f, 192.0f,
+    65.25f, 87.5f, 101.75f, 116.0f, 130.25f, 122.5f,
+    87.5f, 30.625f, 35.0f, 39.375f, 43.75f, 154.75f,
+    101.75f, 35.0f, 39.375f, 43.75f, 48.125f, 169.0f,
+    116.0f, 39.375f, 43.75f, 48.125f, 52.5f, 183.25f,
+    130.25f, 43.75f, 48.125f, 52.5f, 56.875f, 197.5f,
+    144.5f, 48.125f, 52.5f, 56.875f, 61.25f, 211.75f,
+    158.75f, 52.5f, 56.875f, 61.25f, 65.625f, 226.0f,
+    147.0f, 183.25f, 197.5f, 211.75f, 226.0f, 204.25f,
+    77.5f, 101.75f, 116.0f, 130.25f, 144.5f, 134.75f,
+    101.75f, 35.0f, 39.375f, 43.75f, 48.125f, 169.0f,
+    116.0f, 39.375f, 43.75f, 48.125f, 52.5f, 183.25f,
+    130.25f, 43.75f, 48.125f, 52.5f, 56.875f, 197.5f,
+    144.5f, 48.125f, 52.5f, 56.875f, 61.25f, 211.75f,
+    158.75f, 52.5f, 56.875f, 61.25f, 65.625f, 226.0f,
+    173.0f, 56.875f, 61.25f, 65.625f, 70.0f, 240.25f,
+    159.25f, 197.5f, 211.75f, 226.0f, 240.25f, 216.5f,
+    89.75f, 116.0f, 130.25f, 144.5f, 158.75f, 147.0f,
+    116.0f, 39.375f, 43.75f, 48.125f, 52.5f, 183.25f,
+    130.25f, 43.75f, 48.125f, 52.5f, 56.875f, 197.5f,
+    144.5f, 48.125f, 52.5f, 56.875f, 61.25f, 211.75f,
+    158.75f, 52.5f, 56.875f, 61.25f, 65.625f, 226.0f,
+    173.0f, 56.875f, 61.25f, 65.625f, 70.0f, 240.25f,
+    187.25f, 61.25f, 65.625f, 70.0f, 74.375f, 254.5f,
+    171.5f, 211.75f, 226.0f, 240.25f, 254.5f, 228.75f,
+    102.0f, 130.25f, 144.5f, 158.75f, 173.0f, 159.25f,
+    130.25f, 43.75f, 48.125f, 52.5f, 56.875f, 197.5f,
+    144.5f, 48.125f, 52.5f, 56.875f, 61.25f, 211.75f,
+    158.75f, 52.5f, 56.875f, 61.25f, 65.625f, 226.0f,
+    173.0f, 56.875f, 61.25f, 65.625f, 70.0f, 240.25f,
+    187.25f, 61.25f, 65.625f, 70.0f, 74.375f, 254.5f,
+    201.5f, 65.625f, 70.0f, 74.375f, 78.75f, 268.75f,
+    183.75f, 226.0f, 240.25f, 254.5f, 268.75f, 241.0f,
+    114.25f, 144.5f, 158.75f, 173.0f, 187.25f, 171.5f,
+    144.5f, 48.125f, 52.5f, 56.875f, 61.25f, 211.75f,
+    158.75f, 52.5f, 56.875f, 61.25f, 65.625f, 226.0f,
+    173.0f, 56.875f, 61.25f, 65.625f, 70.0f, 240.25f,
+    187.25f, 61.25f, 65.625f, 70.0f, 74.375f, 254.5f,
+    201.5f, 65.625f, 70.0f, 74.375f, 78.75f, 268.75f,
+    215.75f, 70.0f, 74.375f, 78.75f, 83.125f, 283.0f,
+    196.0f, 240.25f, 254.5f, 268.75f, 283.0f, 253.25f,
+    126.5f, 158.75f, 173.0f, 187.25f, 201.5f, 183.75f,
+    158.75f, 52.5f, 56.875f, 61.25f, 65.625f, 226.0f,
+    173.0f, 56.875f, 61.25f, 65.625f, 70.0f, 240.25f,
+    187.25f, 61.25f, 65.625f, 70.0f, 74.375f, 254.5f,
+    201.5f, 65.625f, 70.0f, 74.375f, 78.75f, 268.75f,
+    215.75f, 70.0f, 74.375f, 78.75f, 83.125f, 283.0f,
+    230.0f, 74.375f, 78.75f, 83.125f, 87.5f, 297.25f,
+    208.25f, 254.5f, 268.75f, 283.0f, 297.25f, 265.5f,
+    138.75f, 173.0f, 187.25f, 201.5f, 215.75f, 196.0f,
+    173.0f, 56.875f, 61.25f, 65.625f, 70.0f, 240.25f,
+    187.25f, 61.25f, 65.625f, 70.0f, 74.375f, 254.5f,
+    201.5f, 65.625f, 70.0f, 74.375f, 78.75f, 268.75f,
+    215.75f, 70.0f, 74.375f, 78.75f, 83.125f, 283.0f,
+    230.0f, 74.375f, 78.75f, 83.125f, 87.5f, 297.25f,
+    244.25f, 78.75f, 83.125f, 87.5f, 91.875f, 311.5f,
+    220.5f, 268.75f, 283.0f, 297.25f, 311.5f, 277.75f,
+    125.0f, 159.25f, 171.5f, 183.75f, 196.0f, 172.25f,
+    159.25f, 197.5f, 211.75f, 226.0f, 240.25f, 216.5f,
+    171.5f, 211.75f, 226.0f, 240.25f, 254.5f, 228.75f,
+    183.75f, 226.0f, 240.25f, 254.5f, 268.75f, 241.0f,
+    196.0f, 240.25f, 254.5f, 268.75f, 283.0f, 253.25f,
+    208.25f, 254.5f, 268.75f, 283.0f, 297.25f, 265.5f,
+    220.5f, 268.75f, 283.0f, 297.25f, 311.5f, 277.75f,
+    192.75f, 241.0f, 253.25f, 265.5f, 277.75f, 240.0f
     )
 
     val constantOriginal = Array(1.0f,2.0f,1.5f,0.25f)
@@ -600,10 +687,9 @@ class TestAcousticStencilBoundaries {
 
     val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
-    //if(StencilUtilities.printOutput)
-      StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
+    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
 
-   // assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
+    assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
   }
 
