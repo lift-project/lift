@@ -129,12 +129,12 @@ def visit_pattern_type_node_html(self, node):
         self.body.append(type_to_latex(type_))
         # ... and then remove the node, so that it is not printed a second time
         node.remove(type_)
-        self.has_open_type_span = 'yes'
+        self.has_printed_type = 'yes'
     else:
-        self.has_open_type_sapn = 'no'
+        self.has_printed_type = 'no'
 
 def depart_pattern_type_node_html(self, node):
-    if self.has_open_type_span == 'yes':
+    if self.has_printed_type == 'yes':
         self.body.append(r'\)</span></span>')
 
 def visit_pattern_sema_node_html(self, node):
@@ -143,12 +143,12 @@ def visit_pattern_sema_node_html(self, node):
         sema = node.children[0]
         self.body.append(sema_to_latex(sema))
         node.remove(sema)
-        self.has_open_sema_span = 'yes'
+        self.has_printed_sema = 'yes'
     else:
-        self.has_open_sema_span = 'no'
+        self.has_printed_sema = 'no'
 
 def depart_pattern_sema_node_html(self, node):
-    if self.has_open_sema_span == 'yes':
+    if self.has_printed_sema == 'yes':
         self.body.append(r'\)</span></span>')
     self.body.append(r'</div>')
 
@@ -168,15 +168,38 @@ def depart_pattern_title_node_latex(self, node):
     self.body.append(r'}')
 
 def visit_pattern_type_node_latex(self, node):
-    self.body.append(' : \\(')
-    type_ = node.children[0]
-    # print the content ourself ...
-    self.body.append(type_to_latex(type_))
-    # ... and then remove the node, so that it is not printed a second time
-    node.remove(type_)
+    if len(node.children) > 0:
+        self.body.append(' : \\(')
+        type_ = node.children[0]
+        # print the content ourself ...
+        self.body.append(type_to_latex(type_))
+        # ... and then remove the node, so that it is not printed a second time
+        node.remove(type_)
+        self.has_printed_type = 'yes'
+    else:
+        self.has_printed_type = 'no'
 
 def depart_pattern_type_node_latex(self, node):
-    self.body.append('\\)\n')
+    if self.has_printed_type == 'yes':
+        self.body.append('\\)')
+    self.body.append('\n')
+
+def visit_pattern_sema_node_latex(self, node):
+    if len(node.children) > 0:
+        self.body.append(' \\(\\equiv\\) \\begin{align*}')
+        type_ = node.children[0]
+        # print the content ourself ...
+        self.body.append(sema_to_latex(type_))
+        # ... and then remove the node, so that it is not printed a second time
+        node.remove(type_)
+        self.has_printed_sema = 'yes'
+    else:
+        self.has_printed_sema = 'no'
+
+def depart_pattern_sema_node_latex(self, node):
+    if self.has_printed_sema == 'yes':
+        self.body.append('\\end{align*}')
+    self.body.append('\n')
 
 
 # Text rendering
@@ -206,7 +229,9 @@ def setup(app):
                  text=(visit_pattern_node, depart_pattern_node))
 
     app.add_node(PatternSemantics,
-                 html=(visit_pattern_sema_node_html, depart_pattern_sema_node_html))
+                 html=(visit_pattern_sema_node_html, depart_pattern_sema_node_html),
+                 latex=(visit_pattern_sema_node_latex, depart_pattern_sema_node_latex),
+                 text=(visit_pattern_node, depart_pattern_node))
 
     app.add_directive('lift.pattern', PatternDirective)
 
