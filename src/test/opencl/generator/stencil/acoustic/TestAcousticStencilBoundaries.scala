@@ -338,7 +338,7 @@ class TestAcousticStencilBoundaries {
   {
     /* u[cp] = ( boundary ? constantBorder0 : constantOriginal0 )  * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u1[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
 
-    val localDimX = 8
+    val localDimX = 6
     val localDimY = 10
 
     val stencilarr2D = StencilUtilities.createDataFloat2D(localDimX,localDimY)
@@ -347,17 +347,20 @@ class TestAcousticStencilBoundaries {
     val mask2D = BoundaryUtilities.createMaskDataAsym2D(localDimX,localDimY)
 
     val compareData = Array(
-      128.0f,256.0f,384.0f,512.0f,640.0f,656.0f,
-      144.0f,72.0f,108.0f,144.0f,180.0f,752.0f,
-      144.0f,72.0f,108.0f,144.0f,180.0f,752.0f,
-      144.0f,72.0f,108.0f,144.0f,180.0f,752.0f,
-      144.0f,72.0f,108.0f,144.0f,180.0f,752.0f,
-      128.0f,256.0f,384.0f,512.0f,640.0f,656.0f
+    9.5f,19.0f,28.5f,38.0f,47.5f,43.0f,
+    11.5f,8.0f,12.0f,16.0f,20.0f,55.0f,
+    11.5f,8.0f,12.0f,16.0f,20.0f,55.0f,
+    11.5f,8.0f,12.0f,16.0f,20.0f,55.0f,
+    11.5f,8.0f,12.0f,16.0f,20.0f,55.0f,
+    11.5f,8.0f,12.0f,16.0f,20.0f,55.0f,
+    11.5f,8.0f,12.0f,16.0f,20.0f,55.0f,
+    11.5f,8.0f,12.0f,16.0f,20.0f,55.0f,
+    11.5f,8.0f,12.0f,16.0f,20.0f,55.0f,
+    9.5f,19.0f,28.5f,38.0f,47.5f,43.0f
     )
 
     val constantOriginal = Array(1.0f,2.0f,3.0f, 0.25f)
-    val constantBorder = Array(1.0f,2.0f,3.0f, 0.25f)
-  //  val constantBorder = Array(2.0f,4.0f,1.5f, 0.5f)
+    val constantBorder = Array(2.0f,4.0f,1.5f, 0.5f)
 
     // why doesn't this work @ end?? MapSeq(fun(x => mult(x,maskedValMult))) o
 
@@ -394,15 +397,11 @@ class TestAcousticStencilBoundaries {
         ) $ Zip(Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)),  (Join() $ (Slide2D(StencilUtilities.slidesize,StencilUtilities.slidestep) $ mat2))), Join() $ mask1)
       })
 
-    val (output: Array[Float], runtime) = Execute(2,2)(lambdaNeigh, stencilarr2D, stencilarrsame2D, mask2D, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val (output: Array[Float], runtime) = Execute(stencilarr2D.length, stencilarr2D.length)(lambdaNeigh, stencilarr2D, stencilarr2DCopy, mask2D, StencilUtilities.weights, StencilUtilities.weightsMiddle)
 
-    //if(StencilUtilities.printOutput)
+    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr2D, output, localDimX)
 
-      StencilUtilities.printOriginalAndOutput2D(stencilarr2D, output, localDimX)
-//      StencilUtilities.print2DArray(mask2D)
- //   StencilUtilities.print2DArray(stencilarr2D)
-
-//    assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
+    assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
   }
 
