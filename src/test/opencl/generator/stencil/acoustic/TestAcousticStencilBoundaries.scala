@@ -691,6 +691,7 @@ class TestAcousticStencilBoundaries {
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
+    StencilUtilities.writeToBinaryFile(output,"/home/reese/tmp.bin")
   }
 
 

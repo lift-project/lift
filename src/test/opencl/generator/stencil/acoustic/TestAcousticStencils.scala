@@ -1,5 +1,8 @@
 package opencl.generator.stencil.acoustic
 
+import java.io.FileOutputStream
+import java.io.DataOutputStream
+
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
@@ -209,6 +212,17 @@ object StencilUtilities
     Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(A, B)
   )
 
+  def writeToBinaryFile(arr: Array[Float], filename: String)
+  {
+      var fileOut = new FileOutputStream(filename)
+      var dOut = new DataOutputStream(fileOut)
+
+      for(i <- arr) dOut.writeDouble(i)
+
+    dOut.flush()
+    dOut.close()
+    fileOut.close()
+  }
 }
 
 object TestAcousticStencils {
