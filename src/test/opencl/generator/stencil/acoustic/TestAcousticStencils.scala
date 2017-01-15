@@ -164,7 +164,7 @@ object StencilUtilities
     }
 
     def createFakePaddingFloat3D(input: Array[Array[Array[Float]]], padValue: Float, dimX: Int, dimY: Int): Array[Array[Array[Float]]] = {
-      val z0 = Array.fill(dimX+2,dimY+2)(0.0f)
+      val z0 = Array.fill(dimY+2,dimX+2)(0.0f)
       for(i <- 0 to input.length-1) input(i) = createFakePaddingFloat2D(input(i),0.0f)
       Array(z0) ++ input ++ Array(z0)
     }
@@ -191,7 +191,7 @@ object StencilUtilities
     def createDataFloat3D(sizeX: Int, sizeY: Int, sizeZ: Int) = {
 
       val dim = sizeX+2
-      val filling = Array.tabulate(sizeX,sizeY,sizeZ) { (i,j,k) => (i + j + k + 1).toFloat }
+      val filling = Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
       createFakePaddingFloat3D(filling,0.0f,sizeX,sizeY)
     }
 
