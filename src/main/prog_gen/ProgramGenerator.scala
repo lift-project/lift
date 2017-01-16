@@ -132,13 +132,14 @@ class ProgramGenerator {
     RefinedResult.toArray[Lambda]
   }
 
-  private def generateLambda(): Unit ={
+  private def generateLambda(): Unit = {
     val totChoiceNum = 7
 
     val randChoice = util.Random.nextInt(totChoiceNum)
 
     unpackParams()
     //randChoice match{
+    // TODO: Composition of map and reduce?
     AssignedChoiceNum match {
       case 0 if GenJoin =>
         generateJoin()
@@ -289,6 +290,7 @@ class ProgramGenerator {
         if (!Add_Check((i1, i2))) {
           val param1 = ParamList(i1)
           val param2 = ParamList(i2)
+
           if (param1.t == Float && param2.t == Float) {
             //check for consequentUserFun
             var containsUserFun = false
@@ -343,7 +345,7 @@ class ProgramGenerator {
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
 
-    def bla(oriLambda: Lambda, initParamIndexOfLambda: Int, TofInit: Type, eleParamIndexOfLambda: Int, argInitIndex: Int, argEle: Expr) = {
+    def finishGenerateReduce(oriLambda: Lambda, initParamIndexOfLambda: Int, TofInit: Type, eleParamIndexOfLambda: Int, argInitIndex: Int, argEle: Expr) = {
       val lambda = Lambda(Array(oriLambda.params(initParamIndexOfLambda), oriLambda.params(eleParamIndexOfLambda)), oriLambda.body)
       val replace = FunDecl.replace(lambda,
         oriLambda.params(initParamIndexOfLambda), Param(oriLambda.params(initParamIndexOfLambda).t))
@@ -396,52 +398,42 @@ class ProgramGenerator {
                 //4. choose argInit, argInit.t == Init.t
                 for (argInitIndex <- ParamList.indices) {
                   if (ParamList(argInitIndex).t == TofInit) {
-                    if (ReduceStrictMatchUnpack) {
 
-                      //5. argEle comes from unpack
-                      val argEle = UnpackedToExpr(oriLambda.params(eleParamIndexOfLambda))
+                    val TofEle = oriLambda.params(eleParamIndexOfLambda).t
+                    val argElems = if (ReduceStrictMatchUnpack)
+                      Seq(UnpackedToExpr(oriLambda.params(eleParamIndexOfLambda)))
+                    else
+                      ParamList
 
-                      argEle.t match {
-                        case ArrayType(_, eleLength) =>
-
-                          //Don't do reductions on array with length 1
-                          //The opencl generator causes bugs here
-                          if (eleLength.eval > 1) {
-                            //Pass the type check!!!!!!!!!!!!!!!
-
-                            bla (oriLambda, initParamIndexOfLambda, TofInit, eleParamIndexOfLambda, argInitIndex, argEle)
-
-                          }
-                        case _ =>
-                      }
-                    } else {
-
+                    if (!ReduceStrictMatchUnpack)
                       satisfied = true
 
-                      val TofEle = oriLambda.params(eleParamIndexOfLambda).t
-                      //5. choose argEle, argEle.t == ArrayType(EleT)
-                      for (argEleIndex <- ParamList.indices) {
-                        val param = ParamList(argEleIndex)
-                        param.t match {
-                          case ArrayType(TofEle, eleLength) =>
+                    argElems.foreach(argEle => {
+                      argEle.t match {
+                        //Don't do reductions on array with length 1
+                        //The opencl generator causes bugs here
+                        case ArrayType(_, eleLength) if eleLength.eval > 1 && ReduceStrictMatchUnpack =>
+                          finishGenerateReduce(oriLambda, initParamIndexOfLambda, TofInit,
+                            eleParamIndexOfLambda, argInitIndex, argEle)
+                        case ArrayType(TofEle, eleLength) if eleLength.eval > 1=>
 
-                            val argEle: Expr = getArg(param, PassParamUpPossibility)
-                            //Don't do reductions on array with length 1
-                            //The opencl generator causes bugs here
-                            if (eleLength.eval > 1) {
+                          val argEleFromGet =
+                            getArg(argEle.asInstanceOf[Param], PassParamUpPossibility)
 
-                              //Pass the type check!!!!!!!!!!!!!!!
-                              if (!Reduce_L_PI_PE((oriLambdaIndex, argInitIndex, argEleIndex))) {
+                          val argEleIndex = ParamList.indexOf(argEle)
 
-                                bla(oriLambda, initParamIndexOfLambda, TofInit, eleParamIndexOfLambda, argInitIndex, argEle)
+                          if (!Reduce_L_PI_PE((oriLambdaIndex, argInitIndex, argEleIndex))) {
 
-                                Reduce_L_PI_PE += ((oriLambdaIndex, argInitIndex, argEleIndex))
-                              }
-                            }
-                          case _ =>
-                        }
+                            finishGenerateReduce(oriLambda, initParamIndexOfLambda, TofInit,
+                              eleParamIndexOfLambda, argInitIndex, argEleFromGet)
+
+                            Reduce_L_PI_PE += ((oriLambdaIndex, argInitIndex, argEleIndex))
+                          }
+
+                        case _ =>
                       }
-                    }
+                    })
+
                   }
                 }
               }
@@ -469,19 +461,20 @@ class ProgramGenerator {
         //the map must contains a userfun nested deep inside
         val oriLambda = LambdaList(i)
 
-        if (oriLambda.toString.contains("add")) {
+        if (oriLambda.body.isConcrete) {
 
 
           //2. choose one as the param. The param must comes from unpack
-          for(paramIndexOfLambda <- oriLambda.params.indices){
-            if(UnpackedToExpr.contains(oriLambda.params.indices(paramIndexOfLambda))){
-              val TofParam = oriLambda.params(paramIndexOfLambda).t
-              val argEle = UnpackedToExpr(oriLambda.params(paramIndexOfLambda))
+          val params = oriLambda.params
+          for(paramIndexOfLambda <- params.indices){
+            if(UnpackedToExpr.contains(params.indices(paramIndexOfLambda))){
+              val TofParam = params(paramIndexOfLambda).t
+              val argEle = UnpackedToExpr(params(paramIndexOfLambda))
 
               //create new lambda for map(base one the original one)
               //only use one param for this lambda ,deal with other params outside the map
-              val L2 = FunDecl.replace(Lambda(Array[Param](oriLambda.params(paramIndexOfLambda)), oriLambda.body)
-                , oriLambda.params(paramIndexOfLambda), Param(TofParam))
+              val L2 = FunDecl.replace(Lambda(Array[Param](params(paramIndexOfLambda)), oriLambda.body)
+                , params(paramIndexOfLambda), Param(TofParam))
 
               //build the funcall
               val F = FunCall(ir.ast.Map(L2), argEle)
@@ -638,7 +631,6 @@ class ProgramGenerator {
     Zip_P = ParamList.length
 
     limitResults(tempLambdaList, tempParamList, tempParamToFunCall)
-
   }
 
   private def generateGet(): Unit = {
@@ -646,36 +638,30 @@ class ProgramGenerator {
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
+    ParamList.view(Get_P, ParamList.length).foreach(param => param.t match {
+      case tt: TupleType =>
 
-    for(i <- Get_P until ParamList.length){
-      val param = ParamList(i)
-      param.t match{
-        case tt: TupleType =>
+        //build the FunCall
+        val F = FunCall(Get(util.Random.nextInt(tt.elemsT.length)),getArg(param,PassParamUpPossibility))
 
-          //Pass the type check!
+        //set the output type
+        TypeChecker(F)
 
-          //build the FunCall
-          val F = FunCall(Get(util.Random.nextInt(tt.elemsT.length)),getArg(param,PassParamUpPossibility))
+        //build the param corresponds to the FunCall
+        val P = Param(F.t)
 
-          //set the output type
-          TypeChecker(F)
+        //count the parameters of lambda
+        val lParams = collectUnboundParams(F)
 
-          //build the param corresponds to the FunCall
-          val P = Param(F.t)
+        //build the lambda
+        val L = Lambda(lParams.toArray[Param], F)
 
-          //count the parameters of lambda
-          val lParams = collectUnboundParams(F)
+        tempParamList += P
+        tempLambdaList += L
+        tempParamToFunCall += ((P, F))
 
-          //build the lambda
-          val L = Lambda(lParams.toArray[Param], F)
-
-          tempParamList += P
-          tempLambdaList += L
-          tempParamToFunCall += ((P, F))
-
-        case _=>
-      }
-    }
+      case _=>
+    })
 
     Get_P = ParamList.length
 
@@ -746,7 +732,7 @@ class ProgramGenerator {
     oriLambda
   }
 
-  private def refineOneLambda(oriLambda:Lambda):Lambda={
+  private def refineOneLambda(oriLambda:Lambda): Lambda = {
     for(i <- oriLambda.params.indices){
       val param = oriLambda.params(i)
 
