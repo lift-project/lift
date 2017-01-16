@@ -14,7 +14,12 @@ object InferNDRange {
     * relative to input sizes. The sizes are chosen as to minimise the number of
     * loops in the generated code.
     *
-    * @param lambda to infer local and global sizes for
+    * This is done by choosing the thread counts to be the same as the lengths of
+    * the arrays being mapped over. For example, a MapGlb mapping over an array of length
+    * N would get N global threads in the corresponding dimension. In the case of several
+    * options, the most common one is chosen.
+    *
+    * @param lambda The lambda to infer local and global sizes for
     * @return (local NDRange, global NDRange)
     */
   def apply(lambda: Lambda): (NDRange, NDRange) = (new InferNDRange)(lambda)
@@ -23,6 +28,11 @@ object InferNDRange {
     * Try to automatically pick local and global sizes for an expressions and given
     * inputs. The sizes are chosen as to minimise the number of loops in
     * the generated code.
+    *
+    * This is done by choosing the thread counts to be the same as the lengths of
+    * the arrays being mapped over. For example, a MapGlb mapping over an array of length
+    * N would get N global threads in the corresponding dimension. In the case of several
+    * options, the most common one is chosen.
     *
     * @param lambda The lambda to infer local and global sizes for
     * @param values The specific inputs to infer the sizes for

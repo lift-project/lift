@@ -74,7 +74,10 @@ object Execute {
 
   /**
     * Creates an Execute instance that tries to automatically infer local and global
-    * sizes and injects them into the kernel.
+    * sizes to minimise generated loops and injects them into the kernel.
+    *
+    * @see [[rewriting.InferNDRange]] for more details on the inference process.
+    *
     */
   def apply(): Execute =
     new Execute (?, ?, ?, ?, ?, ?, true, true)
