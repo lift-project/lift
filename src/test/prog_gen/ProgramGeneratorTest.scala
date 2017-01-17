@@ -31,6 +31,8 @@ class ProgramGeneratorTest {
     val generator = new ProgramGenerator
     val generatedPrograms = generator.generatePrograms()
 
+    println(generatedPrograms.length)
+
     assertTrue(generator.UnpackedToExpr.nonEmpty)
     assertTrue(generator.LambdaList.nonEmpty)
     assertTrue(generator.ParamToFunCall.nonEmpty)

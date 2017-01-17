@@ -47,6 +47,7 @@ package prog_gen
 
 import ir._
 import ir.ast._
+import opencl.executor.Eval
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 
@@ -55,9 +56,9 @@ import scala.collection.mutable.ArrayBuffer
 
 class ProgramGenerator {
 
-  val RefinedResult = ArrayBuffer[Lambda]()
-  val ParamList = ArrayBuffer[Param]()
-  val LambdaList = ArrayBuffer[Lambda]()
+  var RefinedResult = mutable.Buffer[Lambda]()
+  val ParamList = mutable.Buffer[Param]()
+  val LambdaList = mutable.Buffer[Lambda]()
   val ParamToFunCall = collection.mutable.Map[Param, FunCall]()
   val UnpackedToExpr = collection.mutable.Map[Param,Expr]()
 
@@ -132,7 +133,32 @@ class ProgramGenerator {
       generateLambda()
 
     refineResult()
+    filterIllegals()
+    filterDuplicates()
     RefinedResult.toArray[Lambda]
+  }
+
+  private def filterIllegals(): Unit = {
+    RefinedResult = RefinedResult.par.filter(program => {
+      try {
+
+        val newVersion = Eval(rewriting.utils.Utils.dumpLambdaToString(program))
+
+        // TODO: Returning tuples is currently not supported, see issue #36
+        !TypeChecker(newVersion).isInstanceOf[TupleType]
+
+      } catch {
+        case _: Throwable => false
+      }
+    }).toBuffer
+  }
+
+  private def filterDuplicates(): Unit = {
+
+    val grouped = RefinedResult.groupBy(l =>
+      rewriting.utils.Utils.Sha256Hash(rewriting.utils.Utils.dumpLambdaToString(l)))
+
+    RefinedResult = grouped.map(_._2.head).toBuffer
   }
 
   private def generateLambda(): Unit = {
@@ -761,15 +787,10 @@ class ProgramGenerator {
   }
 
   private def getArg(p: Param, possibility:Double): Expr = {
-    if (ParamToFunCall.contains(p)) {
-      val randF = scala.util.Random.nextFloat()
-      if (randF < possibility) {
-        //pass the param up, return the param
-        p
-      } else {
-        //calculate the param here, return the corresponding
-        ParamToFunCall(p)
-      }
+    if (ParamToFunCall.contains(p) &&
+      util.Random.nextFloat() >= possibility) {
+      //calculate the param here, return the corresponding
+      ParamToFunCall(p)
     } else {
       p
     }
@@ -778,35 +799,26 @@ class ProgramGenerator {
   private def collectUnboundParams(L: Lambda): ArrayBuffer[Param] =
     (collectUnboundParams(L.body) -- L.params).distinct
 
-  private def collectUnboundParams(p: Pattern): ArrayBuffer[Param]={
-    p match{
-      case red: ir.ast.Reduce =>
-        collectUnboundParams(red.f)
-      case m: ir.ast.Map =>
-        collectUnboundParams(m.f)
+  private def collectUnboundParams(Fc: FunCall): ArrayBuffer[Param] = {
+    val rs = Fc.f match {
+      case l: Lambda =>
+        collectUnboundParams(l)
+      case p: FPattern =>
+        collectUnboundParams(p.f)
       case _=>
         ArrayBuffer[Param]()
     }
-  }
 
-  private def collectUnboundParams(Fc: FunCall): ArrayBuffer[Param] = {
-    val rs = ArrayBuffer[Param]()
-    Fc.f match{
-      case l:Lambda =>
-        rs ++= collectUnboundParams(l)
-      case p:Pattern =>
-        rs ++= collectUnboundParams(p)
-      case _=>
-    }
+    rs ++= Fc.args.flatMap(collectUnboundParams)
 
-    ArrayBuffer(Fc.args.flatMap(collectUnboundParams).distinct:_*)
+    rs.distinct
   }
 
   private def collectUnboundParams(E: Expr): ArrayBuffer[Param] = {
-    E match{
-      case fc:FunCall =>
+    E match {
+      case fc: FunCall =>
         collectUnboundParams(fc)
-      case p:Param =>
+      case p: Param =>
         ArrayBuffer[Param](p)
     }
   }
