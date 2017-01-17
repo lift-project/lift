@@ -172,10 +172,14 @@
 
 #if defined(__APPLE__) || defined(__MACOSX)
 #include <OpenCL/opencl.h>
+#if defined(USE_GL_INTEROP)
 #include <OpenGL/OpenGL.h>
+#endif
 #else
 #include <CL/opencl.h>
+#if defined(USE_GL_INTEROP)
 #include <GL/gl.h>
+#endif
 #endif // !__APPLE__
 
 #if !defined(CL_CALLBACK)
@@ -285,8 +289,12 @@ public:
 
 #define __CREATE_BUFFER_ERR __ERR_STR(clCreateBuffer)
 #define __CREATE_SUBBUFFER_ERR __ERR_STR(clCreateSubBuffer)
+
+#if defined(USE_GL_INTEROP)
 #define __CREATE_GL_BUFFER_ERR __ERR_STR(clCreateFromGLBuffer)
 #define __GET_GL_OBJECT_INFO_ERR __ERR_STR(clGetGLObjectInfo)
+#endif
+
 #define __CREATE_IMAGE2D_ERR __ERR_STR(clCreateImage2D)
 #define __CREATE_IMAGE3D_ERR __ERR_STR(clCreateImage3D)
 #define __CREATE_SAMPLER_ERR __ERR_STR(clCreateSampler)
@@ -328,8 +336,10 @@ public:
 #define __ENQUEUE_WAIT_FOR_EVENTS_ERR __ERR_STR(clEnqueueWaitForEvents)
 #define __ENQUEUE_BARRIER_ERR __ERR_STR(clEnqueueBarrier)
 
+#if defined(USE_GL_INTEROP)
 #define __ENQUEUE_ACQUIRE_GL_ERR __ERR_STR(clEnqueueAcquireGLObjects)
 #define __ENQUEUE_RELEASE_GL_ERR __ERR_STR(clEnqueueReleaseGLObjects)
+#endif
 
 #define __UNLOAD_COMPILER_ERR __ERR_STR(clUnloadCompiler)
 
@@ -1682,6 +1692,7 @@ public:
 };
 #endif
 
+#if defined(USE_GL_INTEROP)
 /*! \class BufferGL
  * \brief Memory buffer interface for GL interop.
  */
@@ -1718,7 +1729,9 @@ public:
         __GET_GL_OBJECT_INFO_ERR);
   }
 };
+#endif
 
+#if defined(USE_GL_INTEROP)
 /*! \class BufferRenderGL
  * \brief Memory buffer interface for GL interop with renderbuffer.
  */
@@ -1755,6 +1768,7 @@ public:
         __GET_GL_OBJECT_INFO_ERR);
   }
 };
+#endif
 
 /*! \class Image
  * \brief Base class  interface for all images.
@@ -1828,6 +1842,7 @@ public:
   }
 };
 
+#if defined(USE_GL_INTEROP)
 /*! \class Image2DGL
  * \brief 2D image interface for GL interop.
  */
@@ -1858,6 +1873,7 @@ public:
     return *this;
   }
 };
+#endif
 
 /*! \class Image3D
  * \brief Image interface for 3D images.
@@ -1892,6 +1908,7 @@ public:
   }
 };
 
+#if defined(USE_GL_INTEROP)
 /*! \class Image2DGL
  * \brief 2D image interface for GL interop.
  */
@@ -1922,6 +1939,7 @@ public:
     return *this;
   }
 };
+#endif
 
 /*! \class Sampler
  * \brief Sampler interface for cl_sampler.
@@ -2671,6 +2689,7 @@ public:
         __ENQUEUE_WAIT_FOR_EVENTS_ERR);
   }
 
+#if defined(USE_GL_INTEROP)
   cl_int enqueueAcquireGLObjects(const VECTOR_CLASS<Memory>* mem_objects = NULL,
                                  const VECTOR_CLASS<Event>* events = NULL,
                                  Event* event = NULL) const
@@ -2685,7 +2704,9 @@ public:
             (cl_event*)event),
         __ENQUEUE_ACQUIRE_GL_ERR);
   }
+#endif
 
+#if defined(USE_GL_INTEROP)
   cl_int enqueueReleaseGLObjects(const VECTOR_CLASS<Memory>* mem_objects = NULL,
                                  const VECTOR_CLASS<Event>* events = NULL,
                                  Event* event = NULL) const
@@ -2700,6 +2721,7 @@ public:
             (cl_event*)event),
         __ENQUEUE_RELEASE_GL_ERR);
   }
+#endif
 
 #if defined(USE_DX_INTEROP)
   typedef CL_API_ENTRY cl_int(CL_API_CALL* PFN_clEnqueueAcquireD3D10ObjectsKHR)(
