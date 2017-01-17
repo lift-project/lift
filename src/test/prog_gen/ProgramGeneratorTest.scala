@@ -28,10 +28,21 @@ class ProgramGeneratorTest {
 
   @Test
   def testNewGen(): Unit = {
-    val generatedPrograms = (new ProgramGenerator).generatePrograms()
+    val generator = new ProgramGenerator
+    val generatedPrograms = generator.generatePrograms()
+
+    assertTrue(generator.UnpackedToExpr.nonEmpty)
+    assertTrue(generator.LambdaList.nonEmpty)
+    assertTrue(generator.ParamToFunCall.nonEmpty)
+
+    assertTrue(generator.LambdaList.exists({
+      case Lambda(_, FunCall(Map(_), _)) => true
+      case _ => false
+    }))
 
     assertTrue(generatedPrograms.nonEmpty)
     assertTrue(generatedPrograms.exists(_.body.contains({ case FunCall(Reduce(_), _*) => })))
+    assertTrue(generatedPrograms.exists(_.body.contains({ case FunCall(Zip(_), _*) => })))
   }
 
   @Ignore

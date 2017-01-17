@@ -472,35 +472,35 @@ class ProgramGenerator {
 
           //2. choose one as the param. The param must comes from unpack
           val params = oriLambda.params
-          for(paramIndexOfLambda <- params.indices){
-            if(UnpackedToExpr.contains(params.indices(paramIndexOfLambda))){
-              val TofParam = params(paramIndexOfLambda).t
-              val argEle = UnpackedToExpr(params(paramIndexOfLambda))
+          params.filter(UnpackedToExpr.contains).foreach(parameter => {
+            val TofParam = parameter.t
+            val argEle = UnpackedToExpr(parameter)
 
-              //create new lambda for map(base one the original one)
-              //only use one param for this lambda ,deal with other params outside the map
-              val L2 = FunDecl.replace(Lambda(Array[Param](params(paramIndexOfLambda)), oriLambda.body)
-                , params(paramIndexOfLambda), Param(TofParam))
+            //create new lambda for map(base one the original one)
+            //only use one param for this lambda ,deal with other params outside the map
+            val L2 = FunDecl.replace(
+              Lambda(Array[Param](parameter), oriLambda.body),
+              parameter, Param(TofParam)
+            )
 
-              //build the funcall
-              val F = FunCall(Map(L2), argEle)
-              F.t = ArrayType(LambdaList(i).body.t, argEle.t.asInstanceOf[ArrayType].len)
+            //build the funcall
+            val F = FunCall(Map(L2), argEle)
+            F.t = ArrayType(LambdaList(i).body.t, argEle.t.asInstanceOf[ArrayType].len)
 
-              //build the param corresponds to the funcall
-              val P = Param(F.t)
+            //build the param corresponds to the funcall
+            val P = Param(F.t)
 
-              //count the params
-              val lParam = collectUnboundParams(F)
-              val L3 = Lambda(lParam.toArray[Param], F)
+            //count the params
+            val lParam = collectUnboundParams(F)
+            val L3 = Lambda(lParam.toArray[Param], F)
 
-              //TypeChecker(L3)
+            //TypeChecker(L3)
 
 
-              tempLambdaList += L3
-              tempParamList += P
-              tempParamToFunCall += ((P, F))
-            }
-          }
+            tempLambdaList += L3
+            tempParamList += P
+            tempParamToFunCall += ((P, F))
+          })
         }
       }
       Map_Checked = LambdaList.length
