@@ -114,6 +114,9 @@ class ProgramGenerator {
   //UnpackParam
   var UnPack_P = 0
 
+  private val validReduction =
+    Seq((add, FloatToValue(0.0f)), (mult, FloatToValue(1.0f)))
+
   //genrators
   def generatePrograms(): Array[Lambda] = {
     //initial input..
@@ -394,7 +397,10 @@ class ProgramGenerator {
             for (eleParamIndexOfLambda <- oriLambda.params.indices){
 
               //3. choose a Ele, Ele != Init
-              if (eleParamIndexOfLambda != initParamIndexOfLambda && (!ReduceStrictMatchUnpack || UnpackedToExpr.contains(oriLambda.params(eleParamIndexOfLambda)))) {
+              if (eleParamIndexOfLambda != initParamIndexOfLambda &&
+                (!ReduceStrictMatchUnpack ||
+                  UnpackedToExpr.contains(oriLambda.params(eleParamIndexOfLambda)))) {
+
                 //4. choose argInit, argInit.t == Init.t
                 for (argInitIndex <- ParamList.indices) {
                   if (ParamList(argInitIndex).t == TofInit) {
@@ -477,7 +483,7 @@ class ProgramGenerator {
                 , params(paramIndexOfLambda), Param(TofParam))
 
               //build the funcall
-              val F = FunCall(ir.ast.Map(L2), argEle)
+              val F = FunCall(Map(L2), argEle)
               F.t = ArrayType(LambdaList(i).body.t, argEle.t.asInstanceOf[ArrayType].len)
 
               //build the param corresponds to the funcall
@@ -571,7 +577,7 @@ class ProgramGenerator {
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
 
-    for(i <- Zip_P until ParamList.length){
+    for (i <- Zip_P until ParamList.length) {
       ParamList(i).t match{
         //1. A0 should have an arrayType
         case ArrayType(_,a0Len) =>
@@ -599,16 +605,15 @@ class ProgramGenerator {
             }
 
             //get the argument of f
-            val Args = scala.collection.mutable.ArrayBuffer[Expr](getArg(ParamList(AId(0)),PassParamUpPossibility))
-            for(_ <- 0 until argNum - 1){
-              Args += getArg(ParamList(AId(util.Random.nextInt(AId.length))),PassParamUpPossibility)
-            }
+            val Args = scala.collection.mutable.ArrayBuffer[Expr](getArg(ParamList(AId(0)), PassParamUpPossibility))
+            for(_ <- 0 until argNum - 1)
+              Args += getArg(ParamList(AId(util.Random.nextInt(AId.length))), PassParamUpPossibility)
 
             //build the funcall
             val F = FunCall(Zip(argNum),Args:_*)
 
             //set the output type
-            F.t = TypeChecker(F)
+            TypeChecker(F)
 
             //build the param corresponds to the FunCall
             val P = Param(F.t)
@@ -771,7 +776,7 @@ class ProgramGenerator {
   }
 
   private def collectUnboundParams(L: Lambda): ArrayBuffer[Param] =
-    (collectUnboundParams(L.body) -- L.params.toBuffer[Param]).distinct
+    (collectUnboundParams(L.body) -- L.params).distinct
 
   private def collectUnboundParams(p: Pattern): ArrayBuffer[Param]={
     p match{
@@ -793,10 +798,8 @@ class ProgramGenerator {
         rs ++= collectUnboundParams(p)
       case _=>
     }
-    for(i<- Fc.args.indices){
-      rs ++= collectUnboundParams(Fc.args(i))
-    }
-    rs.distinct
+
+    ArrayBuffer(Fc.args.flatMap(collectUnboundParams).distinct:_*)
   }
 
   private def collectUnboundParams(E: Expr): ArrayBuffer[Param] = {
