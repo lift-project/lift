@@ -382,17 +382,13 @@ class ProgramGenerator {
       //only use two param for this lambda ,deal with other params outside
       val L2 = FunDecl.replace(
         replace,
-        oriLambda.params(eleParamIndexOfLambda), Param(oriLambda.params(eleParamIndexOfLambda).t))
+        oriLambda.params(eleParamIndexOfLambda),
+        Param(oriLambda.params(eleParamIndexOfLambda).t)
+      )
 
+      val param = ParamList(argInitIndex)
       //generate args
-      val argInit: Expr = ParamList(argInitIndex) match {
-        case p if ParamToFunCall.contains(p) =>
-          //TODO: allow for passing up
-          ParamToFunCall(p)
-        case _ =>
-          //to avoid use init value multiple times:
-          Param(ParamList(argInitIndex).t)
-      }
+      val argInit: Expr = ParamToFunCall.getOrElse(param, param)
 
       val F = TofInit match {
         case t1 if t1 == oriLambda.params(eleParamIndexOfLambda).t => FunCall(Reduce(L2), argInit, argEle)
@@ -774,17 +770,10 @@ class ProgramGenerator {
     oriLambda
   }
 
-  private def refineResult(): Unit = {
-    for (i <- LambdaList.indices) {
-      val afterRefine = refineOneLambda(LambdaList(i))
-      if((MustContainsMap && !afterRefine.toString.contains("Map")) ||
-        afterRefine.body.isAbstract){
+  private def refineResult(): Unit =
+    RefinedResult ++= LambdaList.map(refineOneLambda).filter(l =>
+      (!MustContainsMap || l.toString.contains("Map")) && l.body.isConcrete)
 
-      } else {
-        RefinedResult += afterRefine
-      }
-    }
-  }
 
   private def getArg(p: Param, possibility:Double): Expr = {
     if (ParamToFunCall.contains(p) &&

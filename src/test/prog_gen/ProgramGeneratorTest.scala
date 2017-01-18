@@ -12,11 +12,11 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object ProgramGeneratorTest{
+object ProgramGeneratorTest {
 
   @BeforeClass
   def before(): Unit =
-    Executor.loadLibrary()
+    Executor.loadAndInit()
 
   @AfterClass
   def after(): Unit =
