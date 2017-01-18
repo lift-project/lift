@@ -19,7 +19,7 @@
 
 // Finally, refine the result,deal with the Params that comes from FunCall or unpack
 
-// The final result is stored in RefinedResult:ArrayBuffer[Lambda]
+// The final result is stored in RefinedResult:mutable.Buffer[Lambda]
 
 // Now we have Join, Split,UserFun, Zip,Get,Map,Reduce, and can generate the features of Matrix Mult
 // It's simple to support more patterns.. Just tell me
@@ -30,17 +30,17 @@
 // 1.LoopNum : Int                => The loop limit (max depth)
 // 2.ConsequentUserFun: Boolean   => allow for UserFun() o UserFun()
 // 3.ReduceOnOneElement: Boolean  => allow for reduction on only one element. The compiler have a problem with that.
-//4.AllowJoinASplit: Boolean     => allow for Join()o Split(). It is identical
-//5.MustContainsUserFun: Boolean => filter the result that does not contains any userfun
-//6.MustContainsMap:Boolean      => filter the result that does not contains any maps
-//7.MapStrictMatchUnpack:Boolean => When generate Map, like:
-//                                  Map(Lambda1) o Param2, the input of Lambda1 is Param1
-//                                  If MapStrictMatchUnpack is set to True, then it will ensure: Param1 comes form the unpack of Param2
-//8.ReduceStrictMatchUnpack:Boolean  => similar with (7)
-//9.LimitNum:Int                 => the max number of Lambda generated each cycle
+// 4.AllowJoinASplit: Boolean     => allow for Join()o Split(). It is identical
+// 5.MustContainsUserFun: Boolean => filter the result that does not contains any userfun
+// 6.MustContainsMap:Boolean      => filter the result that does not contains any maps
+// 7.MapStrictMatchUnpack:Boolean => When generate Map, like:
+//                                   Map(Lambda1) o Param2, the input of Lambda1 is Param1
+//                                   If MapStrictMatchUnpack is set to True, then it will ensure: Param1 comes form the unpack of Param2
+// 8.ReduceStrictMatchUnpack:Boolean  => similar with (7)
+// 9.LimitNum:Int                 => the max number of Lambda generated each cycle
 
-//10.ZipLimit:Int                => Max number of Param to zip
-//11.GenJoin/GenSplit... :Boolean=> Whether generate a certain pattern
+// 10.ZipLimit:Int                => Max number of Param to zip
+// 11.GenJoin/GenSplit... :Boolean=> Whether generate a certain pattern
 
 
 package prog_gen
@@ -52,15 +52,14 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 class ProgramGenerator {
 
   var RefinedResult = mutable.Buffer[Lambda]()
   val ParamList = mutable.Buffer[Param]()
   val LambdaList = mutable.Buffer[Lambda]()
-  val ParamToFunCall = collection.mutable.Map[Param, FunCall]()
-  val UnpackedToExpr = collection.mutable.Map[Param,Expr]()
+  val ParamToFunCall = mutable.Map[Param, FunCall]()
+  val UnpackedToExpr = mutable.Map[Param,Expr]()
 
   //Used for debug
   var AssignedChoiceNum = 0
@@ -207,8 +206,8 @@ class ProgramGenerator {
   }
 
   private def generateJoin(): Unit = {
-    val tempLambdaList = ArrayBuffer[Lambda]()
-    val tempParamList = ArrayBuffer[Param]()
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
     for(i <- Join_P until ParamList.length) {
@@ -258,8 +257,8 @@ class ProgramGenerator {
   }
 
   private def generateSplit(): Unit = {
-    val tempLambdaList = ArrayBuffer[Lambda]()
-    val tempParamList = ArrayBuffer[Param]()
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
     for (i<- Split_P until ParamList.length) {
@@ -298,7 +297,7 @@ class ProgramGenerator {
     limitResults(tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
-  private def limitResults(tempLambdaList: ArrayBuffer[Lambda], tempParamList: ArrayBuffer[Param], tempParamToFunCall: mutable.Map[Param, FunCall], limitNum: Int = LimitNum) = {
+  private def limitResults(tempLambdaList: mutable.Buffer[Lambda], tempParamList: mutable.Buffer[Param], tempParamToFunCall: mutable.Map[Param, FunCall], limitNum: Int = LimitNum) = {
 
     val resLen = tempParamList.length
 
@@ -319,8 +318,8 @@ class ProgramGenerator {
   }
 
   private def generateUserFun(limitNum:Int): Unit = {
-    val tempLambdaList = ArrayBuffer[Lambda]()
-    val tempParamList = ArrayBuffer[Param]()
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
 
     for (i1 <- ParamList.indices) {
@@ -379,8 +378,8 @@ class ProgramGenerator {
   // TODO: an associative function and the neutral element.
   private def generateReduce(): Unit = {
 
-    val tempLambdaList = ArrayBuffer[Lambda]()
-    val tempParamList = ArrayBuffer[Param]()
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
 
     def finishGenerateReduce(oriLambda: Lambda, initParamIndexOfLambda: Int, TofInit: Type, eleParamIndexOfLambda: Int, argInitIndex: Int, argEle: Expr) = {
@@ -487,8 +486,8 @@ class ProgramGenerator {
   }
 
   private def generateMap(): Unit = {
-    val tempLambdaList = ArrayBuffer[Lambda]()
-    val tempParamList = ArrayBuffer[Param]()
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
 
     if (MapStrictMatchUnpack) {
@@ -603,8 +602,8 @@ class ProgramGenerator {
 
   private def generateZip():Unit = {
     assert(ZipLimit >= 2)
-    val tempLambdaList = ArrayBuffer[Lambda]()
-    val tempParamList = ArrayBuffer[Param]()
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
 
@@ -614,7 +613,7 @@ class ProgramGenerator {
         case ArrayType(_,a0Len) =>
 
           //2. AId : id of params that have the same type with A0
-          val AId = scala.collection.mutable.ArrayBuffer[Int](i)
+          val AId = mutable.Buffer[Int](i)
           for(j <- ParamList.indices){
             ParamList(j).t match {
               // Zipping the same thing twice is useless
@@ -637,7 +636,7 @@ class ProgramGenerator {
             }
 
             //get the argument of f
-            val Args = scala.collection.mutable.ArrayBuffer[Expr](getArg(ParamList(AId(0)), PassParamUpPossibility))
+            val Args = mutable.Buffer[Expr](getArg(ParamList(AId(0)), PassParamUpPossibility))
             for(_ <- 0 until argNum - 1)
               Args += getArg(ParamList(AId(util.Random.nextInt(AId.length))), PassParamUpPossibility)
 
@@ -671,8 +670,8 @@ class ProgramGenerator {
   }
 
   private def generateGet(): Unit = {
-    val tempLambdaList = ArrayBuffer[Lambda]()
-    val tempParamList = ArrayBuffer[Param]()
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
     // TODO: Only ever using Get on one element is slightly useless
@@ -711,7 +710,7 @@ class ProgramGenerator {
   }
 
   private def unpackParams(): Unit = {
-    val tempParamList = ArrayBuffer[Param]()
+    val tempParamList = mutable.Buffer[Param]()
     for (i <- UnPack_P until ParamList.length) {
       val param = ParamList(i)
       param.t match {
@@ -800,14 +799,14 @@ class ProgramGenerator {
     }
   }
 
-  private def collectUnboundParams(L: Lambda): ArrayBuffer[Param] =
+  private def collectUnboundParams(L: Lambda): mutable.Buffer[Param] =
     (collectUnboundParams(L.body) -- L.params).distinct
 
-  private def collectUnboundParams(Fc: FunCall): ArrayBuffer[Param] = {
+  private def collectUnboundParams(Fc: FunCall): mutable.Buffer[Param] = {
     val rs = Fc.f match {
       case l: Lambda => collectUnboundParams(l)
       case p: FPattern => collectUnboundParams(p.f)
-      case _=> ArrayBuffer[Param]()
+      case _=> mutable.Buffer[Param]()
     }
 
     rs ++= Fc.args.flatMap(collectUnboundParams)
@@ -815,10 +814,10 @@ class ProgramGenerator {
     rs.distinct
   }
 
-  private def collectUnboundParams(E: Expr): ArrayBuffer[Param] = {
+  private def collectUnboundParams(E: Expr): mutable.Buffer[Param] = {
     E match {
       case fc: FunCall => collectUnboundParams(fc)
-      case p: Param => ArrayBuffer[Param](p)
+      case p: Param => mutable.Buffer[Param](p)
     }
   }
 }
