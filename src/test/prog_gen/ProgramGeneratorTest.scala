@@ -13,6 +13,8 @@ import rewriting.{EnabledMappings, Lower}
 import scala.language.reflectiveCalls
 
 object ProgramGeneratorTest {
+  val generator = new ProgramGenerator
+  val generatedPrograms = generator.generatePrograms()
 
   @BeforeClass
   def before(): Unit =
@@ -26,26 +28,50 @@ object ProgramGeneratorTest {
 
 class ProgramGeneratorTest {
 
+  import ProgramGeneratorTest._
+
   @Test
-  def testNewGen(): Unit = {
-    val generator = new ProgramGenerator
-    val generatedPrograms = generator.generatePrograms()
+  def noUselessMaps(): Unit = {
+    assertTrue(generatedPrograms.forall(!_.body.contains({
+      case FunCall(Map(Lambda(Array(p), b)), _)
+        if !b.contains({ case p1: Param if p1 == p => }) =>
+    })))
+  }
 
-    println(generatedPrograms.length)
-
-    assertTrue(generator.UnpackedToExpr.nonEmpty)
-    assertTrue(generator.LambdaList.nonEmpty)
-    assertTrue(generator.ParamToFunCall.nonEmpty)
-
+  @Test
+  def mapGeneration(): Unit =
     assertTrue(generator.LambdaList.exists({
       case Lambda(_, FunCall(Map(_), _)) => true
       case _ => false
     }))
 
+  @Test
+  def reduceGeneration(): Unit =
+    assertTrue(generatedPrograms.exists(
+      _.body.contains({ case FunCall(Reduce(_), _*) => })))
+
+  @Test
+  def zipGeneration(): Unit =
+    assertTrue(generatedPrograms.exists(
+      _.body.contains({ case FunCall(Zip(_), _*) => })))
+
+  @Test
+  def generatesSomething(): Unit = {
+    assertTrue(generator.UnpackedToExpr.nonEmpty)
+    assertTrue(generator.LambdaList.nonEmpty)
+    assertTrue(generator.ParamToFunCall.nonEmpty)
     assertTrue(generatedPrograms.nonEmpty)
-    assertTrue(generatedPrograms.exists(_.body.contains({ case FunCall(Reduce(_), _*) => })))
-    assertTrue(generatedPrograms.exists(_.body.contains({ case FunCall(Zip(_), _*) => })))
   }
+
+  @Test
+  def mapReduceComposition(): Unit =
+    assertTrue(generatedPrograms.exists(
+      _.body.contains({ case FunCall(Reduce(_), _, FunCall(Map(_), _)) => })))
+
+  @Test
+  def reduceMapComposition(): Unit =
+    assertTrue(generatedPrograms.exists(
+      _.body.contains({ case FunCall(Map(_), FunCall(Reduce(_), _, _)) => })))
 
   @Ignore
   @Test

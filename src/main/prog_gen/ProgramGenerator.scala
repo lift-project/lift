@@ -1,35 +1,35 @@
-//Basicly, this high-level program generator generate Lambdas in a loop:
+// Basically, this high-level program generator generate Lambdas in a loop:
 
-//First, it try to use options(i.e patterns, like join,split,map,reduce..) that takes the initial input (Note that FPatterns also need a Lambda as input)
-//Each round, it will generate :
-//A FunCall
-//A Lambda using the funcall
-//A param that have the same type with the lambda
-//A param that unpack the result array(only when 1.the result type is an ArrayType 2.MapStrictMatchUnpack or ReduceStrictMatchUnpack or both of them are set as True)
+// First, it try to use options(i.e patterns, like join,split,map,reduce..) that takes the initial input (Note that FPatterns also need a Lambda as input)
+// Each round, it will generate :
+// A FunCall
+// A Lambda using the funcall
+// A param that have the same type with the lambda
+// A param that unpack the result array(only when 1.the result type is an ArrayType 2.MapStrictMatchUnpack or ReduceStrictMatchUnpack or both of them are set as True)
 
-//For example: if we have a Param x with x.t == ArrayType(Float,64),then it can generate:
-//1. Split(8) $ x
-//2. fun(ArrayType(Float,64),x =>{ Split(8) $ x})
-//3. Param(ArrayType(ArrayType(Float,8),8)
-//4. Param(ArrayType(8))
+// For example: if we have a Param x with x.t == ArrayType(Float,64),then it can generate:
+// 1. Split(8) $ x
+// 2. fun(ArrayType(Float,64),x =>{ Split(8) $ x})
+// 3. Param(ArrayType(ArrayType(Float,8),8)
+// 4. Param(ArrayType(8))
 
-//Second, it will use the Params(and Lambdas for FPatterns) that comes form initial input or the first step, to generate deeper programs
+// Second, it will use the Params(and Lambdas for FPatterns) that comes form initial input or the first step, to generate deeper programs
 
-//Then, repeatedly generate Lambdas using the Params and Lambdas we have, until reach the loop limit(also the depth limit)
+// Then, repeatedly generate Lambdas using the Params and Lambdas we have, until reach the loop limit(also the depth limit)
 
-//Finally, refine the result,deal with the Params that comes from FunCall or unpack
+// Finally, refine the result,deal with the Params that comes from FunCall or unpack
 
-//The final result is stored in RefinedResult:ArrayBuffer[Lambda]
+// The final result is stored in RefinedResult:ArrayBuffer[Lambda]
 
-//Now we have Join, Split,UserFun, Zip,Get,Map,Reduce, and can generate the features of Matrix Mult
-//It's simple to support more patterns.. Just tell me
+// Now we have Join, Split,UserFun, Zip,Get,Map,Reduce, and can generate the features of Matrix Mult
+// It's simple to support more patterns.. Just tell me
 
-//Then the usage of the controllers:
+// Then the usage of the controllers:
 
 
-//1.LoopNum : Int                => The loop limit (max depth)
-//2.ConsequentUserFun: Boolean   => allow for UserFun() o UserFun()
-//3.ReduceOnOneElement: Boolean  => allow for reduction on only one element. The compiler have a problem with that.
+// 1.LoopNum : Int                => The loop limit (max depth)
+// 2.ConsequentUserFun: Boolean   => allow for UserFun() o UserFun()
+// 3.ReduceOnOneElement: Boolean  => allow for reduction on only one element. The compiler have a problem with that.
 //4.AllowJoinASplit: Boolean     => allow for Join()o Split(). It is identical
 //5.MustContainsUserFun: Boolean => filter the result that does not contains any userfun
 //6.MustContainsMap:Boolean      => filter the result that does not contains any maps
@@ -118,7 +118,7 @@ class ProgramGenerator {
   private val validReduction =
     Seq((add, FloatToValue(0.0f)), (mult, FloatToValue(1.0f)))
 
-  //genrators
+  // Generators
   def generatePrograms(): Array[Lambda] = {
     //initial input..
     // TODO: Non constant
@@ -141,11 +141,20 @@ class ProgramGenerator {
   private def filterIllegals(): Unit = {
     RefinedResult = RefinedResult.par.filter(program => {
       try {
+        val quickCheck =
+            // Don't allow tuples containing arrays as a single parameter
+            program.params.forall(_.t match {
+              case TupleType(tts@_*) => !tts.exists(_.isInstanceOf[ArrayType])
+              case _ => true
+            })
 
-        val newVersion = Eval(rewriting.utils.Utils.dumpLambdaToString(program))
-
-        // TODO: Returning tuples is currently not supported, see issue #36
-        !TypeChecker(newVersion).isInstanceOf[TupleType]
+        if (quickCheck) {
+          val newProgram = Eval(rewriting.utils.Utils.dumpLambdaToString(program))
+          // TODO: Returning tuples is currently not supported, see issue #36
+          !TypeChecker(newProgram).isInstanceOf[TupleType]
+        } else {
+          false
+        }
 
       } catch {
         case _: Throwable => false
@@ -176,14 +185,14 @@ class ProgramGenerator {
       case 1 if GenSplit =>
         generateSplit()
 
-      case 2 if GenUserFun =>
-        generateUserFun(30)
-
-      case 3 if GenZip =>
+      case 2 if GenZip =>
         generateZip()
 
-      case 4 if GenGet =>
+      case 3 if GenGet =>
         generateGet()
+
+      case 4 if GenUserFun =>
+        generateUserFun(30)
 
       case 5 if GenMap =>
         generateMap()
@@ -309,7 +318,7 @@ class ProgramGenerator {
     }
   }
 
-  private def generateUserFun(limitNum:Int):Unit = {
+  private def generateUserFun(limitNum:Int): Unit = {
     val tempLambdaList = ArrayBuffer[Lambda]()
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
@@ -600,15 +609,16 @@ class ProgramGenerator {
 
 
     for (i <- Zip_P until ParamList.length) {
-      ParamList(i).t match{
+      ParamList(i).t match {
         //1. A0 should have an arrayType
         case ArrayType(_,a0Len) =>
 
           //2. AId : id of params that have the same type with A0
           val AId = scala.collection.mutable.ArrayBuffer[Int](i)
           for(j <- ParamList.indices){
-            ParamList(j).t match{
-              case ArrayType(_,`a0Len`) =>
+            ParamList(j).t match {
+              // Zipping the same thing twice is useless
+              case ArrayType(_,`a0Len`) if i != j =>
                 AId += j
               case _=>
             }
@@ -619,7 +629,7 @@ class ProgramGenerator {
             //Pass the type check!
 
             //randomly choose 'argNum' of params from AId
-            val argNum = AId.length match{
+            val argNum = AId.length match {
               case temp1 if temp1 < ZipLimit =>
                 util.Random.nextInt(temp1 - 1) + 2
               case _ =>
@@ -665,11 +675,16 @@ class ProgramGenerator {
     val tempParamList = ArrayBuffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
+    // TODO: Only ever using Get on one element is slightly useless
+    // TODO: Especially in case of it coming from a zip
     ParamList.view(Get_P, ParamList.length).foreach(param => param.t match {
       case tt: TupleType =>
 
-        //build the FunCall
-        val F = FunCall(Get(util.Random.nextInt(tt.elemsT.length)),getArg(param,PassParamUpPossibility))
+        // Build the FunCall
+        val F = FunCall(
+          Get(util.Random.nextInt(tt.elemsT.length)),
+          getArg(param,PassParamUpPossibility)
+        )
 
         //set the output type
         TypeChecker(F)
@@ -790,12 +805,9 @@ class ProgramGenerator {
 
   private def collectUnboundParams(Fc: FunCall): ArrayBuffer[Param] = {
     val rs = Fc.f match {
-      case l: Lambda =>
-        collectUnboundParams(l)
-      case p: FPattern =>
-        collectUnboundParams(p.f)
-      case _=>
-        ArrayBuffer[Param]()
+      case l: Lambda => collectUnboundParams(l)
+      case p: FPattern => collectUnboundParams(p.f)
+      case _=> ArrayBuffer[Param]()
     }
 
     rs ++= Fc.args.flatMap(collectUnboundParams)
@@ -805,10 +817,8 @@ class ProgramGenerator {
 
   private def collectUnboundParams(E: Expr): ArrayBuffer[Param] = {
     E match {
-      case fc: FunCall =>
-        collectUnboundParams(fc)
-      case p: Param =>
-        ArrayBuffer[Param](p)
+      case fc: FunCall => collectUnboundParams(fc)
+      case p: Param => ArrayBuffer[Param](p)
     }
   }
 }
