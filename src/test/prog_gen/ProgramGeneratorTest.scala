@@ -60,6 +60,16 @@ class ProgramGeneratorTest {
     }))
 
   @Test
+  def splitGeneration(): Unit =
+    assertTrue(generatedPrograms.exists(
+      _.body.contains({ case FunCall(Split(_), _*) => })))
+
+  @Test
+  def joinGeneration(): Unit =
+    assertTrue(generatedPrograms.exists(
+      _.body.contains({ case FunCall(Join(), _*) => })))
+
+  @Test
   def reduceGeneration(): Unit =
     assertTrue(generatedPrograms.exists(
       _.body.contains({ case FunCall(Reduce(_), _*) => })))

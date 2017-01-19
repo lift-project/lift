@@ -47,6 +47,7 @@ package prog_gen
 
 import ir._
 import ir.ast._
+import lift.arithmetic.{ArithExpr, Cst, SizeVar}
 import opencl.executor.Eval
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
@@ -118,14 +119,15 @@ class ProgramGenerator {
   private val validReduction =
     Seq((add, FloatToValue(0.0f)), (mult, FloatToValue(1.0f)))
 
-  // Generators
+  private val arrayLengths = Seq[ArithExpr](SizeVar("N"))
+
   def generatePrograms(): Array[Lambda] = {
     // Initial input..
-    // TODO: Non constant
-    ParamList += Param(ArrayType(ArrayType(Float,32),32))
-    ParamList += Param(ArrayType(ArrayType(Float,32),32))
-    ParamList += Param(ArrayType(Float,32))
-    ParamList += Param(ArrayType(Float,32))
+    val length = arrayLengths.head
+    ParamList += Param(ArrayType(ArrayType(Float, length), length))
+    ParamList += Param(ArrayType(ArrayType(Float, length), length))
+    ParamList += Param(ArrayType(Float, length))
+    ParamList += Param(ArrayType(Float, length))
     ParamList += Param(Float)
     ParamList += Param(Float)
 
@@ -135,7 +137,7 @@ class ProgramGenerator {
     refineResult()
     filterIllegals()
     filterDuplicates()
-    RefinedResult.toArray[Lambda]
+    RefinedResult.toArray
   }
 
   private def filterIllegals(): Unit = {
@@ -268,17 +270,18 @@ class ProgramGenerator {
     for (i<- Split_P until ParamList.length) {
       val param = ParamList(i)
       param.t match {
-        case ArrayType(t,n) if n.eval >= SplitChunkSize =>
-          //Pass the type check!
+        case t: ArrayType =>
+
+          val chunkSize = rewriting.utils.Utils.validSplitVariable(t)
 
           //get the argument of FunCall
           val fArg = getArg(param,PassParamUpPossibility)
 
           //build the FunCall
-          val F = FunCall(Split(SplitChunkSize),fArg)
+          val F = FunCall(Split(chunkSize),fArg)
 
           //set output type
-          F.t = ArrayType(ArrayType(t,SplitChunkSize),n /^ SplitChunkSize)
+          TypeChecker(F)
 
           //build the param corresponds to the FunCall
           val P = Param(F.t)
@@ -452,10 +455,10 @@ class ProgramGenerator {
                       argEle.t match {
                         //Don't do reductions on array with length 1
                         //The opencl generator causes bugs here
-                        case ArrayType(_, eleLength) if eleLength.eval > 1 && ReduceStrictMatchUnpack =>
+                        case ArrayType(_, eleLength) if eleLength != Cst(1) && ReduceStrictMatchUnpack =>
                           finishGenerateReduce(oriLambda, initParamIndexOfLambda, TofInit,
                             eleParamIndexOfLambda, argInitIndex, argEle)
-                        case ArrayType(TofEle, eleLength) if eleLength.eval > 1=>
+                        case ArrayType(TofEle, eleLength) if eleLength != Cst(1) =>
 
                           val argEleFromGet =
                             getArg(argEle.asInstanceOf[Param], PassParamUpPossibility)
@@ -616,19 +619,18 @@ class ProgramGenerator {
 
           //2. AId : id of params that have the same type with A0
           val AId = mutable.Buffer[Int](i)
+
+          // TODO: Zipping split arrays with non-constant length and chunk size?
           for(j <- ParamList.indices){
             ParamList(j).t match {
               // Zipping the same thing twice is useless
-              case ArrayType(_,`a0Len`) if i != j =>
-                AId += j
+              case ArrayType(_,`a0Len`) if i != j => AId += j
               case _=>
             }
           }
 
           //3. should have at least 2 elements
-          if(AId.length >= 2){
-            //Pass the type check!
-
+          if (AId.length >= 2) {
 
             //randomly choose 'argNum' of params from AId
             val argNum = AId.length match {
