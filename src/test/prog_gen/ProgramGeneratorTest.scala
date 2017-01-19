@@ -31,11 +31,6 @@ class ProgramGeneratorTest {
   import ProgramGeneratorTest._
 
   @Test
-  def howMany(): Unit = {
-    println(generatedPrograms.length)
-  }
-
-  @Test
   def usefulZipGeneration(): Unit = {
 
     // Count the number of different components projected out of tuples
