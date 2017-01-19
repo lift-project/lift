@@ -56,11 +56,11 @@ import scala.collection.mutable
 
 class ProgramGenerator {
 
-  var RefinedResult = mutable.Buffer[Lambda]()
-  val ParamList = mutable.Buffer[Param]()
-  val LambdaList = mutable.Buffer[Lambda]()
-  val ParamToFunCall = mutable.Map[Param, FunCall]()
-  val UnpackedToExpr = mutable.Map[Param,Expr]()
+  private[prog_gen] var RefinedResult = mutable.Buffer[Lambda]()
+  private[prog_gen] val ParamList = mutable.Buffer[Param]()
+  private[prog_gen] val LambdaList = mutable.Buffer[Lambda]()
+  private[prog_gen] val ParamToFunCall = mutable.Map[Param, FunCall]()
+  private[prog_gen] val UnpackedToExpr = mutable.Map[Param,Expr]()
 
   //Used for debug
   var AssignedChoiceNum = 0
@@ -68,8 +68,7 @@ class ProgramGenerator {
 
   //controllers for generate programs
   val LoopNum = 30
-  val ConsequentUserFun = false
-  val ReduceOnOneElement = false
+  val ConsequentUserFun = true
   val AllowJoinASplit = false
   val MustContainsMap = true
   val MapStrictMatchUnpack = true
@@ -78,7 +77,6 @@ class ProgramGenerator {
 
   //controllers for patterns
   val ZipLimit = 2
-  val SplitChunkSize = 4
   val GenJoin = true
   val GenSplit = true
   val GenUserFun = true
@@ -89,37 +87,40 @@ class ProgramGenerator {
 
   assert(ZipLimit >= 2)
 
-  //Avoid for redundant
-  //Join
+  // Avoid for redundant
+  // Join
   var Join_P = 0
 
-  //Split
+  // Split
   var Split_P = 0
 
-  //Reduce
-  val Reduce_L_PI_PE = scala.collection.mutable.Set[(Int, Int, Int)]()
-  val Reduce_Lambda_Check = scala.collection.mutable.Set[Int]()
+  // Reduce
+  val Reduce_L_PI_PE = mutable.Set[(Int, Int, Int)]()
+  val Reduce_Lambda_Check = mutable.Set[Int]()
 
-  //UserFun
-  val Add_Check = scala.collection.mutable.Set[(Int, Int)]()
+  // UserFun
+  val Add_Check = mutable.Set[(Int, Int)]()
+  val UserFun_Check = mutable.Set[Seq[Param]]()
 
-  //Map
-  val Map_L_E = scala.collection.mutable.Set[(Int, Int)]()
+  // Map
+  val Map_L_E = mutable.Set[(Int, Int)]()
   var Map_Checked = 0
 
-  //Zip
+  // Zip
   var Zip_P = 0
 
-  //Get
+  // Get
   var Get_P = 0
 
-  //UnpackParam
+  // UnpackParam
   var UnPack_P = 0
 
   private val validReduction =
     Seq((add, FloatToValue(0.0f)), (mult, FloatToValue(1.0f)))
 
   private val arrayLengths = Seq[ArithExpr](SizeVar("N"))
+
+  private val userFuns = Seq(add, mult)
 
   def generatePrograms(): Array[Lambda] = {
     // Initial input..
@@ -329,54 +330,42 @@ class ProgramGenerator {
     val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
 
-    for (i1 <- ParamList.indices) {
-      for (i2 <- ParamList.indices) {
-        if (!Add_Check((i1, i2))) {
-          val param1 = ParamList(i1)
-          val param2 = ParamList(i2)
+    // TODO: Enable other UserFuns
+    val userFunToUse = userFuns.head
 
-          if (param1.t == Float && param2.t == Float) {
-            //check for consequentUserFun
-            var containsUserFun = false
-            if (ParamToFunCall.contains(param1)) {
-              ParamToFunCall(param1).f match {
-                case _: UserFun =>
-                  containsUserFun = true
-                case _ =>
-              }
-            }
-            if (ParamToFunCall.contains(param2)) {
-              ParamToFunCall(param2).f match {
-                case _: UserFun =>
-                  containsUserFun = true
-                case _ =>
-              }
-            }
+    val inputTypes = userFunToUse.inTs
+    val numArgs = inputTypes.length
 
-            //Don't allow for UserFun(UserFun(...))
-            if (!containsUserFun || ConsequentUserFun) {
-              val arg1 = getArg(param1, PassParamUpPossibility)
-              val arg2 = getArg(param2, PassParamUpPossibility)
+    val candidateCombinations = ParamList
+      .combinations(numArgs)
+      .filterNot(UserFun_Check.contains)
+      .filterNot(p =>
+        ParamToFunCall.exists(kv =>
+            ConsequentUserFun &&  kv._1 == p && kv._2.f.isInstanceOf[UserFun]))
 
-              val F = FunCall(add, arg1, arg2)
-              F.t = Float
-              val P = Param(F.t)
-              //count the parameters of lambda
-              val lParams = collectUnboundParams(F)
+    val correctTypes = candidateCombinations.filter(params =>
+      (params, inputTypes).zipped.forall((p, t) => p.t == t))
 
-              //build the lambda
-              val L = Lambda(lParams.toArray[Param], F)
+    correctTypes.foreach(params => {
 
-              tempParamList += P
-              tempLambdaList += L
-              tempParamToFunCall += ((P, F))
-            }
-          }
-          Add_Check += ((i1, i2))
-          Add_Check += ((i2, i1))
-        }
-      }
-    }
+      val args = params.map(getArg(_, PassParamUpPossibility))
+
+      val F = FunCall(userFunToUse, args:_*)
+      F.t = userFunToUse.outT
+      val P = Param(F.t)
+
+      // Collect parameters for the lambda
+      val lParams = collectUnboundParams(F)
+
+      // Build the lambda
+      val L = Lambda(lParams.toArray, F)
+
+      UserFun_Check += params
+
+      tempParamList += P
+      tempLambdaList += L
+      tempParamToFunCall += ((P, F))
+    })
 
     limitResults(tempLambdaList, tempParamList, tempParamToFunCall, limitNum)
   }
