@@ -31,6 +31,25 @@ class ProgramGeneratorTest {
   import ProgramGeneratorTest._
 
   @Test
+  def howMany(): Unit = {
+    println(generatedPrograms.length)
+  }
+
+  @Test
+  def usefulZipGeneration(): Unit = {
+
+    // Count the number of different components projected out of tuples
+    val numComponentsUsed =
+      generatedPrograms.flatMap( f => Expr.visitWithState(Seq[(Expr, Int)]())(f.body, {
+        case (FunCall(Get(n), p), getArgs) => getArgs :+ (p, n)
+        case (_, getArgs) => getArgs
+      }).groupBy(e => e._1).map(a => a._2.map(_._2).distinct.length))
+
+
+    assertTrue(numComponentsUsed.exists(_ >= 2))
+  }
+
+  @Test
   def noUselessMaps(): Unit = {
     assertTrue(generatedPrograms.forall(!_.body.contains({
       case FunCall(Map(Lambda(Array(p), b)), _)

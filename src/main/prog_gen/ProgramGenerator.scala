@@ -86,6 +86,7 @@ class ProgramGenerator {
   val GenMap = true
   val GenReduce = true
 
+  assert(ZipLimit >= 2)
 
   //Avoid for redundant
   //Join
@@ -119,7 +120,7 @@ class ProgramGenerator {
 
   // Generators
   def generatePrograms(): Array[Lambda] = {
-    //initial input..
+    // Initial input..
     // TODO: Non constant
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
     ParamList += Param(ArrayType(ArrayType(Float,32),32))
@@ -138,6 +139,8 @@ class ProgramGenerator {
   }
 
   private def filterIllegals(): Unit = {
+
+    // TODO: Should I filter out useless Zips where not all components used?
     RefinedResult = RefinedResult.par.filter(program => {
       try {
         val quickCheck =
@@ -148,6 +151,8 @@ class ProgramGenerator {
             })
 
         if (quickCheck) {
+          // TODO: Quicker way of rebuilding expressions and
+          // TODO: getting rid of sharing components?
           val newProgram = Eval(rewriting.utils.Utils.dumpLambdaToString(program))
           // TODO: Returning tuples is currently not supported, see issue #36
           !TypeChecker(newProgram).isInstanceOf[TupleType]
@@ -176,7 +181,6 @@ class ProgramGenerator {
 
     unpackParams()
     //randChoice match{
-    // TODO: Composition of map and reduce?
     AssignedChoiceNum match {
       case 0 if GenJoin =>
         generateJoin()
@@ -600,12 +604,10 @@ class ProgramGenerator {
     limitResults(tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
-  private def generateZip():Unit = {
-    assert(ZipLimit >= 2)
+  private def generateZip(): Unit = {
     val tempLambdaList = mutable.Buffer[Lambda]()
     val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
-
 
     for (i <- Zip_P until ParamList.length) {
       ParamList(i).t match {
@@ -626,6 +628,7 @@ class ProgramGenerator {
           //3. should have at least 2 elements
           if(AId.length >= 2){
             //Pass the type check!
+
 
             //randomly choose 'argNum' of params from AId
             val argNum = AId.length match {
@@ -674,32 +677,27 @@ class ProgramGenerator {
     val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
 
-    // TODO: Only ever using Get on one element is slightly useless
-    // TODO: Especially in case of it coming from a zip
     ParamList.view(Get_P, ParamList.length).foreach(param => param.t match {
       case tt: TupleType =>
 
-        // Build the FunCall
-        val F = FunCall(
-          Get(util.Random.nextInt(tt.elemsT.length)),
-          getArg(param,PassParamUpPossibility)
-        )
+        // Build the FunCalls
+        val calls = tt.elemsT.indices.map(i => FunCall(Get(i), param))
 
-        //set the output type
-        TypeChecker(F)
+        // Set the output types
+        calls.foreach(TypeChecker.apply)
 
-        //build the param corresponds to the FunCall
-        val P = Param(F.t)
+        // Build the param corresponds to the FunCalls
+        val params = calls.map(f => Param(f.t))
 
-        //count the parameters of lambda
-        val lParams = collectUnboundParams(F)
+        // Collect the parameters of lambdas
+        val lambdaParams = calls.map(collectUnboundParams)
 
-        //build the lambda
-        val L = Lambda(lParams.toArray[Param], F)
+        // Build the lambdas
+        val Ls = (calls, lambdaParams).zipped.map((f, p) => Lambda(p.toArray, f))
 
-        tempParamList += P
-        tempLambdaList += L
-        tempParamToFunCall += ((P, F))
+        tempParamList ++= params
+        tempLambdaList ++= Ls
+        tempParamToFunCall ++= (params, calls).zipped.toSeq
 
       case _=>
     })
@@ -728,18 +726,18 @@ class ProgramGenerator {
     UnPack_P = ParamList.length
   }
 
-  //helper functions
+  // Helper functions
   private def refineParamToFunCall(oriLambda: Lambda): Lambda = {
     val refineParamList = oriLambda.params.filter(ParamToFunCall.contains)
 
     if (refineParamList.nonEmpty) {
       var L2 = Lambda(refineParamList, oriLambda.body)
 
-      //replace them with new param
+      // Replace them with new param
       refineParamList.foreach(p =>
         L2 = FunDecl.replace(L2,p,Param(p.t)))
 
-      //create a funcall for it
+      // Create a funcall for it
       val F = FunCall(L2, refineParamList.map(ParamToFunCall):_*)
 
       val lParam = collectUnboundParams(F)
@@ -751,8 +749,8 @@ class ProgramGenerator {
     }
   }
 
-  private def refineUnpack(oriLambda:Lambda):Lambda={
-    for(i <- oriLambda.params.indices){
+  private def refineUnpack(oriLambda:Lambda): Lambda = {
+    for (i <- oriLambda.params.indices) {
       val param = oriLambda.params(i)
 
       if (UnpackedToExpr.contains(param)) {
@@ -774,7 +772,7 @@ class ProgramGenerator {
   }
 
   private def refineOneLambda(oriLambda:Lambda): Lambda = {
-    for(i <- oriLambda.params.indices){
+    for (i <- oriLambda.params.indices) {
       val param = oriLambda.params(i)
 
       if (UnpackedToExpr.contains(param) || ParamToFunCall.contains(param))
