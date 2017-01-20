@@ -125,6 +125,8 @@ object OpenCLAST {
     */
   case class GOTO(nameVar: Var) extends Statement
 
+  case class Break() extends Statement
+
   case class Barrier(mem: OpenCLMemory) extends Statement
 
   case class TypeDef(t: Type) extends Statement
@@ -287,7 +289,7 @@ object OpenCLAST {
       case w: WhileLoop =>
         visitExpressionsInNode(w.loopPredicate)
         visitExpressionsInNode(w.body)
-      case Barrier(_) | GOTO(_) | TupleAlias(_, _) | TypeDef(_) =>
+      case Barrier(_) | GOTO(_) | TupleAlias(_, _) | TypeDef(_) | Break() =>
     }
 
     def visitDeclaration(d: Declaration): Unit = d match {
@@ -310,7 +312,7 @@ object OpenCLAST {
         case ifte: IfThenElse =>
           visitBlocks(ifte.trueBody, fun)
           visitBlocks(ifte.falseBody, fun)
-        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) =>
+        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) | Break() =>
       }
 
       case d: Declaration => d match {

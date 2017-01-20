@@ -213,6 +213,16 @@ object OpenCLMemoryAllocator {
         r.f.params(1).mem = coll.subMemories(1)
         val bodyM = alloc(r.f.body, numGlb, numLcl, numPvt)
 
+        // if we have an instance of a reduce while, allocate the predicate
+        r match {
+          case rps: ReduceWhileSeq =>
+            rps.p.params(0).mem = initM
+            rps.p.params(1).mem = coll.subMemories(1)
+            // set the predicate return memory to the returned memory
+            rps.pmem = alloc(rps.p.body, numGlb, numLcl, numPvt)
+          case _ =>
+        }
+
         // replace `bodyM` by `initM` in `r.f.body`
         Expr.visit(r.f.body, e => if (e.mem == bodyM) e.mem = initM, _ => {})
 

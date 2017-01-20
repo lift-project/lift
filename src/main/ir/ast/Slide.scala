@@ -1,15 +1,15 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import lift.arithmetic.Cst
-import ir.{ArrayType, Type, TypeException, UndefType}
+import lift.arithmetic.ArithExpr
+import ir.{ArrayType, Type, TypeException}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
  * Slide pattern.
  * Create sliding windows of input
  */
-case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerable {
+case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) with isGenerable {
   Slide.cnt += 1
   val id = Slide.cnt
 
@@ -19,7 +19,7 @@ case class Slide(size: Int, step: Int) extends Pattern(arity = 1) with isGenerab
                          setType: Boolean): Type = {
     argType match {
       case ArrayType(t, n) =>
-        //todo check that the following is true!
+        // todo check that the sliding window always ends at the last element of the input
         //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
         val innerLength = size
         val outerLength = (n - (size - step)) / step

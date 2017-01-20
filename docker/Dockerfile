@@ -2,17 +2,15 @@ FROM java:8-jdk
 
 # install opencl, dependencies for SkelCL, and prepare installation of sbt
 RUN sed -e 's/$/ contrib non-free/' -i /etc/apt/sources.list \
-  && apt-get update && apt-get install -y \
+  && apt-get update && apt-get install --no-install-recommends -y \
     opencl-headers \
     ocl-icd-opencl-dev \
     amd-opencl-icd \
     clinfo \
     cmake \
+    make \
     g++ \
     wget \
-    libclang-dev \
-    libssl-dev \
-    llvm \
     apt-transport-https
 
 # install sbt

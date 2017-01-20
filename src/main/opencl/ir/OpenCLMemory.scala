@@ -264,24 +264,19 @@ object TypedOpenCLMemory {
       @scala.annotation.tailrec
       def changeType(addressSpace: OpenCLAddressSpace,
                      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
+        // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
         addressSpace match {
-          // TODO: Incorrect type for PrivateMemory, but OpenCLCodeGen
-          // TODO: crashes with the correct one...
-          case GlobalMemory | PrivateMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+          case PrivateMemory =>
+            m match {
+              case _: MapGlb | _: MapWrg  | _: Map =>
+                tm
+              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
 
-            // TODO: Incorrect type returned for PrivateMemory.
-//          case PrivateMemory =>
-//            m match {
-//              case _: MapGlb | _: MapWrg  | _: Map =>
-//                tm
-//              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-//
-//                var privateMultiplier = m.iterationCount
-//                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
-//
-//                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
-//            }
+                var privateMultiplier = m.iterationCount
+                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+
+                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
+            }
           case LocalMemory =>
             m match {
               case _: MapGlb | _: MapWrg  | _: Map =>
@@ -289,6 +284,9 @@ object TypedOpenCLMemory {
               case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
                 TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
             }
+          case GlobalMemory =>
+            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+
           case coll: AddressSpaceCollection =>
             changeType(coll.findCommonAddressSpace(), tm)
         }
@@ -308,7 +306,10 @@ object TypedOpenCLMemory {
 
     def collectReduce(r: AbstractPartRed,
                       argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
-      val mems = collect(r.f.body)
+      val mems: Seq[TypedOpenCLMemory] = collect(r.f.body) ++ (r match {
+        case rws: ReduceWhileSeq => collect(rws.p.body)
+        case _ => Seq[TypedOpenCLMemory]()
+      })
 
       mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)

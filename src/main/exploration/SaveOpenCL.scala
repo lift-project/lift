@@ -3,7 +3,7 @@ package exploration
 import java.io.FileWriter
 
 import analysis._
-import lift.arithmetic.{?, ArithExpr, Cst, Var}
+import lift.arithmetic._
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import opencl.generator.OpenCLGenerator.NDRange
@@ -16,12 +16,17 @@ import rewriting.utils.Utils
 import scala.sys.process._
 
 object SaveOpenCL {
-  def apply(topFolder: String, lowLevelHash: String, highLevelHash: String,
+  def apply(topFolder: String, lowLevelHash: String,
+            highLevelHash: String, settings: Settings,
             expressions: List[(Lambda, Seq[ArithExpr])]) =
-    (new SaveOpenCL(topFolder, lowLevelHash, highLevelHash))(expressions)
+    (new SaveOpenCL(topFolder, lowLevelHash, highLevelHash, settings))(expressions)
 }
 
-class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String) {
+class SaveOpenCL(
+  topFolder: String,
+  lowLevelHash: String,
+  highLevelHash: String,
+  settings: Settings) {
 
   private val logger = Logger(this.getClass)
 
@@ -52,16 +57,13 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       val lambda = expressions.head._1
       sizeArgs = lambda.params.flatMap(_.t.varList).sortBy(_.name).distinct
       numSizes = sizeArgs.length
-      inputCombinations = inputSizes.map(Seq.fill[ArithExpr](numSizes)(_))
 
-      if (sizeArgs.size == 3) {
-        val combinations = inputSizes
-          .map(Cst(_))
-          .combinations(2)
-          .flatMap(_.permutations)
-          .map(l => l :+ l.last)
-        inputCombinations ++= combinations.toSeq
-      }
+      val combinations = settings.inputCombinations
+
+      if (combinations.isDefined && combinations.get.head.length == numSizes)
+        inputCombinations = combinations.get
+      else
+        inputCombinations = inputSizes.map(Seq.fill[ArithExpr](numSizes)(_))
     }
   }
 
@@ -73,7 +75,7 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
       case _: IllegalKernel =>
         None
       case t: Throwable =>
-        logger.warn(s"Failed compilation $highLevelHash (${pair._2.mkString(",")})", t)
+        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${pair._2.mkString(",")})", t)
         None
     }
   }
@@ -116,7 +118,13 @@ class SaveOpenCL(topFolder: String, lowLevelHash: String, highLevelHash: String)
     val dumped = Utils.dumpToFile(kernel, filename, path)
     if (dumped) {
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
-      dumpStats(lambda, hash, path)
+
+      try {
+        dumpStats(lambda, hash, path)
+      } catch {
+        case t: Throwable =>
+          logger.warn(s"Failed to get stats: $highLevelHash/$lowLevelHash (${pair._2.mkString(",")})", t)
+      }
     }
 
     if (dumped) Some(hash) else None

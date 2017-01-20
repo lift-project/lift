@@ -7,6 +7,9 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
   extends Pattern(arity = 1) with isGenerable {
+
+  override def toString: String = "Pad(" + left + "," + right + "," + boundary + ")"
+
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
@@ -38,6 +41,7 @@ object Pad {
     //}
 
     object Wrap extends ReindexingFun {
+      override def toString: String = "Pad.Boundary.Wrap"
       override def apply(idx: ArithExpr, len: ArithExpr) = {
         (idx % len + len) % len
       }
@@ -45,12 +49,14 @@ object Pad {
 
     // Pad size is not allowed to exceed input size
     object WrapUnsafe extends ReindexingFun {
+      override def toString: String = "Pad.Boundary.WrapUnsafe"
       override def apply(idx: ArithExpr, len: ArithExpr) = {
         (idx + len) % len
       }
     }
 
     object Clamp extends ReindexingFun {
+      override def toString: String = "Pad.Boundary.Clamp"
       override def apply(idx: ArithExpr, len: ArithExpr) = {
         //ArithExpr.Math.Clamp(idx, 0, len-1)
         (idx ge 0) ?? ((idx lt len) ?? idx !! len-1) !! 0
@@ -58,6 +64,7 @@ object Pad {
     }
 
     object Mirror extends ReindexingFun {
+      override def toString: String = "Pad.Boundary.Mirror"
       override def apply(idx: ArithExpr, len: ArithExpr) = {
         val id = ((idx lt 0) ?? (-1-idx) !! idx) % (2*len)
         (id ge len) ?? (len+len-id-1) !! id
@@ -66,6 +73,7 @@ object Pad {
 
     // Pad size is not allowed to exceed input size
     object MirrorUnsafe extends ReindexingFun {
+      override def toString: String = "Pad.Boundary.MirrorUnsafe"
       override def apply(idx: ArithExpr, len: ArithExpr) = {
         //(idx ge len) ?? (2*len-idx-1) !! ((idx lt 0) ?? (-1-idx) !! idx)
         //(leftBoundaryCheck ge len) ?? (2*len-idx-1) !! leftBoundaryCheck
