@@ -30,9 +30,9 @@ class TestInvalid {
   val fct = UserFun("afunc", "array", " return array * 2.0f; ", Float, Float)
   // Dummy function
   val f = fun(ArrayType(Float, SizeVar("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
-  val f2 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")),
+  val f2 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("M")),
     (in1, in2) => MapGlb(fun(a => fct(a))) $ in1 )
-  val f3 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("N")),
+  val f3 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("M")), ArrayType(Float, SizeVar("O")),
     (in1, in2, in3) => MapGlb(fun(a => fct(a))) $ in1 )
 
   // Test invalid 1D array with default local size
