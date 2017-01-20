@@ -44,6 +44,19 @@ jobject Java_opencl_executor_GlobalArg_createInput___3D(JNIEnv* env, jclass cls,
   return obj;
 }
 
+jobject Java_opencl_executor_GlobalArg_createInput___3Z(JNIEnv* env, jclass cls,
+                                                        jbooleanArray data)
+{
+  auto arrayPtr = env->GetBooleanArrayElements(data, nullptr);
+  auto ptr = GlobalArg::create(arrayPtr,
+                               env->GetArrayLength(data) * sizeof(const unsigned char));
+  env->ReleaseBooleanArrayElements(data, arrayPtr, JNI_ABORT);
+
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
+  auto obj = env->NewObject(cls, methodID, ptr);
+  return obj;
+}
+
 jobject Java_opencl_executor_GlobalArg_createOutput(JNIEnv* env, jclass cls,
                                                     jint size)
 {

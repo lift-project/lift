@@ -31,3 +31,9 @@ jobject Java_opencl_executor_ValueArg_create__D(JNIEnv* env, jclass cls,
 {
   return helper<double>(env, cls, value);
 }
+
+jobject Java_opencl_executor_ValueArg_create__Z(JNIEnv* env, jclass cls,
+                                                jboolean value)
+{
+  return helper<bool>(env, cls, value);
+}

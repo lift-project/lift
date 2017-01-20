@@ -190,7 +190,7 @@ class TestMisc {
     val neg = UserFun("neg", "x", "{ if (x) { return false; } else { return true; } }", Bool, Bool)
 
     val f = fun(
-      ArrayType(Double, SizeVar("N")),
+      ArrayType(Bool, SizeVar("N")),
       in => MapGlb(neg) $ in
     )
 

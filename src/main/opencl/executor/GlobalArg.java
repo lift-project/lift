@@ -4,6 +4,7 @@ public class GlobalArg extends KernelArg {
     public static native GlobalArg createInput(float[] array);
     public static native GlobalArg createInput(int[] array);
     public static native GlobalArg createInput(double[] array);
+    public static native GlobalArg createInput(boolean[] array);
 
     public static native GlobalArg createOutput(int size);
 

@@ -584,6 +584,12 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         case aaad: Array[Array[Array[Double]]] => global.input(aaad.flatten.flatten)
         case aaaad: Array[Array[Array[Array[Double]]]] => global.input(aaaad.flatten.flatten.flatten)
 
+        case d: Boolean => value(d)
+        case ad: Array[Boolean] => global.input(ad)
+        case aad: Array[Array[Boolean]] => global.input(aad.flatten)
+        case aaad: Array[Array[Array[Boolean]]] => global.input(aaad.flatten.flatten)
+        case aaaad: Array[Array[Array[Array[Boolean]]]] => global.input(aaaad.flatten.flatten.flatten)
+
         case _ => throw new IllegalArgumentException(
           s"Kernel argument is of unsupported type: ${any.getClass}")
       }
@@ -605,6 +611,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       def apply(array: Array[Int]) = GlobalArg.createInput(array)
 
       def apply(array: Array[Double]) = GlobalArg.createInput(array)
+
+      def apply(array: Array[Boolean]) = GlobalArg.createInput(array)
     }
 
     /**
@@ -638,6 +646,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     def apply(value: Int) = ValueArg.create(value)
 
     def apply(value: Double) = ValueArg.create(value)
+
+    def apply(value: Boolean) = ValueArg.create(value)
   }
 
 }
