@@ -25,107 +25,6 @@ double getRuntimeInMilliseconds(cl::Event event)
 
 }
 
-KernelArg::~KernelArg()
-{
-}
-
-void KernelArg::clear()
-{
-}
-
-GlobalArg::GlobalArg(executor::Vector<char>&& vectorP, bool isOutputP)
-  : vector(std::move(vectorP)), isOutput(isOutputP)
-{
-}
-
-KernelArg* GlobalArg::create(void* data, size_t size, bool isOutput)
-{
-  auto dataCharPtr = static_cast<char*>(data);
-  executor::Vector<char> vector(dataCharPtr, dataCharPtr+size);
-  return new GlobalArg{std::move(vector), isOutput};
-}
-
-KernelArg* GlobalArg::create(size_t size, bool isOutput)
-{
-  executor::Vector<char> vector;
-  vector.resize(size);
-  return new GlobalArg{std::move(vector), isOutput};
-}
-
-const executor::Vector<char>& GlobalArg::data() const
-{
-  return vector;
-}
-
-void GlobalArg::clear()
-{
-  if(isOutput){
-    vector.assign(vector.size());
-    vector.dataOnHostModified();
-  }
-}
-
-void GlobalArg::setAsKernelArg(cl::Kernel kernel, int i)
-{
-  auto& devPtr = executor::globalDeviceList.front();
-  kernel.setArg(i, vector.deviceBuffer(*devPtr).clBuffer());
-}
-
-void GlobalArg::upload()
-{
-  // create buffers on device
-  vector.createDeviceBuffers();
-  // start upload
-  vector.startUpload();
-}
-
-void GlobalArg::download()
-{
-  if (isOutput) {
-    vector.dataOnDeviceModified();
-    vector.copyDataToHost();
-  }
-}
-
-LocalArg::LocalArg(size_t sizeP)
-  : size(sizeP)
-{
-}
-
-KernelArg* LocalArg::create(size_t size)
-{
-  return new LocalArg{size};
-}
-
-void LocalArg::setAsKernelArg(cl::Kernel kernel, int i)
-{
-  kernel.setArg(i, cl::__local(size)); 
-}
-
-void LocalArg::upload() {}
-void LocalArg::download() {}
-
-ValueArg::ValueArg(std::vector<char>&& valueP)
-  : value(std::move(valueP))
-{
-}
-
-KernelArg* ValueArg::create(void* data, size_t size)
-{
-  auto dataCharPtr = static_cast<char*>(data);
-  std::vector<char> value(dataCharPtr, dataCharPtr+size);
-
-  return new ValueArg{std::move(value)};
-}
-
-void ValueArg::setAsKernelArg(cl::Kernel kernel, int i)
-{
-  kernel.setArg(i, value.size(), value.data());
-}
-
-void ValueArg::upload() {}
-void ValueArg::download() {}
-
 void initExecutor(int platformId, int deviceId)
 {
   executor::init(executor::platform(platformId), executor::device(deviceId));
@@ -193,38 +92,10 @@ bool supportsDouble()
   return devicePtr->supportsDouble();
 }
 
-cl::Kernel buildKernel(const std::string& kernelCode,
-                       const std::string& kernelName,
-                       const std::string& buildOptions)
-{
-  auto& devPtr = executor::globalDeviceList.front();
-
-  auto p = cl::Program(devPtr->clContext(), cl::Program::Sources(1, std::make_pair(kernelCode.c_str(), kernelCode.length())));
-
-  try {
-    // build program for given device
-    p.build(std::vector<cl::Device>(1, devPtr->clDevice()), buildOptions.c_str());
-
-  } catch (cl::Error& err) {
-    if (err.err() == CL_BUILD_PROGRAM_FAILURE) {
-      LOG_ERROR(err);
-
-      auto  buildLog = p.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devPtr->clDevice() );
-      LOG(executor::Logger::Severity::LogAlways, "Build log:\n", buildLog);
-      
-      ABORT_WITH_ERROR(err);
-    } else {
-      ABORT_WITH_ERROR(err);
-    }
-  }
-
-  return cl::Kernel(p, kernelName.c_str());
-}
-
 double executeKernel(cl::Kernel kernel,
-               int localSize1, int localSize2, int localSize3,
-               int globalSize1, int globalSize2, int globalSize3,
-               const std::vector<KernelArg*>& args)
+                     int localSize1, int localSize2, int localSize3,
+                     int globalSize1, int globalSize2, int globalSize3,
+                     const std::vector<executor::KernelArg*>& args)
 {
   auto& devPtr = executor::globalDeviceList.front();
 
@@ -253,27 +124,22 @@ double executeKernel(cl::Kernel kernel,
   return getRuntimeInMilliseconds(event);
 }
 
-double execute(const std::string& kernelCode, const std::string& kernelName,
-               const std::string& buildOptions,
+double execute(const executor::Kernel& kernel,
                int localSize1, int localSize2, int localSize3,
                int globalSize1, int globalSize2, int globalSize3,
-               const std::vector<KernelArg*>& args)
+               const std::vector<executor::KernelArg*>& args)
 {
-  auto kernel = buildKernel(kernelCode, kernelName, buildOptions);
-  return executeKernel(kernel, localSize1, localSize2, localSize3,
+  return executeKernel(kernel.build(), localSize1, localSize2, localSize3,
                        globalSize1, globalSize2, globalSize3, args);
 }
 
-double benchmark(const std::string& kernelCode, const std::string& kernelName,
-               const std::string& buildOptions,
-               int localSize1, int localSize2, int localSize3,
-               int globalSize1, int globalSize2, int globalSize3,
-               const std::vector<KernelArg*>& args,
-               int iterations, double timeout)
+double benchmark(const executor::Kernel& kernel,
+                 int localSize1, int localSize2, int localSize3,
+                 int globalSize1, int globalSize2, int globalSize3,
+                 const std::vector<executor::KernelArg*>& args,
+                 int iterations, double timeout)
 {
-  auto kernel = buildKernel(kernelCode, kernelName, buildOptions);
-
-  double *allRuntimes = new double[iterations];
+    double *allRuntimes = new double[iterations];
 
   for (int i = 0; i < iterations; i++) {
     //std::cout << "Iteration: " << i << '\n';
@@ -282,7 +148,7 @@ double benchmark(const std::string& kernelCode, const std::string& kernelName,
       arg->clear();
     }
 
-    double runtime = executeKernel(kernel, localSize1, localSize2, localSize3,
+    double runtime = executeKernel(kernel.build(), localSize1, localSize2, localSize3,
                        globalSize1, globalSize2, globalSize3, args);
     
 
@@ -310,11 +176,10 @@ double benchmark(const std::string& kernelCode, const std::string& kernelName,
   return median;
 }
 
-double evaluate(const std::string& kernelCode, const std::string& kernelName,
-                const std::string& buildOptions,
+double evaluate(const executor::Kernel& kernel,
                 int localSize1, int localSize2, int localSize3,
                 int globalSize1, int globalSize2, int globalSize3,
-                const std::vector<KernelArg*>& args,
+                const std::vector<executor::KernelArg*>& args,
                 int iterations, double timeout)
 {
   auto& devPtr = executor::globalDeviceList.front();
@@ -333,20 +198,22 @@ double evaluate(const std::string& kernelCode, const std::string& kernelName,
   }
 
   { // run a single workgroup on dummy data
-    auto kernel = buildKernel(
-        std::string{"#define WORKGROUP_GUARD {for(int i = 0; i < get_work_dim(); ++i) if(get_group_id(i)!=0) return;}\n"} + kernelCode,
-           kernelName, buildOptions
+    auto k = executor::Kernel(
+        std::string{"#define WORKGROUP_GUARD {for(int i = 0; i < get_work_dim(); ++i) if(get_group_id(i)!=0) return;}\n"} + kernel.getSource(),
+           kernel.getName(), kernel.getBuildOptions()
         );
 
+    auto openclKernel = k.build();
+
     auto wg_size = -1;
-    err = kernel.getWorkGroupInfo(devPtr->clDevice(), CL_KERNEL_WORK_GROUP_SIZE ,&wg_size);
+    err = openclKernel.getWorkGroupInfo(devPtr->clDevice(), CL_KERNEL_WORK_GROUP_SIZE ,&wg_size);
     if(err != CL_SUCCESS) {
       std::cerr << "ERROR " << err << std::endl;
       return -1;
     }
 
     cl_ulong private_mem = -1;
-    err = kernel.getWorkGroupInfo(devPtr->clDevice(), CL_KERNEL_PRIVATE_MEM_SIZE, &private_mem);
+    err = openclKernel.getWorkGroupInfo(devPtr->clDevice(), CL_KERNEL_PRIVATE_MEM_SIZE, &private_mem);
     if(err != CL_SUCCESS) {
       std::cerr << "ERROR " << err << std::endl;
       return -1;
@@ -362,11 +229,11 @@ double evaluate(const std::string& kernelCode, const std::string& kernelName,
     
     int i = 0;
     for (auto& arg : args) {
-      arg->setAsKernelArg(kernel, i);
+      arg->setAsKernelArg(openclKernel, i);
       ++i;
     }
 
-    auto event = devPtr->enqueue(kernel,
+    auto event = devPtr->enqueue(openclKernel,
                                  cl::NDRange(clGlobalSize1,
                                              clGlobalSize2, clGlobalSize3),
                                  cl::NDRange(clLocalSize1,
@@ -382,15 +249,15 @@ double evaluate(const std::string& kernelCode, const std::string& kernelName,
     std::vector<double> allRuntimes;
     allRuntimes.resize(iterations);
 
-    auto kernel = buildKernel(kernelCode, kernelName, buildOptions); 
+    auto openclKernel = kernel.build();
     int i = 0;
     for (auto& arg : args) {
-      arg->setAsKernelArg(kernel, i);
+      arg->setAsKernelArg(openclKernel, i);
       ++i;
     }
 
     for (int i = 0; i < iterations; i++) {
-      auto event = devPtr->enqueue(kernel,
+      auto event = devPtr->enqueue(openclKernel,
                                    cl::NDRange(clGlobalSize1,
                                                clGlobalSize2, clGlobalSize3),
                                    cl::NDRange(clLocalSize1,

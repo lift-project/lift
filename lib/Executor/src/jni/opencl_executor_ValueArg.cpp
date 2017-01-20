@@ -2,13 +2,14 @@
 #pragma GCC diagnostic ignored "-Weffc++"
 #include "opencl_executor_ValueArg.h"
 #pragma GCC diagnostic pop
-#include "handle.h"
+#include "Handle.h"
 #include "Executor.h"
+#include "ValueArg.h"
 
 template <typename T>
 jobject helper(JNIEnv* env, jclass cls, T value)
 {
-  auto ptr = ValueArg::create(&value, sizeof(value));
+  auto ptr = executor::ValueArg::create(&value, sizeof(value));
   auto methodID = env->GetMethodID(cls, "<init>", "(J)V"); 
   auto obj = env->NewObject(cls, methodID, ptr);
   return obj;

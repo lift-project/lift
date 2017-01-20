@@ -321,7 +321,7 @@ class TestInvalid {
   @Test
   def ExecutorFailureRecovery(): Unit = {
     try {
-      Executor.execute("this is not a valid OpenCL Kernel and should crash the executor", 1, 1, 1, 1, 1, 1, Array())
+      Executor.execute(Build("this is not a valid OpenCL Kernel and should crash the executor"), 1, 1, 1, 1, 1, 1, Array())
     } catch {
       case ea: Executor.ExecutorFailureException =>
         ea.consume()
@@ -332,7 +332,7 @@ class TestInvalid {
     // This should work
     try {
       println("Executing a valid kernel")
-      Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
+      Executor.execute(Build("kernel void KERNEL(){}"), 1, 1, 1, 1, 1, 1, Array())
     } catch {
       case _: Throwable => assert(assertion = false)
     }
@@ -343,7 +343,7 @@ class TestInvalid {
     try {
       // Allocate 4 times the maximum
       val arg = LocalArg.create(Executor.getDeviceMaxMemAllocSize.asInstanceOf[Int])
-      Executor.execute("kernel void KERNEL(local float* mem){}", 1, 1, 1, 1, 1, 1, Array(arg))
+      Executor.execute(Build("kernel void KERNEL(local float* mem){}"), 1, 1, 1, 1, 1, 1, Array(arg))
     } catch {
       case e: Executor.ExecutorFailureException =>
         e.consume()
@@ -356,7 +356,7 @@ class TestInvalid {
     // This should work
     try {
       println("Executing a valid kernel")
-      Executor.execute("kernel void KERNEL(){}", 1, 1, 1, 1, 1, 1, Array())
+      Executor.execute(Build("kernel void KERNEL(){}"), 1, 1, 1, 1, 1, 1, Array())
     } catch {
       case _: Throwable => assert(assertion = false)
     }
