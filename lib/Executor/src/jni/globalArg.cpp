@@ -101,3 +101,16 @@ jdoubleArray Java_opencl_executor_GlobalArg_asDoubleArray(JNIEnv* env, jobject o
                          reinterpret_cast<double*>(vec.hostBuffer().data()));
   return res;
 }
+
+jbooleanArray Java_opencl_executor_GlobalArg_asBooleanArray(JNIEnv* env, jobject obj)
+{
+  auto ptr = getHandle<GlobalArg>(env, obj);
+  auto& vec = ptr->data();
+
+  auto res = env->NewBooleanArray(vec.size() / sizeof(const unsigned char));
+  if (res == nullptr) return nullptr;
+
+  env->SetBooleanArrayRegion(res, 0, vec.size() / sizeof(const unsigned char),
+                         reinterpret_cast<const unsigned char*>(vec.hostBuffer().data()));
+  return res;
+}

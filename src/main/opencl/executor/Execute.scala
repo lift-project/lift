@@ -406,6 +406,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       case Float => outputData.asFloatArray()
       case Int   => outputData.asIntArray()
       case Double   => outputData.asDoubleArray()
+      case Bool  => outputData.asBooleanArray()
       // handle tuples if all their components are of the same type
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float) =>
         outputData.asFloatArray()
@@ -463,6 +464,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       case (Float,   _: Float) => // fine
       case (Int,   _: Int) => // fine
       case (Double,   _: Double) => // fine
+      case (Bool, _: Boolean) => // fine
 
       case (VectorType(Float, _), _) => //fine
       case (VectorType(Int, _), _) => //fine
@@ -475,6 +477,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
       case (tt: TupleType, _: Double)
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
+      case (tt: TupleType, _: Boolean)
+        if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Bool) => // fine
       case _ => throw new IllegalArgumentException(
         s"Expected value of type $t, but value of type ${v.getClass} given")
     }

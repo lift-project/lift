@@ -71,6 +71,14 @@ JNIEXPORT jintArray JNICALL Java_opencl_executor_GlobalArg_asIntArray
 JNIEXPORT jdoubleArray JNICALL Java_opencl_executor_GlobalArg_asDoubleArray
   (JNIEnv *, jobject);
 
+/*
+ * Class:     opencl_executor_GlobalArg
+ * Method:    asBooleanArray
+ * Signature: ()[Z
+ */
+JNIEXPORT jbooleanArray JNICALL Java_opencl_executor_GlobalArg_asBooleanArray
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

@@ -26,3 +26,5 @@ object Double8 extends VectorType(Double, Cst(8))
 object Double16 extends VectorType(Double, Cst(16))
 
 object IntPtr extends ScalarType("int*", Cst(4))
+
+object Bool extends ScalarType("bool", Cst(1))

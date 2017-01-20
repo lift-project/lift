@@ -16,4 +16,5 @@ public class GlobalArg extends KernelArg {
     public native float[] asFloatArray();
     public native int[] asIntArray();
     public native double[] asDoubleArray();
+    public native boolean[] asBooleanArray();
 }

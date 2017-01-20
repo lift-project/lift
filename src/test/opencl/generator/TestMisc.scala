@@ -182,6 +182,23 @@ class TestMisc {
     assertArrayEquals(input.map(_ + 1), output, 0.0)
   }
 
+  @Test
+  def testBool(): Unit = {
+    val inputSize = 256
+    val input = Array.fill(inputSize)(util.Random.nextBoolean)
+
+    val neg = UserFun("neg", "x", "{ if (x) { return false; } else { return true; } }", Bool, Bool)
+
+    val f = fun(
+      ArrayType(Double, SizeVar("N")),
+      in => MapGlb(neg) $ in
+    )
+
+    val (output: Array[Boolean], _) = Execute(inputSize)(f, input)
+
+    assert( (input, output).zipped.forall((i, o) => i == !o) )
+  }
+
   @Test def issue20(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
