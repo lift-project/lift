@@ -1,6 +1,6 @@
 package openmp.generator
 
-import apart.arithmetic.{Cst, NotEvaluableException, _}
+import lift.arithmetic.{Cst, NotEvaluableException, _}
 import openmp.executor.Compile
 import c.generator.CAst.{ArithExpression, AssignmentExpression, Block, CondExpression, Expression, ExpressionStatement, VarDecl}
 import c.generator.{CAst, CGenerator}

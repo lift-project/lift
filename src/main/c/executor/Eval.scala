@@ -1,6 +1,6 @@
 package c.executor
 
-import apart.arithmetic._
+import lift.arithmetic._
 import ir.ast.Lambda
 
 import scala.reflect.runtime._

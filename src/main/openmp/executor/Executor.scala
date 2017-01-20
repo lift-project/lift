@@ -1,7 +1,7 @@
 package openmp.executor
 import java.io.{BufferedWriter, FileWriter, PrintWriter}
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import ir.{ArrayType, TupleType, Type}
 
 import sys.process._

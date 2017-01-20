@@ -1,6 +1,6 @@
 package openmp.executor
 
-import apart.arithmetic.SizeVar
+import lift.arithmetic.SizeVar
 import benchmarks.NBody
 import ir.{ArrayType, TupleType, Type, TypeChecker}
 import ir.ast.{Get, Join, Lambda2, Pad, Split, Transpose, Tuple, Unzip, UserFun, Value, Zip, fun}

@@ -1,6 +1,6 @@
 package openmp.executor
 
-import apart.arithmetic.{?, ArithExpr}
+import lift.arithmetic.{?, ArithExpr}
 import c.generator.CGenerator
 import ir.TypeChecker
 import ir.ast.Lambda

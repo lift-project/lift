@@ -1,6 +1,6 @@
 package openmp.executor
 
-import apart.arithmetic.{?, SizeVar}
+import lift.arithmetic.{?, SizeVar}
 import c.generator.CAst.{ForLoop, ParamDecl}
 import c.generator.{CAst, CGenerator}
 import ir.{ArrayType, TupleType, Type, TypeChecker}

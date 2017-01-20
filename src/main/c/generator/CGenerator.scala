@@ -1,6 +1,6 @@
 package c.generator
 
-import apart.arithmetic._
+import lift.arithmetic._
 import arithmetic.TypeVar
 import c.executor.Compile
 import generator.Generator

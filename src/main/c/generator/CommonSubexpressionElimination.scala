@@ -1,6 +1,6 @@
 package c.generator
 
-import apart.arithmetic.{ArithExpr, Cst, Pow, Var}
+import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
 import c.generator.CAst._
 import opencl.generator.{DeadCodeElimination, OclFunction}
 import opencl.ir.{Int, PrivateMemory}

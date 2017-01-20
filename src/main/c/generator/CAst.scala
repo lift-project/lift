@@ -1,6 +1,6 @@
 package c.generator
 
-import apart.arithmetic.{ArithExpr, Predicate, Var}
+import lift.arithmetic.{ArithExpr, Predicate, Var}
 import ir.{TupleType, Type, VectorType}
 import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
 
