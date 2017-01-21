@@ -41,8 +41,8 @@ GlobalArg::GlobalArg(executor::Vector<char>&& vectorP, bool isOutputP)
 KernelArg* GlobalArg::create(void* data, size_t size, bool isOutput)
 {
   auto dataCharPtr = static_cast<char*>(data);
-  executor::Vector<char> vector(dataCharPtr, dataCharPtr+size);
-  return new GlobalArg{std::move(vector), isOutput};
+  return new GlobalArg{executor::Vector<char>{dataCharPtr, dataCharPtr+size},
+                       isOutput};
 }
 
 KernelArg* GlobalArg::create(size_t size, bool isOutput)

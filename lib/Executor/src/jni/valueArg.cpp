@@ -17,23 +17,23 @@ jobject helper(JNIEnv* env, jclass cls, T value)
 jobject Java_opencl_executor_ValueArg_create__F(JNIEnv* env, jclass cls,
                                                 jfloat value)
 {
-  return helper<float>(env, cls, value);
+  return helper(env, cls, value);
 }
 
 jobject Java_opencl_executor_ValueArg_create__I(JNIEnv* env, jclass cls,
                                                 jint value)
 {
-  return helper<int>(env, cls, value);
+  return helper(env, cls, value);
 }
 
 jobject Java_opencl_executor_ValueArg_create__D(JNIEnv* env, jclass cls,
                                                 jdouble value)
 {
-  return helper<double>(env, cls, value);
+  return helper(env, cls, value);
 }
 
 jobject Java_opencl_executor_ValueArg_create__Z(JNIEnv* env, jclass cls,
                                                 jboolean value)
 {
-  return helper<bool>(env, cls, value);
+  return helper(env, cls, value);
 }

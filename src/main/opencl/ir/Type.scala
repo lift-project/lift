@@ -27,4 +27,11 @@ object Double16 extends VectorType(Double, Cst(16))
 
 object IntPtr extends ScalarType("int*", Cst(4))
 
-object Bool extends ScalarType("bool", Cst(1))
+// OpenCL has a `bool` type, but it's size is undefined (see OpenCL 1.2; Section 6.9.k).
+// As the two possible values of type `bool`: `true` and `false` converts integer constants (1 and 0)
+//   they implicitly convert to any integer type. When any scalar value is converted to a value of
+//   type `bool` it is converted to 0 (`false`) if the value compares equal to 0, otherwise it is
+//   converted to 1 (`true`). (see OpenCL 1.2; Section 6.1.1).
+// For these reasons we represent the type `bool` as the integer type `unsigned char` which has a
+//   well defined size (8-bit).
+object Bool extends ScalarType("unsigned char", Cst(1))
