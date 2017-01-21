@@ -121,9 +121,7 @@ class TestReduce {
     println("runtime = " + runtime)
   }
 
-  /** @see Issue #21 */
-  @Ignore
-  @Test def reduceIterate(): Unit = {
+  @Test def Issue21(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
@@ -131,7 +129,7 @@ class TestReduce {
       Float,
       (in, init) => {
         Join() o MapWrg(
-          Join() o  MapLcl(toGlobal(MapSeq(id)) o Iterate(1,ReduceSeq(add, id(init)))) o Split(4)
+          Join() o  MapLcl(toGlobal(MapSeq(id)) o Iterate(1, ReduceSeq(add, id(init)))) o Split(4)
         ) o Split(128) $ in
       })
 

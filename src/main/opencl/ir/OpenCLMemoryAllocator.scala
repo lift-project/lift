@@ -1,6 +1,6 @@
 package opencl.ir
 
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
 import opencl.ir.OpenCLMemory._
@@ -288,17 +288,22 @@ object OpenCLMemoryAllocator {
     numLcl: ArithExpr,
     numPvt: ArithExpr,
     inMem: OpenCLMemory): OpenCLMemory = {
-    // Get sizes in bytes necessary to hold the input and output of the
-    // function inside the iterate
-    val inSize = getSizeInBytes(call.argsType)
-    val outSize = getSizeInBytes(call.t)
 
-    // Get the max from those two
-    val largestSize = ArithExpr.max(inSize, outSize)
+    it.n match {
+      case Cst(1) => // do not allocate a swap buffer when we only iterate once
+      case _ =>
+        // Get sizes in bytes necessary to hold the input and output of the
+        // function inside the iterate
+        val inSize = getSizeInBytes(call.argsType)
+        val outSize = getSizeInBytes(call.t)
 
-    // Create a swap buffer
-    it.swapBuffer = OpenCLMemory.allocMemory(
-      largestSize * numGlb, largestSize * numLcl, largestSize * numPvt, inMem.addressSpace)
+        // Get the max from those two
+        val largestSize = ArithExpr.max(inSize, outSize)
+
+        // Create a swap buffer
+        it.swapBuffer = OpenCLMemory.allocMemory(
+          largestSize * numGlb, largestSize * numLcl, largestSize * numPvt, inMem.addressSpace)
+    }
 
     // Recurse to allocate memory for the function(s) inside
     it.f.params(0).mem = inMem
