@@ -154,9 +154,9 @@ class TestAcousticStencilBoundaries {
 
 
 
-    //    Compile(lambdaNeigh)
+    val source = Compile(lambdaNeigh)
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
+    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
     val (output2: Array[Float], runtime2) = Execute(stencilarr.length, stencilarr.length)(lambdaNeighCompare, stencilarr, mask, StencilUtilities.weights)
     if(StencilUtilities.printOutput){
       StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
@@ -685,15 +685,72 @@ class TestAcousticStencilBoundaries {
         ) $ Zip(Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)),  ( Join() o Join() $ (Slide3D(StencilUtilities.slidesize,StencilUtilities.slidestep) $ mat2))), Join() o Join() $ mask1)
       })
 
-    val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+    val source = Compile(lambdaNeigh)
+    println(source)
+
+    val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(source,lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+
 
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
-    StencilUtilities.writeToBinaryFile(output,"/home/reese/tmp.bin")
+//    StencilUtilities.writeToBinaryFile(output,"/home/reese/tmp.bin")
   }
 
+  @Test
+  def testTwoGridsThreeCalculationsWithMaskAsym3DGeneral(): Unit =
+  {
+    val localDimX = 6
+    val localDimY = 8
+    val localDimZ = 12
+    val stencilarr3D = StencilUtilities.createDataFloat3D(localDimX,localDimY,localDimZ)
+    val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDimX,localDimY,localDimZ)
+    val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z*2.0f)))
+    val mask3D = BoundaryUtilities.createMaskDataAsym3D(localDimX,localDimY,localDimZ)
+
+    /* u[cp] = ( boundary ? constantBorder0 : constantOriginal0 )  * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u1[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
+
+    val constantOriginal = Array(1.0f,2.0f,1.5f,0.25f)
+    val constantBorder = Array(2.0f,3.0f,2.5f,0.5f)
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
+      ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
+      ArrayType(ArrayType(ArrayType(ArrayType(Int, SizeVar("A")),SizeVar("M")),SizeVar("N")),SizeVar("O")),
+      ArrayType(ArrayType(ArrayType(Float, SizeVar("X")), SizeVar("X")), SizeVar("X")),
+      ArrayType(ArrayType(ArrayType(Float, SizeVar("X")), SizeVar("X")), SizeVar("X")),
+      (mat1, mat2, mask1, weights, weightsMiddle) => {
+        MapGlb((fun((m) => {
+
+          val maskedValMult = BoundaryUtilities.maskValue(m,constantBorder(3), constantOriginal(3))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(m,constantBorder(2), constantOriginal(2))
+          val maskedValConstSec = BoundaryUtilities.maskValue(m,constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(m,constantBorder(0), constantOriginal(0))
+
+          toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip( MapSeq(addTuple) $ Zip( MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m,0),0), Join() $ weightsMiddle),
+            MapSeq(id) $ maskedValConstOrg
+          ),
+            MapSeq(multTuple) $ Zip(
+              ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m,0),1), Join() $ weights),
+              MapSeq(id) $ maskedValStencil
+            ))
+            ,
+            (MapSeq(multTuple)) $ Zip(
+              ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m,0),1), Join() $ weightsMiddle),
+              MapSeq(id) $ maskedValConstSec)
+          ),
+            maskedValMult)
+        }))
+        ) $ Zip(Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)),  ( Join() o Join() $ (Slide3D(StencilUtilities.slidesize,StencilUtilities.slidestep) $ mat2))), Join() o Join() $ mask1)
+      })
+
+/*    val source = Compile(lambdaNeigh)
+    println(source)
+    val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(source,lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+    StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output) */
+  }
 
 }
 

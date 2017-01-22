@@ -6,7 +6,7 @@ import java.io.DataOutputStream
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -303,7 +303,6 @@ class TestAcousticStencils {
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
-    //println(ompile(lambda))
 
   }
 
@@ -413,7 +412,7 @@ class TestAcousticStencils {
     /* u[cp] = S*l2 + u[cp] */
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
       ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
       ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat, weights, weightsMiddle) => {
@@ -426,9 +425,8 @@ class TestAcousticStencils {
           }))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
       })
 
-    //    Compile(lambdaNeigh)
-
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val source = Compile(lambdaNeigh)
+    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh, stencilarr, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
@@ -655,7 +653,8 @@ class TestAcousticStencils {
         }))) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
       })
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh2, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val source = Compile(lambdaNeigh2)
+    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh2, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -922,7 +921,8 @@ class TestAcousticStencils {
         ) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
       })
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, input3D, StencilUtilities.weights3D.flatten.flatten)
+    val source = Compile(lambdaNeigh)
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,lambdaNeigh, input3D, StencilUtilities.weights3D.flatten.flatten)
 
     if(StencilUtilities.printOutput) {
       StencilUtilities.printOriginalAndOutput3Das1D(input3D, output)
@@ -972,7 +972,8 @@ class TestAcousticStencils {
         ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
       })
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh2, input3D, input3D2, StencilUtilities.weightsMiddle3D)
+    val source = Compile(lambdaNeigh2)
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,lambdaNeigh2, input3D, input3D2, StencilUtilities.weightsMiddle3D)
 
     if(StencilUtilities.printOutput)
     {
@@ -1039,7 +1040,8 @@ class TestAcousticStencils {
         ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
       })
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, input3D, input3D2, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+    val source = Compile(lambdaNeigh)
+    val (output: Array[Float], runtime) = Execute(dim,dim,dim,dim,dim,dim, (true,true))(source,lambdaNeigh, input3D, input3D2, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
     if(StencilUtilities.printOutput)
     {
