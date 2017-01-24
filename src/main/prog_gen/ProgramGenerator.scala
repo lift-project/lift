@@ -391,7 +391,7 @@ class ProgramGenerator {
 
     val params = calls.map(call => Param(call.t))
 
-    val lambdaParameters = candidates.map(collectUnboundParams)
+    val lambdaParameters = calls.map(collectUnboundParams)
 
     val lambdas = (lambdaParameters, calls).zipped.map((params, call) =>
       Lambda(params.toArray, call))
@@ -532,12 +532,13 @@ class ProgramGenerator {
             //only use one param for this lambda ,deal with other params outside the map
             val L2 = FunDecl.replace(
               Lambda(Array[Param](parameter), oriLambda.body),
-              parameter, Param(TofParam)
+              parameter,
+              Param(TofParam)
             )
 
             //build the funcall
             val F = FunCall(Map(L2), argEle)
-            F.t = ArrayType(LambdaList(i).body.t, argEle.t.asInstanceOf[ArrayType].len)
+            F.t = ArrayType(oriLambda.body.t, argEle.t.asInstanceOf[ArrayType].len)
 
             //build the param corresponds to the funcall
             val P = Param(F.t)
@@ -565,15 +566,16 @@ class ProgramGenerator {
         //the map must contains a userfun nested deep inside
         val oriLambda = LambdaList(i)
 
-        if (oriLambda.toString.contains("add")) {
+        if (oriLambda.body.isConcrete) {
 
-
+          val params = oriLambda.params
           //2. choose one as the param
-          val paramIndexOfLambda = util.Random.nextInt(oriLambda.params.length)
+          val paramIndexOfLambda = util.Random.nextInt(params.length)
 
+          val parameter = params(paramIndexOfLambda)
           //for (j <- LambdaList(i).params.indices){
           //Get the type of it
-          val TofParam = oriLambda.params(paramIndexOfLambda).t
+          val TofParam = parameter.t
 
           //3. search for a proper Arg.t == ArrayType(TofParam)
           for (argIndex <- ParamList.indices) {
@@ -586,15 +588,18 @@ class ProgramGenerator {
 
                   //create new lambda for map(base one the original one)
                   //only use one param for this lambda ,deal with other params outside the map
-                  val L2 = FunDecl.replace(Lambda(Array[Param](oriLambda.params(paramIndexOfLambda)), oriLambda.body)
-                    , oriLambda.params(paramIndexOfLambda), Param(TofParam))
+                  val L2 = FunDecl.replace(
+                    Lambda(Array[Param](parameter), oriLambda.body),
+                    parameter,
+                    Param(TofParam)
+                  )
 
                   //generate args
                   val argEle = getArg(param, PassParamUpPossibility)
 
                   //build the funcall
-                  val F = FunCall(ir.ast.Map(L2), argEle)
-                  F.t = ArrayType(LambdaList(i).body.t, eleLength)
+                  val F = FunCall(Map(L2), argEle)
+                  F.t = ArrayType(oriLambda.body.t, eleLength)
 
                   //build the param corresponds to the funcall
                   val P = Param(F.t)
