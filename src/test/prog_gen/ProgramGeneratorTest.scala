@@ -5,7 +5,7 @@ import ir.ast._
 import ir.interpreter.Interpreter
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.toGlobal
+import opencl.ir.pattern.{ReduceSeq, toGlobal}
 import org.junit.Assert._
 import org.junit._
 import rewriting.{EnabledMappings, Lower}
@@ -108,11 +108,11 @@ class ProgramGeneratorTest {
       (p99,p102,p226,p239) =>{
         Map(fun((p24) =>
           Split(4) o Join() o Map(fun((p157) =>
-            Reduce(fun((p20,p195)=>
+            ReduceSeq(fun((p20,p195)=>
               add(p20,p195)
             ))(toGlobal(add)(p24,p99),p157)
           )) $ p102
-        ))(Reduce(fun((p215,p49) =>
+        ))(ReduceSeq(fun((p215,p49) =>
         add(p215,p49)
         ))(add(p226,p226),p239))
       }
@@ -149,7 +149,7 @@ class ProgramGeneratorTest {
       ArrayType(Float,32),
       (p101,p241) =>{
         Map(fun((p66) =>
-          Reduce(fun((p171,p223)=>
+          ReduceSeq(fun((p171,p223)=>
             add(p171,p223)
           ))(p66,p101)
         ))(p241)
