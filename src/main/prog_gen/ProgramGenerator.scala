@@ -198,7 +198,7 @@ class ProgramGenerator {
         generateGet()
 
       case 4 if GenUserFun =>
-        generateUserFun(30)
+        generateUserFun()
 
       case 5 if GenMap =>
         generateMap()
@@ -275,22 +275,22 @@ class ProgramGenerator {
 
           val chunkSize = rewriting.utils.Utils.validSplitVariable(t)
 
-          //get the argument of FunCall
+          // Get the argument of FunCall
           val fArg = getArg(param,PassParamUpPossibility)
 
-          //build the FunCall
+          // Build the FunCall
           val F = FunCall(Split(chunkSize),fArg)
 
-          //set output type
+          // Set output type
           TypeChecker(F)
 
-          //build the param corresponds to the FunCall
+          // Build the param corresponds to the FunCall
           val P = Param(F.t)
 
-          //count the parameters of lambda
+          // Count the parameters of lambda
           val lParams = collectUnboundParams(F)
 
-          //build the lambda
+          // Build the lambda
           val L = Lambda(lParams.toArray[Param],F)
 
           tempParamList += P
@@ -325,7 +325,7 @@ class ProgramGenerator {
     }
   }
 
-  private def generateUserFun(limitNum:Int): Unit = {
+  private def generateUserFun(limitNum:Int = 30): Unit = {
     val tempLambdaList = mutable.Buffer[Lambda]()
     val tempParamList = mutable.Buffer[Param]()
     val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
@@ -370,13 +370,42 @@ class ProgramGenerator {
     limitResults(tempLambdaList, tempParamList, tempParamToFunCall, limitNum)
   }
 
-  // TODO: Only allow UserFun, Value combinations that are
-  // TODO: an associative function and the neutral element.
   private def generateReduce(): Unit = {
+
+    // TODO: Enable other UserFuns
+    val (function, init) = validReduction.head
+
+    val reduce = Reduce(function)
+
+    val typeToFind = function.outT
+
+    val candidates = ParamList.filter(_.t match {
+      case ArrayType(e, _) => e == typeToFind
+      case _ => false
+    })
+
+    val calls = candidates.map(param =>
+      FunCall(reduce, init, getArg(param, PassParamUpPossibility)))
+
+    calls.foreach(TypeChecker(_))
+
+    val params = calls.map(call => Param(call.t))
+
+    val lambdaParameters = candidates.map(collectUnboundParams)
+
+    val lambdas = (lambdaParameters, calls).zipped.map((params, call) =>
+      Lambda(params.toArray, call))
+
+    limitResults(lambdas, params, mutable.Map((params, calls).zipped.toSeq:_*))
+  }
+
+
+  // TODO: Keep?
+  private def generateReduceSeq(): Unit = {
 
     val tempLambdaList = mutable.Buffer[Lambda]()
     val tempParamList = mutable.Buffer[Param]()
-    val tempParamToFunCall = collection.mutable.Map[Param, FunCall]()
+    val tempParamToFunCall = mutable.Map[Param, FunCall]()
 
     def finishGenerateReduce(oriLambda: Lambda, initParamIndexOfLambda: Int, TofInit: Type, eleParamIndexOfLambda: Int, argInitIndex: Int, argEle: Expr) = {
       val lambda = Lambda(Array(oriLambda.params(initParamIndexOfLambda), oriLambda.params(eleParamIndexOfLambda)), oriLambda.body)
@@ -394,10 +423,7 @@ class ProgramGenerator {
       //generate args
       val argInit: Expr = ParamToFunCall.getOrElse(param, param)
 
-      val F = TofInit match {
-        case t1 if t1 == oriLambda.params(eleParamIndexOfLambda).t => FunCall(Reduce(L2), argInit, argEle)
-        case _ => FunCall(ReduceSeq(L2), argInit, argEle)
-      }
+      val F = FunCall(ReduceSeq(L2), argInit, argEle)
       F.t = ArrayType(TofInit, 1)
       val P = Param(F.t)
       val Args = collectUnboundParams(F)
@@ -806,6 +832,7 @@ class ProgramGenerator {
   private def collectUnboundParams(E: Expr): mutable.Buffer[Param] = {
     E match {
       case fc: FunCall => collectUnboundParams(fc)
+      case _: Value => mutable.Buffer[Param]()
       case p: Param => mutable.Buffer[Param](p)
     }
   }

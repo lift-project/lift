@@ -72,7 +72,12 @@ class ProgramGeneratorTest {
   @Test
   def reduceGeneration(): Unit =
     assertTrue(generatedPrograms.exists(
-      _.body.contains({ case FunCall(Reduce(_), _*) => })))
+      _.body.contains({ case FunCall(Reduce(_), _: Value, _) => })))
+
+  @Test
+  def reduceGeneration2(): Unit =
+    assertFalse(generatedPrograms.exists(
+      _.body.contains({ case FunCall(Reduce(_), _: FunCall, _) => })))
 
   @Test
   def zipGeneration(): Unit =
