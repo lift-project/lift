@@ -336,7 +336,11 @@ object TypedOpenCLMemory {
     }
 
     def collectIterate(call: FunCall, i: Iterate): Seq[TypedOpenCLMemory] = {
-      TypedOpenCLMemory(i.swapBuffer, ArrayType(call.args.head.t, ?)) +: collect(i.f.body)
+      i.swapBuffer match {
+        case UnallocatedMemory => collect(i.f.body)
+        case _ =>
+          TypedOpenCLMemory(i.swapBuffer, ArrayType(call.args.head.t, ?)) +: collect(i.f.body)
+      }
     }
 
     // this prevents that multiple memory objects (possibly with different types) are collected
