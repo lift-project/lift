@@ -22,7 +22,7 @@ object MemoryMappingRewrite {
 
   parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
-    (sValue, opt) =>
+    (sValue, _) =>
       parser.usage()
       sValue
   }
@@ -30,7 +30,7 @@ object MemoryMappingRewrite {
   private val input = parser.parameter[String]("input",
     "Input file containing the lambda to use for rewriting",
     optional = false) {
-    (s, opt) =>
+    (s, _) =>
       val file = new File(s)
       if (!file.exists)
         parser.usage("Input file \"" + s + "\" does not exist")
@@ -90,6 +90,8 @@ object MemoryMappingRewrite {
             logger.warn(s"Reading $hash from file", t)
         }
       })
+
+      println()
 
     } catch {
       case e: ArgotUsageException => println(e.message)

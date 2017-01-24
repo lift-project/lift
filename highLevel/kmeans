@@ -1,23 +1,43 @@
-val distance = UserFun("distance", Array("x", "y", "a", "b", "id"), "{ Tuple t = {(x - a) * (x - a) + (y - b) * (y - b), id}; return t; }", Seq(Float, Float, Float, Float, Int), TupleType(Float, Int))
-val minimum = UserFun("minimum", Array("x", "y"), "{ return x._0 < y._0 ? x : y; }", Seq(TupleType(Float, Int), TupleType(Float, Int)), TupleType(Float, Int))
-val getSecond = UserFun("getSecond", "x", "{ return x._1; }", TupleType(Float, Int), Int)
+val P = SizeVar("P") // number of points
+val C = SizeVar("C") // number of clusters
+val F = SizeVar("F") // number of features
 
-val N = SizeVar("N")
-val K = SizeVar("K")
+val featuresType    = ArrayType(ArrayType(Float, P), F)
+val clustersType    = ArrayType(ArrayType(Float, F), C)
+
+val test = UserFun("test", Array("dist", "tuple"),
+  "{" +
+    "float min_dist = tuple._0;" +
+    "int i          = tuple._1;" +
+    "int index      = tuple._2;" +
+    "if (dist < min_dist) {" +
+    "  Tuple t = {dist, i + 1, i};" +
+    "  return t;" +
+    "} else {" +
+    "  Tuple t = {min_dist, i + 1, index};" +
+    "  return t;" +
+    "}" +
+    "}",
+  Seq(Float, TupleType(Float, Int, Int)), TupleType(Float, Int, Int))
+
+val select = UserFun("select_", Array("tuple"),
+    "{ return tuple._2; }",
+    Seq(TupleType(Float, Int, Int)), Int)
+
+val currentDistance = UserFun("currentDistance", Array("x", "y"),
+    "{ return (x - y) * (x - y); }",
+    Seq(Float, Float), Float)
 
 fun(
-  ArrayType(Float, N),
-  ArrayType(Float, N),
-  ArrayType(Float, K),
-  ArrayType(Float, K),
-  ArrayType(Int, K),
-  (x, y, a, b, i) => {
-    Map(fun(xy => {
-      Map(getSecond) o
-        Reduce(minimum, (scala.Float.MaxValue, -1)) o
-        Map(fun(ab => {
-          distance(Get(xy, 0), Get(xy, 1), Get(ab, 0), Get(ab, 1), Get(ab, 2))
-        })) $ Zip(a, b, i)
-    })) $ Zip(x, y)
-  }
+    featuresType, clustersType,
+    (features, clusters) =>
+    Map( \( feature =>
+      Map(Map(select)) o
+      ReduceSeq( \( (tuple, cluster) =>
+        Map(\((x) => test(x._0,x._1)))
+      $ Zip(Reduce(add, 0.0f) o
+        Map(fun(x => currentDistance(x._0, x._1))) $ Zip(feature, cluster), tuple)
+      ), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int),1))
+   ) $ clusters
+)) o Transpose() $ features
 )

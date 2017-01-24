@@ -41,6 +41,7 @@ javaSource in Test <<= baseDirectory(_ / "src/test")
 libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.11.8"
 libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.8"
 libraryDependencies += "org.scala-lang" % "scala-library" % "2.11.8"
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.3.10"
 
 libraryDependencies += "org.scala-lang.modules" % "scala-xml_2.11" % "1.0.4"
 

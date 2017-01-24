@@ -3,6 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
+import opencl.ir.pattern.ReduceWhileSeq
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -196,6 +197,14 @@ object OutputView {
                               call: FunCall, writeView: View): View = {
     // traverse into call.f
     visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
+
+    // if the reduction is a while reduction, visit and build views for the predicate
+    r match {
+      case rws: ReduceWhileSeq =>
+        visitAndBuildViews(rws.p.body, writeView.access(Cst(0)))
+      case _ =>
+    }
+
     ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
