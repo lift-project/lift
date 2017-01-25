@@ -168,48 +168,4 @@ class ProgramGeneratorTest {
     val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
-
-
-  @Ignore
-  @Test
-  def seekExeBugs(): Unit = {
-    val f = fun(
-      ArrayType(Float,32),
-      ArrayType(Float,32),
-      (p101,p241) =>{
-        Map(fun((p66) =>
-          ReduceSeq(fun((p171,p223)=>
-            add(p171,p223)
-          ))(p66,p101)
-        ))(p241)
-      }
-    )
-    val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
-    val test = rewriting.Rewrite.rewriteJustGenerable(fs.head,rewriting.allRules,5)
-    for(i<- test.indices) {
-      val rewrited = test(i)
-
-      TypeChecker(rewrited)
-      val code = Compile(rewrited)
-      val Args = scala.collection.mutable.ArrayBuffer[Any]()
-      for (j <- f.params.indices) {
-        f.params(j).t match {
-          case ArrayType(ArrayType(Float, l1), l2) =>
-            Args += Array.fill(l1.eval, l2.eval)(1.0f)
-          case ArrayType(Float, l1) =>
-            Args += Array.fill(l1.eval)(2.0f)
-          case Float =>
-            Args += 3.0f
-          case _ =>
-        }
-      }
-      val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args: _*).toArray[Float]
-      val (output_exe: Array[Float], _) = Execute(1, 32)(code, rewrited, Args: _*)
-      assertArrayEquals(output_int, output_exe, 0.0f)
-    }
-
-  }
-
 }
