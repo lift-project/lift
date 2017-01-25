@@ -16,6 +16,8 @@ object ProgramGeneratorTest {
   val generator = new ProgramGenerator
   val generatedPrograms = generator.generatePrograms()
 
+  println(generatedPrograms.length)
+
   @BeforeClass
   def before(): Unit =
     Executor.loadAndInit()
@@ -50,6 +52,25 @@ class ProgramGeneratorTest {
       case FunCall(Map(Lambda(Array(p), b)), _)
         if !b.contains({ case p1: Param if p1 == p => }) =>
     })))
+  }
+
+  @Test
+  def addGeneration(): Unit = {
+    assertTrue(generatedPrograms.exists(_.body.contains({
+      case FunCall(uf: UserFun, _*) if uf == add =>
+    })))
+  }
+
+  @Test
+  def multGeneration(): Unit = {
+    assertTrue(generatedPrograms.exists(_.body.contains({
+      case FunCall(uf: UserFun, _*) if uf == mult=>
+    })))
+  }
+
+  @Test
+  def compositionGeneration(): Unit = {
+
   }
 
   @Test
