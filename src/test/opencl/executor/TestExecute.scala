@@ -157,4 +157,31 @@ class TestExecute {
     assertArrayEquals(input.flatten.map(_+1), output, 0.001f)
   }
 
+  @Test
+  def testInferComplexArgSize() : Unit = {
+    val cst1 = 8
+
+    val sizeM = 128
+    val sizeN = 64*cst1
+
+    val input = Array.fill(sizeM)(
+      Array.fill(sizeN)(util.Random.nextFloat() * 10)
+    )
+
+    val f = \(ArrayType(ArrayType(Float, N*cst1), M),
+      MapWrg(
+        MapLcl(MapSeq(id)) o Split(cst1)
+      ) $ _
+    )
+
+    val execute = Execute()
+    val (output: Array[Float], _) =
+      execute(f, input)
+
+    val (local, global) = execute.getAndValidateSizesForExecution(f,
+      Execute.createValueMap(f, input))
+
+    assertArrayEquals(input.flatten, output, 0.001f)
+  }
+
 }
