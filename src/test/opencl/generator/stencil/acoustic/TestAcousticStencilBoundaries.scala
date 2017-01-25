@@ -540,9 +540,14 @@ class TestAcousticStencilBoundaries {
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3D(): Unit =
   {
-    val localDimX = 6
-    val localDimY = 8
-    val localDimZ = 12
+    val localDimX = 128
+    val localDimY = 128
+    val localDimZ = 90
+    /*
+    val localDimX = 256
+    val localDimY = 256
+    val localDimZ = 202
+    */
     val stencilarr3D = StencilUtilities.createDataFloat3D(localDimX,localDimY,localDimZ)
     val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDimX,localDimY,localDimZ)
     val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z*2.0f)))
@@ -688,22 +693,22 @@ class TestAcousticStencilBoundaries {
     val source = Compile(lambdaNeigh)
     println(source)
 
-    val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(source,lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+/*   val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(source,lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
 
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
-
+*/
 //    StencilUtilities.writeToBinaryFile(output,"/home/reese/tmp.bin")
   }
 
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3DGeneral(): Unit =
   {
-    val localDimX = 6
-    val localDimY = 8
-    val localDimZ = 12
+    val localDimX = 4
+    val localDimY = 4
+    val localDimZ = 4
     val stencilarr3D = StencilUtilities.createDataFloat3D(localDimX,localDimY,localDimZ)
     val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDimX,localDimY,localDimZ)
     val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z*2.0f)))
@@ -714,12 +719,22 @@ class TestAcousticStencilBoundaries {
     val constantOriginal = Array(1.0f,2.0f,1.5f,0.25f)
     val constantBorder = Array(2.0f,3.0f,2.5f,0.5f)
 
+
+    val n = SizeVar("N")
+    val m = SizeVar("M")
+    val o = SizeVar("O")
+    val a = SizeVar("A")
+    val x = SizeVar("X")
+    val y = SizeVar("Y")
+    val z = SizeVar("Z")
+
+
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
-      ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
-      ArrayType(ArrayType(ArrayType(ArrayType(Int, SizeVar("A")),SizeVar("M")),SizeVar("N")),SizeVar("O")),
-      ArrayType(ArrayType(ArrayType(Float, SizeVar("X")), SizeVar("X")), SizeVar("X")),
-      ArrayType(ArrayType(ArrayType(Float, SizeVar("X")), SizeVar("X")), SizeVar("X")),
+      ArrayType(ArrayType(ArrayType(Float,m),n),o),
+      ArrayType(ArrayType(ArrayType(Float,m),n),o),
+      ArrayType(ArrayType(ArrayType(ArrayType(Int, 1),m-2),n-2),o-2),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
@@ -746,10 +761,11 @@ class TestAcousticStencilBoundaries {
         ) $ Zip(Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)),  ( Join() o Join() $ (Slide3D(StencilUtilities.slidesize,StencilUtilities.slidestep) $ mat2))), Join() o Join() $ mask1)
       })
 
-/*    val source = Compile(lambdaNeigh)
+    val source = Compile(lambdaNeigh)
     println(source)
     val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(source,lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
-    StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output) */
+    StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
+    StencilUtilities.print3DArray(mask3D)
   }
 
 }

@@ -325,7 +325,7 @@ class TestAcousticStencils {
     val constant = 2.0f
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       ArrayType(Float, StencilUtilities.weightsArr.length),
       (mat, weights) => {
         MapGlb(1)(
@@ -412,7 +412,7 @@ class TestAcousticStencils {
     /* u[cp] = S*l2 + u[cp] */
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
       ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
       ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat, weights, weightsMiddle) => {
@@ -542,9 +542,12 @@ class TestAcousticStencils {
       )) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ matrix1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ matrix2)))
     )
 
-    val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
+  val n = SizeVar("N")
+  val m = SizeVar("M")
+
+  val lambdaNeigh = fun(
+    ArrayType(ArrayType(Float, n), m),
+    ArrayType(ArrayType(Float, n), m),
       ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
       ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
