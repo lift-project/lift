@@ -151,18 +151,7 @@ class ProgramGeneratorTest {
         group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
     val code = Compile(fs.head)
-    val Args = scala.collection.mutable.ArrayBuffer[Any]()
-    for (j <- f.params.indices) {
-      f.params(j).t match {
-        case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.fill(l1.eval, l2.eval)(1.0f)
-        case ArrayType(Float, l1) =>
-          Args += Array.fill(l1.eval)(2.0f)
-        case Float =>
-          Args += 3.0f
-        case _=>
-      }
-    }
+    val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
     val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)

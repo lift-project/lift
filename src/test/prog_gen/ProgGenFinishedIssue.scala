@@ -44,18 +44,8 @@ class ProgGenFinishedIssue {
     val fs = Lower.mapCombinations(f,
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
-    val Args = scala.collection.mutable.ArrayBuffer[Any]()
-    for (j <- f.params.indices) {
-      f.params(j).t match {
-        case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.fill(l1.eval, l2.eval)(1.0f)
-        case ArrayType(Float, l1) =>
-          Args += Array.fill(l1.eval)(2.0f)
-        case Float =>
-          Args += 3.0f
-        case _=>
-      }
-    }
+
+    val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
     val(output_exe:Array[Float],_) = Execute(1,1)(fs.head,Args:_*)
@@ -83,18 +73,8 @@ class ProgGenFinishedIssue {
     val fs = Lower.mapCombinations(f,
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
-    val Args = scala.collection.mutable.ArrayBuffer[Any]()
-    for (j <- f.params.indices) {
-      f.params(j).t match {
-        case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.fill(l1.eval, l2.eval)(1.0f)
-        case ArrayType(Float, l1) =>
-          Args += Array.fill(l1.eval)(2.0f)
-        case Float =>
-          Args += 3.0f
-        case _=>
-      }
-    }
+
+    val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
     val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
@@ -123,25 +103,17 @@ class ProgGenFinishedIssue {
     val fs = Lower.mapCombinations(f,
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
-    val Args = scala.collection.mutable.ArrayBuffer[Any]()
-    for (j <- f.params.indices) {
-      f.params(j).t match {
-        case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.fill(l1.eval, l2.eval)(1.0f)
-        case ArrayType(Float, l1) =>
-          Args += Array.fill(l1.eval)(2.0f)
-        case Float =>
-          Args += 3.0f
-        case _=>
-      }
-    }
+
+    val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
     val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
-  @Ignore @Test def hlGenCompiler2():Unit={
+  @Ignore
+  @Test
+  def hlGenCompiler2():Unit={
     val f = fun(
       Float,
       ArrayType(ArrayType(Float,32),32),
@@ -163,20 +135,9 @@ class ProgGenFinishedIssue {
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
-    //val lowLevel = testSolve(fs.head)
     val lowLevel = fs.head
-    val Args = scala.collection.mutable.ArrayBuffer[Any]()
-    for (j <- f.params.indices) {
-      f.params(j).t match {
-        case ArrayType(ArrayType(Float, l1), l2) =>
-          Args += Array.fill(l1.eval, l2.eval)(1.0f)
-        case ArrayType(Float, l1) =>
-          Args += Array.fill(l1.eval)(2.0f)
-        case Float =>
-          Args += 3.0f
-        case _=>
-      }
-    }
+
+    val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
     val(output_exe:Array[Float],_)= Execute(1,32)(lowLevel,Args:_*)
