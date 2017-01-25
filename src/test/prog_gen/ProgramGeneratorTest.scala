@@ -13,10 +13,10 @@ import rewriting.{EnabledMappings, Lower}
 import scala.language.reflectiveCalls
 
 object ProgramGeneratorTest {
+
+  // TODO: No randomness and less iterations for testing?
   val generator = new ProgramGenerator
   val generatedPrograms = generator.generatePrograms()
-
-  println(generatedPrograms.length)
 
   @BeforeClass
   def before(): Unit =
@@ -70,7 +70,10 @@ class ProgramGeneratorTest {
 
   @Test
   def compositionGeneration(): Unit = {
-
+    assertTrue(generatedPrograms.exists(_.body.contains({
+      case FunCall(_: UserFun, args@_*)
+        if args.collectFirst({case FunCall(_: UserFun, _*) => }).isDefined =>
+    })))
   }
 
   @Test

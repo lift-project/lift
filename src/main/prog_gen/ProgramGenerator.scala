@@ -390,31 +390,33 @@ class ProgramGenerator {
 
   private def generateReduce(): Unit = {
 
-    // TODO: Enable other UserFun-s
-    val (function, init) = validReduction.head
+    validReduction.foreach(pair => {
+      val (function, init) = pair
 
-    val reduce = Reduce(function)
+      val reduce = Reduce(function)
 
-    val typeToFind = function.outT
+      val typeToFind = function.outT
 
-    val candidates = ParamList.filter(_.t match {
-      case ArrayType(e, _) => e == typeToFind
-      case _ => false
+      val candidates = ParamList.filter(_.t match {
+        case ArrayType(e, _) => e == typeToFind
+        case _ => false
+      })
+
+      val calls = candidates.map(param =>
+        FunCall(reduce, init, getArg(param, PassParamUpPossibility)))
+
+      calls.foreach(TypeChecker(_))
+
+      val params = calls.map(call => Param(call.t))
+
+      val lambdaParameters = calls.map(collectUnboundParams)
+
+      val lambdas = (lambdaParameters, calls).zipped.map((params, call) =>
+        Lambda(params.toArray, call))
+
+      // TODO: Limit after all generated?
+      limitResults(lambdas, params, mutable.Map((params, calls).zipped.toSeq:_*))
     })
-
-    val calls = candidates.map(param =>
-      FunCall(reduce, init, getArg(param, PassParamUpPossibility)))
-
-    calls.foreach(TypeChecker(_))
-
-    val params = calls.map(call => Param(call.t))
-
-    val lambdaParameters = calls.map(collectUnboundParams)
-
-    val lambdas = (lambdaParameters, calls).zipped.map((params, call) =>
-      Lambda(params.toArray, call))
-
-    limitResults(lambdas, params, mutable.Map((params, calls).zipped.toSeq:_*))
   }
 
 
