@@ -164,7 +164,7 @@ class ProgramGenerator {
         if (quickCheck) {
           // TODO: Quicker way of rebuilding expressions and getting rid
           // TODO: of sharing components? And making sure it's legal
-          val newProgram = Eval(rewriting.utils.Utils.dumpLambdaToString(program))
+          val newProgram = program // Eval(rewriting.utils.Utils.dumpLambdaToString(program))
           // TODO: Returning tuples is currently not supported, see issue #36
           !TypeChecker(newProgram).isInstanceOf[TupleType]
         } else {

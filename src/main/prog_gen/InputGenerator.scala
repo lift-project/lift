@@ -19,28 +19,28 @@ class InputGenerator(val concreteSizes: collection.Map[ArithExpr, Cst]) {
 
     t match {
       case ArrayType(ArrayType(ArrayType(ArrayType(Float, len4), len3), len2), len1) =>
-        val actual1 = ArithExpr.substitute(len1, concreteSizes).eval
-        val actual2 = ArithExpr.substitute(len2, concreteSizes).eval
-        val actual3 = ArithExpr.substitute(len3, concreteSizes).eval
-        val actual4 = ArithExpr.substitute(len4, concreteSizes).eval
+        val actual1 = evaluate(len1)
+        val actual2 = evaluate(len2)
+        val actual3 = evaluate(len3)
+        val actual4 = evaluate(len4)
 
         Array.fill(actual1, actual2, actual3, actual4)(getFloat)
 
       case ArrayType(ArrayType(ArrayType(Float, len3), len2), len1) =>
-        val actual1 = ArithExpr.substitute(len1, concreteSizes).eval
-        val actual2 = ArithExpr.substitute(len2, concreteSizes).eval
-        val actual3 = ArithExpr.substitute(len3, concreteSizes).eval
+        val actual1 = evaluate(len1)
+        val actual2 = evaluate(len2)
+        val actual3 = evaluate(len3)
 
         Array.fill(actual1, actual2, actual3)(getFloat)
 
       case ArrayType(ArrayType(Float, len2), len1) =>
-        val actual1 = ArithExpr.substitute(len1, concreteSizes).eval
-        val actual2 = ArithExpr.substitute(len2, concreteSizes).eval
+        val actual1 = evaluate(len1)
+        val actual2 = evaluate(len2)
 
         Array.fill(actual1, actual2)(getFloat)
 
       case ArrayType(Float, len1) =>
-        val actual1 = ArithExpr.substitute(len1, concreteSizes).eval
+        val actual1 = evaluate(len1)
 
         Array.fill(actual1)(getFloat)
 
@@ -48,6 +48,9 @@ class InputGenerator(val concreteSizes: collection.Map[ArithExpr, Cst]) {
     }
 
   }
+
+  private def evaluate(len1: ArithExpr) =
+    ArithExpr.substitute(len1, concreteSizes).eval
 
   def apply(param: Param): Any = apply(param.t)
 

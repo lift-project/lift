@@ -21,6 +21,7 @@ object ProgGenIssues{
   def after(): Unit =
     Executor.shutdown()
 }
+
 class ProgGenIssues{
 
   @Test
@@ -30,7 +31,7 @@ class ProgGenIssues{
     val fs = Lower.mapCombinations(f,
       EnabledMappings(global0 = true, global01 = false, global10 = false,
         group0 = false, group01 = false, group10 = false))
-    //val lower = hlGenerator.testSolve(fs.head)
+
     val lower = fs.head
     TypeChecker(lower)
 

@@ -12,7 +12,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object ProgramGeneratorTest {
+object TestProgramGenerator {
 
   // TODO: No randomness and less iterations for testing?
   val generator = new ProgramGenerator
@@ -28,9 +28,9 @@ object ProgramGeneratorTest {
 
 }
 
-class ProgramGeneratorTest {
+class TestProgramGenerator {
 
-  import ProgramGeneratorTest._
+  import TestProgramGenerator._
 
   @Test
   def usefulZipGeneration(): Unit = {
