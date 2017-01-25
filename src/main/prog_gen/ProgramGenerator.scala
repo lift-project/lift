@@ -52,6 +52,7 @@ import lift.arithmetic.{ArithExpr, Cst, SizeVar}
 import opencl.executor.Eval
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
+import rewriting.utils.NumberExpression
 
 import scala.collection.mutable
 
@@ -128,6 +129,8 @@ class ProgramGenerator {
 
   private val userFuns = Seq(add, mult)
 
+  private val depthCutoff = 6
+
   def generatePrograms(): Array[Lambda] = {
     // Initial input TODO: enable all lengths
     val length = arrayLengths.head
@@ -149,8 +152,6 @@ class ProgramGenerator {
 
   private def filterIllegals(): Unit = {
 
-    // TODO: Filter deep ones?
-
     // TODO: Should I filter out useless Zips where not all components used?
     RefinedResult = RefinedResult.par.filter(program => {
       try {
@@ -159,12 +160,12 @@ class ProgramGenerator {
             program.params.forall(_.t match {
               case TupleType(tts@_*) => !tts.exists(_.isInstanceOf[ArrayType])
               case _ => true
-            })
+            }) && NumberExpression.byDepth(program).values.max <= 6
 
         if (quickCheck) {
           // TODO: Quicker way of rebuilding expressions and getting rid
           // TODO: of sharing components? And making sure it's legal
-          val newProgram = program // Eval(rewriting.utils.Utils.dumpLambdaToString(program))
+          val newProgram = Eval(rewriting.utils.Utils.dumpLambdaToString(program))
           // TODO: Returning tuples is currently not supported, see issue #36
           !TypeChecker(newProgram).isInstanceOf[TupleType]
         } else {
