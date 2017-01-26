@@ -31,6 +31,14 @@ JNIEXPORT jobject JNICALL Java_opencl_executor_ValueArg_create__I
 JNIEXPORT jobject JNICALL Java_opencl_executor_ValueArg_create__D
   (JNIEnv *, jclass, jdouble);
 
+/*
+ * Class:     opencl_executor_ValueArg
+ * Method:    create
+ * Signature: (Z)Lopencl/executor/ValueArg;
+ */
+JNIEXPORT jobject JNICALL Java_opencl_executor_ValueArg_create__Z
+  (JNIEnv *, jclass, jboolean);
+
 #ifdef __cplusplus
 }
 #endif

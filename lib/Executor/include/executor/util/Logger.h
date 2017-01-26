@@ -68,7 +68,7 @@ private:
   LOG(executor::Logger::Severity::Error, __VA_ARGS__)
 
 # define ABORT_WITH_ERROR(err)\
-   LOG_ERROR(err); throw new std::runtime_error("Fatal error");
+   LOG_ERROR(err); throw new cl::Error(err);
 
 #define LOG_WARNING(...)\
   LOG(executor::Logger::Severity::Warning, __VA_ARGS__)
