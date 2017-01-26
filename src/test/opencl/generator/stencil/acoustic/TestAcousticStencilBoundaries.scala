@@ -1,5 +1,6 @@
 package opencl.generator.stencil.acoustic
 
+import com.sun.xml.internal.ws.developer.Serialization
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
@@ -8,8 +9,10 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
-
+import java.io._
+import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
+import scala.util.parsing.json.JSON
 
 object BoundaryUtilities
 {
@@ -74,6 +77,54 @@ object BoundaryUtilities
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
     MapSeq(add) $ Zip(MapSeq(fun(x => mult(x,c1))) o MapSeq(idIF) o MapSeq(convertInt) $ Get(m,1),MapSeq(fun(x => mult(x,c2))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
+  }
+
+
+
+  def collectParams(lambda: Lambda, source: String, outputDir: String) =
+  {
+
+    // collect parameters
+
+    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)
+
+    var lm = scala.collection.immutable.ListMap[String,String]()
+
+    var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(_.contains("global"))
+    val ignoreable = ", \t({}"
+    val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains("global")))
+    val map = stripParams.map{ case Array(x,y) => x -> y}
+
+    stripParams.foreach(x => lm += (x(0) -> x(1)))
+
+    // add in general values (ints)
+
+    val kernelStr = source.split("\n").filter(x => x.toString().contains("kernel"))
+
+    val generalVals = kernelStr(0).split(",").filter(x => !x.contains("*"))
+
+    val genVals = generalVals.map(x => x.trim.stripSuffix("){"))
+
+    genVals.foreach(x => lm += (x -> ""))
+
+    // convert to json object
+    var json = scala.util.parsing.json.JSONObject(lm).toString()
+
+    // write to file
+    writeStringToFile(json,outputDir+"/kernel.json")
+
+    // print kernel to same place (pass in param!)
+
+    writeStringToFile(source,outputDir+"/lift_kernel.cl")
+
+  }
+
+  def writeStringToFile(str: String, outputFile: String): Unit =
+  {
+    val pw = new PrintWriter(new File(outputFile))
+    pw.write(str)
+    pw.close
+
   }
 
 }
@@ -774,7 +825,11 @@ class TestAcousticStencilBoundaries {
       })
 
     val source = Compile(lambdaNeigh)
-    val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(source,lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+
+    BoundaryUtilities.collectParams(lambdaNeigh,source,"/home/reese/workspace/phd")
+
+
+/*    val (output: Array[Float], runtime) = Execute(8,8,8,8,8,8,(true,true))(source,lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
     if(StencilUtilities.printOutput)
     {
@@ -784,6 +839,7 @@ class TestAcousticStencilBoundaries {
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
+*/
   }
 
 }
