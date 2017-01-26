@@ -278,13 +278,19 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    */
   def execute(code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
-    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
-      (code, localSize1, localSize2, localSize3,
-       globalSize1, globalSize2, globalSize3, args) =>
-        Executor.execute(code, localSize1, localSize2, localSize3,
-          globalSize1, globalSize2, globalSize3, args)
+    val executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (localSize1, localSize2, localSize3,
+       globalSize1, globalSize2, globalSize3, args) => {
+        val kernel = Build(code)
+        try {
+          Executor.execute(kernel, localSize1, localSize2, localSize3,
+            globalSize1, globalSize2, globalSize3, args)
+        } finally {
+          kernel.dispose()
+        }
+      }
 
-    execute(executeFunction, code, f, values:_*)
+    execute(executeFunction, f, values:_*)
   }
 
   /**
@@ -296,24 +302,36 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    */
   def benchmark(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
-    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
-      (code, localSize1, localSize2, localSize3,
-         globalSize1, globalSize2, globalSize3, args) =>
-      Executor.benchmark(code, localSize1, localSize2, localSize3,
-        globalSize1, globalSize2, globalSize3, args, iterations, timeout)
+    val executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (localSize1, localSize2, localSize3,
+         globalSize1, globalSize2, globalSize3, args) => {
+        val kernel = Build(code)
+        try {
+          Executor.execute(kernel, localSize1, localSize2, localSize3,
+            globalSize1, globalSize2, globalSize3, args)
+        } finally {
+          kernel.dispose()
+        }
+      }
 
-    execute(executeFunction, code, f, values:_*)
+    execute(executeFunction, f, values:_*)
   }
 
   def evaluate(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
-    val executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
-      (code, localSize1, localSize2, localSize3,
-         globalSize1, globalSize2, globalSize3, args) =>
-      Executor.evaluate(code, localSize1, localSize2, localSize3,
-        globalSize1, globalSize2, globalSize3, args, iterations, timeout)
+    val executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+      (localSize1, localSize2, localSize3,
+         globalSize1, globalSize2, globalSize3, args) => {
+        val kernel = Build(code)
+        try {
+          Executor.execute(kernel, localSize1, localSize2, localSize3,
+            globalSize1, globalSize2, globalSize3, args)
+        } finally {
+          kernel.dispose()
+        }
+      }
 
-    execute(executeFunction, code, f, values:_*)
+    execute(executeFunction, f, values:_*)
   }
 
   private[executor] def getAndValidateSizesForExecution(f: Lambda,
@@ -357,8 +375,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     (localSize, globalSize)
   }
 
-  private def execute(executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
-                       code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+  private def execute(executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
+                      f: Lambda, values: Any*): (Array[_], Double) = {
 
     // 1. check that the given values match with the given lambda expression
     checkParamsWithValues(f.params, values)
@@ -386,7 +404,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     // 8. execute via JNI
     val runtime = this.synchronized {
-      executeFunction(code, localSize(0).eval, localSize(1).eval, localSize(2).eval,
+      executeFunction(localSize(0).eval, localSize(1).eval, localSize(2).eval,
         globalSize(0).eval, globalSize(1).eval, globalSize(2).eval, args)
     }
 

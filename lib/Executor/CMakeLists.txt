@@ -44,18 +44,25 @@ set (SOURCES
   src/DeviceProperties.cpp
   src/Event.cpp
   src/Executor.cpp
+  src/GlobalArg.cpp
+  src/JNIHandle.cpp
+  src/Kernel.cpp
+  src/KernelArg.cpp
+  src/LocalArg.cpp
   src/PlatformID.cpp
   src/Source.cpp
+  src/ValueArg.cpp
 
   src/util/Assert.cpp
   src/util/Logger.cpp
 
-  src/jni/handle.cpp
-  src/jni/jni-executor.cpp
-  src/jni/globalArg.cpp
-  src/jni/kernelArg.cpp
-  src/jni/localArg.cpp
-  src/jni/valueArg.cpp
+  src/jni/Handle.cpp
+  src/jni/opencl_executor_Executor.cpp
+  src/jni/opencl_executor_GlobalArg.cpp
+  src/jni/opencl_executor_JNIHandle.cpp
+  src/jni/opencl_executor_Kernel.cpp
+  src/jni/opencl_executor_LocalArg.cpp
+  src/jni/opencl_executor_ValueArg.cpp
   )
 
 
