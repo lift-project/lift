@@ -366,7 +366,6 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     // 2. create map associating Variables, e.g., SizeVar("N"), with values, e.g., "1024".
     val valueMap = Execute.createValueMap(f, values: _*)
-    println("Valuemap: " + valueMap.mkString("[",",","]"))
 
     val (localSize, globalSize) = getAndValidateSizesForExecution(f, valueMap)
 
