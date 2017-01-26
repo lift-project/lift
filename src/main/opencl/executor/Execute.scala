@@ -1,6 +1,6 @@
 package opencl.executor
 
-import lift.arithmetic.{?, ArithExpr, Cst, Var}
+import lift.arithmetic.{?, ArithExpr, Cst, Var, SolveForVariable}
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
@@ -87,8 +87,7 @@ object Execute {
    * Create a map which maps variables (e.g., N) to values (e.g, "1024")
    */
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
-    // just take the variables
-    val vars = f.params.flatMap((p) => Type.getLengths(p.t).flatMap(_.varList))
+    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t))
 
     val tupleSizes = f.params.map(_.t match {
       case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
@@ -116,7 +115,9 @@ object Execute {
         => Seq(Cst(1))
     }).flatten[ArithExpr]
 
-    (vars zip sizes).toMap[ArithExpr, ArithExpr]
+    (sizeExprs zip sizes).map{
+      case pair => (pair._1.varList.head, SolveForVariable(pair._1, pair._2))
+    }.toMap[ArithExpr, ArithExpr]
   }
 
   /**
@@ -365,6 +366,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     // 2. create map associating Variables, e.g., SizeVar("N"), with values, e.g., "1024".
     val valueMap = Execute.createValueMap(f, values: _*)
+    println("Valuemap: " + valueMap.mkString("[",",","]"))
 
     val (localSize, globalSize) = getAndValidateSizesForExecution(f, valueMap)
 

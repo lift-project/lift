@@ -159,16 +159,19 @@ class TestExecute {
 
   @Test
   def testInferComplexArgSize() : Unit = {
+    val A = SizeVar("A")
+    val B = SizeVar("B")
+
     val cst1 = 8
 
-    val sizeM = 128
-    val sizeN = 64*cst1
+    val sizeA = 128
+    val sizeB = 16*cst1
 
-    val input = Array.fill(sizeM)(
-      Array.fill(sizeN)(util.Random.nextFloat() * 10)
+    val input = Array.fill(sizeA)(
+      Array.fill(sizeB)(util.Random.nextFloat() * 10)
     )
 
-    val f = \(ArrayType(ArrayType(Float, N*cst1), M),
+    val f = \(ArrayType(ArrayType(Float, B*Cst(cst1)), A),
       MapWrg(
         MapLcl(MapSeq(id)) o Split(cst1)
       ) $ _
