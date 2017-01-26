@@ -424,6 +424,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       case Float => outputData.asFloatArray()
       case Int   => outputData.asIntArray()
       case Double   => outputData.asDoubleArray()
+      case Bool  => outputData.asBooleanArray()
       // handle tuples if all their components are of the same type
       case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float) =>
         outputData.asFloatArray()
@@ -481,6 +482,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       case (Float,   _: Float) => // fine
       case (Int,   _: Int) => // fine
       case (Double,   _: Double) => // fine
+      case (Bool, _: Boolean) => // fine
 
       case (VectorType(Float, _), _) => //fine
       case (VectorType(Int, _), _) => //fine
@@ -493,6 +495,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
       case (tt: TupleType, _: Double)
         if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
+      case (tt: TupleType, _: Boolean)
+        if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Bool) => // fine
       case _ => throw new IllegalArgumentException(
         s"Expected value of type $t, but value of type ${v.getClass} given")
     }
@@ -598,6 +602,12 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         case aaad: Array[Array[Array[Double]]] => global.input(aaad.flatten.flatten)
         case aaaad: Array[Array[Array[Array[Double]]]] => global.input(aaaad.flatten.flatten.flatten)
 
+        case d: Boolean => value(d)
+        case ad: Array[Boolean] => global.input(ad)
+        case aad: Array[Array[Boolean]] => global.input(aad.flatten)
+        case aaad: Array[Array[Array[Boolean]]] => global.input(aaad.flatten.flatten)
+        case aaaad: Array[Array[Array[Array[Boolean]]]] => global.input(aaaad.flatten.flatten.flatten)
+
         case _ => throw new IllegalArgumentException(
           s"Kernel argument is of unsupported type: ${any.getClass}")
       }
@@ -619,6 +629,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       def apply(array: Array[Int]) = GlobalArg.createInput(array)
 
       def apply(array: Array[Double]) = GlobalArg.createInput(array)
+
+      def apply(array: Array[Boolean]) = GlobalArg.createInput(array)
     }
 
     /**
@@ -652,6 +664,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     def apply(value: Int) = ValueArg.create(value)
 
     def apply(value: Double) = ValueArg.create(value)
+
+    def apply(value: Boolean) = ValueArg.create(value)
   }
 
 }
