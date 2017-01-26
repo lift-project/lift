@@ -7,14 +7,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/*
- * Class:     opencl_executor_KernelArg
- * Method:    dispose
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_opencl_executor_KernelArg_dispose
-  (JNIEnv *, jobject);
-
 #ifdef __cplusplus
 }
 #endif

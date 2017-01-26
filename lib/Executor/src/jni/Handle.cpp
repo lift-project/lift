@@ -2,7 +2,7 @@
 #pragma GCC diagnostic ignored "-Weffc++"
 #include <jni.h>
 #pragma GCC diagnostic pop
-#include "handle.h"
+#include "Handle.h"
 
 jfieldID getHandleField(JNIEnv* env, jobject obj)
 {
