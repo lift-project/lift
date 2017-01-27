@@ -200,6 +200,22 @@ object Rules {
         Map(newLambda) $ arg
       }
 
+    case FunCall(MapSeq(l1@Lambda1(p1, f)), FunCall(MapSeq(l2@Lambda1(p2, g)), arg)) =>
+      val paramUsedMultipleTimes =
+        Expr.visitWithState(0)(f, (e, c) => {
+          e match {
+            case p2: Param => if (p1.head.eq(p2)) c + 1 else c
+            case _ => c
+          }}) > 1
+
+      // TODO: Avoid simplifier getting stuck. Figure out what's different
+      if (paramUsedMultipleTimes) {
+        Map(l1 o l2) $ arg
+      } else {
+        val newLambda = Lambda(p2, Expr.replace(f, p1.head, g))
+        MapSeq(newLambda) $ arg
+      }
+
     case FunCall(map@Map(Lambda(p1, f1)),
     call@FunCall(Lambda(p, FunCall(Map(Lambda(p2, f2)), _)), arg)) =>
 
