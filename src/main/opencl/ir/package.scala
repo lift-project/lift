@@ -18,6 +18,8 @@ package object ir {
 
   val idI = UserFun("id", "x", "{ return x; }", Int, Int)
 
+  val idB = UserFun("id", "x", "{ return x; }", Bool, Bool)
+
   val idfloat = UserFun("idfloat", "x", "{ return x; }", Float, Float)
 
   val iddouble = UserFun("iddouble", "x", "{ return x; }", Double, Double)
@@ -82,6 +84,8 @@ package object ir {
 
   implicit def DoubleToValue(d: Double): Value = Value(d.toString, opencl.ir.Double)
 
+  implicit def BooleanToValue(b: Boolean): Value = Value(b.toString, opencl.ir.Bool)
+
   implicit def Tuple2ToValue[T1, T2](t: (T1, T2)): Value = {
     val tupleType = TupleType(getType(t._1), getType(t._2))
     Value(t.toString().replace('(', '{').replace(')', '}'), tupleType)
@@ -93,8 +97,10 @@ package object ir {
   }
 
   private def getType(a: Any): Type = a match {
-    case _: Float => Float
     case _: Int => Int
+    case _: Float => Float
+    case _: Double => Double
+    case _: Boolean => Bool
     case _ => throw new IllegalArgumentException
   }
 }

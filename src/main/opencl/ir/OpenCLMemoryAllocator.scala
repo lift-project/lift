@@ -1,6 +1,6 @@
 package opencl.ir
 
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
 import opencl.ir.OpenCLMemory._
@@ -213,6 +213,16 @@ object OpenCLMemoryAllocator {
         r.f.params(1).mem = coll.subMemories(1)
         val bodyM = alloc(r.f.body, numGlb, numLcl, numPvt)
 
+        // if we have an instance of a reduce while, allocate the predicate
+        r match {
+          case rps: ReduceWhileSeq =>
+            rps.p.params(0).mem = initM
+            rps.p.params(1).mem = coll.subMemories(1)
+            // set the predicate return memory to the returned memory
+            rps.pmem = alloc(rps.p.body, numGlb, numLcl, numPvt)
+          case _ =>
+        }
+
         // replace `bodyM` by `initM` in `r.f.body`
         Expr.visit(r.f.body, e => if (e.mem == bodyM) e.mem = initM, _ => {})
 
@@ -278,17 +288,22 @@ object OpenCLMemoryAllocator {
     numLcl: ArithExpr,
     numPvt: ArithExpr,
     inMem: OpenCLMemory): OpenCLMemory = {
-    // Get sizes in bytes necessary to hold the input and output of the
-    // function inside the iterate
-    val inSize = getSizeInBytes(call.argsType)
-    val outSize = getSizeInBytes(call.t)
 
-    // Get the max from those two
-    val largestSize = ArithExpr.max(inSize, outSize)
+    it.n match {
+      case Cst(1) => // do not allocate a swap buffer when we only iterate once
+      case _ =>
+        // Get sizes in bytes necessary to hold the input and output of the
+        // function inside the iterate
+        val inSize = getSizeInBytes(call.argsType)
+        val outSize = getSizeInBytes(call.t)
 
-    // Create a swap buffer
-    it.swapBuffer = OpenCLMemory.allocMemory(
-      largestSize * numGlb, largestSize * numLcl, largestSize * numPvt, inMem.addressSpace)
+        // Get the max from those two
+        val largestSize = ArithExpr.max(inSize, outSize)
+
+        // Create a swap buffer
+        it.swapBuffer = OpenCLMemory.allocMemory(
+          largestSize * numGlb, largestSize * numLcl, largestSize * numPvt, inMem.addressSpace)
+    }
 
     // Recurse to allocate memory for the function(s) inside
     it.f.params(0).mem = inMem

@@ -27,14 +27,4 @@ Alternatively, you can add the Executor build directory to your LD_LIBRARY_PATH.
 
 ### Documentation ###
 
-[ScalaDoc](http://skelter:8080/job/apart-amd/branch/master/javadoc/#package)
-
-### Build Status ###
-
-Platform      | Status
-------------- | -------------
-Intel         | ![](http://skelter:8080/job/apart-intel-master/badge/icon)
-AMD-CPU       | ![](http://skelter:8080/job/apart-amd-cpu-master/badge/icon)
-AMD-GPU       | ![](http://skelter:8080/job/apart-amd-gpu-master/badge/icon)
-NVIDIA        | ![](http://skelter:8080/job/apart-nvidia-master/badge/icon)
-Long rewriting tests        | ![](http://skelter:8080/job/apart-long/badge/icon)
+[ScalaDoc](http://skelter:8080/job/lift-amd/branch/master/javadoc/#package)

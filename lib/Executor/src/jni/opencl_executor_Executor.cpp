@@ -10,8 +10,9 @@
 #pragma GCC diagnostic ignored "-Weffc++"
 #include "opencl_executor_Executor.h"
 #pragma GCC diagnostic pop
-#include "handle.h"
+#include "Handle.h"
 #include "Executor.h"
+#include "util/Logger.h"
 
 enum class Mode {
   Execute,
@@ -21,9 +22,7 @@ enum class Mode {
 
 jdouble
   executeOrBencmark(JNIEnv* env, jclass,
-                    jstring jKernelSource,
-                    jstring jKernelName,
-                    jstring jBuildOptions,
+                    jobject jKernel,
                     jint localSize1, jint localSize2, jint localSize3,
                     jint globalSize1, jint globalSize2, jint globalSize3,
                     jobjectArray jArgs,
@@ -33,53 +32,47 @@ jdouble
 {
   double runtime = 0;
 
-  auto kernelSourcePtr = env->GetStringUTFChars(jKernelSource, nullptr);
-  std::string kernelSource{kernelSourcePtr};
-  auto kernelNamePtr = env->GetStringUTFChars(jKernelName, nullptr);
-  std::string kernelName{kernelNamePtr};
-  auto buildOptionsPtr = env->GetStringUTFChars(jBuildOptions, nullptr);
-  std::string buildOptions{buildOptionsPtr};
-
   try {
-        std::vector<KernelArg*> args(env->GetArrayLength(jArgs));
+    
+    auto kernel = getHandle<executor::Kernel>(env, jKernel);
+
+    std::vector<executor::KernelArg*> args(env->GetArrayLength(jArgs));
     int i = 0;
     for (auto& p : args) {
       auto obj = env->GetObjectArrayElement(jArgs, i);
-      p = getHandle<KernelArg>(env, obj);
+      p = getHandle<executor::KernelArg>(env, obj);
       ++i;
     }
 
 
     switch(mode) {
       case Mode::Execute:
-        runtime = execute(kernelSource, kernelName, buildOptions,
+        runtime = execute(*kernel,
           localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, args);
         break;
       case Mode::Benchmark:
-        runtime = benchmark(kernelSource, kernelName, buildOptions,
+        runtime = benchmark(*kernel,
           localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
           args, iterations, timeout);
         break;
       case Mode::Evaluate:
-        runtime = evaluate(kernelSource, kernelName, buildOptions,
+        runtime = evaluate(*kernel,
           localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
           args, iterations, timeout);
         break;
       default:
         return 0;
     }
+
   } catch(cl::Error err) {
     jclass jClass = env->FindClass("opencl/executor/Executor$ExecutorFailureException");
-    if(!jClass) std::cerr << "[JNI ERROR] Cannot find the exception class" << std::endl;
+    if(!jClass) LOG_ERROR("[JNI ERROR] Cannot find the exception class");
     env->ThrowNew(jClass, (std::string("Executor failure: ") + err.what()).c_str());
   } catch(...) {
     jclass jClass = env->FindClass("opencl/executor/Executor$ExecutorFailureException");
-    if(!jClass) std::cerr << "[JNI ERROR] Cannot find the exception class" << std::endl;
+    if(!jClass) LOG_ERROR("[JNI ERROR] Cannot find the exception class");
     env->ThrowNew(jClass, "Executor failure");
-  }  
- 
-  env->ReleaseStringUTFChars(jKernelSource, kernelSourcePtr);
-  env->ReleaseStringUTFChars(jKernelName, kernelNamePtr);
+  }
 
   return runtime;
 }
@@ -139,46 +132,40 @@ void
 
 jdouble
   Java_opencl_executor_Executor_execute(JNIEnv* env, jclass jClass,
-                                        jstring jKernelSource,
-                                        jstring jKernelName,
-                                        jstring jBuildOptions,
+                                        jobject jKernel,
                                         jint localSize1, jint localSize2, jint localSize3,
                                         jint globalSize1, jint globalSize2, jint globalSize3,
                                         jobjectArray jArgs)
 {
-  return executeOrBencmark(env, jClass, jKernelSource, jKernelName, jBuildOptions,
+  return executeOrBencmark(env, jClass, jKernel,
         localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
         jArgs, Mode::Execute, 0, 0.0);
 }
 
 jdouble
   Java_opencl_executor_Executor_benchmark(JNIEnv* env, jclass jClass,
-                                        jstring jKernelSource,
-                                        jstring jKernelName,
-                                        jstring jBuildOptions,
+                                        jobject jKernel,
                                         jint localSize1, jint localSize2, jint localSize3,
                                         jint globalSize1, jint globalSize2, jint globalSize3,
                                         jobjectArray jArgs,
                                         jint iterations,
                                         jdouble timeout)
 {
-  return executeOrBencmark(env, jClass, jKernelSource, jKernelName, jBuildOptions,
+  return executeOrBencmark(env, jClass, jKernel,
         localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
         jArgs, Mode::Benchmark, iterations, timeout);
 }
 
 jdouble
   Java_opencl_executor_Executor_evaluate(JNIEnv* env, jclass jClass,
-                                        jstring jKernelSource,
-                                        jstring jKernelName,
-                                        jstring jBuildOptions,
+                                        jobject jKernel,
                                         jint localSize1, jint localSize2, jint localSize3,
                                         jint globalSize1, jint globalSize2, jint globalSize3,
                                         jobjectArray jArgs,
                                         jint iterations,
                                         jdouble timeout)
 {
-  return executeOrBencmark(env, jClass, jKernelSource, jKernelName, jBuildOptions,
+  return executeOrBencmark(env, jClass, jKernel,
         localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
         jArgs, Mode::Evaluate, iterations, timeout);
 }
