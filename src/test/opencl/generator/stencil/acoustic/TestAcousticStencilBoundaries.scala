@@ -829,7 +829,5 @@ class TestAcousticStencilBoundaries {
 
 
     }
-
-    BoundaryUtilities.collectParams(lambdaNeigh, source, "/home/reese/workspace/phd")
   }
 }
