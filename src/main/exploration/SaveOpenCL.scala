@@ -55,7 +55,7 @@ class SaveOpenCL(
   def prepare(expressions: List[(Lambda, Seq[ArithExpr])]): Unit = {
     if (expressions.nonEmpty) {
       val lambda = expressions.head._1
-      sizeArgs = lambda.params.flatMap(_.t.varList).sortBy(_.name).distinct
+      sizeArgs = lambda.getVarsInParams()
       numSizes = sizeArgs.length
 
       val combinations = settings.inputCombinations

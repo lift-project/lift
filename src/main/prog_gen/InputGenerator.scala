@@ -7,7 +7,7 @@ import opencl.ir._
 
 object InputGenerator {
 
-  def apply(concreteSizes: collection.Map[ArithExpr, Cst] = collection.Map()) =
+  def apply(concreteSizes: collection.Map[ArithExpr , Cst] = collection.Map()) =
     new InputGenerator(concreteSizes)
 }
 
