@@ -171,7 +171,7 @@ class TestExecute {
       Array.fill(sizeB)(util.Random.nextFloat() * 10)
     )
 
-    val f = \(ArrayType(ArrayType(Float, B*Cst(cst1)), A),
+    val f = λ(ArrayType(ArrayType(Float, B*Cst(cst1)), A),
       MapWrg(
         MapLcl(MapSeq(id)) o Split(cst1)
       ) $ _
