@@ -87,7 +87,7 @@ object Execute {
    * Create a map which maps variables (e.g., N) to values (e.g, "1024")
    */
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
-    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t))
+    val sizeExprs = f.params.flatMap((p) => Seq(Type.getLength(p.t)))
 
     val tupleSizes = f.params.map(_.t match {
       case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
