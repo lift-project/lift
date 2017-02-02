@@ -11,7 +11,8 @@ import org.junit.Assert._
 import org.junit._
 import java.io._
 
-
+import play.api.libs
+import play.api.libs.json
 import rewriting.SimplifyAndFuse
 
 import scala.collection.immutable.ListMap
@@ -81,13 +82,31 @@ object BoundaryUtilities
     toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ Get(m,1), toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ Get(m,1))
   }
 
-  def collectParams2(lambda: Lambda, source: String, outputDir: String) =
+  def writeKernelJSONToFile(lambda: Lambda, source: String, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) =
   {
 
-    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)
+    val jsonString = convertKernelParameterstoJSON(lambda, source)
 
-//    params.foreach(println)
+    if(printJson) println(jsonString)
 
+    // write to file
+    writeStringToFile(jsonString,outputDir+jsonfilename)
+
+    // print kernel to same place (pass in param!)
+    writeStringToFile(source,outputDir+kernelfilename)
+  }
+
+  // be wary of changing the types of Map and JSON parsing in this function as the current setup maintains order which is crucial
+  // for creating the correct kernel
+  def convertKernelParameterstoJSON( lambda: Lambda, source: String ): String =
+  {
+
+    // lambda and source is passed in because of bug when recompiling the same lambda
+
+    val kernelValStr = "v__" // for finding parameter names -- should not be hardcoded !
+    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
+
+    // setup maps
     var lm = scala.collection.immutable.ListMap[String,scala.util.parsing.json.JSONObject]()
     var lmPSizes = scala.collection.immutable.ListMap[String,String]()  // map for sizes of params
     var lmP = scala.collection.immutable.ListMap[String,String]()
@@ -96,56 +115,53 @@ object BoundaryUtilities
     var lmS = scala.collection.immutable.ListMap[String,String]()
 
     var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(_.contains("global"))
-    val ignoreable = ", \t({}"
+    val ignoreable = ", \t({}" // trim some stuff
     val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains("global")))
 
-    // need to pull out type of array, then add in with size
-
+    // store sizes for parameters we have
     stripParams.foreach(x => lmPSizes += (x(0) -> x(1)))
-
-    // add in general values (ints)
 
     val kernelStr = source.split("\n").filter(x => x.toString().contains("kernel"))
 
-    val parameters = kernelStr(0).split(",")
+    val parameters = kernelStr(0).split(",") // pull out ALL parameters, including sizes
 
+    // get size values (ints)
     val generalVals = parameters.filter(x => !x.contains("*"))
-
-    val paramVals = parameters.filter(x => x.contains("restrict"))
-
-    val others = parameters.filter(x => !x.contains("restrict") && !generalVals.contains(x))
-
-    val outputs = others.slice(0,0)
-    outputs.foreach(x => lmO += (x -> ""))
-    // then add in size from lmPSizes!!
-
-    val tmpBuffers = others.slice(1,others.length)
-    tmpBuffers.foreach(x => lmTB += (x -> ""))
-    // then add in size from lmPSizes!!
-
     val genVals = generalVals.map(x => x.trim.stripSuffix("){"))
-
     genVals.foreach(x => lmS += (x -> ""))
 
+    // get parameter values
+    val paramVals = parameters.filter(x => x.contains("restrict"))
+    val paramTypes = paramVals.map(x => x.split(" ").filter(y => y contains "*")).flatten
+    val paramNames = paramVals.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
+    // then add in size from lmPSizes!!
+    for((pType,pName) <- paramTypes zip paramNames ) yield lmP +=((pType.toString()+" "+pName.toString()) -> lmPSizes(pName.toString()))
+
+    // get output value
+    val others = parameters.filter(x => !x.contains("restrict") && !generalVals.contains(x))
+    val outputs = others.slice(0,1)
+    val otherTypes = outputs.map(x => x.split(" ").filter(y => y contains "*")).flatten
+    val otherNames = outputs.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
+    // then add in size from lmPSizes!!
+    for((oType,oName) <- otherTypes zip otherNames ) yield lmO +=((oType.toString()+" "+oName.toString()) -> lmPSizes(oName.toString()))
+
+    // get temp buffer values
+    val tmpBuffers = others.slice(1,others.length)
+    val tmpBTypes = tmpBuffers.map(x => x.split(" ").filter(y => y contains "*")).flatten
+    val tmpBNames = tmpBuffers.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
+    // then add in size from lmPSizes!!
+    for((tbType,tbName) <- tmpBTypes zip tmpBNames ) yield lmTB +=((tbType.toString()+" "+tbName.toString()) -> lmPSizes(tbName.toString()))
+
+    // converge to megamap
     lm+=("parameters" -> scala.util.parsing.json.JSONObject(lmP))
     lm+=("outputs" -> scala.util.parsing.json.JSONObject(lmO))
     lm+=("temporary buffers" -> scala.util.parsing.json.JSONObject(lmTB))
     lm+=("sizes" -> scala.util.parsing.json.JSONObject(lmS))
 
     // convert to json object
-
-    var json = scala.util.parsing.json.JSONObject(lm).toString()
-    println(json.toString())
-
-    // write to file
-    writeStringToFile(json,outputDir+"/kernel.json")
-
-    // print kernel to same place (pass in param!)
-    writeStringToFile(source,outputDir+"/lift_kernel.cl")
+    scala.util.parsing.json.JSONObject(lm).toString()
 
   }
-
-
 
   def writeStringToFile(str: String, outputFile: String): Unit =
   {
@@ -850,10 +866,10 @@ class TestAcousticStencilBoundaries {
 
     try
     {
-    val newLambda = SimplifyAndFuse(lambdaNeigh)
-    val source = Compile(newLambda)
+//    val newLambda = SimplifyAndFuse(lambdaNeigh)
+    val source = Compile(lambdaNeigh)
 
-//      BoundaryUtilities.collectParams2(newLambda,source,"/home/reese/workspace/sandbox/")
+    println(BoundaryUtilities.convertKernelParameterstoJSON(lambdaNeigh,source))
 
       /*val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       //if (StencilUtilities.printOutput)
