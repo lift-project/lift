@@ -87,7 +87,7 @@ object Execute {
    * Create a map which maps variables (e.g., N) to values (e.g, "1024")
    */
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
-    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).filter(!_.isInstanceOf[Cst]))
+    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).init) //.filter(!_.isInstanceOf[Cst]))
 
     val tupleSizes = f.params.map(_.t match {
       case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
@@ -115,8 +115,9 @@ object Execute {
         => Seq(Cst(1))
     }).flatten[ArithExpr]
 
-    (sizeExprs zip sizes).map{
-      case pair => (pair._1.varList.head, SolveForVariable(pair._1, pair._2))
+    (sizeExprs zip sizes).flatMap{
+      case (Cst(_), _) => Seq() // ignore
+      case pair => Seq((pair._1.varList.head, SolveForVariable(pair._1, pair._2)))
     }.toMap[ArithExpr, ArithExpr]
   }
 
