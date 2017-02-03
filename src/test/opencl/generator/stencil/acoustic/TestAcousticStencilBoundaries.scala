@@ -11,13 +11,11 @@ import org.junit.Assert._
 import org.junit._
 import java.io._
 
-import play.api.libs
-import play.api.libs.json
 import rewriting.SimplifyAndFuse
 
 import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
-import scala.util.parsing.json.JSON
+import scala.util.parsing.json._
 
 object BoundaryUtilities
 {
@@ -34,7 +32,6 @@ object BoundaryUtilities
   def intBang(i:Int) = if (i==1) 0 else 1
 
   val invertInt = UserFun("invertInt", Array("x"), "{ return x ? 0.0 : 1.0; }", Seq(Int), Float)
-  val convertInt = UserFun("convertInt", Array("x"), "{ return x ? 1 : 0; }", Seq(Int), Int)
   val invertFloat = UserFun("invertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 0.0 : 1.0; }", Seq(Float), Float)
   val convertFloat = UserFun("convertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 1.0 : 0.0; }", Seq(Float), Float)
   val getFirstTuple = UserFun("getFirstTuple", "x", "{return x._0;}", TupleType(Float, Float), Float) // dud helper
@@ -82,8 +79,10 @@ object BoundaryUtilities
     toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ Get(m,1), toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ Get(m,1))
   }
 
-  def writeKernelJSONToFile(lambda: Lambda, source: String, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) =
+  def writeKernelJSONToFile(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) =
   {
+
+    val source = Compile(lambda)
 
     val jsonString = convertKernelParameterstoJSON(lambda, source)
 
@@ -97,25 +96,27 @@ object BoundaryUtilities
   }
 
   // be wary of changing the types of Map and JSON parsing in this function as the current setup maintains order which is crucial
-  // for creating the correct kernel
-  def convertKernelParameterstoJSON( lambda: Lambda, source: String ): String =
+  // for creating the correct kernel (JSONs do not promise to retain order!)
+  //
+  // for use with "writeKernelJSONToFile", which is why the source string is also passed in (to print out the kernel, too)
+  // ...this could be changed!
+  def convertKernelParameterstoJSON( lambda: Lambda, source: String): String =
   {
-
-    // lambda and source is passed in because of bug when recompiling the same lambda
 
     val kernelValStr = "v__" // for finding parameter names -- should not be hardcoded !
     val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
 
     // setup maps
-    var lm = scala.collection.immutable.ListMap[String,scala.util.parsing.json.JSONObject]()
-    var lmPSizes = scala.collection.immutable.ListMap[String,String]()  // map for sizes of params
-    var lmP = scala.collection.immutable.ListMap[String,String]()
-    var lmO = scala.collection.immutable.ListMap[String,String]()
-    var lmTB = scala.collection.immutable.ListMap[String,String]()
-    var lmS = scala.collection.immutable.ListMap[String,String]()
+    var lm = ListMap[String,JSONObject]()
+    var lmPSizes = ListMap[String,String]()  // map for sizes of parameters
+    var lmP = ListMap[String,String]()
+    var lmO = ListMap[String,String]()
+    var lmTB = ListMap[String,String]()
+    var lmS = ListMap[String,String]()
 
     var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(_.contains("global"))
     val ignoreable = ", \t({}" // trim some stuff
+    val toStrip = "){" // trim some more stuff
     val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains("global")))
 
     // store sizes for parameters we have
@@ -127,7 +128,7 @@ object BoundaryUtilities
 
     // get size values (ints)
     val generalVals = parameters.filter(x => !x.contains("*"))
-    val genVals = generalVals.map(x => x.trim.stripSuffix("){"))
+    val genVals = generalVals.map(x => x.trim.stripSuffix(toStrip))
     genVals.foreach(x => lmS += (x -> ""))
 
     // get parameter values
@@ -150,16 +151,16 @@ object BoundaryUtilities
     val tmpBTypes = tmpBuffers.map(x => x.split(" ").filter(y => y contains "*")).flatten
     val tmpBNames = tmpBuffers.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
     // then add in size from lmPSizes!!
-    for((tbType,tbName) <- tmpBTypes zip tmpBNames ) yield lmTB +=((tbType.toString()+" "+tbName.toString()) -> lmPSizes(tbName.toString()))
+    for((tbType,tbName) <- tmpBTypes zip tmpBNames ) yield lmTB +=((tbType.toString()+" "+tbName.stripSuffix(toStrip).toString()) -> lmPSizes(tbName.stripSuffix(toStrip).toString()))
 
     // converge to megamap
-    lm+=("parameters" -> scala.util.parsing.json.JSONObject(lmP))
-    lm+=("outputs" -> scala.util.parsing.json.JSONObject(lmO))
-    lm+=("temporary buffers" -> scala.util.parsing.json.JSONObject(lmTB))
-    lm+=("sizes" -> scala.util.parsing.json.JSONObject(lmS))
+    lm+=("parameters" -> JSONObject(lmP))
+    lm+=("outputs" -> JSONObject(lmO))
+    lm+=("temporary buffers" -> JSONObject(lmTB))
+    lm+=("sizes" -> JSONObject(lmS))
 
-    // convert to json object
-    scala.util.parsing.json.JSONObject(lm).toString()
+    // convert megamap json object
+    JSONObject(lm).toString()
 
   }
 
@@ -225,36 +226,17 @@ class TestAcousticStencilBoundaries {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weights),
-            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m, 1), MapSeq(fun(x => mult(x, constantOriginal))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1))
-            //MapSeq(id) o MapSeq(add) $ Zip(Map( fun(x => mult(x,constantBorder))) o MapSeq(idIF) $ Get(m,1), Map(fun(x => mult(x,constantOriginal))) o MapSeq(idIF) o MapSeq(invertInt) $ Get(m,1))
+            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m, 1), MapSeq(fun(x => mult(x, constantOriginal))) o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1))
           )
         }))
         ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() $ mask1)
       })
-
-    val lambdaNeighCompare = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(ArrayType(Int, 1), StencilUtilities.stencilSize), StencilUtilities.stencilSize),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      (mat1, mask1, weights) => {
-        MapGlb((fun((m) => {
-          toGlobal(MapSeq(id) o MapSeq(BoundaryUtilities.getFirstTuple)) $ Zip(
-            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weights),
-            MapSeq(BoundaryUtilities.idIF) $ Get(m, 1)
-          )
-        }))
-        ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() $ mask1)
-      })
-
-
 
     val source = Compile(lambdaNeigh)
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source, lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
-    val (output2: Array[Float], runtime2) = Execute(stencilarr.length, stencilarr.length)(lambdaNeighCompare, stencilarr, mask, StencilUtilities.weights)
     if (StencilUtilities.printOutput) {
       StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
-      StencilUtilities.print1DArrayAs2DArray(output2, StencilUtilities.stencilSize)
     }
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
@@ -295,8 +277,8 @@ class TestAcousticStencilBoundaries {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weights),
-            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.convertInt) $ Get(m, 1),
-              MapSeq(fun(x => mult(x, constantOriginal))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1))
+            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m, 1),
+              MapSeq(fun(x => mult(x, constantOriginal)))  o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1))
           )
         }))
         ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() $ mask1)
@@ -532,8 +514,8 @@ class TestAcousticStencilBoundaries {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(m, 0), Join() $ weights),
-            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.convertInt) $ Get(m, 1),
-              MapSeq(fun(x => mult(x, constantOriginal))) o MapSeq(BoundaryUtilities.idIF) o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1)))
+            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m, 1),
+              MapSeq(fun(x => mult(x, constantOriginal)))  o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1)))
         }))
         ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() o Join() $ mask1)
       })
@@ -776,7 +758,6 @@ class TestAcousticStencilBoundaries {
     try {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
-      println(source)
       val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
@@ -811,22 +792,66 @@ class TestAcousticStencilBoundaries {
     val z = SizeVar("Z")
 
     val compareData = Array(
-      16.25f, 28.5f, 40.75f, 43.0f,
-      28.5f, 44.75f, 59.0f, 61.25f,
-      40.75f, 59.0f, 73.25f, 73.5f,
-      43.0f, 61.25f, 73.5f, 69.75f,
-      28.5f, 44.75f, 59.0f, 61.25f,
-      44.75f, 17.5f, 21.875f, 83.5f,
-      59.0f, 21.875f, 26.25f, 97.75f,
-      61.25f, 83.5f, 97.75f, 94.0f,
-      40.75f, 59.0f, 73.25f, 73.5f,
-      59.0f, 21.875f, 26.25f, 97.75f,
-      73.25f, 26.25f, 30.625f, 112.0f,
-      73.5f, 97.75f, 112.0f, 106.25f,
-      43.0f, 61.25f, 73.5f, 69.75f,
-      61.25f, 83.5f, 97.75f, 94.0f,
-      73.5f, 97.75f, 112.0f, 106.25f,
-      69.75f, 94.0f, 106.25f, 96.5f
+    16.25f, 28.5f, 40.75f, 43.0f,
+    28.5f, 44.75f, 59.0f, 61.25f,
+    40.75f, 59.0f, 73.25f, 73.5f,
+    53.0f, 73.25f, 87.5f, 85.75f,
+    65.25f, 87.5f, 101.75f, 98.0f,
+    63.5f, 85.75f, 98.0f, 90.25f,
+    28.5f, 44.75f, 59.0f, 61.25f,
+    44.75f, 17.5f, 21.875f, 83.5f,
+    59.0f, 21.875f, 26.25f, 97.75f,
+    73.25f, 26.25f, 30.625f, 112.0f,
+    87.5f, 30.625f, 35.0f, 126.25f,
+    85.75f, 112.0f, 126.25f, 118.5f,
+    40.75f, 59.0f, 73.25f, 73.5f,
+    59.0f, 21.875f, 26.25f, 97.75f,
+    73.25f, 26.25f, 30.625f, 112.0f,
+    87.5f, 30.625f, 35.0f, 126.25f,
+    101.75f, 35.0f, 39.375f, 140.5f,
+    98.0f, 126.25f, 140.5f, 130.75f,
+    53.0f, 73.25f, 87.5f, 85.75f,
+    73.25f, 26.25f, 30.625f, 112.0f,
+    87.5f, 30.625f, 35.0f, 126.25f,
+    101.75f, 35.0f, 39.375f, 140.5f,
+    116.0f, 39.375f, 43.75f, 154.75f,
+    110.25f, 140.5f, 154.75f, 143.0f,
+    65.25f, 87.5f, 101.75f, 98.0f,
+    87.5f, 30.625f, 35.0f, 126.25f,
+    101.75f, 35.0f, 39.375f, 140.5f,
+    116.0f, 39.375f, 43.75f, 154.75f,
+    130.25f, 43.75f, 48.125f, 169.0f,
+    122.5f, 154.75f, 169.0f, 155.25f,
+    77.5f, 101.75f, 116.0f, 110.25f,
+    101.75f, 35.0f, 39.375f, 140.5f,
+    116.0f, 39.375f, 43.75f, 154.75f,
+    130.25f, 43.75f, 48.125f, 169.0f,
+    144.5f, 48.125f, 52.5f, 183.25f,
+    134.75f, 169.0f, 183.25f, 167.5f,
+    89.75f, 116.0f, 130.25f, 122.5f,
+    116.0f, 39.375f, 43.75f, 154.75f,
+    130.25f, 43.75f, 48.125f, 169.0f,
+    144.5f, 48.125f, 52.5f, 183.25f,
+    158.75f, 52.5f, 56.875f, 197.5f,
+    147.0f, 183.25f, 197.5f, 179.75f,
+    102.0f, 130.25f, 144.5f, 134.75f,
+    130.25f, 43.75f, 48.125f, 169.0f,
+    144.5f, 48.125f, 52.5f, 183.25f,
+    158.75f, 52.5f, 56.875f, 197.5f,
+    173.0f, 56.875f, 61.25f, 211.75f,
+    159.25f, 197.5f, 211.75f, 192.0f,
+    114.25f, 144.5f, 158.75f, 147.0f,
+    144.5f, 48.125f, 52.5f, 183.25f,
+    158.75f, 52.5f, 56.875f, 197.5f,
+    173.0f, 56.875f, 61.25f, 211.75f,
+    187.25f, 61.25f, 65.625f, 226.0f,
+    171.5f, 211.75f, 226.0f, 204.25f,
+    104.5f, 134.75f, 147.0f, 131.25f,
+    134.75f, 169.0f, 183.25f, 167.5f,
+    147.0f, 183.25f, 197.5f, 179.75f,
+    159.25f, 197.5f, 211.75f, 192.0f,
+    171.5f, 211.75f, 226.0f, 204.25f,
+    151.75f, 192.0f, 204.25f, 178.5f
     )
 
     val lambdaNeigh = fun(
@@ -866,23 +891,17 @@ class TestAcousticStencilBoundaries {
 
     try
     {
-//    val newLambda = SimplifyAndFuse(lambdaNeigh)
-    val source = Compile(lambdaNeigh)
+      val newLambda = SimplifyAndFuse(lambdaNeigh)
+      val source = Compile(newLambda)
 
-    println(BoundaryUtilities.convertKernelParameterstoJSON(lambdaNeigh,source))
-
-      /*val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
-      //if (StencilUtilities.printOutput)
-      //{
+      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      if (StencilUtilities.printOutput)
+      {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
-        StencilUtilities.print3DArray(mask3D)
-        StencilUtilities.print3DArray(StencilUtilities.weights3D)
-        StencilUtilities.print3DArray(StencilUtilities.weightsMiddle3D)
-      //}
+      }
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
-      */
-     }
 
+    }
     catch
     {
         case e: DeviceCapabilityException =>
