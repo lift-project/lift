@@ -31,7 +31,7 @@ object GeneratePrograms {
       val sizes = inputSizes.combinations(vars.length)
 
       sizes.foreach(size => {
-        val substitutions = (vars,size).zipped.toMap
+        val substitutions = (vars,size).zipped.toMap[ArithExpr, Cst]
 
         val inputs = InputGenerator(substitutions)(lambda)
 
