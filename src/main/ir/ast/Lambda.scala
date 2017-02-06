@@ -145,6 +145,9 @@ object Lambda1 {
       fun( x => f( (0 until f.arity).map( Get(x, _) ):_* ) )
     }
   }
+
+  def unapply(arg: Lambda1): Option[(Array[Param], Expr)] =
+    Some(arg.params, arg.body)
 }
 
 /**
