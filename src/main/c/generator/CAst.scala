@@ -1,12 +1,12 @@
-package opencl.generator
+package c.generator
 
-import lift.arithmetic.{Predicate, ArithExpr, Var}
-import ir.{Type, TupleType, VectorType}
-import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
+import lift.arithmetic.{ArithExpr, Predicate, Var}
+import ir.{TupleType, Type, VectorType}
+import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
 
 import scala.language.implicitConversions
 
-object OpenCLAST {
+object CAst {
 
   /** Base class for all OpenCL AST nodes. */
   sealed trait OclAstNode
@@ -88,6 +88,8 @@ object OpenCLAST {
     }
   }
 
+  case class Pragma(text:String) extends Declaration
+
   /**
     *
     * @param init      The expression/value initializing the iteration variabel. should either be an ExpressionStatement or VarDecl
@@ -125,8 +127,6 @@ object OpenCLAST {
     */
   case class GOTO(nameVar: Var) extends Statement
 
-  case class Break() extends Statement
-
   case class Barrier(mem: OpenCLMemory) extends Statement
 
   case class TypeDef(t: Type) extends Statement
@@ -137,7 +137,7 @@ object OpenCLAST {
 
 
   case class FunctionCall(name: String,
-                          args: List[OpenCLAST.OclAstNode]) extends Expression
+                          args: List[CAst.OclAstNode]) extends Expression
 
   /** A reference to a declared variable
     *
@@ -289,13 +289,14 @@ object OpenCLAST {
       case w: WhileLoop =>
         visitExpressionsInNode(w.loopPredicate)
         visitExpressionsInNode(w.body)
-      case Barrier(_) | GOTO(_) | TupleAlias(_, _) | TypeDef(_) | Break() =>
+      case Barrier(_) | GOTO(_) | TupleAlias(_, _) | TypeDef(_) =>
     }
 
     def visitDeclaration(d: Declaration): Unit = d match {
       case f: Function => visitExpressionsInNode(f.body)
       case v: VarDecl => if (v.init != null) visitExpressionsInNode(v.init)
       case Label(_) | ParamDecl(_, _, _, _) =>
+      case other => throw new Exception("Unknown declaration " + other.toString)
     }
   }
 
@@ -312,12 +313,13 @@ object OpenCLAST {
         case ifte: IfThenElse =>
           visitBlocks(ifte.trueBody, fun)
           visitBlocks(ifte.falseBody, fun)
-        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) | Break() =>
+        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) =>
       }
 
       case d: Declaration => d match {
         case f: Function => visitBlocks(f.body, fun)
         case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
+        case other => throw new Exception("Unknown declaration " + other.toString)
       }
 
       case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>

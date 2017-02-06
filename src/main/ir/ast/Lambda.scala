@@ -440,3 +440,4 @@ trait funDef {
 // two names for the same thing:
 object fun extends funDef
 object \ extends funDef
+object λ extends funDef

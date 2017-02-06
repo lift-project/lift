@@ -1,19 +1,20 @@
-package opencl.generator
+package c.generator
 
 import lift.arithmetic._
 import ir._
 import ir.view.AccessVar
-import opencl.generator.OpenCLAST._
+import opencl.generator._
+import c.generator.CAst._
 import opencl.ir._
 
-object OpenCLPrinter {
-  def apply() = new OpenCLPrinter
+object CPrinter {
+  def apply() = new CPrinter
 }
 
-/** The printer walks the AST emitted by the [[OpenCLGenerator]] and generates
+/** The printer walks the AST emitted by the [[CGenerator]] and generates
   * standalone OpenCL-C code.
   */
-class OpenCLPrinter {
+class CPrinter {
   /**
    * Entry point for printing an AST.
    *
@@ -154,11 +155,11 @@ class OpenCLPrinter {
     case c: Cast          => print(c)
     case l: VectorLiteral => print(l)
     case e: OpenCLExtension     => print(e)
-    case i: OpenCLAST.IfThenElse    => print(i)
+    case i: CAst.IfThenElse    => print(i)
     case l: Label         => print(l)
     case g: GOTO          => print(g)
-    case b: Break         => print(b)
     case s: StructConstructor => print(s)
+    case p: Pragma => sb ++= s"#pragma ${p.text}"
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
   }
@@ -267,7 +268,7 @@ class OpenCLPrinter {
   }
 
   private def print(f: Function): Unit = {
-    if(f.kernel) sb ++= "kernel void"
+    if(f.kernel) sb ++= "void" //sb ++= "kernel void"
     else sb ++= toString(f.ret)
     sb ++= s" ${f.name}("
     f.params.foreach(x => {
@@ -276,11 +277,11 @@ class OpenCLPrinter {
     })
     sb ++= ")"
     if(f.kernel)
-      sb ++= "{ \n" +
-        "#ifndef WORKGROUP_GUARD\n" +
-        "#define WORKGROUP_GUARD\n" + 
-        "#endif\n" +
-        "WORKGROUP_GUARD\n"
+      sb ++= "{ \n" //+
+        //"#ifndef WORKGROUP_GUARD\n" +
+        //"#define WORKGROUP_GUARD\n" +
+        //"#endif\n" +
+        //"WORKGROUP_GUARD\n"
     print(f.body)
     if(f.kernel)
       println("}")
@@ -302,7 +303,8 @@ class OpenCLPrinter {
     case ArrayType(_,_) =>
       // Const restricted pointers to read-only global memory. See issue #2.
       val (const, restrict) = if (p.const) ("const ", "restrict ") else ("","")
-      print(const + p.addressSpace + " " + toString(Type.devectorize(p.t)) +
+      //Cut out the address space, which is not used in plain C
+      print(const /*+ p.addressSpace + " " */ + toString(Type.devectorize(p.t)) +
             " " + restrict + p.name)
 
     case x =>
@@ -320,17 +322,8 @@ class OpenCLPrinter {
 
         case LocalMemory if vd.length != 0 =>
           val baseType = Type.getBaseType(vd.t)
-          val declaration =
-            s"${vd.addressSpace} ${toString(baseType)} ${toString(vd.v)}[${vd.length}]"
-
-          // Make sure the memory is correctly aligned when using pointer casts
-          // for forcing vector loads on NVIDIA.
-          val optionalAttribute =
-            if (UseCastsForVectors()) " __attribute__ ((aligned(16)));" else ";"
-
-          val fullDeclaration = declaration + optionalAttribute
-
-          print(fullDeclaration)
+          print(s"${vd.addressSpace} ${toString(baseType)} " +
+                  s"${toString(vd.v)}[${vd.length}];")
 
         case x =>
           val baseType = Type.getBaseType(vd.t)
@@ -403,7 +396,7 @@ class OpenCLPrinter {
     * 
     * @param s a [[IfThenElse]] node
     */
-  private def print(s: OpenCLAST.IfThenElse): Unit = {
+  private def print(s: CAst.IfThenElse): Unit = {
     print("if(")
     print(s.cond)
     println(")")
@@ -431,10 +424,6 @@ class OpenCLPrinter {
     */
   private def print(g: GOTO): Unit = {
     println("goto " + g.nameVar.toString + ";")
-  }
-
-  private def print(b: Break) : Unit = {
-    print("break;")
   }
 
   private def print(s: StructConstructor): Unit = {

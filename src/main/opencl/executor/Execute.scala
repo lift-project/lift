@@ -1,11 +1,12 @@
 package opencl.executor
 
-import lift.arithmetic.{ArithExpr, Cst, Var}
+import lift.arithmetic.{?, ArithExpr, Cst, Var, SolveForVariable}
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator.{OpenCLGenerator, Verbose}
 import opencl.ir._
+import rewriting.InferNDRange
 
 import scala.collection.immutable
 import scala.reflect.ClassTag
@@ -61,22 +62,32 @@ object Execute {
                 injectSizes._1, injectSizes._2)
   }
 
+
   def apply(localSize: NDRange,
             globalSize: NDRange,
             injectSizes: (Boolean, Boolean)): Execute = {
 
-    new Execute(localSize(0).eval, localSize(1).eval, localSize(2).eval,
-                globalSize(0).eval, globalSize(1).eval, globalSize(2).eval,
+    new Execute(localSize(0), localSize(1), localSize(2),
+                globalSize(0), globalSize(1), globalSize(2),
                 injectSizes._1, injectSizes._2)
   }
+
+  /**
+    * Creates an Execute instance that tries to automatically infer local and global
+    * sizes to minimise generated loops and injects them into the kernel.
+    *
+    * @see [[rewriting.InferNDRange]] for more details on the inference process.
+    *
+    */
+  def apply(): Execute =
+    new Execute (?, ?, ?, ?, ?, ?, true, true)
 
   /**
    * Private helper functions.
    * Create a map which maps variables (e.g., N) to values (e.g, "1024")
    */
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
-    // just take the variables
-    val vars = f.params.flatMap((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var]))
+    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).init) //.filter(!_.isInstanceOf[Cst]))
 
     val tupleSizes = f.params.map(_.t match {
       case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
@@ -100,11 +111,14 @@ object Execute {
         => Seq(Cst(aa.length), Cst(aa(0).length / tupleSize))
       case a: Array[_]
         => Seq(Cst(a.length / tupleSize))
-      case any: Any
+      case _
         => Seq(Cst(1))
     }).flatten[ArithExpr]
 
-    (vars zip sizes).toMap[ArithExpr, ArithExpr]
+    (sizeExprs zip sizes).flatMap{
+      case (Cst(_), _) => Seq() // ignore
+      case pair => Seq((pair._1.varList.head, SolveForVariable(pair._1, pair._2)))
+    }.toMap[ArithExpr, ArithExpr]
   }
 
   /**
@@ -150,18 +164,11 @@ object Execute {
  * @param injectLocalSize should the OpenCL local size be injected into the kernel code?
  * @param injectGroupSize should the size of an OpenCL work group be injected into the kernel code?
  */
-class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
-              val globalSize1: Int, val globalSize2: Int, val globalSize3: Int,
+class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSize3: ArithExpr,
+              val globalSize1: ArithExpr, val globalSize2: ArithExpr, val globalSize3: ArithExpr,
               val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
 
   import Execute._
-
-  // sanity checks
-  ValidateNDRange(globalSize1, localSize1, 0)
-  ValidateNDRange(globalSize2, localSize2, 1)
-  ValidateNDRange(globalSize3, localSize3, 2)
-  ValidateGroupSize(localSize1 * localSize2 * localSize3)
-
 
   /**
    * Given just a string: evaluate the string into a lambda and
@@ -195,11 +202,19 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     evaluate(iterations, timeout, kernel, f, values:_*)
   }
 
-
-
   private def compile(f: Lambda, values: Any*) : String = {
     // 1. choice: local and work group size should be injected into the OpenCL kernel ...
     if (injectLocalSize && injectGroupSize) {
+
+      if (shouldInferSizes) {
+
+        val (localSizes: NDRange, globalSizes: NDRange) = inferSizes(f)
+
+        return Compile(f, localSizes(0), localSizes(1), localSizes(2),
+          globalSizes(0), globalSizes(1), globalSizes(2), immutable.Map())
+
+      }
+
       // ... build map of values mapping size information to arithmetic expressions, e.g., ???
       val valueMap = Execute.createValueMap(f, values: _*)
       // ... compile with all information provided
@@ -215,6 +230,36 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     // 3.choice: nothing should we injected into the OpenCL kernel ... just compile
     Compile(f)
+  }
+
+  // Unknown local and global sizes indicate they should be inferred
+  private def shouldInferSizes =
+    localSize1 == ? && localSize2 == ? && localSize3 == ? &&
+      globalSize1 == ? && globalSize2 == ? && globalSize3 == ?
+
+  private def inferSizes(f: Lambda) = {
+    val (localSizes, globalSizes) = InferNDRange(f)
+
+    val existingDims = globalSizes.count(_ != Cst(1))
+
+    val defaultSize =
+      existingDims match {
+        case 3 => 8
+        case 2 => 16
+        case 1 => 128
+        case _ => 1
+      }
+
+    if (localSizes(0) == ?)
+      localSizes(0) = if (globalSizes(0) != Cst(1)) defaultSize else 1
+
+    if (localSizes(1) == ?)
+      localSizes(1) = if (globalSizes(1) != Cst(1)) defaultSize else 1
+
+    if (localSizes(2) == ?)
+      localSizes(2) = if (globalSizes(2) != Cst(1)) defaultSize else 1
+
+    (localSizes, globalSizes)
   }
 
   /**
@@ -273,6 +318,46 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
     execute(executeFunction, code, f, values:_*)
   }
 
+  private[executor] def getAndValidateSizesForExecution(f: Lambda,
+    valueMap: immutable.Map[ArithExpr,ArithExpr]): (NDRange, NDRange) = {
+
+    val (localSize, globalSize) =
+      if (shouldInferSizes) {
+
+        val (local, global) = inferSizes(f)
+        val realLocal = InferNDRange.substituteInNDRange(local, valueMap)
+        val realGlobal = InferNDRange.substituteInNDRange(global, valueMap)
+
+        if (realLocal.exists(!_.isEvaluable))
+          throw new InvalidIndexSpaceException(
+            s"Failed to infer evaluable local thread counts, ${realLocal.mkString(", ")}")
+
+        if (realGlobal.exists(!_.isEvaluable))
+          throw new InvalidIndexSpaceException(
+            s"Failed to infer evaluable global thread counts, ${realGlobal.mkString(", ")}")
+
+        (realLocal, realGlobal)
+
+      } else {
+        (
+          Array[ArithExpr](localSize1, localSize2, localSize3),
+          Array[ArithExpr](globalSize1, globalSize2, globalSize3)
+        )
+      }
+
+    // sanity checks
+    ValidateNDRange(globalSize(0).eval, localSize(0).eval, 0)
+    ValidateNDRange(globalSize(1).eval, localSize(1).eval, 1)
+    ValidateNDRange(globalSize(2).eval, localSize(2).eval, 2)
+    ValidateGroupSize(localSize(0).eval * localSize(1).eval * localSize(2).eval)
+
+    if (Verbose()) {
+      println(s"Local sizes: ${localSize.mkString(", ")}")
+      println(s"Global sizes: ${globalSize.mkString(", ")}")
+    }
+
+    (localSize, globalSize)
+  }
 
   private def execute(executeFunction: (String, Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
                        code: String, f: Lambda, values: Any*): (Array[_], Double) = {
@@ -282,6 +367,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     // 2. create map associating Variables, e.g., SizeVar("N"), with values, e.g., "1024".
     val valueMap = Execute.createValueMap(f, values: _*)
+
+    val (localSize, globalSize) = getAndValidateSizesForExecution(f, valueMap)
 
     // 3. make sure the device has enough memory to execute the kernel
     validateMemorySizes(f, valueMap)
@@ -301,8 +388,8 @@ class Execute(val localSize1: Int, val localSize2: Int, val localSize3: Int,
 
     // 8. execute via JNI
     val runtime = this.synchronized {
-      executeFunction(code, localSize1, localSize2, localSize3,
-        globalSize1, globalSize2, globalSize3, args)
+      executeFunction(code, localSize(0).eval, localSize(1).eval, localSize(2).eval,
+        globalSize(0).eval, globalSize(1).eval, globalSize(2).eval, args)
     }
 
     // 9. cast the output accordingly to the output type
