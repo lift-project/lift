@@ -26,27 +26,13 @@ public class Executor {
         }
     }
 
-    /** Execute the given kernel source code with the given global and local size and arguments.
-      * Returns the runtime in milliseconds.
-      *
-      * @return The runtime of the kernel in milliseconds.
-      */
-    public static double execute(String kernelCode,
-                                 int localSize1, int localSize2, int localSize3,
-                                 int globalSize1, int globalSize2, int globalSize3,
-                                 KernelArg[] args)
-    {
-        return execute(kernelCode, "KERNEL", "", localSize1, localSize2, localSize3,
-                globalSize1, globalSize2, globalSize3, args);
-    }
-
-    public static double initAndExecute(String kernelCode,
+    public static double initAndExecute(Kernel kernel,
                                         int localSize1, int localSize2, int localSize3,
                                         int globalSize1, int globalSize2, int globalSize3,
                                         KernelArg[] args)
     {
         init();
-        double runtime = execute(kernelCode, localSize1, localSize2, localSize3,
+        double runtime = execute(kernel, localSize1, localSize2, localSize3,
                 globalSize1, globalSize2, globalSize3, args);
         shutdown();
         return runtime;
@@ -71,42 +57,21 @@ public class Executor {
 
     public native static void nativeMatrixMultiply(float[] a, float[] b, float[] out, int n, int m, int k);
 
-    public native static double execute(String kernelCode, String kernelName, String buildOptions,
+    public native static double execute(Kernel kernel,
                                         int localSize1, int localSize2, int localSize3,
                                         int globalSize1, int globalSize2, int globalSize3,
                                         KernelArg[] args);
 
-    /** Execute the given kernel source code with the given global and local size and arguments
-     * <code>iterations</code> times.
-     * Returns the median runtime in milliseconds.
-     *
-     * @return The median runtime of the kernel in milliseconds.
-     */
-    public static double benchmark(String kernelCode,
-                                   int localSize1, int localSize2, int localSize3,
-                                   int globalSize1, int globalSize2, int globalSize3,
-                                   KernelArg[] args, int iterations, double timeout) {
-        return benchmark(kernelCode, "KERNEL", "", localSize1, localSize2, localSize3,
-                globalSize1, globalSize2, globalSize3, args, iterations, timeout);
-    }
 
-    public native static double benchmark(String kernelCode, String kernelName, String buildOptions,
-                                          int localSize1, int localSize2, int localSize3,
-                                          int globalSize1, int globalSize2, int globalSize3,
-                                          KernelArg[] args, int iterations, double timeOut);
+    public native static double benchmark(Kernel kernel,
+                                         int localSize1, int localSize2, int localSize3,
+                                         int globalSize1, int globalSize2, int globalSize3,
+                                         KernelArg[] args, int iterations, double timeOut);
 
-    public static double evaluate(String kernelCode,
-                                   int localSize1, int localSize2, int localSize3,
-                                   int globalSize1, int globalSize2, int globalSize3,
-                                   KernelArg[] args, int iterations, double timeout) {
-        return evaluate(kernelCode, "KERNEL", "", localSize1, localSize2, localSize3,
-                globalSize1, globalSize2, globalSize3, args, iterations, timeout);
-    }
-
-    public native static double evaluate(String kernelCode, String kernelName, String buildOptions,
-                                          int localSize1, int localSize2, int localSize3,
-                                          int globalSize1, int globalSize2, int globalSize3,
-                                          KernelArg[] args, int iterations, double timeOut);
+    public native static double evaluate(Kernel kernel,
+                                         int localSize1, int localSize2, int localSize3,
+                                         int globalSize1, int globalSize2, int globalSize3,
+                                         KernelArg[] args, int iterations, double timeOut);
 
  
 

@@ -5,7 +5,10 @@ In alphabetical order:
  - Bastian Hagedorn <b.hagedorn@wwu.de>
  - Adam Harries <adam.harries@ed.ac.uk>
  - Thibaut Lutz <thibaut.lutz@gmail.com>
+ - Naums Mogers <naums.mogers@ed.ac.uk>
+ - Federico Pizzuti <pizzutifederico27@gmail.com>
  - Toomas Remmelg <toomas.remmelg@ed.ac.uk>
  - Michel Steuwer <michel.steuwer@ed.ac.uk>
+ - Larisa Stoltzfus <larisa.stoltzfus@ed.ac.uk>
  - Andre Tamm <andre.tamm@gmail.com>
 
