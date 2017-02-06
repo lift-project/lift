@@ -11,6 +11,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import rewriting.SimplifyAndFuse
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -626,7 +627,8 @@ class TestAcousticStencils {
     val Xvalue = 1.37f
 
     /** ** Why doesn't this work? !!!! ****/
-    val lambdaNeigh = fun(
+  /*
+      val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
       ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
@@ -639,8 +641,9 @@ class TestAcousticStencils {
           )
         }))) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
       })
+   */
 
-    val lambdaNeigh2 = fun(
+    val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
       ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
@@ -656,8 +659,8 @@ class TestAcousticStencils {
         }))) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
       })
 
-    val source = Compile(lambdaNeigh2)
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh2, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val source = Compile(lambdaNeigh)
+    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -1052,7 +1055,6 @@ class TestAcousticStencils {
     }
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
   }
-
 
   /////////////////// JUNKYARD ///////////////////
   @Ignore
