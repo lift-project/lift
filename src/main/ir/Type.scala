@@ -584,3 +584,5 @@ object ZipTypeException {
 case class NumberOfArgumentsException(msg: String) extends Exception(msg) {
   def this()  = this("Number of arguments is wrong!")
 }
+
+case class SuspiciousTypeVariableDeclaredException(msg: String) extends Exception(msg)

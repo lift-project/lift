@@ -41,7 +41,7 @@ object Compile {
             globalSize1: ArithExpr, globalSize2: ArithExpr, globalSize3: ArithExpr,
             valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
     // 1. type check
-    TypeChecker.check(f.body)
+    TypeChecker(f)
 
     // 2. generate OpenCL kernel
     val kernel = OpenCLGenerator.generate(f,
