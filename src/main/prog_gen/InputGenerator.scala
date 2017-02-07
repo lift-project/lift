@@ -45,6 +45,8 @@ class InputGenerator(val concreteSizes: collection.Map[ArithExpr, Cst]) {
         Array.fill(actual1)(getFloat)
 
       case Float => getFloat
+
+      case _ => throw new NotImplementedError()
     }
 
   }

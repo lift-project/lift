@@ -4,6 +4,7 @@ import ir.TypeChecker
 import ir.ast.Lambda
 import lift.arithmetic.{?, ArithExpr}
 import opencl.generator.{OpenCLGenerator, Verbose}
+import opencl.generator.OpenCLGenerator.NDRange
 
 import scala.collection.immutable
 
@@ -31,6 +32,11 @@ object Compile {
   def apply(f: Lambda,
             localSize1: ArithExpr, localSize2: ArithExpr, localSize3: ArithExpr): String =
     apply(f, localSize1, localSize2, localSize3, ?, ?, ?, immutable.Map())
+
+  def apply(f: Lambda, localSizes: NDRange, globalSizes: NDRange): String =
+    apply(f,
+      localSizes(0), localSizes(1), localSizes(2),
+      globalSizes(0), globalSizes(1), globalSizes(2), immutable.Map())
 
   /**
    * Compiles the given lambda with the given local and global size.

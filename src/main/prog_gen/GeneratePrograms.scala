@@ -1,10 +1,12 @@
 package prog_gen
 
 import com.typesafe.scalalogging.Logger
-import ir.TypeChecker
+import ir.{Type, TypeChecker}
 import ir.ast.Lambda
 import lift.arithmetic.{ArithExpr, Cst}
-import opencl.executor.Eval
+import opencl.executor.{Eval, Compile}
+import rewriting.InferNDRange
+import rewriting.utils.Utils
 
 object GeneratePrograms {
 
@@ -22,34 +24,63 @@ object GeneratePrograms {
 
     val concretePrograms = programs.flatMap(substituteSplitFactors)
 
-    logger.info(s"$concretePrograms programs with split factors assigned.")
+    logger.info(s"${concretePrograms.length} programs with split factors assigned.")
 
+    val allInputCombinations = concretePrograms.map(lambda => {
+      val vars = lambda.getVarsInParams()
+
+      val sizes = inputSizes.combinations(vars.length)
+
+      val types = lambda.params.map(_.t)
+
+      sizes.map(s => {
+
+        val substitutions = (vars, s).zipped.toSeq.toMap[ArithExpr, ArithExpr]
+        types.map(Type.substitute(_, substitutions))
+
+      })
+
+    })
 
     concretePrograms.foreach(lambda => {
       val vars = lambda.getVarsInParams()
 
       val sizes = inputSizes.combinations(vars.length)
 
+      val (local, global) = InferNDRange(lambda)
+
+      val code = Compile(lambda, local, global)
+
+      val lambdaString = Utils.dumpLambdaToString(lambda)
+
+      val hash = Utils.Sha256Hash(lambdaString)
+
       sizes.foreach(size => {
         val substitutions = (vars,size).zipped.toMap[ArithExpr, Cst]
 
+        // TODO: Share inputs and generate/save only once
         val inputs = InputGenerator(substitutions)(lambda)
+
+        val localSubst = InferNDRange.substituteInNDRange(local, substitutions)
+        val globalSubst = InferNDRange.substituteInNDRange(global, substitutions)
+
+        // TODO: Run sequential for output
+
+        // TODO: Dump everything to files
 
       })
     })
-
-
 
   }
 
 
   private def substituteSplitFactors(lambda: Lambda): Seq[Lambda] = {
 
-    val nodes = rewriting.utils.Utils.findTunableNodes(lambda)
-    val toReplace = nodes.map(rewriting.utils.Utils.extractArithExpr)
+    val nodes = Utils.findTunableNodes(lambda)
+    val toReplace = nodes.map(Utils.extractArithExpr)
     val vars = lambda.getVarsInParams()
 
-    val factory = Eval.getMethod(rewriting.utils.Utils.dumpLambdaToMethod(lambda))
+    val factory = Eval.getMethod(Utils.dumpLambdaToMethod(lambda))
 
     val replacementCombinations = splitFactors.combinations(toReplace.length)
 
