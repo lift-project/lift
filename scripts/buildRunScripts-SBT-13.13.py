@@ -55,6 +55,9 @@ command += " -cp "
 # Add things from classpath
 command += ':'.join(re.compile("Attributed\(([^\)]*)\)").findall(classpath))
 
+# make a folder to store the compiled scripts
+subprocess.call(["mkdir", "-p", "compiled_scripts"])
+
 # for each of the mainclasses, build a runscript
 for clazz in mainClasses:
 	finalCommand = command + " " + clazz + " $*\n"
