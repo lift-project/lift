@@ -9,35 +9,53 @@ projectRoot=os.path.dirname(scriptRoot)
 
 os.chdir(projectRoot)
 
-classpath = subprocess.check_output(["sbt", "show runtime:fullClasspath"])
-mainClasses = subprocess.check_output(["sbt", "show discoveredMainClasses"]).split("\n")
-javaOptions = subprocess.check_output(["sbt", "show javaOptions"]).split("\n")
+# SBT now includes colour codes in the output. We need to strip them.
+# This solution uses a regex to match and substitute them. Regex taken from
+# http://superuser.com/questions/380772/removing-ansi-color-codes-from-text-stream
+def remove_colour_codes(string):
+	ccrgx = re.compile('\\x1b\[[0-9;]*m')
+	return ccrgx.sub('', string)
 
+# Get data from SBT
+print("Classpath: ")
+classpath = remove_colour_codes(subprocess.check_output(["sbt", "show runtime:fullClasspath"]).decode())
+print(classpath)
+
+print("mainClasses: ")
+mainClasses = remove_colour_codes(subprocess.check_output(["sbt", "show discoveredMainClasses"]).decode())
+print(mainClasses)
+
+print("javaOptions: ")
+javaOptions = remove_colour_codes(subprocess.check_output(["sbt", "show javaOptions"]).decode())
+print(javaOptions)
+
+# Build a regex to match mainclasses and java options
+mcjoRegex = re.compile("\[info\] \* (.*)")
+
+# Extract the classes 
+mainClasses = mcjoRegex.findall(mainClasses)
+print("Discovered mainClasses: ")
+for mc in mainClasses: 
+	print("\t - " + mc)
+
+# And Java options
+javaOptions = mcjoRegex.findall(javaOptions)
+print("Discovered javaOptions: ")
+for jo in javaOptions: 
+	print("\t - " + jo)
+
+# Start building a comannd to print to a file
 command = "#!/bin/bash\n\njava "
 
-print "Classpath: " + (classpath)
-print "mainClasses: " + str(mainClasses)
-print "javaOptions: " + str(javaOptions)
+# Add java options
+command += ' '.join(javaOptions)
 
-mcjoRegex = "(.*)"
-# mcjoRegex = "List\((.*)\)"
-# mcjoRegex = "\[info\] \* (.*)"
+command += " -cp "
 
+# Add things from classpath
+command += ':'.join(re.compile("Attributed\(([^\)]*)\)").findall(classpath))
 
-mainClasses = map(lambda mc: re.compile(mcjoRegex).search(mainClasses).group(1), mainClasses)
-javaOptions = re.compile(mcjoRegex).search(javaOptions).group(1).split(", ")
-
-print mainClasses
-print javaOptions
-
-for option in javaOptions:
-  command += option + " "
-
-command += "-cp "
-
-for match in re.compile("Attributed\(([^\)]*)\)").finditer(classpath):
-	command += match.group(1) + ":"
-
+# for each of the mainclasses, build a runscript
 for clazz in mainClasses:
 	finalCommand = command + " " + clazz + " $*\n"
 	fileName = scriptRoot + "/compiled_scripts/" + clazz.split(".")[-1]
@@ -45,4 +63,4 @@ for clazz in mainClasses:
 	f.write(finalCommand)
 	f.close()
 	subprocess.call(["chmod", "u+x", fileName])
-	print "Created a script for " + clazz
+	print("Created a script for " + clazz)
