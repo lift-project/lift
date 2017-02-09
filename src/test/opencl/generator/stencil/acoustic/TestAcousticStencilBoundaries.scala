@@ -197,8 +197,8 @@ class TestAcousticStencilBoundaries {
   val stencilarrsame = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize, StencilUtilities.stencilSize)
   val stencilarrCopy = stencilarr.map(x => x.map(y => y * 2.0f))
 
-  val stencilarr3D = StencilUtilities.createDataFloat3D(localDim, localDim, localDim)
-  val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDim, localDim, localDim)
+  val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
+  val stencilarrsame3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
   val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z * 2.0f)))
 
   /* globals */
@@ -481,7 +481,7 @@ class TestAcousticStencilBoundaries {
   def testSimpleOneGridWithBoundaryCheckMask3D(): Unit = {
 
     val localDim = 4
-    val stencilarr3D = StencilUtilities.createDataFloat3D(localDim, localDim, localDim)
+    val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
     val mask3D = BoundaryUtilities.createMaskData3D(localDim)
 
     /* u[cp] = S*( boundary ? constantBorder : constantOriginal) */
@@ -536,8 +536,8 @@ class TestAcousticStencilBoundaries {
   @Test
   def testTwoGridsThreeCalculationsWithMask3D(): Unit = {
     val localDim = 4
-    val stencilarr3D = StencilUtilities.createDataFloat3D(localDim, localDim, localDim)
-    val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDim, localDim, localDim)
+    val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
+    val stencilarrsame3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
     val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z * 2.0f)))
     val mask3D = BoundaryUtilities.createMaskData3D(localDim)
 
@@ -613,8 +613,8 @@ class TestAcousticStencilBoundaries {
     val localDimY = 8
     val localDimZ = 12
 
-    val stencilarr3D = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
-    val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrsame3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
     val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z * 2.0f)))
     val mask3D = BoundaryUtilities.createMaskDataAsym3D(localDimX, localDimY, localDimZ)
 
@@ -774,8 +774,8 @@ class TestAcousticStencilBoundaries {
     val localDimX = 4
     val localDimY = 6
     val localDimZ = 10
-    val stencilarr3D = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
-    val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrsame3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
     val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z * 2.0f)))
     val mask3D = BoundaryUtilities.createMaskDataAsym3D(localDimX, localDimY, localDimZ)
 
@@ -969,8 +969,8 @@ class TestAcousticStencilBoundaries {
     val localDimX = 8
     val localDimY = 4
     val localDimZ = 12
-    val stencilarr3D = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
-    val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrsame3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
     val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z * 2.0f)))
 
     /* u[cp] = ( boundary ? constantBorder0 : constantOriginal0 )  * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u1[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
@@ -1034,8 +1034,8 @@ class TestAcousticStencilBoundaries {
     val localDimX = 6
     val localDimY = 4
     val localDimZ = 2
-    val stencilarr3D = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
-    val stencilarrsame3D = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrsame3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
     val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z * 2.0f)))
 
     /* u[cp] = ( boundary ? constantBorder0 : constantOriginal0 )  * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u1[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
@@ -1096,12 +1096,12 @@ class TestAcousticStencilBoundaries {
 
     // need to remove outer layer so that neighbourhoods match up! //
         val testDim = 5
-        val filling = Array.tabulate(testDim,testDim,testDim) { (i,j,k) => (i + j + k + 1).toFloat }
-        val filling2 = Array.tabulate(testDim,testDim,testDim) { (i,j,k) => (2.0*(i + j + k + 1)).toFloat }
+        val filling = StencilUtilities.createDataFloat3D(testDim,testDim,testDim)
+        val filling2 = StencilUtilities.createDataFloat3DWithPadding(testDim,testDim,testDim).map(x => x.map(y => y.map(z => 2.0*z)))
 
         val lambdaNeigh = fun(
           ArrayType(ArrayType(ArrayType(Float, m), n), o),
-          ArrayType(ArrayType(ArrayType(Float, m), n), o),
+          ArrayType(ArrayType(ArrayType(Float, m+2), n+2), o+2),
           ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
           (mat1, mat2, weightsMiddle) => {
             MapGlb((fun((m) => {
@@ -1109,11 +1109,8 @@ class TestAcousticStencilBoundaries {
               MapSeq(addTuple) $
                 Zip(Join() $ Get(m,0),
                     (ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                    Zip(( Join() o Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ Get(m,1)), Join() $ weightsMiddle)))
-
-              //toGlobal(MapSeq(fun(x => mult(x,constantOriginal(3))))) o
-                //(ReduceSeq(fun((acc,value) => { multAndSumUp.apply(acc,value,1.0f) }),0.0f)) $ m
-            }))) $ Zip(  mat1,  mat2) //(Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
+                    Zip(( Join() $ Get(m,1)), Join() $ weightsMiddle)))
+            }))) $ Zip( Join() $ mat1,  (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
           })
 
 
