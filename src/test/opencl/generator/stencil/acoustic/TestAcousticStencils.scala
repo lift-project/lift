@@ -1061,37 +1061,6 @@ class TestAcousticStencils {
   /////////////////// JUNKYARD ///////////////////
 
 
-  @Test
-  def testValue(): Unit = {
-
-    val constant = 2.0f
-
-    val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(Float, StencilUtilities.weightsArr.length),
-      (mat, weights) => {
-        MapGlb(1)(
-          MapGlb(0)(fun(neighbours => {
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeqUnroll(mult, constant) o
-              ReduceSeqUnroll(fun((acc, pair) => {
-                val pixel = Get(pair, 0)
-                val weight = Get(pair, 1)
-                multAndSumUp.apply(acc, pixel, weight)
-              }), 0.0f) $ Zip(Join() $ neighbours, weights)
-          }))
-        ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
-      })
-
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
-
-    StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
-
-
-  }
-
-
-
   @Ignore
   @Test
   def testScalaData(): Unit =
