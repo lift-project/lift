@@ -452,4 +452,50 @@ class TestSlide {
     println("scala: " + test.flatten.flatten.flatten.flatten.flatten.map(_.toInt).map(_+97).map(_.asInstanceOf[Char]).mkString(","))
     println(output.map(_.toInt).mkString(","))
   }
+
+  @Test def slideND(): Unit = {
+    val n = 3
+    val s = 1
+    val input3D = Array.tabulate(34, 34, 34) { (_, _, _) => scala.util.Random.nextFloat() }
+    val input2D = Array.tabulate(34, 34) { (_, _) => scala.util.Random.nextFloat() }
+
+    val applyId3D = MapGlb(2)(MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(MapSeq(id))))))
+    val applyId2D = MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(id))))
+    def lambda2D(f: Lambda) = {
+      fun(
+        ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")),
+        input => applyId2D o f $ input
+      )
+    }
+    def lambda3D(f: Lambda) = {
+      fun(
+        ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
+        input => applyId3D o f $ input
+      )
+    }
+
+    ////////// 2D
+    val generated2D = SlideND(2)(n,s)
+    val handwritten2D = Map(Transpose()) o Slide(n,s) o Map(Slide(n,s))
+
+    val (outGold2D: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda2D(handwritten2D), input2D)
+    val (outGenerated2D: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda2D(generated2D), input2D)
+
+    //println(generated2D)
+    //println(handwritten2D)
+    assertArrayEquals(outGold2D, outGenerated2D, 0.1f)
+
+    ////////// 3D
+    val generated3D = SlideND(3)(n,s)
+    val handwritten3D = Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Map(Transpose()))) o
+      Slide(n,s) o Map(Slide(n,s)) o Map(Map(Slide(n,s)))
+
+    val (outGold: Array[Float], _) = Execute(1,1,1,32,32,32,(false,false))(lambda3D(handwritten3D), input3D)
+    val (outGenerated: Array[Float], _) = Execute(1,1,1,32,32,32,(false,false))(lambda3D(generated3D), input3D)
+
+    println(generated3D)
+    println(handwritten3D)
+
+    assertArrayEquals(outGold, outGenerated, 0.1f)
+  }
 }
