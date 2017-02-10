@@ -2,9 +2,7 @@ package ir.ast
 
 import ir.interpreter.Interpreter._
 import lift.arithmetic.ArithExpr
-import ir.{ArrayType, Type, TypeException}
-import rewriting.utils.NumberExpression
-import rewriting.{Rewrite, Rules, SimplifyAndFuse}
+import ir.{ArrayType, Type, TypeException, Utils}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
@@ -74,7 +72,7 @@ object Slide2D {
             sizeCol: Int, stepCol: Int): Lambda = {
     Map(Transpose()) o Slide(sizeRow, stepRow) o Map(Slide(sizeCol, stepCol))
     // other possible implementation
-//    Map(Map(Transpose()) o Slide(sizeCol, stepCol) o Transpose()) o Slide(sizeRow, stepRow)
+    // Map(Map(Transpose()) o Slide(sizeCol, stepCol) o Transpose()) o Slide(sizeRow, stepRow)
   }
 }
 
@@ -82,17 +80,15 @@ object Slide3D {
   /** Symmetrical sliding */
   def apply(size: Int, step: Int): Lambda = {
     SlideND(3)(size,step)
-
-    //Slide3DTest(size, step)
-
-    //Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Map(Transpose()))) o
-    //Slide(size,step) o Map(Slide(size,step)) o Map(Map(Slide(size,step)))
+    // other possible implementations
     /*
+    Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Map(Transpose()))) o
+    Slide(size,step) o Map(Slide(size,step)) o Map(Map(Slide(size,step)))
+
     Map(Map(Transpose()) o Transpose()) o
     Slide(size, step) o
     Map(Map(Transpose()) o Slide(size, step) o Map(Slide(size, step)))
-    */
-    /* other possible implementation
+
     Map(Map(Transpose()) o Transpose() o
       Map(Map(Transpose() o Map(Slide(size, step))
         ) o Slide(size, step))) o Slide(size, step)
@@ -110,39 +106,21 @@ object Slide3D {
 
 object SlideND {
 
-  // 0 -> f, 1 -> Map(f), 2 -> Map(Map(f)), ...
-  def wrapInMaps(f: => Lambda)(count: Int): Lambda = {
-    if(count < 1) f
-    else Map(wrapInMaps(f)(count-1))
-  }
-
-  // creates Map(...(Map(f)...) o ... o Map(f) o f
-  def applyInEveryDimUntilDim(f: => Lambda)(dim: Int): Lambda = {
-    if(dim <= 1) f
-    else applyInEveryDimUntilDim(Map(f))(dim-1) o f
-    //else Map(applyInEveryDimUntilDim(f)(dim-1)) o f <- fused version
-  }
-
-  // creates f o Map(f) o ... o Map(...(Map(f)...)
-  def applyInEveryDimUntilDimReverse(f: => Lambda)(dim: Int): Lambda = {
-    if(dim <= 1) f
-    else f o applyInEveryDimUntilDimReverse(Map(f))(dim-1)
-    //else f o Map(applyInEveryDimUntilDimReverse(f)(dim-1)) <- fused version
-  }
-
-  // [a][A][b][C][c][C]... => [a][b][c]...[A][B][C]...
+  // [a][A][b][B][c][C]... => [a][b][c]...[A][B][C]...
   def interleaveDimensions(count: Int, i: Int): Lambda = {
     val howManyMaps = -2 * (count - 1 - i) - 1
-    if(count == 2) wrapInMaps(Transpose())(howManyMaps)
+    if(count == 2) Utils.wrapInMaps(Transpose())(howManyMaps)
     else {
-      applyInEveryDimUntilDim(wrapInMaps(Transpose())(howManyMaps))(count - 1) o interleaveDimensions(count - 1, i)
+      Utils.applyInEveryDimUntilDim(Utils.wrapInMaps(Transpose())(howManyMaps))(count - 1) o
+        interleaveDimensions(count - 1, i)
     }
   }
 
   def apply(dim: Int)(size: Int, step: Int): Lambda = {
     if(dim==1) Slide(size,step)
     else {
-      interleaveDimensions(dim, dim) o applyInEveryDimUntilDimReverse(Slide(size, step))(dim)
+      interleaveDimensions(dim, dim) o
+        Utils.applyInEveryDimUntilDimReverse(Slide(size, step))(dim)
     }
   }
 }
