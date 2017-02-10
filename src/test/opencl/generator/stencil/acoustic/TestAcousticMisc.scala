@@ -3,15 +3,16 @@ package opencl.generator.stencil.acoustic
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit._
+import rewriting.SimplifyAndFuse
 
 import scala.language.implicitConversions
 
-object TestSimpleRoomCode {
+object TestAcousticMisc {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
@@ -24,7 +25,7 @@ object TestSimpleRoomCode {
   }
 }
 
-class TestSimpleRoomCode {
+class TestAcousticMisc {
 
   /* currently the same, but in case we want to change .. */
   val stencilarr = StencilUtilities.createDataFloat2D(StencilUtilities.stencilSize,StencilUtilities.stencilSize)
@@ -95,11 +96,64 @@ class TestSimpleRoomCode {
 
   }
 
-  /* Test with non-symmetrical array size */
+  @Test
+  def testTwoGridsThreeCalculationsAsym3DGeneralWithOnlyOneWeights(): Unit = {
 
-  /* Test with 3D */
+    val localDimX = 8
+    val localDimY = 4
+    val localDimZ = 12
 
-  /* Test room like stencil */
+    val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
 
+    val n = SizeVar("N")
+    val m = SizeVar("M")
+    val o = SizeVar("O")
+    val a = SizeVar("A")
+    val x = SizeVar("X")
+    val y = SizeVar("Y")
+    val z = SizeVar("Z")
+    val testDim = 5
+
+    val constantOriginal = Array(1.0f, 2.0f, 1.5f, 0.25f)
+
+    val lambdaZip3D = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      (mat1, mat2, weights, weightsMiddle) => {
+        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
+          MapSeq(fun(x => mult(x,constantOriginal(3)))) o
+            MapSeq(addTuple) $
+            Zip(MapSeq(addTuple) $
+                Zip(MapSeq(fun(x => mult(x,constantOriginal(2)))) $ Get(m,0),
+                  (MapSeq(fun(x => mult(x, constantOriginal(0)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                  Zip(( Join() $ Get(m,1)), Join() $ weights))),
+              (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
+            ))))) $ StencilUtilities.zip3d(mat1, (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
+      })
+
+    try
+    {
+      val newLambda = SimplifyAndFuse(lambdaZip3D)
+
+//      BoundaryUtilities.writeKernelJSONToFile(newLambda,"/home/reese/workspace/phd/sandbox/")
+      val source = Compile(newLambda)
+
+      val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true, true))(source, newLambda,stencilarr3D,stencilarrOther3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+
+      StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
+
+    }
+    catch
+      {
+        case e: DeviceCapabilityException =>
+          Assume.assumeNoException("Device not supported.", e)
+      }
+  }
 
 }

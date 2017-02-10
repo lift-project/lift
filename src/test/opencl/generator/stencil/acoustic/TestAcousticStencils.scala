@@ -215,6 +215,12 @@ object StencilUtilities
     Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(A, B)
   )
 
+/*  val zip3D = fun((A, B) =>
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) $ Zip(A, B)
+  )*/
+
+  val zip3d = \((A,B) =>    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(A,B)  )
+
   def writeToBinaryFile(arr: Array[Float], filename: String)
   {
       var fileOut = new FileOutputStream(filename)

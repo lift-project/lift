@@ -1013,10 +1013,10 @@ class TestAcousticStencilBoundaries {
       val source = Compile(newLambda)
 
       val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
-      if (StencilUtilities.printOutput)
-      {
+    //if (StencilUtilities.printOutput)
+    //{
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
-      }
+    //  }
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
     }
@@ -1072,11 +1072,10 @@ class TestAcousticStencilBoundaries {
         }))
         ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
       })
-
-    /*
+/*
         val lambdaNeigh = fun(
-        ArrayType(ArrayType(ArrayType(Float, m), n), o),
-          ArrayType(ArrayType(ArrayType(Float, m), n), o),
+          ArrayType(ArrayType(ArrayType(ArrayType(Float, 1), m), n), o),
+          ArrayType(ArrayType(ArrayType(ArrayType(Float, 1), m), n), o),
           ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
           ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
           (mat1, mat2, weights, weightsMiddle) => {
@@ -1086,44 +1085,57 @@ class TestAcousticStencilBoundaries {
                 Zip(MapSeq(addTuple) $
                   Zip((MapSeq(fun(x => mult(x,constantOriginal(2))))) $ Get(Get(m, 0), 0),
                     (MapSeq(fun(x => mult(x, constantOriginal(0)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                      Zip( Join() $ Get(m, 1), Join() $ weights))),
+                      Zip( Join() $ Get(Get(m, 0),1), Join() $ weights))),
                   (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
                     Zip(( Join() $ Get(m,1), Join() $ weightsMiddle))))
             }))
-            ) $ Zip(Zip(  Join() $ mat1,  Join()  $ mat2),(Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
+            ) $ Zip(Zip( Join() o Join() $ mat1,  Join() o Join()  $ mat2),(Join() o Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
           })
-    */
-
+*/
     // need to remove outer layer so that neighbourhoods match up! //
         val testDim = 5
-        val filling = StencilUtilities.createDataFloat3D(testDim,testDim,testDim)
-        val filling2 = StencilUtilities.createDataFloat3DWithPadding(testDim,testDim,testDim).map(x => x.map(y => y.map(z => 2.0*z)))
+        val filling = StencilUtilities.createDataFloat3D(testDim,testDim,testDim)//.map(x => x.map(y => y.map(z => Array(z))))
+        val filling2 = StencilUtilities.createDataFloat3DWithPadding(testDim,testDim,testDim).map(x => x.map(y => y.map(z => 2.0f*z)))
 
-        val lambdaNeigh = fun(
-          ArrayType(ArrayType(ArrayType(Float, m), n), o),
+        val lambdaNeighWorks = fun(
+          ArrayType(ArrayType(ArrayType(ArrayType(Float, 1), m), n), o),
           ArrayType(ArrayType(ArrayType(Float, m+2), n+2), o+2),
           ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
           (mat1, mat2, weightsMiddle) => {
             MapGlb((fun((m) => {
               toGlobal(MapSeq(fun(x => mult(x,constantOriginal(0))))) o
               MapSeq(addTuple) $
-                Zip(Join() $ Get(m,0),
+                Zip( Get(m,0),
                     (ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
                     Zip(( Join() $ Get(m,1)), Join() $ weightsMiddle)))
-            }))) $ Zip( Join() $ mat1,  (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
+            }))) $ Zip( Join() o Join() $ mat1,  (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
           })
+/*
+    val filling = StencilUtilities.createDataFloat3D(testDim,testDim,testDim)
+    val filling2 = StencilUtilities.createDataFloat3DWithPadding(testDim,testDim,testDim).map(x => x.map(y => y.map(z => 2.0f*z)))
+*/
+
+
+    val lambdaZip3D = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m+2), n+2), o+2),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      (mat1, mat2, weightsMiddle) => {
+        MapGlb(0)(MapGlb(1)(MapGlb(2)(\(x => id.apply(x._0)))))  $   StencilUtilities.zip3d(mat1, (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
+      })
 
 
     try
     {
 //      val newLambda = SimplifyAndFuse(lambdaNeigh)
-      val source = Compile(lambdaNeigh)
+      val source = Compile(lambdaZip3D)
 
 //      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, lambdaNeigh, stencilarr3D, stencilarr3DCopy,  StencilUtilities.weightsMiddle3D)
-      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, lambdaNeigh,filling,filling2, StencilUtilities.weightsMiddle3D) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, lambdaZip3D,filling,filling2, StencilUtilities.weightsMiddle3D) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
      //StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       StencilUtilities.print3DArray(filling)
+      StencilUtilities.print3DArray(filling2)
       StencilUtilities.print1DArrayAs3DArray(output,testDim,testDim,testDim)
 
     }
