@@ -1,18 +1,18 @@
 package opencl.generator
 
 import java.io.FileInputStream
-
 import java.util.Scanner
-import scala.util.Random
 
-import lift.arithmetic.{ArithExpr, Cst, SizeVar, Lookup}
+import scala.util.Random
+import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
 import ir.ArrayType
 import ir.ast._
+import ir.printer.DotPrinter
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test, Ignore}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 
 object TestSlide {
@@ -481,20 +481,14 @@ class TestSlide {
     val (outGold2D: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda2D(handwritten2D), input2D)
     val (outGenerated2D: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda2D(generated2D), input2D)
 
-    //println(generated2D)
-    //println(handwritten2D)
     assertArrayEquals(outGold2D, outGenerated2D, 0.1f)
 
     ////////// 3D
     val generated3D = SlideND(3)(n,s)
-    val handwritten3D = Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Map(Transpose()))) o
-      Slide(n,s) o Map(Slide(n,s)) o Map(Map(Slide(n,s)))
+    val handwritten3D = Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Map(Transpose()))) o Slide(n,s) o Map(Slide(n,s)) o Map(Map(Slide(n,s)))
 
     val (outGold: Array[Float], _) = Execute(1,1,1,32,32,32,(false,false))(lambda3D(handwritten3D), input3D)
     val (outGenerated: Array[Float], _) = Execute(1,1,1,32,32,32,(false,false))(lambda3D(generated3D), input3D)
-
-    println(generated3D)
-    println(handwritten3D)
 
     assertArrayEquals(outGold, outGenerated, 0.1f)
   }
