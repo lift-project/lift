@@ -2,7 +2,7 @@ package ir.ast
 
 import ir.interpreter.Interpreter._
 import lift.arithmetic.ArithExpr
-import ir.{ArrayType, Type, TypeException, Utils}
+import ir._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
@@ -109,9 +109,9 @@ object SlideND {
   // [a][A][b][B][c][C]... => [a][b][c]...[A][B][C]...
   def interleaveDimensions(count: Int, i: Int): Lambda = {
     val howManyMaps = -2 * (count - 1 - i) - 1
-    if(count == 2) Utils.wrapInMaps(Transpose())(howManyMaps)
+    if(count == 2) GenerateIR.wrapInMaps(Transpose())(howManyMaps)
     else {
-      Utils.applyInEveryDimUntilDim(Utils.wrapInMaps(Transpose())(howManyMaps))(count - 1) o
+      GenerateIR.applyInEveryDimUntilDim(GenerateIR.wrapInMaps(Transpose())(howManyMaps))(count - 1) o
         interleaveDimensions(count - 1, i)
     }
   }
@@ -120,7 +120,7 @@ object SlideND {
     if(dim==1) Slide(size,step)
     else {
       interleaveDimensions(dim, dim) o
-        Utils.applyInEveryDimUntilDimReverse(Slide(size, step))(dim)
+        GenerateIR.applyInEveryDimUntilDimReverse(Slide(size, step))(dim)
     }
   }
 }

@@ -2,7 +2,7 @@ package ir
 
 import ir.ast._
 
-object Utils {
+object GenerateIR{
 
   // 0 -> f, 1 -> Map(f), 2 -> Map(Map(f)), ...
   def wrapInMaps(f: => Lambda)(count: Int): Lambda = {
