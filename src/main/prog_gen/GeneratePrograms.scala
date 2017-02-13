@@ -7,7 +7,7 @@ import ir.ast.Lambda
 import ir.{ArrayType, Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
-import org.clapper.argot.ArgotParser
+import org.clapper.argot.{ArgotParser, ArgotUsageException}
 import play.api.libs.json._
 import rewriting.utils.Utils
 
@@ -35,19 +35,24 @@ object GeneratePrograms {
   private var outputDirectory = ""
 
   def main(args: Array[String]): Unit = {
+    try {
+      parser.parse(args)
 
-    outputDirectory = output.value.getOrElse("generated_programs")
+      outputDirectory = output.value.getOrElse("generated_programs")
 
-    s"mkdir -p $outputDirectory".!
+      s"mkdir -p $outputDirectory".!
 
-    val programs = generatePrograms
+      val programs = generatePrograms
 
-    val concretePrograms = substituteSplitFactors(programs)
+      val concretePrograms = substituteSplitFactors(programs)
 
-    generateAndSaveInputs(concretePrograms)
+      generateAndSaveInputs(concretePrograms)
 
-    savePrograms(concretePrograms)
+      savePrograms(concretePrograms)
 
+    } catch {
+      case e: ArgotUsageException => println(e.message)
+    }
   }
 
   private def generatePrograms = {
@@ -139,7 +144,7 @@ object GeneratePrograms {
   }
 
   private def substituteSplitFactors(programs: Seq[Lambda]): Seq[Lambda] = {
-    val concretePrograms = programs.flatMap(substituteSplitFactors)
+    val concretePrograms = programs.par.flatMap(substituteSplitFactors).seq
 
     logger.info(s"${concretePrograms.length} programs with split factors assigned.")
     concretePrograms

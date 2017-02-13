@@ -160,7 +160,7 @@ class ProgramGenerator {
             program.params.forall(_.t match {
               case TupleType(tts@_*) => !tts.exists(_.isInstanceOf[ArrayType])
               case _ => true
-            }) && NumberExpression.byDepth(program).values.max <= 6
+            }) && NumberExpression.byDepth(program).values.max <= depthCutoff
 
         if (quickCheck) {
           // TODO: Quicker way of rebuilding expressions and getting rid
