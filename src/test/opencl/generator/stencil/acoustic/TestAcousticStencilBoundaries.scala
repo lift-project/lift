@@ -114,7 +114,9 @@ object BoundaryUtilities
     var lmTB = ListMap[String,String]()
     var lmS = ListMap[String,String]()
 
-    var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(_.contains("global"))
+    println(params.toString())
+
+    var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(x => x.contains("global") || (x.contains("private") && !x.contains("*")))
     val ignoreable = ", \t({}" // trim some stuff
     val toStrip = "){" // trim some more stuff
     val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains("global")))
@@ -127,7 +129,7 @@ object BoundaryUtilities
     val parameters = kernelStr(0).split(",") // pull out ALL parameters, including sizes
 
     // get size values (ints)
-    val generalVals = parameters.filter(x => !x.contains("*"))
+    val generalVals = parameters.filter(x => (!x.contains("*") && !x.contains("private")))
     val genVals = generalVals.map(x => x.trim.stripSuffix(toStrip))
     genVals.foreach(x => lmS += (x -> ""))
 
@@ -993,8 +995,9 @@ class TestAcousticStencilBoundaries {
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, weights, weightsMiddle) => {
-        MapGlb((fun((m) => {
-          toGlobal(MapSeq(fun(x => mult(x,constantOriginal(3))))) o
+        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
+         // MapGlb((fun((m) =>
+          MapSeq(toGlobal(fun(x => mult(x,constantOriginal(3))))) o
             MapSeq(addTuple) $
                   Zip(MapSeq(addTuple) $
                              Zip(((MapSeq(fun(x => mult(x,constantOriginal(2))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
@@ -1003,20 +1006,21 @@ class TestAcousticStencilBoundaries {
                                           Zip(Join() $ Get(m, 1), Join() $ weights))),
                      (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
                             Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
-        }))
-        ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
+        ))))) $ StencilUtilities.zip3d((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
       })
 
     try
     {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
+    //        BoundaryUtilities.writeKernelJSONToFile(newLambda,"/home/reese/workspace/phd/sandbox/")
+
       val source = Compile(newLambda)
 
       val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
-    //if (StencilUtilities.printOutput)
-    //{
+    if (StencilUtilities.printOutput)
+    {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
-    //  }
+    }
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
     }
