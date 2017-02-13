@@ -23,4 +23,22 @@ object GenerateIR{
     else f o applyInEveryDimUntilDimReverse(Map(f))(dim-1)
     //else f o Map(applyInEveryDimUntilDimReverse(f)(dim-1)) <- fused-maps version
   }
+
+  // [a][A][b][B][c][C]... => [a][b][c]...[A][B][C]...
+  def interleaveDimensions(count: Int, i: Int): Lambda = {
+    val howManyMaps = -2 * (count - 1 - i) - 1
+    if(i < 2) throw new IllegalArgumentException("Not enough dimensions to interleave")
+    if(count == 2) GenerateIR.wrapInMaps(Transpose())(howManyMaps)
+    else {
+      GenerateIR.applyInEveryDimUntilDim(GenerateIR.wrapInMaps(Transpose())(howManyMaps))(count - 1) o
+        interleaveDimensions(count - 1, i)
+    }
+  }
+
+  def interleaveDimensionsReverse(dim: Int): Lambda = {
+    if(dim < 2) throw new IllegalArgumentException("Not enough dimensions to interleave")
+    if(dim == 2) Map(Transpose())
+    else interleaveDimensionsReverse(dim -1) o
+      GenerateIR.applyInEveryDimUntilDim(GenerateIR.wrapInMaps(Transpose())(dim -1))(dim-1)
+  }
 }

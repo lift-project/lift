@@ -62,9 +62,12 @@ object Slide2D {
   /** Symmetrical sliding */
   def apply(size: Int, step: Int): Lambda = {
     SlideND(2)(size,step)
-    //Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))
-    // other possible implementation
-    // Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
+    // other possible implementations
+    /*
+    Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))
+
+    Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
+    */
   }
 
   /** Asymmetrical sliding */
@@ -106,21 +109,26 @@ object Slide3D {
 
 object SlideND {
 
-  // [a][A][b][B][c][C]... => [a][b][c]...[A][B][C]...
-  def interleaveDimensions(count: Int, i: Int): Lambda = {
-    val howManyMaps = -2 * (count - 1 - i) - 1
-    if(count == 2) GenerateIR.wrapInMaps(Transpose())(howManyMaps)
-    else {
-      GenerateIR.applyInEveryDimUntilDim(GenerateIR.wrapInMaps(Transpose())(howManyMaps))(count - 1) o
-        interleaveDimensions(count - 1, i)
-    }
-  }
-
   def apply(dim: Int)(size: Int, step: Int): Lambda = {
     if(dim==1) Slide(size,step)
     else {
-      interleaveDimensions(dim, dim) o
+      GenerateIR.interleaveDimensions(dim, dim) o
         GenerateIR.applyInEveryDimUntilDimReverse(Slide(size, step))(dim)
     }
   }
 }
+
+object TiledSlidedND {
+  def undoTiling(dim: Int): Lambda = {
+    if(dim == 1) Join()
+    else GenerateIR.applyInEveryDimUntilDim(Join())(dim) o GenerateIR.interleaveDimensionsReverse(dim)
+  }
+
+  def apply(dim: Int)(size: Int, step: Int, tileStep: Int): Lambda = {
+    val tileSize = (size - step) + tileStep
+    undoTiling(dim) o
+      GenerateIR.wrapInMaps(SlideND(dim)(size,step))(dim) o
+        SlideND(dim)(tileSize, tileStep)
+  }
+}
+
