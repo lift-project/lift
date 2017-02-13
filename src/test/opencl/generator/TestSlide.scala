@@ -518,6 +518,7 @@ class TestSlide {
     assertArrayEquals(outGold1D, outTiled1D, 0.1f)
   }
 
+  @Ignore //see Issue #97
   @Test def tiledSlideND2(): Unit = {
     val n = 3
     val s = 1
