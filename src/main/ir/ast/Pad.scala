@@ -112,7 +112,7 @@ object Pad3D {
 
 object PadND {
   def apply(dim: Int)(left: Int, right: Int, b: Pad.BoundaryFun): Lambda = {
-    GenerateIR.applyInEveryDimUntilDim(Pad(left,right,b))(dim)
+    GenerateIR.applyInEveryDimUntilDim(Pad(left,right,b), dim)
   }
 }
 
