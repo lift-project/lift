@@ -121,12 +121,12 @@ class TestAcousticMisc {
     val const1 = constantOriginal(2)
 
     val lambdaZip3D = fun(
-      Float,
       ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
       ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
-      (c1, mat1, mat2, weights, weightsMiddle) => {
+      Float,
+      (mat1, mat2, weights, weightsMiddle,c1) => {
         MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
           MapSeq(toGlobal(fun(x => mult(x,constantOriginal(3))))) o
             MapSeq(addTuple) $
@@ -143,14 +143,12 @@ class TestAcousticMisc {
     {
       val newLambda = SimplifyAndFuse(lambdaZip3D)
 
-      BoundaryUtilities.writeKernelJSONToFile(newLambda,"/home/reese/workspace/phd/sandbox/")
-/*
+//      BoundaryUtilities.writeKernelJSONToFile(newLambda,"/home/reese/workspace/phd/sandbox/")
       val source = Compile(newLambda)
 
-      val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true, true))(source, newLambda,const1,stencilarr3D,stencilarrOther3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true, true))(source, newLambda,stencilarr3D,stencilarrOther3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D,const1) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
       StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
-*/
     }
     catch
       {

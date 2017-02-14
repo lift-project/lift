@@ -79,7 +79,7 @@ object BoundaryUtilities
     toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ Get(m,1), toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ Get(m,1))
   }
 
-  def writeKernelJSONToFile(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) =
+  def writeKernelJSONToFile(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = true) =
   {
 
     val source = Compile(lambda)
@@ -119,29 +119,36 @@ object BoundaryUtilities
     var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(x => x.contains("global") || (x.contains("private") && !x.contains("*")))
     val ignoreable = ", \t({}" // trim some stuff
     val toStrip = "){" // trim some more stuff
-    val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains("global")))
+    val notArr =Array[String]("const","global","restrict")
+    val stripParamsArr = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";"))
+    val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains(" global") && !x.contains(" private")))
 
     // store sizes for parameters we have
     stripParams.foreach(x => lmPSizes += (x(0) -> x(1)))
 
     val kernelStr = source.split("\n").filter(x => x.toString().contains("kernel"))
 
-    val parameters = kernelStr(0).split(",") // pull out ALL parameters, including sizes
+    val parameters = kernelStr(0).split(",").map(x => x.stripPrefix("kernel void KERNEL(")) // pull out ALL parameters, including sizes
+
 
     // get size values (ints)
-    val generalVals = parameters.filter(x => (!x.contains("*") && !x.contains("private")))
+    val generalVals = parameters.filter(x => (!x.contains("*") && !lmPSizes.contains(x.trim().split(" ")(1).trim())))
     val genVals = generalVals.map(x => x.trim.stripSuffix(toStrip))
     genVals.foreach(x => lmS += (x -> ""))
 
     // get parameter values
-    val paramVals = parameters.filter(x => x.contains("restrict"))
-    val paramTypes = paramVals.map(x => x.split(" ").filter(y => y contains "*")).flatten
-    val paramNames = paramVals.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
+    val privateValueNames = stripParamsArr.filter(x => x.mkString(" ").contains("private")).map(x => x(0))
+    val paramVals = parameters.filter(x => x.contains("restrict") || privateValueNames.exists(y => x.contains(y))) // pull out the arrays
+
+//    val paramTypes = paramVals.map(x => x.split(" ").filter(y => y contains "*")).flatten
+ val paramNames = paramVals.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
+//    val paramTypes = paramVals.map(x => x.split(" ").filter(y => !notArr.contains(y) && !paramNames.contains(y)))
+    val paramTypes = paramVals.map(x => x.split(" ").filter(y => !notArr.contains(y) && !paramNames.contains(y))).map(z => z.mkString(""))
     // then add in size from lmPSizes!!
     for((pType,pName) <- paramTypes zip paramNames ) yield lmP +=((pType.toString()+" "+pName.toString()) -> lmPSizes(pName.toString()))
 
     // get output value
-    val others = parameters.filter(x => !x.contains("restrict") && !generalVals.contains(x))
+    val others = parameters.filter(x => !paramVals.contains(x) && !generalVals.contains(x))
     val outputs = others.slice(0,1)
     val otherTypes = outputs.map(x => x.split(" ").filter(y => y contains "*")).flatten
     val otherNames = outputs.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
