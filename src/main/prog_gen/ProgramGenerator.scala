@@ -56,7 +56,7 @@ import rewriting.utils.NumberExpression
 
 import scala.collection.mutable
 
-class ProgramGenerator {
+class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
 
   private val logger = Logger(this.getClass)
 
@@ -67,30 +67,28 @@ class ProgramGenerator {
   private[prog_gen] val UnpackedToExpr = mutable.Map[Param,Expr]()
 
   // Used for debug
-  var AssignedChoiceNum = 0
-  val PassParamUpPossibility = 0.0
+  private var AssignedChoiceNum = 0
+  private val PassParamUpPossibility = 0.0
 
   // Controllers for generate programs
-  val LoopNum = 30
-  val ConsequentUserFun = true
-  val AllowJoinASplit = false
-  val MustContainMap = true
+  private val ConsequentUserFun = true
+  private val AllowJoinASplit = false
+  private val MustContainMap = true
 
   // TODO: Do we need the StrictMatchUnpack?
   // TODO: Does it matter if types already match?
-  val MapStrictMatchUnpack = true
-  val ReduceStrictMatchUnpack = true
-  var LimitNum = 40
+  private val MapStrictMatchUnpack = true
+  private val ReduceStrictMatchUnpack = true
 
   // Controllers for patterns
-  val ZipLimit = 2
-  val GenJoin = true
-  val GenSplit = true
-  val GenUserFun = true
-  val GenZip = true
-  val GenGet = true
-  val GenMap = true
-  val GenReduce = true
+  private val ZipLimit = 2
+  private val GenJoin = true
+  private val GenSplit = true
+  private val GenUserFun = true
+  private val GenZip = true
+  private val GenGet = true
+  private val GenMap = true
+  private val GenReduce = true
 
   if (ZipLimit < 2)
     throw new IllegalArgumentException(s"ZipLimit of $ZipLimit needs to be larger")
@@ -141,7 +139,7 @@ class ProgramGenerator {
     ParamList += Param(Float)
     ParamList += Param(Float)
 
-    for (_ <- 0 until LoopNum)
+    for (_ <- 0 until loopNum)
       generateLambda()
 
     refineResult()
@@ -220,7 +218,7 @@ class ProgramGenerator {
       case 6 if GenReduce =>
         generateReduce()
 
-        LimitNum += 10
+        limitNum += 10
     }
 
     AssignedChoiceNum = (AssignedChoiceNum + 1) % totChoiceNum
@@ -319,7 +317,7 @@ class ProgramGenerator {
     limitResults(tempLambdaList, tempParamList, tempParamToFunCall)
   }
 
-  private def limitResults(tempLambdaList: mutable.Buffer[Lambda], tempParamList: mutable.Buffer[Param], tempParamToFunCall: mutable.Map[Param, FunCall], limitNum: Int = LimitNum) = {
+  private def limitResults(tempLambdaList: mutable.Buffer[Lambda], tempParamList: mutable.Buffer[Param], tempParamToFunCall: mutable.Map[Param, FunCall], limitNum: Int = limitNum) = {
 
     val resLen = tempParamList.length
 

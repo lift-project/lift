@@ -7,6 +7,7 @@ import ir.ast.Lambda
 import ir.{ArrayType, Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
+import org.clapper.argot.ArgotConverters._
 import org.clapper.argot.{ArgotParser, ArgotUsageException}
 import play.api.libs.json._
 import rewriting.utils.Utils
@@ -22,7 +23,7 @@ object GeneratePrograms {
 
   private val parser = new ArgotParser("GeneratePrograms")
 
-  private val output = parser.option[String](List("o", "output"), "name.",
+  private val outputDirectoryFlag = parser.option[String](List("o", "output"), "name.",
     "Store the created lambdas into this folder."
   ) {
     (s, _) =>
@@ -32,13 +33,25 @@ object GeneratePrograms {
       s
   }
 
-  private var outputDirectory = ""
+  private val loopNumFlag = parser.option[Int](List("l", "loop-num"), "number",
+    "Number of generation loops to run.")
+
+  private val limitNumFlag = parser.option[Int](List("limit-num"), "number",
+    "Number of expressions to generate in a loop iteration.")
+
+  private var outputDirectory = "generated_programs"
+  private var loopNum = 30
+  private var limitNum = 40
 
   def main(args: Array[String]): Unit = {
     try {
       parser.parse(args)
 
-      outputDirectory = output.value.getOrElse("generated_programs")
+      logger.info(s"Arguments: ${args.mkString(" ")}")
+
+      outputDirectory = outputDirectoryFlag.value.getOrElse(outputDirectory)
+      loopNum = loopNumFlag.value.getOrElse(loopNum)
+      limitNum = limitNumFlag.value.getOrElse(limitNum)
 
       s"mkdir -p $outputDirectory".!
 
@@ -56,7 +69,7 @@ object GeneratePrograms {
   }
 
   private def generatePrograms = {
-    val generator = new ProgramGenerator
+    val generator = new ProgramGenerator(loopNum)
     val programs = generator.generatePrograms()
 
     logger.info(s"${programs.length} programs generated.")
@@ -75,12 +88,10 @@ object GeneratePrograms {
       val lambdaString = Utils.dumpLambdaToString(lambda)
 
       val hash = Utils.Sha256Hash(lambdaString)
-
-
       val hashPrefix = hash(0) + "/" + hash(1)
-      Utils.dumpToFile(lambdaString, hash, s"$lambdaDirectory/$hashPrefix")
-
       val thisLambdaConf = s"$configurationDirectory/$hashPrefix/$hash"
+
+      Utils.dumpToFile(lambdaString, hash, s"$lambdaDirectory/$hashPrefix")
 
       sizes.foreach(size => {
 
@@ -89,12 +100,19 @@ object GeneratePrograms {
 
         val settings = JsObject(Seq(
           "kernel" -> JsString(hash),
-          "inputs" -> JsArray(types.map(t => JsString(getTypeFilename(t)))),
+          "inputs" -> JsArray(
+            types.map(t => { JsObject(Seq(
+              "filename" -> JsString(getTypeFilename(t)),
+              "size" -> JsNumber(Type.getSize(t).eval)
+            ))})
+          ),
           "sizes" -> JsArray(size.map(s => JsNumber(s.eval)))
         ))
 
-        val prettyPrint = Json.prettyPrint(settings)
-        Utils.dumpToFile(prettyPrint, Utils.Sha256Hash(prettyPrint), thisLambdaConf)
+        val settingsString = Json.prettyPrint(settings)
+        val settingsFilename = Utils.Sha256Hash(settingsString) + ".json"
+
+        Utils.dumpToFile(settingsString, settingsFilename, thisLambdaConf)
 
         // TODO: Run sequential for output
       })
