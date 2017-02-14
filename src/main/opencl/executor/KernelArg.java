@@ -1,11 +1,7 @@
 package opencl.executor;
 
-abstract class KernelArg {
+abstract class KernelArg extends JNIHandle {
     KernelArg(long handle) {
-        nativeHandle = handle;
+        super(handle);
     }
-    public native void dispose();
-
-    @SuppressWarnings({"unused", "FieldCanBeLocal"})
-    private final long nativeHandle;
 }
