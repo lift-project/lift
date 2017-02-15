@@ -6,6 +6,7 @@ import analysis._
 import lift.arithmetic._
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
+import opencl.executor.Compile
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.ir._
@@ -35,7 +36,7 @@ class SaveOpenCL(
   private var sizeArgs: Seq[Var] = Seq()
   private var numSizes = 0
 
-  val inputSizes = Seq(512, 1024, 2048, 4096, 8192)
+  val inputSizes = Seq(512, 1024, 2048)
   private var inputCombinations: Seq[Seq[ArithExpr]] = Seq()
 
   def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
@@ -85,10 +86,8 @@ class SaveOpenCL(
     val substitutionMap = pair._2
 
     InferNDRange(lambda) match { case (l, g) => local = l; global = g }
-    val valueMap = ParameterRewrite.createValueMap(lambda)
 
-    val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
-    val code = OpenCLGenerator.generate(lambda, local, globalSubstituted, valueMap)
+    val code = Compile(lambda, local, global)
 
     val kernel =
       s"""
@@ -170,7 +169,7 @@ class SaveOpenCL(
 
   def statsHeader =
     "hash," +
-    ",globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
+    "globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
     "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
     "localStores,localLoads,privateStores,privateLoads,barriers," +
     "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads," +
@@ -206,13 +205,11 @@ class SaveOpenCL(
     val globalSizes = global.map(ArithExpr.substitute(_, inputVarMapping))
     val localSizes = local.map(ArithExpr.substitute(_, inputVarMapping))
 
-    val valueMap = ParameterRewrite.createValueMap(lambda, sizes)
-
-    val memoryAmounts = MemoryAmounts(lambda, localSizes, globalSizes, valueMap)
-    val accessCounts = AccessCounts(lambda, localSizes, globalSizes, valueMap)
-    val barrierCounts = BarrierCounts(lambda, localSizes, globalSizes, valueMap)
-    val controlFlow = ControlFlow(lambda, localSizes, globalSizes, valueMap)
-    val functionCounts = FunctionCounts(lambda, localSizes, globalSizes, valueMap)
+    val memoryAmounts = MemoryAmounts(lambda, localSizes, globalSizes, inputVarMapping)
+    val accessCounts = AccessCounts(lambda, localSizes, globalSizes, inputVarMapping)
+    val barrierCounts = BarrierCounts(lambda, localSizes, globalSizes, inputVarMapping)
+    val controlFlow = ControlFlow(lambda, localSizes, globalSizes, inputVarMapping)
+    val functionCounts = FunctionCounts(lambda, localSizes, globalSizes, inputVarMapping)
 
     val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
     val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
