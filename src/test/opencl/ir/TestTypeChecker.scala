@@ -3,6 +3,7 @@ package opencl.ir
 import lift.arithmetic._
 import ir._
 import ir.ast._
+import opencl.generator.TreatWarningsAsErrors
 import opencl.ir.pattern._
 import org.junit.Test
 
@@ -135,5 +136,19 @@ class TestTypeChecker {
       case ArrayType(Float, Cst(1)) =>
       case _ => assert(false)
     }
+  }
+
+  @Test(expected = classOf[SuspiciousTypeVariableDeclaredException])
+  def issue5(): Unit = {
+    TreatWarningsAsErrors(true)
+
+    val f = fun(
+      Float,
+      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, SizeVar("N")),
+      (a,xs,ys) => /*MapGlb(/*...*/) $*/ Zip(xs, ys)
+    )
+
+    TypeChecker(f)
   }
 }
