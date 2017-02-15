@@ -169,7 +169,7 @@ class SaveOpenCL(
   }
 
   def statsHeader =
-    "hash," + (0 until numSizes).map("size" + _).mkString(",") +
+    "hash," +
     ",globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
     "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
     "localStores,localLoads,privateStores,privateLoads,barriers," +
@@ -247,7 +247,7 @@ class SaveOpenCL(
     val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
 
     val string =
-      s"$hash,${sizes.mkString(",")},${globalSizes.mkString(",")},${localSizes.mkString(",")}," +
+      s"$hash,${globalSizes.mkString(",")},${localSizes.mkString(",")}," +
         s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
         s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
         s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +
