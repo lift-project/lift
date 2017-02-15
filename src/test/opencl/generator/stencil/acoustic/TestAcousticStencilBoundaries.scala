@@ -79,110 +79,6 @@ object BoundaryUtilities
     toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ Get(m,1), toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ Get(m,1))
   }
 
-  def writeKernelJSONToFile(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = true) =
-  {
-
-    val source = Compile(lambda)
-
-    val jsonString = convertKernelParameterstoJSON(lambda, source)
-
-    if(printJson) println(jsonString)
-
-    // write to file
-    writeStringToFile(jsonString,outputDir+jsonfilename)
-
-    // print kernel to same place (pass in param!)
-    writeStringToFile(source,outputDir+kernelfilename)
-  }
-
-  // be wary of changing the types of Map and JSON parsing in this function as the current setup maintains order which is crucial
-  // for creating the correct kernel (JSONs do not promise to retain order!)
-  //
-  // for use with "writeKernelJSONToFile", which is why the source string is also passed in (to print out the kernel, too)
-  // ...this could be changed!
-  def convertKernelParameterstoJSON( lambda: Lambda, source: String): String =
-  {
-
-    val kernelValStr = "v__" // for finding parameter names -- should not be hardcoded !
-    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
-
-    // setup maps
-    var lm = ListMap[String,JSONObject]()
-    var lmPSizes = ListMap[String,String]()  // map for sizes of parameters
-    var lmP = ListMap[String,String]()
-    var lmO = ListMap[String,String]()
-    var lmTB = ListMap[String,String]()
-    var lmS = ListMap[String,String]()
-
-    println(params.toString())
-
-    var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(x => x.contains("global") || (x.contains("private") && !x.contains("*")))
-    val ignoreable = ", \t({}" // trim some stuff
-    val toStrip = "){" // trim some more stuff
-    val notArr =Array[String]("const","global","restrict")
-    val stripParamsArr = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";"))
-    val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains(" global") && !x.contains(" private")))
-
-    // store sizes for parameters we have
-    stripParams.foreach(x => lmPSizes += (x(0) -> x(1)))
-
-    val kernelStr = source.split("\n").filter(x => x.toString().contains("kernel"))
-
-    val parameters = kernelStr(0).split(",").map(x => x.stripPrefix("kernel void KERNEL(")) // pull out ALL parameters, including sizes
-
-
-    // get size values (ints)
-    val generalVals = parameters.filter(x => (!x.contains("*") && !lmPSizes.contains(x.trim().split(" ")(1).trim())))
-    val genVals = generalVals.map(x => x.trim.stripSuffix(toStrip))
-    genVals.foreach(x => lmS += (x -> ""))
-
-    // get parameter values
-    val privateValueNames = stripParamsArr.filter(x => x.mkString(" ").contains("private")).map(x => x(0))
-    val paramVals = parameters.filter(x => x.contains("restrict") || privateValueNames.exists(y => x.contains(y))) // pull out the arrays
-
-//    val paramTypes = paramVals.map(x => x.split(" ").filter(y => y contains "*")).flatten
- val paramNames = paramVals.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
-//    val paramTypes = paramVals.map(x => x.split(" ").filter(y => !notArr.contains(y) && !paramNames.contains(y)))
-    val paramTypes = paramVals.map(x => x.split(" ").filter(y => !notArr.contains(y) && !paramNames.contains(y))).map(z => z.mkString(""))
-    // then add in size from lmPSizes!!
-    for((pType,pName) <- paramTypes zip paramNames ) yield lmP +=((pType.toString()+" "+pName.toString()) -> lmPSizes(pName.toString()))
-
-    // get output value
-    val others = parameters.filter(x => !paramVals.contains(x) && !generalVals.contains(x))
-    val outputs = others.slice(0,1)
-    val otherTypes = outputs.map(x => x.split(" ").filter(y => y contains "*")).flatten
-    val otherNames = outputs.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
-    // then add in size from lmPSizes!!
-    for((oType,oName) <- otherTypes zip otherNames ) yield lmO +=((oType.toString()+" "+oName.toString()) -> lmPSizes(oName.toString()))
-
-    // get temp buffer values
-    val tmpBuffers = others.slice(1,others.length)
-    val tmpBTypes = tmpBuffers.map(x => x.split(" ").filter(y => y contains "*")).flatten
-    val tmpBNames = tmpBuffers.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
-    // then add in size from lmPSizes!!
-    for((tbType,tbName) <- tmpBTypes zip tmpBNames ) yield lmTB +=((tbType.toString()+" "+tbName.stripSuffix(toStrip).toString()) -> lmPSizes(tbName.stripSuffix(toStrip).toString()))
-
-    // converge to megamap
-    lm+=("parameters" -> JSONObject(lmP))
-    lm+=("outputs" -> JSONObject(lmO))
-    lm+=("temporary buffers" -> JSONObject(lmTB))
-    lm+=("sizes" -> JSONObject(lmS))
-
-    // convert megamap json object
-    JSONObject(lm).toString()
-
-  }
-
-  def writeStringToFile(str: String, outputFile: String): Unit =
-  {
-    val out = new File(outputFile)
-    out.createNewFile()
-    val pw = new PrintWriter(out)
-    pw.write(str)
-    pw.close
-
-  }
-
 }
 
 object TestAcousticStencilBoundaries {
@@ -1013,14 +909,12 @@ class TestAcousticStencilBoundaries {
                                           Zip(Join() $ Get(m, 1), Join() $ weights))),
                      (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
                             Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
-        ))))) $ StencilUtilities.zip3d((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
+        ))))) $ Zip3D((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
       })
 
     try
     {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
-    //        BoundaryUtilities.writeKernelJSONToFile(newLambda,"/home/reese/workspace/phd/sandbox/")
-
       val source = Compile(newLambda)
 
       val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
@@ -1029,125 +923,6 @@ class TestAcousticStencilBoundaries {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
     }
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
-
-    }
-    catch
-      {
-        case e: DeviceCapabilityException =>
-          Assume.assumeNoException("Device not supported.", e)
-      }
-
-  }
-
-  @Test
-  def testTwoGridsThreeCalculationsAsym3DGeneralWithOnlyOneWeights(): Unit = {
-
-    val localDimX = 6
-    val localDimY = 4
-    val localDimZ = 2
-    val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
-    val stencilarrsame3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
-    val stencilarr3DCopy = stencilarr3D.map(x => x.map(y => y.map(z => z * 2.0f)))
-
-    /* u[cp] = ( boundary ? constantBorder0 : constantOriginal0 )  * ( S*( boundary ? constantBorder1 : constantOriginal1 ) + u1[cp]*( boundary ? constantBorder2 : constantOriginal2 ) + u[cp]*( boundary ? constantBorder3 : constantOriginal3 )  */
-
-    val constantOriginal = Array(1.0f, 2.0f, 1.5f, 0.25f)
-
-    /* u[cp] = X * ( S*l0 + u1[cp]*l1 + u[cp]*l2) */
-
-    val n = SizeVar("N")
-    val m = SizeVar("M")
-    val o = SizeVar("O")
-    val a = SizeVar("A")
-    val x = SizeVar("X")
-    val y = SizeVar("Y")
-    val z = SizeVar("Z")
-
-
-    val lambdaNeighOrg = fun(
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
-      (mat1, mat2, weights, weightsMiddle) => {
-        MapGlb((fun((m) => {
-          toGlobal(MapSeq(fun(x => mult(x,constantOriginal(3))))) o
-            MapSeq(addTuple) $
-            Zip(MapSeq(addTuple) $
-              Zip(((MapSeq(fun(x => mult(x,constantOriginal(2))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                Zip(Join() $ Get(m, 0), Join() $ weightsMiddle)),
-                (MapSeq(fun(x => mult(x, constantOriginal(0)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                  Zip(Join() $ Get(m, 1), Join() $ weights))),
-              (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
-        }))
-        ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
-      })
-/*
-        val lambdaNeigh = fun(
-          ArrayType(ArrayType(ArrayType(ArrayType(Float, 1), m), n), o),
-          ArrayType(ArrayType(ArrayType(ArrayType(Float, 1), m), n), o),
-          ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-          ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
-          (mat1, mat2, weights, weightsMiddle) => {
-            MapGlb((fun((m) => {
-              toGlobal(MapSeq(fun(x => mult(x,constantOriginal(3))))) o
-                MapSeq(addTuple) $
-                Zip(MapSeq(addTuple) $
-                  Zip((MapSeq(fun(x => mult(x,constantOriginal(2))))) $ Get(Get(m, 0), 0),
-                    (MapSeq(fun(x => mult(x, constantOriginal(0)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                      Zip( Join() $ Get(Get(m, 0),1), Join() $ weights))),
-                  (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                    Zip(( Join() $ Get(m,1), Join() $ weightsMiddle))))
-            }))
-            ) $ Zip(Zip( Join() o Join() $ mat1,  Join() o Join()  $ mat2),(Join() o Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
-          })
-*/
-    // need to remove outer layer so that neighbourhoods match up! //
-        val testDim = 5
-        val filling = StencilUtilities.createDataFloat3D(testDim,testDim,testDim)//.map(x => x.map(y => y.map(z => Array(z))))
-        val filling2 = StencilUtilities.createDataFloat3DWithPadding(testDim,testDim,testDim).map(x => x.map(y => y.map(z => 2.0f*z)))
-
-        val lambdaNeighWorks = fun(
-          ArrayType(ArrayType(ArrayType(ArrayType(Float, 1), m), n), o),
-          ArrayType(ArrayType(ArrayType(Float, m+2), n+2), o+2),
-          ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
-          (mat1, mat2, weightsMiddle) => {
-            MapGlb((fun((m) => {
-              toGlobal(MapSeq(fun(x => mult(x,constantOriginal(0))))) o
-              MapSeq(addTuple) $
-                Zip( Get(m,0),
-                    (ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                    Zip(( Join() $ Get(m,1)), Join() $ weightsMiddle)))
-            }))) $ Zip( Join() o Join() $ mat1,  (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
-          })
-/*
-    val filling = StencilUtilities.createDataFloat3D(testDim,testDim,testDim)
-    val filling2 = StencilUtilities.createDataFloat3DWithPadding(testDim,testDim,testDim).map(x => x.map(y => y.map(z => 2.0f*z)))
-*/
-
-
-    val lambdaZip3D = fun(
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m+2), n+2), o+2),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
-      (mat1, mat2, weightsMiddle) => {
-        MapGlb(0)(MapGlb(1)(MapGlb(2)(\(x => id.apply(x._0)))))  $   StencilUtilities.zip3d(mat1, (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
-      })
-
-
-    try
-    {
-//      val newLambda = SimplifyAndFuse(lambdaNeigh)
-      val source = Compile(lambdaZip3D)
-
-//      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, lambdaNeigh, stencilarr3D, stencilarr3DCopy,  StencilUtilities.weightsMiddle3D)
-      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, lambdaZip3D,filling,filling2, StencilUtilities.weightsMiddle3D) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
-
-     //StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
-      StencilUtilities.print3DArray(filling)
-      StencilUtilities.print3DArray(filling2)
-      StencilUtilities.print1DArrayAs3DArray(output,testDim,testDim,testDim)
 
     }
     catch
