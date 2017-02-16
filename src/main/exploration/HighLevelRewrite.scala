@@ -110,9 +110,8 @@ object HighLevelRewrite {
       (new HighLevelRewrite(
         vectorWidth.value.getOrElse(defaultVectorWidth),
         ruleRepetition.value.getOrElse(defaultRuleRepetition),
-        explorationDepth.value.getOrElse(defaultExplorationDepth),
         ruleCollection.value.getOrElse(defaultRuleCollection))
-        )(startingExpression)
+        )(startingExpression, explorationDepth.value.getOrElse(defaultExplorationDepth))
 
     val filtered = filterExpressions(newLambdas)
 
@@ -250,7 +249,6 @@ object HighLevelRewrite {
 
 class HighLevelRewrite(val vectorWidth: Int = HighLevelRewrite.defaultVectorWidth,
                        val repetitions: Int = HighLevelRewrite.defaultRuleRepetition,
-                       val levels: Int = HighLevelRewrite.defaultExplorationDepth,
                        val ruleCollection: String=HighLevelRewrite.defaultRuleCollection) {
 
   private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
@@ -285,16 +283,16 @@ object RuleCollection {
 
   private var failures = 0
 
-  def apply(lambda: Lambda): Seq[(Lambda, Seq[Rule])] = {
+  def apply(lambda: Lambda, explorationDepth: Int): Seq[(Lambda, Seq[Rule])] = {
     logger.info(s"Enabled rules:\n\t${highLevelRules.mkString(",\t\n ")}")
-    val rewritten = rewrite(lambda)
+    val rewritten = rewrite(lambda, explorationDepth)
     logger.warn(failures + " rule application failures.")
     rewritten
   }
 
   private def rewrite(lambda: Lambda,
-                      rulesSoFar: Seq[Rule] = Seq(),
-                      explorationDepth: Int = levels
+                      explorationDepth: Int,
+                      rulesSoFar: Seq[Rule] = Seq()
                        ): Seq[(Lambda, Seq[Rule])] = {
 
     TypeChecker.check(lambda.body)
@@ -322,7 +320,7 @@ object RuleCollection {
     if (explorationDepth == 1 || rulesToTry.isEmpty) {
       rewritten
     } else {
-      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, pair._2, explorationDepth -1))
+      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, explorationDepth -1, pair._2))
     }
   }
 
