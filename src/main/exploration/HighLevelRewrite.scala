@@ -110,8 +110,10 @@ object HighLevelRewrite {
       (new HighLevelRewrite(
         vectorWidth.value.getOrElse(defaultVectorWidth),
         ruleRepetition.value.getOrElse(defaultRuleRepetition),
-        ruleCollection.value.getOrElse(defaultRuleCollection))
-        )(startingExpression, explorationDepth.value.getOrElse(defaultExplorationDepth))
+        explorationDepth.value.getOrElse(defaultExplorationDepth),
+        ruleCollection.value.getOrElse(defaultRuleCollection)
+      )
+        )(startingExpression)
 
     val filtered = filterExpressions(newLambdas)
 
@@ -249,6 +251,7 @@ object HighLevelRewrite {
 
 class HighLevelRewrite(val vectorWidth: Int = HighLevelRewrite.defaultVectorWidth,
                        val repetitions: Int = HighLevelRewrite.defaultRuleRepetition,
+                       val explorationDepth: Int = HighLevelRewrite.defaultExplorationDepth,
                        val ruleCollection: String=HighLevelRewrite.defaultRuleCollection) {
 
   private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
@@ -283,7 +286,7 @@ object RuleCollection {
 
   private var failures = 0
 
-  def apply(lambda: Lambda, explorationDepth: Int): Seq[(Lambda, Seq[Rule])] = {
+  def apply(lambda: Lambda): Seq[(Lambda, Seq[Rule])] = {
     logger.info(s"Enabled rules:\n\t${highLevelRules.mkString(",\t\n ")}")
     val rewritten = rewrite(lambda, explorationDepth)
     logger.warn(failures + " rule application failures.")

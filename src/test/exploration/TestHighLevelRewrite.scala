@@ -81,8 +81,8 @@ class TestHighLevelRewrite {
   @Test
   def stencil1DRewrite(): Unit = {
 
-    val rewriter = new HighLevelRewrite(4, 2)
-    val rewrittenLambdas = rewriter(stencil1D, 2)
+    val rewriter = new HighLevelRewrite(4, 2, 2)
+    val rewrittenLambdas = rewriter(stencil1D)
 
     val gold = fun(ArrayType(Float, N),(p_0) => FunCall(Join(), FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Map(fun((p_2) => FunCall(Reduce(fun((p_3, p_4) => FunCall(add, p_3, p_4))), Value("0.0f", Float), p_2))), FunCall(Slide(3,1), p_1)))), FunCall(Slide((2+v__1),v__1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0))))))
     val goldHash = getHash(gold)
@@ -102,9 +102,9 @@ class TestHighLevelRewrite {
     val partiallyVectorisedTiledGold = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, K), N),(p_0, p_1) => FunCall(Join(), FunCall(Map(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_3) => FunCall(TransposeW(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), p_4))), FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_5, p_6) => FunCall(Map(fun((p_7) => FunCall(Join(), FunCall(Map(fun((p_8) => FunCall(PartRed(fun((p_9, p_10) => FunCall(add, p_9, p_10))), FunCall(Get(0), p_8), FunCall(Get(1), p_8)))), FunCall(Zip(2), FunCall(Get(0), p_7), FunCall(Get(1), p_7)))))), FunCall(Zip(2), p_5, p_6)))), Value("0.0f", ArrayType(ArrayType(Float, v__3), v__4)), FunCall(Transpose(), FunCall(Map(fun((p_11) => FunCall(Transpose(), FunCall(Map(fun((p_12) => FunCall(Split(v__5), p_12))), p_11)))), FunCall(Map(fun((p_13) => FunCall(Transpose(), p_13))), FunCall(Transpose(), FunCall(Join(), FunCall(Map(fun((p_14) => FunCall(Transpose(), FunCall(Map(fun((p_15) => FunCall(Transpose(), FunCall(Map(fun((p_16) => FunCall(asScalar(), FunCall(Map(fun((p_17) => FunCall(VectorizeUserFun(4,mult), FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), FunCall(Zip(2), FunCall(asVector(4), p_15), FunCall(asVector(4), p_16)))))), FunCall(Transpose(), FunCall(Get(1), p_14)))))), FunCall(Transpose(), FunCall(Get(0), p_14)))))), FunCall(Zip(2), FunCall(Split(v__6), FunCall(Transpose(), p_2)), FunCall(Split(v__6), FunCall(Transpose(), p_3))))))))))))))), FunCall(Split(v__3), p_1)))))), FunCall(Split(v__4), p_0))))
     val partiallyVectorisedTiledHash = getHash(partiallyVectorisedTiledGold)
 
-    val rewriter = new HighLevelRewrite(4, 2)
+    val rewriter = new HighLevelRewrite(4, 2, 5)
 
-    val rewrittenLambdas = rewriter(mmTransposedB, 5)
+    val rewrittenLambdas = rewriter(mmTransposedB)
 
     val vectorisedSeq =
       Seq(rewriter.vecZip, rewriter.vecRed)
@@ -133,9 +133,9 @@ class TestHighLevelRewrite {
     val twoDGold = fun(ArrayType(ArrayType(Float, M), K), ArrayType(ArrayType(Float, N), K),(p_0, p_1) => FunCall(Join(), FunCall(Map(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_3) => FunCall(TransposeW(), FunCall(Map(fun((p_4) => FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_4))), FunCall(Join(), FunCall(Map(fun((p_5) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_5)))))), FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(Map(fun((p_10) => FunCall(Join(), FunCall(Map(fun((p_11) => FunCall(PartRed(fun((p_12, p_13) => FunCall(Map(fun((p_14) => FunCall(Map(fun((p_15) => FunCall(add, FunCall(Get(0), p_15), FunCall(Get(1), p_15)))), FunCall(Zip(2), FunCall(Get(0), p_14), FunCall(Get(1), p_14))))), FunCall(Zip(2), p_12, p_13)))), FunCall(Get(0), p_11), FunCall(Get(1), p_11)))), FunCall(Zip(2), FunCall(Get(0), p_10), FunCall(Get(1), p_10)))))), FunCall(Zip(2), p_8, p_9)))), Value("0.0f", ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3*1/^v__4), v__6*1/^v__5)), FunCall(Transpose(), FunCall(Map(fun((p_16) => FunCall(Transpose(), FunCall(Map(fun((p_17) => FunCall(Split(v__7), FunCall(Transpose(), FunCall(Map(fun((p_18) => FunCall(Transpose(), p_18))), FunCall(Transpose(), p_17)))))), FunCall(Split(v__4), FunCall(Transpose(), FunCall(Map(fun((p_19) => FunCall(Gather(ReorderWithStride(v__3 / v__4)), p_19))), p_16))))))), FunCall(Split(v__5), FunCall(Map(fun((p_20) => FunCall(Transpose(), p_20))), FunCall(Transpose(), FunCall(Join(), FunCall(Map(fun((p_21) => FunCall(Transpose(), FunCall(Map(fun((p_22) => FunCall(Transpose(), FunCall(Scatter(ReorderWithStride(v__3 / v__8)), p_22)))), FunCall(Join(), FunCall(Map(fun((p_23) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_24) => FunCall(TransposeW(), FunCall(Map(fun((p_25) => FunCall(Transpose(), p_25))), FunCall(Transpose(), FunCall(Map(fun((p_26) => FunCall(Map(fun((p_27) => FunCall(Map(fun((p_28) => FunCall(mult, p_27, p_28))), FunCall(Get(1), p_26)))), FunCall(Get(0), p_26)))), FunCall(Zip(2), FunCall(Transpose(), p_23), FunCall(Transpose(), p_24)))))))), FunCall(Split(v__8), FunCall(Gather(ReorderWithStride(v__3 / v__8)), FunCall(Transpose(), FunCall(Get(1), p_21))))))))), FunCall(Split(v__9), FunCall(Transpose(), FunCall(Get(0), p_21))))))))), FunCall(Zip(2), FunCall(Split(v__10), FunCall(Transpose(), p_2)), FunCall(Split(v__10), FunCall(Transpose(), p_3)))))))))))))))))), FunCall(Split(v__3), FunCall(Transpose(), p_1))))))), FunCall(Split(v__6), FunCall(Transpose(), p_0)))))
     val twoDHash = getHash(twoDGold)
 
-    val rewriter = new HighLevelRewrite(4, 2)
+    val rewriter = new HighLevelRewrite(4, 2, 5)
 
-    val rewrittenLambdas = rewriter(mmTransposedA, 5)
+    val rewrittenLambdas = rewriter(mmTransposedA)
 
     val plainTilingSeq =
       Seq(MacroRules.tileMapMap, MacroRules.finishTiling, MacroRules.finishTiling)
@@ -168,9 +168,9 @@ class TestHighLevelRewrite {
     val vectorisedGold = fun(ArrayType(ArrayType(Float, M), N), ArrayType(Float, M), ArrayType(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(add, FunCall(mult, p_6, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), FunCall(Reduce(fun((p_7, p_8) => FunCall(add, p_7, p_8))), Value("0.0f", Float), FunCall(asScalar(), FunCall(PartRed(fun((p_9, p_10) => FunCall(VectorizeUserFun(4,add), p_9, p_10))), Value("0.0f", VectorType(Float, 4)), FunCall(asVector(4), FunCall(asScalar(), FunCall(Map(fun((p_11) => FunCall(VectorizeUserFun(4,mult), FunCall(Get(0), p_11), FunCall(Get(1), p_11)))), FunCall(Zip(2), FunCall(asVector(4), p_1), FunCall(asVector(4), FunCall(Get(0), p_5)))))))))))), FunCall(Zip(2), p_0, p_2)))
     val vectorisedHash = getHash(vectorisedGold)
 
-    val rewriter = new HighLevelRewrite(4, 2)
+    val rewriter = new HighLevelRewrite(4, 2, 5)
 
-    val rewrittenLambdas = rewriter(gemv, 5)
+    val rewrittenLambdas = rewriter(gemv)
 
     val amdSeq = Seq(MacroRules.partialReduceWithReorder)
     val vectorisedSeq = Seq(rewriter.vecZip, rewriter.vecRed)
