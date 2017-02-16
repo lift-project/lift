@@ -219,7 +219,10 @@ object StencilUtilities
     Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) $ Zip(A, B)
   )*/
 
-  val zip3d = \((A,B) =>    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(A,B)  )
+  val zip3d2 = \((A,B) =>    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(A,B)  )
+
+  val zip3d3 = \((A,B,C) =>     Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(A,B,C))
+
 
   def writeToBinaryFile(arr: Array[Float], filename: String)
   {

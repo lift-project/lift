@@ -76,7 +76,7 @@ object BoundaryUtilities
   }
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
-    toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ Get(m,1), toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ Get(m,1))
+    toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ m, toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ m)
   }
 
 }
@@ -230,8 +230,8 @@ class TestAcousticStencilBoundaries {
       ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
       (mat1, mask1, weights) => {
         MapGlb((fun((m) => {
-          val maskedValConst = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValGrid = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValConst = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValGrid = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
           toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weights),
             MapSeq(id) $ maskedValGrid
@@ -276,10 +276,10 @@ class TestAcousticStencilBoundaries {
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
           val orgMat = Get(Get(m, 0), 0)
           val secMat = Get(Get(m, 0), 1)
 
@@ -349,10 +349,10 @@ class TestAcousticStencilBoundaries {
       ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
           val orgMat = Get(Get(m, 0), 0)
           val secMat = Get(Get(m, 0), 1)
 
@@ -479,10 +479,10 @@ class TestAcousticStencilBoundaries {
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
 
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 0), Join() $ weightsMiddle),
@@ -637,10 +637,10 @@ class TestAcousticStencilBoundaries {
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
 
           toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 0),
@@ -770,10 +770,10 @@ class TestAcousticStencilBoundaries {
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
 
           toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join()
