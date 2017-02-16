@@ -55,7 +55,7 @@ object ParameterRewrite {
     "Generate lambdas in Scala as well as in OpenCL")
 
   private val settingsFile = parser.option[String](List("f", "file"), "name",
-    "Store the created lambdas into this folder."
+    "The settings file to use."
     ) {
     (s, _) =>
       val file = new File(s)
