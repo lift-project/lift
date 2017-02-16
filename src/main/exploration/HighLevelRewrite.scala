@@ -294,7 +294,7 @@ object RuleCollection {
   }
 
   private def rewrite(lambda: Lambda,
-                      explorationDepth: Int,
+                      explorationLayer: Int,
                       rulesSoFar: Seq[Rule] = Seq()
                        ): Seq[(Lambda, Seq[Rule])] = {
 
@@ -320,10 +320,10 @@ object RuleCollection {
       }
     })
 
-    if (explorationDepth == 1 || rulesToTry.isEmpty) {
+    if (explorationLayer == 1 || rulesToTry.isEmpty) {
       rewritten
     } else {
-      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, explorationDepth -1, pair._2))
+      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, explorationLayer -1, pair._2))
     }
   }
 
