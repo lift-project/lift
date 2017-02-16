@@ -293,7 +293,8 @@ object RuleCollection {
   }
 
   private def rewrite(lambda: Lambda,
-                      rulesSoFar: Seq[Rule] = Seq()
+                      rulesSoFar: Seq[Rule] = Seq(),
+                      maxLevels: Int = levels
                        ): Seq[(Lambda, Seq[Rule])] = {
 
     TypeChecker.check(lambda.body)
@@ -318,10 +319,10 @@ object RuleCollection {
       }
     })
 
-    if (levels == 1 || rulesToTry.isEmpty) {
+    if (maxLevels == 1 || rulesToTry.isEmpty) {
       rewritten
     } else {
-      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, pair._2))
+      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, pair._2, maxLevels -1))
     }
   }
 
