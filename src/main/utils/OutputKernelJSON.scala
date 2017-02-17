@@ -22,7 +22,7 @@ object OutputKernelJSON {
 
   def apply(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) = (new OutputKernelJSON(outputDir,jsonfilename,kernelfilename,printJson))(lambda)
 
-  def getJSON(lambda: Lambda) = (new OutputKernelJSON("")).printJson(lambda)
+  def getJSON(lambda: Lambda) = (new OutputKernelJSON("")).getJson(lambda)
 
 }
 
@@ -32,10 +32,10 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
     writeKernelJSONToFile(lambda,outputDir,jsonfilename,kernelfilename,printJson)
   }
 
-  def printJson(lambda:Lambda) = {
+  def getJson(lambda:Lambda) = {
 
     val source = Compile(lambda)
-    println(convertKernelParameterstoJSON(lambda,source))
+    convertKernelParameterstoJSON(lambda,source)
 
   }
 

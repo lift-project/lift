@@ -9,7 +9,6 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 import rewriting.SimplifyAndFuse
-import utils.OutputKernelJSON
 
 import scala.language.implicitConversions
 
@@ -96,11 +95,6 @@ class TestAcousticOpt {
     val n = SizeVar("N")
     val m = SizeVar("M")
     val o = SizeVar("O")
-    val a = SizeVar("A")
-    val x = SizeVar("X")
-    val y = SizeVar("Y")
-    val z = SizeVar("Z")
-    val testDim = 5
 
     val constantOriginal = Array(1.0f, 2.0f, 1.5f, 0.25f)
     val const1 = constantOriginal(2)
@@ -145,6 +139,75 @@ class TestAcousticOpt {
           Assume.assumeNoException("Device not supported.", e)
       }
   }
+
+  @Test
+  def testTwoGridsThreeCalculationsAsym3DGeneralNoMaskWithOnlyOneWeightsTest(): Unit = {
+
+    val localDimX = 8
+    val localDimY = 4
+    val localDimZ = 12
+
+    val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
+    val mask3D = BoundaryUtilities.createMaskDataAsym3D(localDimX, localDimY, localDimZ)
+
+    val n = SizeVar("N")
+    val m = SizeVar("M")
+    val o = SizeVar("O")
+    val a = SizeVar("A")
+    val x = SizeVar("X")
+    val y = SizeVar("Y")
+    val z = SizeVar("Z")
+    val testDim = 5
+
+    val constantOriginal = Array(1.0f, 2.0f, 1.5f, 0.25f)
+    val const1 = constantOriginal(2)
+
+    val lambdaZip3D = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
+      ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      Float,
+      (mat1, mat2, mat3, weights, weightsMiddle,c1) => {
+        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
+          MapSeq(toGlobal(fun(x => mult(x,constantOriginal(3))))) o
+            MapSeq(addTuple) $
+            Zip(MapSeq(addTuple) $
+              Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) $ Get(m,0),
+                (toPrivate(MapSeq(fun(x => mult(x, constantOriginal(0))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                  Zip(( Join() $ Get(m,1)), Join() $ weights))),
+              (toPrivate(MapSeq(fun(x => mult(x,constantOriginal(1))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
+        ))))) $ Zip3D(mat1, (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
+      })
+
+    try
+    {
+      val newLambda = SimplifyAndFuse(lambdaZip3D)
+
+      //      OutputKernelJSON(newLambda,"/home/reesemaskworkspace/sandbox/")
+      //      OutputKernelJSON.printJSON(newLambda)
+
+      val source = Compile(newLambda)
+
+      val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true, true))(source, newLambda,stencilarr3D,stencilarrOther3D,stencilarr3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D,const1) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+
+      StencilUtilities.print1DArrayAs3DArray(output,localDimX,localDimY,localDimZ)
+
+//      assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
+    }
+    catch
+      {
+        case e: DeviceCapabilityException =>
+          Assume.assumeNoException("Device not supported.", e)
+      }
+  }
+
+
 
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3DGeneralOneWeights(): Unit = {
@@ -231,10 +294,11 @@ class TestAcousticOpt {
       })
 
 
-    val lambdaNeigh = fun(
+    val lambdaNeighNo = fun(
       ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
       ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
-      ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m), n), o),
+      ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
+    //  ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m), n), o),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
@@ -247,8 +311,22 @@ class TestAcousticOpt {
                   Zip(( Join() $ Get(m,1)), Join() $ weights))),
               (toPrivate(MapSeq(fun(x => mult(x,constantOriginal(1))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
                 Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
-        ))))) $ Zip3D(mat1, (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2),mask1)
+        ))))) $ StencilUtilities.zip3d3(mat1, (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2),mask1)
       })
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ( mat2, weights, weightsMiddle) => {
+        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
+          toGlobal(MapSeq(fun(x => mult(x,constantOriginal(1))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+              Zip(Join() $ m, Join() $ weightsMiddle))
+          )
+        ))
+        ) $ (Slide3D(3,1) $ mat2)
+      })
+
 
     try
     {
@@ -256,7 +334,7 @@ class TestAcousticOpt {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
 
-      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarrOther3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda,  stencilarrOther3D,  StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput)
       {
         StencilUtilities.printOriginalAndOutput3D(data, output)
