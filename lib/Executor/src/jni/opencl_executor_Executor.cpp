@@ -16,12 +16,11 @@
 
 enum class Mode {
   Execute,
-  Benchmark,
   Evaluate
 };
 
 jdouble
-  executeOrBencmark(JNIEnv* env, jclass,
+  executeOrEvaluate(JNIEnv* env, jclass,
                     jobject jKernel,
                     jint localSize1, jint localSize2, jint localSize3,
                     jint globalSize1, jint globalSize2, jint globalSize3,
@@ -49,11 +48,6 @@ jdouble
       case Mode::Execute:
         runtime = execute(*kernel,
           localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3, args);
-        break;
-      case Mode::Benchmark:
-        runtime = benchmark(*kernel,
-          localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
-          args, iterations, timeout);
         break;
       case Mode::Evaluate:
         runtime = evaluate(*kernel,
@@ -137,23 +131,61 @@ jdouble
                                         jint globalSize1, jint globalSize2, jint globalSize3,
                                         jobjectArray jArgs)
 {
-  return executeOrBencmark(env, jClass, jKernel,
+  return executeOrEvaluate(env, jClass, jKernel,
         localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
         jArgs, Mode::Execute, 0, 0.0);
 }
 
-jdouble
-  Java_opencl_executor_Executor_benchmark(JNIEnv* env, jclass jClass,
-                                        jobject jKernel,
-                                        jint localSize1, jint localSize2, jint localSize3,
-                                        jint globalSize1, jint globalSize2, jint globalSize3,
-                                        jobjectArray jArgs,
-                                        jint iterations,
-                                        jdouble timeout)
+jdoubleArray
+  Java_opencl_executor_Executor_benchmark(
+    JNIEnv* env,
+    jclass,
+    jobject jKernel,
+    jint localSize1, jint localSize2, jint localSize3,
+    jint globalSize1, jint globalSize2, jint globalSize3,
+    jobjectArray jArgs,
+    jint iterations,
+    jdouble timeout)
 {
-  return executeOrBencmark(env, jClass, jKernel,
-        localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
-        jArgs, Mode::Benchmark, iterations, timeout);
+  std::vector<double> runtimes;
+
+  try {
+    
+    auto kernel = getHandle<executor::Kernel>(env, jKernel);
+
+    std::vector<executor::KernelArg*> args(env->GetArrayLength(jArgs));
+    int i = 0;
+    for (auto& p : args) {
+      auto obj = env->GetObjectArrayElement(jArgs, i);
+      p = getHandle<executor::KernelArg>(env, obj);
+      ++i;
+    }
+
+    benchmark(*kernel,
+      localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
+      args, iterations, timeout, runtimes);
+
+  } catch(cl::Error err) {
+    jclass jClass = env->FindClass("opencl/executor/Executor$ExecutorFailureException");
+    if(!jClass) LOG_ERROR("[JNI ERROR] Cannot find the exception class");
+    env->ThrowNew(jClass, (std::string("Executor failure: ") + err.what()).c_str());
+  } catch(...) {
+    jclass jClass = env->FindClass("opencl/executor/Executor$ExecutorFailureException");
+    if(!jClass) LOG_ERROR("[JNI ERROR] Cannot find the exception class");
+    env->ThrowNew(jClass, "Executor failure");
+  }
+
+  if (runtimes.size() > 0) {
+    jdoubleArray jRuntimes;
+    jRuntimes = env->NewDoubleArray(runtimes.size());
+    env->SetDoubleArrayRegion(jRuntimes, 0, runtimes.size(), runtimes.data());
+    return jRuntimes;
+  } else {
+    jclass jClass = env->FindClass("opencl/executor/Executor$ExecutorFailureException");
+    if(!jClass) LOG_ERROR("[JNI ERROR] Cannot find the exception class");
+    env->ThrowNew(jClass, "Executor failure: No runtimes recorded");
+    return nullptr;
+  }
 }
 
 jdouble
@@ -165,7 +197,7 @@ jdouble
                                         jint iterations,
                                         jdouble timeout)
 {
-  return executeOrBencmark(env, jClass, jKernel,
+  return executeOrEvaluate(env, jClass, jKernel,
         localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
         jArgs, Mode::Evaluate, iterations, timeout);
 }
