@@ -8,6 +8,7 @@ import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
 import scala.util.parsing.json._
 import java.io._
+import scala.io._
 
 import opencl.executor.Compile
 import opencl.ir.TypedOpenCLMemory
@@ -22,7 +23,9 @@ object OutputKernelJSON {
 
   def apply(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) = (new OutputKernelJSON(outputDir,jsonfilename,kernelfilename,printJson))(lambda)
 
-  def getJSON(lambda: Lambda) = (new OutputKernelJSON("")).getJson(lambda)
+  def getJSONString(lambda: Lambda) = (new OutputKernelJSON("")).getJson(lambda)
+
+  def getKernelParamStr() = (new OutputKernelJSON("")).getKernelParamStr()
 
 }
 
@@ -37,6 +40,11 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
     val source = Compile(lambda)
     convertKernelParameterstoJSON(lambda,source)
 
+  }
+
+  def getKernelParamStr() =
+  {
+    "v__"
   }
 
   def writeKernelJSONToFile(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) =
@@ -63,7 +71,7 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
   def convertKernelParameterstoJSON( lambda: Lambda, source: String): String =
   {
 
-    val kernelValStr = "v__" // for finding parameter names -- ideally should not be hardcoded !
+    val kernelValStr = getKernelParamStr() // for finding parameter names -- ideally should not be hardcoded !
     val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
 
     // setup maps
@@ -135,5 +143,10 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
     val pw = new PrintWriter(out)
     pw.write(str)
     pw.close
+  }
+
+  def readStringFromFile(inputFile: String): String =
+  {
+      Source.fromFile(inputFile).mkString
   }
 }

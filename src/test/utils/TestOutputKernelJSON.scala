@@ -1,8 +1,9 @@
 package utils
 
 import ir.ast._
-import ir.{ArrayType}
+import ir.ArrayType
 import ir.ast.{Get, Join, Slide3D, Zip, Zip3D, \, fun}
+import jdk.nashorn.internal.parser._
 import lift.arithmetic.SizeVar
 import opencl.ir._
 import opencl.ir.pattern._
@@ -12,8 +13,22 @@ import org.junit.BeforeClass
 import org.junit.Assert._
 import org.junit._
 
+import scala.collection.immutable.ListMap
+import scala.util.parsing.json.{JSONArray, JSONObject}
 object TestOutputKernelJSON
 {
+    def sanitiseData(str: String): Array[String] =
+    {
+      val seps = Array[Char](':',',')
+      val whitespace = "\\s+"
+      val filterValues = "{}\\\"".toSet
+      val kernelParamStr = OutputKernelJSON.getKernelParamStr()
+
+      val jsonarr = str.split(seps)
+      val j2 = jsonarr.map(x => x.split(whitespace)).flatten.map(y => y.filterNot(filterValues))
+      j2.filter( x => !x.contains(kernelParamStr) && !x.isEmpty )
+
+    }
 }
 class TestOutputKernelJSON {
 
@@ -51,9 +66,14 @@ class TestOutputKernelJSON {
         ))))) $ Zip3D((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
       })
 
-      val json = OutputKernelJSON.getJSON(lambda)
+      val json = TestOutputKernelJSON.sanitiseData(OutputKernelJSON.getJSONString(lambda))
 
-      assertEquals(compareJson, json)
+      val sanCompareJson = TestOutputKernelJSON.sanitiseData(compareJson)
+
+      println(json.mkString)
+      println(sanCompareJson.mkString)
+
+      assertEquals(sanCompareJson.mkString, json.mkString)
 
   }
 

@@ -24,8 +24,8 @@ object BoundaryUtilities
 
   /* to get around casting ints to strings to chars to ints (in order to wrap ints in Arrays quickly) ... */
   def parseIntAsCharAsInt(inp: Int): Int = { // let's do some voodoo magic
-     val f = inp.toString.toArray.map(i => i.toInt)
-     f(0)
+  val f = inp.toString.toArray.map(i => i.toInt)
+    f(0)
   }
 
   implicit def bool2int(b:Boolean) = if (b) 1 else 0
@@ -35,8 +35,8 @@ object BoundaryUtilities
   val invertFloat = UserFun("invertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 0.0 : 1.0; }", Seq(Float), Float)
   val convertFloat = UserFun("convertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 1.0 : 0.0; }", Seq(Float), Float)
   val getFirstTuple = UserFun("getFirstTuple", "x", "{return x._0;}", TupleType(Float, Float), Float) // dud helper
-  val getSecondTuple = UserFun("getSecondTuple", "x", "{return x._1;}", TupleType(Float, Float), Float) // dud helper
-  val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
+val getSecondTuple = UserFun("getSecondTuple", "x", "{return x._1;}", TupleType(Float, Float), Float) // dud helper
+val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
 
   /* create mask of 0s and 1s at the boundary for a 2D Matrix */
   def createMask(input: Array[Array[Float]], msizeX: Int, msizeY: Int, maskValue: Int): Array[Array[Int]] = {
@@ -52,7 +52,7 @@ object BoundaryUtilities
     createMaskDataAsym2D(size,size)
   }
 
-    def createMaskDataAsym2D(sizeX: Int, sizeY: Int) =
+  def createMaskDataAsym2D(sizeX: Int, sizeY: Int) =
   {
     val initMat = Array.tabulate(sizeX,sizeY){ (i,j) => (i+j+1).toFloat }
     val maskArray = createMask(initMat,sizeX,sizeY,0).map(i => i.map(j => j.toString.toArray))
@@ -72,11 +72,11 @@ object BoundaryUtilities
 
   def createMaskData3D(size: Int) =
   {
-      createMaskDataAsym3D(size,size,size)
+    createMaskDataAsym3D(size,size,size)
   }
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
-    toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(id))  $ m, toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertFloat)) $ m)
+    toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ m, toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ m)
   }
 
 }
@@ -89,7 +89,7 @@ object TestAcousticStencilBoundaries {
   }
 
   @AfterClass def after(): Unit = {
-  println("Shutdown the executor")
+    println("Shutdown the executor")
     Executor.shutdown()
   }
 }
@@ -231,7 +231,7 @@ class TestAcousticStencilBoundaries {
       (mat1, mask1, weights) => {
         MapGlb((fun((m) => {
           val maskedValConst = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
-          val maskedValGrid = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValGrid = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
           toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weights),
             MapSeq(id) $ maskedValGrid
@@ -276,10 +276,10 @@ class TestAcousticStencilBoundaries {
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
           val orgMat = Get(Get(m, 0), 0)
           val secMat = Get(Get(m, 0), 1)
 
@@ -349,10 +349,10 @@ class TestAcousticStencilBoundaries {
       ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
           val orgMat = Get(Get(m, 0), 0)
           val secMat = Get(Get(m, 0), 1)
 
@@ -479,10 +479,10 @@ class TestAcousticStencilBoundaries {
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
 
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 0), Join() $ weightsMiddle),
@@ -637,25 +637,25 @@ class TestAcousticStencilBoundaries {
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
 
           toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 0),
-                                                                                                                                               Join() $ weightsMiddle),
+              Join() $ weightsMiddle),
             MapSeq(id) $ maskedValConstOrg
           ),
             MapSeq(multTuple) $ Zip(
               ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 1),
-                                                                                                                                                     Join() $ weights),
+                Join() $ weights),
               MapSeq(id) $ maskedValStencil
             ))
             ,
             (MapSeq(multTuple)) $ Zip(
               ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 1),
-                                                                                                                                                 Join() $ weightsMiddle),
+                Join() $ weightsMiddle),
               MapSeq(id) $ maskedValConstSec)
           ),
             maskedValMult)
@@ -699,81 +699,82 @@ class TestAcousticStencilBoundaries {
     val z = SizeVar("Z")
 
     val compareData = Array(
-    16.25f, 28.5f, 40.75f, 43.0f,
-    28.5f, 44.75f, 59.0f, 61.25f,
-    40.75f, 59.0f, 73.25f, 73.5f,
-    53.0f, 73.25f, 87.5f, 85.75f,
-    65.25f, 87.5f, 101.75f, 98.0f,
-    63.5f, 85.75f, 98.0f, 90.25f,
-    28.5f, 44.75f, 59.0f, 61.25f,
-    44.75f, 17.5f, 21.875f, 83.5f,
-    59.0f, 21.875f, 26.25f, 97.75f,
-    73.25f, 26.25f, 30.625f, 112.0f,
-    87.5f, 30.625f, 35.0f, 126.25f,
-    85.75f, 112.0f, 126.25f, 118.5f,
-    40.75f, 59.0f, 73.25f, 73.5f,
-    59.0f, 21.875f, 26.25f, 97.75f,
-    73.25f, 26.25f, 30.625f, 112.0f,
-    87.5f, 30.625f, 35.0f, 126.25f,
-    101.75f, 35.0f, 39.375f, 140.5f,
-    98.0f, 126.25f, 140.5f, 130.75f,
-    53.0f, 73.25f, 87.5f, 85.75f,
-    73.25f, 26.25f, 30.625f, 112.0f,
-    87.5f, 30.625f, 35.0f, 126.25f,
-    101.75f, 35.0f, 39.375f, 140.5f,
-    116.0f, 39.375f, 43.75f, 154.75f,
-    110.25f, 140.5f, 154.75f, 143.0f,
-    65.25f, 87.5f, 101.75f, 98.0f,
-    87.5f, 30.625f, 35.0f, 126.25f,
-    101.75f, 35.0f, 39.375f, 140.5f,
-    116.0f, 39.375f, 43.75f, 154.75f,
-    130.25f, 43.75f, 48.125f, 169.0f,
-    122.5f, 154.75f, 169.0f, 155.25f,
-    77.5f, 101.75f, 116.0f, 110.25f,
-    101.75f, 35.0f, 39.375f, 140.5f,
-    116.0f, 39.375f, 43.75f, 154.75f,
-    130.25f, 43.75f, 48.125f, 169.0f,
-    144.5f, 48.125f, 52.5f, 183.25f,
-    134.75f, 169.0f, 183.25f, 167.5f,
-    89.75f, 116.0f, 130.25f, 122.5f,
-    116.0f, 39.375f, 43.75f, 154.75f,
-    130.25f, 43.75f, 48.125f, 169.0f,
-    144.5f, 48.125f, 52.5f, 183.25f,
-    158.75f, 52.5f, 56.875f, 197.5f,
-    147.0f, 183.25f, 197.5f, 179.75f,
-    102.0f, 130.25f, 144.5f, 134.75f,
-    130.25f, 43.75f, 48.125f, 169.0f,
-    144.5f, 48.125f, 52.5f, 183.25f,
-    158.75f, 52.5f, 56.875f, 197.5f,
-    173.0f, 56.875f, 61.25f, 211.75f,
-    159.25f, 197.5f, 211.75f, 192.0f,
-    114.25f, 144.5f, 158.75f, 147.0f,
-    144.5f, 48.125f, 52.5f, 183.25f,
-    158.75f, 52.5f, 56.875f, 197.5f,
-    173.0f, 56.875f, 61.25f, 211.75f,
-    187.25f, 61.25f, 65.625f, 226.0f,
-    171.5f, 211.75f, 226.0f, 204.25f,
-    104.5f, 134.75f, 147.0f, 131.25f,
-    134.75f, 169.0f, 183.25f, 167.5f,
-    147.0f, 183.25f, 197.5f, 179.75f,
-    159.25f, 197.5f, 211.75f, 192.0f,
-    171.5f, 211.75f, 226.0f, 204.25f,
-    151.75f, 192.0f, 204.25f, 178.5f
+      16.25f, 28.5f, 40.75f, 43.0f,
+      28.5f, 44.75f, 59.0f, 61.25f,
+      40.75f, 59.0f, 73.25f, 73.5f,
+      53.0f, 73.25f, 87.5f, 85.75f,
+      65.25f, 87.5f, 101.75f, 98.0f,
+      63.5f, 85.75f, 98.0f, 90.25f,
+      28.5f, 44.75f, 59.0f, 61.25f,
+      44.75f, 17.5f, 21.875f, 83.5f,
+      59.0f, 21.875f, 26.25f, 97.75f,
+      73.25f, 26.25f, 30.625f, 112.0f,
+      87.5f, 30.625f, 35.0f, 126.25f,
+      85.75f, 112.0f, 126.25f, 118.5f,
+      40.75f, 59.0f, 73.25f, 73.5f,
+      59.0f, 21.875f, 26.25f, 97.75f,
+      73.25f, 26.25f, 30.625f, 112.0f,
+      87.5f, 30.625f, 35.0f, 126.25f,
+      101.75f, 35.0f, 39.375f, 140.5f,
+      98.0f, 126.25f, 140.5f, 130.75f,
+      53.0f, 73.25f, 87.5f, 85.75f,
+      73.25f, 26.25f, 30.625f, 112.0f,
+      87.5f, 30.625f, 35.0f, 126.25f,
+      101.75f, 35.0f, 39.375f, 140.5f,
+      116.0f, 39.375f, 43.75f, 154.75f,
+      110.25f, 140.5f, 154.75f, 143.0f,
+      65.25f, 87.5f, 101.75f, 98.0f,
+      87.5f, 30.625f, 35.0f, 126.25f,
+      101.75f, 35.0f, 39.375f, 140.5f,
+      116.0f, 39.375f, 43.75f, 154.75f,
+      130.25f, 43.75f, 48.125f, 169.0f,
+      122.5f, 154.75f, 169.0f, 155.25f,
+      77.5f, 101.75f, 116.0f, 110.25f,
+      101.75f, 35.0f, 39.375f, 140.5f,
+      116.0f, 39.375f, 43.75f, 154.75f,
+      130.25f, 43.75f, 48.125f, 169.0f,
+      144.5f, 48.125f, 52.5f, 183.25f,
+      134.75f, 169.0f, 183.25f, 167.5f,
+      89.75f, 116.0f, 130.25f, 122.5f,
+      116.0f, 39.375f, 43.75f, 154.75f,
+      130.25f, 43.75f, 48.125f, 169.0f,
+      144.5f, 48.125f, 52.5f, 183.25f,
+      158.75f, 52.5f, 56.875f, 197.5f,
+      147.0f, 183.25f, 197.5f, 179.75f,
+      102.0f, 130.25f, 144.5f, 134.75f,
+      130.25f, 43.75f, 48.125f, 169.0f,
+      144.5f, 48.125f, 52.5f, 183.25f,
+      158.75f, 52.5f, 56.875f, 197.5f,
+      173.0f, 56.875f, 61.25f, 211.75f,
+      159.25f, 197.5f, 211.75f, 192.0f,
+      114.25f, 144.5f, 158.75f, 147.0f,
+      144.5f, 48.125f, 52.5f, 183.25f,
+      158.75f, 52.5f, 56.875f, 197.5f,
+      173.0f, 56.875f, 61.25f, 211.75f,
+      187.25f, 61.25f, 65.625f, 226.0f,
+      171.5f, 211.75f, 226.0f, 204.25f,
+      104.5f, 134.75f, 147.0f, 131.25f,
+      134.75f, 169.0f, 183.25f, 167.5f,
+      147.0f, 183.25f, 197.5f, 179.75f,
+      159.25f, 197.5f, 211.75f, 192.0f,
+      171.5f, 211.75f, 226.0f, 204.25f,
+      151.75f, 192.0f, 204.25f, 178.5f
     )
 
     val lambdaNeigh = fun(
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
       ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m - 2), n - 2), o - 2),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
-      (mat1, mat2, mask1, weights, weightsMiddle) => {
+      (mat1, mat2, mat3, mask1, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(m, constantBorder(3), constantOriginal(3))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(m, constantBorder(2), constantOriginal(2))
-          val maskedValConstSec = BoundaryUtilities.maskValue(m, constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(m, constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
 
           toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join()
@@ -801,7 +802,7 @@ class TestAcousticStencilBoundaries {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
 
-      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, stencilarr3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput)
       {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
@@ -810,10 +811,10 @@ class TestAcousticStencilBoundaries {
 
     }
     catch
-    {
+      {
         case e: DeviceCapabilityException =>
-        Assume.assumeNoException("Device not supported.", e)
-    }
+          Assume.assumeNoException("Device not supported.", e)
+      }
 
   }
 
@@ -821,54 +822,54 @@ class TestAcousticStencilBoundaries {
   def testTwoGridsThreeCalculationsAsym3DGeneralNoMask(): Unit = {
 
     val compareData = Array(
-    4.375f, 7.75f, 11.125f, 14.5f, 17.875f, 21.25f, 24.625f, 23.5f,
-    7.75f, 12.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 30.375f,
-    11.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 33.75f,
-    12.0f, 16.875f, 20.25f, 23.625f, 27.0f, 30.375f, 33.75f, 31.125f,
-    7.75f, 12.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 30.375f,
-    12.125f, 17.5f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 38.25f,
-    16.0f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 42.125f,
-    16.875f, 22.75f, 26.625f, 30.5f, 34.375f, 38.25f, 42.125f, 39.5f,
-    11.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 33.75f,
-    16.0f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 42.125f,
-    19.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 46.0f,
-    20.25f, 26.625f, 30.5f, 34.375f, 38.25f, 42.125f, 46.0f, 42.875f,
-    14.5f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 39.25f, 37.125f,
-    19.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 46.0f,
-    23.75f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 49.875f,
-    23.625f, 30.5f, 34.375f, 38.25f, 42.125f, 46.0f, 49.875f, 46.25f,
-    17.875f, 23.75f, 27.625f, 31.5f, 35.375f, 39.25f, 43.125f, 40.5f,
-    23.75f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 49.875f,
-    27.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 53.75f,
-    27.0f, 34.375f, 38.25f, 42.125f, 46.0f, 49.875f, 53.75f, 49.625f,
-    21.25f, 27.625f, 31.5f, 35.375f, 39.25f, 43.125f, 47.0f, 43.875f,
-    27.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 53.75f,
-    31.5f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 57.625f,
-    30.375f, 38.25f, 42.125f, 46.0f, 49.875f, 53.75f, 57.625f, 53.0f,
-    24.625f, 31.5f, 35.375f, 39.25f, 43.125f, 47.0f, 50.875f, 47.25f,
-    31.5f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 57.625f,
-    35.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 61.5f,
-    33.75f, 42.125f, 46.0f, 49.875f, 53.75f, 57.625f, 61.5f, 56.375f,
-    28.0f, 35.375f, 39.25f, 43.125f, 47.0f, 50.875f, 54.75f, 50.625f,
-    35.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 61.5f,
-    39.25f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 65.375f,
-    37.125f, 46.0f, 49.875f, 53.75f, 57.625f, 61.5f, 65.375f, 59.75f,
-    31.375f, 39.25f, 43.125f, 47.0f, 50.875f, 54.75f, 58.625f, 54.0f,
-    39.25f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 65.375f,
-    43.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 69.25f,
-    40.5f, 49.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 63.125f,
-    34.75f, 43.125f, 47.0f, 50.875f, 54.75f, 58.625f, 62.5f, 57.375f,
-    43.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 69.25f,
-    47.0f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 73.125f,
-    43.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 66.5f,
-    38.125f, 47.0f, 50.875f, 54.75f, 58.625f, 62.5f, 66.375f, 60.75f,
-    47.0f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 73.125f,
-    50.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 83.125f, 77.0f,
-    47.25f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 77.0f, 69.875f,
-    35.0f, 43.875f, 47.25f, 50.625f, 54.0f, 57.375f, 60.75f, 54.125f,
-    43.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 66.5f,
-    47.25f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 77.0f, 69.875f,
-    42.625f, 53.0f, 56.375f, 59.75f, 63.125f, 66.5f, 69.875f, 61.75f
+      4.375f, 7.75f, 11.125f, 14.5f, 17.875f, 21.25f, 24.625f, 23.5f,
+      7.75f, 12.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 30.375f,
+      11.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 33.75f,
+      12.0f, 16.875f, 20.25f, 23.625f, 27.0f, 30.375f, 33.75f, 31.125f,
+      7.75f, 12.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 30.375f,
+      12.125f, 17.5f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 38.25f,
+      16.0f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 42.125f,
+      16.875f, 22.75f, 26.625f, 30.5f, 34.375f, 38.25f, 42.125f, 39.5f,
+      11.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 33.75f,
+      16.0f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 42.125f,
+      19.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 46.0f,
+      20.25f, 26.625f, 30.5f, 34.375f, 38.25f, 42.125f, 46.0f, 42.875f,
+      14.5f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 39.25f, 37.125f,
+      19.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 46.0f,
+      23.75f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 49.875f,
+      23.625f, 30.5f, 34.375f, 38.25f, 42.125f, 46.0f, 49.875f, 46.25f,
+      17.875f, 23.75f, 27.625f, 31.5f, 35.375f, 39.25f, 43.125f, 40.5f,
+      23.75f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 49.875f,
+      27.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 53.75f,
+      27.0f, 34.375f, 38.25f, 42.125f, 46.0f, 49.875f, 53.75f, 49.625f,
+      21.25f, 27.625f, 31.5f, 35.375f, 39.25f, 43.125f, 47.0f, 43.875f,
+      27.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 53.75f,
+      31.5f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 57.625f,
+      30.375f, 38.25f, 42.125f, 46.0f, 49.875f, 53.75f, 57.625f, 53.0f,
+      24.625f, 31.5f, 35.375f, 39.25f, 43.125f, 47.0f, 50.875f, 47.25f,
+      31.5f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 57.625f,
+      35.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 61.5f,
+      33.75f, 42.125f, 46.0f, 49.875f, 53.75f, 57.625f, 61.5f, 56.375f,
+      28.0f, 35.375f, 39.25f, 43.125f, 47.0f, 50.875f, 54.75f, 50.625f,
+      35.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 61.5f,
+      39.25f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 65.375f,
+      37.125f, 46.0f, 49.875f, 53.75f, 57.625f, 61.5f, 65.375f, 59.75f,
+      31.375f, 39.25f, 43.125f, 47.0f, 50.875f, 54.75f, 58.625f, 54.0f,
+      39.25f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 65.375f,
+      43.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 69.25f,
+      40.5f, 49.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 63.125f,
+      34.75f, 43.125f, 47.0f, 50.875f, 54.75f, 58.625f, 62.5f, 57.375f,
+      43.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 69.25f,
+      47.0f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 73.125f,
+      43.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 66.5f,
+      38.125f, 47.0f, 50.875f, 54.75f, 58.625f, 62.5f, 66.375f, 60.75f,
+      47.0f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 73.125f,
+      50.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 83.125f, 77.0f,
+      47.25f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 77.0f, 69.875f,
+      35.0f, 43.875f, 47.25f, 50.625f, 54.0f, 57.375f, 60.75f, 54.125f,
+      43.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 66.5f,
+      47.25f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 77.0f, 69.875f,
+      42.625f, 53.0f, 56.375f, 59.75f, 63.125f, 66.5f, 69.875f, 61.75f
     )
 
     val localDimX = 8
@@ -899,16 +900,16 @@ class TestAcousticStencilBoundaries {
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
-         // MapGlb((fun((m) =>
+          // MapGlb((fun((m) =>
           MapSeq(toGlobal(fun(x => mult(x,constantOriginal(3))))) o
             MapSeq(addTuple) $
-                  Zip(MapSeq(addTuple) $
-                             Zip(((MapSeq(fun(x => mult(x,constantOriginal(2))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                                          Zip(Join() $ Get(m, 0), Join() $ weightsMiddle)),
-                                  (MapSeq(fun(x => mult(x, constantOriginal(0)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                                          Zip(Join() $ Get(m, 1), Join() $ weights))),
-                     (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                            Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
+            Zip(MapSeq(addTuple) $
+              Zip(((MapSeq(fun(x => mult(x,constantOriginal(2))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                Zip(Join() $ Get(m, 0), Join() $ weightsMiddle)),
+                (MapSeq(fun(x => mult(x, constantOriginal(0)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                  Zip(Join() $ Get(m, 1), Join() $ weights))),
+              (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
         ))))) $ Zip3D((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
       })
 
@@ -918,10 +919,10 @@ class TestAcousticStencilBoundaries {
       val source = Compile(newLambda)
 
       val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
-    if (StencilUtilities.printOutput)
-    {
+      if (StencilUtilities.printOutput)
+      {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
-    }
+      }
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
     }

@@ -208,7 +208,7 @@ class TestAcousticOpt {
   }
 
 
-
+ @Ignore
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3DGeneralOneWeights(): Unit = {
 
@@ -280,51 +280,35 @@ class TestAcousticOpt {
     val y = SizeVar("Y")
     val z = SizeVar("Z")
 
-    val lambdaNeighOrg = fun(
+
+    val lambdaNeigh = fun(
       ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
       ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
       ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m), n), o),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
-        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
-            MapSeq(id) $ Get(m,0)
-        )))
-        )) $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2,  mask1)
-      })
+          MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
 
-
-    val lambdaNeighNo = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
-      ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
-    //  ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
-      (mat1, mat2, mask1, weights, weightsMiddle) => {
-        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
-          MapSeq(toGlobal(fun(x => mult(x,constantOriginal(3))))) o
-            MapSeq(addTuple) $
-            Zip(MapSeq(addTuple) $
-              Zip(toPrivate(MapSeq(fun(x => mult(x,constantBorder(2))))) $ Get(m,0),
-                (toPrivate(MapSeq(fun(x => mult(x, constantOriginal(0))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                  Zip(( Join() $ Get(m,1)), Join() $ weights))),
-              (toPrivate(MapSeq(fun(x => mult(x,constantOriginal(1))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
-        ))))) $ StencilUtilities.zip3d3(mat1, (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2),mask1)
-      })
-
-    val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
-      ( mat2, weights, weightsMiddle) => {
-        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
-          toGlobal(MapSeq(fun(x => mult(x,constantOriginal(1))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-              Zip(Join() $ m, Join() $ weightsMiddle))
-          )
+          toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join()
+              $ Get(Get(m, 0), 0), Join() $ weightsMiddle),
+            MapSeq(id) $ BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
+          ),
+            MapSeq(multTuple) $ Zip(
+              ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $
+                Get(Get(m, 0), 1), Join() $ weights),
+              MapSeq(id) $ BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
+            ))
+            ,
+            (MapSeq(multTuple)) $ Zip(
+              ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $
+                Get(Get(m, 0), 1), Join() $ weightsMiddle),
+              MapSeq(id) $ BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1)))
+          ),
+           BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3)))
         ))
-        ) $ (Slide3D(3,1) $ mat2)
+        ))) $ Zip3D((Slide3D(StencilUtilities.slidesize,StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2),mask1)
       })
 
 
@@ -334,7 +318,7 @@ class TestAcousticOpt {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
 
-      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda,  stencilarrOther3D,  StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda,  stencilarr3D, stencilarrOther3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput)
       {
         StencilUtilities.printOriginalAndOutput3D(data, output)
