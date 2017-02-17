@@ -97,8 +97,8 @@ class MLP(/* MLP architectural parameters */
   val localSize1: Array[Int] = Array.fill[Int](nLayers)(0)
   val globalSize0: Array[Int] = Array.fill[Int](nLayers)(0)
   val globalSize1: Array[Int] = Array.fill[Int](nLayers)(0)
-  // Size of the last dimension will be different for each layer, and determined in the for loop
-  var outputs: Array[Array[Array[Float]]] = _
+
+  var outputs = scala.collection.mutable.Buffer[Array[Array[Float]]]()
   def layerInputs(layerNo: Int): Array[Array[Float]] = if (layerNo == 0) inputsPadded else inputsPadded//outputs(layerNo - 1)
 
   var inputsPadded: Array[Array[Float]] = _

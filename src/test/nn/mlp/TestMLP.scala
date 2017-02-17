@@ -117,7 +117,7 @@ class TestMLP {
           mlp.weights(layerNo), mlp.biases(layerNo), mlp.layerInputs(layerNo))
 
       mlp.runTimes(layerNo) = runtime
-      mlp.outputs(layerNo) = TestUtils.group(outputFlat, (mlp.nInputsPadded, mlp.nNeurons(layerNo)))
+      mlp.outputs += TestUtils.group(outputFlat, (mlp.nInputsPadded, mlp.nNeurons(layerNo)))
 
       println(f"Layer $layerNo%d: $runtime%1.5f ms")
 
