@@ -211,7 +211,7 @@ class TestAcousticOpt {
     val localDimZ = 10
 
     val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
-    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z.toFloat))))
+    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
     val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
     val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
     val mask3D = BoundaryUtilities.createMaskDataAsym3D(localDimX, localDimY, localDimZ)
@@ -222,8 +222,8 @@ class TestAcousticOpt {
     val constantBorder = Array(2.0f, 3.0f, 2.5f, 0.5f)
 
 
-    val n = SizeVar("N")
     val m = SizeVar("M")
+    val n = SizeVar("N")
     val o = SizeVar("O")
     val a = SizeVar("A")
     val x = SizeVar("X")
@@ -232,9 +232,9 @@ class TestAcousticOpt {
 
 
    val lambdaNeigh = fun(
-     ArrayType(ArrayType(ArrayType(ArrayType(Float,1),m), n), o),
-     ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
-     ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m), n), o),
+     ArrayType(ArrayType(ArrayType(ArrayType(Float,1),m-2), n-2), o-2),
+     ArrayType(ArrayType(ArrayType(Float, m ), n ), o ),
+     ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m-2), n-2), o-2),
      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
      (mat1, mat2, mask1, weights, weightsMiddle) => {

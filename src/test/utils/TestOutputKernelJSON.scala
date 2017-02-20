@@ -32,7 +32,6 @@ object TestOutputKernelJSON
 }
 class TestOutputKernelJSON {
 
-  @Ignore  // how to get around different names?
   @Test
   def testLambdaWithAllTypesOfParameters(): Unit =
   {
@@ -70,8 +69,7 @@ class TestOutputKernelJSON {
 
       val sanCompareJson = TestOutputKernelJSON.sanitiseData(compareJson)
 
-      println(json.mkString)
-      println(sanCompareJson.mkString)
+      println(OutputKernelJSON.getJSONString(lambda))
 
       assertEquals(sanCompareJson.mkString, json.mkString)
 
