@@ -1,0 +1,8 @@
+
+.pattern-type:before {
+  content: " : ";
+}
+
+.pattern-sema:before {
+  content: " ≡ ";
+}
