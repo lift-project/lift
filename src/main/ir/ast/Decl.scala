@@ -131,13 +131,15 @@ object FunDecl {
   def replace(l: Lambda, oldE: Expr, newE: Expr) : Lambda = {
     val newBody = Expr.replace(l.body, oldE, newE)
 
+    val replaceInParams = newE.isInstanceOf[Param] && l.params.contains(oldE)
+
     val newParams =
-      if (l.params.contains(oldE) && newE.isInstanceOf[Param])
+      if (replaceInParams)
         l.params.map(Expr.replace(_, oldE, newE).asInstanceOf[Param])
       else
         l.params
 
-    if (newBody.eq(l.body) && !(l.params.contains(oldE) &&  newE.isInstanceOf[Param]))
+    if (newBody.eq(l.body) && ! replaceInParams)
       l
     else
       Lambda(newParams, newBody)
