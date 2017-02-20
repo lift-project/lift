@@ -11,4 +11,6 @@ lib/Executor/build
 *.out
 *.log
 *.iml
+*.html
+*.pyc
 *.swp
