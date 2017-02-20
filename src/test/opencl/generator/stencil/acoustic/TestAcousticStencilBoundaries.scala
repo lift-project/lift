@@ -769,32 +769,27 @@ class TestAcousticStencilBoundaries {
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, mat3, mask1, weights, weightsMiddle) => {
-        MapGlb((fun((m) => {
-
-          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
-          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
+        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
 
           toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join()
-              $ Get(Get(m, 0), 0), Join() $ weightsMiddle),
-            MapSeq(id) $ maskedValConstOrg
+              $ Get(m, 0), Join() $ weightsMiddle),
+            MapSeq(id) $ BoundaryUtilities.maskValue(Get(m,2), constantBorder(2), constantOriginal(2))
           ),
             MapSeq(multTuple) $ Zip(
               ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $
-                Get(Get(m, 0), 1), Join() $ weights),
-              MapSeq(id) $ maskedValStencil
+                Get(m, 1), Join() $ weights),
+              MapSeq(id) $ BoundaryUtilities.maskValue(Get(m,2), constantBorder(0), constantOriginal(0))
             ))
             ,
             (MapSeq(multTuple)) $ Zip(
               ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $
-                Get(Get(m, 0), 1), Join() $ weightsMiddle),
-              MapSeq(id) $ maskedValConstSec)
+                Get(m, 1), Join() $ weightsMiddle),
+              MapSeq(id) $ BoundaryUtilities.maskValue(Get(m,2), constantBorder(1), constantOriginal(1)))
           ),
-            maskedValMult)
-        }))
-        ) $ Zip(Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))), Join() o Join() $ mask1)
+            BoundaryUtilities.maskValue(Get(m,2), constantBorder(3), constantOriginal(3)))
+        ))))
+        ) $ Zip3D((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2), mask1)
       })
 
     try
@@ -807,7 +802,6 @@ class TestAcousticStencilBoundaries {
       {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       }
-      StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
     }
@@ -901,7 +895,6 @@ class TestAcousticStencilBoundaries {
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
-          // MapGlb((fun((m) =>
           MapSeq(toGlobal(fun(x => mult(x,constantOriginal(3))))) o
             MapSeq(addTuple) $
             Zip(MapSeq(addTuple) $
