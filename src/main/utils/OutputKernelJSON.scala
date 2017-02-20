@@ -16,7 +16,10 @@ import opencl.ir.TypedOpenCLMemory
 /**
   *  apply: output lambda parameters to JSON file and outputs resulting OpenCL kernel to CL file.
   *  Use in conjunction with $LIFT_ROOT/scripts/createKernelParametersFromJSON.py to create the necessary boilerplate C/OpenCL code from the JSON file.
+  *
   *  getJSON: just return the json string for a lambda
+  *
+  *  getKernelParamStr: string of prefix for parameter values (this really shouldn't be hardcoded but where this gets built is obscured away to oblivion)
  */
 
 object OutputKernelJSON {
@@ -67,7 +70,7 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
   // for creating the correct kernel (JSONs do not promise to retain order!)
   //
   // for use with "writeKernelJSONToFile", which is why the source string is also passed in (to print out the kernel, too)
-  // ...this could be changed!
+
   def convertKernelParameterstoJSON( lambda: Lambda, source: String): String =
   {
 
@@ -83,8 +86,8 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
     var lmS = ListMap[String,String]()
 
     var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(x => x.contains("global") || (x.contains("private") && !x.contains("*")))
-    val ignoreable = ", \t({}" // trim some stuff
-    val toStrip = "){" // trim some more stuff
+    val ignoreable = ", \t({}" // stuff to trim
+    val toStrip = "){" // some more stuff to trim
     val notArr =Array[String]("const","global","restrict") // parameter decorations we don't want
     val stripParamsArr = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";"))
     val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains(" global") && !x.contains(" private")))
@@ -99,7 +102,7 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
     // get size values (ints)
     val generalVals = parameters.filter(x => (!x.contains("*") && !lmPSizes.contains(x.trim().split(" ")(1).trim())))
     val genVals = generalVals.map(x => x.trim.stripSuffix(toStrip))
-    genVals.foreach(x => lmS += (x -> ""))
+    genVals.foreach(x => lmS += (x -> "4"))
 
     // get parameter values
     val privateValueNames = stripParamsArr.filter(x => x.mkString(" ").contains("private")).map(x => x(0))
@@ -145,8 +148,4 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
     pw.close
   }
 
-  def readStringFromFile(inputFile: String): String =
-  {
-      Source.fromFile(inputFile).mkString
-  }
 }

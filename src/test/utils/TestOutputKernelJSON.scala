@@ -1,20 +1,23 @@
 package utils
 
 import ir.ast._
+
 import ir.ArrayType
 import ir.ast.{Get, Join, Slide3D, Zip, Zip3D, \, fun}
-import jdk.nashorn.internal.parser._
 import lift.arithmetic.SizeVar
 import opencl.ir._
-import opencl.ir.pattern._
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import org.junit.BeforeClass
 import org.junit.Assert._
 import org.junit._
 
-import scala.collection.immutable.ListMap
-import scala.util.parsing.json.{JSONArray, JSONObject}
+/**
+  *
+  * Tests the "OutputKernelJSON function to output parameters of created openCL kernels in a JSON format
+  *
+ */
+
+
 object TestOutputKernelJSON
 {
     def sanitiseData(str: String): Array[String] =
@@ -36,8 +39,7 @@ class TestOutputKernelJSON {
   def testLambdaWithAllTypesOfParameters(): Unit =
   {
 
-    val compareJson = "{\"parameters\" : {\"float* v__1006\" : \" (4*v_M_1*v_N_0*v_O_2)\", \"float* v__1007\" : \" (4*v_M_1*v_N_0*v_O_2)\", \"float* v__1008\" : \" 108\", \"float* v__1009\" : \" 108\", \"float v__1010\" : \" 4\"}, \"outputs\" : {\"float* v__1055\" : \" (-32+(-8*v_M_1*v_N_0)+(-8*v_M_1*v_O_2)+(-8*v_N_0*v_O_2)+(4*v_M_1*v_N_0*v_O_2)+(16*v_M_1)+(16*v_N_0)+(16*v_O_2))\"}, \"temporary buffers\" : {\"float* v__1029\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\", \"float* v__1043\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\", \"float* v__1017\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\"}, \"sizes\" : {\"int v_M_1\" : \"\", \"int v_N_0\" : \"\", \"int v_O_2\" : \"\"}}"
-
+    val compareJson = "{\"parameters\" : {\"float* v__1006\" : \" (4*v_M_1*v_N_0*v_O_2)\", \"float* v__1007\" : \" (4*v_M_1*v_N_0*v_O_2)\", \"float* v__1008\" : \" 108\", \"float* v__1009\" : \" 108\", \"float v__1010\" : \" 4\"}, \"outputs\" : {\"float* v__1055\" : \" (-32+(-8*v_M_1*v_N_0)+(-8*v_M_1*v_O_2)+(-8*v_N_0*v_O_2)+(4*v_M_1*v_N_0*v_O_2)+(16*v_M_1)+(16*v_N_0)+(16*v_O_2))\"}, \"temporary buffers\" : {\"float* v__1029\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\", \"float* v__1043\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\", \"float* v__1017\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\"}, \"sizes\" : {\"int v_M_1\" : \"4\", \"int v_N_0\" : \"4\", \"int v_O_2\" : \"4\"}}"
 
     val n = SizeVar("N")
     val m = SizeVar("M")
@@ -65,11 +67,9 @@ class TestOutputKernelJSON {
         ))))) $ Zip3D((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
       })
 
+      // remove random numbers in parameter names
       val json = TestOutputKernelJSON.sanitiseData(OutputKernelJSON.getJSONString(lambda))
-
       val sanCompareJson = TestOutputKernelJSON.sanitiseData(compareJson)
-
-      println(OutputKernelJSON.getJSONString(lambda))
 
       assertEquals(sanCompareJson.mkString, json.mkString)
 
