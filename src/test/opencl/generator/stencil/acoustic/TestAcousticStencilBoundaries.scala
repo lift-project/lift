@@ -807,6 +807,7 @@ class TestAcousticStencilBoundaries {
       {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       }
+      StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
     }
