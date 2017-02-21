@@ -26,7 +26,7 @@ object TestOutputKernelJSON
       val regExDel = "_[0-9]+".r
       val whitespace = "\\s+"
       val filterValues = "{}\\\"".toSet
-      val kernelParamStr = OutputKernelJSON.getKernelParamStr()
+      val kernelParamStr = OutputKernelJSON.getKernelParamString()
 
       val jsonarr = str.split(seps)
       val j2 = jsonarr.map(x => x.split(whitespace)).flatten.map(y => y.filterNot(filterValues))
@@ -70,7 +70,7 @@ class TestOutputKernelJSON {
       })
 
       // remove random numbers in parameter names
-      val json = TestOutputKernelJSON.sanitiseData(OutputKernelJSON.getJSONString(lambda))
+      val json = TestOutputKernelJSON.sanitiseData(OutputKernelJSON.getJsonString(lambda))
       val sanCompareJson = TestOutputKernelJSON.sanitiseData(compareJson)
 
       assertEquals(sanCompareJson.mkString, json.mkString)

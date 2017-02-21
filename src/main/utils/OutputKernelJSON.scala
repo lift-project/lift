@@ -24,109 +24,127 @@ import opencl.ir.TypedOpenCLMemory
 
 object OutputKernelJSON {
 
-  def apply(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) = (new OutputKernelJSON(outputDir,jsonfilename,kernelfilename,printJson))(lambda)
+  def apply(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftkernel.cl", printJson: Boolean = false) = (new OutputKernelJSON(outputDir,jsonfilename,kernelfilename,printJson))(lambda)
 
-  def getJSONString(lambda: Lambda) = (new OutputKernelJSON("")).getJson(lambda)
-
-  def getKernelParamStr() = (new OutputKernelJSON("")).getKernelParamStr()
-
-}
-
-class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) {
-
-  def apply(lambda: Lambda) = {
-    writeKernelJSONToFile(lambda,outputDir,jsonfilename,kernelfilename,printJson)
-  }
-
-  def getJson(lambda:Lambda) = {
+  def getJsonString(lambda:Lambda) = {
 
     val source = Compile(lambda)
     convertKernelParameterstoJSON(lambda,source)
 
   }
 
-  def getKernelParamStr() =
+  def getKernelParamString() =
   {
     "v__"
   }
 
-  def writeKernelJSONToFile(lambda: Lambda, outputDir: String, jsonfilename: String = "kernel.json", kernelfilename: String = "liftstencil.cl", printJson: Boolean = false) =
+  private def getPrivateParamsList(params: Seq[TypedOpenCLMemory]): Seq[String] =
   {
-
-    val source = Compile(lambda)
-
-    val jsonString = convertKernelParameterstoJSON(lambda, source)
-
-    if(printJson) println(jsonString)
-
-    // write to file
-    writeStringToFile(jsonString,outputDir+jsonfilename)
-
-    // print kernel to same place (pass in param!)
-    writeStringToFile(source,outputDir+kernelfilename)
+    val memParams = params.map(p => p.mem)
+    val privateParams = memParams.filter( p => p.addressSpace.toString.contains("private"))
+    privateParams.map( b => b.variable.toString)
   }
 
-  // be wary of changing the types of Map and JSON parsing in this function as the current setup maintains order which is crucial
-  // for creating the correct kernel (JSONs do not promise to retain order!)
-  //
-  // for use with "writeKernelJSONToFile", which is why the source string is also passed in (to print out the kernel, too)
-
-  def convertKernelParameterstoJSON( lambda: Lambda, source: String): String =
+  private def getParamSizeMap(params: Seq[TypedOpenCLMemory]): ListMap[String,String] =
   {
+    var lmPSizes = ListMap[String,String]()
+    val memParams = params.map(p => p.mem)
+    memParams.foreach(x => lmPSizes += (x.variable.toString -> x.size.toString))
+    lmPSizes
+  }
 
-    val kernelValStr = getKernelParamStr() // for finding parameter names -- ideally should not be hardcoded !
-    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
+  private def getGeneralValuesFromParameterList(parameters: Array[String], lmPSizes: ListMap[String,String]): Array[String] =
+  {
+    parameters.filter(x => (!x.contains("*") && !lmPSizes.contains(x.trim().split(" ")(1).trim())))
+  }
 
-    // setup maps
-    var lm = ListMap[String,JSONObject]()
-    var lmPSizes = ListMap[String,String]()  // map for sizes of parameters
-    var lmP = ListMap[String,String]()
-    var lmO = ListMap[String,String]()
-    var lmTB = ListMap[String,String]()
+  private def getParameterValuesFromParameterList(parameters: Array[String], privateNameParams: Seq[String]): Array[String] =
+  {
+    parameters.filter(x => x.contains("restrict") || privateNameParams.exists(y => x.contains(y)))
+  }
+
+  private def getOtherValuesFromParameterList(parameters: Array[String], lmPSizes: ListMap[String,String], privateNameParams: Seq[String]): Array[String] =
+  {
+    val paramVals = getParameterValuesFromParameterList(parameters,privateNameParams)
+    val generalVals = getGeneralValuesFromParameterList(parameters,lmPSizes)
+    parameters.filter(x => !paramVals.contains(x) && !generalVals.contains(x))
+  }
+
+  private def getSizeKernelValuesMap(parameters: Array[String], lmPSizes: ListMap[String,String], toStrip: String): ListMap[String,String] =
+  {
     var lmS = ListMap[String,String]()
-
-    var newParams = params.toString().stripPrefix("ArrayBuffer(").split(",").filter(x => x.contains("global") || (x.contains("private") && !x.contains("*")))
-    val ignoreable = ", \t({}" // stuff to trim
-    val toStrip = "){" // some more stuff to trim
-    val notArr =Array[String]("const","global","restrict") // parameter decorations we don't want
-    val stripParamsArr = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";"))
-    val stripParams = newParams.map(x => x.split(":")(0).dropWhile(c => ignoreable.indexOf(c) >= 0).stripSuffix("}").split(";").filter(x => !x.contains(" global") && !x.contains(" private")))
-
-    // store sizes for parameters we have
-    stripParams.foreach(x => lmPSizes += (x(0) -> x(1)))
-
-    // pull out values from kernel string because it's easier to work with
-    val kernelStr = source.split("\n").filter(x => x.toString().contains("kernel"))
-    val parameters = kernelStr(0).split(",").map(x => x.stripPrefix("kernel void KERNEL(")) // pull out ALL parameters, including sizes
-
-    // get size values (ints)
-    val generalVals = parameters.filter(x => (!x.contains("*") && !lmPSizes.contains(x.trim().split(" ")(1).trim())))
+    val generalVals = getGeneralValuesFromParameterList(parameters,lmPSizes)
     val genVals = generalVals.map(x => x.trim.stripSuffix(toStrip))
     genVals.foreach(x => lmS += (x -> "4"))
+    lmS
+  }
 
-    // get parameter values
-    val privateValueNames = stripParamsArr.filter(x => x.mkString(" ").contains("private")).map(x => x(0))
-    val paramVals = parameters.filter(x => x.contains("restrict") || privateValueNames.exists(y => x.contains(y))) // pull out the arrays
-
-    val paramNames = paramVals.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
+  private def getParameterKernelValuesMap(parameters: Array[String], lmPSizes: ListMap[String,String], privateNameParams: Seq[String]): ListMap[String,String] =
+  {
+    var lmP = ListMap[String,String]()
+    val notArr =Array[String]("const","global","restrict") // parameter decorations we don't want
+    val paramVals = getParameterValuesFromParameterList(parameters,privateNameParams)
+    val paramNames = paramVals.map(x => x.split(" ").filter(y => y contains getKernelParamString())).flatten
     val paramTypes = paramVals.map(x => x.split(" ").filter(y => !notArr.contains(y) && !paramNames.contains(y))).map(z => z.mkString(""))
-    // then add in size from lmPSizes!!
     for((pType,pName) <- paramTypes zip paramNames ) yield lmP +=((pType.toString()+" "+pName.toString()) -> lmPSizes(pName.toString()))
+    lmP
+  }
 
-    // get output value
-    val others = parameters.filter(x => !paramVals.contains(x) && !generalVals.contains(x))
+  private def getOutputKernelValuesMap(parameters: Array[String], lmPSizes: ListMap[String,String], privateNameParams: Seq[String]): ListMap[String,String] =
+  {
+    var lmO = ListMap[String,String]()
+    val others = getOtherValuesFromParameterList(parameters,lmPSizes,privateNameParams)
     val outputs = others.slice(0,1)
     val otherTypes = outputs.map(x => x.split(" ").filter(y => y contains "*")).flatten
-    val otherNames = outputs.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
-    // then add in size from lmPSizes!!
+    val otherNames = outputs.map(x => x.split(" ").filter(y => y contains getKernelParamString())).flatten
     for((oType,oName) <- otherTypes zip otherNames ) yield lmO +=((oType.toString()+" "+oName.toString()) -> lmPSizes(oName.toString()))
+    lmO
+  }
 
-    // get temp buffer values
+  private def getTempBufferKernelValuesMap(parameters: Array[String], lmPSizes: ListMap[String,String], privateNameParams: Seq[String], toStrip: String): ListMap[String,String] =
+  {
+    var lmTB = ListMap[String,String]()
+    val others = getOtherValuesFromParameterList(parameters,lmPSizes,privateNameParams)
     val tmpBuffers = others.slice(1,others.length)
     val tmpBTypes = tmpBuffers.map(x => x.split(" ").filter(y => y contains "*")).flatten
-    val tmpBNames = tmpBuffers.map(x => x.split(" ").filter(y => y contains kernelValStr)).flatten
-    // then add in size from lmPSizes!!
+    val tmpBNames = tmpBuffers.map(x => x.split(" ").filter(y => y contains getKernelParamString())).flatten
     for((tbType,tbName) <- tmpBTypes zip tmpBNames ) yield lmTB +=((tbType.toString()+" "+tbName.stripSuffix(toStrip).toString()) -> lmPSizes(tbName.stripSuffix(toStrip).toString()))
+    lmTB
+  }
+
+  /**
+    * be wary of changing the types of Map and JSON parsing in this function as the current setup maintains order which is crucial
+    * for creating the correct kernel (JSONs do not promise to retain order!)
+    *
+    * for use with "writeKernelJSONToFile", which is why the source string is also passed in (to print out the kernel, too)
+    */
+  private def convertKernelParameterstoJSON( lambda: Lambda, source: String): String =
+  {
+    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
+    val ignoreable = ", \t({}"
+    val toStrip = "){"
+
+    // get all constant parameters to ignore
+    val privateNameParams = getPrivateParamsList(params)
+    // map variable names to sizes
+    var lmPSizes = getParamSizeMap(params)
+    var lm = ListMap[String,JSONObject]()
+
+    // pull out values from kernel string to get c types
+    val kernelStr = source.split("\n").filter(x => x.toString().contains("kernel"))
+    val parameters = kernelStr(0).split(",").map(x => x.stripPrefix("kernel void KERNEL("))
+
+    // get size values (ints)
+    var lmS = getSizeKernelValuesMap(parameters,lmPSizes,toStrip)//ListMap[String,String]()
+
+    // get parameter values
+    var lmP = getParameterKernelValuesMap(parameters,lmPSizes,privateNameParams)
+
+    // get output value
+    var lmO = getOutputKernelValuesMap(parameters,lmPSizes,privateNameParams)
+
+    // get temp buffer values
+    var lmTB = getTempBufferKernelValuesMap(parameters,lmPSizes,privateNameParams,toStrip)
 
     // converge to megamap
     lm+=("parameters" -> JSONObject(lmP))
@@ -136,10 +154,31 @@ class OutputKernelJSON(outputDir: String, jsonfilename: String = "kernel.json", 
 
     // convert megamap json object
     JSONObject(lm).toString()
-
   }
 
-  def writeStringToFile(str: String, outputFile: String): Unit =
+}
+
+class OutputKernelJSON(outputDir: String, jsonfilename: String, kernelfilename: String, printJson: Boolean) {
+
+  def apply(lambda: Lambda) = {
+    writeKernelJSONToFile(lambda,outputDir)
+  }
+
+  def writeKernelJSONToFile(lambda: Lambda, outputDir: String) =
+  {
+
+    val source = Compile(lambda)
+
+    val jsonString = OutputKernelJSON.convertKernelParameterstoJSON(lambda, source)
+
+    if(printJson) println(jsonString)
+
+    writeStringToFile(jsonString,outputDir+jsonfilename)
+
+    writeStringToFile(source,outputDir+kernelfilename)
+  }
+
+  private def writeStringToFile(str: String, outputFile: String): Unit =
   {
     val out = new File(outputFile)
     out.createNewFile()
