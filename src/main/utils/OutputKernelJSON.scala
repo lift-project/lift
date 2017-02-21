@@ -127,7 +127,7 @@ object OutputKernelJSON {
     // get all constant parameters to ignore
     val privateNameParams = getPrivateParamsList(params)
     // map variable names to sizes
-    var lmPSizes = getParamSizeMap(params)
+    val lmPSizes = getParamSizeMap(params)
     var lm = ListMap[String,JSONObject]()
 
     // pull out values from kernel string to get c types
@@ -135,16 +135,16 @@ object OutputKernelJSON {
     val parameters = kernelStr(0).split(",").map(x => x.stripPrefix("kernel void KERNEL("))
 
     // get size values (ints)
-    var lmS = getSizeKernelValuesMap(parameters,lmPSizes,toStrip)//ListMap[String,String]()
+    val lmS = getSizeKernelValuesMap(parameters,lmPSizes,toStrip)//ListMap[String,String]()
 
     // get parameter values
-    var lmP = getParameterKernelValuesMap(parameters,lmPSizes,privateNameParams)
+    val lmP = getParameterKernelValuesMap(parameters,lmPSizes,privateNameParams)
 
     // get output value
-    var lmO = getOutputKernelValuesMap(parameters,lmPSizes,privateNameParams)
+    val lmO = getOutputKernelValuesMap(parameters,lmPSizes,privateNameParams)
 
     // get temp buffer values
-    var lmTB = getTempBufferKernelValuesMap(parameters,lmPSizes,privateNameParams,toStrip)
+    val lmTB = getTempBufferKernelValuesMap(parameters,lmPSizes,privateNameParams,toStrip)
 
     // converge to megamap
     lm+=("parameters" -> JSONObject(lmP))
