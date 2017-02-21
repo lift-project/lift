@@ -3,7 +3,7 @@ package utils
 import ir.ast._
 
 import ir.ArrayType
-import ir.ast.{Get, Join, Slide3D, Zip, Zip3D, \, fun}
+import ir.ast.{Get, Join, Slide3D, Zip, \, fun}
 import lift.arithmetic.SizeVar
 import opencl.ir._
 import opencl.generator.stencil.acoustic.StencilUtilities
@@ -23,13 +23,15 @@ object TestOutputKernelJSON
     def sanitiseData(str: String): Array[String] =
     {
       val seps = Array[Char](':',',')
+      val regExDel = "_[0-9]+".r
       val whitespace = "\\s+"
       val filterValues = "{}\\\"".toSet
-      val kernelParamStr = OutputKernelJSON.getKernelParamStr()
+      val kernelParamStr = OutputKernelJSON.getKernelParamString()
 
       val jsonarr = str.split(seps)
       val j2 = jsonarr.map(x => x.split(whitespace)).flatten.map(y => y.filterNot(filterValues))
-      j2.filter( x => !x.contains(kernelParamStr) && !x.isEmpty )
+      val j3 = j2.filter( x => !x.contains(kernelParamStr) && !x.isEmpty )
+      j3.map( x => regExDel.replaceAllIn(x,""))
 
     }
 }
@@ -54,7 +56,7 @@ class TestOutputKernelJSON {
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       Float,
       (mat1, mat2, weights, weightsMiddle, c4) => {
-        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
+        MapGlb((fun((m) =>
           toGlobal(MapSeq(fun(x => mult(x,c4)))) o
             MapSeq(addTuple) $
             Zip(MapSeq(addTuple) $
@@ -64,11 +66,11 @@ class TestOutputKernelJSON {
                   Zip(Join() $ Get(m, 1), Join() $ weights))),
               (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
                 Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
-        ))))) $ Zip3D((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
+        ))) $ Zip(Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
       })
 
       // remove random numbers in parameter names
-      val json = TestOutputKernelJSON.sanitiseData(OutputKernelJSON.getJSONString(lambda))
+      val json = TestOutputKernelJSON.sanitiseData(OutputKernelJSON.getJsonString(lambda))
       val sanCompareJson = TestOutputKernelJSON.sanitiseData(compareJson)
 
       assertEquals(sanCompareJson.mkString, json.mkString)
