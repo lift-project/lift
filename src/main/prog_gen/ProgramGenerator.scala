@@ -355,6 +355,8 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
           ParamToFunCall.exists(kv =>
             ConsequentUserFun && kv._1 == p && kv._2.f.isInstanceOf[UserFun]))
 
+      // TODO: Pick random ones here? Creates a huge number of combinations
+      // TODO: Filter out equivalent ones?
       val correctTypes = candidateCombinations.filter(params =>
         (params, inputTypes).zipped.forall((p, t) => p.t == t))
 
@@ -664,13 +666,14 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
             ParamList(j).t match {
               // Zipping the same thing twice is useless
               case ArrayType(_,`a0Len`) if i != j => AId += j
-              case _=>
+              case _ =>
             }
           }
 
           //3. should have at least 2 elements
           if (AId.length >= 2) {
 
+            // TODO: Can still pick the same thing twice, because of the random picking
             //randomly choose 'argNum' of params from AId
             val argNum = AId.length match {
               case temp1 if temp1 < ZipLimit =>
