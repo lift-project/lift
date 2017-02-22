@@ -80,7 +80,9 @@ object GeneratePrograms {
     val lambdaDirectory = outputDirectory + "/programs"
     val configurationDirectory = outputDirectory + "/configuration"
 
-    concretePrograms.foreach(lambda => {
+    concretePrograms.foreach(lambda => try {
+      TypeChecker(lambda)
+
       val vars = lambda.getVarsInParams()
 
       val sizes = inputSizes.combinations(vars.length)
@@ -97,6 +99,7 @@ object GeneratePrograms {
 
         val substitutions = (vars, size).zipped.toSeq.toMap[ArithExpr, ArithExpr]
         val types = lambda.params.map(p => Type.substitute(p.t, substitutions))
+        val outputType = Type.substitute(lambda.body.t, substitutions)
 
         val settings = JsObject(Seq(
           "kernel" -> JsString(hash),
@@ -106,6 +109,7 @@ object GeneratePrograms {
               "size" -> JsNumber(Type.getSize(t).eval)
             ))})
           ),
+          "output" -> JsNumber(Type.getSize(outputType).eval),
           "sizes" -> JsArray(size.map(s => JsNumber(s.eval)))
         ))
 
@@ -116,6 +120,10 @@ object GeneratePrograms {
 
         // TODO: Run sequential for output
       })
+
+    } catch {
+      case t: Throwable =>
+        logger.warn(t.getMessage)
     })
   }
 
