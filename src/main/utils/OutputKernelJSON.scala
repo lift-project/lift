@@ -33,10 +33,8 @@ object OutputKernelJSON {
 
   }
 
-  def getKernelParamString() =
-  {
-    "v__"
-  }
+  val kernelParamNameString = "v__"
+
 
   private def getPrivateParamsList(params: Seq[TypedOpenCLMemory]): Seq[String] =
   {
@@ -84,7 +82,7 @@ object OutputKernelJSON {
     var lmP = ListMap[String,String]()
     val notArr =Array[String]("const","global","restrict") // parameter decorations we don't want
     val paramVals = getParameterValuesFromParameterList(parameters,privateNameParams)
-    val paramNames = paramVals.map(x => x.split(" ").filter(y => y contains getKernelParamString())).flatten
+    val paramNames = paramVals.map(x => x.split(" ").filter(y => y contains kernelParamNameString)).flatten
     val paramTypes = paramVals.map(x => x.split(" ").filter(y => !notArr.contains(y) && !paramNames.contains(y))).map(z => z.mkString(""))
     for((pType,pName) <- paramTypes zip paramNames ) yield lmP +=((pType.toString()+" "+pName.toString()) -> lmPSizes(pName.toString()))
     lmP
@@ -96,7 +94,7 @@ object OutputKernelJSON {
     val others = getOtherValuesFromParameterList(parameters,lmPSizes,privateNameParams)
     val outputs = others.slice(0,1)
     val otherTypes = outputs.map(x => x.split(" ").filter(y => y contains "*")).flatten
-    val otherNames = outputs.map(x => x.split(" ").filter(y => y contains getKernelParamString())).flatten
+    val otherNames = outputs.map(x => x.split(" ").filter(y => y contains kernelParamNameString)).flatten
     for((oType,oName) <- otherTypes zip otherNames ) yield lmO +=((oType.toString()+" "+oName.toString()) -> lmPSizes(oName.toString()))
     lmO
   }
@@ -107,7 +105,7 @@ object OutputKernelJSON {
     val others = getOtherValuesFromParameterList(parameters,lmPSizes,privateNameParams)
     val tmpBuffers = others.slice(1,others.length)
     val tmpBTypes = tmpBuffers.map(x => x.split(" ").filter(y => y contains "*")).flatten
-    val tmpBNames = tmpBuffers.map(x => x.split(" ").filter(y => y contains getKernelParamString())).flatten
+    val tmpBNames = tmpBuffers.map(x => x.split(" ").filter(y => y contains kernelParamNameString)).flatten
     for((tbType,tbName) <- tmpBTypes zip tmpBNames ) yield lmTB +=((tbType.toString()+" "+tbName.stripSuffix(toStrip).toString()) -> lmPSizes(tbName.stripSuffix(toStrip).toString()))
     lmTB
   }
