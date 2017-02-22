@@ -48,14 +48,40 @@ object MemoryMappingRewrite {
   private val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
     "Enable load balancing using MapAtomLocal and MapAtomWrg")
 
+  private val global0 = parser.flag[Boolean](List("gl0", "global0"),
+    "Mapping: MapGlb(0)( MapSeq(...) )")
+
+  private val global01 = parser.flag[Boolean](List("gl01", "global01"),
+    "Mapping: MapGlb(0)(MapGlb(1)( MapSeq(...) ))")
+
+  private val global10 = parser.flag[Boolean](List("gl10", "global10"),
+    "Mapping: MapGlb(1)(MapGlb(0)( MapSeq(...) ))")
+
+  private val group0 = parser.flag[Boolean](List("gr0", "group0"),
+    "Mapping: MapWrg(0)(MapLcl(0)( MapSeq(...) ))")
+
+  private val group01 = parser.flag[Boolean](List("gr01", "group01"),
+    "Mapping: MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)( MapSeq(...) ))))")
+
+  private val group10 = parser.flag[Boolean](List("gr10", "group10"),
+    "Mapping: MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)( MapSeq(...) ))))")
+
   //                                               glb0, glb01, glb10, grp0, grp01, grp10
-  private val enabledMappings = new EnabledMappings(true, true, false, true, false, true)
+  //private val enabledMappings = new EnabledMappings(true, true, false, true, false, true)
 
   def main(args: Array[String]): Unit = {
 
     try {
 
       parser.parse(args)
+      val enabledMappings = new EnabledMappings(
+        global0.value.isDefined,
+        global01.value.isDefined,
+        global10.value.isDefined,
+        group0.value.isDefined,
+        group01.value.isDefined,
+        group10.value.isDefined
+      )
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
       logger.info("Defaults:")
@@ -81,7 +107,7 @@ object MemoryMappingRewrite {
         try {
 
           val lambda = ParameterRewrite.readLambdaFromFile(filename)
-          val lowered = lowerLambda(lambda, topFolder)
+          val lowered = lowerLambda(lambda, enabledMappings, topFolder)
 
           lowered.foreach(dumpToFile(topFolder, hash, _))
 
@@ -98,7 +124,7 @@ object MemoryMappingRewrite {
     }
   }
 
-  def lowerLambda(lambda: Lambda, hash: String = "") = {
+  def lowerLambda(lambda: Lambda, enabledMappings: EnabledMappings, hash: String = "") = {
 
     try {
 
