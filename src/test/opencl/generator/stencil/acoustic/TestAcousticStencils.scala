@@ -907,11 +907,8 @@ class TestAcousticStencils {
     /* u[cp] = S */
 
     val localDim = 3
-
     val dim = localDim + 2
-
     val input = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (j+1).toFloat }
-
     val input3D = StencilUtilities.createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
 
     val compareData = Array(

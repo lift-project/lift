@@ -11,5 +11,7 @@ package object pattern {
 
   def Untile() = Join() o Map(Map(Join()) o TransposeW())
 
+  def Untile3D() = Map(Map(Join())) o Map(Join()) o Join() o Map(Transpose()) o Map(Map(Map(TransposeW()))) o Map(Map(TransposeW()))
+
   def ReorderStride(s: ArithExpr) = Gather(reorderStride(s))
 }

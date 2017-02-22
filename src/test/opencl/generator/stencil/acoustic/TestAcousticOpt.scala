@@ -2,7 +2,7 @@ package opencl.generator.stencil.acoustic
 
 import ir.ast._
 import ir.{ArrayType, TupleType}
-import lift.arithmetic.SizeVar
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -284,6 +284,86 @@ class TestAcousticOpt {
 
   }
 
+
+  @Test
+  def test3DConvolutionTile(): Unit = {
+
+    val localDim = 16
+    val dim = localDim + 2
+    val input3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
+
+    val M = SizeVar("M")
+
+    val stencil = fun(
+      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
+      ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
+      (matrix, weights) => {
+        Untile3D() o MapWrg(2)(MapWrg(1)(MapWrg(0)(fun(tile =>
+
+          MapLcl(2)(MapLcl(1)(MapLcl(0)(
+            // stencil computation
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeq(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() o Join() $ elem,  weights)
+            })
+          ))) o Slide3D(3,1) o
+            toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ tile
+        )))) o
+          Slide3D(10,8)  $ matrix
+      }
+    )
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
+      ArrayType(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
+      (mat, weights) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
+          toGlobal(MapSeq(id)) o
+            ReduceSeqUnroll(\((acc, next) =>
+              multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
+        })))
+        ) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
+      })
+
+    val (output: Array[Float], runtime) = Execute(8,8,8,64,64,64, (true, true))(stencil, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
+
+    StencilUtilities.printOriginalAndOutput3D(input3D, output)
+//    assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
+  }
+
+  @Test
+  def testSimple3DStencilWithAt(): Unit = {
+
+    val localDim = 4
+    val dim = localDim + 2
+
+    val input = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (i+j+k+1).toFloat }
+    val input3D = StencilUtilities.createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
+
+    val lambdaNeigh = fun(
+      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
+      ArrayType(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
+      (mat, weights) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
+
+          val `tile[1][1][1]` = neighbours.at(1).at(1).at(1)
+
+          toGlobal(id) $ `tile[1][1][1]`
+
+        })))
+        ) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
+      })
+
+    val source = Compile(lambdaNeigh)
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,lambdaNeigh, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
+
+    StencilUtilities.printOriginalAndOutput3D(input3D, output)
+
+  }
 
 
 }
