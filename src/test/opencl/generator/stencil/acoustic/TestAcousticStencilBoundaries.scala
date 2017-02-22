@@ -12,6 +12,7 @@ import org.junit._
 import java.io._
 
 import rewriting.SimplifyAndFuse
+import utils.OutputKernelJSON
 
 import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
@@ -631,36 +632,36 @@ class TestAcousticStencilBoundaries {
     val lambdaNeigh = fun(
       ArrayType(ArrayType(ArrayType(Float, stencilarr3D(0)(0).length), stencilarr3D(0).length), stencilarr3D.length),
       ArrayType(ArrayType(ArrayType(Float, stencilarr3DCopy(0)(0).length), stencilarr3DCopy(0).length), stencilarr3DCopy.length),
-      ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), localDimZ), localDimY), localDimX),
+      ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), localDimX), localDimY), localDimZ),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
-        MapGlb((fun((m) => {
+        MapGlb(0)(MapGlb(1)(MapGlb(2)(fun((m) => {
 
-          val maskedValMult = BoundaryUtilities.maskValue(Get(m,1), constantBorder(3), constantOriginal(3))
-          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,1), constantBorder(2), constantOriginal(2))
-          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,1), constantBorder(1), constantOriginal(1))
-          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,1), constantBorder(0), constantOriginal(0))
+          val maskedValMult = BoundaryUtilities.maskValue(Get(m,2), constantBorder(3), constantOriginal(3))
+          val maskedValConstOrg = BoundaryUtilities.maskValue(Get(m,2), constantBorder(2), constantOriginal(2))
+          val maskedValConstSec = BoundaryUtilities.maskValue(Get(m,2), constantBorder(1), constantOriginal(1))
+          val maskedValStencil = BoundaryUtilities.maskValue(Get(m,2), constantBorder(0), constantOriginal(0))
 
           toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
-            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 0),
+            ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(m, 0),
               Join() $ weightsMiddle),
             MapSeq(id) $ maskedValConstOrg
           ),
             MapSeq(multTuple) $ Zip(
-              ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 1),
+              ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(m, 1),
                 Join() $ weights),
               MapSeq(id) $ maskedValStencil
             ))
             ,
             (MapSeq(multTuple)) $ Zip(
-              ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(Get(m, 0), 1),
+              ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(m, 1),
                 Join() $ weightsMiddle),
               MapSeq(id) $ maskedValConstSec)
           ),
             maskedValMult)
-        }))
-        ) $ Zip(Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))), Join() o Join() $ mask1)
+        })))
+        ) $ Zip3D((Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2), mask1)
       })
     try {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
@@ -797,13 +798,13 @@ class TestAcousticStencilBoundaries {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
 
+      // OutputKernelJSON(newLambda,"/home/reese/workspace/sandbox/")
       val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, stencilarr3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput)
       {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       }
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
-
     }
     catch
       {
