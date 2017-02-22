@@ -26,7 +26,7 @@ object TestOutputKernelJSON
       val regExDel = "_[0-9]+".r
       val whitespace = "\\s+"
       val filterValues = "{}\\\"".toSet
-      val kernelParamStr = OutputKernelJSON.getKernelParamString()
+      val kernelParamStr = OutputKernelJSON.kernelParamNameString
 
       val jsonarr = str.split(seps)
       val j2 = jsonarr.map(x => x.split(whitespace)).flatten.map(y => y.filterNot(filterValues))
