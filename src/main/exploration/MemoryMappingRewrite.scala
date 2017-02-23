@@ -81,6 +81,8 @@ object MemoryMappingRewrite {
         group10.value.isDefined
       )
 
+      if(!enabledMappings.isOneEnabled) scala.sys.error("No mappings enabled")
+
       logger.info(s"Arguments: ${args.mkString(" ")}")
       logger.info("Defaults:")
       logger.info(s"\tVector width: $defaultVectorWidth")
