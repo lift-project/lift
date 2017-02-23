@@ -3,7 +3,7 @@ package prog_gen
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor, LongTestsEnabled}
 import opencl.ir._
 import opencl.ir.pattern.{ReduceSeq, toGlobal}
 import org.junit.Assert._
@@ -14,13 +14,19 @@ import scala.language.reflectiveCalls
 
 object TestProgramGenerator {
 
-  // TODO: No randomness and less iterations for testing?
-  val generator = new ProgramGenerator
-  val generatedPrograms = generator.generatePrograms()
+  var generator: ProgramGenerator = _
+  var generatedPrograms = Array[Lambda]()
 
   @BeforeClass
-  def before(): Unit =
+  def before(): Unit = {
     Executor.loadAndInit()
+    generator = new ProgramGenerator
+
+    // TODO: No randomness and less iterations for testing?
+    if (LongTestsEnabled.areEnabled)
+      generatedPrograms = generator.generatePrograms()
+
+  }
 
   @AfterClass
   def after(): Unit =
@@ -31,6 +37,8 @@ object TestProgramGenerator {
 class TestProgramGenerator {
 
   import TestProgramGenerator._
+
+  LongTestsEnabled()
 
   @Test
   def usefulZipGeneration(): Unit = {
