@@ -4,7 +4,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic._
 import opencl.ir._
-import opencl.ir.pattern._
+import opencl.ir.pattern.{ReduceSeq, _}
 import org.junit.Assert._
 import org.junit._
 
@@ -155,6 +155,64 @@ class TestExecute {
     assertEquals(Cst(size1), global(1))
     assertEquals(Cst(1), global(2))
     assertArrayEquals(input.flatten.map(_+1), output, 0.001f)
+  }
+
+  @Test
+  def testInferComplexArgSize() : Unit = {
+    val A = SizeVar("A")
+    val B = SizeVar("B")
+
+    val cst1 = 8
+
+    val sizeA = 128
+    val sizeB = 16*cst1
+
+    val input = Array.fill(sizeA)(
+      Array.fill(sizeB)(util.Random.nextFloat() * 10)
+    )
+
+    val f = λ(ArrayType(ArrayType(Float, B*Cst(cst1)), A),
+      MapWrg(
+        MapLcl(MapSeq(id)) o Split(cst1)
+      ) $ _
+    )
+
+    val execute = Execute()
+    val (output: Array[Float], _) =
+      execute(f, input)
+
+    val (local, global) = execute.getAndValidateSizesForExecution(f,
+      Execute.createValueMap(f, input))
+
+    assertArrayEquals(input.flatten, output, 0.001f)
+  }
+
+  @Test
+  def testInferConstantFirstArgSizes() : Unit = {
+    val A = SizeVar("A")
+
+    val cst1 = 8
+
+    val inputA = Array.fill(cst1)(util.Random.nextFloat() * 10)
+    val inputB = Array.fill(cst1)(util.Random.nextFloat() * 10)
+
+    val gold = Array(inputA.sum + inputB.sum)
+
+    val f = λ(ArrayType(Float, cst1), ArrayType(Float, A),
+      (cstArr, varArr) =>
+      MapSeq(toGlobal(id)) o Join() o MapSeq(λ(Float, (r_res) =>
+        ReduceSeq(add, r_res) $ cstArr
+      )) o ReduceSeq(add, 0.0f) $ varArr
+    )
+
+    val execute = Execute()
+    val (output: Array[Float], _) =
+      execute(f, inputA, inputB)
+
+    val (local, global) = execute.getAndValidateSizesForExecution(f,
+      Execute.createValueMap(f, inputA, inputB))
+
+    assertArrayEquals(gold, output, 0.001f)
   }
 
 }
