@@ -17,6 +17,8 @@ case class EnabledMappings(
   override def toString =
     s"Global 0 - $global0, Global 0,1 - $global01, Global 1,0 - $global10, " +
       s"Group 0 - $group0, Group 0,1 - $group01, Group 1,0 - $group10"
+
+  val isOneEnabled = global0 | global01 | global10 | group0 | group01 | group10;
 }
 
 object Lower {
