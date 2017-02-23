@@ -555,9 +555,10 @@ class TestMisc {
     val vector = Array.fill(Nsize)(1.0f)
 
     val N = SizeVar("N")
+    val K = SizeVar("K")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, N-(Nsize-Ksize)), N), N),
+      ArrayType(ArrayType(ArrayType(Float, K), N), N),
       ArrayType(Float, N),
       (matrix, vector) => MapGlb(fun(r =>
         MapSeq(fun(t =>
