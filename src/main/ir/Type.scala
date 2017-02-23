@@ -110,7 +110,7 @@ case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
   if (len != ? & len.sign != Sign.Positive)
     // TODO: turn this back into an error (eventually)
     //throw new TypeException("Length must be provably positive! (len="+len+")")
-//    println(s"Warning: Length must be provably positive! (len=$len)")
+    println(s"Warning: Length must be provably positive! (len=$len)")
 
   if (len.isEvaluable) {
     val length = len.evalDbl

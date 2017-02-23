@@ -47,7 +47,6 @@ val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
 
   }
 
-  /* should create asym version! */
   def createMaskData2D(size: Int)  =
   {
     createMaskDataAsym2D(size,size)
@@ -71,6 +70,17 @@ val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
     one2D ++ addArr ++ one2D
   }
 
+  def createMaskDataAsym3DNoArray(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+
+    val initMat = Array.tabulate(sizeX,sizeY){ (i,j) => (i+j+1).toFloat }
+    val pad2D = createMask(initMat, sizeX, sizeY,0)
+    val one2D = Array(Array.fill(sizeY,sizeX)(1))
+    var addArr = Array(pad2D)
+
+    for(i <- 1 to sizeZ-3) addArr = addArr ++ Array(pad2D)
+    one2D ++ addArr ++ one2D
+  }
+
   def createMaskData3D(size: Int) =
   {
     createMaskDataAsym3D(size,size,size)
@@ -78,6 +88,10 @@ val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
     toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ m, toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ m)
+  }
+
+  def maskValueNoArray(m: Expr, c1: Float, c2: Float): Expr = {
+    toPrivate(addTuple) $ Tuple(toPrivate(fun(x => mult(x,c1))) o toPrivate(idIF)  $ m, toPrivate(fun(x => mult(x,c2))) o toPrivate(invertInt) $ m)
   }
 
 }
