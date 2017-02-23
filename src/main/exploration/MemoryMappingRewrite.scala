@@ -66,8 +66,6 @@ object MemoryMappingRewrite {
   private val group10 = parser.flag[Boolean](List("gr10", "group10"),
     "Mapping: MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)( MapSeq(...) ))))")
 
-  //                                               glb0, glb01, glb10, grp0, grp01, grp10
-  //private val enabledMappings = new EnabledMappings(true, true, false, true, false, true)
 
   def main(args: Array[String]): Unit = {
 
