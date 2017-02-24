@@ -444,3 +444,4 @@ trait funDef {
 object fun extends funDef
 object \ extends funDef
 object λ extends funDef
+object λ extends funDef
