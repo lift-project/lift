@@ -6,13 +6,15 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
-import ir.{Type, TypeChecker}
+import ir.{ArrayType, Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
+import opencl.generator.OpenCLGenerator._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
+import rewriting.InferNDRange
 import rewriting.utils.Utils
 
 import scala.collection.immutable.Map
@@ -51,12 +53,15 @@ object ParameterRewrite {
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
+  private val explore = parser.flag[Boolean](List("e", "explore"),
+    "Additionally explore global and local sizes")
+
   private val generateScala = parser.flag[Boolean](List("generate-scala"),
     "Generate lambdas in Scala as well as in OpenCL")
 
   private val settingsFile = parser.option[String](List("f", "file"), "name",
     "Store the created lambdas into this folder."
-    ) {
+  ) {
     (s, _) =>
       val file = new File(s)
       if (!file.exists)
@@ -160,6 +165,10 @@ object ParameterRewrite {
                     try {
                       val expr = low_level_factory(sizesForFilter ++ params)
                       TypeChecker(expr)
+
+                      val rangeList = getAllNDRanges(expr, explore.value.isDefined)
+                      println(s"[DEBUG] ${rangeList.length} different global localsize combinations")
+
                       if (ExpressionFilter(expr) == ExpressionFilter.Status.Success)
                         Some((low_level_factory(vars ++ params), params))
                       else
@@ -257,6 +266,45 @@ object ParameterRewrite {
     Utils.quickAndDirtySubstitution(st, tunable_nodes, lambda)
   }
 
+  private def getAllNDRanges(expr: Lambda, explorationEnabled: Boolean): Seq[(NDRange, NDRange)] = {
+    if (explorationEnabled) {
+      // assumes first param of lambda is input array and determines its dimensionality
+      val firstParam = expr.params.head
+      val inputDim = firstParam.t match {
+        case ArrayType(ArrayType(ArrayType(dt, m), n), o) => 3 //or higher but we don't care
+        case ArrayType(ArrayType(dt, m), n) => 2
+        case ArrayType(dt, m) => 1
+        case _ => -1
+      }
+
+      val pow2 = Seq.tabulate(14)(x => scala.math.pow(2,x).toInt)
+      val localGlobalCombinations: Seq[(ArithExpr, ArithExpr)] = (for {
+        local <- pow2
+        global <- pow2
+        if local <= global
+      } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
+
+      inputDim match {
+        case 1 => localGlobalCombinations.map{ case (l, g) => ( Array(l, 1, 1): NDRange, Array(g, 1, 1): NDRange ) }
+
+
+        case 2 => for {
+          x: (ArithExpr, ArithExpr) <- localGlobalCombinations
+          y: (ArithExpr, ArithExpr) <- localGlobalCombinations
+        } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1):NDRange)
+
+        case 3 => for {
+          x <- localGlobalCombinations
+          y <- localGlobalCombinations
+          z <- localGlobalCombinations
+        } yield (Array(x._1, y._1, z._1): NDRange, Array(x._2, y._2, z._2): NDRange)
+
+          // could not explore - return to default
+        case _ => Seq(InferNDRange(expr))
+      }
+    } else
+      Seq(InferNDRange(expr))
+  }
 }
 
 case class Settings(inputCombinations: Option[Seq[Seq[ArithExpr]]])
