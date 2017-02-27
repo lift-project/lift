@@ -50,11 +50,11 @@ object ParameterRewrite {
       s
   }
 
+  val explore = parser.flag[Boolean](List("e", "explore"),
+    "Additionally explore global and local sizes")
+
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
-
-  private val explore = parser.flag[Boolean](List("e", "explore"),
-    "Additionally explore global and local sizes")
 
   private val generateScala = parser.flag[Boolean](List("generate-scala"),
     "Generate lambdas in Scala as well as in OpenCL")
@@ -167,9 +167,7 @@ object ParameterRewrite {
                       TypeChecker(expr)
 
                       val rangeList = getAllNDRanges(expr, explore.value.isDefined)
-                      println(s"[DEBUG] ${rangeList.length} different global localsize combinations")
 
-                      //println(s"Filtering ${rangeList.length} local-globalSize combinations")
                       val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = rangeList.flatMap{ ranges =>
                         if (ExpressionFilter(expr, ranges) == ExpressionFilter.Status.Success)
                           Some((low_level_factory(vars ++ params), params, ranges))

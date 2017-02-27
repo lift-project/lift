@@ -86,7 +86,10 @@ class SaveOpenCL(
     val substitutionMap = tuple._2
     val ranges = tuple._3
 
-    InferNDRange(lambda) match { case (l, g) => local = l; global = g }
+    if(ParameterRewrite.explore.value.isDefined)
+      ranges match { case (l, g) => local = l; global = g }
+    else //todo @toomas: still not sure why we need to infer the size again
+      InferNDRange(lambda) match { case (l, g) => local = l; global = g }
 
     val code = Compile(lambda, local, global)
 
@@ -107,7 +110,10 @@ class SaveOpenCL(
   private def dumpOpenCLToFiles(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange)), kernel: String): Option[String] = {
 
     val lambda = tuple._1
-    val hash = lowLevelHash + "_" + tuple._2.mkString("_")
+    val rangeStrings = tuple._3 match {
+      case (localSize, globalSize) => (localSize.mkString("_"), globalSize.mkString("_"))
+    }
+    val hash = lowLevelHash + "_" + tuple._2.mkString("_") + "_" + rangeStrings._1 + "_" + rangeStrings._2
     val filename = hash + ".cl"
 
     val path = s"${topFolder}Cl/$lowLevelHash"
