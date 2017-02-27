@@ -83,7 +83,7 @@ class TestRewriteNbody {
     assertArrayEquals(gold, output, 0.001f)
 
     val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)
-    assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x))
+    assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x, InferNDRange(x)))
  }
 
 }

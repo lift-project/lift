@@ -170,7 +170,7 @@ object ParameterRewrite {
                       val rangeList = getAllNDRanges(expr, explore.value.isDefined)
                       println(s"[DEBUG] ${rangeList.length} different global localsize combinations")
 
-                      if (ExpressionFilter(expr) == ExpressionFilter.Status.Success)
+                      if (ExpressionFilter(expr, rangeList.head) == ExpressionFilter.Status.Success)
                         Some((low_level_factory(vars ++ params), params))
                       else
                         None
