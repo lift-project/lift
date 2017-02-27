@@ -49,7 +49,7 @@ class Best {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapGlb(1)(fun( aRows =>
             MapGlb(0)(fun( bCols =>
 
@@ -121,7 +121,7 @@ class Best {
       ArrayType(ArrayType(Float, K), N), // column-major
       (A, B) =>
         TransposeW() o // column-major
-          Untile() o
+          Untile2D() o
           MapGlb(0)(fun(aTile =>
             MapGlb(1)(fun(bTile =>
               Map(TransposeW()) o TransposeW() o
@@ -292,7 +292,7 @@ class Best {
             toGlobal(MapSeq(MapSeq(MapSeq(VectorizeUserFun(2, id))))) :>>
             TransposeW() :>> Map(TransposeW() >>> Join() >>> asScalar())
           ))
-        )) :>> Untile()
+        )) :>> Untile2D()
       }
     )
 

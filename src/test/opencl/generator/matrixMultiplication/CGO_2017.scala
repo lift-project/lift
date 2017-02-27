@@ -308,7 +308,7 @@ class CGO_2017 {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapGlb(1)(fun( aRows =>
             MapGlb(0)(fun( bCols =>
 

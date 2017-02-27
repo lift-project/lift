@@ -4,7 +4,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic._
 import opencl.ir._
-import opencl.ir.pattern.{ReduceSeq, _}
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
@@ -136,7 +136,7 @@ class TestExecute {
     val input = Array.fill(size1, size2)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayType(ArrayType(Float, M), N),
-      Untile() o
+      Untile2D() o
         MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(plusOne)))) o
         Tile(split1, split2) $ _
     )

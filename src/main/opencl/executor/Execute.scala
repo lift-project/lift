@@ -1,6 +1,6 @@
 package opencl.executor
 
-import lift.arithmetic.{?, ArithExpr, Cst, Var, SolveForVariable}
+import lift.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
@@ -87,7 +87,7 @@ object Execute {
    * Create a map which maps variables (e.g., N) to values (e.g, "1024")
    */
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
-    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).init) //.filter(!_.isInstanceOf[Cst]))
+    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).init)
 
     val tupleSizes = f.params.map(_.t match {
       case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
