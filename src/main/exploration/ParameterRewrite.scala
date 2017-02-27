@@ -160,7 +160,7 @@ object ParameterRewrite {
                   println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
 
                   println("Propagating parameters...")
-                  val potential_expressions: Seq[(Lambda, Seq[ArithExpr]/*, (NDRange, NDRange)*/)] = all_substitution_tables.flatMap(st => {
+                  val potential_expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = all_substitution_tables.flatMap(st => {
 
                     val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
                     try {
@@ -170,10 +170,15 @@ object ParameterRewrite {
                       val rangeList = getAllNDRanges(expr, explore.value.isDefined)
                       println(s"[DEBUG] ${rangeList.length} different global localsize combinations")
 
-                      if (ExpressionFilter(expr, rangeList.head) == ExpressionFilter.Status.Success)
-                        Some((low_level_factory(vars ++ params), params))
-                      else
-                        None
+                      //println(s"Filtering ${rangeList.length} local-globalSize combinations")
+                      val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = rangeList.flatMap{ ranges =>
+                        if (ExpressionFilter(expr, ranges) == ExpressionFilter.Status.Success)
+                          Some((low_level_factory(vars ++ params), params, ranges))
+                        else
+                          None
+                      }
+                      Some(filtered)
+
                     } catch {
                       case _: ir.TypeException => None
 
@@ -186,7 +191,7 @@ object ParameterRewrite {
                         logger.warn(SearchParameters.matrix_size.toString)
                         None
                     }
-                  })
+                  }).flatten
 
                   println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
 
@@ -217,8 +222,7 @@ object ParameterRewrite {
     }
   }
 
-  def saveScala(expressions: Seq[(Lambda, Seq[ArithExpr])], hashes: Seq[Option[String]]): Unit = {
-
+  def saveScala(expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))], hashes: Seq[Option[String]]): Unit = {
     val filename = lambdaFilename
     val file = scala.tools.nsc.io.File(filename)
 

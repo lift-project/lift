@@ -18,7 +18,7 @@ import scala.sys.process._
 object SaveOpenCL {
   def apply(topFolder: String, lowLevelHash: String,
             highLevelHash: String, settings: Settings,
-            expressions: Seq[(Lambda, Seq[ArithExpr])]) =
+            expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))]) =
     (new SaveOpenCL(topFolder, lowLevelHash, highLevelHash, settings))(expressions)
 }
 
@@ -38,7 +38,7 @@ class SaveOpenCL(
   val inputSizes = Seq(512, 1024, 2048, 4096, 8192)
   private var inputCombinations: Seq[Seq[ArithExpr]] = Seq()
 
-  def apply(expressions: Seq[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
+  def apply(expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))]): Seq[Option[String]] = {
 
     prepare(expressions)
 
@@ -52,7 +52,7 @@ class SaveOpenCL(
     expressions.map(processLambda)
   }
 
-  def prepare(expressions: Seq[(Lambda, Seq[ArithExpr])]): Unit = {
+  def prepare(expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))]): Unit = {
     if (expressions.nonEmpty) {
       val lambda = expressions.head._1
       sizeArgs = lambda.params.flatMap(_.t.varList).sortBy(_.name).distinct
@@ -67,22 +67,23 @@ class SaveOpenCL(
     }
   }
 
-  private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
+  private def processLambda(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange))) = {
     try {
-      val kernel = generateKernel(pair)
-      dumpOpenCLToFiles(pair, kernel)
+      val kernel = generateKernel(tuple)
+      dumpOpenCLToFiles(tuple, kernel)
     } catch {
       case _: IllegalKernel =>
         None
       case t: Throwable =>
-        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${pair._2.mkString(",")})", t)
+        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")})", t)
         None
     }
   }
 
-  private def generateKernel(pair: (Lambda, Seq[ArithExpr])) = {
-    val lambda = pair._1
-    val substitutionMap = pair._2
+  private def generateKernel(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange))) = {
+    val lambda = tuple._1
+    val substitutionMap = tuple._2
+    val ranges = tuple._3
 
     InferNDRange(lambda) match { case (l, g) => local = l; global = g }
     val valueMap = ParameterRewrite.createValueMap(lambda)
@@ -104,10 +105,10 @@ class SaveOpenCL(
     Utils.findAndReplaceVariableNames(kernel)
   }
 
-  private def dumpOpenCLToFiles(pair: (Lambda, Seq[ArithExpr]), kernel: String): Option[String] = {
+  private def dumpOpenCLToFiles(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange)), kernel: String): Option[String] = {
 
-    val lambda = pair._1
-    val hash = lowLevelHash + "_" + pair._2.mkString("_")
+    val lambda = tuple._1
+    val hash = lowLevelHash + "_" + tuple._2.mkString("_")
     val filename = hash + ".cl"
 
     val path = s"${topFolder}Cl/$lowLevelHash"
@@ -123,7 +124,7 @@ class SaveOpenCL(
         dumpStats(lambda, hash, path)
       } catch {
         case t: Throwable =>
-          logger.warn(s"Failed to get stats: $highLevelHash/$lowLevelHash (${pair._2.mkString(",")})", t)
+          logger.warn(s"Failed to get stats: $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")})", t)
       }
     }
 
