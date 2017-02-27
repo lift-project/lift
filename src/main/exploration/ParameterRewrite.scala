@@ -272,6 +272,7 @@ object ParameterRewrite {
         case _ => -1
       }
 
+      // hardcoded highest power of two = 8192
       val pow2 = Seq.tabulate(14)(x => scala.math.pow(2,x).toInt)
       val localGlobalCombinations: Seq[(ArithExpr, ArithExpr)] = (for {
         local <- pow2
