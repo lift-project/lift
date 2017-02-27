@@ -120,21 +120,29 @@ abstract class FunDecl(val arity: Int) extends Decl {
 object FunDecl {
 
   /**
-   * Recursively visit the given lambda expression `l`, searching for `oldE`,
-   * and replacing every occurrences with `newE`.
-   * @param l The lambda expression to visit
-   * @param oldE The expression to look for and replace
-   * @param newE The expression to replace the oldE with
-   * @return The lambda expression `l` where all occurrences of `oldE` are
-   *         replaced with `newE`
-   */
+    * Recursively visit the given lambda expression `l`, searching for `oldE`,
+    * and replacing every occurrences with `newE`.
+    * @param l The lambda expression to visit
+    * @param oldE The expression to look for and replace
+    * @param newE The expression to replace the oldE with
+    * @return The lambda expression `l` where all occurrences of `oldE` are
+    *         replaced with `newE`
+    */
   def replace(l: Lambda, oldE: Expr, newE: Expr) : Lambda = {
     val newBody = Expr.replace(l.body, oldE, newE)
 
-    if (newBody.eq(l.body))
+    val replaceInParams = newE.isInstanceOf[Param] && l.params.contains(oldE)
+
+    val newParams =
+      if (replaceInParams)
+        l.params.map(Expr.replace(_, oldE, newE).asInstanceOf[Param])
+      else
+        l.params
+
+    if (newBody.eq(l.body) && ! replaceInParams)
       l
     else
-      Lambda(l.params, newBody)
+      Lambda(newParams, newBody)
   }
 
 }
