@@ -18,7 +18,7 @@ import scala.sys.process._
 object SaveOpenCL {
   def apply(topFolder: String, lowLevelHash: String,
             highLevelHash: String, settings: Settings,
-            expressions: List[(Lambda, Seq[ArithExpr])]) =
+            expressions: Seq[(Lambda, Seq[ArithExpr])]) =
     (new SaveOpenCL(topFolder, lowLevelHash, highLevelHash, settings))(expressions)
 }
 
@@ -38,7 +38,7 @@ class SaveOpenCL(
   val inputSizes = Seq(512, 1024, 2048, 4096, 8192)
   private var inputCombinations: Seq[Seq[ArithExpr]] = Seq()
 
-  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
+  def apply(expressions: Seq[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
 
     prepare(expressions)
 
@@ -52,7 +52,7 @@ class SaveOpenCL(
     expressions.map(processLambda)
   }
 
-  def prepare(expressions: List[(Lambda, Seq[ArithExpr])]): Unit = {
+  def prepare(expressions: Seq[(Lambda, Seq[ArithExpr])]): Unit = {
     if (expressions.nonEmpty) {
       val lambda = expressions.head._1
       sizeArgs = lambda.params.flatMap(_.t.varList).sortBy(_.name).distinct

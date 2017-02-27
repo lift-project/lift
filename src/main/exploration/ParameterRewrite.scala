@@ -160,7 +160,8 @@ object ParameterRewrite {
                   println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
 
                   println("Propagating parameters...")
-                  val potential_expressions = all_substitution_tables.map(st => {
+                  val potential_expressions: Seq[(Lambda, Seq[ArithExpr]/*, (NDRange, NDRange)*/)] = all_substitution_tables.flatMap(st => {
+
                     val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
                     try {
                       val expr = low_level_factory(sizesForFilter ++ params)
@@ -185,7 +186,7 @@ object ParameterRewrite {
                         logger.warn(SearchParameters.matrix_size.toString)
                         None
                     }
-                  }).collect { case Some(x) => x }
+                  })
 
                   println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
 
@@ -218,7 +219,7 @@ object ParameterRewrite {
     }
   }
 
-  def saveScala(expressions: List[(Lambda, Seq[ArithExpr])], hashes: Seq[Option[String]]): Unit = {
+  def saveScala(expressions: Seq[(Lambda, Seq[ArithExpr])], hashes: Seq[Option[String]]): Unit = {
 
     val filename = lambdaFilename
     val file = scala.tools.nsc.io.File(filename)
