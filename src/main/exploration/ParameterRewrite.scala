@@ -201,7 +201,6 @@ object ParameterRewrite {
                     // Failed reading file or similar.
                     logger.warn(t.toString)
                 }
-
               })
             }
           } catch {
@@ -210,7 +209,6 @@ object ParameterRewrite {
           }
         }
       })
-
     } catch {
       case io: IOException =>
         logger.error(io.toString)
@@ -238,9 +236,7 @@ object ParameterRewrite {
         case t: Throwable =>
           logger.warn(t.toString)
       }
-
     })
-
   }
 
   def readFromFile(filename: String) =
@@ -334,7 +330,7 @@ object ParseSettings {
             settings
           case e: JsError =>
             logger.error("Failed parsing settings " +
-              e.recoverTotal( e => JsError.toFlatJson(e) ))
+              e.recoverTotal(e => JsError.toFlatJson(e)))
             sys.exit(1)
         }
 
