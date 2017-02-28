@@ -32,7 +32,7 @@ object BoundaryUtilities
   implicit def bool2int(b:Boolean) = if (b) 1 else 0
   def intBang(i:Int) = if (i==1) 0 else 1
 
-  val invertInt = UserFun("invertInt", Array("x"), "{ return x ? 0.0 : 1.0; }", Seq(Int), Float)
+  val invertIntToFloat = UserFun("invertInt", Array("x"), "{ return x ? 0.0 : 1.0; }", Seq(Int), Float)
   val invertFloat = UserFun("invertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 0.0 : 1.0; }", Seq(Float), Float)
   val convertFloat = UserFun("convertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 1.0 : 0.0; }", Seq(Float), Float)
   val getFirstTuple = UserFun("getFirstTuple", "x", "{return x._0;}", TupleType(Float, Float), Float) // dud helper
@@ -87,11 +87,11 @@ val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
   }
 
   def maskValue(m: Expr, c1: Float, c2: Float): Expr = {
-    toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ m, toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertInt)) $ m)
+    toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ m, toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertIntToFloat)) $ m)
   }
 
   def maskValueNoArray(m: Expr, c1: Float, c2: Float): Expr = {
-    toPrivate(addTuple) $ Tuple(toPrivate(fun(x => mult(x,c1))) o toPrivate(idIF)  $ m, toPrivate(fun(x => mult(x,c2))) o toPrivate(invertInt) $ m)
+    toPrivate(addTuple) $ Tuple(toPrivate(fun(x => mult(x,c1))) o toPrivate(idIF)  $ m, toPrivate(fun(x => mult(x,c2))) o toPrivate(invertIntToFloat) $ m)
   }
 
 }
@@ -148,7 +148,7 @@ class TestAcousticStencilBoundaries {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weights),
-            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m, 1), MapSeq(fun(x => mult(x, constantOriginal))) o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1))
+            MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m, 1), MapSeq(fun(x => mult(x, constantOriginal))) o MapSeq(BoundaryUtilities.invertIntToFloat) $ Get(m, 1))
           )
         }))
         ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() $ mask1)
@@ -200,7 +200,7 @@ class TestAcousticStencilBoundaries {
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weights),
             MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m, 1),
-              MapSeq(fun(x => mult(x, constantOriginal)))  o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1))
+              MapSeq(fun(x => mult(x, constantOriginal)))  o MapSeq(BoundaryUtilities.invertIntToFloat) $ Get(m, 1))
           )
         }))
         ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() $ mask1)
@@ -437,7 +437,7 @@ class TestAcousticStencilBoundaries {
           toGlobal(MapSeq(id) o MapSeq(multTuple)) $ Zip(
             ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Join() $ Get(m, 0), Join() $ weights),
             MapSeq(id) o MapSeq(add) $ Zip(MapSeq(fun(x => mult(x, constantBorder))) o MapSeq(BoundaryUtilities.idIF) $ Get(m, 1),
-              MapSeq(fun(x => mult(x, constantOriginal)))  o MapSeq(BoundaryUtilities.invertInt) $ Get(m, 1)))
+              MapSeq(fun(x => mult(x, constantOriginal)))  o MapSeq(BoundaryUtilities.invertIntToFloat) $ Get(m, 1)))
         }))
         ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() o Join() $ mask1)
       })
