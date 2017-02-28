@@ -86,7 +86,7 @@ class SaveOpenCL(
     val substitutionMap = tuple._2
     val ranges = tuple._3
 
-    if(ParameterRewrite.explore.value.isDefined)
+    if(ParameterRewrite.exploreNDRange.value.isDefined)
       ranges match { case (l, g) => local = l; global = g }
     else //don't explore and infer generic sizes
       InferNDRange(lambda) match { case (l, g) => local = l; global = g }

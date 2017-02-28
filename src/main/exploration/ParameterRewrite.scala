@@ -52,10 +52,10 @@ object ParameterRewrite {
       s
   }
 
-  val explore = parser.flag[Boolean](List("e", "explore"),
+  val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
     "Additionally explore global and local sizes")
 
-  val sample = parser.option[Int](List("sample"), "n",
+  val sampleNDRange = parser.option[Int](List("sampleNDRange"), "n",
     "Randomly sample n combinations of global and local sizes (requires 'explore')")
 
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
@@ -81,7 +81,7 @@ object ParameterRewrite {
     try {
 
       parser.parse(args)
-      if(!explore.value.isDefined && sample.value.isDefined)
+      if(!exploreNDRange.value.isDefined && sampleNDRange.value.isDefined)
         throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
       val inputArgument = input.value.get
@@ -121,7 +121,7 @@ object ParameterRewrite {
 
             val high_level_expr_orig = readLambdaFromFile(fullFilename)
 
-            val precomputedRangeList = computeAllNDRanges(high_level_expr_orig)
+            val precomputedRangeList = computeValidNDRanges(high_level_expr_orig)
 
             val vars = high_level_expr_orig.getVarsInParams()
 
@@ -178,10 +178,11 @@ object ParameterRewrite {
                       val expr = low_level_factory(sizesForFilter ++ params)
                       TypeChecker(expr)
 
-                      val rangeList = if (explore.value.isDefined)
+                      val rangeList = if (exploreNDRange.value.isDefined)
                         precomputedRangeList
                       else
                         Seq(InferNDRange(expr))
+                      logger.info("[RANGE] length: " + rangeList.length)
 
                       val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = rangeList.flatMap{ ranges =>
                         if (ExpressionFilter(expr, ranges) == ExpressionFilter.Status.Success)
@@ -190,11 +191,16 @@ object ParameterRewrite {
                           None
                       }
 
-                      val sampled = if (sample.value.isDefined) {
-                        Random.shuffle(filtered).take(sample.value.get)
+                      logger.info("[FILTERED] length: " + filtered.length)
+                      val sampled = if (sampleNDRange.value.isDefined) {
+                        Random.setSeed(0L) //always use the same seed
+                        Random.shuffle(filtered).take(sampleNDRange.value.get)
                       } else
                         filtered
 
+                      val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
+                        "_" + x._3._1.mkString("_") + "_" + x._3._2.mkString("_"))
+                      logger.info("\n[SAMPLE]:\n\t" + sampleStrings.mkString(" \n "))
                       Some(sampled)
 
                     } catch {
@@ -283,7 +289,7 @@ object ParameterRewrite {
     Utils.quickAndDirtySubstitution(st, tunable_nodes, lambda)
   }
 
-  private def computeAllNDRanges(expr: Lambda): Seq[(NDRange, NDRange)] = {
+  private def computeValidNDRanges(expr: Lambda): Seq[(NDRange, NDRange)] = {
     println("Generating NDRanges...")
       // assumes first param of lambda is input array and determines its dimensionality
       val firstParam = expr.params.head
@@ -302,19 +308,24 @@ object ParameterRewrite {
         if local <= global
       } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
 
+      val success = ExpressionFilter.Status.Success
       inputDim match {
-        case 1 => localGlobalCombinations.map { case (l, g) => (Array(l, 1, 1): NDRange, Array(g, 1, 1): NDRange) }
+        case 1 => localGlobalCombinations.map { case (l, g)
+          if ExpressionFilter(l,g) == success
+        => (Array(l, 1, 1): NDRange, Array(g, 1, 1): NDRange) }
 
 
         case 2 => for {
           x: (ArithExpr, ArithExpr) <- localGlobalCombinations
           y: (ArithExpr, ArithExpr) <- localGlobalCombinations
+          if ExpressionFilter(x._1, y._1, x._2, y._2) == success
         } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1): NDRange)
 
         case 3 => for {
           x <- localGlobalCombinations
           y <- localGlobalCombinations
           z <- localGlobalCombinations
+          if ExpressionFilter(x._1, y._1, z._1, x._2, y._2, z._2) == success
         } yield (Array(x._1, y._1, z._1): NDRange, Array(x._2, y._2, z._2): NDRange)
 
         case _ => throw new RuntimeException("Could not pre-compute NDRanges for exploration")
