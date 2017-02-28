@@ -86,9 +86,7 @@ todo_include_todos = False
 # a list of builtin themes.
 #
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
-if on_rtd:
-    html_theme = 'sphinx_rtd_theme'
-else:
+if not on_rtd:
     html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
