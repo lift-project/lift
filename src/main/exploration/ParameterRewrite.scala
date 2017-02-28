@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
+import exploration.ParameterSearch.SubstitutionMap
 import ir.ast.Lambda
 import ir.{ArrayType, Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
@@ -20,6 +21,7 @@ import rewriting.utils.Utils
 import scala.collection.immutable.Map
 import scala.io.Source
 import scala.sys.process._
+import scala.util.Random
 
 /**
   * This main currently runs a parameter space exploration over the
@@ -53,6 +55,9 @@ object ParameterRewrite {
   val explore = parser.flag[Boolean](List("e", "explore"),
     "Additionally explore global and local sizes")
 
+  val sample = parser.option[Int](List("sample"), "n",
+    "Randomly sample n combinations of global and local sizes (requires 'explore')")
+
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
@@ -76,6 +81,8 @@ object ParameterRewrite {
     try {
 
       parser.parse(args)
+      if(!explore.value.isDefined && sample.value.isDefined)
+        throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
       val inputArgument = input.value.get
 
@@ -114,6 +121,8 @@ object ParameterRewrite {
 
             val high_level_expr_orig = readLambdaFromFile(fullFilename)
 
+            val precomputedRangeList = computeAllNDRanges(high_level_expr_orig)
+
             val vars = high_level_expr_orig.getVarsInParams()
 
             val combinations = settings.inputCombinations
@@ -131,7 +140,7 @@ object ParameterRewrite {
 
             TypeChecker(high_level_expr)
 
-            val all_substitution_tables = ParameterSearch(high_level_expr)
+            val all_substitution_tables: Seq[SubstitutionMap] = ParameterSearch(high_level_expr)
             val substitutionCount = all_substitution_tables.size
             println(s"Found $substitutionCount valid parameter sets")
 
@@ -143,6 +152,8 @@ object ParameterRewrite {
 
               val low_level_counter = new AtomicInteger()
               val lowLevelCount = low_level_expr_list.size
+              val propagation_counter = new AtomicInteger()
+              val propagationCount = lowLevelCount * substitutionCount
               println(s"Found $lowLevelCount low level expressions")
 
               val parList = if (sequential.value.isDefined) low_level_expr_list else low_level_expr_list.par
@@ -157,16 +168,20 @@ object ParameterRewrite {
                   val low_level_factory = Eval.getMethod(low_level_str)
 
                   println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
-
                   println("Propagating parameters...")
-                  val potential_expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = all_substitution_tables.flatMap(st => {
+                  val potential_expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
+                    all_substitution_tables.flatMap(st => {
 
+                    println(s"Propagation ${propagation_counter.incrementAndGet()} / $propagationCount")
                     val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
                     try {
                       val expr = low_level_factory(sizesForFilter ++ params)
                       TypeChecker(expr)
 
-                      val rangeList = getAllNDRanges(expr, explore.value.isDefined)
+                      val rangeList = if (explore.value.isDefined)
+                        precomputedRangeList
+                      else
+                        Seq(InferNDRange(expr))
 
                       val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = rangeList.flatMap{ ranges =>
                         if (ExpressionFilter(expr, ranges) == ExpressionFilter.Status.Success)
@@ -174,7 +189,13 @@ object ParameterRewrite {
                         else
                           None
                       }
-                      Some(filtered)
+
+                      val sampled = if (sample.value.isDefined) {
+                        Random.shuffle(filtered).take(sample.value.get)
+                      } else
+                        filtered
+
+                      Some(sampled)
 
                     } catch {
                       case _: ir.TypeException => None
@@ -190,7 +211,8 @@ object ParameterRewrite {
                     }
                   }).flatten
 
-                  println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
+                  //println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
+                  println(s"Generating ${potential_expressions.size} kernels")
 
                   val hashes = SaveOpenCL(topFolder, low_level_hash,
                     high_level_hash, settings, potential_expressions)
@@ -261,8 +283,8 @@ object ParameterRewrite {
     Utils.quickAndDirtySubstitution(st, tunable_nodes, lambda)
   }
 
-  private def getAllNDRanges(expr: Lambda, explorationEnabled: Boolean): Seq[(NDRange, NDRange)] = {
-    if (explorationEnabled) {
+  private def computeAllNDRanges(expr: Lambda): Seq[(NDRange, NDRange)] = {
+    println("Generating NDRanges...")
       // assumes first param of lambda is input array and determines its dimensionality
       val firstParam = expr.params.head
       val inputDim = firstParam.t match {
@@ -281,13 +303,13 @@ object ParameterRewrite {
       } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
 
       inputDim match {
-        case 1 => localGlobalCombinations.map{ case (l, g) => ( Array(l, 1, 1): NDRange, Array(g, 1, 1): NDRange ) }
+        case 1 => localGlobalCombinations.map { case (l, g) => (Array(l, 1, 1): NDRange, Array(g, 1, 1): NDRange) }
 
 
         case 2 => for {
           x: (ArithExpr, ArithExpr) <- localGlobalCombinations
           y: (ArithExpr, ArithExpr) <- localGlobalCombinations
-        } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1):NDRange)
+        } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1): NDRange)
 
         case 3 => for {
           x <- localGlobalCombinations
@@ -295,11 +317,8 @@ object ParameterRewrite {
           z <- localGlobalCombinations
         } yield (Array(x._1, y._1, z._1): NDRange, Array(x._2, y._2, z._2): NDRange)
 
-          // could not explore - return to default
-        case _ => Seq(InferNDRange(expr))
+        case _ => throw new RuntimeException("Could not pre-compute NDRanges for exploration")
       }
-    } else
-      Seq(InferNDRange(expr))
   }
 }
 
