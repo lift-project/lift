@@ -21,7 +21,7 @@ object HighLevelRewrite {
 
   parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
-    (sValue, opt) =>
+    (sValue, _) =>
       parser.usage()
       sValue
   }
@@ -29,7 +29,7 @@ object HighLevelRewrite {
   private val input = parser.parameter[String]("input",
     "Input file containing the lambda to use for rewriting",
     optional = false) {
-    (s, opt) =>
+    (s, _) =>
       val file = new File(s)
       if (!file.exists)
         parser.usage("Input file \"" + s + "\" does not exist")
@@ -39,7 +39,7 @@ object HighLevelRewrite {
   private val output = parser.option[String](List("o", "output"), "name.",
     "Store the created lambdas into this folder."
     ) {
-    (s, opt) =>
+    (s, _) =>
       val file = new File(s)
       if (file.exists)
         parser.usage("Output location \"" + s + "\" already exists")
