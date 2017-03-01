@@ -26,9 +26,9 @@ JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_execute
 /*
  * Class:     opencl_executor_Executor
  * Method:    benchmark
- * Signature: (Lopencl/executor/Kernel;IIIIII[Lopencl/executor/KernelArg;ID)D
+ * Signature: (Lopencl/executor/Kernel;IIIIII[Lopencl/executor/KernelArg;ID)[D
  */
-JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_benchmark
+JNIEXPORT jdoubleArray JNICALL Java_opencl_executor_Executor_benchmark
   (JNIEnv *, jclass, jobject, jint, jint, jint, jint, jint, jint, jobjectArray, jint, jdouble);
 
 /*
