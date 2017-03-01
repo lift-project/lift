@@ -88,7 +88,7 @@ class SaveOpenCL(
 
     if(ParameterRewrite.exploreNDRange.value.isDefined)
       ranges match { case (l, g) => local = l; global = g }
-    else //don't explore and infer generic sizes
+    else
       InferNDRange(lambda) match { case (l, g) => local = l; global = g }
 
     val code = Compile(lambda, local, global)
