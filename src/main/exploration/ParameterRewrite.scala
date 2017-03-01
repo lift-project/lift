@@ -172,7 +172,7 @@ object ParameterRewrite {
                   val potential_expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
                     all_substitution_tables.flatMap(st => {
 
-                    println(s"Propagation ${propagation_counter.incrementAndGet()} / $propagationCount")
+                    println(s"\rPropagation ${propagation_counter.incrementAndGet()} / $propagationCount")
                     val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
                     try {
                       val expr = low_level_factory(sizesForFilter ++ params)
@@ -217,7 +217,6 @@ object ParameterRewrite {
                     }
                   }).flatten
 
-                  //println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
                   println(s"Generating ${potential_expressions.size} kernels")
 
                   val hashes = SaveOpenCL(topFolder, low_level_hash,
