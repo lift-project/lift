@@ -1,13 +1,13 @@
 package opencl.generator
 
 import lift.arithmetic.SizeVar
-import benchmarks.{BlackScholes, MolecularDynamics}
+import benchmarks.{BlackScholes, DotProduct, MolecularDynamics}
 import ir._
 import ir.ast._
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
-import org.junit.Assert._
+import org.junit.Assert.{assertEquals, _}
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestBenchmark {
@@ -24,6 +24,34 @@ object TestBenchmark {
 }
 
 class TestBenchmark {
+
+  @Test def testBenchmarkMethod(): Unit = {
+    def dotProd(left: Array[Float], right: Array[Float]): Float = {
+      (left,right).zipped.map(_*_).sum
+    }
+
+    val inputSize = 1024
+    val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+    val (output: Array[Float], runtimes) = Execute(
+      128, 1, 1,
+      1024, 1, 1,
+      (false, false)
+    ).benchmark(10, 0.0, Compile(DotProduct.dotProductSimple), DotProduct.dotProductSimple,
+      leftInputData, rightInputData)
+
+    val sorted = runtimes.sorted
+
+    println("min runtime = " + sorted.head)
+    println("max runtime = " + sorted.last)
+    println("median runtime = " + sorted(runtimes.length/2))
+
+    assertEquals(10, runtimes.length)
+
+    assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
+  }
+
   // A mix between AMD and nVidia versions, with the CND function inlined in the UserFunDef
   @Test def blackScholes(): Unit = {
 

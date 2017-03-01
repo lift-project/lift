@@ -1,4 +1,0 @@
-#!/bin/bash
-
-dest=${1/Cl\//Ptx/}
-cp $1 $dest
