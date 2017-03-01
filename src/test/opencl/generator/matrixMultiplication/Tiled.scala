@@ -166,7 +166,7 @@ class Tiled {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
         MapWrg(0)(fun( aRows =>
           MapWrg(1)(fun( bCols =>
 
@@ -208,7 +208,7 @@ class Tiled {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -256,7 +256,7 @@ class Tiled {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -308,7 +308,7 @@ class Tiled {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -363,7 +363,7 @@ class Tiled {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 

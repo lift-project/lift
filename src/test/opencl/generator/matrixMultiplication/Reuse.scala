@@ -46,7 +46,7 @@ class Reuse {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
               Join() o Map(TransposeW()) o
@@ -236,7 +236,7 @@ class Reuse {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -399,7 +399,7 @@ class Reuse {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(1)(fun( aRows =>
             MapWrg(0)(fun( bCols =>
 
