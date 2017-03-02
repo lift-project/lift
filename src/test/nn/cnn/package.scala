@@ -1,5 +1,7 @@
 package nn
 
+import java.nio.file.Files.exists
+import java.nio.file.Paths.get
 import java.nio.file.{Files, Paths}
 
 /**
@@ -51,25 +53,49 @@ package object cnn {
           Array(Array(1988.0f, 1988.0f, 1988.0f), Array(2024.0f, 2024.0f, 2024.0f), Array(2060.0f, 2060.0f, 2060.0f),
                 Array(2096.0f, 2096.0f, 2096.0f), Array(2132.0f, 2132.0f, 2132.0f), Array(2168.0f, 2168.0f, 2168.0f)))
 
-  def load_datasets(experiment_dir: String, n_inputs: Int) = {
-    var experiment_dir_checked = ""
-    if (!Files.exists(Paths.get(experiment_dir)))
-      experiment_dir_checked = "/home/s1569687/tf_cnn/experiment/"
-    else
-      experiment_dir_checked = experiment_dir
-    var tf_Wc = Array(TestUtils.loadJSON4D(experiment_dir_checked + "wc1.json"))
-    var tf_Bc = Array(TestUtils.loadJSON1D(experiment_dir_checked + "bc1.json"))
-    tf_Wc = tf_Wc :+ TestUtils.loadJSON4D(experiment_dir_checked + "wc2.json")
-    tf_Bc = tf_Bc :+ TestUtils.loadJSON1D(experiment_dir_checked + "bc2.json")
-    var tf_Wd = Array(TestUtils.loadJSON2D(experiment_dir_checked + "wd1.json"))
-    tf_Wd = tf_Wd :+ TestUtils.loadJSON2D(experiment_dir_checked + "wout.json")
-    var tf_Bd = Array(TestUtils.loadJSON1D(experiment_dir_checked + "bd1.json"))
-    tf_Bd = tf_Bd :+ TestUtils.loadJSON1D(experiment_dir_checked + "bout.json")
 
-    val tf_X = TestUtils.loadJSON2D(experiment_dir_checked + "test_images_n" + n_inputs + ".json")
-    val tf_result = TestUtils.loadJSON2D(experiment_dir_checked + "test_tf_results_n" + n_inputs + ".json")
+  object Experiment {
+    def getPathToInputs(nKernels: Shape, kernelShape: Shape): String = nn.currentDir + f"/experiment." +
+      f"${nKernels.l0}%d.${nKernels.l1}%d.${kernelShape.w}%d.${kernelShape.h}%d"
+    def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift"
 
-    (tf_X, tf_Wc, tf_Bc, tf_Wd, tf_Bd, tf_result)
+
+    def loadDatasets(nInputs: Int, pathToInputs: String):
+    (Array[Array[Float]], Array[Array[Array[Array[Array[Float]]]]], Array[Array[Float]],
+      Array[Array[Array[Float]]], Array[Array[Float]], Array[Array[Float]]) = {
+
+      if (!exists(get(pathToInputs + "/wc1.json")))
+        throw new java.io.FileNotFoundException(f"Experiment (nInputs=$nInputs%d) " +
+          "resources not provided (JSON files with test images, NN weights and biases).")
+
+      var tfWconv = Array(nn.loadJSON4D(pathToInputs + "wc1.json"))
+      var tfBconv = Array(nn.loadJSON1D(pathToInputs + "bc1.json"))
+      tfWconv = tfWconv :+ nn.loadJSON4D(pathToInputs + "wc2.json")
+      tfBconv = tfBconv :+ nn.loadJSON1D(pathToInputs + "bc2.json")
+      var tfWmlp = Array(nn.loadJSON2D(pathToInputs + "wd1.json"))
+      tfWmlp = tfWmlp :+ nn.loadJSON2D(pathToInputs + "wout.json")
+      var tfBmlp = Array(nn.loadJSON1D(pathToInputs + "bd1.json"))
+      tfBmlp = tfBmlp :+ nn.loadJSON1D(pathToInputs + "bout.json")
+
+      val tfX = nn.loadJSON2D(pathToInputs + "test_images_n" + nInputs + ".json")
+      val tfResult = nn.loadJSON2D(pathToInputs + "test_tf_results_n" + nInputs + ".json")
+
+      (tfX, tfWconv, tfBconv, tfWmlp, tfBmlp, tfResult)
+    }
+  }
+
+  class Experiment(val multsPerThread: Int = 0,
+                   val neuronsPerWrg: Int = 0,
+                   val layerSize: Int = 0,
+                   val nInputs: Int = 0,
+                   val tfX: Array[Array[Float]],
+                   val tfW: Array[Array[Array[Float]]],
+                   val tfB: Array[Array[Float]],
+                   val tfResult: Array[Array[Float]]) {
+    val pathToInputs: String = Experiment.getPathToInputs(layerSize)
+    val pathToResults: String = Experiment.getPathToResults(pathToInputs)
+    var isAFirstRun: Boolean = false
+    var resultsDir: java.io.File = _
   }
 
 }

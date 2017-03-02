@@ -3,13 +3,13 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-layer0_size_start_from = 896 # For continuning an unfinished job
+layer0_size_start_from = 288 # For continuning an unfinished job
 layer0_size_min = 32
-layer0_size_max = 1024 + 1
+layer0_size_max = 289 #1024 + 1
 layer0_size_step = 32
-n_inputs_start_from = 32 # For continuning an unfinished job
+n_inputs_start_from = 512 #32 # For continuning an unfinished job
 n_inputs_min = 32
-n_inputs_max = 1900
+n_inputs_max = 513 # 1900
 #n_inputs_max = 1215
 n_inputs_step = 32
 for layer0_size in np.arange(max(layer0_size_start_from, layer0_size_min),
@@ -24,4 +24,3 @@ for layer0_size in np.arange(max(layer0_size_start_from, layer0_size_min),
     for n_inputs in np.arange(n_inputs_start+32, n_inputs_max, n_inputs_step):
         print("layer0_size = " + str(layer0_size) + ", n_inputs = " + str(n_inputs))
         tensorflow_mlp.forward_propagate([layer0_size, 32], n_inputs)
-

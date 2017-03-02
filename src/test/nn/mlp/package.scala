@@ -38,31 +38,27 @@ package object mlp {
 
 
   object Experiment {
-    def getPathToInputs(layerSize: Int): String = TestUtils.currentDir + f"/experiment.$layerSize%d"
+    def getPathToInputs(layerSize: Int): String = nn.currentDir + f"/experiment.$layerSize%d"
     def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift"
 
     def loadDatasets(layerSize: Int, nInputs: Int, pathToInputs: String):
     (Array[Array[Float]], Array[Array[Array[Float]]], Array[Array[Float]], Array[Array[Float]]) = {
-
       val hiddenLayers: Array[Int] = Array(layerSize, 32)
-      if (!exists(get(pathToInputs + "/W1_n" + nInputs + ".json"))) {
-        throw new java.io.FileNotFoundException/*(f"Experiment (layerSize=${hiddenLayers(0)}%d, nInputs=$nInputs%d)" +
-          "resources not provided (JSON files with test images, NN weights and biases).")*/
-      }
 
-      //      println(f"Loading the data for experiment (multsPerThread=$multsPerThread%d, " +
-      //        f"neuronsPerWrg=$neuronsPerWrg%d, " + f"layerSize=$layerSize%d, nInputs=$nInputs%d).")
+      if (!exists(get(pathToInputs + "/W1_n" + nInputs + ".json")))
+        throw new java.io.FileNotFoundException(f"Experiment (layerSize=$layerSize%d, nInputs=$nInputs%d) " +
+          "resources not provided (JSON files with test images, NN weights and biases).")
 
-      var tfW = Array(TestUtils.loadJSON2D(pathToInputs + "/W1_n" + nInputs + ".json"))
-      var tfB = Array(TestUtils.loadJSON1D(pathToInputs + "/b1_n" + nInputs + ".json"))
+      var tfW = Array(nn.loadJSON2D(pathToInputs + "/W1_n" + nInputs + ".json"))
+      var tfB = Array(nn.loadJSON1D(pathToInputs + "/b1_n" + nInputs + ".json"))
       for (i <- Range(2, hiddenLayers.length + 1)) {
-        tfW = tfW :+ TestUtils.loadJSON2D(pathToInputs + "/W" + i.toString + "_n" + nInputs + ".json")
-        tfB = tfB :+ TestUtils.loadJSON1D(pathToInputs + "/b" + i.toString + "_n" + nInputs + ".json")
+        tfW = tfW :+ nn.loadJSON2D(pathToInputs + "/W" + i.toString + "_n" + nInputs + ".json")
+        tfB = tfB :+ nn.loadJSON1D(pathToInputs + "/b" + i.toString + "_n" + nInputs + ".json")
       }
-      tfW = tfW :+ TestUtils.loadJSON2D(pathToInputs + "/Wout_n" + nInputs + ".json")
-      tfB = tfB :+ TestUtils.loadJSON1D(pathToInputs + "/bout_n" + nInputs + ".json")
-      val tfX = TestUtils.loadJSON2D(pathToInputs + "/test_images_n" + nInputs + ".json")
-      val tfResult = TestUtils.loadJSON2D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
+      tfW = tfW :+ nn.loadJSON2D(pathToInputs + "/Wout_n" + nInputs + ".json")
+      tfB = tfB :+ nn.loadJSON1D(pathToInputs + "/bout_n" + nInputs + ".json")
+      val tfX = nn.loadJSON2D(pathToInputs + "/test_images_n" + nInputs + ".json")
+      val tfResult = nn.loadJSON2D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
 
       (tfX, tfW, tfB, tfResult)
     }

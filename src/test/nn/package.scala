@@ -1,21 +1,38 @@
-package nn
-
 import java.nio.file.Files._
 import java.nio.file.Paths._
 import java.util.Calendar
 
+import ir.ast.UserFun
 import opencl.executor.Executor
+import opencl.ir._
 
 import scala.util.parsing.json.JSON
 
 /**
-  * Created by nm on 08/02/17.
+  * Created by s1569687 on 28/02/17.
   */
-object TestUtils {
-  val localMemSize = Executor.getDeviceLocalMemSize.toInt
-  val maxWorkGroupSize = Executor.getDeviceMaxWorkGroupSize.toInt
-  val deviceName = Executor.getDeviceName
+package object nn {
+  /* Types */
 
+  case class Tile(mults: Int, inputs: Int, neurons: Int)
+  case class Shape(in: Int = 0, out: Int = 0,
+                   x: Int = 0, y: Int = 0,
+                   w: Int = 0, h: Int = 0,
+                   l0: Int = 0, l1: Int = 0)
+
+
+  /* Variables */
+
+  val localMemSize: Int = Executor.getDeviceLocalMemSize.toInt
+  val maxWorkGroupSize: Int = Executor.getDeviceMaxWorkGroupSize.toInt
+  val deviceName: String = Executor.getDeviceName
+
+
+  /* Functions */
+
+  // Activation functions
+  val ReLU: UserFun = UserFun("ReLU", "x", "{ return(max(0.0f, x)); }", Float, Float)
+  val Linear: UserFun = id
 
   def loadJSON4D(json_file_path: String): Array[Array[Array[Array[Float]]]] = {
     /* Load an array from a JSON file */

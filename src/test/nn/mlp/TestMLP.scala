@@ -8,13 +8,11 @@ package nn.mlp
 import java.io._
 import java.nio.file.Files.{createDirectory, exists}
 import java.nio.file.Paths.get
-
-import nn.TestUtils
 import opencl.executor.{Execute, Executor}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-
 import scala.util.Try
+import nn.{Shape, Tile}
 
 
 object TestMLP {
@@ -39,11 +37,11 @@ class TestMLP {
   @Test
   def SanityMLPThreeSeqKernels(): Unit = {
     val (output_layer1: Array[Float], runtime_layer1) = Execute(1,1)(
-      MLP.Seq(MLP.Linear), input_W1, input_b1, input_X)
+      MLP.Seq(nn.Linear), input_W1, input_b1, input_X)
     val (output_layer2: Array[Float], runtime_layer2) = Execute(1,1)(
-      MLP.Seq(MLP.Linear), input_W2, input_b2, output_layer1)
+      MLP.Seq(nn.Linear), input_W2, input_b2, output_layer1)
     val (lift_result: Array[Float], runtime_layerout) = Execute(1,1)(
-      MLP.Seq(MLP.Linear), input_Wout, input_bout, output_layer2)
+      MLP.Seq(nn.Linear), input_Wout, input_bout, output_layer2)
     println(f"\nx3 sequential kernels.\n" +
       f"Runtime: $runtime_layer1%1.5f + $runtime_layer2%1.5f + $runtime_layerout%1.5f = " +
       f"${runtime_layer1 + runtime_layer2 + runtime_layerout}%1.5f ms")
@@ -65,7 +63,7 @@ class TestMLP {
       pathToInputs = Experiment.getPathToInputs(layerSize)
       pathToResults = Experiment.getPathToResults(pathToInputs)
       if exists(get(pathToInputs))
-      // Results dir doesn't exist (create it) or it does, but reruns are allowed:
+      // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
       if rerunsAllowed || {if (!exists(get(pathToResults))) {
         createDirectory(get(pathToResults))
         true} else false}
@@ -83,106 +81,88 @@ class TestMLP {
 
 
     for (e <- experiments) {
+      println("-----------------------------------------------------------------")
       println(f"Starting the experiment (multsPerThread=${e.multsPerThread}%d, " +
         f"neuronsPerWrg=${e.neuronsPerWrg}%d, " + f"layerSize=${e.layerSize}%d, " +
         f"nInputs=${e.nInputs}%d).")
 
       try {
-        singleTest(new MLP(MLP.Par, Array(MLP.ReLU, MLP.ReLU, MLP.Linear), e.multsPerThread, e.neuronsPerWrg,
-          e.tfX, e.tfW, e.tfB, e.tfResult, "MLP.Par", f"(MNIST dataset) x3 2D-parallel kernels (across inputs). " +
-            f"Workgroup per partition of neurons per partition of inputs. " +
-            f"Memory accesses are coalesced.", e.pathToInputs))
+        singleTest(new MLP(MLP.Par, Array(nn.ReLU, nn.ReLU, MLP.Linear), Array(e.multsPerThread, e.multsPerThread, e.multsPerThread),
+          Array(e.neuronsPerWrg, e.neuronsPerWrg, e.neuronsPerWrg), e.tfX, e.tfW, e.tfB, e.tfResult, "MLP.Par",
+          f"(MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per partition of neurons per " +
+            f"partition of inputs. Memory accesses are coalesced.", e.pathToInputs))
       } catch {
         case e: java.lang.IllegalArgumentException =>
-          println(e.getMessage())
-      //          case e: java.io.FileNotFoundException =>
-      //          case e: DeviceCapabilityException =>
-      //            println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
-      //          case NotEvaluableException =>
-      //            println("ERROR: Not enough OpenCL memory. Skipping the experiment.")
-      //        }
+          println(e.getMessage)
+          println("SKIPPING EXPERIMENT.")
       }
     }
   }
 
   def singleTest(mlp: MLP) = {
     var inputNo = 0
-    print(f"\n" + mlp.testDescription + "\nRuntime:\n")
+    println(f"\n" + mlp.testDescription)
 
     for (layerNo <- 0 until mlp.nLayers) {
+      // Padding
+      mlp.padInputsAndNeurons(layerNo)
+
       val (outputFlat: Array[Float], runtime) =
-        Execute(mlp.localSize0(layerNo), mlp.localSize1(layerNo), mlp.globalSize0(layerNo), mlp.globalSize1(layerNo), (true, true))(
-          mlp.liftMLP(mlp.activationFun(layerNo), mlp.multsPerThread, mlp.localSize1(layerNo), mlp.neuronsPerWrg,
-            mlp.nNeurons(layerNo), mlp.inputLen(layerNo), mlp.nInputsPadded),
-          mlp.weights(layerNo), mlp.biases(layerNo), mlp.layerInputs(layerNo))
+        Execute(mlp.localSize0(layerNo), mlp.localSize1(layerNo), mlp.globalSize0(layerNo), mlp.globalSize1(layerNo),
+          (true, true))(
+          mlp.liftMLP(mlp.activationFun(layerNo), Tile(mults=mlp.multsPerThread(layerNo),
+            inputs=mlp.localSize1(layerNo), neurons=mlp.neuronsPerWrg(layerNo)),
+            Shape(in=mlp.inputLenPadded(layerNo), out=mlp.nNeuronsPadded(layerNo)), mlp.nLayerInputsPadded(layerNo)),
+          mlp.weightsPadded(layerNo), mlp.biasesNonPadded(layerNo), mlp.layerInputsPadded(layerNo))
 
       mlp.runTimes(layerNo) = runtime
-      mlp.outputs += TestUtils.group(outputFlat, (mlp.nInputsPadded, mlp.nNeurons(layerNo)))
+      mlp.outputsPadded += nn.group(outputFlat, (mlp.nLayerInputsPadded(layerNo), mlp.nNeuronsPadded(layerNo)))
 
-      println(f"Layer $layerNo%d: $runtime%1.5f ms")
+      println(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 
     }
+    mlp.unPadOutputs()
     println()
 
     /* Check and save results */
-    val file = new File(TestUtils.resultsFilename(mlp.pathToResults, mlp.nInputsPadded))
+    val file = new File(nn.resultsFilename(mlp.pathToResults, mlp.nInputsNonPadded))
     file.getParentFile.mkdirs()
     val pw = new PrintWriter(file)
-    var finished_without_errors = false
+    var noErrors = false
     try {
-      //TODO: check inline for output
-      println("device_name,f_name,n_inputs,mults_per_thread,neurons_per_wrg," +
-        {for (layerNo <- 0 until mlp.nLayers) yield f"layer_len$layerNo%d"}.mkString(",") +
-        ",layer_len2,activation_f0,activation_f1,activation_f2,runtime_l0,runtime_l1,runtime_l2\n")
-      pw.write("device_name,f_name,n_inputs,mults_per_thread,neurons_per_wrg," +
-        {for (layerNo <- 0 until mlp.nLayers) yield f"layer_len$layerNo%d"}.mkString(",") +
-        ",layer_len2,activation_f0,activation_f1,activation_f2,runtime_l0,runtime_l1,runtime_l2\n")
+      pw.write("device_name,f_name,n_inputs_l0_nonpadded,mults_per_thread,neurons_per_wrg," +
+        {for (layerNo <- 0 until mlp.nLayers) yield f"n_neurons_l$layerNo%d_nonpadded"}.mkString(",") + "," +
+        {for (layerNo <- 0 until mlp.nLayers) yield f"n_neurons_l$layerNo%d_padded"}.mkString(",") + "," +
+        {for (layerNo <- 0 until mlp.nLayers) yield f"activation_f$layerNo%d"}.mkString(",") + "," +
+        {for (layerNo <- 0 until mlp.nLayers) yield f"runtime_l$layerNo%d"}.mkString(",") + "\n")
 
-      pw.write(TestUtils.deviceName + "," + mlp.liftFunName + f",${mlp.nInputsPadded}%d,"+
-        f"${mlp.multsPerThread}%d,${mlp.neuronsPerWrg}%d,")
-      for (layer_i <- 0 until mlp.nLayers) {
-        pw.write(f"${mlp.biases(layer_i).length}%d,")
-      }
-      for (layer_i <- 0 until mlp.nLayers) {
-        pw.write(mlp.activationFun(layer_i).toString + ",")
-      }
+      pw.write(nn.deviceName + "," + mlp.liftFunName + f",${mlp.nInputsNonPadded}%d,"+
+        f"${mlp.multsPerThread(0)}%d,${mlp.neuronsPerWrg(0)}%d,")
+      for (layerNo <- 0 until mlp.nLayers)
+        pw.write(f"${mlp.nNeuronsNonPadded(layerNo)}%d,")
+      for (layerNo <- 0 until mlp.nLayers)
+        pw.write(f"${mlp.nNeuronsPadded(layerNo)}%d,")
+      for (layerNo <- 0 until mlp.nLayers)
+        pw.write(mlp.activationFun(layerNo).toString + ",")
       pw.write(f"${mlp.runTimes(0)}%1.5f,${mlp.runTimes(1)}%1.5f,${mlp.runTimes(2)}%1.5f\n")
 
-      // TODO: do something about such big error
-      for ((lift_single_result, target_single_result) <- mlp.outputs.last zip mlp.targets) {
-        //          println(lift_single_result.mkString(", "))
-        //          println(tf_single_result.mkString(", "))
-        assertArrayEquals(f"The lift output #$inputNo%d is different to the Tensorflow output", target_single_result,
-          lift_single_result, precision)
+      for ((liftSingleResult, targetSingleResult) <- mlp.outputsNonPadded zip mlp.targets) {
+        //println(liftSingleResult.mkString(", "))
+        //println(targetSingleResult.mkString(", "))
+        assertArrayEquals(f"The lift output #$inputNo%d is different to the Tensorflow output", targetSingleResult,
+          liftSingleResult, precision)
         inputNo = inputNo + 1
       }
-      finished_without_errors = true
-      println(f"Done. Processed ${mlp.nInputs}%d (padded: ${mlp.nInputsPadded}%d) inputs, " +
-        f"the results were equal to targets (precision=$precision%1.4f)")
+      noErrors = true
+      print(f"Done. Processed ${mlp.nInputsNonPadded}%d (padded: ${mlp.nLayerInputsPadded(0)}%d")
+      for (layerNo <- 1 until mlp.nLayers)
+        print(f", ${mlp.nLayerInputsPadded(layerNo)}%d")
+      println(f") inputs, the results were equal to targets (precision=$precision%1.4f)")
     }
     finally {
       pw.close()
-      /*if (!finished_without_errors) {
-        new File(TestUtils.resultsFilename(mlp.pathToResults, mlp.nInputsPadded)).delete()
-        print(f"Input $inputNo%d: ")
-        println(mlp.inputsNonPadded(inputNo).mkString("\t"))
-        println(f"Output $inputNo%d: ")
-        print("\nWeights L0, N0: ")
-        println(mlp.weights(0)(0).mkString("\t"))
-        print("Layer 0: ")
-        println(mlp.outputs(0)(inputNo).mkString("\t"))
-        print("\nWeights L1, N0: ")
-        println(mlp.weights(1)(0).mkString("\t"))
-        print("Layer 1: ")
-        println(mlp.outputs(1)(inputNo).mkString("\t"))
-        print("\nWeights L2, N0: ")
-        println(mlp.weights(2)(0).mkString("\t"))
-        print("Layer 2: ")
-        println(mlp.outputs.last(inputNo).mkString("\t"))
-        println(f"Target output $inputNo%d: ")
-        print("Layer X: ")
-        println(mlp.targets(inputNo).mkString("\t"))
-      }*/
+      if (!noErrors)
+        new File(nn.resultsFilename(mlp.pathToResults, mlp.nInputsNonPadded)).delete()
     }
   }
 }

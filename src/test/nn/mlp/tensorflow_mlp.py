@@ -16,7 +16,7 @@ import datetime
 from tensorflow.python.client import timeline
 import os
 
-verbose = False
+verbose = True
 
 # Import MINST data
 from tensorflow.examples.tutorials.mnist import input_data
@@ -50,6 +50,7 @@ def SimpleEncode(ndarray):
 def multilayer_perceptron(x, weights, biases, funcs):
     input_data = x
     i = 0
+    #for (weights_layer, biases_layer, func_layer) in zip(weights[0:2], biases[0:2], funcs[0:2]):
     for (weights_layer, biases_layer, func_layer) in zip(weights, biases, funcs):
         layer_output = tf.add(tf.matmul(input_data, weights_layer), biases_layer)
         if func_layer is not None:
@@ -69,10 +70,11 @@ def multilayer_perceptron(x, weights, biases, funcs):
     return layer_output
 
 def create_exp_dir_name(hidden_layers):
-    dir_name = "experiment." + str(n_input)
-    for n_hidden in hidden_layers:
-        dir_name = dir_name + "-" + str(n_hidden)
-    dir_name = dir_name + "-" + str(n_classes)
+    #dir_name = "experiment." + str(n_input)
+    #for n_hidden in hidden_layers:
+    #    dir_name = dir_name + "-" + str(n_hidden)
+    #dir_name = dir_name + "-" + str(n_classes)
+    dir_name = "experiment." + str(hidden_layers[0])
 
     # Create directory
     if not os.path.isdir(dir_name):
@@ -125,7 +127,7 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
         # Launch the graph
     with tf.Session() as sess:
         sess.run(init)
-        
+
         # Training cycle
         for epoch in range(training_epochs):
             avg_cost = 0.
@@ -150,10 +152,10 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
         # Calculate accuracy
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
         print("Accuracy:", accuracy.eval({x: mnist.test.images, y: mnist.test.labels}))
-        
+
         # Backup params
         trained_weights = sess.run(weights)
-        trained_biases = sess.run(biases)        
+        trained_biases = sess.run(biases)
 
     (start, end) = get_start_end(inputs_tofeed, test_batch_no)
 
@@ -198,7 +200,7 @@ def get_start_end(inputs_tofeed, test_batch_no):
 
     return (start, end)
 
-        
+
 def forward_propagate(hidden_layers, inputs_tofeed):
     global test_batch_no
 
@@ -243,26 +245,28 @@ def forward_propagate(hidden_layers, inputs_tofeed):
         current_time = datetime.datetime.now()
         if not os.path.isdir(dir_name + "/results_tensorflow"):
             os.mkdir(dir_name + "/results_tensorflow")
-        with open(dir_name + "/results_tensorflow/" + current_time.strftime("%d.%m.%Y-%H.%M.%S.") + 
+        with open(dir_name + "/results_tensorflow/" + current_time.strftime("%d.%m.%Y-%H.%M.%S.") +
                   str(int(current_time.microsecond / 1000)).zfill(3) + ".n" + str(end-start) +
                   ".timeline.json", 'w') as f:
             f.write(ctf)
-        
+
     # Print results
     if verbose:
-        print("Weights[0][0]:")
         np.set_printoptions(threshold=np.inf, suppress=True)
-        print(trained_weights[0].transpose()[0])
-        i = 0
+        print("Weights[1][0]:")
+        print(trained_weights[1].transpose()[0])
+        print("Biases[1][0]:")
+        print(trained_biases[1].transpose()[0])
+        i = 22
         print("Inputs[" + str(i) + "]:")
         print(test_batch_images[i])
-        print("Output[" + str(i) + "]:")
-        print(result[0][i])
+        print("Output[0:" + str(i) + "]:")
+        print(result[0][0:i])
         print("Output[0:" + str(i+1) + "] maxed:")
         print([list(decision).index(max(decision)) for decision in result[0][:i+1]])
         print("Correct[0:" + str(i+1) + "]:")
         print([list(decision).index(max(decision)) for decision in test_batch_targets[:i+1]])
-        
+        print(len(trained_weights[1]))
     # Save results
     json_string = SimpleEncode(result[0].astype(np.float32))
     with open(dir_name + '/test_tf_results_n' + str(end-start) + '.json', 'w') as outfile:
