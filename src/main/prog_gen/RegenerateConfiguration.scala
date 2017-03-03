@@ -6,7 +6,6 @@ import com.typesafe.scalalogging.Logger
 import exploration.ParameterRewrite
 import ir.TypeChecker
 import ir.ast.Lambda
-import lift.arithmetic.Cst
 import org.clapper.argot.{ArgotParser, ArgotUsageException}
 import rewriting.utils.Utils
 
@@ -48,14 +47,14 @@ object RegenerateConfiguration {
 
       logger.info(s"Read ${concretePrograms.length} programs...")
 
-      savePrograms(concretePrograms.toArray.toSeq)
+      saveConfigurations(concretePrograms.toArray.toSeq)
 
     } catch {
       case e: ArgotUsageException => println(e.message)
     }
   }
 
-  private def savePrograms(concretePrograms: Seq[Lambda]) = {
+  private def saveConfigurations(concretePrograms: Seq[Lambda]) = {
     val configurationDirectory = "newConfiguration"
 
     concretePrograms.foreach(lambda => try {
@@ -63,7 +62,7 @@ object RegenerateConfiguration {
 
       val vars = lambda.getVarsInParams()
 
-      val sizes = GeneratePrograms.inputSizes.combinations(vars.length)
+      val sizes = GeneratePrograms.getInputSizeCombinations(vars.length)
 
       val lambdaString = Utils.dumpLambdaToString(lambda)
 

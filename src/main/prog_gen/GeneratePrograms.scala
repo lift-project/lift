@@ -85,7 +85,7 @@ object GeneratePrograms {
 
       val vars = lambda.getVarsInParams()
 
-      val sizes = inputSizes.combinations(vars.length)
+      val sizes = getInputSizeCombinations(vars.length)
 
       val lambdaString = Utils.dumpLambdaToString(lambda)
 
@@ -103,6 +103,11 @@ object GeneratePrograms {
     })
   }
 
+  private[prog_gen] def getInputSizeCombinations(numVars: Int) = {
+    // TODO: Doesn't do what I expected for several variables
+    inputSizes.combinations(numVars)
+  }
+
   private[prog_gen] def generateConfigurations(
     sizes: Iterator[Seq[Cst]],
     hash: String,
@@ -111,7 +116,9 @@ object GeneratePrograms {
 
     sizes.foreach(size => {
 
-      val substitutions = (lambda.getVarsInParams(), size).zipped.toSeq.toMap[ArithExpr, ArithExpr]
+      val substitutions =
+        (lambda.getVarsInParams(), size).zipped.toSeq.toMap[ArithExpr, ArithExpr]
+
       val types = lambda.params.map(p => Type.substitute(p.t, substitutions))
       val outputType = Type.substitute(lambda.body.t, substitutions)
 
@@ -143,7 +150,7 @@ object GeneratePrograms {
     val allSizeCombinations = concretePrograms.flatMap(lambda => {
       val vars = lambda.getVarsInParams()
 
-      val sizes = inputSizes.combinations(vars.length)
+      val sizes = getInputSizeCombinations(vars.length)
 
       val types = lambda.params.map(_.t)
 
