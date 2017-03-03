@@ -104,12 +104,23 @@ object GeneratePrograms {
   }
 
   private[prog_gen] def getInputSizeCombinations(numVars: Int) = {
-    // TODO: Doesn't do what I expected for several variables
-    inputSizes.combinations(numVars)
+
+    val length = inputSizes.length
+    numVars match {
+      case 1 =>
+        Seq.tabulate(length)((a) => Seq(inputSizes(a)))
+      case 2 =>
+        Seq.tabulate(length, length)((a, b) =>
+          Seq(inputSizes(a), inputSizes(b))).flatten
+      case 3 =>
+        Seq.tabulate(length, length, length)((a, b, c) =>
+          Seq(inputSizes(a), inputSizes(b), inputSizes(c))).flatten.flatten
+      case _ => throw new NotImplementedError()
+    }
   }
 
   private[prog_gen] def generateConfigurations(
-    sizes: Iterator[Seq[Cst]],
+    sizes: Seq[Seq[Cst]],
     hash: String,
     thisLambdaConf: String,
     lambda: Lambda) = {

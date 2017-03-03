@@ -31,7 +31,6 @@ object RegenerateConfiguration {
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
 
-
       val topFolder = new File(inputFolder.value.get)
 
       val programPaths = topFolder.listFiles().flatMap(firstSubDir =>
