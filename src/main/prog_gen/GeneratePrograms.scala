@@ -19,7 +19,7 @@ object GeneratePrograms {
   private val logger = Logger(this.getClass)
 
   private val splitFactors = Seq[ArithExpr](64, 128)
-  private val inputSizes = Seq[Cst](Cst(512), Cst(1024), Cst(2048))
+  private[prog_gen] val inputSizes = Seq[Cst](Cst(512), Cst(1024), Cst(2048))
 
   private val parser = new ArgotParser("GeneratePrograms")
 
@@ -95,35 +95,46 @@ object GeneratePrograms {
 
       Utils.dumpToFile(lambdaString, hash, s"$lambdaDirectory/$hashPrefix")
 
-      sizes.foreach(size => {
-
-        val substitutions = (vars, size).zipped.toSeq.toMap[ArithExpr, ArithExpr]
-        val types = lambda.params.map(p => Type.substitute(p.t, substitutions))
-        val outputType = Type.substitute(lambda.body.t, substitutions)
-
-        val settings = JsObject(Seq(
-          "kernel" -> JsString(hash),
-          "inputs" -> JsArray(
-            types.map(t => { JsObject(Seq(
-              "filename" -> JsString(getTypeFilename(t)),
-              "size" -> JsNumber(Type.getSize(t).eval)
-            ))})
-          ),
-          "output" -> JsNumber(Type.getSize(outputType).eval),
-          "sizes" -> JsArray(size.map(s => JsNumber(s.eval)))
-        ))
-
-        val settingsString = Json.prettyPrint(settings)
-        val settingsFilename = Utils.Sha256Hash(settingsString) + ".json"
-
-        Utils.dumpToFile(settingsString, settingsFilename, thisLambdaConf)
-
-        // TODO: Run sequential for output
-      })
+      generateConfigurations(sizes, hash, thisLambdaConf, lambda)
 
     } catch {
       case t: Throwable =>
-        logger.warn(t.getMessage)
+        logger.warn(t.toString)
+    })
+  }
+
+  private[prog_gen] def generateConfigurations(
+    sizes: Iterator[Seq[Cst]],
+    hash: String,
+    thisLambdaConf: String,
+    lambda: Lambda) = {
+
+    sizes.foreach(size => {
+
+      val substitutions = (lambda.getVarsInParams(), size).zipped.toSeq.toMap[ArithExpr, ArithExpr]
+      val types = lambda.params.map(p => Type.substitute(p.t, substitutions))
+      val outputType = Type.substitute(lambda.body.t, substitutions)
+
+      val settings = JsObject(Seq(
+        "kernel" -> JsString(hash),
+        "inputs" -> JsArray(
+          types.map(t => {
+            JsObject(Seq(
+              "filename" -> JsString(getTypeFilename(t)),
+              "size" -> JsNumber(Type.getSize(t).eval)
+            ))
+          })
+        ),
+        "output" -> JsNumber(Type.getSize(outputType).eval),
+        "sizes" -> JsArray(size.map(s => JsNumber(s.eval)))
+      ))
+
+      val settingsString = Json.prettyPrint(settings)
+      val settingsFilename = Utils.Sha256Hash(settingsString) + ".json"
+
+      Utils.dumpToFile(settingsString, settingsFilename, thisLambdaConf)
+
+      // TODO: Run sequential for output
     })
   }
 
