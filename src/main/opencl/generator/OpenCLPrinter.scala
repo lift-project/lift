@@ -314,7 +314,8 @@ class OpenCLPrinter {
     case a: ArrayType =>
       vd.addressSpace match {
         case PrivateMemory =>
-          for (i <- 0 until vd.length)
+          if(vd.length > scala.Int.MaxValue) throw NotEvaluableToIntException()
+          for (i <- 0 until vd.length.toInt)
             println(toString(Type.getValueType(vd.t)) + " " + toString(vd.v) + "_" +
                     toString(i) + ";")
 

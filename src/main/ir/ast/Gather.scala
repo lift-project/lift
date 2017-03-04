@@ -25,7 +25,7 @@ case class Gather(idx: IndexFunction) extends Pattern(arity = 1)
 
     args.head match {
       case vec: Vector[_] =>
-        (0 to vec.length).map(i => vec(idx.f(i, Type.fromAny(vec)).eval)).toVector
+        (0 to vec.length).map(i => vec(idx.f(i, Type.fromAny(vec)).evalToInt)).toVector
     }
   }
 }

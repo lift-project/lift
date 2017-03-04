@@ -186,8 +186,8 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     val update = range.step
 
     // eval expression. if successful return true and the value, otherwise return false
-    def evalExpr = (e: ArithExpr) => {try { (true, e.atMax.eval)} catch { case _ : Throwable => (false, 0) } }
-    def evalExprMinMax = (e: ArithExpr) => {try { (true, e.atMin.eval, e.atMax.eval)} catch { case _ : Throwable => (false, 0, 0) } }
+    def evalExpr = (e: ArithExpr) => {try { (true, e.atMax.eval)} catch { case _ : Throwable => (false, 0L) } }
+    def evalExprMinMax = (e: ArithExpr) => {try { (true, e.atMin.eval, e.atMax.eval)} catch { case _ : Throwable => (false, 0L, 0L) } }
 
     // try to directly evaluate
     val (initIsEvaluated, initMinEvaluated, initMaxEvaluated) = evalExprMinMax(init)

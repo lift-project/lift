@@ -25,7 +25,7 @@ case class Scatter(idx: IndexFunction) extends Pattern(arity = 1)
 
     args.head match {
       case a: Array[_] =>
-        (0 to a.length).map(i => a(idx.f(i, Type.fromAny(a)).eval))
+        (0 to a.length).map(i => a(idx.f(i, Type.fromAny(a)).evalToInt))
     }
   }
 }

@@ -41,7 +41,7 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
     assert(args.length == arity)
 
     args.head match {
-      case v: Vector[_] => v.grouped(chunkSize.eval).toVector
+      case v: Vector[_] => v.grouped(chunkSize.evalToInt).toVector
     }
   }
 }

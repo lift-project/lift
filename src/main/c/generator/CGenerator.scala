@@ -115,7 +115,7 @@ object CGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case NotEvaluableException => false
+      case NotEvaluableException() => false
     }
   }
 }
@@ -655,11 +655,14 @@ class CGenerator extends Generator {
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
       val iterationCount = try {
-        indexVar.range.numVals.eval
+        indexVar.range.numVals.evalToInt
       } catch {
-        case NotEvaluableException =>
+        case NotEvaluableException() =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
             "could not be determined statically.")
+        case NotEvaluableToIntException() =>
+          throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
+            "is larger than scala.Int.MaxValue.")
       }
 
       if (iterationCount > 0) {
@@ -896,8 +899,8 @@ class CGenerator extends Generator {
               // TODO: this seems like a very specific local solution ... find a more generic proper one
 
               // iterate over the range, assuming that it is contiguous
-              val arraySuffixStartIndex: Int = arrayAccessPrivateMemIndex(mem.variable, view)
-              val arraySuffixStopIndex: Int = arraySuffixStartIndex + vt.len.eval
+              val arraySuffixStartIndex = arrayAccessPrivateMemIndex(mem.variable, view)
+              val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.evalToInt
 
               val seq = (arraySuffixStartIndex until arraySuffixStopIndex).map(i => {
                 CAst.VarRef(mem.variable, suffix = "_" + i)
@@ -949,7 +952,7 @@ class CGenerator extends Generator {
               val arraySuffix = arrayAccessPrivateMem(mem.variable, view)
 
               val componentSuffixStartIndex = componentAccessvectorVarIndex(mem.variable, view)
-              val componentSuffixStopIndex = componentSuffixStartIndex + vt.len.eval
+              val componentSuffixStopIndex = componentSuffixStartIndex + vt.len.evalToInt
 
               // iterate over the range, assuming that it is contiguous
               val componentSuffix = (componentSuffixStartIndex until componentSuffixStopIndex).foldLeft(".s")(_ + _)
@@ -1071,7 +1074,7 @@ class CGenerator extends Generator {
         throw new TypeException(valueType, "A valid non array type")
     }
 
-    val real = ArithExpr.substitute(i, replacements).eval
+    val real = ArithExpr.substitute(i, replacements).evalToInt
 
     if (real >= declaration.length) {
       throw new OpenCLGeneratorException(s"Out of bounds access to $v with $real")
@@ -1105,7 +1108,7 @@ class CGenerator extends Generator {
         throw new TypeException(valueType, "VectorType")
     }
 
-    ArithExpr.substitute(i, replacements).eval
+    ArithExpr.substitute(i, replacements).evalToInt
   }
 
   /**

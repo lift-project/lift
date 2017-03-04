@@ -41,7 +41,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
     assert(args.length == arity)
     args.head match {
       case v: Vector[_] =>
-        (1 to n.eval).foldLeft[Any](v)((a, _) => {
+        (1 to n.evalToInt).foldLeft[Any](v)((a, _) => {
           f.eval(valueMap, a)
         })
     }
@@ -84,7 +84,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
 
         // find all the type variable in the output type
         val outputTvSet = scala.collection.mutable.HashSet[TypeVar]()
-        Type.visit(outputTypeWithTypeVar, t => {}, {
+        Type.visit(outputTypeWithTypeVar, _ => {}, {
           case at: ArrayType => outputTvSet ++= TypeVar.getTypeVars(at.len)
           case vt: VectorType => outputTvSet ++= TypeVar.getTypeVars(vt.len)
           case _ =>
