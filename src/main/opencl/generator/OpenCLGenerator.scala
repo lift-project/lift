@@ -1024,7 +1024,7 @@ class OpenCLGenerator extends Generator {
     if (needUnroll) {
 
       val iterationCount = try {
-        indexVar.range.numVals.enforceSimplification.evalToInt
+        indexVar.range.numVals.enforceSimplification.eval
       } catch {
         case NotEvaluableException() =>
           throw new OpenCLGeneratorException("Trying to unroll loop, " +
@@ -1268,7 +1268,7 @@ class OpenCLGenerator extends Generator {
 
               // iterate over the range, assuming that it is contiguous
               val arraySuffixStartIndex = arrayAccessPrivateMemIndex(mem.variable, view)
-              val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.evalToInt
+              val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.eval
 
               val seq = (arraySuffixStartIndex until arraySuffixStopIndex).map(i => {
                 OpenCLAST.VarRef(mem.variable, suffix = "_" + i)
@@ -1320,7 +1320,7 @@ class OpenCLGenerator extends Generator {
               val arraySuffix = arrayAccessPrivateMem(mem.variable, view)
 
               val componentSuffixStartIndex = componentAccessvectorVarIndex(mem.variable, view)
-              val componentSuffixStopIndex = componentSuffixStartIndex + vt.len.evalToInt
+              val componentSuffixStopIndex = componentSuffixStartIndex + vt.len.eval
 
               // iterate over the range, assuming that it is contiguous
               val componentSuffix = (componentSuffixStartIndex until componentSuffixStopIndex).foldLeft(".s")(_ + _)
@@ -1443,7 +1443,7 @@ class OpenCLGenerator extends Generator {
     }
 
     val real = try {
-      ArithExpr.substitute(i, replacements).evalToInt
+      ArithExpr.substitute(i, replacements).eval
     } catch {
       case NotEvaluableException() =>
         throw new OpenCLGeneratorException(s"Could not access private array, as index $i could " +
@@ -1485,7 +1485,7 @@ class OpenCLGenerator extends Generator {
         throw new TypeException(valueType, "VectorType")
     }
 
-    ArithExpr.substitute(i, replacements).evalToInt
+    ArithExpr.substitute(i, replacements).eval
   }
 
   /**

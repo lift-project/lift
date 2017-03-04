@@ -16,7 +16,7 @@ case class ArrayAccess(index: ArithExpr) extends Pattern(arity = 1) with isGener
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     args.head match {
-      case a: Array[_] => a(index.evalToInt)
+      case a: Array[_] => a(index.eval)
     }
   }
 

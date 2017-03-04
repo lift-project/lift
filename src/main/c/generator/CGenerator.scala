@@ -655,7 +655,7 @@ class CGenerator extends Generator {
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
       val iterationCount = try {
-        indexVar.range.numVals.evalToInt
+        indexVar.range.numVals.eval
       } catch {
         case NotEvaluableException() =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
@@ -900,7 +900,7 @@ class CGenerator extends Generator {
 
               // iterate over the range, assuming that it is contiguous
               val arraySuffixStartIndex = arrayAccessPrivateMemIndex(mem.variable, view)
-              val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.evalToInt
+              val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.eval
 
               val seq = (arraySuffixStartIndex until arraySuffixStopIndex).map(i => {
                 CAst.VarRef(mem.variable, suffix = "_" + i)
@@ -952,7 +952,7 @@ class CGenerator extends Generator {
               val arraySuffix = arrayAccessPrivateMem(mem.variable, view)
 
               val componentSuffixStartIndex = componentAccessvectorVarIndex(mem.variable, view)
-              val componentSuffixStopIndex = componentSuffixStartIndex + vt.len.evalToInt
+              val componentSuffixStopIndex = componentSuffixStartIndex + vt.len.eval
 
               // iterate over the range, assuming that it is contiguous
               val componentSuffix = (componentSuffixStartIndex until componentSuffixStopIndex).foldLeft(".s")(_ + _)
@@ -1074,7 +1074,7 @@ class CGenerator extends Generator {
         throw new TypeException(valueType, "A valid non array type")
     }
 
-    val real = ArithExpr.substitute(i, replacements).evalToInt
+    val real = ArithExpr.substitute(i, replacements).eval
 
     if (real >= declaration.length) {
       throw new OpenCLGeneratorException(s"Out of bounds access to $v with $real")
@@ -1108,7 +1108,7 @@ class CGenerator extends Generator {
         throw new TypeException(valueType, "VectorType")
     }
 
-    ArithExpr.substitute(i, replacements).evalToInt
+    ArithExpr.substitute(i, replacements).eval
   }
 
   /**

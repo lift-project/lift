@@ -85,7 +85,7 @@ object OMPGenerator extends CGenerator{
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
       val iterationCount = try {
-        indexVar.range.numVals.evalToInt
+        indexVar.range.numVals.eval
       } catch {
         case NotEvaluableException() =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +

@@ -113,7 +113,7 @@ case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
     println(s"Warning: Length must be provably positive! (len=$len)")
 
   if (len.isEvaluable) {
-    val length = len.evalDbl
+    val length = len.evalDouble
 
     if (!length.isValidInt || length < 1)
       throw TypeException(length + " is not a valid length for an array!")

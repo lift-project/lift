@@ -366,10 +366,10 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       }
 
     // sanity checks
-    ValidateNDRange(globalSize(0).evalToInt, localSize(0).evalToInt, 0)
-    ValidateNDRange(globalSize(1).evalToInt, localSize(1).evalToInt, 1)
-    ValidateNDRange(globalSize(2).evalToInt, localSize(2).evalToInt, 2)
-    ValidateGroupSize(localSize(0).evalToInt * localSize(1).evalToInt * localSize(2).evalToInt)
+    ValidateNDRange(globalSize(0).eval, localSize(0).eval, 0)
+    ValidateNDRange(globalSize(1).eval, localSize(1).eval, 1)
+    ValidateNDRange(globalSize(2).eval, localSize(2).eval, 2)
+    ValidateGroupSize(localSize(0).eval * localSize(1).eval * localSize(2).eval)
 
     if (Verbose()) {
       println(s"Local sizes: ${localSize.mkString(", ")}")
@@ -394,7 +394,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getMaxSize(f.body.t), valueMap).evalToInt
+    val outputSize = ArithExpr.substitute(Type.getMaxSize(f.body.t), valueMap).eval
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments
@@ -408,8 +408,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     // 8. execute via JNI and get the runtime (or runtimes)
     val t = this.synchronized {
-      executeFunction(localSize(0).evalToInt, localSize(1).evalToInt, localSize(2).evalToInt,
-        globalSize(0).evalToInt, globalSize(1).evalToInt, globalSize(2).evalToInt, args)
+      executeFunction(localSize(0).eval, localSize(1).eval, localSize(2).eval,
+        globalSize(0).eval, globalSize(1).eval, globalSize(2).eval, args)
     }
 
     // 9. cast the output accordingly to the output type

@@ -52,7 +52,7 @@ class InputGenerator(val concreteSizes: collection.Map[ArithExpr, Cst]) {
   }
 
   private def evaluate(len1: ArithExpr) =
-    ArithExpr.substitute(len1, concreteSizes).evalToInt
+    ArithExpr.substitute(len1, concreteSizes).eval
 
   def apply(param: Param): Any = apply(param.t)
 

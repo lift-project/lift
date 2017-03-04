@@ -41,7 +41,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
     assert(args.length == arity)
     args.head match {
       case v: Vector[_] =>
-        (1 to n.evalToInt).foldLeft[Any](v)((a, _) => {
+        (1 to n.eval).foldLeft[Any](v)((a, _) => {
           f.eval(valueMap, a)
         })
     }

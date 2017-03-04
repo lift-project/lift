@@ -176,7 +176,7 @@ class TestAccessCounts {
 
     val count = accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact = true)
 
-    count.evalDbl
+    count.evalDouble
   }
 
 }
