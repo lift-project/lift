@@ -5,7 +5,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import opencl.executor._
-import opencl.generator.OpenCLAST.ArithExpression
+import opencl.generator.OpenCLAST.{ArithExpression, FunctionCall}
 import opencl.generator.OpenCLGenerator._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -1121,6 +1121,26 @@ class TestMisc {
 
     val f = fun(at,
       input => MapGlb(add) $ Zip(input, ArrayFromGenerator( (i, _) => ArithExpression(i), at))
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val at = ArrayType(Float, SizeVar("N"))
+
+    val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
+
+    val f = fun(at,
+      input => MapGlb(add) $ Zip(input, ArrayFromUserFunGenerator(idxF, at))
     )
 
     val (output: Array[Float], _) = Execute(input.length)(f, input)

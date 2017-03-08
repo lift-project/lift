@@ -267,6 +267,7 @@ class OpenCLGenerator extends Generator {
           case vec: VectorizeUserFun => set + vec.vectorizedFunction
           case _ => set
         }
+        case ArrayFromUserFunGenerator(uf, _) => set + uf
         case _ => set
       })
 

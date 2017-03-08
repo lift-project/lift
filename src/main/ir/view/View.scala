@@ -220,6 +220,8 @@ abstract class View(val t: Type = UndefType) {
 
 }
 
+private[view] case class ViewGeneratorUserFun(f: UserFun, override val t: ArrayType) extends View(t)
+
 private[view] case class ViewGenerator(f: (ArithExpr, ArithExpr) => Expression, override val t: ArrayType) extends View(t)
 
 private[view] case class ViewConstant(value: Value, override val t: Type) extends View(t)
@@ -562,6 +564,11 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       case ViewGenerator(f, at) =>
         val index = arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0):ArithExpr)((x, y) => x + y)
         f(index, at.len)
+
+      case ViewGeneratorUserFun(f, at) =>
+        val index = arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0):ArithExpr)((x, y) => x + y)
+        OpenCLAST.FunctionCall(f.name,
+          List(OpenCLAST.ArithExpression(index), OpenCLAST.ArithExpression(at.len)))
 
 
       case op => throw new NotImplementedError(op.getClass.toString)
