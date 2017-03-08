@@ -6,6 +6,8 @@ import lift.arithmetic._
 import ir.Type
 import ir.ast.{Map => _, _}
 import ir.view._
+import opencl.generator.OpenCLAST
+import opencl.generator.OpenCLAST.VarRef
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.pattern.{MapGlb, MapLcl}
 
@@ -48,14 +50,16 @@ class AccessPatterns(
     (readPatterns, writePatterns)
 
   private def isCoalesced(view: View): Boolean = {
-    val newVar = Var("")
-    val accessLocation = ViewPrinter.emit(view)
+    val accessLocation = ViewPrinter.emit(Var(), view) match {
+      case VarRef(_, _, idx) => idx.content
+    }
 
     val length = Type.getLength(Type.getValueType(view.t))
 
     if (coalescingId.isEmpty)
       return false
 
+    val newVar = Var("")
     val i0 = substitute(accessLocation, Map(coalescingId.get -> (newVar + 0)))
     val i1 = substitute(accessLocation, Map(coalescingId.get -> (newVar + 1)))
 
