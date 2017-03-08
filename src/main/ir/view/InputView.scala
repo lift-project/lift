@@ -25,7 +25,9 @@ object InputView {
       case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
       case vp: VectorParam => vp.p.view
       case p: Param => p.view
-      case a: ArrayConstructor => ViewConstant(a.value, a.at)
+
+      case ArrayFromValue(value, at) => ViewConstant(value, at)
+      case ArrayFromGenerator(f, at) => ViewGenerator(f, at)
 
       case call: FunCall => buildViewFunCall(call)
     }

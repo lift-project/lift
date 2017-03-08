@@ -32,7 +32,7 @@ object OpenCLMemoryAllocator {
       case v: Value => allocValue(v)
       case vp: VectorParam => allocParam(vp.p)
       case p: Param => allocParam(p)
-      case a: ArrayConstructor =>
+      case a: ArrayConstructors =>
         OpenCLMemory.allocPrivateMemory(getSizeInBytes(a.at.elemT))
       case call: FunCall =>
         allocFunCall(call, numGlb, numLcl, numPvt, UndefAddressSpace)

@@ -436,8 +436,8 @@ class OpenCLGenerator extends Generator {
         case _ => (block: Block) += OpenCLAST.Comment("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
-      case p: Param =>
-      case a: ArrayConstructor =>
+      case _: Param =>
+      case _: ArrayConstructors =>
     }
   }
 
@@ -1370,9 +1370,7 @@ class OpenCLGenerator extends Generator {
       case LocalMemory | GlobalMemory =>
         val originalType = varDecls(v)
         originalType match {
-          case _: ArrayType => arrayAccessNode(v, addressSpace, view) match {
-            case v: OpenCLAST.VarRef => v
-          }
+          case _: ArrayType => arrayAccessNode(v, addressSpace, view)
           case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
           case NoType | UndefType => throw new TypeException(originalType, "A valid type")
         }
@@ -1380,10 +1378,7 @@ class OpenCLGenerator extends Generator {
       case PrivateMemory =>
         privateMems.find(m => m.mem.variable == v) match {
           case Some(typedMemory) => typedMemory.t match {
-            case _: ArrayType => arrayAccessNode(v, addressSpace, view) match {
-              case v: OpenCLAST.VarRef => v
-              case e: OpenCLExpression => e
-            }
+            case _: ArrayType => arrayAccessNode(v, addressSpace, view)
             case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
             case NoType | UndefType => throw new TypeException(typedMemory.t, "A valid type")
           }
@@ -1413,7 +1408,7 @@ class OpenCLGenerator extends Generator {
         ViewPrinter.emit(v, view) match {
           case VarRef(_, _, _) =>
             OpenCLAST.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
-          case e: OpenCLExpression => e
+          case e: Expression => e
         }
     }
   }

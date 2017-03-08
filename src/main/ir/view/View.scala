@@ -219,6 +219,9 @@ abstract class View(val t: Type = UndefType) {
   }
 
 }
+
+private[view] case class ViewGenerator(f: (ArithExpr, ArithExpr) => Expression, override val t: ArrayType) extends View(t)
+
 private[view] case class ViewConstant(value: Value, override val t: Type) extends View(t)
 
 /**
@@ -436,7 +439,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
     sv match {
       case _: ViewMem =>
         assert(tupleAccessStack.isEmpty)
-        val index = arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0).asInstanceOf[ArithExpr])((x, y) => x + y)
+        val index = arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0): ArithExpr)((x, y) => x + y)
         VarRef(v, arrayIndex = ArithExpression(index))
 
       case access: ViewAccess =>
@@ -553,8 +556,13 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val newAAS = (newIdx, newLen) :: stack
         emitView(v, pad.iv, newAAS, tupleAccessStack)
 
-      case const: ViewConstant =>
-        OpenCLAST.OpenCLExpression(const.value.value)
+      case ViewConstant(value, _) =>
+        OpenCLAST.OpenCLExpression(value.value)
+
+      case ViewGenerator(f, at) =>
+        val index = arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0):ArithExpr)((x, y) => x + y)
+        f(index, at.len)
+
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }

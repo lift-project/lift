@@ -210,7 +210,7 @@ object TypedOpenCLMemory {
       expr match {
         case v: Value => collectExpr(v)
         case _: Param => Seq()
-        case a: ArrayConstructor => collectExpr(a)
+        case a: ArrayConstructors => collectExpr(a)
         case call: FunCall => collectFunCall(call)
       }
     }
