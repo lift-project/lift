@@ -208,24 +208,16 @@ object TypedOpenCLMemory {
 
     def collect(expr: Expr): Seq[TypedOpenCLMemory] = {
       expr match {
-        case v: Value => collectValue(v)
-        case p: Param => Seq()
-        case a: ArrayConstructor => collectArrayConstructor(a)
+        case v: Value => collectExpr(v)
+        case _: Param => Seq()
+        case a: ArrayConstructor => collectExpr(a)
         case call: FunCall => collectFunCall(call)
       }
     }
 
-    def collectValue(v: Value): Seq[TypedOpenCLMemory] = {
+    def collectExpr(e: Expr): Seq[TypedOpenCLMemory] = {
       if (includePrivate) {
-        Seq(TypedOpenCLMemory(v))
-      } else {
-        Seq()
-      }
-    }
-
-    def collectArrayConstructor(a: ArrayConstructor): Seq[TypedOpenCLMemory] = {
-      if (includePrivate) {
-        Seq(TypedOpenCLMemory(a))
+        Seq(TypedOpenCLMemory(e))
       } else {
         Seq()
       }

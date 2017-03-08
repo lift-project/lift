@@ -16,13 +16,6 @@ object TypeChecker {
   def check(expr: Expr, setType: Boolean = true): Type = {
 
     val inferredOuT = expr match {
-      case param: Param =>
-        // assert(param.t != UndefType)
-        param.t
-
-      case a: ArrayConstructor =>
-        a.at
-
       case call: FunCall =>
         // 1. get type of arguments
         val argType = if (call.args.isEmpty) {
@@ -36,6 +29,8 @@ object TypeChecker {
 
         // 2. check type of function with the given arguments type
         call.f.checkType(argType, setType)
+
+      case e: Expr=> e.t
     }
 
     if (setType)

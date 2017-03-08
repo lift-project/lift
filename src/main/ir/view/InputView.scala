@@ -25,7 +25,8 @@ object InputView {
       case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
       case vp: VectorParam => vp.p.view
       case p: Param => p.view
-      case a: ArrayConstructor => buildArrayConstructorView(a)
+      case a: ArrayConstructor => ViewConstant(a.value, a.at)
+
       case call: FunCall => buildViewFunCall(call)
     }
     expr.view = result
@@ -41,10 +42,6 @@ object InputView {
     } else {
       View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
     }
-  }
-
-  private def buildArrayConstructorView(a: ArrayConstructor): View = {
-    ViewConstant(a.value, a.at)
   }
 
   private def buildViewFunCall(call: FunCall): View = {
