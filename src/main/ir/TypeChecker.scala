@@ -20,6 +20,9 @@ object TypeChecker {
         // assert(param.t != UndefType)
         param.t
 
+      case a: ArrayConstructor =>
+        a.at
+
       case call: FunCall =>
         // 1. get type of arguments
         val argType = if (call.args.isEmpty) {

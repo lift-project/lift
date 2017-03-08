@@ -6,7 +6,7 @@ import ir.ast._
 import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
 
 import scala.collection.immutable
-import opencl.generator.OpenCLPrinter
+import opencl.generator.{OpenCLAST, OpenCLPrinter}
 
 /**
  * An arithmetic expression that performs an access to `array[idx]`
@@ -183,7 +183,7 @@ abstract class View(val t: Type = UndefType) {
     t match {
       case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType]) =>
         val arrayTs: Seq[ArrayType] = ts.map(_.asInstanceOf[ArrayType])
-        val newT =ArrayType(TupleType(arrayTs.map(_.elemT):_*), arrayTs.head.len)
+        val newT = ArrayType(TupleType(arrayTs.map(_.elemT):_*), arrayTs.head.len)
         ViewZip(this, newT)
       case other => throw new IllegalArgumentException("Can't zip " + other)
     }
@@ -219,6 +219,7 @@ abstract class View(val t: Type = UndefType) {
   }
 
 }
+private[view] case class ViewConstant(value: Value, override val t: Type) extends View(t)
 
 /**
  * A view to memory object.
@@ -551,6 +552,9 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val newLen = idx._2
         val newAAS = (newIdx, newLen) :: stack
         emitView(v, pad.iv, newAAS, tupleAccessStack)
+
+      case const: ViewConstant =>
+        OpenCLAST.OpenCLExpression(const.value.value)
 
       case op => throw new NotImplementedError(op.getClass.toString)
     }

@@ -77,6 +77,10 @@ private class BuildDepthInfo() {
         p.inputDepth = getAccessInf(p.addressSpace.containsAddressSpace(PrivateMemory),
           p.addressSpace.containsAddressSpace(LocalMemory))
         p.accessInf
+      case a: ArrayConstructor =>
+        a.inputDepth = getAccessInf(a.addressSpace.containsAddressSpace(PrivateMemory),
+          a.addressSpace.containsAddressSpace(LocalMemory))
+        a.accessInf
     }
 
     expr.accessInf = result

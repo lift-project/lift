@@ -1092,4 +1092,22 @@ class TestMisc {
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)
   }
+
+  @Test
+  def arrayConstructor(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val at = ArrayType(Float, SizeVar("N"))
+
+    val f = fun(at,
+      input => MapGlb(add) $ Zip(input, ArrayConstructor(1, at))
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, Array.fill(input.length)(1)).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
 }

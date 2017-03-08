@@ -32,6 +32,14 @@ object OutputView {
           p.outputView = writeView
 
         p.outputView
+
+      case a: ArrayConstructor =>
+
+        if (a.outputView == NoView)
+          a.outputView = writeView
+
+        a.outputView
+
       case call: FunCall => buildViewFunCall(call, writeView)
     }
   }

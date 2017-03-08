@@ -135,6 +135,7 @@ class OpenCLPrinter {
 
     case f: Function      => print(f)
     case i: OpenCLCode    => sb ++= i.code
+    case e: OpenCLExpression => sb ++= e.code
     case c: Comment       => print(s"/* ${c.content} */")
     case v: VarDecl       => print(v)
     case v: VarRef        => print(v)

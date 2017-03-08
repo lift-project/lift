@@ -207,6 +207,8 @@ object OpenCLAST {
 
   case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends Expression
 
+  case class OpenCLExpression(code: String) extends Expression
+
 
   /** Inline native code block. Used mainly for UserFun, which are currently
     * represented as strings
