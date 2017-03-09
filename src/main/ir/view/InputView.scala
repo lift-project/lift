@@ -29,6 +29,7 @@ object InputView {
       case ArrayFromValue(value, at) => ViewConstant(value, at)
       case ArrayFromGenerator(f, at) => ViewGenerator(f, at)
       case ArrayFromUserFunGenerator(f, at) => ViewGeneratorUserFun(f, at)
+      case Array3DFromUserFunGenerator(f, at) => View3DGeneratorUserFun(f, at)
 
       case call: FunCall => buildViewFunCall(call)
     }

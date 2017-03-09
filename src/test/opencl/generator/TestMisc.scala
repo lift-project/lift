@@ -1172,4 +1172,34 @@ class TestMisc {
 
     assertArrayEquals(gold, output)
   }
+
+  @Test
+  def arrayFromUserFunGenerator3(): Unit = {
+    val m = 128
+    val n = 8
+    val o = 4
+
+    val input = Array.fill(m, n, o)(util.Random.nextInt())
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val O = SizeVar("O")
+
+    val at = ArrayType(ArrayType(ArrayType(Int, O), N), M)
+
+    val idxF = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ return i+j+k; }",
+      Seq(Int, Int, Int, Int, Int, Int), Int)
+
+    val f = fun(ArrayType(ArrayType(ArrayType(Int, O), N), M),
+      input =>
+        Array3DFromUserFunGenerator(idxF, at) :>>
+          toGlobal(MapGlb(MapSeq(MapSeq(idI))))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(m, n, o)( (i, j, k) => i+j+k ).flatten.flatten
+
+    assertArrayEquals(gold, output)
+  }
 }

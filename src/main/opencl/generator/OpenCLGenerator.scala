@@ -268,6 +268,7 @@ class OpenCLGenerator extends Generator {
           case _ => set
         }
         case ArrayFromUserFunGenerator(uf, _) => set + uf
+        case Array3DFromUserFunGenerator(uf, _) => set + uf
         case _ => set
       })
 
@@ -1401,9 +1402,7 @@ class OpenCLGenerator extends Generator {
                               view: View): OpenCLAST.Expression = {
     addressSpace match {
       case LocalMemory | GlobalMemory =>
-        ViewPrinter.emit(v, view, replacementsWithFuns) match {
-          case v: OpenCLAST.VarRef => v
-        }
+        ViewPrinter.emit(v, view, replacementsWithFuns)
 
       case PrivateMemory =>
         ViewPrinter.emit(v, view, replacementsWithFuns) match {

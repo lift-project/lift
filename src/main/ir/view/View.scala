@@ -220,6 +220,8 @@ abstract class View(val t: Type = UndefType) {
 
 }
 
+private[view] case class View3DGeneratorUserFun(f: UserFun, override val t: ArrayType) extends View(t)
+
 private[view] case class ViewGeneratorUserFun(f: UserFun, override val t: ArrayType) extends View(t)
 
 private[view] case class ViewGenerator(f: (ArithExpr, ArithExpr) => Expression, override val t: ArrayType) extends View(t)
@@ -573,6 +575,22 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         val l = ArithExpr.substitute(at.len, replacements)
         OpenCLAST.FunctionCall(f.name,
           List(OpenCLAST.ArithExpression(i), OpenCLAST.ArithExpression(l)))
+
+      case View3DGeneratorUserFun(f, at) =>
+        (arrayAccessStack, at) match {
+          case ( List(first, second, third, rest @ _*),
+                 ArrayType(ArrayType(ArrayType(_, o_), n_), m_) ) =>
+            val i = ArithExpr.substitute(first._1, replacements)
+            val m = ArithExpr.substitute(m_, replacements)
+            val j = ArithExpr.substitute(second._1, replacements)
+            val n = ArithExpr.substitute(n_, replacements)
+            val k = ArithExpr.substitute(third._1, replacements)
+            val o = ArithExpr.substitute(o_, replacements)
+
+            OpenCLAST.FunctionCall(f.name,
+              List(OpenCLAST.ArithExpression(i), OpenCLAST.ArithExpression(j), OpenCLAST.ArithExpression(k),
+                   OpenCLAST.ArithExpression(m), OpenCLAST.ArithExpression(n), OpenCLAST.ArithExpression(o)))
+        }
 
 
       case op => throw new NotImplementedError(op.getClass.toString)
