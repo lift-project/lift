@@ -563,12 +563,16 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
 
       case ViewGenerator(f, at) =>
         val index = arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0):ArithExpr)((x, y) => x + y)
-        f(index, at.len)
+        val i = ArithExpr.substitute(index, replacements)
+        val l = ArithExpr.substitute(at.len, replacements)
+        f(i, l)
 
       case ViewGeneratorUserFun(f, at) =>
         val index = arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0):ArithExpr)((x, y) => x + y)
+        val i = ArithExpr.substitute(index, replacements)
+        val l = ArithExpr.substitute(at.len, replacements)
         OpenCLAST.FunctionCall(f.name,
-          List(OpenCLAST.ArithExpression(index), OpenCLAST.ArithExpression(at.len)))
+          List(OpenCLAST.ArithExpression(i), OpenCLAST.ArithExpression(l)))
 
 
       case op => throw new NotImplementedError(op.getClass.toString)

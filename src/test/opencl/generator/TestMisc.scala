@@ -1149,4 +1149,27 @@ class TestMisc {
 
     assertArrayEquals(gold, output, 0.001f)
   }
+
+  @Test
+  def arrayFromUserFunGenerator2(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextInt())
+
+    val at = ArrayType(Int, SizeVar("N"))
+
+    val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
+
+    val f = fun(at,
+      input =>
+        ArrayFromUserFunGenerator(idxF, at) :>>
+          Split(64) :>>
+            toGlobal(MapGlb(MapSeq(idI)))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(input.length)( i => i )
+
+    assertArrayEquals(gold, output)
+  }
 }

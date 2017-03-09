@@ -1406,7 +1406,7 @@ class OpenCLGenerator extends Generator {
         }
 
       case PrivateMemory =>
-        ViewPrinter.emit(v, view) match {
+        ViewPrinter.emit(v, view, replacementsWithFuns) match {
           case VarRef(_, _, _) =>
             OpenCLAST.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
           case e: Expression => e
@@ -1435,14 +1435,14 @@ class OpenCLGenerator extends Generator {
     val valueType = Type.getValueType(originalType)
 
     val i = valueType match {
-      case _: ScalarType | _: TupleType => ViewPrinter.emit(v, view) match {
+      case _: ScalarType | _: TupleType => ViewPrinter.emit(v, view, replacements) match {
         case VarRef(_, _, idx) => idx.content
       }
       // if the original value type is a vector:
       //   divide index by vector length
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        val idx = ViewPrinter.emit(v, view) match {
+        val idx = ViewPrinter.emit(v, view, replacements) match {
           case VarRef(_, _, idx) => idx.content
         }
         idx / length
@@ -1485,7 +1485,7 @@ class OpenCLGenerator extends Generator {
     val i = valueType match {
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        val idx = ViewPrinter.emit(v, view) match {
+        val idx = ViewPrinter.emit(v, view, replacements) match {
           case VarRef(_, _, idx) => idx.content
         }
         idx % length
