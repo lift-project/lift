@@ -268,6 +268,7 @@ class OpenCLGenerator extends Generator {
           case _ => set
         }
         case ArrayFromUserFunGenerator(uf, _) => set + uf
+        case Array2DFromUserFunGenerator(uf, _) => set + uf
         case Array3DFromUserFunGenerator(uf, _) => set + uf
         case _ => set
       })

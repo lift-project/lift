@@ -1174,7 +1174,35 @@ class TestMisc {
   }
 
   @Test
-  def arrayFromUserFunGenerator3(): Unit = {
+  def arrayFromUserFunGenerator2D(): Unit = {
+    val m = 128
+    val n = 8
+
+    val input = Array.fill(m, n)(util.Random.nextInt())
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+
+    val at = ArrayType(ArrayType(Int, N), M)
+
+    val idxF = UserFun("idxF", Array("i", "j", "m", "n"), "{ return i+j; }",
+      Seq(Int, Int, Int, Int), Int)
+
+    val f = fun(ArrayType(ArrayType(Int, N), M),
+      input =>
+        Array2DFromUserFunGenerator(idxF, at) :>>
+          toGlobal(MapGlb(MapSeq(idI)))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(m, n)( (i, j) => i+j ).flatten
+
+    assertArrayEquals(gold, output)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator3D(): Unit = {
     val m = 128
     val n = 8
     val o = 4
