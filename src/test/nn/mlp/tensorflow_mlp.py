@@ -186,7 +186,7 @@ def train_and_forward_propagate(hidden_layers, inputs_tofeed):
         #%timeit SimpleDecode(json_string)
         with open(dir_name + '/' + param_name + '_n' + str(end-start) + '.json', 'w') as outfile:
             outfile.write(json_string)
-            outfile.close
+            outfile.close()
         print(str(i) + ". Saved param \"" + param_name + "\", shape: ", end='')
         #print(params[i][0])
         i = i + 1
@@ -220,7 +220,7 @@ def forward_propagate(hidden_layers, inputs_tofeed):
     json_string = SimpleEncode(test_batch_images.astype(np.float32))
     with open(dir_name + '/test_images_n' + str(end-start) +'.json', 'w') as outfile:
         outfile.write(json_string)
-        outfile.close
+        outfile.close()
     print("Saved " + str(test_batch_images.shape[0]) + " images, shape: ", end='')
     print(test_batch_images.shape)
 

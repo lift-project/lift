@@ -10,6 +10,7 @@ import java.nio.file.{Files, Paths}
 
 package object cnn {
   /* Test values */
+
   val input_X = Array(
     Array(Array(0.0f, 0.0f),   Array(1.0f, 1.0f),   Array(2.0f, 2.0f),   Array(3.0f, 3.0f),
           Array(4.0f, 4.0f),   Array(5.0f, 5.0f),   Array(6.0f, 6.0f),  Array(7.0f, 7.0f)),
@@ -55,47 +56,48 @@ package object cnn {
 
 
   object Experiment {
-    def getPathToInputs(nKernels: Shape, kernelShape: Shape): String = nn.currentDir + f"/experiment." +
-      f"${nKernels.l0}%d.${nKernels.l1}%d.${kernelShape.w}%d.${kernelShape.h}%d"
+    def getPathToInputs(nKernelsL0: Int, kernelShape: Shape): String = cnnDir + f"/experiment." +
+      f"$nKernelsL0%d.${kernelShape.w}%d.${kernelShape.h}%d"
     def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift"
 
 
     def loadDatasets(nInputs: Int, pathToInputs: String):
-    (Array[Array[Float]], Array[Array[Array[Array[Array[Float]]]]], Array[Array[Float]],
-      Array[Array[Array[Float]]], Array[Array[Float]], Array[Array[Float]]) = {
+    (Array5D[Float], Array5D[Float], Array2D[Float],
+      Array2D[Float]) = {
 
-      if (!exists(get(pathToInputs + "/wc1.json")))
+      if (!exists(get(pathToInputs + "/wconv1.json")))
         throw new java.io.FileNotFoundException(f"Experiment (nInputs=$nInputs%d) " +
           "resources not provided (JSON files with test images, NN weights and biases).")
 
-      var tfWconv = Array(nn.loadJSON4D(pathToInputs + "wc1.json"))
-      var tfBconv = Array(nn.loadJSON1D(pathToInputs + "bc1.json"))
-      tfWconv = tfWconv :+ nn.loadJSON4D(pathToInputs + "wc2.json")
-      tfBconv = tfBconv :+ nn.loadJSON1D(pathToInputs + "bc2.json")
-      var tfWmlp = Array(nn.loadJSON2D(pathToInputs + "wd1.json"))
-      tfWmlp = tfWmlp :+ nn.loadJSON2D(pathToInputs + "wout.json")
-      var tfBmlp = Array(nn.loadJSON1D(pathToInputs + "bd1.json"))
-      tfBmlp = tfBmlp :+ nn.loadJSON1D(pathToInputs + "bout.json")
+      var tfWconv = Array(nn.loadJSON4D(pathToInputs + "/wconv1.json"))
+      var tfBconv = Array(nn.loadJSON1D(pathToInputs + "/bconv1.json"))
+      tfWconv = tfWconv :+ nn.loadJSON4D(pathToInputs + "/wconv2.json")
+      tfBconv = tfBconv :+ nn.loadJSON1D(pathToInputs + "/bconv2.json")
+//      var tfWmlp = Array(nn.loadJSON2D(pathToInputs + "/wmlp1.json"))
+//      tfWmlp = tfWmlp :+ nn.loadJSON2D(pathToInputs + "/wout.json")
+//      var tfBmlp = Array(nn.loadJSON1D(pathToInputs + "/bmlp1.json"))
+//      tfBmlp = tfBmlp :+ nn.loadJSON1D(pathToInputs + "/bout.json")
 
-      val tfX = nn.loadJSON2D(pathToInputs + "test_images_n" + nInputs + ".json")
-      val tfResult = nn.loadJSON2D(pathToInputs + "test_tf_results_n" + nInputs + ".json")
+      val tfX = nn.loadJSON5D(pathToInputs + "/test_images_n" + nInputs + ".json")
+      val tfResult = nn.loadJSON2D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
 
-      (tfX, tfWconv, tfBconv, tfWmlp, tfBmlp, tfResult)
+      (tfX, tfWconv, tfBconv, tfResult)
     }
   }
 
-  class Experiment(val multsPerThread: Int = 0,
-                   val neuronsPerWrg: Int = 0,
-                   val layerSize: Int = 0,
+  class Experiment(val nKernelsL0: Int = 0,
                    val nInputs: Int = 0,
-                   val tfX: Array[Array[Float]],
-                   val tfW: Array[Array[Array[Float]]],
-                   val tfB: Array[Array[Float]],
-                   val tfResult: Array[Array[Float]]) {
-    val pathToInputs: String = Experiment.getPathToInputs(layerSize)
-    val pathToResults: String = Experiment.getPathToResults(pathToInputs)
+                   val kernelL0Shape: Shape = Shape(),
+                   val pathToInputs: String,
+                   val pathToResults: String,
+                   val tfX: Array5D[Float],
+                   val tfWconv: Array5D[Float],
+                   val tfBconv: Array2D[Float],
+                   val tfResult: Array2D[Float]) {
     var isAFirstRun: Boolean = false
     var resultsDir: java.io.File = _
   }
+
+  val cnnDir: String = nn.nnDir + "/cnn"
 
 }

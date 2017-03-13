@@ -87,7 +87,7 @@ class TestMLP {
         f"nInputs=${e.nInputs}%d).")
 
       try {
-        singleTest(new MLP(MLP.Par, Array(nn.ReLU, nn.ReLU, MLP.Linear), Array(e.multsPerThread, e.multsPerThread, e.multsPerThread),
+        singleTest(new MLP(MLP.Par, Array(nn.ReLU, nn.ReLU, nn.Linear), Array(e.multsPerThread, e.multsPerThread, e.multsPerThread),
           Array(e.neuronsPerWrg, e.neuronsPerWrg, e.neuronsPerWrg), e.tfX, e.tfW, e.tfB, e.tfResult, "MLP.Par",
           f"(MNIST dataset) x3 2D-parallel kernels (across inputs). Workgroup per partition of neurons per " +
             f"partition of inputs. Memory accesses are coalesced.", e.pathToInputs))
@@ -99,7 +99,7 @@ class TestMLP {
     }
   }
 
-  def singleTest(mlp: MLP) = {
+  def singleTest(mlp: MLP): Unit = {
     var inputNo = 0
     println(f"\n" + mlp.testDescription)
 
@@ -113,10 +113,13 @@ class TestMLP {
           mlp.liftMLP(mlp.activationFun(layerNo), Tile(mults=mlp.multsPerThread(layerNo),
             inputs=mlp.localSize1(layerNo), neurons=mlp.neuronsPerWrg(layerNo)),
             Shape(in=mlp.inputLenPadded(layerNo), out=mlp.nNeuronsPadded(layerNo)), mlp.nLayerInputsPadded(layerNo)),
-          mlp.weightsPadded(layerNo), mlp.biasesNonPadded(layerNo), mlp.layerInputsPadded(layerNo))
+          // TODO: check mlp.weightsPadded(layerNo), mlp.biasesNonPadded(layerNo), mlp.layerInputsPadded(layerNo))
+          mlp.weightsPadded(layerNo), mlp.biasesPadded(layerNo), mlp.layerInputsPadded(layerNo))
 
       mlp.runTimes(layerNo) = runtime
-      mlp.outputsPadded += nn.group(outputFlat, (mlp.nLayerInputsPadded(layerNo), mlp.nNeuronsPadded(layerNo)))
+      def getGroupedOutputs = nn.group(outputFlat, (mlp.nLayerInputsPadded(layerNo), mlp.nNeuronsPadded(layerNo)))
+      mlp.outputsPadded = if (mlp.outputsPadded == null) Array(getGroupedOutputs) else
+        mlp.outputsPadded :+ getGroupedOutputs
 
       println(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 

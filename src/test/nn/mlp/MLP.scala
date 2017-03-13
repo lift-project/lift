@@ -6,11 +6,11 @@ package nn.mlp
   */
 
 import ir.ArrayType
-import ir.ast.{Join, Lambda, ReorderWithStride, Scatter, Split, Transpose, TransposeW, UserFun, Zip, λ}
+import ir.ast.{FunDecl, Join, ReorderWithStride, Scatter, Split, Transpose, TransposeW, UserFun, Zip, λ}
 import lift.arithmetic.SizeVar
 import opencl.ir._
 import opencl.ir.pattern._
-import nn.{Shape, Tile}
+import nn.{Array2D, Array3D, Shape, Tile}
 
 object MLP {
   val layer_idim = SizeVar("layer_idim")
@@ -23,7 +23,7 @@ object MLP {
 
 
   /* Sequential layer */
-  def Seq(activation_f: UserFun) = λ(
+  def Seq(activation_f: UserFun): FunDecl = λ(
     ArrayType(ArrayType(Float, layer_idim), layer_odim),
     ArrayType(Float, layer_odim),
     ArrayType(Float, layer_idim),
@@ -40,7 +40,7 @@ object MLP {
   /* Parallel layer */
   def Par(activation_f: UserFun,
           tile: Tile,
-          dim: Shape, nInputs: Int) = λ(
+          dim: Shape, nInputs: Int): FunDecl = λ(
     ArrayType(ArrayType(Float, dim.in), dim.out),
     ArrayType(Float, dim.out),
     ArrayType(ArrayType(Float, dim.in), nInputs),
@@ -68,24 +68,23 @@ object MLP {
 }
 
 class MLP(/* MLP architectural parameters */
-          val liftMLP: (UserFun, Tile, Shape, Int) => Lambda,
-          val activationFun/* per layer*/: Array[UserFun],
+          val liftMLP: (UserFun, Tile, Shape, Int) => FunDecl,
+          val activationFun/*per layer*/: Array[UserFun],
           /* MLP parallelisation parameters */
-          val multsPerThread/* per layer*/: Array[Int],
-          val neuronsPerWrg/* per layer*/: Array[Int],
+          val multsPerThread/*per layer*/: Array[Int],
+          val neuronsPerWrg/*per layer*/: Array[Int],
           /* MLP application parameters */
-          val inputsNonPadded: Array[Array[Float]],
-          val weightsNonPadded: Array[Array[Array[Float]]], val biasesNonPadded: Array[Array[Float]],
-          val targets: Array[Array[Float]],
+          val inputsNonPadded: Array2D[Float], val weightsNonPadded: Array3D[Float],
+          val biasesNonPadded: Array2D[Float], val targets: Array2D[Float],
           val liftFunName: String, val testDescription: String, val pathToResults: String) {
   /**
     * Initializes variables, computes workgroup sizes.
     */
 
-  var weightsPadded = scala.collection.mutable.Buffer[Array[Array[Float]]]()
-  var biasesPadded = scala.collection.mutable.Buffer[Array[Float]]()
+  var weightsPadded: Array3D[Float] = _
+  var biasesPadded: Array2D[Float] = _
   val nLayers: Int = biasesNonPadded.length
-  var layerInputsPadded = scala.collection.mutable.Buffer[Array[Array[Float]]]()
+  var layerInputsPadded: Array3D[Float] = _
   var nInputsNonPadded: Int = inputsNonPadded.length
   var nLayerInputsPadded: Array[Int] = Array.fill[Int](nLayers)(0)
   val inputLenNonPadded: Array[Int] = Array.fill[Int](nLayers)(0)
@@ -97,10 +96,10 @@ class MLP(/* MLP architectural parameters */
   val localSize1: Array[Int] = Array.fill[Int](nLayers)(0)
   val globalSize0: Array[Int] = Array.fill[Int](nLayers)(0)
   val globalSize1: Array[Int] = Array.fill[Int](nLayers)(0)
+  var outputsPadded: Array3D[Float] = _
+  var outputsNonPadded: Array2D[Float] = _
 
-  var outputsPadded = scala.collection.mutable.Buffer[Array[Array[Float]]]()
-  var outputsNonPadded: Array[Array[Float]] = _
-  def getLayerInputs(layerNo: Int): Array[Array[Float]] =
+  def getLayerInputs(layerNo: Int): Array2D[Float] =
     if (layerNo == 0) inputsNonPadded else outputsPadded(layerNo - 1)
 
   for (layerNo <- 0 until nLayers) {
@@ -189,12 +188,19 @@ class MLP(/* MLP architectural parameters */
    * Ensures that a single input can be evenly split among threads in dimension 0;
    * Ensures that neurons can be evenly split among workgroups in dimension 0.
    */
-  def padInputsAndNeurons(layerNo: Int) = {
+  def padInputsAndNeurons(layerNo: Int): Unit = {
     /* Pad inputs (inputs and weights) and neurons (weights and biases) */
-    layerInputsPadded += Array.fill[Array[Float]](nLayerInputsPadded(layerNo))(
+    def getNewPaddedInputs = Array.fill[Array[Float]](nLayerInputsPadded(layerNo))(
       Array.fill[Float](inputLenPadded(layerNo))(0))
-    weightsPadded += Array.fill[Array[Float]](nNeuronsPadded(layerNo))(Array.fill[Float](inputLenPadded(layerNo))(0))
-    biasesPadded += Array.fill[Float](nNeuronsPadded(layerNo))(0)
+    layerInputsPadded = if (layerInputsPadded == null) Array(getNewPaddedInputs) else
+      layerInputsPadded :+ getNewPaddedInputs
+
+    def getNewPaddedWeights = Array.fill[Array[Float]](nNeuronsPadded(layerNo))(
+      Array.fill[Float](inputLenPadded(layerNo))(0))
+    weightsPadded = if (weightsPadded == null) Array(getNewPaddedWeights) else weightsPadded :+ getNewPaddedWeights
+
+    def getNewPaddedBiases = Array.fill[Float](nNeuronsPadded(layerNo))(0)
+    biasesPadded = if (biasesPadded == null) Array(getNewPaddedBiases) else biasesPadded :+ getNewPaddedBiases
 
     // Copy the non-padded data. The rest will remain zeros.
     val layerInputs = getLayerInputs(layerNo)
@@ -218,7 +224,7 @@ class MLP(/* MLP architectural parameters */
 
   /* Removes padded neurons and (input) samples from the final layer output
    */
-  def unPadOutputs() = {
+  def unPadOutputs(): Unit = {
     outputsNonPadded = Array.fill[Array[Float]](nInputsNonPadded)(Array.fill[Float](nNeuronsNonPadded.last)(0))
     for {i <- 0 until nInputsNonPadded; j <- 0 until nNeuronsNonPadded.last}
       outputsNonPadded(i)(j) = outputsPadded.last(i)(j)

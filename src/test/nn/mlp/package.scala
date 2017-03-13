@@ -38,11 +38,11 @@ package object mlp {
 
 
   object Experiment {
-    def getPathToInputs(layerSize: Int): String = nn.currentDir + f"/experiment.$layerSize%d"
+    def getPathToInputs(layerSize: Int): String = mlpDir + f"/experiment.$layerSize%d"
     def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift"
 
     def loadDatasets(layerSize: Int, nInputs: Int, pathToInputs: String):
-    (Array[Array[Float]], Array[Array[Array[Float]]], Array[Array[Float]], Array[Array[Float]]) = {
+    (Array2D[Float], Array3D[Float], Array2D[Float], Array2D[Float]) = {
       val hiddenLayers: Array[Int] = Array(layerSize, 32)
 
       if (!exists(get(pathToInputs + "/W1_n" + nInputs + ".json")))
@@ -68,13 +68,15 @@ package object mlp {
                    val neuronsPerWrg: Int = 0,
                    val layerSize: Int = 0,
                    val nInputs: Int = 0,
-                   val tfX: Array[Array[Float]],
-                   val tfW: Array[Array[Array[Float]]],
-                   val tfB: Array[Array[Float]],
-                   val tfResult: Array[Array[Float]]) {
+                   val tfX: Array2D[Float],
+                   val tfW: Array3D[Float],
+                   val tfB: Array2D[Float],
+                   val tfResult: Array2D[Float]) {
     val pathToInputs: String = Experiment.getPathToInputs(layerSize)
     val pathToResults: String = Experiment.getPathToResults(pathToInputs)
     var isAFirstRun: Boolean = false
     var resultsDir: java.io.File = _
   }
+
+  val mlpDir: String = nn.nnDir + "/mlp"
 }

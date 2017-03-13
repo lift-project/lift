@@ -13,6 +13,7 @@ package nn.rnn
 import lift.arithmetic.SizeVar
 import ir.ArrayType
 import ir.ast._
+import nn.Array2D
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -33,7 +34,7 @@ object TestRNN {
 }
 
 class TestRNN {
-  def propagate_scala(S0: Array[Float], W: Array[Array[Float]], X: Array[Array[Float]]): Array[Array[Float]] = {
+  def propagate_scala(S0: Array[Float], W: Array2D[Float], X: Array2D[Float]): Array2D[Float] = {
     /*
     Scala implementation of the Hopfield Recurrent Neural network (multiple iterations, different inputs per iteration)
     * returns: Propagation results of all time units: Array(Array(Float, N_neurons), N_iterations)

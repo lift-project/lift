@@ -3,11 +3,11 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-layer0_size_start_from = 288 # For continuning an unfinished job
+layer0_size_start_from = 288 # For continuing an unfinished job
 layer0_size_min = 32
-layer0_size_max = 289 #1024 + 1
+layer0_size_max = 289 # size + 1
 layer0_size_step = 32
-n_inputs_start_from = 512 #32 # For continuning an unfinished job
+n_inputs_start_from = 512 #32 # For continuing an unfinished job
 n_inputs_min = 32
 n_inputs_max = 513 # 1900
 #n_inputs_max = 1215
