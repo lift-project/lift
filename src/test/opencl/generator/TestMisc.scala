@@ -776,6 +776,9 @@ class TestMisc {
   }
 
   @Test def iterate(): Unit = {
+
+    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
+
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
     val gold = input.map(_+(1*7))
@@ -790,6 +793,9 @@ class TestMisc {
   }
 
   @Test def iterateFixedSecondArg() : Unit = {
+
+    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
+
     val inputSize = 512
     val inputA = Array.tabulate(inputSize)(_.toFloat)
     val inputB = Array.tabulate(inputSize)(_.toFloat).reverse
@@ -812,6 +818,9 @@ class TestMisc {
   }
 
   @Test def iterateLocalOnly(): Unit = {
+
+    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
+
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
     val gold = input.map(_+1).map(_+1).map(_+1).map(_+1).map(_+1)
