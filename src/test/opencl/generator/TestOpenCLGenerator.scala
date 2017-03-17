@@ -3,21 +3,11 @@ package opencl.generator
 import lift.arithmetic.SizeVar
 import ir._
 import ir.ast.{\, fun}
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapWrg}
 import org.junit._
 import org.junit.Assert._
-
-object TestOpenCLGenerator {
-
-  @BeforeClass
-  def before() = Executor.loadAndInit()
-
-  @AfterClass
-  def after() = Executor.shutdown()
-
-}
 
 class TestOpenCLGenerator {
 
@@ -91,36 +81,22 @@ class TestOpenCLGenerator {
   @Test
   def incorrectLocalSize(): Unit = {
 
-    try {
+    val localSize = 32
 
-      val globalSize = 1024
-      val localSize = 32
+    val f = \(
+      ArrayType(ArrayType(Float, localSize), a),
+      MapWrg(MapLcl(plusOne)) $ _
+    )
 
-      val input = Array.fill(globalSize, localSize)(util.Random.nextFloat())
+    val code = Compile(f, localSize, 1, 1)
 
-      val f = \(
-        ArrayType(ArrayType(Float, localSize), a),
-        MapWrg(MapLcl(plusOne)) $ _
-      )
-
-      val code = Compile(f, localSize, 1, 1)
-      Execute(localSize*2, globalSize)(code, f, input)
-
-      fail("Expected Executor.ExecutorFailureException")
-
-    } catch {
-      case e: Executor.ExecutorFailureException =>
-        e.consume()
-    }
+    assertTrue(code.contains("attribute"))
   }
 
   @Test
   def noAttributeForNoGroups(): Unit = {
 
-    val globalSize = 1024
     val localSize = 32
-
-    val input = Array.fill(globalSize, localSize)(util.Random.nextFloat())
 
     val f = \(
       ArrayType(ArrayType(Float, localSize), a),
@@ -128,8 +104,8 @@ class TestOpenCLGenerator {
     )
 
     val code = Compile(f, localSize, 1, 1)
-    Execute(localSize * 2, globalSize)(code, f, input)
 
+    assertFalse(code.contains("attribute"))
   }
 
 }
