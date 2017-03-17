@@ -35,7 +35,7 @@ object OpenCLGenerator extends Generator {
       case e@(call: FunCall) => println(e + "\n    " +
         e.t + " <- " + call.argsType + "\n")
       case e => println(e + "\n    " + e.t + "\n")
-    }, (e: Expr) => {})
+    }, (_: Expr) => {})
   }
 
   def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
@@ -135,6 +135,8 @@ class OpenCLGenerator extends Generator {
 
   private var varDecls: SymbolTable = immutable.Map.empty
 
+  private var localSize: NDRange = _
+
   private def printMemories(expr: Expr): Unit = {
     Expr.visit(expr, {
       case e@(call: FunCall) =>
@@ -142,7 +144,7 @@ class OpenCLGenerator extends Generator {
           e.mem.toString + " <- " +
           call.argsMemory.toString + "\n")
       case e => println(e + "\n    " + e.mem.toString + "\n")
-    }, (f: Expr) => {})
+    }, (_: Expr) => {})
   }
 
   def generate(f: Lambda): String  = {
@@ -155,6 +157,8 @@ class OpenCLGenerator extends Generator {
 
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                 valueMap: collection.Map[ArithExpr, ArithExpr]): String = {
+
+    this.localSize = localSize
 
     if (f.body.t == UndefType)
       throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
@@ -324,6 +328,12 @@ class OpenCLGenerator extends Generator {
     // partition into iteration variables and all others variables
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
+    val attribute =
+      if (localSize.forall(_.isEvaluable) &&
+        f.body.contains({ case FunCall(MapWrg(_, _), _) => }))
+        Some(RequiredWorkGroupSize(localSize))
+      else None
+
     // Create the actual kernel function
     val kernel = OpenCLAST.Function(
       name = "KERNEL",
@@ -339,7 +349,7 @@ class OpenCLGenerator extends Generator {
           // size parameters
           vars.sortBy(_.name).map(x => OpenCLAST.ParamDecl(x.toString, Int)),
       body = OpenCLAST.Block(Vector.empty),
-      kernel = true)
+      kernel = true, attribute)
 
     // print out allocated memory sizes
     val varMap = iterateVars.map(v => (v, ArithExpr.asCst(v.range.max))).toMap
@@ -436,7 +446,7 @@ class OpenCLGenerator extends Generator {
         case _ => (block: Block) += OpenCLAST.Comment("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
-      case p: Param =>
+      case _: Param =>
     }
   }
 
@@ -610,7 +620,7 @@ class OpenCLGenerator extends Generator {
     e match {
       case e: Expr =>
         e.t match {
-          case a: UnknownLengthArrayType =>
+          case _: UnknownLengthArrayType =>
             // TODO: Emitting a view of type ArrayType is illegal!
             val arrayStart = ViewPrinter.emit(e.view)
             Left(VarRef(e.mem.variable, arrayIndex = ArithExpression(arrayStart)))
@@ -644,7 +654,7 @@ class OpenCLGenerator extends Generator {
 
         generate(r.f.body, innerBlock)
 
-      case Right(len: ArithExpr) =>
+      case Right(_: ArithExpr) =>
         generateForLoop(block, r.loopVar, generate(r.f.body, _), r.shouldUnroll)
     }
 
@@ -661,16 +671,13 @@ class OpenCLGenerator extends Generator {
     // get the memory address of the predicate result
     val pResMem = generateLoadNode(OpenCLMemory.asOpenCLMemory(r.pmem), r.p.body.t, r.p.body.view)
 
-    val pResMemVar =  OpenCLMemory.asOpenCLMemory(r.pmem).variable
     val generateBody = (ib: Block) =>  {
       // generate the Predicate
       generate(r.p.body, ib)
       // generate the access and break
       generateConditional(ib,
         pResMem,
-        (ccb) => {
-
-        },
+        _ => {},
         (ccb) => {
           (ccb: Block) += OpenCLAST.Break()
         }
@@ -694,7 +701,7 @@ class OpenCLGenerator extends Generator {
 
         generateBody(innerBlock)
 
-      case Right(len: ArithExpr) =>
+      case Right(_: ArithExpr) =>
         generateForLoop(block, r.loopVar, generateBody(_), r.shouldUnroll)
     }
 
@@ -1325,7 +1332,7 @@ class OpenCLGenerator extends Generator {
               OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + componentSuffix)
 
             // originally a tuple, now a value. => generate stuff like var[i]._j
-            case (t: Type, st: ScalarType)
+            case (t: Type, _: ScalarType)
               if Type.getValueType(t).isInstanceOf[TupleType] =>
               // get tuple component and generate suffix (._j)
               val vtc = view.asInstanceOf[ViewTupleComponent]
