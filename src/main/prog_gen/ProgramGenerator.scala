@@ -139,6 +139,8 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     ParamList += Param(Float)
     ParamList += Param(Float)
 
+    generateTranspose()
+
     for (_ <- 0 until loopNum)
       generateLambda()
 
@@ -189,13 +191,48 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     RefinedResult = grouped.map(_._2.head).toBuffer
   }
 
+  private def generateTranspose(): Unit = {
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
+    val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
+
+    ParamList.foreach(param => {
+      param.t match{
+        case ArrayType(ArrayType(_,_),_) =>
+
+          // Get the argument of FunCall
+          val arg = getArg(param,PassParamUpPossibility)
+
+          // Build the FunCall
+          val F = FunCall(Transpose(), arg)
+
+          // Set output type
+          TypeChecker(F)
+
+          // Build the param corresponds to the FunCall
+          val P = Param(F.t)
+
+          // Count the parameters of lambda
+          val lParams = collectUnboundParams(F)
+
+          // Build the lambda
+          val L = Lambda(lParams.toArray[Param], F)
+
+          tempParamList += P
+          tempLambdaList += L
+          tempParamToFunCall += ((P, F))
+        case _=>
+      }
+    })
+
+    limitResults(tempLambdaList, tempParamList, tempParamToFunCall)
+  }
+
   private def generateLambda(): Unit = {
     val totChoiceNum = 7
 
-    val randChoice = util.Random.nextInt(totChoiceNum)
-
     unpackParams()
-    //randChoice match{
+
     AssignedChoiceNum match {
       case 0 if GenJoin =>
         generateJoin()
@@ -355,7 +392,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
           ParamToFunCall.exists(kv =>
             ConsequentUserFun && kv._1 == p && kv._2.f.isInstanceOf[UserFun]))
 
-      // TODO: Pick random ones here? Creates a huge number of combinations
+      // TODO: Pick random ones here? Creates a huge number of combinations!!
       // TODO: Filter out equivalent ones?
       val correctTypes = candidateCombinations.filter(params =>
         (params, inputTypes).zipped.forall((p, t) => p.t == t))

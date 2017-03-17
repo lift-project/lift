@@ -63,6 +63,13 @@ class TestProgramGenerator {
   }
 
   @Test
+  def transposeGeneration(): Unit = {
+    assertTrue(generatedPrograms.exists(_.body.contains({
+      case FunCall(Transpose(), _*) =>
+    })))
+  }
+
+  @Test
   def addGeneration(): Unit = {
     assertTrue(generatedPrograms.exists(_.body.contains({
       case FunCall(uf: UserFun, _*) if uf == add =>
