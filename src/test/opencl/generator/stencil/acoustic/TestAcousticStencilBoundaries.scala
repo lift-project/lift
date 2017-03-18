@@ -4,11 +4,12 @@ import com.sun.xml.internal.ws.developer.Serialization
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor}
+import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
+import org.junit.Assume.assumeFalse
 import java.io._
 
 import rewriting.SimplifyAndFuse
@@ -399,6 +400,7 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testSimpleOneGridWithBoundaryCheckMask3D(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val localDim = 4
     val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
@@ -455,6 +457,8 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testTwoGridsThreeCalculationsWithMask3D(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val localDim = 4
     val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
     val stencilarrsame3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
@@ -529,6 +533,8 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3D(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val localDimX = 6
     val localDimY = 8
     val localDimZ = 12
@@ -691,6 +697,8 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3DGeneral(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val localDimX = 4
     val localDimY = 6
     val localDimZ = 10
@@ -830,6 +838,7 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testTwoGridsThreeCalculationsAsym3DGeneralNoMask(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val compareData = Array(
       4.375f, 7.75f, 11.125f, 14.5f, 17.875f, 21.25f, 24.625f, 23.5f,

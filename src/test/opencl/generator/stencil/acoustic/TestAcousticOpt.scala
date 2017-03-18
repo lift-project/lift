@@ -3,11 +3,12 @@ package opencl.generator.stencil.acoustic
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.{SizeVar, StartFromRange, Var}
-import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor}
+import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
+import org.junit.Assume.assumeFalse
 import rewriting.SimplifyAndFuse
 import utils.OutputKernelJSON
 
@@ -30,6 +31,7 @@ class TestAcousticOpt {
 
   @Test
   def testTwoGridsThreeCalculationsAsym3DGeneralNoMaskWithOnlyOneWeights(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val compareData = Array(
 
@@ -144,6 +146,7 @@ class TestAcousticOpt {
 
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3DGeneralOneWeights(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
    val compareData = Array(
      16.25f, 28.5f, 40.75f, 43.0f,
@@ -318,6 +321,7 @@ class TestAcousticOpt {
 
   @Test
   def testSimple3DStencilWithAt(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val compareData = Array(
       1.0f, 2.0f, 3.0f, 4.0f,
@@ -369,6 +373,7 @@ class TestAcousticOpt {
 
   @Test
   def test3DAsymNoMaskStencilWithAt(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val compareData = Array(
 
@@ -483,6 +488,7 @@ class TestAcousticOpt {
 
   @Test
   def test3DAsymMaskStencilWithAt(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val compareData = Array(
       16.25f, 28.5f, 40.75f, 43.0f,
