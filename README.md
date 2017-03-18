@@ -27,4 +27,6 @@ Alternatively, you can add the Executor build directory to your LD_LIBRARY_PATH.
 
 ### Documentation ###
 
+[Documentation](http://lift-project.readthedocs.io/en/latest/)
+
 [ScalaDoc](http://skelter:8080/job/lift-amd/branch/master/javadoc/#package)
