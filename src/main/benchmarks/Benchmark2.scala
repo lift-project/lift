@@ -83,8 +83,8 @@ abstract class Benchmark2[T: ClassTag](val name: String,
   }
 
   // postprocess the results for a specific variant
-  def postProcessResult(variant: Int, name: String, result: Array[T]) : Array[T] = {
-    result
+  def postProcessResult(variant: Int, name: String, result: Any) : Array[T] = {
+    result.asInstanceOf[Array[T]]
   }
 
   // Mutate the lambdas of a particular variant, e.g. for a case that depends on last-minute information

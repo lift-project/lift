@@ -1,9 +1,9 @@
 package benchmarks
 
-import ir._
-import ir.ast._
+import ir.{TupleType, ArrayType}
+import ir.ast.{Lambda, UserFun, fun, Zip}
 import opencl.ir._
-import opencl.ir.pattern._
+import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
 import lift.arithmetic.SizeVar
 
 class DBSelect(override val f: Seq[(String, Array[Lambda])])
@@ -30,6 +30,15 @@ class DBSelect(override val f: Seq[(String, Array[Lambda])])
     Seq(colA, colB, colC)
   }
   
+  override def postProcessResult(variant: Int,
+                                 name: String,
+                                 result: Any): Array[(Int, Int, Int)] = {
+    // The executor returns the result in a flattened format so we need to
+    // post-process it
+    val unprocessed = result.asInstanceOf[Array[Int]].grouped(3)
+    unprocessed.map({ case Array(x, y, z) => (x, y, z) }).toArray
+  }
+  
   override protected def printParams(): Unit = {
     println("Emulating query: `SELECT A, B FROM table WHERE C = 1`")
     println("where `table` has 3 integer columns (A, B, C).")
@@ -43,9 +52,8 @@ class DBSelect(override val f: Seq[(String, Array[Lambda])])
                                       lambdas: Array[Lambda],
                                       configuration: BenchmarkConfiguration,
                                       iStats: InstanceStatistic): String = {
-    // TODO: handle all the whole content of `stats`
     val (stats, correctness) = iStats(variant)
-    s"($variant, $name, ${stats(0)}, $correctness)"
+    stats.map(stat => s"($variant, $name, $stat, $correctness)").mkString("\n,")
   }
 }
 
