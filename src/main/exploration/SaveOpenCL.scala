@@ -173,7 +173,10 @@ class SaveOpenCL(
     "globalMemory,localMemory,privateMemory,globalStores,globalLoads," +
     "localStores,localLoads,privateStores,privateLoads,barriers," +
     "coalescedGlobalStores,coalescedGlobalLoads,vectorGlobalStores,vectorGlobalLoads," +
-    "ifStatements,forStatements,add,mult,addMult,vecAddMult,dot\n"
+    "vectorLocalStores,vectorLocalLoads,vectorPrivateStores,vectorPrivateLoads," +
+    "scalarGlobalStores,scalarGlobalLoads,scalarLocalStores,scalarLocalLoads," +
+    "scalarPrivateStores,scalarPrivateLoads," +
+    "ifStatements,forStatements,add,mult,addVec,multVec,addMult,vecAddMult,dot,opCount\n"
 
   private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
 
@@ -215,12 +218,12 @@ class SaveOpenCL(
     val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
     val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDbl
 
-    val globalStores = accessCounts.getStores(GlobalMemory, exact).evalDbl
-    val globalLoads = accessCounts.getLoads(GlobalMemory, exact).evalDbl
-    val localStores = accessCounts.getStores(LocalMemory, exact).evalDbl
-    val localLoads = accessCounts.getLoads(LocalMemory, exact).evalDbl
-    val privateStores = accessCounts.getStores(PrivateMemory, exact).evalDbl
-    val privateLoads = accessCounts.getLoads(PrivateMemory, exact).evalDbl
+    val globalScalarStores = accessCounts.getStores(GlobalMemory, exact).evalDbl
+    val globalScalarLoads = accessCounts.getLoads(GlobalMemory, exact).evalDbl
+    val localScalarStores = accessCounts.getStores(LocalMemory, exact).evalDbl
+    val localScalarLoads = accessCounts.getLoads(LocalMemory, exact).evalDbl
+    val privateScalarStores = accessCounts.getStores(PrivateMemory, exact).evalDbl
+    val privateScalarLoads = accessCounts.getLoads(PrivateMemory, exact).evalDbl
 
     val barriers = barrierCounts.getTotalCount(exact).evalDbl
 
@@ -234,22 +237,52 @@ class SaveOpenCL(
     val vectorGlobalLoads =
       accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDbl
 
+    val vectorLocalStores =
+      accessCounts.vectorStores(LocalMemory, UnknownPattern, exact).evalDbl
+    val vectorLocalLoads =
+      accessCounts.vectorLoads(LocalMemory, UnknownPattern, exact).evalDbl
+
+    val vectorPrivateStores =
+      accessCounts.vectorStores(PrivateMemory, UnknownPattern, exact).evalDbl
+    val vectorPrivateLoads =
+      accessCounts.vectorLoads(PrivateMemory, UnknownPattern, exact).evalDbl
+
+    val globalStores = vectorGlobalStores + globalScalarStores
+    val globalLoads = vectorGlobalLoads + globalScalarLoads
+
+    val localStores = vectorLocalStores + localScalarStores
+    val localLoads = vectorLocalLoads + localScalarLoads
+
+    val privateStores = vectorPrivateStores + privateScalarStores
+    val privateLoads = vectorPrivateLoads + privateScalarLoads
+
     val ifStatements = controlFlow.getIfStatements(exact).evalDbl
     val forStatements = controlFlow.getForStatements(exact).evalDbl
 
-    val addCount = functionCounts.getFunctionCount(add, exact).evalDbl
-    val multCount = functionCounts.getFunctionCount(mult, exact).evalDbl
+    val addScalarCount = functionCounts.getFunctionCount(add, exact).evalDbl
+    val multScalarCount = functionCounts.getFunctionCount(mult, exact).evalDbl
+
+    val addVecCount = functionCounts.getVectorisedCount(add, exact).evalDbl
+    val multVecCount = functionCounts.getVectorisedCount(mult, exact).evalDbl
+
     val addMult = functionCounts.getAddMultCount(exact).evalDbl
     val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDbl
     val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
+
+    val opCount =
+      addScalarCount + multScalarCount + addVecCount + multVecCount + dotCount
 
     val string =
       s"$hash,${globalSizes.mkString(",")},${localSizes.mkString(",")}," +
         s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
         s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
         s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +
-        s"$vectorGlobalLoads,$ifStatements,$forStatements,$addCount,$multCount," +
-        s"$addMult,$vecAddMult,$dotCount\n"
+        s"$vectorGlobalLoads," +
+        s"$vectorLocalStores,$vectorLocalLoads,$vectorPrivateStores,$vectorPrivateLoads," +
+        s"$globalScalarStores,$globalScalarLoads,$localScalarStores,$localScalarLoads," +
+        s"$privateScalarStores,$privateScalarLoads," +
+        s"$ifStatements,$forStatements,$addScalarCount,$multScalarCount," +
+        s"$addVecCount,$multVecCount,$addMult,$vecAddMult,$dotCount,$opCount\n"
 
     string
   }
