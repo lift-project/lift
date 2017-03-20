@@ -82,8 +82,14 @@ Device::Device(const cl::Device& device,
 
 cl::NDRange Device::checkLocalSize(const cl::Kernel& kernel,
                                    cl::NDRange local) const {
-  auto device = _commandQueue.getInfo<CL_QUEUE_DEVICE>();
-  auto max_local_size = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(device);
+  auto platform = _device.getInfo<CL_DEVICE_PLATFORM>();
+  auto platformName = cl::Platform(platform).getInfo<CL_PLATFORM_NAME>();
+  if (platformName != "Apple") {
+    // always return local unchanged on non Apple platforms
+    return local;
+  }
+
+  auto max_local_size = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(_device);
   
   if (max_local_size < local[0] * local[1] * local[2]) {
     LOG_WARNING("given local size of ", ::printNDRange(local),
