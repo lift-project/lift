@@ -218,6 +218,15 @@ abstract class View(val t: Type = UndefType) {
     }
   }
 
+  def size(): View = {
+    this match {
+      case z: ViewZip => z.iv match {
+        case t: ViewTuple => t.ivs.head.size()
+      }
+      case _ if this.t.isInstanceOf[ArrayType] => this.access(0)
+    }
+  }
+
 }
 
 private[view] case class ViewGeneratorUserFun(f: UserFun, override val t: ArrayType) extends View(t)
@@ -406,7 +415,7 @@ object View {
    */
   def apply(lambda: Lambda): Unit = {
    lambda.params.foreach((p) => {
-      p.view = View(p.t, OpenCLPrinter().toString(p.mem.variable))
+      p.view = View(p.t, OpenCLPrinter.toString(p.mem.variable))
     })
     View(lambda.body)
   }

@@ -55,7 +55,7 @@ sealed abstract class Type {
     }
   }
 
-  def hasFixedSize : Boolean
+  def hasFixedSize: Boolean
 
 }
 
@@ -67,7 +67,7 @@ sealed abstract class Type {
  */
 case class ScalarType(name: String, size: ArithExpr) extends Type {
   override def toString = name
-  override def hasFixedSize = true
+  override def hasFixedSize: Boolean = true
 }
 
 /**
@@ -79,7 +79,7 @@ case class ScalarType(name: String, size: ArithExpr) extends Type {
  */
 case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
   override def toString = scalarT.toString + len.toString
-  override def hasFixedSize = true
+  override def hasFixedSize: Boolean = true
 }
 
 /**
@@ -92,7 +92,7 @@ case class TupleType(elemsT: Type*) extends Type {
   override def toString
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 
-  override def hasFixedSize = elemsT.forall(_.hasFixedSize)
+  override def hasFixedSize: Boolean = elemsT.forall(_.hasFixedSize)
 
 }
 
@@ -121,20 +121,20 @@ case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
 
   override def toString = "Arr(" +elemT+","+len+ ")"
 
-  override def hasFixedSize = elemT.hasFixedSize
+  override def hasFixedSize: Boolean = elemT.hasFixedSize
 }
 
 
 // todo make sure we can distinguish between different unkownlengtharraytype (override hashCode and equals)
-class UnknownLengthArrayType(override val elemT: Type, override val len: Var = PosVar("unknown_length")) extends ArrayType(elemT, len) {
-  override def hasFixedSize = false
+class RuntimeSizedArrayType(override val elemT: Type, override val len: Var = PosVar("unknown_length")) extends ArrayType(elemT, len) {
+  override def hasFixedSize: Boolean = false
 }
 
-object UnknownLengthArrayType {
-  def apply(elemT: Type, len: Var = PosVar("unknown_length")) = {
-    new UnknownLengthArrayType(elemT, len)
+object RuntimeSizedArrayType {
+  def apply(elemT: Type, len: Var = PosVar("unknown_length")): RuntimeSizedArrayType = {
+    new RuntimeSizedArrayType(elemT, len)
   }
-  def unapply(array: UnknownLengthArrayType): Option[(Type, Var)] =
+  def unapply(array: RuntimeSizedArrayType): Option[(Type, Var)] =
     Some((array.elemT, array.len))
 }
 
@@ -482,8 +482,8 @@ object Type {
   def substitute(t: Type,
                  substitutions: scala.collection.Map[ArithExpr, ArithExpr]) : Type = {
     Type.visitAndRebuild(t, t1 => t1, {
-      case UnknownLengthArrayType(et,len) => // TODO add substitution here
-        new UnknownLengthArrayType(et,len)
+      case RuntimeSizedArrayType(et,len) => // TODO add substitution here
+        new RuntimeSizedArrayType(et,len)
       case ArrayType(et,len) =>
         ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
 

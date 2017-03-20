@@ -105,29 +105,29 @@ class TestTypeChecker {
     TypeChecker(lambda)
   }
 
-  @Test
-  def unboundedArrayMap(): Unit = {
-
-    val len = PosVar("len")
-
-    val lambda = fun(
-      UnknownLengthArrayType(Float, len),
-      a => MapSeq(id) $ a
-    )
-
-    val t = TypeChecker(lambda)
-    t match {
-      case UnknownLengthArrayType(Float, l) =>
-        assert (l == len)
-      case _ => assert(false)
-    }
-  }
+//  @Test
+//  def unboundedArrayMap(): Unit = {
+//
+//    val len = PosVar("len")
+//
+//    val lambda = fun(
+//      UnknownLengthArrayType(Float, len),
+//      a => MapSeq(id) $ a
+//    )
+//
+//    val t = TypeChecker(lambda)
+//    t match {
+//      case UnknownLengthArrayType(Float, l) =>
+//        assert (l == len)
+//      case _ => assert(false)
+//    }
+//  }
 
   @Test
   def unboundedArrayReduce(): Unit = {
 
     val lambda = fun(
-      UnknownLengthArrayType(Float),
+      RuntimeSizedArrayType(Float),
       a => ReduceSeq(fun((acc, x) => add(acc, x)), 0.0f) $ a
     )
 
