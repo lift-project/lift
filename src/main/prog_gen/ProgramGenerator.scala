@@ -71,7 +71,6 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
   private val PassParamUpPossibility = 0.0
 
   // Controllers for generate programs
-  private val ConsequentUserFun = true
   private val AllowJoinASplit = false
   private val MustContainMap = true
 
@@ -385,19 +384,32 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
       val inputTypes = userFunToUse.inTs
       val numArgs = inputTypes.length
 
-      val candidateCombinations = ParamList
-        .combinations(numArgs)
-        .filterNot(UserFun_Check.contains)
-        .filterNot(p =>
-          ParamToFunCall.exists(kv =>
-            ConsequentUserFun && kv._1 == p && kv._2.f.isInstanceOf[UserFun]))
+      val checked = mutable.Set[Seq[Int]]()
 
-      // TODO: Pick random ones here? Creates a huge number of combinations!!
+      var parameterCombinations = Seq[Seq[Param]]()
+
       // TODO: Filter out equivalent ones?
-      val correctTypes = candidateCombinations.filter(params =>
-        (params, inputTypes).zipped.forall((p, t) => p.t == t))
+      while (parameterCombinations.length < limitNum && checked.size < ParamList.length) {
 
-      correctTypes.foreach(params => {
+        val indices = Seq.fill(numArgs)(util.Random.nextInt(ParamList.length))
+
+        if (!checked.contains(indices)) {
+
+          checked += indices
+
+          val combination = indices.map(ParamList.apply)
+
+          val typesMatch =
+            !UserFun_Check.contains(combination) &&
+              (combination, inputTypes).zipped.forall((p, t) => p.t == t)
+
+          if (typesMatch)
+            parameterCombinations = parameterCombinations :+ combination
+        }
+
+      }
+
+      parameterCombinations.foreach(params => {
 
         val args = params.map(getArg(_, PassParamUpPossibility))
 
