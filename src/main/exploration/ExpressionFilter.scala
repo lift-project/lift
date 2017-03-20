@@ -48,7 +48,8 @@ object ExpressionFilter {
       // Check local memory usage and overflow
       val localAllocSize = localMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
 
-      if (localAllocSize > 50000 || localMemories.exists(_.mem.size.eval <= 0))
+      if (localAllocSize > SearchParameters.max_amount_local_memory ||
+        localMemories.exists(_.mem.size.eval <= 0))
         return TooMuchLocalMemory
 
       // Check global memory overflow
