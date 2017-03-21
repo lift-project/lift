@@ -29,4 +29,4 @@ Alternatively, you can add the Executor build directory to your LD_LIBRARY_PATH.
 
 [Documentation](http://lift-project.readthedocs.io/en/latest/)
 
-[ScalaDoc](http://skelter:8080/job/lift-amd/branch/master/javadoc/#package)
+[ScalaDoc](http://skelter:8080/job/lift-amd-cpu/branch/master/javadoc/#package)
