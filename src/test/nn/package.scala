@@ -14,7 +14,6 @@ import scala.util.parsing.json.JSON
 package object nn {
   /* Types and data structures */
 
-  case class Tile(mults: Int, inputs: Int, neurons: Int)
   case class Shape(var in: Int = 0, var out: Int = 0,
                    var w: Int = 0, var h: Int = 0,
                    var l0: Int = 0, var l1: Int = 0)

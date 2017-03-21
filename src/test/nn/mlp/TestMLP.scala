@@ -12,7 +12,7 @@ import opencl.executor.{Execute, Executor}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 import scala.util.Try
-import nn.{Shape, Tile}
+import nn.{Shape}
 
 
 object TestMLP {

@@ -72,15 +72,16 @@ class CNN:
 
         # Fully connected layer
         # Reshape conv2 output to fit fully connected layer input
-        fc1 = tf.reshape(conv2, [-1, weights['wmlp1'].get_shape().as_list()[0]])
-        fc1 = tf.add(tf.matmul(fc1, weights['wmlp1']), biases['bmlp1'])
-        fc1 = tf.nn.relu(fc1)
+        # fc1 = tf.reshape(conv2, [-1, weights['wmlp1'].get_shape().as_list()[0]])
+        # fc1 = tf.add(tf.matmul(fc1, weights['wmlp1']), biases['bmlp1'])
+        # fc1 = tf.nn.relu(fc1)
         # Apply Dropout
         # fc1 = tf.nn.dropout(fc1, dropout)
 
         # Output, class prediction
-        out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
-        return out
+        #out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
+        #return out
+        return conv2
 
     def __init__(self, n_kernels, kernel_shape):
         self.mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
@@ -235,7 +236,7 @@ class CNN:
         :param n_batches:
         """
         test_images = np.empty([n_batches, n_inputs, 28, 28, 1])
-        test_results = np.empty([n_batches, n_inputs, 10])
+        test_results = np.empty([n_batches, n_inputs, 10, 10, 32])
         test_targets = np.empty([n_batches, n_inputs, 10])
 
         # Convert arrays to tensors
@@ -280,13 +281,13 @@ class CNN:
         print(test_images.shape)
 
         # Save Tensorflow's forward propagation results into a JSON file
-        json_string = json.dumps(test_results[0].astype(np.float32).tolist())
+        json_string = json.dumps(test_results.astype(np.float32).tolist())
         with open(self.dir_name + '/test_tf_results_n' + str(n_inputs) + '.json', 'w') as outfile:
             outfile.write(json_string)
             outfile.close()
         if self.verbose:
             print("Saved results, shape: ", end='')
-            print(test_results[0].shape)
+            print(test_results.shape)
 
         # Print results
         if self.verbose:
@@ -305,7 +306,7 @@ class CNN:
             print(test_results[0][batch_no][input_no].shape)
             print(test_results[0][batch_no][input_no])
             print("Output[" + str(batch_no) + "][0:" + str(input_no + 1) + "] maxed:")
-            print([list(decision).index(max(decision)) for decision in test_results[batch_no][:input_no + 1]])
+            #print([list(decision).index(max(decision)) for decision in test_results[batch_no][:input_no + 1]])
             print("Correct[" + str(batch_no) + "][0:" + str(input_no + 1) + "]:")
-            print([list(decision).index(max(decision)) for decision in test_targets[batch_no][:input_no + 1]])
+            #print([list(decision).index(max(decision)) for decision in test_targets[batch_no][:input_no + 1]])
 

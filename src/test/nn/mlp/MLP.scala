@@ -10,7 +10,7 @@ import ir.ast.{FunDecl, Join, ReorderWithStride, Scatter, Split, Transpose, Tran
 import lift.arithmetic.SizeVar
 import opencl.ir._
 import opencl.ir.pattern._
-import nn.{Array2D, Array3D, Shape, Tile}
+import nn.{Array2D, Array3D, Shape}
 
 object MLP {
   val layer_idim = SizeVar("layer_idim")

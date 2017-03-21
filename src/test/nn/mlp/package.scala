@@ -8,6 +8,10 @@ import java.nio.file.Paths._
   * Things pertaining to TestMLP tests.
   */
 package object mlp {
+  /* Types and data structures */
+
+  case class Tile(mults: Int, inputs: Int, neurons: Int)
+
   /* Test values */
   val input_W1 = Array(Array(0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f),
     Array(0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.0f),

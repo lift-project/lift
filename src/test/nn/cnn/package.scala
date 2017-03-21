@@ -9,6 +9,10 @@ import java.nio.file.{Files, Paths}
   */
 
 package object cnn {
+  /* Types and data structures */
+
+  case class Tile(kernels_per_thread: Int)
+
   /* Test values */
 
   val input_X = Array(
@@ -63,7 +67,7 @@ package object cnn {
 
     def loadDatasets(nInputs: Int, pathToInputs: String):
     (Array5D[Float], Array5D[Float], Array2D[Float],
-      Array2D[Float]) = {
+      Array5D[Float]) = {
 
       if (!exists(get(pathToInputs + "/wconv1.json")))
         throw new java.io.FileNotFoundException(f"Experiment (nInputs=$nInputs%d) " +
@@ -79,7 +83,8 @@ package object cnn {
 //      tfBmlp = tfBmlp :+ nn.loadJSON1D(pathToInputs + "/bout.json")
 
       val tfX = nn.loadJSON5D(pathToInputs + "/test_images_n" + nInputs + ".json")
-      val tfResult = nn.loadJSON2D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
+      //val tfResult = nn.loadJSON2D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
+      val tfResult = nn.loadJSON5D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
 
       (tfX, tfWconv, tfBconv, tfResult)
     }
@@ -93,7 +98,7 @@ package object cnn {
                    val tfX: Array5D[Float],
                    val tfWconv: Array5D[Float],
                    val tfBconv: Array2D[Float],
-                   val tfResult: Array2D[Float]) {
+                   val tfResult: Array5D[Float]) {
     var isAFirstRun: Boolean = false
     var resultsDir: java.io.File = _
   }

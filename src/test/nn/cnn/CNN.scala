@@ -4,12 +4,12 @@ package nn.cnn
   * Created by nm on 09/01/17.
   */
 
-import ir.ArrayType
-import ir.ast.{FunDecl, Get, Join, Map, Slide2D, Split, Transpose, UserFun, Zip, λ}
+import ir.{ArrayType, TupleType}
+import ir.ast.{FunDecl, Get, Join, Map, Slide2D, Split, Transpose, UserFun, PrintType, Zip, λ}
 import lift.arithmetic.SizeVar
+import nn.{Array2D, Array5D, Array6D, Shape}
 import opencl.ir._
 import opencl.ir.pattern._
-import nn._
 
 object CNN {
   val kernel_xdim = SizeVar("kernel_xdim")
@@ -29,7 +29,7 @@ object CNN {
     ArrayType(Float, output_channels),
     ArrayType(ArrayType(ArrayType(ArrayType(Float, input_channels), input_xdim), input_ydim), n_inputs),
     (K, B, X) => {
-      MapLcl(0)(λ((single_input) => {
+      MapSeq(λ((single_input) => {
         MapSeq(λ((pass_strip) => {
           MapSeq(λ((pass_window) => { Join() o
             MapSeq(λ((weighted_window_per_out_ch, b_per_out_ch) => { // Reduce weighted pass window separately for each output
@@ -52,7 +52,8 @@ object CNN {
   )
 
   /* Parallel layer */
-  def Par(activation_f: UserFun, kernel_shape: Shape, output_shape: Shape, n_output_channels: Int): FunDecl = λ(
+  def Par(activation_f: UserFun, kernel_shape: Shape, output_shape: Shape, n_output_channels: Int,
+          tile: Tile): FunDecl = λ(
     ArrayType(ArrayType(ArrayType(ArrayType(Float,
       n_output_channels), input_channels), kernel_shape.w), kernel_shape.h),
     ArrayType(Float, n_output_channels),
@@ -62,43 +63,46 @@ object CNN {
       MapWrg(1)(λ((input_batch) => {
         MapWrg(0)(λ((input_single) => {
           MapWrg(2)(λ((input_single_wrapped) => {
-            MapLcl(1)(λ((pass_row) => {
-              MapLcl(2)(λ((pass_window) => {
+            MapLcl(1)(λ((pass_window) => {
+              Join() o
+              MapSeq(λ((weighted_window_per_out_ch, b_per_out_ch) => {
+                // Reduce weighted pass window separately for each output
+                MapSeq(toGlobal(activation_f)) o ReduceSeq(add, id(b_per_out_ch)) $ weighted_window_per_out_ch
+              })) o λ((weighted_window_across_out_chs) => Zip(weighted_window_across_out_chs, B)) o Transpose() o
+              MapLcl(2)(λ((window_row, kernel_row) => {
                 Join() o
-                  MapSeq(λ((weighted_window_per_out_ch, b_per_out_ch) => {
-                    // Reduce weighted pass window separately for each output
-                    MapSeq(toGlobal(activation_f)) o ReduceSeq(add, id(b_per_out_ch)) $ weighted_window_per_out_ch
-                  })) o λ((weighted_window_across_out_chs) => Zip(weighted_window_across_out_chs, B)) o Transpose() o
-                  MapLcl(1)(λ((window_row, kernel_row) => {
-                    Join() o
-                      MapSeq(λ((weighted_row_per_out_ch) => {
-                        // Reduce weighted pass window rows separately for each output
-                        MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) o Join() $ weighted_row_per_out_ch
-                      })) o Transpose() o Split(n_output_channels) o // multiplied by width (==160)
-                      MapLcl(0)(λ((el_in_chs) => {
-                        /* Map below returns (n_out_chs, n_els) */
-                        //MapLcl(0)(λ((k_el_out_ch) => {
-                        MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) o
-                          MapSeq(λ((el_in_ch) =>
-                            mult(/*x_el_in_chs*/Get(el_in_ch, 0), /*k_el_in_ch*/Get(el_in_ch, 1)))) $ el_in_chs
-                        //})) o
-                      })) o Join() o
-                    // Transpose: (n_in_chs, n_out_chs) -> (n_out_chs, n_in_chs)
-                    // (x_el_in_chs0, (k_el_out_ch00, k_el_out_ch01)) ->
-                    // ((x_el_in_chs0, k_el_out_ch00), (x_el_in_chs0, k_el_out_ch01))
-                    Map(λ((/*x_el_in_chs, k_el_in_chs*/el_in_chs) =>
-                      Map(λ((k_el_out_ch) => Zip(/*x_el_in_chs*/Get(el_in_chs, 0), k_el_out_ch))) o Transpose() $
-                        /*k_el_in_chs*/Get(el_in_chs, 1)
-                    )) $ Zip(window_row, kernel_row)
-                  })) $ Zip(pass_window, K)
-              })) $ pass_row
-            })) o // (pass_strip_n, pass_window_n, pass_row_n) -> (pass_strip_n * pass_row_n, pass_window_n)
-              Join() o Map(λ((pass_strip) => {
-                Transpose() o
-                  Map(λ((pass_window) => {
-                    Zip(pass_window, K)
-                  })) $ pass_strip
-              })) $ input_single_wrapped
+                MapSeq(λ(ArrayType(Float, n_output_channels),
+                  (weighted_row_per_out_ch) => {
+                  // Reduce weighted pass window rows separately for each output
+                  MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
+                })) o PrintType() o Transpose() o PrintType() o
+                /*out_chs->els*/Split(n_output_channels) o PrintType() o Join(/*tiles*/) o PrintType() o
+                MapLcl(0)(λ(/*tiles*/ArrayType(/*out_chs*/ArrayType(
+                            TupleType(/*x_el_in_ch*/Float, /*k_el_in_ch*/Float),
+                            input_channels), tile.kernels_per_thread),
+                            (tile_of_out_chs) => {
+                  /* Map below returns (n_out_chs, n_els) */
+                  Join() o
+                  MapSeq(λ((out_ch) => {
+                    MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) o
+                    MapSeq(λ(TupleType(Float/*x_el_in_ch*/, Float/*k_el_in_ch*/),
+                             (el_in_ch) =>
+                      mult(/*x_el_in_chs*/ Get(el_in_ch, 0), /*k_el_in_ch*/ Get(el_in_ch, 1)))) $ out_ch
+                  })) o PrintType() $ tile_of_out_chs
+                })) o Split(tile.kernels_per_thread) o Join(/*rows->els*/) o
+                // Transpose: (n_in_chs, n_out_chs) -> (n_out_chs, n_in_chs)
+                // (x_el_in_chs0, (k_el_out_ch00, k_el_out_ch01)) ->
+                // ((x_el_in_chs0, k_el_out_ch00), (x_el_in_chs0, k_el_out_ch01))
+                Map(λ(TupleType(ArrayType(Float, input_channels), /*x_el_in_chs*/
+                      ArrayType(ArrayType(Float, n_output_channels), input_channels)/*k_el_in_chs*/),
+                      (el_in_chs) =>
+                  Map(λ(ArrayType(Float, input_channels), (k_el_out_ch) =>
+                    Zip(/*x_el_in_chs*/Get(el_in_chs, 0), k_el_out_ch))) o Transpose() $
+                    /*k_el_in_chs*/Get(el_in_chs, 1)
+                )) $ Zip(window_row, kernel_row)
+              })) $ Zip(pass_window, K)
+            })) o /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
+              Join() $ input_single_wrapped
           })) o Split(output_shape.h) $ input_single // Wrap input in a one-element array
         })) $ input_batch
       })) o MapSeq(MapSeq(Slide2D(kernel_shape.h, 1, kernel_shape.w, 1))) $ X
@@ -107,12 +111,12 @@ object CNN {
 }
 
 class CNN(/* CNN architectural parameters */
-          val liftCNN: (UserFun, Shape, Shape, Int) => FunDecl,
+          val liftCNN: (UserFun, Shape, Shape, Int, Tile) => FunDecl,
           val activationFun/*per layer*/: Array[UserFun],
           /* CNN application parameters*/
           val nKernels: Array[Int],
           val inputsNonPadded: Array5D[Float], val kernelWeightsNonPadded: Array5D[Float],
-          val kernelBiasesNonPadded: Array2D[Float], val targets: Array2D[Float],
+          val kernelBiasesNonPadded: Array2D[Float], val targets: Array5D[Float],
           val liftFunName: String, val testDescription: String, val pathToResults: String) {
   /**
     * Initializes variables, computes workgroup sizes.

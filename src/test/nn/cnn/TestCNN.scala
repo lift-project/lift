@@ -4,7 +4,7 @@ import java.io.{File, PrintWriter}
 import java.nio.file.Files.{createDirectory, exists}
 import java.nio.file.Paths.get
 
-import nn.Shape
+import nn.{Shape}
 import opencl.executor.{Execute, Executor}
 import org.junit.Assert.{assertArrayEquals, _}
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -99,7 +99,7 @@ class TestCNN {
       if rerunsAllowed || {if (!exists(get(pathToResults))) {
         createDirectory(get(pathToResults))
         true} else false}
-      nInputs <- 32 to 512 by 32
+      nInputs <- 8 to 512 by 32
       // Results dir exists, but doesn't contain results of this experiment or it does, but reruns are allowed:
       if rerunsAllowed || new File(pathToResults).listFiles.toList.count {
         file => file.getName.endsWith("_n%d.csv".format(nInputs))} == 0
@@ -120,7 +120,7 @@ class TestCNN {
         f"nInputs=${e.nInputs}%d).")
 
       try {
-        singleTest(new CNN(CNN.Par, Array(nn.Linear), Array(e.nKernelsL0, e.tfBconv.head.length),
+        singleTest(new CNN(CNN.Par, Array(nn.ReLU, nn.ReLU), Array(e.nKernelsL0, e.tfBconv(1).length),
           e.tfX, e.tfWconv, e.tfBconv, e.tfResult, "CNN.Par",
           f"(MNIST dataset) x2 parallel convolutional kernels.", e.pathToInputs))
       } catch {
@@ -155,7 +155,7 @@ class TestCNN {
           cnn.globalSize0(layerNo), cnn.globalSize1(layerNo), cnn.globalSize2(layerNo), (true, true))(
           // TODO: padding
           cnn.liftCNN(cnn.activationFun(layerNo), cnn.kernelShapePadded(layerNo), cnn.layerOutputShapePadded(layerNo),
-            cnn.nKernels(layerNo)),
+            cnn.nKernels(layerNo), Tile(kernels_per_thread=2)),
           cnn.kernelWeightsPadded(layerNo), cnn.kernelBiasesPadded(layerNo), cnn.layerInputsPadded(layerNo))
 
       cnn.runTimes(layerNo) = runtime
@@ -170,16 +170,17 @@ class TestCNN {
     }
     // TODO: unpad
     //cnn.unPadOutputs()
+    cnn.outputsNonPadded = cnn.layerOutputsPadded.last
     println()
 
     /* Check and save results */
     // TODO: check and save
-    /*val file = new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputsNonPadded))
+    val file = new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputsNonPadded))
     file.getParentFile.mkdirs()
     val pw = new PrintWriter(file)
     var noErrors = false
     try {
-      pw.write("device_name,f_name,n_inputs_l0_nonpadded,mults_per_thread,neurons_per_wrg," +
+      /*pw.write("device_name,f_name,n_inputs_l0_nonpadded,mults_per_thread,neurons_per_wrg," +
         {for (layerNo <- 0 until cnn.nLayers) yield f"n_neurons_l$layerNo%d_nonpadded"}.mkString(",") + "," +
         {for (layerNo <- 0 until cnn.nLayers) yield f"n_neurons_l$layerNo%d_padded"}.mkString(",") + "," +
         {for (layerNo <- 0 until cnn.nLayers) yield f"activation_f$layerNo%d"}.mkString(",") + "," +
@@ -193,13 +194,13 @@ class TestCNN {
         pw.write(f"${cnn.nNeuronsPadded(layerNo)}%d,")
       for (layerNo <- 0 until cnn.nLayers)
         pw.write(cnn.activationFun(layerNo).toString + ",")
-      pw.write(f"${cnn.runTimes(0)}%1.5f,${cnn.runTimes(1)}%1.5f,${cnn.runTimes(2)}%1.5f\n")
+      pw.write(f"${cnn.runTimes(0)}%1.5f,${cnn.runTimes(1)}%1.5f,${cnn.runTimes(2)}%1.5f\n")*/
 
       for ((liftSingleResult, targetSingleResult) <- cnn.outputsNonPadded zip cnn.targets) {
         //println(liftSingleResult.mkString(", "))
         //println(targetSingleResult.mkString(", "))
-        assertArrayEquals(f"The lift output #$inputNo%d is different to the Tensorflow output", targetSingleResult,
-          liftSingleResult, precision)
+        assertArrayEquals(f"The lift output #$inputNo%d is different to the Tensorflow output",
+          targetSingleResult.flatten.flatten.flatten, liftSingleResult.flatten.flatten.flatten, precision)
         inputNo = inputNo + 1
       }
       noErrors = true
@@ -212,6 +213,6 @@ class TestCNN {
       pw.close()
       if (!noErrors)
         new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputsNonPadded)).delete()
-    }*/
+    }
   }
 }

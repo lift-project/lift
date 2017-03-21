@@ -12,7 +12,7 @@ kernel_heights = np.arange(10, 11, 5)  # 5, 25, 5)
 kernel_ns_l0 = np.arange(16, 17, 4)  # 8, 48, 4)
 kernel_ns_l1 = np.arange(32, 33, 4)  # 8, 48, 4)
 batches_ns = [2]
-inputs_ns = np.arange(64, 65, 32)  # 32, 512, 32)
+inputs_ns = np.arange(8, 9, 32)  # 32, 512, 32)
 
 for kernel_n_l0 in kernel_ns_l0:
     for kernel_n_l1 in kernel_ns_l1:
