@@ -593,18 +593,21 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         case aaf: Array[Array[Float]] => global.input(aaf.flatten)
         case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
         case aaaaf: Array[Array[Array[Array[Float]]]] => global.input(aaaaf.flatten.flatten.flatten)
+        case aaaaaf: Array[Array[Array[Array[Array[Float]]]]] => global.input(aaaaaf.flatten.flatten.flatten.flatten)
 
         case i: Int => value(i)
         case ai: Array[Int] => global.input(ai)
         case aai: Array[Array[Int]] => global.input(aai.flatten)
         case aaai: Array[Array[Array[Int]]] => global.input(aaai.flatten.flatten)
         case aaaai: Array[Array[Array[Array[Int]]]] => global.input(aaaai.flatten.flatten.flatten)
+        case aaaaai: Array[Array[Array[Array[Array[Int]]]]] => global.input(aaaaai.flatten.flatten.flatten.flatten)
 
         case d: Double => value(d)
         case ad: Array[Double] => global.input(ad)
         case aad: Array[Array[Double]] => global.input(aad.flatten)
         case aaad: Array[Array[Array[Double]]] => global.input(aaad.flatten.flatten)
         case aaaad: Array[Array[Array[Array[Double]]]] => global.input(aaaad.flatten.flatten.flatten)
+        case aaaaad: Array[Array[Array[Array[Array[Double]]]]] => global.input(aaaaad.flatten.flatten.flatten.flatten)
 
         case d: Boolean => value(d)
         case ad: Array[Boolean] => global.input(ad)
