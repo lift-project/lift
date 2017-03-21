@@ -5,11 +5,12 @@ import benchmarks.NBody
 import exploration.{ExpressionFilter, ParameterRewrite}
 import ir._
 import ir.ast._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.generator.TestNBody._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit._
+import org.junit.Assume.assumeFalse
 
 object TestRewriteNbody {
    @BeforeClass
@@ -28,6 +29,7 @@ class TestRewriteNbody {
 
   @Test
   def nBodyLocalMem(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val f = fun(
       ArrayType(Float4, N),

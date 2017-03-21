@@ -21,8 +21,6 @@
 
 namespace {
 
-#ifndef NDEBUG // DEBUG build
-
 std::string printNDRange(const cl::NDRange& range)
 {
   std::stringstream s;
@@ -37,8 +35,6 @@ std::string printNDRange(const cl::NDRange& range)
   s << " }";
   return s.str();
 }
-
-#endif
 
 void invokeCallback(cl_event /*event*/, cl_int status, void * userData)
 {
@@ -84,6 +80,28 @@ Device::Device(const cl::Device& device,
            platformName, "'");
 }
 
+cl::NDRange Device::checkLocalSize(const cl::Kernel& kernel,
+                                   cl::NDRange local) const {
+  auto platform = _device.getInfo<CL_DEVICE_PLATFORM>();
+  auto platformName = cl::Platform(platform).getInfo<CL_PLATFORM_NAME>();
+  if (platformName != "Apple") {
+    // always return local unchanged on non Apple platforms
+    return local;
+  }
+
+  auto max_local_size = kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(_device);
+  
+  if (max_local_size < local[0] * local[1] * local[2]) {
+    LOG_WARNING("given local size of ", ::printNDRange(local),
+                " larger than allowed for this kernel on this device");
+    auto new_local = cl::NDRange(max_local_size, 1, 1);
+    LOG_WARNING("force local size to ", ::printNDRange(new_local));
+    return new_local;    
+  } else {
+    return local;
+  }
+}
+
 cl::Event Device::enqueue(const cl::Kernel& kernel,
                           const cl::NDRange& global,
                           const cl::NDRange& local,
@@ -104,10 +122,11 @@ cl::Event Device::enqueue(const cl::Kernel& kernel,
   });
 #pragma GCC diagnostic pop
   ASSERT(globalSizeIsDivisiableByLocalSize());
-  
+
   cl::Event event;
   try {
-    _commandQueue.enqueueNDRangeKernel(kernel, offset, global, local,
+    _commandQueue.enqueueNDRangeKernel(kernel, offset,
+                                       global, checkLocalSize(kernel, local),
                                        NULL, &event);
     _commandQueue.flush(); // always start calculation right away
   } catch (cl::Error& err) {

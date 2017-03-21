@@ -4,11 +4,12 @@ import lift.arithmetic.SizeVar
 import exploration.HighLevelRewrite
 import ir._
 import ir.ast._
-import opencl.executor.{Execute, Executor, LongTestsEnabled}
+import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
+import org.junit.Assume.assumeFalse
 import rewriting.utils.NumberExpression
 
 object TestRewriteMatrixMatrix {
@@ -105,6 +106,8 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def loweringTiledAndBlockedBInnermost(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val tileSizeMN = 16
     val tileSizeK = 8
     val workPerThreadN = 2
@@ -152,6 +155,8 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def simpleLowering(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val tileSizeMN = 16
     val tileSizeK = 8
     val workPerThreadN = 2
@@ -262,6 +267,7 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def mmSquareTilesLocalMemory(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val f0 = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, K), N), (p1538399081, p1800890735) => FunCall(Join(), FunCall(Map(fun((p1957502751) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1177377518) => FunCall(TransposeW(), FunCall(Map(fun((p1122805102) => FunCall(TransposeW(), p1122805102))), FunCall(TransposeW(), FunCall(toGlobal(fun((p183284570) => FunCall(MapSeq(fun((p2109874862) => FunCall(Map(fun((p275310919) => FunCall(Map(fun((p797925218) => FunCall(id, p797925218))), p275310919))), p2109874862))), p183284570))), FunCall(ReduceSeq(fun((p1136497418, p1943325854) => FunCall(Map(fun((p1413378318) => FunCall(Map(fun((p1181869371) => FunCall(add, FunCall(Get(0), p1181869371), FunCall(Get(1), p1181869371)))), FunCall(Zip(2), FunCall(Get(0), p1413378318), FunCall(Join(), FunCall(Map(fun((p1256728724) => FunCall(toPrivate(fun((p1157058691) => FunCall(MapSeq(fun((p1667689440) => FunCall(id, p1667689440))), p1157058691))), FunCall(ReduceSeq(fun((p852687460, p1138193439) => FunCall(add, p852687460, FunCall(mult, FunCall(Get(0), p1138193439), FunCall(Get(1), p1138193439))))), FunCall(id, Value(0.0f, Float)), FunCall(Zip(2), FunCall(Get(1), p1413378318), p1256728724))))), FunCall(Transpose(), FunCall(Get(1), p1943325854)))))))), FunCall(Zip(2), p1136497418, FunCall(Transpose(), FunCall(Get(0), p1943325854)))))), FunCall(Map(fun((p194706439) => FunCall(Map(fun((p1686369710) => FunCall(id, p1686369710))), p194706439))), Value(0.0f, ArrayType(ArrayType(Float, 4), 4))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p1957502751)), FunCall(Split(4), FunCall(Transpose(), p1177377518)))))))))), FunCall(Split(4), p1800890735)))))), FunCall(Split(4), p1538399081))))
 
