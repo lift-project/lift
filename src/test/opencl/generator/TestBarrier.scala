@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.Assume.assumeFalse
 
 object TestBarrier {
   @BeforeClass def before(): Unit = {
@@ -210,6 +211,8 @@ class TestBarrier {
   }
 
   @Test def noLoopReorderLastLocal(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val inputSize = 1024
     val input = Array.tabulate(inputSize)(_.toFloat)
     val gold = input.grouped(128).map(_.reverse).flatten.toArray
@@ -231,6 +234,8 @@ class TestBarrier {
   }
 
   @Test def noLoopReorder2Local(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val inputSize = 1024
     val input = Array.tabulate(inputSize)(_.toFloat)
     val gold = input
@@ -253,6 +258,8 @@ class TestBarrier {
   }
 
   @Test def noLoopReorder3Local(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val inputSize = 1024
     val input = Array.tabulate(inputSize)(_.toFloat)
     val gold = input.grouped(128).map(_.reverse).flatten.toArray

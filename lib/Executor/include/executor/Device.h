@@ -311,6 +311,8 @@ public:
   bool supportsDouble() const;
 
 private:
+  cl::NDRange checkLocalSize(const cl::Kernel& kernel, cl::NDRange local) const;
+
   ///
   /// \brief No default constuction allowed
   ///
