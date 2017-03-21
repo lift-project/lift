@@ -14,11 +14,11 @@ import opencl.generator.{OpenCLAST, OpenCLPrinter}
  * @param array Array name
  * @param idx Index to access in the array
  */
-class AccessVar(val array: String, val idx: ArithExpression, r : Range = RangeUnknown, fixedId: Option[Long] = None) extends ExtensibleVar("",r,fixedId) {
-  override def copy(r: Range) = new AccessVar(array, idx, r, Some(id))
+case class AccessVar(array: String, idx: ArithExpression, r : Range = RangeUnknown, fixedId: Option[Long] = None) extends ExtensibleVar("",r,fixedId) {
+  override def copy(r: Range) = AccessVar(array, idx, r, Some(id))
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
-    f(new AccessVar(array, ArithExpression(idx.content.visitAndRebuild(f)), range.visitAndRebuild(f), Some(id)))
+    f(AccessVar(array, ArithExpression(idx.content.visitAndRebuild(f)), range.visitAndRebuild(f), Some(id)))
 }
 
 /**
@@ -454,7 +454,11 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
     sv match {
       case _: ViewMem =>
         assert(tupleAccessStack.isEmpty)
-        val index = arrayAccessStack.map(x => x._1 * x._2).foldLeft(Cst(0): ArithExpr)((x, y) => x + y)
+        val index = arrayAccessStack.map(x => x._2 match {
+          case Var("unknown_length", _) =>
+            AccessVar(v.toString, ArithExpression(x._1))
+          case _ => x._1 * x._2
+        }).foldLeft(Cst(0): ArithExpr)((x, y) => x + y)
         VarRef(v, arrayIndex = ArithExpression(index))
 
       case access: ViewAccess =>
