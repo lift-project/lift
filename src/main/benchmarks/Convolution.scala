@@ -149,7 +149,7 @@ object Convolution{
       ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17*17),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+        Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
@@ -198,7 +198,7 @@ object Convolution{
     ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
-      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+      Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
         MapLcl(1)(MapLcl(0)(
           // stencil computation
@@ -228,7 +228,7 @@ object Convolution{
     ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
-      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+      Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
         MapLcl(1)(MapLcl(0)(
           // stencil computation
@@ -258,7 +258,7 @@ object Convolution{
     ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
-      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+      Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
         MapLcl(1)(MapLcl(0)(
           // stencil computation
@@ -288,7 +288,7 @@ object Convolution{
       ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+        Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
@@ -319,7 +319,7 @@ object Convolution{
       ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+        Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
@@ -351,7 +351,7 @@ object Convolution{
       ArrayType(ArrayType(Float, inputSize), inputSize),
       ArrayType(Float, 17),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+        Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
@@ -406,7 +406,7 @@ object Convolution{
     ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
-      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+      Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
         MapLcl(1)(MapLcl(0)(
           // stencil computation
@@ -436,7 +436,7 @@ object Convolution{
     ArrayType(ArrayType(Float, inputSize), inputSize),
     ArrayType(Float, 17),
     (matrix, weights) => {
-      Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+      Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
         MapLcl(1)(MapLcl(0)(
           // stencil computation

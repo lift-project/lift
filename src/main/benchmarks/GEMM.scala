@@ -114,7 +114,7 @@ object GEMM {
     Float,
     (A, B, C, alpha, beta) => {
       // Undo the tiling
-      Untile() o
+      Untile2D() o
         MapWrg(1)(fun( aRows =>
           MapWrg(0)(fun( bCols =>
 
@@ -207,7 +207,7 @@ object GEMM {
       VectorType(Float, tileSizeN),
       (A, B, C, alpha, beta) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapGlb(1)(fun( aRows =>
             MapGlb(0)(fun( bCols =>
 
@@ -510,7 +510,7 @@ object GEMM {
       VectorType(Float, tileSizeN),
       (A, B, C, alpha, beta) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapGlb(1)(fun( aRows =>
             MapGlb(0)(fun( bCols =>
 

@@ -8,6 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
+import org.junit.Assume.assumeFalse
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object HighLevel {
@@ -234,6 +235,10 @@ class HighLevel {
 
   @Test
   def gesummvKepler(): Unit = {
+
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
+
     // y = A . x * alpha + B . x * beta
     val n = 1024
 

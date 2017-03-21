@@ -96,7 +96,7 @@ class TestDerivingTiling {
     // Replace with predefined tile and untile
     def f6 = fun(
       ArrayType(ArrayType(Float, M), N),
-      input => Untile() o
+      input => Untile2D() o
         MapGlb(MapSeq(MapSeq(MapSeq(plusOne))))
         o Tile(tileSizeN, tileSizeM) $ input
     )
@@ -236,7 +236,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(fun( aRow =>
@@ -256,7 +256,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(fun( aRow =>
@@ -279,7 +279,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(fun( aRow =>
@@ -302,7 +302,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(fun( aRow =>
@@ -327,7 +327,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(MapSeq(id)) o ReduceSeq(fun((acc, p) => MapSeq(add) $ Zip(acc, p)),
@@ -352,7 +352,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(MapSeq(id)))) o MapSeq(ReduceSeq(fun((acc, p) => MapSeq(add) $ Zip(acc, p)),
@@ -377,7 +377,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -412,7 +412,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -448,7 +448,7 @@ class TestDerivingTiling {
           ArrayType(ArrayType(Float, K), M),
           ArrayType(ArrayType(Float, K), N), // Already transposed
           (A, B) => {
-            Untile() o
+            Untile2D() o
               MapGlb(fun( aRows =>
                 MapSeq(fun(bCols =>
                   toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -482,7 +482,7 @@ class TestDerivingTiling {
           ArrayType(ArrayType(Float, K), M),
           ArrayType(ArrayType(Float, K), N), // Already transposed
           (A, B) => {
-            Untile() o
+            Untile2D() o
               MapGlb(fun( aRows =>
                 MapSeq(fun(bCols =>
                   toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -518,7 +518,7 @@ class TestDerivingTiling {
           ArrayType(ArrayType(Float, K), M),
           ArrayType(ArrayType(Float, K), N), // Already transposed
           (A, B) => {
-            Untile() o
+            Untile2D() o
               MapGlb(fun( aRows =>
                 MapSeq(fun(bCols =>
                   toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -554,7 +554,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -590,7 +590,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -627,7 +627,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -665,7 +665,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -707,7 +707,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -744,7 +744,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -781,7 +781,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -818,7 +818,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -855,7 +855,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o
@@ -916,7 +916,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -954,7 +954,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -991,7 +991,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1028,7 +1028,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1065,7 +1065,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1101,7 +1101,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1136,7 +1136,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1170,7 +1170,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1204,7 +1204,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1237,7 +1237,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1270,7 +1270,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1302,7 +1302,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o
@@ -1334,7 +1334,7 @@ class TestDerivingTiling {
       ArrayType(ArrayType(Float, K), M),
       ArrayType(ArrayType(Float, K), N), // Already transposed
       (A, B) => {
-        Untile() o
+        Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(id))) o Join() o

@@ -53,11 +53,12 @@ double execute(const executor::Kernel& kernel,
                int globalSize1, int globalSize2, int globalSize3,
                const std::vector<executor::KernelArg*>& args);
 
-double benchmark(const executor::Kernel& kernel,
-                 int localSize1, int localSize2, int localSize3,
-                 int globalSize1, int globalSize2, int globalSize3,
-                 const std::vector<executor::KernelArg*>& args,
-                 int iterations, double timeout);
+void benchmark(const executor::Kernel& kernel,
+               int localSize1, int localSize2, int localSize3,
+               int globalSize1, int globalSize2, int globalSize3,
+               const std::vector<executor::KernelArg*>& args,
+               int iterations, double timeout,
+               std::vector<double>& runtimes);
 
 double evaluate(const executor::Kernel& kernel,
                 int localSize1, int localSize2, int localSize3,

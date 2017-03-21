@@ -48,7 +48,7 @@ object SHOCStencil2D{
       ArrayType(ArrayType(Float, 8194), 8194),
       ArrayType(Float, 9),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+        Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
@@ -76,7 +76,7 @@ object SHOCStencil2D{
       ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
       ArrayType(Float, 9),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun( tile =>
+        Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
