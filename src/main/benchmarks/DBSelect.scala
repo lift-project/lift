@@ -10,13 +10,13 @@ class DBSelect(override val f: Seq[(String, Array[Lambda])])
       extends Benchmark2[(Int, Int, Int)]("SELECT", Seq(128), f, (x, y) => x == y) {
   
   override def runScala(inputs: Seq[Any]): Array[(Int, Int, Int)] = {
-    val rowA = inputs(0).asInstanceOf[Array[Int]]
-    val rowB = inputs(1).asInstanceOf[Array[Int]]
-    val rowC = inputs(2).asInstanceOf[Array[Int]]
+    val colA = inputs(0).asInstanceOf[Array[Int]]
+    val colB = inputs(1).asInstanceOf[Array[Int]]
+    val colC = inputs(2).asInstanceOf[Array[Int]]
     
     def is_one(n: Int): Int = if (n == 1) 1 else 0
     
-    (rowC.map(is_one), rowA, rowB).zipped.toArray
+    (colC.map(is_one), colA, colB).zipped.toArray
   }
   
   override def generateInputs(): Seq[Any] = {
@@ -42,7 +42,7 @@ class DBSelect(override val f: Seq[(String, Array[Lambda])])
   override protected def printParams(): Unit = {
     println("Emulating query: `SELECT A, B FROM table WHERE C = 1`")
     println("where `table` has 3 integer columns (A, B, C).")
-    println("The first column of the result tells wether each row has been selected:")
+    println("The first column of the result tells whether each row has been selected:")
     println("  1 means selected")
     println("  0 means the opposite")
   }
@@ -72,10 +72,10 @@ object DBSelect {
   
   val naive: Lambda = fun(
     ArrayType(Int, N), ArrayType(Int, N), ArrayType(Int, N),
-    (rowA, rowB, rowC) => {
+    (colA, colB, colC) => {
       MapGlb(toGlobal(tuple_id)) $ Zip(
-        MapSeq(is_one) $ rowC,  // The WHERE clause
-        rowA, rowB              // The selected columns
+        MapSeq(is_one) $ colC,  // The WHERE clause
+        colA, colB              // The selected columns
       )
     }
   )
