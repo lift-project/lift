@@ -614,6 +614,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         case aad: Array[Array[Boolean]] => global.input(aad.flatten)
         case aaad: Array[Array[Array[Boolean]]] => global.input(aaad.flatten.flatten)
         case aaaad: Array[Array[Array[Array[Boolean]]]] => global.input(aaaad.flatten.flatten.flatten)
+        case aaaaad: Array[Array[Array[Array[Array[Boolean]]]]] => global.input(aaaaad.flatten.flatten.flatten.flatten)
 
         case _ => throw new IllegalArgumentException(
           s"Kernel argument is of unsupported type: ${any.getClass}")
