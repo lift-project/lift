@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Assume.assumeFalse
 
 import scala.reflect.ClassTag
 
@@ -151,6 +152,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiply(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -241,6 +244,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiplyLocalMemory(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -293,6 +298,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiplyLocalMemory2(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -348,6 +355,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiplyWithTranspose(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -405,6 +414,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiplyWithTransposeAndPrivate(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
