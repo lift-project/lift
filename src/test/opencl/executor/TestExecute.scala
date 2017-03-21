@@ -6,6 +6,7 @@ import lift.arithmetic._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
+import org.junit.Assume.assumeFalse
 import org.junit._
 
 object TestExecute {
@@ -128,6 +129,8 @@ class TestExecute {
 
   @Test
   def testInferTwoDim(): Unit = {
+
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size1 = 1024
     val size2 = 512

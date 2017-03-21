@@ -9,6 +9,7 @@ import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Assume.assumeFalse
 
 object Best {
   @BeforeClass def before(): Unit =
@@ -26,6 +27,7 @@ class Best {
 
   @Test
   def mm_clblas(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val mSize = 512
     val kSize = 512
@@ -148,6 +150,7 @@ class Best {
   }
 
   @Test def vectorised(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val Msize = 16
     val Ksize = 16
@@ -234,6 +237,8 @@ class Best {
   }
 
   @Test def partiallyVectorisedTiled(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     // Basic tiled matrix multiply without local memory
     val mSize = 16
     val kSize = 16
@@ -361,6 +366,8 @@ class Best {
 
   @Test
   def maliGEMM(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val maliFactory =
       (variables: Seq[ArithExpr]) => {
         val v_K_0 = variables(0)
@@ -457,6 +464,8 @@ class Best {
 
   @Test
   def hawaiiBest(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
       val v_K_1 = variables(1)
@@ -490,6 +499,8 @@ class Best {
 
   @Test
   def hawaiiBestSgemm(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
       val v_K_1 = variables(1)
@@ -636,6 +647,7 @@ class Best {
   }
   @Test
   def clblast_TN_kepler(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
@@ -674,6 +686,8 @@ class Best {
 
   @Test
   def keplerBest(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
       val v_K_1 = variables(1)
@@ -810,6 +824,8 @@ class Best {
 
   @Test
   def keplerBestSgemm(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
       val v_K_1 = variables(1)

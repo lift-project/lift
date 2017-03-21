@@ -18,6 +18,8 @@ object LongTestsEnabled {
 
 object Utils {
 
+  def isApplePlatform = Executor.getPlatformName == "Apple"
+
   def isAmdGpu =
     Executor.getPlatformName == "AMD Accelerated Parallel Processing" && 
     Executor.getDeviceType == "GPU"

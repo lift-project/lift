@@ -9,6 +9,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
+import org.junit.Assume.assumeFalse
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object CGO_2017 {
@@ -41,6 +42,8 @@ class CGO_2017 {
 
   @Test
   def clblast_kepler_mm_TN(): Unit = {
+
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val vectorWidth = 2
 
@@ -187,6 +190,8 @@ class CGO_2017 {
   @Test
   def clblast_kepler_sgemm_TN(): Unit = {
 
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val param = 8
 
     val f = GEMM.clblast_kepler
@@ -294,6 +299,8 @@ class CGO_2017 {
   @Test
   def clblas_kepler_mm_TN(): Unit = {
 
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val tileSizeM = 8
     val tileSizeK = 4
     val tileSizeN = 8
@@ -360,6 +367,8 @@ class CGO_2017 {
 
   @Test
   def clblas_kepler_sgemm_TN(): Unit = {
+
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val tileSizeM = 8
     val tileSizeN = 8

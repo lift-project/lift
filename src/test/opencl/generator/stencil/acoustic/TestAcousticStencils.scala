@@ -6,11 +6,12 @@ import java.io.DataOutputStream
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.Assume.assumeFalse
 import rewriting.SimplifyAndFuse
 
 import scala.language.implicitConversions
@@ -903,6 +904,7 @@ class TestAcousticStencils {
 
   @Test
   def testStencil3DSimple(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     /* u[cp] = S */
 
@@ -949,6 +951,7 @@ class TestAcousticStencils {
 
  @Test
   def testStencil3DSwap(): Unit = {
+   assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     /* u[cp] = u[cp] + u1[cp] */
 
@@ -1001,6 +1004,7 @@ class TestAcousticStencils {
 
   @Test
   def twoGridSwapWith3weightsCalculations3D(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val compareData = Array(
     8.75f,15.5f,22.25f,24.0f,

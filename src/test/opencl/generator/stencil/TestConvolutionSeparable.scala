@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.Assume.assumeFalse
 
 object TestConvolutionSeparable {
    @BeforeClass def before(): Unit = {
@@ -58,6 +59,8 @@ class TestConvolutionSeparable {
   }
 
   @Test def convolutionTiled(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       //ArrayType(ArrayType(Float, 4096), 4096),
@@ -138,6 +141,8 @@ class TestConvolutionSeparable {
   }
 
   @Test def blurYTiled(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       //ArrayType(ArrayType(Float, 4096), 4096),
@@ -181,6 +186,8 @@ class TestConvolutionSeparable {
   }
 
   @Test def blurYTiled2D(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       //ArrayType(ArrayType(Float, 4096), 4096),
@@ -228,6 +235,8 @@ class TestConvolutionSeparable {
   }
 
   @Test def blurYTiled2DTiledLoading(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       ArrayType(ArrayType(Float, Cst(1024)), Cst(1024)),
@@ -277,6 +286,8 @@ class TestConvolutionSeparable {
   }
 
   @Test def blurYTiled2DTransposed(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       //ArrayType(ArrayType(Float, 4096), 4096),
@@ -323,6 +334,8 @@ class TestConvolutionSeparable {
   }
 
   @Test def blurYTiled2DTiledLoadingTransposed(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       //ArrayType(ArrayType(Float, 4096), 4096),

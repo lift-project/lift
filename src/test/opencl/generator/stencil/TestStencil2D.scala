@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit._
+import org.junit.Assume.assumeFalse
 import scala.util.Random
 
 object TestStencil2D {
@@ -245,6 +246,8 @@ class TestStencil2D {
   )
 
   @Test def copyTilesIdentity(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
     val tiled: Lambda = createCopyTilesLambda(4, 2, 1, 1, BOUNDARY)
 
