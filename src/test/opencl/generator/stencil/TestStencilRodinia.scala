@@ -6,6 +6,7 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.Assume.assumeFalse
 
 import scala.util.Random
 
@@ -27,6 +28,9 @@ class TestStencilRodinia {
      RODINIA HOTSPOT
  ***********************************************************/
   @Test def rodiniaHotspot(): Unit = {
+
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     // p = powerValue, t = heatNbh; userfun has to compute:
     // out = t[0,0] + c(p + y(t[-1,0] + t[1,0] - 2t[0,0]) +
     //                      x(t[0,-1] + t[0,1] - 2t[0,0]) +
@@ -190,6 +194,8 @@ class TestStencilRodinia {
   }
 
   @Test def rodiniaHotspot3DLocalMemory(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
       (input) => {

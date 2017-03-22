@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit._
+import org.junit.Assume.assumeFalse
 
 import scala.util.Random
 
@@ -294,6 +295,8 @@ class TestStencil {
       PARBOIL
   ***********************************************************/
   @Test def parboil(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
     // segfaults
     val stencil = fun(

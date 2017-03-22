@@ -11,6 +11,7 @@ import opencl.generator.IllegalKernel
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit._
+import org.junit.Assume.assumeFalse
 
 object TestInvalid {
   @BeforeClass def before(): Unit = {
@@ -320,6 +321,8 @@ class TestInvalid {
   // Trigger an error in the executor in the executor and recover
   @Test
   def ExecutorFailureRecovery(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     try {
       Executor.execute(Build("this is not a valid OpenCL Kernel and should crash the executor"), 1, 1, 1, 1, 1, 1, Array())
     } catch {
@@ -340,6 +343,8 @@ class TestInvalid {
 
   // Test allocating too much local memory
   @Test def AllocateTooMuchLocalMemory(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     try {
       // Allocate 4 times the maximum
       val arg = LocalArg.create(Executor.getDeviceMaxMemAllocSize.asInstanceOf[Int])

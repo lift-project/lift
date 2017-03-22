@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Assume.assumeFalse
 
 object CGO_2017 {
   @BeforeClass def before(): Unit =
@@ -35,6 +36,7 @@ class CGO_2017 {
 
   @Test
   def clblast_gemv_N(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val f = fun(
       ArrayType(ArrayType(Float, N), M),
@@ -75,6 +77,7 @@ class CGO_2017 {
 
   @Test
   def clblast_gemv_T(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val f = fun(
       ArrayType(ArrayType(Float, M), N),
