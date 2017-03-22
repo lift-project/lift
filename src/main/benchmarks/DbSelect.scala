@@ -1,13 +1,13 @@
 package benchmarks
 
 import ir.{TupleType, ArrayType}
-import ir.ast.{Lambda, UserFun, fun, Zip}
+import ir.ast.{Lambda, UserFun, fun, Zip, Join, Split}
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
+import opencl.ir.pattern.{MapGlb, MapWrg, MapSeq, toGlobal}
 import lift.arithmetic.SizeVar
 
-class DBSelect(override val f: Seq[(String, Array[Lambda])])
-      extends Benchmark2[(Int, Int, Int)]("SELECT", Seq(128), f, (x, y) => x == y) {
+class DbSelect(override val f: Seq[(String, Array[Lambda])])
+      extends Benchmark2[(Int, Int, Int)]("SELECT", Seq(4096), f,(x, y) => x == y) {
   
   override def runScala(inputs: Seq[Any]): Array[(Int, Int, Int)] = {
     val colA = inputs(0).asInstanceOf[Array[Int]]
@@ -57,13 +57,10 @@ class DBSelect(override val f: Seq[(String, Array[Lambda])])
   }
 }
 
-object DBSelect {
-  val N = SizeVar("N")
+object DbSelect {
+  private val N = SizeVar("N")
 
-  private val tuple_id = UserFun(
-    "tuple_id", "t", "return t;",
-    TupleType(Int, Int, Int), TupleType(Int, Int, Int)
-  )
+  private val tuple_id = id(TupleType(Int, Int, Int))
 
   private val is_one = UserFun(
     "is_one", "c", "if (c == 1) { return 1; } else { return 0; }",
@@ -80,9 +77,22 @@ object DBSelect {
     }
   )
   
-  def apply() = new DBSelect(Seq(("Naive", Array[Lambda](naive))))
+  val divideNConquer: Lambda = fun(
+    ArrayType(Int, N), ArrayType(Int, N), ArrayType(Int, N),
+    (colA, colB, colC) => {
+      MapGlb(toGlobal(tuple_id)) $ Zip(
+        Join() o MapWrg(MapSeq(is_one)) o Split(256) $ colC,
+        colA, colB
+      )
+    }
+  )
+  
+  def apply() = new DbSelect(Seq(
+    ("Naive", Array[Lambda](naive)),
+    ("Divide and conquer", Array[Lambda](divideNConquer))
+  ))
   
   def main(args: Array[String]): Unit = {
-    DBSelect().run(args)
+    DbSelect().run(args)
   }
 }
