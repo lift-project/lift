@@ -1,9 +1,9 @@
 package benchmarks
 
-import ir.{TupleType, ArrayType}
-import ir.ast.{Lambda, UserFun, fun, Zip, Join, Split}
+import ir.{ArrayType, TupleType}
+import ir.ast.{Join, Lambda, Split, Tuple, UserFun, Zip, fun}
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, MapWrg, MapLcl, MapSeq, toGlobal}
+import opencl.ir.pattern._
 import lift.arithmetic.SizeVar
 
 class DbSelect(override val f: Seq[(String, Array[Lambda])])
@@ -80,12 +80,11 @@ object DbSelect {
   val divideNConquer: Lambda = fun(
     ArrayType(Int, N), ArrayType(Int, N), ArrayType(Int, N),
     (colA, colB, colC) => {
-      MapGlb(toGlobal(tuple_id)) $ Zip(
-        Join() o MapWrg(
-          Join() o toGlobal(MapLcl(MapSeq(is_one))) o Split(4)
-        ) o Split(256) $ colC,
-        colA, colB
-      )
+      Join() o MapWrg(
+        Join() o MapLcl(MapSeq(
+          fun(x => tuple_id $ Tuple(is_one $ x._2, x._0, x._1))
+        )) o Split(4)
+      ) o Split(256) $ Zip(colA, colB, colC)
     }
   )
   
