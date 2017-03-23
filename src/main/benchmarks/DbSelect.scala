@@ -82,8 +82,7 @@ object DbSelect {
     (colA, colB, colC) => {
       MapGlb(toGlobal(tuple_id)) $ Zip(
         Join() o MapWrg(
-          // Join() o toGlobal(MapLcl(MapSeq(is_one))) o Split(4)
-          MapSeq(is_one)
+          Join() o toGlobal(MapLcl(MapSeq(is_one))) o Split(4)
         ) o Split(256) $ colC,
         colA, colB
       )
