@@ -47,7 +47,7 @@ class TestDbSelect {
   }
   
   @Test def testDivideNConquer(): Unit = {
-    val inputSize = 1024
+    val inputSize = 128*128
     val colA = Array.fill(inputSize)(util.Random.nextInt(5))
     val colB = Array.fill(inputSize)(util.Random.nextInt(5))
     val colC = Array.fill(inputSize)(util.Random.nextInt(5))

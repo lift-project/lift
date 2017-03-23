@@ -3,7 +3,7 @@ package benchmarks
 import ir.{TupleType, ArrayType}
 import ir.ast.{Lambda, UserFun, fun, Zip, Join, Split}
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, MapWrg, MapSeq, toGlobal}
+import opencl.ir.pattern.{MapGlb, MapWrg, MapLcl, MapSeq, toGlobal}
 import lift.arithmetic.SizeVar
 
 class DbSelect(override val f: Seq[(String, Array[Lambda])])
@@ -81,7 +81,10 @@ object DbSelect {
     ArrayType(Int, N), ArrayType(Int, N), ArrayType(Int, N),
     (colA, colB, colC) => {
       MapGlb(toGlobal(tuple_id)) $ Zip(
-        Join() o MapWrg(MapSeq(is_one)) o Split(256) $ colC,
+        Join() o MapWrg(
+          // Join() o toGlobal(MapLcl(MapSeq(is_one))) o Split(4)
+          MapSeq(is_one)
+        ) o Split(256) $ colC,
         colA, colB
       )
     }
