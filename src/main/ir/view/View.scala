@@ -491,8 +491,9 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
 
         val newIdx = ViewPrinter.emit(v, filter.ids.access(idx), replacements)
         val indirection = newIdx match {
-          case VarRef(_, _, idx) =>
-            new AccessVar(ViewPrinter.getViewMem(filter.ids).name, idx)
+          case VarRef(_, _, index) =>
+            new AccessVar(ViewPrinter.getViewMem(filter.ids).name, index)
+          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
 
         emitView(v, filter.iv, (indirection, len) :: stack, tupleAccessStack)
@@ -631,7 +632,10 @@ object ViewPrinter {
    * @param view The view to emit.
    * @return The arithmetic expression.
    */
-  def emit(v: Var, view: View, replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): Expression = {
+  def emit(v: Var,
+           view: View,
+           replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()
+          ): Expression = {
     val vp = new ViewPrinter(replacements)
     assert(!view.t.isInstanceOf[ArrayType])
     vp.emitView(v, view.replaced(replacements), List(), List())

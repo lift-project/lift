@@ -2,7 +2,6 @@ package c.generator
 
 import lift.arithmetic._
 import arithmetic.TypeVar
-import c.executor.Compile
 import generator.Generator
 import ir._
 import ir.ast._
@@ -62,7 +61,7 @@ object CGenerator extends Generator {
       (Array.empty[TypedOpenCLMemory], globalsFirst)
   }
 
-  def getDifferentMemories(lambda: Lambda) = {
+  def getDifferentMemories(lambda: Lambda): (Array[TypedOpenCLMemory], Array[TypedOpenCLMemory], Predef.Map[Var, Type]) = {
 
     val valMems = Expr.visitWithState(Set[Memory]())(lambda.body, (expr, set) =>
       expr match {
@@ -130,8 +129,8 @@ class CGenerator extends Generator {
 
   protected var replacements: ValueTable = immutable.Map.empty
   protected var replacementsWithFuns: ValueTable = immutable.Map.empty
-  protected var privateMems = Array[TypedOpenCLMemory]()
-  protected var privateDecls = immutable.Map[Var, CAst.VarDecl]()
+  protected var privateMems: Array[TypedOpenCLMemory] = Array[TypedOpenCLMemory]()
+  protected var privateDecls: Predef.Map[Var, VarDecl] = immutable.Map[Var, CAst.VarDecl]()
 
   protected var varDecls: SymbolTable = immutable.Map.empty
 
@@ -190,7 +189,7 @@ class CGenerator extends Generator {
 
     View(f)
 
-    val globalBlock = new CAst.Block(Vector.empty, global = true)
+    val globalBlock = CAst.Block(Vector.empty, global = true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
       case (expr, _) if expr.t == Double => true
@@ -386,7 +385,7 @@ class CGenerator extends Generator {
     val liftKernel = CAst.Function(
       name = "liftKernel",
       ret = UndefType,
-      params = Kernel.memory.map((x => CAst.ParamDecl(x.mem.variable.toString,x.t))).toList, //f.params.map(x => CAst.ParamDecl(x.toString,x.t)).toList,
+      params = Kernel.memory.map(x => CAst.ParamDecl(x.mem.variable.toString,x.t)).toList, //f.params.map(x => CAst.ParamDecl(x.toString,x.t)).toList,
       body = Block(),
       kernel = true
     )
@@ -491,6 +490,7 @@ class CGenerator extends Generator {
             // TODO: Emitting a view of type ArrayType is illegal!
             Left(ViewPrinter.emit(e.mem.variable, e.view) match {
               case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, ArithExpression(i.content))
+              case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
             })
           case a: ArrayType => Right(a.len)
           case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
@@ -826,6 +826,7 @@ class CGenerator extends Generator {
 
           val offset = ViewPrinter.emit(mem.variable, view, replacementsWithFuns) match {
             case OpenCLAST.VarRef(_, _, i) => CAst.ArithExpression(i.content / vt.len)
+            case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
           }
           CAst.Store(CAst.VarRef(mem.variable), vt, value, offset, mem.addressSpace)
       }
@@ -880,6 +881,7 @@ class CGenerator extends Generator {
 
               val offset = ViewPrinter.emit(mem.variable, view, replacementsWithFuns) match {
                 case OpenCLAST.VarRef(_, _, idx) => CAst.ArithExpression(idx.content / vt.len)
+                case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
               }
 
               CAst.Load(CAst.VarRef(mem.variable), vt, offset, mem.addressSpace)
@@ -971,6 +973,7 @@ class CGenerator extends Generator {
                   ViewPrinter.emit(mem.variable, innerView, replacementsWithFuns) match {
                     case OpenCLAST.VarRef(v, _, i) =>
                       CAst.VarRef(v, suffix, CAst.ArithExpression(i.content))
+                    case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
                   }
 
                 case PrivateMemory =>
@@ -1034,7 +1037,8 @@ class CGenerator extends Generator {
     addressSpace match {
       case LocalMemory | GlobalMemory =>
         ViewPrinter.emit(v, view, replacementsWithFuns) match {
-          case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, CAst.ArithExpression(i.content))
+          case OpenCLAST.VarRef(vr, s, i) => VarRef(vr, s, CAst.ArithExpression(i.content))
+          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
 
       case PrivateMemory =>
@@ -1065,15 +1069,17 @@ class CGenerator extends Generator {
     val i: ArithExpr = valueType match {
       case _: ScalarType | _: TupleType => ViewPrinter.emit(v, view) match {
         case OpenCLAST.VarRef(_, _, idx) => idx.content
+        case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
       }
       // if the original value type is a vector:
       //   divide index by vector length
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        val idx = ViewPrinter.emit(v, view) match {
+        val index = ViewPrinter.emit(v, view) match {
           case OpenCLAST.VarRef(_, _, idx) => idx.content
+          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
-        idx / length
+        index / length
       case ArrayType(_, _) | NoType | UndefType =>
         throw new TypeException(valueType, "A valid non array type")
     }
@@ -1107,10 +1113,11 @@ class CGenerator extends Generator {
     val i = valueType match {
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        val idx = ViewPrinter.emit(v, view) match {
+        val index = ViewPrinter.emit(v, view) match {
           case OpenCLAST.VarRef(_, _, idx) => idx.content
+          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
-        idx % length
+        index % length
       case ArrayType(_, _) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
         throw new TypeException(valueType, "VectorType")
     }

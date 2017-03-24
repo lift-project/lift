@@ -4,12 +4,13 @@ import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic.ArithExpr._
 import lift.arithmetic._
 import ir.Type
-import ir.ast.{Map => _, _}
+import ir.ast._
 import ir.view._
-import opencl.generator.OpenCLAST
 import opencl.generator.OpenCLAST.VarRef
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.pattern.{MapGlb, MapLcl}
+
+import scala.collection.immutable
 
 
 object AccessPatterns {
@@ -33,8 +34,8 @@ class AccessPatterns(
   valueMap: SubstitutionMap
 ) extends Analyser(lambda, localSize, globalSize, valueMap) {
 
-  private var readPatterns = Map[Expr, AccessPattern]()
-  private var writePatterns = Map[Expr, AccessPattern]()
+  private var readPatterns = immutable.Map[Expr, AccessPattern]()
+  private var writePatterns = immutable.Map[Expr, AccessPattern]()
 
   private var coalescingId: Option[Var] = None
 
@@ -43,15 +44,16 @@ class AccessPatterns(
 
   determinePatterns(lambda.body)
 
-  def getReadPatterns = readPatterns
-  def getWritePatterns = writePatterns
+  def getReadPatterns: immutable.Map[Expr, AccessPattern] = readPatterns
+  def getWritePatterns: immutable.Map[Expr, AccessPattern] = writePatterns
 
-  def apply() =
+  def apply(): (immutable.Map[Expr, AccessPattern], immutable.Map[Expr, AccessPattern]) =
     (readPatterns, writePatterns)
 
   private def isCoalesced(view: View): Boolean = {
     val accessLocation = ViewPrinter.emit(Var(), view) match {
       case VarRef(_, _, idx) => idx.content
+      case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
     }
 
     val length = Type.getLength(Type.getValueType(view.t))
@@ -59,9 +61,9 @@ class AccessPatterns(
     if (coalescingId.isEmpty)
       return false
 
-    val newVar = Var("")
-    val i0 = substitute(accessLocation, Map(coalescingId.get -> (newVar + 0)))
-    val i1 = substitute(accessLocation, Map(coalescingId.get -> (newVar + 1)))
+    val newVar = Var()
+    val i0 = substitute(accessLocation, immutable.Map(coalescingId.get -> (newVar + 0)))
+    val i1 = substitute(accessLocation, immutable.Map(coalescingId.get -> (newVar + 1)))
 
     i1 - i0 == length
   }
