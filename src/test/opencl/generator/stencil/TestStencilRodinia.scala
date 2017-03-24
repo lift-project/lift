@@ -1125,6 +1125,7 @@ class TestStencilRodinia {
     assertArrayEquals(HotSpotConstants.compareDataHotspot3D, output, 0.1f)
         */
   }
+  @Ignore
   @Test
   def RodiniaSRAD1(): Unit = {
     val dir = "../../src/test/opencl/generator/stencil/resources/" // should be a better option
@@ -1230,6 +1231,7 @@ class TestStencilRodinia {
   }
 
 
+  @Ignore
   @Test
   def RodiniaSRAD1Consolidated(): Unit = {
     val dir = "../../src/test/opencl/generator/stencil/resources/" // should be a better option
@@ -1307,6 +1309,7 @@ class TestStencilRodinia {
     assertArrayEquals(coefficientValues, outputRemixed2.flatten, StencilUtilities.stencilDelta)
   }
 
+  @Ignore
   @Test
   def RodiniaSRAD2CalculateOnTheFly(): Unit = {
     val dir = "../../src/test/opencl/generator/stencil/resources/" // should be a better option
@@ -1393,6 +1396,7 @@ class TestStencilRodinia {
 
   }
 
+  @Ignore
   @Test
   def RodiniaSRAD2CalculatePullInValues(): Unit = {
     val dir = "../../src/test/opencl/generator/stencil/resources/" // should be a better option
