@@ -37,8 +37,11 @@ object BoundaryUtilities
   val invertFloat = UserFun("invertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 0.0 : 1.0; }", Seq(Float), Float)
   val convertFloat = UserFun("convertFloat", Array("x"), "{ return ((x-1.0) == 0.0) ? 1.0 : 0.0; }", Seq(Float), Float)
   val getFirstTuple = UserFun("getFirstTuple", "x", "{return x._0;}", TupleType(Float, Float), Float) // dud helper
-val getSecondTuple = UserFun("getSecondTuple", "x", "{return x._1;}", TupleType(Float, Float), Float) // dud helper
-val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
+  val getSecondTuple = UserFun("getSecondTuple", "x", "{return x._1;}", TupleType(Float, Float), Float) // dud helper
+  val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
+
+  val invertBoundaryCountToFloat = UserFun("invertInt", Array("x"), "{ return (x<6) ? 0.0 : 1.0; }", Seq(Int), Float)
+  val convertBoundaryCountToFloat = UserFun("convertInt", Array("x"), "{ return (x<6) ? 1.0 : 0.0; }", Seq(Int), Float)
 
   /* create mask of 0s and 1s at the boundary for a 2D Matrix */
   def createMask(input: Array[Array[Float]], msizeX: Int, msizeY: Int, maskValue: Int): Array[Array[Int]] = {
@@ -82,6 +85,23 @@ val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
     one2D ++ addArr ++ one2D
   }
 
+  def createMaskDataWithNumBoundaryPts(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+
+    val indices = Array(4,10,12,14,16,22)
+    val initMat = Array.tabulate(sizeX,sizeY){ (i,j) => (i+j+1).toFloat }
+    val mask =initMat.flatten.zipWithIndex.map(i => !( (i._2%sizeX != 0) && i._2%sizeX!=(sizeX-1)  && i._2>sizeX && i._2<(sizeX*sizeY)-sizeX) )
+    val pad2D = mask.map(i => i*1).sliding(sizeX,sizeX).toArray
+    val one2D = Array(Array.fill(sizeY,sizeX)(1))
+    var addArr = Array(pad2D)
+
+    for(i <- 1 to sizeZ-3) addArr = addArr ++ Array(pad2D)
+    val mask3D = one2D ++ addArr ++ one2D
+    val mask3Dinvert = mask3D.map(x => x.map(y => y.map(z => Math.abs(z-1))))
+    val data3tiles =mask3Dinvert.map(x => x.map(y => y.sliding(3,1).toArray).sliding(3,1).toArray.map(x => x.transpose)).sliding(3,1).toArray.map(x => x.transpose.map(y => y.transpose))
+    data3tiles.map(x => x.map(y => y.map(z => indices map z.flatten.flatten.lift))).map(x => x.map(y => y.map(z=> z.map(k => k.getOrElse(0)).reduceLeft(_+_))))
+
+  }
+
   def createMaskData3D(size: Int) =
   {
     createMaskDataAsym3D(size,size,size)
@@ -91,8 +111,16 @@ val idIF = UserFun("idIF", "x", "{ return (float)(x*1.0); }", Int, Float)
     toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(idIF))  $ m, toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertIntToFloat)) $ m)
   }
 
+  def maskValueBoundaryPoints(m: Expr, c1: Float, c2: Float): Expr = {
+    toPrivate(MapSeq(add)) $ Zip(toPrivate(MapSeq(fun(x => mult(x,c1)))) o toPrivate(MapSeq(convertBoundaryCountToFloat)) $ m, toPrivate(MapSeq(fun(x => mult(x,c2)))) o toPrivate(MapSeq(invertBoundaryCountToFloat)) $ m)
+  }
+
   def maskValueNoArray(m: Expr, c1: Float, c2: Float): Expr = {
     toPrivate(addTuple) $ Tuple(toPrivate(fun(x => mult(x,c1))) o toPrivate(idIF)  $ m, toPrivate(fun(x => mult(x,c2))) o toPrivate(invertIntToFloat) $ m)
+  }
+
+  def maskValueNoArrayBoundaryPoints(m: Expr, c1: Float, c2: Float): Expr = {
+    toPrivate(addTuple) $ Tuple(toPrivate(fun(x => mult(x,c1))) o toPrivate(convertBoundaryCountToFloat)  $ m, toPrivate(fun(x => mult(x,c2))) o toPrivate(invertBoundaryCountToFloat) $ m)
   }
 
 }

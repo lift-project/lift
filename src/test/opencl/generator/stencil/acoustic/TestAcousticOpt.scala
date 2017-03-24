@@ -3,6 +3,7 @@ package opencl.generator.stencil.acoustic
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.{SizeVar, StartFromRange, Var}
+import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -281,19 +282,22 @@ class TestAcousticOpt {
 
   }
 
-  @Ignore // correct output sizes, incorrect values!
   @Test
   def test3DConvolutionTile(): Unit = {
 
-    val localDim = 16
-    val dim = localDim + 2
-    val compareData = StencilUtilities.createDataFloat3D(localDim,localDim,localDim)
-    val input3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
+
+    val localDimx = 12
+    val localDimy = 12
+    val localDimz = 16
+    val compareData = StencilUtilities.createDataFloat3D(localDimx,localDimy,localDimz)
+    val input3D = StencilUtilities.createDataFloat3DWithPadding(localDimx, localDimy, localDimz)
 
     val M = SizeVar("M")
+    val N = SizeVar("N")
+    val O = SizeVar("O")
 
     val stencil = fun(
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
+      ArrayType(ArrayType(ArrayType(Float, M), N),O),
       ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
       (matrix, weights) => {
         Untile3D() o MapWrg(2)(MapWrg(1)(MapWrg(0)(fun(tile =>
@@ -309,15 +313,17 @@ class TestAcousticOpt {
           ))) o Slide3D(3,1) o
             toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ tile
         )))) o
-          Slide3D(10,8)  $ matrix
+          Slide3D(8,6,8,6,10,8)  $ matrix
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(8,8,8,64,64,64, (true, true))(stencil, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true, true))(stencil, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
 
-      //if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(input3D, output)
-      assertArrayEquals(compareData.flatten.flatten, output, StencilUtilities.stencilDelta)
+    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(input3D, output)
+    assertArrayEquals(compareData.flatten.flatten, output, StencilUtilities.stencilDelta)
+
   }
+
 
   @Test
   def testSimple3DStencilWithAt(): Unit = {
@@ -648,6 +654,65 @@ class TestAcousticOpt {
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
   }
+
+  @Ignore
+  @Test
+  def simpleMapTransposeTest(): Unit =
+  {
+    val dim = 4
+    val dimX = dim
+    val dimY = dim
+    val data = Array.tabulate(dimX,dimY){(i,j) => (i+j+1).toFloat}
+
+    val stencil = fun(
+      ArrayType(ArrayType(Float, dim), dim),
+      (matrix) => {
+        MapWrg(2)(MapWrg(1)(MapWrg(0)(
+          toGlobal(MapSeq(id))
+        ))) o Map(Transpose()) o Slide(3,1) o Map(Slide(3,1)) $ matrix
+      }
+    )
+
+    val (output: Array[Float], runtime) = Execute(4,4,4,4,4,4, (true, true))(stencil, data)
+    StencilUtilities.print2DArray(data)
+    StencilUtilities.print1DArray(output)
+    StencilUtilities.print1DArrayAs3DArray(output,3,3,4)
+
+  }
+
+
+  @Test
+  def testNumNeighboursUserFun(): Unit = {
+
+    val localDimX = 6
+    val localDimY = 8
+    val localDimZ = 4
+
+    val input3D =  Array.fill(localDimZ,localDimY,localDimX)(1)
+
+    val mask3DBP = BoundaryUtilities.createMaskDataWithNumBoundaryPts(localDimX+2, localDimY+2, localDimZ+2)
+
+    val idxF = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ " +
+       "int count = 6; if(i == (m-1) || i == 0){ count--; } if(j == (n-1) || j == 0){ count--; } if(k == (o-1) || k == 0){ count--; }return count; }", Seq(Int,Int,Int,Int,Int,Int), Int)
+
+    val inp3d = ArrayType(ArrayType(ArrayType(Int, SizeVar("O")), SizeVar("N")), SizeVar("M"))
+
+    val numberOfNeighbours = fun(inp3d,
+      input => toGlobal(MapGlb(MapSeq(MapSeq(idI)))) $ Array3DFromUserFunGenerator(idxF, inp3d)
+    )
+
+    val (output: Array[Int], _) = Execute(2,2,2,2,2,2,(true,true))(numberOfNeighbours, input3D)
+
+    if(StencilUtilities.printOutput)
+    {
+      StencilUtilities.print3DArray(mask3DBP)
+      StencilUtilities.print3DArray(input3D)
+      StencilUtilities.print1DArrayAs3DArray(output, localDimX, localDimY, localDimZ)
+    }
+    assertArrayEquals(mask3DBP.flatten.flatten, output)
+
+  }
+
 }
 
 

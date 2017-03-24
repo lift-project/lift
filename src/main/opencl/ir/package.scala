@@ -58,6 +58,8 @@ package object ir {
 
   val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
+  val subtract = UserFun("subtract", Array("l", "r"), "{ return l - r; }", Seq(Float, Float), Float)
+
   val multI = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Int, Int), Int)
 
   val multdouble = UserFun("multdouble", Array("l", "r"), "{ return l * r; }", Seq(Double, Double), Double)
@@ -66,8 +68,10 @@ package object ir {
                              "{ return acc + (l * r); }",
                              Seq(Float, Float, Float), Float)
 
+
   val multTuple = UserFun("multTuple", "x", "{return x._0 * x._1;}", TupleType(Float, Float), Float)
   val addTuple = UserFun("addTuple", "x", "{return x._0 + x._1;}", TupleType(Float, Float), Float)
+  val subtractTuple = UserFun("subtractTuple", "x", "{return x._0 - x._1;}", TupleType(Float, Float), Float)
 
   val addPair = UserFun(
                          "pair",

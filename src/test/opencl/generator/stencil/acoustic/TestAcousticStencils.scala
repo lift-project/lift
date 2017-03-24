@@ -24,7 +24,7 @@ object StencilUtilities
   /* globals */
   val iter = 5
   val printOutput = false
-  val stencilDelta = 0.2f
+  val stencilDelta = 0.00002f
   val slidesize = 3;
   val slidestep = 1;
   val stencilDim = 8;
@@ -137,6 +137,14 @@ object StencilUtilities
     print1DArray(output)
   }
 
+  def printOriginalAndOutput3DSame[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
+
+    println("ORIGINAL:" + original.flatten.flatten.length)
+    print3DArray(original)
+    println("*********************")
+    println("OUTPUT:" + output.length)
+    print1DArrayAs3DArray(output,original.length,original(0).length,original(0)(0).length)
+  }
 
   def printOriginalAndOutput3D[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
 
