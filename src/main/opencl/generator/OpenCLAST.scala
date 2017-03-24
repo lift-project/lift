@@ -251,6 +251,7 @@ object OpenCLAST {
 
     def visitExpression(e: Expression): Unit = e match {
       case _: ArithExpression =>
+      case _: OpenCLExpression =>
       case a: AssignmentExpression =>
         visitExpressionsInNode(a.value)
         visitExpressionsInNode(a.to)
