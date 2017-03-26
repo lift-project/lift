@@ -1,13 +1,13 @@
 package opencl.generator
 
+import ir.ast.{Join, Split, Tuple, UserFun, fun}
 import ir.{ArrayType, TupleType}
-import ir.ast.{Join, Tuple, UserFun, fun}
 import lift.arithmetic.SizeVar
-import opencl.ir._
 import opencl.executor.{Execute, Executor}
-import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import org.junit.{AfterClass, BeforeClass, Test}
+import opencl.ir._
+import opencl.ir.pattern.{MapGlb, MapWrg, MapLcl, MapSeq, ReduceSeq, toLocal, toGlobal}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestDbQueries {
   @BeforeClass def before(): Unit = {
@@ -45,7 +45,7 @@ class TestDbQueries {
           })
         ) $ left
       }
-    );
+    )
     
     // Note: `output` is flattened
     val (output: Array[Int], runtime) = Execute(size)(combine, left, right)
@@ -81,5 +81,70 @@ class TestDbQueries {
     println(s"Runtime: $runtime")
     
     assertEquals(table.max, output.head)
+  }
+  
+  @Test def complexQuery(): Unit = {
+    /**
+     * leftTable has the schema: (a INTEGER, b INTEGER, c INTEGER)
+     * rightTable has the schema: (x INTEGER, y INTEGER)
+     *
+     * Query: SELECT SUM(c)
+     *        FROM left INNER JOIN right ON a = x
+     *        WHERE b + y > 10
+     */
+    val n = 2048
+    val m = 512
+    val leftTable = Array.fill(n, 3)(util.Random.nextInt(10))
+    val rightTable = Array.fill(m, 2)(util.Random.nextInt(10))
+    
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+  
+    val joinTuples = UserFun(
+      "concat", Array("x", "y"),
+      "Tuple_int_int_int_int t = {(x._0 == y._0), x._1, x._2, y._1}; return t;",
+      Seq(TupleType(Int, Int, Int), TupleType(Int, Int)),
+      TupleType(Int, Int, Int, Int)
+    )
+    
+    val where_clause = UserFun(
+      "where_clause", "t",
+      "Tuple_int_int row = {(t._0 && ((t._1 + t._3) > 10)), t._2};\n return row;",
+      TupleType(Int, Int, Int, Int), TupleType(Int, Int)
+    )
+    
+    val query = fun(
+      ArrayType(TupleType(Int, Int, Int), N),
+      ArrayType(TupleType(Int, Int), M),
+      (leftTable, rightTable) => {
+        MapSeq(toGlobal(idI)) o ReduceSeq(addI, 0) o Join() o
+        MapWrg(
+          MapLcl(toGlobal(idI)) o ReduceSeq(addI, 0) o Join() o
+          MapLcl(MapSeq(toLocal(idI)) o ReduceSeq(addI, 0)) o
+          toLocal(MapLcl(
+            MapSeq(multI) o
+            MapSeq(where_clause) o
+            fun(lRow => {
+              MapSeq(joinTuples) o
+              MapSeq(fun(rRow => Tuple(lRow, rRow))) $ rightTable
+            })
+          ))
+        ) o Split(2) $ leftTable
+      }
+    )
+    
+    val gold = { for (Array(a, b, c) <- leftTable;
+                      Array(x, y) <- rightTable
+                      if a == x && b + y > 10) yield c}.sum
+  
+  val (output: Array[Int], runtime) =
+    Execute(n)(query, leftTable.flatten, rightTable.flatten)
+  
+    println("SELECT SUM(left.c) " +
+      "FROM left INNER JOIN right ON left.a = right.x " +
+      "WHERE left.b + right.y > 10;")
+    println(s"Output length: ${output.length}")
+    println(s"Runtime: $runtime")
+    assertEquals(gold, output.sum)
   }
 }
