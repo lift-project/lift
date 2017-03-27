@@ -50,13 +50,8 @@ class AccessPatterns(
   def apply(): (immutable.Map[Expr, AccessPattern], immutable.Map[Expr, AccessPattern]) =
     (readPatterns, writePatterns)
 
-  private def isCoalesced(view: View): Boolean = {
-    val accessLocation = ViewPrinter.emit(Var(), view) match {
-      case VarRef(_, _, idx) => idx.content
-      case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
-    }
-
-    val length = Type.getLength(Type.getValueType(view.t))
+  private def isCoalesced(v: VarRef, length: ArithExpr): Boolean = {
+    val accessLocation = v.arrayIndex.content
 
     if (coalescingId.isEmpty)
       return false
@@ -68,11 +63,19 @@ class AccessPatterns(
     i1 - i0 == length
   }
 
-  private def getPattern(view: View) = {
-    if (isCoalesced(view))
+  private def getAccessPattern(v: VarRef, length: ArithExpr) = {
+    if (isCoalesced(v, length))
       CoalescedPattern
     else
       UnknownPattern
+  }
+
+  private def getAccessPattern(expr: Expr): AccessPattern = {
+    val length = Type.getLength(Type.getValueType(expr.view.t))
+    ViewPrinter.emit(Var(), expr.view) match {
+      case v: VarRef => getAccessPattern(v, length)
+      case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+    }
   }
 
   private def determinePatterns(expr: Expr): Unit = {
@@ -96,9 +99,9 @@ class AccessPatterns(
           case fp: FPattern => determinePatterns(fp.f.body)
           case _: UserFun | _: VectorizeUserFun =>
 
-            args.foreach(arg => readPatterns += arg -> getPattern(arg.view))
+            args.foreach(arg => readPatterns += arg -> getAccessPattern(arg))
 
-            writePatterns += expr -> getPattern(expr.outputView)
+            writePatterns += expr -> getAccessPattern(expr)
 
           case _ =>
         }
