@@ -21,7 +21,7 @@ object HighLevelRewrite {
 
   parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
-    (sValue, opt) =>
+    (sValue, _) =>
       parser.usage()
       sValue
   }
@@ -29,7 +29,7 @@ object HighLevelRewrite {
   private val input = parser.parameter[String]("input",
     "Input file containing the lambda to use for rewriting",
     optional = false) {
-    (s, opt) =>
+    (s, _) =>
       val file = new File(s)
       if (!file.exists)
         parser.usage("Input file \"" + s + "\" does not exist")
@@ -39,7 +39,7 @@ object HighLevelRewrite {
   private val output = parser.option[String](List("o", "output"), "name.",
     "Store the created lambdas into this folder."
     ) {
-    (s, opt) =>
+    (s, _) =>
       val file = new File(s)
       if (file.exists)
         parser.usage("Output location \"" + s + "\" already exists")
@@ -54,16 +54,24 @@ object HighLevelRewrite {
   private val distanceFilter = parser.option[Int](List("distance"), "distance",
     "Cutoff distance for filtering.")
 
+  private val ruleRepetition = parser.option[Int](List("repetition"), "repetition",
+    "How often the same rule can be applied.")
+
+  private val ruleCollection = parser.option[String](List("collection"), "collection",
+    "Which collection of rules are used for rewriting")
+
   private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
     "The vector width to use for vectorising rewrites. Default: 4")
 
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
-  private val defaultExplorationDepth = 5
-  private val defaultVectorWidth = 4
-  private val defaultDepthFilter = 6
-  private val defaultDistanceFilter = 9
+  protected val defaultExplorationDepth = 5
+  protected val defaultVectorWidth = 4
+  protected val defaultDepthFilter = 6
+  protected val defaultDistanceFilter = 9
+  protected val defaultRuleRepetition = 2
+  protected val defaultRuleCollection = "default"
 
   def main(args: Array[String]): Unit = {
 
@@ -76,6 +84,8 @@ object HighLevelRewrite {
       logger.info(s"\tVector width: $defaultVectorWidth")
       logger.info(s"\tDepth filter: $defaultDepthFilter")
       logger.info(s"\tDistance filter: $distanceFilter")
+      logger.info(s"\tRule Repetition: $ruleRepetition")
+      logger.info(s"\tRule Collection: $ruleRepetition")
 
       val filename = input.value.get
       val lambda = ParameterRewrite.readLambdaFromFile(filename)
@@ -96,11 +106,14 @@ object HighLevelRewrite {
   }
 
   def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
-    val maxDepth = explorationDepth.value.getOrElse(defaultExplorationDepth)
     val newLambdas =
       (new HighLevelRewrite(
-        vectorWidth.value.getOrElse(defaultVectorWidth))
-        )(startingExpression, maxDepth)
+        vectorWidth.value.getOrElse(defaultVectorWidth),
+        ruleRepetition.value.getOrElse(defaultRuleRepetition),
+        explorationDepth.value.getOrElse(defaultExplorationDepth),
+        ruleCollection.value.getOrElse(defaultRuleCollection)
+      )
+        )(startingExpression)
 
     val filtered = filterExpressions(newLambdas)
 
@@ -236,15 +249,18 @@ object HighLevelRewrite {
 
 }
 
-class HighLevelRewrite(val vectorWidth: Int) {
-
-  private val logger = Logger(this.getClass)
+class HighLevelRewrite(val vectorWidth: Int = HighLevelRewrite.defaultVectorWidth,
+                       val repetitions: Int = HighLevelRewrite.defaultRuleRepetition,
+                       val explorationDepth: Int = HighLevelRewrite.defaultExplorationDepth,
+                       val ruleCollection: String=HighLevelRewrite.defaultRuleCollection) {
 
   private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
   private[exploration] val vecZip = Rules.vectorizeMapZip(vectorWidth)
 
-  private val highLevelRules =
-    Seq(
+object RuleCollection {
+
+  private val convolution1DRules = Seq(MacroRules.tileStencils)
+  private val defaultRules = Seq(
       MacroRules.apply2DRegisterBlocking,
       MacroRules.apply2DRegisterBlockingNoReorder,
       MacroRules.apply1DRegisterBlocking,
@@ -256,16 +272,29 @@ class HighLevelRewrite(val vectorWidth: Int) {
       vecZip
     )
 
+  private val ruleCollectionMap = scala.collection.Map(
+    "convolution1D" -> convolution1DRules,
+    "default" -> defaultRules)
+
+  def apply(collection: String): Seq[Rule] = {
+    ruleCollectionMap.getOrElse(collection, defaultRules)
+  }
+}
+  private val logger = Logger(this.getClass)
+
+  private val highLevelRules = RuleCollection(ruleCollection)
+
   private var failures = 0
 
-  def apply(lambda: Lambda, levels: Int): Seq[(Lambda, Seq[Rule])] = {
+  def apply(lambda: Lambda): Seq[(Lambda, Seq[Rule])] = {
     logger.info(s"Enabled rules:\n\t${highLevelRules.mkString(",\t\n ")}")
-    val rewritten = rewrite(lambda, levels)
+    val rewritten = rewrite(lambda, explorationDepth)
     logger.warn(failures + " rule application failures.")
     rewritten
   }
 
-  private def rewrite(lambda: Lambda, levels: Int,
+  private def rewrite(lambda: Lambda,
+                      explorationLayer: Int,
                       rulesSoFar: Seq[Rule] = Seq()
                        ): Seq[(Lambda, Seq[Rule])] = {
 
@@ -291,10 +320,10 @@ class HighLevelRewrite(val vectorWidth: Int) {
       }
     })
 
-    if (levels == 1 || rulesToTry.isEmpty) {
+    if (explorationLayer == 1 || rulesToTry.isEmpty) {
       rewritten
     } else {
-      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, levels - 1, pair._2))
+      rewritten ++ rewritten.flatMap(pair => rewrite(pair._1, explorationLayer -1, pair._2))
     }
   }
 
@@ -305,7 +334,7 @@ class HighLevelRewrite(val vectorWidth: Int) {
     // Filter out some rules
     var dontTryThese = (distinctRulesApplied, numberOfTimesEachRule)
       .zipped
-      .filter((_, times) => times >= 2)
+      .filter((_, times) => times >= repetitions)
       ._1
 
     if (!distinctRulesApplied.contains(MacroRules.tileMapMap))

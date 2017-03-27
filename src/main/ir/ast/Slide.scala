@@ -2,7 +2,7 @@ package ir.ast
 
 import ir.interpreter.Interpreter._
 import lift.arithmetic.ArithExpr
-import ir.{ArrayType, Type, TypeException}
+import ir._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
@@ -60,39 +60,54 @@ object Slide {
 
 object Slide2D {
   /** Symmetrical sliding */
-  def apply(size: Int, step: Int): Lambda = {
-    Map(Transpose()) o Slide(size, step) o Map(Slide(size, step))
-    // other possible implementation
-    // Map(Map(Transpose()) o Slide(size, step) o Transpose()) o Slide(size, step)
+  def apply(size: ArithExpr, step: ArithExpr): Lambda = {
+    SlideND(2)(size,step)
   }
 
   /** Asymmetrical sliding */
-  def apply(sizeRow: Int, stepRow: Int,
-            sizeCol: Int, stepCol: Int): Lambda = {
+  def apply(sizeRow: ArithExpr, stepRow: ArithExpr,
+            sizeCol: ArithExpr, stepCol: ArithExpr): Lambda = {
     Map(Transpose()) o Slide(sizeRow, stepRow) o Map(Slide(sizeCol, stepCol))
-    // other possible implementation
-//    Map(Map(Transpose()) o Slide(sizeCol, stepCol) o Transpose()) o Slide(sizeRow, stepRow)
   }
 }
 
 object Slide3D {
   /** Symmetrical sliding */
-  def apply(size: Int, step: Int): Lambda = {
-    Map(Map(Transpose()) o Transpose()) o
-    Slide(size, step) o
-    Map(Map(Transpose()) o Slide(size, step) o Map(Slide(size, step)))
-    /* other possible implementation
-    Map(Map(Transpose()) o Transpose() o
-      Map(Map(Transpose() o Map(Slide(size, step))
-        ) o Slide(size, step))) o Slide(size, step)
-    */
+  def apply(size: ArithExpr, step: ArithExpr): Lambda = {
+    SlideND(3)(size,step)
   }
 
-  def apply(sizeX: Int, stepX: Int,
-            sizeY: Int, stepY: Int,
-            sizeZ: Int, stepZ: Int): Lambda = {
+  def apply(sizeX: ArithExpr, stepX: ArithExpr,
+            sizeY: ArithExpr, stepY: ArithExpr,
+            sizeZ: ArithExpr, stepZ: ArithExpr): Lambda = {
     Map(Map(Transpose()) o Transpose()) o
     Slide(sizeZ, stepZ) o
     Map(Map(Transpose()) o Slide(sizeY, stepY) o Map(Slide(sizeX, stepX)))
   }
 }
+
+object SlideND {
+
+  def apply(dim: Int)(size: ArithExpr, step: ArithExpr): Lambda = {
+    if(dim==1) Slide(size,step)
+    else {
+      GenerateIR.interleaveDimensions(dim, dim) o
+        GenerateIR.applyInEveryDimUntilDimReverse(Slide(size, step), dim)
+    }
+  }
+}
+
+object TiledSlidedND {
+  def undoTiling(dim: Int): Lambda = {
+    if(dim == 1) Join()
+    else GenerateIR.applyInEveryDimUntilDim(Join(), dim) o GenerateIR.interleaveDimensionsReverse(dim)
+  }
+
+  def apply(dim: Int)(size: ArithExpr, step: ArithExpr, tileStep: ArithExpr): Lambda = {
+    val tileSize = (size - step) + tileStep
+    undoTiling(dim) o
+      GenerateIR.wrapInMaps(SlideND(dim)(size,step), dim) o
+        SlideND(dim)(tileSize, tileStep)
+  }
+}
+

@@ -33,6 +33,14 @@ JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3D
 
 /*
  * Class:     opencl_executor_GlobalArg
+ * Method:    createInput
+ * Signature: ([Z)Lopencl/executor/GlobalArg;
+ */
+JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3Z
+  (JNIEnv *, jclass, jbooleanArray);
+
+/*
+ * Class:     opencl_executor_GlobalArg
  * Method:    createOutput
  * Signature: (I)Lopencl/executor/GlobalArg;
  */
@@ -69,6 +77,14 @@ JNIEXPORT jintArray JNICALL Java_opencl_executor_GlobalArg_asIntArray
  * Signature: ()[D
  */
 JNIEXPORT jdoubleArray JNICALL Java_opencl_executor_GlobalArg_asDoubleArray
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     opencl_executor_GlobalArg
+ * Method:    asBooleanArray
+ * Signature: ()[Z
+ */
+JNIEXPORT jbooleanArray JNICALL Java_opencl_executor_GlobalArg_asBooleanArray
   (JNIEnv *, jobject);
 
 #ifdef __cplusplus

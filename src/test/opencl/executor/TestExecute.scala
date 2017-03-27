@@ -4,8 +4,9 @@ import ir._
 import ir.ast._
 import lift.arithmetic._
 import opencl.ir._
-import opencl.ir.pattern.{ReduceSeq, _}
+import opencl.ir.pattern._
 import org.junit.Assert._
+import org.junit.Assume.assumeFalse
 import org.junit._
 
 object TestExecute {
@@ -129,6 +130,8 @@ class TestExecute {
   @Test
   def testInferTwoDim(): Unit = {
 
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val size1 = 1024
     val size2 = 512
     val split1 = 32
@@ -136,7 +139,7 @@ class TestExecute {
     val input = Array.fill(size1, size2)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayType(ArrayType(Float, M), N),
-      Untile() o
+      Untile2D() o
         MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(plusOne)))) o
         Tile(split1, split2) $ _
     )

@@ -65,7 +65,7 @@ object MatrixTransposition {
     ArrayType(ArrayType(Float, M), N),
     (matrix) => {
       // Merge the tiles
-      Untile() o
+      Untile2D() o
       MapWrg(0)(MapWrg(1)(
          toGlobal(MapLcl(1)(MapLcl(0)(id))) o
         // Transpose the tiles and then the insides of tiles

@@ -18,26 +18,26 @@ JNIEXPORT void JNICALL Java_opencl_executor_Executor_nativeMatrixMultiply
 /*
  * Class:     opencl_executor_Executor
  * Method:    execute
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIIII[Lopencl/executor/KernelArg;)D
+ * Signature: (Lopencl/executor/Kernel;IIIIII[Lopencl/executor/KernelArg;)D
  */
 JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_execute
-  (JNIEnv *, jclass, jstring, jstring, jstring, jint, jint, jint, jint, jint, jint, jobjectArray);
+  (JNIEnv *, jclass, jobject, jint, jint, jint, jint, jint, jint, jobjectArray);
 
 /*
  * Class:     opencl_executor_Executor
  * Method:    benchmark
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIIII[Lopencl/executor/KernelArg;ID)D
+ * Signature: (Lopencl/executor/Kernel;IIIIII[Lopencl/executor/KernelArg;ID)[D
  */
-JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_benchmark
-  (JNIEnv *, jclass, jstring, jstring, jstring, jint, jint, jint, jint, jint, jint, jobjectArray, jint, jdouble);
+JNIEXPORT jdoubleArray JNICALL Java_opencl_executor_Executor_benchmark
+  (JNIEnv *, jclass, jobject, jint, jint, jint, jint, jint, jint, jobjectArray, jint, jdouble);
 
 /*
  * Class:     opencl_executor_Executor
  * Method:    evaluate
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIIII[Lopencl/executor/KernelArg;ID)D
+ * Signature: (Lopencl/executor/Kernel;IIIIII[Lopencl/executor/KernelArg;ID)D
  */
 JNIEXPORT jdouble JNICALL Java_opencl_executor_Executor_evaluate
-  (JNIEnv *, jclass, jstring, jstring, jstring, jint, jint, jint, jint, jint, jint, jobjectArray, jint, jdouble);
+  (JNIEnv *, jclass, jobject, jint, jint, jint, jint, jint, jint, jobjectArray, jint, jdouble);
 
 /*
  * Class:     opencl_executor_Executor

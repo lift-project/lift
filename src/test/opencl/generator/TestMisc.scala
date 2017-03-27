@@ -182,6 +182,23 @@ class TestMisc {
     assertArrayEquals(input.map(_ + 1), output, 0.0)
   }
 
+  @Test
+  def testBool(): Unit = {
+    val inputSize = 256
+    val input = Array.fill(inputSize)(util.Random.nextBoolean)
+
+    val neg = UserFun("neg", "x", "{ if (x) { return false; } else { return true; } }", Bool, Bool)
+
+    val f = fun(
+      ArrayType(Bool, SizeVar("N")),
+      in => MapGlb(neg) $ in
+    )
+
+    val (output: Array[Boolean], _) = Execute(inputSize)(f, input)
+
+    assert( (input, output).zipped.forall((i, o) => i == !o) )
+  }
+
   @Test def issue20(): Unit = {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
@@ -759,6 +776,9 @@ class TestMisc {
   }
 
   @Test def iterate(): Unit = {
+
+    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
+
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
     val gold = input.map(_+(1*7))
@@ -773,6 +793,9 @@ class TestMisc {
   }
 
   @Test def iterateFixedSecondArg() : Unit = {
+
+    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
+
     val inputSize = 512
     val inputA = Array.tabulate(inputSize)(_.toFloat)
     val inputB = Array.tabulate(inputSize)(_.toFloat).reverse
@@ -795,6 +818,9 @@ class TestMisc {
   }
 
   @Test def iterateLocalOnly(): Unit = {
+
+    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
+
     val inputSize = 512
     val input = Array.tabulate(inputSize)(_.toFloat)
     val gold = input.map(_+1).map(_+1).map(_+1).map(_+1).map(_+1)

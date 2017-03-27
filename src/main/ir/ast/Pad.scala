@@ -2,7 +2,7 @@ package ir.ast
 
 import lift.arithmetic.ArithExpr
 import ir.interpreter.Interpreter._
-import ir.{ArrayType, Type, TypeException, UndefType}
+import ir._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
@@ -97,7 +97,8 @@ object Pad2D {
 
   // Symmetric 2D padding
   def apply(left: Int, right: Int, boundary: Pad.BoundaryFun): Lambda = {
-    Map(Pad(left, right, boundary)) o Pad(left, right, boundary)
+    PadND(2)(left,right,boundary)
+    //Map(Pad(left, right, boundary)) o Pad(left, right, boundary)
     // other possible implementation using transpose
     //Transpose() o Pad(left, right, boundary) o Transpose() o Pad(left, right, boundary)
   }
@@ -105,6 +106,13 @@ object Pad2D {
 
 object Pad3D {
   def apply(x: Int, y: Int, z: Int, b: Pad.BoundaryFun): Lambda = {
-    Map(Map(Pad(x,x,b)) o Pad(y,y,b)) o Pad(z,z,b)
+    Map(Map(Pad(x, x, b)) o Pad(y, y, b)) o Pad(z, z, b)
   }
 }
+
+object PadND {
+  def apply(dim: Int)(left: Int, right: Int, b: Pad.BoundaryFun): Lambda = {
+    GenerateIR.applyInEveryDimUntilDim(Pad(left,right,b), dim)
+  }
+}
+

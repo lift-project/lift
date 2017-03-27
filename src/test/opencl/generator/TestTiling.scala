@@ -136,7 +136,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         // Merge the tiles
-        Untile() o
+        Untile2D() o
         MapWrg(0)(MapWrg(1)(
            toGlobal(MapLcl(0)(MapLcl(1)(id))) o
            toLocal(MapLcl(0)(MapLcl(1)(id)))
@@ -264,7 +264,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         // Merge the tiles
-        Untile() o
+        Untile2D() o
         MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o
           // Transpose the tiles and then the insides of tiles
           Map(Map(Transpose())) o Transpose() o
@@ -306,7 +306,7 @@ class TestTiling {
       ArrayType(ArrayType(Float, M), N),
       (matrix) => {
         // Merge the tiles
-        Untile() o
+        Untile2D() o
           MapGlb(1)(MapGlb(0)(
             toGlobal(MapSeq(MapSeq(id))) o
               TransposeW() o

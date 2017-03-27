@@ -1,18 +1,18 @@
 package opencl.generator
 
 import java.io.FileInputStream
-
 import java.util.Scanner
-import scala.util.Random
 
-import lift.arithmetic.{ArithExpr, Cst, SizeVar, Lookup}
+import scala.util.Random
+import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
 import ir.ArrayType
 import ir.ast._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test, Ignore}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.Assume.assumeFalse
 
 
 object TestSlide {
@@ -392,6 +392,8 @@ class TestSlide {
    ITERATIVE SLIDE
   ***********************************************************/
   @Test def iterativeSlide(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val data = Array(0,1,2,3,4,5).map(_.toFloat)
     val gold = Array(18,27).map(_.toFloat)
     val lambda = fun(
@@ -408,6 +410,8 @@ class TestSlide {
    SLIDE 3D
   ***********************************************************/
   @Test def slide3D(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val size = 2
     val step = 1
     val N = SizeVar("N")
@@ -451,5 +455,154 @@ class TestSlide {
     //println("lift:  " + output.map(_.toInt).map(_+97).map(_.asInstanceOf[Char]).mkString(","))
     println("scala: " + test.flatten.flatten.flatten.flatten.flatten.map(_.toInt).map(_+97).map(_.asInstanceOf[Char]).mkString(","))
     println(output.map(_.toInt).mkString(","))
+  }
+
+  @Test def slideND(): Unit = {
+    val n = 3
+    val s = 1
+    val input3D = Array.tabulate(34, 34, 34) { (_, _, _) => scala.util.Random.nextFloat() }
+    val input2D = Array.tabulate(34, 34) { (_, _) => scala.util.Random.nextFloat() }
+
+    val applyId3D = MapGlb(2)(MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(MapSeq(id))))))
+    val applyId2D = MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(id))))
+    def lambda2D(f: Lambda) = {
+      fun(
+        ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")),
+        input => applyId2D o f $ input
+      )
+    }
+    def lambda3D(f: Lambda) = {
+      fun(
+        ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
+        input => applyId3D o f $ input
+      )
+    }
+
+    ////////// 2D
+    val generated2D = SlideND(2)(n,s)
+    val handwritten2D = Map(Transpose()) o Slide(n,s) o Map(Slide(n,s))
+
+    val (outGold2D: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda2D(handwritten2D), input2D)
+    val (outGenerated2D: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda2D(generated2D), input2D)
+
+    assertArrayEquals(outGold2D, outGenerated2D, 0.1f)
+
+    ////////// 3D
+    val generated3D = SlideND(3)(n,s)
+    val handwritten3D = Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Map(Transpose()))) o Slide(n,s) o Map(Slide(n,s)) o Map(Map(Slide(n,s)))
+
+    val (outGold: Array[Float], _) = Execute(1,1,1,32,32,32,(false,false))(lambda3D(handwritten3D), input3D)
+    val (outGenerated: Array[Float], _) = Execute(1,1,1,32,32,32,(false,false))(lambda3D(generated3D), input3D)
+
+    assertArrayEquals(outGold, outGenerated, 0.1f)
+  }
+
+  @Test def tiledSlideND1(): Unit = {
+    val n = 3
+    val s = 1
+    val tileStep = 4 // how many neighborhoods do we want to have in a tile
+
+    ////////// 1D
+    val input1D = Array.tabulate(34) { _ => scala.util.Random.nextFloat() }
+
+    val slide1D = SlideND(1)(n, s)
+    val tiledSlide1D = TiledSlidedND(1)(n, s, tileStep)
+
+    val applyId1D = MapGlb(0)(MapSeq(id))
+
+    def lambda1D(f: Lambda) = {
+      fun(
+        ArrayType(Float, SizeVar("N")),
+        input => applyId1D o f $ input
+      )
+    }
+
+    val (outGold1D: Array[Float], _) = Execute(1, 32, (false, false))(lambda1D(slide1D), input1D)
+    val (outTiled1D: Array[Float], _) = Execute(1, 32, (false, false))(lambda1D(tiledSlide1D), input1D)
+
+    assertArrayEquals(outGold1D, outTiled1D, 0.1f)
+  }
+
+  @Test def tiledSlideND2(): Unit = {
+    val n = 3
+    val s = 1
+    val tileStep = 4 // how many neighborhoods do we want to have in a tile
+
+    ////////// 2D
+    val input2D = Array.tabulate(34, 34) { (_, _) => scala.util.Random.nextFloat() }
+
+    val slide2D = SlideND(2)(n, s)
+    val tiledSlide2D = TiledSlidedND(2)(n, s, tileStep)
+
+    val applyId2D = MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(id))))
+
+    def lambda2D(f: Lambda) = {
+      fun(
+        ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+        input => applyId2D o f $ input
+      )
+    }
+
+    val (outGold2D: Array[Float], _) = Execute(1, 1, 32, 32, (false, false))(lambda2D(slide2D), input2D)
+    val (outTiled2D: Array[Float], _) = Execute(1, 1, 32, 32, (false, false))(lambda2D(tiledSlide2D), input2D)
+
+    assertArrayEquals(outGold2D, outTiled2D, 0.1f)
+  }
+
+  @Test def tiledSlideND3(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
+    val n = 3
+    val s = 1
+    val tileStep = 4 // how many neighborhoods do we want to have in a tile
+
+    ////////// 3D
+    val input3D = Array.tabulate(34, 34, 34) { (_, _, _) => scala.util.Random.nextFloat() }
+
+    val slide3D = SlideND(3)(n, s)
+    val tiledSlide3D = TiledSlidedND(3)(n, s, tileStep)
+
+    val applyId3D = MapWrg(2)(MapWrg(1)(MapWrg(0)(MapLcl(2)(MapLcl(1)(MapLcl(0)(id))))))
+
+    def lambda3D(f: Lambda) = {
+      fun(
+        ArrayType(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")), SizeVar("O")),
+        input => applyId3D o f $ input
+      )
+    }
+
+    val (outGold3D: Array[Float], _) = Execute(4, 4, 4, 32, 32, 32, (true, true))(lambda3D(slide3D), input3D)
+    val (outTiled3D: Array[Float], _) = Execute(4, 4, 4, 32, 32, 32, (true, true))(lambda3D(tiledSlide3D), input3D)
+
+    assertArrayEquals(outGold3D, outTiled3D, 0.1f)
+  }
+
+  @Ignore //see Issue #97
+  @Test def tiledSlideND4(): Unit = {
+    LongTestsEnabled()
+
+    val n = 3
+    val s = 1
+    val tileStep = 4 // how many neighborhoods do we want to have in a tile
+
+    ////////// 4D
+    val input4D = Array.tabulate(10, 10, 10, 10) { (_, _, _, _) => scala.util.Random.nextFloat() }
+
+    val slide4D = SlideND(4)(n,s)
+    val tiledSlide4D = TiledSlidedND(4)(n,s,tileStep)
+
+    //val applyId4D = MapGlb(2)(MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(MapSeq(MapSeq(MapSeq(id))))))))
+    val applyId4D = MapSeq(MapWrg(2)(MapWrg(1)(MapWrg(0)(MapSeq(MapLcl(2)(MapLcl(1)(MapLcl(0)(id))))))))
+    def lambda4D(f: Lambda) = {
+      fun(
+        ArrayType(ArrayType(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")), SizeVar("O")), SizeVar("P")),
+        input => applyId4D o f $ input
+      )
+    }
+
+    val (outGold4D: Array[Float], _) = Execute(4,4,4,8,8,8,(true,true))(lambda4D(slide4D), input4D)
+    val (outTiled4D: Array[Float], _) = Execute(4,4,4,8,8,8,(true,true))(lambda4D(tiledSlide4D), input4D)
+
+    assertArrayEquals(outGold4D, outTiled4D, 0.1f)
   }
 }

@@ -103,7 +103,7 @@ object MatrixMultiplication {
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
       // Undo the tiling
-      Untile() o
+      Untile2D() o
         MapWrg(1)(fun( aRows =>
           MapWrg(0)(fun( bCols =>
 
@@ -143,7 +143,7 @@ object MatrixMultiplication {
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
       // Undo the tiling
-      Untile() o
+      Untile2D() o
         MapWrg(1)(fun( aRows =>
           MapWrg(0)(fun( bCols =>
             Join() o Map(TransposeW()) o
@@ -201,7 +201,7 @@ object MatrixMultiplication {
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
       // Undo the tiling
-      Untile() o
+      Untile2D() o
         MapWrg(1)(fun( aRows =>
           MapWrg(0)(fun( bCols =>
 
@@ -327,7 +327,7 @@ object MatrixMultiplication {
             Join() :>>
             Map(Scatter(reorderStride(tileSizeM/workPerThreadM)))
           ))
-        )) :>> Untile()
+        )) :>> Untile2D()
       }
     )
 
@@ -339,7 +339,7 @@ object MatrixMultiplication {
     ArrayType(ArrayType(Float, N), K),
     (A, B) => {
       // Undo the tiling
-      Untile() o
+      Untile2D() o
         MapWrg(1)(fun( aRows =>
           MapWrg(0)(fun( bCols =>
 

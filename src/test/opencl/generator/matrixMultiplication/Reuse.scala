@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Assume.assumeFalse
 
 object Reuse {
   @BeforeClass def before(): Unit = {
@@ -28,6 +29,9 @@ class Reuse {
   private val K = SizeVar("K")
 
   @Test def rectangularTiles(): Unit = {
+
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 512
     val kSize = 512
     val nSize = 512
@@ -46,7 +50,7 @@ class Reuse {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
               Join() o Map(TransposeW()) o
@@ -138,6 +142,9 @@ class Reuse {
 
 
   @Test def mmTiledAndBlockedBInnermost(): Unit = {
+
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 512
     val kSize = 512
     val nSize = 512
@@ -161,6 +168,8 @@ class Reuse {
   }
 
   @Test def gemmTiledAndBlockedBInnermost(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 512
     val kSize = 512
     val nSize = 512
@@ -189,6 +198,8 @@ class Reuse {
   }
 
   @Test def mmVectorLoads(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 512
     val kSize = 512
     val nSize = 512
@@ -213,6 +224,8 @@ class Reuse {
   }
 
     @Test def mmTiledAndBlockedAInnermost(): Unit = {
+      assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -236,7 +249,7 @@ class Reuse {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -363,6 +376,8 @@ class Reuse {
   }
 
   @Test def mmTiledReuseB(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -383,6 +398,8 @@ class Reuse {
   }
 
   @Test def mmTiledReuseA(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -399,7 +416,7 @@ class Reuse {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(1)(fun( aRows =>
             MapWrg(0)(fun( bCols =>
 

@@ -281,7 +281,7 @@ abstract class Benchmark(val name: String,
         
         val code = scala.io.Source.fromFile(loadKernel.value.get).mkString
 
-        val (output: Array[Float], runtime) = Execute(
+        val (output: Array[Float], runtimes) = Execute(
           localSize(0),
           localSize(1),
           localSize(2),
@@ -297,13 +297,15 @@ abstract class Benchmark(val name: String,
         if (printResult)
           printResult(output)
 
-        println("MEDIAN: " + runtime + " ms")
-        printResults(runtime)
-        if(csvFileName.value.isDefined) printMedianAndBandwidth(runtime, bandwidth(runtime))
+        val median = runtimes.sortWith(_<_)(runtimes.length/2)
+
+        println("MEDIAN: " + median + " ms")
+        printResults(median)
+        if(csvFileName.value.isDefined) printMedianAndBandwidth(median, bandwidth(median))
 
       }
       else {
-        val (output: Array[Float], runtime) = Execute(
+        val (output: Array[Float], runtimes) = Execute(
           localSize(0),
           localSize(1),
           localSize(2),
@@ -319,9 +321,11 @@ abstract class Benchmark(val name: String,
         if (printResult)
           printResult(output)
 
-        println("MEDIAN: " + runtime + " ms")
-        printResults(runtime)
-        if(csvFileName.value.isDefined) printMedianAndBandwidth(runtime, bandwidth(runtime))
+        val median = runtimes.sortWith(_<_)(runtimes.length/2)
+
+        println("MEDIAN: " + median + " ms")
+        printResults(median)
+        if(csvFileName.value.isDefined) printMedianAndBandwidth(median, bandwidth(median))
       }
 
     } else {

@@ -66,6 +66,9 @@ abstract case class Lambda private[ast] (params: Array[Param],
     })
   }
 
+  def getVarsInParams() =
+    params.flatMap(_.t.varList).sortBy(_.name).distinct
+
   def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     val updatedMap =
@@ -145,6 +148,9 @@ object Lambda1 {
       fun( x => f( (0 until f.arity).map( Get(x, _) ):_* ) )
     }
   }
+
+  def unapply(arg: Lambda1): Option[(Array[Param], Expr)] =
+    Some(arg.params, arg.body)
 }
 
 /**
@@ -437,7 +443,7 @@ trait funDef {
   }
 }
 
-// two names for the same thing:
+// three names for the same thing:
 object fun extends funDef
 object \ extends funDef
 object λ extends funDef
