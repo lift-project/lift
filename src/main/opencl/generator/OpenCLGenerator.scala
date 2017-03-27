@@ -7,7 +7,6 @@ import ir._
 import ir.ast._
 import ir.view._
 import opencl.generator.OpenCLAST._
-import opencl.generator.NDRange
 import opencl.ir._
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
