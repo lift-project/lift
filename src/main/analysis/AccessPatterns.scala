@@ -6,15 +6,15 @@ import lift.arithmetic._
 import ir.Type
 import ir.ast.{Map => _, _}
 import ir.view._
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.NDRange
 import opencl.ir.pattern.{MapGlb, MapLcl}
 
 
 object AccessPatterns {
 
   def apply(lambda: Lambda,
-    localSize: NDRange = Array(?,?,?),
-    globalSize: NDRange = Array(?,?,?),
+    localSize: NDRange = NDRange(?,?,?),
+    globalSize: NDRange = NDRange(?,?,?),
     valueMap: SubstitutionMap = collection.immutable.Map()
   ) = new AccessPatterns(lambda, localSize, globalSize, valueMap)
 

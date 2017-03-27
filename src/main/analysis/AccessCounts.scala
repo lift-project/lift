@@ -4,7 +4,7 @@ import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic._
 import ir._
 import ir.ast._
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.NDRange
 import opencl.ir._
 import opencl.ir.pattern._
 
@@ -14,8 +14,8 @@ object AccessCounts {
 
   def apply(
     lambda: Lambda,
-    localSize: NDRange = Array(?,?,?),
-    globalSize: NDRange = Array(?,?,?),
+    localSize: NDRange = NDRange(?,?,?),
+    globalSize: NDRange = NDRange(?,?,?),
     valueMap: SubstitutionMap = collection.immutable.Map()
   ) = new AccessCounts(lambda, localSize, globalSize, valueMap)
 

@@ -4,6 +4,7 @@ import analysis.MemoryAmounts
 import lift.arithmetic.Cst
 import com.typesafe.scalalogging.Logger
 import ir.ast._
+import opencl.generator.NDRange
 import rewriting.InferNDRange
 
 object ExpressionFilter {
@@ -57,21 +58,20 @@ object ExpressionFilter {
 
       // Rule out obviously poor choices based on the grid size
       // - minimum size of the entire compute grid
-      if (global.map(_.eval).product < SearchParameters.min_grid_size)
+      if (global.numberOfWorkItems < SearchParameters.min_grid_size)
         return NotEnoughWorkItems
 
       if (local.forall(_.isEvaluable)) {
 
         // - minimum of work-items in a workgroup
-        if (local.map(_.eval).product < SearchParameters.min_work_items)
+        if (local.numberOfWorkItems < SearchParameters.min_work_items)
           return NotEnoughWorkItems
 
         // - maximum of work-items in a workgroup
-        if (local.map(_.eval).product > 1024)
+        if (local.numberOfWorkItems > 1024)
           return TooManyWorkItems
 
-        val numWorkgroups =
-          (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
+        val numWorkgroups = NDRange.numberOfWorkgroups(global, local)
 
         // - minimum number of workgroups
         if (numWorkgroups < SearchParameters.min_num_workgroups)
