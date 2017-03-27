@@ -308,24 +308,24 @@ class TestAcousticActualRoom {
       })
 
 
-    val newLambda = SimplifyAndFuse(lambdaNeighAt)
-    OutputKernelJSON(newLambda,"/home/reese/workspace/phd/sandbox/")
-    println(OutputKernelJSON.getJsonString(newLambda))
+    /*
+        val newLambda = SimplifyAndFuse(lambdaNeighAt)
+        OutputKernelJSON(newLambda,"/home/reese/workspace/phd/sandbox/")
+        println(OutputKernelJSON.getJsonString(newLambda))
+    */
 
-/*
-    val newLambda = SimplifyAndFuse(lambdaNeighAt)
-    val source = Compile(newLambda)
+        val newLambda = SimplifyAndFuse(lambdaNeighAt)
+        val source = Compile(newLambda)
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrOther3D, mask3DBP)
+        val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrOther3D, mask3DBP)
 
-    if(StencilUtilities.printOutput)
-    {
-        StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
-        StencilUtilities.print3DArray(mask3DBP)
-    }
+        if(StencilUtilities.printOutput)
+        {
+            StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
+            StencilUtilities.print3DArray(mask3DBP)
+        }
 
-    assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
-*/
+        assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
   }
 
 
