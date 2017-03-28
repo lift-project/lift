@@ -1,11 +1,11 @@
 package opencl.generator
 
-import ir.ast.{Join, Split, Tuple, UserFun, fun}
+import ir.ast.{FunCall, Gather, Get, Join, Scatter, Split, Tuple, Unzip, UserFun, Zip, fun, shiftRight}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, MapWrg, MapLcl, MapSeq, ReduceSeq, toLocal, toGlobal}
+import opencl.ir.pattern._
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -81,6 +81,79 @@ class TestDbQueries {
     println(s"Runtime: $runtime")
     
     assertEquals(table.max, output.head)
+  }
+  
+  @Test def groupBy(): Unit = {
+    /**
+     * table has the schema: (x INTEGER, y INTEGER)
+     *
+     * Query: SELECT x, SUM(y) FROM table GROUP BY x
+     */
+    val size = 1024
+    val table = Array.fill(size, 2)(util.Random.nextInt(10)).sortBy(_(0))
+    
+    val N = SizeVar("N")
+    
+    val fst = UserFun(
+      "fst", Array("x", "y"), "return x;", Seq(Int, Int), Int
+    )
+    
+    val tupleId = UserFun(
+      "tupleId", "t", "return t;",
+      TupleType(Int, Int, Int), TupleType(Int, Int, Int)
+    )
+    
+    val eq = UserFun(
+      "eq", Array("x", "y"), "return x != y;", Seq(Int, Int), Int
+    )
+    
+    val filterOnX = UserFun(
+      "filterOnX", Array("x_ref", "row"), "return (row._0 == x_ref) ? row._1 : 0;",
+      Seq(Int, TupleType(Int, Int)), Int
+    )
+  
+    // We assume that the input table is already sorted
+    val groupBy = fun(
+      ArrayType(TupleType(Int, Int), N),
+      table => {
+        Join() o MapGlb(
+          fun(bx =>
+            toGlobal(MapSeq(tupleId)) o
+            MapSeq(fun(tot => Tuple(bx._0, bx._1, tot))) o
+            ReduceSeq(addI, 0) o
+            MapSeq(filterOnX) o
+            MapSeq(fun(row => Tuple(bx._1, row))) $ table
+          )
+        ) $ Zip(
+          MapSeq(eq) o fun(xs => Zip(
+            xs,
+            // The trick: filter (==) zip(xs, shiftRight xs))
+            MapSeq(idI) o Gather(shiftRight) o MapSeq(idI) $ xs)) o MapSeq(fst) $ table,
+          MapSeq(fst) $ table
+        )
+      }
+    )
+    
+    val (unprocessedOutput: Array[Int], runtime) = Execute(size)(groupBy, table.flatten)
+    // We will not need to perform this post-processing pass once we have a Filter pattern
+    val output: Array[Int] = unprocessedOutput
+      .grouped(3)
+      .filter(_(0) == 1)
+      .map(_.slice(1, 3))
+      .toArray
+      .flatten
+    
+    val gold: Array[Int] = table
+      .groupBy(_(0))
+      .mapValues(v => v.map(_ (1)).sum)
+      .toArray
+      .map(r => Array(r._1, r._2))
+      .sortBy(_(0))
+      .flatten
+    
+    println("SELECT x, SUM(y) FROM table GROUP BY x;")
+    println(s"Runtime: $runtime")
+    assertArrayEquals(gold, output)
   }
   
   @Test def complexQuery(): Unit = {
