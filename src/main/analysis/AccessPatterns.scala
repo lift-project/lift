@@ -65,16 +65,16 @@ class AccessPatterns(
 
   private def getAccessPattern(v: VarRef, length: ArithExpr) = {
     if (isCoalesced(v, length))
-      CoalescedPattern
+      Some(CoalescedPattern)
     else
-      UnknownPattern
+      Some(UnknownPattern)
   }
 
-  private def getAccessPattern(expr: Expr): AccessPattern = {
+  private def getAccessPattern(expr: Expr): Option[AccessPattern] = {
     val length = Type.getLength(Type.getValueType(expr.view.t))
     ViewPrinter.emit(Var(), expr.view) match {
       case v: VarRef => getAccessPattern(v, length)
-      case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+      case _ => None
     }
   }
 
@@ -99,9 +99,14 @@ class AccessPatterns(
           case fp: FPattern => determinePatterns(fp.f.body)
           case _: UserFun | _: VectorizeUserFun =>
 
-            args.foreach(arg => readPatterns += arg -> getAccessPattern(arg))
+            args.foreach(arg => {
+              val accessPattern = getAccessPattern(arg)
 
-            writePatterns += expr -> getAccessPattern(expr)
+              if (accessPattern.isDefined)
+                readPatterns += arg -> accessPattern.get
+            })
+
+            writePatterns += expr -> getAccessPattern(expr).get
 
           case _ =>
         }
