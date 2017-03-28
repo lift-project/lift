@@ -22,11 +22,30 @@ object TestDbQueries {
   }
 }
 
+/**
+ * Some tests covering the basic features of our SQL queries.
+ *
+ * Each test comes with a comment describing the shape of the input data and
+ * the query performed.
+ *
+ * Some features we don't implement here:
+ * - LEFT/RIGHT JOIN: coming soon
+ * - DISTINCT: it is basically what we do in `groupBy` minus the aggregation
+ * - ORDER BY: it will be added once we have a `Sort` pattern
+ * - HAVING: it consists in composing on the left with a filter
+ */
 class TestDbQueries {
   @Test def combine(): Unit = {
-    val size = 512
-    val left = Array.fill(size)(util.Random.nextInt(5))
-    val right = Array.fill(size)(util.Random.nextInt(5))
+    /**
+     * Not an SQL query.
+     * Implements the operator:
+     *   `combine : [a],,n,, -> [b],,m,, -> [(a,b)],,n×m,,`
+     *   `combine left right = [(x, y) for x in left; y in right]`
+     */
+    val n = 512
+    val m = 256
+    val left = Array.fill(n)(util.Random.nextInt(5))
+    val right = Array.fill(m)(util.Random.nextInt(5))
     
     val tuple_id = UserFun(
       "tuple_id", "x", "return x;",
@@ -34,10 +53,10 @@ class TestDbQueries {
     )
     
     val N = SizeVar("N")
+    val M = SizeVar("M")
     
-    // [Int],,n,, -> [Int],,n,, -> [(Int, Int)],,n^2,,
     val combine = fun(
-      ArrayType(Int, N), ArrayType(Int, N),
+      ArrayType(Int, N), ArrayType(Int, M),
       (left, right) => {
         Join() o MapGlb(
           toGlobal(MapSeq(tuple_id)) o fun(lRow => {
@@ -47,17 +66,22 @@ class TestDbQueries {
       }
     )
     
-    // Note: `output` is flattened
-    val (output: Array[Int], runtime) = Execute(size)(combine, left, right)
+    val (output: Array[Int], runtime) = Execute(n)(combine, left, right)
     val gold = (for {x <- left; y <- right} yield Array(x, y)).flatten
     
     println(s"Runtime: $runtime")
     
-    assertEquals(output.length, size * size * 2)
+    assertEquals(output.length, n * m * 2)
     assertArrayEquals(output, gold)
   }
   
   @Test def aggregation(): Unit = {
+    /**
+     * Simple aggregation.
+     * table has the schema: (x INTEGER)
+     *
+     * Query: SELECT MAX(x) FROM table;
+     */
     val size = 1024
     val table = Array.fill(size)(util.Random.nextInt(4096))
     
@@ -68,7 +92,6 @@ class TestDbQueries {
       Seq(Int, Int), Int
     )
     
-    // SELECT MAX(x) FROM xs;
     val aggregateMax = fun(
       ArrayType(Int, N),
       table => {
@@ -78,6 +101,7 @@ class TestDbQueries {
     
     val (output: Array[Int], runtime) = Execute(size)(aggregateMax, table)
     
+    println("SELECT MAX(x) FROM table;")
     println(s"Runtime: $runtime")
     
     assertEquals(table.max, output.head)
@@ -85,6 +109,7 @@ class TestDbQueries {
   
   @Test def groupBy(): Unit = {
     /**
+     * Aggregation using GROUP BY
      * table has the schema: (x INTEGER, y INTEGER)
      *
      * Query: SELECT x, SUM(y) FROM table GROUP BY x
@@ -216,7 +241,6 @@ class TestDbQueries {
     println("SELECT SUM(left.c) " +
       "FROM left INNER JOIN right ON left.a = right.x " +
       "WHERE left.b + right.y > 10;")
-    println(s"Output length: ${output.length}")
     println(s"Runtime: $runtime")
     assertEquals(gold, output.sum)
   }
