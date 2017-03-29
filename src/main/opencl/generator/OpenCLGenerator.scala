@@ -1229,6 +1229,10 @@ class OpenCLGenerator extends Generator {
 
         StructConstructor(t = tt, args = args)
 
+      // an OpenCLNullMemory object indicates that the view is not backed by memory and will directly return a value
+      case OpenCLNullMemory =>
+        ViewPrinter.emit(Var(), view, replacementsWithFuns)
+
       // not a memory collection: the default case
       case _ =>
         val currentType = t
