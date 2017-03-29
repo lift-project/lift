@@ -30,10 +30,10 @@ object TestDbQueries {
  * Each test comes with a comment describing the shape of the input data and
  * the query performed.
  *
- * Some features we don't implement here:
+ * Some features we don't explicitly implement here:
  * - LEFT/RIGHT JOIN: partially implemented, we need to be able to pad some
  *                    constants
- * - DISTINCT: it is basically what we do in groupBy` minus the aggregation
+ * - DISTINCT: it is basically what we do in `groupBy` minus the aggregation
  * - ORDER BY: it will be added once we have a `Sort` pattern
  * - HAVING: it consists in composing on the left with a filter
  */
@@ -45,24 +45,21 @@ class TestDbQueries {
      *   `combine : [a],,n,, -> [b],,m,, -> [(a,b)],,n×m,,`
      *   `combine left right = [(x, y) for x in left; y in right]`
      */
-    val n = 512
+    val n = 128
     val m = 256
     val left = Array.fill(n)(util.Random.nextInt(5))
     val right = Array.fill(m)(util.Random.nextInt(5))
-    
-    val tuple_id = UserFun(
-      "tuple_id", "x", "return x;",
-      TupleType(Int, Int), TupleType(Int, Int)
-    )
-    
+  
     val N = SizeVar("N")
     val M = SizeVar("M")
+  
+    val tupleId = id(TupleType(Int, Int))
     
     val combine = fun(
       ArrayType(Int, N), ArrayType(Int, M),
       (left, right) => {
         Join() o MapGlb(
-          toGlobal(MapSeq(tuple_id)) o fun(lRow => {
+          toGlobal(MapSeq(tupleId)) o fun(lRow => {
             MapSeq(fun(rRow => Tuple(lRow, rRow))) $ right
           })
         ) $ left
@@ -72,6 +69,7 @@ class TestDbQueries {
     val (output: Array[Int], runtime) = Execute(n)(combine, left, right)
     val gold = (for {x <- left; y <- right} yield Array(x, y)).flatten
     
+    println("combine left right")
     println(s"Runtime: $runtime")
     
     assertEquals(output.length, n * m * 2)
@@ -110,14 +108,6 @@ class TestDbQueries {
       Seq(Int, TupleType(Int, Int)), TupleType(Int, Int, Int)
     )
     
-    val or = UserFun(
-      "reduce_or", Array("a", "b"), "return a || b;", Seq(Int, Int), Int
-    )
-    
-    val not = UserFun(
-      "int_not", "x", "return !x;", Int, Int
-    )
-    
     val query = fun(
       ArrayType(TupleType(Int, Int), N),
       ArrayType(TupleType(Int, Int), M),
@@ -143,9 +133,8 @@ class TestDbQueries {
             row(1))
     )
     
-    println("SELECT a, b\n" +
-      "FROM leftTable LEFT JOIN rightTable ON a = x\n" +
-      "WHERE y IS NULL")
+    println("SELECT a, b FROM leftTable LEFT JOIN rightTable ON a = x " +
+            "WHERE y IS NULL")
     println(s"Runtime: $runtime")
   
     assertArrayEquals(gold, output)
@@ -163,21 +152,18 @@ class TestDbQueries {
     
     val N = SizeVar("N")
     
-    val max = UserFun(
-      "maximum", Array("x", "y"), "return max(x, y);",
-      Seq(Int, Int), Int
-    )
+    val int_max = max(Int)
     
     val aggregateMax = fun(
       ArrayType(Int, N),
       table => {
-        toGlobal(MapSeq(idI)) o ReduceSeq(max, 0) $ table
+        toGlobal(MapSeq(idI)) o ReduceSeq(int_max, 0) $ table
       }
     )
     
     val (output: Array[Int], runtime) = Execute(size)(aggregateMax, table)
     
-    println("SELECT MAX(x) FROM table;")
+    println("SELECT MAX(x) FROM table")
     println(s"Runtime: $runtime")
     
     assertEquals(table.max, output.head)
@@ -195,18 +181,9 @@ class TestDbQueries {
     
     val N = SizeVar("N")
     
-    val fst = UserFun(
-      "fst", Array("x", "y"), "return x;", Seq(Int, Int), Int
-    )
-    
-    val tupleId = UserFun(
-      "tupleId", "t", "return t;",
-      TupleType(Int, Int, Int), TupleType(Int, Int, Int)
-    )
-    
-    val eq = UserFun(
-      "eq", Array("x", "y"), "return x != y;", Seq(Int, Int), Int
-    )
+    val int_fst = fst(Int, Int)
+    val tuple_id = id(TupleType(Int, Int, Int), "tuple_id")
+    val int_eq = equality(Int)
     
     val filterOnX = UserFun(
       "filterOnX", Array("x_ref", "row"), "return (row._0 == x_ref) ? row._1 : 0;",
@@ -219,18 +196,18 @@ class TestDbQueries {
       table => {
         Join() o MapGlb(
           fun(bx =>
-            toGlobal(MapSeq(tupleId)) o
+            toGlobal(MapSeq(tuple_id)) o
             MapSeq(fun(tot => Tuple(bx._0, bx._1, tot))) o
             ReduceSeq(addI, 0) o
             MapSeq(filterOnX) o
             MapSeq(fun(row => Tuple(bx._1, row))) $ table
           )
         ) $ Zip(
-          MapSeq(eq) o fun(xs => Zip(
+          MapSeq(not o int_eq) o fun(xs => Zip(
             xs,
             // The trick: filter (==) zip(xs, shiftRight xs))
-            MapSeq(idI) o Gather(shiftRight) o MapSeq(idI) $ xs)) o MapSeq(fst) $ table,
-          MapSeq(fst) $ table
+            MapSeq(idI) o Gather(shiftRight) o MapSeq(idI) $ xs)) o MapSeq(int_fst) $ table,
+          MapSeq(int_fst) $ table
         )
       }
     )
@@ -252,7 +229,7 @@ class TestDbQueries {
       .sortBy(_(0))
       .flatten
     
-    println("SELECT x, SUM(y) FROM table GROUP BY x;")
+    println("SELECT x, SUM(y) FROM table GROUP BY x")
     println(s"Runtime: $runtime")
     assertArrayEquals(gold, output)
   }
@@ -314,9 +291,8 @@ class TestDbQueries {
   val (output: Array[Int], runtime) =
     Execute(n)(query, leftTable.flatten, rightTable.flatten)
   
-    println("SELECT SUM(c)\n" +
-      "FROM leftTable INNER JOIN rightTable ON a = x\n" +
-      "WHERE b + y > 10;")
+    println("SELECT SUM(c) FROM leftTable INNER JOIN rightTable ON a = x " +
+            "WHERE b + y > 10")
     println(s"Runtime: $runtime")
     assertEquals(gold, output.sum)
   }
