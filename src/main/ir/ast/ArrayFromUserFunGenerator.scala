@@ -8,8 +8,8 @@ case class ArrayFromUserFunGenerator(f: UserFun,
   override def copy: Expr = ArrayFromUserFunGenerator(f, at)
 
   override def eval(valueMap: ValueMap): Any = {
-//    Array.tabulate(n)( i => f(i, n) )
-    ???
+    val n = at.len.eval
+    Array.tabulate(n)( i => f.eval(valueMap, i, n) )
   }
 
 }
