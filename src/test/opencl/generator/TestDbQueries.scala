@@ -1,11 +1,13 @@
 package opencl.generator
 
-import ir.ast.{FunCall, Gather, Get, Join, Scatter, Split, Tuple, Unzip, UserFun, Zip, fun, shiftRight}
+import ir.ast.{Gather, Join, Split,Tuple, UserFun, Zip, fun, shiftRight}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern._
+import opencl.ir.pattern.{
+  MapGlb, MapWrg, MapLcl, MapSeq, toGlobal, toLocal, ReduceSeq
+}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -29,8 +31,9 @@ object TestDbQueries {
  * the query performed.
  *
  * Some features we don't implement here:
- * - LEFT/RIGHT JOIN: coming soon
- * - DISTINCT: it is basically what we do in `groupBy` minus the aggregation
+ * - LEFT/RIGHT JOIN: partially implemented, we need to be able to pad some
+ *                    constants
+ * - DISTINCT: it is basically what we do in groupBy` minus the aggregation
  * - ORDER BY: it will be added once we have a `Sort` pattern
  * - HAVING: it consists in composing on the left with a filter
  */
@@ -75,10 +78,83 @@ class TestDbQueries {
     assertArrayEquals(output, gold)
   }
   
+  @Test def leftJoin(): Unit = {
+    /**
+     * This example does not implement a LEFT JOIN but shows how to work on
+     * the "left" part of a LEFT JOIN.
+     *
+     * leftTable has the schema: (a INT, b: INT)
+     * rightTable has the schema: (x, INT, y: INT)
+     *
+     * Query: SELECT a, b
+     *        FROM leftTable LEFT JOIN rightTable ON a = x
+     *        WHERE y IS NULL;
+     */
+    val n = 128
+    val m = 128
+    val leftTable = Array.fill(n, 2)(util.Random.nextInt(10))
+    val rightTable = Array.fill(m, 2)(util.Random.nextInt(8))
+    
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    
+    val sameKeys = UserFun(
+      "sameKeys", Array("x", "y"),
+      "return (x._0 == y._0);",
+      Seq(TupleType(Int, Int), TupleType(Int, Int)), Int
+    )
+    
+    val toTuple = UserFun(
+      "toTuple", Array("is_bound", "row"),
+      "Tuple_int_int_int t = {is_bound, row._0, row._1}; return t;",
+      Seq(Int, TupleType(Int, Int)), TupleType(Int, Int, Int)
+    )
+    
+    val or = UserFun(
+      "reduce_or", Array("a", "b"), "return a || b;", Seq(Int, Int), Int
+    )
+    
+    val not = UserFun(
+      "int_not", "x", "return !x;", Int, Int
+    )
+    
+    val query = fun(
+      ArrayType(TupleType(Int, Int), N),
+      ArrayType(TupleType(Int, Int), M),
+      (left, right) => {
+        Join() o MapGlb(fun(lRows =>
+          MapSeq(toGlobal(toTuple)) $ Zip(
+            Join() o MapSeq(MapSeq(not) o ReduceSeq(or, 0)) o
+              MapSeq(fun(lRow => {
+                MapSeq(fun(rRow => sameKeys.apply(lRow, rRow))) $ right
+              })) $ lRows,
+            lRows
+          )
+        )) o Split(4) $ left
+      }
+    )
+    
+    val (output: Array[Int], runtime) =
+      Execute(n)(query, leftTable.flatten, rightTable.flatten)
+    
+    val gold: Array[Int] = leftTable.flatMap(row =>
+      Array(if (rightTable.exists(_(0) == row(0))) 0 else 1,
+            row(0),
+            row(1))
+    )
+    
+    println("SELECT a, b\n" +
+      "FROM leftTable LEFT JOIN rightTable ON a = x\n" +
+      "WHERE y IS NULL")
+    println(s"Runtime: $runtime")
+  
+    assertArrayEquals(gold, output)
+  }
+  
   @Test def aggregation(): Unit = {
     /**
      * Simple aggregation.
-     * table has the schema: (x INTEGER)
+     * table has the schema: (x INT)
      *
      * Query: SELECT MAX(x) FROM table;
      */
@@ -110,7 +186,7 @@ class TestDbQueries {
   @Test def groupBy(): Unit = {
     /**
      * Aggregation using GROUP BY
-     * table has the schema: (x INTEGER, y INTEGER)
+     * table has the schema: (x INT, y INT)
      *
      * Query: SELECT x, SUM(y) FROM table GROUP BY x
      */
@@ -183,11 +259,11 @@ class TestDbQueries {
   
   @Test def complexQuery(): Unit = {
     /**
-     * leftTable has the schema: (a INTEGER, b INTEGER, c INTEGER)
-     * rightTable has the schema: (x INTEGER, y INTEGER)
+     * leftTable has the schema: (a INT, b INT, c INT)
+     * rightTable has the schema: (x INT, y INT)
      *
      * Query: SELECT SUM(c)
-     *        FROM left INNER JOIN right ON a = x
+     *        FROM leftTable INNER JOIN rightTable ON a = x
      *        WHERE b + y > 10
      */
     val n = 2048
@@ -238,9 +314,9 @@ class TestDbQueries {
   val (output: Array[Int], runtime) =
     Execute(n)(query, leftTable.flatten, rightTable.flatten)
   
-    println("SELECT SUM(left.c) " +
-      "FROM left INNER JOIN right ON left.a = right.x " +
-      "WHERE left.b + right.y > 10;")
+    println("SELECT SUM(c)\n" +
+      "FROM leftTable INNER JOIN rightTable ON a = x\n" +
+      "WHERE b + y > 10;")
     println(s"Runtime: $runtime")
     assertEquals(gold, output.sum)
   }
