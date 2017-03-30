@@ -1115,17 +1115,14 @@ class TestMisc {
     
     val reshape2 = UserFun(
       "reshape2", "x",
-      "Tuple3_int_int_int t2 = {x._0._0, x._0._1, x._1};" +
-        "Tuple1 t = {t2, x._2};" +
-        "return t;",
-      // These two types have
+      "Tuple1 t = {{x._0._0, x._0._1, x._1}, x._2}; return t;",
       TupleType(TupleType(Int, Int), Int, Int),
       TupleType(TupleType(Int, Int, Int), Int)
     )
     
     val reshape1 = UserFun(
       "reshape1", Array("a", "b", "c", "d"),
-      "Tuple2_int_int t2 = {a, b}; Tuple t = {t2, c, d}; return t;",
+      "Tuple t = {{a, b}, c, d}; return t;",
       Seq(Int, Int, Int, Int), TupleType(TupleType(Int, Int), Int, Int)
     )
     
