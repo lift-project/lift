@@ -54,7 +54,7 @@ class OpenCLPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar => ai.array + "[" + toString(ai.idx) + "]"
+      case ai: AccessVar => ai.array + "[" + toString(ai.idx.content) + "]"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
@@ -135,6 +135,7 @@ class OpenCLPrinter {
 
     case f: Function      => print(f)
     case i: OpenCLCode    => sb ++= i.code
+    case e: OpenCLExpression => sb ++= e.code
     case c: Comment       => print(s"/* ${c.content} */")
     case v: VarDecl       => print(v)
     case v: VarRef        => print(v)

@@ -5,6 +5,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import opencl.executor._
+import opencl.generator.OpenCLAST.{ArithExpression, FunctionCall}
 import opencl.generator.OpenCLGenerator._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -1100,5 +1101,142 @@ class TestMisc {
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)
+  }
+
+  @Test
+  def arrayFromValue(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val at = ArrayType(Float, SizeVar("N"))
+
+    val f = fun(at,
+      input => MapGlb(add) $ Zip(input, ArrayFromValue(1, at))
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, Array.fill(input.length)(1)).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def arrayFromGenerator(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val at = ArrayType(Float, SizeVar("N"))
+
+    val f = fun(at,
+      input => MapGlb(add) $ Zip(input, ArrayFromGenerator( (i, _) => ArithExpression(i), at))
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val at = ArrayType(Float, SizeVar("N"))
+
+    val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
+
+    val f = fun(at,
+      input => MapGlb(add) $ Zip(input, ArrayFromUserFunGenerator(idxF, at))
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator2(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextInt())
+
+    val at = ArrayType(Int, SizeVar("N"))
+
+    val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
+
+    val f = fun(at,
+      input =>
+        ArrayFromUserFunGenerator(idxF, at) :>>
+          Split(64) :>>
+            toGlobal(MapGlb(MapSeq(idI)))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(input.length)( i => i )
+
+    assertArrayEquals(gold, output)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator2D(): Unit = {
+    val m = 128
+    val n = 8
+
+    val input = Array.fill(m, n)(util.Random.nextInt())
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+
+    val at = ArrayType(ArrayType(Int, N), M)
+
+    val idxF = UserFun("idxF", Array("i", "j", "m", "n"), "{ return i+j; }",
+      Seq(Int, Int, Int, Int), Int)
+
+    val f = fun(ArrayType(ArrayType(Int, N), M),
+      input =>
+        Array2DFromUserFunGenerator(idxF, at) :>>
+          toGlobal(MapGlb(MapSeq(idI)))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(m, n)( (i, j) => i+j ).flatten
+
+    assertArrayEquals(gold, output)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator3D(): Unit = {
+    val m = 128
+    val n = 8
+    val o = 4
+
+    val input = Array.fill(m, n, o)(util.Random.nextInt())
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val O = SizeVar("O")
+
+    val at = ArrayType(ArrayType(ArrayType(Int, O), N), M)
+
+    val idxF = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ return i+j+k; }",
+      Seq(Int, Int, Int, Int, Int, Int), Int)
+
+    val f = fun(ArrayType(ArrayType(ArrayType(Int, O), N), M),
+      input =>
+        Array3DFromUserFunGenerator(idxF, at) :>>
+          toGlobal(MapGlb(MapSeq(MapSeq(idI))))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(m, n, o)( (i, j, k) => i+j+k ).flatten.flatten
+
+    assertArrayEquals(gold, output)
   }
 }
