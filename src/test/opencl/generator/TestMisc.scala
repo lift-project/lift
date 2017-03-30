@@ -1102,6 +1102,39 @@ class TestMisc {
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)
   }
+  
+  @Test def issue104(): Unit = {
+    val size = 128
+    val N = SizeVar("N")
+    val input = Array.fill(size, 4)(util.Random.nextInt(5))
+  
+    val flatten = UserFun(
+      "flatten", "t",
+      "Tuple1 t2 = {t._0._0, t._0._1, t._0._2, t._1}; return t2;",
+      TupleType(TupleType(Int, Int, Int), Int), TupleType(Int, Int, Int, Int)
+    )
+  
+    val reshape2 = UserFun(
+      "reshape2", "x",
+      "Tuple1 t = {{x._0._0, x._0._1, x._1}, x._2}; return t;",
+      TupleType(TupleType(Int, Int), Int, Int),
+      TupleType(TupleType(Int, Int, Int), Int)
+    )
+  
+    val reshape1 = UserFun(
+      "reshape1", Array("a", "b", "c", "d"),
+      "Tuple t = {{a, b}, c, d}; return t;",
+      Seq(Int, Int, Int, Int), TupleType(TupleType(Int, Int), Int, Int)
+    )
+  
+    val expr = fun(
+      ArrayType(TupleType(Int, Int, Int, Int), N),
+      arr => MapGlb(toGlobal(flatten) o reshape2 o reshape1) $ arr
+    )
+  
+    val (output: Array[Int], _) = Execute(size)(expr, input.flatten)
+    assertArrayEquals(input.flatten, output)
+  }
 
   @Test
   def arrayFromValue(): Unit = {
