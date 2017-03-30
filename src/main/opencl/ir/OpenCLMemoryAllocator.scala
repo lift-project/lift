@@ -29,6 +29,8 @@ object OpenCLMemoryAllocator {
     numPvt: ArithExpr = 1): OpenCLMemory = {
 
     val result = expr match {
+      case _: ArrayConstructors => OpenCLNullMemory // an array constructor is not backed by memory
+
       case v: Value => allocValue(v)
       case vp: VectorParam => allocParam(vp.p)
       case p: Param => allocParam(p)
@@ -36,7 +38,6 @@ object OpenCLMemoryAllocator {
         allocFunCall(call, numGlb, numLcl, numPvt, UndefAddressSpace)
     }
     // set the output
-    assert(result != OpenCLNullMemory)
     expr.mem = result
 
     // finally return the output

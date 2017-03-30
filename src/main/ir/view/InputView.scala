@@ -25,6 +25,13 @@ object InputView {
       case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
       case vp: VectorParam => vp.p.view
       case p: Param => p.view
+
+      case ArrayFromValue(value, at) => ViewConstant(value, at)
+      case ArrayFromGenerator(f, at) => ViewGenerator(f, at)
+      case ArrayFromUserFunGenerator(f, at) => ViewGeneratorUserFun(f, at)
+      case Array2DFromUserFunGenerator(f, at) => View2DGeneratorUserFun(f, at)
+      case Array3DFromUserFunGenerator(f, at) => View3DGeneratorUserFun(f, at)
+
       case call: FunCall => buildViewFunCall(call)
     }
     expr.view = result

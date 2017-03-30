@@ -150,17 +150,17 @@ object OpenCLAST {
     */
   case class VarRef(v: Var,
                     suffix: String = null,
-                    arrayIndex: Expression = null) extends Expression
+                    arrayIndex: ArithExpression = null) extends Expression
 
   case class Load(v: VarRef,
                   t: VectorType,
-                  offset: Expression,
+                  offset: ArithExpression,
                   openCLAddressSpace: OpenCLAddressSpace) extends Expression
 
   case class Store(v: VarRef,
                    t: VectorType,
                    value: OclAstNode,
-                   offset: Expression,
+                   offset: ArithExpression,
                    openCLAddressSpace: OpenCLAddressSpace) extends Expression
 
   /** Represent an assignment.
@@ -207,6 +207,8 @@ object OpenCLAST {
 
   case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends Expression
 
+  case class OpenCLExpression(code: String) extends Expression
+
 
   /** Inline native code block. Used mainly for UserFun, which are currently
     * represented as strings
@@ -249,6 +251,7 @@ object OpenCLAST {
 
     def visitExpression(e: Expression): Unit = e match {
       case _: ArithExpression =>
+      case _: OpenCLExpression =>
       case a: AssignmentExpression =>
         visitExpressionsInNode(a.value)
         visitExpressionsInNode(a.to)
