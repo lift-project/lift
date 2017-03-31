@@ -37,6 +37,7 @@ object InferOpenCLAddressSpace {
     val result = expr match {
       case Value(_) => PrivateMemory
       case vp: VectorParam => setAddressSpaceParam(vp.p)
+      case _: ArrayConstructors => UndefAddressSpace
       case p: Param => setAddressSpaceParam(p)
       case f: FunCall => setAddressSpaceFunCall(f, writeTo)
     }

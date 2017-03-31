@@ -100,7 +100,7 @@ class TestMemoryMappingRewrite {
     val select_ = UserFun("select_", Array("tuple"), """|{ return tuple._2; }""".stripMargin, Seq(TupleType(Float, Int, Int)), Int)
 
     val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
-    val idTuple_float_int_int = UserFun("idTuple_float_int_int", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Int, Int)), TupleType(Float, Int, Int))
+    val idTuple_float_int_int = UserFun("idTuple3_float_int_int", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Int, Int)), TupleType(Float, Int, Int))
 
     val start = fun(ArrayType(ArrayType(Float, v_P_0), v_F_1), ArrayType(ArrayType(Float, v_F_1), v_C_2),(p_0, p_1) => FunCall(Map(fun((p_2) => FunCall(Map(fun((p_3) => FunCall(Map(fun((p_4) => FunCall(select_, p_4))), p_3))), FunCall(ReduceSeq(fun((p_5, p_6) => FunCall(Map(fun((p_7) => FunCall(test, FunCall(Get(0), p_7), FunCall(Get(1), p_7)))), FunCall(Zip(2), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(add, p_8, FunCall(currentDistance, FunCall(Get(0), p_9), FunCall(Get(1), p_9))))), Value("0.0f", Float), FunCall(Zip(2), p_2, p_6)), p_5)))), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int), 1)), p_1)))), FunCall(Transpose(), p_0)))
 
