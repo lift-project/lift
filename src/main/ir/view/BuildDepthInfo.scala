@@ -73,10 +73,10 @@ private class BuildDepthInfo() {
   private def visitAndBuildDepthInfo(expr: Expr): AccessInfo = {
     val result = expr match {
       case call: FunCall => buildDepthInfoFunCall(call)
-      case p: Param =>
-        p.inputDepth = getAccessInf(p.addressSpace.containsAddressSpace(PrivateMemory),
-          p.addressSpace.containsAddressSpace(LocalMemory))
-        p.accessInf
+      case e: Expr =>
+        e.inputDepth = getAccessInf(e.addressSpace.containsAddressSpace(PrivateMemory),
+          e.addressSpace.containsAddressSpace(LocalMemory))
+        e.accessInf
     }
 
     expr.accessInf = result
