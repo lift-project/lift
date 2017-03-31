@@ -113,6 +113,8 @@ class TestAccessCounts {
       accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
     assertEquals(N /^ globalSize0,
       accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+
+     println(accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact=false))
   }
 
   @Test
@@ -127,6 +129,22 @@ class TestAccessCounts {
 
     assertEquals(N /^ globalSize0,
       accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+  }
+
+  @Test
+  def vector3(): Unit = {
+
+    val f = fun(
+      ArrayType(Float, 4*N),
+      x => asScalar() o MapGlb(0)(idF4) o Gather(reverse) o asVector(4) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
     assertEquals(N /^ globalSize0,
       accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
   }
