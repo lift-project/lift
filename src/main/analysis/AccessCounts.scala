@@ -137,6 +137,34 @@ class AccessCounts(
     getLoads(addressSpace, accessPattern, exact) +
       getStores(addressSpace, accessPattern, exact)
 
+  def scalarLoads(addressSpace: OpenCLAddressSpace,
+    accessPattern: AccessPattern, exact: Boolean = false) = {
+
+    val loads = loadsToAddressSpacesWithPatternAndWidth.
+      foldLeft(Cst(0): ArithExpr)((acc, bla) =>
+        if (bla._1._3 == Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
+          acc + bla._2
+        else
+          acc
+      )
+
+    getExact(loads, exact)
+  }
+
+  def scalarStores(addressSpace: OpenCLAddressSpace,
+    accessPattern: AccessPattern, exact: Boolean = false) = {
+
+    val stores = storesToAddressSpacesWithPatternAndWidth.
+      foldLeft(Cst(0): ArithExpr)((acc, bla) =>
+        if (bla._1._3 == Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
+          acc + bla._2
+        else
+          acc
+      )
+
+    getExact(stores, exact)
+  }
+
   def vectorLoads(addressSpace: OpenCLAddressSpace,
     accessPattern: AccessPattern, exact: Boolean = false) = {
 

@@ -89,14 +89,14 @@ class TestAccessCounts {
     val accessCounts = AccessCounts(f)
 
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.getLoads(GlobalMemory, UnknownPattern, exact = false))
+      accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact = false))
+      accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
 
     assertEquals(Cst(0),
-      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact = false))
+      accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
     assertEquals(Cst(0),
-      accessCounts.getStores(GlobalMemory, UnknownPattern, exact = false))
+      accessCounts.scalarStores(GlobalMemory, UnknownPattern))
   }
 
   @Test
@@ -114,7 +114,18 @@ class TestAccessCounts {
     assertEquals(N /^ globalSize0,
       accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
 
-     println(accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact=false))
+     assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, UnknownPattern))
   }
 
   @Test
@@ -131,6 +142,19 @@ class TestAccessCounts {
       accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
     assertEquals(N /^ globalSize0,
       accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, UnknownPattern))
   }
 
   @Test
