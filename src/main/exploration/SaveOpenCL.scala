@@ -184,7 +184,7 @@ class SaveOpenCL(
     "vectorLocalStores,vectorLocalLoads," +
     "scalarPrivateStores,scalarPrivateLoads," +
     "vectorPrivateStores,vectorPrivateLoads," +
-    "ifStatements,forStatements,barriers," +
+    "ifStatements,forStatements,forBranches,barriers," +
     "add,mult,addVec,multVec,addMult,addMultVec,dot,opCount\n"
 
   private def dumpStats(lambda: Lambda, hash: String, path: String): Unit = {
@@ -297,6 +297,7 @@ class SaveOpenCL(
 
     val ifStatements = controlFlow.getIfStatements(exact).evalDbl
     val forStatements = controlFlow.getForStatements(exact).evalDbl
+    val forBranches = controlFlow.getForBranches(exact).evalDbl
 
     val addScalarCount = functionCounts.getFunctionCount(add, exact).evalDbl
     val multScalarCount = functionCounts.getFunctionCount(mult, exact).evalDbl
@@ -327,7 +328,7 @@ class SaveOpenCL(
         s"$vectorLocalStores,$vectorLocalLoads," +
         s"$privateScalarStores,$privateScalarLoads," +
         s"$vectorPrivateStores,$vectorPrivateLoads," +
-        s"$ifStatements,$forStatements,$barriers," +
+        s"$ifStatements,$forStatements,$forBranches,$barriers," +
         s"$addScalarCount,$multScalarCount," +
         s"$addVecCount,$multVecCount,$addMult,$vecAddMult,$dotCount,$opCount\n"
 
