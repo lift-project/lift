@@ -237,6 +237,7 @@ object TypedOpenCLMemory {
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
         case r: AbstractPartRed => collectReduce(r, argMems)
+        case sp: ScanPlus => collectScanPlus(sp, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
         case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
         case i: Iterate     => collectIterate(call, i)
@@ -311,6 +312,18 @@ object TypedOpenCLMemory {
         case rws: ReduceWhileSeq => collect(rws.p.body)
         case _ => Seq[TypedOpenCLMemory]()
       })
+
+      mems.filter(m => {
+        val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
+        val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
+
+        !isAlreadyInArgs && !isAlreadyInParams
+      })
+    }
+
+    def collectScanPlus(sp: ScanPlus,
+                      argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      val mems: Seq[TypedOpenCLMemory] = collect(sp.f.body) ++ (Seq[TypedOpenCLMemory]())
 
       mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)

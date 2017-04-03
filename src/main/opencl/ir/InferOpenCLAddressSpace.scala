@@ -3,7 +3,7 @@ package opencl.ir
 import ir.ScalarType
 import ir.ast._
 import opencl.generator.IllegalKernel
-import opencl.ir.pattern.{ReduceWhileSeq, toGlobal, toLocal, toPrivate}
+import opencl.ir.pattern._
 
 object InferOpenCLAddressSpace {
 
@@ -67,6 +67,7 @@ object InferOpenCLAddressSpace {
       case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
+      case sp: ScanPlus => setAddressSpaceScanPlus(sp.f, call, addressSpaces)
 
       case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
       case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
@@ -89,6 +90,21 @@ object InferOpenCLAddressSpace {
 
   private def setAddressSpaceReduce(lambda: Lambda, call: FunCall,
     addressSpaces: Seq[OpenCLAddressSpace]) = {
+
+    // First argument is initial value
+    if (call.args(0).addressSpace == UndefAddressSpace)
+      throw UnexpectedAddressSpaceException(
+        s"No address space ${call.args(0).addressSpace} at $call")
+
+    // The address space of the result of a reduction
+    // is always the same as the initial element
+    val writeTo = call.args(0).addressSpace
+
+    setAddressSpaceLambda(lambda, writeTo, addressSpaces)
+  }
+
+  private def setAddressSpaceScanPlus(lambda: Lambda, call: FunCall,
+                                    addressSpaces: Seq[OpenCLAddressSpace]) = {
 
     // First argument is initial value
     if (call.args(0).addressSpace == UndefAddressSpace)

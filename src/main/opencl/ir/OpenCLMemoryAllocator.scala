@@ -91,6 +91,8 @@ object OpenCLMemoryAllocator {
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
+      case sp: ScanPlus => allocScanPlus(sp, numGlb, numLcl, numPvt, inMem)
+
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
       case it: Iterate => allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
@@ -231,6 +233,27 @@ object OpenCLMemoryAllocator {
       case _ => throw new IllegalArgumentException(inMem.toString)
     }
   }
+
+  private def allocScanPlus(sp: ScanPlus,
+                          numGlb: ArithExpr,
+                          numLcl: ArithExpr,
+                          numPvt: ArithExpr,
+                          inMem: OpenCLMemory): OpenCLMemory = {
+    inMem match {
+      case coll: OpenCLMemoryCollection =>
+        val initM = coll.subMemories(0)
+        sp.f.params(0).mem = initM
+        sp.f.params(1).mem = coll.subMemories(1)
+        val bodyM = alloc(sp.f.body, numGlb, numLcl, numPvt)
+
+        // replace `bodyM` by `initM` in `sp.f.body`
+        Expr.visit(sp.f.body, e => if (e.mem == bodyM) e.mem = initM, _ => {})
+
+        initM // return initM as the memory of the reduction pattern
+      case _ => throw new IllegalArgumentException(inMem.toString)
+    }
+  }
+
 
   private def allocSearch(s: AbstractSearch, call: FunCall,
     numGlb: ArithExpr,

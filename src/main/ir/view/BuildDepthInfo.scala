@@ -90,6 +90,7 @@ private class BuildDepthInfo() {
     val result = call.f match {
       case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
       case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
+      case sp: ScanPlus => buildDepthInfoScanPlusCall(sp, call, argInf)
       case _ =>
 
         val (readsLocal, readsPrivate) = readsLocalPrivate(call)
@@ -153,6 +154,20 @@ private class BuildDepthInfo() {
     r.f.params(1).accessInf = l.l(1)((length, r.loopVar), readsPrivate, readsLocal || seenMapLcl)
 
     buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), r.loopVar, readsLocal, readsPrivate, l)
+
+    AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+  }
+
+  private def buildDepthInfoScanPlusCall(sp: ScanPlus, call: FunCall,
+                                       l: AccessInfo): AccessInfo = {
+
+    val (readsLocal, readsPrivate) = containsLocalPrivate(call.args(1).mem)
+    val length = Type.getLength(call.args(1).t)
+
+    sp.f.params(0).accessInf = l.l.head
+    sp.f.params(1).accessInf = l.l(1)((length, sp.loopVar), readsPrivate, readsLocal || seenMapLcl)
+
+    buildDepthInfoReducePatternCall(sp.f.body, call, Cst(0), sp.loopVar, readsLocal, readsPrivate, l)
 
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
   }

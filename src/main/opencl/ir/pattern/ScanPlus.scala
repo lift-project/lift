@@ -9,6 +9,8 @@ import ir.interpreter.Interpreter.ValueMap
 case class ScanPlus(val f: Lambda, var loopVar: Var) extends Pattern(arity = 2) with isGenerable
 {
 
+  val iterationCount = loopVar.range.numVals
+
   def checkType(argType: Type, setType: Boolean): Type =  {
     argType match {
       case TupleType(initT, ArrayType(elemT, _)) =>
@@ -37,5 +39,5 @@ case class ScanPlus(val f: Lambda, var loopVar: Var) extends Pattern(arity = 2) 
 }
 
 object ScanPlus {
-  def apply(f: Lambda2, init: Expr): Lambda2 = fun((x) => ScanPlus(f,PosVar("i"))(init, x))
+  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ScanPlus(f,PosVar("i"))(init, x))
 }

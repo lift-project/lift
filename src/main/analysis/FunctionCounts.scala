@@ -106,6 +106,10 @@ class FunctionCounts (
             val n = Type.getLength(args(1).t)
             count(reduce.f, n)
 
+          case scanplus: ScanPlus =>
+            val n = Type.getLength(args(1).t)
+            count(scanplus.f, n)
+
           case Iterate(n, nestedLambda) =>
             count(nestedLambda, n)
 

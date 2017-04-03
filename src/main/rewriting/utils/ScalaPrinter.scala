@@ -28,6 +28,7 @@ object ScalaPrinter {
       case mapLcl: MapAtomLcl => s"MapAtomLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
       case mapGlb: MapGlb => s"MapGlb(${mapGlb.dim})(${apply(mapGlb.f)})"
       case reduceSeq: ReduceSeq => s"ReduceSeq(${apply(reduceSeq.f)})"
+      case scanplus: ScanPlus => s"ScanPlus(${apply(scanplus.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
       case toGlobal: toGlobal => s"toGlobal(${apply(toGlobal.f)})"

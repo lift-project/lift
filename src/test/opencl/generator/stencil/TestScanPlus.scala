@@ -29,6 +29,7 @@ object TestScanPlus
 class TestScanPlus
 {
 
+  @Ignore
   @Test
   def reduceSlide1DTest(): Unit = {
 
@@ -49,7 +50,7 @@ class TestScanPlus
       } o Slide(3, 1)  $ input
     )
 
-    println(Compile(stencil))
+//    println(Compile(stencil))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil, values)
 
