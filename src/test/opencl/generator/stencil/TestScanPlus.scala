@@ -42,11 +42,14 @@ class TestScanPlus
       (input) => {
         MapGlb(
           toGlobal(MapSeqUnroll(id)) o
-            ReduceSeqUnroll(fun((acc, y) => {
+           // ReduceSeq(fun((acc, y) => {
+              ScanPlus(fun((acc, y) => {
               absAndSumUp.apply(acc, y)
             }), 0.0f))
       } o Slide(3, 1)  $ input
     )
+
+    println(Compile(stencil))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil, values)
 
