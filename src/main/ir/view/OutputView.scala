@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.ReduceWhileSeq
+import opencl.ir.pattern.{FilterSeq, ReduceWhileSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -40,6 +40,7 @@ object OutputView {
     // first handle body
     val result = call.f match {
       case m: AbstractMap => buildViewMap(m, call, writeView)
+      case f: FilterSeq => buildViewFilter(f,  call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
@@ -192,7 +193,15 @@ object OutputView {
     visitAndBuildViews(m.f.body, writeView.access(m.loopVar))
     ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
   }
-
+  
+  private def buildViewFilter(f: FilterSeq, call: FunCall,
+                              writeView: View): View = {
+    // TODO: the output view is attached to the predicate but that does not
+    //       make much sense. We should do something about that.
+    visitAndBuildViews(f.f.body, writeView.access(f.loopWrite))
+    ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
+  }
+  
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
     // traverse into call.f

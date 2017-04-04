@@ -427,6 +427,8 @@ class OpenCLGenerator extends Generator {
         case m: MapSeq => generateMapSeqCall(m, call, block)
         case _: Map =>
 
+        case f: FilterSeq => generateFilterSeqCall(f, call, block)
+
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
         case r: ReduceWhileSeq => generateReduceWhileCall(r, call, block)
 
@@ -632,6 +634,53 @@ class OpenCLGenerator extends Generator {
             throw new TypeException(e.t, "Array")
         }
     }
+  }
+  
+  // === Filter ===
+  private def generateFilterSeqCall(f: FilterSeq,
+                                    call: FunCall,
+                                    block: Block): Unit = {
+    
+    (block: Block) += OpenCLAST.Comment("filter_seq")
+    
+    // Declare the index for the output array as a local variable
+    (block: Block) += OpenCLAST.VarDecl(
+      f.loopWrite,
+      opencl.ir.Int,
+      ArithExpression(Cst(0))
+    )
+  
+    val param = f.f.params.head
+    val loadValue = generateLoadNode(
+      OpenCLMemory.asOpenCLMemory(param.mem),
+      param.t,
+      param.view
+    )
+    
+    def mkTrueBlock(block: Block): Unit = {
+      // If the predicate returns true:
+      // 1. Store the input value at "the top" of the output array
+      (block: Block) += generateStoreNode(
+        OpenCLMemory.asOpenCLMemory(f.f.body.mem),
+        param.t,
+        f.f.body.outputView,
+        loadValue
+      )
+      // 2. Increment the index of "the top" of the output array
+      (block: Block) += AssignmentExpression(
+        ArithExpression(f.loopWrite),
+        ArithExpression(f.loopWrite + f.loopWrite.range.asInstanceOf[RangeAdd].step)
+      )
+    }
+  
+    val condition = generateFunCall(f.f.body, List(loadValue))
+    generateForLoop(
+      block,
+      f.loopRead,
+      generateConditional(_, condition, mkTrueBlock, _ => ())
+    )
+    
+    (block: Block) += OpenCLAST.Comment("end filter_seq")
   }
 
   // === Reduce ===
@@ -1159,7 +1208,7 @@ class OpenCLGenerator extends Generator {
 
   @scala.annotation.tailrec
   private def generateFunCall(expr: Expr,
-                              args: List[OclAstNode]): OclAstNode = {
+                              args: List[OclAstNode]): FunctionCall = {
     expr match {
       case call: FunCall => call.f match {
         case uf: UserFun =>

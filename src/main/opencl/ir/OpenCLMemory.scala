@@ -236,6 +236,7 @@ object TypedOpenCLMemory {
                             => collectUserFun(call)
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
+        case f: FilterSeq   => collectFilter(call.t, f)
         case r: AbstractPartRed => collectReduce(r, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
         case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
@@ -303,6 +304,32 @@ object TypedOpenCLMemory {
         case _ => cts
       }
       
+    }
+  
+    def collectFilter(t: Type,
+                   f: FilterSeq): Seq[TypedOpenCLMemory] = {
+      @scala.annotation.tailrec
+      def changeType(addressSpace: OpenCLAddressSpace,
+                     tm: TypedOpenCLMemory): TypedOpenCLMemory = {
+        // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
+        addressSpace match {
+          case PrivateMemory =>
+            var privateMultiplier = f.iterationCount
+            privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+          
+            TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
+          case LocalMemory =>
+            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+          case GlobalMemory =>
+            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+          case coll: AddressSpaceCollection =>
+            changeType(coll.findCommonAddressSpace(), tm)
+        }
+      }
+    
+      // change types for all of them
+      val mems = collect(f.f.body)
+      mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
     }
 
     def collectReduce(r: AbstractPartRed,
