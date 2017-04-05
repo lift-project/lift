@@ -6,7 +6,7 @@ import ir._
 import ir.ast._
 import ir.interpreter.Interpreter.ValueMap
 
-case class SlideSeqPlus(val f: Lambda, var loopVar: Var) extends Pattern(arity = 2) with isGenerable with FPattern
+case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var) extends Pattern(arity = 2) with isGenerable with FPattern
 {
 
   val iterationCount = loopVar.range.numVals
@@ -20,7 +20,7 @@ case class SlideSeqPlus(val f: Lambda, var loopVar: Var) extends Pattern(arity =
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
         if (bodyType != initT)
-          throw TypeException(s"ReduceSeq operator returns $bodyType instead of the expected $initT")
+          throw TypeException(s"SlideSeqPlus operator returns $bodyType instead of the expected $initT")
 
         ArrayType(initT, 1)
 
@@ -35,11 +35,11 @@ case class SlideSeqPlus(val f: Lambda, var loopVar: Var) extends Pattern(arity =
     Vector( input.foldLeft(init)( (acc, x) => f.eval(valueMap, acc, x) ))
   }
 
-  var shouldUnroll = true
+  var shouldUnroll = false
 
-  override def copy(f: Lambda): Pattern = SlideSeqPlus(f,PosVar("i"))
+  override def copy(f: Lambda): Pattern = SlideSeqPlus(f,size,step,PosVar("i"))
 }
 
 object SlideSeqPlus {
-  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => SlideSeqPlus(f,PosVar("i"))(init, x))
+  def apply(f: Lambda2, size: ArithExpr, step: ArithExpr, init: Expr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"))(init, x))
 }

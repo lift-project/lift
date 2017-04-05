@@ -451,7 +451,7 @@ class CGenerator extends Generator {
         case _: Map =>
 
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
-        case sp: SlideSeqPlus => generateScanPlusCall(sp, call, block)
+        case sp: SlideSeqPlus => generateSlideSeqPlusCall(sp, call, block)
         case _: Search =>
 
         case i: Iterate => generateIterateCall(i, call, block)
@@ -530,12 +530,12 @@ class CGenerator extends Generator {
     (block: Block) += CAst.Comment("end reduce_seq")
   }
 
-  private def generateScanPlusCall(sp: SlideSeqPlus,
-                                   call: FunCall,
-                                   block: Block): Unit = {
+  private def generateSlideSeqPlusCall(sp: SlideSeqPlus,
+                                       call: FunCall,
+                                       block: Block): Unit = {
 
     val innerBlock = CAst.Block(Vector.empty)
-    (block: Block) += CAst.Comment("scan_plus")
+    (block: Block) += CAst.Comment("slideSeq_plus")
 
     val inputLen = generateLength(call.args(1))
     inputLen match {
@@ -556,7 +556,7 @@ class CGenerator extends Generator {
         generateForLoop(block, sp.loopVar, generateExpr(sp.f.body, _), sp.shouldUnroll)
     }
 
-    (block: Block) += CAst.Comment("end scan_plus")
+    (block: Block) += CAst.Comment("end slideSeq_plus")
   }
 
 

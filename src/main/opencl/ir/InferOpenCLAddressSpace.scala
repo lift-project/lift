@@ -67,7 +67,7 @@ object InferOpenCLAddressSpace {
       case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
-      case sp: SlideSeqPlus => setAddressSpaceScanPlus(sp.f, call, addressSpaces)
+      case sp: SlideSeqPlus => setAddressSpaceSlideSeqPlus(sp.f, call, addressSpaces)
 
       case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
       case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
@@ -103,8 +103,8 @@ object InferOpenCLAddressSpace {
     setAddressSpaceLambda(lambda, writeTo, addressSpaces)
   }
 
-  private def setAddressSpaceScanPlus(lambda: Lambda, call: FunCall,
-                                    addressSpaces: Seq[OpenCLAddressSpace]) = {
+  private def setAddressSpaceSlideSeqPlus(lambda: Lambda, call: FunCall,
+                                          addressSpaces: Seq[OpenCLAddressSpace]) = {
 
     // First argument is initial value
     if (call.args(0).addressSpace == UndefAddressSpace)

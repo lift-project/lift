@@ -55,7 +55,7 @@ object InputView {
     call.f match {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
-      case sp: SlideSeqPlus => buildViewScanPlus(sp, call, argView)
+      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
@@ -141,8 +141,8 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
-  private def buildViewScanPlus(sp: SlideSeqPlus,
-                                call: FunCall, argView: View): View = {
+  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+                                    call: FunCall, argView: View): View = {
     // pass down input view
     sp.f.params(0).view = argView.get(0)
     sp.f.params(1).view = argView.get(1).access(sp.loopVar)

@@ -29,11 +29,10 @@ object TestSlideSeqPlus
 class TestSlideSeqPlus
 {
 
-  @Ignore
   @Test
   def reduceSlide1DTest(): Unit = {
 
-    val size = 8
+    val size = 20
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _))
 
@@ -43,14 +42,13 @@ class TestSlideSeqPlus
       (input) => {
         MapGlb(
           toGlobal(MapSeqUnroll(id)) o
-           // ReduceSeq(fun((acc, y) => {
               SlideSeqPlus(fun((acc, y) => {
               absAndSumUp.apply(acc, y)
-            }), 0.0f))
+            }), 3, 1, 0.0f))
       } o Slide(3, 1)  $ input
     )
 
-//    println(Compile(stencil))
+    println(Compile(stencil))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil, values)
 
@@ -134,7 +132,7 @@ class TestSlideSeqPlus
     val size = 8
     val values = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
     val weights = Array( Array(0.0f, 0.5f, 0.0f ), Array(0.5f, 1.0f, 0.5f ),Array(0.0f, 0.5f, 0.0f ) )
-    val gold = Array( 4.0f,6.0f,8.0f,10.0f,12.0f,14.0f )
+    val gold = Array( 9.0f,12.0f,15.0f,18.0f,21.0f,24.0f,12.0f,15.0f,18.0f,21.0f,24.0f,27.0f,15.0f,18.0f,21.0f,24.0f,27.0f,30.0f,18.0f,21.0f,24.0f,27.0f,30.0f,33.0f,21.0f,24.0f,27.0f,30.0f,33.0f,36.0f,24.0f,27.0f,30.0f,33.0f,36.0f,39.0f )
 
 
     val stencil = fun(
@@ -154,10 +152,6 @@ class TestSlideSeqPlus
       })
 
     val (output: Array[Float], _) = Execute(2,2)(stencil, values, weights)
-
-    StencilUtilities.print2DArray(values)
-    StencilUtilities.print1DArrayAs2DArray(output,size-2)
-    StencilUtilities.print1DArrayAs2DArray(gold,size-2)
 
     assertArrayEquals(gold, output, 0.1f)
 

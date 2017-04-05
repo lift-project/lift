@@ -102,9 +102,9 @@ class ControlFlow(
             val n = Type.getLength(args(1).t)
             count(reduceSeq.f, reduceSeq.loopVar, n, reduceSeq.shouldUnroll)
 
-          case scanplus: SlideSeqPlus =>
+          case slideseqplus: SlideSeqPlus =>
             val n = Type.getLength(args(1).t)
-            count(scanplus.f, scanplus.loopVar, n, scanplus.shouldUnroll)
+            count(slideseqplus.f, slideseqplus.loopVar, n, slideseqplus.shouldUnroll)
 
           case iterate@Iterate(n, nestedLambda) =>
             count(nestedLambda, iterate.indexVar, n, unrolled = false)

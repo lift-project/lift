@@ -21,7 +21,7 @@ object CaseStatementPrinter {
       case split: Split => s"Split(_)"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
       case reduceSeq: ReduceSeq => s"ReduceSeq(_)"
-      case scanplus: SlideSeqPlus => s"ScanPlus(_)"
+      case slideseqplus: SlideSeqPlus => s"SlideSeqPlus(_)"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
       case toGlobal: toGlobal => s"toGlobal(_)"
       case uf: UserFun => "_"

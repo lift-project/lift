@@ -420,7 +420,7 @@ class OpenCLGenerator extends Generator {
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
         case r: ReduceWhileSeq => generateReduceWhileCall(r, call, block)
 
-        case sp: SlideSeqPlus => generateScanPlusCall(sp, call, block)
+        case sp: SlideSeqPlus => generateSlideSeqPlusCall(sp, call, block)
 
         case bs: BSearch => generateBSearchCall(bs, call, block)
         case ls: LSearch => generateLSearchCall(ls, call, block)
@@ -657,12 +657,12 @@ class OpenCLGenerator extends Generator {
   }
 
 
-  private def generateScanPlusCall(sp: SlideSeqPlus,
-                                   call: FunCall,
-                                   block: Block): Unit = {
+  private def generateSlideSeqPlusCall(sp: SlideSeqPlus,
+                                       call: FunCall,
+                                       block: Block): Unit = {
 
     val innerBlock = OpenCLAST.Block(Vector.empty)
-    (block: Block) += OpenCLAST.Comment("scan_plus")
+    (block: Block) += OpenCLAST.Comment("slideSeq_plus")
 
     val inputLen = generateLength(call.args(1))
     inputLen match {
@@ -683,7 +683,7 @@ class OpenCLGenerator extends Generator {
         generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
     }
 
-    (block: Block) += OpenCLAST.Comment("end scan_plus")
+    (block: Block) += OpenCLAST.Comment("end slideSeq_plus")
   }
 
   // === ReduceWhile ===
