@@ -225,7 +225,7 @@ class AccessCounts(
             val n = Type.getLength(args(1).t)
             count(reduceSeq.f, n)
 
-          case scanplus: ScanPlus =>
+          case scanplus: SlideSeqPlus =>
             val n = Type.getLength(args(1).t)
             count(scanplus.f, n)
 

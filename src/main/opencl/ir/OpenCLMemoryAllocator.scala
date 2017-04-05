@@ -91,7 +91,7 @@ object OpenCLMemoryAllocator {
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
-      case sp: ScanPlus => allocScanPlus(sp, numGlb, numLcl, numPvt, inMem)
+      case sp: SlideSeqPlus => allocScanPlus(sp, numGlb, numLcl, numPvt, inMem)
 
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
@@ -234,11 +234,11 @@ object OpenCLMemoryAllocator {
     }
   }
 
-  private def allocScanPlus(sp: ScanPlus,
-                          numGlb: ArithExpr,
-                          numLcl: ArithExpr,
-                          numPvt: ArithExpr,
-                          inMem: OpenCLMemory): OpenCLMemory = {
+  private def allocScanPlus(sp: SlideSeqPlus,
+                            numGlb: ArithExpr,
+                            numLcl: ArithExpr,
+                            numPvt: ArithExpr,
+                            inMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
         val initM = coll.subMemories(0)

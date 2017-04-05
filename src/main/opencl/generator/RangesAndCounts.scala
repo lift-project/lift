@@ -51,7 +51,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
               case r : ReduceWhileSeq => setRangeReduceSeq(r, call) 
             }
             apply(r.f.body)
-          case sp: ScanPlus => setRangeScanPlus(sp, call)
+          case sp: SlideSeqPlus => setRangeScanPlus(sp, call)
             apply(sp.f.body)
 
           case i: Iterate =>
@@ -173,7 +173,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     r.loopVar = Var(r.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
   }
 
-  private def setRangeScanPlus(sp: ScanPlus, call: FunCall): Unit = {
+  private def setRangeScanPlus(sp: SlideSeqPlus, call: FunCall): Unit = {
     val inT = call.args(1).t
     sp.loopVar = Var(sp.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
   }

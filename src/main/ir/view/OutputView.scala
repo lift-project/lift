@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{ReduceWhileSeq, ScanPlus}
+import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -41,7 +41,7 @@ object OutputView {
     val result = call.f match {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
-      case sp: ScanPlus => buildViewScanPlus(sp, call, writeView)
+      case sp: SlideSeqPlus => buildViewScanPlus(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
@@ -209,8 +209,8 @@ object OutputView {
     ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
-  private def buildViewScanPlus(sp: ScanPlus,
-                              call: FunCall, writeView: View): View = {
+  private def buildViewScanPlus(sp: SlideSeqPlus,
+                                call: FunCall, writeView: View): View = {
     // traverse into call.f
     visitAndBuildViews(sp.f.body, writeView.access(Cst(0)))
 

@@ -106,7 +106,7 @@ class FunctionCounts (
             val n = Type.getLength(args(1).t)
             count(reduce.f, n)
 
-          case scanplus: ScanPlus =>
+          case scanplus: SlideSeqPlus =>
             val n = Type.getLength(args(1).t)
             count(scanplus.f, n)
 

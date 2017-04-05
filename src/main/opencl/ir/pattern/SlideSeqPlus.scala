@@ -6,7 +6,7 @@ import ir._
 import ir.ast._
 import ir.interpreter.Interpreter.ValueMap
 
-case class ScanPlus(val f: Lambda, var loopVar: Var) extends Pattern(arity = 2) with isGenerable
+case class SlideSeqPlus(val f: Lambda, var loopVar: Var) extends Pattern(arity = 2) with isGenerable with FPattern
 {
 
   val iterationCount = loopVar.range.numVals
@@ -36,8 +36,10 @@ case class ScanPlus(val f: Lambda, var loopVar: Var) extends Pattern(arity = 2) 
   }
 
   var shouldUnroll = true
+
+  override def copy(f: Lambda): Pattern = SlideSeqPlus(f,PosVar("i"))
 }
 
-object ScanPlus {
-  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ScanPlus(f,PosVar("i"))(init, x))
+object SlideSeqPlus {
+  def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => SlideSeqPlus(f,PosVar("i"))(init, x))
 }

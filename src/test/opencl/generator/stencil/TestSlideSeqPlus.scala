@@ -13,7 +13,7 @@ import ir.{ArrayType, TupleType}
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 
-object TestScanPlus
+object TestSlideSeqPlus
 {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
@@ -26,7 +26,7 @@ object TestScanPlus
     Executor.shutdown()
   }
 }
-class TestScanPlus
+class TestSlideSeqPlus
 {
 
   @Ignore
@@ -44,7 +44,7 @@ class TestScanPlus
         MapGlb(
           toGlobal(MapSeqUnroll(id)) o
            // ReduceSeq(fun((acc, y) => {
-              ScanPlus(fun((acc, y) => {
+              SlideSeqPlus(fun((acc, y) => {
               absAndSumUp.apply(acc, y)
             }), 0.0f))
       } o Slide(3, 1)  $ input

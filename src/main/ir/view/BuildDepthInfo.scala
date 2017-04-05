@@ -90,7 +90,7 @@ private class BuildDepthInfo() {
     val result = call.f match {
       case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
       case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
-      case sp: ScanPlus => buildDepthInfoScanPlusCall(sp, call, argInf)
+      case sp: SlideSeqPlus => buildDepthInfoScanPlusCall(sp, call, argInf)
       case _ =>
 
         val (readsLocal, readsPrivate) = readsLocalPrivate(call)
@@ -158,8 +158,8 @@ private class BuildDepthInfo() {
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
   }
 
-  private def buildDepthInfoScanPlusCall(sp: ScanPlus, call: FunCall,
-                                       l: AccessInfo): AccessInfo = {
+  private def buildDepthInfoScanPlusCall(sp: SlideSeqPlus, call: FunCall,
+                                         l: AccessInfo): AccessInfo = {
 
     val (readsLocal, readsPrivate) = containsLocalPrivate(call.args(1).mem)
     val length = Type.getLength(call.args(1).t)
