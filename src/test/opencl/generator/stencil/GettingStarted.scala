@@ -247,7 +247,7 @@ class GettingStarted {
     ArrayType(Float, SizeVar("N")),
     A =>
     Join() o MapGlb(1)(MapGlb(0)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o
-      Map(Slide(3, 1)) o Slide(u, v) o
+      Map(Slide(3, 1)) o Slide(4, 2) o
         Pad(1,1,clamp) $ A
   )
 
