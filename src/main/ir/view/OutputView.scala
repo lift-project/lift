@@ -211,10 +211,8 @@ object OutputView {
 
   private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
                                     call: FunCall, writeView: View): View = {
-    // traverse into call.f
-    visitAndBuildViews(sp.f.body, writeView.access(Cst(0)))
-
-    ViewMap(sp.f.params(1).outputView, sp.loopVar, call.args(1).t)
+    visitAndBuildViews(sp.f.body, writeView.access(sp.loopVar))
+    ViewMap(sp.f.params.head.outputView, sp.loopVar, call.args.head.t)
   }
 
 

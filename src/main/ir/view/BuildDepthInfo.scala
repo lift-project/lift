@@ -161,15 +161,16 @@ private class BuildDepthInfo() {
   private def buildDepthInfoSlideSeqPlusCall(sp: SlideSeqPlus, call: FunCall,
                                              l: AccessInfo): AccessInfo = {
 
-    val (readsLocal, readsPrivate) = containsLocalPrivate(call.args(1).mem)
-    val length = Type.getLength(call.args(1).t)
+    val (readsLocal, readsPrivate) = readsLocalPrivate(call)
 
-    sp.f.params(0).accessInf = l.l.head
-    sp.f.params(1).accessInf = l.l(1)((length, sp.loopVar), readsPrivate, readsLocal || seenMapLcl)
+    sp.f.params.head.accessInf =
+      l((Type.getLength(call.args.head.t), sp.loopVar), readsPrivate, readsLocal || seenMapLcl)
+    buildDepthInfoPatternCall(sp.f.body, call, sp.loopVar, readsLocal, readsPrivate)
 
-    buildDepthInfoReducePatternCall(sp.f.body, call, Cst(0), sp.loopVar, readsLocal, readsPrivate, l)
-
-    AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+    if (sp.f.body.isConcrete) // create fresh input view for following function
+      AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+    else // call.isAbstract, return input
+      l
   }
 
   private def buildDepthInfoReducePatternCall(expr: Expr, call: FunCall, index: ArithExpr,

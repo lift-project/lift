@@ -174,8 +174,7 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   }
 
   private def setRangeSlideSeqPlus(sp: SlideSeqPlus, call: FunCall): Unit = {
-    val inT = call.args(1).t
-    sp.loopVar = Var(sp.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
+    sp.loopVar = Var(sp.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
   }
 
 

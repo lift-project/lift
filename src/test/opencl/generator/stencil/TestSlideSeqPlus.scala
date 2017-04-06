@@ -39,13 +39,8 @@ class TestSlideSeqPlus
 
     val stencil = fun(
       ArrayType(Float, SizeVar("N")),
-      (input) => {
-        MapGlb(
-          toGlobal(MapSeqUnroll(id)) o
-              SlideSeqPlus(fun((acc, y) => {
-              absAndSumUp.apply(acc, y)
-            }), 3, 1, 0.0f))
-      } o Slide(3, 1)  $ input
+      (input) =>
+          SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), 3, 1) $ input
     )
 
     println(Compile(stencil))

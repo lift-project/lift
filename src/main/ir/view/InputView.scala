@@ -144,13 +144,23 @@ object InputView {
   private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
                                     call: FunCall, argView: View): View = {
     // pass down input view
-    sp.f.params(0).view = argView.get(0)
-    sp.f.params(1).view = argView.get(1).access(sp.loopVar)
-    // traverse into call.f
-    visitAndBuildViews(sp.f.body)
+    val slideView = argView.t match {
+      case ArrayType(_, _) =>
+        ViewSlide(argView, sp.step, Slide(sp.size,sp.step).checkType(argView.t, setType=false))
+      case other => throw new IllegalArgumentException("Can't group " + other)
+    }
+    sp.f.params(0).view = slideView.access(sp.loopVar)
 
-    // create fresh input view for following function
-    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+    // traverse into call.f
+    val innerView = visitAndBuildViews(sp.f.body)
+
+    sp.f.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
+        // create fresh input view for following function
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+      case _ => // call.isAbstract and return input map view
+        new ViewMap(innerView, sp.loopVar, call.t)
+    }
   }
 
   private def buildViewSearch(s:AbstractSearch, call:FunCall, argView:View) : View = {

@@ -56,9 +56,7 @@ class ShouldUnroll(val lambda: Lambda) {
          case r: ReduceSeq =>
            if (OpenCLMemory.containsPrivateMemory(call.args(1).mem))
              r.shouldUnroll = true
-         case sp: SlideSeqPlus=>
-           if (OpenCLMemory.containsPrivateMemory(call.args(1).mem))
-             sp.shouldUnroll = true
+         case sp: SlideSeqPlus=> if (shouldUnrollLoop(call)) sp.shouldUnroll = true
          case _ =>
        }
 

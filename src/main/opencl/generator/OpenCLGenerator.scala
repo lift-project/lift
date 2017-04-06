@@ -660,29 +660,8 @@ class OpenCLGenerator extends Generator {
   private def generateSlideSeqPlusCall(sp: SlideSeqPlus,
                                        call: FunCall,
                                        block: Block): Unit = {
-
-    val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.Comment("slideSeq_plus")
-
-    val inputLen = generateLength(call.args(1))
-    inputLen match {
-
-      case Left(len: Expression) =>
-        val indexVar = sp.loopVar
-        val range = indexVar.range.asInstanceOf[RangeAdd]
-
-        val init = ArithExpression(range.start)
-        val cond = CondExpression(ArithExpression(sp.loopVar), len, CondExpression.Operator.<)
-        val increment = AssignmentExpression(ArithExpression(sp.loopVar), ArithExpression(sp.loopVar + range.step))
-
-        (block: Block) += OpenCLAST.ForLoop(VarDecl(sp.loopVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
-
-        generate(sp.f.body, innerBlock)
-
-      case Right(len: ArithExpr) =>
-        generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
-    }
-
+    generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end slideSeq_plus")
   }
 

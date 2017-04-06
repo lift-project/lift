@@ -6,25 +6,21 @@ import ir._
 import ir.ast._
 import ir.interpreter.Interpreter.ValueMap
 
-case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var) extends Pattern(arity = 2) with isGenerable with FPattern
+case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var) extends Pattern(arity = 1) with isGenerable with FPattern
 {
 
   val iterationCount = loopVar.range.numVals
 
   def checkType(argType: Type, setType: Boolean): Type =  {
     argType match {
-      case TupleType(initT, ArrayType(elemT, _)) =>
-        f.params(0).t = initT // initial elem type
-        f.params(1).t = elemT // array element type
-
-        val bodyType = TypeChecker.check(f.body, setType) // check the body
-
-        if (bodyType != initT)
-          throw TypeException(s"SlideSeqPlus operator returns $bodyType instead of the expected $initT")
-
-        ArrayType(initT, 1)
-
-      case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
+      case ArrayType(t, n) =>
+        // todo check that the sliding window always ends at the last element of the input
+        //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
+        val innerLength = size
+        val outerLength = (n - (size - step)) / step
+        f.params(0).t = ArrayType(t,innerLength)
+        ArrayType(TypeChecker.check(f.body,setType), outerLength)
+      case _ => throw new TypeException(argType, "ArrayType")
     }
   }
 
@@ -32,6 +28,7 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
     assert(args.length == arity)
     val init = args.head
     val input = args(1) match { case a: Vector[_] => a }
+  // needs to be updated (from reduce)
     Vector( input.foldLeft(init)( (acc, x) => f.eval(valueMap, acc, x) ))
   }
 
@@ -41,5 +38,5 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
 }
 
 object SlideSeqPlus {
-  def apply(f: Lambda2, size: ArithExpr, step: ArithExpr, init: Expr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"))(init, x))
+  def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"))(x))
 }
