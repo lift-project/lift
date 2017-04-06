@@ -122,8 +122,6 @@ object ParameterRewrite {
 
             val high_level_expr_orig = readLambdaFromFile(fullFilename)
 
-            val precomputedRangeList = computeValidNDRanges(high_level_expr_orig)
-
             val vars = high_level_expr_orig.getVarsInParams()
 
             val combinations = settings.inputCombinations
@@ -180,7 +178,7 @@ object ParameterRewrite {
                       TypeChecker(expr)
 
                       val rangeList = if (exploreNDRange.value.isDefined)
-                        precomputedRangeList
+                        computeValidNDRanges(expr)
                       else
                         Seq(InferNDRange(expr))
                       logger.info("[RANGE] length: " + rangeList.length)
@@ -290,18 +288,29 @@ object ParameterRewrite {
   }
 
   private def computeValidNDRanges(expr: Lambda): Seq[(NDRange, NDRange)] = {
-    println("Generating NDRanges...")
-    // assumes first param of lambda is input array and determines its dimensionality
-    val firstParam = expr.params.head
-    val inputDim = firstParam.t match {
-      //case ArrayType(ArrayType(ArrayType(dt, m), n), o) => 3 //or higher but we don't care
-      case ArrayType(ArrayType(ArrayType(dt, m), n), o) => 2 //or higher but we don't care
-      case ArrayType(ArrayType(dt, m), n) => 2
-      case ArrayType(dt, m) => 1
-      case _ => -1
-    }
+    var usedDimensions: Set[Int] = Set()
+    Expr.visit(expr.body,
+      {
+        case FunCall(MapGlb(dim, _), _) =>
+          usedDimensions += dim
 
-    logger.info(s"computing $inputDim-D NDRanges")
+        case FunCall(MapLcl(dim, _), _) =>
+          usedDimensions += dim
+
+        case FunCall(MapWrg(dim, _), _) =>
+          usedDimensions += dim
+
+        case FunCall(MapAtomLcl(dim, _, _), _) =>
+          usedDimensions += dim
+
+        case FunCall(MapAtomWrg(dim, _, _), _) =>
+          usedDimensions += dim
+
+        case _ =>
+      }, (_) => Unit)
+    val nDRangeDim = usedDimensions.max + 1
+
+    logger.info(s"computing $nDRangeDim-D NDRanges")
 
     // hardcoded highest power of two = 8192
     val pow2 = Seq.tabulate(14)(x => scala.math.pow(2,x).toInt)
@@ -312,7 +321,7 @@ object ParameterRewrite {
     } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
 
     val success = ExpressionFilter.Status.Success
-    inputDim match {
+    nDRangeDim match {
       case 1 => for {
         x <- localGlobalCombinations
         if ExpressionFilter(x._1, x._2) == success
