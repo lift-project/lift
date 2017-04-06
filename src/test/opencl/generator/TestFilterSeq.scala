@@ -1,10 +1,11 @@
 package opencl.generator
 
 import ir.ArrayType
-import ir.ast.{Join, Split, UserFun, fun}
+import ir.ast.{Join, PrintType, Split, UserFun, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
-import opencl.ir.pattern._
+import opencl.ir._
+import opencl.ir.pattern.{toGlobal, MapGlb, MapWrg, MapLcl, MapSeq, FilterSeq}
 import org.junit.Assert.assertArrayEquals
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -23,7 +24,7 @@ object TestFilterSeq {
 
 class TestFilterSeq {
   val lt5: UserFun =
-    UserFun("lt5", "x", "return x < 5;", opencl.ir.Int, opencl.ir.Int)
+    UserFun("lt5", "x", "return x < 5;", Int, Int)
   
   @Test def filterSimple(): Unit = {
     val size = 128
@@ -31,8 +32,8 @@ class TestFilterSeq {
     val N = SizeVar("N")
     
     val expr = fun(
-      ArrayType(opencl.ir.Int, N),
-      l => FilterSeq(lt5) $ l
+      ArrayType(Int, N),
+      l => MapGlb(toGlobal(idI)) o FilterSeq(lt5) $ l
     )
     
     val (output: Array[Int], _) = Execute(size)(expr, input)
@@ -47,7 +48,7 @@ class TestFilterSeq {
     val N = SizeVar("N")
     
     val expr = fun(
-      ArrayType(opencl.ir.Int, N),
+      ArrayType(Int, N),
       l => Join() o MapGlb(toGlobal(FilterSeq(lt5))) o Split(32) $ l
     )
     
@@ -69,7 +70,7 @@ class TestFilterSeq {
     val N = SizeVar("N")
     
     val expr = fun(
-      ArrayType(opencl.ir.Int, N),
+      ArrayType(Int, N),
       l => Join() o Join() o MapWrg(
         toGlobal(MapLcl(FilterSeq(lt5))) o Split(4)
       ) o Split(32) $ l
@@ -87,5 +88,20 @@ class TestFilterSeq {
       .toArray
     
     assertArrayEquals(input.filter(_ < 5), finalOutput)
+  }
+  
+  @Test def filterArray(): Unit = {
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextInt(10))
+    val N = SizeVar("N")
+    
+    val expr = fun(
+      ArrayType(Int, N),
+      l => MapGlb(MapSeq(toGlobal(idI))) o PrintType() o FilterSeq(fun(_ => 1)) o Split(32) $ l
+    )
+    
+    val (output: Array[Int], _) = Execute(size)(expr, input)
+
+    assertArrayEquals(input, output)
   }
 }

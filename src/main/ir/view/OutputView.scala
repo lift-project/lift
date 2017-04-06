@@ -61,7 +61,8 @@ object OutputView {
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case _ => writeView
+      case PrintType() => writeView
+      case _ => throw new NotImplementedError()
     }
 
     // then handle arguments
@@ -196,10 +197,12 @@ object OutputView {
   
   private def buildViewFilter(f: FilterSeq, call: FunCall,
                               writeView: View): View = {
-    // TODO: the output view is attached to the predicate but that does not
-    //       make much sense. We should do something about that.
-    visitAndBuildViews(f.f.body, writeView.access(f.loopWrite))
-    ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
+    // Output of the predicate is never stored in a variable
+    visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
+    
+    // Write at the "top" of the output array
+    visitAndBuildViews(f.copyFun.body, writeView.access(f.loopWrite))
+    ViewMap(f.copyFun.body.outputView, f.loopWrite, call.args.head.t)
   }
   
   private def buildViewReduce(r: AbstractPartRed,

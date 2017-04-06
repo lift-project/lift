@@ -80,7 +80,8 @@ object InputView {
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
-      case _ => argView
+      case PrintType() => argView
+      case _ => throw new NotImplementedError()
     }
   }
 
@@ -122,14 +123,15 @@ object InputView {
   }
   
   private def buildViewFilter(f: FilterSeq, call: FunCall, argView: View): View = {
-    // We reuse `ViewMap` because we are basically doing the same job
-    // pass down input view
+    // Note: we reuse `ViewMap` because we are basically doing the same job
+    
+    // The inputs are the same for both the predicate and the copy function
     f.f.params.head.view = argView.access(f.loopRead)
+    f.copyFun.params.head.view = argView.access(f.loopRead)
     
-    // traverse into call.f
-    val innerView = visitAndBuildViews(f.f.body)
-    
-    f.f.body match {
+    visitAndBuildViews(f.f.body)
+    val innerView = visitAndBuildViews(f.copyFun.body)
+    f.copyFun.body match {
       case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
         // create fresh input view for following function
         View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
@@ -137,6 +139,7 @@ object InputView {
         ViewMap(innerView, f.loopRead, call.t)
     }
   }
+  
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, argView: View): View = {
     // pass down input view

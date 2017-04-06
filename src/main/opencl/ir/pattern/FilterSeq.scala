@@ -1,17 +1,41 @@
 package opencl.ir.pattern
 
-import ir.{Type, ArrayType, UnknownLengthArrayType, TypeChecker, TypeException}
+import ir.{
+  Type, ScalarType, ArrayType, UnknownLengthArrayType, TypeChecker,
+  TypeException
+}
 import ir.ast.{FPattern, Lambda, Lambda1, Pattern, fun, isGenerable}
 import ir.interpreter.Interpreter.ValueMap
-import lift.arithmetic.{ArithExpr, Var, PosVar}
+import opencl.ir.id
+import lift.arithmetic.{ArithExpr, PosVar, Var}
 
-
+/**
+  * An implementation of the sequential filter.
+  *
+  * @param f is the predicate used to filter the data: the elements x of the
+  *          input array such as `f(x)` is true will be stored in the output
+  *          array
+  * @param loopRead is the index used to fetch data from the input array
+  * @param loopWrite is the index user to store data into the output array
+  */
 case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
   extends Pattern(arity=1) with FPattern with isGenerable {
   
   assert(f.params.length == 1)
   
-  def iterationCount: ArithExpr = loopRead.range.numVals
+  /**
+    * This Lambda is used to copy the elements that satisfy the predicate from
+    * the input array to the output array. It is generated automatically during
+    * the type-checking.
+    */
+  private var _copyFun: Lambda1 = _
+  def copyFun: Lambda1 = this._copyFun
+  
+  private def generateCopyFun(ty: Type): Lambda1 = ty match {
+      case sTy: ScalarType => id(sTy, name="__id")
+      case ArrayType(elemTy, _) => MapSeq(generateCopyFun(elemTy))
+      case _ => throw new NotImplementedError()
+    }
   
   override def checkType(argType: Type, setType: Boolean): Type = {
     // Check that the argument is an array and fetch it's type information
@@ -27,6 +51,11 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
     val predicate_ty = TypeChecker.check(f.body, setType)
     if (predicate_ty != opencl.ir.Int)
       throw new TypeException(predicate_ty, "Int")
+    
+    // At this point, we are able to generate the copy function
+    this._copyFun = this.generateCopyFun(elemT)
+    this.copyFun.params.head.t = elemT
+    TypeChecker.check(this.copyFun.body, setType)
     
     // TODO: return UnknownLengthArrayType
     ArrayType(elemT, len)

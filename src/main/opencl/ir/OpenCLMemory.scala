@@ -314,7 +314,7 @@ object TypedOpenCLMemory {
         // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
         addressSpace match {
           case PrivateMemory =>
-            var privateMultiplier = f.iterationCount
+            var privateMultiplier = f.loopRead.range.numVals
             privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
           
             TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
@@ -328,7 +328,7 @@ object TypedOpenCLMemory {
       }
     
       // change types for all of them
-      val mems = collect(f.f.body)
+      val mems = collect(f.f.body) ++ collect(f.copyFun.body)
       mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
     }
 

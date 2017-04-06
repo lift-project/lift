@@ -211,18 +211,11 @@ object OpenCLMemoryAllocator {
                              numLcl: ArithExpr,
                              numPvt: ArithExpr,
                              inMem: OpenCLMemory): OpenCLMemory = {
-    fs.f.params.head.mem = inMem
-  
     val len = Type.getMaxLength(outT)
-  
-    val privateMultiplier: ArithExpr =
-      if (fs.f.body.addressSpace.containsAddressSpace(PrivateMemory) ||
-        inMem.addressSpace.containsAddressSpace(PrivateMemory))
-        fs.iterationCount
-      else
-        1
-   
-    alloc(fs.f.body, numGlb * len, numLcl * len, numPvt * privateMultiplier)
+    fs.f.params.head.mem = inMem
+    fs.copyFun.params.head.mem = inMem
+    alloc(fs.f.body, numGlb, numLcl, numPvt)
+    alloc(fs.copyFun.body, numGlb * len, numLcl * len, numPvt)
   }
 
   private def allocReduce(r: AbstractPartRed,

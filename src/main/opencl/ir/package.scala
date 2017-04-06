@@ -1,6 +1,6 @@
 package opencl
 
-import _root_.ir.{Type, TupleType}
+import _root_.ir.{Type, TupleType, ScalarType}
 import _root_.ir.ast.{UserFun, Value}
 
 import scala.language.implicitConversions
@@ -8,17 +8,22 @@ import scala.language.implicitConversions
 package object ir {
   // Generic user functions
   
-  def id(ty: Type, name: String = "id"): UserFun =
+  def id(ty: ScalarType, name: String = "id"): UserFun =
     UserFun(name, "x", "return x;", ty, ty)
   
-  def equality(ty: Type, name: String = "equality"): UserFun =
+  def equality(ty: ScalarType, name: String = "equality"): UserFun =
     UserFun(name, Array("x", "y"), "return x == y;", Seq(ty, ty), Int)
   
-  def first(leftTy: Type, rightTy: Type, name: String="fst"): UserFun =
+  def first(leftTy: ScalarType,
+            rightTy: ScalarType,
+            name: String="fst"): UserFun =
     UserFun(name, Array("x", "y"), "return x;", Seq(leftTy, rightTy), leftTy)
   
-  def max(ty: Type, name: String="maximum"): UserFun =
+  def max(ty: ScalarType, name: String="maximum"): UserFun =
     UserFun(name, Array("x", "y"), "return x > y ? x : y;", Seq(ty, ty), ty)
+
+  def add(ty: ScalarType, name: String = "add"): UserFun =
+    UserFun(name, Array("x", "y"), "return x + y;", Seq(ty, ty), ty)
   
   // commonly used user functions
 
