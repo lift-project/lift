@@ -133,14 +133,13 @@ double execute(const executor::Kernel& kernel,
                        globalSize1, globalSize2, globalSize3, args);
 }
 
-double benchmark(const executor::Kernel& kernel,
-                 int localSize1, int localSize2, int localSize3,
-                 int globalSize1, int globalSize2, int globalSize3,
-                 const std::vector<executor::KernelArg*>& args,
-                 int iterations, double timeout)
+void benchmark(const executor::Kernel& kernel,
+               int localSize1, int localSize2, int localSize3,
+               int globalSize1, int globalSize2, int globalSize3,
+               const std::vector<executor::KernelArg*>& args,
+               int iterations, double timeout,
+               std::vector<double>& runtimes)
 {
-    double *allRuntimes = new double[iterations];
-
   for (int i = 0; i < iterations; i++) {
     //std::cout << "Iteration: " << i << '\n';
 
@@ -150,30 +149,13 @@ double benchmark(const executor::Kernel& kernel,
 
     double runtime = executeKernel(kernel.build(), localSize1, localSize2, localSize3,
                        globalSize1, globalSize2, globalSize3, args);
+
+    runtimes.push_back(runtime);
     
-
-    allRuntimes[i] = runtime;
-
-    //std::cout << "Runtime: " << runtime << " ms\n";
-
-    if (runtime >= timeout) {
-      delete[] allRuntimes;
-      return runtime;
+    if (timeout != 0.0 && runtime >= timeout) {
+      return;
     }
   }
-
-  std::sort(allRuntimes, allRuntimes + iterations);
-
-  double median;
-
-  if (iterations % 2 == 0)
-    median = (allRuntimes[iterations/2] + allRuntimes[iterations/2 - 1]) / 2.0;
-  else 
-    median = allRuntimes[iterations/2];
-
-  delete[] allRuntimes;
-
-  return median;
 }
 
 double evaluate(const executor::Kernel& kernel,

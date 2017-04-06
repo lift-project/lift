@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit._
+import org.junit.Assume.assumeFalse
 import scala.util.Random
 
 object TestStencil2D {
@@ -214,7 +215,7 @@ class TestStencil2D {
     ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
     ArrayType(Float, weights.length),
     (matrix, weights) => {
-      Untile() o MapWrg(1)(MapWrg(0)(fun(tile =>
+      Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
         MapLcl(1)(MapLcl(0)(
           fun(elem => {
@@ -245,6 +246,8 @@ class TestStencil2D {
   )
 
   @Test def copyTilesIdentity(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
     val tiled: Lambda = createCopyTilesLambda(4, 2, 1, 1, BOUNDARY)
 
@@ -281,7 +284,7 @@ class TestStencil2D {
     ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
     ArrayType(Float, weights.length),
     (matrix, weights) => {
-      Untile() o MapWrg(1)(MapWrg(0)(fun(tile =>
+      Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
         MapLcl(1)(MapLcl(0)(
           //MapSeq(MapSeq((toGlobal(id))))
@@ -458,7 +461,7 @@ class TestStencil2D {
       ArrayType(ArrayType(Float, 8194), 8194),
       ArrayType(Float, 9),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun(tile =>
+        Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
           MapLcl(1)(MapLcl(0)(
             // stencil computation
@@ -523,7 +526,7 @@ class TestStencil2D {
       ArrayType(ArrayType(Float, 8192), 8192),
       ArrayType(Float, 15),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(
+        Untile2D() o MapWrg(1)(MapWrg(0)(
           fun(wgBlock =>
             MapSeq(MapSeq(
               fun(cacheBlock =>
@@ -782,7 +785,7 @@ class TestStencil2D {
 
     // move maps forward to exploit more levels of parallelism
     // functionally *J o * o *T should do the job, however lifts output view require Untile or ...
-    val f2 = /* *(J) o J o *(T) o */ Untile() o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)))) o // (C) using workgroups
+    val f2 = /* *(J) o J o *(T) o */ Untile2D() o MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(f)))) o // (C) using workgroups
       ***(T) o **(S_ns) o ***(S_ns) o *(T) o S_uv o *(S_uv) o                                   // (B)
         P o *(P)                                                                                // (A)
 

@@ -1,6 +1,6 @@
 package opencl.executor
 
-import lift.arithmetic.{?, ArithExpr, Cst, Var}
+import lift.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLGenerator.NDRange
@@ -87,8 +87,7 @@ object Execute {
    * Create a map which maps variables (e.g., N) to values (e.g, "1024")
    */
   def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
-    // just take the variables
-    val vars = f.params.flatMap((p) => Type.getLengths(p.t).filter(_.isInstanceOf[Var]))
+    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).init)
 
     val tupleSizes = f.params.map(_.t match {
       case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
@@ -116,7 +115,10 @@ object Execute {
         => Seq(Cst(1))
     }).flatten[ArithExpr]
 
-    (vars zip sizes).toMap[ArithExpr, ArithExpr]
+    (sizeExprs zip sizes).flatMap{
+      case (Cst(_), _) => Seq() // ignore
+      case pair => Seq((pair._1.varList.head, SolveForVariable(pair._1, pair._2)))
+    }.toMap[ArithExpr, ArithExpr]
   }
 
   /**
@@ -188,7 +190,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   /**
    * Given a lambda: compile it and then execute it <code>iterations</code> times
    */
-  def apply(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
+  def apply(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Array[Double]) = {
     val kernel = compile(f, values:_*)
 
     benchmark(iterations, timeout, kernel, f, values:_*)
@@ -296,19 +298,21 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   /**
    * Execute given source code, which was compiled for the given lambda, with the given runtime
    * values <code>iterations</code> times. If the kernel takes longer than <code>timeout</code> ms,
-   * it is executed only once.
-   * Returns a pair consisting of the computed values as its first and the median runtime as its second
-   * component
+   * it is executed only once. If <code>timeout</code> is <code>0.0</code> no check for the kernel
+   * runtime will be performed.
+   *
+   * Returns a pair consisting of the computed values as its first and an array of runtimes in the
+    * order of execution as its second component
    */
-  def benchmark(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
+  def benchmark(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Array[Double]) = {
 
-    val executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
+    val executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Array[Double] =
       (localSize1, localSize2, localSize3,
          globalSize1, globalSize2, globalSize3, args) => {
         val kernel = Build(code)
         try {
-          Executor.execute(kernel, localSize1, localSize2, localSize3,
-            globalSize1, globalSize2, globalSize3, args)
+          Executor.benchmark(kernel, localSize1, localSize2, localSize3,
+            globalSize1, globalSize2, globalSize3, args, iterations, timeout)
         } finally {
           kernel.dispose()
         }
@@ -375,8 +379,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     (localSize, globalSize)
   }
 
-  private def execute(executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double,
-                      f: Lambda, values: Any*): (Array[_], Double) = {
+  private def execute[T](executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => T,
+                         f: Lambda, values: Any*): (Array[_], T) = {
 
     // 1. check that the given values match with the given lambda expression
     checkParamsWithValues(f.params, values)
@@ -402,8 +406,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     // 7. combine kernel arguments. first pointers and data, then the size information
     val args: Array[KernelArg] = memArgs ++ sizes
 
-    // 8. execute via JNI
-    val runtime = this.synchronized {
+    // 8. execute via JNI and get the runtime (or runtimes)
+    val t = this.synchronized {
       executeFunction(localSize(0).eval, localSize(1).eval, localSize(2).eval,
         globalSize(0).eval, globalSize(1).eval, globalSize(2).eval, args)
     }
@@ -415,7 +419,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     args.foreach(_.dispose)
 
     // 11. return output data and runtime as a tuple
-    (output, runtime)
+    (output, t)
   }
 
   private def castToOutputType(t: Type, outputData: GlobalArg): Array[_] = {
@@ -589,24 +593,28 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         case aaf: Array[Array[Float]] => global.input(aaf.flatten)
         case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
         case aaaaf: Array[Array[Array[Array[Float]]]] => global.input(aaaaf.flatten.flatten.flatten)
+        case aaaaaf: Array[Array[Array[Array[Array[Float]]]]] => global.input(aaaaaf.flatten.flatten.flatten.flatten)
 
         case i: Int => value(i)
         case ai: Array[Int] => global.input(ai)
         case aai: Array[Array[Int]] => global.input(aai.flatten)
         case aaai: Array[Array[Array[Int]]] => global.input(aaai.flatten.flatten)
         case aaaai: Array[Array[Array[Array[Int]]]] => global.input(aaaai.flatten.flatten.flatten)
+        case aaaaai: Array[Array[Array[Array[Array[Int]]]]] => global.input(aaaaai.flatten.flatten.flatten.flatten)
 
         case d: Double => value(d)
         case ad: Array[Double] => global.input(ad)
         case aad: Array[Array[Double]] => global.input(aad.flatten)
         case aaad: Array[Array[Array[Double]]] => global.input(aaad.flatten.flatten)
         case aaaad: Array[Array[Array[Array[Double]]]] => global.input(aaaad.flatten.flatten.flatten)
+        case aaaaad: Array[Array[Array[Array[Array[Double]]]]] => global.input(aaaaad.flatten.flatten.flatten.flatten)
 
         case d: Boolean => value(d)
         case ad: Array[Boolean] => global.input(ad)
         case aad: Array[Array[Boolean]] => global.input(aad.flatten)
         case aaad: Array[Array[Array[Boolean]]] => global.input(aaad.flatten.flatten)
         case aaaad: Array[Array[Array[Array[Boolean]]]] => global.input(aaaad.flatten.flatten.flatten)
+        case aaaaad: Array[Array[Array[Array[Array[Boolean]]]]] => global.input(aaaaad.flatten.flatten.flatten.flatten)
 
         case _ => throw new IllegalArgumentException(
           s"Kernel argument is of unsupported type: ${any.getClass}")

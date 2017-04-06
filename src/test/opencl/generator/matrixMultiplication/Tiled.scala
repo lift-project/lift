@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Assume.assumeFalse
 
 import scala.reflect.ClassTag
 
@@ -151,6 +152,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiply(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -166,7 +169,7 @@ class Tiled {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
         MapWrg(0)(fun( aRows =>
           MapWrg(1)(fun( bCols =>
 
@@ -208,7 +211,7 @@ class Tiled {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -241,6 +244,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiplyLocalMemory(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -256,7 +261,7 @@ class Tiled {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -293,6 +298,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiplyLocalMemory2(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -308,7 +315,7 @@ class Tiled {
       ArrayType(ArrayType(Float, K), N),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -348,6 +355,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiplyWithTranspose(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16
@@ -363,7 +372,7 @@ class Tiled {
       ArrayType(ArrayType(Float, N), K),
       (A, B) => {
         // Undo the tiling
-        Untile() o
+        Untile2D() o
           MapWrg(0)(fun( aRows =>
             MapWrg(1)(fun( bCols =>
 
@@ -405,6 +414,8 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiplyWithTransposeAndPrivate(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mSize = 16
     val kSize = 16
     val nSize = 16

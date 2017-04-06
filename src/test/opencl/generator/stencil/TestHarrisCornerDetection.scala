@@ -7,6 +7,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.Assume.assumeFalse
 
 import scala.util.Random
 
@@ -36,6 +37,8 @@ class TestHarrisCornerDetection {
        STAGE 0 - compute X and Y derivatives of image
   ***********************************************************/
   @Test def computeDerivativeX(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       ArrayType(ArrayType(Float, 1536), 2560),
       ArrayType(Float, 3 * 3),
@@ -64,6 +67,8 @@ class TestHarrisCornerDetection {
        STAGE 1 - compute products of derivatives
   ***********************************************************/
   @Test def computeDerivativeXX(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mult = fun(
       ArrayType(ArrayType(Float, 1534), 2558),
       (derivativeX) => {
@@ -81,6 +86,8 @@ class TestHarrisCornerDetection {
   }
 
   @Test def computeDerivativeXY(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val mult = fun(
       ArrayType(ArrayType(Float, 1534), 2558),
       ArrayType(ArrayType(Float, 1534), 2558),
@@ -101,6 +108,8 @@ class TestHarrisCornerDetection {
        STAGE 2 - compute the sums of the products of derivatives
   ***********************************************************/
   @Test def computeSumsOfProducts(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val stencil = fun(
       ArrayType(ArrayType(Float, 1534), 2558),
       (matrix) => {
@@ -123,6 +132,8 @@ class TestHarrisCornerDetection {
        STAGE 3 - compute the determinant
   ***********************************************************/
   @Test def computedeterminant(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val determinant = fun(
       ArrayType(ArrayType(Float, 1532), 2556),
       ArrayType(ArrayType(Float, 1532), 2556),

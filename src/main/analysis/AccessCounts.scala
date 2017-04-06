@@ -4,6 +4,8 @@ import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic._
 import ir._
 import ir.ast._
+import ir.view.ViewPrinter
+import opencl.generator.OpenCLAST.VarRef
 import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir._
 import opencl.ir.pattern._
@@ -180,17 +182,22 @@ class AccessCounts(
     expr: Expr,
     patternMap: collection.Map[Expr, AccessPattern],
     map: collection.mutable.Map[AccessKey, ArithExpr]): Unit = {
-    val memory = expr.mem
 
-    val vectorWidth = Type.getValueType(expr.t) match {
-      case VectorType(_, n) => n
-      case _ => Cst(1)
+    ViewPrinter.emit(Var(), expr.view) match {
+      case VarRef(_, _, _) =>
+        val memory = expr.mem
+
+        val vectorWidth = Type.getValueType(expr.t) match {
+          case VectorType(_, n) => n
+          case _ => Cst(1)
+        }
+
+        val pattern = patternMap(expr)
+        val key = (memory, pattern, vectorWidth)
+        val loadsSoFar = map(key)
+        map(key) = loadsSoFar + currentNesting
+      case _ =>
     }
-
-    val pattern = patternMap(expr)
-    val key = (memory, pattern, vectorWidth)
-    val loadsSoFar = map(key)
-    map(key) = loadsSoFar + currentNesting
   }
 
   private def count(expr: Expr): Unit = {

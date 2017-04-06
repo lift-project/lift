@@ -30,12 +30,13 @@ object InferOpenCLAddressSpace {
   }
 
   private def setAddressSpace(expr: Expr,
-    writeTo : OpenCLAddressSpace = UndefAddressSpace) : OpenCLAddressSpace = {
+                              writeTo : OpenCLAddressSpace = UndefAddressSpace) : OpenCLAddressSpace = {
 
     val result = expr match {
       case Value(_) => PrivateMemory
-      case vp: VectorParam => setAddressSpaceParam(vp.p)
-      case p: Param => setAddressSpaceParam(p)
+      case _: ArrayConstructors => UndefAddressSpace
+      case vp: VectorParam => vp.p.addressSpace
+      case p: Param => p.addressSpace
       case f: FunCall => setAddressSpaceFunCall(f, writeTo)
     }
 
@@ -43,14 +44,8 @@ object InferOpenCLAddressSpace {
     result
   }
 
-  private def setAddressSpaceParam(p: Param) = {
-    if (p.addressSpace == UndefAddressSpace)
-      throw UnexpectedAddressSpaceException(s"Param $p has no address space")
-    p.addressSpace
-  }
-
   private def setAddressSpaceFunCall(call: FunCall,
-    writeTo: OpenCLAddressSpace) : OpenCLAddressSpace = {
+                                     writeTo: OpenCLAddressSpace) : OpenCLAddressSpace = {
 
     val addressSpaces = call.args.map(setAddressSpace(_, writeTo))
 
@@ -58,8 +53,8 @@ object InferOpenCLAddressSpace {
 
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-           Pad(_,_,_) | Tuple(_) | Slide(_,_) | Head() | Tail() | 
-           UnsafeArrayAccess(_) =>
+           Pad(_,_,_) | Tuple(_) | Slide(_,_) | Head() | Tail() | PrintType() |
+           UnsafeArrayAccess(_) | ArrayAccess(_) =>
 
         setAddressSpaceDefault(addressSpaces)
 

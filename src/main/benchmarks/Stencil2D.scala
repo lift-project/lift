@@ -147,7 +147,7 @@ object Stencil2D{
       ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
       ArrayType(Float, size1 * size2),
       (matrix, weights) => {
-        Untile() o MapWrg(1)(MapWrg(0)(fun(tile =>
+        Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
           MapLcl(1)(MapLcl(0)(
             fun(elem => {

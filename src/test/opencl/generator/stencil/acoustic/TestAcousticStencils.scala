@@ -6,11 +6,13 @@ import java.io.DataOutputStream
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.Assume.assumeFalse
+import rewriting.SimplifyAndFuse
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -22,7 +24,7 @@ object StencilUtilities
   /* globals */
   val iter = 5
   val printOutput = false
-  val stencilDelta = 0.2f
+  val stencilDelta = 0.00002f
   val slidesize = 3;
   val slidestep = 1;
   val stencilDim = 8;
@@ -135,6 +137,14 @@ object StencilUtilities
     print1DArray(output)
   }
 
+  def printOriginalAndOutput3DSame[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
+
+    println("ORIGINAL:" + original.flatten.flatten.length)
+    print3DArray(original)
+    println("*********************")
+    println("OUTPUT:" + output.length)
+    print1DArrayAs3DArray(output,original.length,original(0).length,original(0)(0).length)
+  }
 
   def printOriginalAndOutput3D[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
 
@@ -144,18 +154,6 @@ object StencilUtilities
     println("OUTPUT:" + output.length)
     print1DArrayAs3DArray(output,original(0)(0).length-2,original(0).length-2,original.length-2)
   }
-    /** ** Why doesn't this work?? !!!! *****/
-    /*
-      def createFakePadding[T](input: Array[Array[T]], padSize: Int, padValue: T): Array[Array[T]] = {
-
-        val padLR = Array.fill(1)(padValue)
-        val toppad = Array.fill(1)(Array.fill(padSize)(padValue))
-        val output = input.map(i => padLR ++ i ++ padLR)
-        toppad ++ output ++ toppad
-
-      }
-    */
-
     /* only one (value) layer of padding around 2D matrix */
     def createFakePaddingFloat2D(input: Array[Array[Float]], padValue: Float): Array[Array[Float]] = {
       val padSize = input(0).length
@@ -192,9 +190,11 @@ object StencilUtilities
 
 
     def createDataFloat3D(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+      Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
+    }
 
-      val dim = sizeX+2
-      val filling = Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
+    def createDataFloat3DWithPadding(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+      val filling = createDataFloat3D(sizeX,sizeY, sizeZ)
       createFakePaddingFloat3D(filling,0.0f,sizeX,sizeY)
     }
 
@@ -211,6 +211,11 @@ object StencilUtilities
   val zip2D = fun((A, B) =>
     Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(A, B)
   )
+
+  val zip3d2 = \((A,B) =>    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(A,B)  )
+
+  val zip3d3 = \((A,B,C) =>     Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(A,B,C))
+
 
   def writeToBinaryFile(arr: Array[Float], filename: String)
   {
@@ -257,29 +262,6 @@ class TestAcousticStencils {
       4.0f, 8.0f, 12.0f, 16.0f, 20.0f, 17.0f,
       3.0f, 6.0f, 9.0f, 12.0f, 15.0f, 11.0f
     )
-
-    // JUST CREATES THE GROUPS !!
-    /*     val lambda = fun(
-          ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-          (domain) => {
-            MapGlb(1)(
-              MapGlb(0)(fun(neighbours =>
-                MapSeqOrMapSeqUnroll(MapSeqOrMapSeqUnroll(id)) $ neighbours
-              ))
-            ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ domain
-          }
-        )*/
-
-    val lambda = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      (mat) => {
-        MapGlb(1)(
-          MapGlb(0)(fun(neighbours => {
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeq(add, 0.0f) o Join() $ neighbours
-          }))
-        ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
-      })
 
     val lambdaNeigh = fun(
       ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
@@ -434,7 +416,7 @@ class TestAcousticStencils {
   }
 
   @Ignore // KEEP THIS
-@Test
+  @Test
   def testStencil2DSimpleTimesConstantPlusSelfPlusPrevious(): Unit = // Nothing here, just aborted ideas
   {
 
@@ -461,31 +443,10 @@ class TestAcousticStencils {
               toGlobal(MapSeq(addTuple)) o dataBeforeCompute)) $ inp
       })
 
-    /*
-      val f2 = fun(
-        ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-        ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-        (matrix1, matrix2) =>
-          MapGlb(1)(
-            MapGlb(0)(fun((r) => {
-              MapSeq(id) $ Get(r, 0)
-            }      ))) $ Zip(matrix1, matrix2)
-      )
-    */
-
-    /* Idea:
-        - Pass in neighborhood (non-zipped)
-        - Save the neighborhood in a function
-        - use "scala" primitives to "fake" the data how you want it
-        - reduce once and save
-        - reduce twice and save
-        - combine two reductions
-     */
-
   }
 
   @Ignore // KEEP THIS
-@Test
+  @Test
   def testStencil2DSimpleAccessTwoWeightsBAD(): Unit = {
     /*
         Attempt to pull out using two stencils using zip2D / map2D / reduce2D
@@ -563,7 +524,6 @@ class TestAcousticStencils {
     //    Compile(lambdaNeigh)
 
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
-    //    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(f, stencilarr, stencilarrCopy)
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
@@ -625,22 +585,7 @@ class TestAcousticStencils {
     val constant2 = 3.0f
     val Xvalue = 1.37f
 
-    /** ** Why doesn't this work? !!!! ****/
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
-      (mat1, mat2, weights, weightsMiddle) => {
-        MapGlb((fun((m) => {
-          toGlobal(ReduceSeq(mult, Xvalue) o (addTuple)) $ Zip(
-            ReduceSeq(mult, constant1) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(Get(m, 0), weightsMiddle),
-            ReduceSeq(mult, constant2) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\((tuple1) => Zip(Get(Get(tuple1, 0), 0), Get(Get(tuple1, 0), 0)))) $ Zip(Zip(Get(m, 1), weights), Zip(Get(m, 1), weightsMiddle))
-          )
-        }))) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
-      })
-
-    val lambdaNeigh2 = fun(
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
       ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
       ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
@@ -656,8 +601,8 @@ class TestAcousticStencils {
         }))) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)))
       })
 
-    val source = Compile(lambdaNeigh2)
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh2, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val source = Compile(lambdaNeigh)
+    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -714,7 +659,7 @@ class TestAcousticStencils {
 
   }
 
-@Test
+  @Test
   def testStencil2DTwoGridsSwapIterate5(): Unit = {
 
     val compareData = Array(
@@ -767,7 +712,7 @@ class TestAcousticStencils {
   }
 
 
-@Test
+  @Test
   def testSimple2DStencilAsym1(): Unit = {
 
     /* u[cp] = S */
@@ -827,7 +772,7 @@ class TestAcousticStencils {
 
   }
 
-@Test
+  @Test
   def twoGridSwapWith3DifferentWeightsAndConstantsPlusSelfIterate5Asym2D(): Unit = {
 
     val asymDimX = 14
@@ -874,7 +819,6 @@ class TestAcousticStencils {
     var outputX = Array[Float]()
 
     for(x <- 1 to StencilUtilities.iter) {
-//      println("iter: "+x)
       val (output: Array[Float], runtime) = Execute(2,2)(lambdaNeigh, input, inputArrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
       input = inputArrCopy
       inputArrCopy = StencilUtilities.createFakePaddingFloat2D(output.sliding(asymDimX,asymDimX).toArray,0.0f)
@@ -889,15 +833,13 @@ class TestAcousticStencils {
 
   @Test
   def testStencil3DSimple(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     /* u[cp] = S */
 
     val localDim = 3
-
     val dim = localDim + 2
-
     val input = Array.tabulate(localDim,localDim,localDim){ (i,j,k) => (j+1).toFloat }
-
     val input3D = StencilUtilities.createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
 
     val compareData = Array(
@@ -938,6 +880,7 @@ class TestAcousticStencils {
 
  @Test
   def testStencil3DSwap(): Unit = {
+   assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     /* u[cp] = u[cp] + u1[cp] */
 
@@ -990,6 +933,7 @@ class TestAcousticStencils {
 
   @Test
   def twoGridSwapWith3weightsCalculations3D(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val compareData = Array(
     8.75f,15.5f,22.25f,24.0f,
@@ -1052,131 +996,5 @@ class TestAcousticStencils {
     }
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
   }
-
-
-  /////////////////// JUNKYARD ///////////////////
-  @Ignore
-  @Test
-  def testScalaData(): Unit =
-  {
-    stencilarr.transpose.map( x => x.sliding(3,1).toArray).sliding(3,1).toArray
-
-  }
-
-
-  @Ignore
-  @Test
-  def testZip2DEffects(): Unit =
-  {
-
-    val function = fun(
-      ArrayType(ArrayType(Float, StencilUtilities.stencilDim), StencilUtilities.stencilDim),
-      ArrayType(ArrayType(Float, StencilUtilities.stencilDim), StencilUtilities.stencilDim),
-      (A, B) => {
-        MapGlb(fun(t => {
-          MapSeq(fun(x => add.apply(x, Get(t, 1)))) $ Get(t, 0)
-        }))
-      } $ Zip(A, B)
-    )
-
-    val f = fun(
-      ArrayType(TupleType(Float, Float), StencilUtilities.stencilDim),
-      ArrayType(TupleType(Float, Float), StencilUtilities.stencilDim),
-      (left, right) =>
-        MapGlb(1)(
-          MapGlb(0)(fun(zippedMat => {
-            val currentStencil = zippedMat._0
-            val futureStencil = zippedMat._1
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeqUnroll(add,futureStencil) $ zippedMat
-          }))) $ Zip(left, right)
-    )
-
-    val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, StencilUtilities.stencilDim), StencilUtilities.stencilDim),
-      ArrayType(ArrayType(Float, StencilUtilities.stencilDim), StencilUtilities.stencilDim),
-      (mat1, mat2) => {
-        MapGlb(1)(
-          MapGlb(0)(fun(zippedMat => {
-            val currentStencil = zippedMat._0
-            val futureStencil = zippedMat._1
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeqUnroll(add,futureStencil) $ zippedMat
-          }))) $ Zip(mat1,mat2)
-      })
-
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarrCopy.length)(function, stencilarr, stencilarrCopy)
-
-    StencilUtilities.print2DArray(stencilarr)
-    println("*********************")
-    StencilUtilities.print1DArrayAs2DArray(output,StencilUtilities.stencilSize)
-  }
-
-  @Ignore
-  @Test
-  def testZip1DEffects(): Unit =
-  {
-
-    val filling1 = Array.tabulate(StencilUtilities.stencilSize){ i => i+1}
-    val filling2 = Array.tabulate(StencilUtilities.stencilSize){ i => i*2+1}
-
-    val gold = (filling1,filling2).zipped.map(_+_)
-
-    //    val test = (filling1,filling2).zipped(0)
-    val test = gold(0)
-    println("test: " +test)
-    gold.foreach(println)
-
-    //    gold.foreach(x => println("0: " + x._0 +  " 1: " + x._1))
-
-    /*    val function = fun(
-          ArrayType(Float, dim),
-          ArrayType(Float, dim),
-          (A, B) =>
-            MapGlb(fun(t => {
-              MapSeq(add)
-            })) $ Zip(A, B)
-        )
-    */
-    StencilUtilities.print1DArray(filling1)
-    StencilUtilities.print1DArray(filling2)
-    // val (output: Array[Float], runtime) = Execute(filling1.length, filling2.length)(function, filling1, filling2)
-
-    println("*********************")
-    //print1DArray(output)
-  }
-
-  def scalaSlide2D(input: Array[Array[Float]],
-                   size1: Int, step1: Int,
-                   size2: Int, step2: Int) = {
-    val firstSlide = input.sliding(size1, step1).toArray
-    val secondSlide = firstSlide.map(x => x.transpose.sliding(size2, step2).toArray)
-    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
-    neighbours
-  }
-
-  def leggySlide2D(input: Array[Array[Float]],
-                   size1: Int, step1: Int,
-                   size2: Int, step2: Int) =
-  {
-
-    val first = input.drop(1).dropRight(1).sliding(3, 1).toArray
-    val second = input.transpose.drop(1).dropRight(1).sliding(3, 1).toArray
-
-    val firsec = first(0) ++ second(0)
-    Array.fill(1)(Array.fill(1)(firsec))
-  }
-
-  @Ignore
-  @Test
-  def testLeggyGroup(): Unit = {
-
-    val data2D = Array.tabulate(3, 3) { (i, j) => 3 * i + j }.map(x => x.map(_.toFloat))
-
-    println(leggySlide2D(data2D, 3,1,3,1).deep.mkString(","))
-    println("*******")
-    println(scalaSlide2D(data2D, 3, 1, 3, 1).deep.mkString(","))
-  }
-
 
 }
