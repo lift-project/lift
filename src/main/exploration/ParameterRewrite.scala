@@ -6,11 +6,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
 import exploration.ParameterSearch.SubstitutionMap
-import ir.ast.Lambda
+import ir.ast.{Expr, FunCall, Lambda}
 import ir.{ArrayType, Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
 import opencl.generator.OpenCLGenerator._
+import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import play.api.libs.json.Reads._
@@ -290,45 +291,48 @@ object ParameterRewrite {
 
   private def computeValidNDRanges(expr: Lambda): Seq[(NDRange, NDRange)] = {
     println("Generating NDRanges...")
-      // assumes first param of lambda is input array and determines its dimensionality
-      val firstParam = expr.params.head
-      val inputDim = firstParam.t match {
-        case ArrayType(ArrayType(ArrayType(dt, m), n), o) => 3 //or higher but we don't care
-        case ArrayType(ArrayType(dt, m), n) => 2
-        case ArrayType(dt, m) => 1
-        case _ => -1
-      }
+    // assumes first param of lambda is input array and determines its dimensionality
+    val firstParam = expr.params.head
+    val inputDim = firstParam.t match {
+      //case ArrayType(ArrayType(ArrayType(dt, m), n), o) => 3 //or higher but we don't care
+      case ArrayType(ArrayType(ArrayType(dt, m), n), o) => 2 //or higher but we don't care
+      case ArrayType(ArrayType(dt, m), n) => 2
+      case ArrayType(dt, m) => 1
+      case _ => -1
+    }
 
-      // hardcoded highest power of two = 8192
-      val pow2 = Seq.tabulate(14)(x => scala.math.pow(2,x).toInt)
-      val localGlobalCombinations: Seq[(ArithExpr, ArithExpr)] = (for {
-        local <- pow2
-        global <- pow2
-        if local <= global
-      } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
+    logger.info(s"computing $inputDim-D NDRanges")
 
-      val success = ExpressionFilter.Status.Success
-      inputDim match {
-        case 1 => localGlobalCombinations.map { case (l, g)
-          if ExpressionFilter(l,g) == success
-        => (Array(l, 1, 1): NDRange, Array(g, 1, 1): NDRange) }
+    // hardcoded highest power of two = 8192
+    val pow2 = Seq.tabulate(14)(x => scala.math.pow(2,x).toInt)
+    val localGlobalCombinations: Seq[(ArithExpr, ArithExpr)] = (for {
+      local <- pow2
+      global <- pow2
+      if local <= global
+    } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
 
+    val success = ExpressionFilter.Status.Success
+    inputDim match {
+      case 1 => for {
+        x <- localGlobalCombinations
+        if ExpressionFilter(x._1, x._2) == success
+      } yield (Array(x._1, 1, 1): NDRange, Array(x._2, 1, 1): NDRange)
 
-        case 2 => for {
-          x: (ArithExpr, ArithExpr) <- localGlobalCombinations
-          y: (ArithExpr, ArithExpr) <- localGlobalCombinations
-          if ExpressionFilter(x._1, y._1, x._2, y._2) == success
-        } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1): NDRange)
+      case 2 => for {
+        x: (ArithExpr, ArithExpr) <- localGlobalCombinations
+        y: (ArithExpr, ArithExpr) <- localGlobalCombinations
+        if ExpressionFilter(x._1, y._1, x._2, y._2) == success
+      } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1): NDRange)
 
-        case 3 => for {
-          x <- localGlobalCombinations
-          y <- localGlobalCombinations
-          z <- localGlobalCombinations
-          if ExpressionFilter(x._1, y._1, z._1, x._2, y._2, z._2) == success
-        } yield (Array(x._1, y._1, z._1): NDRange, Array(x._2, y._2, z._2): NDRange)
+      case 3 => for {
+        x <- localGlobalCombinations
+        y <- localGlobalCombinations
+        z <- localGlobalCombinations
+        if ExpressionFilter(x._1, y._1, z._1, x._2, y._2, z._2) == success
+      } yield (Array(x._1, y._1, z._1): NDRange, Array(x._2, y._2, z._2): NDRange)
 
-        case _ => throw new RuntimeException("Could not pre-compute NDRanges for exploration")
-      }
+      case _ => throw new RuntimeException("Could not pre-compute NDRanges for exploration")
+    }
   }
 }
 

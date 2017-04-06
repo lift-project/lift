@@ -27,17 +27,17 @@ object ExpressionFilter {
   import exploration.ExpressionFilter.Status._
 
   def apply(local: ArithExpr, global: ArithExpr): Status = {
-    filterNDRanges((Array(local, 1, 1), Array(global, 1, 1)))
+    filterNDRanges((Array(local, 1, 1): NDRange, Array(global, 1, 1): NDRange))
   }
 
   def apply(local1: ArithExpr, local2: ArithExpr,
             global1: ArithExpr, global2: ArithExpr): Status = {
-    filterNDRanges((Array(local1, local2, 1), Array(global1, global2, 1)))
+    filterNDRanges((Array(local1, local2, 1): NDRange, Array(global1, global2, 1): NDRange))
   }
 
   def apply(local1: ArithExpr, local2: ArithExpr, local3: ArithExpr,
             global1: ArithExpr, global2: ArithExpr, global3: ArithExpr): Status = {
-    filterNDRanges((Array(local1, local2, local3), Array(global1, global2, global3)))
+    filterNDRanges((Array(local1, local2, local3): NDRange, Array(global1, global2, global3): NDRange))
   }
   def filterNDRanges(ranges: (NDRange, NDRange)): Status = {
     ranges match {
