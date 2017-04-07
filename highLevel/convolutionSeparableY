@@ -1,0 +1,14 @@
+val M = SizeVar("M")
+val N = SizeVar("N")
+
+fun(
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(Float, Cst(3)),
+    (input, weights) => {
+        Map(Map( \(neighbourhood =>
+			Reduce(add, 0.0f) o Map( \(tuple =>
+				mult.apply(Get(tuple,0),Get(tuple,1))
+			)) $ Zip(weights,
+			         Join() $ neighbourhood)))) o
+		Slide2D(3,1, 1,1) o Pad2D(1,1, 0,0, Pad.Boundary.Clamp) $ input
+  })

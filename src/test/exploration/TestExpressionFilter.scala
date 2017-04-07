@@ -8,6 +8,7 @@ import opencl.ir.pattern._
 import org.junit.{Ignore, Test}
 import org.junit.Assert._
 import exploration.ExpressionFilter.Status._
+import rewriting.InferNDRange
 
 class TestExpressionFilter {
 
@@ -77,13 +78,14 @@ class TestExpressionFilter {
   @Test
   def mmKepler(): Unit = {
     val lambda = keplerFactory(Array[ArithExpr](1024, 1024, 1024, 128, 4, 8, 64, 8))
-    assertEquals(Success, ExpressionFilter(lambda))
+    assertEquals(Success, ExpressionFilter(lambda, InferNDRange(lambda)))
   }
 
   @Test
   def mmHawaii(): Unit = {
     val lambda = hawaiiFactory(Array[ArithExpr](1024, 1024, 1024, 64, 4, 8, 64, 8))
-    assertEquals(Success, ExpressionFilter(lambda))
+    val (local, global) = InferNDRange(lambda)
+    assertEquals(Success, ExpressionFilter(lambda, InferNDRange(lambda)))
   }
 
   @Ignore
@@ -96,7 +98,8 @@ class TestExpressionFilter {
   @Test
   def gemvHawaii(): Unit = {
     val lambda = gemvHawaiiFactory(Array[ArithExpr](1024, 1024, 256))
-    assertEquals(Success, ExpressionFilter(lambda))
+    val (local, global) = InferNDRange(lambda)
+    assertEquals(Success, ExpressionFilter(lambda, InferNDRange(lambda)))
   }
 
 }
