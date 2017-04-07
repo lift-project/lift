@@ -4,6 +4,14 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
+// Check Java version
+initialize := {
+  val _ = initialize.value // run the previous initialization
+  val required = "1.8"
+  val current  = sys.props("java.specification.version")
+  assert(current == required, s"Unsupported JDK: java.specification.version $current != $required")
+}
+
 compile <<= (compile in Compile) dependsOn (updateSubmodules, compileExecutor)
 
 lazy val updateSubmodules = taskKey[Unit]("Update the submodules")
