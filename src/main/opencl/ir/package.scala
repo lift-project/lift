@@ -95,7 +95,7 @@ package object ir {
   // Logical
   
   val or: UserFun =
-    UserFun("or", Array("x", "y"), "return x || y;", Seq(Int, Int), Int)
+    UserFun("or", Array("x", "y"), "return x | y;", Seq(Int, Int), Int)
   
   val not: UserFun =
     UserFun("not", "x", "return !x;", Int, Int)
