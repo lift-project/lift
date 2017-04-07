@@ -14,7 +14,7 @@ package object ir {
   def equality(ty: Type, name: String = "equality"): UserFun =
     UserFun(name, Array("x", "y"), "return x == y;", Seq(ty, ty), Int)
   
-  def fst(leftTy: Type, rightTy: Type, name: String="fst"): UserFun =
+  def first(leftTy: Type, rightTy: Type, name: String="fst"): UserFun =
     UserFun(name, Array("x", "y"), "return x;", Seq(leftTy, rightTy), leftTy)
   
   def max(ty: Type, name: String="maximum"): UserFun =

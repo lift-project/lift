@@ -181,7 +181,7 @@ class TestDbQueries {
     
     val N = SizeVar("N")
     
-    val int_fst = fst(Int, Int)
+    val int_fst = first(Int, Int)
     val tuple_id = id(TupleType(Int, Int, Int), "tuple_id")
     val int_eq = equality(Int)
     
