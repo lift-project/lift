@@ -29,6 +29,9 @@ package object ir {
   val idFI = UserFun("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
 
   val idFF = UserFun("idFF", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
+  
+  // A polymorphic version of the identity function
+  def id(ty: Type): UserFun = UserFun("id", "x", "return x;", ty, ty)
 
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)
