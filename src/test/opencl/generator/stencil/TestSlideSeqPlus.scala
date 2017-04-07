@@ -40,7 +40,7 @@ class TestSlideSeqPlus
     val stencil = fun(
       ArrayType(Float, SizeVar("N")),
       (input) =>
-          SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), 3, 1) $ input
+        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), 3, 1) $ input
     )
 
     println(Compile(stencil))
@@ -52,6 +52,23 @@ class TestSlideSeqPlus
 
     assertArrayEquals(gold, output, 0.1f)
 
+  }
+
+
+  @Test
+  def iterativeSlide(): Unit = {
+
+    val data = Array(0,1,2,3,4,5).map(_.toFloat)
+    val gold = Array(18,27).map(_.toFloat)
+    val lambda = fun(
+      ArrayType(Float, SizeVar("N")),
+      (input) => {
+        Iterate(2) (Join() o MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Slide(3,1)) $ input
+      })
+
+    println(Compile(lambda))
+    val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
+    assertArrayEquals(gold, output, 0.1f)
   }
 
   @Test

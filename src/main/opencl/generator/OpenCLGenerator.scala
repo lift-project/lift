@@ -661,7 +661,11 @@ class OpenCLGenerator extends Generator {
                                        call: FunCall,
                                        block: Block): Unit = {
     (block: Block) += OpenCLAST.Comment("slideSeq_plus")
-    generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
+    if(sp.size.eval <= sp.step.eval)
+      generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
+    else
+//      generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
+      generateLoopMinMemoryAccess(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end slideSeq_plus")
   }
 
@@ -1020,19 +1024,32 @@ class OpenCLGenerator extends Generator {
     } /*, i.iterationCount*/)
   }
 
-  private def generateForLoop(block: Block,
-                              indexVar: Var,
+  private def generateLoopMinMemoryAccess(block: Block,
+                              sSP: SlideSeqPlus,
+                              call: FunCall,
                               generateBody: (Block) => Unit,
                               needUnroll: Boolean = false): Unit = {
 
+    val indexVar = sSP.loopVar
+    val step = sSP.step
+    val size = sSP.size
     val range = indexVar.range.asInstanceOf[RangeAdd]
-    val step = range.step
+    val rangeStep = range.step
     val init = ArithExpression(range.start)
     val stop = range match {
       case ra: RangeAdd => ra.stop
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
     val cond = CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
+
+    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+    val twin = Var("twindow")
+    varDecls = varDecls.updated(twin, Type.devectorize(call.t))
+    (block: Block) += OpenCLAST.VarDecl(twin, Type.devectorize(call.t),
+      OpenCLAST.VarRef(inputMem.variable),
+      inputMem.addressSpace)
+    inputMem.variable = twin
+    val tinVStrRef = OpenCLAST.VarRef(twin)
 
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
@@ -1052,7 +1069,7 @@ class OpenCLGenerator extends Generator {
           replacements = replacements.updated(indexVar, i)
           val j: ArithExpr =
             if (range.min.isInstanceOf[OclFunction]) {
-              range.min + step * i
+              range.min + rangeStep * i
             } else {
               i
             }
@@ -1108,11 +1125,108 @@ class OpenCLGenerator extends Generator {
         }
     }
 
+
+
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
     generateBody(innerBlock)
   }
+
+  private def generateForLoop(block: Block,
+                              indexVar: Var,
+                              generateBody: (Block) => Unit,
+                              needUnroll: Boolean = false): Unit = {
+
+    val range = indexVar.range.asInstanceOf[RangeAdd]
+    val step = range.step
+    val init = ArithExpression(range.start)
+    val stop = range match {
+      case ra: RangeAdd => ra.stop
+      case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
+    }
+    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
+
+    // if we need to unroll (e.g. because of access to private memory)
+    if (needUnroll) {
+
+      val iterationCount = try {
+        indexVar.range.numVals.enforceSimplification.eval
+      } catch {
+        case NotEvaluableException =>
+          throw new OpenCLGeneratorException("Trying to unroll loop, " +
+            "but iteration count could not be determined statically.")
+      }
+
+      if (iterationCount > 0) {
+        (block: Block) += OpenCLAST.Comment("unroll")
+
+        for (i <- 0 until iterationCount) {
+          replacements = replacements.updated(indexVar, i)
+          val j: ArithExpr =
+            if (range.min.isInstanceOf[OclFunction]) {
+              range.min + step * i
+            } else {
+              i
+            }
+          replacementsWithFuns = replacementsWithFuns.updated(indexVar, j)
+
+          generateBody(block)
+        }
+        // cleanup
+        replacements = replacements - indexVar
+        replacementsWithFuns = replacementsWithFuns - indexVar
+
+        (block: Block) += OpenCLAST.Comment("end unroll")
+        return
+      } else {
+        throw new OpenCLGeneratorException(s"Trying to unroll loop, but iteration count is $iterationCount.")
+      }
+
+    }
+
+    // TODO: Information needed elsewhere. See analysis.ControlFlow
+    // try to see if we really need a loop
+    if (PerformLoopOptimisation())
+      indexVar.range.numVals match {
+        case Cst(0) =>
+          // zero iterations
+          (block: Block) += OpenCLAST.Comment("iteration count is 0, no loop emitted")
+          return
+
+        case Cst(1) =>
+          generateStatement(block, indexVar, generateBody, init)
+          return
+
+        // TODO: See TestInject.injectExactlyOneIterationVariable
+        // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
+        case _ if range.start.min.min == Cst(0) &&
+          ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
+
+          generateStatement(block, indexVar, generateBody, init)
+          return
+
+        // TODO: See TestOclFunction.numValues and issue #62
+        case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
+          generateIfStatement(block, indexVar, generateBody, init, stop)
+          return
+        case _ =>
+          (indexVar.range.numVals.min, indexVar.range.numVals.max) match {
+            case (Cst(0), Cst(1)) =>
+              // one or less iteration
+              generateIfStatement(block, indexVar, generateBody, init, stop)
+              return
+
+            case _ =>
+          }
+      }
+
+    val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
+    val innerBlock = OpenCLAST.Block(Vector.empty)
+    (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
+    generateBody(innerBlock)
+  }
+
 
   private def generateStatement(block: Block, indexVar: Var, generateBody: (Block) => Unit, init: ArithExpression): Unit = {
     // one iteration
