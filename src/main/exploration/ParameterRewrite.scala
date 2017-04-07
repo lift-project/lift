@@ -85,6 +85,7 @@ object ParameterRewrite {
       if(!exploreNDRange.value.isDefined && sampleNDRange.value.isDefined)
         throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
+      logger.info(s"Arguments: ${args.mkString(" ")}")
       val inputArgument = input.value.get
 
       topFolder = Paths.get(inputArgument).toString
@@ -181,7 +182,8 @@ object ParameterRewrite {
                         computeValidNDRanges(expr)
                       else
                         Seq(InferNDRange(expr))
-                      logger.info("[RANGE] length: " + rangeList.length)
+
+                      logger.debug(rangeList.length + " generated NDRanges")
 
                       val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = rangeList.flatMap {ranges =>
                         if (ExpressionFilter(expr, ranges) == ExpressionFilter.Status.Success)
@@ -190,7 +192,7 @@ object ParameterRewrite {
                           None
                       }
 
-                      logger.info("[FILTERED] length: " + filtered.length)
+                      logger.debug(filtered.length + " NDRanges after filtering")
                       val sampled = if (sampleNDRange.value.isDefined && filtered.nonEmpty) {
                         Random.setSeed(0L) //always use the same seed
                         Random.shuffle(filtered).take(sampleNDRange.value.get)
@@ -199,7 +201,7 @@ object ParameterRewrite {
 
                       val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
                         "_" + x._3._1.mkString("_") + "_" + x._3._2.mkString("_"))
-                      logger.info("\n[SAMPLE]:\n\t" + sampleStrings.mkString(" \n "))
+                      logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
                       Some(sampled)
 
                     } catch {
@@ -310,7 +312,7 @@ object ParameterRewrite {
       }, (_) => Unit)
     val nDRangeDim = usedDimensions.max + 1
 
-    logger.info(s"computing $nDRangeDim-D NDRanges")
+    logger.debug(s"computing ${nDRangeDim}D NDRanges")
 
     // hardcoded highest power of two = 8192
     val pow2 = Seq.tabulate(14)(x => scala.math.pow(2,x).toInt)
