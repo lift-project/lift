@@ -171,11 +171,11 @@ object ParameterRewrite {
                   val potential_expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
                     all_substitution_tables.flatMap(st => {
 
-                    println(s"\rPropagation ${propagation_counter.incrementAndGet()} / $propagationCount")
-                    val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
-                    try {
-                      val expr = low_level_factory(sizesForFilter ++ params)
-                      TypeChecker(expr)
+                      println(s"\rPropagation ${propagation_counter.incrementAndGet()} / $propagationCount")
+                      val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
+                      try {
+                        val expr = low_level_factory(sizesForFilter ++ params)
+                        TypeChecker(expr)
 
                       val rangeList = if (exploreNDRange.value.isDefined)
                         computeValidNDRanges(expr)
@@ -183,7 +183,7 @@ object ParameterRewrite {
                         Seq(InferNDRange(expr))
                       logger.info("[RANGE] length: " + rangeList.length)
 
-                      val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = rangeList.flatMap{ ranges =>
+                      val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = rangeList.flatMap {ranges =>
                         if (ExpressionFilter(expr, ranges) == ExpressionFilter.Status.Success)
                           Some((low_level_factory(vars ++ params), params, ranges))
                         else
@@ -191,7 +191,7 @@ object ParameterRewrite {
                       }
 
                       logger.info("[FILTERED] length: " + filtered.length)
-                      val sampled = if (sampleNDRange.value.isDefined) {
+                      val sampled = if (sampleNDRange.value.isDefined && filtered.nonEmpty) {
                         Random.setSeed(0L) //always use the same seed
                         Random.shuffle(filtered).take(sampleNDRange.value.get)
                       } else
