@@ -26,13 +26,13 @@ object OutputView {
 
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
-      case p: Param =>
-
-        if (p.outputView == NoView)
-          p.outputView = writeView
-
-        p.outputView
       case call: FunCall => buildViewFunCall(call, writeView)
+      case e: Expr=>
+
+        if (e.outputView == NoView)
+          e.outputView = writeView
+
+        e.outputView
     }
   }
 

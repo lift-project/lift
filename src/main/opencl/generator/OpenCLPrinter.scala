@@ -54,7 +54,7 @@ class OpenCLPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar => ai.array + "[" + toString(ai.idx) + "]"
+      case ai: AccessVar => ai.array + "[" + toString(ai.idx.content) + "]"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
@@ -134,7 +134,9 @@ class OpenCLPrinter {
       }
 
     case f: Function      => print(f)
+    case a: RequiredWorkGroupSize => print(a)
     case i: OpenCLCode    => sb ++= i.code
+    case e: OpenCLExpression => sb ++= e.code
     case c: Comment       => print(s"/* ${c.content} */")
     case v: VarDecl       => print(v)
     case v: VarRef        => print(v)
@@ -266,22 +268,37 @@ class OpenCLPrinter {
     }
   }
 
+  private def print(a: RequiredWorkGroupSize): Unit = {
+    val localSize = a.localSize
+    sb ++=
+      s"__attribute((reqd_work_group_size(${localSize.map(_.eval).mkString(", ")})))\n"
+  }
+
   private def print(f: Function): Unit = {
-    if(f.kernel) sb ++= "kernel void"
+
+    if(f.kernel) sb ++= "kernel "
+
+    if (f.attribute.isDefined) print(f.attribute.get)
+
+    if (f.kernel) sb ++= "void"
     else sb ++= toString(f.ret)
+
     sb ++= s" ${f.name}("
     f.params.foreach(x => {
       print(x)
       if(!x.eq(f.params.last)) sb ++= ", "
     })
     sb ++= ")"
+
     if(f.kernel)
       sb ++= "{ \n" +
         "#ifndef WORKGROUP_GUARD\n" +
         "#define WORKGROUP_GUARD\n" + 
         "#endif\n" +
         "WORKGROUP_GUARD\n"
+
     print(f.body)
+
     if(f.kernel)
       println("}")
   }
@@ -305,13 +322,13 @@ class OpenCLPrinter {
       print(const + p.addressSpace + " " + toString(Type.devectorize(p.t)) +
             " " + restrict + p.name)
 
-    case x =>
+    case _ =>
       print(toString(p.t) + " " + p.name)
   }
 
 
   private def print(vd: VarDecl): Unit = vd.t match {
-    case a: ArrayType =>
+    case _: ArrayType =>
       vd.addressSpace match {
         case PrivateMemory =>
           for (i <- 0 until vd.length)
@@ -332,7 +349,7 @@ class OpenCLPrinter {
 
           print(fullDeclaration)
 
-        case x =>
+        case _ =>
           val baseType = Type.getBaseType(vd.t)
           print(s"${vd.addressSpace} ${toString(baseType)} *${toString(vd.v)}")
           if(vd.init != null) {
@@ -342,7 +359,7 @@ class OpenCLPrinter {
           print(";")
       }
 
-    case x =>
+    case _ =>
       // hackily add support for global memory pointers, but _only_ pointers
       vd.t match {
         case IntPtr => 

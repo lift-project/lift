@@ -1,7 +1,7 @@
 package opencl.ir.pattern
 
-import lift.arithmetic.{PosVar, Var}
 import ir.ast._
+import lift.arithmetic.PosVar
 
 case class MapWrg(dim: Int, override val f: Lambda1)
   extends AbstractMap(f, "MapWrg", PosVar("wg_id")) {
