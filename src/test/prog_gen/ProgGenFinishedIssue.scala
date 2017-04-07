@@ -42,8 +42,7 @@ class ProgGenFinishedIssue {
     )
     TypeChecker(f)
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
 
     val Args = InputGenerator()(fs.head)
 
@@ -71,8 +70,7 @@ class ProgGenFinishedIssue {
       })
     TypeChecker(f)
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
 
     val Args = InputGenerator()(fs.head)
 
@@ -101,8 +99,7 @@ class ProgGenFinishedIssue {
     )
     TypeChecker(f)
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
 
     val Args = InputGenerator()(fs.head)
 
@@ -132,8 +129,7 @@ class ProgGenFinishedIssue {
       }
     )
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
     val lowLevel = fs.head
 
