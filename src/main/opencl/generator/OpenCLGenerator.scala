@@ -1042,12 +1042,20 @@ class OpenCLGenerator extends Generator {
     }
     val cond = CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
 
-    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
+                                                                    // cut down to window size
+
+
+    val temp = Var("tmp")
+    val v = Value(0.0f, ArrayType(Float, size.eval))
+    (block: Block) += OpenCLAST.VarDecl(temp, v.t,
+      init = OpenCLAST.OpenCLCode(v.value),PrivateMemory,size.eval)
+
     val twin = Var("twindow")
     varDecls = varDecls.updated(twin, Type.devectorize(call.t))
     (block: Block) += OpenCLAST.VarDecl(twin, Type.devectorize(call.t),
       OpenCLAST.VarRef(inputMem.variable),
-      inputMem.addressSpace)
+      inputMem.addressSpace,size.eval)
     inputMem.variable = twin
     val tinVStrRef = OpenCLAST.VarRef(twin)
 
