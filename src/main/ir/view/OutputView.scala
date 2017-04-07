@@ -61,8 +61,8 @@ object OutputView {
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case PrintType() => writeView
-      case _ => throw new NotImplementedError()
+      case PrintType() | ArrayAccess(_) => writeView
+      case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
 
     // then handle arguments
@@ -199,6 +199,8 @@ object OutputView {
                               writeView: View): View = {
     // Output of the predicate is never stored in a variable
     visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
+    val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
+    f.f.body.outputView = View.initialiseNewView(f.f.body.t, outDepth)
     
     // Write at the "top" of the output array
     visitAndBuildViews(f.copyFun.body, writeView.access(f.loopWrite))

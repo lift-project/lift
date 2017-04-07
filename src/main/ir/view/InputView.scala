@@ -81,7 +81,7 @@ object InputView {
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
       case PrintType() => argView
-      case _ => throw new NotImplementedError()
+      case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }
 
@@ -123,8 +123,6 @@ object InputView {
   }
   
   private def buildViewFilter(f: FilterSeq, call: FunCall, argView: View): View = {
-    // Note: we reuse `ViewMap` because we are basically doing the same job
-    
     // The inputs are the same for both the predicate and the copy function
     f.f.params.head.view = argView.access(f.loopRead)
     f.copyFun.params.head.view = argView.access(f.loopRead)

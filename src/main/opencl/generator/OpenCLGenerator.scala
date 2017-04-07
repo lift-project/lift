@@ -651,33 +651,33 @@ class OpenCLGenerator extends Generator {
     )
   
     // If the predicate returns true:
-    def mkTrueBlock(block: Block): Unit = {
+    def copyAndIncrementIndex(block: Block): Unit = {
       // 1. Store the input value at "the top" of the output array
       generate(f.copyFun.body, block)
       // 2. Increment the index of "the top" of the output array
       (block: Block) += AssignmentExpression(
         ArithExpression(f.loopWrite),
-        ArithExpression(f.loopWrite + f.loopWrite.range.asInstanceOf[RangeAdd].step)
+        ArithExpression(
+          f.loopWrite
+          + f.loopWrite.range.asInstanceOf[RangeAdd].step)
+      )
+    }
+  
+    def generateBody(block: Block): Unit = {
+      generate(f.f.body, block)  // Evaluates the predicate
+      generateConditional(
+        block,
+        generateLoadNode(
+          OpenCLMemory.asOpenCLMemory(f.f.body.mem),
+          f.f.body.t,
+          f.f.body.view
+        ),
+        copyAndIncrementIndex,
+        _ => ()
       )
     }
     
-    // Load the input array for the predicate
-    val predicateInput = generateLoadNode(
-      OpenCLMemory.asOpenCLMemory(f.f.params.head.mem),
-      f.f.params.head.t,
-      f.f.params.head.view
-    )
-  
-    generateForLoop(
-      block,
-      f.loopRead,
-      ib => generateConditional(
-        ib,
-        generateFunCall(f.f.body, List(predicateInput)),
-        mkTrueBlock,
-        _ => ()
-      )
-    )
+    generateForLoop(block, f.loopRead, generateBody)
     
     (block: Block) += OpenCLAST.Comment("end filter_seq")
   }

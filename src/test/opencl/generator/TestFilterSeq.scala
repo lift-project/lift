@@ -1,11 +1,13 @@
 package opencl.generator
 
 import ir.ArrayType
-import ir.ast.{Join, PrintType, Split, UserFun, fun}
+import ir.ast.{Join, Split, UserFun, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{toGlobal, MapGlb, MapWrg, MapLcl, MapSeq, FilterSeq}
+import opencl.ir.pattern.{
+  MapGlb, MapWrg, MapLcl, MapSeq, FilterSeq, ReduceSeq, toGlobal
+}
 import org.junit.Assert.assertArrayEquals
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -23,8 +25,10 @@ object TestFilterSeq {
 }
 
 class TestFilterSeq {
-  val lt5: UserFun =
-    UserFun("lt5", "x", "return x < 5;", Int, Int)
+  // Some user functions
+  def lt(n: Int): UserFun =
+    UserFun(s"lt$n", "x", s"return x < $n;", Int, Int)
+  val int_id: UserFun = id(Int, name="int_id")
   
   @Test def filterSimple(): Unit = {
     val size = 128
@@ -33,7 +37,7 @@ class TestFilterSeq {
     
     val expr = fun(
       ArrayType(Int, N),
-      l => MapGlb(toGlobal(idI)) o FilterSeq(lt5) $ l
+      l => MapGlb(toGlobal(int_id)) o FilterSeq(lt(5)) $ l
     )
     
     val (output: Array[Int], _) = Execute(size)(expr, input)
@@ -49,7 +53,7 @@ class TestFilterSeq {
     
     val expr = fun(
       ArrayType(Int, N),
-      l => Join() o MapGlb(toGlobal(FilterSeq(lt5))) o Split(32) $ l
+      l => Join() o MapGlb(toGlobal(FilterSeq(lt(5)))) o Split(32) $ l
     )
     
     
@@ -72,10 +76,9 @@ class TestFilterSeq {
     val expr = fun(
       ArrayType(Int, N),
       l => Join() o Join() o MapWrg(
-        toGlobal(MapLcl(FilterSeq(lt5))) o Split(4)
+        toGlobal(MapLcl(FilterSeq(lt(5)))) o Split(4)
       ) o Split(32) $ l
     )
-    
     
     val (output: Array[Int], _) = Execute(size)(expr, input)
     // Because RuntimeSizeArrays are not supported yet, we have to reshape the
@@ -97,11 +100,17 @@ class TestFilterSeq {
     
     val expr = fun(
       ArrayType(Int, N),
-      l => MapGlb(MapSeq(toGlobal(idI))) o PrintType() o FilterSeq(fun(_ => 1)) o Split(32) $ l
+      l => MapGlb(toGlobal(int_id)) o Join() o FilterSeq(
+        fun(xs => fun(x => x.at(0)) o MapSeq(lt(100)) o ReduceSeq(addI, 0) $ xs)
+      ) o Split(32) $ l
     )
     
     val (output: Array[Int], _) = Execute(size)(expr, input)
+    val gold = input.grouped(32)
+      .filter(row => row.sum < 100)
+      .flatten
+      .toArray
 
-    assertArrayEquals(input, output)
+    assertArrayEquals(gold, output.slice(0, gold.length))
   }
 }

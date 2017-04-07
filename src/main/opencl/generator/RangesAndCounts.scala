@@ -45,7 +45,11 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
               case _ => apply(m.f.body)
             }
 
-          case f: FilterSeq => setRangeFilterSeq(f, call)
+          case f: FilterSeq => {
+            apply(f.copyFun.body)
+            apply(f.f.body)
+            setRangeFilterSeq(f, call)
+          }
 
           case r: AbstractPartRed =>
             r match {

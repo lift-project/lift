@@ -113,7 +113,7 @@ object InferOpenCLAddressSpace {
                                        writeTo: OpenCLAddressSpace,
                                        addrSpaces: Seq[OpenCLAddressSpace]) = {
     // We never need to keep the result of the predicate.
-    setAddressSpaceLambda(fs.f, LocalMemory, addrSpaces)
+    setAddressSpaceLambda(fs.f, PrivateMemory, addrSpaces)
     setAddressSpaceLambda(fs.copyFun, writeTo, addrSpaces)
   }
 
