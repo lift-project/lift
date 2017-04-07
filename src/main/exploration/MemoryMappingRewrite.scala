@@ -57,6 +57,12 @@ object MemoryMappingRewrite {
   private val global10 = parser.flag[Boolean](List("gl10", "global10"),
     "Mapping: MapGlb(1)(MapGlb(0)( MapSeq(...) ))")
 
+  private val global012 = parser.flag[Boolean](List("gl012", "global012"),
+    "Mapping: MapGlb(0)(MapGlb(1)(MapGlb(2)( MapSeq(...) )))")
+
+  private val global210 = parser.flag[Boolean](List("gl210", "global210"),
+    "Mapping: MapGlb(2)(MapGlb(1)(MapGlb(0)( MapSeq(...) )))")
+
   private val group0 = parser.flag[Boolean](List("gr0", "group0"),
     "Mapping: MapWrg(0)(MapLcl(0)( MapSeq(...) ))")
 
@@ -72,14 +78,17 @@ object MemoryMappingRewrite {
     try {
 
       parser.parse(args)
-      val enabledMappings = new EnabledMappings(
-        global0.value.isDefined,
-        global01.value.isDefined,
-        global10.value.isDefined,
-        group0.value.isDefined,
-        group01.value.isDefined,
-        group10.value.isDefined
-      )
+      val enabledMappings =
+        EnabledMappings(
+          global0.value.isDefined,
+          global01.value.isDefined,
+          global10.value.isDefined,
+          global012.value.isDefined,
+          global210.value.isDefined,
+          group0.value.isDefined,
+          group01.value.isDefined,
+          group10.value.isDefined
+        )
 
       if(!enabledMappings.isOneEnabled) scala.sys.error("No mappings enabled")
 
@@ -213,7 +222,7 @@ object MemoryMappingRewrite {
 
       allPrivateMappings
     } catch {
-      case t: Throwable =>
+      case _: Throwable =>
         logger.warn(s"Address space mapping for $hash failed.")
        Seq()
     }
@@ -348,7 +357,7 @@ object MemoryMappingRewrite {
       val expressions = pair._2
 
       val (nonLowered, lowered) = expressions.partition({
-        case FunCall(map: Map, _) => true
+        case FunCall(_: Map, _) => true
         case _ => false
       })
 
@@ -437,7 +446,7 @@ object MemoryMappingRewrite {
 
         val tryToVectorize = Expr.visitLeftToRight(List[Expr]())(tuple.body, (expr, list) => {
           expr match {
-            case FunCall(toLocal(Lambda(_, body)), _) => expr :: list
+            case FunCall(toLocal(Lambda(_, _)), _) => expr :: list
             case _ => list
           }
         })
@@ -470,7 +479,7 @@ object MemoryMappingRewrite {
 
   private def addIdsForLocal(lambda: Lambda): Lambda = {
     val temp = Rewrite.applyRulesUntilCannot(lambda,
-      Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
+      Seq(Rules.addIdMapWrg, Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
 
     val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(temp.body, (e, s) =>
       e match {
