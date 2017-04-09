@@ -104,7 +104,7 @@ class TestDbQueries {
     
     val toTuple = UserFun(
       "toTuple", Array("is_bound", "row"),
-      "Tuple_int_int_int t = {is_bound, row._0, row._1}; return t;",
+      "Tuple1 t = {is_bound, row._0, row._1}; return t;",
       Seq(Int, TupleType(Int, Int)), TupleType(Int, Int, Int)
     )
     
@@ -253,14 +253,14 @@ class TestDbQueries {
   
     val joinTuples = UserFun(
       "concat", Array("x", "y"),
-      "Tuple_int_int_int_int t = {(x._0 == y._0), x._1, x._2, y._1}; return t;",
+      "Tuple2 t = {(x._0 == y._0), x._1, x._2, y._1}; return t;",
       Seq(TupleType(Int, Int, Int), TupleType(Int, Int)),
       TupleType(Int, Int, Int, Int)
     )
     
     val where_clause = UserFun(
       "where_clause", "t",
-      "Tuple_int_int row = {(t._0 && ((t._1 + t._3) > 10)), t._2};\n return row;",
+      "Tuple1 t2 = {(t._0 && ((t._1 + t._3) > 10)), t._2}; return t2;",
       TupleType(Int, Int, Int, Int), TupleType(Int, Int)
     )
     
