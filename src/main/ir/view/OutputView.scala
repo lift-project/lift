@@ -61,8 +61,11 @@ object OutputView {
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case PrintType() | ArrayAccess(_) => writeView
-      case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
+      case _ => writeView
+      //case PrintType() | ArrayAccess(_) | UnsafeArrayAccess(_) | Get(_) |
+      //     _: Tuple | Gather(_) | Filter() | Pad(_, _, _) =>
+      //  writeView
+      //case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
 
     // then handle arguments
