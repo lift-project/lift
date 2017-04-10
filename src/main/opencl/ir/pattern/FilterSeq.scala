@@ -20,9 +20,6 @@ import lift.arithmetic.{ArithExpr, PosVar, Var}
   */
 case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
   extends Pattern(arity=1) with FPattern with isGenerable {
-  
-  assert(f.params.length == 1)
-  
   /**
     * This Lambda is used to copy the elements that satisfy the predicate from
     * the input array to the output array. It is generated automatically during
