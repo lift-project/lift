@@ -1,13 +1,13 @@
 package opencl.ir.pattern
 
 import ir.{
-  Type, ScalarType, ArrayType, UnknownLengthArrayType, TypeChecker,
+  Type, TupleType, ScalarType, ArrayType, UnknownLengthArrayType, TypeChecker,
   TypeException
 }
 import ir.ast.{FPattern, Lambda, Lambda1, Pattern, fun, isGenerable}
 import ir.interpreter.Interpreter.ValueMap
 import opencl.ir.id
-import lift.arithmetic.{ArithExpr, PosVar, Var}
+import lift.arithmetic.{PosVar, Var}
 
 /**
   * An implementation of the sequential filter.
@@ -29,7 +29,7 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
   def copyFun: Lambda1 = this._copyFun
   
   private def generateCopyFun(ty: Type): Lambda1 = ty match {
-      case sTy: ScalarType => id(sTy, name=s"_filterseq_${sTy}_id")
+      case _: ScalarType | _: TupleType => id(ty, name=s"_filterseq_${ty}_id")
       case ArrayType(elemTy, _) => MapSeq(generateCopyFun(elemTy))
       case _ => throw new NotImplementedError()
     }
