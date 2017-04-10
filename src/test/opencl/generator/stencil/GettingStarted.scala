@@ -33,7 +33,7 @@ class GettingStarted {
     * values using a fixed pattern — the stencil. They are used
     * extensively in various domains such as medical imaging (e.g.,
     * SRAD), scientific workloads (e.g., fluid simulation), numerical
-    * methods (e.g., Jacobi) or machine-learning (e.g., convolution
+    * methods (e.g., Jacobi) or machine-learning (e.g., convolutional
     * neural network).
     *
     * Consider a 1D 3-point stencil applied on a one-dimensional
@@ -97,7 +97,7 @@ class GettingStarted {
     *
     * High-level expressions solely describe 'what' is being computed.
     * Low-level expressions additionally specify 'how' the computation is
-    * executed. Therefore, Lifts low-level Map primitives explicitly exploit
+    * executed. Therefore, Lift's low-level Map primitives explicitly exploit
     * OpenCL's thread hierarchy (MapGlb, MapWrg, MapSeq, ...)
     * and OpenCL's memory hierarchy (toGlobal, toLocal, toPrivate).
     *
@@ -150,7 +150,7 @@ class GettingStarted {
     *
     *   lhs == rhs
     *
-    * A rewrite rules states that in an arbitrary expression, lhs always
+    * A rewrite rule states that in an arbitrary expression, lhs always
     * can be replaced with rhs without changing the semantics. In Lift,
     * we encode common optimizations as rewrite rules and transform our
     * expression using an automated rewrite system.
@@ -230,7 +230,7 @@ class GettingStarted {
     * a single high-level expression into multiple different expressions.
     *
     * In order to generate OpenCL code, we need to lower this expression
-    * into a low-level Lift expression using Lifts low-level primitives.
+    * into a low-level Lift expression using Lift's low-level primitives.
     * This happens during MemoryMappingRewrite.
     *
     * ParameterRewrite finally replaces all numerical parameters (such as
