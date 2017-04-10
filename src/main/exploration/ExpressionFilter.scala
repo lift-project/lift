@@ -26,7 +26,10 @@ object ExpressionFilter {
 
   import exploration.ExpressionFilter.Status._
 
-  def apply(lambda: Lambda): Status = {
+  def apply(
+    lambda: Lambda,
+    searchParameters: SearchParameters = SearchParameters.createDefault
+  ): Status = {
 
     try {
 
@@ -40,7 +43,7 @@ object ExpressionFilter {
 
       // Check private memory usage and overflow
       val privateAllocSize = privateMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
-      if (privateAllocSize > SearchParameters.max_amount_private_memory ||
+      if (privateAllocSize > searchParameters.maxPrivateMemory ||
         privateMemories.exists(_.mem.size.eval <= 0)) {
         return TooMuchPrivateMemory
       }
@@ -57,13 +60,13 @@ object ExpressionFilter {
 
       // Rule out obviously poor choices based on the grid size
       // - minimum size of the entire compute grid
-      if (global.map(_.eval).product < SearchParameters.min_grid_size)
+      if (global.map(_.eval).product < searchParameters.minGridSize)
         return NotEnoughWorkItems
 
       if (local.forall(_.isEvaluable)) {
 
         // - minimum of work-items in a workgroup
-        if (local.map(_.eval).product < SearchParameters.min_work_items)
+        if (local.map(_.eval).product < searchParameters.minWorkItems)
           return NotEnoughWorkItems
 
         // - maximum of work-items in a workgroup
@@ -74,11 +77,11 @@ object ExpressionFilter {
           (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
 
         // - minimum number of workgroups
-        if (numWorkgroups < SearchParameters.min_num_workgroups)
+        if (numWorkgroups < searchParameters.minWorkgroups)
           return NotEnoughWorkGroups
 
         // - maximum number of workgroups
-        if (numWorkgroups > SearchParameters.max_num_workgroups)
+        if (numWorkgroups > searchParameters.maxWorkgroups)
           return TooManyWorkGroups
 
       }

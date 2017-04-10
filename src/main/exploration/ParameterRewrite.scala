@@ -7,12 +7,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import ir.{Type, TypeChecker}
-import lift.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.ArithExpr
 import opencl.executor.Eval
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
-import play.api.libs.json.Reads._
-import play.api.libs.json._
 import rewriting.utils.Utils
 
 import scala.collection.immutable.Map
@@ -64,6 +62,8 @@ object ParameterRewrite {
       s
   }
 
+  private var settings = Settings()
+
   private var lambdaFilename = ""
 
   def main(args: Array[String]): Unit = {
@@ -87,7 +87,10 @@ object ParameterRewrite {
         }
       }
 
-      val settings = ParseSettings(settingsFile.value)
+      settings = ParseSettings(settingsFile.value)
+
+      logger.info(s"Arguments: ${args.mkString(" ")}")
+      logger.info(s"Settings:\n$settings")
 
       // list all the high level expression
       val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
@@ -159,7 +162,7 @@ object ParameterRewrite {
                     try {
                       val expr = low_level_factory(sizesForFilter ++ params)
                       TypeChecker(expr)
-                      if (ExpressionFilter(expr) == ExpressionFilter.Status.Success)
+                      if (ExpressionFilter(expr, settings.searchParameters) == ExpressionFilter.Status.Success)
                         Some((low_level_factory(vars ++ params), params))
                       else
                         None
@@ -172,7 +175,7 @@ object ParameterRewrite {
                         logger.warn(low_level_hash)
                         logger.warn(params.mkString("; "))
                         logger.warn(low_level_str)
-                        logger.warn(SearchParameters.matrix_size.toString)
+                        logger.warn(settings.searchParameters.defaultSize.toString)
                         None
                     }
                   }).collect { case Some(x) => x }
@@ -242,7 +245,8 @@ object ParameterRewrite {
     val vars = lambda.getVarsInParams()
 
     val actualSizes: Seq[ArithExpr] =
-      if (sizes.isEmpty) Seq.fill(vars.length)(SearchParameters.matrix_size) else sizes
+      if (sizes.isEmpty) Seq.fill(vars.length)(settings.searchParameters.defaultSize)
+      else sizes
 
     (vars, actualSizes).zipped.toMap
   }
@@ -255,51 +259,3 @@ object ParameterRewrite {
 
 }
 
-case class Settings(inputCombinations: Option[Seq[Seq[ArithExpr]]])
-
-object ParseSettings {
-
-  private val logger = Logger(this.getClass)
-
-  private implicit val arithExprReads: Reads[ArithExpr] =
-    JsPath.read[Long].map(Cst)
-
-  private implicit val settingsReads: Reads[Settings] =
-    (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]].map(Settings)
-
-  def apply(optionFilename: Option[String]): Settings =
-    optionFilename match {
-      case Some(filename) =>
-
-        val settingsString = ParameterRewrite.readFromFile(filename)
-        val json = Json.parse(settingsString)
-        val validated = json.validate[Settings]
-
-        validated match {
-          case JsSuccess(settings, _) =>
-            checkSettings(settings)
-            settings
-          case e: JsError =>
-            logger.error("Failed parsing settings " +
-              e.recoverTotal( e => JsError.toFlatJson(e) ))
-            sys.exit(1)
-        }
-
-      case None =>
-        Settings(None)
-    }
-
-  private def checkSettings(settings: Settings): Unit = {
-
-    // Check all combinations are the same size
-    if (settings.inputCombinations.isDefined) {
-      val sizes = settings.inputCombinations.get
-
-      if (sizes.map(_.length).distinct.length != 1) {
-        logger.error("Sizes read from settings contain different numbers of parameters")
-        sys.exit(1)
-      }
-    }
-  }
-
-}
