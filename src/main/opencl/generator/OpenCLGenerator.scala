@@ -1040,24 +1040,28 @@ class OpenCLGenerator extends Generator {
       case ra: RangeAdd => ra.stop
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
-    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
+    val reuse = size - step
+    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(stop - reuse), CondExpression.Operator.<)
 
     val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
                                                                     // cut down to window size
 
-
-    val temp = Var("tmp")
     val v = Value(0.0f, ArrayType(Float, size.eval))
-    (block: Block) += OpenCLAST.VarDecl(temp, v.t,
-      init = OpenCLAST.OpenCLCode(v.value),PrivateMemory,size.eval)
-
+    varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
+    (block: Block) += OpenCLAST.VarDecl(sSP.windowVar, v.t,
+      init = null,PrivateMemory,size.eval)
+/*
     val twin = Var("twindow")
     varDecls = varDecls.updated(twin, Type.devectorize(call.t))
     (block: Block) += OpenCLAST.VarDecl(twin, Type.devectorize(call.t),
       OpenCLAST.VarRef(inputMem.variable),
       inputMem.addressSpace,size.eval)
-    inputMem.variable = twin
-    val tinVStrRef = OpenCLAST.VarRef(twin)
+    inputMem.variable = sSP.windowVar; //twin
+  */
+
+    for(i <- 0 to reuse.eval) {
+      (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = null, ArithExpression(Cst(i))), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
+    }
 
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
@@ -1138,7 +1142,15 @@ class OpenCLGenerator extends Generator {
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = null,ArithExpression(reuse)),ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar+reuse)))
+
     generateBody(innerBlock)
+
+    for(i <- 1 to reuse.eval) {
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = null,ArithExpression(i-1)),VarRef(sSP.windowVar,suffix = null,ArithExpression(i)))
+    }
+
   }
 
   private def generateForLoop(block: Block,

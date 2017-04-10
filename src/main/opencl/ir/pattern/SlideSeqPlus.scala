@@ -6,7 +6,7 @@ import ir._
 import ir.ast._
 import ir.interpreter.Interpreter.ValueMap
 
-case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var) extends Pattern(arity = 1) with isGenerable with FPattern
+case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1) with isGenerable with FPattern
 {
 
   val iterationCount = loopVar.range.numVals
@@ -34,9 +34,9 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
 
   var shouldUnroll = false
 
-  override def copy(f: Lambda): Pattern = SlideSeqPlus(f,size,step,PosVar("i"))
+  override def copy(f: Lambda): Pattern = SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))
 }
 
 object SlideSeqPlus {
-  def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"))(x))
+  def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))(x))
 }

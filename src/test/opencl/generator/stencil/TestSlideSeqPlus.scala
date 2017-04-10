@@ -32,22 +32,24 @@ class TestSlideSeqPlus
   @Test
   def reduceSlide1DTest(): Unit = {
 
+    val slidesize = 3
+    val slidestep = 2
     val size = 20
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
-    val gold = values.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _))
+    val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
 
     val stencil = fun(
       ArrayType(Float, SizeVar("N")),
       (input) =>
-        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), 3, 1) $ input
+        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), slidesize,slidestep) $ input
     )
 
     println(Compile(stencil))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil, values)
 
-    StencilUtilities.print1DArray(values)
+    StencilUtilities.print1DArray(gold)
     StencilUtilities.print1DArray(output)
 
     assertArrayEquals(gold, output, 0.1f)

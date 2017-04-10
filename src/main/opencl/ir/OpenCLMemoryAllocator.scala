@@ -241,7 +241,12 @@ object OpenCLMemoryAllocator {
                                 numPvt: ArithExpr,
                                 inMem: OpenCLMemory): OpenCLMemory = {
 
-    sp.f.params(0).mem = inMem
+    /**** TO DO, this is WRONG:
+          The parameter should be PrivateMemory, not GlobalMemory,
+          but it will fail otherwise.
+          This should be changed to work how arrays worked previously with suffixes and unrolling...
+    ****/
+    sp.f.params(0).mem = OpenCLMemory(sp.windowVar, Type.getSize(sp.f.params(0).t) * sp.size , GlobalMemory)
     val len = Type.getMaxLength(outT)
 
     val privateMultiplier: ArithExpr =
