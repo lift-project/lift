@@ -155,6 +155,11 @@ class GettingStarted {
     * we encode common optimizations as rewrite rules and transform our
     * expression using an automated rewrite system.
     *
+    * Implementation note: Rules are implemented in Lift as (lhs => rhs)
+    * and (rhs => lhs)
+    * e.g., Map(f) o Map(g) => Map(f o g) // mapFusion
+    * and   Map(f o g) => Map(f) o Map(g) // mapFission
+    *
     * The mapFusion rule is a simple example for such a rewrite rule:
     */
 
