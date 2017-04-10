@@ -479,7 +479,7 @@ object MemoryMappingRewrite {
 
   private def addIdsForLocal(lambda: Lambda): Lambda = {
     val temp = Rewrite.applyRulesUntilCannot(lambda,
-      Seq(Rules.addIdMapWrg, Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
+      Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl, Rules.addIdMapWrg))
 
     val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(temp.body, (e, s) =>
       e match {
