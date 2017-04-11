@@ -1157,8 +1157,6 @@ object Rules {
 
   val addIdBeforeSlide = Rule("Slide(n,s) => Slide(n,s) o Id()", {
     case call@FunCall(Slide(n,s) , arg)
-      //if !f.body.contains( {case FunCall(MapWrg(_,_), a) =>})
-      //&& !f.body.contains( {case FunCall(Id(), b) =>  })
       => Slide(n,s) o Id() $ arg
   })
 
