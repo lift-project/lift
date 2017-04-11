@@ -2,10 +2,9 @@ package rewriting
 
 import ir._
 import ir.ast._
-import lift.arithmetic.ArithExpr
 import opencl.ir._
-import opencl.executor.{Compile, Execute, Executor, KernelArg}
-import opencl.executor.Execute._
+import opencl.executor._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 import rewriting.utils.NumberExpression
@@ -24,6 +23,67 @@ object TestRewriteStencil {
 }
 
 class TestRewriteStencil {
+
+  @Test
+  def stencil2DTiling(): Unit = {
+    val M = 128
+    val N = 128
+    val f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      (input) =>
+        //MapGlb(1)(MapGlb(0)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join())) o Slide2D(3,1) o Pad2D(1,1,Pad.Boundary.Clamp) $ input
+        Map(Map(ReduceSeq(add, 0.0f) o Join())) o Slide2D(3,1) o Pad2D(1,1,Pad.Boundary.Clamp) $ input
+    )
+
+    val weights = Array.tabulate(9)(x => 1.0f) // just required for gold computation
+    val A = Array.tabulate(M,N)((x,y) => util.Random.nextInt(500).toFloat)
+
+    // TODO move to Utils
+    val scalaClamp = (idx: Int, length: Int) => {
+      if(idx<0) 0 else if(idx>length-1) length-1 else idx
+    }
+
+    val gold: Array[Float] = Utils.scalaCompute2DStencil(A,3,1,3,1,1,1,1,1,weights,scalaClamp)
+
+    val f1 = Rewrite.applyRuleAtId(f, 2, Rules.slideTiling(4))
+    val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.mapTransposePromotion)
+    val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.slideTiling(4))
+    val f4 = Rewrite.applyRuleAtId(f3, 5, Rules.mapFission)
+    val f5 = Rewrite.applyRuleAtId(f4, 6, Rules.mapFission)
+    val f6 = Rewrite.applyRuleAtId(f5, 4, Rules.slidePromotion)
+    val f7 = Rewrite.applyRuleAtId(f6, 3, Rules.mapFusion)
+    val f8 = Rewrite.applyRuleAtId(f7, 18, Rules.slidePromotion)
+    val f9 = Rewrite.applyRuleAtId(f8, 3, Rules.mapFission)
+    val f10 = Rewrite.applyRuleAtId(f9, 5, Rules.slideSwap)
+    val f11 = Rewrite.applyRuleAtId(f10, 5, Rules.addId)
+    val f12 = Rewrite.applyRuleAtId(f11, 6, Rules.implementOneLevelOfId)
+    val f13 = Rewrite.applyRuleAtId(f12, 16, Rules.idTransposeTranspose)
+    val f14 = Rewrite.applyRuleAtId(f13, 6, Rules.mapFission)
+    val f15 = Rewrite.applyRuleAtId(f14, 5, Rules.slideTransposeSwap)
+    val f16 = Rewrite.applyRuleAtId(f15, 4, Rules.slideTransposeReordering)
+    //
+    val f17 = Rewrite.applyRuleAtId(f16, 2, Rules.mapFusion)
+    val f18 = Rewrite.applyRuleAtId(f17, 35, Rules.mapFusion)
+    val f19 = Rewrite.applyRuleAtId(f18, 37, Rules.transposeMapJoinReordering)
+    val f20 = Rewrite.applyRuleAtId(f19, 35, Rules.mapFission)
+    val f21 = Rewrite.applyRuleAtId(f20, 2, Rules.mapFission)
+    val f22 = Rewrite.applyRuleAtId(f21, 36, Rules.mapFission)
+    val f23 = Rewrite.applyRuleAtId(f22, 3, Rules.mapFission)
+    // cancel **T o **T
+    val f24 = Rewrite.applyRuleAtId(f23, 4, Rules.mapFusion)
+    val f25 = Rewrite.applyRuleAtId(f24, 32, Rules.mapFusion)
+    val f26 = Rewrite.applyRuleAtId(f25, 34, Rules.transposeTransposeId2)
+    val f27 = Rewrite.applyRuleAtId(f26, 4, Rules.dropId)
+    //
+    val f28 = Rewrite.applyRuleAtId(f27, 1, Rules.joinSwap)
+    val f29 = Rewrite.applyRuleAtId(f28, 3, Rules.transposeSwap)
+
+
+    println(NumberExpression.breadthFirst(f29.body).mkString("\n\n"))
+    println("@@@@@@@@@ EXPRESSION:\n" + f29)
+    //val(result: Array[Float], _) = Execute(M,N)(f,A)
+    //assertArrayEquals(gold, result, 0.001f)
+  }
 
   @Test
   def stencil1DTiling(): Unit = {
