@@ -79,3 +79,15 @@ object Zip3D {
       Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1,arg2,arg3)
    }
 }
+
+object Zip2D{
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr) : Expr = {
+    Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5))) $ Zip(arg1, arg2, arg3, arg4, arg5, arg6)
+  }
+
+  def apply(arg1: Expr, arg2: Expr) : Expr = {
+    Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1, arg2)
+  }
+
+}

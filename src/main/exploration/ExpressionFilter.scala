@@ -1,10 +1,10 @@
 package exploration
 
 import analysis.MemoryAmounts
-import lift.arithmetic.Cst
 import com.typesafe.scalalogging.Logger
 import ir.ast._
-import rewriting.InferNDRange
+import lift.arithmetic.{ArithExpr, Cst}
+import opencl.generator.OpenCLGenerator.NDRange
 
 object ExpressionFilter {
 
@@ -26,70 +26,115 @@ object ExpressionFilter {
 
   import exploration.ExpressionFilter.Status._
 
-  def apply(lambda: Lambda): Status = {
+  def apply(local: ArithExpr, global: ArithExpr): Status = {
+    filterNDRanges((Array(local, 1, 1): NDRange, Array(global, 1, 1): NDRange))
+  }
 
-    try {
+  def apply(local1: ArithExpr, local2: ArithExpr,
+            global1: ArithExpr, global2: ArithExpr): Status = {
+    filterNDRanges((Array(local1, local2, 1): NDRange, Array(global1, global2, 1): NDRange))
+  }
 
-      // Compute NDRange based on the parameters
-      val (local, global) = InferNDRange(lambda)
-      val memoryAmounts = MemoryAmounts(lambda, local, global)
+  def apply(local1: ArithExpr, local2: ArithExpr, local3: ArithExpr,
+            global1: ArithExpr, global2: ArithExpr, global3: ArithExpr): Status = {
+    filterNDRanges((Array(local1, local2, local3): NDRange, Array(global1, global2, global3): NDRange))
+  }
+  def filterNDRanges(ranges: (NDRange, NDRange)): Status = {
+    ranges match {
+      case (local, global) =>
+        try {
+          // Rule out obviously poor choices based on the grid size
+          // - minimum size of the entire compute grid
+          if (global.map(_.eval).product < SearchParameters.min_grid_size) {
+            logger.debug("not enough work-items")
+            return NotEnoughWorkItems
+          }
 
-      val privateMemories = memoryAmounts.getPrivateMemories
-      val localMemories = memoryAmounts.getLocalMemories
-      val globalMemories = memoryAmounts.getGlobalMemories
+          if (local.forall(_.isEvaluable)) {
 
-      // Check private memory usage and overflow
-      val privateAllocSize = privateMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
-      if (privateAllocSize > SearchParameters.max_amount_private_memory ||
-        privateMemories.exists(_.mem.size.eval <= 0)) {
-        return TooMuchPrivateMemory
-      }
+            // - minimum of work-items in a workgroup
+            if (local.map(_.eval).product < SearchParameters.min_work_items) {
+              logger.debug("not enough work-items (2)")
+              return NotEnoughWorkItems
+            }
 
-      // Check local memory usage and overflow
-      val localAllocSize = localMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
+            // - maximum of work-items in a workgroup
+            if (local.map(_.eval).product > 1024) {
+              logger.debug("too many work-items")
+              return TooManyWorkItems
+            }
 
-      if (localAllocSize > 50000 || localMemories.exists(_.mem.size.eval <= 0))
-        return TooMuchLocalMemory
+            val numWorkgroups =
+              (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
 
-      // Check global memory overflow
-      if (globalMemories.exists(_.mem.size.eval <= 0))
-        return TooMuchGlobalMemory
+            // - minimum number of workgroups
+            if (numWorkgroups < SearchParameters.min_num_workgroups) {
+              logger.debug("not enough work-groups")
+              return NotEnoughWorkGroups
+            }
 
-      // Rule out obviously poor choices based on the grid size
-      // - minimum size of the entire compute grid
-      if (global.map(_.eval).product < SearchParameters.min_grid_size)
-        return NotEnoughWorkItems
+            // - maximum number of workgroups
+            if (numWorkgroups > SearchParameters.max_num_workgroups) {
+              logger.debug("too many work-groups")
+              return TooManyWorkGroups
+            }
+          }
+          // All good...
+          Success
+        } catch {
+          case t: Throwable =>
+            logger.warn("Failed filtering", t)
+            InternalException
+          // TODO: Internal exceptions sound suspicious. Log to file...
+        }
+    }
+  }
 
-      if (local.forall(_.isEvaluable)) {
+  def apply(lambda: Lambda, ranges: (NDRange, NDRange)): Status = {
+    ranges match {
+      case (local, global) =>
+        try {
 
-        // - minimum of work-items in a workgroup
-        if (local.map(_.eval).product < SearchParameters.min_work_items)
-          return NotEnoughWorkItems
+          val memoryAmounts = MemoryAmounts(lambda, local, global)
 
-        // - maximum of work-items in a workgroup
-        if (local.map(_.eval).product > 1024)
-          return TooManyWorkItems
+          val privateMemories = memoryAmounts.getPrivateMemories
+          val localMemories = memoryAmounts.getLocalMemories
+          val globalMemories = memoryAmounts.getGlobalMemories
 
-        val numWorkgroups =
-          (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
+          // Check private memory usage and overflow
+          val privateAllocSize = privateMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
+          if (privateAllocSize > SearchParameters.max_amount_private_memory ||
+            privateMemories.exists(_.mem.size.eval <= 0)) {
+            logger.debug("too much private memory")
+            return TooMuchPrivateMemory
+          }
 
-        // - minimum number of workgroups
-        if (numWorkgroups < SearchParameters.min_num_workgroups)
-          return NotEnoughWorkGroups
+          // Check local memory usage and overflow
+          val localAllocSize = localMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
 
-        // - maximum number of workgroups
-        if (numWorkgroups > SearchParameters.max_num_workgroups)
-          return TooManyWorkGroups
+          if (localAllocSize > 50000 || localMemories.exists(_.mem.size.eval <= 0)) {
+            logger.debug("too much local memory")
+            return TooMuchLocalMemory
+          }
 
-      }
+          // Check global memory overflow
+          if (globalMemories.exists(_.mem.size.eval <= 0)) {
+            logger.debug("too much global memory")
+            return TooMuchGlobalMemory
+          }
 
-      // All good...
-      Success
-    } catch {
-      case t: Throwable =>
-        logger.warn("Failed filtering", t)
-        InternalException
-      // TODO: Internal exceptions sound suspicious. Log to file...
+          // in case of global-local size exploration, we already checked these before
+          if (!ParameterRewrite.exploreNDRange.value.isDefined)
+            filterNDRanges(ranges)
+          else
+            Success
+
+        } catch {
+          case t: Throwable =>
+            logger.warn("Failed filtering", t)
+            InternalException
+          // TODO: Internal exceptions sound suspicious. Log to file...
+        }
     }
   }
 }
