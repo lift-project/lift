@@ -133,6 +133,14 @@ object Utils {
     }
   }
 
+  def validSlideStep(t: Type, overlap: ArithExpr): ArithExpr = {
+    t match {
+      case ArrayType(_, len) =>
+        Var(RangeMul(Cst(1), len - overlap, Cst(2)))
+      case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
+
   @scala.annotation.tailrec
   def getExprForPatternInCallChain(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
     if (pattern.isDefinedAt(expr))
