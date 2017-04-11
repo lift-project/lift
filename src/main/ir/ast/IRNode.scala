@@ -75,6 +75,52 @@ object IRNode {
   }
 
 
+  def visitArithExpr(n: IRNode, f: ArithExpr => Unit): Unit = {
+
+    visit(n, {
+      // for expression we mainly just have to rebuild the type
+      case e: Expr =>
+        e match {
+          case vp: VectorParam => f(vp.n)
+          case _: Param | _:FunCall =>
+        }
+
+      case m: MapAtomWrg => f(m.workVar)
+      case m: MapAtomLcl => f(m.workVar)
+
+      case i: Iterate => f(i.n)
+
+      case vec: VectorizeUserFun => f(vec.n)
+
+      case u: OpenCLBuiltInFun =>
+        u.inTs.foreach(Type.visit(_, f))
+        Type.visit(u.outT, f)
+
+      case u: UserFun =>
+        u.inTs.foreach(Type.visit(_, f))
+        Type.visit(u.outT, f)
+
+      case a: asVector => f(a.n)
+      case a: asScalar =>
+
+      case s: Split => f(s.chunkSize)
+
+      case s: Scatter => // TODO: figure out how to find ArithExpr in the index function
+      case g: Gather => // TODO: figure out how to find ArithExpr in the index function
+
+      case p: Pad => // TODO: figure out how to find ArithExpr in the boundary function function
+
+
+      case x@(MapGlb(_, _) | MapLcl(_, _) | MapWarp(_) | MapLane(_) | MapSeq(_) | MapWrg(_,_) | Map(_) |
+              ReduceSeq(_) | BSearch(_) | LSearch(_) | FunCall(_, _) | Lambda(_, _) |
+              Unzip() | Transpose() | TransposeW() | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
+              Head() | Tail() | Get(_) | toGlobal(_) | toLocal(_) | toPrivate(_)) =>
+
+    })
+  }
+
+
+
   def visitArithExpr(n: IRNode, f: ArithExpr => ArithExpr): IRNode = {
 
     visit(n, {

@@ -674,7 +674,7 @@ class OpenCLGenerator extends Generator {
     // get the input handily
     val inArr = call.args(1)
     // get the type of the input (handily, concretely)
-    val inArrT = inArr.t.asInstanceOf[ArrayType]
+    val inArrT = inArr.t.asInstanceOf[ArrayType with Size with Capacity]
     // get an opencl version of the input mem
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
     // get a reference to it for loading
@@ -688,7 +688,7 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.VarDecl(s.indexVar, opencl.ir.Int)
     // assign initial values
     nestedBlock += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(lowerIndex), OpenCLAST.ArithExpression(0))
-    nestedBlock += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(upperIndex), OpenCLAST.ArithExpression(inArrT.len))
+    nestedBlock += OpenCLAST.AssignmentExpression(OpenCLAST.ArithExpression(upperIndex), OpenCLAST.ArithExpression(inArrT.size))
     // Declare a variable to copy the result of the user function into
     // We have to do this, as we currently have no nice way of describing normal C statements
     // in a way that works private memory properly.
@@ -754,7 +754,7 @@ class OpenCLGenerator extends Generator {
     // get the input handily
     val inArr = call.args(1)
     // get the type of the input (handily, concretely)
-    val inArrT = inArr.t.asInstanceOf[ArrayType]
+    val inArrT = inArr.t.asInstanceOf[ArrayType with Size with Capacity]
     // get an opencl version of the input mem
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
     // get a reference to it for loading
@@ -783,7 +783,7 @@ class OpenCLGenerator extends Generator {
     val searchFailedLabel = Var("searchfailed")
 
     // todo - need to simplify inArrT.len, as currently it evaluates to unexecutable code on some tests
-    generateWhileLoop(nestedBlock, Predicate(s.indexVar, inArrT.len, Predicate.Operator.<),
+    generateWhileLoop(nestedBlock, Predicate(s.indexVar, inArrT.size, Predicate.Operator.<),
       (b) => {
 
         generate(s.f.body, b)
@@ -1507,7 +1507,7 @@ class OpenCLGenerator extends Generator {
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index / length
-      case ArrayType(_, _) | NoType | UndefType =>
+      case ArrayType(_) | NoType | UndefType =>
         throw new TypeException(valueType, "A valid non array type")
     }
 
@@ -1551,7 +1551,7 @@ class OpenCLGenerator extends Generator {
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index % length
-      case ArrayType(_, _) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
+      case ArrayType(_) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
         throw new TypeException(valueType, "VectorType")
     }
 

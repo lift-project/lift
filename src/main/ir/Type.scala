@@ -23,7 +23,9 @@ import scala.collection.{immutable, mutable}
  */
 sealed abstract class Type {
   lazy val varList : Seq[Var] = this match {
-    case at: ArrayType => at.elemT.varList ++ at.len.varList
+    case at: ArrayType => at.elemT.varList ++
+      (at match {case s:Size => s.size.varList; case _ => Seq() }) ++
+      (at match {case c:Capacity => c.capacity.varList; case _ => Seq()})
     case vt: VectorType => vt.len.varList.to[Seq]
     case tt: TupleType => tt.elemsT.foldLeft(Seq[Var]())((set,inT) => set ++ inT.varList)
     case _ => Seq[Var]().distinct
@@ -42,15 +44,15 @@ sealed abstract class Type {
   def vectorize(n: ArithExpr): Type = this match {
     case sT: ScalarType => VectorType(sT, n)
     case tT: TupleType => TupleType( tT.elemsT.map( _.vectorize(n) ):_* )
-    case aT: ArrayType => asVector(aT, n)
+    case aT: ArrayType with Size with Capacity => asVector(aT, n)
     case v: VectorType => v
     case _ => throw new TypeException(this, "anything else")
   }
 
-  private def asVector(at0: ArrayType, len: ArithExpr): Type = {
+  private def asVector(at0: ArrayType with Size with Capacity, len: ArithExpr): Type = {
     at0.elemT match {
-      case pt:ScalarType => ArrayType(VectorType(pt,len), at0.len/^len)
-      case at1:ArrayType => ArrayType(asVector(at1,len), at0.len)
+      case pt:ScalarType => ArrayTypeWSWC(VectorType(pt,len), at0.size/^len, at0.capacity/^len)
+      case at1:ArrayType with Size with Capacity => ArrayTypeWSWC(asVector(at1,len), at0.size, at0.capacity)
       case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
     }
   }
@@ -66,7 +68,7 @@ sealed abstract class Type {
  * @param size The size of an object of this type in bytes
  */
 case class ScalarType(name: String, size: ArithExpr) extends Type {
-  override def toString = name
+  override def toString : String = name
   override def hasFixedSize: Boolean = true
 }
 
@@ -78,7 +80,7 @@ case class ScalarType(name: String, size: ArithExpr) extends Type {
  *            type
  */
 case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
-  override def toString = scalarT.toString + len.toString
+  override def toString : String = scalarT.toString + len.toString
   override def hasFixedSize: Boolean = true
 }
 
@@ -89,7 +91,7 @@ case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
  * @param elemsT The element types in order from left to right
  */
 case class TupleType(elemsT: Type*) extends Type {
-  override def toString
+  override def toString : String
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 
   override def hasFixedSize: Boolean = elemsT.forall(_.hasFixedSize)
@@ -98,44 +100,157 @@ case class TupleType(elemsT: Type*) extends Type {
 
 
 /**
+  * This trait is used to store size information (number of elements in an array) in an ArrayType.
+  */
+sealed trait Size {
+  val size: ArithExpr
+}
+
+/**
+  * This trait is used to store capacity information (maximum number of elements that can be held in an array) in an ArrayType.
+  */
+sealed trait Capacity {
+  val capacity: ArithExpr
+}
+
+/**
  * Instances of this class represent array types with length information
  * (e.g., [int],,1024,, , [ [float],,4,, ],,N,,)
  *
  * @param elemT The element type of the array
- * @param len The length of the array
  */
-case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
+case class ArrayType(elemT: Type) extends Type {
 
-  // TODO: remove the need to check for unknown (but this is used currently in a few places)
-  if (len != ? & len.sign != Sign.Positive)
-    // TODO: turn this back into an error (eventually)
-    //throw new TypeException("Length must be provably positive! (len="+len+")")
-    println(s"Warning: Length must be provably positive! (len=$len)")
-
-  if (len.isEvaluable) {
-    val length = len.evalDbl
-
-    if (!length.isValidInt || length < 1)
-      throw TypeException(length + " is not a valid length for an array!")
+  override def toString : String = {
+    "Arr(" +elemT+
+    (this match { case s:Size => ",s="+s.size.toString; case _ => }) +
+    (this match { case c:Capacity => ",c="+c.capacity.toString; case _ =>}) +
+    ")"
   }
 
-  override def toString = "Arr(" +elemT+","+len+ ")"
+  override def hasFixedSize: Boolean =
+    this match {
+      case _:Capacity => elemT.hasFixedSize
+      case _ => false
+    }
 
-  override def hasFixedSize: Boolean = elemT.hasFixedSize
+}
+
+
+object ArrayTypeWSWC {
+
+  def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
+    apply(elemT, sizeAndCapacity, sizeAndCapacity)
+  }
+
+  def apply(elemT: Type, _size: ArithExpr, _capacity: ArithExpr) : ArrayType with Size with Capacity = {
+
+    // TODO: remove this assertation once the framework is ready to handle array with a different size and capacity
+    assert (_size == _capacity)
+
+    ArrayType.checkSizeOrCapacity("size", _size)
+    ArrayType.checkSizeOrCapacity("capacity", _capacity)
+    new ArrayType(elemT) with Size with Capacity {
+      val size: ArithExpr = _size
+      val capacity: ArithExpr = _capacity
+    }
+  }
+
+  def unapply(at : ArrayType with Size with Capacity): Option[(Type,ArithExpr,ArithExpr)]  = {
+    Some(at.elemT,at.size,at.capacity)
+  }
+}
+
+object ArrayTypeWS {
+
+  def apply(elemT: Type, _size: ArithExpr) : ArrayType with Size = {
+    ArrayType.checkSizeOrCapacity("size", _size)
+    new ArrayType(elemT) with Size {
+      val size: ArithExpr = _size
+    }
+  }
+
+  def unapply(at : ArrayType with Size): Option[(Type,ArithExpr)]  = {
+    Some(at.elemT,at.size)
+  }
+}
+
+object ArrayTypeWC {
+
+  def apply(elemT: Type, _capacity: ArithExpr) : ArrayType with Capacity  = {
+    ArrayType.checkSizeOrCapacity("capacity", _capacity)
+    new ArrayType(elemT) with Capacity {
+      val capacity: ArithExpr = _capacity
+    }
+  }
+
+  def unapply(at : ArrayType with Capacity): Option[(Type,ArithExpr)]  = {
+    Some(at.elemT,at.capacity)
+  }
+}
+
+object ArrayType {
+
+  def checkSizeOrCapacity(s: String, ae: ArithExpr) = {
+    // TODO: remove the need to check for unknown (but this is used currently in a few places)
+    if (ae != ? & ae.sign != Sign.Positive)
+    // TODO: turn this back into an error (eventually)
+    //throw new TypeException("Length must be provably positive! (len="+len+")")
+      println(s"Warning: $s must be provably positive! (len=$s)")
+
+    if (ae.isEvaluable) {
+      val length = ae.evalDbl
+
+      if (!length.isValidInt || length < 1)
+        throw TypeException(length + " is not a valid "+s+" for an array!")
+    }
+  }
+
+
+  /*
+  def apply(elemT: Type, sizeAndCapacity: ArithExpr): ArrayType with Size with Capacity = {
+    checkSizeOrCapacity("sizeAndCapacity", sizeAndCapacity)
+    new ArrayType(elemT) with Size with Capacity {
+      val size: ArithExpr = sizeAndCapacity
+      val capacity: ArithExpr = sizeAndCapacity
+    }
+  }
+
+  def apply(elemT: Type, size: ArithExpr, capacity: ArithExpr): ArrayType with Size with Capacity = {
+    checkSizeOrCapacity("size", size)
+    checkSizeOrCapacity("capacity", capacity)
+    new ArrayType(elemT) with Size with Capacity {
+      val size: ArithExpr = size
+      val capacity: ArithExpr = capacity
+    }
+  }
+
+  def withSize(elemT: Type, size: ArithExpr) : ArrayType with Size = {
+    checkSizeOrCapacity("size", size)
+    new ArrayType(elemT) with Size {
+      val size: ArithExpr = size
+    }
+  }
+
+  def withCapacity(elemT: Type, capacity: ArithExpr) : ArrayType with Capacity = {
+    checkSizeOrCapacity("capacity", capacity)
+    new ArrayType(elemT) with Capacity {
+      val capacity: ArithExpr = capacity
+    }
+  }*/
 }
 
 
 // todo make sure we can distinguish between different unkownlengtharraytype (override hashCode and equals)
-class RuntimeSizedArrayType(override val elemT: Type, override val len: Var = PosVar("unknown_length")) extends ArrayType(elemT, len) {
+class RuntimeSizedArrayType(override val elemT: Type) extends ArrayType(elemT) {
   override def hasFixedSize: Boolean = false
 }
 
 object RuntimeSizedArrayType {
-  def apply(elemT: Type, len: Var = PosVar("unknown_length")): RuntimeSizedArrayType = {
-    new RuntimeSizedArrayType(elemT, len)
+  def apply(elemT: Type): RuntimeSizedArrayType = {
+    new RuntimeSizedArrayType(elemT)
   }
-  def unapply(array: RuntimeSizedArrayType): Option[(Type, Var)] =
-    Some((array.elemT, array.len))
+  def unapply(array: RuntimeSizedArrayType): Type = array.elemT
 }
 
 /**
@@ -163,9 +278,9 @@ object Type {
 
   def fromAny(a: Any): Type = {
     a match {
-      case f: Float => ScalarType("float", 4)
-      case i: Int => ScalarType("int", 4)
-      case a: Seq[_] if a.nonEmpty => ArrayType(fromAny(a.head), a.length)
+      case _: Float => ScalarType("float", 4)
+      case _: Int => ScalarType("int", 4)
+      case a: Seq[_] if a.nonEmpty => ArrayTypeWSWC(fromAny(a.head), a.length)
       case t: (_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2)):_*)
       case t: (_,_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2), fromAny(t._3)):_*)
       case _ => throw new NotImplementedError()
@@ -246,8 +361,10 @@ object Type {
       case tt: TupleType =>
         TupleType(tt.elemsT.map(et => visitAndRebuild(et,pre,post)):_*)
 
-      case at: ArrayType =>
-        ArrayType(visitAndRebuild(at.elemT, pre, post), at.len)
+      case at: ArrayType with Size with Capacity => ArrayTypeWSWC(visitAndRebuild(at.elemT, pre, post), at.size,at.capacity)
+      case at: ArrayType with Capacity => ArrayTypeWC(visitAndRebuild(at.elemT, pre, post), at.capacity)
+      case at: ArrayType with Size => ArrayTypeWS(visitAndRebuild(at.elemT, pre, post), at.size)
+      case at: ArrayType => ArrayType(visitAndRebuild(at.elemT, pre, post))
 
       case _ => newT // nothing to do
     }
@@ -264,13 +381,27 @@ object Type {
   def visitAndRebuild(t: Type,
                       f: ArithExpr => ArithExpr) : Type = {
     Type.visitAndRebuild(t, {
-      case at: ArrayType => ArrayType(at.elemT, f(at.len))
+      case ArrayTypeWSWC(et,s,c) => ArrayTypeWSWC(et, f(s), f(c))
+      case ArrayTypeWS(et,s) => ArrayTypeWS(et, f(s))
+      case ArrayTypeWC(et,c) => ArrayTypeWC(et, f(c))
+      case at : ArrayType => at
       case vt: VectorType => VectorType(vt.scalarT, f(vt.len))
       case tt: TupleType => tt
       case st: ScalarType => st
       case NoType => NoType
       case UndefType => UndefType
     }, t => t)
+  }
+
+  def visit(t: Type, f: ArithExpr => Unit) : Unit = {
+    Type.visit(t, {
+      case at: ArrayType =>
+        at match {case s: Size => f(s.size) case _ => }
+        at match {case c: Capacity => f(c.capacity) case _ => }
+      case vt: VectorType => f(vt.len)
+      case _: TupleType  | _:ScalarType =>
+      case NoType | UndefType =>
+    }, _=>{})
   }
 
 
@@ -340,8 +471,12 @@ object Type {
       case tt: TupleType =>
         assert(index < tt.elemsT.length)
         tt.elemsT(index)
-      case at: ArrayType =>
-        ArrayType(getTypeAtIndex(at.elemT, index), at.len)
+
+      case at: ArrayType with Size with Capacity => ArrayTypeWSWC(getTypeAtIndex(at.elemT, index), at.size,at.capacity)
+      case at: ArrayType with Capacity => ArrayTypeWC(getTypeAtIndex(at.elemT, index), at.capacity)
+      case at: ArrayType with Size => ArrayTypeWS(getTypeAtIndex(at.elemT, index), at.size)
+      case at: ArrayType => ArrayType(getTypeAtIndex(at.elemT, index))
+
       case _ => t
     }
   }
@@ -354,10 +489,13 @@ object Type {
    * @return An array type where all nested vector types have been replaced by
    *         corresponding array types.
    */
-  def asScalarType(at: ArrayType): ArrayType = {
+  def asScalarType(at: ArrayType with Size with Capacity): ArrayType = {
+
+    // TODO: if the array has no size or capacity in the type, we need to somehow store the information that the new length is the same the old one but divided by the vector length
+
     at.elemT match {
-      case vt: VectorType => ArrayType(vt.scalarT, at.len*vt.len)
-      case at: ArrayType =>  ArrayType(asScalarType(at),at.len)
+      case vt: VectorType => ArrayTypeWSWC(vt.scalarT, at.size*vt.len, at.capacity*vt.len)
+      case at: ArrayType with Size with Capacity =>  ArrayTypeWSWC(asScalarType(at),at.size, at.capacity)
       case _ => throw new TypeException(at.elemT , "ArrayType or VectorType")
     }
   }
@@ -373,7 +511,7 @@ object Type {
       case st: ScalarType => st.size
       case vt: VectorType => vt.scalarT.size * vt.len
       case tt: TupleType  => tt.elemsT.map(getSize).reduce(_+_)
-      case at: ArrayType  => at.len * getSize(at.elemT)
+      case at: ArrayType with Capacity => at.capacity * getSize(at.elemT)
       case _ => throw new IllegalArgumentException
     }
   }
@@ -402,10 +540,10 @@ object Type {
    */
   def getLength(t: Type) : ArithExpr = {
     t match {
-      case st: ScalarType => Cst(1)
+      case _: ScalarType => Cst(1)
       case vt: VectorType => vt.len
-      case tt: TupleType  => Cst(1)
-      case at: ArrayType  => at.len
+      case _: TupleType  => Cst(1) // TODO: is this correct??
+      case ArrayTypeWS(_,s) => s
       case _ => throw new IllegalArgumentException(t.toString)
     }
   }
@@ -435,7 +573,9 @@ object Type {
     val result = mutable.Map[TypeVar, ArithExpr]()
     (t1, t2) match {
       case (at1: ArrayType, at2: ArrayType) =>
-        result ++= reifyExpr(at1.len, at2.len) ++= reify(at1.elemT, at2.elemT)
+        (at1, at2) match { case (s1:Size, s2:Size) => result ++= reifyExpr(s1.size, s2.size) case _ => }
+        (at1, at2) match { case (c1:Capacity, c2:Capacity) => result ++= reifyExpr(c1.capacity, c2.capacity) case _ => }
+        result ++= reify(at1.elemT, at2.elemT)
 
       case (tt1: TupleType, tt2: TupleType) =>
         result ++= tt1.elemsT.zip(tt2.elemsT)
@@ -481,9 +621,12 @@ object Type {
    */
   def substitute(t: Type,
                  substitutions: scala.collection.Map[ArithExpr, ArithExpr]) : Type = {
-    Type.visitAndRebuild(t, t1 => t1, {
-      case RuntimeSizedArrayType(et,len) => // TODO add substitution here
-        new RuntimeSizedArrayType(et,len)
+
+    visitAndRebuild(t, (ae: ArithExpr) => ArithExpr.substitute(ae, substitutions.toMap))
+
+    /*Type.visitAndRebuild(t, t1 => t1, {
+      case RuntimeSizedArrayType(et) => // TODO add substitution here
+        new RuntimeSizedArrayType(et)
       case ArrayType(et,len) =>
         ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
 
@@ -491,7 +634,7 @@ object Type {
         VectorType(st, ArithExpr.substitute(len, substitutions.toMap))
 
       case t: Type => t
-    })
+    })*/
   }
 
 
@@ -531,15 +674,18 @@ object Type {
   }
 
   private def isEqual(l: ArrayType, r: ArrayType): Boolean = {
-    l.len == r.len && isEqual(l.elemT, r.elemT)
+    isEqual(l.elemT, r.elemT) &&
+      ((l,r) match { case (s1:Size, s2:Size) => s1 == s2 case _ => true}) &&
+      ((l,r) match { case (c1:Capacity, c2:Capacity) => c1 == c2 case _ => true})
   }
+
 
   private def isEqual(l: VectorType, r: VectorType): Boolean = {
     l.len == r.len && isEqual(l.scalarT, r.scalarT)
   }
 
   /**
-   * Devecorize a given type.
+   * Devectorize a given type.
    * I.e. removes all vector types in it by replacing them with corresponding
    * scalar types.
    *
@@ -547,12 +693,26 @@ object Type {
    * @return A type similar to `t` but without any vector types
    */
   def devectorize(t: Type): Type = {
+    Type.visitAndRebuild(t, (t) => t, (t) => t match {
+        case ArrayType(VectorType(st,len)) => t match {
+          case ArrayTypeWSWC(_,s,c) => ArrayTypeWSWC(st, len * s, len * c)
+          case ArrayTypeWS(_,s) => ArrayTypeWS(st, len * s)
+          case ArrayTypeWC(_,c) => ArrayTypeWC(st, len * c)
+          case _ => ArrayType(st)
+            // TODO: somehow communicate the information that when the size or capacity is not in the type, it is still multiplied by len
+        }
+        case _ => t
+      })
+
+    // TODO: seems like we just turning the vector type to scalar but not updated the array size/capacity. Is this a mistake?
+
+    /*
     t match {
       case vt: VectorType => vt.scalarT
       case tt: TupleType  => TupleType( tt.elemsT:_* )
       case at: ArrayType  => ArrayType(devectorize(at.elemT), at.len)
       case _ => t
-    }
+    }*/
   }
 }
 

@@ -1,13 +1,13 @@
 package opencl.generator
 
+import ir.{ArrayTypeWSWC, RuntimeSizedArrayType}
 import ir.ast.fun
-import ir.{ArrayType, RuntimeSizedArrayType}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestRuntimeSizedArrays {
   @BeforeClass def before(): Unit = {
@@ -98,7 +98,7 @@ class TestRuntimeSizedArrays {
     val N = SizeVar("N") // TODO: implement proper inference of N
 
     val l = fun(
-      ArrayType(RuntimeSizedArrayType(Int), 127),
+      ArrayTypeWSWC(RuntimeSizedArrayType(Int), 127),
       a => MapGlb(toGlobal(MapSeq(idI)) o ReduceSeq(fun((acc, x) => addI(acc, x)), 0)) $ a
     )
 

@@ -98,9 +98,9 @@ object RodiniaHotspot{
   def hotspotGeneric(): Lambda = {
     val N = Var("N", StartFromRange(2))
     fun(
-    ArrayType(ArrayType(Float, N), N),
-    ArrayType(ArrayType(Float, N), N),
-    ArrayType(Float, 9),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+    ArrayTypeWSWC(Float, 9),
     (heat, power, coeff) => {
       MapWrg(1)(MapWrg(0)( \(tiles =>
         MapLcl(1)(MapLcl(0)(stencil)) o prepareData(coeff) $ tiles)
@@ -112,11 +112,11 @@ object RodiniaHotspot{
   def hotspotInject(): Lambda = {
     val N = Var("N", StartFromRange(2))
     fun(
-    //ArrayType(ArrayType(Float, 1036), 1036),
-    //ArrayType(ArrayType(Float, 1036), 1036),
-    ArrayType(ArrayType(Float, 8204), 8204),
-    ArrayType(ArrayType(Float, 8204), 8204),
-    ArrayType(Float, 9),
+    //ArrayTypeWSWC(ArrayTypeWSWC(Float, 1036), 1036),
+    //ArrayTypeWSWC(ArrayTypeWSWC(Float, 1036), 1036),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, 8204), 8204),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, 8204), 8204),
+    ArrayTypeWSWC(Float, 9),
     (heat, power, coeff) => {
       MapWrg(1)(MapWrg(0)( \(tiles =>
         MapLcl(1)(MapLcl(0)(stencil)) o prepareData(coeff) $ tiles)

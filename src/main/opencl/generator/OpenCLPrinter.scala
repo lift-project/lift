@@ -37,7 +37,7 @@ object OpenCLPrinter {
 
   def toString(t: Type, seenArray: Boolean = false) : String = {
     t match {
-      case ArrayType(elemT, _) =>
+      case ArrayType(elemT) =>
         val s = toString(elemT, seenArray=true)
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toString(elemT, seenArray) + toString(len)
@@ -330,7 +330,7 @@ class OpenCLPrinter {
   }
 
   private def print(p: ParamDecl): Unit = p.t match {
-    case ArrayType(_,_) =>
+    case ArrayType(_) =>
       // Const restricted pointers to read-only global memory. See issue #2.
       val (const, restrict) = if (p.const) ("const ", "restrict ") else ("","")
       print(const + p.addressSpace + " " + OpenCLPrinter.toString(Type.devectorize(p.t)) +

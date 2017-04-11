@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -27,7 +27,7 @@ class TestInject {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -42,7 +42,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -64,7 +64,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(64) $ in
     )
 
@@ -81,7 +81,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(256) $ in
     )
 
@@ -98,7 +98,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -115,7 +115,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -132,7 +132,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 
@@ -149,7 +149,7 @@ class TestInject {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Split(128) $ in
     )
 

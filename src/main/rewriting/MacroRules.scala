@@ -290,8 +290,8 @@ object MacroRules {
       case call@FunCall(Map(_), joinCall@FunCall(Join(), arg)) =>
 
         val splitFactor = arg.t match {
-          case ArrayType(ArrayType(_, m), _) => m
-          case ArrayType(_, _) | NoType | TupleType(_) | UndefType =>
+          case ArrayType(ArrayTypeWSWC(_,m,_)) => m
+          case ArrayType(_) | NoType | TupleType(_) | UndefType =>
             throw new TypeException(arg.t, "a valid array type")
         }
 

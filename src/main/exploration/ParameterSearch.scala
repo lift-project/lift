@@ -2,7 +2,7 @@ package exploration
 
 import lift.arithmetic._
 import rewriting.utils.Utils
-import ir.ArrayType
+import ir.{ArrayType, Size}
 import ir.ast._
 
 import scala.collection.immutable.Map
@@ -60,10 +60,10 @@ object ParameterSearch {
 
     // from that, isolate only the splits/slides
     val splits = tunableNodes.collect({
-      case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType].len)
+      case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType with Size].size)
         // step has to divide len - (size - step)
-      case FunCall(Slide(size, step), x) => (step, x.t.asInstanceOf[ArrayType].len - (size-step))
-      case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType].len)
+      case FunCall(Slide(size, step), x) => (step, x.t.asInstanceOf[ArrayType with Size].size - (size-step))
+      case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType with Size].size)
     })
 
     substitute(splits, Map.empty, List.empty)

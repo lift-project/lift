@@ -1,14 +1,13 @@
 package opencl.generator;
 
-import lift.arithmetic.Cst;
-import lift.arithmetic.StartFromRange;
-import lift.arithmetic.Var;
-
 import arithmetic.interop.jVar;
 import ir.Type;
 import ir.UndefType$;
 import ir.ast.*;
 import ir.interop.*;
+import lift.arithmetic.Cst;
+import lift.arithmetic.StartFromRange;
+import lift.arithmetic.Var;
 import opencl.executor.Compile;
 import opencl.executor.Executor;
 import opencl.ir.interop.*;

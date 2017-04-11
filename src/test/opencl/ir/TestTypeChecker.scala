@@ -1,8 +1,8 @@
 package opencl.ir
 
-import lift.arithmetic._
 import ir._
 import ir.ast._
+import lift.arithmetic._
 import opencl.generator.TreatWarningsAsErrors
 import opencl.ir.pattern._
 import org.junit.Test
@@ -14,7 +14,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def asScalarOn2DArray(): Unit = {
     val lambda = fun(
-      ArrayType(ArrayType(Float4, K), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float4, K), K),
       a => asScalar() $ a
     )
 
@@ -23,7 +23,7 @@ class TestTypeChecker {
 
   def asScalar1DArray(): Unit = {
     val lambda = fun(
-      ArrayType(ArrayType(Float4, K), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float4, K), K),
       a => Map(asScalar()) $ a
     )
 
@@ -33,7 +33,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def asScalar1DScalarArray(): Unit = {
     val lambda = fun(
-      ArrayType(ArrayType(Float, K), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), K),
       a => Map(asScalar()) $ a
     )
 
@@ -43,7 +43,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def asVector2DArray(): Unit = {
     val lambda = fun(
-      ArrayType(ArrayType(Float, K), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), K),
       a => asVector(4) $ a
     )
 
@@ -52,7 +52,7 @@ class TestTypeChecker {
 
   def asVector1DArray(): Unit = {
     val lambda = fun(
-      ArrayType(ArrayType(Float, K), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), K),
       a => Map(asVector(4)) $ a
     )
 
@@ -62,7 +62,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def asVector1DVectorArray(): Unit = {
     val lambda = fun(
-      ArrayType(ArrayType(Float4, K), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float4, K), K),
       a => Map(asVector(4)) $ a
     )
 
@@ -72,7 +72,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def incorrectReduceSeq(): Unit = {
     val lambda = fun(
-      ArrayType(Float, K),
+      ArrayTypeWSWC(Float, K),
       a => ReduceSeq(
         fun((acc, x) => MapSeq(fun(a => add(acc, a))) $ x),
         0.0f) o Split(1) $ a
@@ -84,7 +84,7 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def incorrectReduceCustomisingFunctionIssue74(): Unit = {
     val lambda = fun(
-      ArrayType(Float, K),
+      ArrayTypeWSWC(Float, K),
       input =>
         Reduce(fun((acc, next) =>
           multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(input, input)
@@ -96,8 +96,8 @@ class TestTypeChecker {
   @Test(expected = classOf[TypeException])
   def incorrectZip(): Unit = {
     val lambda = fun(
-      ArrayType(Float, K),
-      ArrayType(Float, 8),
+      ArrayTypeWSWC(Float, K),
+      ArrayTypeWSWC(Float, 8),
       (a, b) =>
         Zip(a,b)
     )
@@ -111,13 +111,13 @@ class TestTypeChecker {
 //    val len = PosVar("len")
 //
 //    val lambda = fun(
-//      UnknownLengthArrayType(Float, len),
+//      UnknownLengthArrayTypeWSWC(Float, len),
 //      a => MapSeq(id) $ a
 //    )
 //
 //    val t = TypeChecker(lambda)
 //    t match {
-//      case UnknownLengthArrayType(Float, l) =>
+//      case UnknownLengthArrayTypeWSWC(Float, l) =>
 //        assert (l == len)
 //      case _ => assert(false)
 //    }
@@ -133,7 +133,7 @@ class TestTypeChecker {
 
     val t = TypeChecker(lambda)
     t match {
-      case ArrayType(Float, Cst(1)) =>
+      case ArrayTypeWS(Float, Cst(1)) =>
       case _ => assert(false)
     }
   }
@@ -144,8 +144,8 @@ class TestTypeChecker {
 
     val f = fun(
       Float,
-      ArrayType(Float, SizeVar("N")),
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (a,xs,ys) => /*MapGlb(/*...*/) $*/ Zip(xs, ys)
     )
 
