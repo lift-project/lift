@@ -1,0 +1,21 @@
+val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+      "{ return acc + dot(l, r); }",
+      Seq(Float, Float3, Float3), Float)
+
+val M = SizeVar("M") //need to be power_of_two +2 because of missing pad
+val N = SizeVar("N")
+
+fun(
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(Float, Cst(9)),
+    (input, weights) => {
+        Map(Map(fun(elem => {
+                            toGlobal(MapSeqUnroll(id)) o
+                              ReduceSeqUnroll(fun( (acc, pair) => {
+                                val pixel = pair._0
+                                val weight = pair._1
+                                dotAndSumUp.apply(acc, pixel, weight)
+                              }), 0.0f) $ Zip(asVector(3) o Join() $ elem, asVector(3) $ weights)
+                          }) )) o
+		Slide2D(3, 1) $ input
+  })
