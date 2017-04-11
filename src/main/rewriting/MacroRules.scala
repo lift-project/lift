@@ -311,7 +311,7 @@ object MacroRules {
 
   // todo @bastian implement in terms of smaller rewrite rule
   val tile2DStencilsZip =
-  Rule("Map(Map(f)) o Zip2D(Slide2D, ...) => ", {
+  Rule("tile2DStencilsZip) => ", {
     case
       FunCall(Map(Lambda(Array(_), FunCall(Map(f), someArg))),
         // zip2D
