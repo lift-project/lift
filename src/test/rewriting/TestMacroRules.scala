@@ -149,10 +149,6 @@ class TestMacroRules {
     val m = SizeVar("M")
     val n = SizeVar("N")
 
-    def zip2d6 = \((A, B, C, D, E, F) =>
-      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5))) $ Zip(A, B, C, D, E, F)
-    )
-
     def calculateDiv = UserFun("calculateDiv", Array("dN", "dS", "dW", "dE", "orgDn", "orgDs", "orgDw", "orgDe"),
       "{ return  (dN*orgDn + dS*orgDs + dW*orgDw + dE*orgDe) ; }", Seq(Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
@@ -189,7 +185,7 @@ class TestMacroRules {
 
           toGlobal(id) $ newImg
         }))
-        ) $ zip2d6(Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ image, Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ coeff, DN, DS, DE, DW)
+        ) $ Zip2D(Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ image, Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ coeff, DN, DS, DE, DW)
       }
     )
     TypeChecker(srad2)
