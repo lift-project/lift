@@ -1,6 +1,6 @@
 package opencl.generator.stencil
 
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
+import lift.arithmetic.{ArithExpr, SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
@@ -9,7 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit._
-import org.junit.Assume.assumeFalse
+
 import scala.util.Random
 
 object TestStencil2D {
@@ -246,8 +246,6 @@ class TestStencil2D {
   )
 
   @Test def copyTilesIdentity(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
-
     val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
     val tiled: Lambda = createCopyTilesLambda(4, 2, 1, 1, BOUNDARY)
 
@@ -511,6 +509,115 @@ class TestStencil2D {
     try {
       val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
       println("Runtime: " + runtime)
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
+  }
+
+  @Test def shocStencil2DNoTiling(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayType(Float, 9),
+      (matrix, weights) => {
+
+        MapGlb(1)(MapGlb(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun( (acc, pair) => {
+                val pixel = pair._0
+                val weight = pair._1
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(3, 1, 3, 1) $ matrix
+      }
+    )
+    val weights = Array(0.05, 0.15, 0.05,
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05).map(_.toFloat)
+
+    val inputSize = 8194
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i - haloSize) * (j - haloSize) * 1.0f }
+    input(0) = input(0).map((_ * 0.0f))
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_ * 0.0f)
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
+  }
+
+  @Ignore //todo does not compute correct result yet
+  @Test def shocStencil2DNoTilingFloat3(): Unit = {
+    val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+      "{ return acc + dot(l, r); }",
+      Seq(Float, Float3, Float3), Float)
+
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("M", StartFromRange(6))), Var("N", StartFromRange(6))),
+      ArrayType(Float, 9),
+      (matrix, weights) => {
+        //weights.addressSpace = ConstantMemory
+
+        MapGlb(1)(MapGlb(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun( (acc, pair) => {
+                val pixel = pair._0
+                val weight = pair._1
+                dotAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $
+              Zip(asVector(3) o Join() $ elem, asVector(3) $ weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(3, 1) $ matrix
+      }
+    )
+    val weights = Array(
+      0.05, 0.15, 0.05,
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05 ).map(_.toFloat)
+
+    // testing - change tilesize!
+    //val inputSize = 10
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+    // testing - change tilesize!
+    val inputSize = 8194
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+    // 4k
+    //val inputSize = 4096
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i - haloSize) * (j - haloSize) * 1.0f }
+    input(0) = input(0).map((_ * 0.0f))
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_ * 0.0f)
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+      println("Runtime: " + runtime)
+      println(output.take(10).mkString(", "))
     } catch {
       case e: DeviceCapabilityException =>
         Assume.assumeNoException("Device not supported.", e)
@@ -828,5 +935,36 @@ class TestStencil2D {
     assertArrayEquals(outGold, outF3, 0.1f)
     assertArrayEquals(outGold, outF4, 0.1f)
     assertArrayEquals(outGold, outF5, 0.1f)
+  }
+
+  @Ignore //todo eventually remove
+  @Test
+  def stencilMapLoweringDuringRewrite(): Unit = {
+    val input = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
+    val weights = Array.tabulate(9) {(i) => Random.nextFloat()}
+
+    val lambda = fun(
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayType(Float, 9),
+      (input, weights) => Map(Join()) o Join() o
+      MapWrg(1)(
+        TransposeW() o MapWrg(0)( \(tile =>
+          MapLcl(1)(MapLcl(0)( \(nbh => toGlobal(MapSeq(id)) o MapSeq(toLocal(id)) o ReduceSeq(fun((acc, pair) => {
+                  val pixel = Get(pair, 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(weights, Join() $ nbh))) o Transpose()) o
+          Slide(3,1) o Map(Slide(3,1)) o Transpose() $ tile
+        )
+      )) o Slide2D(4,2) o Pad2D(1,1,Pad.Boundary.Clamp) $ input
+    )
+
+    val filename = scala.io.Source.fromFile("/home/bastian/tmp/lambda").mkString
+    val test: (Seq[ArithExpr]) => Lambda = Eval.getMethod(filename)
+    val seq: Seq[ArithExpr] = Seq(2,512)
+    val f: Lambda = test(seq)
+    println(f)
+
+    val (out: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda, input, weights)
   }
 }
