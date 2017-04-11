@@ -13,6 +13,9 @@ object SearchParameters {
   // Minimum number of work item per workgroup
   private val min_work_items = 128
 
+  // Maximum number of work item per workgroup
+  private val max_work_items = 1024
+
   // Minimal global grid size
   private val min_grid_size = 4
 
@@ -20,7 +23,7 @@ object SearchParameters {
   private val max_amount_private_memory = 1024
 
   // Max static amount of local memory
-  private val max_amount_local_memory = 49152
+  private val max_amount_local_memory = 50000
 
   // Minimum number of workgroups
   private val min_num_workgroups = 8
@@ -28,11 +31,12 @@ object SearchParameters {
   // Maximum number of workgroups
   private val max_num_workgroups = 10000
 
-  def createDefault = createWithDefaults(None, None, None, None, None, None, None)
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
   def createWithDefaults(
     defaultSize: Option[Int],
     minWorkItems: Option[Int],
+    maxWorkItems: Option[Int],
     minGridSize: Option[Int],
     maxPrivateMemory: Option[Int],
     maxLocalMemory: Option[Int],
@@ -41,6 +45,7 @@ object SearchParameters {
   ) = SearchParameters(
     defaultSize.getOrElse(default_size),
     minWorkItems.getOrElse(min_work_items),
+    maxWorkItems.getOrElse(max_work_items),
     minGridSize.getOrElse(min_grid_size),
     maxPrivateMemory.getOrElse(max_amount_private_memory),
     maxLocalMemory.getOrElse(max_amount_local_memory),
@@ -53,6 +58,7 @@ object SearchParameters {
 case class SearchParameters(
   defaultSize: Int,
   minWorkItems: Int,
+  maxWorkItems: Int,
   minGridSize: Int,
   maxPrivateMemory: Int,
   maxLocalMemory: Int,
@@ -84,6 +90,7 @@ object ParseSettings {
   private[exploration] implicit val parametersReads: Reads[SearchParameters] = (
     (JsPath \ "default_size").readNullable[Int] and
     (JsPath \ "min_work_items").readNullable[Int] and
+    (JsPath \ "max_work_items").readNullable[Int] and
     (JsPath \ "min_grid_size").readNullable[Int] and
     (JsPath \ "max_private_memory").readNullable[Int] and
     (JsPath \ "max_local_memory").readNullable[Int] and

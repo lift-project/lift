@@ -5,17 +5,23 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
-import ir.ast.Lambda
+import exploration.ParameterSearch.SubstitutionMap
+import ir.ast.{Expr, FunCall, Lambda}
 import ir.{Type, TypeChecker}
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
+import opencl.generator.OpenCLGenerator._
+import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
+import rewriting.InferNDRange
 import rewriting.utils.Utils
+import ExpressionFilter.Status.Success
 
 import scala.collection.immutable.Map
 import scala.io.Source
 import scala.sys.process._
+import scala.util.Random
 
 /**
   * This main currently runs a parameter space exploration over the
@@ -46,6 +52,15 @@ object ParameterRewrite {
       s
   }
 
+  val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
+    "Additionally explore global and local sizes")
+
+  val sampleNDRange = parser.option[Int](List("sampleNDRange"), "n",
+    "Randomly sample n combinations of global and local sizes (requires 'explore')")
+
+  val disableNDRangeInjection = parser.flag[Boolean](List("disableNDRangeInjection"),
+    "Don't inject NDRanges while compiling the OpenCL Kernel")
+
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
@@ -71,6 +86,9 @@ object ParameterRewrite {
     try {
 
       parser.parse(args)
+
+      if(exploreNDRange.value.isEmpty && sampleNDRange.value.isDefined)
+        throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
       val inputArgument = input.value.get
 
@@ -129,7 +147,7 @@ object ParameterRewrite {
 
             TypeChecker(high_level_expr)
 
-            val all_substitution_tables = ParameterSearch(high_level_expr)
+            val all_substitution_tables: Seq[SubstitutionMap] = ParameterSearch(high_level_expr)
             val substitutionCount = all_substitution_tables.size
             println(s"Found $substitutionCount valid parameter sets")
 
@@ -141,6 +159,8 @@ object ParameterRewrite {
 
               val low_level_counter = new AtomicInteger()
               val lowLevelCount = low_level_expr_list.size
+              val propagation_counter = new AtomicInteger()
+              val propagationCount = lowLevelCount * substitutionCount
               println(s"Found $lowLevelCount low level expressions")
 
               val parList = if (sequential.value.isDefined) low_level_expr_list else low_level_expr_list.par
@@ -155,17 +175,44 @@ object ParameterRewrite {
                   val low_level_factory = Eval.getMethod(low_level_str)
 
                   println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
-
                   println("Propagating parameters...")
-                  val potential_expressions = all_substitution_tables.map(st => {
-                    val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
-                    try {
-                      val expr = low_level_factory(sizesForFilter ++ params)
-                      TypeChecker(expr)
-                      if (ExpressionFilter(expr, settings.searchParameters) == ExpressionFilter.Status.Success)
-                        Some((low_level_factory(vars ++ params), params))
+
+                  val potential_expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
+                    all_substitution_tables.flatMap(st => {
+
+                      println(s"\rPropagation ${propagation_counter.incrementAndGet()} / $propagationCount")
+                      val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
+                      try {
+                        val expr = low_level_factory(sizesForFilter ++ params)
+                        TypeChecker(expr)
+
+                      val rangeList = if (exploreNDRange.value.isDefined)
+                        computeValidNDRanges(expr)
                       else
-                        None
+                        Seq(InferNDRange(expr))
+
+                      logger.debug(rangeList.length + " generated NDRanges")
+
+                        val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
+                          rangeList.flatMap {ranges =>
+                            if (ExpressionFilter(expr, ranges, settings.searchParameters) == Success)
+                              Some((low_level_factory(vars ++ params), params, ranges))
+                            else
+                              None
+                          }
+
+                      logger.debug(filtered.length + " NDRanges after filtering")
+                      val sampled = if (sampleNDRange.value.isDefined && filtered.nonEmpty) {
+                        Random.setSeed(0L) //always use the same seed
+                        Random.shuffle(filtered).take(sampleNDRange.value.get)
+                      } else
+                        filtered
+
+                      val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
+                        "_" + x._3._1.mkString("_") + "_" + x._3._2.mkString("_"))
+                      logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
+                      Some(sampled)
+
                     } catch {
                       case _: ir.TypeException => None
 
@@ -178,9 +225,9 @@ object ParameterRewrite {
                         logger.warn(settings.searchParameters.defaultSize.toString)
                         None
                     }
-                  }).collect { case Some(x) => x }
+                  }).flatten
 
-                  println(s"Found ${potential_expressions.size} / $substitutionCount filtered expressions")
+                  println(s"Generating ${potential_expressions.size} kernels")
 
                   val hashes = SaveOpenCL(topFolder, low_level_hash,
                     high_level_hash, settings, potential_expressions)
@@ -193,7 +240,6 @@ object ParameterRewrite {
                     // Failed reading file or similar.
                     logger.warn(t.toString)
                 }
-
               })
             }
           } catch {
@@ -202,7 +248,6 @@ object ParameterRewrite {
           }
         }
       })
-
     } catch {
       case io: IOException =>
         logger.error(io.toString)
@@ -211,8 +256,7 @@ object ParameterRewrite {
     }
   }
 
-  def saveScala(expressions: List[(Lambda, Seq[ArithExpr])], hashes: Seq[Option[String]]): Unit = {
-
+  def saveScala(expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))], hashes: Seq[Option[String]]): Unit = {
     val filename = lambdaFilename
     val file = scala.tools.nsc.io.File(filename)
 
@@ -230,9 +274,7 @@ object ParameterRewrite {
         case t: Throwable =>
           logger.warn(t.toString)
       }
-
     })
-
   }
 
   def readFromFile(filename: String) =
@@ -257,5 +299,59 @@ object ParameterRewrite {
     Utils.quickAndDirtySubstitution(st, tunable_nodes, lambda)
   }
 
-}
+  private def computeValidNDRanges(expr: Lambda): Seq[(NDRange, NDRange)] = {
+    var usedDimensions: Set[Int] = Set()
+    Expr.visit(expr.body,
+      {
+        case FunCall(MapGlb(dim, _), _) =>
+          usedDimensions += dim
 
+        case FunCall(MapLcl(dim, _), _) =>
+          usedDimensions += dim
+
+        case FunCall(MapWrg(dim, _), _) =>
+          usedDimensions += dim
+
+        case FunCall(MapAtomLcl(dim, _, _), _) =>
+          usedDimensions += dim
+
+        case FunCall(MapAtomWrg(dim, _, _), _) =>
+          usedDimensions += dim
+
+        case _ =>
+      }, (_) => Unit)
+    val nDRangeDim = usedDimensions.max + 1
+
+    logger.debug(s"computing ${nDRangeDim}D NDRanges")
+
+    // hardcoded highest power of two = 8192
+    val pow2 = Seq.tabulate(14)(x => scala.math.pow(2,x).toInt)
+    val localGlobalCombinations: Seq[(ArithExpr, ArithExpr)] = (for {
+      local <- pow2
+      global <- pow2
+      if local <= global
+    } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
+
+    nDRangeDim match {
+      case 1 => for {
+        x <- localGlobalCombinations
+        if ExpressionFilter(x._1, x._2, settings.searchParameters) == Success
+      } yield (Array(x._1, 1, 1): NDRange, Array(x._2, 1, 1): NDRange)
+
+      case 2 => for {
+        x: (ArithExpr, ArithExpr) <- localGlobalCombinations
+        y: (ArithExpr, ArithExpr) <- localGlobalCombinations
+        if ExpressionFilter(x._1, y._1, x._2, y._2, settings.searchParameters) == Success
+      } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1): NDRange)
+
+      case 3 => for {
+        x <- localGlobalCombinations
+        y <- localGlobalCombinations
+        z <- localGlobalCombinations
+        if ExpressionFilter(x._1, y._1, z._1, x._2, y._2, z._2, settings.searchParameters) == Success
+      } yield (Array(x._1, y._1, z._1): NDRange, Array(x._2, y._2, z._2): NDRange)
+
+      case _ => throw new RuntimeException("Could not pre-compute NDRanges for exploration")
+    }
+  }
+}
