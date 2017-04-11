@@ -78,23 +78,27 @@ object ParseSettings {
 
   private val logger = Logger(this.getClass)
 
-  private implicit val arithExprReads: Reads[ArithExpr] =
+  private[exploration] implicit val arithExprReads: Reads[ArithExpr] =
     JsPath.read[Long].map(Cst)
 
-  private implicit val parametersReads: Reads[SearchParameters] = (
-    (JsPath \ "defaultSize").readNullable[Int] and
-    (JsPath \ "minWorkItems").readNullable[Int] and
-    (JsPath \ "minGridSize").readNullable[Int] and
-    (JsPath \ "maxPrivateMemory").readNullable[Int] and
-    (JsPath \ "maxLocalMemory").readNullable[Int] and
-    (JsPath \ "minWorkgroups").readNullable[Int] and
-    (JsPath \ "maxWorkgroups").readNullable[Int]
+  private[exploration] implicit val parametersReads: Reads[SearchParameters] = (
+    (JsPath \ "default_size").readNullable[Int] and
+    (JsPath \ "min_work_items").readNullable[Int] and
+    (JsPath \ "min_grid_size").readNullable[Int] and
+    (JsPath \ "max_private_memory").readNullable[Int] and
+    (JsPath \ "max_local_memory").readNullable[Int] and
+    (JsPath \ "min_workgroups").readNullable[Int] and
+    (JsPath \ "max_workgroups").readNullable[Int]
   )(SearchParameters.createWithDefaults _)
 
-  private implicit val settingsReads: Reads[Settings] = (
+  private[exploration] implicit val settingsReads: Reads[Settings] = (
     (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]] and
     (JsPath \ "search_parameters").readNullable[SearchParameters]
-  )((a, b) => Settings(a, b.getOrElse(SearchParameters.createDefault)))
+  )((maybeCombinations, maybeParameters) =>
+    Settings(
+      maybeCombinations,
+      maybeParameters.getOrElse(SearchParameters.createDefault)
+    ))
 
   def apply(optionFilename: Option[String]): Settings =
     optionFilename match {
