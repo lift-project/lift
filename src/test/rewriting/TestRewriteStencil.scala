@@ -46,7 +46,7 @@ class TestRewriteStencil {
     val gold: Array[Float] = Utils.scalaCompute2DStencil(A,3,1,3,1,1,1,1,1,weights,scalaClamp)
 
     val f1 = Rewrite.applyRuleAtId(f, 2, Rules.slideTiling(4))
-    val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.mapTransposePromotion)
+    val f2 = Rewrite.applyRuleAtId(f1, 1, MacroRules.movingJoin)
     val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.slideTiling(4))
     val f4 = Rewrite.applyRuleAtId(f3, 5, Rules.mapFission)
     val f5 = Rewrite.applyRuleAtId(f4, 6, Rules.mapFission)

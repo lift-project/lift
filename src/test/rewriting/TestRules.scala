@@ -514,8 +514,8 @@ class TestRules {
       input => Map(Transpose()) o Join() $ input
     )
 
-    assertTrue(Rules.mapTransposePromotion.rewrite.isDefinedAt(f.body))
-    val result = Rules.mapTransposePromotion.rewrite(f.body)
+    assertTrue(MacroRules.movingJoin.rewrite.isDefinedAt(f.body))
+    val result = MacroRules.movingJoin.rewrite(f.body)
     TypeChecker.check(result)
   }
 

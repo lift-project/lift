@@ -20,11 +20,6 @@ object Rules {
 
   /* Rules required for 2D stencil rewrite *///TODO find appropriate names
 
-  val mapTransposePromotion = Rule("Map(Transpose()) o Join() => Join() o Map(Map(Transpose()))", {
-    case FunCall(Map(Lambda(Array(_), FunCall(Transpose(), transposeArg))), FunCall(Join(), arg)) =>
-      Join() o Map(Map(Transpose())) $ arg
-  })
-
   /* Slide-promotion *///TODO not really because of map(join)... find better name
   val slidePromotion = Rule("Slide(u,v) o Map(Join()) => Map(Map(Join())) o Slide(u,v)",{
     case FunCall(Slide(u,v), FunCall(Map(Lambda(Array(_), FunCall(Join(), joinArg))), arg)) =>
