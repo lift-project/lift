@@ -4,11 +4,11 @@ import lift.arithmetic.SizeVar
 import benchmarks.VectorScaling
 import ir._
 import ir.ast._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, Assume, BeforeClass, Test}
 
 object TestVector {
   @BeforeClass def before(): Unit = {
@@ -211,6 +211,8 @@ class TestVector {
   }
 
   @Test def VECTOR_NORM(): Unit = {
+
+    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
 
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)

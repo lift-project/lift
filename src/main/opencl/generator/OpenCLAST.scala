@@ -1,8 +1,9 @@
 package opencl.generator
 
-import lift.arithmetic.{Predicate, ArithExpr, Var}
-import ir.{Type, TupleType, VectorType}
-import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
+import lift.arithmetic.{ArithExpr, Predicate, Var}
+import ir.{TupleType, Type, VectorType}
+import opencl.generator.OpenCLGenerator.NDRange
+import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
 
 import scala.language.implicitConversions
 
@@ -26,12 +27,15 @@ object OpenCLAST {
     })
   }
 
+  sealed abstract class Attribute extends OclAstNode
 
   sealed abstract class Declaration extends OclAstNode with BlockMember
 
   sealed abstract class Statement extends OclAstNode with BlockMember
 
   sealed abstract class Expression extends OclAstNode
+
+  case class RequiredWorkGroupSize(localSize: NDRange) extends Attribute
 
   /** A function declaration
     *
@@ -44,7 +48,8 @@ object OpenCLAST {
   case class Function(name: String,
                       ret: Type, params: List[ParamDecl],
                       body: Block,
-                      kernel: Boolean = false) extends Declaration
+                      kernel: Boolean = false,
+                      attribute: Option[Attribute] = None) extends Declaration
 
   case class VarDecl(v: Var,
                      t: Type,
@@ -150,17 +155,17 @@ object OpenCLAST {
     */
   case class VarRef(v: Var,
                     suffix: String = null,
-                    arrayIndex: Expression = null) extends Expression
+                    arrayIndex: ArithExpression = null) extends Expression
 
   case class Load(v: VarRef,
                   t: VectorType,
-                  offset: Expression,
+                  offset: ArithExpression,
                   openCLAddressSpace: OpenCLAddressSpace) extends Expression
 
   case class Store(v: VarRef,
                    t: VectorType,
                    value: OclAstNode,
-                   offset: Expression,
+                   offset: ArithExpression,
                    openCLAddressSpace: OpenCLAddressSpace) extends Expression
 
   /** Represent an assignment.
@@ -207,6 +212,8 @@ object OpenCLAST {
 
   case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends Expression
 
+  case class OpenCLExpression(code: String) extends Expression
+
 
   /** Inline native code block. Used mainly for UserFun, which are currently
     * represented as strings
@@ -234,21 +241,22 @@ object OpenCLAST {
         case e: Expression => visitExpression(e)
         case s: Statement => visitStatement(s)
         case d: Declaration => visitDeclaration(d)
-        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
+        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
       }
     }
 
     def callFunOnExpression(node: OclAstNode): Unit = {
       node match {
         case e: Expression => fun(e)
-        case s: Statement =>
-        case d: Declaration =>
-        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
+        case _: Statement =>
+        case _: Declaration =>
+        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
       }
     }
 
     def visitExpression(e: Expression): Unit = e match {
       case _: ArithExpression =>
+      case _: OpenCLExpression =>
       case a: AssignmentExpression =>
         visitExpressionsInNode(a.value)
         visitExpressionsInNode(a.to)
@@ -301,7 +309,7 @@ object OpenCLAST {
 
   def visitBlocks(node: OclAstNode, fun: Block => Unit): Unit = {
     node match {
-      case e: Expression => // there are no blocks inside any expressions
+      case _: Expression => // there are no blocks inside any expressions
 
       case s: Statement => s match {
         case b: Block =>
@@ -320,7 +328,7 @@ object OpenCLAST {
         case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
       }
 
-      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
+      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
     }
   }
 }

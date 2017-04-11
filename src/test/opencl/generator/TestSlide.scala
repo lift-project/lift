@@ -5,13 +5,14 @@ import java.util.Scanner
 
 import scala.util.Random
 import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
-import ir.{ArrayType}
+import ir.ArrayType
 import ir.ast._
-import opencl.executor.{Execute, Executor, LongTestsEnabled}
+import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.Assume.assumeFalse
 
 
 object TestSlide {
@@ -391,6 +392,8 @@ class TestSlide {
    ITERATIVE SLIDE
   ***********************************************************/
   @Test def iterativeSlide(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val data = Array(0,1,2,3,4,5).map(_.toFloat)
     val gold = Array(18,27).map(_.toFloat)
     val lambda = fun(
@@ -407,6 +410,8 @@ class TestSlide {
    SLIDE 3D
   ***********************************************************/
   @Test def slide3D(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val size = 2
     val step = 1
     val N = SizeVar("N")
@@ -545,6 +550,8 @@ class TestSlide {
   }
 
   @Test def tiledSlideND3(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
     val n = 3
     val s = 1
     val tileStep = 4 // how many neighborhoods do we want to have in a tile

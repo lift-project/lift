@@ -56,7 +56,7 @@ class CPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar => ai.array + "[" + toString(ai.idx) + "]"
+      case ai: AccessVar => ai.array + "[" + toString(ai.idx.content) + "]"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
@@ -167,7 +167,7 @@ class CPrinter {
 
   private def print(c: CondExpression): Unit = {
       print(c.lhs)
-      print(c.cond.toString)
+      print(s" ${c.cond.toString} ")
       print(c.rhs)
   }
 
@@ -290,7 +290,7 @@ class CPrinter {
 
   private def print(es: ExpressionStatement): Unit = {
     print(es.e)
-    print(";")
+    print("; ")
   }
 
 
@@ -334,7 +334,7 @@ class CPrinter {
             print(s" = ")
             print(vd.init)
           }
-          print(";")
+          print("; ")
       }
 
     case x =>
@@ -352,7 +352,7 @@ class CPrinter {
         print(s" = ")
         print(vd.init)
       }
-      print(";")
+      print("; ")
   }
 
   /**
@@ -377,7 +377,7 @@ class CPrinter {
     print(fl.init)
     print(fl.cond)
     print(fl.increment)
-    print(")")
+    print(") ")
     print(fl.body)
   }
 
@@ -399,15 +399,15 @@ class CPrinter {
     * @param s a [[IfThenElse]] node
     */
   private def print(s: CAst.IfThenElse): Unit = {
-    print("if(")
+    print("if (")
     print(s.cond)
-    println(")")
+    print(") ")
 
     print(s.trueBody)
 
     if(s.falseBody != Block())
     {
-      println("else")
+      print(" else ")
       print(s.falseBody)
     }
   }

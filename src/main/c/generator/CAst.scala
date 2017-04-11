@@ -150,17 +150,17 @@ object CAst {
     */
   case class VarRef(v: Var,
                     suffix: String = null,
-                    arrayIndex: Expression = null) extends Expression
+                    arrayIndex: ArithExpression = null) extends Expression
 
   case class Load(v: VarRef,
                   t: VectorType,
-                  offset: Expression,
+                  offset: ArithExpression,
                   openCLAddressSpace: OpenCLAddressSpace) extends Expression
 
   case class Store(v: VarRef,
                    t: VectorType,
                    value: OclAstNode,
-                   offset: Expression,
+                   offset: ArithExpression,
                    openCLAddressSpace: OpenCLAddressSpace) extends Expression
 
   /** Represent an assignment.

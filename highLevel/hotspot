@@ -1,0 +1,26 @@
+def rodiniaUserFun = UserFun("rodiniaUserFun",
+    Array("power", "top", "bottom", "left", "right", "center"), "{ float step_div_cap = 1.365333e+00; return center + step_div_cap*(power + 0.1f*(bottom + top - 2*center) + 0.1*(left + right - 2*center) + 4.882813e-05*(80.0f - center)); }",
+    Seq(Float, Float, Float, Float, Float, Float), Float)
+
+val M = Var("M", StartFromRange(1024))
+val N = Var("N", StartFromRange(1024))
+
+fun(
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(ArrayType(Float, M), N),
+    (heat, power) => {
+        Map(Map(\(tuple => {
+        val nbh = tuple._0
+        val powerValue = tuple._1
+
+        val top = Get(tuple,0).at(0).at(1)
+        val bottom = tuple._0.at(2).at(1)
+        val left = tuple._0.at(1).at(0)
+        val right = tuple._0.at(1).at(2)
+        val center = tuple._0.at(1).at(1)
+
+        toGlobal(id) o toPrivate(fun(x => rodiniaUserFun(x, top, bottom, left, right, center))) $ powerValue
+    }))) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(
+        Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,
+        power)
+})

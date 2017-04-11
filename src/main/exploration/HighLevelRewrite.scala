@@ -66,6 +66,9 @@ object HighLevelRewrite {
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
+  private val onlyLower = parser.flag[Boolean](List("onlyLower"),
+    "Do not perform high-level rewriting - only print lambda to enable next rewriting stages")
+
   protected val defaultExplorationDepth = 5
   protected val defaultVectorWidth = 4
   protected val defaultDepthFilter = 6
@@ -83,14 +86,17 @@ object HighLevelRewrite {
       logger.info(s"\tExploration depth: $defaultExplorationDepth")
       logger.info(s"\tVector width: $defaultVectorWidth")
       logger.info(s"\tDepth filter: $defaultDepthFilter")
-      logger.info(s"\tDistance filter: $distanceFilter")
-      logger.info(s"\tRule Repetition: $ruleRepetition")
-      logger.info(s"\tRule Collection: $ruleRepetition")
+      logger.info(s"\tDistance filter: $defaultDistanceFilter")
+      logger.info(s"\tRule Repetition: $defaultRuleRepetition")
+      logger.info(s"\tRule Collection: $defaultRuleCollection")
 
       val filename = input.value.get
       val lambda = ParameterRewrite.readLambdaFromFile(filename)
 
-      val dumpThese = rewriteExpression(lambda)
+      val dumpThese = if(onlyLower.value.isDefined)
+        Seq((lambda, Seq()))
+      else
+        rewriteExpression(lambda)
 
       println(dumpThese.length + " expressions to dump")
 
@@ -214,7 +220,8 @@ object HighLevelRewrite {
             Utils.dumpToFile(rules, sha256 + "_rules", folder)
           }
 
-        }
+        } else
+          logger.warn("lambda has been filtered out - distance too long")
       } catch {
         case t: Throwable =>
           logger.warn(s"Dumping $lambda failed.", t)
@@ -244,6 +251,9 @@ object HighLevelRewrite {
 
   private def printMinAndMaxDepth(lambda: Seq[Lambda]): Unit = {
     val res = lambda.map(NumberExpression.byDepth(_).values.max)
+    if(res.isEmpty)
+      throw new RuntimeException("No rules applicable")
+
     println(s"with a minimum depth of ${res.min} of and maximum depth of ${res.max}")
   }
 
@@ -260,6 +270,11 @@ class HighLevelRewrite(val vectorWidth: Int = HighLevelRewrite.defaultVectorWidt
 object RuleCollection {
 
   private val convolution1DRules = Seq(MacroRules.tileStencils)
+  private val convolution2DRules = Seq(
+    MacroRules.tile2DStencils,
+    MacroRules.tile2DStencilsZip,
+    MacroRules.tile2DStencilsZip6
+  )
   private val defaultRules = Seq(
       MacroRules.apply2DRegisterBlocking,
       MacroRules.apply2DRegisterBlockingNoReorder,
@@ -274,6 +289,7 @@ object RuleCollection {
 
   private val ruleCollectionMap = scala.collection.Map(
     "convolution1D" -> convolution1DRules,
+    "convolution2D" -> convolution2DRules,
     "default" -> defaultRules)
 
   def apply(collection: String): Seq[Rule] = {

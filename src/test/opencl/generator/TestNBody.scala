@@ -4,12 +4,13 @@ import lift.arithmetic.SizeVar
 import benchmarks.NBody
 import ir._
 import ir.ast._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.generator.TestNBody._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test, Ignore}
+import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestNBody {
 
@@ -130,6 +131,7 @@ class TestNBody {
 
   @Test
   def nBodyLocalMem(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val tileX = 128
 
@@ -167,6 +169,7 @@ class TestNBody {
 
   @Test
   def nBodyLocalMem2(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val tileX = 32
 
@@ -206,6 +209,8 @@ class TestNBody {
 
   @Test
   def nBodyLocalMem_nvidia_no_MT(): Unit = {
+
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val tileX = 256
     val tileY = 1
