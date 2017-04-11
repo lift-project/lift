@@ -18,6 +18,70 @@ case class Rule(desc: String,
 
 object Rules {
 
+  /* Rules required for 2D stencil rewrite *///TODO find appropriate names
+
+  val mapTransposePromotion = Rule("Map(Transpose()) o Join() => Join() o Map(Map(Transpose()))", {
+    case FunCall(Map(Lambda(Array(_), FunCall(Transpose(), transposeArg))), FunCall(Join(), arg)) =>
+      Join() o Map(Map(Transpose())) $ arg
+  })
+
+  /* Slide-promotion *///TODO not really because of map(join)... find better name
+  val slidePromotion = Rule("Slide(u,v) o Map(Join()) => Map(Map(Join())) o Slide(u,v)",{
+    case FunCall(Slide(u,v), FunCall(Map(Lambda(Array(_), FunCall(Join(), joinArg))), arg)) =>
+      Map(Map(Join())) o Slide(u,v) $ arg
+  })
+
+  val slideSwap = Rule("Slide(u,v) o Map(Map(Slide(n,s))) => Map(Map(Map(Slide(n,s)))) o Slide(u,v)",{
+    case FunCall(Slide(u,v), FunCall(Map(Lambda(
+      Array(_), FunCall(Map(Lambda(
+        Array(_), FunCall(Slide(n,s), slideArg))), mapArg))), arg)) =>
+     Map(Map(Map(Slide(n,s)))) o Slide(u,v) $ arg
+  })
+
+  val joinSwap = Rule("Join() o Map(Map(Join())) => Map(Join()) o Join()", {
+    case FunCall(Join(), FunCall(Map(Lambda(Array(_),
+      FunCall(Map(Lambda(Array(_), FunCall(Join(), joinArg))), mapArg))), arg)) =>
+      Map(Join()) o Join() $ arg
+  })
+
+  // todo reduce on layer of maps and use map fission before applying this rule
+  val transposeSwap = Rule("Map(Map(Map(Transpose()))) o Map(Transpose()) => Map(Transpose()) o Map(Map(Map(Transpose())))", {
+    case FunCall(Map(Lambda(Array(_), FunCall(Map(Lambda(Array(_), FunCall(Map(Lambda(Array(_), FunCall(Transpose(),
+      transposeArg))), mapArg1))), mapArg2))), FunCall(Map(Lambda(
+    Array(_), FunCall(
+    Transpose(), transposeArg2))), arg)) =>
+      Map(Transpose()) o Map(Map(Map(Transpose()))) $ arg
+  })
+
+  // todo reduce on layer of maps and use map fission before applying this rule
+  val slideTransposeSwap = Rule("Map(Map(Map(Slide(u,v)))) o Map(Transpose()) => Map(Transpose) o Map(Map(Map(Slide(u,v))))", {
+    case FunCall(Map(Lambda(
+      Array(_), FunCall(Map(Lambda(
+        Array(_), FunCall(Map(Lambda(
+          Array(_), FunCall(Slide(u,v), slideArg))), mapArg1))), mapArg2))), FunCall(Map(Lambda(
+    Array(_), FunCall(
+    Transpose(), transposeArg))), arg)) =>
+      Map(Transpose()) o Map(Map(Map(Slide(u,v)))) $ arg
+  })
+
+  val slideTransposeReordering = Rule("Map(Slide(u,v)) o Map(Transpose()) => " +
+    "Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Slide(u,v)))", {
+    case FunCall(Map(Lambda(
+      Array(_), FunCall(Slide(u,v), slideArg))), FunCall(Map(Lambda(
+        Array(_), FunCall(Transpose(), transposeArg))), arg)) =>
+      Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Slide(u,v))) $ arg
+  })
+
+  val transposeMapJoinReordering = Rule("Transpose() o Map(Join()) => Join() o Map(Transpose()) o Transpose()", {
+    case FunCall(Transpose(), FunCall(Map(Lambda(Array(_), FunCall(Join(), joinArg))), arg)) =>
+      Join() o Map(Transpose()) o Transpose() $ arg
+  })
+
+  val idTransposeTranspose = Rule("id => Transpose() o Transpose()", {
+    case FunCall(Id(), arg) =>
+      Transpose() o Transpose() $ arg
+  })
+
   /* Iterate decomposition rule */
 
   // TODO
@@ -158,6 +222,12 @@ object Rules {
       if isTranspose(t1) && isTranspose(t2)
     =>
       arg
+  })
+
+  val transposeTransposeId2 = Rule("Transpose() o Transpose() => Id()", {
+    case FunCall(t1, FunCall(t2, arg))
+      if isTranspose(t1) && isTranspose(t2)
+    => Id() $ arg
   })
 
   val joinSplitId = Rule("Join() o Split(_) => id", {
@@ -1043,8 +1113,10 @@ object Rules {
   }
 
   val dropId = Rule("Id() => Epsilon()", {
-    case FunCall(Id(), arg) =>
-      arg
+    case FunCall(Id(), arg) => arg
+    case FunCall(Map(Lambda(Array(_), FunCall(Id(), innerArg))), arg) => arg
+    case FunCall(Map(Lambda(Array(_), FunCall(
+    Map(Lambda(Array(_), FunCall(Id(), innerArg))), innerArg2))), arg) => arg
   })
 
   val implementOneLevelOfId = Rule("Id() => ", {
@@ -1082,6 +1154,20 @@ object Rules {
       case FunCall(Id(), _) => true
       case _ => false
     }
+
+  val addIdBeforeSlide = Rule("Slide(n,s) => Slide(n,s) o Id()", {
+    case call@FunCall(Slide(n,s) , arg)
+      //if !f.body.contains( {case FunCall(MapWrg(_,_), a) =>})
+      //&& !f.body.contains( {case FunCall(Id(), b) =>  })
+      => Slide(n,s) o Id() $ arg
+  })
+
+  val addIdMapWrg = Rule("MapWrg(f) => MapWrg(f o Id())", {
+    case call@FunCall(MapWrg(dim, f:Lambda1) , arg)
+      if !f.body.contains( {case FunCall(MapWrg(_,_), a) =>})
+      && !f.body.contains( {case FunCall(Id(), b) =>  })
+      => MapWrg(dim, f o Id()) $ arg
+  })
 
   val addIdMapLcl = Rule("MapLcl(f) => MapLcl(f) o Id()", {
     case call@FunCall(map:MapLcl, arg)
@@ -1193,7 +1279,7 @@ object Rules {
       val zipArgs = args.map({
         case FunCall(_, mapArgs) => mapArgs
       })
-      
+
       val lambdaParam = Param()
 
       val maps = args.zipWithIndex.map({

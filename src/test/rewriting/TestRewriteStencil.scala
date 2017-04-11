@@ -77,12 +77,13 @@ class TestRewriteStencil {
     //
     val f28 = Rewrite.applyRuleAtId(f27, 1, Rules.joinSwap)
     val f29 = Rewrite.applyRuleAtId(f28, 3, Rules.transposeSwap)
+    // todo store result in global memory to make kernel executable
+    //println(NumberExpression.breadthFirst(f29.body).mkString("\n\n"))
+    //println("@@@@@@@@@ EXPRESSION:\n" + f29)
 
-
-    println(NumberExpression.breadthFirst(f29.body).mkString("\n\n"))
-    println("@@@@@@@@@ EXPRESSION:\n" + f29)
-    //val(result: Array[Float], _) = Execute(M,N)(f,A)
+    //val(result: Array[Float], _) = Execute(M,N)(f29,A)
     //assertArrayEquals(gold, result, 0.001f)
+    TypeChecker(f29)
   }
 
   @Test
