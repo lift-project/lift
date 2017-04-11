@@ -41,10 +41,6 @@ object RodiniaHotspotNoPad {
       Array("power", "top", "bottom", "left", "right", "center"), "{ float step_div_cap = 1.365333e+00f; return center + step_div_cap*(power + 0.1f*(bottom + top - 2*center) + 0.1*(left + right - 2*center) + 4.882813e-05f*(80.0f - center)); }",
       Seq(Float, Float, Float, Float, Float, Float), Float)
 
-  def zip2d = \((A,B) =>
-    Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(A,B)
-  )
-
   def rodiniaStencilConstants = \(tuple => {
     val nbh = tuple._0
     //val powerValue = tuple._1
@@ -81,10 +77,10 @@ object RodiniaHotspotNoPad {
     (power, heat) => {
       Map(Join()) o Join() o Map(TransposeW()) o
         MapWrg(1)(MapWrg(0)(\(tile => {
-          MapLcl(1)(MapLcl(0)(rodiniaStencilConstants)) $ zip2d(
+          MapLcl(1)(MapLcl(0)(rodiniaStencilConstants)) $ Zip2D(
             Slide2D(3, 1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile._0,
             tile._1)
-        }))) $ zip2d(
+        }))) $ Zip2D(
         Slide2D(514, 512, 6, 4) $ heat,
         Slide2D(512, 512, 4, 4) $ power)
     }
@@ -123,10 +119,10 @@ object RodiniaHotspotNoPad {
     (power, heat) => {
       Map(Join()) o Join() o Map(TransposeW()) o
         MapWrg(1)(MapWrg(0)(\(tile => {
-          MapLcl(1)(MapLcl(0)(rodiniaStencil)) $ zip2d(
+          MapLcl(1)(MapLcl(0)(rodiniaStencil)) $ Zip2D(
             Slide2D(3, 1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile._0,
             tile._1)
-        }))) $ zip2d(
+        }))) $ Zip2D(
         Slide2D(514, 512, 6, 4) $ heat,
         Map(Transpose()) o Split(512) o Map(Split(4)) $ power)
         //Slide2D(512, 512, 4, 4) $ power)
@@ -142,7 +138,7 @@ object RodiniaHotspotNoPad {
       //ArrayType(ArrayType(Float, 8194), 8194),
       //ArrayType(ArrayType(Float, 8192), 8192),
       (power, heat) => {
-        MapGlb(1)(MapGlb(0)(rodiniaStencil)) $ zip2d(
+        MapGlb(1)(MapGlb(0)(rodiniaStencil)) $ Zip2D(
           Slide2D(3, 1) $ heat,
           power)
       }
@@ -156,7 +152,7 @@ object RodiniaHotspotNoPad {
       ArrayType(ArrayType(Float, M+2), N+2),
       ArrayType(ArrayType(Float, M), N),
       (heat, power) => {
-        MapGlb(1)(MapGlb(0)(rodiniaStencilConstants)) $ zip2d(
+        MapGlb(1)(MapGlb(0)(rodiniaStencilConstants)) $ Zip2D(
           Slide2D(3, 1) $ heat,
           power)
       }

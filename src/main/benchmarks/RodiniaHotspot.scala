@@ -43,10 +43,6 @@ object RodiniaHotspot{
       Array("power", "top", "bottom", "left", "right", "center"), "{ float step_div_cap = 1.365333e+00; return center + step_div_cap*(power + 0.1f*(bottom + top - 2*center) + 0.1*(left + right - 2*center) + 4.882813e-05*(80.0f - center)); }",
       Seq(Float, Float, Float, Float, Float, Float), Float)
 
-  def zip2d = \((A,B) =>
-    Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(A,B)
-  )
-
   def rodiniaStencil = \(tuple => {
     val nbh = tuple._0
     val powerValue = tuple._1
@@ -69,10 +65,10 @@ object RodiniaHotspot{
     (power, heat) => {
       Map(Join()) o Join() o Map(TransposeW()) o
         MapWrg(1)(MapWrg(0)(\(tile => {
-          MapLcl(1)(MapLcl(0)(rodiniaStencil)) $ zip2d(
+          MapLcl(1)(MapLcl(0)(rodiniaStencil)) $ Zip2D(
             Slide2D(3, 1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile._0,
             tile._1)
-        }))) $ zip2d(
+        }))) $ Zip2D(
         Slide2D(6, 4, 514, 512) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,
         Slide2D(4, 4, 512, 512) $ power)
     }
@@ -85,7 +81,7 @@ object RodiniaHotspot{
       ArrayType(ArrayType(Float, M), N),
       ArrayType(ArrayType(Float, M), N),
       (power, heat) => {
-        MapGlb(1)(MapGlb(0)(rodiniaStencil)) $ zip2d(
+        MapGlb(1)(MapGlb(0)(rodiniaStencil)) $ Zip2D(
           Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,
           power)
       }
