@@ -167,7 +167,7 @@ class OpenCLPrinter {
 
   private def print(c: CondExpression): Unit = {
       print(c.lhs)
-      print(c.cond.toString)
+      print(s" ${c.cond.toString} ")
       print(c.rhs)
   }
 
@@ -305,7 +305,7 @@ class OpenCLPrinter {
 
   private def print(es: ExpressionStatement): Unit = {
     print(es.e)
-    print(";")
+    print("; ")
   }
 
 
@@ -356,7 +356,7 @@ class OpenCLPrinter {
             print(s" = ")
             print(vd.init)
           }
-          print(";")
+          print("; ")
       }
 
     case _ =>
@@ -374,7 +374,7 @@ class OpenCLPrinter {
         print(s" = ")
         print(vd.init)
       }
-      print(";")
+      print("; ")
   }
 
   /**
@@ -399,7 +399,7 @@ class OpenCLPrinter {
     print(fl.init)
     print(fl.cond)
     print(fl.increment)
-    print(")")
+    print(") ")
     print(fl.body)
   }
 
@@ -421,15 +421,15 @@ class OpenCLPrinter {
     * @param s a [[IfThenElse]] node
     */
   private def print(s: OpenCLAST.IfThenElse): Unit = {
-    print("if(")
+    print("if (")
     print(s.cond)
-    println(")")
+    print(") ")
 
     print(s.trueBody)
 
     if(s.falseBody != Block())
     {
-      println("else")
+      print(" else ")
       print(s.falseBody)
     }
   }

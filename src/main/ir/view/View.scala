@@ -28,7 +28,7 @@ class AccessVar(val array: String, val idx: ArithExpression, r : Range = RangeUn
  *
  * @param t Type of the view.
  */
-abstract class View(val t: Type = UndefType) {
+abstract sealed class View(val t: Type = UndefType) {
 
   /**
    * Construct a new view, where `oldExpr` is replaced by `newExpr`
@@ -59,7 +59,9 @@ abstract class View(val t: Type = UndefType) {
       case component: ViewTupleComponent => ViewTupleComponent(component.i, component.iv.replaced(subst), t)
       case slide: ViewSlide => ViewSlide(slide.iv.replaced(subst), slide.slide, slide.t)
       case pad: ViewPad => ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
-      case _ => this
+      case _: ViewMem | _: ViewHead | NoView | _: View2DGeneratorUserFun |
+           _: View3DGeneratorUserFun | _: ViewConstant | _: ViewGenerator |
+           _: ViewGeneratorUserFun | _: ViewTail => this
     }
   }
 
