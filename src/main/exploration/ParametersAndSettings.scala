@@ -7,7 +7,7 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
 object SearchParameters {
-  // matrix size
+  // Default input size for all dimensions to use for filtering, if no input combinations provided
   private val default_size = 1024
 
   // Minimum number of work item per workgroup
