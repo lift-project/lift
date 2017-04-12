@@ -184,7 +184,7 @@ class GettingStarted {
   def lhs_slideTiling = Slide(n,s)
   def rhs_slideTiling = Join() o Map(Slide(n,s)) o Slide(u,v)
 
-  /** another rule: movinJoin */
+  /** another rule: movingJoin */
   def lhs_mapPromotion = Map(f) o Join()
   def rhs_mapPromotion = Join() o Map(Map(f))
 
