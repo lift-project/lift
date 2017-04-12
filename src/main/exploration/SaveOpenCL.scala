@@ -91,7 +91,10 @@ class SaveOpenCL(
     else
       InferNDRange(lambda) match { case (l, g) => local = l; global = g }
 
-    val code = Compile(lambda, local, global)
+    val code = if(ParameterRewrite.disableNDRangeInjection.value.isDefined)
+      Compile(lambda)
+    else
+      Compile(lambda, local, global)
 
     val kernel =
       s"""
