@@ -1045,11 +1045,11 @@ class OpenCLGenerator extends Generator {
 
     val v = Value(0.0f, ArrayType(Float, size.eval))
     varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
-    if(sSP.size.eval <= sSP.step.eval)
-      return generateForLoop(block, sSP.loopVar, generate(sSP.f.body, _), sSP.shouldUnroll)
-    else
-      (block: Block) += OpenCLAST.VarDecl(sSP.windowVar, v.t,
+    (block: Block) += OpenCLAST.VarDecl(sSP.windowVar, v.t,
       init = null,PrivateMemory,size.eval)
+/*    if(sSP.size.eval <= sSP.step.eval)
+      return generateForLoop(block, sSP.loopVar, generate(sSP.f.body, _), sSP.shouldUnroll)
+    else*/
 /*
     val twin = Var("twindow")
     varDecls = varDecls.updated(twin, Type.devectorize(call.t))

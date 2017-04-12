@@ -26,6 +26,17 @@ object TestSlideSeqPlus
     Executor.shutdown()
   }
 }
+
+object SlideSeqPlusHelpers
+{
+
+  def stencil(a: Int ,b :Int) = fun(
+    ArrayType(Float, SizeVar("N")),
+    (input) =>
+      SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), a,b) $ input
+  )
+}
+
 class TestSlideSeqPlus
 {
 
@@ -38,15 +49,9 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val stencil = fun(
-      ArrayType(Float, SizeVar("N")),
-      (input) =>
-        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), slidesize,slidestep) $ input
-    )
+    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
-    println(Compile(stencil))
-
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values)
+    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     StencilUtilities.print1DArray(gold)
     StencilUtilities.print1DArray(output)
@@ -64,16 +69,9 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
+    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
-    val stencil = fun(
-      ArrayType(Float, SizeVar("N")),
-      (input) =>
-        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), slidesize,slidestep) $ input
-    )
-
-    println(Compile(stencil))
-
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values)
+    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     StencilUtilities.print1DArray(values)
     StencilUtilities.print2DArray(values.sliding(slidesize,slidestep).toArray)
@@ -85,8 +83,6 @@ class TestSlideSeqPlus
 
   }
 
-  // TODO Figure out why this fails ...
-  @Ignore
   @Test
   def reduceSlide1DTestSize5Step5(): Unit = {
 
@@ -96,16 +92,9 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
+    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
-    val stencil = fun(
-      ArrayType(Float, SizeVar("N")),
-      (input) =>
-        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), slidesize,slidestep) $ input
-    )
-
-    println(Compile(stencil))
-
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values)
+    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     StencilUtilities.print1DArray(values)
     StencilUtilities.print2DArray(values.sliding(slidesize,slidestep).toArray)
@@ -124,40 +113,18 @@ class TestSlideSeqPlus
     val slidestep = 2
     val size = 10
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    // drop right one on the comparison array because scala sliding does not work exactly the same as Lift sliding ...
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).dropRight(1)
 
-    val stencil = fun(
-      ArrayType(Float, SizeVar("N")),
-      (input) =>
-        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), slidesize,slidestep) $ input
-    )
+    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
-    println(Compile(stencil))
-
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values)
+    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
   }
 
-  // TODO - 2D, etc
-
-  @Test
-  def iterativeSlide(): Unit = {
-
-    val data = Array(0,1,2,3,4,5).map(_.toFloat)
-    val gold = Array(18,27).map(_.toFloat)
-    val lambda = fun(
-      ArrayType(Float, SizeVar("N")),
-      (input) => {
-        Iterate(2) (Join() o MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Slide(3,1)) $ input
-      })
-
-    println(Compile(lambda))
-    val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
-    assertArrayEquals(gold, output, 0.1f)
-  }
-
+  @Ignore
   @Test
   def reduceSlide1DTestWithWeights(): Unit = {
 
@@ -166,20 +133,19 @@ class TestSlideSeqPlus
     val weights = Array( 0.5f, 1.0f, 0.5f )
     val gold = Array( 4.0f,6.0f,8.0f,10.0f,12.0f,14.0f ) //values.sliding(3,1).toArray.map(x => x.reduceLeft(0.5f*_ + 0.5f*_))
 
+    def stencil(a: Int ,b :Int) = fun(
+      ArrayType(Float, SizeVar("N")),
+      (input) =>
+        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), a,b) $ input
+    )
 
-    val stencil = fun(
+/*    val stencilAttempt = fun(
       ArrayType(Float, SizeVar("N")),
       ArrayType(Float, 3),
       (input,wgts) => {
-        MapGlb(
-          fun(neighbourhood => {
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeqUnroll(add, 0.0f) o
-              MapSeqUnroll(mult) $
-              Zip(wgts, neighbourhood)
-          })
-        )} o Slide(3, 1)  $ input
-    )
+          SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o MapSeqUnroll(mult) $ Zip(wgts, neighbourhood)
+          )}  $ input
+    )*/
 
     val (output: Array[Float], _) = Execute(2,2)(stencil, values, weights)
 
@@ -190,6 +156,8 @@ class TestSlideSeqPlus
     assertArrayEquals(gold, output, 0.1f)
 
   }
+
+  // TODO - 2D, etc
 
   @Test
   def reduceSlide2DTest(): Unit = {
