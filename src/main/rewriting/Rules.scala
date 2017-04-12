@@ -33,10 +33,9 @@ object Rules {
      Map(Map(Map(Slide(n,s)))) o Slide(u,v) $ arg
   })
 
-  val joinSwap = Rule("Join() o Map(Map(Join())) => Map(Join()) o Join()", {
-    case FunCall(Join(), FunCall(Map(Lambda(Array(_),
-      FunCall(Map(Lambda(Array(_), FunCall(Join(), joinArg))), mapArg))), arg)) =>
-      Map(Join()) o Join() $ arg
+  val joinSwap = Rule("Join() o Map(Map(f)) => Map(f) o Join()", {
+    case FunCall(Join(), FunCall(Map(Lambda(Array(_), FunCall(map@Map(_), _))), arg)) =>
+      map o Join() $ arg
   })
 
   // todo reduce on layer of maps and use map fission before applying this rule
