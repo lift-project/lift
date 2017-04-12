@@ -106,10 +106,6 @@ class FunctionCounts (
             val n = Type.getLength(args(1).t)
             count(reduce.f, n)
 
-          case slideseqplus: SlideSeqPlus =>
-            val n = Type.getLength(args(1).t)
-            count(slideseqplus.f, n)
-
           case Iterate(n, nestedLambda) =>
             count(nestedLambda, n)
 
