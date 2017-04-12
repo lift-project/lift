@@ -85,7 +85,8 @@ class TestSlideSeqPlus
 
   }
 
-  @Ignore // currently fails
+  // TODO Figure out why this fails ...
+  @Ignore
   @Test
   def reduceSlide1DTestSize5Step5(): Unit = {
 
@@ -116,16 +117,14 @@ class TestSlideSeqPlus
 
   }
 
-  // TODO - size < 20 - does not seem to work
-
   @Test
-  def reduceSlide1DTestSize3Step2Number10(): Unit = {
+  def reduceSlide1DTestSize3Step2Length10(): Unit = {
 
     val slidesize = 3
     val slidestep = 2
-    val size = 11
+    val size = 10
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
-    val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
+    val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).dropRight(1)
 
     val stencil = fun(
       ArrayType(Float, SizeVar("N")),
@@ -137,15 +136,10 @@ class TestSlideSeqPlus
 
     val (output: Array[Float], _) = Execute(2,2)(stencil, values)
 
-    StencilUtilities.print1DArray(gold)
-    StencilUtilities.print1DArray(output)
-
     assertArrayEquals(gold, output, 0.1f)
 
   }
 
-
-  // TODO - also not sure about other step sizes - at  least don't work with 10!
   // TODO - 2D, etc
 
   @Test
