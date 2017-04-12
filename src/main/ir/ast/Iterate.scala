@@ -60,8 +60,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
              n == Cst(1) |
              // perform a simple (and hopefully quick!) check to see if the
              // input/output types of the nested function match
-             TypeChecker.check(f.body, setType=false) == argType
-           ) {
+                 TypeChecker.check(f.body, setType=false) == argType) {
           // return the type of the body.
           return TypeChecker.check(f.body)
         } else {
@@ -129,7 +128,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
                                 n: ArithExpr,
                                 initialTvValMap: mutable.HashMap[TypeVar, ArithExpr]): (Type,Type) = {
     (inT,ouT) match {
-      case (ArrayTypeWSWC(_,inS,inC), ArrayTypeWSWC(_,outS,outC)) if inS == outS && outS == outC =>
+      case (ArrayTypeWSWC(_,inS,inC), ArrayTypeWSWC(_,outS,outC)) if inS == inC && outS == outC =>
           val inLen = inS
           val outLen = outS
 

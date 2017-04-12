@@ -3,8 +3,10 @@ package opencl.ir
 import ir._
 import ir.ast._
 import lift.arithmetic._
+import opencl.executor.{Execute, Utils}
 import opencl.generator.TreatWarningsAsErrors
 import opencl.ir.pattern._
+import org.junit.Assume.assumeFalse
 import org.junit.Test
 
 class TestTypeChecker {
@@ -151,4 +153,29 @@ class TestTypeChecker {
 
     TypeChecker(f)
   }
+
+
+  @Test def iterativeSlide(): Unit = {
+
+   /* val innerL = fun(
+      ArrayTypeWSWC(Float, 6),
+      (input) => {
+        Join() o Map(ReduceSeq(add, 0.0f)) o Slide(3,1) $ input
+      })
+    val innerT = TypeChecker(innerL)*/
+
+    val lambda = fun(
+      ArrayTypeWSWC(Float, 6),
+      (input) => {
+        Iterate(2) (Join() o Map(ReduceSeq(add, 0.0f)) o Slide(3,1)) $ input
+      })
+
+    val t = TypeChecker(lambda)
+    t match {
+      case ArrayTypeWSWC(Float, Cst(2), Cst(2)) =>
+      case _ => assert(false, "Expect type: "+ArrayTypeWSWC(Float, Cst(2), Cst(2))+" but found: "+t)
+    }
+
+  }
+
 }

@@ -5,6 +5,8 @@ import arithmetic.TypeVar
 
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
+import scala.runtime
+import scala.runtime.ScalaRunTime
 
 
 
@@ -22,6 +24,7 @@ import scala.collection.{immutable, mutable}
  *
  */
 sealed abstract class Type {
+
   lazy val varList : Seq[Var] = this match {
     case at: ArrayType => at.elemT.varList ++
       (at match {case s:Size => s.size.varList; case _ => Seq() }) ++
@@ -134,6 +137,49 @@ case class ArrayType(elemT: Type) extends Type {
       case _ => false
     }
 
+  // we need to override equals to use Type.isEqual since this will take care of the Size and Capacity traits
+  override def equals(o: Any) : Boolean = {
+    o match {
+      case at: ArrayType => Type.isEqual(this, at)
+      case _ => false
+    }
+  }
+
+  // we need to override hashCode to make sure we check the size and capacity
+  override def hashCode(): Int = {
+    runtime.ScalaRunTime._hashCode(this) +
+      (this match {case s:Size => s.size.hashCode case _ => 0 }) +
+      (this match {case c:Capacity => c.capacity.hashCode case _ => 0 })
+  }
+
+}
+
+
+object ArrayType {
+
+  /*override def apply(elemT: Type) : ArrayType = {
+    new ArrayType(elemT)
+  }*/
+/*
+  def unapply(at : ArrayType): Option[(Type)]  = {
+    Some(at.elemT)
+  }*/
+
+  def checkSizeOrCapacity(s: String, ae: ArithExpr) : Unit = {
+    // TODO: remove the need to check for unknown (but this is used currently in a few places)
+    if (ae != ? & ae.sign != Sign.Positive)
+    // TODO: turn this back into an error (eventually)
+    //throw new TypeException("Length must be provably positive! (len="+len+")")
+      println(s"Warning: $s must be provably positive! (len=$s)")
+
+    if (ae.isEvaluable) {
+      val length = ae.evalDbl
+
+      if (!length.isValidInt || length < 1)
+        throw TypeException(length + " is not a valid "+s+" for an array!")
+    }
+  }
+
 }
 
 
@@ -189,56 +235,7 @@ object ArrayTypeWC {
   }
 }
 
-object ArrayType {
 
-  def checkSizeOrCapacity(s: String, ae: ArithExpr) = {
-    // TODO: remove the need to check for unknown (but this is used currently in a few places)
-    if (ae != ? & ae.sign != Sign.Positive)
-    // TODO: turn this back into an error (eventually)
-    //throw new TypeException("Length must be provably positive! (len="+len+")")
-      println(s"Warning: $s must be provably positive! (len=$s)")
-
-    if (ae.isEvaluable) {
-      val length = ae.evalDbl
-
-      if (!length.isValidInt || length < 1)
-        throw TypeException(length + " is not a valid "+s+" for an array!")
-    }
-  }
-
-
-  /*
-  def apply(elemT: Type, sizeAndCapacity: ArithExpr): ArrayType with Size with Capacity = {
-    checkSizeOrCapacity("sizeAndCapacity", sizeAndCapacity)
-    new ArrayType(elemT) with Size with Capacity {
-      val size: ArithExpr = sizeAndCapacity
-      val capacity: ArithExpr = sizeAndCapacity
-    }
-  }
-
-  def apply(elemT: Type, size: ArithExpr, capacity: ArithExpr): ArrayType with Size with Capacity = {
-    checkSizeOrCapacity("size", size)
-    checkSizeOrCapacity("capacity", capacity)
-    new ArrayType(elemT) with Size with Capacity {
-      val size: ArithExpr = size
-      val capacity: ArithExpr = capacity
-    }
-  }
-
-  def withSize(elemT: Type, size: ArithExpr) : ArrayType with Size = {
-    checkSizeOrCapacity("size", size)
-    new ArrayType(elemT) with Size {
-      val size: ArithExpr = size
-    }
-  }
-
-  def withCapacity(elemT: Type, capacity: ArithExpr) : ArrayType with Capacity = {
-    checkSizeOrCapacity("capacity", capacity)
-    new ArrayType(elemT) with Capacity {
-      val capacity: ArithExpr = capacity
-    }
-  }*/
-}
 
 
 // todo make sure we can distinguish between different unkownlengtharraytype (override hashCode and equals)
@@ -675,8 +672,8 @@ object Type {
 
   private def isEqual(l: ArrayType, r: ArrayType): Boolean = {
     isEqual(l.elemT, r.elemT) &&
-      ((l,r) match { case (s1:Size, s2:Size) => s1 == s2 case _ => true}) &&
-      ((l,r) match { case (c1:Capacity, c2:Capacity) => c1 == c2 case _ => true})
+      ((l,r) match { case (s1:Size, s2:Size) => s1.size == s2.size case _ => true}) &&
+      ((l,r) match { case (c1:Capacity, c2:Capacity) => c1.capacity == c2.capacity case _ => true})
   }
 
 

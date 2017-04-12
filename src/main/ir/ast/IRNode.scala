@@ -33,7 +33,7 @@ object IRNode {
            Split(_) | Join() | Zip(_) | Tuple(_) | Filter() |
            Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) | Pad(_,_,_) | Value(_) => nPre // nothing to visit here
 
-      case p: Param => nPre // nothing to visit here
+      case _: Param | _:ArrayAccess => nPre // nothing to visit here
 
       case fp : FPattern => fp.copy(visit(fp.f,pre,post).asInstanceOf[Lambda])
     }
@@ -67,7 +67,7 @@ object IRNode {
            Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) |
            Pad(_,_,_) | Value(_) | UnsafeArrayAccess(_) =>  // nothing to visit here
 
-      case p: Param =>  // nothing to visit here
+      case _: Param | _:ArrayAccess =>  // nothing to visit here
 
       case fp : FPattern => visit(fp.f,pre,post)
     }
@@ -110,6 +110,7 @@ object IRNode {
 
       case p: Pad => // TODO: figure out how to find ArithExpr in the boundary function function
 
+      case ArrayAccess(idx) => f(idx)
 
       case x@(MapGlb(_, _) | MapLcl(_, _) | MapWarp(_) | MapLane(_) | MapSeq(_) | MapWrg(_,_) | Map(_) |
               ReduceSeq(_) | BSearch(_) | LSearch(_) | FunCall(_, _) | Lambda(_, _) |
@@ -140,22 +141,24 @@ object IRNode {
 
       case i: Iterate => new Iterate(f(i.n), i.f)
 
-      case vec: VectorizeUserFun => new VectorizeUserFun(f(vec.n), vec.userFun)
+      case vec: VectorizeUserFun => VectorizeUserFun(f(vec.n), vec.userFun)
 
       case u: OpenCLBuiltInFun => new OpenCLBuiltInFun(u.name, u.inTs.map(Type.visitAndRebuild(_, f)), Type.visitAndRebuild(u.outT, f))
       case u: UserFun => new UserFun(u.name, u.paramNames, u.body, u.inTs.map(Type.visitAndRebuild(_, f)), Type.visitAndRebuild(u.outT, f))
 
-      case a: asVector => new asVector(f(a.n))
-      case a: asScalar => new asScalar()
+      case a: asVector => asVector(f(a.n))
+      case a: asScalar => asScalar()
 
-      case s: Split => new Split(f(s.chunkSize))
+      case s: Split => Split(f(s.chunkSize))
 
-      case s: Scatter => new Scatter(new IndexFunction((ae: ArithExpr, t: Type) => f(s.idx.f.apply(ae, t))))
-      case g: Gather => new Gather(new IndexFunction((ae: ArithExpr, t: Type) => f(g.idx.f.apply(ae, t))))
+      case s: Scatter => Scatter(new IndexFunction((ae: ArithExpr, t: Type) => f(s.idx.f.apply(ae, t))))
+      case g: Gather => Gather(new IndexFunction((ae: ArithExpr, t: Type) => f(g.idx.f.apply(ae, t))))
 
       case p: Pad => new Pad(p.left, p.right,  new BoundaryFun {
         def apply(ae1: ArithExpr, ae2: ArithExpr) = f(p.boundary.apply(ae1, ae2))
       })
+
+      case ArrayAccess(idx) => ArrayAccess(f(idx))
 
 
       case x@(MapGlb(_, _) | MapLcl(_, _) | MapWarp(_) | MapLane(_) | MapSeq(_) | MapWrg(_,_) | Map(_) |
