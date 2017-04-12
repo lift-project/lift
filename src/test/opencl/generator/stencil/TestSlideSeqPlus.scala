@@ -150,7 +150,6 @@ class TestSlideSeqPlus
     )
 
     val source = Compile(orgStencil)
-
     val (output: Array[Float], _) = Execute(2,2)(source, orgStencil, values, weights)
 
     assertArrayEquals(gold, output, 0.1f)
@@ -171,7 +170,7 @@ class TestSlideSeqPlus
     val gold = neighbours.map(x => x.map(y => y.flatten.reduceLeft(_ + _))).flatten
 
 
-    val stencil = fun(
+    val orgStencil = fun(
       ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       (mat) => {
         MapGlb(1)(
@@ -182,7 +181,18 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ mat
       })
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values)
+    val stencil2D = fun(
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      (mat) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeq(add, 0.0f) o Join() $ neighbours
+          }))
+        ) o Slide2D(3,1) $ mat
+      })
+
+    val (output: Array[Float], _) = Execute(2,2)(stencil2D, values)
 
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,size-2)

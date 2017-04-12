@@ -40,3 +40,7 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
 object SlideSeqPlus {
   def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))(x))
 }
+
+object SlideSeqPlus2D {
+  def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))(x))
+}
