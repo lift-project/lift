@@ -128,15 +128,17 @@ class TestSlideSeqPlus
   @Test
   def reduceSlide1DTestWithWeights(): Unit = {
 
+    val slidesize = 5
+    val slidestep = 3
     val size = 8
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val weights = Array( 0.5f, 1.0f, 0.5f )
     val gold = Array( 4.0f,6.0f,8.0f,10.0f,12.0f,14.0f ) //values.sliding(3,1).toArray.map(x => x.reduceLeft(0.5f*_ + 0.5f*_))
 
-    def stencil(a: Int ,b :Int) = fun(
+    val stencil = fun(
       ArrayType(Float, SizeVar("N")),
       (input) =>
-        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), a,b) $ input
+        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), slidesize, slidestep) $ input
     )
 
 /*    val stencilAttempt = fun(
