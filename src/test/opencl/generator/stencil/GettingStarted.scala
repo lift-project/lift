@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import rewriting.{Rewrite, Rules}
+import rewriting.{MacroRules, Rewrite, Rules}
 
 object GettingStarted {
    @BeforeClass def before(): Unit = {
@@ -217,7 +217,7 @@ class GettingStarted {
     */
   @Test def applyRewritesInLift = {
     val slideTiling = Rewrite.applyRuleAtId(simpleStencil, 1, Rules.slideTiling)
-    val promotedMap = Rewrite.applyRuleAtId(slideTiling, 0, Rules.mapJoin)
+    val promotedMap = Rewrite.applyRuleAtId(slideTiling, 0, MacroRules.movingJoin)
     val fusedMaps = Rewrite.applyRuleAtId(promotedMap, 1, Rules.mapFusion)
 
     // print Lifts internal representation of a λ-function

@@ -498,8 +498,8 @@ class TestRules {
       input => Map(id) o Join() $ input
     )
 
-    assertTrue(Rules.mapJoin.rewrite.isDefinedAt(f.body))
-    val result = Rules.mapJoin.rewrite(f.body)
+    assertTrue(MacroRules.movingJoin.rewrite.isDefinedAt(f.body))
+    val result = MacroRules.movingJoin.rewrite(f.body)
     TypeChecker.check(result)
   }
 

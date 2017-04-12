@@ -48,16 +48,7 @@ object Rules {
       Join() o Map(Slide(n, s)) o Slide(step + overlap, step) $ arg
   })
 
-  // todo possibly duplicate: see rewriting/MacroRules.scala:277
-  /* Map-join rule */
-
-  val mapJoin = Rule("Map(f) o Join() => Join() o Map(Map(f))", {
-    case FunCall(Map(f), FunCall(Join(), arg)) =>
-      Join() o Map(Map(f)) $ arg
-  })
-
   /* Split-join rule */
-
   val splitJoin: Rule = splitJoin(?)
 
   def splitJoin(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
