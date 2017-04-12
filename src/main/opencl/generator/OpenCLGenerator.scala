@@ -661,9 +661,6 @@ class OpenCLGenerator extends Generator {
                                        call: FunCall,
                                        block: Block): Unit = {
     (block: Block) += OpenCLAST.Comment("slideSeq_plus")
-    if(sp.size.eval <= sp.step.eval)
-      generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
-    else
 //      generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
       generateLoopMinMemoryAccess(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end slideSeq_plus")
@@ -1048,7 +1045,10 @@ class OpenCLGenerator extends Generator {
 
     val v = Value(0.0f, ArrayType(Float, size.eval))
     varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
-    (block: Block) += OpenCLAST.VarDecl(sSP.windowVar, v.t,
+    if(sSP.size.eval <= sSP.step.eval)
+      return generateForLoop(block, sSP.loopVar, generate(sSP.f.body, _), sSP.shouldUnroll)
+    else
+      (block: Block) += OpenCLAST.VarDecl(sSP.windowVar, v.t,
       init = null,PrivateMemory,size.eval)
 /*
     val twin = Var("twindow")
