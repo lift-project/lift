@@ -1041,7 +1041,7 @@ class OpenCLGenerator extends Generator {
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
     val reuse = size - step
-    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(stop - reuse), CondExpression.Operator.<)
+    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(/*stop - reuse*/stop/step.eval), CondExpression.Operator.<)
 
     val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
                                                                     // cut down to window size
@@ -1059,7 +1059,8 @@ class OpenCLGenerator extends Generator {
     inputMem.variable = sSP.windowVar; //twin
   */
 
-    for(i <- 0 to reuse.eval) {
+
+    for(i <- 0 to reuse.eval-1) {
       (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = null, ArithExpression(Cst(i))), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
     }
 
@@ -1138,17 +1139,19 @@ class OpenCLGenerator extends Generator {
     }
 
 
-
-    val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
+    val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar+1/* + step.eval*/))
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
 
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = null,ArithExpression(reuse)),ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar+reuse)))
+    // this needs to be a loop!
+    for(i <- reuse.eval to size.eval-1) {
+      innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = null, ArithExpression(i)), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i)))
+    }
 
     generateBody(innerBlock)
 
     for(i <- 1 to reuse.eval) {
-        innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = null,ArithExpression(i-1)),VarRef(sSP.windowVar,suffix = null,ArithExpression(i)))
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = null,ArithExpression(i-1)),VarRef(sSP.windowVar,suffix = null,ArithExpression(size.eval-reuse-1+i)))
     }
 
   }

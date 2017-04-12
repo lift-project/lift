@@ -30,14 +30,13 @@ class TestSlideSeqPlus
 {
 
   @Test
-  def reduceSlide1DTest(): Unit = {
+  def reduceSlide1DTestSize3Step1(): Unit = {
 
     val slidesize = 3
-    val slidestep = 2
-    val size = 20
+    val slidestep = 1
+    val size = 30
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
-
 
     val stencil = fun(
       ArrayType(Float, SizeVar("N")),
@@ -56,6 +55,35 @@ class TestSlideSeqPlus
 
   }
 
+  @Test
+  def reduceSlide1DTestSize5Step3(): Unit = {
+
+    val slidesize = 5
+    val slidestep = 3
+    val size = 20
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
+
+
+    val stencil = fun(
+      ArrayType(Float, SizeVar("N")),
+      (input) =>
+        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), slidesize,slidestep) $ input
+    )
+
+    println(Compile(stencil))
+
+    val (output: Array[Float], _) = Execute(2,2)(stencil, values)
+
+    StencilUtilities.print1DArray(values)
+    StencilUtilities.print2DArray(values.sliding(slidesize,slidestep).toArray)
+
+    StencilUtilities.print1DArray(gold)
+    StencilUtilities.print1DArray(output)
+
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
 
   @Test
   def iterativeSlide(): Unit = {
