@@ -147,7 +147,8 @@ The views are used to determine the locations in arrays where user functions in
 any expression read from and write to.
 
 Add support for your pattern in ``InputView.buildViewFunCall`` and
-``OutputView.buildViewFunCall``.
+``OutputView.buildViewFunCall``. This means "explaining" how your pattern
+modifies the reading/writing locations of nested functions.
 
 
 Some Plumbing
