@@ -144,11 +144,13 @@ class TestTypeChecker {
   def issue5(): Unit = {
     TreatWarningsAsErrors(true)
 
+    val add = UserFun("add", Array("x", "y"), "{ return x + y; }", Seq(Float, Float), Float)
+
     val f = fun(
       Float,
       ArrayTypeWSWC(Float, SizeVar("N")),
       ArrayTypeWSWC(Float, SizeVar("N")),
-      (a,xs,ys) => /*MapGlb(/*...*/) $*/ Zip(xs, ys)
+      (a,xs,ys) => MapSeq(fun(Float, (x) => MapSeq(fun(Float, (y) => add(x,y))) $ ys )) $ xs
     )
 
     TypeChecker(f)

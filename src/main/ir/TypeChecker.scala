@@ -56,11 +56,14 @@ object TypeChecker {
   def checkForSuspiciousTypeVariableDeclarations(lambda: Lambda): Unit = {
 
     // collect all the variables
-    val vars = new collection.mutable.MutableList[Var]()
+    val vars = lambda.params.flatMap(p => Type.getLengths(p.t)).collect { case v: Var => v }
+
+
+    /*val vars = new collection.mutable.MutableList[Var]()
     IRNode.visitArithExpr(lambda, (ae: ArithExpr) => ArithExpr.visit(ae, {
       case v: Var => vars += v
       case _ =>
-    }))
+    }))*/
 
     //val vars2 = lambda.params.flatMap(p => Type.getLengths(p.t)).collect { case v: Var => v }
 

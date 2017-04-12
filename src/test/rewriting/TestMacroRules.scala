@@ -134,8 +134,8 @@ class TestMacroRules {
     val v_M_0 = SizeVar("M")
     val v_K_1 = SizeVar("K")
     val v_N_2 = SizeVar("N")
-    val v__3 = SizeVar("")
-    val v__4 = SizeVar("")
+    val v__3 = SizeVar("v3")
+    val v__4 = SizeVar("v4")
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1),

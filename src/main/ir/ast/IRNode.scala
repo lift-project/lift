@@ -3,7 +3,6 @@ package ir.ast
 import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
-import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern.{LSearch, _}
 
@@ -22,9 +21,9 @@ object IRNode {
     val nPre = pre(n)
     val newNode = nPre match {
 
-      case fc: FunCall => new FunCall(visit(fc.f,pre,post).asInstanceOf[FunDecl],fc.args.map(visit(_,pre,post).asInstanceOf[Expr]):_*)
+      case fc: FunCall => FunCall(visit(fc.f,pre,post).asInstanceOf[FunDecl],fc.args.map(visit(_,pre,post).asInstanceOf[Expr]):_*)
 
-      case vec: VectorizeUserFun => new VectorizeUserFun(vec.n, visit(vec.userFun,pre,post).asInstanceOf[UserFun])
+      case vec: VectorizeUserFun => VectorizeUserFun(vec.n, visit(vec.userFun,pre,post).asInstanceOf[UserFun])
       case u : UserFun => u
 
       case l: Lambda => Lambda(l.params.map(visit(_,pre,post).asInstanceOf[Param]),visit(l.body,pre,post).asInstanceOf[Expr])
@@ -65,9 +64,9 @@ object IRNode {
       case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
            Split(_) | Join() | Zip(_) | Tuple(_) | Filter() |
            Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) |
-           Pad(_,_,_) | Value(_) | UnsafeArrayAccess(_) =>  // nothing to visit here
+           Pad(_,_,_) | Value(_) | UnsafeArrayAccess(_) | Id() =>  // nothing to visit here
 
-      case _: Param | _:ArrayAccess =>  // nothing to visit here
+      case _: Param | _:ArrayAccess | _: ArrayConstructors =>  // nothing to visit here
 
       case fp : FPattern => visit(fp.f,pre,post)
     }
@@ -83,6 +82,7 @@ object IRNode {
         e match {
           case vp: VectorParam => f(vp.n)
           case _: Param | _:FunCall =>
+          case _: ArrayConstructors =>
         }
 
       case m: MapAtomWrg => f(m.workVar)
@@ -113,9 +113,9 @@ object IRNode {
       case ArrayAccess(idx) => f(idx)
 
       case x@(MapGlb(_, _) | MapLcl(_, _) | MapWarp(_) | MapLane(_) | MapSeq(_) | MapWrg(_,_) | Map(_) |
-              ReduceSeq(_) | BSearch(_) | LSearch(_) | FunCall(_, _) | Lambda(_, _) |
+              Reduce(_) | PartRed(_) | ReduceSeq(_) | ReduceWhileSeq(_,_) | BSearch(_) | LSearch(_) | FunCall(_, _) | Lambda(_, _) |
               Unzip() | Transpose() | TransposeW() | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
-              Head() | Tail() | Get(_) | toGlobal(_) | toLocal(_) | toPrivate(_)) =>
+              Head() | Tail() | Get(_) | toGlobal(_) | toLocal(_) | toPrivate(_) | Id() | UnsafeArrayAccess(_) ) =>
 
     })
   }
@@ -162,7 +162,7 @@ object IRNode {
 
 
       case x@(MapGlb(_, _) | MapLcl(_, _) | MapWarp(_) | MapLane(_) | MapSeq(_) | MapWrg(_,_) | Map(_) |
-              ReduceSeq(_) | BSearch(_) | LSearch(_) | FunCall(_, _) | Lambda(_, _) |
+              ReduceSeq(_) | PartRed(_) | BSearch(_) | LSearch(_) | FunCall(_, _) | Lambda(_, _) |
               Unzip() | Transpose() | TransposeW() | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
               Head() | Tail() | Get(_) | toGlobal(_) | toLocal(_) | toPrivate(_)) => x
 
