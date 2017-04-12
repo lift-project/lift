@@ -184,7 +184,7 @@ class GettingStarted {
   def lhs_slideTiling = Slide(n,s)
   def rhs_slideTiling = Join() o Map(Slide(n,s)) o Slide(u,v)
 
-  /** another rule: mapPromotion */
+  /** another rule: movinJoin */
   def lhs_mapPromotion = Map(f) o Join()
   def rhs_mapPromotion = Join() o Map(Map(f))
 
@@ -201,7 +201,7 @@ class GettingStarted {
         Pad(1,1,clamp)
   $ A)
 
-  def rewrite1 = Map(Reduce(add, 0.0f)) o  // <- promote this Map
+  def rewrite1 = Map(Reduce(add, 0.0f)) o  // <- move Map over Join
     Join() o Map(Slide(3,1)) o Slide(u,v) o
       Pad(1,1,clamp)
 
