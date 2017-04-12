@@ -541,6 +541,7 @@ object Type {
       case vt: VectorType => vt.len
       case _: TupleType  => Cst(1) // TODO: is this correct??
       case ArrayTypeWS(_,s) => s
+      case _:ArrayType => ? // TODO: when used from the view or codegen, we may need to return a bit of AST node. Currently, if the Size is not in the type, the length will be unknown
       case _ => throw new IllegalArgumentException(t.toString)
     }
   }
