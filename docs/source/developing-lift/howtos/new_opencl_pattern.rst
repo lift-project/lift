@@ -1,21 +1,29 @@
 … add a new OpenCL pattern
 --------------------------
 
-Define an AST node
+Define an AST Node
 ^^^^^^^^^^^^^^^^^^
 
 Each pattern is a case class extending ``ir.ast.Pattern``. It has to be
-defined into the ``opencl.ir.pattern`` package. Take a look at the
-``FPattern`` and ``isGenerable`` traits because you may want to extend
+defined in the ``opencl.ir.pattern`` package. Take a look at the
+``FPattern`` and ``isGenerable`` traits because you may want to implement
 them.
 
-The first thing you have to do then is to override the ``checkType``
+When extending ``Pattern`` you should also provide the number of arguments your pattern
+expects.
+
+The ``FPattern`` trait is used when pattern matching to catch all patterns that contain
+a ``Lambda`` inside them.
+
+After defining you pattern, the first thing you have to do is override the ``checkType``
 method which:
 
-1. Checks the type of your pattern's arguments, nested functions, etc.
-2. Returns the type of your pattern's output.
+1. Checks that type of your pattern's arguments match its expectations.
+2. Checks the types of any nested functions based on the pattern's input type.
+3. Returns the type of your pattern's output,
+   determined by the types its inputs or the nested functions.
 
-Basically, the ``MapSeq`` pattern could be implemented like that:
+The ``MapSeq`` pattern can be implemented like this:
 
 .. code:: scala
 
@@ -41,54 +49,59 @@ Basically, the ``MapSeq`` pattern could be implemented like that:
     }
 
 
-Visiting your pattern
-^^^^^^^^^^^^^^^^^^^^^
+Visiting the Pattern
+^^^^^^^^^^^^^^^^^^^^
 
-Some operations need to "visit" a whole expression (which may contain
+Some operations need to "visit" all nodes of an expression (which may contain
 your pattern). You should take a look at the ``visit*`` and ``replace``
-methods in ``Expr.scala`` to ensure you pattern is visited correctly.
+methods in ``ir/ast/Expr.scala`` to ensure you pattern is visited correctly.
 
-Note: if you extend ``FPattern``, it may work out of the box. See how
-``ReduceWhileSeq`` is handled as a typical example where you have to do
+Note: if you implement ``FPattern``, it may work out of the box. See how
+``ReduceWhileSeq`` is handled as a typical example if you have to do
 extra work.
 
 
-The code generation
-^^^^^^^^^^^^^^^^^^^
+Code Generation
+^^^^^^^^^^^^^^^
 
 Then you have to implement the code generation for your pattern. Look at
-the public version of ``OpenCLGenerator.generate`` in the package
-``opencl.generator``, it takes a type-checked lambda (e.g. an instance
-of your pattern) and returns OpenCL code.
+the ``OpenCLGenerator.generate`` method in the ``opencl.generator`` package.
+It takes a type-checked lambda (e.g. an expression that can contain an instance
+of your pattern) and returns a string (the OpenCL code).
 
 Here are the different steps of this process.
 
 
-OpenCL address space
-""""""""""""""""""""
+OpenCL Address Spaces
+"""""""""""""""""""""
 
-OpenCL has different address spaces, you need to specify where to store
-what for your pattern. If you extend ``FPattern``, it might work out of
-the box without changing anything… But you should take a look at
-``InferOpenCLAddressSpace.setAddressSpaceFunCall``, see how the other
-patterns are handled and probably add a case for your pattern.
+OpenCL has a hierarchy of different address spaces: global memory, local memory and private memory.
+You need to specify where to store the output of your pattern.
+If you extend ``FPattern``, it might work out of the box without changing anything.
+But you should take a look at ``InferOpenCLAddressSpace.setAddressSpaceFunCall``,
+see how the other patterns are handled and probably add a case for your pattern.
 
 
-Ranges and counts
+Ranges and Counts
 """""""""""""""""
 
-If your pattern contains in its definition a "loop variable" - basically
-the index used to traverse an array - you should add a case in
-``RangesAndCounts``'s apply method. See how ``MapSeq`` is handled for
-example.
+If your pattern generates a for loop in the OpenCL code, it should contain a
+"loop variable" in its definition. The loop variable determines where the pattern
+accesses its input array in every iteration of the generated loop.
+
+Should your pattern contain a "loop variable", you should add a case in the
+``RangesAndCounts.apply`` method. See how ``MapSeq`` is handled for example.
 
 
-Memory allocation
+Memory Allocation
 """""""""""""""""
 
 You have to allocate memory for your pattern:
 
-1. The eventual nested functions it contains
+**TODO** Only user functions allocate memory. You have to tell the nested user functions
+how much memory they will need if they are nested in your pattern.
+
+1. The nested functions it contains
 2. It's output
 
 It is done in ``OpenCLMemoryAllocator.alloc``. More specifically, you
@@ -97,48 +110,58 @@ have to add a case in ``allocFunCall``.
 **TODO**: I don't understand, what's happening with the input? What is
 ``inMem``?
 
+**TODO** ``inMem`` is the memory, OpenCL buffer(s), that the first user function in the
+pattern will read from.
+
 Also, some other classes are called during this process. You may need to
 edit ``OpenCLMemory.scala`` as well.
 
 
-Optimizations
+Optimisations
 """""""""""""
 
-``ShouldUnroll`` and ``BarrierElimination`` are optimizations you might
+``ShouldUnroll`` and ``BarrierElimination`` are optimisations you might
 be able to perform at some point. Don't look at that in the first place.
 
+**TODO** ``ShouldUnroll`` isn't really an optimisation at this point.
+We have to unroll loops when we use private memory as we flatten all private memory
+arrays into variables and can't therefore index into them using variables.
+We represent the private arrays as variables to try and force the compiler to store the
+arrays in registers instead of spilling into global memory.
+That means instead of a definition ``int a[2];`` we have ``int a_0; int a_2;`` and for
+reading/writing ``a[i]`` when ``i`` is ``1`` we need to emit ``a_1`` instead.
 
-Debugging stuff
-"""""""""""""""
+Debugging
+"""""""""
 
 The ``if (Verbose()) { ... }`` part of the ``generate`` function prints
-some helpful information that are displayed if you set the
+some helpful information, like types, that is displayed if you set the
 ``LIFT_VERBOSE`` environment variable. It will work out of the box if
 you have correctly extended ``Expr``'s methods (see "Visiting your
 pattern above)
 
-The views
+The Views
 """""""""
 
-The views are an abstraction used to represent the input and the output
-of any expression. **TODO:** is that right?
+The views are used to determine the locations in arrays where user functions in
+any expression read from and write to.
 
 Add support for your pattern in ``InputView.buildViewFunCall`` and
-``OutputView.buildViewFunCall``
+``OutputView.buildViewFunCall``.
 
 
-Some plumbing
+Some Plumbing
 """""""""""""
 
 The definition of tuple types and user functions should work out of the
 box.
 
 
-Actually generate the kernel
-""""""""""""""""""""""""""""
+Generating the Kernel
+"""""""""""""""""""""
 
-Once all of the above passes have been performed, your are able to
-generate ``OpenCLAST`` nodes. This is done in by ``generateKernel`` but
+Once all of the above passes have been implemented, you are able to
+generate ``OpenCLAST`` nodes. This is done in ``generateKernel`` but
 you probably do not have to edit this function and should directly look
 at the private ``generate`` method of ``OpenCLGenerator``. Add a case
 for your pattern.
@@ -148,11 +171,11 @@ It is probably a good idea to take a look at the classes defined in
 ``generateForLoop`` defined at the end of ``OpenCLGenerator.scala``.
 
 
-Finally test it
----------------
+Testing
+-------
 
 You have to check that your pattern works as expected. For that add a
-test class under the test folder in the ``opencl.generator`` package
+test class in the test folder in the ``opencl.generator`` package
 with some tests.
 
 For example, for ``MapSeq``, you could have:
@@ -165,7 +188,7 @@ For example, for ``MapSeq``, you could have:
         println("Initialize the executor")
         Executor.init()
       }
-      
+
       @AfterClass def after(): Unit = {
         println("Shutdown the executor")
         Executor.shutdown()
@@ -195,10 +218,10 @@ For example, for ``MapSeq``, you could have:
 Useful tips
 -----------
 
--  Use the debugger to compare what your have on your pattern and on an
+-  Use the debugger to compare what you have in your pattern and in an
    already existing one at different points in the compilation process.
--  Look at the generated OpenCL code. In that purpose, enable the
-   verbose output for the executor by setting the ``LIFT_VERBOSE``
+-  Look at the generated OpenCL code. To see it, enable the
+   verbose output by setting the ``LIFT_VERBOSE``
    environment variable to ``1``.
 -  Try to have something that compiles as soon as possible even if works
    only in some specific situations. It is easier to start from a
