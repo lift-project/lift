@@ -1028,7 +1028,13 @@ class OpenCLGenerator extends Generator {
       case ra: RangeAdd => ra.stop
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
-    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(stop), CondExpression.Operator.<)
+    val cond = CondExpression(
+      ArithExpression(indexVar),
+      ArithExpression(stop),
+      if (step.sign == Sign.Positive)
+        CondExpression.Operator.<
+      else CondExpression.Operator.>
+    )
 
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
