@@ -128,32 +128,30 @@ class TestSlideSeqPlus
   @Test
   def reduceSlide1DTestWithWeights(): Unit = {
 
-    val slidesize = 5
-    val slidestep = 3
+    val slidesize = 3
+    val slidestep = 1
     val size = 8
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val weights = Array( 0.5f, 1.0f, 0.5f )
     val gold = Array( 4.0f,6.0f,8.0f,10.0f,12.0f,14.0f ) //values.sliding(3,1).toArray.map(x => x.reduceLeft(0.5f*_ + 0.5f*_))
 
-    val stencil = fun(
-      ArrayType(Float, SizeVar("N")),
-      (input) =>
-        SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), slidesize, slidestep) $ input
-    )
-
-/*    val stencilAttempt = fun(
+    val orgStencil = fun(
       ArrayType(Float, SizeVar("N")),
       ArrayType(Float, 3),
       (input,wgts) => {
-          SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(add, 0.0f) o MapSeqUnroll(mult) $ Zip(wgts, neighbourhood)
-          )}  $ input
-    )*/
+        SlideSeqPlus(
+          fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o
+            ReduceSeqUnroll(add, 0.0f) o
+            MapSeqUnroll(mult) $
+            Zip(wgts, neighbourhood)
+          }), slidesize, slidestep)
+        }  $ input
+    )
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values, weights)
+    val source = Compile(orgStencil)
 
-    StencilUtilities.print1DArray(values)
-    StencilUtilities.print1DArray(output)
-    StencilUtilities.print1DArray(gold)
+    val (output: Array[Float], _) = Execute(2,2)(source, orgStencil, values, weights)
 
     assertArrayEquals(gold, output, 0.1f)
 
