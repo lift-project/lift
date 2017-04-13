@@ -1,15 +1,12 @@
 package openmp.executor
 
-import lift.arithmetic.{?, SizeVar}
-import c.generator.CAst.{ForLoop, ParamDecl}
+import lift.arithmetic.?
+import c.generator.CAst.ParamDecl
 import c.generator.{CAst, CGenerator}
 import ir.{ArrayType, TupleType, Type, TypeChecker}
-import ir.ast.{Lambda, Param, Transpose, UserFun, Zip, fun}
-import opencl.generator.OpenCLGenerator
+import ir.ast.{Lambda, Param}
+import opencl.generator.NDRange
 import opencl.ir._
-import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
-import openmp.generator.OMPGenerator
-import openmp.ir.pattern.{:+, ReduceOMP}
 
 
 /**
@@ -31,7 +28,7 @@ object Harness {
   def generate(gen:CGenerator, kernel: Lambda, opt:GenerationOption = defaultOpt):String = {
     this.counter = 0
     TypeChecker.check(kernel.body)
-    val kernelSource = gen.generate(kernel,Array(?,?,?),Array(?,?,?), Map())
+    val kernelSource = gen.generate(kernel,NDRange(?,?,?),NDRange(?,?,?), Map())
     println(kernelSource)
     //This function is the actual C function, rather then lift function. We need it because the
     //parameters of this function who are not in the kernel proper need to be allocated nevertheless.

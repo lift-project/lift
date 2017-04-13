@@ -271,7 +271,7 @@ class OpenCLPrinter {
   private def print(a: RequiredWorkGroupSize): Unit = {
     val localSize = a.localSize
     sb ++=
-      s"__attribute((reqd_work_group_size(${localSize.map(_.eval).mkString(", ")})))\n"
+      s"__attribute((reqd_work_group_size($localSize)))\n"
   }
 
   private def print(f: Function): Unit = {
