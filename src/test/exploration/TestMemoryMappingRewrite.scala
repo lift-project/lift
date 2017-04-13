@@ -88,6 +88,17 @@ class TestMemoryMappingRewrite {
   }
 
   @Test
+  def unrolledReduce(): Unit = {
+    val highLevel = fun(ArrayType(Float, N),(p_0) => FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Reduce(fun((p_2, p_3) => FunCall(add, p_2, p_3))), Value("0.0f", Float), p_1))), FunCall(Slide(3,1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0)))))
+    val gold = fun(ArrayType(Float, N),(p_0) => FunCall(Join(), FunCall(MapGlb(0)(fun((p_1) => FunCall(toGlobal(fun((p_2) => FunCall(MapSeq(fun((p_3) => FunCall(idfloat, p_3))), p_2))), FunCall(MapSeq(fun((p_4) => p_4)), FunCall(ReduceSeqUnroll(fun((p_5, p_6) => FunCall(fun((p_7) => FunCall(fun((p_8) => FunCall(add, p_5, p_8)), p_7)), p_6))), FunCall(idfloat, Value("0.0f", Float)), p_1))))), FunCall(Slide(3,1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0)))))
+    val goldHash = getHash(gold)
+
+    val mapped = MemoryMappingRewrite.lowerLambda(highLevel, enabledMappings, true)
+    println(mapped)
+    assertTrue(mapped.exists(getHash(_) == goldHash))
+  }
+
+  @Test
   def kmeans(): Unit = {
 
     val v_P_0 = SizeVar("P")

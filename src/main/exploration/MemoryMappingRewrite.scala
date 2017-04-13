@@ -119,7 +119,7 @@ object MemoryMappingRewrite {
         try {
 
           val lambda = ParameterRewrite.readLambdaFromFile(filename)
-          val lowered = lowerLambda(lambda, enabledMappings, topFolder)
+          val lowered = lowerLambda(lambda, enabledMappings, unrollReduce.value.isDefined, topFolder)
 
           lowered.foreach(dumpToFile(topFolder, hash, _))
 
@@ -136,7 +136,7 @@ object MemoryMappingRewrite {
     }
   }
 
-  def lowerLambda(lambda: Lambda, enabledMappings: EnabledMappings, hash: String = "") = {
+  def lowerLambda(lambda: Lambda, enabledMappings: EnabledMappings, unroll: Boolean = false, hash: String = "") = {
 
     try {
 
@@ -151,7 +151,7 @@ object MemoryMappingRewrite {
         })
       )
 
-      if(unrollReduce.value.isDefined) {
+      if(unroll) {
         val unrolledReduces = loadBalancedExpressions.filter(
           lambda => lambda.body.contains(
             { case FunCall(ReduceSeq(_), _*) => })).map(lambdaWithReduceSeq => {
