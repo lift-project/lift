@@ -2,7 +2,6 @@ package opencl.generator
 
 import lift.arithmetic.{ArithExpr, Predicate, Var}
 import ir.{TupleType, Type, VectorType}
-import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
 
 import scala.language.implicitConversions

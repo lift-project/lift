@@ -3,7 +3,7 @@ package analysis
 import lift.arithmetic._
 import ir._
 import ir.ast._
-import opencl.generator.get_global_size
+import opencl.generator.{NDRange, get_global_size}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal, toPrivate}
 import org.junit.Assert._
@@ -15,9 +15,9 @@ class TestControlFlow {
   val globalSize0 = get_global_size(0)
   val globalSize1 = get_global_size(1)
 
-  val globalsLessThanOne = Array[ArithExpr](2048,1,1)
-  val globalsOne = Array[ArithExpr](1024,1,1)
-  val locals = Array[ArithExpr](32,1,1)
+  val globalsLessThanOne = NDRange(2048,1,1)
+  val globalsOne = NDRange(1024,1,1)
+  val locals = NDRange(32,1,1)
   val valueMap = collection.immutable.Map[ArithExpr, ArithExpr](N -> 1024)
 
   @Test

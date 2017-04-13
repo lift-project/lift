@@ -4,7 +4,7 @@ import lift.arithmetic._
 import ir._
 import ir.ast._
 import opencl.ir._
-import opencl.generator.get_global_size
+import opencl.generator.{NDRange, get_global_size}
 import opencl.ir.pattern._
 import opencl.ir.ast._
 import org.junit.Test
@@ -188,8 +188,8 @@ class TestFunctionCounts {
 
     val f = factory(Seq[ArithExpr](v_M_0, v_K_1, v_N_2,128,4,8, 64 ,8))
 
-    val localSize = Array[ArithExpr](32, 8, 1)
-    val globalSize = Array[ArithExpr](2048 / 4, 2048 / 8, 1)
+    val localSize = NDRange(32, 8, 1)
+    val globalSize = NDRange(2048 / 4, 2048 / 8, 1)
     val valueMap = collection.immutable.Map[ArithExpr, ArithExpr](
       v_M_0 -> 2048, v_N_2 -> 2048, v_K_1 -> 512)
 
