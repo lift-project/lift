@@ -45,6 +45,8 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
               case _ => apply(m.f.body)
             }
 
+          case iss: InsertionSortSeq => setRangeInsertionSort(iss, call)
+
           case r: AbstractPartRed =>
             r match {
               case r : ReduceSeq => setRangeReduceSeq(r, call)
@@ -164,6 +166,17 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
 
   private def setRangeMapSeq(m: MapSeq, call: FunCall): Unit = {
     m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+  }
+  
+  private def setRangeInsertionSort(iss: InsertionSortSeq, call: FunCall): Unit = {
+    iss.loopRead = Var(
+      iss.loopRead.name,
+      ContinuousRange(Cst(0), Type.getLength(call.args.head.t))
+    )
+    iss.loopWrite = Var(
+      iss.loopWrite.name,
+      ContinuousRange(Cst(0), Type.getLength(call.args.head.t))
+    )
   }
 
   private def setRangeReduceSeq(r: AbstractReduce, call: FunCall): Unit = {

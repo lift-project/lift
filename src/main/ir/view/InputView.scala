@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.pattern.ReduceWhileSeq
+import opencl.ir.pattern.{InsertionSortSeq, ReduceWhileSeq}
 
 /**
  * A helper object for constructing views.
@@ -56,6 +56,7 @@ object InputView {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
+      case iss: InsertionSortSeq => buildViewSort(iss, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
       case uz: Unzip => buildViewUnzip(call, argView)
@@ -117,6 +118,25 @@ object InputView {
         View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
       case _ => // call.isAbstract and return input map view
         new ViewMap(innerView, m.loopVar, call.t)
+    }
+  }
+  
+  private def buildViewSort(iss: InsertionSortSeq,
+                            call: FunCall,
+                            argView: View): View = {
+    // Note: the input view for the second argument of the comparison function
+    //       can't be set at this point because it will be an access to the
+    //       output array
+    iss.f.params(0).view = argView.access(iss.loopRead)
+    iss.copyFun.params.head.view = argView.access(iss.loopRead)
+    
+    visitAndBuildViews(iss.f.body)
+    val innerView = visitAndBuildViews(iss.copyFun.body)
+    iss.copyFun.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+      case _ =>
+        ViewMap(innerView, iss.loopRead, call.t)
     }
   }
 

@@ -89,6 +89,8 @@ object OpenCLMemoryAllocator {
         allocMapSeqLcl(call.f.asInstanceOf[AbstractMap],
           call.t, numGlb, numLcl, numPvt, inMem)
 
+      case iss: InsertionSortSeq => allocInsertionSort(iss, numGlb, numLcl, numPvt, inMem)
+
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
@@ -200,6 +202,23 @@ object OpenCLMemoryAllocator {
         1
 
     alloc(am.f.body, numGlb * len, numLcl * len, numPvt * privateMultiplier)
+  }
+  
+  private def allocInsertionSort(iss: InsertionSortSeq,
+                                 numGlb: ArithExpr,
+                                 numLcl: ArithExpr,
+                                 numPvt: ArithExpr,
+                                 inMem: OpenCLMemory): OpenCLMemory = {
+    val len = Type.getLength(iss.f.params.head.t)
+    
+    iss.copyFun.params.head.mem = inMem
+    val outMem = alloc(iss.copyFun.body, numGlb * len, numLcl * len, numPvt)
+    
+    iss.f.params(0).mem = inMem
+    iss.f.params(1).mem = outMem
+    alloc(iss.f.body, numGlb, numLcl, numPvt)
+    
+    outMem
   }
 
   private def allocReduce(r: AbstractPartRed,

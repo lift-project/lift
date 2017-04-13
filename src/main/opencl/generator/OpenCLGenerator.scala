@@ -427,6 +427,8 @@ class OpenCLGenerator extends Generator {
         case m: MapSeq => generateMapSeqCall(m, call, block)
         case _: Map =>
 
+        case iss: InsertionSortSeq => generateInsertSortSeqCall(iss, call, block)
+
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
         case r: ReduceWhileSeq => generateReduceWhileCall(r, call, block)
 
@@ -632,6 +634,100 @@ class OpenCLGenerator extends Generator {
             throw new TypeException(e.t, "Array")
         }
     }
+  }
+  
+  // === Sorting ===
+  private def generateInsertSortSeqCall(iss: InsertionSortSeq,
+                                        call: FunCall,
+                                        block: Block): Unit = {
+    (block: Block) += OpenCLAST.Comment("insertion sort")
+    
+    generateForLoop(
+      block,
+      iss.loopRead,
+      generateInsertion(call, _)
+    )
+    
+    (block: Block) += OpenCLAST.Comment("end insertion sort")
+  }
+  
+  private def generateInsertion(call: FunCall,
+                                block: Block): Unit = {
+    val iss = call.f.asInstanceOf[InsertionSortSeq]
+    (block: Block) += OpenCLAST.VarDecl(
+      iss.loopWrite,Int, ArithExpression(Cst(0))
+    )
+    
+    def shift(block: Block): Unit = {
+      val range = RangeAdd(
+        iss.loopRead,
+        iss.loopWrite,
+        Cst(-1) * Type.getLength(iss.f.params.head.t)
+      )
+      val k = Var("k", range)
+      val load = generateLoadNode(
+        OpenCLMemory.asOpenCLMemory(iss.copyFun.body.mem),
+        iss.copyFun.body.t,
+        iss.writeView.access(k - 1) // FIXME
+      )
+      generateForLoop(
+        block,
+        k,
+        ib => {
+          (ib: Block) += generateStoreNode(
+            OpenCLMemory.asOpenCLMemory(iss.copyFun.body.mem),
+            iss.copyFun.body.t,
+            iss.writeView.access(k),
+            generateFunCall(iss.copyFun.body, List(load)))
+        }
+      )
+      generate(iss.copyFun.body, block)
+      (block: Block) += OpenCLAST.Break()
+    }
+    
+    def mkTrueBlock(block: Block): Unit = {
+      generate(iss.copyFun.body, block)
+      (block: Block) += OpenCLAST.Break()
+    }
+    
+    def mkFalseBlock(block: Block): Unit = {
+      val compare = iss.f.body
+      val j = iss.loopWrite
+      generate(compare, block)
+      generateConditional(
+        block,
+        generateLoadNode(
+          OpenCLMemory.asOpenCLMemory(iss.f.body.mem),
+          compare.t,
+          compare.view
+        ),
+        shift,
+        (_: Block) += AssignmentExpression(
+          ArithExpression(j),
+          ArithExpression(j + j.range.asInstanceOf[RangeAdd].step)
+        )
+      )
+    }
+  
+    // FIXME I'M UGLY
+    val truePredicate: Predicate = Predicate(
+      Cst(0), Cst(0), Predicate.Operator.==
+    )
+    
+    generateWhileLoop(
+      block,
+      truePredicate,
+      ib => generateConditional(
+        ib,
+        OpenCLAST.CondExpression(
+          ArithExpression(iss.loopWrite),
+          ArithExpression(iss.loopRead),
+          OpenCLAST.CondExpression.Operator.==
+        ),
+        mkTrueBlock,
+        mkFalseBlock
+      )
+    )
   }
 
   // === Reduce ===

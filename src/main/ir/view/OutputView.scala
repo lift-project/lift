@@ -3,8 +3,10 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.ReduceWhileSeq
+import opencl.ir.pattern.{InsertionSortSeq, ReduceWhileSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
+
+import scala.tools.nsc.ast.parser.Insertion
 
 /**
  * A helper object for constructing views.
@@ -42,6 +44,7 @@ object OutputView {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
+      case iss: InsertionSortSeq => buildViewSort(iss, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
       case uf: UserFun => buildViewUserFun(writeView,uf, call)
@@ -222,6 +225,25 @@ object OutputView {
     visitAndBuildViews(l.body, writeView)
     // TODO: Not sure about this
     l.params.head.outputView
+  }
+  
+  private def buildViewSort(iss: InsertionSortSeq,
+                            call: FunCall,
+                            writeView: View): View = {
+    // Note: at this point, we can set the input view for the second argument
+    //       of the comparison function as an access to the output array of
+    //       the pattern.
+    iss.f.params(1).view = writeView.access(iss.loopWrite)
+    visitAndBuildViews(iss.f.body, writeView.access(Cst(0)))
+    
+    iss.f.body.outputView = View.initialiseNewView(
+      iss.f.body.t,
+      getAccessDepth(iss.f.body.accessInf, iss.f.body.mem)
+    )
+    visitAndBuildViews(iss.copyFun.body, writeView.access(iss.loopWrite))
+    
+    iss.writeView = writeView
+    ViewMap(iss.copyFun.body.outputView, iss.loopWrite, call.args.head.t)
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {

@@ -4,7 +4,7 @@ import lift.arithmetic.ArithExpr
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 import ir.view.{AccessInfo, NoView, View}
-import opencl.ir.pattern.{ReduceWhileSeq}
+import opencl.ir.pattern.{InsertionSortSeq, ReduceWhileSeq}
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
 import scala.language.implicitConversions
@@ -199,6 +199,12 @@ object Expr {
 
         // do the rest ...
         call.f match {
+          case iss: InsertionSortSeq =>
+            val newResult2 = visitWithState(newResult)(iss.f.body, visitFun)
+            if (iss.copyFun != null)
+              visitWithState(newResult2)(iss.copyFun.body, visitFun)
+            else
+              newResult2
           case rs: ReduceWhileSeq =>
             val newResult2 = visitWithState(newResult)(rs.f.body, visitFun)
             visitWithState(newResult2)(rs.p.body, visitFun)

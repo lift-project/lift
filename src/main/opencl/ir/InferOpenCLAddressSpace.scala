@@ -3,7 +3,7 @@ package opencl.ir
 import ir.ScalarType
 import ir.ast._
 import opencl.generator.IllegalKernel
-import opencl.ir.pattern.{ReduceWhileSeq, toGlobal, toLocal, toPrivate}
+import opencl.ir.pattern._
 
 object InferOpenCLAddressSpace {
 
@@ -61,9 +61,10 @@ object InferOpenCLAddressSpace {
       case toPrivate(_) | toLocal(_) | toGlobal(_) =>
         setAddressSpaceChange(call, addressSpaces)
 
-      case Filter() => addressSpaces(0)
+      case Filter() => addressSpaces.head
       case Get(i) => setAddressSpaceGet(i, addressSpaces.head)
 
+      case iss: InsertionSortSeq => setAddressSpaceSort(iss, writeTo, addressSpaces)
       case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
@@ -86,6 +87,13 @@ object InferOpenCLAddressSpace {
       case collection: AddressSpaceCollection => collection.spaces(i)
       case _ => addressSpace
     }
+  
+  private def setAddressSpaceSort(iss: InsertionSortSeq,
+                             writeTo: OpenCLAddressSpace,
+                             addrSpaces: Seq[OpenCLAddressSpace]) = {
+    setAddressSpaceLambda(iss.f, PrivateMemory, addrSpaces)
+    setAddressSpaceLambda(iss.copyFun, writeTo, addrSpaces)
+  }
 
   private def setAddressSpaceReduce(lambda: Lambda, call: FunCall,
     addressSpaces: Seq[OpenCLAddressSpace]) = {
