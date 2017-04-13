@@ -997,7 +997,7 @@ class OpenCLGenerator extends Generator {
       case _: RuntimeSizedArrayType =>
         throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count could " +
           "not be determined statically.")
-      case _: ArrayType =>
+      case _ =>
     }
 
     try {
@@ -1072,6 +1072,7 @@ class OpenCLGenerator extends Generator {
           case _ =>
             generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
         }
+      case _ => throw new NotImplementedError() // should never get there
     }
   }
 
@@ -1085,6 +1086,8 @@ class OpenCLGenerator extends Generator {
 
       case _: ArrayType =>
         generateDefaultForLoopForArrayType(block, array, indexVar, generateBody)
+
+      case _ => throw new NotImplementedError() // should never get there
     }
   }
 
@@ -1103,6 +1106,7 @@ class OpenCLGenerator extends Generator {
 
     val headerIndex = ViewPrinter.emit(getVarForSize(array.mem), array.view.size()) match {
       case VarRef(_, _, arrayIndex) => arrayIndex
+      case _ => throw new NotImplementedError() // should never get there
     }
     val headerLength: ArithExpr = 1
 

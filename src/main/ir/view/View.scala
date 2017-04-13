@@ -7,6 +7,7 @@ import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
 
 import scala.collection.immutable
 import opencl.generator.{OpenCLAST, OpenCLPrinter}
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /**
  * An arithmetic expression that performs an access to `array[idx]`
@@ -226,8 +227,10 @@ abstract sealed class View(val t: Type = UndefType) {
     this match {
       case z: ViewZip => z.iv match {
         case t: ViewTuple => t.ivs.head.size()
+        case _ => throw new NotImplementedException() // should this be reachable at all?
       }
       case _ if this.t.isInstanceOf[ArrayType] => this.access(0)
+      case _ => throw new NotImplementedException() // should this be reachable at all?
     }
   }
 

@@ -263,6 +263,8 @@ object OpenCLAST {
         visitExpressionsInNode(a.to)
       case c: Cast =>
         visitExpressionsInNode(c.v)
+      case pc : PointerCast =>
+        visitExpressionsInNode(pc.v)
       case c: CondExpression =>
         visitExpressionsInNode(c.lhs)
         visitExpressionsInNode(c.rhs)
