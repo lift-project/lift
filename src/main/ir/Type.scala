@@ -689,7 +689,9 @@ object Type {
    * @return A type similar to `t` but without any vector types
    */
   def devectorize(t: Type): Type = {
-    Type.visitAndRebuild(t, (t) => t, (t) => t match {
+    //Type.visitAndRebuild(t, (t) => t, (t) => t match {
+
+        t match {
         case ArrayType(VectorType(st,len)) => t match {
           case ArrayTypeWSWC(_,s,c) => ArrayTypeWSWC(st, len * s, len * c)
           case ArrayTypeWS(_,s) => ArrayTypeWS(st, len * s)
@@ -697,11 +699,16 @@ object Type {
           case _ => ArrayType(st)
             // TODO: somehow communicate the information that when the size or capacity is not in the type, it is still multiplied by len
         }
-        case vt: VectorType => vt.scalarT
-        case _ => t
-      })
+        case ArrayTypeWSWC(et,s,c) => ArrayTypeWSWC(devectorize(et), s,c)
+        case ArrayTypeWS(et,s) => ArrayTypeWS(devectorize(et), s)
+        case ArrayTypeWC(et,c) => ArrayTypeWC(devectorize(et), c)
+        case ArrayType(et) => ArrayType(devectorize(et))
 
-    // TODO: seems like we just turning the vector type to scalar but not updated the array size/capacity. Is this a mistake?
+        case vt: VectorType => vt.scalarT
+
+        case _ => t
+      }
+  }
 
     /*
     t match {
@@ -710,7 +717,7 @@ object Type {
       case at: ArrayType  => ArrayType(devectorize(at.elemT), at.len)
       case _ => t
     }*/
-  }
+
 }
 
 /**
