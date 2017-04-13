@@ -270,6 +270,7 @@ class TestAddressSpaces {
       ) o Split(4) $ in
     })
 
+    println(Compile(l))
     val (output: Array[Float], _) = Execute(inputData.length)( l, inputData)
 
     assertEquals(0.0f, output.sum, 0.0)

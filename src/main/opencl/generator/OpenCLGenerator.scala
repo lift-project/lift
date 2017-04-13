@@ -1068,7 +1068,7 @@ class OpenCLGenerator extends Generator {
     if (needUnroll) {
 
       val iterationCount = try {
-        indexVar.range.numVals.enforceSimplification.eval
+        size.eval //indexVar.range.numVals.enforceSimplification.eval
       } catch {
         case NotEvaluableException =>
           throw new OpenCLGeneratorException("Trying to unroll loop, " +
