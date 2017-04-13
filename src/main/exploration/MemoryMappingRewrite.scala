@@ -142,7 +142,7 @@ object MemoryMappingRewrite {
 
       val loweredExpressions = Lower.mapCombinations(lambda, enabledMappings)
 
-      loweredExpressions.flatMap(
+      val loadBalancedExpressions = loweredExpressions.flatMap(
         mapAddressSpaces(_, hash).flatMap(addressMapped => {
 
           val loadBalanced = mapLoadBalancing(addressMapped, hash)
@@ -163,9 +163,9 @@ object MemoryMappingRewrite {
             None
         )
 
-        unrolledReduces ++ loweredExpressions
+        unrolledReduces ++ loadBalancedExpressions
       } else
-        loweredExpressions
+        loadBalancedExpressions
 
     } catch {
       case t: Throwable =>
