@@ -152,17 +152,16 @@ object MemoryMappingRewrite {
       )
 
       if(unrollReduce.value.isDefined) {
-        val unrolledReduces = loweredExpressions.flatMap(lambda =>
-          if (lambda.body.contains({ case FunCall(ReduceSeq(_), _*) => })) {
-            val rewrites = Rewrite.listAllPossibleRewrites(lambda, Rules.reduceSeqUnroll)
+        val unrolledReduces = loadBalancedExpressions.filter(
+          lambda => lambda.body.contains(
+            { case FunCall(ReduceSeq(_), _*) => })).map(lambdaWithReduceSeq => {
 
-            Some(rewrites.foldLeft(lambda)((expr, pair) =>
-              Rewrite.applyRuleAt(expr, pair._2, pair._1)))
+          val rewrites = Rewrite.listAllPossibleRewrites(lambdaWithReduceSeq, Rules.reduceSeqUnroll)
+          rewrites.foldLeft(lambdaWithReduceSeq)((expr, pair) =>
+            Rewrite.applyRuleAt(expr, pair._2, pair._1))
+        })
 
-          } else
-            None
-        )
-
+        println(unrolledReduces)
         unrolledReduces ++ loadBalancedExpressions
       } else
         loadBalancedExpressions
