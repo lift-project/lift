@@ -3,7 +3,7 @@ package openmp.executor
 import lift.arithmetic.?
 import c.generator.CAst.ParamDecl
 import c.generator.{CAst, CGenerator}
-import ir.{ArrayType, TupleType, Type, TypeChecker}
+import ir._
 import ir.ast.{Lambda, Param}
 import opencl.generator.NDRange
 import opencl.ir._
