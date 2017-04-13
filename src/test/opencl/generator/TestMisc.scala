@@ -1094,8 +1094,8 @@ class TestMisc {
 
     println(expr)
 
-    var local: NDRange = Array(128, 1, 1)
-    var global: NDRange = Array(?, ?, ?)
+    var local: NDRange = NDRange(128, 1, 1)
+    var global: NDRange = NDRange(?, ?, ?)
     InferNDRange(expr) match { case (l, g) => local = l; global = g }
     val valueMap = ParameterRewrite.createValueMap(expr)
 

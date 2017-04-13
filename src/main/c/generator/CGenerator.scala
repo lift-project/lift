@@ -13,14 +13,13 @@ import opencl.generator._
 import scala.collection.immutable
 
 object CGenerator extends Generator {
-  type NDRange = Array[ArithExpr]
 
   def generate(f: Lambda): String = {
-    generate(f, Array(?, ?, ?))
+    generate(f, NDRange(?, ?, ?))
   }
 
   def generate(f: Lambda, localSizes: NDRange): String = {
-    generate(f, localSizes, Array(?, ?, ?), immutable.Map())
+    generate(f, localSizes, NDRange(?, ?, ?), immutable.Map())
   }
 
   // Compile a type-checked function into an OpenCL kernel
@@ -121,7 +120,6 @@ object CGenerator extends Generator {
 
 class CGenerator extends Generator {
 
-  type NDRange = Array[ArithExpr]
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
@@ -145,11 +143,11 @@ class CGenerator extends Generator {
   }
 
   def generate(f: Lambda): String  = {
-    generate(f, Array(?, ?, ?))
+    generate(f, NDRange(?, ?, ?))
   }
 
   def generate(f: Lambda, localSizes: NDRange): String = {
-    generate(f, localSizes, Array(?, ?, ?), immutable.Map())
+    generate(f, localSizes, NDRange(?, ?, ?), immutable.Map())
   }
 
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,

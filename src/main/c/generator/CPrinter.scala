@@ -166,7 +166,7 @@ class CPrinter {
 
   private def print(c: CondExpression): Unit = {
       print(c.lhs)
-      print(c.cond.toString)
+      print(s" ${c.cond.toString} ")
       print(c.rhs)
   }
 
@@ -289,7 +289,7 @@ class CPrinter {
 
   private def print(es: ExpressionStatement): Unit = {
     print(es.e)
-    print(";")
+    print("; ")
   }
 
 
@@ -332,7 +332,7 @@ class CPrinter {
             print(s" = ")
             print(vd.init)
           }
-          print(";")
+          print("; ")
       }
 
     case x =>
@@ -350,7 +350,7 @@ class CPrinter {
         print(s" = ")
         print(vd.init)
       }
-      print(";")
+      print("; ")
   }
 
   /**
@@ -375,7 +375,7 @@ class CPrinter {
     print(fl.init)
     print(fl.cond)
     print(fl.increment)
-    print(")")
+    print(") ")
     print(fl.body)
   }
 
@@ -397,15 +397,15 @@ class CPrinter {
     * @param s a [[IfThenElse]] node
     */
   private def print(s: CAst.IfThenElse): Unit = {
-    print("if(")
+    print("if (")
     print(s.cond)
-    println(")")
+    print(") ")
 
     print(s.trueBody)
 
     if(s.falseBody != Block())
     {
-      println("else")
+      print(" else ")
       print(s.falseBody)
     }
   }
