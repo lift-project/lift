@@ -7,13 +7,12 @@ import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestRuntimeSizedArrays {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init(1, 0)
   }
 
   @AfterClass def after(): Unit = {
@@ -24,6 +23,7 @@ object TestRuntimeSizedArrays {
 
 class TestRuntimeSizedArrays {
 
+  @Ignore
   @Test
   def reduce(): Unit = {
     val inputSize = 1023
@@ -42,6 +42,7 @@ class TestRuntimeSizedArrays {
     println("runtime = " + runtime)
   }
 
+  @Ignore
   @Test
   def reduceFloat(): Unit = {
     val inputSize = 1023
@@ -61,6 +62,7 @@ class TestRuntimeSizedArrays {
     println("runtime = " + runtime)
   }
 
+  @Ignore
   @Test
   def nestedReduce(): Unit = {
     def createRow(inputSize: Int) = {

@@ -5,8 +5,6 @@ import arithmetic.TypeVar
 
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
-import scala.runtime
-import scala.runtime.ScalaRunTime
 
 
 
@@ -126,8 +124,8 @@ case class ArrayType(elemT: Type) extends Type {
 
   override def toString : String = {
     "Arr(" +elemT+
-    (this match { case s:Size => ",s="+s.size.toString; case _ => }) +
-    (this match { case c:Capacity => ",c="+c.capacity.toString; case _ =>}) +
+    (this match { case s:Size => ",s="+s.size.toString; case _ => ""}) +
+    (this match { case c:Capacity => ",c="+c.capacity.toString; case _ => ""}) +
     ")"
   }
 
@@ -358,10 +356,10 @@ object Type {
       case tt: TupleType =>
         TupleType(tt.elemsT.map(et => visitAndRebuild(et,pre,post)):_*)
 
-      case at: ArrayType with Size with Capacity => ArrayTypeWSWC(visitAndRebuild(at.elemT, pre, post), at.size,at.capacity)
-      case at: ArrayType with Capacity => ArrayTypeWC(visitAndRebuild(at.elemT, pre, post), at.capacity)
-      case at: ArrayType with Size => ArrayTypeWS(visitAndRebuild(at.elemT, pre, post), at.size)
-      case at: ArrayType => ArrayType(visitAndRebuild(at.elemT, pre, post))
+      case ArrayTypeWSWC(et, s, c) => ArrayTypeWSWC(visitAndRebuild(et, pre, post), s, c)
+      case ArrayTypeWC(et,c) => ArrayTypeWC(visitAndRebuild(et, pre, post), c)
+      case ArrayTypeWS(et,s) => ArrayTypeWS(visitAndRebuild(et, pre, post), s)
+      case ArrayType(et) => ArrayType(visitAndRebuild(et, pre, post))
 
       case _ => newT // nothing to do
     }
@@ -469,10 +467,10 @@ object Type {
         assert(index < tt.elemsT.length)
         tt.elemsT(index)
 
-      case at: ArrayType with Size with Capacity => ArrayTypeWSWC(getTypeAtIndex(at.elemT, index), at.size,at.capacity)
-      case at: ArrayType with Capacity => ArrayTypeWC(getTypeAtIndex(at.elemT, index), at.capacity)
-      case at: ArrayType with Size => ArrayTypeWS(getTypeAtIndex(at.elemT, index), at.size)
-      case at: ArrayType => ArrayType(getTypeAtIndex(at.elemT, index))
+      case ArrayTypeWSWC(et,s,c) => ArrayTypeWSWC(getTypeAtIndex(et, index), s,c)
+      case ArrayTypeWC(et,c) => ArrayTypeWC(getTypeAtIndex(et, index), c)
+      case ArrayTypeWS(et,s) => ArrayTypeWS(getTypeAtIndex(et, index), s)
+      case ArrayType(et) => ArrayType(getTypeAtIndex(et, index))
 
       case _ => t
     }
@@ -699,6 +697,7 @@ object Type {
           case _ => ArrayType(st)
             // TODO: somehow communicate the information that when the size or capacity is not in the type, it is still multiplied by len
         }
+        case vt: VectorType => vt.scalarT
         case _ => t
       })
 

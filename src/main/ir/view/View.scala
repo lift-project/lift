@@ -457,7 +457,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       case _: ViewMem =>
         assert(tupleAccessStack.isEmpty)
         val index = arrayAccessStack.map(x => x._2 match {
-          case Var("unknown_length", _) =>
+          case Var("unknown_length", _) => // TODO: remove this hack
             AccessVar(v.toString, ArithExpression(x._1))
           case _ => x._1 * x._2
         }).foldLeft(Cst(0): ArithExpr)((x, y) => x + y)
