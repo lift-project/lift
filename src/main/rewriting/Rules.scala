@@ -425,6 +425,10 @@ object Rules {
       ReduceSeq(f, init) $ arg
   })
 
+  val reduceSeqUnroll = Rule("ReduceSeq(f) => ReduceSeqUnroll(f)", {
+    case FunCall(ReduceSeq(f), init, arg) =>
+      ReduceSeqUnroll(f, init) $ arg
+  })
   /* Stride accesses or normal accesses */
 
   // TODO

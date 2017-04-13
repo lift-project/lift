@@ -48,6 +48,9 @@ object MemoryMappingRewrite {
   private val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
     "Enable load balancing using MapAtomLocal and MapAtomWrg")
 
+  private val unrollReduce = parser.flag[Boolean](List("u", "ur", "unroll-reduce"),
+   "Additionally generate expressions also using ReduceSeqUnroll")
+
   private val global0 = parser.flag[Boolean](List("gl0", "global0"),
     "Mapping: MapGlb(0)( MapSeq(...) )")
 
@@ -147,6 +150,22 @@ object MemoryMappingRewrite {
 
         })
       )
+
+      if(unrollReduce.value.isDefined) {
+        val unrolledReduces = loweredExpressions.flatMap(lambda =>
+          if (lambda.body.contains({ case FunCall(ReduceSeq(_), _*) => })) {
+            val rewrites = Rewrite.listAllPossibleRewrites(lambda, Rules.reduceSeqUnroll)
+
+            Some(rewrites.foldLeft(lambda)((expr, pair) =>
+              Rewrite.applyRuleAt(expr, pair._2, pair._1)))
+
+          } else
+            None
+        )
+
+        unrolledReduces ++ loweredExpressions
+      } else
+        loweredExpressions
 
     } catch {
       case t: Throwable =>
