@@ -39,16 +39,16 @@ object MemoryMappingRewrite {
 
   private val defaultVectorWidth = 4
 
-  private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+  private val vectorWidth = parser.option[Int](List("vectorWidth", "vw"), "vector width",
     s"The vector width to use for vectorising rewrites. Default: $defaultVectorWidth")
 
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
-  private val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
+  private val loadBalancing = parser.flag[Boolean](List("l", "lb", "loadBalancing"),
     "Enable load balancing using MapAtomLocal and MapAtomWrg")
 
-  private val unrollReduce = parser.flag[Boolean](List("u", "ur", "unroll-reduce"),
+  private val unrollReduce = parser.flag[Boolean](List("u", "ur", "unrollReduce"),
    "Additionally generate expressions also using ReduceSeqUnroll")
 
   private val global0 = parser.flag[Boolean](List("gl0", "global0"),
