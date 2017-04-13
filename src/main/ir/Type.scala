@@ -107,10 +107,10 @@ case class TupleType(elemsT: Type*) extends Type {
 case class ArrayType(elemT: Type, len: ArithExpr) extends Type {
 
   // TODO: remove the need to check for unknown (but this is used currently in a few places)
-  if (len != ? & len.sign != Sign.Positive)
-    // TODO: turn this back into an error (eventually)
-    //throw new TypeException("Length must be provably positive! (len="+len+")")
-    println(s"Warning: Length must be provably positive! (len=$len)")
+  // TODO: turn this back into an error (eventually)
+  //if (len != ? & len.sign != Sign.Positive)
+  //  throw new TypeException("Length must be provably positive! (len="+len+")")
+  //  println(s"Warning: Length must be provably positive! (len=$len)")
 
   if (len.isEvaluable) {
     val length = len.evalDbl
