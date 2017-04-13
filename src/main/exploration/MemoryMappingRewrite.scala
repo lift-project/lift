@@ -161,7 +161,6 @@ object MemoryMappingRewrite {
             Rewrite.applyRuleAt(expr, pair._2, pair._1))
         })
 
-        println(unrolledReduces)
         unrolledReduces ++ loadBalancedExpressions
       } else
         loadBalancedExpressions
