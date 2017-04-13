@@ -3,10 +3,9 @@ package opencl.ir
 import ir._
 import ir.ast._
 import lift.arithmetic._
-import opencl.executor.{Execute, Utils}
 import opencl.generator.TreatWarningsAsErrors
 import opencl.ir.pattern._
-import org.junit.Assume.assumeFalse
+import org.junit.Assert._
 import org.junit.Test
 
 class TestTypeChecker {
@@ -134,10 +133,7 @@ class TestTypeChecker {
     )
 
     val t = TypeChecker(lambda)
-    t match {
-      case ArrayTypeWS(Float, Cst(1)) =>
-      case _ => assert(false)
-    }
+    assertEquals(ArrayTypeWS(Float, Cst(1)), t)
   }
 
   @Test(expected = classOf[SuspiciousTypeVariableDeclaredException])
@@ -150,7 +146,7 @@ class TestTypeChecker {
       Float,
       ArrayTypeWSWC(Float, SizeVar("N")),
       ArrayTypeWSWC(Float, SizeVar("N")),
-      (a,xs,ys) => MapSeq(fun(Float, (x) => MapSeq(fun(Float, (y) => add(x,y))) $ ys )) $ xs
+      (_,xs,ys) => MapSeq(fun(Float, (x) => MapSeq(fun(Float, (y) => add(x,y))) $ ys )) $ xs
     )
 
     TypeChecker(f)
@@ -173,11 +169,7 @@ class TestTypeChecker {
       })
 
     val t = TypeChecker(lambda)
-    t match {
-      case ArrayTypeWSWC(Float, Cst(2), Cst(2)) =>
-      case _ => assert(false, "Expect type: "+ArrayTypeWSWC(Float, Cst(2), Cst(2))+" but found: "+t)
-    }
-
+    assertEquals(ArrayTypeWSWC(Float, Cst(2), Cst(2)), t)
   }
 
 }
