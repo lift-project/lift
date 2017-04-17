@@ -15,13 +15,13 @@ object RangesAndCounts {
    * @param globalSizes Array containing the global sizes of the ND-Range.
    * @param valueMap The map from variables to lengths.
    */
-  def apply(lambda: Lambda, localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr],
+  def apply(lambda: Lambda, localSizes: NDRange, globalSizes: NDRange,
             valueMap: scala.collection.Map[ArithExpr, ArithExpr]): Unit = {
     new RangesAndCounts(localSizes, globalSizes, valueMap)(lambda.body)
   }
 }
 
-private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr],
+private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
                               valueMap: scala.collection.Map[ArithExpr, ArithExpr]) {
   private def apply(expr: Expr): Unit = {
     expr match {

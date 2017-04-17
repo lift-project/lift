@@ -4,15 +4,14 @@ import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator._
 import opencl.ir.pattern._
 
 object BarrierCounts {
     def apply(
     lambda: Lambda,
-    localSize: NDRange = Array(?,?,?),
-    globalSize: NDRange = Array(?,?,?),
+    localSize: NDRange = NDRange(?,?,?),
+    globalSize: NDRange = NDRange(?,?,?),
     valueMap: SubstitutionMap = collection.immutable.Map()
   ) = new BarrierCounts(lambda, localSize, globalSize, valueMap)
 
