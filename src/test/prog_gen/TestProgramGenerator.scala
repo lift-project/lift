@@ -23,7 +23,7 @@ object TestProgramGenerator {
     generator = new ProgramGenerator
 
     // TODO: No randomness and less iterations for testing?
-//    if (LongTestsEnabled.areEnabled)
+    if (LongTestsEnabled.areEnabled)
       generatedPrograms = generator.generatePrograms()
 
   }
@@ -38,7 +38,7 @@ class TestProgramGenerator {
 
   import TestProgramGenerator._
 
-//  LongTestsEnabled()
+  LongTestsEnabled()
 
   @Test
   def usefulZipGeneration(): Unit = {
