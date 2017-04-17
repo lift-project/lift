@@ -267,7 +267,6 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
             tempLambdaList += L
             tempParamToFunCall += ((P, F))
           }
-        case _: ArrayType => throw new NotImplementedError()
         case _=>
       }
     }
@@ -284,7 +283,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     for (i <- Split_P until ParamList.length) {
       val param = ParamList(i)
       param.t match {
-        case t: ArrayType =>
+        case t@ArrayTypeWSWC(_,ms,mc) if ms==mc =>
 
           val chunkSize = rewriting.utils.Utils.validSplitVariable(t)
 
@@ -643,7 +642,8 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
                   Map_L_E += ((i, argIndex))
                 }
 
-              case _: ArrayType => throw new NotImplementedError()
+              case _: ArrayType =>
+                throw new NotImplementedError()
               case _ =>
             }
           }
