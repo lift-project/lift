@@ -128,6 +128,7 @@ object InputView {
     //       can't be set at this point because it will be an access to the
     //       output array
     iss.f.params(0).view = argView.access(iss.loopRead)
+    iss.f.params(1).view = argView.access(iss.loopWrite) // XXX: this is a hack
     iss.copyFun.params.head.view = argView.access(iss.loopRead)
     
     visitAndBuildViews(iss.f.body)

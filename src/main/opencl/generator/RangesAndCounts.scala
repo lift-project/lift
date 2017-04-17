@@ -45,7 +45,11 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
               case _ => apply(m.f.body)
             }
 
-          case iss: InsertionSortSeq => setRangeInsertionSort(iss, call)
+          case iss: InsertionSortSeq =>
+            apply(iss.f.body)
+            apply(iss.copyFun.body)
+            apply(iss.shiftFun.body)
+            setRangeInsertionSort(iss, call)
 
           case r: AbstractPartRed =>
             r match {
@@ -176,6 +180,10 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
     iss.loopWrite = Var(
       iss.loopWrite.name,
       ContinuousRange(Cst(0), Type.getLength(call.args.head.t))
+    )
+    iss.loopShift = Var(
+      iss.loopShift.name,
+      RangeAdd(iss.loopRead, iss.loopWrite, -1)
     )
   }
 

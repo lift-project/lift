@@ -1,6 +1,6 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.{ArithExpr, Cst, RangeAdd}
 import ir._
 import ir.ast._
 import opencl.ir.pattern.{InsertionSortSeq, ReduceWhileSeq}
@@ -234,15 +234,27 @@ object OutputView {
     //       of the comparison function as an access to the output array of
     //       the pattern.
     iss.f.params(1).view = writeView.access(iss.loopWrite)
-    visitAndBuildViews(iss.f.body, writeView.access(Cst(0)))
-    
-    iss.f.body.outputView = View.initialiseNewView(
-      iss.f.body.t,
+    val compareOutputView = View.initialiseNewView(
+      iss.f.body.t, // Int
       getAccessDepth(iss.f.body.accessInf, iss.f.body.mem)
     )
+    visitAndBuildViews(iss.f.body, compareOutputView)
+    
+    // Note2: similarly, the views for the shifting function can only be
+    //        specified here.
+    val k = iss.loopShift
+    iss.shiftFun.params.head.view = writeView.access(
+      k + k.range.asInstanceOf[RangeAdd].step
+    )
+    // FIXME: what the hell am I doing in this file?
+    InputView(iss.shiftFun.body)
+    visitAndBuildViews(
+      iss.shiftFun.body,
+      writeView.access(k)
+    )
+    
     visitAndBuildViews(iss.copyFun.body, writeView.access(iss.loopWrite))
     
-    iss.writeView = writeView
     ViewMap(iss.copyFun.body.outputView, iss.loopWrite, call.args.head.t)
   }
 

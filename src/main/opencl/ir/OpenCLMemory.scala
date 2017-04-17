@@ -328,7 +328,7 @@ object TypedOpenCLMemory {
       }
     
       // change types for all of them
-      val mems = collect(iss.f.body) ++ collect(iss.copyFun.body)
+      val mems = collect(iss.f.body) ++ collect(iss.copyFun.body) ++ collect(iss.shiftFun.body)
       mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
     }
   

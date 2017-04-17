@@ -211,12 +211,19 @@ object OpenCLMemoryAllocator {
                                  inMem: OpenCLMemory): OpenCLMemory = {
     val len = Type.getLength(iss.f.params.head.t)
     
+    // Copy function
     iss.copyFun.params.head.mem = inMem
     val outMem = alloc(iss.copyFun.body, numGlb * len, numLcl * len, numPvt)
     
+    // Comparison function
     iss.f.params(0).mem = inMem
     iss.f.params(1).mem = outMem
     alloc(iss.f.body, numGlb, numLcl, numPvt)
+    
+    // Shifting function
+    iss.shiftFun.params.head.mem = outMem
+    val wrongM = alloc(iss.shiftFun.body, numGlb, numLcl, numPvt)
+    Expr.visit(iss.shiftFun.body, e => if (e.mem == wrongM) e.mem = outMem, _ => {})
     
     outMem
   }

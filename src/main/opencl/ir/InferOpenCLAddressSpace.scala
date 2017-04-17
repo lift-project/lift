@@ -93,6 +93,7 @@ object InferOpenCLAddressSpace {
                              addrSpaces: Seq[OpenCLAddressSpace]) = {
     setAddressSpaceLambda(iss.f, PrivateMemory, addrSpaces)
     setAddressSpaceLambda(iss.copyFun, writeTo, addrSpaces)
+    setAddressSpaceLambda(iss.shiftFun, writeTo, addrSpaces)
   }
 
   private def setAddressSpaceReduce(lambda: Lambda, call: FunCall,

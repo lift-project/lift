@@ -654,33 +654,19 @@ class OpenCLGenerator extends Generator {
   private def generateInsertion(call: FunCall,
                                 block: Block): Unit = {
     val iss = call.f.asInstanceOf[InsertionSortSeq]
+    
     (block: Block) += OpenCLAST.VarDecl(
       iss.loopWrite,Int, ArithExpression(Cst(0))
     )
     
     def shift(block: Block): Unit = {
-      val range = RangeAdd(
-        iss.loopRead,
-        iss.loopWrite,
-        Cst(-1) * Type.getLength(iss.f.params.head.t)
-      )
-      val k = Var("k", range)
-      val load = generateLoadNode(
-        OpenCLMemory.asOpenCLMemory(iss.copyFun.body.mem),
-        iss.copyFun.body.t,
-        iss.writeView.access(k - 1) // FIXME
-      )
+      (block: Block) += OpenCLAST.Comment("shift")
       generateForLoop(
         block,
-        k,
-        ib => {
-          (ib: Block) += generateStoreNode(
-            OpenCLMemory.asOpenCLMemory(iss.copyFun.body.mem),
-            iss.copyFun.body.t,
-            iss.writeView.access(k),
-            generateFunCall(iss.copyFun.body, List(load)))
-        }
+        iss.loopShift,
+        generate(iss.shiftFun.body, _)
       )
+      (block: Block) += OpenCLAST.Comment("end shift")
       generate(iss.copyFun.body, block)
       (block: Block) += OpenCLAST.Break()
     }

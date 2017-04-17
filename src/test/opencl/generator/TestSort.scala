@@ -1,10 +1,11 @@
 package opencl.generator
 
 import ir.ArrayType
-import ir.ast.{Join, Split, UserFun, fun}
+import ir.ast.{Join, Lambda1, PrintType, Split, Tuple, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
-import opencl.ir.pattern.{InsertionSortSeq, MapWrg, toGlobal}
+import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assert.assertArrayEquals
 
@@ -27,7 +28,7 @@ class TestSort {
     "int_compare", Array("x", "y"), "return x < y;", Seq(int, int), int
   )
   
-  @Test def sortInt1D(): Unit = {
+  @Test def sortInt(): Unit = {
     val size = 128
     val input = Array.fill(size)(util.Random.nextInt(1024))
     val N = SizeVar("N")
@@ -43,7 +44,7 @@ class TestSort {
     assertArrayEquals(input.sortWith(_ < _), output)
   }
   
-  @Test def sortInt2D(): Unit = {
+  @Test def mapSort(): Unit = {
     val size = 4096
     val input = Array.fill(size)(util.Random.nextInt(1024))
     val N = SizeVar("N")
@@ -60,6 +61,31 @@ class TestSort {
     val (output: Array[Int], runtime) = Execute(size)(kernel, input)
     println(s"Runtime: $runtime")
     
+    assertArrayEquals(gold, output)
+  }
+  
+  @Test def sortArrays(): Unit = {
+    val size = 4096
+    val input = Array.fill(size)(util.Random.nextInt(1024))
+    val N = SizeVar("N")
+    
+    val kernel = fun(
+      ArrayType(int, N),
+      arr =>
+        Join() o InsertionSortSeq(
+          fun((l, r) =>
+            int_compare.apply(
+              fun(x => x.at(0)) o ReduceSeq(add(int), 0) $ l,
+              fun(x => x.at(0)) o ReduceSeq(add(int), 0) $ r
+            )
+          )
+        ) o Split(32) $ arr
+    )
+    
+    val gold = input.grouped(32).toArray.sortWith(_.sum < _.sum).flatten
+    val (output: Array[Int], runtime) = Execute(size)(kernel, input)
+    println(s"Runtime: $runtime")
+  
     assertArrayEquals(gold, output)
   }
 }
