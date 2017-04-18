@@ -1143,12 +1143,46 @@ class OpenCLGenerator extends Generator {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
 
-    // this needs to be a loop!
+    for (i <- 0 until size.eval) {
+      replacements = replacements.updated(sSP.windowVar, i)
+      val j: ArithExpr =
+        if (range.min.isInstanceOf[OclFunction]) {
+          range.min + step * i
+        } else {
+          i
+        }
+      replacementsWithFuns = replacementsWithFuns.updated(sSP.windowVar, j)
+
+    }
+    // cleanup
+    replacements = replacements - sSP.windowVar
+    replacementsWithFuns = replacementsWithFuns - sSP.windowVar
+
     for(i <- reuse.eval to size.eval-1) {
       innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = null, ArithExpression(i)), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i)))
     }
 
+  /*
+    innerBlock += OpenCLAST.Comment("unroll")
+
+    for (i <- 0 until size.eval) {
+      replacements = replacements.updated(sSP.windowVar, i)
+      val j: ArithExpr =
+        if (range.min.isInstanceOf[OclFunction]) {
+          range.min + step * i
+        } else {
+          i
+        }
+      replacementsWithFuns = replacementsWithFuns.updated(sSP.windowVar, j)
+
+    }
+    // cleanup
+    replacements = replacements - sSP.windowVar
+    replacementsWithFuns = replacementsWithFuns - sSP.windowVar
+
+    innerBlock += OpenCLAST.Comment("end unroll")*/
     generateBody(innerBlock)
+   // generateBody(innerBlock)
 
     for(i <- 1 to reuse.eval) {
         innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = null,ArithExpression(i-1)),VarRef(sSP.windowVar,suffix = null,ArithExpression(size.eval-reuse-1+i)))
@@ -1192,9 +1226,10 @@ class OpenCLGenerator extends Generator {
             } else {
               i
             }
-          replacementsWithFuns = replacementsWithFuns.updated(indexVar, j)
+            replacementsWithFuns = replacementsWithFuns.updated(indexVar, j)
 
           generateBody(block)
+
         }
         // cleanup
         replacements = replacements - indexVar

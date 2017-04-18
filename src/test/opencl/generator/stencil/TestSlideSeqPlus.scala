@@ -33,7 +33,8 @@ object SlideSeqPlusHelpers
   def stencil(a: Int ,b :Int) = fun(
     ArrayType(Float, SizeVar("N")),
     (input) =>
-      SlideSeqPlus(toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f), a,b) $ input
+     //  toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
+    toGlobal(MapSeq(id)) /*o SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)*/ o toPrivate(MapSeq(id)) $ input
   )
 }
 
@@ -50,6 +51,8 @@ class TestSlideSeqPlus
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
     println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
+
+
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
