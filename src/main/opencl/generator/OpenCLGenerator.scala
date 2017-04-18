@@ -703,8 +703,8 @@ class OpenCLGenerator extends Generator {
     generateWhileLoop(
       block,
       truePredicate,
-      ib => generateConditional(
-        ib,
+      generateConditional(
+        _,
         OpenCLAST.CondExpression(
           ArithExpression(iss.loopWrite),
           ArithExpression(iss.loopRead),

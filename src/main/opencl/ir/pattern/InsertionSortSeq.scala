@@ -13,18 +13,24 @@ import lift.arithmetic.{PosVar, Var}
   *          iff it's first argument is less than the second one.
   * @param loopRead the index used to read the data from the input array
   * @param loopWrite the index used to write data to the output array.
+  * @param loopShift the index used during the inserting to shift data to the
+  *                  right of the array.
   */
 case class InsertionSortSeq(f: Lambda2, var loopRead: Var,
                             var loopWrite: Var, var loopShift: Var)
            extends Pattern(arity=1) with FPattern with isGenerable {
-  
+ 
+  // These two functions are used to
+  //   1. Copy data from the input array to the output array
+  //   2. Move data in the output array to free some space for the insertion
+  // Does this have to be here?
   private var _copyFun: Lambda1 = _
   def copyFun: Lambda1 = this._copyFun
   
-  // FIXME: This is redundant…
   private var _shiftFun: Lambda1 = _
   def shiftFun: Lambda1 = this._shiftFun
   
+  // Generate the identity function for the type `ty`
   private def generateCopyFun(ty: Type): Lambda1 = ty match {
     case ScalarType(_, _) | TupleType(_) => id(ty, name="_insertion_sort_id")
     case ArrayType(elemTy, _) => MapSeq(generateCopyFun(elemTy))
@@ -37,19 +43,16 @@ case class InsertionSortSeq(f: Lambda2, var loopRead: Var,
       case ArrayType(ty, len) =>
         // Type-check the comparison function
         f.params.foreach(p => p.t = ty)
-        val compare_ty = TypeChecker.check(f.body, setType)
-        if (compare_ty != opencl.ir.Int) // TODO: we want booleans here
-          throw new TypeException(compare_ty, "Int")
-        // Generate and type-check the copy function
+        TypeChecker.assertType(f.body, setType, opencl.ir.Int)
+        
+        // Generate and type-check the copy/shift functions
         this._copyFun = generateCopyFun(ty)
         this._shiftFun = generateCopyFun(ty)
         copyFun.params.head.t = ty
         shiftFun.params.head.t = ty
-        TypeChecker.check(copyFun.body, setType)
-        TypeChecker.check(shiftFun.body, setType)
-        // TODO: turn this into a test
-        assert(copyFun.body.t == ty)
-        assert(shiftFun.body.t == ty)
+        TypeChecker.assertType(copyFun.body, setType, ty)
+        TypeChecker.assertType(shiftFun.body, setType, ty)
+        
         // Return the output type
         ArrayType(ty, len)
       case _ => throw new TypeException(argType, "ArrayType")

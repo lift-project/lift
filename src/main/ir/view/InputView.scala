@@ -125,8 +125,9 @@ object InputView {
                             call: FunCall,
                             argView: View): View = {
     // Note: the input view for the second argument of the comparison function
-    //       can't be set at this point because it will be an access to the
-    //       output array
+    //       and for the argument of the shift function can't be set at this
+    //       point because they will be accesses to the output array.
+    //       cf. `OutputView.buildViewSort`
     iss.f.params(0).view = argView.access(iss.loopRead)
     iss.f.params(1).view = argView.access(iss.loopWrite) // XXX: this is a hack
     iss.copyFun.params.head.view = argView.access(iss.loopRead)

@@ -70,5 +70,19 @@ object TypeChecker {
       }
     }
   }
-
+  
+  /**
+    * Shortcut to type-check an expression and raise an exception if the
+    * infered type is not the expected one.
+    *
+    * @param expr the expression being type-checked
+    * @param setType boolean passed to to the `check` method
+    * @param expected the expected type
+    * @return the type of `expr`
+    */
+  def assertType(expr: Expr, setType: Boolean=true, expected: Type): Type = {
+    val ty = check(expr, setType)
+    if (ty != expected) throw new TypeException(ty, expected)
+    ty
+  }
 }

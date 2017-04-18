@@ -1,7 +1,7 @@
 package opencl.generator
 
 import ir.ArrayType
-import ir.ast.{Join, Lambda1, PrintType, Split, Tuple, UserFun, Zip, fun}
+import ir.ast.{Join, Split, UserFun, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
