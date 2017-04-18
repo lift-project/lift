@@ -90,13 +90,13 @@ object Execute {
     val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).init)
 
     val tupleSizes = f.params.map(_.t match {
-      case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
-      case ArrayType(ArrayType(tt: TupleType, _), _) => tt.elemsT.length
-      case ArrayType(tt: TupleType, _) => tt.elemsT.length
+      case ArrayType(ArrayType(ArrayType(tt: TupleType))) => tt.elemsT.length
+      case ArrayType(ArrayType(tt: TupleType)) => tt.elemsT.length
+      case ArrayType(tt: TupleType) => tt.elemsT.length
       case tt: TupleType => tt.elemsT.length
-      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval
-      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval
-      case ArrayType(vt: VectorType, _) => vt.len.eval
+      case ArrayType(ArrayType(ArrayType(vt: VectorType))) => vt.len.eval
+      case ArrayType(ArrayType(vt: VectorType)) => vt.len.eval
+      case ArrayType(vt: VectorType) => vt.len.eval
       case vt: VectorType => vt.len.eval
       case _ => 1
     })
@@ -392,7 +392,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getMaxSize(f.body.t), valueMap).eval
+    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).eval
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments

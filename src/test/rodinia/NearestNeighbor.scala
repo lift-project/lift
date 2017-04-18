@@ -1,8 +1,8 @@
 package rodinia
 
-import lift.arithmetic.{SizeVar, ArithExpr}
+import ir.{ArrayTypeWSWC, TupleType}
 import ir.ast.{UserFun, \, fun}
-import ir.{ArrayType, TupleType}
+import lift.arithmetic.{ArithExpr, SizeVar}
 import opencl.executor._
 import opencl.ir.Float
 import opencl.ir.pattern.MapGlb
@@ -32,7 +32,7 @@ class NearestNeighbor {
     val N = SizeVar("N")
 
     val nn = fun(
-      ArrayType(TupleType(Float, Float), N), Float, Float,
+      ArrayTypeWSWC(TupleType(Float, Float), N), Float, Float,
       (locations, lat, lng) => {
         locations :>> MapGlb( \(loc => distance(loc, lat, lng)) )
       })

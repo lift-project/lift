@@ -1,8 +1,8 @@
 package analysis
 
-import lift.arithmetic._
 import ir._
 import ir.ast._
+import lift.arithmetic.{ArithExpr, Cst, SizeVar}
 import opencl.generator.{NDRange, get_global_size}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal, toPrivate}
@@ -23,7 +23,7 @@ class TestControlFlow {
   @Test
   def simple(): Unit = {
     val f = fun(
-     ArrayType(Float, N),
+     ArrayTypeWSWC(Float, N),
       x => MapGlb(id) $ x
     )
 
@@ -37,7 +37,7 @@ class TestControlFlow {
   @Test
   def simpleExactlyOne(): Unit = {
      val f = fun(
-     ArrayType(Float, N),
+     ArrayTypeWSWC(Float, N),
       x => MapGlb(id) $ x
     )
 
@@ -52,7 +52,7 @@ class TestControlFlow {
   @Test
   def simpleLessThanOne(): Unit = {
      val f = fun(
-     ArrayType(Float, N),
+     ArrayTypeWSWC(Float, N),
       x => MapGlb(id) $ x
     )
 
@@ -66,7 +66,7 @@ class TestControlFlow {
   @Test
   def nestedTwo(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapGlb(MapSeq(id) o MapSeq(id)) $ x
     )
 
@@ -80,7 +80,7 @@ class TestControlFlow {
   @Test
   def nestedFused(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapGlb(MapSeq(id o id)) $ x
     )
 
@@ -94,7 +94,7 @@ class TestControlFlow {
   @Test
   def nestedOne(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapGlb(MapSeq(id)) $ x
     )
 
@@ -108,7 +108,7 @@ class TestControlFlow {
   @Test
   def unrolling(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapGlb(toGlobal(MapSeq(id)) o toPrivate(MapSeq(id))) $ x
     )
 

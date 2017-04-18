@@ -2,7 +2,7 @@ package ir.ast
 
 import lift.arithmetic.ArithExpr
 import ir.interpreter.Interpreter._
-import ir.{ArrayType, Type, TypeException, UndefType}
+import ir._
 
 /**
  * Split pattern.
@@ -29,8 +29,8 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(t, n) =>
-        ArrayType(ArrayType(t, chunkSize), n /^ chunkSize)
+      case at: ArrayType with Size with Capacity =>
+        ArrayTypeWSWC(ArrayTypeWSWC(at.elemT, chunkSize, chunkSize), at.size /^ chunkSize, at.capacity /^ chunkSize)
 
       case _ => throw new TypeException(argType, "ArrayType")
     }

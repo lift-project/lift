@@ -1,8 +1,8 @@
 package rewriting
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import org.junit.Assert._
@@ -29,8 +29,8 @@ class TestRewriteGesummv {
     val N = SizeVar("N")
 
     def mvAlpha = fun(
-      ArrayType(ArrayType(Float, K), N),
-      ArrayType(Float, K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(Float, K),
       Float,
       (matrix, vector, alpha) =>
         Join() o
@@ -41,8 +41,8 @@ class TestRewriteGesummv {
     )
 
     val vecAdd = fun(
-      ArrayType(Float, K),
-      ArrayType(Float, K),
+      ArrayTypeWSWC(Float, K),
+      ArrayTypeWSWC(Float, K),
       (a,b) => Map(fun(x => add(x._0, x._1))) $ Zip(a, b)
     )
 
@@ -50,9 +50,9 @@ class TestRewriteGesummv {
     TypeChecker(vecAdd)
 
     val f0 = fun(
-      ArrayType(ArrayType(Float, K), N),
-      ArrayType(ArrayType(Float, K), N),
-      ArrayType(Float, K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(Float, K),
       Float,
       Float,
       (A, B, x, alpha, beta) =>

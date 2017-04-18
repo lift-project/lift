@@ -20,8 +20,8 @@ case class Unzip() extends Pattern(arity = 1) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(tt: TupleType, n) =>
-        TupleType( tt.elemsT.map(t => ArrayType(t, n)):_* )
+      case ArrayTypeWSWC(tt: TupleType, s,c) =>
+        TupleType( tt.elemsT.map(t => ArrayTypeWSWC(t, s,c)):_* )
 
       case _ => throw new TypeException(argType, "ArrayType(TupleType, _)")
     }

@@ -1,14 +1,14 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import benchmarks.SumAbsoluteValues
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-import opencl.ir.pattern._
 
 object TestReduce {
   @BeforeClass def before(): Unit = {
@@ -30,7 +30,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l = fun (
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       Float,
       (in, init) => {
       Join() o MapWrg(
@@ -55,8 +55,8 @@ class TestReduce {
     val M = SizeVar("M")
 
     val l = fun(
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, N),
       (in, init) => {
         Join() o MapSeq(MapSeq(MapSeq(id)) o ReduceSeq(fun((x, y) => {
           MapSeq(add) $ Zip(x, y)
@@ -82,12 +82,12 @@ class TestReduce {
     val M = SizeVar("M")
 
     val l = fun(
-      ArrayType(ArrayType(Float, N), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
       in => {
         Join() o MapSeq(
           MapSeq(MapSeq(id)) o
             ReduceSeq(fun((x, y) => MapSeq(add) $ Zip(x, y)),
-              toGlobal(MapSeq(id)) $ Value(0.0f, ArrayType(Float, N)))
+              toGlobal(MapSeq(id)) $ Value(0.0f, ArrayTypeWSWC(Float, N)))
         ) o Split(M) $ in
       })
 
@@ -105,7 +105,7 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, SizeVar("N")),
+    val l = fun (ArrayTypeWSWC(Float, SizeVar("N")),
       Float,
       (in, init) => {
         Join() o MapWrg(
@@ -125,7 +125,7 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, SizeVar("N")),
+    val l = fun (ArrayTypeWSWC(Float, SizeVar("N")),
       Float,
       (in, init) => {
         Join() o MapWrg(
@@ -145,7 +145,7 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, SizeVar("N")),
+    val l = fun (ArrayTypeWSWC(Float, SizeVar("N")),
       in => {
         Join() o MapWrg(
           Join() o  MapLcl(toGlobal(MapSeq(id)) o
@@ -165,12 +165,12 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(Array(util.Random.nextInt(5).toFloat))
 
-    val l = fun (ArrayType(ArrayType(Float, 1), SizeVar("N")),
+    val l = fun (ArrayTypeWSWC(ArrayTypeWSWC(Float, 1), SizeVar("N")),
       in => {
         Join() o MapWrg(
           Join() o  MapLcl(ReduceSeq(fun((acc, x) => {
             MapSeq(add) $ Zip(acc, x)
-          }), toGlobal(MapSeq(id)) $ Value(0.0f, ArrayType(Float, 1)))) o Split(4)
+          }), toGlobal(MapSeq(id)) $ Value(0.0f, ArrayTypeWSWC(Float, 1)))) o Split(4)
         ) o Split(128) $ in
       })
 
@@ -187,7 +187,7 @@ class TestReduce {
     val inputSize = 4194304
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, SizeVar("N")), (in) => {
+    val l = fun (ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
       Join() o MapWrg(
         Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Split(2048)
       ) o Split(262144) $ in
@@ -209,7 +209,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (output: Array[Float], runtime) = Execute(inputData.length)(
-      fun(ArrayType(Float, SizeVar("N")), (in) => {
+      fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
         Join() o Join() o  MapWrg(
            MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))
         ) o Split(128) o Split(2048) $ in
@@ -235,7 +235,7 @@ class TestReduce {
 
     val (firstOutput, _) = {
       val (output: Array[Float], runtime) = Execute(inputData.length)(
-        fun(ArrayType(Float, SizeVar("N")), (in) => {
+        fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
               Iterate(7)(
@@ -249,7 +249,7 @@ class TestReduce {
 
     {
       val (output: Array[Float], _) = Execute(8, firstOutput.length)(
-        fun(ArrayType(Float, SizeVar("N")), (in) => {
+        fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
               Iterate(3)(
@@ -278,7 +278,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (output: Array[Float], _) = Execute(inputData.length)(
-      fun(ArrayType(Float, SizeVar("N")), (in) => {
+      fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
           Iterate(7)(
@@ -301,7 +301,7 @@ class TestReduce {
 
     val (firstOutput, _) = {
       val (output: Array[Float], runtime) = Execute(128, inputData.length, (true, true))(
-        fun(ArrayType(Float, SizeVar("N")), (in) => {
+        fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -323,7 +323,7 @@ class TestReduce {
 
     {
       val (output: Array[Float], _) = Execute(64, firstOutput.length)(
-        fun(ArrayType(Float, SizeVar("N")), (in) => {
+        fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -352,7 +352,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (in) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -367,7 +367,7 @@ class TestReduce {
       Execute(inputData.length)(f, inputData)
 
     val (output: Array[Float], _) = Execute(64, firstOutput.length)(
-      fun(ArrayType(Float, SizeVar("N")), (in) => {
+      fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -399,7 +399,7 @@ class TestReduce {
     val (firstOutput, _) = {
 
       val (output: Array[Float], runtime) = Execute(inputData.length)(
-        fun(ArrayType(Float, SizeVar("N")), (in) => {
+        fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg( asScalar() o
             Join() o  toGlobal(MapLcl(MapSeq(id.vectorize(4)))) o Split(1) o
@@ -420,7 +420,7 @@ class TestReduce {
 
 
     val (output: Array[Float], _) = Execute(64, firstOutput.length)(
-      fun(ArrayType(Float, SizeVar("N")), (in) => {
+      fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
           Iterate(6)(
@@ -490,7 +490,7 @@ class TestReduce {
 
     val (firstOutput, _) = {
       val (output: Array[Float], runtime) = Execute(128, inputData.length, (true, true))(
-        fun(ArrayType(Float, SizeVar("N")), (in) => {
+        fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
             asScalar() o Join() o Join() o MapWarp(
@@ -567,7 +567,7 @@ class TestReduce {
     val gold = inputArray.sum
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -590,7 +590,7 @@ class TestReduce {
     val gold = inputArray.sum
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -616,7 +616,7 @@ class TestReduce {
     val N = SizeVar("N")
 
     val reduce_kernel = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       (array) => {
         toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join() o MapSeq(
           fun((subarr) =>
@@ -640,7 +640,7 @@ class TestReduce {
     val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
 
     val reduce_kernel = fun(
-      ArrayType(Int, inputSize),
+      ArrayTypeWSWC(Int, inputSize),
       (array) => {
         toGlobal(MapSeq(idI)) o ReduceSeq(int_add, 0) o Join() o MapSeq(
           fun((subarr) =>

@@ -1,10 +1,9 @@
 package opencl.generator
 
-import org.junit.{BeforeClass, AfterClass, Test}
-import org.junit.Assert.assertArrayEquals
-
 import benchmarks.DbSelect
-import opencl.executor.{Executor, Execute}
+import opencl.executor.{Execute, Executor}
+import org.junit.Assert.assertArrayEquals
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestDbSelect {
   @BeforeClass def before(): Unit = {

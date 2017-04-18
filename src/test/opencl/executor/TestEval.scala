@@ -33,8 +33,8 @@ class TestEval {
       val N = SizeVar("N")
 
       fun(
-        ArrayType(Float, N),
-        ArrayType(Float, N),
+        ArrayTypeWSWC(Float, N),
+        ArrayTypeWSWC(Float, N),
         (left, right) =>
           Join() o MapWrg(
             Join() o MapLcl(MapSeq(add)) o Split(4)
@@ -60,7 +60,7 @@ class TestEval {
     val code = """
 val gensym0 = UserFun("gensym0", "x0_0", "{int gensym3 = x0_0 + (int) 1; return gensym3;}", Int, Int)
 
-val gensym1 = fun(ArrayType(Int, SizeVar("N")), gensym2 => MapGlb(gensym0) $ gensym2)
+val gensym1 = fun(ArrayTypeWSWC(Int, SizeVar("N")), gensym2 => MapGlb(gensym0) $ gensym2)
 
 gensym1
     """
