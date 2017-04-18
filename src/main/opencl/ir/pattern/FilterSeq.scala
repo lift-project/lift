@@ -1,9 +1,6 @@
 package opencl.ir.pattern
 
-import ir.{
-  Type, TupleType, ScalarType, ArrayType, UnknownLengthArrayType, TypeChecker,
-  TypeException
-}
+import ir._
 import ir.ast.{FPattern, Lambda, Lambda1, Pattern, fun, isGenerable}
 import ir.interpreter.Interpreter.ValueMap
 import opencl.ir.id
@@ -30,16 +27,15 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
   
   private def generateCopyFun(ty: Type): Lambda1 = ty match {
       case _: ScalarType | _: TupleType => id(ty, name=s"_filterseq_${ty}_id")
-      case ArrayType(elemTy, _) => MapSeq(generateCopyFun(elemTy))
+      case ArrayType(elemTy) => MapSeq(generateCopyFun(elemTy))
       case _ => throw new NotImplementedError()
     }
   
   override def checkType(argType: Type, setType: Boolean): Type = {
     // Check that the argument is an array and fetch it's type information
-    val (elemT, len) = argType match {
-      case UnknownLengthArrayType(_, _) =>
-        throw new NotImplementedError()
-      case ArrayType(ty, l) => (ty, l)
+    val (elemT, size) = argType match {
+      case ArrayTypeWSWC(ty, size, _) => (ty, size)
+      case _ => throw new TypeException(argType, "Array")
     }
     
     // Check that the predicate has type `elemT -> Boolean`
@@ -55,7 +51,7 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
     TypeChecker.check(this.copyFun.body, setType)
     
     // TODO: return UnknownLengthArrayType
-    ArrayType(elemT, len)
+    ArrayTypeWSWC(elemT, size)
   }
   
   override def copy(f: Lambda): Pattern = FilterSeq(f, loopRead, loopWrite)

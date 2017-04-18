@@ -56,13 +56,13 @@ object MatrixTransposition {
   val M = SizeVar("M")
 
   val naive = fun(
-    ArrayType(ArrayType(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (matrix) => {
       MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
     })
 
   def coalesced(x: Int = 4, y: Int = 4) = fun(
-    ArrayType(ArrayType(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (matrix) => {
       // Merge the tiles
       Untile2D() o

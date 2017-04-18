@@ -1,15 +1,15 @@
 package opencl.generator.stencil
 
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit._
 import org.junit.Assume.assumeFalse
+import org.junit._
 
 import scala.util.Random
 
@@ -49,7 +49,7 @@ class TestStencil {
                               size: Int, step: Int,
                               left: Int, right: Int): Unit = {
     val f = fun(
-      ArrayType(Float, Var("N", StartFromRange(2))),
+      ArrayTypeWSWC(Float, Var("N", StartFromRange(2))),
       (input) => MapGlb(MapSeqUnroll(id)) o Slide(size, step) o Pad(left, right, boundary) $ input
     )
 
@@ -113,9 +113,9 @@ class TestStencil {
     val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
 
     val stencil = fun(
-      //ArrayType(Float, inputLength), // more precise information
-      ArrayType(Float, Var("N", StartFromRange(2))),
-      ArrayType(Float, weights.length),
+      //ArrayTypeWSWC(Float, inputLength), // more precise information
+      ArrayTypeWSWC(Float, Var("N", StartFromRange(2))),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -138,8 +138,8 @@ class TestStencil {
     val gold = Utils.scalaCompute1DStencil(randomData, 5, 1, 2, 2, weights, SCALABOUNDARY)
 
     val stencil = fun(
-      ArrayType(Float, Var("N", StartFromRange(3))),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, Var("N", StartFromRange(3))),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -160,7 +160,7 @@ class TestStencil {
     val gold = Array(1, 3, 6, 8).map(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, Var("N", StartFromRange(2))),
+      ArrayTypeWSWC(Float, Var("N", StartFromRange(2))),
       (input) =>
         toGlobal(MapGlb(id)) o Join() o MapGlb(ReduceSeq(add, 0.0f)) o
           Slide(3, 1) o Pad(1, 1, Pad.Boundary.Clamp) $ input
@@ -177,8 +177,8 @@ class TestStencil {
 
     val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
     val stencil = fun(
-      ArrayType(Float, SizeVar("N")),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
 
         Join() o
@@ -209,8 +209,8 @@ class TestStencil {
                                  tileSize: Int, tileStep: Int,
                                  left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, SizeVar("N")),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapWrg(fun(tile =>
           MapLcl(
@@ -231,8 +231,8 @@ class TestStencil {
                             size: Int, step: Int,
                             left: Int, right: Int) = {
     fun(
-      ArrayType(Float, Var("N", StartFromRange(2))),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, Var("N", StartFromRange(2))),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -272,7 +272,7 @@ class TestStencil {
   ***********************************************************/
   @Test def reorderStride(): Unit = {
     val lambda = fun(
-      ArrayType(Float, 8),
+      ArrayTypeWSWC(Float, 8),
       (input) => MapSeq(id) o ReorderStride(4) $ input
     )
     val data = Array(0, 1, 2, 3, 4, 5, 6, 7).map(_.toFloat)
@@ -283,7 +283,7 @@ class TestStencil {
 
   @Test def outputViewSlideTest(): Unit = {
     val lambda = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
         MapSeq(MapSeq(id)) o Slide(3, 1) o MapSeq(id) $ input
     )
@@ -297,11 +297,11 @@ class TestStencil {
   @Test def parboil(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
-    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
+    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayTypeWSWC(ArrayTypeWSWC(Float, 3),3)), Float)
     // segfaults
     val stencil = fun(
-      ArrayType(ArrayType(ArrayType(Float, 512), 512), 64),
-      ArrayType(Float, 27),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 512), 512), 64),
+      ArrayTypeWSWC(Float, 27),
       (input, weights) => {
         MapSeq(MapWrg(1)(MapWrg(0)( \(block =>
           MapSeq(MapLcl(1)(MapLcl(0)( \(nbh =>

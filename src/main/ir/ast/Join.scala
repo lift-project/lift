@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import ir.{TypeException, ArrayType, Type}
+import ir._
 
 /**
  * Join pattern.
@@ -23,9 +23,7 @@ case class Join() extends Pattern(arity = 1) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(ArrayType(t, m), n) =>
-        ArrayType(t, n * m)
-
+      case ArrayTypeWSWC(ArrayTypeWSWC(et,is,ic), os, oc) => ArrayTypeWSWC(et, is*os, ic*oc)
       case _ => throw new TypeException(argType, "ArrayType(ArrayType(_, _), _)")
     }
   }

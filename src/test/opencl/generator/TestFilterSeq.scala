@@ -1,13 +1,11 @@
 package opencl.generator
 
-import ir.ArrayType
+import ir.ArrayTypeWSWC
 import ir.ast.{Join, Split, UserFun, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{
-  MapGlb, MapWrg, MapLcl, MapSeq, FilterSeq, ReduceSeq, toGlobal
-}
+import opencl.ir.pattern.{FilterSeq, MapGlb, MapLcl, MapSeq, MapWrg, ReduceSeq, toGlobal}
 import org.junit.Assert.assertArrayEquals
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -36,7 +34,7 @@ class TestFilterSeq {
     val N = SizeVar("N")
     
     val expr = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       l => MapGlb(toGlobal(int_id)) o FilterSeq(lt(5)) $ l
     )
     
@@ -52,7 +50,7 @@ class TestFilterSeq {
     val N = SizeVar("N")
     
     val expr = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       l => Join() o MapGlb(toGlobal(FilterSeq(lt(5)))) o Split(32) $ l
     )
     
@@ -74,7 +72,7 @@ class TestFilterSeq {
     val N = SizeVar("N")
     
     val expr = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       l => Join() o Join() o MapWrg(
         toGlobal(MapLcl(FilterSeq(lt(5)))) o Split(4)
       ) o Split(32) $ l
@@ -99,7 +97,7 @@ class TestFilterSeq {
     val N = SizeVar("N")
     
     val expr = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       l => MapGlb(toGlobal(int_id)) o Join() o FilterSeq(
         fun(xs => fun(x => x.at(0)) o MapSeq(lt(100)) o ReduceSeq(addI, 0) $ xs)
       ) o Split(32) $ l

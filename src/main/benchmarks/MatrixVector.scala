@@ -49,9 +49,9 @@ object MatrixVector {
   val M = SizeVar("M")
 
   val fullMatrixVectorFusedOpenCL = fun(
-    ArrayType(ArrayType(Float, N), M),
-    ArrayType(Float, N),
-    ArrayType(ArrayType(Float, 1), M),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+    ArrayTypeWSWC(Float, N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, 1), M),
     Float,
     Float,
     (matrix, vectorX, vectorY, alpha, beta) => {
@@ -65,9 +65,9 @@ object MatrixVector {
     })
 
   val fullMatrixVectorFusedOpenCL_ =
-    fun(ArrayType(ArrayType(Float, N), M),
-        ArrayType(Float, N),
-        ArrayType(ArrayType(Float, 1), M),
+    fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+        ArrayTypeWSWC(Float, N),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, 1), M),
         Float,
         Float,
         (matrix, vectorX, vectorY, alpha, beta) => {
@@ -98,9 +98,9 @@ object MatrixVector {
   })
 
   val fullMatrixVectorFusedOpenCLAMD = fun(
-    ArrayType(ArrayType(Float, N), M),
-    ArrayType(Float, N),
-    ArrayType(ArrayType(Float, 1), M),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+    ArrayTypeWSWC(Float, N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, 1), M),
     Float,
     Float,
     (matrix, vectorX, vectorY, alpha, beta) => {
@@ -117,9 +117,9 @@ object MatrixVector {
   // The same expression as 'fullMatrixVectorFusedOpenCLAMD' but written in a
   // dataflow / more imperative style
   val fullMatrixVectorFusedOpenCLAMD_ = fun(
-     ArrayType(ArrayType(Float, N), M),
-     ArrayType(Float, N),
-     ArrayType(ArrayType(Float, 1), M),
+     ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+     ArrayTypeWSWC(Float, N),
+     ArrayTypeWSWC(ArrayTypeWSWC(Float, 1), M),
      Float,
      Float,
      (matrix, vectorX, vectorY, alpha, beta) => {
@@ -159,9 +159,9 @@ object MatrixVector {
      })
 
   val clblast_N = fun(
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, N),
-      ArrayType(Float,M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float,M),
       Float,
       Float,
       (matrix, vectorX, vectorY, alpha, beta) =>
@@ -184,15 +184,15 @@ object MatrixVector {
                   , Get(x, 0)) $ Zip(Get(x, 1), localX))) $ Zip(acc, Get(next, 0))
               )  o toLocal(MapLcl(id)) $ Get(next, 1)),
 
-              MapLcl(id) $ Value(0.0f, ArrayType(Float, 64)))
+              MapLcl(id) $ Value(0.0f, ArrayTypeWSWC(Float, 64)))
             $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
         )) o Split(64) $ Zip(matrix, vectorY)
     )
 
   val clblast_T = fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(Float, N),
-      ArrayType(Float,M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float,M),
       Float,
       Float,
       (matrix, vectorX, vectorY, alpha, beta) =>
@@ -215,7 +215,7 @@ object MatrixVector {
                   , Get(x, 0)) $ Zip(Get(x, 1), localX))) $ Zip(acc, Get(next, 0))
               )  o toLocal(MapLcl(id)) $ Get(next, 1)),
 
-              MapLcl(id) $ Value(0.0f, ArrayType(Float, 64)))
+              MapLcl(id) $ Value(0.0f, ArrayTypeWSWC(Float, 64)))
             $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
         )) o Split(64) $ Zip(Transpose() $ matrix, vectorY)
     )

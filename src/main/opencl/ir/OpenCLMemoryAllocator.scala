@@ -180,7 +180,7 @@ object OpenCLMemoryAllocator {
     am.f.params(0).mem = inMem
 
     am.asInstanceOf[MapAtomWrg].globalTaskIndex =
-      OpenCLMemory.allocGlobalMemory(Type.getMaxSize(Int))
+      OpenCLMemory.allocGlobalMemory(Type.getMaxAllocatedSize(Int))
 
     val len = Type.getMaxLength(outT)
     alloc(am.f.body, numGlb * len, numLcl, numPvt)

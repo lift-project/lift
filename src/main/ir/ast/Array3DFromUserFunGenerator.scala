@@ -4,12 +4,12 @@ import ir._
 import ir.interpreter.Interpreter.ValueMap
 
 case class Array3DFromUserFunGenerator(f: UserFun,
-                                       override val at: ArrayType) extends ArrayConstructors(at) {
+                                       override val at: ArrayType with Size with Capacity) extends ArrayConstructors(at) {
   override def copy: Expr = Array3DFromUserFunGenerator(f, at)
 
   override def eval(valueMap: ValueMap): Any = {
     at match {
-      case ArrayType(ArrayType(ArrayType(_, o_), n_), m_) =>
+      case ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(_, o_), n_), m_) =>
         val o = o_.eval
         val n = n_.eval
         val m = m_.eval
