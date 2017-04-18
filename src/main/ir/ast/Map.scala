@@ -23,9 +23,6 @@ abstract class AbstractMap(val f: Lambda,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      /*case RuntimeSizedArrayType(t) =>
-        f.params(0).t = t
-        RuntimeSizedArrayType(TypeChecker.check(f.body, setType))*/
       case ArrayTypeWSWC(et,s,c) =>
         f.params(0).t = et
         ArrayTypeWSWC(TypeChecker.check(f.body, setType), s, c)

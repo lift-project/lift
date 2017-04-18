@@ -174,7 +174,7 @@ object InputView {
 
   private def buildViewJoin(call: FunCall, argView: View): View = {
     val chunkSize = call.argsType match {
-      case ArrayType(ArrayTypeWS(_, n)) => n
+      case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
       case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
     }
 

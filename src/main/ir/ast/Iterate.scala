@@ -84,13 +84,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
         val outputTypeWithTypeVar = TypeChecker.check(f.body, setType = false)
 
         // find all the type variable in the output type
-        //val outputTvSet = scala.collection.mutable.HashSet[TypeVar]()
         val outputTvSet = TypeVar.getTypeVars(outputTypeWithTypeVar)
-        /*Type.visit(outputTypeWithTypeVar, t => {}, {
-          case at: ArrayType with Size => outputTvSet ++= TypeVar.getTypeVars(at.size)
-          case vt: VectorType => outputTvSet ++= TypeVar.getTypeVars(vt.len)
-          case _ =>
-        })*/
 
         // put back the expression when the type variable is not present
         val fixedTvMap = initialTvValMap -- outputTvSet

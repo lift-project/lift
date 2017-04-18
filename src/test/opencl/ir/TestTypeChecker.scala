@@ -133,7 +133,7 @@ class TestTypeChecker {
     )
 
     val t = TypeChecker(lambda)
-    assertEquals(ArrayTypeWS(Float, Cst(1)), t)
+    assertEquals(ArrayTypeWSWC(Float, Cst(1), Cst(1)), t)
   }
 
   @Test(expected = classOf[SuspiciousTypeVariableDeclaredException])

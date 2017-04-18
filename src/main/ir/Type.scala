@@ -58,7 +58,12 @@ sealed abstract class Type {
     }
   }
 
-  def hasFixedSize: Boolean
+  /**
+    * Return true if the type has a fixed allocated size in byte.
+    * For instance, this will always be true all the primitive types.
+    * It will be false for array's whose capacity is not in the type.
+   */
+  def hasFixedAllocatedSize: Boolean
 
 }
 
@@ -70,7 +75,7 @@ sealed abstract class Type {
  */
 case class ScalarType(name: String, size: ArithExpr) extends Type {
   override def toString : String = name
-  override def hasFixedSize: Boolean = true
+  override def hasFixedAllocatedSize: Boolean = true
 }
 
 /**
@@ -82,7 +87,7 @@ case class ScalarType(name: String, size: ArithExpr) extends Type {
  */
 case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
   override def toString : String = scalarT.toString + len.toString
-  override def hasFixedSize: Boolean = true
+  override def hasFixedAllocatedSize: Boolean = true
 }
 
 /**
@@ -95,7 +100,7 @@ case class TupleType(elemsT: Type*) extends Type {
   override def toString : String
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 
-  override def hasFixedSize: Boolean = elemsT.forall(_.hasFixedSize)
+  override def hasFixedAllocatedSize: Boolean = elemsT.forall(_.hasFixedAllocatedSize)
 
 }
 
@@ -122,6 +127,20 @@ sealed trait Capacity {
  */
 case class ArrayType(elemT: Type) extends Type {
 
+  def getSize : Option[ArithExpr] = {
+    this match {
+      case s:Size => Some(s.size)
+      case _ => None
+    }
+  }
+
+  def getCapacity : Option[ArithExpr] = {
+    this match {
+      case c:Capacity => Some(c.capacity)
+      case _ => None
+    }
+  }
+
   override def toString : String = {
     "Arr(" +elemT+
     (this match { case s:Size => ",s="+s.size.toString; case _ => ""}) +
@@ -129,9 +148,9 @@ case class ArrayType(elemT: Type) extends Type {
     ")"
   }
 
-  override def hasFixedSize: Boolean =
+  override def hasFixedAllocatedSize: Boolean =
     this match {
-      case _:Capacity => elemT.hasFixedSize
+      case _:Capacity => elemT.hasFixedAllocatedSize
       case _ => false
     }
 
@@ -155,20 +174,13 @@ case class ArrayType(elemT: Type) extends Type {
 
 object ArrayType {
 
-  /*override def apply(elemT: Type) : ArrayType = {
-    new ArrayType(elemT)
-  }*/
-/*
-  def unapply(at : ArrayType): Option[(Type)]  = {
-    Some(at.elemT)
-  }*/
 
   def checkSizeOrCapacity(s: String, ae: ArithExpr) : Unit = {
     // TODO: remove the need to check for unknown (but this is used currently in a few places)
     if (ae != ? & ae.sign != Sign.Positive)
     // TODO: turn this back into an error (eventually)
     //throw new TypeException("Length must be provably positive! (len="+len+")")
-      println(s"Warning: $s must be provably positive! (len=$s)")
+      println(s"Warning: $s must be provably positive! (len=$ae)")
 
     if (ae.isEvaluable) {
       val length = ae.evalDbl
@@ -238,7 +250,7 @@ object ArrayTypeWC {
 
 // todo make sure we can distinguish between different unkownlengtharraytype (override hashCode and equals)
 class RuntimeSizedArrayType(override val elemT: Type) extends ArrayType(elemT) {
-  override def hasFixedSize: Boolean = false
+  override def hasFixedAllocatedSize: Boolean = false
 }
 
 object RuntimeSizedArrayType {
@@ -254,7 +266,7 @@ object RuntimeSizedArrayType {
  */
 object UndefType extends Type {
   override def toString = "UndefType"
-  override def hasFixedSize = false
+  override def hasFixedAllocatedSize = false
 }
 
 /**
@@ -263,7 +275,7 @@ object UndefType extends Type {
  */
 object NoType extends Type {
   override def toString = "NoType"
-  override def hasFixedSize = true
+  override def hasFixedAllocatedSize = true
 }
 
 /**
@@ -501,20 +513,20 @@ object Type {
    * @param t A type
    * @return The size in bytes.
    */
-  def getSize(t: Type) : ArithExpr = {
+  def getAllocatedSize(t: Type) : ArithExpr = {
     t match {
       case st: ScalarType => st.size
       case vt: VectorType => vt.scalarT.size * vt.len
-      case tt: TupleType  => tt.elemsT.map(getSize).reduce(_+_)
-      case at: ArrayType with Capacity => at.capacity * getSize(at.elemT)
+      case tt: TupleType  => tt.elemsT.map(getAllocatedSize).reduce(_+_)
+      case at: ArrayType with Capacity => at.capacity * getAllocatedSize(at.elemT)
       case _ => throw new IllegalArgumentException
     }
   }
 
-  def getMaxSize(t: Type) : ArithExpr = {
+  def getMaxAllocatedSize(t: Type) : ArithExpr = {
     // quick hack (set all the type var to theur max value)
     // TODO: need to be fixed
-    val size = getSize(t)
+    val size = getAllocatedSize(t)
     val map = TypeVar.getTypeVars(size).map(tv => (tv, tv.range.max)).toMap
     ArithExpr.substitute(size, map.toMap)
   }
@@ -619,18 +631,6 @@ object Type {
                  substitutions: scala.collection.Map[ArithExpr, ArithExpr]) : Type = {
 
     visitAndRebuild(t, (ae: ArithExpr) => ArithExpr.substitute(ae, substitutions.toMap))
-
-    /*Type.visitAndRebuild(t, t1 => t1, {
-      case RuntimeSizedArrayType(et) => // TODO add substitution here
-        new RuntimeSizedArrayType(et)
-      case ArrayType(et,len) =>
-        ArrayType(et, ArithExpr.substitute(len, substitutions.toMap))
-
-      case VectorType(st,len) =>
-        VectorType(st, ArithExpr.substitute(len, substitutions.toMap))
-
-      case t: Type => t
-    })*/
   }
 
 
@@ -670,9 +670,7 @@ object Type {
   }
 
   private def isEqual(l: ArrayType, r: ArrayType): Boolean = {
-    isEqual(l.elemT, r.elemT) &&
-      ((l,r) match { case (s1:Size, s2:Size) => s1.size == s2.size case _ => true}) &&
-      ((l,r) match { case (c1:Capacity, c2:Capacity) => c1.capacity == c2.capacity case _ => true})
+    isEqual(l.elemT, r.elemT) && l.getSize == r.getSize && l.getCapacity == r.getCapacity
   }
 
 
@@ -689,8 +687,6 @@ object Type {
    * @return A type similar to `t` but without any vector types
    */
   def devectorize(t: Type): Type = {
-    //Type.visitAndRebuild(t, (t) => t, (t) => t match {
-
         t match {
         case ArrayType(VectorType(st,len)) => t match {
           case ArrayTypeWSWC(_,s,c) => ArrayTypeWSWC(st, len * s, len * c)
@@ -709,14 +705,6 @@ object Type {
         case _ => t
       }
   }
-
-    /*
-    t match {
-      case vt: VectorType => vt.scalarT
-      case tt: TupleType  => TupleType( tt.elemsT:_* )
-      case at: ArrayType  => ArrayType(devectorize(at.elemT), at.len)
-      case _ => t
-    }*/
 
 }
 

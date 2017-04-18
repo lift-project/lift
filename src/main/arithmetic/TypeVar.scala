@@ -18,10 +18,9 @@ class TypeVar private(range : Range, fixedId: Option[Long] = None) extends Exten
 }
 
 object TypeVar {
-  //var cnt: Int = -1
+
   def apply(range : Range = RangeUnknown) = {
-    //cnt = cnt+1
-    new TypeVar(/*cnt, */range)
+    new TypeVar(range)
   }
 
   def getTypeVars(expr: Expr) : Set[TypeVar] = {
@@ -32,15 +31,6 @@ object TypeVar {
     val result = new mutable.HashSet[TypeVar]()
     Type.visit(t, (ae:ArithExpr) => result ++= getTypeVars(ae) : Unit )
     result.toSet
-
-
-/*      f: ArithExpr => Unit)
-    t match {
-      case at: ArrayType => getTypeVars(at.elemT) ++ getTypeVars(at.len)
-      case vt: VectorType => getTypeVars(vt.len)
-      case tt: TupleType => tt.elemsT.foldLeft(new immutable.HashSet[TypeVar]())((set,inT) => set ++ getTypeVars(inT))
-      case _ => immutable.HashSet()
-    }*/
   }
 
   def getTypeVars(expr: ArithExpr) : Set[TypeVar] = {

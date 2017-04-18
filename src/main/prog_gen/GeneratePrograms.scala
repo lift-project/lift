@@ -139,11 +139,11 @@ object GeneratePrograms {
           types.map(t => {
             JsObject(Seq(
               "filename" -> JsString(getTypeFilename(t)),
-              "size" -> JsNumber(Type.getSize(t).eval)
+              "size" -> JsNumber(Type.getAllocatedSize(t).eval)
             ))
           })
         ),
-        "output" -> JsNumber(Type.getSize(outputType).eval),
+        "output" -> JsNumber(Type.getAllocatedSize(outputType).eval),
         "sizes" -> JsArray(size.map(s => JsNumber(s.eval)))
       ))
 

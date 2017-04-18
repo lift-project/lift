@@ -394,7 +394,7 @@ class CGenerator extends Generator {
       liftKernel.body +=
         CAst.VarDecl(x.mem.variable, x.t,
           addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getMaxSize(Type.getBaseType(x.t))).eval))
+          length = (x.mem.size /^ Type.getMaxAllocatedSize(Type.getBaseType(x.t))).eval))
 
     liftKernel.body += CAst.Comment("Typed Value memory")
     typedValueMems.foreach(x =>
@@ -405,7 +405,7 @@ class CGenerator extends Generator {
 
     liftKernel.body += CAst.Comment("Private Memory")
     privateMems.foreach(x => {
-      val length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
+      val length = x.mem.size /^ Type.getMaxAllocatedSize(Type.getValueType(x.t))
 
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +

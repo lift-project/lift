@@ -123,7 +123,7 @@ object Utils {
 
   def getLengthOfSecondDim(t: Type) = t match {
     case ArrayType(ArrayTypeWS(_, m)) => m
-    case _ => throw new TypeException(t, "ArrayType(ArrayType(_, _), _)")
+    case _ => throw new TypeException(t, "ArrayType(ArrayType(), _)")
   }
 
   def validSplitVariable(t: Type): ArithExpr = {

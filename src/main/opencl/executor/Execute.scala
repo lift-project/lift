@@ -392,7 +392,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getMaxSize(f.body.t), valueMap).eval
+    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).eval
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments
