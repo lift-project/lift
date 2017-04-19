@@ -1,7 +1,7 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import benchmarks.DotProduct
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}

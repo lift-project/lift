@@ -3,8 +3,8 @@ package exploration
 import analysis.MemoryAmounts
 import com.typesafe.scalalogging.Logger
 import ir.ast._
+import opencl.generator.NDRange
 import lift.arithmetic.{ArithExpr, Cst}
-import opencl.generator.OpenCLGenerator.NDRange
 
 object ExpressionFilter {
 
@@ -27,17 +27,17 @@ object ExpressionFilter {
   import exploration.ExpressionFilter.Status._
 
   def apply(local: ArithExpr, global: ArithExpr): Status = {
-    filterNDRanges((Array(local, 1, 1): NDRange, Array(global, 1, 1): NDRange))
+    filterNDRanges((NDRange(local, 1, 1), NDRange(global, 1, 1)))
   }
 
   def apply(local1: ArithExpr, local2: ArithExpr,
             global1: ArithExpr, global2: ArithExpr): Status = {
-    filterNDRanges((Array(local1, local2, 1): NDRange, Array(global1, global2, 1): NDRange))
+    filterNDRanges((NDRange(local1, local2, 1), NDRange(global1, global2, 1)))
   }
 
   def apply(local1: ArithExpr, local2: ArithExpr, local3: ArithExpr,
             global1: ArithExpr, global2: ArithExpr, global3: ArithExpr): Status = {
-    filterNDRanges((Array(local1, local2, local3): NDRange, Array(global1, global2, global3): NDRange))
+    filterNDRanges((NDRange(local1, local2, local3), NDRange(global1, global2, global3)))
   }
   def filterNDRanges(ranges: (NDRange, NDRange)): Status = {
     ranges match {
@@ -45,7 +45,7 @@ object ExpressionFilter {
         try {
           // Rule out obviously poor choices based on the grid size
           // - minimum size of the entire compute grid
-          if (global.map(_.eval).product < SearchParameters.min_grid_size) {
+          if (global.numberOfWorkItems < SearchParameters.min_grid_size) {
             logger.debug("not enough work-items")
             return NotEnoughWorkItems
           }
@@ -53,19 +53,18 @@ object ExpressionFilter {
           if (local.forall(_.isEvaluable)) {
 
             // - minimum of work-items in a workgroup
-            if (local.map(_.eval).product < SearchParameters.min_work_items) {
+            if (local.numberOfWorkItems < SearchParameters.min_work_items) {
               logger.debug("not enough work-items (2)")
               return NotEnoughWorkItems
             }
 
             // - maximum of work-items in a workgroup
-            if (local.map(_.eval).product > 1024) {
+            if (local.numberOfWorkItems > 1024) {
               logger.debug("too many work-items")
               return TooManyWorkItems
             }
 
-            val numWorkgroups =
-              (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
+            val numWorkgroups = NDRange.numberOfWorkgroups(global, local)
 
             // - minimum number of workgroups
             if (numWorkgroups < SearchParameters.min_num_workgroups) {

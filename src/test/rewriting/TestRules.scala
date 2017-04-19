@@ -1,8 +1,8 @@
 package rewriting
 
-import lift.arithmetic.{RangeMul, SizeVar, Var}
 import ir.ast._
-import ir.{ArrayType, Type, TypeChecker, VectorType}
+import ir._
+import lift.arithmetic.{RangeMul, SizeVar, Var}
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.ast._
@@ -158,8 +158,8 @@ class TestRules {
   @Test
   def extract0(): Unit = {
     val f = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (in1, in2) => Map(fun(x => Map(fun(y => add(x,y))) o Map(id) $ in2)) $ in1
     )
 
@@ -172,8 +172,8 @@ class TestRules {
   @Test
   def extract1(): Unit = {
     val f = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (in1, in2) => Map(fun(x =>
         ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o Map(id) $ in2
       )) $ in1
@@ -188,7 +188,7 @@ class TestRules {
   @Test
   def mapFusionAfterExtract(): Unit = {
     val f0 = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       Map(plusOne) o Let(Map(id) $ _) $ _
     )
 
@@ -204,8 +204,8 @@ class TestRules {
     val gold = (input, input).zipped.map(_*_).sum
 
     val f = fun(
-      ArrayType(Float4, 1),
-      ArrayType(Float4, 1),
+      ArrayTypeWSWC(Float4, 1),
+      ArrayTypeWSWC(Float4, 1),
       (x, y) =>
         toGlobal(MapSeq(id)) o
           ReduceSeq(add, 0.0f) o
@@ -214,8 +214,8 @@ class TestRules {
     )
 
     val g = fun(
-      ArrayType(Float4, 1),
-      ArrayType(Float4, 1),
+      ArrayTypeWSWC(Float4, 1),
+      ArrayTypeWSWC(Float4, 1),
       (x, y) =>
         toGlobal(MapSeq(id)) o
           MapSeq(dot) $ Zip(x, y)
@@ -237,8 +237,8 @@ class TestRules {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float4, N),
-      ArrayType(Float4, N),
+      ArrayTypeWSWC(Float4, N),
+      ArrayTypeWSWC(Float4, N),
       (x, y) =>
         toGlobal(MapSeq(id)) o
           ReduceSeq(add, 0.0f) o
@@ -247,8 +247,8 @@ class TestRules {
     )
 
     val g = fun(
-      ArrayType(Float4, N),
-      ArrayType(Float4, N),
+      ArrayTypeWSWC(Float4, N),
+      ArrayTypeWSWC(Float4, N),
       (x, y) =>
         toGlobal(MapSeq(id)) o
           ReduceSeq(add, 0.0f) o
@@ -271,8 +271,8 @@ class TestRules {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float4, N),
-      ArrayType(Float4, N),
+      ArrayTypeWSWC(Float4, N),
+      ArrayTypeWSWC(Float4, N),
       (x, y) =>
         toGlobal(MapSeq(id)) o
           ReduceSeq(add, 0.0f) o
@@ -295,7 +295,7 @@ class TestRules {
     val var2 = Var(RangeMul(1, N, 2))
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in => {
         Gather(ReorderWithStride(var1)) o Scatter(ReorderWithStride(var2)) $ in
       })
@@ -312,7 +312,7 @@ class TestRules {
     val var4 = Var(RangeMul(1, 16, 2))
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in => {
         Gather(ReorderWithStride(var3/var1)) o Scatter(ReorderWithStride(var4/var2)) $ in
       })
@@ -324,7 +324,7 @@ class TestRules {
   @Test
   def joinSplitIdWithRanges(): Unit = {
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in => Join() o Split(Var(RangeMul(1, N, 2))) $ in
     )
 
@@ -339,7 +339,7 @@ class TestRules {
     val var2 = Var(RangeMul(1, N, 2))
 
     val f = fun(
-    ArrayType(Float, N),
+    ArrayTypeWSWC(Float, N),
     in => {
         Map(Map(id)) o Split(var1) o Join() o Split(var2) $ in
       })
@@ -361,12 +361,12 @@ class TestRules {
   def scatterGatherId(): Unit = {
 
     val f = fun(
-      ArrayType(Float, 16),
+      ArrayTypeWSWC(Float, 16),
       in => Gather(ReorderWithStride(16)) o Scatter(ReorderWithStride(16)) $ in
     )
 
     val g = fun(
-      ArrayType(Float, 16),
+      ArrayTypeWSWC(Float, 16),
       in => Scatter(ReorderWithStride(16)) o Gather(ReorderWithStride(16)) $ in
     )
 
@@ -377,7 +377,7 @@ class TestRules {
   @Test
   def nestPartialReduceInReduce(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, 16), 16), 16),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), 16), 16),
       a => Map( ReduceSeq(add, 0.0f) o Join() o Map(PartRed(fun((x, y) => add(x, y)), 0.0f)) ) $ a)
 
     val fResult = Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce)
@@ -387,8 +387,8 @@ class TestRules {
   @Test
   def pullingExpressionsOutOfZip(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (in1, in2) => MapGlb(fun(x =>
         MapSeq(fun(y =>
           MapSeq(fun(a => add(Get(a, 0), Get(a,1)))) $ Zip(Gather(reverse) $ x, Gather(reverse) $ y)
@@ -397,8 +397,8 @@ class TestRules {
     )
 
     val fP = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (in1, in2) => Map(fun(x =>
         Map(fun(y =>
           MapSeq(fun(a => add(Get(a, 0), Get(a,1)))) $ Zip(Gather(reverse) $ x, Gather(reverse) $ y)
@@ -432,7 +432,7 @@ class TestRules {
   def mapFission(): Unit = {
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => Map(id o id) $ input
     )
 
@@ -443,7 +443,7 @@ class TestRules {
     val M = SizeVar("M")
 
     val g = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ x)) $ input
     )
 
@@ -458,7 +458,7 @@ class TestRules {
     val M = SizeVar("M")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Transpose() o Transpose() $ input
     )
 
@@ -476,7 +476,7 @@ class TestRules {
     val s = SizeVar("s")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Slide(n, s) $ input
     )
 
@@ -494,7 +494,7 @@ class TestRules {
     val M = SizeVar("M")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(id) o Join() $ input
     )
 
@@ -508,7 +508,7 @@ class TestRules {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val f = fun(ArrayType(ArrayType(Float, M), N),
+    val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(Reduce(add, 0.0f)) $ input
     )
 
@@ -523,7 +523,7 @@ class TestRules {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val f = fun(ArrayType(ArrayType(Float, M), N),
+    val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(ReduceSeq(add, 0.0f)) $ input
     )
 
@@ -550,7 +550,7 @@ class TestRules {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val f = fun(ArrayType(ArrayType(Float, M), N),
+    val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(Map(plusOne)) $ input
     )
 
@@ -558,7 +558,7 @@ class TestRules {
 
     assertTrue(Rules.transposeBothSides.rewrite.isDefinedAt(f.body))
 
-    val g = fun(ArrayType(ArrayType(Float, M), N),
+    val g = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(Map(Map(plusOne)) o Split(2)) $ input
     )
 
@@ -571,8 +571,8 @@ class TestRules {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val f = fun(ArrayType(ArrayType(Float, M), N),
-      ArrayType(Float, M),
+    val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(Float, M),
       (in1, in2) => Map(fun(x => Map(fun(x => add(Get(x, 0), Get(x, 1)))) $ Zip(in2, x))) $ in1
     )
 
@@ -586,8 +586,8 @@ class TestRules {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val f = fun(ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, M),
+    val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, M),
       (in1, in2) =>
         Map(fun(x =>
           Map(fun(y => add(y, Get(x, 1)))) $ Get(x, 0)
@@ -603,13 +603,13 @@ class TestRules {
   def simpleMapTest(): Unit = {
 
     def f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => Map(id) $ input
       // input => Join() o MapWrg(Join() o Map(MapLane(id)) o Split(2) ) o Split(2) $ input
     )
 
     def goldF = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => MapGlb(id) $ input
     )
 
@@ -627,13 +627,13 @@ class TestRules {
   @Test
   def slightlyMoreComplexMap(): Unit = {
     val goldF = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       Float,
       (input, a) => MapGlb(fun(x => add(x, a))) $ input
     )
 
     def f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       Float,
       (input, a) => Map(fun(x => add(a, x))) $ input
     )
@@ -654,7 +654,7 @@ class TestRules {
   def joinSplit(): Unit = {
     val M = SizeVar("M")
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(Map(id)) $ input
     )
 
@@ -668,20 +668,20 @@ class TestRules {
     val (result:Array[Float], _) = Execute(128)(h, input)
 
     assertArrayEquals(input.flatten, result, 0.0f)
-    assertEquals(ArrayType(ArrayType(Float, M), N), h.body.t)
+    assertEquals(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), h.body.t)
   }
 
   @Test
   def joinSplitId(): Unit = {
     val goldF = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => MapGlb(id) $ input
     )
 
     val (gold: Array[Float], _) = Execute(128)(goldF, A)
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => MapGlb(id) o Join() o Split(8) $ input
     )
 
@@ -701,14 +701,14 @@ class TestRules {
     val A = Array.fill[Float](128, 4)(0.5f)
 
     val goldF = fun(
-      ArrayType(ArrayType(Float, 4), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), N),
       input => MapGlb(MapSeq(id)) $ input
     )
 
     val (gold: Array[Float], _) = Execute(128)(goldF, A)
 
     val f = fun(
-      ArrayType(ArrayType(Float, 4), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), N),
       input => MapGlb(MapSeq(id)) o Split(4) o Join() $ input
     )
 
@@ -727,14 +727,14 @@ class TestRules {
   @Test
   def asScalarAsVector(): Unit = {
     val goldF = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => MapGlb(id) $ input
     )
 
     val (gold: Array[Float], _) = Execute(128)(goldF, A)
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => MapGlb(id) o asScalar() o asVector(8) $ input
     )
 
@@ -754,14 +754,14 @@ class TestRules {
     val A = Array.fill[Float](128, 4)(0.5f)
 
     val goldF = fun(
-      ArrayType(ArrayType(Float, 4), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), N),
       input => MapGlb(MapSeq(id)) $ input
     )
 
     val (gold: Array[Float], _) = Execute(128)(goldF, A)
 
     val f = fun(
-      ArrayType(VectorType(Float, 4), N),
+      ArrayTypeWSWC(VectorType(Float, 4), N),
       input => MapGlb(id.vectorize(4)) o asVector(4) o asScalar() $ input
     )
 
@@ -780,12 +780,12 @@ class TestRules {
   @Test
   def simpleReduceTest(): Unit = {
     val goldF = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) $ input
     )
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => Reduce(add, 0.0f) $ input
     )
 
@@ -803,12 +803,12 @@ class TestRules {
   @Test
   def ReduceSeqMapSeq(): Unit = {
     val goldF = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, plusOne(newValue))), 0.0f) $ input
     )
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(plusOne) $ input
     )
 
@@ -831,12 +831,12 @@ class TestRules {
     val userFun = UserFun("idIntToFloat", "x", "{ return x; }", Int, Float)
 
     val goldF = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       input => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, userFun(newValue))), 0.0f) $ input
     )
 
     val f = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(userFun) $ input
     )
 
@@ -860,17 +860,17 @@ class TestRules {
     val A = Array.fill[Float](128, 4)(0.5f)
 
     val goldF = fun(
-      ArrayType(ArrayType(Float, 4), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), N),
       input => toGlobal(MapSeq(MapSeq(id))) o
         ReduceSeq(fun((acc, elem) => MapSeq(add) o fun(elem => Zip(acc, MapSeq(plusOne) $ elem)) $ elem),
-          Value(0.0f, ArrayType(Float, 4))) $ input
+          Value(0.0f, ArrayTypeWSWC(Float, 4))) $ input
     )
 
     val f = fun(
-      ArrayType(ArrayType(Float, 4), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), N),
       input => toGlobal(MapSeq(MapSeq(id))) o
         ReduceSeq(fun((acc, elem) => MapSeq(add) $ Zip(acc, elem)),
-          Value(0.0f, ArrayType(Float, 4))) o MapSeq(MapSeq(plusOne)) $ input
+          Value(0.0f, ArrayTypeWSWC(Float, 4))) o MapSeq(MapSeq(plusOne)) $ input
     )
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
@@ -888,13 +888,13 @@ class TestRules {
   @Test
   def moreComplexReduceSeqMapSeq(): Unit = {
     val goldF = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       Float,
       (input, a) => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, add(newValue, a))), 0.0f) $ input
     )
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       Float,
       (input, a) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(fun(x => add(x, a))) $ input
     )
@@ -916,7 +916,7 @@ class TestRules {
   @Test
   def simpleId(): Unit = {
     val f: Lambda = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => Map(plusOne) $ input
     )
 
@@ -930,7 +930,7 @@ class TestRules {
   @Test
   def arrayId(): Unit = {
     val f: Lambda = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => Map(id) $ input
     )
 
@@ -944,7 +944,7 @@ class TestRules {
   @Test
   def zipId(): Unit = {
     val f: Lambda = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => Map(idFF) $ Zip(input, input)
     )
 
@@ -959,7 +959,7 @@ class TestRules {
   def mapFissionNotAllowed0(): Unit = {
     // Map o Map
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Map(fun(x => Map(fun(y => add(x, y))) o Map(plusOne) $ input)) $ input
     )
@@ -971,7 +971,7 @@ class TestRules {
   def mapFissionNotAllowed1(): Unit = {
     // Map o Reduce
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Map(fun(x => Map(fun(y => add(x, y))) o Reduce(add, 0.0f) $ input)) $ input
     )
@@ -984,7 +984,7 @@ class TestRules {
 
     // Reduce o Map
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Map(fun(x =>
           ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
@@ -999,7 +999,7 @@ class TestRules {
   def mapFissionNotAllowed3(): Unit = {
     // Reduce o Reduce
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Map(fun(x =>
           ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
@@ -1014,7 +1014,7 @@ class TestRules {
   def mapFissionWhenArgUsedInBoth0(): Unit = {
     // Map o Map
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Map(fun(x => Map(fun(y => add(x, y))) o Map(plusOne) $ input)) $ input
     )
@@ -1027,7 +1027,7 @@ class TestRules {
   def mapFissionWhenArgUsedInBoth1(): Unit = {
     // Map o Reduce
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Map(fun(x => Map(fun(y => add(x, y))) o Reduce(add, 0.0f) $ input)) $ input
     )
@@ -1040,7 +1040,7 @@ class TestRules {
   def mapFissionWhenArgUsedInBoth2(): Unit = {
     // Reduce o Map
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Map(fun(x =>
           ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
@@ -1057,7 +1057,7 @@ class TestRules {
   def mapFissionWhenArgUsedInBoth3(): Unit = {
     // Reduce o Reduce
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Map(fun(x =>
           ReduceSeq(fun((acc, y) => add(acc, mult(x,y))), 0.0f) o
@@ -1074,7 +1074,7 @@ class TestRules {
   def mapReduceReduceNesting0(): Unit = {
     // Different f and init
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
       input => Map(ReduceSeq(add, 0.0f) o Join() o Map(PartRed(mult, 1.0f))) $ input
     )
 
@@ -1086,7 +1086,7 @@ class TestRules {
   def mapReduceReduceNesting1(): Unit = {
     // Different f and init
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
       input => Map(ReduceSeq(add, 0.0f) o Join() o Map(Reduce(mult, 1.0f))) $ input
     )
 
@@ -1098,7 +1098,7 @@ class TestRules {
   def mapReduceReduceNesting2(): Unit = {
     // Different init
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
       input => Map(ReduceSeq(add, 0.0f) o Join() o Map(Reduce(add, 1.0f))) $ input
     )
 
@@ -1110,7 +1110,7 @@ class TestRules {
   def mapReduceReduceNesting3(): Unit = {
     // Different init
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
       input => Map(ReduceSeq(add, 0.0f) o Join() o Map(PartRed(add, 1.0f))) $ input
     )
 

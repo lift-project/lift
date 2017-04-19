@@ -38,7 +38,7 @@ class TestRewriteKmeans {
             Map(\((x) => test(x._0,x._1)))
               $ Zip(Reduce(add, 0.0f) o
               Map(fun(x => currentDistance(x._0, x._1))) $ Zip(feature, cluster), tuple)
-          ), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int),1))
+          ), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int),1))
           ) $ clusters
         )) o Transpose() $ features
     )

@@ -4,15 +4,14 @@ import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic.{?, Cst}
 import ir.ast.{Expr, Lambda}
 import ir.{Memory, UnallocatedMemory}
-import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator._
 import opencl.ir.{GlobalMemory, InferOpenCLAddressSpace, LocalMemory, OpenCLMemoryAllocator, TypedOpenCLMemory}
 
 object MemoryAmounts {
     def apply(
     lambda: Lambda,
-    localSize: NDRange = Array(?,?,?),
-    globalSize: NDRange = Array(?,?,?),
+    localSize: NDRange = NDRange(?,?,?),
+    globalSize: NDRange = NDRange(?,?,?),
     valueMap: SubstitutionMap = collection.immutable.Map()
   ) = new MemoryAmounts(lambda, localSize, globalSize, valueMap)
 

@@ -17,10 +17,10 @@ case class UnsafeArrayAccess(index: Expr) extends Pattern(arity = 1)
                          setType: Boolean): Type = {
 		TypeChecker.check(index)
 	  argType match {
-	      case ArrayType(t, Cst(1)) =>
-	        ArrayType(t, Cst(1)) // match the definition of searches/reductions
+	      case ArrayTypeWS(t, Cst(1)) =>
+					ArrayTypeWSWC(t, Cst(1)) // match the definition of searches/reductions
 
-	      case ArrayType(t, n) => ArrayType(t, Cst(1))
+	      case ArrayType(t) => ArrayTypeWSWC(t, Cst(1))
 
 	      case _ => throw new TypeException(argType, "ArrayType")
 	    }
