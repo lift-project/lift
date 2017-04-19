@@ -3,8 +3,8 @@ package exploration
 import analysis.MemoryAmounts
 import com.typesafe.scalalogging.Logger
 import ir.ast._
+import opencl.generator.NDRange
 import lift.arithmetic.{ArithExpr, Cst}
-import opencl.generator.OpenCLGenerator.NDRange
 
 object ExpressionFilter {
 
@@ -32,7 +32,7 @@ object ExpressionFilter {
     searchParameters: SearchParameters
   ): Status =
     filterNDRanges(
-      (Array(local, 1, 1), Array(global, 1, 1)),
+      (NDRange(local, 1, 1), NDRange(global, 1, 1)),
       searchParameters
     )
 
@@ -42,7 +42,7 @@ object ExpressionFilter {
     searchParameters: SearchParameters
   ): Status =
     filterNDRanges(
-      (Array(local1, local2, 1), Array(global1, global2, 1)),
+      (NDRange(local1, local2, 1), NDRange(global1, global2, 1)),
       searchParameters
     )
 
@@ -52,7 +52,7 @@ object ExpressionFilter {
     searchParameters: SearchParameters
   ): Status =
     filterNDRanges(
-      (Array(local1, local2, local3), Array(global1, global2, global3)),
+      (NDRange(local1, local2, local3), NDRange(global1, global2, global3)),
       searchParameters
     )
 
@@ -66,7 +66,7 @@ object ExpressionFilter {
     try {
       // Rule out obviously poor choices based on the grid size
       // - minimum size of the entire compute grid
-      if (global.map(_.eval).product < searchParameters.minGridSize) {
+      if (global.numberOfWorkItems < searchParameters.minGridSize) {
         logger.debug("Not enough work-items in the grid")
         return NotEnoughWorkItems
       }
@@ -74,19 +74,19 @@ object ExpressionFilter {
       if (local.forall(_.isEvaluable)) {
 
         // - minimum of work-items in a workgroup
-        if (local.map(_.eval).product < searchParameters.minWorkItems) {
+        if (local.numberOfWorkItems < searchParameters.minWorkItems) {
           logger.debug("Not enough work-items in a group")
           return NotEnoughWorkItems
         }
 
         // - maximum of work-items in a workgroup
-        if (local.map(_.eval).product > searchParameters.maxWorkItems) {
+        if (local.numberOfWorkItems > searchParameters.maxWorkItems) {
           logger.debug("Too many work-items in a group")
           return TooManyWorkItems
         }
 
-        val numWorkgroups =
-          (global.map(_.eval) zip local.map(_.eval)).map(x => x._1 / x._2).product
+            val numWorkgroups =
+              NDRange.numberOfWorkgroups(global, local)
 
         // - minimum number of workgroups
         if (numWorkgroups < searchParameters.minWorkgroups) {
@@ -108,7 +108,6 @@ object ExpressionFilter {
       case t: Throwable =>
         logger.warn("Failed filtering", t)
         InternalException
-      // TODO: Internal exceptions sound suspicious. Log to file...
     }
   }
 
@@ -161,7 +160,6 @@ object ExpressionFilter {
       case t: Throwable =>
         logger.warn("Failed filtering", t)
         InternalException
-      // TODO: Internal exceptions sound suspicious. Log to file...
     }
   }
 }

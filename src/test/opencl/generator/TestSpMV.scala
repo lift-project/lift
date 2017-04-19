@@ -1,15 +1,15 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.reflect.ClassTag
-import opencl.ir.pattern._
 
 object TestSpMV {
   @BeforeClass def TestSpMV(): Unit = {
@@ -71,8 +71,8 @@ class TestSpMV {
     val M = SizeVar("M")
     val L = SizeVar("L")
     val f = fun(
-      ArrayType(ArrayType(TupleType(Int,Int), N), M),  // matrix
-      ArrayType(TupleType(Int,Int), L),  // vector
+      ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int,Int), N), M),  // matrix
+      ArrayTypeWSWC(TupleType(Int,Int), L),  // vector
       (matrix,vector) => {
         MapGlb(fun(row => 
           toGlobal(MapSeq(intId)) o ReduceSeq(sum,0) o Join() o MapSeq( //map across the first list
@@ -151,8 +151,8 @@ class TestSpMV {
     val M = SizeVar("M")
     val L = SizeVar("L")
     val f = fun(
-      ArrayType(ArrayType(TupleType(Int,Int), N), M),  // matrix
-      ArrayType(TupleType(Int,Int), L),  // vector
+      ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int,Int), N), M),  // matrix
+      ArrayTypeWSWC(TupleType(Int,Int), L),  // vector
       (mat,vect) => {
         MapSeq(fun(row => 
           toGlobal(MapSeq(intId)) o ReduceSeq(sum,0) o Join() o MapSeq( //map across the first list
@@ -208,8 +208,8 @@ class TestSpMV {
     val N = SizeVar("N")
     val M = SizeVar("M")
     val f = fun(
-      ArrayType(TupleType(Int,Int), N),  //first list
-      ArrayType(TupleType(Int,Int), M),  //second list
+      ArrayTypeWSWC(TupleType(Int,Int), N),  //first list
+      ArrayTypeWSWC(TupleType(Int,Int), M),  //second list
       (A,B) => {
         toGlobal(MapSeq(intId)) o ReduceSeq(sum,0) o Join() o MapSeq( //map across the first list
           fun(aElem =>
@@ -278,8 +278,8 @@ class TestSpMV {
     val N = SizeVar("N")
     val M = SizeVar("M")
     val f = fun(
-      ArrayType(TupleType(Int,Int), N),  //first list
-      ArrayType(TupleType(Int,Int), M),  //second list
+      ArrayTypeWSWC(TupleType(Int,Int), N),  //first list
+      ArrayTypeWSWC(TupleType(Int,Int), M),  //second list
       (A,B) => {
         toGlobal(MapSeq(intId)) o ReduceSeq(sum,0) o Join() o MapSeq( //map across the first list
           fun(aElem =>
@@ -349,8 +349,8 @@ class TestSpMV {
     val N = SizeVar("N")
     val M = SizeVar("M")
     val f = fun(
-      ArrayType(TupleType(Int,Int), N),  //first list
-      ArrayType(TupleType(Int,Int), M),  //second list
+      ArrayTypeWSWC(TupleType(Int,Int), N),  //first list
+      ArrayTypeWSWC(TupleType(Int,Int), M),  //second list
       (A,B) => {
         toGlobal(MapSeq(intId)) o ReduceSeq(sum,0) o Join() o MapSeq( //map across the first list
           fun(aElem =>
@@ -384,7 +384,7 @@ class TestSpMV {
     val negElem = UserFun("negElem", "x", "{ x._0 = x._0; x._1 = -(x._1); return x; }",
       TupleType(Int, Int), TupleType(Int, Int))
 
-    val f = fun(ArrayType(TupleType(Int, Int), SizeVar("N")), (input) =>
+    val f = fun(ArrayTypeWSWC(TupleType(Int, Int), SizeVar("N")), (input) =>
        MapGlb(negElem)  $ input
     )
     val (output:Array[Int], runtime) = Execute(1,1)(f, inputVector)
@@ -413,8 +413,8 @@ class TestSpMV {
       Seq(TupleType(Float, Float),Float), TupleType(Float, Float))
 
     val scalFun = fun(
-      ArrayType(TupleType(Float,Float), SizeVar("N")),
-      ArrayType(Float, 1), (input, alpha) =>
+      ArrayTypeWSWC(TupleType(Float,Float), SizeVar("N")),
+      ArrayTypeWSWC(Float, 1), (input, alpha) =>
       MapSeq(
         fun(x =>
           MapGlb(

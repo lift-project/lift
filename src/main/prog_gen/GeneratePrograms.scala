@@ -4,7 +4,7 @@ import java.io.File
 
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
-import ir.{ArrayType, Type, TypeChecker}
+import ir.{ArrayType, ArrayTypeWS, Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
 import org.clapper.argot.ArgotConverters._
@@ -139,11 +139,11 @@ object GeneratePrograms {
           types.map(t => {
             JsObject(Seq(
               "filename" -> JsString(getTypeFilename(t)),
-              "size" -> JsNumber(Type.getSize(t).eval)
+              "size" -> JsNumber(Type.getAllocatedSize(t).eval)
             ))
           })
         ),
-        "output" -> JsNumber(Type.getSize(outputType).eval),
+        "output" -> JsNumber(Type.getAllocatedSize(outputType).eval),
         "sizes" -> JsArray(size.map(s => JsNumber(s.eval)))
       ))
 
@@ -228,7 +228,7 @@ object GeneratePrograms {
 
   private def getTypeFilename(t: Type): String = {
     t match {
-      case ArrayType(elem, len) => len.toString + "_" + getTypeFilename(elem)
+      case ArrayTypeWS(elem, len) => len.toString + "_" + getTypeFilename(elem)
       case opencl.ir.Float => "float"
       case _ => throw new NotImplementedError()
     }

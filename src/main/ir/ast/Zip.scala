@@ -26,18 +26,18 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
       case tt: TupleType =>
         if (tt.elemsT.length != n) throw new NumberOfArgumentsException
 
-        // make sure all arguments are array types
-        tt.elemsT.map({
-          case at: ArrayType => at
+        // make sure all arguments are array types of equal size and capacity
+        tt.elemsT.foreach({
+          case _: ArrayType with Size with Capacity =>
           case t => throw new TypeException(t, "ArrayType")
         })
-        val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType])
+        val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType with Size with Capacity])
 
         // make sure all arguments have the same size
-        if (arrayTypes.map(_.len).distinct.length != 1)
+        if (arrayTypes.map(_.size).distinct.length != 1)
           throw new ZipTypeException(tt)
 
-        ArrayType(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.len)
+        ArrayTypeWSWC(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.size)
 
       case _ => throw new TypeException(argType, "TupleType")
     }

@@ -1,8 +1,8 @@
 package opencl.ir.ast
 
-import lift.arithmetic.SizeVar
-import ir.ArrayType
+import ir.ArrayTypeWSWC
 import ir.ast.{\, asVector}
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.MapGlb
@@ -29,7 +29,7 @@ class TestBuiltIn {
   @Test
   def testDot(): Unit = {
 
-    val f = \(ArrayType(Float, N),
+    val f = \(ArrayTypeWSWC(Float, N),
       MapGlb(\(a => dot(a, a))) o asVector(4) $ _
     )
 
@@ -43,7 +43,7 @@ class TestBuiltIn {
   @Test
   def testFma(): Unit = {
 
-    val f = \(ArrayType(Float, N),
+    val f = \(ArrayTypeWSWC(Float, N),
       MapGlb(\(a => fma(a, a, a))) $ _
     )
 
