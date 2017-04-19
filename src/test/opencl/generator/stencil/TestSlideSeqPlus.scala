@@ -33,8 +33,7 @@ object SlideSeqPlusHelpers
   def stencil(a: Int ,b :Int) = fun(
     ArrayType(Float, SizeVar("N")),
     (input) =>
-     //  toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
-    toGlobal(MapSeq(id)) /*o SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)*/ o toPrivate(MapSeq(id)) $ input
+       toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
   )
 }
 
@@ -49,10 +48,6 @@ class TestSlideSeqPlus
     val size = 30
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
-
-    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
-
-
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
@@ -71,8 +66,6 @@ class TestSlideSeqPlus
     val size = 20
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
-
-    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
@@ -95,8 +88,6 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
-
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     StencilUtilities.print1DArray(values)
@@ -118,8 +109,6 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     // drop right one on the comparison array because scala sliding does not work exactly the same as Lift sliding ...
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).dropRight(1)
-
-    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 

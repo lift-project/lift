@@ -1,11 +1,11 @@
 package opencl.generator
 
-import lift.arithmetic._
 import arithmetic.TypeVar
 import generator.Generator
 import ir._
 import ir.ast._
 import ir.view._
+import lift.arithmetic._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 import opencl.ir.ast.OpenCLBuiltInFun
@@ -661,8 +661,7 @@ class OpenCLGenerator extends Generator {
                                        call: FunCall,
                                        block: Block): Unit = {
     (block: Block) += OpenCLAST.Comment("slideSeq_plus")
-//      generateForLoop(block, sp.loopVar, generate(sp.f.body, _), sp.shouldUnroll)
-      generateLoopMinMemoryAccess(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
+    generateLoopMinMemoryAccess(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end slideSeq_plus")
   }
 
@@ -1045,63 +1044,32 @@ class OpenCLGenerator extends Generator {
 
     val v = Value(0.0f, ArrayType(Float, size.eval))
     varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
-    (block: Block) += OpenCLAST.VarDecl(sSP.windowVar, v.t,
+    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, size.eval, PrivateMemory), v.t)
+    val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
       init = null,PrivateMemory,size.eval)
-/*    if(sSP.size.eval <= sSP.step.eval)
-      return generateForLoop(block, sSP.loopVar, generate(sSP.f.body, _), sSP.shouldUnroll)
-    else*/
-/*
-    val twin = Var("twindow")
-    varDecls = varDecls.updated(twin, Type.devectorize(call.t))
-    (block: Block) += OpenCLAST.VarDecl(twin, Type.devectorize(call.t),
-      OpenCLAST.VarRef(inputMem.variable),
-      inputMem.addressSpace,size.eval)
-    inputMem.variable = sSP.windowVar; //twin
-  */
+    privateDecls  += (sSP.windowVar -> varD)
+    (block: Block) += varD
 
+    for (i <- 0 until size.eval) {
+      replacements = replacements.updated(sSP.windowVar, i)
+      val j: ArithExpr =
+        if (range.min.isInstanceOf[OclFunction]) {
+          range.min + step * i
+        } else {
+          i
+        }
+      replacementsWithFuns = replacementsWithFuns.updated(sSP.windowVar, j)
+
+    }
+    // cleanup
+    replacements = replacements - sSP.windowVar
+    replacementsWithFuns = replacementsWithFuns - sSP.windowVar
 
     for(i <- 0 to reuse.eval-1) {
-      (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = null, ArithExpression(Cst(i))), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
+      (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
     }
 
-    // if we need to unroll (e.g. because of access to private memory)
-    if (needUnroll) {
-
-      val iterationCount = try {
-        size.eval //indexVar.range.numVals.enforceSimplification.eval
-      } catch {
-        case NotEvaluableException =>
-          throw new OpenCLGeneratorException("Trying to unroll loop, " +
-            "but iteration count could not be determined statically.")
-      }
-
-      if (iterationCount > 0) {
-        (block: Block) += OpenCLAST.Comment("unroll")
-
-        for (i <- 0 until iterationCount) {
-          replacements = replacements.updated(indexVar, i)
-          val j: ArithExpr =
-            if (range.min.isInstanceOf[OclFunction]) {
-              range.min + rangeStep * i
-            } else {
-              i
-            }
-          replacementsWithFuns = replacementsWithFuns.updated(indexVar, j)
-
-          generateBody(block)
-        }
-        // cleanup
-        replacements = replacements - indexVar
-        replacementsWithFuns = replacementsWithFuns - indexVar
-
-        (block: Block) += OpenCLAST.Comment("end unroll")
-        return
-      } else {
-        throw new OpenCLGeneratorException(s"Trying to unroll loop, but iteration count is $iterationCount.")
-      }
-
-    }
-
+    // TODO: Should this stay?
     // TODO: Information needed elsewhere. See analysis.ControlFlow
     // try to see if we really need a loop
     if (PerformLoopOptimisation())
@@ -1115,15 +1083,12 @@ class OpenCLGenerator extends Generator {
         generateStatement(block, indexVar, generateBody, init)
         return
 
-      // TODO: See TestInject.injectExactlyOneIterationVariable
-      // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
       case _ if range.start.min.min == Cst(0) &&
         ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
 
         generateStatement(block, indexVar, generateBody, init)
         return
 
-      // TODO: See TestOclFunction.numValues and issue #62
       case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
         generateIfStatement(block, indexVar, generateBody, init, stop)
         return
@@ -1143,49 +1108,16 @@ class OpenCLGenerator extends Generator {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
 
-    for (i <- 0 until size.eval) {
-      replacements = replacements.updated(sSP.windowVar, i)
-      val j: ArithExpr =
-        if (range.min.isInstanceOf[OclFunction]) {
-          range.min + step * i
-        } else {
-          i
-        }
-      replacementsWithFuns = replacementsWithFuns.updated(sSP.windowVar, j)
-
-    }
-    // cleanup
-    replacements = replacements - sSP.windowVar
-    replacementsWithFuns = replacementsWithFuns - sSP.windowVar
 
     for(i <- reuse.eval to size.eval-1) {
-      innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = null, ArithExpression(i)), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i)))
+      innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i)))
     }
 
-  /*
-    innerBlock += OpenCLAST.Comment("unroll")
-
-    for (i <- 0 until size.eval) {
-      replacements = replacements.updated(sSP.windowVar, i)
-      val j: ArithExpr =
-        if (range.min.isInstanceOf[OclFunction]) {
-          range.min + step * i
-        } else {
-          i
-        }
-      replacementsWithFuns = replacementsWithFuns.updated(sSP.windowVar, j)
-
-    }
-    // cleanup
-    replacements = replacements - sSP.windowVar
-    replacementsWithFuns = replacementsWithFuns - sSP.windowVar
-
-    innerBlock += OpenCLAST.Comment("end unroll")*/
     generateBody(innerBlock)
    // generateBody(innerBlock)
 
     for(i <- 1 to reuse.eval) {
-        innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = null,ArithExpression(i-1)),VarRef(sSP.windowVar,suffix = null,ArithExpression(size.eval-reuse-1+i)))
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = s"_${i-1}"),VarRef(sSP.windowVar,suffix = s"_${size.eval-reuse-1+i}"))
     }
 
   }
