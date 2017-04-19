@@ -1,11 +1,11 @@
 package opencl.generator
 
 import ir.ArrayTypeWSWC
-import ir.ast.{Join, Split, UserFun, fun}
+import ir.ast.{Join, Split, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{FilterSeq, MapGlb, MapLcl, MapSeq, MapWrg, ReduceSeq, toGlobal}
+import opencl.ir.pattern._
 import org.junit.Assert.assertArrayEquals
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -26,44 +26,57 @@ class TestFilterSeq {
   // Some user functions
   def lt(n: Int): UserFun =
     UserFun(s"lt$n", "x", s"return x < $n;", Int, Int)
-  val int_id: UserFun = id(Int, name="int_id")
   
   @Test def filterSimple(): Unit = {
-    val size = 128
-    val input = Array.fill(size)(util.Random.nextInt(10))
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextFloat())
     val N = SizeVar("N")
     
-    val expr = fun(
-      ArrayTypeWSWC(Int, N),
-      l => MapGlb(toGlobal(int_id)) o FilterSeq(lt(5)) $ l
+    val predicate = UserFun(
+      "predicate", "x", "return (x < 0.8) & (x > 0.2);", Float, Int
     )
     
-    val (output: Array[Int], _) = Execute(size)(expr, input)
-    val gold = input.filter(_ < 5)
+    val expr = fun(
+      ArrayTypeWSWC(Float, N),
+      l => MapGlb(toGlobal(id(Float))) o FilterSeq(predicate) $ l
+    )
     
-    assertArrayEquals(gold, output.slice(0, gold.length))
+    val (output: Array[Float], _) = Execute(size)(expr, input)
+    val gold = input.filter(x => (x < 0.8) && (x > 0.2))
+    
+    assertArrayEquals(gold, output.slice(0, gold.length), 0f)
   }
   
   @Test def filterMapGlb(): Unit = {
     val size = 1024
-    val input = Array.fill(size)(util.Random.nextInt(10))
+    val left = Array.fill(size)(util.Random.nextInt(10))
+    val right = Array.fill(size)(util.Random.nextInt(10))
     val N = SizeVar("N")
     
     val expr = fun(
-      ArrayTypeWSWC(Int, N),
-      l => Join() o MapGlb(toGlobal(FilterSeq(lt(5)))) o Split(32) $ l
+      ArrayTypeWSWC(Int, N), ArrayTypeWSWC(Int, N),
+      (left, right) => Join() o MapGlb(toGlobal(FilterSeq(
+        fun((l, r) => equality(Int).apply(l, r))
+      ))) o Split(32) $ Zip(left, right)
     )
     
     
-    val (output: Array[Int], _) = Execute(size)(expr, input)
+    val (output: Array[Int], _) = Execute(size)(expr, left, right)
     // Because RuntimeSizeArrays are not supported yet, we have to reshape the
     // output
-    val reshapedOutput = (input.grouped(32) zip output.grouped(32))
-      .map({ case (in, out) =>  out.slice(0, in.count(_ < 5))})
-      .toArray
-      .flatten
+    val reshapedOutput =
+      ((left zip right).grouped(32) zip output.grouped(2).grouped(32))
+      .map({ case (in, out) =>
+        out.slice(0, in.count(t => t._1 == t._2))
+      })
+      .toArray.flatten.flatten
+    
+    // We assertArrayEquals does not support arrays of tuples
+    val gold = (left zip right)
+      .filter(t => t._1 == t._2)
+      .flatMap(t => Array(t._1, t._2))
    
-    assertArrayEquals(input.filter(_ < 5), reshapedOutput)
+    assertArrayEquals(gold, reshapedOutput)
   }
   
   @Test def filterMapWrg(): Unit = {
@@ -98,7 +111,7 @@ class TestFilterSeq {
     
     val expr = fun(
       ArrayTypeWSWC(Int, N),
-      l => MapGlb(toGlobal(int_id)) o Join() o FilterSeq(
+      l => MapGlb(toGlobal(id(Int))) o Join() o FilterSeq(
         fun(xs => fun(x => x.at(0)) o MapSeq(lt(100)) o ReduceSeq(addI, 0) $ xs)
       ) o Split(32) $ l
     )

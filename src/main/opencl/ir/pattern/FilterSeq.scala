@@ -26,7 +26,7 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
   def copyFun: Lambda1 = this._copyFun
   
   private def generateCopyFun(ty: Type): Lambda1 = ty match {
-      case _: ScalarType | _: TupleType => id(ty, name=s"_filterseq_${ty}_id")
+      case _: ScalarType | _: TupleType => id(ty, name=s"_filterseq_${Type.name(ty)}_id")
       case ArrayType(elemTy) => MapSeq(generateCopyFun(elemTy))
       case _ => throw new NotImplementedError()
     }
