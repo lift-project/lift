@@ -50,9 +50,9 @@ object HarrisCornerDetection{
   /////////////////// LAMBDAS
   def convolutionSimple(): Lambda = {
     fun(
-      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 1536), 2560),
-      ArrayType(Float, 9),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1536), 2560),
+      ArrayTypeWSWC(Float, 9),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {

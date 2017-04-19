@@ -40,7 +40,7 @@ abstract class AbstractSearch(val f: Lambda,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case TupleType(defaultT, ArrayType(elemT, _)) => 
+      case TupleType(defaultT, ArrayType(elemT)) =>
         // check the default and element type match
         // TODO: Can this be done in the pattern match statement?
         if(defaultT != elemT) throw new TypeException(defaultT, elemT.toString)
@@ -53,7 +53,7 @@ abstract class AbstractSearch(val f: Lambda,
         // ensure that the body function returns an integer
         if(f.body.t != opencl.ir.Int) throw new TypeException(f.body.t, "Int")
         // finally, return a single element array type
-        ArrayType(elemT, 1)
+        ArrayTypeWSWC(elemT, 1)
 
       case _ => throw new TypeException(argType, "TupleType(a, ArrayType(a, _)")
     }

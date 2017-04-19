@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
-import ir.ArrayType
+import ir.ArrayTypeWSWC
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -39,7 +39,7 @@ class TestPad {
 
   def validate1D(gold: Array[Float], left: Int, right: Int, boundary: Pad.BoundaryFun, input: Array[Float] = input): Unit = {
     val fct = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Pad(left, right, boundary) $ domain
     )
 
@@ -55,7 +55,7 @@ class TestPad {
     val gold = Array(A,A,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,P,P)
     val bf = Pad.Boundary.Clamp
     val fct = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (domain) => MapGlb(id) o Pad(1,1,bf) o Pad(1,1,bf) $ domain
     )
 
@@ -68,7 +68,7 @@ class TestPad {
     val gold = Array(0,0,0,1,2,3,4,4,4).map(_.toFloat)
     val bf = Pad.Boundary.Clamp
     val fct = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (domain) => MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
     )
 
@@ -81,11 +81,11 @@ class TestPad {
     val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
     val bf = Pad.Boundary.Clamp
     val joinMapPad = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
       (domain) => MapSeq(id) o Join() o MapSeq(MapSeq(id)) o Pad(1,1,bf) $ domain
     )
     val padJoinMap = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
       (domain) => MapSeq(id) o Pad(1,1,bf) o Join() o MapSeq(MapSeq(id)) $ domain
     )
 
@@ -182,7 +182,7 @@ class TestPad {
                  boundary: Pad.BoundaryFun): Unit = {
     val N = SizeVar("N")
     val fct = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (domain) => MapGlb(0)(
         MapGlb(1)(id)) o
         Pad2D(top, bottom, left, right, boundary) $ domain
@@ -345,7 +345,7 @@ class TestPad {
     val gold = Array(20.0f)
     val bf = Pad.Boundary.Wrap
     val fct = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Pad(1,1,bf) $ input
     )
 
@@ -365,7 +365,7 @@ class TestPad {
                  b: Pad.BoundaryFun): Unit = {
     val N = SizeVar("N")
     val fct = fun(
-      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
       (domain) => MapGlb(0)(MapGlb(1)(MapGlb(2)(id))) o
         Pad3D(z,y,x,b) $ domain
     )
@@ -401,7 +401,7 @@ class TestPad {
     val N = SizeVar("N")
     val b = Pad.Boundary.Clamp
     val fct = fun(
-      ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
       (input) => MapGlb(0)(MapGlb(1)(MapGlb(2)(id))) o
         Map(Map(Pad(1,1,b))) o Transpose() o
         Pad(1,1,b) o Transpose() o Pad(1,1,b) $ input

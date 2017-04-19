@@ -1,14 +1,14 @@
 package rewriting
 
-import lift.arithmetic.{Cst, SizeVar, StartFromRange, Var}
-import rewriting.utils.NumberExpression
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.Executor
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.utils.NumberExpression
 
 object TestMacroRules {
   @BeforeClass def before(): Unit = {
@@ -32,7 +32,7 @@ class TestMacroRules {
     { case FunCall(TransposeW(), FunCall(Reduce(_), _, _)) => }
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       input => Map(Reduce(add, 0.0f)) $ input
     )
 
@@ -42,7 +42,7 @@ class TestMacroRules {
     TypeChecker(fResult)
 
     val g = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       input => Map(Reduce(add, 0.0f) o Gather(reverse)) $ input
     )
 
@@ -55,7 +55,7 @@ class TestMacroRules {
     { case FunCall(Map(_), FunCall(TransposeW(), FunCall(Reduce(_), _, _))) => }
 
     val h = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       input => Map(Scatter(reverse) o Reduce(add, 0.0f)) $ input
     )
 
@@ -65,7 +65,7 @@ class TestMacroRules {
     TypeChecker(hResult)
 
     val m = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       input => Map(Scatter(reverse) o Scatter(reverse) o Reduce(add, 0.0f) o Gather(reverse)) $ input
     )
 
@@ -86,7 +86,7 @@ class TestMacroRules {
     val stencilFunction = Reduce(add, 0.0f) o Join()
     val gold = Map(Map(stencilFunction)) o Slide2D(3,1)
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       a => gold $ a)
 
     assertTrue(MacroRules.tile2DStencils.isDefinedAt(f.body))
@@ -100,7 +100,7 @@ class TestMacroRules {
     val stencilFunction = Reduce(add, 0.0f) o Join()
     val gold = Map(Map(stencilFunction)) o Slide2D(3,1, 1,1) o Pad2D(1,1, 0,0, Pad.Boundary.Clamp)
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       a => gold $ a)
 
     assertTrue(MacroRules.tile2DStencils.isDefinedAt(f.body))
@@ -116,8 +116,8 @@ class TestMacroRules {
       Seq(Float, Float, Float, Float, Float, Float), Float)
 
     val hotspot = fun(
-      ArrayType(ArrayType(Float, 1024), 1024),
-      ArrayType(ArrayType(Float, 1024), 1024),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1024), 1024),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1024), 1024),
       (heat, power) => {
         Map(Map(\(tuple => {
           val nbh = tuple._0
@@ -156,12 +156,12 @@ class TestMacroRules {
       "{ return img + 0.125 * div; }", Seq(Float, Float), Float)
 
     val srad2 = fun(
-      ArrayType(ArrayType(Float, m), n),
-      ArrayType(ArrayType(Float, m), n),
-      ArrayType(ArrayType(Float, m), n),
-      ArrayType(ArrayType(Float, m), n),
-      ArrayType(ArrayType(Float, m), n),
-      ArrayType(ArrayType(Float, m), n),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
       (image, coeff, DN, DS, DE, DW) => {
         Map(Map(fun((m) => {
           val imageNBH = Get(m, 0)
@@ -197,8 +197,8 @@ class TestMacroRules {
    @Test
    def tile2DStencilsSeparable2(): Unit = {
       val stencil = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Map(
           Map(\(neighbourhood =>
@@ -221,7 +221,7 @@ class TestMacroRules {
   @Test
   def fissionAtPosition(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       a => Map(Reduce(add, 0.0f) o Map(plusOne) o Map(plusOne) o Map(plusOne)) $ a)
 
     Rewrite.applyRuleAtId(f, 0, MacroRules.mapFissionAtPosition(0))
@@ -235,7 +235,7 @@ class TestMacroRules {
     val M = SizeVar("M")
 
     val f = \(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       Map(Map(id)) $ _
     )
 
@@ -252,8 +252,8 @@ class TestMacroRules {
     val v_N_2 = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, v_M_0), v_K_1),
-      ArrayType(ArrayType(Float, v_N_2), v_K_1),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),
       (p_0, p_1) =>
         FunCall(Map(fun((p_2) =>
           FunCall(Map(fun((p_3) =>
@@ -278,12 +278,12 @@ class TestMacroRules {
     val v_M_0 = SizeVar("M")
     val v_K_1 = SizeVar("K")
     val v_N_2 = SizeVar("N")
-    val v__3 = SizeVar("")
-    val v__4 = SizeVar("")
+    val v__3 = SizeVar("v3")
+    val v__4 = SizeVar("v4")
 
     val f = fun(
-      ArrayType(ArrayType(Float, v_M_0), v_K_1),
-      ArrayType(ArrayType(Float, v_N_2), v_K_1),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),
       (p_0, p_1) =>
         FunCall(Map(fun((p_2) =>
           FunCall(Scatter(ReorderWithStride(v_N_2 / v__3)), p_2)
@@ -305,7 +305,7 @@ class TestMacroRules {
                               )),
                                 FunCall(Zip(2), FunCall(Get(0), p_8), FunCall(Get(1), p_8)))
                             )), FunCall(Zip(2), p_6, p_7))
-                          )), Value(0.0f, ArrayType(ArrayType(Float, v__3), v__4)),
+                          )), Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, v__3), v__4)),
                             FunCall(Transpose(),
                               FunCall(Map(fun((p_10) =>
                                 FunCall(Transpose(),
@@ -339,8 +339,8 @@ class TestMacroRules {
 
     val f =
       fun(
-        ArrayType(ArrayType(Float, v_M_0), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),
         (p_0, p_1) =>
           FunCall(Map(fun((p_2) =>
             FunCall(Map(fun((p_3) =>

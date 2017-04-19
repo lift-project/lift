@@ -11,7 +11,7 @@ case class ReduceSeq(override val f: Lambda)
   override def checkType(argType: Type, setType: Boolean): Type =  {
     // TODO: Duplication with AbstractPartRed. ReduceSeq is somewhat less strict.
     argType match {
-      case TupleType(initT, ArrayType(elemT, _)) =>
+      case TupleType(initT, ArrayType(elemT)) =>
         f.params(0).t = initT // initial elem type
         f.params(1).t = elemT // array element type
 
@@ -20,7 +20,7 @@ case class ReduceSeq(override val f: Lambda)
         if (bodyType != initT)
           throw TypeException(s"ReduceSeq operator returns $bodyType instead of the expected $initT")
 
-        ArrayType(initT, 1)
+        ArrayTypeWSWC(initT, 1)
 
       case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
     }

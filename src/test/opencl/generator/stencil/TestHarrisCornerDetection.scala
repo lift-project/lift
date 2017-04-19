@@ -6,8 +6,8 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.util.Random
 
@@ -40,8 +40,8 @@ class TestHarrisCornerDetection {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, 1536), 2560),
-      ArrayType(Float, 3 * 3),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1536), 2560),
+      ArrayTypeWSWC(Float, 3 * 3),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -70,7 +70,7 @@ class TestHarrisCornerDetection {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val mult = fun(
-      ArrayType(ArrayType(Float, 1534), 2558),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1534), 2558),
       (derivativeX) => {
         MapGlb(1)(MapGlb(0)(square)) $ derivativeX
       }
@@ -89,8 +89,8 @@ class TestHarrisCornerDetection {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val mult = fun(
-      ArrayType(ArrayType(Float, 1534), 2558),
-      ArrayType(ArrayType(Float, 1534), 2558),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1534), 2558),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1534), 2558),
       (derivativeX, derivativeY) => {
         MapGlb(1)(MapGlb(0)(multTuple)) o Split(1534) $ Zip(Join() $ derivativeX, Join() $ derivativeY)
       }
@@ -111,7 +111,7 @@ class TestHarrisCornerDetection {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, 1534), 2558),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1534), 2558),
       (matrix) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -135,9 +135,9 @@ class TestHarrisCornerDetection {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val determinant = fun(
-      ArrayType(ArrayType(Float, 1532), 2556),
-      ArrayType(ArrayType(Float, 1532), 2556),
-      ArrayType(ArrayType(Float, 1532), 2556),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1532), 2556),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1532), 2556),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1532), 2556),
       (sXX,sXY,sYY) => {
           MapGlb(1)(MapGlb(0)(fun((pair) => {
             val a = Get(pair, 0)
@@ -175,9 +175,9 @@ class TestHarrisCornerDetection {
           })
 
     val cornerDetection = fun(
-      ArrayType(ArrayType(Float, 1534), 2558),
-      ArrayType(ArrayType(Float, 1534), 2558),
-      ArrayType(ArrayType(Float, 1534), 2558),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1534), 2558),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1534), 2558),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1534), 2558),
       (iXX,iXY,iYY) => {
           MapSeq(threeTupleToDeterminant) $ Zip(
               Join() o ninePointSum $ iXX,
@@ -220,7 +220,7 @@ class TestHarrisCornerDetection {
     ))
 
     val cornerDetection = fun(
-      ArrayType(ArrayType(Float, 1536), 2560),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1536), 2560),
       (input) => {MapWrg(1)(MapWrg(0)(handleInputTile)) o Slide2D(20,16) $ input
       })
 
@@ -283,7 +283,7 @@ class TestHarrisCornerDetection {
     ))
 
     val cornerDetection = fun(
-      ArrayType(ArrayType(Float, 1536), 2560),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1536), 2560),
       (input) => {MapWrg(1)(MapWrg(0)(
           handleInputTile) o toLocal(MapLcl(1)(MapLcl(0)(id)))) o
         Slide2D(20,16) $ input
@@ -358,7 +358,7 @@ class TestHarrisCornerDetection {
 
     /////////////////////////// MAIN
     val cornerDetection = fun(
-      ArrayType(ArrayType(Float, 1536), 2560),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1536), 2560),
       (input) => {MapWrg(1)(MapWrg(0)(
         toGlobal(MapSeq(addTuple)) o dataBeforeCompute o
           toLocal(MapLcl(1)(MapLcl(0)(id))))) o
@@ -382,7 +382,7 @@ class TestHarrisCornerDetection {
     val g = MapGlb(square) o MapGlb(square)
 
     val lambda = fun(
-      ArrayType(Float, 4),
+      ArrayTypeWSWC(Float, 4),
       (input) => {
         MapGlb(addTuple) $ Zip(f $ input, g $ input)
       })
@@ -472,7 +472,7 @@ class TestHarrisCornerDetection {
     ))
 
     val cornerDetection = fun(
-      ArrayType(ArrayType(Float, 1536), 2560),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1536), 2560),
       (input) => {MapWrg(1)(MapWrg(0)(
           toGlobal(MapSeq(id)) o
             handleInputTile) o

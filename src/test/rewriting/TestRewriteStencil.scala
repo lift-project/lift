@@ -2,9 +2,9 @@ package rewriting
 
 import ir._
 import ir.ast._
+import opencl.executor.{Compile, Execute, Executor, Utils}
 import opencl.ir._
-import opencl.executor._
-import opencl.ir.pattern._
+import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 import rewriting.utils.NumberExpression
@@ -29,7 +29,7 @@ class TestRewriteStencil {
     val M = 128
     val N = 128
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (input) =>
         //MapGlb(1)(MapGlb(0)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join())) o Slide2D(3,1) o Pad2D(1,1,Pad.Boundary.Clamp) $ input
         Map(Map(ReduceSeq(add, 0.0f) o Join())) o Slide2D(3,1) o Pad2D(1,1,Pad.Boundary.Clamp) $ input
@@ -90,7 +90,7 @@ class TestRewriteStencil {
   def stencil1DTiling(): Unit = {
     val n = 128
     val f = fun(
-      ArrayType(Float, n),
+      ArrayTypeWSWC(Float, n),
       (input) =>
         Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
       )
@@ -119,7 +119,7 @@ class TestRewriteStencil {
   def stencil1DTilingLocalMemory(): Unit = {
     val n = 128
     val f = fun(
-      ArrayType(Float, n),
+      ArrayTypeWSWC(Float, n),
       (input) =>
         Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
       )
@@ -153,7 +153,7 @@ class TestRewriteStencil {
   def stencil1DMacroRule(): Unit = {
     val n = 128
     val f = fun(
-      ArrayType(Float, n),
+      ArrayTypeWSWC(Float, n),
       (input) =>
         Join() o Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
       )

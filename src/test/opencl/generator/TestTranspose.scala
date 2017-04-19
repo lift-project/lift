@@ -1,14 +1,15 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+
 import scala.util.Random
 
 object TestTranspose {
@@ -32,7 +33,7 @@ class TestTranspose {
     val gold = input.map(_.transpose).transpose
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
       input => TransposeW() o MapWrg(TransposeW() o MapLcl(MapSeq(id))) $ input
     )
 
@@ -48,7 +49,7 @@ class TestTranspose {
 
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
       input => MapWrg(TransposeW() o TransposeW() o MapLcl(MapSeq(id))) $ input
     )
 
@@ -81,7 +82,7 @@ class TestTranspose {
   @Test def transposeTwiceAfterPadId(): Unit = {
     val input = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
       input => MapSeq(MapSeq(id)) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) $ input
     )
 
@@ -92,7 +93,7 @@ class TestTranspose {
   @Test def idTranspose(): Unit = {
     val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
       input => MapWrg(
         toGlobal(MapLcl(MapSeq(id))) o
           Transpose() o TransposeW() o
@@ -119,7 +120,7 @@ class TestTranspose {
     val M = SizeVar("M")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         MapGlb(0)(MapGlb(1)(id)) o Split(N) o Gather(transposeFunction(M, N)) o Join() $ matrix
       })
@@ -150,7 +151,7 @@ class TestTranspose {
     val M = SizeVar("M")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         TransposeW() o MapGlb(0)(MapGlb(1)(id)) $ matrix
       })
@@ -184,7 +185,7 @@ class TestTranspose {
     val K = SizeVar("K")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M), N),
       (matrix) => {
         TransposeW() o
           MapGlb(0)(
@@ -226,7 +227,7 @@ class TestTranspose {
     val K = SizeVar("K")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M), N),
       (matrix) => {
           MapGlb(0)(
             TransposeW() o MapGlb(1)(
@@ -290,7 +291,7 @@ class TestTranspose {
     val K = SizeVar("K")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M), N),
       (matrix) => {
 
           MapGlb(0)(
@@ -334,7 +335,7 @@ class TestTranspose {
     val L = SizeVar("L")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, L), K), M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, L), K), M), N),
       (matrix) => {
         MapWrg(0)(
           MapWrg(1)(
@@ -360,7 +361,7 @@ class TestTranspose {
     val gold = Array.fill(Nsize)(util.Random.nextFloat())
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (domain) => MapGlb(id)
         o Join()
         o Transpose() o Transpose()

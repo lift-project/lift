@@ -1,9 +1,9 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import benchmarks.VectorScaling
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -37,8 +37,8 @@ class TestVector {
     val N = SizeVar("N")
 
     val addFun = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (left, right) =>
         Join() o MapWrg(
           Join() o  MapLcl(MapSeq(add)) o Split(4)
@@ -57,7 +57,7 @@ class TestVector {
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_)
 
-    val negFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
+    val negFun = fun(ArrayTypeWSWC(Float, SizeVar("N")), (input) =>
 
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(neg)) o Split(4)
@@ -81,7 +81,7 @@ class TestVector {
     val gold = inputArray.map(-_)
 
     val negFun = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => Join() o MapGlb(
         MapSeq(neg)
       ) o Split(4) $ input
@@ -102,7 +102,7 @@ class TestVector {
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val gold = inputArray.map(-_).reverse
 
-    val negFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
+    val negFun = fun(ArrayTypeWSWC(Float, SizeVar("N")), (input) =>
 
       Join() o MapGlb(
         MapSeq(neg)
@@ -192,7 +192,7 @@ class TestVector {
     val alpha = 2.5f
     val gold = inputArray.map(_ * alpha).sum
 
-    val scalFun = fun( ArrayType(Float, SizeVar("N")), Float, (input, alpha) =>
+    val scalFun = fun( ArrayTypeWSWC(Float, SizeVar("N")), Float, (input, alpha) =>
       Join() o MapWrg(
         Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(
           fun( x => mult(alpha, x) )
@@ -219,7 +219,7 @@ class TestVector {
     val gold = scala.math.sqrt(inputArray.map(x => x*x).sum).toFloat
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(sqrtIt))) o Split(1) o
@@ -250,7 +250,7 @@ class TestVector {
     assertArrayEquals(gold, test, 0.001f)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       input => MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose() $ input
     )
 

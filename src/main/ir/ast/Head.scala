@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import ir.{ArrayType, Type, TypeException, UndefType}
+import ir._
 
 /**
  * Head pattern.
@@ -18,7 +18,7 @@ case class Head() extends Pattern(arity = 1) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(t, _) => ArrayType(t, 1)
+      case ArrayType(t) => ArrayTypeWSWC(t, 1)
 
       case _ => throw new TypeException(argType, "ArrayType")
     }

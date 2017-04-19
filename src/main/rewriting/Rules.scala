@@ -206,7 +206,7 @@ object Rules {
   val asVectorAsScalarId = Rule("splitVec(_) o joinVec() => id", {
     case FunCall(asVector(n), FunCall(asScalar(), arg))
       if (arg.t match {
-        case ArrayType(VectorType(_, m), _) => n == m
+        case ArrayType(VectorType(_, m)) => n == m
         case _ => false
       }) => arg
   })
@@ -710,7 +710,7 @@ object Rules {
          )), mapArg)
       if lambdaParams.head eq arg
     =>
-      val newInit = Value(init.value, ArrayType(init.t, Type.getLength(mapArg.t)))
+      val newInit = Value(init.value, ArrayTypeWSWC(init.t, Type.getLength(mapArg.t)))
 
       val newMapParam = Param()
       val newExpr = innerParams.zipWithIndex.foldLeft(expr)((e, pair) =>
@@ -755,7 +755,7 @@ object Rules {
       )), arg)
         if (p1.head eq a1) && (p2.head eq a2) && init1 == init2
       =>
-        val newInit = Value(init2.value, ArrayType(init2.t, Type.getLength(arg.t)))
+        val newInit = Value(init2.value, ArrayTypeWSWC(init2.t, Type.getLength(arg.t)))
 
         TransposeW() o ReduceSeq(fun((acc, a) =>
           Join() o Map(fun(x =>
@@ -1090,7 +1090,7 @@ object Rules {
         val argSequence = tt.zipWithIndex.map(p => generateCopy(p._1) $ Get(newParam, p._2))
         Lambda(Array(newParam), Tuple(argSequence:_*))
 
-      case ArrayType(elemT, _) =>
+      case ArrayType(elemT) =>
         Map(generateCopy(elemT))
       case _ => generateId(t)
     }
@@ -1102,7 +1102,7 @@ object Rules {
         val newParam = Param()
         val argSequence = tt.zipWithIndex.map(p => Id() $ Get(newParam, p._2))
         Lambda(Array(newParam), Tuple(argSequence:_*))
-      case ArrayType(_, _) =>
+      case ArrayType(_) =>
         Map(Id())
       case ScalarType(_, _) | VectorType(_, _) =>
         UserFun("id" + t, "x", "{ return x; }", t, t)
@@ -1270,7 +1270,7 @@ object Rules {
       if args.forall({
         case FunCall(Map(_), _) => true
         case _ => false
-      }) && args.map(_.t.asInstanceOf[ArrayType].len).distinct.length == 1
+      }) && args.map(_.t.asInstanceOf[ArrayType with Size].size).distinct.length == 1
     =>
       val zipArgs = args.map({
         case FunCall(_, mapArgs) => mapArgs
@@ -1290,7 +1290,7 @@ object Rules {
       if args.forall({
         case FunCall(Map(_), _) => true
         case _ => false
-      }) && args.map(_.t.asInstanceOf[ArrayType].len).distinct.length == 1
+      }) && args.map(_.t.asInstanceOf[ArrayType with Size].size).distinct.length == 1
     =>
 
       val zipArgs = args.map({

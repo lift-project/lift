@@ -1,6 +1,6 @@
 package opencl.generator.stencil
 
-import ir.ArrayType
+import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor._
@@ -32,7 +32,7 @@ class TestStencil3D{
     val applyId = MapGlb(2)(MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(MapSeq(id))))))
     def lambda(f: Lambda) = {
       fun(
-        ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
+        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
         input => applyId o f $ input
       )
     }
@@ -117,7 +117,7 @@ class TestStencil3D{
     def lambda(f: Lambda) = {
       fun(
         //ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
-        ArrayType(ArrayType(ArrayType(Float,34), 34), 34),
+        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,34), 34), 34),
         input => f $ input
       )
     }
@@ -185,7 +185,7 @@ class TestStencil3D{
     def lambda(f: Lambda) = {
       fun(
         //ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
-        ArrayType(ArrayType(ArrayType(Float,34), 34), 34),
+        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,34), 34), 34),
         input => f $ input
       )
     }

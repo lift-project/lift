@@ -3,7 +3,7 @@ package openmp.executor
 import lift.arithmetic.?
 import c.generator.CAst.ParamDecl
 import c.generator.{CAst, CGenerator}
-import ir.{ArrayType, TupleType, Type, TypeChecker}
+import ir._
 import ir.ast.{Lambda, Param}
 import opencl.generator.NDRange
 import opencl.ir._
@@ -207,8 +207,8 @@ object Harness {
     val totalSize = dimensions.map(_.limit).reduce(_ ++ " * " ++ _)
 
     private def arrayDimensions(t:ArrayType, accum:List[CFor]):List[CFor] = t.elemT match {
-      case inner:ArrayType => arrayDimensions(inner, accum ++ List(CFor(t.len.toString)))
-      case _ => accum ++List(CFor(t.len.toString))
+      case inner:ArrayType => arrayDimensions(inner, accum ++ List(CFor(t.asInstanceOf[Size].size.toString)))
+      case _ => accum ++List(CFor(t.asInstanceOf[Size].size.toString))
     }
 
     private def arrayGroundType(t:ArrayType):Type = t.elemT match {

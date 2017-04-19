@@ -1,15 +1,15 @@
 package opencl.generator.matrixMultiplication
 
-import lift.arithmetic.{ArithExpr, SizeVar}
 import ir._
 import ir.ast._
+import lift.arithmetic.{ArithExpr, SizeVar}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object Best {
   @BeforeClass def before(): Unit =
@@ -47,8 +47,8 @@ class Best {
       VectorType(Float, tileSizeN))
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -88,7 +88,7 @@ class Best {
                       )) $ pairOfTiles
                 )
                   , MapSeq(MapSeq(VectorizeUserFun(tileSizeN, id))) $
-                    Value(0.0f, ArrayType(ArrayType(VectorType(Float, tileSizeN), 1), tileSizeM))
+                    Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(VectorType(Float, tileSizeN), 1), tileSizeM))
                 ) $ Zip(aRows, bCols)
 
             )) o Transpose() o Tile(tileSizeK, tileSizeN) $ B
@@ -119,8 +119,8 @@ class Best {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).transpose.flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K), // column-major
-      ArrayType(ArrayType(Float, K), N), // column-major
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K), // column-major
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // column-major
       (A, B) =>
         TransposeW() o // column-major
           Untile2D() o
@@ -138,7 +138,7 @@ class Best {
                   )) $ Zip(pair._0, acc)
                 ),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value("0.0f", ArrayType(ArrayType(Float, tileSizeN), tileSizeM))
+                    $ Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSizeN), tileSizeM))
               ) $ Zip(aTile, bTile)
             )) o Tile(tileSizeN, tileSizeK) $ B
           )) o Tile(tileSizeM, tileSizeK) o Transpose() $ A
@@ -159,8 +159,8 @@ class Best {
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
     val f1 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // this is already transposed
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
@@ -175,8 +175,8 @@ class Best {
     // High-level da55a60496191590d618057cadfe6d18b409f8b76cd31753123701e465a8ea4d
     // Low-level 330f47d76e559e4f466c49cde9d7bd9438b370f8cd032e22f20ee156db54bd9a
     val fd = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // this is already transposed
       (p_924477420, p_640363654) =>
       FunCall(MapGlb(0)(fun((p_317986356) =>
         FunCall(MapGlb(1)(fun((p_331510866) =>
@@ -215,15 +215,15 @@ class Best {
     val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float4), Float4)
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) =>
         Map(Join()) o
           MapGlb(0)(fun(rowA => MapGlb(1)( fun(colsB =>
             toGlobal(MapSeq(VectorizeUserFun(4, id))) o Join() o ReduceSeq(fun((acc, elemRowPair) =>
               MapSeq(fun(partial => VectorizeUserFun(4,add)(Get(partial, 0), Get(partial, 1))))
                 $ Zip(MapSeq(fun(b => mult(Get(elemRowPair, 0), b))) o asVector(vectorLength) $ Get(elemRowPair, 1), acc)
-            ), toPrivate(MapSeq(VectorizeUserFun(4, id))) $ Value("0.0f", ArrayType(VectorType(Float, vectorLength), 1))) $ Zip(rowA, colsB)
+            ), toPrivate(MapSeq(VectorizeUserFun(4, id))) $ Value("0.0f", ArrayTypeWSWC(VectorType(Float, vectorLength), 1))) $ Zip(rowA, colsB)
           )) o Map(Transpose()) o Split(vectorLength) o Transpose() $ B
           )) $ A
     )
@@ -253,8 +253,8 @@ class Best {
 
     // load the tile in local memory once (to avoid reloading the same value twice) and vectorized the summation in the reduction loop
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) => {
         // tile A
         A :>> Tile(tileSize, vectorLength) :>>
@@ -290,7 +290,7 @@ class Best {
                   // perform the vectorized summation
                   Zip(acc, xs) :>> MapSeq(VectorizeUserFun(4, add))
                 ))
-              }), MapSeq(VectorizeUserFun(4, id))(Value(0.0f, ArrayType(VectorType(Float, 4), 1)))
+              }), MapSeq(VectorizeUserFun(4, id))(Value(0.0f, ArrayTypeWSWC(VectorType(Float, 4), 1)))
             ) :>>
             // reshape the data and perform the copy back to global memory using a vector width of 2
             Map(asScalar() >>> asVector(2) >>> Split(1)) :>>
@@ -305,8 +305,8 @@ class Best {
     // High-level 7352181db558ca218caa8723936a115f8e30dd4e69a2686e11d5a0255bf5d8a4
     // Low-level 72ef373f103c33cf9c79741a95fdd9d15d605f757529151844690d685c173c19
     val fd = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) =>
       FunCall(Join(), FunCall(MapGlb(0)(fun((p_1545087375) =>
         FunCall(TransposeW(), FunCall(Join(), FunCall(MapGlb(1)(fun((p_668210649) =>
@@ -325,13 +325,13 @@ class Best {
           )), FunCall(MapSeq(fun((p_824208363) =>
             FunCall(MapSeq(fun((p_500179317) =>
               FunCall(idfloat, p_500179317)
-            )), p_824208363))), Value("0.0f", ArrayType(ArrayType(Float, tileSize), tileSize))), FunCall(Zip(2), FunCall(Split(vectorLength), FunCall(Transpose(), p_1545087375)), FunCall(Split(vectorLength), FunCall(Transpose(), p_668210649))))))))
+            )), p_824208363))), Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize))), FunCall(Zip(2), FunCall(Split(vectorLength), FunCall(Transpose(), p_1545087375)), FunCall(Split(vectorLength), FunCall(Transpose(), p_668210649))))))))
         )), FunCall(Split(tileSize), B))))
       )), FunCall(Split(tileSize), A))))
 
     val fdot = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) =>
       FunCall(Join(), FunCall(MapGlb(0)(fun((p_1545087375) =>
         FunCall(TransposeW(), FunCall(Join(), FunCall(MapGlb(1)(fun((p_668210649) =>
@@ -350,7 +350,7 @@ class Best {
           )), FunCall(MapSeq(fun((p_824208363) =>
             FunCall(MapSeq(fun((p_500179317) =>
               FunCall(idfloat, p_500179317)
-            )), p_824208363))), Value("0.0f", ArrayType(ArrayType(Float, tileSize), tileSize))), FunCall(Zip(2), FunCall(Split(vectorLength), FunCall(Transpose(), p_1545087375)), FunCall(Split(vectorLength), FunCall(Transpose(), p_668210649))))))))
+            )), p_824208363))), Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize))), FunCall(Zip(2), FunCall(Split(vectorLength), FunCall(Transpose(), p_1545087375)), FunCall(Split(vectorLength), FunCall(Transpose(), p_668210649))))))))
         )), FunCall(Split(tileSize), B))))
       )), FunCall(Split(tileSize), A))))
 
@@ -381,9 +381,9 @@ class Best {
         val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
         val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
         fun(
-          ArrayType(ArrayType(Float, v_K_0), v_M_1),
-          ArrayType(ArrayType(Float, v_K_0), v_N_2),
-          ArrayType(ArrayType(Float, v_N_2), v_M_1),
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, v_K_0), v_M_1),
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, v_K_0), v_N_2),
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_M_1),
           Float, Float,
           (p_0, p_1, C, alpha, beta) =>
             FunCall(Join(),
@@ -430,7 +430,7 @@ class Best {
                                         FunCall(Get(0), p_11))))), p_10))),
                                 FunCall(MapSeq(fun((p_18) =>
                                   FunCall(MapSeq(fun((p_19) =>
-                                    FunCall(idfloat, p_19))), p_18))), Value("0.0f", ArrayType(ArrayType(Float, v__3), v__4))),
+                                    FunCall(idfloat, p_19))), p_18))), Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, v__3), v__4))),
                                 FunCall(Zip(2),
                                   FunCall(Split(v__5),
                                     FunCall(Transpose(), p_2._0)),
@@ -476,7 +476,7 @@ class Best {
       val v__6 = variables(6)
       val v__7 = variables(7)
 
-      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1),(p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(MapLcl(1)(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(MapSeq(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(MapLcl(1)(fun((p_17) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => p_19)), FunCall(ReduceSeq(fun((p_20, p_21) => FunCall(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(MapSeq(fun((p_24) => FunCall(add, FunCall(Get(0), p_24), FunCall(mult, FunCall(Get(1), p_23), FunCall(Get(1), p_24))))), FunCall(Zip(2), FunCall(Get(0), p_23), FunCall(Get(1), p_22))))), FunCall(Zip(2), p_20, FunCall(Get(0), p_22)))), FunCall(toLocal(fun((p_25) => FunCall(fun((p_26) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_27) => FunCall(id, p_27))), FunCall(Get(0), p_26)), FunCall(MapSeq(fun((p_28) => FunCall(id, p_28))), FunCall(Get(1), p_26)))), p_25))), FunCall(toPrivate(fun((p_29) => FunCall(fun((p_30) => FunCall(Tuple(2), FunCall(Get(0), p_30), FunCall(MapSeq(fun((p_31) => FunCall(id, p_31))), FunCall(Get(1), p_30)))), p_29))), p_21))))), FunCall(Get(0), p_18), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_17)), FunCall(Transpose(), FunCall(Get(1), p_18))))))), FunCall(Zip(2), FunCall(Get(0), p_17), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride(v__3 / v__4)), FunCall(Transpose(), FunCall(Get(1), p_16))))))))), FunCall(Zip(2), p_14, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_16)))))), p_15))), FunCall(MapLcl(1)(fun((p_32) => FunCall(MapLcl(0)(fun((p_33) => FunCall(MapSeq(fun((p_34) => FunCall(MapSeq(fun((p_35) => FunCall(id, p_35))), p_34))), p_33))), p_32))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_36) => FunCall(Transpose(), p_36))), FunCall(Split(v__7), FunCall(Map(fun((p_37) => FunCall(Split(v__3), p_37))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__7), FunCall(Map(fun((p_39) => FunCall(Split(v__6), p_39))), p_0)))))))
+      fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1), ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),(p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(MapLcl(1)(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(MapSeq(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(id, p_13))), p_12))), p_11))), p_10))), p_9))), p_8))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(MapLcl(1)(fun((p_17) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => p_19)), FunCall(ReduceSeq(fun((p_20, p_21) => FunCall(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(MapSeq(fun((p_24) => FunCall(add, FunCall(Get(0), p_24), FunCall(mult, FunCall(Get(1), p_23), FunCall(Get(1), p_24))))), FunCall(Zip(2), FunCall(Get(0), p_23), FunCall(Get(1), p_22))))), FunCall(Zip(2), p_20, FunCall(Get(0), p_22)))), FunCall(toLocal(fun((p_25) => FunCall(fun((p_26) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_27) => FunCall(id, p_27))), FunCall(Get(0), p_26)), FunCall(MapSeq(fun((p_28) => FunCall(id, p_28))), FunCall(Get(1), p_26)))), p_25))), FunCall(toPrivate(fun((p_29) => FunCall(fun((p_30) => FunCall(Tuple(2), FunCall(Get(0), p_30), FunCall(MapSeq(fun((p_31) => FunCall(id, p_31))), FunCall(Get(1), p_30)))), p_29))), p_21))))), FunCall(Get(0), p_18), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_17)), FunCall(Transpose(), FunCall(Get(1), p_18))))))), FunCall(Zip(2), FunCall(Get(0), p_17), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride(v__3 / v__4)), FunCall(Transpose(), FunCall(Get(1), p_16))))))))), FunCall(Zip(2), p_14, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_16)))))), p_15))), FunCall(MapLcl(1)(fun((p_32) => FunCall(MapLcl(0)(fun((p_33) => FunCall(MapSeq(fun((p_34) => FunCall(MapSeq(fun((p_35) => FunCall(id, p_35))), p_34))), p_33))), p_32))), Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_36) => FunCall(Transpose(), p_36))), FunCall(Split(v__7), FunCall(Map(fun((p_37) => FunCall(Split(v__3), p_37))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__7), FunCall(Map(fun((p_39) => FunCall(Split(v__6), p_39))), p_0)))))))
     }
 
     val v_M_0 = SizeVar("M")
@@ -512,9 +512,9 @@ class Best {
       val v__7 = variables(7)
 
       fun(
-        ArrayType(ArrayType(Float, v_M_0), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_M_0),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_M_0),
         Float,
         Float,
         (p_0, p_1, C,alpha,beta) =>
@@ -609,7 +609,7 @@ class Best {
                                     FunCall(MapSeq(fun((p_34) =>
                                       FunCall(MapSeq(fun((p_35) =>
                                         FunCall(id, p_35))), p_34))), p_33))), p_32))),
-                                  Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3*1/^v__4), v__6*1/^v__5))),
+                                  Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, v__4), v__5), v__3*1/^v__4), v__6*1/^v__5))),
                                 FunCall(Zip(2), Get(p_2, 0), Get(p_3, 0)))))))))),
                     Zip(FunCall(Transpose(),
                       FunCall(Map(fun((p_36) =>
@@ -663,7 +663,7 @@ class Best {
       val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
       val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
       val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
-      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1),(p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_5) => FunCall(TransposeW(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), p_6))), FunCall(TransposeW(), p_5))))), FunCall(TransposeW(), p_4)))))), FunCall(TransposeW(), FunCall(MapSeq(fun((p_7) => FunCall(toGlobal(fun((p_8) => FunCall(MapLcl(1)(fun((p_9) => FunCall(MapLcl(0)(fun((p_10) => FunCall(MapSeq(fun((p_11) => FunCall(asScalar(), FunCall(MapSeq(fun((p_12) => FunCall(VectorizeUserFun(4,idfloat), p_12))), FunCall(asVector(4), p_11))))), p_10))), p_9))), p_8))), p_7))), FunCall(ReduceSeq(fun((p_13, p_14) => FunCall(fun((p_15) => FunCall(MapLcl(1)(fun((p_16) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_17) => FunCall(MapSeq(fun((p_18) => p_18)), FunCall(ReduceSeq(fun((p_19, p_20) => FunCall(fun((p_21) => FunCall(MapSeq(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(add, FunCall(Get(0), p_23), FunCall(mult, FunCall(Get(1), p_22), FunCall(Get(1), p_23))))), FunCall(Zip(2), FunCall(Get(0), p_22), FunCall(Get(1), p_21))))), FunCall(Zip(2), p_19, FunCall(Get(0), p_21)))), FunCall(toPrivate(fun((p_24) => FunCall(fun((p_25) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_26) => FunCall(idfloat, p_26))), FunCall(Get(0), p_25)), FunCall(MapSeq(fun((p_27) => FunCall(idfloat, p_27))), FunCall(Get(1), p_25)))), p_24))), p_20)))), FunCall(Get(0), p_17), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_16)), FunCall(Transpose(), FunCall(Get(1), p_17))))))), FunCall(Zip(2), FunCall(Get(0), p_16), FunCall(Split(v__3), FunCall(Transpose(), FunCall(Get(1), p_15)))))))), FunCall(Zip(2), p_13, FunCall(Split(v__4), FunCall(Transpose(), FunCall(Get(0), p_15)))))), FunCall(toLocal(fun((p_28) => FunCall(fun((p_29) => FunCall(Tuple(2), FunCall(Split(v__5), FunCall(Join(), FunCall(MapLcl(1)(fun((p_30) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_31) => FunCall(VectorizeUserFun(4,idfloat), p_31))), FunCall(asVector(4), p_30))))), FunCall(Split(v__6), FunCall(Join(), FunCall(Get(0), p_29)))))), FunCall(MapLcl(1)(fun((p_32) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_33) => FunCall(VectorizeUserFun(4,idfloat), p_33))), FunCall(asVector(4), p_32))))), FunCall(Get(1), p_29)))), p_28))), p_14)))), FunCall(MapLcl(1)(fun((p_34) => FunCall(MapLcl(0)(fun((p_35) => FunCall(MapSeq(fun((p_36) => FunCall(MapSeq(fun((p_37) => FunCall(idfloat, p_37))), p_36))), p_35))), p_34))), Value("0.0f", ArrayType(ArrayType(ArrayType(ArrayType(Float, v__3), v__4), v__7 * 1 /^ v__3), v__5 * 1 /^ v__4))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__8), FunCall(Map(fun((p_39) => FunCall(Split(v__7), p_39))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_40) => FunCall(Transpose(), p_40))), FunCall(Split(v__8), FunCall(Map(fun((p_41) => FunCall(Split(v__5), p_41))), p_0)))))))
+      fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1), ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),(p_0, p_1) => FunCall(Join(), FunCall(MapWrg(1)(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_5) => FunCall(TransposeW(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), p_6))), FunCall(TransposeW(), p_5))))), FunCall(TransposeW(), p_4)))))), FunCall(TransposeW(), FunCall(MapSeq(fun((p_7) => FunCall(toGlobal(fun((p_8) => FunCall(MapLcl(1)(fun((p_9) => FunCall(MapLcl(0)(fun((p_10) => FunCall(MapSeq(fun((p_11) => FunCall(asScalar(), FunCall(MapSeq(fun((p_12) => FunCall(VectorizeUserFun(4,idfloat), p_12))), FunCall(asVector(4), p_11))))), p_10))), p_9))), p_8))), p_7))), FunCall(ReduceSeq(fun((p_13, p_14) => FunCall(fun((p_15) => FunCall(MapLcl(1)(fun((p_16) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_17) => FunCall(MapSeq(fun((p_18) => p_18)), FunCall(ReduceSeq(fun((p_19, p_20) => FunCall(fun((p_21) => FunCall(MapSeq(fun((p_22) => FunCall(MapSeq(fun((p_23) => FunCall(add, FunCall(Get(0), p_23), FunCall(mult, FunCall(Get(1), p_22), FunCall(Get(1), p_23))))), FunCall(Zip(2), FunCall(Get(0), p_22), FunCall(Get(1), p_21))))), FunCall(Zip(2), p_19, FunCall(Get(0), p_21)))), FunCall(toPrivate(fun((p_24) => FunCall(fun((p_25) => FunCall(Tuple(2), FunCall(MapSeq(fun((p_26) => FunCall(idfloat, p_26))), FunCall(Get(0), p_25)), FunCall(MapSeq(fun((p_27) => FunCall(idfloat, p_27))), FunCall(Get(1), p_25)))), p_24))), p_20)))), FunCall(Get(0), p_17), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_16)), FunCall(Transpose(), FunCall(Get(1), p_17))))))), FunCall(Zip(2), FunCall(Get(0), p_16), FunCall(Split(v__3), FunCall(Transpose(), FunCall(Get(1), p_15)))))))), FunCall(Zip(2), p_13, FunCall(Split(v__4), FunCall(Transpose(), FunCall(Get(0), p_15)))))), FunCall(toLocal(fun((p_28) => FunCall(fun((p_29) => FunCall(Tuple(2), FunCall(Split(v__5), FunCall(Join(), FunCall(MapLcl(1)(fun((p_30) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_31) => FunCall(VectorizeUserFun(4,idfloat), p_31))), FunCall(asVector(4), p_30))))), FunCall(Split(v__6), FunCall(Join(), FunCall(Get(0), p_29)))))), FunCall(MapLcl(1)(fun((p_32) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_33) => FunCall(VectorizeUserFun(4,idfloat), p_33))), FunCall(asVector(4), p_32))))), FunCall(Get(1), p_29)))), p_28))), p_14)))), FunCall(MapLcl(1)(fun((p_34) => FunCall(MapLcl(0)(fun((p_35) => FunCall(MapSeq(fun((p_36) => FunCall(MapSeq(fun((p_37) => FunCall(idfloat, p_37))), p_36))), p_35))), p_34))), Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, v__3), v__4), v__7 * 1 /^ v__3), v__5 * 1 /^ v__4))), FunCall(Zip(2), p_2, p_3))))))))), FunCall(Transpose(), FunCall(Map(fun((p_38) => FunCall(Transpose(), p_38))), FunCall(Split(v__8), FunCall(Map(fun((p_39) => FunCall(Split(v__7), p_39))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_40) => FunCall(Transpose(), p_40))), FunCall(Split(v__8), FunCall(Map(fun((p_41) => FunCall(Split(v__5), p_41))), p_0)))))))
     }
 
     val v_M_0 = SizeVar("M")
@@ -698,7 +698,7 @@ class Best {
       val v__6 = variables(6)
       val v__7 = variables(7)
 
-      fun(ArrayType(ArrayType(Float, v_M_0), v_K_1), ArrayType(ArrayType(Float, v_N_2), v_K_1), (p_0, p_1) =>
+      fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1), ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1), (p_0, p_1) =>
         FunCall(Join(),
           FunCall(MapWrg(1)(fun((p_2) =>
             FunCall(TransposeW(),
@@ -788,7 +788,7 @@ class Best {
                                 FunCall(MapLcl(0)(fun((p_35) =>
                                   FunCall(MapSeq(fun((p_36) =>
                                     FunCall(MapSeq(fun((p_37) =>
-                                      FunCall(id, p_37))), p_36))), p_35))), p_34))), Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))),
+                                      FunCall(id, p_37))), p_36))), p_35))), p_34))), Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))),
                               FunCall(Zip(2), p_2, p_3))))))))),
                   FunCall(Transpose(),
                     FunCall(Map(fun((p_38) =>
@@ -837,9 +837,9 @@ class Best {
       val v__7 = variables(7)
 
       fun(
-        ArrayType(ArrayType(Float, v_M_0), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_M_0),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_M_0),
         Float,
         Float,
         (p_0, p_1, C,alpha,beta) =>
@@ -940,7 +940,7 @@ class Best {
                                     FunCall(MapSeq(fun((p_36) =>
                                       FunCall(MapSeq(fun((p_37) =>
                                         FunCall(id, p_37))), p_36))), p_35))), p_34))),
-                                  Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))),
+                                  Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, v__4), v__5), v__3 * 1 /^ v__4), v__6 * 1 /^ v__5))),
                                 FunCall(Zip(2), Get(p_2, 0), Get(p_3, 0)))))))))),
                     Zip(FunCall(Transpose(),
                       FunCall(Map(fun((p_38) =>
